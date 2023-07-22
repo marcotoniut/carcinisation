@@ -1,4 +1,7 @@
-use crate::{enemy::components::*, events::GameOver, score::components::*, star::components::*};
+use crate::{
+    events::GameOver, game::enemy::components::*, game::score::components::*,
+    game::star::components::*,
+};
 
 use super::components::*;
 
