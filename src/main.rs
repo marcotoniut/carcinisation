@@ -5,6 +5,7 @@ mod systems;
 
 use bevy::prelude::*;
 use game::GamePlugin;
+use main_menu::MainMenuPlugin;
 use systems::*;
 
 fn main() {
@@ -19,6 +20,7 @@ fn main() {
         }))
         .add_state::<AppState>()
         .add_plugins(GamePlugin)
+        .add_plugins(MainMenuPlugin)
         .add_systems(Startup, spawn_camera)
         .add_systems(Update, exit_game)
         .add_systems(Update, handle_game_over)
