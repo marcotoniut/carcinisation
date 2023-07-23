@@ -6,6 +6,27 @@ use bevy::{
     window::PrimaryWindow,
 };
 
+fn make_enemy_bundle(window: &Window, texture: Handle<Image>) -> (SpriteBundle, Enemy) {
+    return (
+        SpriteBundle {
+            texture,
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
+                ..default()
+            },
+            transform: Transform::from_xyz(
+                rand::random::<f32>() * window.width(),
+                rand::random::<f32>() * window.height(),
+                0.0,
+            ),
+            ..default()
+        },
+        Enemy {
+            direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
+        },
+    );
+}
+
 pub fn spawn_enemies(
     mut commands: Commands,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -16,20 +37,7 @@ pub fn spawn_enemies(
     let texture = asset_server.load("sprites/ball_red_large.png");
 
     for _ in 0..NUMBER_OF_ENEMIES {
-        commands.spawn((
-            SpriteBundle {
-                texture: texture.clone(),
-                transform: Transform::from_xyz(
-                    rand::random::<f32>() * window.width(),
-                    rand::random::<f32>() * window.height(),
-                    0.0,
-                ),
-                ..default()
-            },
-            Enemy {
-                direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
-            },
-        ));
+        commands.spawn(make_enemy_bundle(window, texture.clone()));
     }
 }
 
@@ -138,22 +146,7 @@ pub fn spawn_enemies_over_time(
 ) {
     if enemy_spawn_timer.timer.finished() {
         let window: &Window = window_query.get_single().unwrap();
-
         let texture = asset_server.load("sprites/ball_red_large.png");
-
-        commands.spawn((
-            SpriteBundle {
-                texture,
-                transform: Transform::from_xyz(
-                    rand::random::<f32>() * window.width(),
-                    rand::random::<f32>() * window.height(),
-                    0.0,
-                ),
-                ..default()
-            },
-            Enemy {
-                direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
-            },
-        ));
+        commands.spawn(make_enemy_bundle(window, texture.clone()));
     }
 }

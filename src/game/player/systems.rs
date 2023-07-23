@@ -25,6 +25,10 @@ pub fn spawn_player(
     commands.spawn((
         SpriteBundle {
             texture,
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(PLAYER_SIZE, PLAYER_SIZE)),
+                ..default()
+            },
             transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
             ..default()
         },
