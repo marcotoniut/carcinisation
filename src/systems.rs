@@ -1,6 +1,6 @@
 use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
 
-use crate::events::*;
+use crate::{events::*, AppState};
 
 pub fn exit_game(keyboard_input: Res<Input<KeyCode>>, mut exit: ResMut<Events<AppExit>>) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
@@ -20,4 +20,31 @@ pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
         transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 10.0),
         ..default()
     });
+}
+
+pub fn transition_to_game_state(
+    keyboard_input: Res<Input<KeyCode>>,
+    app_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::G) {
+        if app_state.get().to_owned() != AppState::Game {
+            next_state.set(AppState::Game);
+            println!("Entered AppState::Game");
+        }
+    }
+}
+
+pub fn transition_to_main_menu_state(
+    keyboard_input: Res<Input<KeyCode>>,
+    app_state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::M) {
+        if app_state.get().to_owned() != AppState::MainMenu {
+            // commands.insert_resource(NextState(Some(AppState::MainMenu)));
+            next_state.set(AppState::MainMenu);
+            println!("Entered AppState::MainMenu");
+        }
+    }
 }

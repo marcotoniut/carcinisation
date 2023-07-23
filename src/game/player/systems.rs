@@ -32,6 +32,12 @@ pub fn spawn_player(
     ));
 }
 
+pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>) {
+    for entity in &mut query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
 pub fn confine_player_movement(
     mut player_query: Query<&mut Transform, With<Player>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
