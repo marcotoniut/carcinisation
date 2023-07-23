@@ -75,6 +75,7 @@ pub fn build_main_menu(commands: &mut Commands, asset_server: &Res<AssetServer>)
                         ..default()
                     });
                 });
+
             parent
                 .spawn((
                     ButtonBundle {
@@ -82,7 +83,7 @@ pub fn build_main_menu(commands: &mut Commands, asset_server: &Res<AssetServer>)
                         background_color: NORMAL_BUTTON_COLOR.into(),
                         ..default()
                     },
-                    PlayButton,
+                    QuitButton,
                 ))
                 .with_children(|parent| {
                     parent.spawn(TextBundle {
