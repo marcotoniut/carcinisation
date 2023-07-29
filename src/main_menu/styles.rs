@@ -48,7 +48,7 @@ pub fn get_title_image_style() -> Style {
     Style {
         width: Val::Px(64.0),
         height: Val::Px(64.0),
-        margin: UiRect::new(Val::Px(8.0), Val::Px(8.0), Val::Px(8.0), Val::Px(8.0)),
+        margin: UiRect::all(Val::Px(8.0)),
         ..default()
     }
 }

@@ -12,3 +12,6 @@ bevy = { git = "https://github.com/Selene-Amanita/bevy.git", branch = "allow-unf
 rand = "0.8.4"
 cocoa = "0.25.0"
 objc = "0.2.6"
+
+[package.scripts]
+dev = "cargo watch -x 'run --features bevy/dynamic_linking'"

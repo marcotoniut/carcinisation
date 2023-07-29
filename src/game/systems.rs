@@ -10,7 +10,7 @@ pub fn resume_simulation(mut game_state_next_state: ResMut<NextState<GameState>>
     game_state_next_state.set(GameState::Running);
 }
 
-pub fn toggle_simulation(
+pub fn toggle_game(
     keyboard_input: Res<Input<KeyCode>>,
     state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
