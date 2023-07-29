@@ -1,15 +1,10 @@
-use crate::{
-    events::GameOver, game::enemy::components::*, game::score::components::*,
-    game::star::components::*,
-};
+use bevy::{audio::*, prelude::*, window::*};
 
+use super::super::enemy::components::*;
+use super::super::score::components::*;
+use super::super::star::components::*;
 use super::components::*;
-
-use bevy::{
-    audio::{self},
-    prelude::*,
-    window::PrimaryWindow,
-};
+use crate::events::*;
 
 pub fn spawn_player(
     mut commands: Commands,
@@ -123,8 +118,8 @@ pub fn player_hit_star(
                 let sound_effect = asset_server.load("audio/laserSmall_000.ogg");
                 commands.spawn(AudioBundle {
                     source: sound_effect,
-                    settings: audio::PlaybackSettings {
-                        volume: audio::Volume::new_relative(0.02),
+                    settings: PlaybackSettings {
+                        volume: Volume::new_relative(0.02),
                         ..default()
                     },
                     ..default()
@@ -154,8 +149,8 @@ pub fn enemy_hit_player(
                 let sound_effect = asset_server.load("audio/explosionCrunch_000.ogg");
                 commands.spawn(AudioBundle {
                     source: sound_effect,
-                    settings: audio::PlaybackSettings {
-                        volume: audio::Volume::new_relative(0.02),
+                    settings: PlaybackSettings {
+                        volume: Volume::new_relative(0.02),
                         ..default()
                     },
                     ..default()

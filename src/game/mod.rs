@@ -1,19 +1,17 @@
-use bevy::prelude::*;
-
-// TODO should come from this module?
-use crate::{events::GameOver, AppState};
-
-use self::{
-    enemy::EnemyPlugin, player::PlayerPlugin, score::ScorePlugin, star::StarPlugin, systems::*,
-    ui::hud::HudPlugin,
-};
-
 pub mod enemy;
 pub mod player;
 pub mod score;
 pub mod star;
 pub mod systems;
 pub mod ui;
+
+use bevy::prelude::*;
+
+use self::{
+    enemy::EnemyPlugin, player::PlayerPlugin, score::ScorePlugin, star::StarPlugin, systems::*,
+    ui::hud::HudPlugin,
+};
+use crate::{events::*, AppState};
 
 pub struct GamePlugin;
 

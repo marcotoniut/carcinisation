@@ -1,12 +1,9 @@
-use bevy::prelude::*;
-
-use crate::AppState;
+pub mod components;
+pub mod systems;
 
 use self::{components::*, systems::*};
-
-pub mod components;
-pub mod resources;
-pub mod systems;
+use crate::AppState;
+use bevy::prelude::*;
 
 pub struct ScorePlugin;
 

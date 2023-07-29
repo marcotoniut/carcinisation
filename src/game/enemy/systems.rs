@@ -1,10 +1,6 @@
-use super::{components::*, resources::*};
+use bevy::{audio::*, prelude::*, window::PrimaryWindow};
 
-use bevy::{
-    audio::{self},
-    prelude::*,
-    window::PrimaryWindow,
-};
+use super::{components::*, resources::*};
 
 fn make_enemy_bundle(window: &Window, texture: Handle<Image>) -> (SpriteBundle, Enemy) {
     return (
@@ -93,8 +89,8 @@ pub fn update_enemy_direction(
             };
             commands.spawn(AudioBundle {
                 source: sound_effect,
-                settings: audio::PlaybackSettings {
-                    volume: audio::Volume::new_relative(0.02),
+                settings: PlaybackSettings {
+                    volume: Volume::new_relative(0.02),
                     ..default()
                 },
                 ..default()

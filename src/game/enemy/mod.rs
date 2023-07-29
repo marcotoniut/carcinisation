@@ -1,14 +1,12 @@
-use bevy::prelude::*;
-
-use crate::AppState;
-
-use self::{resources::*, systems::*};
-
-use super::GameState;
-
 pub mod components;
 pub mod resources;
 pub mod systems;
+
+use bevy::prelude::*;
+
+use self::{resources::*, systems::*};
+use super::GameState;
+use crate::AppState;
 
 pub struct EnemyPlugin;
 

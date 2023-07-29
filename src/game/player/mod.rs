@@ -1,14 +1,11 @@
+pub mod components;
+pub mod systems;
+
 use bevy::prelude::*;
 
-use crate::AppState;
-
 use self::systems::*;
-
 use super::GameState;
-
-pub mod components;
-pub mod resources;
-pub mod systems;
+use crate::AppState;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MovementSystemSet;

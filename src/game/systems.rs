@@ -18,10 +18,10 @@ pub fn toggle_game(
     if keyboard_input.just_pressed(KeyCode::Space) {
         if state.get().to_owned() == GameState::Running {
             next_state.set(GameState::Paused);
-            println!("Simulation Paused.");
+            println!("Game Paused.");
         } else {
             next_state.set(GameState::Running);
-            println!("Simulation Running.");
+            println!("Game Running.");
         }
     }
 }

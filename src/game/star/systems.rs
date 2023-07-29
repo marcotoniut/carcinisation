@@ -1,6 +1,6 @@
-use super::{components::*, resources::*};
-
 use bevy::{prelude::*, window::PrimaryWindow};
+
+use super::{components::*, resources::*};
 
 pub fn spawn_stars(
     mut commands: Commands,

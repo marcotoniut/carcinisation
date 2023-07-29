@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::{enemy::components::Enemy, score::components::*, ui::hud::components::*};
+use crate::game::{enemy::components::*, score::components::*, ui::hud::components::*};
 
 pub fn update_enemy_text(
     mut text_query: Query<&mut Text, With<EnemyText>>,

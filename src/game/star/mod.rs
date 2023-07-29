@@ -1,14 +1,11 @@
-use bevy::prelude::*;
-
-use crate::AppState;
-
-use self::{resources::*, systems::*};
-
-use super::GameState;
-
 pub mod components;
 pub mod resources;
 pub mod systems;
+
+use self::{resources::*, systems::*};
+use super::GameState;
+use crate::AppState;
+use bevy::prelude::*;
 
 pub struct StarPlugin;
 

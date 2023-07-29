@@ -1,8 +1,8 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
 
-use crate::main_menu::components::*;
-use crate::main_menu::styles::*;
+use super::super::components::*;
+use super::super::styles::*;
 use crate::AppState;
 
 pub fn interact_with_play_button(
