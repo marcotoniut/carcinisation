@@ -9,7 +9,7 @@ use bevy::prelude::*;
 
 use self::{
     enemy::EnemyPlugin, player::PlayerPlugin, score::ScorePlugin, star::StarPlugin, systems::*,
-    ui::hud::HudPlugin,
+    ui::GameUiPlugin,
 };
 use crate::{events::*, AppState};
 
@@ -19,14 +19,14 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             .add_event::<GameOver>()
-            .add_systems(OnEnter(AppState::Game), pause_simulation)
+            .add_systems(OnEnter(AppState::Game), pause_game)
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
             .add_plugins(StarPlugin)
-            .add_plugins(HudPlugin)
+            .add_plugins(GameUiPlugin)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
-            .add_systems(OnEnter(AppState::Game), resume_simulation);
+            .add_systems(OnEnter(AppState::Game), resume_game);
     }
 }
 

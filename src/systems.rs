@@ -2,7 +2,7 @@ use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
 
 use crate::{events::*, AppState};
 
-pub fn exit_game(keyboard_input: Res<Input<KeyCode>>, mut exit: ResMut<Events<AppExit>>) {
+pub fn input_exit_game(keyboard_input: Res<Input<KeyCode>>, mut exit: ResMut<Events<AppExit>>) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
         exit.send(AppExit);
     }

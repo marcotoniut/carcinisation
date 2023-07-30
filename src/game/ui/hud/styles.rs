@@ -4,6 +4,7 @@ pub const HUD_ELEMENT_BACKGROUND_COLOR: Color = Color::rgba(0.0, 0.0, 0.0, 0.3);
 
 pub fn get_hud_style() -> Style {
     Style {
+        position_type: PositionType::Absolute,
         justify_content: JustifyContent::SpaceBetween,
         padding: UiRect::all(Val::Px(8.0)),
         width: Val::Percent(100.0),

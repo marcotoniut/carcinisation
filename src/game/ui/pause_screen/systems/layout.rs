@@ -6,7 +6,7 @@ pub fn spawn_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
     build_screen(&mut commands, &asset_server);
 }
 
-pub fn despawn_screen(mut commands: Commands, query: Query<Entity, With<MainMenu>>) {
+pub fn despawn_screen(mut commands: Commands, query: Query<Entity, With<PauseScreen>>) {
     if let Ok(main_menu_entity) = query.get_single() {
         commands.entity(main_menu_entity).despawn_recursive();
     }
@@ -16,39 +16,27 @@ pub fn build_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) ->
     let main_menu_entity = commands
         .spawn((
             NodeBundle {
-                style: get_main_menu_style(),
-                background_color: Color::YELLOW_GREEN.into(),
+                style: get_screen_style(),
+                background_color: Color::rgba(0.0, 0.0, 0.0, 0.4).into(),
                 ..default()
             },
-            MainMenu {},
+            PauseScreen {},
         ))
         .with_children(|parent| {
             parent
                 .spawn(NodeBundle {
-                    style: get_title_style(),
+                    style: get_score_style(),
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn(ImageBundle {
-                        style: get_title_image_style(),
-                        image: asset_server.load("sprites/ball_blue_large.png").into(),
-                        ..default()
-                    });
-
                     parent.spawn(TextBundle {
                         text: Text {
                             sections: vec![TextSection::new(
-                                "Bevy Ball Game",
-                                get_title_text_style(asset_server),
+                                "Score",
+                                get_score_text_style(asset_server),
                             )],
                             ..default()
                         },
-                        ..default()
-                    });
-
-                    parent.spawn(ImageBundle {
-                        style: get_title_image_style(),
-                        image: asset_server.load("sprites/ball_red_large.png").into(),
                         ..default()
                     });
                 });
@@ -60,13 +48,36 @@ pub fn build_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) ->
                         background_color: NORMAL_BUTTON_COLOR.into(),
                         ..default()
                     },
-                    PlayButton,
+                    ResumeButton,
                 ))
                 .with_children(|parent| {
                     parent.spawn(TextBundle {
                         text: Text {
                             sections: vec![TextSection::new(
                                 "Play",
+                                get_button_text_style(&asset_server),
+                            )],
+                            alignment: TextAlignment::Center,
+                            ..default()
+                        },
+                        ..default()
+                    });
+                });
+
+            parent
+                .spawn((
+                    ButtonBundle {
+                        style: get_button_style(),
+                        background_color: NORMAL_BUTTON_COLOR.into(),
+                        ..default()
+                    },
+                    QuitToMainMenuButton,
+                ))
+                .with_children(|parent| {
+                    parent.spawn(TextBundle {
+                        text: Text {
+                            sections: vec![TextSection::new(
+                                "Quit to main menu",
                                 get_button_text_style(&asset_server),
                             )],
                             alignment: TextAlignment::Center,

@@ -22,7 +22,7 @@ fn main() {
         .add_plugins(GamePlugin)
         .add_plugins(MainMenuPlugin)
         .add_systems(Startup, spawn_camera)
-        .add_systems(Update, exit_game)
+        .add_systems(Update, input_exit_game)
         .add_systems(Update, handle_game_over)
         .add_systems(
             Update,
