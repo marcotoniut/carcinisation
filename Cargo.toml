@@ -14,7 +14,3 @@ cocoa = "0.25.0"
 objc = "0.2.6"
 rand = "0.8.4"
 seldom_pixel = { git = "https://github.com/Seldom-SE/seldom_pixel" }
-
-[package.scripts]
-dev = "cargo watch -x 'run --features bevy/dynamic_linking'"
-quantize-sprites = "cd scripts/quantize-sprites; cargo run"
