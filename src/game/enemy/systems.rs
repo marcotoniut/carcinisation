@@ -1,20 +1,33 @@
 use bevy::{audio::*, prelude::*, window::PrimaryWindow};
+use seldom_pixel::{asset::*, prelude::*, sprite::*};
+
+use crate::Layer;
 
 use super::{components::*, resources::*};
 
-fn make_enemy_bundle(window: &Window, texture: Handle<Image>) -> (SpriteBundle, Enemy) {
+fn make_enemy_bundle(
+    window: &Window,
+    texture: Handle<PxAsset<PxSpriteData>>,
+) -> (PxSpriteBundle<Layer>, Enemy) {
     return (
-        SpriteBundle {
-            texture,
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
-                ..default()
-            },
-            transform: Transform::from_xyz(
-                rand::random::<f32>() * window.width(),
-                rand::random::<f32>() * window.height(),
-                0.0,
-            ),
+        PxSpriteBundle::<Layer> {
+            sprite: texture.clone(),
+
+            position: PxPosition(IVec2::splat(
+                // rand::random::<i32>() % window.width() as i32,
+                // rand::random::<i32>() % window.height() as i32,
+                8,
+            )),
+
+            // sprite: Sprite {
+            //     custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
+            //     ..default()
+            // },
+            // transform: Transform::from_xyz(
+            //     rand::random::<f32>() * window.width(),
+            //     rand::random::<f32>() * window.height(),
+            //     0.0,
+            // ),
             ..default()
         },
         Enemy {
@@ -30,7 +43,8 @@ pub fn spawn_enemies(
 ) {
     let window: &Window = window_query.get_single().unwrap();
 
-    let texture = asset_server.load("sprites/ball_red_large.png");
+    // let texture = asset_server.load("sprites/ball_red_large.png");
+    let texture = asset_server.load("sprites/mage.png");
 
     for _ in 0..NUMBER_OF_ENEMIES {
         commands.spawn(make_enemy_bundle(window, texture.clone()));

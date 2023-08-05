@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::assets::*;
+
 pub const HUD_ELEMENT_BACKGROUND_COLOR: Color = Color::rgba(0.0, 0.0, 0.0, 0.3);
 
 pub fn get_hud_style() -> Style {
@@ -30,7 +32,7 @@ pub fn get_hud_element_text_style(asset_server: &Res<AssetServer>) -> TextStyle 
     TextStyle {
         font_size: 48.0,
         color: Color::WHITE,
-        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        font: asset_server.load(FONT_PATH),
         ..default()
     }
 }

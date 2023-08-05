@@ -1,0 +1,15 @@
+[package]
+name = "quantize-sprites"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = "0.24.6"
+palette = "0.7.2"
+walkdir = "2.3.2"
+rand = "0.8.4"
+
+[dependencies.rand_mt]
+version = "4"
+default-features = false
+features = ["rand-traits"]

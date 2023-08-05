@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::assets::*;
+
 pub const NORMAL_BUTTON_COLOR: Color = Color::rgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON_COLOR: Color = Color::rgb(0.25, 0.25, 0.25);
 pub const PRESSED_BUTTON_COLOR: Color = Color::rgb(0.35, 0.35, 0.35);
@@ -28,12 +30,6 @@ pub fn get_title_style() -> Style {
     }
 }
 
-// pub const BUTTON_STYLE: Style = Style {
-//     width: Val::Px(200.0),
-//     height: Val::Px(80.0),
-//     ..Style::DEFAULT
-// };
-
 // https://github.com/bevyengine/bevy/issues/9095
 pub fn get_button_style() -> Style {
     Style {
@@ -58,7 +54,7 @@ pub fn get_title_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
     TextStyle {
         font_size: 64.0,
         color: Color::WHITE,
-        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        font: asset_server.load(FONT_PATH),
         ..default()
     }
 }
@@ -67,7 +63,7 @@ pub fn get_button_text_style(asset_server: &Res<AssetServer>) -> TextStyle {
     TextStyle {
         font_size: 40.0,
         color: Color::WHITE,
-        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+        font: asset_server.load(FONT_PATH),
         ..default()
     }
 }
