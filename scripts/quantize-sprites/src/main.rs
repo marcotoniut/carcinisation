@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use image::{ImageBuffer, Rgba};
@@ -12,12 +13,16 @@ const RESOURCES_PATH: &str = "../../resources/";
 fn main() {
     let paths = get_png_paths(RESOURCES_PATH);
 
+    let inverted_palette_resources: HashSet<&str> =
+        HashSet::from_iter(["sprites/ball_red_large.png"]);
+
     for path in paths {
-        reduce_colors(RESOURCES_PATH, &path);
+        let invert = inverted_palette_resources.contains(path.as_str());
+        reduce_colors(RESOURCES_PATH, &path, invert);
     }
 }
 
-fn reduce_colors(base_path: &str, path: &str) {
+fn reduce_colors(base_path: &str, path: &str, invert: bool) {
     let palette_image = image::open([ASSETS_PATH, BASE_PALETTE_SUBPATH].concat())
         .expect("could not open base palette")
         .to_rgba8();
@@ -35,6 +40,11 @@ fn reduce_colors(base_path: &str, path: &str) {
         })
         .collect::<Vec<Srgb>>();
 
+    let mut pick_palette = palette.clone();
+    if invert {
+        pick_palette.reverse();
+    }
+
     let (width, height) = input_image.dimensions();
     let mut output_image: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
@@ -44,7 +54,7 @@ fn reduce_colors(base_path: &str, path: &str) {
             let input_srgb_color = input_srgba_color.without_alpha();
 
             let closest_color_index = find_closest_color(&palette, input_srgb_color);
-            let closest_color = palette[closest_color_index].with_alpha(1.0);
+            let closest_color = pick_palette[closest_color_index].with_alpha(1.0);
 
             let output_pixel: Rgba<u8> = image::Rgba(closest_color.into_format().into());
 
