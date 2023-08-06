@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 
 const ASSETS_PATH: &str = "../../assets/";
 const BASE_PALETTE_SUBPATH: &str = "palette/base.png";
-const RESOURCES_PATH: &str = "../../resources/";
+const RESOURCES_PATH: &str = "../../resources/gfx/";
 
 fn main() {
     let paths = get_png_paths(RESOURCES_PATH);
