@@ -7,11 +7,11 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'my_bevy_game'",
+      "name": "Debug executable 'punished-gb'",
       "cargo": {
-        "args": ["build", "--bin=my_bevy_game", "--package=my_bevy_game"],
+        "args": ["build", "--bin=punished-gb", "--package=punished-gb"],
         "filter": {
-          "name": "my_bevy_game",
+          "name": "punished-gb",
           "kind": "bin"
         }
       },
@@ -24,16 +24,16 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug unit tests in executable 'my_bevy_game'",
+      "name": "Debug unit tests in executable 'punished-gb'",
       "cargo": {
         "args": [
           "test",
           "--no-run",
-          "--bin=my_bevy_game",
-          "--package=my_bevy_game"
+          "--bin=punished-gb",
+          "--package=punished-gb"
         ],
         "filter": {
-          "name": "my_bevy_game",
+          "name": "punished-gb",
           "kind": "bin"
         }
       },

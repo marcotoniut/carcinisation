@@ -13,10 +13,9 @@ fn make_enemy_bundle(
         PxSpriteBundle::<Layer> {
             sprite: texture.clone(),
 
-            position: PxPosition(IVec2::splat(
-                // rand::random::<i32>() % window.width() as i32,
-                // rand::random::<i32>() % window.height() as i32,
-                8,
+            position: PxPosition(IVec2::new(
+                rand::random::<i32>() % window.width() as i32,
+                rand::random::<i32>() % window.height() as i32,
             )),
 
             // sprite: Sprite {
