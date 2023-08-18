@@ -9,3 +9,6 @@ quantize-images:
 
 generate-palettes:
 	cd scripts/generate-palettes && cargo run;
+
+process-gfx:
+	cd scripts/process-gfx && cargo run;

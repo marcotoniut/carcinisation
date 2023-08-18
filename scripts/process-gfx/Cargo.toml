@@ -1,0 +1,10 @@
+[package]
+name = "process-gfx"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = "0.24.6"
+serde = "1.0.183"
+serde_derive = "1.0.183"
+toml = "0.7.6"

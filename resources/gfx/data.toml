@@ -1,0 +1,12 @@
+[[images]]
+path = "sprites/ball_blue_large.png"
+target_width = 12
+
+[[images]]
+path = "sprites/ball_red_large.png"
+invert_colors = true
+target_width = 12
+
+[[images]]
+path = "sprites/star.png"
+target_width = 8
