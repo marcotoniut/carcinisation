@@ -5,9 +5,11 @@ use bevy::{
 use seldom_pixel::prelude::*;
 
 use crate::{
+    events::GameOver,
     globals::SCREEN_RESOLUTION,
     stage::{
         enemy::components::{Enemy, ENEMY_SIZE},
+        score::components::Score,
         star::components::{Star, STAR_SIZE},
     },
     Layer,
@@ -91,11 +93,11 @@ pub fn player_movement(
 
 pub fn enemy_hit_player(
     mut commands: Commands,
-    // mut game_over_event_writer: EventWriter<GameOver>,
+    mut game_over_event_writer: EventWriter<GameOver>,
     mut player_query: Query<(Entity, &PxSubPosition), With<Player>>,
     enemy_query: Query<&PxSubPosition, With<Enemy>>,
     asset_server: Res<AssetServer>,
-    // score: Res<Score>,
+    score: Res<Score>,
 ) {
     if let Ok((player_entity, player_position)) = player_query.get_single_mut() {
         for enemy_position in enemy_query.iter() {
@@ -116,7 +118,7 @@ pub fn enemy_hit_player(
                 });
 
                 println!("Enemy hit player! Game over!");
-                // game_over_event_writer.send(GameOver { score: score.value });
+                game_over_event_writer.send(GameOver { score: score.value });
             }
         }
     }
@@ -127,7 +129,7 @@ pub fn player_hit_star(
     mut player_query: Query<&PxSubPosition, With<Player>>,
     star_query: Query<(Entity, &PxSubPosition), With<Star>>,
     asset_server: Res<AssetServer>,
-    // mut score: ResMut<Score>,
+    mut score: ResMut<Score>,
 ) {
     if let Ok(player_position) = player_query.get_single_mut() {
         for (star_entity, star_position) in star_query.iter() {
@@ -136,7 +138,7 @@ pub fn player_hit_star(
             if distance < (PLAYER_SIZE / 2.0 + STAR_SIZE / 2.0) {
                 commands.entity(star_entity).despawn();
 
-                // score.value += 1;
+                score.value += 1;
 
                 let sound_effect = asset_server.load("audio/laserSmall_000.ogg");
                 commands.spawn(AudioBundle {
