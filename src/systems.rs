@@ -1,4 +1,5 @@
 use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
+use bevy_framepace::Limiter;
 
 use crate::{events::*, AppState};
 
@@ -14,12 +15,11 @@ pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOver>) {
     }
 }
 
-pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
-    let window: &Window = window_query.get_single().unwrap();
-    // commands.spawn(Camera2dBundle {
-    //     transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 10.0),
-    //     ..default()
-    // });
+pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {
+    settings.limiter = Limiter::from_framerate(59.727500569606);
+}
+
+pub fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 

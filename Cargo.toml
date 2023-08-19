@@ -8,6 +8,7 @@ members = ["scripts/generate-palettes", "scripts/process-gfx"]
 
 [dependencies]
 bevy = "0.11.0"
+bevy_framepace = "0.13.3"
 cocoa = "0.25.0"
 objc = "0.2.6"
 rand = "0.8.4"

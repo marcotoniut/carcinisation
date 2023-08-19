@@ -6,7 +6,8 @@ mod globals;
 mod stage;
 mod systems;
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{diagnostic::DiagnosticsPlugin, prelude::*, window::PrimaryWindow};
+use bevy_framepace::*;
 use globals::resolution;
 use seldom_pixel::prelude::*;
 use stage::StagePlugin;
@@ -26,12 +27,14 @@ fn main() {
                 ..default()
             }),
             PxPlugin::<Layer>::new(resolution, "palette/base.png".into()),
+            FramepacePlugin,
+            bevy::diagnostic::LogDiagnosticsPlugin::default(),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_state::<AppState>()
         .add_plugins(StagePlugin)
         // .add_plugins(MainMenuPlugin)
-        .add_systems(Startup, spawn_camera)
+        .add_systems(Startup, (set_framespace, spawn_camera))
         .add_systems(Update, input_exit_game)
         .add_systems(Update, handle_game_over)
         .add_systems(
