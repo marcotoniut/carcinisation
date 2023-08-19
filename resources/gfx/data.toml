@@ -1,15 +1,18 @@
 [[images]]
 name = "player"
 path = "sprites/ball_blue_large.png"
-target_width = 12
+width = 12
 
 [[images]]
 name = "enemy"
 path = "sprites/ball_red_large.png"
 invert_colors = true
-target_width = 12
+width = 12
 
 [[images]]
 name = "star"
 path = "sprites/star.png"
-target_width = 8
+width = 8
+
+[[images]]
+path = "typeface/typeface.png"

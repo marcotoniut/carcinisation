@@ -7,11 +7,14 @@ mod quantize;
 
 use image::*;
 use paths::*;
-use std::fs;
+use std::{fs, path::Path};
 
 use crate::quantize::reduce_colors;
 
-fn rescale_image(target_width: u32, img: &DynamicImage) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+fn rescale_image(
+    target_width: u32,
+    img: &ImageBuffer<Rgba<u8>, Vec<u8>>,
+) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let (width, height) = img.dimensions();
     let divider = width / target_width;
     let new_height = height / divider;
@@ -24,7 +27,8 @@ struct Image {
     path: String,
     #[serde(default)]
     invert_colors: bool,
-    target_width: u32,
+    #[serde(default)]
+    width: Option<u32>, // Change the field name and type
 }
 
 #[derive(Serialize, Deserialize)]
@@ -42,18 +46,32 @@ fn main() {
             .to_rgba8();
 
     for image in data.images {
-        println!("processing {}", image.path);
+        let asset_path = format!("{}{}", ASSETS_PATH, image.path);
+        if let Some(parent_dir) = Path::new(&asset_path).parent() {
+            fs::create_dir_all(parent_dir).expect("could not create directory");
+        }
+
+        println!("processing {}", asset_path);
         println!(
-            "{}w {}",
-            image.target_width,
+            "{} {}",
+            image
+                .width
+                .map_or_else(|| "original".to_string(), |w| format!("{}w", w.to_string())),
             if image.invert_colors { "invert" } else { "" }
         );
         println!();
 
         image::open(format!("{}{}", RESOURCES_GFX_PATH, image.path))
-            .map(|img| rescale_image(image.target_width, &img))
+            .map(|img| img.into_rgba8())
+            .map(|img| {
+                if let Some(width) = image.width {
+                    rescale_image(width, &img)
+                } else {
+                    img.to_owned()
+                }
+            })
             .map(|img| reduce_colors(&palette_image, image.invert_colors, &img))
-            .and_then(|img| img.save(format!("{}{}", ASSETS_PATH, image.path)))
+            .and_then(|img| img.save(asset_path))
             .unwrap();
     }
 }
