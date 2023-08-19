@@ -1,10 +1,11 @@
 pub mod enemy;
 pub mod player;
+pub mod star;
 pub mod systems;
 
 use bevy::prelude::*;
 
-use self::{enemy::EnemyPlugin, player::PlayerPlugin, systems::*};
+use self::{enemy::EnemyPlugin, player::PlayerPlugin, star::StarPlugin, systems::*};
 use crate::{events::*, AppState};
 
 pub struct StagePlugin;
@@ -16,6 +17,7 @@ impl Plugin for StagePlugin {
             .add_systems(OnEnter(AppState::Game), pause_game)
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
+            .add_plugins(StarPlugin)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);
     }

@@ -6,7 +6,10 @@ use seldom_pixel::prelude::*;
 
 use crate::{
     globals::SCREEN_RESOLUTION,
-    stage::enemy::components::{Enemy, ENEMY_SIZE},
+    stage::{
+        enemy::components::{Enemy, ENEMY_SIZE},
+        star::components::{Star, STAR_SIZE},
+    },
     Layer,
 };
 
@@ -114,6 +117,37 @@ pub fn enemy_hit_player(
 
                 println!("Enemy hit player! Game over!");
                 // game_over_event_writer.send(GameOver { score: score.value });
+            }
+        }
+    }
+}
+
+pub fn player_hit_star(
+    mut commands: Commands,
+    mut player_query: Query<&PxSubPosition, With<Player>>,
+    star_query: Query<(Entity, &PxSubPosition), With<Star>>,
+    asset_server: Res<AssetServer>,
+    // mut score: ResMut<Score>,
+) {
+    if let Ok(player_position) = player_query.get_single_mut() {
+        for (star_entity, star_position) in star_query.iter() {
+            let distance = player_position.0.distance(star_position.0);
+
+            if distance < (PLAYER_SIZE / 2.0 + STAR_SIZE / 2.0) {
+                commands.entity(star_entity).despawn();
+
+                // score.value += 1;
+
+                let sound_effect = asset_server.load("audio/laserSmall_000.ogg");
+                commands.spawn(AudioBundle {
+                    source: sound_effect,
+                    settings: PlaybackSettings {
+                        mode: PlaybackMode::Despawn,
+                        volume: Volume::new_relative(0.02),
+                        ..default()
+                    },
+                    ..default()
+                });
             }
         }
     }

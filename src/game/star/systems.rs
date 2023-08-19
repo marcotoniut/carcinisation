@@ -40,7 +40,6 @@ pub fn tick_star_spawn_timer(mut star_spawn_timer: ResMut<StarSpawnTimer>, time:
 pub fn spawn_stars_over_time(
     mut commands: Commands,
     star_spawn_timer: Res<StarSpawnTimer>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
     asset_server: Res<AssetServer>,
 ) {
     if star_spawn_timer.timer.finished() {
