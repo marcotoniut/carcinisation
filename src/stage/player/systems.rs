@@ -32,20 +32,15 @@ pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>
     }
 }
 
-pub fn confine_player_movement(
-    mut player_query: Query<&mut Transform, With<Player>>,
-    window_query: Query<&Window, With<PrimaryWindow>>,
-) {
-    if let Ok(mut transform) = player_query.get_single_mut() {
-        let window: &Window = window_query.get_single().unwrap();
-
+pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {
+    if let Ok(mut position) = player_query.get_single_mut() {
         let half_player_size = PLAYER_SIZE / 2.0;
         let x_min = 0.0 + half_player_size;
-        let x_max = window.width() - half_player_size;
+        let x_max = resolution.x as f32 - half_player_size;
         let y_min = 0.0 + half_player_size;
-        let y_max = window.height() - half_player_size;
+        let y_max = resolution.y as f32 - half_player_size;
 
-        let mut translation = transform.translation;
+        let mut translation = position.0;
 
         if translation.x < x_min {
             translation.x = x_min;
@@ -59,7 +54,7 @@ pub fn confine_player_movement(
             translation.y = y_max;
         }
 
-        transform.translation = translation;
+        position.0 = translation;
     }
 }
 
@@ -69,7 +64,7 @@ pub fn player_movement(
     time: Res<Time>,
 ) {
     // if let Ok((mut transform, _)) = query.get_single_mut() {
-    for ((mut transform, _)) in &mut query {
+    for (mut position, _) in &mut query {
         let mut direction = Vec2::new(
             (input.pressed(KeyCode::Right) as i32 - input.pressed(KeyCode::Left) as i32) as f32,
             (input.pressed(KeyCode::Up) as i32 - input.pressed(KeyCode::Down) as i32) as f32,
@@ -77,7 +72,7 @@ pub fn player_movement(
 
         if direction.length() > 0.0 {
             direction = direction.normalize();
-            transform.0 += direction * PLAYER_SPEED * time.delta_seconds();
+            position.0 += direction * PLAYER_SPEED * time.delta_seconds();
         }
     }
 }
