@@ -8,7 +8,7 @@ mod systems;
 
 use bevy::{diagnostic::DiagnosticsPlugin, prelude::*, window::PrimaryWindow};
 use bevy_framepace::*;
-use globals::resolution;
+use globals::SCREEN_RESOLUTION;
 use seldom_pixel::prelude::*;
 use stage::StagePlugin;
 use systems::*;
@@ -26,7 +26,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(resolution, "palette/base.png".into()),
+            PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png".into()),
             FramepacePlugin,
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
         ))

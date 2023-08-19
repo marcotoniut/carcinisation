@@ -103,6 +103,7 @@ pub fn update_enemy_direction(
             commands.spawn(AudioBundle {
                 source: sound_effect,
                 settings: PlaybackSettings {
+                    mode: PlaybackMode::Despawn,
                     volume: Volume::new_relative(0.02),
                     ..default()
                 },

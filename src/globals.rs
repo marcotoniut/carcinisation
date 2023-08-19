@@ -1,3 +1,3 @@
 use bevy::prelude::*;
 
-pub const resolution: UVec2 = UVec2::new(160, 144);
+pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);

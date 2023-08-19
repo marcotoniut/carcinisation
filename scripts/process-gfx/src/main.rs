@@ -11,7 +11,7 @@ use std::fs;
 
 use crate::quantize::reduce_colors;
 
-fn rescale_image(img: &DynamicImage, target_width: u32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+fn rescale_image(target_width: u32, img: &DynamicImage) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let (width, height) = img.dimensions();
     let divider = width / target_width;
     let new_height = height / divider;
@@ -50,14 +50,10 @@ fn main() {
         );
         println!();
 
-        let img = image::open(format!("{}{}", RESOURCES_GFX_PATH, image.path)).unwrap();
-
-        let rescaled_img = rescale_image(&img, image.target_width);
-
-        let reduced_img = reduce_colors(&palette_image, image.invert_colors, &rescaled_img);
-
-        reduced_img
-            .save(format!("{}{}", ASSETS_PATH, image.path))
+        image::open(format!("{}{}", RESOURCES_GFX_PATH, image.path))
+            .map(|img| rescale_image(image.target_width, &img))
+            .map(|img| reduce_colors(&palette_image, image.invert_colors, &img))
+            .and_then(|img| img.save(format!("{}{}", ASSETS_PATH, image.path)))
             .unwrap();
     }
 }

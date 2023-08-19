@@ -119,6 +119,7 @@ pub fn player_hit_star(
                 commands.spawn(AudioBundle {
                     source: sound_effect,
                     settings: PlaybackSettings {
+                        mode: PlaybackMode::Despawn,
                         volume: Volume::new_relative(0.02),
                         ..default()
                     },
@@ -150,6 +151,7 @@ pub fn enemy_hit_player(
                 commands.spawn(AudioBundle {
                     source: sound_effect,
                     settings: PlaybackSettings {
+                        mode: PlaybackMode::Despawn,
                         volume: Volume::new_relative(0.02),
                         ..default()
                     },

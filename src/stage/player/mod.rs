@@ -24,6 +24,7 @@ impl Plugin for PlayerPlugin {
                 (
                     player_movement.in_set(MovementSystemSet),
                     confine_player_movement.in_set(ConfinementSystemSet),
+                    enemy_hit_player,
                 )
                     .run_if(in_state(AppState::Game))
                     .run_if(in_state(GameState::Running)),
