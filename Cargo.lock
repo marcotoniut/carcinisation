@@ -2919,6 +2919,7 @@ name = "process-gfx"
 version = "0.1.0"
 dependencies = [
  "image",
+ "palette",
  "serde",
  "serde_derive",
  "toml",
