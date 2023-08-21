@@ -4,40 +4,17 @@ use bevy::{
 };
 use seldom_pixel::prelude::*;
 
-use crate::{
-    events::GameOver,
-    globals::SCREEN_RESOLUTION,
-    stage::{
-        enemy::components::{Enemy, ENEMY_SIZE},
-        score::components::Score,
-        star::components::{Star, STAR_SIZE},
-    },
-    Layer,
+use crate::{events::GameOver, globals::SCREEN_RESOLUTION};
+
+use super::super::{
+    enemy::components::{Enemy, ENEMY_SIZE},
+    score::components::Score,
+    star::components::{Star, STAR_SIZE},
 };
+use super::{bundles::*, components::*};
 
-use super::components::*;
-
-fn make_player_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
-) -> (PxSpriteBundle<Layer>, PxSubPosition, Player) {
-    let sprite = assets_sprite.load("sprites/ball_blue_large.png");
-    (
-        PxSpriteBundle::<Layer> {
-            sprite,
-            // visibility: Visibility::Hidden,
-            anchor: PxAnchor::Center,
-            ..default()
-        },
-        PxSubPosition::from(Vec2::new(
-            (SCREEN_RESOLUTION.x / 2) as f32,
-            (SCREEN_RESOLUTION.y / 2) as f32,
-        )),
-        Player {},
-    )
-}
-
-pub fn spawn_player(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
-    commands.spawn(make_player_bundle(&mut assets_sprite));
+pub fn spawn_player(commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
+    spawn_player_bundle(commands, &mut assets_sprite);
 }
 
 pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>) {

@@ -1,34 +1,11 @@
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
-use crate::{globals::SCREEN_RESOLUTION, Layer};
-
-use super::{components::*, resources::*};
-
-fn make_star_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
-) -> (PxSpriteBundle<Layer>, PxSubPosition, Star) {
-    let sprite = assets_sprite.load("sprites/star.png");
-    (
-        PxSpriteBundle::<Layer> {
-            sprite,
-            anchor: PxAnchor::Center,
-            ..default()
-        },
-        PxSubPosition::from(Vec2::new(
-            rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
-            rand::random::<f32>() * SCREEN_RESOLUTION.y as f32,
-        )),
-        Star {},
-    )
-}
+use super::{bundles::*, components::*, resources::*};
 
 pub fn spawn_stars(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
     for _ in 0..NUMBER_OF_STARS {
-        commands.spawn(make_star_bundle(&mut assets_sprite));
+        spawn_star_bundle(&mut commands, &mut assets_sprite);
     }
 }
 

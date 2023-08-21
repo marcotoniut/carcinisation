@@ -30,6 +30,7 @@ fn main() {
             FramepacePlugin,
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
         ))
+        // .insert_resource(GlobalVolume::new(0.2))
         .insert_resource(ClearColor(Color::BLACK))
         .add_state::<AppState>()
         .add_plugins(StagePlugin)
@@ -53,12 +54,4 @@ pub enum AppState {
 }
 
 #[px_layer]
-struct Layer;
-
-// #[px_layer]
-// enum Layer {
-//     #[default]
-//     Back,
-//     Middle(i32),
-//     Front,
-// }
+pub struct Layer;

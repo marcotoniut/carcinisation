@@ -1,33 +1,13 @@
 use bevy::{audio::*, prelude::*};
 use seldom_pixel::{asset::*, prelude::*};
 
-use crate::{globals::SCREEN_RESOLUTION, Layer};
+use crate::globals::SCREEN_RESOLUTION;
 
-use super::{components::*, resources::*};
-
-fn make_enemy_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
-) -> (PxSpriteBundle<Layer>, PxSubPosition, Enemy) {
-    let texture = assets_sprite.load("sprites/ball_red_large.png");
-    (
-        PxSpriteBundle::<Layer> {
-            sprite: texture.clone(),
-            anchor: PxAnchor::Center,
-            ..default()
-        },
-        PxSubPosition::from(Vec2::new(
-            rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
-            rand::random::<f32>() * SCREEN_RESOLUTION.y as f32,
-        )),
-        Enemy {
-            direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
-        },
-    )
-}
+use super::{bundles::spawn_enemy_bundle, components::*, resources::*};
 
 pub fn spawn_enemies(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
     for _ in 0..NUMBER_OF_ENEMIES {
-        commands.spawn(make_enemy_bundle(&mut assets_sprite));
+        spawn_enemy_bundle(&mut commands, &mut assets_sprite);
     }
 }
 
@@ -127,6 +107,6 @@ pub fn spawn_enemies_over_time(
     enemy_spawn_timer: Res<EnemySpawnTimer>,
 ) {
     if enemy_spawn_timer.timer.finished() {
-        commands.spawn(make_enemy_bundle(&mut assets_sprite));
+        spawn_enemy_bundle(&mut commands, &mut assets_sprite);
     }
 }
