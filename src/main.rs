@@ -11,7 +11,7 @@ use bevy_framepace::*;
 use globals::SCREEN_RESOLUTION;
 use seldom_pixel::prelude::*;
 use stage::StagePlugin;
-use systems::*;
+use systems::{camera::move_camera, *};
 
 fn main() {
     let mut app = App::new();
@@ -53,6 +53,7 @@ fn main() {
     .add_plugins(StagePlugin)
     // .add_plugins(MainMenuPlugin)
     .add_systems(Startup, (set_framespace, spawn_camera))
+    .add_systems(Update, move_camera)
     .add_systems(Update, input_exit_game)
     .add_systems(Update, handle_game_over)
     .add_systems(
