@@ -4,11 +4,11 @@ run:
 dev:
 	cargo watch -x run --features bevy/dynamic_linking;
 
-quantize-images:
-	cd scripts/quantize-images && cargo run;
-
 generate-palettes:
 	cd scripts/generate-palettes && cargo run;
+
+generate-typeface:
+	cd scripts/generate-typeface && cargo run;
 
 process-gfx:
 	cd scripts/process-gfx && cargo run;

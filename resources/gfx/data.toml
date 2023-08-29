@@ -15,4 +15,30 @@ path = "sprites/star.png"
 width = 8
 
 [[images]]
+name = "score-icon"
+target_path = "sprites/score-icon.png"
+invert_colors = true
+path = "sprites/star.png"
+width = 10
+
+[[images]]
+name = "enemy-icon"
+target_path = "sprites/enemy-count-icon.png"
+invert_colors = true
+path = "sprites/ball_red_large.png"
+width = 10
+
+[[images]]
 path = "typeface/typeface.png"
+
+[[images]]
+name = "pixeboy"
+path = "typeface/pixeboy.png"
+
+[[images]]
+path = "typeface/pixeboy.png"
+target_path = "typeface/pixeboy-inverted.png"
+invert_colors = true
+
+[[images]]
+path = "typeface/animated_typeface.png"

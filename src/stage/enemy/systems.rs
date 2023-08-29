@@ -1,7 +1,7 @@
 use bevy::{audio::*, prelude::*};
 use seldom_pixel::{asset::*, prelude::*};
 
-use crate::globals::SCREEN_RESOLUTION;
+use crate::globals::*;
 
 use super::{bundles::spawn_enemy_bundle, components::*, resources::*};
 
@@ -32,7 +32,7 @@ pub fn update_enemy_direction(
     let half_size = ENEMY_SIZE / 2.0;
     let x_min = half_size;
     let x_max = SCREEN_RESOLUTION.x as f32 - half_size;
-    let y_min = half_size;
+    let y_min = HUD_HEIGHT as f32 + half_size;
     let y_max = SCREEN_RESOLUTION.y as f32 - half_size;
 
     for (position, mut enemy) in &mut query {
@@ -75,7 +75,7 @@ pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<En
     let half_size = ENEMY_SIZE / 2.0;
     let x_min = half_size;
     let x_max = SCREEN_RESOLUTION.x as f32 - half_size;
-    let y_min = half_size;
+    let y_min = HUD_HEIGHT as f32 + half_size;
     let y_max = SCREEN_RESOLUTION.y as f32 - half_size;
 
     for mut position in &mut enemy_query {

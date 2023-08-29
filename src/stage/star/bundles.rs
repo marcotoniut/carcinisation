@@ -4,13 +4,13 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
-use crate::{globals::SCREEN_RESOLUTION, Layer};
+use crate::{globals::*, Layer};
 
 use super::components::*;
 
 pub fn make_star_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
-) -> (PxSpriteBundle<Layer>, PxSubPosition, Star) {
+) -> (PxSpriteBundle<Layer>, PxSubPosition, Star, Name) {
     let sprite = assets_sprite.load("sprites/star.png");
     (
         PxSpriteBundle::<Layer> {
@@ -20,9 +20,10 @@ pub fn make_star_bundle(
         },
         PxSubPosition::from(Vec2::new(
             rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
-            rand::random::<f32>() * SCREEN_RESOLUTION.y as f32,
+            HUD_HEIGHT as f32 + rand::random::<f32>() * (SCREEN_RESOLUTION.y - HUD_HEIGHT) as f32,
         )),
         Star {},
+        Name::new("Star"),
     )
 }
 

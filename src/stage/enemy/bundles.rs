@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use seldom_pixel::{asset::*, prelude::*};
 
-use crate::{globals::SCREEN_RESOLUTION, Layer};
+use crate::{globals::*, Layer};
 
 use super::components::*;
 
 fn make_enemy_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
-) -> (PxSpriteBundle<Layer>, PxSubPosition, Enemy) {
+) -> (PxSpriteBundle<Layer>, PxSubPosition, Enemy, Name) {
     let texture = assets_sprite.load("sprites/ball_red_large.png");
     (
         PxSpriteBundle::<Layer> {
@@ -17,11 +17,12 @@ fn make_enemy_bundle(
         },
         PxSubPosition::from(Vec2::new(
             rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
-            rand::random::<f32>() * SCREEN_RESOLUTION.y as f32,
+            HUD_HEIGHT as f32 + rand::random::<f32>() * (SCREEN_RESOLUTION.y - HUD_HEIGHT) as f32,
         )),
         Enemy {
             direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
         },
+        Name::new("Enemy"),
     )
 }
 

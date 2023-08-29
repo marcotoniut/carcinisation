@@ -14,16 +14,20 @@ use stage::StagePlugin;
 use systems::{camera::move_camera, *};
 
 fn main() {
+    let title: String = "PUNISHED GB".to_string();
+    let focused: bool = false;
+    let resolution: Vec2 = Vec2::new(800., 720.);
+
     let mut app = App::new();
     let dev = true;
     if dev {
         app.add_plugins((
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: "PUNISHED GB".to_string(),
-                    focused: false,
+                    title,
+                    focused,
                     resizable: true,
-                    resolution: Vec2::new(1400., 900.).into(),
+                    resolution: (resolution + Vec2::new(600., 180.)).into(),
                     ..default()
                 }),
                 ..default()
@@ -33,10 +37,10 @@ fn main() {
     } else {
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "PUNISHED GB".to_string(),
-                focused: false,
+                title,
+                focused,
                 resizable: false,
-                resolution: Vec2::new(800., 720.).into(),
+                resolution: resolution.into(),
                 ..default()
             }),
             ..default()
@@ -72,4 +76,11 @@ pub enum AppState {
 }
 
 #[px_layer]
-pub struct Layer;
+pub enum Layer {
+    #[default]
+    Back,
+    Middle(i32),
+    Front,
+    UIBackground,
+    UI,
+}

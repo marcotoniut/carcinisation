@@ -3,6 +3,7 @@ pub mod player;
 pub mod score;
 pub mod star;
 pub mod systems;
+pub mod ui;
 
 use bevy::prelude::*;
 
@@ -12,6 +13,7 @@ use self::{
     score::{components::Score, ScorePlugin},
     star::StarPlugin,
     systems::*,
+    ui::StageUiPlugin,
 };
 use crate::{events::*, AppState};
 
@@ -26,6 +28,7 @@ impl Plugin for StagePlugin {
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
+            .add_plugins(StageUiPlugin)
             .add_plugins(StarPlugin)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);

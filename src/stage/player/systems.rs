@@ -4,7 +4,10 @@ use bevy::{
 };
 use seldom_pixel::prelude::*;
 
-use crate::{events::GameOver, globals::SCREEN_RESOLUTION};
+use crate::{
+    events::GameOver,
+    globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
+};
 
 use super::super::{
     enemy::components::{Enemy, ENEMY_SIZE},
@@ -28,7 +31,7 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
         let half_player_size = PLAYER_SIZE / 2.0;
         let x_min = 0.0 + half_player_size;
         let x_max = SCREEN_RESOLUTION.x as f32 - half_player_size;
-        let y_min = 0.0 + half_player_size;
+        let y_min = HUD_HEIGHT as f32 + half_player_size;
         let y_max = SCREEN_RESOLUTION.y as f32 - half_player_size;
 
         let mut translation = position.0;

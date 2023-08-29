@@ -1,6 +1,9 @@
+use std::{fs, path::Path};
+
 use image::{ImageBuffer, Rgb};
 
 const PALETTES_PATH: &str = "../../assets/palette/";
+const FILTER_PATH: &str = "../../assets/filter/";
 
 fn main() {
     let palettes: Vec<(&str, [Rgb<u8>; 4])> = vec![
@@ -20,10 +23,10 @@ fn main() {
         (
             "rust",
             [
-                // #3b190e
-                Rgb([59, 25, 14]),
-                // #903A19
-                Rgb([144, 58, 25]),
+                // #442434
+                Rgb([39, 25, 54]),
+                // #6D3C4D
+                Rgb([124, 55, 25]),
                 // #B8430F
                 Rgb([184, 67, 15]),
                 // #d2a07f
@@ -31,6 +34,8 @@ fn main() {
             ],
         ),
     ];
+
+    fs::create_dir_all(Path::new(&PALETTES_PATH)).expect("could not create directory");
 
     for (key, palette) in palettes.iter() {
         let mut output_image: ImageBuffer<Rgb<u8>, Vec<u8>> =
@@ -42,5 +47,18 @@ fn main() {
         output_image
             .save([PALETTES_PATH, &format!("{}.png", *key)].concat())
             .unwrap();
+
+        if *key == "base" {
+            fs::create_dir_all(&FILTER_PATH).expect("could not create directory");
+            for (i, color) in palette.iter().enumerate() {
+                let mut color_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(4, 1);
+                for x in 0..4 {
+                    color_image.put_pixel(x, 0, color.clone());
+                }
+                color_image
+                    .save([FILTER_PATH, &format!("color{}.png", i)].concat())
+                    .unwrap();
+            }
+        }
     }
 }

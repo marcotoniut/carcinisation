@@ -24,11 +24,12 @@ fn rescale_image(
 
 #[derive(Serialize, Deserialize)]
 struct Image {
-    path: String,
     #[serde(default)]
     invert_colors: bool,
+    path: String,
+    target_path: Option<String>,
     #[serde(default)]
-    width: Option<u32>, // Change the field name and type
+    width: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -46,7 +47,11 @@ fn main() {
             .to_rgba8();
 
     for image in data.images {
-        let asset_path = format!("{}{}", ASSETS_PATH, image.path);
+        let asset_path = format!(
+            "{}{}",
+            ASSETS_PATH,
+            image.target_path.unwrap_or(image.path.clone())
+        );
         if let Some(parent_dir) = Path::new(&asset_path).parent() {
             fs::create_dir_all(parent_dir).expect("could not create directory");
         }
