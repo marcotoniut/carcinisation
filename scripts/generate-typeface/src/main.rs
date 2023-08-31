@@ -49,8 +49,10 @@ fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> R
 
 fn main() {
     let target_height = 10;
-    let binding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?"
+    let binding = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        // let binding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?"
         .chars()
+        .rev()
         .collect::<Vec<_>>();
     let characters = binding.as_slice();
 
@@ -61,6 +63,6 @@ fn main() {
     );
 
     image
-        .save(format!("{}{}", RESOURCES_PATH, "gfx/typeface/typeface.png").as_str())
+        .save(format!("{}{}", RESOURCES_PATH, "gfx/typeface/pixeboy.png").as_str())
         .unwrap();
 }

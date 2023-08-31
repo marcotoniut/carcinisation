@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use seldom_pixel::prelude::PxText;
 
 use crate::stage::{
     enemy::components::Enemy,
@@ -7,19 +8,19 @@ use crate::stage::{
 };
 
 pub fn update_enemy_text(
-    mut text_query: Query<&mut Text, With<EnemyCountText>>,
+    mut text_query: Query<&mut PxText, With<EnemyCountText>>,
     enemy_query: Query<With<Enemy>>,
 ) {
     let count = enemy_query.iter().count().to_string();
     for mut text in text_query.iter_mut() {
-        text.sections[0].value = count.clone();
+        text.0 = count.clone();
     }
 }
 
-pub fn update_score_text(mut query: Query<&mut Text, With<ScoreText>>, score: Res<Score>) {
+pub fn update_score_text(mut query: Query<&mut PxText, With<ScoreText>>, score: Res<Score>) {
     if score.is_changed() {
         for mut text in query.iter_mut() {
-            text.sections[0].value = score.value.to_string();
+            text.0 = score.value.to_string();
         }
     }
 }

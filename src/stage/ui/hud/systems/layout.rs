@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
-        IRect, PxAnchor, PxAssets, PxFilter, PxFilterLayers, PxLineBundle, PxRect, PxSubPosition,
-        PxTextBundle, PxTypeface,
+        IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxRect,
+        PxSubPosition, PxTextBundle, PxTypeface,
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
@@ -11,7 +11,10 @@ use crate::{globals::*, Layer};
 
 use super::super::{components::*, styles::*};
 
-const LAYOUT_Y: f32 = 2.0;
+const LAYOUT_Y: i32 = 2;
+const HUD_COUNT_W: i32 = 20;
+
+const SCORE_COUNT_ML: i32 = 15;
 
 pub fn spawn_hud(
     mut commands: Commands,
@@ -39,47 +42,54 @@ pub fn spawn_hud_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     filters: &mut PxAssets<PxFilter>,
 ) -> Entity {
-    let typeface = typefaces.load(
-        TYPEFACE_INVERTED_PATH,
-        TYPEFACE_CHARACTERS,
-        // Equivalent to, for example, `vec![PxSeparatorConfig { character: ' ', width: 4 }]`
-        [(' ', 4)],
-    );
+    let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
 
     let main_menu_entity = commands
         .spawn((Hud {}, Name::new("Hud")))
         .with_children(|parent| {
             for i in 0..(HUD_HEIGHT as i32) {
-                parent.spawn(PxLineBundle::<Layer> {
-                    line: [(0, i).into(), (SCREEN_RESOLUTION.x as i32, i).into()].into(),
-                    layers: PxFilterLayers::single_over(Layer::UIBackground),
-                    filter: filters.load("filter/color3.png"),
-                    ..default()
-                });
+                parent.spawn((
+                    PxLineBundle::<Layer> {
+                        canvas: PxCanvas::Camera,
+                        line: [(0, i).into(), (SCREEN_RESOLUTION.x as i32, i).into()].into(),
+                        layers: PxFilterLayers::single_over(Layer::UIBackground),
+                        filter: filters.load("filter/color3.png"),
+                        ..default()
+                    },
+                    UIBackground {},
+                    Name::new("UIBackground"),
+                ));
             }
 
             parent.spawn((Name::new("Score"),)).with_children(|parent| {
                 parent.spawn((
                     PxSpriteBundle::<Layer> {
-                        sprite: assets_sprite.load("sprites/score-icon.png"),
                         anchor: PxAnchor::BottomLeft,
+                        canvas: PxCanvas::Camera,
                         layer: Layer::UI,
+                        sprite: assets_sprite.load("sprites/score-icon.png"),
                         ..default()
                     },
-                    PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y)),
+                    PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),
                     Name::new("ScoreIcon"),
                 ));
                 parent.spawn((
                     PxTextBundle::<Layer> {
+                        alignment: PxAnchor::BottomRight,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        rect: IRect::new(
+                            IVec2::new(SCORE_COUNT_ML, LAYOUT_Y),
+                            IVec2::new(
+                                SCORE_COUNT_ML + HUD_COUNT_W,
+                                LAYOUT_Y + (FONT_SIZE + 2) as i32,
+                            ),
+                        )
+                        .into(),
                         text: "0".into(),
                         typeface: typeface.clone(),
-                        alignment: PxAnchor::BottomRight,
-                        layer: Layer::UI,
-                        // rect: IRect::new(IVec2::new(14, LAYOUT_Y as i32), IVec2::new(24, 12))
-                        //     .into(),
                         ..default()
                     },
-                    PxSubPosition::from(Vec2::new(14.0, LAYOUT_Y)),
                     ScoreText,
                     Name::new("ScoreText"),
                 ));
@@ -90,29 +100,39 @@ pub fn spawn_hud_bundle(
                 .with_children(|parent| {
                     parent.spawn((
                         PxSpriteBundle::<Layer> {
-                            sprite: assets_sprite.load("sprites/enemy-count-icon.png"),
                             anchor: PxAnchor::BottomRight,
+                            canvas: PxCanvas::Camera,
                             layer: Layer::UI,
+                            sprite: assets_sprite.load("sprites/enemy-count-icon.png"),
                             ..default()
                         },
-                        PxSubPosition::from(Vec2::new(SCREEN_RESOLUTION.x as f32 - 6.0, LAYOUT_Y)),
+                        PxSubPosition::from(Vec2::new(
+                            SCREEN_RESOLUTION.x as f32 - 6.0,
+                            LAYOUT_Y as f32,
+                        )),
                         Name::new("EnemyCountIcon"),
                     ));
 
                     parent.spawn((
                         PxTextBundle::<Layer> {
+                            alignment: PxAnchor::BottomRight,
+                            canvas: PxCanvas::Camera,
+                            layer: Layer::UI,
+                            rect: IRect::new(
+                                IVec2::new(
+                                    SCREEN_RESOLUTION.x as i32 - SCORE_COUNT_ML - HUD_COUNT_W,
+                                    LAYOUT_Y,
+                                ),
+                                IVec2::new(
+                                    SCREEN_RESOLUTION.x as i32 - HUD_COUNT_W,
+                                    LAYOUT_Y + (FONT_SIZE + 2) as i32,
+                                ),
+                            )
+                            .into(),
                             text: "0".into(),
                             typeface: typeface.clone(),
-                            alignment: PxAnchor::BottomRight,
-                            layer: Layer::UI,
-                            // rect: IRect::new(
-                            //     IVec2::new(SCREEN_RESOLUTION.x as i32 - 30, LAYOUT_Y as i32),
-                            //     IVec2::new(20, 10),
-                            // )
-                            // .into(),
                             ..default()
                         },
-                        PxSubPosition::from(Vec2::new(SCREEN_RESOLUTION.x as f32 - 30.0, LAYOUT_Y)),
                         EnemyCountText,
                         Name::new("EnemyCountText"),
                     ));

@@ -8,3 +8,6 @@ pub struct ScoreText;
 
 #[derive(Component)]
 pub struct EnemyCountText;
+
+#[derive(Component)]
+pub struct UIBackground;
