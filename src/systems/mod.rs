@@ -1,15 +1,23 @@
 pub mod camera;
 
-use bevy::{app::AppExit, prelude::*, window::PrimaryWindow};
+use bevy::{app::AppExit, prelude::*};
 use bevy_framepace::Limiter;
+use leafwing_input_manager::{
+    prelude::{ActionState, InputMap},
+    InputManagerBundle,
+};
 use seldom_pixel::prelude::PxSubPosition;
 
-use crate::{events::*, AppState};
+use crate::{events::*, AppState, GBInput};
 
 use self::camera::CameraPos;
 
-pub fn input_exit_game(keyboard_input: Res<Input<KeyCode>>, mut exit: ResMut<Events<AppExit>>) {
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+pub fn input_exit_game(
+    gb_input_query: Query<&ActionState<GBInput>>,
+    mut exit: ResMut<Events<AppExit>>,
+) {
+    let gb_input = gb_input_query.single();
+    if gb_input.just_pressed(GBInput::DExit) {
         exit.send(AppExit);
     }
 }
@@ -35,12 +43,36 @@ pub fn spawn_camera(mut commands: Commands) {
     commands.spawn((PxSubPosition::default(), CameraPos));
 }
 
+pub fn spawn_gb_input(mut commands: Commands) {
+    commands.spawn(InputManagerBundle::<GBInput> {
+        action_state: ActionState::default(),
+        input_map: InputMap::new([
+            (KeyCode::A, GBInput::Left),
+            (KeyCode::W, GBInput::Up),
+            (KeyCode::D, GBInput::Right),
+            (KeyCode::S, GBInput::Down),
+            (KeyCode::K, GBInput::A),
+            (KeyCode::L, GBInput::B),
+            (KeyCode::X, GBInput::Start),
+            (KeyCode::Z, GBInput::Select),
+            (KeyCode::I, GBInput::DToGame),
+            (KeyCode::O, GBInput::DToMainMenu),
+            (KeyCode::P, GBInput::DExit),
+            (KeyCode::H, GBInput::DLeft),
+            (KeyCode::U, GBInput::DUp),
+            (KeyCode::K, GBInput::DRight),
+            (KeyCode::J, GBInput::DDown),
+        ]),
+    });
+}
+
 pub fn transition_to_game_state(
-    keyboard_input: Res<Input<KeyCode>>,
+    gb_input_query: Query<&ActionState<GBInput>>,
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::G) {
+    let gb_input = gb_input_query.single();
+    if gb_input.just_pressed(GBInput::DToGame) {
         if app_state.get().to_owned() != AppState::Game {
             next_state.set(AppState::Game);
             println!("Entered AppState::Game");
@@ -49,11 +81,12 @@ pub fn transition_to_game_state(
 }
 
 pub fn transition_to_main_menu_state(
-    keyboard_input: Res<Input<KeyCode>>,
+    gb_input_query: Query<&ActionState<GBInput>>,
     app_state: Res<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::M) {
+    let gb_input = gb_input_query.single();
+    if gb_input.just_pressed(GBInput::DToMainMenu) {
         if app_state.get().to_owned() != AppState::MainMenu {
             // commands.insert_resource(NextState(Some(AppState::MainMenu)));
             next_state.set(AppState::MainMenu);

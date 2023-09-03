@@ -2,11 +2,13 @@ use bevy::{
     audio::{PlaybackMode, Volume},
     prelude::*,
 };
+use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::*;
 
 use crate::{
     events::GameOver,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
+    GBInput,
 };
 
 use super::super::{
@@ -53,15 +55,16 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
 }
 
 pub fn player_movement(
-    input: Res<Input<KeyCode>>,
+    gb_input_query: Query<&ActionState<GBInput>>,
     mut query: Query<(&mut PxSubPosition, &Player)>,
     time: Res<Time>,
 ) {
-    // if let Ok((mut transform, _)) = query.get_single_mut() {
+    let gb_input = gb_input_query.single();
     for (mut position, _) in &mut query {
         let mut direction = Vec2::new(
-            (input.pressed(KeyCode::Right) as i32 - input.pressed(KeyCode::Left) as i32) as f32,
-            (input.pressed(KeyCode::Up) as i32 - input.pressed(KeyCode::Down) as i32) as f32,
+            (gb_input.pressed(GBInput::Right) as i32 - gb_input.pressed(GBInput::Left) as i32)
+                as f32,
+            (gb_input.pressed(GBInput::Up) as i32 - gb_input.pressed(GBInput::Down) as i32) as f32,
         );
 
         if direction.length() > 0.0 {

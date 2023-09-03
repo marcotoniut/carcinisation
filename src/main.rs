@@ -1,7 +1,6 @@
 mod assets;
-mod events;
-// mod game;
 mod cutscene;
+mod events;
 mod globals;
 mod main_menu;
 mod stage;
@@ -10,6 +9,7 @@ mod systems;
 use bevy::prelude::*;
 use bevy_framepace::*;
 use globals::SCREEN_RESOLUTION;
+use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::StagePlugin;
 use systems::{camera::move_camera, *};
@@ -57,7 +57,8 @@ fn main() {
     .add_state::<AppState>()
     .add_plugins(StagePlugin)
     // .add_plugins(MainMenuPlugin)
-    .add_systems(Startup, (set_framespace, spawn_camera))
+    .add_plugins(InputManagerPlugin::<GBInput>::default())
+    .add_systems(Startup, (set_framespace, spawn_camera, spawn_gb_input))
     .add_systems(Update, move_camera)
     .add_systems(Update, input_exit_game)
     .add_systems(Update, handle_game_over)
@@ -66,6 +67,27 @@ fn main() {
         (transition_to_game_state, transition_to_main_menu_state),
     )
     .run();
+}
+
+// This is the list of "things in the game I want to be able to do based on input"
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
+pub enum GBInput {
+    A,
+    B,
+    Up,
+    Down,
+    Left,
+    Right,
+    Start,
+    Select,
+    // debug inputs
+    DUp,
+    DDown,
+    DLeft,
+    DRight,
+    DToGame,
+    DToMainMenu,
+    DExit,
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]

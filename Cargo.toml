@@ -18,6 +18,7 @@ bevy = "0.11.0"
 bevy_framepace = "0.13.3"
 bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls" }
 cocoa = "0.25.0"
+leafwing-input-manager = "0.10.0"
 objc = "0.2.6"
 rand = "0.8.4"
 seldom_pixel = { git = "https://github.com/Seldom-SE/seldom_pixel", default-features = true, features = [
