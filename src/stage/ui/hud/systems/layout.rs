@@ -12,7 +12,7 @@ use crate::{globals::*, Layer};
 use super::super::{components::*, styles::*};
 
 const LAYOUT_Y: i32 = 2;
-const HUD_COUNT_W: i32 = 20;
+const HUD_COUNT_W: i32 = 25;
 
 const SCORE_COUNT_ML: i32 = 15;
 

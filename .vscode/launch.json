@@ -42,6 +42,65 @@
       "env": {
         "CARGO_MANIFEST_DIR": "${workspaceFolder}"
       }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Generate Palettes",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=generate-palettes",
+          "--package=generate-palettes"
+        ],
+        "filter": {
+          "name": "generate-palettes",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}/scripts/generate-palettes",
+      "env": {
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Generate Typeface",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=generate-typeface",
+          "--package=generate-typeface"
+        ],
+        "filter": {
+          "name": "generate-typeface",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}/scripts/generate-typeface",
+      "env": {
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Process Graphics",
+      "cargo": {
+        "args": ["build", "--bin=process-gfx", "--package=process-gfx"],
+        "filter": {
+          "name": "process-gfx",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}/scripts/process-gfx",
+      "env": {
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
+      }
     }
   ]
 }
