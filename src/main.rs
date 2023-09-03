@@ -1,8 +1,9 @@
 mod assets;
 mod events;
 // mod game;
-// mod main_menu;
+mod cutscene;
 mod globals;
+mod main_menu;
 mod stage;
 mod systems;
 
@@ -69,6 +70,7 @@ fn main() {
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 pub enum AppState {
+    Cutscene,
     MainMenu,
     #[default]
     Game,

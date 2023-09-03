@@ -1,15 +1,15 @@
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
-        IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxRect,
-        PxSubPosition, PxTextBundle, PxTypeface,
+        IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
+        PxTextBundle, PxTypeface,
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
 
 use crate::{globals::*, Layer};
 
-use super::super::{components::*, styles::*};
+use super::super::components::*;
 
 const LAYOUT_Y: i32 = 2;
 const HUD_COUNT_W: i32 = 25;
@@ -22,7 +22,7 @@ pub fn spawn_hud(
     mut assets_sprite: PxAssets<PxSprite>,
     mut filters: PxAssets<PxFilter>,
 ) {
-    let main_menu_entity = spawn_hud_bundle(
+    spawn_hud_bundle(
         &mut commands,
         &mut typefaces,
         &mut assets_sprite,
