@@ -15,8 +15,8 @@ pub fn despawn_stars(mut commands: Commands, query: Query<Entity, With<Star>>) {
     }
 }
 
-pub fn tick_star_spawn_timer(mut star_spawn_timer: ResMut<StarSpawnTimer>, time: Res<Time>) {
-    star_spawn_timer.timer.tick(time.delta());
+pub fn tick_star_spawn_timer(mut timer: ResMut<StarSpawnTimer>, time: Res<Time>) {
+    timer.timer.tick(time.delta());
 }
 
 pub fn spawn_stars_over_time(

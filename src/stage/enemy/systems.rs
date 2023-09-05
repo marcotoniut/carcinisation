@@ -97,8 +97,8 @@ pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<En
     }
 }
 
-pub fn tick_enemy_spawn_timer(mut enemy_spawn_timer: ResMut<EnemySpawnTimer>, time: Res<Time>) {
-    enemy_spawn_timer.timer.tick(time.delta());
+pub fn tick_enemy_spawn_timer(mut timer: ResMut<EnemySpawnTimer>, time: Res<Time>) {
+    timer.timer.tick(time.delta());
 }
 
 pub fn spawn_enemies_over_time(

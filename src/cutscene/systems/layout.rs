@@ -7,8 +7,8 @@ pub fn spawn_cutscene(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 pub fn despawn_cutscene(mut commands: Commands, query: Query<Entity, With<Cutscene>>) {
-    if let Ok(main_menu_entity) = query.get_single() {
-        commands.entity(main_menu_entity).despawn_recursive();
+    if let Ok(entity) = query.get_single() {
+        commands.entity(entity).despawn_recursive();
     }
 }
 

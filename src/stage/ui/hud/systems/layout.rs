@@ -31,8 +31,8 @@ pub fn spawn_hud(
 }
 
 pub fn despawn_hud(mut commands: Commands, query: Query<Entity, With<Hud>>) {
-    if let Ok(main_menu_entity) = query.get_single() {
-        commands.entity(main_menu_entity).despawn_recursive();
+    if let Ok(entity) = query.get_single() {
+        commands.entity(entity).despawn_recursive();
     }
 }
 

@@ -5,6 +5,7 @@ mod globals;
 mod main_menu;
 mod stage;
 mod systems;
+mod transitions;
 
 use bevy::prelude::*;
 use bevy_framepace::*;
@@ -13,6 +14,7 @@ use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::StagePlugin;
 use systems::{camera::move_camera, *};
+// use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
     let title: String = "PUNISHED GB".to_string();
@@ -55,12 +57,14 @@ fn main() {
     // .insert_resource(GlobalVolume::new(0.2))
     .insert_resource(ClearColor(Color::BLACK))
     .add_state::<AppState>()
+    // .add_plugins(TransitionVenetianPlugin)
     .add_plugins(StagePlugin)
     // .add_plugins(MainMenuPlugin)
     .add_plugins(InputManagerPlugin::<GBInput>::default())
     .add_systems(Startup, (set_framespace, spawn_camera, spawn_gb_input))
     .add_systems(Update, move_camera)
     .add_systems(Update, input_exit_game)
+    // TODO should this be placed at main?
     .add_systems(Update, handle_game_over)
     .add_systems(
         Update,
@@ -93,8 +97,9 @@ pub enum GBInput {
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 pub enum AppState {
     Cutscene,
-    MainMenu,
     #[default]
+    Transition,
+    MainMenu,
     Game,
     GameOver,
 }
@@ -107,4 +112,5 @@ pub enum Layer {
     Front,
     UIBackground,
     UI,
+    Transition,
 }
