@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use super::super::components::*;
 
-pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
-    build_screen(&mut commands, &asset_server);
+pub fn spawn_main_menu(mut commands: Commands) {
+    build_screen(&mut commands);
 }
 
 pub fn despawn_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenu>>) {
@@ -12,8 +12,8 @@ pub fn despawn_main_menu(mut commands: Commands, query: Query<Entity, With<MainM
     }
 }
 
-pub fn build_screen(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
-    let main_menu_entity = commands.spawn((MainMenu {},)).id();
+pub fn build_screen(commands: &mut Commands) -> Entity {
+    let entity = commands.spawn((MainMenu {},)).id();
 
-    return main_menu_entity;
+    return entity;
 }

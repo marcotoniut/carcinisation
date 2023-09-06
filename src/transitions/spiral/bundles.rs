@@ -1,12 +1,12 @@
 use bevy::prelude::*;
-use seldom_pixel::{asset::*, prelude::*};
+use seldom_pixel::{asset::*, filter::*, prelude::*};
 
 use crate::{globals::SCREEN_RESOLUTION, Layer};
 
 use super::{components::TransitionVenetian, resources::*};
 
 pub fn make_transition_venetian_row(
-    filter: Handle<PxAsset<seldom_pixel::filter::PxFilterData>>,
+    filter: Handle<PxAsset<PxFilterData>>,
     row: u32,
 ) -> (PxLineBundle<Layer>, TransitionVenetian, Name) {
     (

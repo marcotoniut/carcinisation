@@ -44,7 +44,7 @@ pub fn spawn_hud_bundle(
 ) -> Entity {
     let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
 
-    let main_menu_entity = commands
+    let entity = commands
         .spawn((Hud {}, Name::new("Hud")))
         .with_children(|parent| {
             for i in 0..(HUD_HEIGHT as i32) {
@@ -140,5 +140,5 @@ pub fn spawn_hud_bundle(
         })
         .id();
 
-    return main_menu_entity;
+    return entity;
 }
