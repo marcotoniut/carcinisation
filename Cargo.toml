@@ -24,3 +24,4 @@ rand = "0.8.4"
 seldom_pixel = { git = "https://github.com/Seldom-SE/seldom_pixel", default-features = true, features = [
     "line",
 ] }
+bevy_kira_audio = "0.17.0"
