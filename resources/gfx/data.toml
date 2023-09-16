@@ -29,6 +29,22 @@ path = "sprites/ball_red_large.png"
 width = 10
 
 [[images]]
+path = "sprites/marauder.png"
+target_path = "sprites/marauder.png"
+width = 500
+
+[[images]]
+path = "sprites/marauder_.png"
+target_path = "sprites/marauder_.png"
+width = 175
+
+[[images]]
+path = "sprites/marauder_.png"
+target_path = "sprites/marauder_2.png"
+width = 300
+
+
+[[images]]
 path = "typeface/typeface.png"
 
 [[images]]
