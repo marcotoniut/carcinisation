@@ -47,22 +47,22 @@ pub fn spawn_gb_input(mut commands: Commands) {
     commands.spawn(InputManagerBundle::<GBInput> {
         action_state: ActionState::default(),
         input_map: InputMap::new([
-            (KeyCode::A, GBInput::Left),
-            (KeyCode::W, GBInput::Up),
-            (KeyCode::D, GBInput::Right),
-            (KeyCode::S, GBInput::Down),
-            (KeyCode::K, GBInput::B),
-            (KeyCode::L, GBInput::A),
-            (KeyCode::X, GBInput::Start),
-            (KeyCode::Z, GBInput::Select),
+            (KeyCode::Left, GBInput::Left),
+            (KeyCode::Up, GBInput::Up),
+            (KeyCode::Right, GBInput::Right),
+            (KeyCode::Down, GBInput::Down),
+            (KeyCode::Z, GBInput::B),
+            (KeyCode::X, GBInput::A),
+            (KeyCode::Return, GBInput::Start),
+            (KeyCode::ShiftRight, GBInput::Select),
             (KeyCode::I, GBInput::DToGame),
-            (KeyCode::O, GBInput::DToMainMenu),
-            (KeyCode::P, GBInput::DExit),
-            (KeyCode::H, GBInput::DLeft),
-            (KeyCode::U, GBInput::DUp),
-            (KeyCode::K, GBInput::DRight),
-            (KeyCode::J, GBInput::DDown),
-        ]),
+            (KeyCode::Back, GBInput::DToMainMenu),
+            (KeyCode::Escape, GBInput::DExit),
+            (KeyCode::A, GBInput::DLeft),
+            (KeyCode::W, GBInput::DUp),
+            (KeyCode::D, GBInput::DRight),
+            (KeyCode::S, GBInput::DDown)
+        ])
     });
 }
 
