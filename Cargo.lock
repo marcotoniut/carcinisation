@@ -3341,7 +3341,6 @@ dependencies = [
  "bevy_editor_pls",
  "bevy_framepace",
  "leafwing-input-manager",
- "objc",
  "rand",
  "seldom_pixel",
 ]
