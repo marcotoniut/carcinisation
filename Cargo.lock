@@ -3343,6 +3343,7 @@ dependencies = [
  "leafwing-input-manager",
  "rand",
  "seldom_pixel",
+ "wasm-bindgen",
 ]
 
 [[package]]

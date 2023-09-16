@@ -1,0 +1,7 @@
+*
+
+!.gitignore
+!favicon.ico
+!index.html
+!install.sh
+!serve.sh
