@@ -8,7 +8,7 @@ use super::components::*;
 pub fn make_player_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
 ) -> (PxSpriteBundle<Layer>, PxSubPosition, Player, Name) {
-    let sprite = assets_sprite.load("sprites/gun_sight.png");
+    let sprite = assets_sprite.load("sprites/gun_sight_inverted.png");
     (
         PxSpriteBundle::<Layer> {
             sprite,
