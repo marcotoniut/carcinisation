@@ -10,7 +10,7 @@ use std::{fs, str::FromStr};
 pub struct StageData {
     pub name: String,
     pub background: String,
-    pub skybox: String,
+    pub skybox: Option<String>,
     pub actions: Vec<StageAction>,
 }
 

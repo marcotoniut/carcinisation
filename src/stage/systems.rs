@@ -61,22 +61,24 @@ pub fn spawn_current_stage_bundle(
     game_progress: Res<GameProgress>,
     mut state: ResMut<NextState<GameState>>,
 ) {
-    let background_bundle =
-        make_background_bundle(&mut assets_sprite, &data_handle, &data, &game_progress);
-    let skybox_bundle = make_skybox_bundle(&mut assets_sprite, &data_handle, &data, &game_progress);
-    commands.spawn(Name::new("Stage")).with_children(|parent| {
-        parent.spawn(background_bundle.unwrap());
-        parent.spawn(skybox_bundle.unwrap());
-    });
-    state.set(GameState::Running);
-}
+    let handle_stage_data = data_handle.0.clone();
+    if let Some(stage) = data.get(&handle_stage_data) {
+        commands.spawn(Name::new("Stage")).with_children(|parent| {
+            let background_bundle =
+                make_background_bundle(&mut assets_sprite, stage.background.clone());
+            parent.spawn(background_bundle);
 
-// pub fn init_stage_state(
-//     mut commands: Commands,
-//     mut assets_sprite: PxAssets<PxSprite>,
-//     enemy_spawn_timer: Res<EnemySpawnTimer>,
-// ) {
-// }
+            if let Some(skybox_path) = stage.skybox.clone() {
+                let skybox_bundle = make_skybox_bundle(&mut assets_sprite, skybox_path);
+                parent.spawn(skybox_bundle);
+            }
+        });
+
+        state.set(GameState::Running);
+    } else {
+        // Error
+    }
+}
 
 pub fn check_timer(
     mut timer: ResMut<StageTimer>,
