@@ -1,4 +1,5 @@
 pub mod bundles;
+pub mod components;
 pub mod enemy;
 pub mod player;
 pub mod resources;
@@ -14,7 +15,6 @@ use self::{
     player::PlayerPlugin,
     resources::{GameProgress, StageTimer},
     score::{components::Score, ScorePlugin},
-    star::StarPlugin,
     systems::*,
     ui::StageUiPlugin,
 };
@@ -48,7 +48,12 @@ impl Plugin for StagePlugin {
             )
             .add_systems(
                 Update,
-                (check_timer, update_stage).run_if(in_state(GameState::Running)),
+                (
+                    check_timer,
+                    update_stage,
+                    check_staged_cleared.run_if(in_state(StageState::Running)),
+                )
+                    .run_if(in_state(GameState::Running)),
             )
             // .add_systems(Update, run_timer)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
@@ -69,4 +74,5 @@ pub enum StageState {
     #[default]
     Initial,
     Running,
+    Cleared,
 }

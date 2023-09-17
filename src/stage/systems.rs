@@ -15,6 +15,7 @@ use crate::{
 
 use super::{
     bundles::*,
+    components::Stage,
     resources::{GameProgress, StageTimer},
     GameState, StageState,
 };
@@ -63,16 +64,18 @@ pub fn spawn_current_stage_bundle(
 ) {
     let handle_stage_data = data_handle.0.clone();
     if let Some(stage) = data.get(&handle_stage_data) {
-        commands.spawn(Name::new("Stage")).with_children(|parent| {
-            let background_bundle =
-                make_background_bundle(&mut assets_sprite, stage.background.clone());
-            parent.spawn(background_bundle);
+        commands
+            .spawn((Stage {}, Name::new("Stage")))
+            .with_children(|parent| {
+                let background_bundle =
+                    make_background_bundle(&mut assets_sprite, stage.background.clone());
+                parent.spawn(background_bundle);
 
-            if let Some(skybox_path) = stage.skybox.clone() {
-                let skybox_bundle = make_skybox_bundle(&mut assets_sprite, skybox_path);
-                parent.spawn(skybox_bundle);
-            }
-        });
+                if let Some(skybox_path) = stage.skybox.clone() {
+                    let skybox_bundle = make_skybox_bundle(&mut assets_sprite, skybox_path);
+                    parent.spawn(skybox_bundle);
+                }
+            });
 
         state.set(GameState::Running);
     } else {
@@ -99,7 +102,9 @@ pub fn check_timer(
 }
 
 pub fn update_stage(
+    mut commands: Commands,
     state: Res<State<StageState>>,
+    stage_query: Query<(Entity, &Stage)>,
     mut next_state: ResMut<NextState<StageState>>,
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
@@ -122,17 +127,12 @@ pub fn update_stage(
                             base_speed,
                         } => {
                             let mut camera_pos = camera_pos_query.single_mut();
+                            let direction = coordinates.sub(camera_pos.0).normalize();
 
-                            let origin = camera_pos.0;
+                            **camera_pos += time.delta_seconds() * base_speed * direction;
 
-                            let direction = coordinates.sub(origin).normalize();
-
-                            **camera_pos += (time.delta_seconds() * base_speed) * direction;
-                            if (direction.x > 0.0 && camera_pos.0.x > coordinates.x)
-                                || (direction.x < 0.0 && camera_pos.0.x < coordinates.x)
-                            {
-                                let x = PxSubPosition(coordinates.clone());
-                                *camera_pos = x;
+                            if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
+                                *camera_pos = PxSubPosition(coordinates.clone());
                                 game_progress.stage_step += 1;
                             }
 
@@ -141,10 +141,34 @@ pub fn update_stage(
                         StageAction::Stop {
                             condition,
                             max_duration,
-                        } => {}
+                        } => {
+                            // TODO
+                            game_progress.stage_step += 1;
+                        }
                     }
                 }
             }
+        }
+        StageState::Cleared => {
+            if let Ok((entity, _)) = stage_query.get_single() {
+                commands.entity(entity).despawn_descendants();
+
+                // commands.spawn(make_stage_cleared_bundle());
+            }
+        }
+    }
+}
+
+pub fn check_staged_cleared(
+    mut next_state: ResMut<NextState<StageState>>,
+    game_progress: Res<GameProgress>,
+    data: Res<Assets<StageData>>,
+    data_handle: Res<StageDataHandle>,
+) {
+    let handle_stage_data = data_handle.0.clone();
+    if let Some(stage) = data.get(&handle_stage_data) {
+        if game_progress.stage_step >= stage.actions.len() {
+            next_state.set(StageState::Cleared);
         }
     }
 }

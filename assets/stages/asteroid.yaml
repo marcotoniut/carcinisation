@@ -4,12 +4,12 @@ skybox: backgrounds/stage_asteroid/space.png
 actions:
   - type: Movement
     coordinates: [50, 0]
-    base_speed: 2
+    base_speed: 10
   - type: Stop
     condition: KillAll
     max_duration: 5
   - type: Movement
     coordinates: [34, 0]
-    base_speed: 3
+    base_speed: 8
   - type: Stop
     condition: KillBoss
