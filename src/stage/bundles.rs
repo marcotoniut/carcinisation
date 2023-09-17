@@ -1,10 +1,7 @@
 use bevy::prelude::*;
-use seldom_pixel::{asset::*, filter::*, prelude::*};
+use seldom_pixel::{asset::*, prelude::*};
 
-use crate::{
-    game::resources::{StageData, StageDataHandle},
-    Layer,
-};
+use crate::{game::resources::*, Layer};
 
 use super::resources::GameProgress;
 

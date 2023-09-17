@@ -31,6 +31,7 @@ pub struct StagePlugin;
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
+            .add_state::<StageState>()
             .add_event::<GameOver>()
             .init_resource::<StageTimer>()
             .init_resource::<Score>()
@@ -45,6 +46,10 @@ impl Plugin for StagePlugin {
                 Update,
                 spawn_current_stage_bundle.run_if(in_state(GameState::Loading)),
             )
+            .add_systems(
+                Update,
+                (check_timer, update_stage).run_if(in_state(GameState::Running)),
+            )
             // .add_systems(Update, run_timer)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);
@@ -57,4 +62,11 @@ pub enum GameState {
     Loading,
     Running,
     Paused,
+}
+
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+pub enum StageState {
+    #[default]
+    Initial,
+    Running,
 }

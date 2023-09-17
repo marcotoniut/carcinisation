@@ -3,15 +3,13 @@ background: backgrounds/stage_asteroid/cavern.png
 skybox: backgrounds/stage_asteroid/space.png
 actions:
   - type: Movement
-    coordinates: [0.0, 20.0]
-    base_speed: 5.0
+    coordinates: [50.0, 0.0]
+    base_speed: 2.0
   - type: Stop
     condition: KillAll
     max_duration: 5.0
-    coordinates: [0.0, 20.0]
   - type: Movement
-    coordinates: [0.0, 10.0]
-    base_speed: 8.0
+    coordinates: [34.0, 0.0]
+    base_speed: 3.0
   - type: Stop
     condition: KillBoss
-    coordinates: [0.0, 20.0]

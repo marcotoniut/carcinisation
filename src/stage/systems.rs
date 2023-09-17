@@ -1,16 +1,22 @@
+use std::ops::{Mul, Sub};
+
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
+use seldom_pixel::{
+    prelude::{PxAssets, PxCamera, PxSubPosition},
+    sprite::PxSprite,
+};
 
 use crate::{
-    game::resources::{StageData, StageDataHandle},
+    game::resources::{StageAction, StageData, StageDataHandle},
+    systems::camera::CameraPos,
     GBInput,
 };
 
 use super::{
     bundles::*,
     resources::{GameProgress, StageTimer},
-    GameState,
+    GameState, StageState,
 };
 
 pub fn pause_game(mut game_state_next_state: ResMut<NextState<GameState>>) {
@@ -63,4 +69,80 @@ pub fn spawn_current_stage_bundle(
         parent.spawn(skybox_bundle.unwrap());
     });
     state.set(GameState::Running);
+}
+
+// pub fn init_stage_state(
+//     mut commands: Commands,
+//     mut assets_sprite: PxAssets<PxSprite>,
+//     enemy_spawn_timer: Res<EnemySpawnTimer>,
+// ) {
+// }
+
+pub fn check_timer(
+    mut timer: ResMut<StageTimer>,
+    data: Res<Assets<StageData>>,
+    data_handle: Res<StageDataHandle>,
+    game_progress: Res<GameProgress>,
+) {
+    if timer.timer.finished() {
+        let stage = game_progress.stage_step;
+
+        // game_progress.stage_step += 1;
+
+        let handle_stage_data = data_handle.0.clone();
+        if let Some(stage) = data.get(&handle_stage_data) {
+            timer.timer.reset();
+        }
+    }
+}
+
+pub fn update_stage(
+    state: Res<State<StageState>>,
+    mut next_state: ResMut<NextState<StageState>>,
+    mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
+    mut camera: ResMut<PxCamera>,
+    mut game_progress: ResMut<GameProgress>,
+    time: Res<Time>,
+    data: Res<Assets<StageData>>,
+    data_handle: Res<StageDataHandle>,
+) {
+    match state.to_owned() {
+        StageState::Initial => {
+            next_state.set(StageState::Running);
+        }
+        StageState::Running => {
+            let handle_stage_data = data_handle.0.clone();
+            if let Some(stage) = data.get(&handle_stage_data) {
+                if let Some(action) = stage.actions.get(game_progress.stage_step) {
+                    match action {
+                        StageAction::Movement {
+                            coordinates,
+                            base_speed,
+                        } => {
+                            let mut camera_pos = camera_pos_query.single_mut();
+
+                            let origin = camera_pos.0;
+
+                            let direction = coordinates.sub(origin).normalize();
+
+                            **camera_pos += (time.delta_seconds() * base_speed) * direction;
+                            if (direction.x > 0.0 && camera_pos.0.x > coordinates.x)
+                                || (direction.x < 0.0 && camera_pos.0.x < coordinates.x)
+                            {
+                                let x = PxSubPosition(coordinates.clone());
+                                *camera_pos = x;
+                                game_progress.stage_step += 1;
+                            }
+
+                            **camera = camera_pos.round().as_ivec2();
+                        }
+                        StageAction::Stop {
+                            condition,
+                            max_duration,
+                        } => {}
+                    }
+                }
+            }
+        }
+    }
 }
