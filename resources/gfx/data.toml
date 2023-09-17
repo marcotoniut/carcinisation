@@ -29,27 +29,16 @@ path = "sprites/ball_red_large.png"
 width = 10
 
 [[images]]
-path = "sprites/marauder.png"
-target_path = "sprites/marauder.png"
-width = 500
+path = "sprites/crosshairs/squiggly.png"
+target_path = "sprites/crosshairs/squiggly.png"
 
 [[images]]
-path = "sprites/marauder_.png"
-target_path = "sprites/marauder_.png"
-width = 175
+path = "sprites/crosshairs/gun_sight.png"
+target_path = "sprites/crosshairs/gun_sight.png"
 
 [[images]]
-path = "sprites/marauder_.png"
-target_path = "sprites/marauder_2.png"
-width = 300
-
-[[images]]
-path = "sprites/gun_sight.png"
-target_path = "sprites/gun_sight.png"
-
-[[images]]
-path = "sprites/gun_sight.png"
-target_path = "sprites/gun_sight_inverted.png"
+path = "sprites/crosshairs/gun_sight.png"
+target_path = "sprites/crosshairs/gun_sight_inverted.png"
 invert_colors = true
 
 [[images]]
