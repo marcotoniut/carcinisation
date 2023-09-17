@@ -452,6 +452,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_common_assets"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0e5659f20aeaa1703e76d87c62d66f92aaa56e431fbed71bb38345b576aa6f0"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "serde",
+ "toml 0.7.6",
+]
+
+[[package]]
 name = "bevy_core"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -779,7 +791,7 @@ dependencies = [
  "quote",
  "rustc-hash",
  "syn 2.0.29",
- "toml_edit",
+ "toml_edit 0.19.12",
 ]
 
 [[package]]
@@ -3280,7 +3292,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f4c021e1093a56626774e81216a4ce732a735e5bad4868a03f3ed65ca0c3919"
 dependencies = [
  "once_cell",
- "toml_edit",
+ "toml_edit 0.19.12",
 ]
 
 [[package]]
@@ -3324,7 +3336,7 @@ dependencies = [
  "palette",
  "serde",
  "serde_derive",
- "toml",
+ "toml 0.7.6",
 ]
 
 [[package]]
@@ -3338,11 +3350,15 @@ name = "punished-gb"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_common_assets",
  "bevy_editor_pls",
  "bevy_framepace",
  "leafwing-input-manager",
  "rand",
  "seldom_pixel",
+ "serde",
+ "serde_derive",
+ "toml 0.8.0",
  "wasm-bindgen",
 ]
 
@@ -3904,7 +3920,19 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit",
+ "toml_edit 0.19.12",
+]
+
+[[package]]
+name = "toml"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c226a7bba6d859b63c92c4b4fe69c5b6b72d0cb897dbc8e6012298e6154cb56e"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit 0.20.0",
 ]
 
 [[package]]
@@ -3926,7 +3954,20 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow",
+ "winnow 0.4.9",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ff63e60a958cefbb518ae1fd6566af80d9d4be430a33f3723dfc47d1d411d95"
+dependencies = [
+ "indexmap 2.0.0",
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "winnow 0.5.15",
 ]
 
 [[package]]
@@ -4592,6 +4633,15 @@ name = "winnow"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81a2094c43cc94775293eaa0e499fbc30048a6d824ac82c0351a8c0bf9112529"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "winnow"
+version = "0.5.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c2e3184b9c4e92ad5167ca73039d0c42476302ab603e2fec4487511f38ccefc"
 dependencies = [
  "memchr",
 ]

@@ -43,6 +43,18 @@ path = "sprites/marauder_.png"
 target_path = "sprites/marauder_2.png"
 width = 300
 
+[[images]]
+path = "sprites/gun_sight.png"
+target_path = "sprites/gun_sight.png"
+
+[[images]]
+path = "sprites/gun_sight.png"
+target_path = "sprites/gun_sight_inverted.png"
+invert_colors = true
+
+[[images]]
+path = "backgrounds/stage_asteroid/cavern.png"
+target_path = "backgrounds/stage_asteroid/cavern.png"
 
 [[images]]
 path = "typeface/typeface.png"

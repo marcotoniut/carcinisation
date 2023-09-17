@@ -1,5 +1,5 @@
 run:
-	cargo run --features bevy/dynamic_linking
+	RUST_BACKTRACE=full; cargo run --features bevy/dynamic_linking
 
 dev:
 	cargo watch -x run --features bevy/dynamic_linking;

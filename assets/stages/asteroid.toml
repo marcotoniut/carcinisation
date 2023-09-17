@@ -1,0 +1,19 @@
+title = "Asteroid"
+# Would need multiple layers for parallax
+background = "backgrounds/stage_asteroid/cavern.png"
+
+[[movements]]
+coordinates = [0.0, 20.0]
+base_speed = 5.0
+
+[[stops]]
+condition = "kill_all"
+max_duration = 5.0
+coordinates = [0.0, 20.0]
+
+[[movements]]
+coordinates = [0.0, 10.0]
+base_speed = 8.0
+
+[[stops]]
+condition = "kill_boss"

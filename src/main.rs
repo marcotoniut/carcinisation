@@ -1,6 +1,7 @@
 mod assets;
 mod cutscene;
 mod events;
+mod game;
 mod globals;
 mod main_menu;
 mod stage;
@@ -8,8 +9,10 @@ mod systems;
 mod transitions;
 
 use bevy::prelude::*;
+use bevy_common_assets::toml::TomlAssetPlugin;
 use bevy_framepace::*;
 use cutscene::CutscenePlugin;
+use game::resources::StageData;
 use globals::SCREEN_RESOLUTION;
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
@@ -54,13 +57,15 @@ fn main() {
         PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png".into()),
         FramepacePlugin,
         bevy::diagnostic::LogDiagnosticsPlugin::default(),
+        TomlAssetPlugin::<StageData>::new(&["toml"]),
     ))
     // .insert_resource(GlobalVolume::new(0.2))
     .insert_resource(ClearColor(Color::BLACK))
     .add_state::<AppState>()
     // .add_plugins(TransitionVenetianPlugin)
-    .add_plugins(CutscenePlugin)
-    // .add_plugins(StagePlugin)
+    // .add_plugins(CutscenePlugin)
+    .add_plugins(StagePlugin)
+    // .add_plugins(GamePlugin)
     // .add_plugins(MainMenuPlugin)
     .add_plugins(InputManagerPlugin::<GBInput>::default())
     .add_systems(Startup, (set_framespace, spawn_camera, spawn_gb_input))
