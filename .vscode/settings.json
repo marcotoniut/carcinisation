@@ -3,6 +3,7 @@
     "./Cargo.toml",
     "./Cargo.toml",
     "./Cargo.toml",
-    "./scripts/generate-typeface/Cargo.toml"
+    "./scripts/generate-typeface/Cargo.toml",
+    ".\\Cargo.toml"
   ]
 }
