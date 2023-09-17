@@ -3,12 +3,14 @@ use seldom_pixel::prelude::*;
 
 use crate::{globals::*, Layer};
 
-use super::components::*;
+use super::{components::*, crosshair::{CrosshairSettings, Crosshair}, CrosshairInfo};
 
 pub fn make_player_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &mut PxAssets<PxSprite>,
+    crosshair_settings: Res<CrosshairSettings>
 ) -> (PxSpriteBundle<Layer>, PxSubPosition, Player, Name) {
-    let sprite = assets_sprite.load("sprites/gun_sight_inverted.png");
+    let crosshair_info = CrosshairInfo::crosshair_sprite(asset_server, crosshair_settings);
+    let sprite = CrosshairInfo::get_sprite(crosshair_info);
     (
         PxSpriteBundle::<Layer> {
             sprite,
@@ -22,6 +24,6 @@ pub fn make_player_bundle(
             (HUD_HEIGHT as f32) + (SCREEN_RESOLUTION.y / 2) as f32,
         )),
         Player {},
-        Name::new("Player"),
+        Name::new("Player")
     )
 }

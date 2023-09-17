@@ -13,10 +13,10 @@ use bevy_common_assets::yaml::YamlAssetPlugin;
 use bevy_framepace::*;
 use cutscene::CutscenePlugin;
 use game::resources::StageData;
-use globals::SCREEN_RESOLUTION;
+use globals::{SCREEN_RESOLUTION, DEFAULT_CROSSHAIR_INDEX};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
-use stage::StagePlugin;
+use stage::{StagePlugin, player::crosshair::CrosshairSettings};
 use systems::{camera::move_camera, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
@@ -61,6 +61,7 @@ fn main() {
     ))
     // .insert_resource(GlobalVolume::new(0.2))
     .insert_resource(ClearColor(Color::BLACK))
+    .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
     .add_state::<AppState>()
     // .add_plugins(TransitionVenetianPlugin)
     // .add_plugins(CutscenePlugin)

@@ -11,15 +11,15 @@ use crate::{
     GBInput,
 };
 
-use super::super::{
+use super::{super::{
     enemy::components::{Enemy, ENEMY_SIZE},
     score::components::Score,
     star::components::{Star, STAR_SIZE},
-};
+}, crosshair::CrosshairSettings};
 use super::{bundles::*, components::*};
-
-pub fn spawn_player(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
-    commands.spawn(make_player_bundle(&mut assets_sprite));
+    
+pub fn spawn_player(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>, crosshair_settings: Res<CrosshairSettings>) {
+    commands.spawn(make_player_bundle(&mut assets_sprite, crosshair_settings));
 }
 
 pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>) {
