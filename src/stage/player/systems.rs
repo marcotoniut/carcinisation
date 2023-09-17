@@ -18,8 +18,8 @@ use super::super::{
 };
 use super::{bundles::*, components::*};
 
-pub fn spawn_player(commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
-    spawn_player_bundle(commands, &mut assets_sprite);
+pub fn spawn_player(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
+    commands.spawn(make_player_bundle(&mut assets_sprite));
 }
 
 pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>) {

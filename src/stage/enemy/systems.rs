@@ -3,11 +3,11 @@ use seldom_pixel::{asset::*, prelude::*};
 
 use crate::globals::*;
 
-use super::{bundles::spawn_enemy_bundle, components::*, resources::*};
+use super::{bundles::*, components::*, resources::*};
 
 pub fn spawn_enemies(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
     for _ in 0..NUMBER_OF_ENEMIES {
-        spawn_enemy_bundle(&mut commands, &mut assets_sprite);
+        commands.spawn(make_enemy_bundle(&mut assets_sprite));
     }
 }
 
@@ -107,6 +107,6 @@ pub fn spawn_enemies_over_time(
     enemy_spawn_timer: Res<EnemySpawnTimer>,
 ) {
     if enemy_spawn_timer.timer.finished() {
-        spawn_enemy_bundle(&mut commands, &mut assets_sprite);
+        commands.spawn(make_enemy_bundle(&mut assets_sprite));
     }
 }

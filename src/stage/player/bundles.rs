@@ -5,10 +5,10 @@ use crate::{globals::*, Layer};
 
 use super::components::*;
 
-fn make_player_bundle(
+pub fn make_player_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
 ) -> (PxSpriteBundle<Layer>, PxSubPosition, Player, Name) {
-    let sprite = assets_sprite.load("sprites/ball_blue_large.png");
+    let sprite = assets_sprite.load("sprites/gun_sight.png");
     (
         PxSpriteBundle::<Layer> {
             sprite,
@@ -24,8 +24,4 @@ fn make_player_bundle(
         Player {},
         Name::new("Player"),
     )
-}
-
-pub fn spawn_player_bundle(mut commands: Commands, assets_sprite: &mut PxAssets<PxSprite>) {
-    commands.spawn(make_player_bundle(assets_sprite));
 }

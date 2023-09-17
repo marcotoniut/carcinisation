@@ -103,10 +103,11 @@ pub enum GBInput {
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 pub enum AppState {
-    #[default]
+    // #[default]
     Cutscene,
     Transition,
     MainMenu,
+    #[default]
     Game,
     GameOver,
 }

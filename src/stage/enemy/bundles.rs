@@ -5,7 +5,7 @@ use crate::{globals::*, Layer};
 
 use super::components::*;
 
-fn make_enemy_bundle(
+pub fn make_enemy_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
 ) -> (PxSpriteBundle<Layer>, PxSubPosition, Enemy, Name) {
     let texture = assets_sprite.load("sprites/ball_red_large.png");
@@ -24,8 +24,4 @@ fn make_enemy_bundle(
         },
         Name::new("Enemy"),
     )
-}
-
-pub fn spawn_enemy_bundle(commands: &mut Commands, assets_sprite: &mut PxAssets<PxSprite>) {
-    commands.spawn(make_enemy_bundle(assets_sprite));
 }
