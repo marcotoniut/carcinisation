@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    bundles::make_current_stage_bundle,
+    bundles::*,
     resources::{GameProgress, StageTimer},
     GameState,
 };
@@ -43,7 +43,7 @@ pub fn run_timer(res: Res<StageTimer>, game_data: Res<Assets<StageData>>) {
 }
 
 pub fn setup_stage(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.toml"));
+    let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
     commands.insert_resource(stage_data_handle);
 }
 
@@ -55,7 +55,12 @@ pub fn spawn_current_stage_bundle(
     game_progress: Res<GameProgress>,
     mut state: ResMut<NextState<GameState>>,
 ) {
-    let bundle = make_current_stage_bundle(&mut assets_sprite, &data_handle, &data, &game_progress);
-    commands.spawn(bundle.unwrap());
+    let background_bundle =
+        make_background_bundle(&mut assets_sprite, &data_handle, &data, &game_progress);
+    let skybox_bundle = make_skybox_bundle(&mut assets_sprite, &data_handle, &data, &game_progress);
+    commands.spawn(Name::new("Stage")).with_children(|parent| {
+        parent.spawn(background_bundle.unwrap());
+        parent.spawn(skybox_bundle.unwrap());
+    });
     state.set(GameState::Running);
 }

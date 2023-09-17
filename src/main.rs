@@ -9,7 +9,7 @@ mod systems;
 mod transitions;
 
 use bevy::prelude::*;
-use bevy_common_assets::toml::TomlAssetPlugin;
+use bevy_common_assets::yaml::YamlAssetPlugin;
 use bevy_framepace::*;
 use cutscene::CutscenePlugin;
 use game::resources::StageData;
@@ -57,7 +57,7 @@ fn main() {
         PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png".into()),
         FramepacePlugin,
         bevy::diagnostic::LogDiagnosticsPlugin::default(),
-        TomlAssetPlugin::<StageData>::new(&["toml"]),
+        YamlAssetPlugin::<StageData>::new(&["yaml"]),
     ))
     // .insert_resource(GlobalVolume::new(0.2))
     .insert_resource(ClearColor(Color::BLACK))
@@ -103,7 +103,6 @@ pub enum GBInput {
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 pub enum AppState {
-    // #[default]
     Cutscene,
     Transition,
     MainMenu,
@@ -114,9 +113,10 @@ pub enum AppState {
 
 #[px_layer]
 pub enum Layer {
-    #[default]
+    Skybox,
     Back,
     Middle(i32),
+    #[default]
     Front,
     UIBackground,
     UI,

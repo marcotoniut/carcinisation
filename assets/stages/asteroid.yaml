@@ -1,0 +1,17 @@
+name: Asteroid
+background: backgrounds/stage_asteroid/cavern.png
+skybox: backgrounds/stage_asteroid/space.png
+actions:
+  - type: Movement
+    coordinates: [0.0, 20.0]
+    base_speed: 5.0
+  - type: Stop
+    condition: KillAll
+    max_duration: 5.0
+    coordinates: [0.0, 20.0]
+  - type: Movement
+    coordinates: [0.0, 10.0]
+    base_speed: 8.0
+  - type: Stop
+    condition: KillBoss
+    coordinates: [0.0, 20.0]

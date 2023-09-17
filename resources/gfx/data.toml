@@ -57,6 +57,10 @@ path = "backgrounds/stage_asteroid/cavern.png"
 target_path = "backgrounds/stage_asteroid/cavern.png"
 
 [[images]]
+path = "backgrounds/stage_asteroid/space.png"
+target_path = "backgrounds/stage_asteroid/space.png"
+
+[[images]]
 path = "typeface/typeface.png"
 
 [[images]]
