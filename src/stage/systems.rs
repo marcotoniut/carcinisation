@@ -62,8 +62,7 @@ pub fn spawn_current_stage_bundle(
     game_progress: Res<GameProgress>,
     mut state: ResMut<NextState<GameState>>,
 ) {
-    let handle_stage_data = data_handle.0.clone();
-    if let Some(stage) = data.get(&handle_stage_data) {
+    if let Some(stage) = data.get(&data_handle.0.clone()) {
         commands
             .spawn((Stage {}, Name::new("Stage")))
             .with_children(|parent| {
@@ -94,8 +93,7 @@ pub fn check_timer(
 
         // game_progress.stage_step += 1;
 
-        let handle_stage_data = data_handle.0.clone();
-        if let Some(stage) = data.get(&handle_stage_data) {
+        if let Some(stage) = data.get(&data_handle.0.clone()) {
             timer.timer.reset();
         }
     }
@@ -118,8 +116,7 @@ pub fn update_stage(
             next_state.set(StageState::Running);
         }
         StageState::Running => {
-            let handle_stage_data = data_handle.0.clone();
-            if let Some(stage) = data.get(&handle_stage_data) {
+            if let Some(stage) = data.get(&data_handle.0.clone()) {
                 if let Some(action) = stage.actions.get(game_progress.stage_step) {
                     match action {
                         StageAction::Movement {
@@ -149,10 +146,15 @@ pub fn update_stage(
                 }
             }
         }
+        // StageState::Clear => {
+        //   next_state.set(StageState::Cleared);
+        // }
+        // StageState::Cleared => {
         StageState::Cleared => {
             if let Ok((entity, _)) = stage_query.get_single() {
                 commands.entity(entity).despawn_descendants();
 
+                // TODO
                 // commands.spawn(make_stage_cleared_bundle());
             }
         }
@@ -165,8 +167,7 @@ pub fn check_staged_cleared(
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
 ) {
-    let handle_stage_data = data_handle.0.clone();
-    if let Some(stage) = data.get(&handle_stage_data) {
+    if let Some(stage) = data.get(&data_handle.0.clone()) {
         if game_progress.stage_step >= stage.actions.len() {
             next_state.set(StageState::Cleared);
         }
