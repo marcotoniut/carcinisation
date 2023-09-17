@@ -1,12 +1,15 @@
 pub mod bundles;
 pub mod components;
-pub mod systems;
 pub mod crosshair;
+pub mod systems;
 
 use bevy::prelude::*;
 use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
-use self::{systems::*, crosshair::{CrosshairSettings, Crosshair}};
+use self::{
+    crosshair::{Crosshair, CrosshairSettings},
+    systems::*,
+};
 use super::GameState;
 use crate::AppState;
 
@@ -18,7 +21,6 @@ pub struct ConfinementSystemSet;
 
 pub struct PlayerPlugin;
 
-
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.configure_set(Update, MovementSystemSet.before(ConfinementSystemSet))
@@ -28,8 +30,6 @@ impl Plugin for PlayerPlugin {
                 (
                     player_movement.in_set(MovementSystemSet),
                     confine_player_movement.in_set(ConfinementSystemSet),
-                    enemy_hit_player,
-                    player_hit_star,
                 )
                     .run_if(in_state(AppState::Game))
                     .run_if(in_state(GameState::Running)),
@@ -40,15 +40,17 @@ impl Plugin for PlayerPlugin {
 
 pub struct CrosshairInfo {
     pub sprite: Handle<seldom_pixel::asset::PxAsset<seldom_pixel::sprite::PxSpriteData>>,
-    pub crosshair: Crosshair
+    pub crosshair: Crosshair,
 }
 
-impl  CrosshairInfo {
-    pub fn get_sprite(crosshair: CrosshairInfo) -> Handle<seldom_pixel::asset::PxAsset<seldom_pixel::sprite::PxSpriteData>>{
+impl CrosshairInfo {
+    pub fn get_sprite(
+        crosshair: CrosshairInfo,
+    ) -> Handle<seldom_pixel::asset::PxAsset<seldom_pixel::sprite::PxSpriteData>> {
         return crosshair.sprite;
     }
 
-    pub fn get_crosshair(crosshair: CrosshairInfo) -> Crosshair{
+    pub fn get_crosshair(crosshair: CrosshairInfo) -> Crosshair {
         return crosshair.crosshair;
     }
 
@@ -58,30 +60,37 @@ impl  CrosshairInfo {
     ) -> CrosshairInfo {
         let sprite;
         let crosshair;
-    
+
         match crosshair_settings.0 {
-            2=> { 
-                    sprite = asset_server.load("sprites/crosshairs/squiggly.png");
-                    crosshair = Crosshair{ name: "squiggly".to_string() };
-            },
-            1=> { 
-                    sprite = asset_server.load("sprites/crosshairs/gun_sight.png");
-                    crosshair = Crosshair{ name: "negative".to_string() };
-            },
-            0=> { 
+            2 => {
+                sprite = asset_server.load("sprites/crosshairs/squiggly.png");
+                crosshair = Crosshair {
+                    name: "squiggly".to_string(),
+                };
+            }
+            1 => {
+                sprite = asset_server.load("sprites/crosshairs/gun_sight.png");
+                crosshair = Crosshair {
+                    name: "negative".to_string(),
+                };
+            }
+            0 => {
                 sprite = asset_server.load("sprites/crosshairs/gun_sight_inverted.png");
-                crosshair = Crosshair{ name: "default".to_string() };
-            },
-            _=> { 
+                crosshair = Crosshair {
+                    name: "default".to_string(),
+                };
+            }
+            _ => {
                 sprite = asset_server.load("sprites/crosshairs/gun_sight_inverted.png");
-                crosshair = Crosshair{ name: "default".to_string() };
-            },
+                crosshair = Crosshair {
+                    name: "default".to_string(),
+                };
+            }
         }
-    
+
         return CrosshairInfo {
             sprite: sprite,
-            crosshair: crosshair
+            crosshair: crosshair,
         };
     }
 }
-

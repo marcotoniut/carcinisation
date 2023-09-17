@@ -12,6 +12,7 @@ pub fn make_enemy_bundle(
     (
         PxSpriteBundle::<Layer> {
             sprite: texture.clone(),
+            layer: Layer::Middle(2),
             anchor: PxAnchor::Center,
             ..default()
         },

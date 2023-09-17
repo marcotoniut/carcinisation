@@ -9,7 +9,9 @@ pub struct CameraPos;
 
 const CAMERA_SPEED: f32 = 10.;
 
-// Move the camera based on the arrow keys
+/**
+Move the camera placement using the debug arrow keys
+*/
 pub fn move_camera(
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     gb_input_query: Query<&ActionState<GBInput>>,

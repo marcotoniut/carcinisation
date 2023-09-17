@@ -6,19 +6,18 @@ use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::*;
 
 use crate::{
-    events::GameOver,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
     GBInput,
 };
 
-use super::{super::{
-    enemy::components::{Enemy, ENEMY_SIZE},
-    score::components::Score,
-    star::components::{Star, STAR_SIZE},
-}, crosshair::CrosshairSettings};
+use super::crosshair::CrosshairSettings;
 use super::{bundles::*, components::*};
-    
-pub fn spawn_player(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>, crosshair_settings: Res<CrosshairSettings>) {
+
+pub fn spawn_player(
+    mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    crosshair_settings: Res<CrosshairSettings>,
+) {
     commands.spawn(make_player_bundle(&mut assets_sprite, crosshair_settings));
 }
 
@@ -74,66 +73,36 @@ pub fn player_movement(
     }
 }
 
-pub fn enemy_hit_player(
-    mut commands: Commands,
-    mut game_over_event_writer: EventWriter<GameOver>,
-    mut player_query: Query<(Entity, &PxSubPosition), With<Player>>,
-    enemy_query: Query<&PxSubPosition, With<Enemy>>,
-    asset_server: Res<AssetServer>,
-    score: Res<Score>,
-) {
-    if let Ok((player_entity, player_position)) = player_query.get_single_mut() {
-        for enemy_position in enemy_query.iter() {
-            let distance = player_position.0.distance(enemy_position.0);
+// NOTE: Keeping as comment for quick reference
+// pub fn enemy_hit_player(
+//     mut commands: Commands,
+//     mut game_over_event_writer: EventWriter<GameOver>,
+//     mut player_query: Query<(Entity, &PxSubPosition), With<Player>>,
+//     enemy_query: Query<&PxSubPosition, With<Enemy>>,
+//     asset_server: Res<AssetServer>,
+//     score: Res<Score>,
+// ) {
+//     if let Ok((player_entity, player_position)) = player_query.get_single_mut() {
+//         for enemy_position in enemy_query.iter() {
+//             let distance = player_position.0.distance(enemy_position.0);
 
-            if distance < (PLAYER_SIZE / 2.0 + ENEMY_SIZE / 2.0) {
-                commands.entity(player_entity).despawn();
+//             if distance < (PLAYER_SIZE / 2.0 + ENEMY_SIZE / 2.0) {
+//                 commands.entity(player_entity).despawn();
 
-                let sound_effect = asset_server.load("audio/explosionCrunch_000.ogg");
-                commands.spawn(AudioBundle {
-                    source: sound_effect,
-                    settings: PlaybackSettings {
-                        mode: PlaybackMode::Despawn,
-                        volume: Volume::new_relative(0.02),
-                        ..default()
-                    },
-                    ..default()
-                });
+//                 let sound_effect = asset_server.load("audio/explosionCrunch_000.ogg");
+//                 commands.spawn(AudioBundle {
+//                     source: sound_effect,
+//                     settings: PlaybackSettings {
+//                         mode: PlaybackMode::Despawn,
+//                         volume: Volume::new_relative(0.02),
+//                         ..default()
+//                     },
+//                     ..default()
+//                 });
 
-                println!("Enemy hit player! Game over!");
-                game_over_event_writer.send(GameOver { score: score.value });
-            }
-        }
-    }
-}
-
-pub fn player_hit_star(
-    mut commands: Commands,
-    mut player_query: Query<&PxSubPosition, With<Player>>,
-    star_query: Query<(Entity, &PxSubPosition), With<Star>>,
-    asset_server: Res<AssetServer>,
-    mut score: ResMut<Score>,
-) {
-    if let Ok(player_position) = player_query.get_single_mut() {
-        for (star_entity, star_position) in star_query.iter() {
-            let distance = player_position.0.distance(star_position.0);
-
-            if distance < (PLAYER_SIZE / 2.0 + STAR_SIZE / 2.0) {
-                commands.entity(star_entity).despawn();
-
-                score.value += 1;
-
-                let sound_effect = asset_server.load("audio/laserSmall_000.ogg");
-                commands.spawn(AudioBundle {
-                    source: sound_effect,
-                    settings: PlaybackSettings {
-                        mode: PlaybackMode::Despawn,
-                        volume: Volume::new_relative(0.02),
-                        ..default()
-                    },
-                    ..default()
-                });
-            }
-        }
-    }
-}
+//                 println!("Enemy hit player! Game over!");
+//                 game_over_event_writer.send(GameOver { score: score.value });
+//             }
+//         }
+//     }
+// }
