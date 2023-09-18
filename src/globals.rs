@@ -10,4 +10,4 @@ pub const TYPEFACE_INVERTED_PATH: &str = "typeface/pixeboy-inverted.png";
 // pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?";
 
-pub const DEFAULT_CROSSHAIR_INDEX: u8 = 2;
+pub const DEFAULT_CROSSHAIR_INDEX: u8 = 1;
