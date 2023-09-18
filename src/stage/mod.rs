@@ -1,6 +1,7 @@
 pub mod bundles;
 pub mod components;
 pub mod enemy;
+pub mod events;
 pub mod player;
 pub mod resources;
 pub mod score;
@@ -12,6 +13,7 @@ use bevy::prelude::*;
 
 use self::{
     enemy::EnemyPlugin,
+    events::*,
     player::PlayerPlugin,
     resources::{GameProgress, StageTimer},
     score::{components::Score, ScorePlugin},
@@ -33,6 +35,7 @@ impl Plugin for StagePlugin {
         app.add_state::<GameState>()
             .add_state::<StageState>()
             .add_event::<GameOver>()
+            .add_event::<StageActionTrigger>()
             .init_resource::<StageTimer>()
             .init_resource::<Score>()
             .init_resource::<GameProgress>()
@@ -51,6 +54,7 @@ impl Plugin for StagePlugin {
                 (
                     check_timer,
                     update_stage,
+                    read_stage_action_trigger,
                     check_staged_cleared.run_if(in_state(StageState::Running)),
                 )
                     .run_if(in_state(GameState::Running)),
@@ -74,5 +78,6 @@ pub enum StageState {
     #[default]
     Initial,
     Running,
+    Clear,
     Cleared,
 }

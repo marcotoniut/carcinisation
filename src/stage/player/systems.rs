@@ -18,6 +18,9 @@ pub fn spawn_player(
     mut assets_sprite: PxAssets<PxSprite>,
     crosshair_settings: Res<CrosshairSettings>,
 ) {
+    // if let Ok((entity, _)) = stage_query.get_single() {
+    //     commands.entity(entity).despawn_recursive();
+    // }
     commands.spawn(make_player_bundle(&mut assets_sprite, crosshair_settings));
 }
 

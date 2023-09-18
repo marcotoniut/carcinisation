@@ -1,4 +1,7 @@
-use std::ops::{Mul, Sub};
+use std::{
+    ops::{Mul, Sub},
+    time::Duration,
+};
 
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
@@ -16,6 +19,7 @@ use crate::{
 use super::{
     bundles::*,
     components::Stage,
+    events::StageActionTrigger,
     resources::{GameProgress, StageTimer},
     GameState, StageState,
 };
@@ -59,7 +63,6 @@ pub fn spawn_current_stage_bundle(
     mut assets_sprite: PxAssets<PxSprite>,
     data_handle: Res<StageDataHandle>,
     data: Res<Assets<StageData>>,
-    game_progress: Res<GameProgress>,
     mut state: ResMut<NextState<GameState>>,
 ) {
     if let Some(stage) = data.get(&data_handle.0.clone()) {
@@ -106,7 +109,8 @@ pub fn update_stage(
     mut next_state: ResMut<NextState<StageState>>,
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
-    mut game_progress: ResMut<GameProgress>,
+    mut event_writer: EventWriter<StageActionTrigger>,
+    game_progress: Res<GameProgress>,
     time: Res<Time>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
@@ -130,7 +134,7 @@ pub fn update_stage(
 
                             if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
                                 *camera_pos = PxSubPosition(coordinates.clone());
-                                game_progress.stage_step += 1;
+                                event_writer.send(StageActionTrigger {});
                             }
 
                             **camera = camera_pos.round().as_ivec2();
@@ -139,25 +143,23 @@ pub fn update_stage(
                             condition,
                             max_duration,
                         } => {
-                            // TODO
-                            game_progress.stage_step += 1;
+                            event_writer.send(StageActionTrigger {});
                         }
                     }
                 }
             }
         }
-        // StageState::Clear => {
-        //   next_state.set(StageState::Cleared);
-        // }
-        // StageState::Cleared => {
-        StageState::Cleared => {
+        StageState::Clear => {
             if let Ok((entity, _)) = stage_query.get_single() {
                 commands.entity(entity).despawn_descendants();
 
                 // TODO
                 // commands.spawn(make_stage_cleared_bundle());
             }
+
+            next_state.set(StageState::Cleared);
         }
+        StageState::Cleared => {}
     }
 }
 
@@ -169,7 +171,43 @@ pub fn check_staged_cleared(
 ) {
     if let Some(stage) = data.get(&data_handle.0.clone()) {
         if game_progress.stage_step >= stage.actions.len() {
-            next_state.set(StageState::Cleared);
+            next_state.set(StageState::Clear);
+        }
+    }
+}
+
+pub fn read_stage_action_trigger(
+    mut event_reader: EventReader<StageActionTrigger>,
+    mut game_progress: ResMut<GameProgress>,
+    data: Res<Assets<StageData>>,
+    data_handle: Res<StageDataHandle>,
+    mut stage_timer: ResMut<StageTimer>,
+) {
+    for _ in event_reader.iter() {
+        game_progress.stage_step += 1;
+
+        if let Some(stage) = data.get(&data_handle.0.clone()) {
+            if let Some(action) = stage.actions.get(game_progress.stage_step) {
+                stage_timer.timer.pause();
+                match action {
+                    StageAction::Movement {
+                        coordinates,
+                        base_speed,
+                    } => {}
+                    StageAction::Stop {
+                        condition,
+                        max_duration,
+                    } => {
+                        if let Some(duration) = max_duration {
+                            stage_timer.timer.reset();
+                            stage_timer
+                                .timer
+                                .set_duration(Duration::from_secs(duration.clone()));
+                            stage_timer.timer.unpause();
+                        }
+                    }
+                }
+            }
         }
     }
 }
