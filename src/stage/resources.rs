@@ -20,7 +20,7 @@ pub struct StageTimer {
 impl Default for StageTimer {
     fn default() -> Self {
         StageTimer {
-            timer: Timer::from_seconds(1.0, TimerMode::Repeating),
+            timer: Timer::from_seconds(0.0, TimerMode::Repeating),
         }
     }
 }

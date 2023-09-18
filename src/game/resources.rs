@@ -5,6 +5,12 @@ use bevy::{
 use serde::Deserialize;
 use std::{fs, str::FromStr, time::Duration};
 
+#[derive(Debug, Deserialize, Clone)]
+pub enum ResumeCondition {
+    KillAll,
+    KillBoss,
+}
+
 #[derive(Deserialize, TypeUuid, TypePath, Clone, Debug)]
 #[uuid = "c17075ed-7df0-4a51-b961-ce5270a8a934"]
 pub struct StageData {
@@ -21,7 +27,7 @@ pub enum StageAction {
     Movement { coordinates: Vec2, base_speed: f32 },
     #[serde(rename = "Stop")]
     Stop {
-        condition: String,
+        resume_conditions: Option<Vec<ResumeCondition>>,
         max_duration: Option<u64>,
     },
 }

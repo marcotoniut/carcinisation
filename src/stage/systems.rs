@@ -53,7 +53,12 @@ pub fn run_timer(res: Res<StageTimer>, game_data: Res<Assets<StageData>>) {
     // let (_, data) = game_data.iter().next().unwrap();
 }
 
-pub fn setup_stage(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn setup_stage(
+    mut commands: Commands,
+    mut timer: ResMut<StageTimer>,
+    asset_server: Res<AssetServer>,
+) {
+    timer.timer.pause();
     let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
     commands.insert_resource(stage_data_handle);
 }
@@ -85,20 +90,24 @@ pub fn spawn_current_stage_bundle(
     }
 }
 
-pub fn check_timer(
+pub fn tick_stage_stop_timer(mut timer: ResMut<StageTimer>, time: Res<Time>) {
+    timer.timer.tick(time.delta());
+}
+
+pub fn check_stage_stop_timer(
     mut timer: ResMut<StageTimer>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
     game_progress: Res<GameProgress>,
+    mut event_writer: EventWriter<StageActionTrigger>,
 ) {
     if timer.timer.finished() {
-        let stage = game_progress.stage_step;
-
         // game_progress.stage_step += 1;
+        event_writer.send(StageActionTrigger {});
 
-        if let Some(stage) = data.get(&data_handle.0.clone()) {
-            timer.timer.reset();
-        }
+        // if let Some(stage) = data.get(&data_handle.0.clone()) {
+        //     timer.timer.reset();
+        // }
     }
 }
 
@@ -140,10 +149,21 @@ pub fn update_stage(
                             **camera = camera_pos.round().as_ivec2();
                         }
                         StageAction::Stop {
-                            condition,
+                            resume_conditions,
                             max_duration,
                         } => {
-                            event_writer.send(StageActionTrigger {});
+                            if let Some(duration) = max_duration {
+                                // if !timer.timer.is_running() {
+                                //     timer.timer.reset();
+                                //     timer
+                                //         .timer
+                                //         .set_duration(Duration::from_secs(duration.clone()));
+                                //     timer.timer.unpause();
+                                // }
+                            } else {
+                                // DEBUG
+                                event_writer.send(StageActionTrigger {});
+                            }
                         }
                     }
                 }
@@ -195,7 +215,7 @@ pub fn read_stage_action_trigger(
                         base_speed,
                     } => {}
                     StageAction::Stop {
-                        condition,
+                        resume_conditions,
                         max_duration,
                     } => {
                         if let Some(duration) = max_duration {

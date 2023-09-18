@@ -52,7 +52,8 @@ impl Plugin for StagePlugin {
             .add_systems(
                 Update,
                 (
-                    check_timer,
+                    tick_stage_stop_timer,
+                    check_stage_stop_timer,
                     update_stage,
                     read_stage_action_trigger,
                     check_staged_cleared.run_if(in_state(StageState::Running)),
