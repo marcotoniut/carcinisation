@@ -11,3 +11,7 @@ pub const TYPEFACE_INVERTED_PATH: &str = "typeface/pixeboy-inverted.png";
 pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?";
 
 pub const DEFAULT_CROSSHAIR_INDEX: u8 = 2;
+
+pub const DEFAULT_MASTER_VOLUME: f32 = 0.5;
+pub const DEFAULT_SFX_VOLUME: f32 = 0.1;
+pub const DEFAULT_MUSIC_VOLUME: f32 = 1.0;

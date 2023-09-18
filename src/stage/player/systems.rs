@@ -8,7 +8,7 @@ use seldom_pixel::prelude::*;
 use crate::{
     events::GameOver,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
-    GBInput,
+    GBInput, systems::audio::{VolumeSettings, AudioSystemType, AudioSystemBundle}
 };
 
 use super::{super::{
@@ -113,26 +113,30 @@ pub fn player_hit_star(
     star_query: Query<(Entity, &PxSubPosition), With<Star>>,
     asset_server: Res<AssetServer>,
     mut score: ResMut<Score>,
+    volume_settings: Res<VolumeSettings>
 ) {
     if let Ok(player_position) = player_query.get_single_mut() {
         for (star_entity, star_position) in star_query.iter() {
             let distance = player_position.0.distance(star_position.0);
-
             if distance < (PLAYER_SIZE / 2.0 + STAR_SIZE / 2.0) {
                 commands.entity(star_entity).despawn();
 
                 score.value += 1;
 
                 let sound_effect = asset_server.load("audio/laserSmall_000.ogg");
-                commands.spawn(AudioBundle {
+                let audio = commands.spawn(AudioBundle {
                     source: sound_effect,
                     settings: PlaybackSettings {
                         mode: PlaybackMode::Despawn,
-                        volume: Volume::new_relative(0.02),
+                        volume: Volume::new_relative(volume_settings.2 * 1.0),
                         ..default()
                     },
                     ..default()
-                });
+                }).id();
+                commands.entity(audio)
+                    .insert(AudioSystemBundle{
+                        system_type: AudioSystemType::SFX
+                    });
             }
         }
     }

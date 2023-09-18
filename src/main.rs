@@ -17,7 +17,8 @@ use globals::{SCREEN_RESOLUTION, DEFAULT_CROSSHAIR_INDEX};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::{StagePlugin, player::crosshair::CrosshairSettings};
-use systems::{camera::move_camera, *};
+use systems::{camera::move_camera, *, audio::VolumeSettings};
+use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
@@ -62,6 +63,11 @@ fn main() {
     // .insert_resource(GlobalVolume::new(0.2))
     .insert_resource(ClearColor(Color::BLACK))
     .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
+    .insert_resource(VolumeSettings(
+        DEFAULT_MASTER_VOLUME,
+        DEFAULT_MUSIC_VOLUME,
+        DEFAULT_SFX_VOLUME
+    ))
     .add_state::<AppState>()
     // .add_plugins(TransitionVenetianPlugin)
     // .add_plugins(CutscenePlugin)

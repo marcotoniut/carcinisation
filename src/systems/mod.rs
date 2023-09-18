@@ -1,6 +1,7 @@
 pub mod camera;
+pub mod audio;
 
-use bevy::{app::AppExit, prelude::*};
+use bevy::{app::AppExit, prelude::*, audio::Volume};
 use bevy_framepace::Limiter;
 use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
@@ -8,9 +9,9 @@ use leafwing_input_manager::{
 };
 use seldom_pixel::prelude::PxSubPosition;
 
-use crate::{events::*, AppState, GBInput};
+use crate::{events::*, AppState, GBInput, audio::AudioSystemType};
 
-use self::camera::CameraPos;
+use self::{camera::CameraPos, audio::VolumeSettings};
 
 pub fn input_exit_game(
     gb_input_query: Query<&ActionState<GBInput>>,
@@ -92,5 +93,34 @@ pub fn transition_to_main_menu_state(
             next_state.set(AppState::MainMenu);
             println!("Entered AppState::MainMenu");
         }
+    }
+}
+
+pub fn update_master_volume(
+    volume_settings: Res<VolumeSettings>
+) {
+    let master_volume = volume_settings.0;
+    GlobalVolume::new(master_volume);
+}
+
+pub fn update_music_volume(
+    mut source_settings: Query<(&mut PlaybackSettings, &AudioSystemType)>,
+    volume_settings: Res<VolumeSettings>
+) {
+    let music_volume = volume_settings.1;
+    for (mut music_source_settings, audio_system_type) in source_settings.iter_mut() {
+        if matches!(audio_system_type, AudioSystemType::SFX) {
+            music_source_settings.volume = Volume::new_relative(music_volume);
+        }
+    }
+}
+
+pub fn update_sfx_volume(
+    mut source_settings: Query<&mut PlaybackSettings>,
+    volume_settings: Res<VolumeSettings>
+) {
+    let sfx_volume = volume_settings.2;
+    for mut sfx_source_settings in &mut source_settings{
+        sfx_source_settings.volume = Volume::new_relative(sfx_volume);
     }
 }

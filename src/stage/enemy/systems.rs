@@ -1,7 +1,7 @@
 use bevy::{audio::*, prelude::*};
 use seldom_pixel::{asset::*, prelude::*};
 
-use crate::globals::*;
+use crate::{globals::*, systems::audio::{VolumeSettings, AudioSystemBundle, AudioSystemType}};
 
 use super::{bundles::*, components::*, resources::*};
 
@@ -28,6 +28,7 @@ pub fn update_enemy_direction(
     mut query: Query<(&mut PxSubPosition, &mut Enemy)>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
+    volume_settings: Res<VolumeSettings>
 ) {
     let half_size = ENEMY_SIZE / 2.0;
     let x_min = half_size;
@@ -58,14 +59,17 @@ pub fn update_enemy_direction(
             } else {
                 sound_effect_2
             };
-            commands.spawn(AudioBundle {
+            let audio = commands.spawn(AudioBundle {
                 source: sound_effect,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Despawn,
-                    volume: Volume::new_relative(0.02),
+                    volume: Volume::new_relative(volume_settings.2 * 1.0),
                     ..default()
                 },
                 ..default()
+            }).id();
+            commands.entity(audio).insert(AudioSystemBundle{
+                system_type: AudioSystemType::SFX
             });
         }
     }
