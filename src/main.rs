@@ -13,10 +13,10 @@ use bevy_common_assets::yaml::YamlAssetPlugin;
 use bevy_framepace::*;
 use cutscene::CutscenePlugin;
 use game::resources::StageData;
-use globals::{SCREEN_RESOLUTION, DEFAULT_CROSSHAIR_INDEX};
+use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
-use stage::{StagePlugin, player::crosshair::CrosshairSettings};
+use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{camera::move_camera, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
@@ -117,6 +117,7 @@ pub enum Layer {
     Skybox,
     Back,
     Middle(i32),
+    Attack,
     #[default]
     Front,
     UIBackground,

@@ -95,19 +95,11 @@ pub fn tick_stage_stop_timer(mut timer: ResMut<StageTimer>, time: Res<Time>) {
 }
 
 pub fn check_stage_stop_timer(
-    mut timer: ResMut<StageTimer>,
-    data: Res<Assets<StageData>>,
-    data_handle: Res<StageDataHandle>,
-    game_progress: Res<GameProgress>,
+    timer: ResMut<StageTimer>,
     mut event_writer: EventWriter<StageActionTrigger>,
 ) {
     if timer.timer.finished() {
-        // game_progress.stage_step += 1;
         event_writer.send(StageActionTrigger {});
-
-        // if let Some(stage) = data.get(&data_handle.0.clone()) {
-        //     timer.timer.reset();
-        // }
     }
 }
 
