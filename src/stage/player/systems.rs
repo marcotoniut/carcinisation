@@ -77,25 +77,6 @@ pub fn player_movement(
         }
     }
 }
-
-pub fn setup_weapon_recoil_timer(mut timer: ResMut<AttackTimer>) {
-    timer.timer.pause();
-}
-
-pub fn tick_weapon_recoil_timer(mut timer: ResMut<AttackTimer>, time: Res<Time>) {
-    timer.timer.tick(time.delta());
-}
-
-pub fn check_weapon_recoil_timer(
-    timer: ResMut<AttackTimer>,
-    // event to attack?
-    // mut event_writer: EventWriter<StageActionTrigger>,
-) {
-    if timer.timer.finished() {
-        // event_writer.send(StageActionTrigger {});
-    }
-}
-
 pub fn detect_player_attack(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
@@ -105,29 +86,35 @@ pub fn detect_player_attack(
     player_attack_query: Query<&PlayerAttack>,
     player_query: Query<&PxSubPosition, With<Player>>,
 ) {
-    if let None = player_attack_query.iter().next() {
+    if player_attack_query.iter().next().is_none() {
         let position = player_query.get_single().unwrap();
         let gb_input = gb_input_query.get_single().unwrap();
 
-        if gb_input.just_pressed(GBInput::A) {
-            timer.timer.set_duration(Duration::from_secs_f32(0.8));
-            let player_attack = PlayerAttack {
-                position: position.0.clone(),
-                weapon: Weapon::Pincer,
-            };
-
-            commands.spawn(player_attack.make_bundle(&mut assets_sprite, asset_server));
+        let x = if gb_input.just_pressed(GBInput::A) {
+            Some((Weapon::Pincer, 0.8))
         } else if gb_input.just_pressed(GBInput::B) {
-            timer.timer.set_duration(Duration::from_secs_f32(0.08));
+            Some((Weapon::Gun, 0.08))
+        } else {
+            None
+        };
+
+        if let Some((weapon, duration)) = x {
+            timer.timer.set_duration(Duration::from_secs_f64(duration));
             let player_attack = PlayerAttack {
                 position: position.0.clone(),
-                weapon: Weapon::Gun,
+                weapon,
             };
 
-            commands.spawn(player_attack.make_bundle(&mut assets_sprite, asset_server));
+            let (_, x, y, audio, w, a) =
+                player_attack.make_bundle(&mut assets_sprite, asset_server);
+
+            commands.spawn((player_attack, x, y, w, a));
+
+            commands.spawn(audio);
+
+            timer.timer.reset();
+            timer.timer.unpause();
         }
-        timer.timer.reset();
-        timer.timer.unpause();
     }
 }
 

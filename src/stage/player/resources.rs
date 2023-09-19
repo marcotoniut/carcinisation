@@ -8,7 +8,8 @@ pub struct AttackTimer {
 impl Default for AttackTimer {
     fn default() -> Self {
         AttackTimer {
-            timer: Timer::from_seconds(0.0, TimerMode::Once),
+            // HACK to avoid triggering it the first time
+            timer: Timer::from_seconds(99999.0, TimerMode::Once),
         }
     }
 }

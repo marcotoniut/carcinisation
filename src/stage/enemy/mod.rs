@@ -22,6 +22,7 @@ impl Plugin for EnemyPlugin {
                     update_enemy_direction,
                     tick_enemy_spawn_timer,
                     spawn_enemies_over_time,
+                    check_enemy_got_hit,
                 )
                     .run_if(in_state(AppState::Game))
                     .run_if(in_state(GameState::Running)),

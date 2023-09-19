@@ -1,7 +1,10 @@
 use bevy::{audio::*, prelude::*};
-use seldom_pixel::{asset::*, prelude::*};
+use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
 
-use crate::globals::*;
+use crate::{
+    globals::*,
+    stage::player::components::{PlayerAttack, Weapon},
+};
 
 use super::{bundles::*, components::*, resources::*};
 
@@ -94,6 +97,25 @@ pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<En
         }
 
         position.0 = translation;
+    }
+}
+
+pub fn check_enemy_got_hit(
+    attack_query: Query<&PlayerAttack>,
+    enemy_query: Query<(Entity, &Enemy, &Handle<PxAsset<PxSpriteData>>)>,
+) {
+    for attack in &mut attack_query.iter() {
+        for (entity, enemy, data) in &mut enemy_query.iter() {
+            match attack.weapon {
+                Weapon::Pincer => {
+                    let distance = 1;
+                    // let x = data.get_field("").unwrap();
+                }
+                Weapon::Gun => {
+                    let distance = 1;
+                }
+            }
+        }
     }
 }
 
