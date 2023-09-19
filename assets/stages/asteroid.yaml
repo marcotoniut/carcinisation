@@ -1,6 +1,7 @@
 name: Asteroid
 background: backgrounds/stage_asteroid/cavern.png
 skybox: backgrounds/stage_asteroid/space.png
+start_coordinates: [0, 0]
 spawns:
   - type: Destructible
     destructible_type: Lamp
@@ -50,14 +51,20 @@ actions:
         time: 0.4
         special_path: Circle
   - type: Movement
-    coordinates: [34, 0]
+    coordinates: [34, 62]
     base_speed: 8
   - type: Stop
     # TODO
     max_duration: 4
+  - type: Stop
+    max_duration: 10
+  - type: Movement
+    coordinates: [90, 0]
+    base_speed: 4
+    max_duration: 10
   - type: Movement
     coordinates: [0, 0]
-    base_speed: 7
+    base_speed: 2
   - type: Stop
     resume_conditions:
       - KillAll
