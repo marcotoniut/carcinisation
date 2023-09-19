@@ -1,6 +1,20 @@
 name: Asteroid
 background: backgrounds/stage_asteroid/cavern.png
 skybox: backgrounds/stage_asteroid/space.png
+spawns:
+  - type: Destructible
+    destructible_type: Lamp
+    coordinates: [10, 0]
+    contains:
+      - type: Powerup
+        powerup_type: Health
+        coordinates: [30, 0]
+  - type: Destructible
+    destructible_type: Window
+    coordinates: [20, 0]
+  - type: Powerup
+    powerup_type: Health
+    coordinates: [30, 10]
 actions:
   - type: Movement
     coordinates: [60, 0]
@@ -10,6 +24,7 @@ actions:
         enemy_type: Mosquito
         coordinates: [10, 10]
         base_speed: 5
+        time: 1.4
         path:
           - type: Movement
             attacking: true
@@ -27,6 +42,13 @@ actions:
     resume_conditions:
       - KillAll
     max_duration: 2
+    spawns:
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [20, 0]
+        base_speed: 5
+        time: 0.4
+        special_path: Circle
   - type: Movement
     coordinates: [34, 0]
     base_speed: 8
