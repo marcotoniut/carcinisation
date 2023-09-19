@@ -5,6 +5,24 @@ actions:
   - type: Movement
     coordinates: [60, 0]
     base_speed: 10
+    spawns:
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [10, 10]
+        base_speed: 5
+        path:
+          - type: Movement
+            attacking: true
+            coordinates: [50, 0]
+            speed: 5
+          - type: Stop
+            duration: 1
+          - type: Attack
+            duration: 10
+          - type: Movement
+            attacking: true
+            coordinates: [10, 0]
+            speed: 3
   - type: Stop
     resume_conditions:
       - KillAll
