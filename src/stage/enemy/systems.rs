@@ -3,7 +3,11 @@ use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
 
 use crate::{
     globals::*,
-    stage::player::components::{PlayerAttack, Weapon},
+    stage::{
+        components::Collision,
+        player::components::{HitList, PlayerAttack, Weapon},
+    },
+    systems::camera::CameraPos,
 };
 
 use super::{bundles::*, components::*, resources::*};
@@ -100,19 +104,37 @@ pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<En
     }
 }
 
+/**
+ * Could split between box and circle collision
+ */
 pub fn check_enemy_got_hit(
-    attack_query: Query<&PlayerAttack>,
-    enemy_query: Query<(Entity, &Enemy, &Handle<PxAsset<PxSpriteData>>)>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    mut attack_query: Query<(&PlayerAttack, &mut HitList)>,
+    enemy_query: Query<(Entity, &PxSubPosition, &Collision), With<Enemy>>,
 ) {
-    for attack in &mut attack_query.iter() {
-        for (entity, enemy, data) in &mut enemy_query.iter() {
-            match attack.weapon {
-                Weapon::Pincer => {
-                    let distance = 1;
-                    // let x = data.get_field("").unwrap();
-                }
-                Weapon::Gun => {
-                    let distance = 1;
+    let camera_pos = camera_query.get_single().unwrap();
+    for (attack, mut hit_list) in attack_query.iter_mut() {
+        for (entity, position, collision) in &mut enemy_query.iter() {
+            if hit_list.0.contains(&entity) == false {
+                hit_list.0.insert(entity);
+                let attack_position = (camera_pos.0 + attack.position);
+                match attack.weapon {
+                    Weapon::Pincer => {
+                        if let Collision::Circle(radius) = collision {
+                            let distance = attack_position.distance(position.0);
+                            if distance < *radius {
+                                println!("Enemy got hit by Pincer!");
+                            }
+                        }
+                    }
+                    Weapon::Gun => {
+                        if let Collision::Circle(radius) = collision {
+                            let distance = attack_position.distance(position.0);
+                            if distance < *radius {
+                                println!("Enemy got hit by Gun!");
+                            }
+                        }
+                    }
                 }
             }
         }

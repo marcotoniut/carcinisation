@@ -3,6 +3,7 @@ use std::time::Duration;
 use bevy::{
     audio::{PlaybackMode, Volume},
     prelude::*,
+    utils::HashSet,
 };
 use seldom_pixel::{
     asset::PxAsset,
@@ -34,18 +35,24 @@ pub struct PlayerAttack {
     pub position: Vec2,
 }
 
+#[derive(Component, Clone, Debug)]
+pub struct HitList(pub HashSet<Entity>);
+
 impl PlayerAttack {
-    pub fn make_bundle(
+    pub fn make_bundles(
         &self,
         assets_sprite: &mut PxAssets<PxSprite>,
         asset_server: Res<AssetServer>,
     ) -> (
-        Self,
-        PxSpriteBundle<Layer>,
-        PxAnimationBundle,
+        (
+            Self,
+            PxSpriteBundle<Layer>,
+            PxAnimationBundle,
+            PxSubPosition,
+            HitList,
+            Name,
+        ),
         AudioSourceBundle,
-        PxSubPosition,
-        Name,
     ) {
         let position = PxSubPosition::from(self.position);
         let name = Name::new("PlayerAttack");
@@ -107,12 +114,15 @@ impl PlayerAttack {
         };
 
         (
-            *self,
-            sprite_bundle,
-            animation_bundle,
+            (
+                *self,
+                sprite_bundle,
+                animation_bundle,
+                position,
+                HitList(HashSet::default()),
+                name,
+            ),
             audio_source_bundle,
-            position,
-            name,
         )
     }
 }

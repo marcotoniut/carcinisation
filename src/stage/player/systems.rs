@@ -105,12 +105,11 @@ pub fn detect_player_attack(
                 weapon,
             };
 
-            let (_, x, y, audio, w, a) =
-                player_attack.make_bundle(&mut assets_sprite, asset_server);
+            let (enemy_bundle, audio_bundle) =
+                player_attack.make_bundles(&mut assets_sprite, asset_server);
 
-            commands.spawn((player_attack, x, y, w, a));
-
-            commands.spawn(audio);
+            commands.spawn(enemy_bundle);
+            commands.spawn(audio_bundle);
 
             timer.timer.reset();
             timer.timer.unpause();

@@ -19,6 +19,7 @@ impl Plugin for EnemyPlugin {
                 Update,
                 (
                     (enemy_movement, confine_enemy_movement).chain(),
+                    check_enemy_got_hit,
                     update_enemy_direction,
                     tick_enemy_spawn_timer,
                     spawn_enemies_over_time,
