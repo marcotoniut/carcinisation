@@ -27,23 +27,3 @@ pub fn make_player_bundle(
         Name::new("Player"),
     )
 }
-
-pub fn make_player_attack_bundle(
-    asset_server: &mut PxAssets<PxSprite>,
-    player_attack: PlayerAttack,
-) -> (
-    PxSpriteBundle<Layer>,
-    PxAnimationBundle,
-    PxSubPosition,
-    PlayerAttack,
-    Name,
-) {
-    let (sprite_bundle, animation_bundle) = player_attack.get_sprite_bundle(asset_server);
-    (
-        sprite_bundle,
-        animation_bundle,
-        PxSubPosition::from(player_attack.position),
-        player_attack,
-        Name::new("PlayerAttack"),
-    )
-}

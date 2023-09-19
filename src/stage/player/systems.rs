@@ -98,8 +98,9 @@ pub fn check_weapon_recoil_timer(
 
 pub fn detect_player_attack(
     mut commands: Commands,
-    mut asset_server: PxAssets<PxSprite>,
+    mut assets_sprite: PxAssets<PxSprite>,
     mut timer: ResMut<AttackTimer>,
+    asset_server: Res<AssetServer>,
     gb_input_query: Query<&ActionState<GBInput>>,
     player_attack_query: Query<&PlayerAttack>,
     player_query: Query<&PxSubPosition, With<Player>>,
@@ -115,8 +116,7 @@ pub fn detect_player_attack(
                 weapon: Weapon::Pincer,
             };
 
-            let bundle = make_player_attack_bundle(&mut asset_server, player_attack);
-            commands.spawn(bundle);
+            commands.spawn(player_attack.make_bundle(&mut assets_sprite, asset_server));
         } else if gb_input.just_pressed(GBInput::B) {
             timer.timer.set_duration(Duration::from_secs_f32(0.08));
             let player_attack = PlayerAttack {
@@ -124,8 +124,7 @@ pub fn detect_player_attack(
                 weapon: Weapon::Gun,
             };
 
-            let bundle = make_player_attack_bundle(&mut asset_server, player_attack);
-            commands.spawn(bundle);
+            commands.spawn(player_attack.make_bundle(&mut assets_sprite, asset_server));
         }
         timer.timer.reset();
         timer.timer.unpause();
