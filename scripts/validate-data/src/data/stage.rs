@@ -1,5 +1,5 @@
 use bevy::{
-    prelude::{Handle, Resource, Vec2},
+    prelude::*,
     reflect::{TypePath, TypeUuid},
 };
 use serde::Deserialize;
@@ -21,11 +21,6 @@ pub enum EnemyType {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub enum EnemySpecialPath {
-    Circle,
-}
-
-#[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum StageSpawn {
     Destructible {
@@ -35,13 +30,13 @@ pub enum StageSpawn {
     Powerup {
         powerup_type: PowerupType,
         coordinates: Vec2,
+        elapsed: Option<f32>,
     },
     Enemy {
         enemy_type: EnemyType,
         coordinates: Vec2,
         base_speed: f32,
-        time: f32,
-        special_path: Option<EnemySpecialPath>,
+        elapsed: Option<f32>,
     },
 }
 
@@ -59,7 +54,7 @@ pub struct StageData {
     pub skybox: Option<String>,
     pub start_coordinates: Option<Vec2>,
     pub spawns: Vec<StageSpawn>,
-    pub actions: Vec<StageAction>,
+    pub steps: Vec<StageStep>,
 }
 
 fn stage_action_default_base_speed() -> f32 {
@@ -68,7 +63,7 @@ fn stage_action_default_base_speed() -> f32 {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
-pub enum StageAction {
+pub enum StageStep {
     Movement {
         coordinates: Vec2,
         #[serde(default = "stage_action_default_base_speed")]

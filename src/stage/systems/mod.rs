@@ -10,7 +10,7 @@ use seldom_pixel::{
 };
 
 use crate::{
-    game::resources::{StageAction, StageData, StageDataHandle},
+    game::resources::{StageData, StageDataHandle, StageStep},
     systems::camera::CameraPos,
     GBInput,
 };
@@ -19,7 +19,7 @@ use super::{
     bundles::*,
     components::Stage,
     events::StageActionTrigger,
-    resources::{GameProgress, StageActionTimer, StageTimer},
+    resources::{StageActionTimer, StageProgress},
     GameState, StageState,
 };
 
@@ -48,15 +48,7 @@ pub fn toggle_game(
     }
 }
 
-pub fn run_timer(res: Res<StageActionTimer>, game_data: Res<Assets<StageData>>) {
-    // let (_, data) = game_data.iter().next().unwrap();
-}
-
-pub fn setup_stage(
-    mut commands: Commands,
-    mut timer: ResMut<StageActionTimer>,
-    asset_server: Res<AssetServer>,
-) {
+pub fn setup_stage(mut commands: Commands, asset_server: Res<AssetServer>) {
     let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
     commands.insert_resource(stage_data_handle);
 }
@@ -88,8 +80,10 @@ pub fn spawn_current_stage_bundle(
     }
 }
 
-pub fn tick_stage_timer(mut timer: ResMut<StageTimer>, time: Res<Time>) {
-    timer.timer.tick(time.delta());
+// TODO Probably can do without this now
+pub fn increment_elapsed(mut progress: ResMut<StageProgress>, time: Res<Time>) {
+    progress.elapsed += time.delta_seconds();
+    progress.step_elapsed += time.delta_seconds();
 }
 
 pub fn tick_stage_stop_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
@@ -113,7 +107,7 @@ pub fn update_stage(
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
     mut event_writer: EventWriter<StageActionTrigger>,
-    game_progress: Res<GameProgress>,
+    game_progress: Res<StageProgress>,
     time: Res<Time>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
@@ -124,9 +118,9 @@ pub fn update_stage(
         }
         StageState::Running => {
             if let Some(stage) = data.get(&data_handle.0.clone()) {
-                if let Some(action) = stage.actions.get(game_progress.stage_step) {
+                if let Some(action) = stage.steps.get(game_progress.step) {
                     match action {
-                        StageAction::Movement {
+                        StageStep::Movement {
                             coordinates,
                             base_speed,
                             ..
@@ -143,7 +137,7 @@ pub fn update_stage(
 
                             **camera = camera_pos.round().as_ivec2();
                         }
-                        StageAction::Stop {
+                        StageStep::Stop {
                             resume_conditions,
                             max_duration,
                             ..
@@ -175,12 +169,12 @@ pub fn update_stage(
 
 pub fn check_staged_cleared(
     mut next_state: ResMut<NextState<StageState>>,
-    game_progress: Res<GameProgress>,
+    game_progress: Res<StageProgress>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
 ) {
     if let Some(stage) = data.get(&data_handle.0.clone()) {
-        if game_progress.stage_step >= stage.actions.len() {
+        if game_progress.step >= stage.steps.len() {
             next_state.set(StageState::Clear);
         }
     }
@@ -188,7 +182,7 @@ pub fn check_staged_cleared(
 
 pub fn read_stage_action_trigger(
     mut event_reader: EventReader<StageActionTrigger>,
-    mut game_progress: ResMut<GameProgress>,
+    mut game_progress: ResMut<StageProgress>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
     mut stage_action_timer: ResMut<StageActionTimer>,
@@ -196,15 +190,15 @@ pub fn read_stage_action_trigger(
     time: Res<Time>,
 ) {
     for _ in event_reader.iter() {
-        game_progress.stage_step += 1;
-        game_progress.last_step_started = stage_action_timer.timer.elapsed_secs();
+        game_progress.step += 1;
+        game_progress.step_elapsed = 0.;
 
         if let Some(stage) = data.get(&data_handle.0.clone()) {
-            if let Some(action) = stage.actions.get(game_progress.stage_step) {
+            if let Some(action) = stage.steps.get(game_progress.step) {
                 stage_action_timer.timer.pause();
                 match action {
-                    StageAction::Movement { .. } => {}
-                    StageAction::Stop { max_duration, .. } => {
+                    StageStep::Movement { .. } => {}
+                    StageStep::Stop { max_duration, .. } => {
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();
                             stage_action_timer

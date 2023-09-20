@@ -16,7 +16,7 @@ spawns:
   - type: Powerup
     powerup_type: Health
     coordinates: [30, 10]
-actions:
+steps:
   - type: Movement
     coordinates: [60, 0]
     base_speed: 10
@@ -25,8 +25,8 @@ actions:
         enemy_type: Mosquito
         coordinates: [10, 10]
         base_speed: 5
-        time: 1.4
-        path:
+        elapsed: 1.4
+        steps:
           - type: Movement
             attacking: true
             coordinates: [50, 0]
@@ -39,6 +39,8 @@ actions:
             attacking: true
             coordinates: [10, 0]
             speed: 3
+          - type: CircleAround
+            duration: 4
   - type: Stop
     resume_conditions:
       - KillAll
@@ -48,8 +50,7 @@ actions:
         enemy_type: Mosquito
         coordinates: [20, 0]
         base_speed: 5
-        time: 0.4
-        special_path: Circle
+        elapsed: 0.4
   - type: Movement
     coordinates: [34, 62]
     base_speed: 8
