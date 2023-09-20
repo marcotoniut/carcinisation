@@ -61,3 +61,19 @@ invert_colors = true
 
 [[images]]
 path = "typeface/animated_typeface.png"
+
+# Enemies
+[[images]]
+path = "sprites/enemies/mosquito_idle_1.png"
+[[images]]
+path = "sprites/enemies/mosquito_idle_2.png"
+[[images]]
+path = "sprites/enemies/mosquito_idle_3.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_1.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_2.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_3.png"
+[[images]]
+path = "sprites/enemies/worm.png"
