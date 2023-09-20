@@ -90,7 +90,7 @@ pub fn detect_player_attack(
         let position = player_query.get_single().unwrap();
         let gb_input = gb_input_query.get_single().unwrap();
 
-        let x = if gb_input.just_pressed(GBInput::A) {
+        let attack = if gb_input.just_pressed(GBInput::A) {
             Some((Weapon::Pincer, 0.6))
         } else if gb_input.just_pressed(GBInput::B) {
             Some((Weapon::Gun, 0.08))
@@ -98,17 +98,17 @@ pub fn detect_player_attack(
             None
         };
 
-        if let Some((weapon, duration)) = x {
+        if let Some((weapon, duration)) = attack {
             timer.timer.set_duration(Duration::from_secs_f64(duration));
             let player_attack = PlayerAttack {
                 position: position.0.clone(),
                 weapon,
             };
 
-            let (enemy_bundle, audio_bundle) =
+            let (player_attack_bundle, audio_bundle) =
                 player_attack.make_bundles(&mut assets_sprite, asset_server);
 
-            commands.spawn(enemy_bundle);
+            commands.spawn(player_attack_bundle);
             commands.spawn(audio_bundle);
 
             timer.timer.reset();
