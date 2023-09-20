@@ -9,16 +9,14 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
-use crate::{
-    game::resources::{StageData, StageDataHandle, StageStep},
-    systems::camera::CameraPos,
-    GBInput,
-};
+use crate::{systems::camera::CameraPos, GBInput};
 
 use super::{
     bundles::*,
     components::Stage,
+    data::*,
     events::StageActionTrigger,
+    resources::*,
     resources::{StageActionTimer, StageProgress},
     GameState, StageState,
 };

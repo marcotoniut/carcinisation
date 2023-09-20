@@ -1,5 +1,6 @@
 pub mod bundles;
 pub mod components;
+pub mod data;
 pub mod enemy;
 pub mod events;
 pub mod player;

@@ -12,11 +12,10 @@ use bevy::prelude::*;
 use bevy_common_assets::yaml::YamlAssetPlugin;
 use bevy_framepace::*;
 use cutscene::CutscenePlugin;
-use game::resources::StageData;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
-use stage::{player::crosshair::CrosshairSettings, StagePlugin};
+use stage::{data::StageData, player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{camera::move_camera, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
