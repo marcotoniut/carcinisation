@@ -126,6 +126,7 @@ pub fn update_stage(
                         StageAction::Movement {
                             coordinates,
                             base_speed,
+                            ..
                         } => {
                             let mut camera_pos = camera_pos_query.single_mut();
                             let direction = coordinates.sub(camera_pos.0).normalize();
@@ -142,15 +143,10 @@ pub fn update_stage(
                         StageAction::Stop {
                             resume_conditions,
                             max_duration,
+                            ..
                         } => {
+                            // TODO
                             if let Some(duration) = max_duration {
-                                // if !timer.timer.is_running() {
-                                //     timer.timer.reset();
-                                //     timer
-                                //         .timer
-                                //         .set_duration(Duration::from_secs(duration.clone()));
-                                //     timer.timer.unpause();
-                                // }
                             } else {
                                 // DEBUG
                                 event_writer.send(StageActionTrigger {});
@@ -201,14 +197,8 @@ pub fn read_stage_action_trigger(
             if let Some(action) = stage.actions.get(game_progress.stage_step) {
                 stage_timer.timer.pause();
                 match action {
-                    StageAction::Movement {
-                        coordinates,
-                        base_speed,
-                    } => {}
-                    StageAction::Stop {
-                        resume_conditions,
-                        max_duration,
-                    } => {
+                    StageAction::Movement { .. } => {}
+                    StageAction::Stop { max_duration, .. } => {
                         if let Some(duration) = max_duration {
                             stage_timer.timer.reset();
                             stage_timer

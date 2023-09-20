@@ -81,22 +81,3 @@ pub enum StageAction {
         spawns: Option<Vec<StageSpawn>>,
     },
 }
-
-#[derive(Resource)]
-pub struct StageDataHandle(pub Handle<StageData>);
-
-// TODO
-// impl StageDataHandle {
-//     pub fn get_action_by_index<'a>(
-//         &self,
-//         assets_stage_data: &Res<'a, Assets<StageData>>,
-//         step: usize,
-//     ) -> Option<&'a StageAction> {
-//         if let Some(stage) = assets_stage_data.get(&self.0) {
-//             let x = stage.actions.get(step);
-//             x
-//         } else {
-//             None
-//         }
-//     }
-// }
