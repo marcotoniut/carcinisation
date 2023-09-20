@@ -19,11 +19,10 @@ impl Plugin for EnemyPlugin {
                 Update,
                 (
                     (enemy_movement, confine_enemy_movement).chain(),
-                    check_enemy_got_hit,
+                    (check_enemy_got_hit, check_enemy_health).chain(),
                     update_enemy_direction,
                     tick_enemy_spawn_timer,
                     spawn_enemies_over_time,
-                    check_enemy_got_hit,
                 )
                     .run_if(in_state(AppState::Game))
                     .run_if(in_state(GameState::Running)),
