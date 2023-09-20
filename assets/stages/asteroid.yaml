@@ -61,7 +61,6 @@ actions:
   - type: Movement
     coordinates: [90, 0]
     base_speed: 4
-    max_duration: 10
   - type: Movement
     coordinates: [0, 0]
     base_speed: 2

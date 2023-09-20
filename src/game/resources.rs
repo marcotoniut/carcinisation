@@ -23,9 +23,10 @@ pub struct StageData {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum StageAction {
-    #[serde(rename = "Movement")]
-    Movement { coordinates: Vec2, base_speed: f32 },
-    #[serde(rename = "Stop")]
+    Movement {
+        coordinates: Vec2,
+        base_speed: f32,
+    },
     Stop {
         resume_conditions: Option<Vec<ResumeCondition>>,
         max_duration: Option<u64>,
