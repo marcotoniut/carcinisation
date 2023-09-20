@@ -15,7 +15,7 @@ use self::{
     enemy::EnemyPlugin,
     events::*,
     player::PlayerPlugin,
-    resources::{GameProgress, StageTimer},
+    resources::{GameProgress, StageActionTimer, StageTimer},
     score::{components::Score, ScorePlugin},
     systems::*,
     ui::StageUiPlugin,
@@ -37,6 +37,7 @@ impl Plugin for StagePlugin {
             .add_event::<GameOver>()
             .add_event::<StageActionTrigger>()
             .init_resource::<StageTimer>()
+            .init_resource::<StageActionTimer>()
             .init_resource::<Score>()
             .init_resource::<GameProgress>()
             .add_plugins(EnemyPlugin)
@@ -52,6 +53,7 @@ impl Plugin for StagePlugin {
             .add_systems(
                 Update,
                 (
+                    tick_stage_timer,
                     tick_stage_stop_timer,
                     check_stage_stop_timer,
                     update_stage,

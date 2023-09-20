@@ -117,10 +117,6 @@ pub fn detect_player_attack(
     }
 }
 
-pub fn setup_attack_timer(mut timer: ResMut<AttackTimer>) {
-    timer.timer.pause();
-}
-
 pub fn tick_attack_timer(mut timer: ResMut<AttackTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }

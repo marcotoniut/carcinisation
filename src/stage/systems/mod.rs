@@ -19,7 +19,7 @@ use super::{
     bundles::*,
     components::Stage,
     events::StageActionTrigger,
-    resources::{GameProgress, StageTimer},
+    resources::{GameProgress, StageActionTimer, StageTimer},
     GameState, StageState,
 };
 
@@ -48,16 +48,15 @@ pub fn toggle_game(
     }
 }
 
-pub fn run_timer(res: Res<StageTimer>, game_data: Res<Assets<StageData>>) {
+pub fn run_timer(res: Res<StageActionTimer>, game_data: Res<Assets<StageData>>) {
     // let (_, data) = game_data.iter().next().unwrap();
 }
 
 pub fn setup_stage(
     mut commands: Commands,
-    mut timer: ResMut<StageTimer>,
+    mut timer: ResMut<StageActionTimer>,
     asset_server: Res<AssetServer>,
 ) {
-    timer.timer.pause();
     let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
     commands.insert_resource(stage_data_handle);
 }
@@ -89,12 +88,16 @@ pub fn spawn_current_stage_bundle(
     }
 }
 
-pub fn tick_stage_stop_timer(mut timer: ResMut<StageTimer>, time: Res<Time>) {
+pub fn tick_stage_timer(mut timer: ResMut<StageTimer>, time: Res<Time>) {
+    timer.timer.tick(time.delta());
+}
+
+pub fn tick_stage_stop_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }
 
 pub fn check_stage_stop_timer(
-    timer: ResMut<StageTimer>,
+    timer: Res<StageActionTimer>,
     mut event_writer: EventWriter<StageActionTrigger>,
 ) {
     if timer.timer.finished() {
@@ -188,23 +191,26 @@ pub fn read_stage_action_trigger(
     mut game_progress: ResMut<GameProgress>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
-    mut stage_timer: ResMut<StageTimer>,
+    mut stage_action_timer: ResMut<StageActionTimer>,
+    // mut stage_timer: ResMut<StageTimer>,
+    time: Res<Time>,
 ) {
     for _ in event_reader.iter() {
         game_progress.stage_step += 1;
+        game_progress.last_step_started = stage_action_timer.timer.elapsed_secs();
 
         if let Some(stage) = data.get(&data_handle.0.clone()) {
             if let Some(action) = stage.actions.get(game_progress.stage_step) {
-                stage_timer.timer.pause();
+                stage_action_timer.timer.pause();
                 match action {
                     StageAction::Movement { .. } => {}
                     StageAction::Stop { max_duration, .. } => {
                         if let Some(duration) = max_duration {
-                            stage_timer.timer.reset();
-                            stage_timer
+                            stage_action_timer.timer.reset();
+                            stage_action_timer
                                 .timer
                                 .set_duration(Duration::from_secs(duration.clone()));
-                            stage_timer.timer.unpause();
+                            stage_action_timer.timer.unpause();
                         }
                     }
                 }

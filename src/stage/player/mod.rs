@@ -27,7 +27,6 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AttackTimer>()
             .configure_set(Update, MovementSystemSet.before(ConfinementSystemSet))
-            .add_systems(Startup, (setup_attack_timer))
             .add_systems(OnEnter(AppState::Game), spawn_player)
             .add_systems(
                 Update,
