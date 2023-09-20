@@ -91,7 +91,7 @@ pub fn detect_player_attack(
         let gb_input = gb_input_query.get_single().unwrap();
 
         let x = if gb_input.just_pressed(GBInput::A) {
-            Some((Weapon::Pincer, 0.8))
+            Some((Weapon::Pincer, 0.6))
         } else if gb_input.just_pressed(GBInput::B) {
             Some((Weapon::Gun, 0.08))
         } else {
@@ -138,57 +138,3 @@ pub fn check_attack_timer(
         }
     }
 }
-
-// pub fn attack(
-//     gb_input_query: Query<&ActionState<GBInput>>,
-//     mut query: Query<(&mut PxSubPosition, &Player)>,
-//     time: Res<Time>,
-// ) {
-//     let gb_input = gb_input_query.single();
-//     for (mut position, _) in &mut query {
-//         let mut direction = Vec2::new(
-//             (gb_input.pressed(GBInput::Right) as i32 - gb_input.pressed(GBInput::Left) as i32)
-//                 as f32,
-//             (gb_input.pressed(GBInput::Up) as i32 - gb_input.pressed(GBInput::Down) as i32) as f32,
-//         );
-
-//         if direction.length() > 0.0 {
-//             direction = direction.normalize();
-//             position.0 += direction * PLAYER_SPEED * time.delta_seconds();
-//         }
-//     }
-// }
-
-// NOTE: Keeping as comment for quick reference
-// pub fn enemy_hit_player(
-//     mut commands: Commands,
-//     mut game_over_event_writer: EventWriter<GameOver>,
-//     mut player_query: Query<(Entity, &PxSubPosition), With<Player>>,
-//     enemy_query: Query<&PxSubPosition, With<Enemy>>,
-//     asset_server: Res<AssetServer>,
-//     score: Res<Score>,
-// ) {
-//     if let Ok((player_entity, player_position)) = player_query.get_single_mut() {
-//         for enemy_position in enemy_query.iter() {
-//             let distance = player_position.0.distance(enemy_position.0);
-
-//             if distance < (PLAYER_SIZE / 2.0 + ENEMY_SIZE / 2.0) {
-//                 commands.entity(player_entity).despawn();
-
-//                 let sound_effect = asset_server.load("audio/explosionCrunch_000.ogg");
-//                 commands.spawn(AudioBundle {
-//                     source: sound_effect,
-//                     settings: PlaybackSettings {
-//                         mode: PlaybackMode::Despawn,
-//                         volume: Volume::new_relative(0.02),
-//                         ..default()
-//                     },
-//                     ..default()
-//                 });
-
-//                 println!("Enemy hit player! Game over!");
-//                 game_over_event_writer.send(GameOver { score: score.value });
-//             }
-//         }
-//     }
-// }

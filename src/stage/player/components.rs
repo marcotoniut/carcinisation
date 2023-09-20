@@ -74,7 +74,7 @@ impl PlayerAttack {
                         ..default()
                     },
                     PxAnimationBundle {
-                        duration: PxAnimationDuration::millis_per_animation(700),
+                        duration: PxAnimationDuration::millis_per_animation(500),
                         on_finish: PxAnimationFinishBehavior::Despawn,
                         ..default()
                     },
