@@ -90,7 +90,7 @@ impl PlayerAttack {
             }
             Weapon::Gun => {
                 let shoot_sound = asset_server.load("audio/melee_attack_01.ogg");
-                let sprite = assets_sprite.load("sprites/star.png");
+                let sprite = assets_sprite.load_animated("sprites/bullet_particles.png", 4);
                 (
                     PxSpriteBundle::<Layer> {
                         sprite,

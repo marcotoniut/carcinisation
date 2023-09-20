@@ -1,9 +1,4 @@
 [[images]]
-name = "player"
-path = "sprites/ball_blue_large.png"
-width = 12
-
-[[images]]
 name = "enemy"
 path = "sprites/ball_red_large.png"
 invert_colors = true
@@ -21,6 +16,7 @@ invert_colors = true
 path = "sprites/star.png"
 width = 10
 
+
 [[images]]
 name = "enemy-icon"
 target_path = "sprites/enemy-count-icon.png"
@@ -30,6 +26,9 @@ width = 10
 
 [[images]]
 path = "sprites/melee_slash.png"
+
+[[images]]
+path = "sprites/bullet_particles.png"
 
 [[images]]
 path = "sprites/crosshairs/squiggly.png"
