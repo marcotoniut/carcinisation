@@ -22,6 +22,29 @@ pub enum EnemyType {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
+pub enum EnemyStep {
+    Movement {
+        coordinates: Vec2,
+        attacking: bool,
+        speed: f32,
+    },
+    Stop {
+        duration: f32,
+    },
+    Attack {
+        duration: f32,
+    },
+    CircleAround {
+        duration: f32,
+    },
+}
+
+fn empty_vec<T: Clone>() -> Vec<T> {
+    [].to_vec()
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
 pub enum StageSpawn {
     Destructible {
         destructible_type: DestructibleType,
@@ -37,6 +60,8 @@ pub enum StageSpawn {
         coordinates: Vec2,
         base_speed: f32,
         elapsed: Option<f32>,
+        #[serde(default = "empty_vec")]
+        steps: Vec<EnemyStep>,
     },
 }
 
@@ -44,6 +69,26 @@ pub enum StageSpawn {
 pub enum StageActionResumeCondition {
     KillAll,
     KillBoss,
+}
+
+fn default_base_speed() -> f32 {
+    1.0
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum StageStep {
+    Movement {
+        coordinates: Vec2,
+        #[serde(default = "default_base_speed")]
+        base_speed: f32,
+        spawns: Option<Vec<StageSpawn>>,
+    },
+    Stop {
+        resume_conditions: Option<Vec<StageActionResumeCondition>>,
+        max_duration: Option<u64>,
+        spawns: Option<Vec<StageSpawn>>,
+    },
 }
 
 #[derive(Deserialize, TypeUuid, TypePath, Clone, Debug)]
@@ -55,24 +100,4 @@ pub struct StageData {
     pub start_coordinates: Option<Vec2>,
     pub spawns: Vec<StageSpawn>,
     pub steps: Vec<StageStep>,
-}
-
-fn stage_action_default_base_speed() -> f32 {
-    1.0
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "type")]
-pub enum StageStep {
-    Movement {
-        coordinates: Vec2,
-        #[serde(default = "stage_action_default_base_speed")]
-        base_speed: f32,
-        spawns: Option<Vec<StageSpawn>>,
-    },
-    Stop {
-        resume_conditions: Option<Vec<StageActionResumeCondition>>,
-        max_duration: Option<u64>,
-        spawns: Option<Vec<StageSpawn>>,
-    },
 }
