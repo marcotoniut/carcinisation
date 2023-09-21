@@ -7,9 +7,9 @@ use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
 };
-use seldom_pixel::prelude::PxSubPosition;
+use seldom_pixel::prelude::{PxSubPosition, PxCamera};
 
-use crate::{events::*, AppState, GBInput, audio::AudioSystemType};
+use crate::{events::*, AppState, GBInput, audio::AudioSystemType, stage::{StageState, resources::GameProgress, GameState}, game::resources::{StageDataHandle, StageData}};
 
 use self::{camera::CameraPos, audio::VolumeSettings};
 
@@ -20,6 +20,56 @@ pub fn input_exit_game(
     let gb_input = gb_input_query.single();
     if gb_input.just_pressed(GBInput::DExit) {
         exit.send(AppExit);
+    }
+}
+
+pub fn input_snd_menu(
+    gb_input_query: Query<&ActionState<GBInput>>,
+    app_state: Res<State<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut commands: Commands, asset_server: Res<AssetServer>,
+
+    mut next_game_state: ResMut<NextState<GameState>>,
+    
+    state: Res<State<StageState>>,
+    mut next_stage_state: ResMut<NextState<StageState>>,
+    mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
+    mut camera: ResMut<PxCamera>,
+    mut game_progress: ResMut<GameProgress>,
+    time: Res<Time>,
+    data: Res<Assets<StageData>>,
+    data_handle: Res<StageDataHandle>,
+
+) {
+
+    let gb_input = gb_input_query.single();
+    if 
+        gb_input.just_pressed(GBInput::Select) {
+            info!("open pause menu");
+
+            if app_state.get().to_owned() != AppState::MainMenu {
+                // commands.insert_resource(NextState(Some(AppState::MainMenu)));
+                info!("Entered AppState::MainMenu");
+                
+                let stage_data_handle = crate::game::resources::StageDataHandle(asset_server.load("stages/settings.yaml"));
+                commands.insert_resource(stage_data_handle);
+                
+                next_app_state.set(AppState::MainMenu);
+                next_stage_state.set(StageState::Initial);
+                next_game_state.set(GameState::Loading);
+            }
+            else if app_state.get().to_owned() != AppState::Game {
+                // commands.insert_resource(NextState(Some(AppState::MainMenu)));
+               
+                info!("Entered AppState::Game");
+                
+                let stage_data_handle = crate::game::resources::StageDataHandle(asset_server.load("stages/asteroid.yaml"));
+                commands.insert_resource(stage_data_handle);
+                
+                next_app_state.set(AppState::Game);
+                next_stage_state.set(StageState::Running);
+                next_game_state.set(GameState::Loading);
+            }
     }
 }
 

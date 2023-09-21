@@ -50,6 +50,7 @@ pub fn run_timer(res: Res<StageTimer>, game_data: Res<Assets<StageData>>) {
 
 pub fn setup_stage(mut commands: Commands, asset_server: Res<AssetServer>) {
     let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
+    
     commands.insert_resource(stage_data_handle);
 }
 
@@ -65,8 +66,12 @@ pub fn spawn_current_stage_bundle(
         make_background_bundle(&mut assets_sprite, &data_handle, &data, &game_progress);
     let skybox_bundle = make_skybox_bundle(&mut assets_sprite, &data_handle, &data, &game_progress);
     commands.spawn(Name::new("Stage")).with_children(|parent| {
-        parent.spawn(background_bundle.unwrap());
-        parent.spawn(skybox_bundle.unwrap());
+        if let Some(background_bundle_data) = background_bundle {
+            parent.spawn(background_bundle_data);
+        }
+        if let Some(skybox_bundle_data) = skybox_bundle {
+            parent.spawn(skybox_bundle_data);
+        }
     });
     state.set(GameState::Running);
 }

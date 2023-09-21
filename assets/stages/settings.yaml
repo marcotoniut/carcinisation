@@ -1,0 +1,15 @@
+name: settings
+background: backgrounds/main_menu/blank.png
+skybox: backgrounds/main_menu/blank.png
+actions:
+  - type: Movement
+    coordinates: [50.0, 0.0]
+    base_speed: 0.0
+  - type: Stop
+    condition: KillAll
+    max_duration: 5.0
+  - type: Movement
+    coordinates: [34.0, 0.0]
+    base_speed: 10.0
+  - type: Stop
+    condition: KillBoss

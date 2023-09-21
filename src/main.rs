@@ -78,6 +78,7 @@ fn main() {
     .add_systems(Startup, (set_framespace, spawn_camera, spawn_gb_input))
     .add_systems(Update, move_camera)
     .add_systems(Update, input_exit_game)
+    .add_systems(Update, input_snd_menu)
     // TODO should this be placed at main?
     // .add_systems(Update, handle_game_over)
     .add_systems(
