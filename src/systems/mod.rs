@@ -84,13 +84,7 @@ pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {
 }
 
 pub fn spawn_camera(mut commands: Commands) {
-    // let window: &Window = window_query.get_single().unwrap();
-    // commands.spawn(Camera2dBundle {
-    //     transform: Transform::from_xyz(0.0, 0.0, 10.0),
-    //     ..default()
-    // });
     commands.spawn(Camera2dBundle::default());
-
     commands.spawn((PxSubPosition::default(), CameraPos));
 }
 
@@ -112,8 +106,8 @@ pub fn spawn_gb_input(mut commands: Commands) {
             (KeyCode::A, GBInput::DLeft),
             (KeyCode::W, GBInput::DUp),
             (KeyCode::D, GBInput::DRight),
-            (KeyCode::S, GBInput::DDown)
-        ])
+            (KeyCode::S, GBInput::DDown),
+        ]),
     });
 }
 

@@ -12,6 +12,7 @@ members = [
     "scripts/generate-palettes",
     "scripts/generate-typeface",
     "scripts/process-gfx",
+    "scripts/validate-data",
 ]
 
 [dependencies]

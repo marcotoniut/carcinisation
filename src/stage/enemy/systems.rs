@@ -1,7 +1,17 @@
 use bevy::{audio::*, prelude::*};
-use seldom_pixel::{asset::*, prelude::*};
+use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
 
-use crate::{globals::*, systems::audio::{VolumeSettings, AudioSystemBundle, AudioSystemType}};
+use crate::{
+    globals::*,
+    stage::{
+        components::{Collision, Health},
+        player::components::{
+            HitList, PlayerAttack, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
+        },
+    },
+    systems::camera::CameraPos,
+    systems::audio::{VolumeSettings, AudioSystemBundle, AudioSystemType}
+};
 
 use super::{bundles::*, components::*, resources::*};
 
@@ -98,6 +108,63 @@ pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<En
         }
 
         position.0 = translation;
+    }
+}
+
+pub fn check_enemy_health(mut commands: Commands, query: Query<(Entity, &Health)>) {
+    for (entity, health) in &mut query.iter() {
+        if health.0 == 0 {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+/**
+ * Could split between box and circle collision
+ */
+pub fn check_enemy_got_hit(
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    mut attack_query: Query<(&PlayerAttack, &mut HitList)>,
+    mut enemy_query: Query<(Entity, &PxSubPosition, &Collision, &mut Health), With<Enemy>>,
+) {
+    let camera_pos = camera_query.get_single().unwrap();
+    for (attack, mut hit_list) in attack_query.iter_mut() {
+        for (entity, position, collision, mut health) in enemy_query.iter_mut() {
+            if hit_list.0.contains(&entity) == false {
+                hit_list.0.insert(entity);
+                let attack_position = camera_pos.0 + attack.position;
+                match attack.weapon {
+                    Weapon::Pincer => {
+                        if let Collision::Circle(radius) = collision {
+                            let distance = attack_position.distance(position.0);
+                            if distance < *radius {
+                                if distance * 2.5 < *radius {
+                                    health.0 = health.0.saturating_sub(ATTACK_PINCER_DAMAGE * 2);
+                                    println!("Enemy got hit by Pincer! ***CRITICAL***");
+                                } else {
+                                    health.0 = health.0.saturating_sub(ATTACK_PINCER_DAMAGE);
+                                    println!("Enemy got hit by Pincer!");
+                                }
+                            }
+                        }
+                    }
+                    Weapon::Gun => {
+                        if let Collision::Circle(radius) = collision {
+                            let distance = attack_position.distance(position.0);
+                            if distance < *radius {
+                                if distance * 2.5 < *radius {
+                                    health.0 = health.0.saturating_sub(ATTACK_GUN_DAMAGE * 2);
+                                    println!("Enemy got hit by Gun! ***CRITICAL***");
+                                } else {
+                                    health.0 = health.0.saturating_sub(ATTACK_GUN_DAMAGE);
+                                    println!("Enemy got hit by Gun!");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

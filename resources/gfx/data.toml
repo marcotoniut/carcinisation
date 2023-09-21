@@ -1,9 +1,4 @@
 [[images]]
-name = "player"
-path = "sprites/ball_blue_large.png"
-width = 12
-
-[[images]]
 name = "enemy"
 path = "sprites/ball_red_large.png"
 invert_colors = true
@@ -21,6 +16,7 @@ invert_colors = true
 path = "sprites/star.png"
 width = 10
 
+
 [[images]]
 name = "enemy-icon"
 target_path = "sprites/enemy-count-icon.png"
@@ -29,36 +25,27 @@ path = "sprites/ball_red_large.png"
 width = 10
 
 [[images]]
-path = "sprites/marauder.png"
-target_path = "sprites/marauder.png"
-width = 500
+path = "sprites/melee_slash.png"
 
 [[images]]
-path = "sprites/marauder_.png"
-target_path = "sprites/marauder_.png"
-width = 175
+path = "sprites/bullet_particles.png"
 
 [[images]]
-path = "sprites/marauder_.png"
-target_path = "sprites/marauder_2.png"
-width = 300
+path = "sprites/crosshairs/squiggly.png"
 
 [[images]]
-path = "sprites/gun_sight.png"
-target_path = "sprites/gun_sight.png"
+path = "sprites/crosshairs/gun_sight.png"
 
 [[images]]
-path = "sprites/gun_sight.png"
-target_path = "sprites/gun_sight_inverted.png"
+path = "sprites/crosshairs/gun_sight.png"
+target_path = "sprites/crosshairs/gun_sight_inverted.png"
 invert_colors = true
 
 [[images]]
 path = "backgrounds/stage_asteroid/cavern.png"
-target_path = "backgrounds/stage_asteroid/cavern.png"
 
 [[images]]
 path = "backgrounds/stage_asteroid/space.png"
-target_path = "backgrounds/stage_asteroid/space.png"
 
 [[images]]
 path = "typeface/typeface.png"
@@ -74,3 +61,19 @@ invert_colors = true
 
 [[images]]
 path = "typeface/animated_typeface.png"
+
+# Enemies
+[[images]]
+path = "sprites/enemies/mosquito_idle_1.png"
+[[images]]
+path = "sprites/enemies/mosquito_idle_2.png"
+[[images]]
+path = "sprites/enemies/mosquito_idle_3.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_1.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_2.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_3.png"
+[[images]]
+path = "sprites/enemies/worm.png"

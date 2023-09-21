@@ -1,15 +1,81 @@
 name: Asteroid
 background: backgrounds/stage_asteroid/cavern.png
 skybox: backgrounds/stage_asteroid/space.png
-actions:
+start_coordinates: [0, 0]
+spawns:
+  - type: Destructible
+    destructible_type: Lamp
+    coordinates: [10, 0]
+    contains:
+      - type: Powerup
+        powerup_type: Health
+        coordinates: [30, 0]
+  - type: Destructible
+    destructible_type: Window
+    coordinates: [20, 0]
+  - type: Powerup
+    powerup_type: Health
+    coordinates: [30, 10]
+steps:
   - type: Movement
-    coordinates: [50.0, 0.0]
-    base_speed: 2.0
+    coordinates: [60, 0]
+    base_speed: 10
+    spawns:
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [10, 10]
+        base_speed: 5
+        elapsed: 1.4
+        steps:
+          - type: Movement
+            attacking: true
+            coordinates: [50, 0]
+            speed: 5
+          - type: Stop
+            duration: 1
+          - type: Attack
+            duration: 10
+          - type: Movement
+            attacking: true
+            coordinates: [10, 0]
+            speed: 3
+          - type: CircleAround
+            duration: 4
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [20, 0]
+        base_speed: 5
+        elapsed: 0.4
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [20, 0]
+        base_speed: 5
+        elapsed: 2.3
   - type: Stop
-    condition: KillAll
-    max_duration: 5.0
+    resume_conditions:
+      - KillAll
+    max_duration: 3
+    spawns:
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [20, 0]
+        base_speed: 5
+        elapsed: 2.4
   - type: Movement
-    coordinates: [34.0, 0.0]
-    base_speed: 3.0
+    coordinates: [34, 62]
+    base_speed: 8
   - type: Stop
-    condition: KillBoss
+    # TODO
+    max_duration: 4
+  - type: Stop
+    max_duration: 10
+  - type: Movement
+    coordinates: [90, 0]
+    base_speed: 4
+  - type: Movement
+    coordinates: [0, 0]
+    base_speed: 2
+  - type: Stop
+    resume_conditions:
+      - KillAll
+      - KillBoss

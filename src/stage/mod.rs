@@ -1,5 +1,8 @@
 pub mod bundles;
+pub mod components;
+pub mod data;
 pub mod enemy;
+pub mod events;
 pub mod player;
 pub mod resources;
 pub mod score;
@@ -11,10 +14,10 @@ use bevy::prelude::*;
 
 use self::{
     enemy::EnemyPlugin,
+    events::*,
     player::PlayerPlugin,
-    resources::{GameProgress, StageTimer},
+    resources::{StageActionTimer, StageProgress},
     score::{components::Score, ScorePlugin},
-    star::StarPlugin,
     systems::*,
     ui::StageUiPlugin,
 };
@@ -33,9 +36,10 @@ impl Plugin for StagePlugin {
         app.add_state::<GameState>()
             .add_state::<StageState>()
             .add_event::<GameOver>()
-            .init_resource::<StageTimer>()
+            .add_event::<StageStepTrigger>()
+            .init_resource::<StageActionTimer>()
             .init_resource::<Score>()
-            .init_resource::<GameProgress>()
+            .init_resource::<StageProgress>()
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
@@ -48,7 +52,14 @@ impl Plugin for StagePlugin {
             )
             .add_systems(
                 Update,
-                (check_timer, update_stage).run_if(in_state(GameState::Running)),
+                (
+                    update_stage,
+                    tick_stage_step_timer,
+                    check_stage_step_timer,
+                    read_stage_step_trigger,
+                    (increment_elapsed, check_staged_cleared).run_if(in_state(StageState::Running)),
+                )
+                    .run_if(in_state(GameState::Running)),
             )
             // .add_systems(Update, run_timer)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
@@ -69,4 +80,6 @@ pub enum StageState {
     #[default]
     Initial,
     Running,
+    Clear,
+    Cleared,
 }

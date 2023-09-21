@@ -4,6 +4,9 @@ run:
 dev:
 	cargo watch -x run --features bevy/dynamic_linking;
 
+wasm:
+	cargo run --target wasm32-unknown-unknown 
+
 generate-palettes:
 	cd scripts/generate-palettes && cargo run;
 
@@ -12,3 +15,6 @@ generate-typeface:
 
 process-gfx:
 	cd scripts/process-gfx && cargo run;
+
+validate-data:
+	cd scripts/validate-data && cargo run;
