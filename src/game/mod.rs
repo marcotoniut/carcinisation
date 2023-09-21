@@ -15,7 +15,7 @@ impl Plugin for GamePlugin {
 
         app.add_state::<GameState>()
             .add_event::<GameOver>()
-            .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
+            //.add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);
     }
 }

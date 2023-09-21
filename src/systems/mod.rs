@@ -9,7 +9,7 @@ use leafwing_input_manager::{
 };
 use seldom_pixel::prelude::{PxSubPosition, PxCamera};
 
-use crate::{events::*, AppState, GBInput, audio::AudioSystemType, stage::{StageState, resources::GameProgress, GameState}, game::resources::{StageDataHandle, StageData}};
+use crate::{events::*, AppState, GBInput, audio::AudioSystemType, stage::{StageState, GameState, resources::StageDataHandle}};
 
 use self::{camera::CameraPos, audio::VolumeSettings};
 
@@ -35,10 +35,7 @@ pub fn input_snd_menu(
     mut next_stage_state: ResMut<NextState<StageState>>,
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
-    mut game_progress: ResMut<GameProgress>,
     time: Res<Time>,
-    data: Res<Assets<StageData>>,
-    data_handle: Res<StageDataHandle>,
 
 ) {
 
@@ -51,7 +48,7 @@ pub fn input_snd_menu(
                 // commands.insert_resource(NextState(Some(AppState::MainMenu)));
                 info!("Entered AppState::MainMenu");
                 
-                let stage_data_handle = crate::game::resources::StageDataHandle(asset_server.load("stages/settings.yaml"));
+                let stage_data_handle = StageDataHandle(asset_server.load("stages/settings.yaml"));
                 commands.insert_resource(stage_data_handle);
                 
                 next_app_state.set(AppState::MainMenu);
@@ -63,7 +60,7 @@ pub fn input_snd_menu(
                
                 info!("Entered AppState::Game");
                 
-                let stage_data_handle = crate::game::resources::StageDataHandle(asset_server.load("stages/asteroid.yaml"));
+                let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
                 commands.insert_resource(stage_data_handle);
                 
                 next_app_state.set(AppState::Game);

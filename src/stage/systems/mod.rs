@@ -38,10 +38,10 @@ pub fn toggle_game(
     if gb_input.just_pressed(GBInput::Start) {
         if state.get().to_owned() == GameState::Running {
             next_state.set(GameState::Paused);
-            println!("Game Paused.");
+            info!("Game Paused.");
         } else {
             next_state.set(GameState::Running);
-            println!("Game Running.");
+            info!("Game Running.");
         }
     }
 }

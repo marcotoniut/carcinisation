@@ -77,3 +77,6 @@ path = "sprites/enemies/mosquito_melee_2.png"
 path = "sprites/enemies/mosquito_melee_3.png"
 [[images]]
 path = "sprites/enemies/worm.png"
+
+[[images]]
+path = "backgrounds/blank.png"

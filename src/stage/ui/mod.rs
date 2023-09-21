@@ -1,4 +1,5 @@
 pub mod hud;
+pub mod pause_menu;
 
 use bevy::prelude::*;
 

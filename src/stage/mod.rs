@@ -19,7 +19,7 @@ use self::{
     resources::{StageActionTimer, StageProgress},
     score::{components::Score, ScorePlugin},
     systems::*,
-    ui::StageUiPlugin,
+    ui::{StageUiPlugin, pause_menu::pause_menu_renderer},
 };
 use crate::{events::*, AppState};
 
@@ -63,6 +63,7 @@ impl Plugin for StagePlugin {
             )
             // .add_systems(Update, run_timer)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
+            .add_systems(Update, pause_menu_renderer.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);
     }
 }
