@@ -7,7 +7,7 @@ use crate::{
         components::{Collision, Health},
         player::components::{
             HitList, PlayerAttack, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
-        },
+        }, score::components::Score,
     },
     systems::camera::CameraPos,
     systems::audio::{VolumeSettings, AudioSystemBundle, AudioSystemType}
@@ -111,10 +111,15 @@ pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<En
     }
 }
 
-pub fn check_enemy_health(mut commands: Commands, query: Query<(Entity, &Health)>) {
+pub fn check_enemy_health(
+    mut commands: Commands,
+    query: Query<(Entity, &Health)>,
+    mut score: ResMut<Score>
+) {
     for (entity, health) in &mut query.iter() {
         if health.0 == 0 {
             commands.entity(entity).despawn();
+            score.value += 1;
         }
     }
 }

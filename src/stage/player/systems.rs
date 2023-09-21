@@ -9,7 +9,7 @@ use seldom_pixel::prelude::*;
 
 use crate::{
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
-    GBInput, systems::audio::{VolumeSettings, AudioSystemType, AudioSystemBundle}
+    GBInput, systems::audio::{VolumeSettings, AudioSystemType, AudioSystemBundle}, stage::score::components::Score
 };
 
 use super::{bundles::*, components::*, resources::*};
@@ -159,7 +159,7 @@ pub fn tick_attack_timer(mut timer: ResMut<AttackTimer>, time: Res<Time>) {
 pub fn check_attack_timer(
     mut commands: Commands,
     timer: ResMut<AttackTimer>,
-    player_attack_query: Query<(Entity, &PlayerAttack)>,
+    player_attack_query: Query<(Entity, &PlayerAttack)>
     // event to attack?
     // mut event_writer: EventWriter<StageActionTrigger>,
 ) {

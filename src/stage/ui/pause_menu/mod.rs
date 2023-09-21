@@ -9,15 +9,16 @@ use seldom_pixel::{
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
-use crate::{stage::GameState, globals::{TYPEFACE_INVERTED_PATH, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, FONT_SIZE}, Layer, AppState};
+use crate::{stage::{GameState, score::components::Score}, globals::{TYPEFACE_INVERTED_PATH, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, FONT_SIZE}, Layer, AppState};
 
-use self::pause_menu::{PauseMenu, UIBackground, InfoText};
+use self::pause_menu::{PauseMenu, UIBackground, InfoText, ScoreText};
 
 pub fn pause_menu_renderer(
     mut commands: Commands,
     mut typefaces: PxAssets<PxTypeface>,
     mut assets_sprite: PxAssets<PxSprite>,
     mut filters: PxAssets<PxFilter>,
+    score: Res<Score>,
     query: Query<Entity, With<PauseMenu>>,
     state: Res<State<GameState>>
 ) {
@@ -30,7 +31,8 @@ pub fn pause_menu_renderer(
                 &mut commands,
                 &mut typefaces,
                 &mut assets_sprite,
-                &mut filters
+                &mut filters,
+                score
             );
         }
     } else {
@@ -55,9 +57,10 @@ pub fn spawn_pause_menu_bundle(
     typefaces: &mut PxAssets<PxTypeface>,
     assets_sprite: &mut PxAssets<PxSprite>,
     filters: &mut PxAssets<PxFilter>,
+    score: Res<Score>,
 ) -> Entity {
     let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
-
+    let score_text = score.value.to_string();
     let entity = commands
         .spawn((PauseMenu {}, Name::new("PauseMenu")))
         .with_children(|parent| {
@@ -95,7 +98,55 @@ pub fn spawn_pause_menu_bundle(
                         ..default()
                     },
                     InfoText,
-                    Name::new("InfoText"),
+                    Name::new("InfoText_Pause"),
+                ));
+
+                parent.spawn((
+                    PxTextBundle::<Layer> {
+                        alignment: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        rect: IRect::new(
+                            IVec2::new(
+                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                                60,
+                            ),
+                            IVec2::new(
+                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                                60 + (FONT_SIZE + 2) as i32,
+                            ),
+                        )
+                        .into(),
+                        text: "Score:".into(),
+                        typeface: typeface.clone(),
+                        ..default()
+                    },
+                    InfoText,
+                    Name::new("InfoText_Score"),
+                ));
+
+                parent.spawn((
+                    PxTextBundle::<Layer> {
+                        alignment: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        rect: IRect::new(
+                            IVec2::new(
+                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                                50,
+                            ),
+                            IVec2::new(
+                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                                50 + (FONT_SIZE + 2) as i32,
+                            ),
+                        )
+                        .into(),
+                        text: score_text.clone().into(),
+                        typeface: typeface.clone(),
+                        ..default()
+                    },
+                    ScoreText,
+                    Name::new("ScoreText"),
                 ));
             }
 
