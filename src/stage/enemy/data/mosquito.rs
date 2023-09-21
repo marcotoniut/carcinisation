@@ -1,13 +1,4 @@
-use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
-
 use crate::stage::enemy::data::AnimationData;
-
-pub enum Depth {
-    Level0,
-    Level1,
-    Level2,
-    Level3,
-}
 
 pub struct MosquitoAnimations {
     pub idle: Vec<AnimationData>,
@@ -19,13 +10,13 @@ pub struct MosquitoAnimations {
 const PATH_SPRITES_ENEMIES: &str = "sprites/enemies/";
 
 // Animation fragments
-const FRAGMENT_IDLE: &str = "idle_";
-const FRAGMENT_FLY: &str = "fly_";
-const FRAGMENT_DEATH: &str = "death_";
-const FRAGMENT_ATTACK: &str = "attack_";
+const FRAGMENT_IDLE: &str = "idle";
+const FRAGMENT_FLY: &str = "fly";
+const FRAGMENT_DEATH: &str = "death";
+const FRAGMENT_ATTACK: &str = "attack";
 
 // Enemy fragments
-const FRAGMENT_MOSQUITO: &str = "mosquito_";
+const FRAGMENT_MOSQUITO: &str = "mosquito";
 
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u32) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
@@ -34,15 +25,16 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u32) -> String
 lazy_static! {
     static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {
         let idle_frames = 3;
-        let idle_speed = 90;
+        let idle_speed = 100;
 
+        // TODO
         let fly_frames = 3;
-        let fly_speed = 90;
+        let fly_speed = 30;
 
-        let death_frames = 3;
-        let death_speed = 90;
+        let death_frames = 19;
+        let death_speed = 130;
 
-        let attack_frames = 3;
+        let attack_frames = 8;
         let attack_speed = 90;
 
         MosquitoAnimations {
@@ -52,7 +44,6 @@ lazy_static! {
                     frames: idle_frames,
                     speed: idle_speed,
                     ..Default::default()
-                    // depth: 1,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -60,7 +51,6 @@ lazy_static! {
                     frames: idle_frames,
                     speed: idle_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -68,7 +58,6 @@ lazy_static! {
                     frames: idle_frames,
                     speed: idle_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -76,7 +65,6 @@ lazy_static! {
                     frames: idle_frames,
                     speed: idle_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
             ],
@@ -86,7 +74,6 @@ lazy_static! {
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
-                    // depth: 1,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -94,7 +81,6 @@ lazy_static! {
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -102,7 +88,6 @@ lazy_static! {
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -110,7 +95,6 @@ lazy_static! {
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
             ],
@@ -120,7 +104,6 @@ lazy_static! {
                     frames: death_frames,
                     speed: death_speed,
                     ..Default::default()
-                    // depth: 1,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -128,7 +111,6 @@ lazy_static! {
                     frames: death_frames,
                     speed: death_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -136,7 +118,6 @@ lazy_static! {
                     frames: death_frames,
                     speed: death_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -144,7 +125,6 @@ lazy_static! {
                     frames: death_frames,
                     speed: death_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
             ],
@@ -154,7 +134,6 @@ lazy_static! {
                     frames: attack_frames,
                     speed: attack_speed,
                     ..Default::default()
-                    // depth: 1,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -162,7 +141,6 @@ lazy_static! {
                     frames: attack_frames,
                     speed: attack_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -170,7 +148,6 @@ lazy_static! {
                     frames: attack_frames,
                     speed: attack_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
@@ -178,7 +155,6 @@ lazy_static! {
                     frames: attack_frames,
                     speed: attack_speed,
                     ..Default::default()
-                    // depth: 2,
                     // collision: CollisionBox::new(),
                 },
             ]
