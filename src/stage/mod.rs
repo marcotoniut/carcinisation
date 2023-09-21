@@ -18,8 +18,8 @@ use self::{
     player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress},
     score::{components::Score, ScorePlugin},
-    systems::*,
-    ui::{StageUiPlugin, pause_menu::pause_menu_renderer},
+    systems::{spawn::read_stage_spawn_trigger, *},
+    ui::{pause_menu::pause_menu_renderer, StageUiPlugin},
 };
 use crate::{events::*, AppState};
 
@@ -37,6 +37,7 @@ impl Plugin for StagePlugin {
             .add_state::<StageState>()
             .add_event::<GameOver>()
             .add_event::<StageStepTrigger>()
+            .add_event::<StageSpawnTrigger>()
             .init_resource::<StageActionTimer>()
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
@@ -54,10 +55,15 @@ impl Plugin for StagePlugin {
                 Update,
                 (
                     update_stage,
-                    tick_stage_step_timer,
-                    check_stage_step_timer,
-                    read_stage_step_trigger,
-                    (increment_elapsed, check_staged_cleared).run_if(in_state(StageState::Running)),
+                    (
+                        increment_elapsed,
+                        tick_stage_step_timer,
+                        read_stage_step_trigger,
+                        read_stage_spawn_trigger,
+                        check_stage_step_timer,
+                        check_staged_cleared,
+                    )
+                        .run_if(in_state(StageState::Running)),
                 )
                     .run_if(in_state(GameState::Running)),
             )

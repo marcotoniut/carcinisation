@@ -15,7 +15,7 @@ use super::{
     bundles::*,
     components::Stage,
     data::*,
-    events::StageStepTrigger,
+    events::{StageSpawnTrigger, StageStepTrigger},
     resources::*,
     resources::{StageActionTimer, StageProgress},
     GameState, StageState,
@@ -106,7 +106,8 @@ pub fn update_stage(
     mut next_state: ResMut<NextState<StageState>>,
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
-    mut event_writer: EventWriter<StageStepTrigger>,
+    mut spawn_event_writer: EventWriter<StageSpawnTrigger>,
+    mut step_event_writer: EventWriter<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
     data: Res<Assets<StageData>>,
@@ -133,7 +134,7 @@ pub fn update_stage(
 
                             if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
                                 *camera_pos = PxSubPosition(coordinates.clone());
-                                event_writer.send(StageStepTrigger {});
+                                step_event_writer.send(StageStepTrigger {});
                             }
 
                             **camera = camera_pos.round().as_ivec2();
@@ -150,7 +151,7 @@ pub fn update_stage(
                             if let Some(duration) = max_duration {
                             } else {
                                 // DEBUG
-                                event_writer.send(StageStepTrigger {});
+                                step_event_writer.send(StageStepTrigger {});
                             }
                             spawns
                         }
@@ -164,9 +165,10 @@ pub fn update_stage(
                             let elapsed = stage_progress.spawn_step_elapsed - spawn.get_elapsed();
                             if 0. <= elapsed {
                                 stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
-                                println!("{}", spawn.show_spawn_type());
 
-                                // TODO spawn
+                                spawn_event_writer.send(StageSpawnTrigger {
+                                    spawn: spawn.clone(),
+                                });
                             } else {
                                 break;
                             }

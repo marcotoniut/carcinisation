@@ -2,14 +2,14 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxText;
 
 use crate::stage::{
-    enemy::components::Enemy,
+    enemy::components::PlaceholderEnemy,
     score::components::Score,
     ui::hud::components::{EnemyCountText, ScoreText},
 };
 
 pub fn update_enemy_text(
     mut text_query: Query<&mut PxText, With<EnemyCountText>>,
-    enemy_query: Query<With<Enemy>>,
+    enemy_query: Query<With<PlaceholderEnemy>>,
 ) {
     let count = enemy_query.iter().count().to_string();
     for mut text in text_query.iter_mut() {

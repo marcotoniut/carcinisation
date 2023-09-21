@@ -7,40 +7,41 @@ use crate::{
         components::{Collision, Health},
         player::components::{
             HitList, PlayerAttack, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
-        }, score::components::Score,
+        },
+        score::components::Score,
     },
+    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     systems::camera::CameraPos,
-    systems::audio::{VolumeSettings, AudioSystemBundle, AudioSystemType}
 };
 
 use super::{bundles::*, components::*, resources::*};
 
 pub fn spawn_enemies(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
-    for _ in 0..NUMBER_OF_ENEMIES {
+    for _ in 0..PLACEHOLDER_NUMBER_OF_ENEMIES {
         commands.spawn(make_enemy_bundle(&mut assets_sprite));
     }
 }
 
-pub fn despawn_enemies(mut commands: Commands, query: Query<Entity, With<Enemy>>) {
+pub fn despawn_enemies(mut commands: Commands, query: Query<Entity, With<PlaceholderEnemy>>) {
     for entity in &mut query.iter() {
         commands.entity(entity).despawn();
     }
 }
 
-pub fn enemy_movement(mut query: Query<(&mut PxSubPosition, &Enemy)>, time: Res<Time>) {
+pub fn enemy_movement(mut query: Query<(&mut PxSubPosition, &PlaceholderEnemy)>, time: Res<Time>) {
     for (mut position, enemy) in &mut query {
         let direction = Vec2::new(enemy.direction.x, enemy.direction.y);
-        position.0 += direction * ENEMY_SPEED * time.delta_seconds();
+        position.0 += direction * PLACEHOLDER_ENEMY_SPEED * time.delta_seconds();
     }
 }
 
 pub fn update_enemy_direction(
-    mut query: Query<(&mut PxSubPosition, &mut Enemy)>,
+    mut query: Query<(&mut PxSubPosition, &mut PlaceholderEnemy)>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
-    volume_settings: Res<VolumeSettings>
+    volume_settings: Res<VolumeSettings>,
 ) {
-    let half_size = ENEMY_SIZE / 2.0;
+    let half_size = PLACEHOLDER_ENEMY_SIZE / 2.0;
     let x_min = half_size;
     let x_max = SCREEN_RESOLUTION.x as f32 - half_size;
     let y_min = HUD_HEIGHT as f32 + half_size;
@@ -69,24 +70,26 @@ pub fn update_enemy_direction(
             } else {
                 sound_effect_2
             };
-            let audio = commands.spawn(AudioBundle {
-                source: sound_effect,
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Despawn,
-                    volume: Volume::new_relative(volume_settings.2 * 1.0),
+            let audio = commands
+                .spawn(AudioBundle {
+                    source: sound_effect,
+                    settings: PlaybackSettings {
+                        mode: PlaybackMode::Despawn,
+                        volume: Volume::new_relative(volume_settings.2 * 1.0),
+                        ..default()
+                    },
                     ..default()
-                },
-                ..default()
-            }).id();
-            commands.entity(audio).insert(AudioSystemBundle{
-                system_type: AudioSystemType::SFX
+                })
+                .id();
+            commands.entity(audio).insert(AudioSystemBundle {
+                system_type: AudioSystemType::SFX,
             });
         }
     }
 }
 
-pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<Enemy>>) {
-    let half_size = ENEMY_SIZE / 2.0;
+pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<PlaceholderEnemy>>) {
+    let half_size = PLACEHOLDER_ENEMY_SIZE / 2.0;
     let x_min = half_size;
     let x_max = SCREEN_RESOLUTION.x as f32 - half_size;
     let y_min = HUD_HEIGHT as f32 + half_size;
@@ -114,7 +117,7 @@ pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<En
 pub fn check_enemy_health(
     mut commands: Commands,
     query: Query<(Entity, &Health)>,
-    mut score: ResMut<Score>
+    mut score: ResMut<Score>,
 ) {
     for (entity, health) in &mut query.iter() {
         if health.0 == 0 {
@@ -130,7 +133,10 @@ pub fn check_enemy_health(
 pub fn check_enemy_got_hit(
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     mut attack_query: Query<(&PlayerAttack, &mut HitList)>,
-    mut enemy_query: Query<(Entity, &PxSubPosition, &Collision, &mut Health), With<Enemy>>,
+    mut enemy_query: Query<
+        (Entity, &PxSubPosition, &Collision, &mut Health),
+        With<PlaceholderEnemy>,
+    >,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
     for (attack, mut hit_list) in attack_query.iter_mut() {

@@ -13,7 +13,7 @@ pub fn make_enemy_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
 ) -> (
     Name,
-    Enemy,
+    PlaceholderEnemy,
     PxSpriteBundle<Layer>,
     PxSubPosition,
     Collision,
@@ -22,7 +22,7 @@ pub fn make_enemy_bundle(
     let texture = assets_sprite.load("sprites/ball_red_large.png");
     (
         Name::new("Enemy"),
-        Enemy {
+        PlaceholderEnemy {
             direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
         },
         PxSpriteBundle::<Layer> {
@@ -40,7 +40,7 @@ pub fn make_enemy_bundle(
             rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
             HUD_HEIGHT as f32 + rand::random::<f32>() * (SCREEN_RESOLUTION.y - HUD_HEIGHT) as f32,
         )),
-        Collision::Circle(ENEMY_SIZE),
+        Collision::Circle(PLACEHOLDER_ENEMY_SIZE),
         Health(40),
     )
 }

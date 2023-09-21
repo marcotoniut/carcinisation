@@ -12,12 +12,18 @@ pub enum DestructibleType {
 
 #[derive(Debug, Deserialize, Clone)]
 pub enum PowerupType {
-    Health,
+    SmallHealthpack,
+    BigHealthpack,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub enum EnemyType {
     Mosquito,
+    Spidey,
+    Tardigrade,
+    Marauder,
+    Spidomonsta,
+    Kyle,
 }
 
 #[derive(Debug, Deserialize, Clone)]
