@@ -21,7 +21,7 @@ use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VO
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
-    let title: String = "PUNISHED GB".to_string();
+    let title: String = "CARCINISATION".to_string();
     let focused: bool = false;
     let resolution: Vec2 = Vec2::new(800., 720.);
 

@@ -1298,6 +1298,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
 
 [[package]]
+name = "carcinisation"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_common_assets",
+ "bevy_editor_pls",
+ "bevy_framepace",
+ "leafwing-input-manager",
+ "rand",
+ "seldom_pixel",
+ "serde",
+ "serde_derive",
+ "toml 0.8.0",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3348,23 +3365,6 @@ name = "profiling"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "332cd62e95873ea4f41f3dfd6bbbfc5b52aec892d7e8d534197c4720a0bbbab2"
-
-[[package]]
-name = "punished-gb"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_common_assets",
- "bevy_editor_pls",
- "bevy_framepace",
- "leafwing-input-manager",
- "rand",
- "seldom_pixel",
- "serde",
- "serde_derive",
- "toml 0.8.0",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "qoi"

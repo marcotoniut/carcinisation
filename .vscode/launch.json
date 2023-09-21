@@ -7,11 +7,11 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'punished-gb'",
+      "name": "Debug executable 'carcinisation'",
       "cargo": {
-        "args": ["build", "--bin=punished-gb", "--package=punished-gb"],
+        "args": ["build", "--bin=carcinisation", "--package=carcinisation"],
         "filter": {
-          "name": "punished-gb",
+          "name": "carcinisation",
           "kind": "bin"
         }
       },
@@ -24,16 +24,16 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug unit tests in executable 'punished-gb'",
+      "name": "Debug unit tests in executable 'carcinisation'",
       "cargo": {
         "args": [
           "test",
           "--no-run",
-          "--bin=punished-gb",
-          "--package=punished-gb"
+          "--bin=carcinisation",
+          "--package=carcinisation"
         ],
         "filter": {
-          "name": "punished-gb",
+          "name": "carcinisation",
           "kind": "bin"
         }
       },
