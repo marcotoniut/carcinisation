@@ -11,3 +11,5 @@ pub struct AnimationData {
     pub direction: PxAnimationDirection,
     // pub collision: Collision,
 }
+
+pub const PATH_SPRITES_ENEMIES: &str = "sprites/enemies/";
