@@ -41,16 +41,26 @@ steps:
             speed: 3
           - type: CircleAround
             duration: 4
-  - type: Stop
-    resume_conditions:
-      - KillAll
-    max_duration: 2
-    spawns:
       - type: Enemy
         enemy_type: Mosquito
         coordinates: [20, 0]
         base_speed: 5
         elapsed: 0.4
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [20, 0]
+        base_speed: 5
+        elapsed: 2.3
+  - type: Stop
+    resume_conditions:
+      - KillAll
+    max_duration: 3
+    spawns:
+      - type: Enemy
+        enemy_type: Mosquito
+        coordinates: [20, 0]
+        base_speed: 5
+        elapsed: 2.4
   - type: Movement
     coordinates: [34, 62]
     base_speed: 8

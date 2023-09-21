@@ -8,6 +8,8 @@ pub struct StageProgress {
     pub elapsed: f32,
     pub step: usize,
     pub step_elapsed: f32,
+    pub spawn_step: usize,
+    pub spawn_step_elapsed: f32,
 }
 
 #[derive(Resource)]

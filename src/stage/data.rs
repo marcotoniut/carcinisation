@@ -39,6 +39,10 @@ pub enum EnemyStep {
     },
 }
 
+fn default_zero() -> f32 {
+    0.0
+}
+
 fn empty_vec<T: Clone>() -> Vec<T> {
     [].to_vec()
 }
@@ -49,20 +53,46 @@ pub enum StageSpawn {
     Destructible {
         destructible_type: DestructibleType,
         coordinates: Vec2,
+        #[serde(default = "default_zero")]
+        elapsed: f32,
     },
     Powerup {
         powerup_type: PowerupType,
         coordinates: Vec2,
-        elapsed: Option<f32>,
+        #[serde(default = "default_zero")]
+        elapsed: f32,
     },
     Enemy {
         enemy_type: EnemyType,
         coordinates: Vec2,
         base_speed: f32,
-        elapsed: Option<f32>,
+        #[serde(default = "default_zero")]
+        elapsed: f32,
         #[serde(default = "empty_vec")]
         steps: Vec<EnemyStep>,
     },
+}
+
+impl StageSpawn {
+    pub fn get_elapsed(&self) -> f32 {
+        match self {
+            StageSpawn::Destructible { elapsed, .. } => *elapsed,
+            StageSpawn::Powerup { elapsed, .. } => *elapsed,
+            StageSpawn::Enemy { elapsed, .. } => *elapsed,
+        }
+    }
+
+    pub fn show_spawn_type(&self) -> String {
+        match self {
+            StageSpawn::Destructible {
+                destructible_type, ..
+            } => {
+                format!("Destructible({:?})", destructible_type)
+            }
+            StageSpawn::Powerup { powerup_type, .. } => format!("Powerup({:?})", powerup_type),
+            StageSpawn::Enemy { enemy_type, .. } => format!("Enemy({:?})", enemy_type),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -82,12 +112,14 @@ pub enum StageStep {
         coordinates: Vec2,
         #[serde(default = "default_base_speed")]
         base_speed: f32,
-        spawns: Option<Vec<StageSpawn>>,
+        #[serde(default = "empty_vec")]
+        spawns: Vec<StageSpawn>,
     },
     Stop {
         resume_conditions: Option<Vec<StageActionResumeCondition>>,
         max_duration: Option<u64>,
-        spawns: Option<Vec<StageSpawn>>,
+        #[serde(default = "empty_vec")]
+        spawns: Vec<StageSpawn>,
     },
 }
 
@@ -98,6 +130,7 @@ pub struct StageData {
     pub background: String,
     pub skybox: Option<String>,
     pub start_coordinates: Option<Vec2>,
+    #[serde(default = "empty_vec")]
     pub spawns: Vec<StageSpawn>,
     pub steps: Vec<StageStep>,
 }

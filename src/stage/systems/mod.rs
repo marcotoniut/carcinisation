@@ -15,7 +15,7 @@ use super::{
     bundles::*,
     components::Stage,
     data::*,
-    events::StageActionTrigger,
+    events::StageStepTrigger,
     resources::*,
     resources::{StageActionTimer, StageProgress},
     GameState, StageState,
@@ -80,20 +80,22 @@ pub fn spawn_current_stage_bundle(
 
 // TODO Probably can do without this now
 pub fn increment_elapsed(mut progress: ResMut<StageProgress>, time: Res<Time>) {
-    progress.elapsed += time.delta_seconds();
-    progress.step_elapsed += time.delta_seconds();
+    let delta = time.delta_seconds();
+    progress.elapsed += delta;
+    progress.step_elapsed += delta;
+    progress.spawn_step_elapsed += delta;
 }
 
-pub fn tick_stage_stop_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
+pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }
 
-pub fn check_stage_stop_timer(
+pub fn check_stage_step_timer(
     timer: Res<StageActionTimer>,
-    mut event_writer: EventWriter<StageActionTrigger>,
+    mut event_writer: EventWriter<StageStepTrigger>,
 ) {
     if timer.timer.finished() {
-        event_writer.send(StageActionTrigger {});
+        event_writer.send(StageStepTrigger {});
     }
 }
 
@@ -104,8 +106,8 @@ pub fn update_stage(
     mut next_state: ResMut<NextState<StageState>>,
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
-    mut event_writer: EventWriter<StageActionTrigger>,
-    game_progress: Res<StageProgress>,
+    mut event_writer: EventWriter<StageStepTrigger>,
+    mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
@@ -116,11 +118,12 @@ pub fn update_stage(
         }
         StageState::Running => {
             if let Some(stage) = data.get(&data_handle.0.clone()) {
-                if let Some(action) = stage.steps.get(game_progress.step) {
-                    match action {
+                if let Some(action) = stage.steps.get(stage_progress.step) {
+                    let spawns = match action {
                         StageStep::Movement {
                             coordinates,
                             base_speed,
+                            spawns,
                             ..
                         } => {
                             let mut camera_pos = camera_pos_query.single_mut();
@@ -130,24 +133,48 @@ pub fn update_stage(
 
                             if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
                                 *camera_pos = PxSubPosition(coordinates.clone());
-                                event_writer.send(StageActionTrigger {});
+                                event_writer.send(StageStepTrigger {});
                             }
 
                             **camera = camera_pos.round().as_ivec2();
+
+                            spawns
                         }
                         StageStep::Stop {
                             resume_conditions,
                             max_duration,
+                            spawns,
                             ..
                         } => {
                             // TODO
                             if let Some(duration) = max_duration {
                             } else {
                                 // DEBUG
-                                event_writer.send(StageActionTrigger {});
+                                event_writer.send(StageStepTrigger {});
+                            }
+                            spawns
+                        }
+                    };
+
+                    let mut cloned_spawns = spawns.clone();
+
+                    let mut i = 0;
+                    while let Some(spawn) = cloned_spawns.first() {
+                        if (stage_progress.spawn_step <= i) {
+                            let elapsed = stage_progress.spawn_step_elapsed - spawn.get_elapsed();
+                            if 0. <= elapsed {
+                                stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
+                                println!("{}", spawn.show_spawn_type());
+
+                                // TODO spawn
+                            } else {
+                                break;
                             }
                         }
+                        cloned_spawns.remove(0);
+                        i += 1;
                     }
+                    stage_progress.spawn_step = i;
                 }
             }
         }
@@ -167,32 +194,32 @@ pub fn update_stage(
 
 pub fn check_staged_cleared(
     mut next_state: ResMut<NextState<StageState>>,
-    game_progress: Res<StageProgress>,
+    stage_progress: Res<StageProgress>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
 ) {
     if let Some(stage) = data.get(&data_handle.0.clone()) {
-        if game_progress.step >= stage.steps.len() {
+        if stage_progress.step >= stage.steps.len() {
             next_state.set(StageState::Clear);
         }
     }
 }
 
-pub fn read_stage_action_trigger(
-    mut event_reader: EventReader<StageActionTrigger>,
-    mut game_progress: ResMut<StageProgress>,
+pub fn read_stage_step_trigger(
+    mut event_reader: EventReader<StageStepTrigger>,
+    mut stage_progress: ResMut<StageProgress>,
     data: Res<Assets<StageData>>,
     data_handle: Res<StageDataHandle>,
     mut stage_action_timer: ResMut<StageActionTimer>,
-    // mut stage_timer: ResMut<StageTimer>,
-    time: Res<Time>,
 ) {
     for _ in event_reader.iter() {
-        game_progress.step += 1;
-        game_progress.step_elapsed = 0.;
+        stage_progress.step += 1;
+        stage_progress.step_elapsed = 0.;
+        stage_progress.spawn_step = 0;
+        stage_progress.spawn_step_elapsed = 0.;
 
         if let Some(stage) = data.get(&data_handle.0.clone()) {
-            if let Some(action) = stage.steps.get(game_progress.step) {
+            if let Some(action) = stage.steps.get(stage_progress.step) {
                 stage_action_timer.timer.pause();
                 match action {
                     StageStep::Movement { .. } => {}

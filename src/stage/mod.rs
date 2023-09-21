@@ -36,7 +36,7 @@ impl Plugin for StagePlugin {
         app.add_state::<GameState>()
             .add_state::<StageState>()
             .add_event::<GameOver>()
-            .add_event::<StageActionTrigger>()
+            .add_event::<StageStepTrigger>()
             .init_resource::<StageActionTimer>()
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
@@ -53,10 +53,10 @@ impl Plugin for StagePlugin {
             .add_systems(
                 Update,
                 (
-                    tick_stage_stop_timer,
-                    check_stage_stop_timer,
                     update_stage,
-                    read_stage_action_trigger,
+                    tick_stage_step_timer,
+                    check_stage_step_timer,
+                    read_stage_step_trigger,
                     (increment_elapsed, check_staged_cleared).run_if(in_state(StageState::Running)),
                 )
                     .run_if(in_state(GameState::Running)),
