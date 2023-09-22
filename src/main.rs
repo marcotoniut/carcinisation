@@ -125,13 +125,13 @@ pub enum AppState {
 pub enum Layer {
     Skybox,
     Back,
-    Middle(i32),
+    Middle(usize),
     Attack,
     #[default]
     Front,
     UIBackground,
     UI,
-    Cutscene(i32),
+    Cutscene(usize),
     Letterbox,
     CutsceneText,
     Transition,
