@@ -50,54 +50,78 @@ fn default_zero() -> f32 {
     0.0
 }
 
+fn default_none<T>() -> Option<T> {
+    None
+}
+
 fn empty_vec<T: Clone>() -> Vec<T> {
     [].to_vec()
 }
 
 #[derive(Debug, Deserialize, Clone)]
+pub enum ContainerSpawn {
+    Powerup(PowerupSpawn),
+    Enemy(EnemySpawn),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PowerupSpawn {
+    pub powerup_type: PowerupType,
+    pub coordinates: Vec2,
+    #[serde(default = "default_zero")]
+    pub elapsed: f32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DestructibleSpawn {
+    pub destructible_type: DestructibleType,
+    pub coordinates: Vec2,
+    #[serde(default = "default_zero")]
+    pub elapsed: f32,
+    #[serde(default = "default_none")]
+    pub contains: Option<Box<ContainerSpawn>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct EnemySpawn {
+    pub enemy_type: EnemyType,
+    pub coordinates: Vec2,
+    pub base_speed: f32,
+    #[serde(default = "default_zero")]
+    pub elapsed: f32,
+    #[serde(default = "empty_vec")]
+    pub steps: Vec<EnemyStep>,
+    pub contains: Option<Box<ContainerSpawn>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum StageSpawn {
-    Destructible {
-        destructible_type: DestructibleType,
-        coordinates: Vec2,
-        #[serde(default = "default_zero")]
-        elapsed: f32,
-    },
-    Powerup {
-        powerup_type: PowerupType,
-        coordinates: Vec2,
-        #[serde(default = "default_zero")]
-        elapsed: f32,
-    },
-    Enemy {
-        enemy_type: EnemyType,
-        coordinates: Vec2,
-        base_speed: f32,
-        #[serde(default = "default_zero")]
-        elapsed: f32,
-        #[serde(default = "empty_vec")]
-        steps: Vec<EnemyStep>,
-    },
+    Destructible(DestructibleSpawn),
+    Powerup(PowerupSpawn),
+    Enemy(EnemySpawn),
 }
 
 impl StageSpawn {
     pub fn get_elapsed(&self) -> f32 {
         match self {
-            StageSpawn::Destructible { elapsed, .. } => *elapsed,
-            StageSpawn::Powerup { elapsed, .. } => *elapsed,
-            StageSpawn::Enemy { elapsed, .. } => *elapsed,
+            StageSpawn::Destructible(DestructibleSpawn { elapsed, .. }) => *elapsed,
+            StageSpawn::Powerup(PowerupSpawn { elapsed, .. }) => *elapsed,
+            StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed,
         }
     }
 
     pub fn show_spawn_type(&self) -> String {
         match self {
-            StageSpawn::Destructible {
+            StageSpawn::Destructible(DestructibleSpawn {
                 destructible_type, ..
-            } => {
+            }) => {
                 format!("Destructible({:?})", destructible_type)
             }
-            StageSpawn::Powerup { powerup_type, .. } => format!("Powerup({:?})", powerup_type),
-            StageSpawn::Enemy { enemy_type, .. } => format!("Enemy({:?})", enemy_type),
+            StageSpawn::Powerup(PowerupSpawn { powerup_type, .. }) => {
+                format!("Powerup({:?})", powerup_type)
+            }
+            StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => format!("Enemy({:?})", enemy_type),
         }
     }
 }

@@ -22,6 +22,7 @@ pub fn despawn_dead_mosquitoes(
     for (entity, mosquito, position) in query.iter() {
         commands.entity(entity).despawn();
 
+        // HARDCODED depth, should be a component
         let depth = 1;
         let animation_o = MOSQUITO_ANIMATIONS.death.get(depth);
 
