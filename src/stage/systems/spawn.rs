@@ -10,7 +10,10 @@ use seldom_pixel::{
 use crate::{
     stage::{
         components::{Collision, Health},
-        data::{DestructibleType, EnemyType, PowerupType, StageSpawn},
+        data::{
+            DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, PowerupSpawn, PowerupType,
+            StageSpawn,
+        },
         enemy::components::{
             Enemy, EnemyMosquito, ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED,
             ENEMY_MOSQUITO_IDLE_FRAMES, ENEMY_MOSQUITO_RADIUS, PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1,
@@ -31,20 +34,20 @@ pub fn read_stage_spawn_trigger(
 
     for event in event_reader.iter() {
         match &event.spawn {
-            StageSpawn::Enemy {
+            StageSpawn::Enemy(EnemySpawn {
                 enemy_type,
                 coordinates,
                 base_speed,
                 steps,
                 ..
-            } => match enemy_type {
+            }) => match enemy_type {
                 EnemyType::Mosquito => {
                     let texture = assets_sprite.load_animated(
                         PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1,
                         ENEMY_MOSQUITO_IDLE_FRAMES,
                     );
 
-                    commands.spawn((
+                    let entity = commands.spawn((
                         Name::new("EnemyMosquito"),
                         Enemy {},
                         EnemyMosquito {
@@ -68,6 +71,10 @@ pub fn read_stage_spawn_trigger(
                         Collision::Circle(ENEMY_MOSQUITO_RADIUS),
                         Health(ENEMY_MOSQUITO_BASE_HEALTH),
                     ));
+
+                    // if let x = event.spawn {
+                    //     Drop
+                    // }
                 }
                 EnemyType::Kyle => {}
                 EnemyType::Marauder => {}
@@ -75,20 +82,21 @@ pub fn read_stage_spawn_trigger(
                 EnemyType::Spidomonsta => {}
                 EnemyType::Tardigrade => {}
             },
-            StageSpawn::Destructible {
+            StageSpawn::Destructible(DestructibleSpawn {
                 destructible_type,
                 coordinates,
                 elapsed,
-            } => match destructible_type {
+                ..
+            }) => match destructible_type {
                 DestructibleType::Lamp => {}
                 DestructibleType::Plant => {}
                 DestructibleType::Window => {}
             },
-            StageSpawn::Powerup {
+            StageSpawn::Powerup(PowerupSpawn {
                 powerup_type,
                 coordinates,
                 elapsed,
-            } => match powerup_type {
+            }) => match powerup_type {
                 PowerupType::BigHealthpack => {}
                 PowerupType::SmallHealthpack => {}
             },

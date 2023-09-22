@@ -29,7 +29,7 @@ pub const ENEMY_MOSQUITO_IDLE_FRAMES: usize = 3;
 pub const ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED: u64 = 500;
 pub const PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1: &str = "sprites/enemies/mosquito_idle_1.png";
 
-#[derive(Component)]
+#[derive(Component, Debug, Clone)]
 pub struct EnemyMosquito {
     pub base_speed: f32,
     pub steps: Vec<EnemyStep>,
@@ -39,6 +39,11 @@ impl EnemyMosquito {
     pub fn kill_score(&self) -> u32 {
         10
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum EnemyInstance {
+    EnemyMosquito(EnemyMosquito),
 }
 
 #[derive(Component)]

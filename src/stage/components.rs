@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use super::{data::EnemyType, enemy::components::EnemyInstance};
+
 #[derive(Component)]
 pub struct Stage {}
 
@@ -21,3 +23,9 @@ pub struct Health(pub u32);
 // TODO? critical kill
 #[derive(Component, Debug, Clone)]
 pub struct Dead;
+
+#[derive(Component, Debug, Clone)]
+pub enum Drop {
+    // Pickup(Pickup),
+    Enemy(EnemyInstance),
+}
