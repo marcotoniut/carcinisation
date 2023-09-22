@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 
-use super::{
-    data::{ContainerSpawn, EnemyType},
-    enemy::components::EnemyInstance,
-};
+use super::data::{ContainerSpawn, EnemyType};
 
 #[derive(Component)]
 pub struct Stage {}

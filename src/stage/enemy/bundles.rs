@@ -7,7 +7,7 @@ use crate::{
     Layer,
 };
 
-use super::components::*;
+use super::{components::*, data::AnimationData};
 
 pub fn make_enemy_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
@@ -44,5 +44,28 @@ pub fn make_enemy_bundle(
         )),
         Collision::Circle(PLACEHOLDER_ENEMY_SIZE),
         Health(40),
+    )
+}
+
+pub fn make_animation_bundle(
+    assets_sprite: &mut PxAssets<PxSprite>,
+    animation: &AnimationData,
+    depth: usize,
+) -> (PxSpriteBundle<Layer>, PxAnimationBundle) {
+    let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
+
+    (
+        PxSpriteBundle::<Layer> {
+            sprite: texture,
+            layer: Layer::Middle(depth),
+            anchor: PxAnchor::Center,
+            ..default()
+        },
+        PxAnimationBundle {
+            duration: PxAnimationDuration::millis_per_animation(animation.speed),
+            // on_finish: animation.finish_behavior,
+            on_finish: PxAnimationFinishBehavior::Loop,
+            ..default()
+        },
     )
 }
