@@ -9,6 +9,10 @@ mod systems;
 mod transitions;
 mod resource;
 
+#[macro_use]
+extern crate lazy_static;
+
+use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
 use bevy_common_assets::yaml::YamlAssetPlugin;
 use bevy_framepace::*;
@@ -16,9 +20,8 @@ use cutscene::CutscenePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
-use stage::{StagePlugin, player::crosshair::CrosshairSettings, data::StageData};
-use systems::{camera::move_camera, *, audio::VolumeSettings};
-use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
+use stage::{data::StageData, player::crosshair::CrosshairSettings, StagePlugin};
+use systems::{audio::VolumeSettings, camera::move_camera, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
@@ -66,7 +69,7 @@ fn main() {
     .insert_resource(VolumeSettings(
         DEFAULT_MASTER_VOLUME,
         DEFAULT_MUSIC_VOLUME,
-        DEFAULT_SFX_VOLUME
+        DEFAULT_SFX_VOLUME,
     ))
     .add_state::<AppState>()
     // .add_plugins(TransitionVenetianPlugin)

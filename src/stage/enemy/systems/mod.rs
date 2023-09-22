@@ -1,3 +1,5 @@
+pub mod mosquito;
+
 use bevy::{audio::*, prelude::*};
 use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
 

@@ -26,6 +26,7 @@ bevy_common_assets = { version = "0.7.0", default-features = true, features = [
 ] }
 bevy_framepace = "0.13.3"
 bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls" }
+lazy_static = "1.4.0"
 leafwing-input-manager = "0.10.0"
 rand = "0.8.4"
 seldom_pixel = { git = "https://github.com/Seldom-SE/seldom_pixel", default-features = true, features = [
@@ -35,4 +36,3 @@ serde = "1.0.183"
 serde_derive = "1.0.183"
 toml = "0.8.0"
 wasm-bindgen = "0.2.74"
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
