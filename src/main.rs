@@ -7,6 +7,7 @@ mod main_menu;
 mod stage;
 mod systems;
 mod transitions;
+mod resource;
 
 use bevy::prelude::*;
 use bevy_common_assets::yaml::YamlAssetPlugin;

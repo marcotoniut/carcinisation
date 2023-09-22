@@ -9,7 +9,7 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
-use crate::{systems::camera::CameraPos, GBInput};
+use crate::{systems::camera::CameraPos, GBInput, resource::{asteroid::ASTEROID_DATA, asset_data::AssetData, get_stage_data}};
 
 use super::{
     bundles::*,
@@ -46,19 +46,32 @@ pub fn toggle_game(
     }
 }
 
-pub fn setup_stage(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
-    commands.insert_resource(stage_data_handle);
+#[derive(Resource)]
+pub struct StageRawData {
+    stage_data: StageData
+}
+
+pub fn setup_stage(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>
+) {
+    
+    commands.insert_resource(StageRawData { stage_data: get_stage_data(ASTEROID_DATA) });
+    
+    //let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
+    //commands.insert_resource(stage_data_handle);
 }
 
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    data_handle: Res<StageDataHandle>,
-    data: Res<Assets<StageData>>,
+    //data_handle: Res<StageDataHandle>,
+    //data: Res<Assets<StageData>>,
     mut state: ResMut<NextState<GameState>>,
+    mut stage_data_raw: Res<StageRawData>
 ) {
-    if let Some(stage) = data.get(&data_handle.0.clone()) {
+    if let stage = &stage_data_raw.stage_data{
+    //if let Some(stage) = data.get(&data_handle.0.clone()) {
         commands
             .spawn((Stage {}, Name::new("Stage")))
             .with_children(|parent| {
@@ -110,15 +123,18 @@ pub fn update_stage(
     mut step_event_writer: EventWriter<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
-    data: Res<Assets<StageData>>,
-    data_handle: Res<StageDataHandle>,
+    //data: Res<Assets<StageData>>,
+    //data_handle: Res<StageDataHandle>,
+    mut stage_data_raw: Res<StageRawData>
 ) {
     match state.to_owned() {
         StageState::Initial => {
             next_state.set(StageState::Running);
         }
         StageState::Running => {
-            if let Some(stage) = data.get(&data_handle.0.clone()) {
+            
+            if let stage = &stage_data_raw.stage_data{
+            //if let Some(stage) = data.get(&data_handle.0.clone()) {
                 if let Some(action) = stage.steps.get(stage_progress.step) {
                     let spawns = match action {
                         StageStep::Movement {
@@ -197,10 +213,13 @@ pub fn update_stage(
 pub fn check_staged_cleared(
     mut next_state: ResMut<NextState<StageState>>,
     stage_progress: Res<StageProgress>,
-    data: Res<Assets<StageData>>,
-    data_handle: Res<StageDataHandle>,
+    //data: Res<Assets<StageData>>,
+    //data_handle: Res<StageDataHandle>,
+    mut stage_data_raw: Res<StageRawData>
 ) {
-    if let Some(stage) = data.get(&data_handle.0.clone()) {
+    return;
+    if let stage = &stage_data_raw.stage_data{
+    //if let Some(stage) = data.get(&data_handle.0.clone()) {
         if stage_progress.step >= stage.steps.len() {
             next_state.set(StageState::Clear);
         }
@@ -210,9 +229,10 @@ pub fn check_staged_cleared(
 pub fn read_stage_step_trigger(
     mut event_reader: EventReader<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
-    data: Res<Assets<StageData>>,
-    data_handle: Res<StageDataHandle>,
+    //data: Res<Assets<StageData>>,
+    //data_handle: Res<StageDataHandle>,
     mut stage_action_timer: ResMut<StageActionTimer>,
+    mut stage_data_raw: Res<StageRawData>
 ) {
     for _ in event_reader.iter() {
         stage_progress.step += 1;
@@ -220,7 +240,8 @@ pub fn read_stage_step_trigger(
         stage_progress.spawn_step = 0;
         stage_progress.spawn_step_elapsed = 0.;
 
-        if let Some(stage) = data.get(&data_handle.0.clone()) {
+        if let stage = &stage_data_raw.stage_data{
+        //if let Some(stage) = data.get(&data_handle.0.clone()) {
             if let Some(action) = stage.steps.get(stage_progress.step) {
                 stage_action_timer.timer.pause();
                 match action {
