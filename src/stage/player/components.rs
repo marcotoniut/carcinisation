@@ -13,7 +13,7 @@ use crate::Layer;
 pub struct Player {}
 
 pub const PLAYER_SPEED: f32 = 125.;
-pub const PLAYER_SIZE: f32 = 9.;
+pub const PLAYER_SIZE: f32 = 0.;
 
 pub const ATTACK_PINCER_DAMAGE: u32 = 70;
 pub const ATTACK_GUN_DAMAGE: u32 = 30;

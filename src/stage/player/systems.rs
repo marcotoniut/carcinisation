@@ -38,9 +38,9 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
     if let Ok(mut position) = player_query.get_single_mut() {
         let half_player_size = PLAYER_SIZE / 2.0;
         let x_min = 0.0 + half_player_size;
-        let x_max = SCREEN_RESOLUTION.x as f32 - half_player_size;
+        let x_max = (SCREEN_RESOLUTION.x - 1) as f32 - half_player_size;
         let y_min = HUD_HEIGHT as f32 + half_player_size;
-        let y_max = SCREEN_RESOLUTION.y as f32 - half_player_size;
+        let y_max = (SCREEN_RESOLUTION.y - 1) as f32 - half_player_size;
 
         let mut translation = position.0;
 
