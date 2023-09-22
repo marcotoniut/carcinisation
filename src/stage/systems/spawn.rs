@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
         PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
-        PxCamera, PxSubPosition,
+        PxSubPosition,
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
@@ -12,9 +12,8 @@ use crate::{
         components::{Collision, Health},
         data::{DestructibleType, EnemyType, PowerupType, StageSpawn},
         enemy::components::{
-            Enemy, EnemyMosquito, PlaceholderEnemy, ENEMY_MOSQUITO_BASE_HEALTH,
-            ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED, ENEMY_MOSQUITO_IDLE_FRAMES, ENEMY_MOSQUITO_RADIUS,
-            PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1,
+            Enemy, EnemyMosquito, ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED,
+            ENEMY_MOSQUITO_IDLE_FRAMES, ENEMY_MOSQUITO_RADIUS, PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1,
         },
         events::StageSpawnTrigger,
     },
@@ -46,6 +45,7 @@ pub fn read_stage_spawn_trigger(
                     );
 
                     commands.spawn((
+                        Name::new("EnemyMosquito"),
                         Enemy {},
                         EnemyMosquito {
                             base_speed: *base_speed,

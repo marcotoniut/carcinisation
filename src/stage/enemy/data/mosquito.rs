@@ -1,21 +1,19 @@
-use crate::stage::enemy::data::AnimationData;
+use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ENEMIES};
 
 pub struct MosquitoAnimations {
-    pub idle: Vec<AnimationData>,
-    pub fly: Vec<AnimationData>,
-    pub attack: Vec<AnimationData>,
     pub death: Vec<AnimationData>,
+    pub fly: Vec<AnimationData>,
+    pub idle: Vec<AnimationData>,
+    pub melee_attack: Vec<AnimationData>,
 }
-
-const PATH_SPRITES_ENEMIES: &str = "sprites/enemies/";
 
 // Animation fragments
 const FRAGMENT_IDLE: &str = "idle";
 const FRAGMENT_FLY: &str = "fly";
 const FRAGMENT_DEATH: &str = "death";
-const FRAGMENT_ATTACK: &str = "attack";
+const FRAGMENT_MELEE_ATTACK: &str = "melee_attack";
 
-// Enemy fragments
+// Enemy
 const FRAGMENT_MOSQUITO: &str = "mosquito";
 
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u32) -> String {
@@ -23,137 +21,137 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u32) -> String
 }
 
 lazy_static! {
-    static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {
+    pub static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {
         let idle_frames = 3;
-        let idle_speed = 100;
+        let idle_speed = 500;
 
         // TODO
         let fly_frames = 3;
-        let fly_speed = 30;
+        let fly_speed = 90;
 
-        let death_frames = 19;
-        let death_speed = 130;
+        let death_frames = 20;
+        let death_speed = 780;
 
         let attack_frames = 8;
-        let attack_speed = 90;
+        let melee_attack_speed = 130;
 
         MosquitoAnimations {
-            idle: vec![
+            death: vec![
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_IDLE, FRAGMENT_MOSQUITO, 0),
-                    frames: idle_frames,
-                    speed: idle_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 0),
+                    frames: death_frames,
+                    speed: death_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_IDLE, FRAGMENT_MOSQUITO, 1),
-                    frames: idle_frames,
-                    speed: idle_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 1),
+                    frames: death_frames,
+                    speed: death_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_IDLE, FRAGMENT_MOSQUITO, 2),
-                    frames: idle_frames,
-                    speed: idle_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 2),
+                    frames: death_frames,
+                    speed: death_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_IDLE, FRAGMENT_MOSQUITO, 3),
-                    frames: idle_frames,
-                    speed: idle_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 3),
+                    frames: death_frames,
+                    speed: death_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
             ],
             fly: vec![
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_FLY, FRAGMENT_MOSQUITO, 0),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 0),
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_FLY, FRAGMENT_MOSQUITO, 1),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 1),
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_FLY, FRAGMENT_MOSQUITO, 2),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 2),
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_FLY, FRAGMENT_MOSQUITO, 3),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 3),
                     frames: fly_frames,
                     speed: fly_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
             ],
-            death: vec![
+            idle: vec![
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_DEATH, FRAGMENT_MOSQUITO, 0),
-                    frames: death_frames,
-                    speed: death_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 0),
+                    frames: idle_frames,
+                    speed: idle_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_DEATH, FRAGMENT_MOSQUITO, 1),
-                    frames: death_frames,
-                    speed: death_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 1),
+                    frames: idle_frames,
+                    speed: idle_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_DEATH, FRAGMENT_MOSQUITO, 2),
-                    frames: death_frames,
-                    speed: death_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 2),
+                    frames: idle_frames,
+                    speed: idle_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_DEATH, FRAGMENT_MOSQUITO, 3),
-                    frames: death_frames,
-                    speed: death_speed,
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 3),
+                    frames: idle_frames,
+                    speed: idle_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
             ],
-            attack: vec![
+            melee_attack: vec![
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_ATTACK, FRAGMENT_MOSQUITO, 0),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 0),
                     frames: attack_frames,
-                    speed: attack_speed,
+                    speed: melee_attack_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_ATTACK, FRAGMENT_MOSQUITO, 1),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 1),
                     frames: attack_frames,
-                    speed: attack_speed,
+                    speed: melee_attack_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_ATTACK, FRAGMENT_MOSQUITO, 2),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 2),
                     frames: attack_frames,
-                    speed: attack_speed,
+                    speed: melee_attack_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
                 AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_ATTACK, FRAGMENT_MOSQUITO, 3),
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 3),
                     frames: attack_frames,
-                    speed: attack_speed,
+                    speed: melee_attack_speed,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
