@@ -3,6 +3,7 @@ use seldom_pixel::{asset::*, prelude::*};
 
 use crate::{
     globals::{SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
+    resource::asset_data::SkyboxData,
     Layer,
 };
 
@@ -29,11 +30,11 @@ pub fn make_background_bundle(
 
 pub fn make_skybox_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
-    skybox_path: String,
+    skybox_data: SkyboxData,
 ) -> (PxSpriteBundle<Layer>, PxSubPosition, Name) {
-    info!("skybox: {}", skybox_path);
+    info!("skybox: {}", skybox_data.path);
 
-    let sprite = assets_sprite.load(skybox_path);
+    let sprite = assets_sprite.load_animated(skybox_data.path, skybox_data.frames);
     return (
         PxSpriteBundle::<Layer> {
             sprite,

@@ -1,8 +1,11 @@
 use bevy::{
+    core_pipeline::Skybox,
     prelude::{Handle, Resource, Vec2},
     reflect::{TypePath, TypeUuid},
 };
 use serde::Deserialize;
+
+use crate::resource::asset_data::SkyboxData;
 
 #[derive(Debug, Deserialize, Clone)]
 pub enum DestructibleType {
@@ -159,7 +162,7 @@ pub enum StageStep {
 pub struct StageData {
     pub name: String,
     pub background: String,
-    pub skybox: Option<String>,
+    pub skybox: Option<SkyboxData>,
     pub start_coordinates: Option<Vec2>,
     #[serde(default = "empty_vec")]
     pub spawns: Vec<StageSpawn>,

@@ -9,7 +9,11 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
-use crate::{systems::camera::CameraPos, GBInput, resource::{asteroid::ASTEROID_DATA, asset_data::AssetData, get_stage_data}};
+use crate::{
+    resource::{asset_data::AssetData, asteroid::STAGE_ASTEROID_DATA, park::STAGE_PARK_DATA},
+    systems::camera::CameraPos,
+    GBInput,
+};
 
 use super::{
     bundles::*,
@@ -48,20 +52,20 @@ pub fn toggle_game(
 
 #[derive(Resource)]
 pub struct StageRawData {
-    stage_data: StageData
+    stage_data: StageData,
 }
 
-pub fn setup_stage(
-    mut commands: Commands,
-) {
-    commands.insert_resource(StageRawData { stage_data: get_stage_data(ASTEROID_DATA) });
+pub fn setup_stage(mut commands: Commands) {
+    commands.insert_resource(StageRawData {
+        stage_data: STAGE_PARK_DATA.get_data(),
+    });
 }
 
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut state: ResMut<NextState<GameState>>,
-    mut stage_data_raw: Res<StageRawData>
+    mut stage_data_raw: Res<StageRawData>,
 ) {
     if let stage = &stage_data_raw.stage_data {
         commands
@@ -115,14 +119,13 @@ pub fn update_stage(
     mut step_event_writer: EventWriter<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
-    mut stage_data_raw: Res<StageRawData>
+    mut stage_data_raw: Res<StageRawData>,
 ) {
     match state.to_owned() {
         StageState::Initial => {
             next_state.set(StageState::Running);
         }
         StageState::Running => {
-            
             if let stage = &stage_data_raw.stage_data {
                 if let Some(action) = stage.steps.get(stage_progress.step) {
                     let spawns = match action {
@@ -202,7 +205,7 @@ pub fn update_stage(
 pub fn check_staged_cleared(
     mut next_state: ResMut<NextState<StageState>>,
     stage_progress: Res<StageProgress>,
-    mut stage_data_raw: Res<StageRawData>
+    mut stage_data_raw: Res<StageRawData>,
 ) {
     if let stage = &stage_data_raw.stage_data {
         if stage_progress.step >= stage.steps.len() {
@@ -215,7 +218,7 @@ pub fn read_stage_step_trigger(
     mut event_reader: EventReader<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     mut stage_action_timer: ResMut<StageActionTimer>,
-    mut stage_data_raw: Res<StageRawData>
+    mut stage_data_raw: Res<StageRawData>,
 ) {
     for _ in event_reader.iter() {
         stage_progress.step += 1;
