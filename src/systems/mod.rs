@@ -1,17 +1,22 @@
-pub mod camera;
 pub mod audio;
+pub mod camera;
 
-use bevy::{app::AppExit, prelude::*, audio::Volume};
+use bevy::{app::AppExit, audio::Volume, prelude::*};
 use bevy_framepace::Limiter;
 use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
 };
-use seldom_pixel::prelude::{PxSubPosition, PxCamera};
+use seldom_pixel::prelude::{PxCamera, PxSubPosition};
 
-use crate::{events::*, AppState, GBInput, audio::AudioSystemType, stage::{StageState, GameState, resources::StageDataHandle}};
+use crate::{
+    audio::AudioSystemType,
+    events::*,
+    stage::{resources::StageDataHandle, GameState, StageState},
+    AppState, GBInput,
+};
 
-use self::{camera::CameraPos, audio::VolumeSettings};
+use self::{audio::VolumeSettings, camera::CameraPos};
 
 pub fn input_exit_game(
     gb_input_query: Query<&ActionState<GBInput>>,
@@ -27,46 +32,42 @@ pub fn input_snd_menu(
     gb_input_query: Query<&ActionState<GBInput>>,
     app_state: Res<State<AppState>>,
     mut next_app_state: ResMut<NextState<AppState>>,
-    mut commands: Commands, asset_server: Res<AssetServer>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
 
     mut next_game_state: ResMut<NextState<GameState>>,
-    
+
     state: Res<State<StageState>>,
     mut next_stage_state: ResMut<NextState<StageState>>,
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
     time: Res<Time>,
-
 ) {
-
     let gb_input = gb_input_query.single();
-    if 
-        gb_input.just_pressed(GBInput::Select) {
-            info!("open pause menu");
+    if gb_input.just_pressed(GBInput::Select) {
+        info!("open pause menu");
 
-            if app_state.get().to_owned() != AppState::MainMenu {
-                // commands.insert_resource(NextState(Some(AppState::MainMenu)));
-                info!("Entered AppState::MainMenu");
-                
-                let stage_data_handle = StageDataHandle(asset_server.load("stages/settings.yaml"));
-                commands.insert_resource(stage_data_handle);
-                
-                next_app_state.set(AppState::MainMenu);
-                next_stage_state.set(StageState::Initial);
-                next_game_state.set(GameState::Loading);
-            }
-            else if app_state.get().to_owned() != AppState::Game {
-                // commands.insert_resource(NextState(Some(AppState::MainMenu)));
-               
-                info!("Entered AppState::Game");
-                
-                let stage_data_handle = StageDataHandle(asset_server.load("stages/asteroid.yaml"));
-                commands.insert_resource(stage_data_handle);
-                
-                next_app_state.set(AppState::Game);
-                next_stage_state.set(StageState::Running);
-                next_game_state.set(GameState::Loading);
-            }
+        if app_state.get().to_owned() != AppState::MainMenu {
+            // commands.insert_resource(NextState(Some(AppState::MainMenu)));
+            info!("Entered AppState::MainMenu");
+
+            let stage_data_handle = StageDataHandle(asset_server.load("stages/settings.yaml"));
+            commands.insert_resource(stage_data_handle);
+
+            next_app_state.set(AppState::MainMenu);
+            next_stage_state.set(StageState::Initial);
+            next_game_state.set(GameState::Loading);
+        } else if app_state.get().to_owned() != AppState::Game {
+            // commands.insert_resource(NextState(Some(AppState::MainMenu)));
+
+            info!("Entered AppState::Game");
+
+            println!("TODO Initialise game");
+
+            next_app_state.set(AppState::Game);
+            next_stage_state.set(StageState::Running);
+            next_game_state.set(GameState::Loading);
+        }
     }
 }
 
@@ -137,16 +138,14 @@ pub fn transition_to_main_menu_state(
     }
 }
 
-pub fn update_master_volume(
-    volume_settings: Res<VolumeSettings>
-) {
+pub fn update_master_volume(volume_settings: Res<VolumeSettings>) {
     let master_volume = volume_settings.0;
     GlobalVolume::new(master_volume);
 }
 
 pub fn update_music_volume(
     mut source_settings: Query<(&mut PlaybackSettings, &AudioSystemType)>,
-    volume_settings: Res<VolumeSettings>
+    volume_settings: Res<VolumeSettings>,
 ) {
     let music_volume = volume_settings.1;
     for (mut music_source_settings, audio_system_type) in source_settings.iter_mut() {
@@ -158,10 +157,10 @@ pub fn update_music_volume(
 
 pub fn update_sfx_volume(
     mut source_settings: Query<&mut PlaybackSettings>,
-    volume_settings: Res<VolumeSettings>
+    volume_settings: Res<VolumeSettings>,
 ) {
     let sfx_volume = volume_settings.2;
-    for mut sfx_source_settings in &mut source_settings{
+    for mut sfx_source_settings in &mut source_settings {
         sfx_source_settings.volume = Volume::new_relative(sfx_volume);
     }
 }

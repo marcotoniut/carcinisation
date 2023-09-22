@@ -3,9 +3,8 @@ use bevy::prelude::*;
 use crate::stage::data::StageData;
 use crate::stage::data::StageSpawn;
 use crate::stage::data::StageStep;
-use serde::Deserialize;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct SkyboxData {
     pub path: String,
     pub frames: usize,

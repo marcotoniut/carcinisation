@@ -101,23 +101,6 @@
       "env": {
         "CARGO_MANIFEST_DIR": "${workspaceFolder}"
       }
-    },
-    {
-      "type": "lldb",
-      "request": "launch",
-      "name": "Validate Data",
-      "cargo": {
-        "args": ["build", "--bin=validate-data", "--package=validate-data"],
-        "filter": {
-          "name": "validate-data",
-          "kind": "bin"
-        }
-      },
-      "args": [],
-      "cwd": "${workspaceFolder}/scripts/validate-data",
-      "env": {
-        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
-      }
     }
   ]
 }

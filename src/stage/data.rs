@@ -1,13 +1,11 @@
 use bevy::{
-    core_pipeline::Skybox,
-    prelude::{Handle, Resource, Vec2},
+    prelude::Vec2,
     reflect::{TypePath, TypeUuid},
 };
-use serde::Deserialize;
 
 use crate::resource::asset_data::SkyboxData;
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub enum DestructibleType {
     #[default]
     Lamp,
@@ -16,14 +14,14 @@ pub enum DestructibleType {
 }
 
 // deriving Default for simplicity's sake in defining the stage data
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub enum PowerupType {
     #[default]
     SmallHealthpack,
     BigHealthpack,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub enum EnemyType {
     #[default]
     Mosquito,
@@ -34,8 +32,7 @@ pub enum EnemyType {
     Kyle,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Clone, Debug)]
 pub enum EnemyStep {
     Attack {
         duration: f32,
@@ -75,45 +72,38 @@ fn empty_vec<T: Clone>() -> Vec<T> {
     [].to_vec()
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum ContainerSpawn {
     Powerup(PowerupSpawn),
     Enemy(EnemySpawn),
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub struct PowerupSpawn {
     pub powerup_type: PowerupType,
-    #[serde(default = "default_vec2_zero")]
     pub coordinates: Vec2,
-    #[serde(default = "default_zero")]
     pub elapsed: f32,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub struct DestructibleSpawn {
     pub destructible_type: DestructibleType,
     pub coordinates: Vec2,
-    #[serde(default = "default_zero")]
     pub elapsed: f32,
-    #[serde(default = "default_none")]
     pub contains: Option<Box<ContainerSpawn>>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub struct EnemySpawn {
     pub enemy_type: EnemyType,
     pub coordinates: Vec2,
     pub base_speed: f32,
-    #[serde(default = "default_zero")]
     pub elapsed: f32,
-    #[serde(default = "empty_vec")]
     pub steps: Vec<EnemyStep>,
     pub contains: Option<Box<ContainerSpawn>>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Clone, Debug)]
 pub enum StageSpawn {
     Destructible(DestructibleSpawn),
     Powerup(PowerupSpawn),
@@ -144,7 +134,7 @@ impl StageSpawn {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default)]
 pub enum StageActionResumeCondition {
     #[default]
     KillAll,
@@ -155,32 +145,27 @@ fn default_base_speed() -> f32 {
     1.0
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Clone, Debug)]
 pub enum StageStep {
     Movement {
         coordinates: Vec2,
-        #[serde(default = "default_base_speed")]
         base_speed: f32,
-        #[serde(default = "empty_vec")]
         spawns: Vec<StageSpawn>,
     },
     Stop {
         resume_conditions: Option<Vec<StageActionResumeCondition>>,
         max_duration: Option<u64>,
-        #[serde(default = "empty_vec")]
         spawns: Vec<StageSpawn>,
     },
 }
 
-#[derive(Deserialize, TypeUuid, TypePath, Clone, Debug)]
+#[derive(TypeUuid, TypePath, Clone, Debug)]
 #[uuid = "c17075ed-7df0-4a51-b961-ce5270a8a934"]
 pub struct StageData {
     pub name: String,
     pub background: String,
     pub skybox: Option<SkyboxData>,
     pub start_coordinates: Option<Vec2>,
-    #[serde(default = "empty_vec")]
     pub spawns: Vec<StageSpawn>,
     pub steps: Vec<StageStep>,
 }

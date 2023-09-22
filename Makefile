@@ -15,6 +15,3 @@ generate-typeface:
 
 process-gfx:
 	cd scripts/process-gfx && cargo run;
-
-validate-data:
-	cd scripts/validate-data && cargo run;
