@@ -25,10 +25,6 @@ pub struct Enemy {}
 pub const ENEMY_MOSQUITO_RADIUS: f32 = 7.0;
 pub const ENEMY_MOSQUITO_BASE_HEALTH: u32 = 40;
 
-pub const ENEMY_MOSQUITO_IDLE_FRAMES: usize = 3;
-pub const ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED: u64 = 500;
-pub const PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1: &str = "sprites/enemies/mosquito_idle_1.png";
-
 #[derive(Component, Clone, Debug)]
 pub struct EnemyMosquito {
     pub base_speed: f32,

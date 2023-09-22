@@ -7,11 +7,12 @@ use crate::{
     globals::*,
     stage::{
         components::{Collision, Dead, Health, SpawnDrop},
-        data::{ContainerSpawn, PowerupSpawn},
+        data::ContainerSpawn,
         player::components::{
             HitList, PlayerAttack, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
         },
         score::components::Score,
+        systems::spawn::spawn_enemy,
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     systems::camera::CameraPos,
@@ -200,9 +201,12 @@ pub fn placeholder_spawn_enemies_over_time(
 pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
     mut score: ResMut<Score>,
     query: Query<(&SpawnDrop, &PxSubPosition), With<Dead>>,
 ) {
+    let camera_pos = camera_query.get_single().unwrap();
+
     for (spawn_drop, position) in &mut query.iter() {
         match spawn_drop.0.clone() {
             ContainerSpawn::Powerup(spawn) => {
@@ -226,22 +230,7 @@ pub fn check_dead_drop(
             }
             ContainerSpawn::Enemy(spawn) => {
                 println!("TODO spawn drop enemy: {:?}", spawn);
-                // spawn_enemy();
-                // let texture = assets_sprite.load(PATH_SPRITES_POWERUP_BIG_HEALTHPACK);
-                // commands.spawn((
-                //     Name::new("PowerupBigHealthpack"),
-                //     Powerup {
-                //         powerup_type: PowerupType::BigHealthpack,
-                //     },
-                //     PxSpriteBundle::<Layer> {
-                //         sprite: texture,
-                //         layer: Layer::Middle(2),
-                //         anchor: PxAnchor::Center,
-                //         ..default()
-                //     },
-                //     PxSubPosition::from(position.0),
-                //     Collision::Circle(POWERUP_BIG_HEALTHPACK_RADIUS),
-                // ));
+                spawn_enemy(&mut commands, &camera_pos, &spawn);
             }
         }
     }
