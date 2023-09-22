@@ -3,11 +3,10 @@ use seldom_pixel::{asset::*, prelude::*};
 
 use crate::{
     globals::{SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
-    resource::asset_data::SkyboxData,
     Layer,
 };
 
-use super::components::StageClearedText;
+use super::{components::StageClearedText, data::SkyboxData};
 
 pub fn make_background_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
