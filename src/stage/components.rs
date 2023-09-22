@@ -17,3 +17,7 @@ pub enum Collision {
 
 #[derive(Component, Debug, Clone)]
 pub struct Health(pub u32);
+
+// TODO? critical kill
+#[derive(Component, Debug, Clone)]
+pub struct Dead;

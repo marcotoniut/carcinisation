@@ -1,18 +1,10 @@
-use std::time::Duration;
-
-use bevy::{
-    audio::{PlaybackMode, Volume},
-    prelude::*,
-    utils::HashSet,
-};
+use bevy::{audio::PlaybackMode, prelude::*, utils::HashSet};
 use seldom_pixel::{
-    asset::PxAsset,
-    position,
     prelude::{
         PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
         PxCanvas, PxSubPosition,
     },
-    sprite::{PxSprite, PxSpriteBundle, PxSpriteData},
+    sprite::{PxSprite, PxSpriteBundle},
 };
 
 use crate::Layer;

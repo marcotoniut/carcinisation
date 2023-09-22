@@ -64,6 +64,12 @@ path = "typeface/animated_typeface.png"
 
 # Enemies
 [[images]]
+path = "sprites/enemies/mosquito_death_1.png"
+[[images]]
+path = "sprites/enemies/mosquito_death_2.png"
+[[images]]
+path = "sprites/enemies/mosquito_death_3.png"
+[[images]]
 path = "sprites/enemies/mosquito_idle_1.png"
 [[images]]
 path = "sprites/enemies/mosquito_idle_2.png"
@@ -77,6 +83,3 @@ path = "sprites/enemies/mosquito_melee_2.png"
 path = "sprites/enemies/mosquito_melee_3.png"
 [[images]]
 path = "sprites/enemies/worm.png"
-
-[[images]]
-path = "backgrounds/blank.png"

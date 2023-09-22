@@ -35,6 +35,12 @@ pub struct EnemyMosquito {
     pub steps: Vec<EnemyStep>,
 }
 
+impl EnemyMosquito {
+    pub fn kill_score(&self) -> u32 {
+        10
+    }
+}
+
 #[derive(Component)]
 pub struct EnemySpidey {}
 
