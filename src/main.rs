@@ -7,6 +7,7 @@ mod main_menu;
 mod stage;
 mod systems;
 mod transitions;
+mod resource;
 
 #[macro_use]
 extern crate lazy_static;
@@ -60,7 +61,7 @@ fn main() {
         PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png".into()),
         FramepacePlugin,
         bevy::diagnostic::LogDiagnosticsPlugin::default(),
-        YamlAssetPlugin::<StageData>::new(&["yaml"]),
+        //YamlAssetPlugin::<StageData>::new(&["yaml"]),
     ))
     // .insert_resource(GlobalVolume::new(0.2))
     .insert_resource(ClearColor(Color::BLACK))
