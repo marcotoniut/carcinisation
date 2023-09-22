@@ -9,7 +9,7 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::{Collision, Health},
+        components::{Collision, Health, SpawnDrop},
         data::{
             DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, PowerupSpawn, PowerupType,
             StageSpawn,
@@ -39,6 +39,7 @@ pub fn read_stage_spawn_trigger(
                 coordinates,
                 base_speed,
                 steps,
+                contains,
                 ..
             }) => match enemy_type {
                 EnemyType::Mosquito => {
@@ -47,34 +48,36 @@ pub fn read_stage_spawn_trigger(
                         ENEMY_MOSQUITO_IDLE_FRAMES,
                     );
 
-                    let entity = commands.spawn((
-                        Name::new("EnemyMosquito"),
-                        Enemy {},
-                        EnemyMosquito {
-                            base_speed: *base_speed,
-                            steps: steps.clone(),
-                        },
-                        PxSpriteBundle::<Layer> {
-                            sprite: texture.clone(),
-                            layer: Layer::Middle(2),
-                            anchor: PxAnchor::Center,
-                            ..default()
-                        },
-                        PxAnimationBundle {
-                            duration: PxAnimationDuration::millis_per_animation(
-                                ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED,
-                            ),
-                            on_finish: PxAnimationFinishBehavior::Loop,
-                            ..default()
-                        },
-                        PxSubPosition::from(*coordinates + camera_pos.0),
-                        Collision::Circle(ENEMY_MOSQUITO_RADIUS),
-                        Health(ENEMY_MOSQUITO_BASE_HEALTH),
-                    ));
+                    let entity = commands
+                        .spawn((
+                            Name::new("EnemyMosquito"),
+                            Enemy {},
+                            EnemyMosquito {
+                                base_speed: *base_speed,
+                                steps: steps.clone(),
+                            },
+                            PxSpriteBundle::<Layer> {
+                                sprite: texture.clone(),
+                                layer: Layer::Middle(2),
+                                anchor: PxAnchor::Center,
+                                ..default()
+                            },
+                            PxAnimationBundle {
+                                duration: PxAnimationDuration::millis_per_animation(
+                                    ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED,
+                                ),
+                                on_finish: PxAnimationFinishBehavior::Loop,
+                                ..default()
+                            },
+                            PxSubPosition::from(*coordinates + camera_pos.0),
+                            Collision::Circle(ENEMY_MOSQUITO_RADIUS),
+                            Health(ENEMY_MOSQUITO_BASE_HEALTH),
+                        ))
+                        .id();
 
-                    // if let x = event.spawn {
-                    //     Drop
-                    // }
+                    if let Some(contains) = contains {
+                        commands.entity(entity).insert(SpawnDrop(*contains.clone()));
+                    }
                 }
                 EnemyType::Kyle => {}
                 EnemyType::Marauder => {}

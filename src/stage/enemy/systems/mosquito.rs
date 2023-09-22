@@ -20,6 +20,7 @@ pub fn despawn_dead_mosquitoes(
     query: Query<(Entity, &EnemyMosquito, &PxSubPosition), With<Dead>>,
 ) {
     for (entity, mosquito, position) in query.iter() {
+        // TODO Can I split this?
         commands.entity(entity).despawn();
 
         // HARDCODED depth, should be a component

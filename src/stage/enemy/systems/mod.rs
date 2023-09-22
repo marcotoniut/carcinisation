@@ -6,7 +6,8 @@ use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
 use crate::{
     globals::*,
     stage::{
-        components::{Collision, Dead, Health},
+        components::{Collision, Dead, Health, SpawnDrop},
+        data::{ContainerSpawn, PowerupSpawn},
         player::components::{
             HitList, PlayerAttack, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
         },
@@ -193,5 +194,55 @@ pub fn placeholder_spawn_enemies_over_time(
 ) {
     if enemy_spawn_timer.timer.finished() {
         commands.spawn(make_enemy_bundle(&mut assets_sprite));
+    }
+}
+
+pub fn check_dead_drop(
+    mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    mut score: ResMut<Score>,
+    query: Query<(&SpawnDrop, &PxSubPosition), With<Dead>>,
+) {
+    for (spawn_drop, position) in &mut query.iter() {
+        match spawn_drop.0.clone() {
+            ContainerSpawn::Powerup(spawn) => {
+                println!("TODO spawn drop powerup: {:?}", spawn);
+                // spawn_powerup(commands, &mut assets_sprite, &mut score, spawn, position);
+                // let texture = assets_sprite.load(PATH_SPRITES_POWERUP_HEALTHPACK);
+                // commands.spawn((
+                //     Name::new("PowerupHealthpack"),
+                //     Powerup {
+                //         powerup_type: PowerupType::Healthpack,
+                //     },
+                //     PxSpriteBundle::<Layer> {
+                //         sprite: texture,
+                //         layer: Layer::Middle(2),
+                //         anchor: PxAnchor::Center,
+                //         ..default()
+                //     },
+                //     PxSubPosition::from(position.0),
+                //     Collision::Circle(POWERUP_HEALTHPACK_RADIUS),
+                // ));
+            }
+            ContainerSpawn::Enemy(spawn) => {
+                println!("TODO spawn drop enemy: {:?}", spawn);
+                // spawn_enemy();
+                // let texture = assets_sprite.load(PATH_SPRITES_POWERUP_BIG_HEALTHPACK);
+                // commands.spawn((
+                //     Name::new("PowerupBigHealthpack"),
+                //     Powerup {
+                //         powerup_type: PowerupType::BigHealthpack,
+                //     },
+                //     PxSpriteBundle::<Layer> {
+                //         sprite: texture,
+                //         layer: Layer::Middle(2),
+                //         anchor: PxAnchor::Center,
+                //         ..default()
+                //     },
+                //     PxSubPosition::from(position.0),
+                //     Collision::Circle(POWERUP_BIG_HEALTHPACK_RADIUS),
+                // ));
+            }
+        }
     }
 }
