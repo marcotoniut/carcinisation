@@ -4,17 +4,16 @@ mod events;
 mod game;
 mod globals;
 mod main_menu;
+mod resource;
 mod stage;
 mod systems;
 mod transitions;
-mod resource;
 
 #[macro_use]
 extern crate lazy_static;
 
 use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
-use bevy_common_assets::yaml::YamlAssetPlugin;
 use bevy_framepace::*;
 use cutscene::CutscenePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
@@ -27,7 +26,7 @@ use systems::{audio::VolumeSettings, camera::move_camera, *};
 fn main() {
     let title: String = "CARCINISATION".to_string();
     let focused: bool = false;
-    let resolution: Vec2 = Vec2::new(800., 720.);
+    let resolution: Vec2 = Vec2::new(576., 480.);
 
     let mut app = App::new();
     let dev = true;
@@ -38,7 +37,12 @@ fn main() {
                     title,
                     focused,
                     resizable: true,
-                    resolution: (resolution + Vec2::new(600., 180.)).into(),
+                    resolution: (resolution
+                        + Vec2::new(
+                            SCREEN_RESOLUTION.x as f32 * 1.5,
+                            SCREEN_RESOLUTION.y as f32 * 1.5,
+                        ))
+                    .into(),
                     ..default()
                 }),
                 ..default()
@@ -61,7 +65,6 @@ fn main() {
         PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png".into()),
         FramepacePlugin,
         bevy::diagnostic::LogDiagnosticsPlugin::default(),
-        //YamlAssetPlugin::<StageData>::new(&["yaml"]),
     ))
     // .insert_resource(GlobalVolume::new(0.2))
     .insert_resource(ClearColor(Color::BLACK))

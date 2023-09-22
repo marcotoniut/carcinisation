@@ -2,18 +2,19 @@ use crate::stage::data::{ContainerSpawn, DestructibleSpawn, EnemySpawn, PowerupS
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PowerupType, StageActionResumeCondition, StageSpawn,
 };
+use bevy::app::AppLabel;
 use bevy::prelude::*;
-use lazy_static::lazy_static;
 
 use super::asset_data::*;
+use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref STAGE_ASTEROID_DATA: AssetData = AssetData {
-        name: "Asteroid".to_string(),
-        background: "backgrounds/asteroid/background.png".to_string(),
+    pub static ref STAGE_PARK_DATA: AssetData = AssetData {
+        name: "Park".to_string(),
+        background: "backgrounds/park/background.png".to_string(),
         skybox: SkyboxData {
-            path: "backgrounds/asteroid/skybox.png".to_string(),
-            frames: 1,
+            path: "backgrounds/park/skybox.png".to_string(),
+            frames: 2,
         },
         start_coordinates: Some(Vec2::new(0.0, 0.0)),
         _get_spawns,
