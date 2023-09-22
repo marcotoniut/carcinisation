@@ -66,13 +66,13 @@ pub fn update_enemy_placeholder_direction(
         }
 
         if direction_changed {
-            let sound_effect_1 = asset_server.load("audio/pluck_001.ogg");
-            let sound_effect_2 = asset_server.load("audio/pluck_001.ogg");
-            let sound_effect = if rand::random::<f32>() > 0.5 {
-                sound_effect_1
-            } else {
-                sound_effect_2
-            };
+            let sound_effect = asset_server.load("audio/typing_message.ogg");
+            // let sound_effect_2 = asset_server.load("audio/pluck_001.ogg");
+            // let sound_effect = if rand::random::<f32>() > 0.5 {
+            //     sound_effect_1
+            // } else {
+            //     sound_effect_2
+            // };
             let audio = commands
                 .spawn(AudioBundle {
                     source: sound_effect,
