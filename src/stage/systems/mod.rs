@@ -204,7 +204,6 @@ pub fn check_staged_cleared(
     stage_progress: Res<StageProgress>,
     mut stage_data_raw: Res<StageRawData>
 ) {
-    return;
     if let stage = &stage_data_raw.stage_data {
         if stage_progress.step >= stage.steps.len() {
             next_state.set(StageState::Clear);
