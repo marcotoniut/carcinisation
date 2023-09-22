@@ -135,7 +135,7 @@ pub fn despawn_dead_mosquitoes(
                 assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
 
             commands.spawn((
-                Name::new("EnemyMosquito - Death"),
+                Name::new("EnemyMosquito - Dead"),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: texture,
