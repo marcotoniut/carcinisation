@@ -15,7 +15,8 @@ use crate::{
             StageSpawn,
         },
         enemy::components::{
-            Enemy, EnemyMosquito, ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED,
+            Enemy, EnemyMosquito, EnemyMosquitoAttack, EnemyMosquitoAttacking,
+            ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED,
             ENEMY_MOSQUITO_IDLE_FRAMES, ENEMY_MOSQUITO_RADIUS, PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1,
         },
         events::StageSpawnTrigger,
@@ -56,19 +57,7 @@ pub fn read_stage_spawn_trigger(
                                 base_speed: *base_speed,
                                 steps: steps.clone(),
                             },
-                            PxSpriteBundle::<Layer> {
-                                sprite: texture.clone(),
-                                layer: Layer::Middle(2),
-                                anchor: PxAnchor::Center,
-                                ..default()
-                            },
-                            PxAnimationBundle {
-                                duration: PxAnimationDuration::millis_per_animation(
-                                    ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED,
-                                ),
-                                on_finish: PxAnimationFinishBehavior::Loop,
-                                ..default()
-                            },
+                            EnemyMosquitoAttacking { attack: None },
                             PxSubPosition::from(*coordinates + camera_pos.0),
                             Collision::Circle(ENEMY_MOSQUITO_RADIUS),
                             Health(ENEMY_MOSQUITO_BASE_HEALTH),
