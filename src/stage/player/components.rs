@@ -55,7 +55,7 @@ impl PlayerAttack {
         // TODO sprite
         let (sprite_bundle, animation_bundle, audio_source_bundle) = match self.weapon {
             Weapon::Pincer => {
-                let melee_slash_sound = asset_server.load("audio/melee_attack_01.ogg");
+                let melee_slash_sound = asset_server.load("audio/sfx/player_melee.ogg");
                 let sprite = assets_sprite.load_animated("sprites/melee_slash.png", 9);
                 (
                     PxSpriteBundle::<Layer> {
@@ -81,7 +81,7 @@ impl PlayerAttack {
                 )
             }
             Weapon::Gun => {
-                let shoot_sound = asset_server.load("audio/melee_attack_01.ogg");
+                let shoot_sound = asset_server.load("audio/sfx/player_shot.ogg");
                 let sprite = assets_sprite.load_animated("sprites/bullet_particles.png", 4);
                 (
                     PxSpriteBundle::<Layer> {

@@ -9,7 +9,9 @@ use seldom_pixel::prelude::*;
 
 use crate::{
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
-    GBInput, systems::audio::{VolumeSettings, AudioSystemType, AudioSystemBundle}, stage::score::components::Score
+    stage::score::components::Score,
+    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
+    GBInput,
 };
 
 use super::{bundles::*, components::*, resources::*};
@@ -121,47 +123,11 @@ pub fn tick_attack_timer(mut timer: ResMut<AttackTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }
 
-/*pub fn check_attack_timer(
-    mut commands: Commands,
-    mut player_query: Query<&PxSubPosition, With<Player>>,
-    star_query: Query<(Entity, &PxSubPosition), With<Star>>,
-    asset_server: Res<AssetServer>,
-    mut score: ResMut<Score>,
-    volume_settings: Res<VolumeSettings>
-) {
-    if let Ok(player_position) = player_query.get_single_mut() {
-        for (star_entity, star_position) in star_query.iter() {
-            let distance = player_position.0.distance(star_position.0);
-            if distance < (PLAYER_SIZE / 2.0 + STAR_SIZE / 2.0) {
-                commands.entity(star_entity).despawn();
-
-                score.value += 1;
-
-                let sound_effect = asset_server.load("audio/laserSmall_000.ogg");
-                let audio = commands.spawn(AudioBundle {
-                    source: sound_effect,
-                    settings: PlaybackSettings {
-                        mode: PlaybackMode::Despawn,
-                        volume: Volume::new_relative(volume_settings.2 * 1.0),
-                        ..default()
-                    },
-                    ..default()
-                }).id();
-                commands.entity(audio)
-                    .insert(AudioSystemBundle{
-                        system_type: AudioSystemType::SFX
-                    });
-            }
-        }
-    }
-}*/
-
 pub fn check_attack_timer(
     mut commands: Commands,
     timer: ResMut<AttackTimer>,
-    player_attack_query: Query<(Entity, &PlayerAttack)>
-    // event to attack?
-    // mut event_writer: EventWriter<StageActionTrigger>,
+    player_attack_query: Query<(Entity, &PlayerAttack)>, // event to attack?
+                                                         // mut event_writer: EventWriter<StageActionTrigger>,
 ) {
     if timer.timer.finished() {
         for (entity, _) in &mut player_attack_query.iter() {
