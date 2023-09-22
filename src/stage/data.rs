@@ -3,7 +3,11 @@ use bevy::{
     reflect::{TypePath, TypeUuid},
 };
 
-use crate::resource::asset_data::SkyboxData;
+#[derive(Debug, Clone)]
+pub struct SkyboxData {
+    pub path: String,
+    pub frames: usize,
+}
 
 #[derive(Clone, Debug, Default)]
 pub enum DestructibleType {
@@ -141,10 +145,6 @@ pub enum StageActionResumeCondition {
     KillBoss,
 }
 
-fn default_base_speed() -> f32 {
-    1.0
-}
-
 #[derive(Clone, Debug)]
 pub enum StageStep {
     Movement {
@@ -164,7 +164,7 @@ pub enum StageStep {
 pub struct StageData {
     pub name: String,
     pub background: String,
-    pub skybox: Option<SkyboxData>,
+    pub skybox: SkyboxData,
     pub start_coordinates: Option<Vec2>,
     pub spawns: Vec<StageSpawn>,
     pub steps: Vec<StageStep>,

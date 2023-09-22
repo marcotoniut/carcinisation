@@ -9,18 +9,13 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
-use crate::{
-    resource::{asset_data::AssetData, asteroid::STAGE_ASTEROID_DATA, park::STAGE_PARK_DATA},
-    systems::camera::CameraPos,
-    GBInput,
-};
+use crate::{resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput};
 
 use super::{
     bundles::*,
     components::Stage,
     data::*,
     events::{StageSpawnTrigger, StageStepTrigger},
-    resources::*,
     resources::{StageActionTimer, StageProgress},
     GameState, StageState,
 };
@@ -57,7 +52,7 @@ pub struct StageRawData {
 
 pub fn setup_stage(mut commands: Commands) {
     commands.insert_resource(StageRawData {
-        stage_data: STAGE_PARK_DATA.get_data(),
+        stage_data: STAGE_PARK_DATA.clone(),
     });
 }
 
@@ -65,26 +60,21 @@ pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut state: ResMut<NextState<GameState>>,
-    mut stage_data_raw: Res<StageRawData>,
+    stage_data_raw: Res<StageRawData>,
 ) {
-    if let stage = &stage_data_raw.stage_data {
-        commands
-            .spawn((Stage {}, Name::new("Stage")))
-            .with_children(|parent| {
-                let background_bundle =
-                    make_background_bundle(&mut assets_sprite, stage.background.clone());
-                parent.spawn(background_bundle);
+    let stage = &stage_data_raw.stage_data;
+    commands
+        .spawn((Stage {}, Name::new("Stage")))
+        .with_children(|parent| {
+            let background_bundle =
+                make_background_bundle(&mut assets_sprite, stage.background.clone());
+            parent.spawn(background_bundle);
 
-                if let Some(skybox_path) = stage.skybox.clone() {
-                    let skybox_bundle = make_skybox_bundle(&mut assets_sprite, skybox_path);
-                    parent.spawn(skybox_bundle);
-                }
-            });
+            let skybox_bundle = make_skybox_bundle(&mut assets_sprite, stage.skybox.clone());
+            parent.spawn(skybox_bundle);
+        });
 
-        state.set(GameState::Running);
-    } else {
-        // Error
-    }
+    state.set(GameState::Running);
 }
 
 // TODO Probably can do without this now

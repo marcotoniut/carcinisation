@@ -1,14 +1,15 @@
-use crate::stage::data::{ContainerSpawn, DestructibleSpawn, EnemySpawn, PowerupSpawn, StageStep};
+use crate::stage::data::{
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, PowerupSpawn, SkyboxData, StageData, StageStep,
+};
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PowerupType, StageActionResumeCondition, StageSpawn,
 };
 use bevy::prelude::*;
 
-use super::asset_data::*;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref STAGE_PARK_DATA: AssetData = AssetData {
+    pub static ref STAGE_PARK_DATA: StageData = StageData {
         name: "Park".to_string(),
         background: "backgrounds/park/background.png".to_string(),
         skybox: SkyboxData {
