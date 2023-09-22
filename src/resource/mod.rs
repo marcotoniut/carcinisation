@@ -6,19 +6,20 @@ pub mod asteroid;
 pub mod asset_data;
 
 pub fn get_stage_data(data: AssetData) -> StageData {
-
-
-    let mut skybox = String::new();
+    let mut skybox : Option<String> = None;
     if data.skybox.is_some() {
-        skybox = data.skybox.unwrap().to_string();
+        skybox = Some(data.skybox.unwrap().to_string());
     }
-    let mut stage_data = StageData{
+    let spawns = (data._get_spawns)();
+    let steps = (data._get_steps)();
+
+    let stage_data = StageData{
         name: data.name.to_string(),
         background: data.background.to_string(),
-        skybox: Some(skybox),
+        skybox,
         start_coordinates: data.start_coordinates,
-        spawns: data.spawns,
-        steps: data.steps,
+        spawns,
+        steps,
     };
     return stage_data;
 }
