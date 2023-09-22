@@ -12,6 +12,8 @@ pub fn make_background_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     background_path: String,
 ) -> (PxSpriteBundle<Layer>, PxSubPosition, Name) {
+    info!("background: {}", background_path);
+
     let sprite = assets_sprite.load(background_path);
     (
         PxSpriteBundle::<Layer> {
@@ -29,6 +31,8 @@ pub fn make_skybox_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     skybox_path: String,
 ) -> (PxSpriteBundle<Layer>, PxSubPosition, Name) {
+    info!("skybox: {}", skybox_path);
+
     let sprite = assets_sprite.load(skybox_path);
     return (
         PxSpriteBundle::<Layer> {
