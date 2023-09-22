@@ -33,11 +33,3 @@ impl AssetData {
         }
     }
 }
-
-pub fn _get_spawns() -> Vec<StageSpawn> {
-    return Vec::new();
-}
-
-pub fn _get_steps() -> Vec<StageStep> {
-    return Vec::new();
-}

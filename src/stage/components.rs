@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use super::{data::EnemyType, enemy::components::EnemyInstance};
+use super::{
+    data::{ContainerSpawn, EnemyType},
+    enemy::components::EnemyInstance,
+};
 
 #[derive(Component)]
 pub struct Stage {}
@@ -25,7 +28,4 @@ pub struct Health(pub u32);
 pub struct Dead;
 
 #[derive(Component, Debug, Clone)]
-pub enum Drop {
-    // Pickup(Pickup),
-    Enemy(EnemyInstance),
-}
+pub struct SpawnDrop(pub ContainerSpawn);

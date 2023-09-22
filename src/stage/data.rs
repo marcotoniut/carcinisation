@@ -7,21 +7,25 @@ use serde::Deserialize;
 
 use crate::resource::asset_data::SkyboxData;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub enum DestructibleType {
+    #[default]
     Lamp,
     Window,
     Plant,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+// deriving Default for simplicity's sake in defining the stage data
+#[derive(Clone, Debug, Default, Deserialize)]
 pub enum PowerupType {
+    #[default]
     SmallHealthpack,
     BigHealthpack,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub enum EnemyType {
+    #[default]
     Mosquito,
     Spidey,
     Tardigrade,
@@ -30,23 +34,33 @@ pub enum EnemyType {
     Kyle,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum EnemyStep {
+    Attack {
+        duration: f32,
+    },
+    Circle {
+        duration: f32,
+    },
+    Idle {
+        duration: f32,
+    },
     Movement {
         coordinates: Vec2,
         attacking: bool,
         speed: f32,
     },
-    Stop {
-        duration: f32,
-    },
-    Attack {
-        duration: f32,
-    },
-    CircleAround {
-        duration: f32,
-    },
+}
+
+impl Default for EnemyStep {
+    fn default() -> Self {
+        EnemyStep::Idle { duration: 0.0 }
+    }
+}
+
+fn default_vec2_zero() -> Vec2 {
+    Vec2::new(0.0, 0.0)
 }
 
 fn default_zero() -> f32 {
@@ -61,21 +75,22 @@ fn empty_vec<T: Clone>() -> Vec<T> {
     [].to_vec()
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum ContainerSpawn {
     Powerup(PowerupSpawn),
     Enemy(EnemySpawn),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct PowerupSpawn {
     pub powerup_type: PowerupType,
+    #[serde(default = "default_vec2_zero")]
     pub coordinates: Vec2,
     #[serde(default = "default_zero")]
     pub elapsed: f32,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct DestructibleSpawn {
     pub destructible_type: DestructibleType,
     pub coordinates: Vec2,
@@ -85,7 +100,7 @@ pub struct DestructibleSpawn {
     pub contains: Option<Box<ContainerSpawn>>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct EnemySpawn {
     pub enemy_type: EnemyType,
     pub coordinates: Vec2,
@@ -97,7 +112,7 @@ pub struct EnemySpawn {
     pub contains: Option<Box<ContainerSpawn>>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum StageSpawn {
     Destructible(DestructibleSpawn),
@@ -129,8 +144,9 @@ impl StageSpawn {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub enum StageActionResumeCondition {
+    #[default]
     KillAll,
     KillBoss,
 }
