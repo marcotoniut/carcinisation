@@ -11,7 +11,7 @@ use lazy_static::lazy_static;
 
 const OBJECT_FIBERTREE_Y: f32 = 10.;
 
-const CAMERA_BASE_SPEED: f32 = 20.0;
+const CAMERA_BASE_SPEED: f32 = 10.0;
 
 lazy_static! {
     pub static ref STAGE_PARK_DATA: StageData = StageData {
@@ -168,7 +168,7 @@ pub fn make_steps() -> Vec<StageStep> {
         },
         //TEST down
         StageStep::Movement {
-            coordinates: Vec2 { x: 14.0, y: 22.0 },
+            coordinates: Vec2 { x: 10.0, y: 22.0 },
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
                 StageSpawn::Enemy(EnemySpawn {
@@ -176,20 +176,15 @@ pub fn make_steps() -> Vec<StageStep> {
                     coordinates: Vec2 { x: 40.0, y: 70.0 },
                     base_speed: 4.0,
                     elapsed: 6.8 / CAMERA_BASE_SPEED,
-                    steps: vec![
-                        EnemyStep::Movement {
-                            coordinates: Vec2 { x: 20.0, y: 0.0 },
-                            attacking: true,
-                            speed: 4.0,
-                        },
-                        EnemyStep::Idle { duration: 1.5 },
-                        EnemyStep::Attack { duration: 1.0 },
-                        EnemyStep::Movement {
-                            coordinates: Vec2 { x: 10.0, y: 0.0 },
-                            attacking: true,
-                            speed: 4.0,
-                        },
-                    ],
+                    steps: vec![],
+                    contains: None,
+                }),
+                StageSpawn::Enemy(EnemySpawn {
+                    enemy_type: EnemyType::Mosquito,
+                    coordinates: Vec2 { x: 90.0, y: 30.0 },
+                    base_speed: 2.0,
+                    elapsed: 22.8 / CAMERA_BASE_SPEED,
+                    steps: vec![],
                     contains: None,
                 }),
                 StageSpawn::Pickup(PickupSpawn {
