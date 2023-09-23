@@ -62,7 +62,7 @@ pub fn input_snd_menu(
 
             info!("Entered AppState::Game");
 
-            println!("TODO Initialise game");
+            info!("TODO Initialise game");
 
             next_app_state.set(AppState::Game);
             next_stage_state.set(StageState::Running);
@@ -73,7 +73,7 @@ pub fn input_snd_menu(
 
 pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOver>) {
     for game_over in game_over_event_reader.iter() {
-        println!("Your final score: {}", game_over.score);
+        info!("Your final score: {}", game_over.score);
     }
 }
 
@@ -97,7 +97,7 @@ pub fn spawn_gb_input(mut commands: Commands) {
             (KeyCode::Z, GBInput::B),
             (KeyCode::X, GBInput::A),
             (KeyCode::Return, GBInput::Start),
-            (KeyCode::ShiftRight, GBInput::Select),
+            (KeyCode::ShiftLeft, GBInput::Select),
             (KeyCode::I, GBInput::DToGame),
             (KeyCode::Back, GBInput::DToMainMenu),
             (KeyCode::Escape, GBInput::DExit),
@@ -118,7 +118,7 @@ pub fn transition_to_game_state(
     if gb_input.just_pressed(GBInput::DToGame) {
         if app_state.get().to_owned() != AppState::Game {
             next_state.set(AppState::Game);
-            println!("Entered AppState::Game");
+            info!("Entered AppState::Game");
         }
     }
 }
@@ -133,7 +133,7 @@ pub fn transition_to_main_menu_state(
         if app_state.get().to_owned() != AppState::MainMenu {
             // commands.insert_resource(NextState(Some(AppState::MainMenu)));
             next_state.set(AppState::MainMenu);
-            println!("Entered AppState::MainMenu");
+            info!("Entered AppState::MainMenu");
         }
     }
 }

@@ -14,6 +14,7 @@ pub struct Player {}
 
 pub const PLAYER_SPEED: f32 = 125.;
 pub const PLAYER_SIZE: f32 = 0.;
+pub const PLAYER_MAX_HEALTH: u32 = 100;
 
 pub const ATTACK_PINCER_DAMAGE: u32 = 70;
 pub const ATTACK_GUN_DAMAGE: u32 = 30;
@@ -31,7 +32,7 @@ pub struct PlayerAttack {
 }
 
 #[derive(Component, Clone, Debug)]
-pub struct HitList(pub HashSet<Entity>);
+pub struct UnhittableList(pub HashSet<Entity>);
 
 impl PlayerAttack {
     pub fn make_bundles(
@@ -44,7 +45,7 @@ impl PlayerAttack {
             PxSpriteBundle<Layer>,
             PxAnimationBundle,
             PxSubPosition,
-            HitList,
+            UnhittableList,
             Name,
         ),
         AudioSourceBundle,
@@ -114,7 +115,7 @@ impl PlayerAttack {
                 sprite_bundle,
                 animation_bundle,
                 position,
-                HitList(HashSet::default()),
+                UnhittableList(HashSet::default()),
                 name,
             ),
             audio_source_bundle,

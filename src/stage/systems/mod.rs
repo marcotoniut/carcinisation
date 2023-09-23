@@ -9,7 +9,9 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
-use crate::{resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput, globals::DEBUG_STAGESTEP};
+use crate::{
+    globals::DEBUG_STAGESTEP, resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput,
+};
 
 use self::spawn::{spawn_enemy, spawn_object};
 
@@ -64,9 +66,13 @@ pub fn setup_stage(
     for spawn in &stage_data.spawns {
         match spawn {
             StageSpawn::Destructible(_) => {}
-            StageSpawn::Enemy(spawn) => spawn_enemy(&mut commands, &camera_pos, spawn),
-            StageSpawn::Object(spawn) => spawn_object(&mut commands, &mut assets_sprite, spawn),
-            StageSpawn::Powerup(_) => {}
+            StageSpawn::Enemy(spawn) => {
+                spawn_enemy(&mut commands, &camera_pos, spawn);
+            }
+            StageSpawn::Object(spawn) => {
+                spawn_object(&mut commands, &mut assets_sprite, spawn);
+            }
+            StageSpawn::Pickup(_) => {}
         }
     }
 
@@ -135,21 +141,13 @@ pub fn update_stage(
         StageState::Running => {
             if let stage = &stage_data_raw.stage_data {
                 if let Some(action) = stage.steps.get(stage_progress.step) {
-                    
                     if DEBUG_STAGESTEP {
                         let curr_action = match action {
-                            StageStep::Movement { .. } => {
-                            
-                                "movement".to_string()
-                            }
-                            StageStep::Stop { .. } => {
-                                "stop".to_string()
-                            },
-                            StageStep::Cinematic { .. } => {
-                                "cinematic".to_string()
-                            },
+                            StageStep::Movement { .. } => "movement".to_string(),
+                            StageStep::Stop { .. } => "stop".to_string(),
+                            StageStep::Cinematic { .. } => "cinematic".to_string(),
                         };
-                        
+
                         info!("curr action: {}", curr_action);
                     }
                     
@@ -167,9 +165,11 @@ pub fn update_stage(
                             **camera_pos += time.delta_seconds() * base_speed * direction;
 
                             if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
-                                
                                 if DEBUG_STAGESTEP {
-                                    warn!("================>>>> movement complete? {}", direction.x.to_string());
+                                    warn!(
+                                        "================>>>> movement complete? {}",
+                                        direction.x.to_string()
+                                    );
                                 }
                                 *camera_pos = PxSubPosition(coordinates.clone());
                                 step_event_writer.send(StageStepTrigger {});
@@ -191,11 +191,14 @@ pub fn update_stage(
                                 // DEBUG
 
                                 if DEBUG_STAGESTEP {
-                                    let mut duration = 0;
+                                    let mut duration = 0.;
                                     if max_duration.is_some() {
                                         duration = max_duration.unwrap();
                                     }
-                                    warn!("================>>>> stop complete? {}", duration.to_string());
+                                    warn!(
+                                        "================>>>> stop complete? {}",
+                                        duration.to_string()
+                                    );
                                 }
                                 step_event_writer.send(StageStepTrigger {});
                             }
@@ -271,13 +274,24 @@ pub fn read_stage_step_trigger(
             if let Some(action) = stage.steps.get(stage_progress.step) {
                 stage_action_timer.timer.pause();
                 match action {
-                    StageStep::Movement { .. } => {stage_action_timer.timer.reset();}
+                    StageStep::Movement { .. } => {
+                        stage_action_timer.timer.reset();
+                    }
                     StageStep::Stop { max_duration, .. } => {
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();
                             stage_action_timer
                                 .timer
-                                .set_duration(Duration::from_secs(duration.clone()));
+                                .set_duration(Duration::from_secs_f32(duration.clone()));
+                            stage_action_timer.timer.unpause();
+                        }
+                    }
+                    StageStep::Cinematic { max_duration, .. }  => {
+                        if let Some(duration) = max_duration {
+                            stage_action_timer.timer.reset();
+                            stage_action_timer
+                                .timer
+                                .set_duration(Duration::from_secs_f32(duration.clone()));
                             stage_action_timer.timer.unpause();
                         }
                     }

@@ -114,3 +114,17 @@ path = "sprites/objects/trash_can_2.png"
 path = "sprites/objects/trash_can_broken_1.png"
 [[images]]
 path = "sprites/objects/trash_can_broken_1.png"
+
+# Pickups
+[[images]]
+path = "sprites/pickups/ammo_1.png"
+[[images]]
+path = "sprites/pickups/ammo_2.png"
+[[images]]
+path = "sprites/pickups/bomb_1.png"
+[[images]]
+path = "sprites/pickups/bomb_2.png"
+[[images]]
+path = "sprites/pickups/health_1.png"
+[[images]]
+path = "sprites/pickups/health_2.png"

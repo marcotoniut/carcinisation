@@ -1,3 +1,7 @@
 {
-  "recommendations": ["stxr.iconfont-preview", "vadimcn.vscode-lldb"]
+  "recommendations": [
+    "stxr.iconfont-preview",
+    "vadimcn.vscode-lldb",
+    "rust-lang.rust-analyzer"
+  ]
 }
