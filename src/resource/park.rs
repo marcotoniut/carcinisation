@@ -1,9 +1,9 @@
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PowerupSpawn,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
     SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
-    DestructibleType, EnemyStep, EnemyType, PowerupType, StageActionResumeCondition, StageSpawn,
+    DestructibleType, EnemyStep, EnemyType, PickupType, StageActionResumeCondition, StageSpawn,
 };
 use bevy::prelude::*;
 
@@ -88,15 +88,15 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         }),
         StageSpawn::Destructible(DestructibleSpawn {
             coordinates: Vec2 { x: 20.0, y: 0.0 },
-            contains: Some(Box::new(ContainerSpawn::Powerup(PowerupSpawn {
-                powerup_type: PowerupType::BigHealthpack,
+            contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                pickup_type: PickupType::BigHealthpack,
                 coordinates: Vec2 { x: 30.0, y: 10.0 },
                 elapsed: 0.0,
             }))),
             destructible_type: DestructibleType::Lamp,
         }),
-        StageSpawn::Powerup(PowerupSpawn {
-            powerup_type: PowerupType::BigHealthpack,
+        StageSpawn::Pickup(PickupSpawn {
+            pickup_type: PickupType::BigHealthpack,
             coordinates: Vec2 { x: 30.0, y: 10.0 },
             elapsed: 0.0,
         }),
@@ -129,8 +129,8 @@ pub fn make_steps() -> Vec<StageStep> {
                         },
                         EnemyStep::Circle { duration: 4.0 },
                     ],
-                    contains: Some(Box::new(ContainerSpawn::Powerup(PowerupSpawn {
-                        powerup_type: PowerupType::BigHealthpack,
+                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                        pickup_type: PickupType::BigHealthpack,
                         ..default()
                     }))),
                 }),

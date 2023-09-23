@@ -66,7 +66,7 @@ pub fn setup_stage(
             StageSpawn::Destructible(_) => {}
             StageSpawn::Enemy(spawn) => spawn_enemy(&mut commands, &camera_pos, spawn),
             StageSpawn::Object(spawn) => spawn_object(&mut commands, &mut assets_sprite, spawn),
-            StageSpawn::Powerup(_) => {}
+            StageSpawn::Pickup(_) => {}
         }
     }
 

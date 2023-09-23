@@ -9,7 +9,7 @@ use crate::{
         components::{Collision, Health, Object, SpawnDrop},
         data::{
             DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, ObjectSpawn, ObjectType,
-            PowerupSpawn, PowerupType, StageSpawn,
+            PickupSpawn, PickupType, StageSpawn,
         },
         enemy::components::{
             Enemy, EnemyMosquito, EnemyMosquitoAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
@@ -36,15 +36,28 @@ pub fn read_stage_spawn_trigger(
             }
             StageSpawn::Enemy(spawn) => spawn_enemy(&mut commands, &camera_pos, spawn),
             StageSpawn::Object(spawn) => spawn_object(&mut commands, &mut assets_sprite, spawn),
-            StageSpawn::Powerup(PowerupSpawn {
-                powerup_type,
-                coordinates,
-                elapsed,
-            }) => match powerup_type {
-                PowerupType::BigHealthpack => {}
-                PowerupType::SmallHealthpack => {}
-            },
+            StageSpawn::Pickup(spawn) => {
+                spawn_pickup(&mut commands, &mut assets_sprite, &camera_pos, spawn)
+            }
         }
+    }
+}
+
+pub fn spawn_pickup(
+    commands: &mut Commands,
+    assets_sprite: &mut PxAssets<PxSprite>,
+    camera_pos: &PxSubPosition,
+    spawn: &PickupSpawn,
+) {
+    info!("Spawning Pickup {:?}", spawn.pickup_type);
+    let PickupSpawn {
+        pickup_type,
+        coordinates,
+        elapsed,
+    } = spawn;
+    match pickup_type {
+        PickupType::BigHealthpack => {}
+        PickupType::SmallHealthpack => {}
     }
 }
 
