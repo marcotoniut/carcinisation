@@ -26,3 +26,6 @@ pub struct Dead;
 
 #[derive(Component, Debug, Clone)]
 pub struct SpawnDrop(pub ContainerSpawn);
+
+#[derive(Component)]
+pub struct Object {}

@@ -34,7 +34,7 @@ pub fn make_skybox_bundle(
     info!("skybox: {}", skybox_data.path);
 
     let sprite = assets_sprite.load_animated(skybox_data.path, skybox_data.frames);
-    return (
+    (
         PxSpriteBundle::<Layer> {
             sprite,
             anchor: PxAnchor::BottomLeft,
@@ -44,7 +44,7 @@ pub fn make_skybox_bundle(
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
         Name::new("Skybox"),
-    );
+    )
 }
 
 // TODO should be in ui
