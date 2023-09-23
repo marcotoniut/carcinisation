@@ -27,7 +27,6 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         StageSpawn::Destructible(DestructibleSpawn {
             destructible_type: DestructibleType::Lamp,
             coordinates: Vec2 { x: 30.0, y: 0.0 },
-            elapsed: 0.0,
             contains: Some(Box::new(ContainerSpawn::Enemy(EnemySpawn {
                 enemy_type: EnemyType::Mosquito,
                 coordinates: Vec2 { x: 60.0, y: 100.0 },
@@ -52,9 +51,8 @@ pub fn make_spawns() -> Vec<StageSpawn> {
             }))),
         }),
         StageSpawn::Destructible(DestructibleSpawn {
-            destructible_type: DestructibleType::Window,
+            destructible_type: DestructibleType::Lamp,
             coordinates: Vec2 { x: 20.0, y: 0.0 },
-            elapsed: 0.0,
             contains: Some(Box::new(ContainerSpawn::Powerup(PowerupSpawn {
                 powerup_type: PowerupType::BigHealthpack,
                 coordinates: Vec2 { x: 30.0, y: 10.0 },

@@ -9,12 +9,20 @@ pub struct SkyboxData {
     pub frames: usize,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub enum DestructibleType {
-    #[default]
     Lamp,
-    Window,
-    Plant,
+    Trashcan,
+    // Window,
+    // Plant,
+}
+
+// deriving Default for simplicity's sake in defining the stage data
+#[derive(Clone, Debug)]
+pub enum ObjectType {
+    BenchBig,
+    BenchSmall,
+    Fibertree,
 }
 
 // deriving Default for simplicity's sake in defining the stage data
@@ -89,12 +97,17 @@ pub struct PowerupSpawn {
     pub elapsed: f32,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct DestructibleSpawn {
     pub destructible_type: DestructibleType,
     pub coordinates: Vec2,
-    pub elapsed: f32,
     pub contains: Option<Box<ContainerSpawn>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ObjectSpawn {
+    pub object_type: ObjectType,
+    pub coordinates: Vec2,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -109,6 +122,7 @@ pub struct EnemySpawn {
 
 #[derive(Clone, Debug)]
 pub enum StageSpawn {
+    Object(ObjectSpawn),
     Destructible(DestructibleSpawn),
     Powerup(PowerupSpawn),
     Enemy(EnemySpawn),
@@ -117,9 +131,10 @@ pub enum StageSpawn {
 impl StageSpawn {
     pub fn get_elapsed(&self) -> f32 {
         match self {
-            StageSpawn::Destructible(DestructibleSpawn { elapsed, .. }) => *elapsed,
-            StageSpawn::Powerup(PowerupSpawn { elapsed, .. }) => *elapsed,
+            StageSpawn::Destructible(DestructibleSpawn { .. }) => 0.,
             StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed,
+            StageSpawn::Object(ObjectSpawn { .. }) => 0.,
+            StageSpawn::Powerup(PowerupSpawn { elapsed, .. }) => *elapsed,
         }
     }
 
@@ -130,10 +145,13 @@ impl StageSpawn {
             }) => {
                 format!("Destructible({:?})", destructible_type)
             }
+            StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => format!("Enemy({:?})", enemy_type),
+            StageSpawn::Object(ObjectSpawn { object_type, .. }) => {
+                format!("Destructible({:?})", object_type)
+            }
             StageSpawn::Powerup(PowerupSpawn { powerup_type, .. }) => {
                 format!("Powerup({:?})", powerup_type)
             }
-            StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => format!("Enemy({:?})", enemy_type),
         }
     }
 }

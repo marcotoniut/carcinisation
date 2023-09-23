@@ -1,12 +1,15 @@
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
+use bevy::{prelude::*, sprite};
+use seldom_pixel::{
+    prelude::{PxAnchor, PxAssets, PxSubPosition},
+    sprite::{PxSprite, PxSpriteBundle},
+};
 
 use crate::{
     stage::{
-        components::{Collision, Health, SpawnDrop},
+        components::{Collision, Health, Object, SpawnDrop},
         data::{
-            DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, PowerupSpawn, PowerupType,
-            StageSpawn,
+            DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, ObjectSpawn, ObjectType,
+            PowerupSpawn, PowerupType, StageSpawn,
         },
         enemy::components::{
             Enemy, EnemyMosquito, EnemyMosquitoAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
@@ -15,28 +18,29 @@ use crate::{
         events::StageSpawnTrigger,
     },
     systems::camera::CameraPos,
+    Layer,
 };
 
 pub fn read_stage_spawn_trigger(
     mut commands: Commands,
     mut event_reader: EventReader<StageSpawnTrigger>,
+    mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
     for event in event_reader.iter() {
         match &event.spawn {
-            StageSpawn::Enemy(enemy_spawn) => spawn_enemy(&mut commands, &camera_pos, enemy_spawn),
             StageSpawn::Destructible(DestructibleSpawn {
-                destructible_type,
-                coordinates,
-                elapsed,
-                ..
+                destructible_type, ..
             }) => match destructible_type {
                 DestructibleType::Lamp => {}
-                DestructibleType::Plant => {}
-                DestructibleType::Window => {}
+                DestructibleType::Trashcan => {}
             },
+            StageSpawn::Enemy(spawn) => spawn_enemy(&mut commands, &camera_pos, spawn),
+            StageSpawn::Object(spawn) => {
+                spawn_object(&mut commands, &mut assets_sprite, &camera_pos, spawn)
+            }
             StageSpawn::Powerup(PowerupSpawn {
                 powerup_type,
                 coordinates,
@@ -85,4 +89,31 @@ pub fn spawn_enemy(commands: &mut Commands, camera_pos: &PxSubPosition, enemy_sp
         EnemyType::Spidomonsta => {}
         EnemyType::Tardigrade => {}
     }
+}
+
+pub fn spawn_object(
+    commands: &mut Commands,
+    assets_sprite: &mut PxAssets<PxSprite>,
+    camera_pos: &PxSubPosition,
+    spawn: &ObjectSpawn,
+) {
+    let sprite_path = match spawn.object_type {
+        ObjectType::BenchBig => "sprites/object/bench_big.png",
+        ObjectType::BenchSmall => "sprites/object/bench_small.png",
+        ObjectType::Fibertree => "sprites/object/fiber_tree.png",
+    };
+
+    let sprite = assets_sprite.load(sprite_path);
+
+    commands.spawn((
+        Name::new(format!("{:?}", spawn.object_type)),
+        Object {},
+        PxSpriteBundle::<Layer> {
+            sprite,
+            anchor: PxAnchor::BottomCenter,
+            layer: Layer::Middle(1),
+            ..default()
+        },
+        PxSubPosition::from(spawn.coordinates.clone()),
+    ));
 }

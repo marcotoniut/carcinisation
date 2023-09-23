@@ -92,3 +92,25 @@ path = "sprites/enemies/mosquito_melee_2.png"
 path = "sprites/enemies/mosquito_melee_3.png"
 [[images]]
 path = "sprites/enemies/worm.png"
+
+# Objects
+[[images]]
+path = "sprites/objects/bench_big.png"
+[[images]]
+path = "sprites/objects/bench_small.png"
+[[images]]
+path = "sprites/objects/fiber_tree.png"
+[[images]]
+path = "sprites/objects/lamp_broken.png"
+[[images]]
+path = "sprites/objects/lamp.png"
+[[images]]
+path = "sprites/objects/sign.png"
+[[images]]
+path = "sprites/objects/trash_can_1.png"
+[[images]]
+path = "sprites/objects/trash_can_2.png"
+[[images]]
+path = "sprites/objects/trash_can_broken_1.png"
+[[images]]
+path = "sprites/objects/trash_can_broken_1.png"
