@@ -16,6 +16,7 @@ use crate::{
             ENEMY_MOSQUITO_RADIUS,
         },
         events::StageSpawnTrigger,
+        pickup::components::HealthRecovery,
     },
     systems::camera::CameraPos,
     Layer,
@@ -50,14 +51,51 @@ pub fn spawn_pickup(
     spawn: &PickupSpawn,
 ) {
     info!("Spawning Pickup {:?}", spawn.pickup_type);
+    // TODO depth
+    let depth = 1;
     let PickupSpawn {
         pickup_type,
         coordinates,
         elapsed,
     } = spawn;
     match pickup_type {
-        PickupType::BigHealthpack => {}
-        PickupType::SmallHealthpack => {}
+        PickupType::BigHealthpack => {
+            let sprite = assets_sprite.load("sprites/pickups/health_2.png");
+            commands.spawn((
+                Name::new(format!(
+                    "Destructible BigHealthpack {:?}",
+                    spawn.pickup_type
+                )),
+                PxSpriteBundle::<Layer> {
+                    sprite,
+                    anchor: PxAnchor::BottomCenter,
+                    layer: Layer::Middle(2),
+                    ..default()
+                },
+                PxSubPosition::from(spawn.coordinates.clone()),
+                Health(1),
+                HealthRecovery(100),
+            ));
+        }
+        PickupType::SmallHealthpack => {
+            let sprite = assets_sprite.load("sprites/pickups/health_1.png");
+
+            commands.spawn((
+                Name::new(format!(
+                    "Destructible SmallHealthpack {:?}",
+                    spawn.pickup_type
+                )),
+                PxSpriteBundle::<Layer> {
+                    sprite,
+                    anchor: PxAnchor::BottomCenter,
+                    layer: Layer::Middle(2),
+                    ..default()
+                },
+                PxSubPosition::from(spawn.coordinates.clone()),
+                Health(1),
+                HealthRecovery(30),
+            ));
+        }
     }
 }
 
