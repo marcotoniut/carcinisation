@@ -8,6 +8,7 @@ mod resource;
 mod stage;
 mod systems;
 mod transitions;
+pub mod cinemachine;
 
 #[macro_use]
 extern crate lazy_static;

@@ -13,8 +13,9 @@ pub struct Clip {
     pub layer_index: f32
 }
 
-pub struct CinemachineData { 
+pub struct CinemachineData<'a> { 
     pub name: String,
     pub start_coordinates: Vec2,
-    pub clip: Vec<Clip>,
+    pub default_background_filter_color: &'a str,
+    pub clips: Vec<Clip>,
 }
