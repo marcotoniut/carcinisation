@@ -1,4 +1,4 @@
-use bevy::{prelude::*, sprite};
+use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{PxAnchor, PxAssets, PxSubPosition},
     sprite::{PxSprite, PxSpriteBundle},
@@ -31,12 +31,9 @@ pub fn read_stage_spawn_trigger(
 
     for event in event_reader.iter() {
         match &event.spawn {
-            StageSpawn::Destructible(DestructibleSpawn {
-                destructible_type, ..
-            }) => match destructible_type {
-                DestructibleType::Lamp => {}
-                DestructibleType::Trashcan => {}
-            },
+            StageSpawn::Destructible(spawn) => {
+                spawn_destructible(&mut commands, &mut assets_sprite, spawn)
+            }
             StageSpawn::Enemy(spawn) => spawn_enemy(&mut commands, &camera_pos, spawn),
             StageSpawn::Object(spawn) => spawn_object(&mut commands, &mut assets_sprite, spawn),
             StageSpawn::Powerup(PowerupSpawn {
@@ -52,6 +49,7 @@ pub fn read_stage_spawn_trigger(
 }
 
 pub fn spawn_enemy(commands: &mut Commands, camera_pos: &PxSubPosition, enemy_spawn: &EnemySpawn) {
+    info!("Spawning Enemy {:?}", enemy_spawn.enemy_type);
     let EnemySpawn {
         enemy_type,
         coordinates,
@@ -89,19 +87,43 @@ pub fn spawn_enemy(commands: &mut Commands, camera_pos: &PxSubPosition, enemy_sp
     }
 }
 
+pub fn spawn_destructible(
+    commands: &mut Commands,
+    assets_sprite: &mut PxAssets<PxSprite>,
+    spawn: &DestructibleSpawn,
+) {
+    info!("Spawning Destructible {:?}", spawn.destructible_type);
+
+    let (sprite_path, layer) = match spawn.destructible_type {
+        DestructibleType::Lamp => ("sprites/objects/lamp.png", Layer::Middle(1)),
+        DestructibleType::Trashcan => ("sprites/objects/trashcan.png", Layer::Middle(1)),
+    };
+    let sprite = assets_sprite.load(sprite_path);
+    commands.spawn((
+        Name::new(format!("Destructible {:?}", spawn.destructible_type)),
+        PxSpriteBundle::<Layer> {
+            sprite,
+            anchor: PxAnchor::BottomCenter,
+            layer,
+            ..default()
+        },
+        PxSubPosition::from(spawn.coordinates.clone()),
+    ));
+}
+
 pub fn spawn_object(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &ObjectSpawn,
 ) {
+    info!("Spawning Object {:?}", spawn.object_type);
+
     let (sprite_path, layer) = match spawn.object_type {
         ObjectType::BenchBig => ("sprites/objects/bench_big.png", Layer::Middle(1)),
         ObjectType::BenchSmall => ("sprites/objects/bench_small.png", Layer::Middle(1)),
         ObjectType::Fibertree => ("sprites/objects/fiber_tree.png", Layer::Middle(3)),
     };
-
     let sprite = assets_sprite.load(sprite_path);
-
     commands.spawn((
         Name::new(format!("Object {:?}", spawn.object_type)),
         Object {},
