@@ -163,7 +163,7 @@ pub enum StageActionResumeCondition {
     #[default]
     KillAll,
     KillBoss,
-    CinematicEnd
+    CinematicEnd,
 }
 
 #[derive(Clone, Debug)]
@@ -171,7 +171,7 @@ pub enum StageStep {
     Cinematic {
         resume_conditions: Option<Vec<StageActionResumeCondition>>,
         max_duration: Option<f32>,
-        cinematic: CinemachineData
+        cinematic: CinemachineData,
     },
     Movement {
         coordinates: Vec2,
@@ -189,7 +189,8 @@ pub enum StageStep {
 #[uuid = "c17075ed-7df0-4a51-b961-ce5270a8a934"]
 pub struct StageData {
     pub name: String,
-    pub background: String,
+    pub background_path: String,
+    pub music_path: String,
     pub skybox: SkyboxData,
     pub start_coordinates: Option<Vec2>,
     pub spawns: Vec<StageSpawn>,

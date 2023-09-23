@@ -12,7 +12,8 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref STAGE_ASTEROID_DATA: StageData = StageData {
         name: "Asteroid".to_string(),
-        background: "backgrounds/asteroid/background.png".to_string(),
+        music_path: "audio/music/stage_3.ogg".to_string(),
+        background_path: "backgrounds/asteroid/background.png".to_string(),
         skybox: SkyboxData {
             path: "backgrounds/asteroid/skybox.png".to_string(),
             frames: 1,

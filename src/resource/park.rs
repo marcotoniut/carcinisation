@@ -1,5 +1,5 @@
-use crate::resource::CAMERA_BASE_SPEED;
 use crate::cinemachine::scene_intro::INTRO_ANIMATIC;
+use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
     ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
     SkyboxData, StageData, StageStep,
@@ -16,7 +16,8 @@ const OBJECT_FIBERTREE_Y: f32 = 10.;
 lazy_static! {
     pub static ref STAGE_PARK_DATA: StageData = StageData {
         name: "Park".to_string(),
-        background: "backgrounds/park/background.png".to_string(),
+        music_path: "audio/music/stage_1.ogg".to_string(),
+        background_path: "backgrounds/park/background.png".to_string(),
         skybox: SkyboxData {
             path: "backgrounds/park/skybox.png".to_string(),
             frames: 2,
@@ -107,7 +108,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
 
 pub fn make_steps() -> Vec<StageStep> {
     vec![
-        // StageStep::Cinematic { 
+        // StageStep::Cinematic {
         //     resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
         //     max_duration: Some(5),
         //     cinematic: INTRO_ANIMATIC.clone(),
