@@ -22,7 +22,7 @@ use crate::{
 
 pub fn assign_mosquito_animation(
     mut commands: Commands,
-    mut query: Query<
+    query: Query<
         (
             Entity,
             &EnemyMosquito,

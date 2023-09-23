@@ -16,6 +16,33 @@ pub struct Object {}
 pub struct StageClearedText {}
 
 #[derive(Component, Debug, Clone)]
+pub struct IncomingSpeed(pub f32);
+
+#[derive(Component, Debug, Clone)]
+pub struct Depth(pub f32);
+
+#[derive(Component, Debug, Clone)]
+pub struct DepthReached;
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetDepth(pub f32);
+
+#[derive(Component, Debug, Clone)]
+pub struct LineSpeed(pub Vec2);
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetPosition(pub Vec2);
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetXReached;
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetYReached;
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetReached;
+
+#[derive(Component, Debug, Clone)]
 pub enum Collision {
     Box(Vec2),
     Circle(f32),

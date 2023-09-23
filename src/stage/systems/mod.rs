@@ -1,3 +1,4 @@
+pub mod movement;
 pub mod spawn;
 
 use std::{ops::Sub, time::Duration};
@@ -20,9 +21,15 @@ use super::{
     components::Stage,
     data::*,
     events::{StageSpawnTrigger, StageStepTrigger},
-    resources::{StageActionTimer, StageProgress},
+    resources::{StageActionTimer, StageProgress, StageTime},
     GameState, StageState,
 };
+
+pub fn tick_stage_time(mut stage_time: ResMut<StageTime>, time: Res<Time>) {
+    let delta = time.delta();
+    stage_time.delta = delta;
+    stage_time.elapsed += delta;
+}
 
 pub fn pause_game(mut game_state_next_state: ResMut<NextState<GameState>>) {
     game_state_next_state.set(GameState::Paused);

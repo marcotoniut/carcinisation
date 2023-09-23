@@ -55,7 +55,7 @@ pub struct EnemyMosquitoAttacking {
     pub attack: Option<EnemyMosquitoAttack>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Component, Clone, Debug)]
 pub enum EnemyMosquitoAttack {
     Ranged,
     Melee,

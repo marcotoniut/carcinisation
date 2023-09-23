@@ -1,6 +1,14 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use super::data::StageData;
+
+#[derive(Resource, Default, Debug, Clone)]
+pub struct StageTime {
+    pub delta: Duration,
+    pub elapsed: Duration,
+}
 
 #[derive(Clone, Debug, Default, Resource)]
 pub struct StageProgress {
