@@ -4,7 +4,7 @@ use bevy::prelude::*;
 pub struct Hud;
 
 #[derive(Component)]
-pub struct ScoreText;
+pub struct HealthText;
 
 #[derive(Component)]
 pub struct EnemyCountText;

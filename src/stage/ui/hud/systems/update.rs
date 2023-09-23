@@ -2,9 +2,10 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxText;
 
 use crate::stage::{
+    components::Health,
     enemy::components::PlaceholderEnemy,
-    score::components::Score,
-    ui::hud::components::{EnemyCountText, ScoreText},
+    player::components::Player,
+    ui::hud::components::{EnemyCountText, HealthText},
 };
 
 pub fn update_enemy_text(
@@ -17,10 +18,13 @@ pub fn update_enemy_text(
     }
 }
 
-pub fn update_score_text(mut query: Query<&mut PxText, With<ScoreText>>, score: Res<Score>) {
-    if score.is_changed() {
+pub fn update_health_text(
+    mut query: Query<&mut PxText, With<HealthText>>,
+    player_query: Query<&Health, With<Player>>,
+) {
+    for health in player_query.iter() {
         for mut text in query.iter_mut() {
-            text.0 = score.value.to_string();
+            text.0 = health.0.to_string();
         }
     }
 }
