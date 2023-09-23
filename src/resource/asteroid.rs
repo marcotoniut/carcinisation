@@ -1,5 +1,6 @@
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, PowerupSpawn, SkyboxData, StageData, StageStep,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PowerupSpawn,
+    SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PowerupType, StageActionResumeCondition, StageSpawn,
@@ -22,48 +23,7 @@ lazy_static! {
 }
 
 pub fn make_spawns() -> Vec<StageSpawn> {
-    vec![
-        StageSpawn::Destructible(DestructibleSpawn {
-            destructible_type: DestructibleType::Lamp,
-            coordinates: Vec2 { x: 30.0, y: 0.0 },
-            contains: Some(Box::new(ContainerSpawn::Enemy(EnemySpawn {
-                enemy_type: EnemyType::Mosquito,
-                coordinates: Vec2 { x: 60.0, y: 100.0 },
-                base_speed: 5.0,
-                elapsed: 1.4,
-                steps: vec![
-                    EnemyStep::Movement {
-                        coordinates: Vec2 { x: 50.0, y: 0.0 },
-                        attacking: true,
-                        speed: 5.0,
-                    },
-                    EnemyStep::Idle { duration: 1.0 },
-                    EnemyStep::Attack { duration: 1.0 },
-                    EnemyStep::Movement {
-                        coordinates: Vec2 { x: 10.0, y: 0.0 },
-                        attacking: true,
-                        speed: 3.0,
-                    },
-                    EnemyStep::Circle { duration: 4.0 },
-                ],
-                contains: None,
-            }))),
-        }),
-        StageSpawn::Destructible(DestructibleSpawn {
-            destructible_type: DestructibleType::Lamp,
-            coordinates: Vec2 { x: 20.0, y: 0.0 },
-            contains: Some(Box::new(ContainerSpawn::Powerup(PowerupSpawn {
-                powerup_type: PowerupType::BigHealthpack,
-                coordinates: Vec2 { x: 30.0, y: 10.0 },
-                elapsed: 0.0,
-            }))),
-        }),
-        StageSpawn::Powerup(PowerupSpawn {
-            powerup_type: PowerupType::BigHealthpack,
-            coordinates: Vec2 { x: 30.0, y: 10.0 },
-            elapsed: 0.0,
-        }),
-    ]
+    vec![]
 }
 
 pub fn make_steps() -> Vec<StageStep> {

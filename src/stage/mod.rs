@@ -46,7 +46,7 @@ impl Plugin for StagePlugin {
             .add_plugins(ScorePlugin)
             .add_plugins(StageUiPlugin)
             // .add_plugins(StarPlugin)
-            .add_systems(Startup, setup_stage.in_set(LoadingSystemSet))
+            .add_systems(PostStartup, setup_stage.in_set(LoadingSystemSet))
             .add_systems(
                 Update,
                 spawn_current_stage_bundle.run_if(in_state(GameState::Loading)),

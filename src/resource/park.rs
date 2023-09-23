@@ -1,5 +1,6 @@
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, PowerupSpawn, SkyboxData, StageData, StageStep,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PowerupSpawn,
+    SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PowerupType, StageActionResumeCondition, StageSpawn,
@@ -7,6 +8,8 @@ use crate::stage::data::{
 use bevy::prelude::*;
 
 use lazy_static::lazy_static;
+
+const OBJECT_FIBERTREE_Y: f32 = 10.;
 
 lazy_static! {
     pub static ref STAGE_PARK_DATA: StageData = StageData {
@@ -24,40 +27,73 @@ lazy_static! {
 
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
+        StageSpawn::Object(ObjectSpawn {
+            object_type: ObjectType::Fibertree,
+            coordinates: Vec2 {
+                x: 30.,
+                y: OBJECT_FIBERTREE_Y,
+            },
+        }),
+        StageSpawn::Object(ObjectSpawn {
+            object_type: ObjectType::Fibertree,
+            coordinates: Vec2 {
+                x: 180.,
+                y: OBJECT_FIBERTREE_Y,
+            },
+        }),
+        StageSpawn::Object(ObjectSpawn {
+            object_type: ObjectType::Fibertree,
+            coordinates: Vec2 {
+                x: 320.,
+                y: OBJECT_FIBERTREE_Y,
+            },
+        }),
+        StageSpawn::Object(ObjectSpawn {
+            object_type: ObjectType::BenchBig,
+            coordinates: Vec2 { x: 20., y: 65. },
+        }),
+        StageSpawn::Object(ObjectSpawn {
+            object_type: ObjectType::BenchBig,
+            coordinates: Vec2 { x: 200., y: 60. },
+        }),
+        StageSpawn::Object(ObjectSpawn {
+            object_type: ObjectType::BenchSmall,
+            coordinates: Vec2 { x: 100., y: 65. },
+        }),
         StageSpawn::Destructible(DestructibleSpawn {
-            destructible_type: DestructibleType::Lamp,
-            coordinates: Vec2 { x: 30.0, y: 0.0 },
+            coordinates: Vec2 { x: 30., y: 0. },
             contains: Some(Box::new(ContainerSpawn::Enemy(EnemySpawn {
                 enemy_type: EnemyType::Mosquito,
-                coordinates: Vec2 { x: 60.0, y: 100.0 },
+                coordinates: Vec2 { x: 60., y: 100. },
                 base_speed: 5.0,
                 elapsed: 1.4,
                 steps: vec![
                     EnemyStep::Movement {
-                        coordinates: Vec2 { x: 50.0, y: 0.0 },
+                        coordinates: Vec2 { x: 50., y: 0. },
                         attacking: true,
                         speed: 5.0,
                     },
-                    EnemyStep::Idle { duration: 1.0 },
-                    EnemyStep::Attack { duration: 1.0 },
+                    EnemyStep::Idle { duration: 1. },
+                    EnemyStep::Attack { duration: 1. },
                     EnemyStep::Movement {
-                        coordinates: Vec2 { x: 10.0, y: 0.0 },
+                        coordinates: Vec2 { x: 10., y: 0. },
                         attacking: true,
-                        speed: 3.0,
+                        speed: 3.,
                     },
-                    EnemyStep::Circle { duration: 4.0 },
+                    EnemyStep::Circle { duration: 4. },
                 ],
                 contains: None,
             }))),
+            destructible_type: DestructibleType::Lamp,
         }),
         StageSpawn::Destructible(DestructibleSpawn {
-            destructible_type: DestructibleType::Lamp,
             coordinates: Vec2 { x: 20.0, y: 0.0 },
             contains: Some(Box::new(ContainerSpawn::Powerup(PowerupSpawn {
                 powerup_type: PowerupType::BigHealthpack,
                 coordinates: Vec2 { x: 30.0, y: 10.0 },
                 elapsed: 0.0,
             }))),
+            destructible_type: DestructibleType::Lamp,
         }),
         StageSpawn::Powerup(PowerupSpawn {
             powerup_type: PowerupType::BigHealthpack,

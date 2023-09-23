@@ -11,6 +11,8 @@ use seldom_pixel::{
 
 use crate::{resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput};
 
+use self::spawn::{spawn_enemy, spawn_object};
+
 use super::{
     bundles::*,
     components::Stage,
@@ -50,10 +52,25 @@ pub struct StageRawData {
     stage_data: StageData,
 }
 
-pub fn setup_stage(mut commands: Commands) {
-    commands.insert_resource(StageRawData {
-        stage_data: STAGE_PARK_DATA.clone(),
-    });
+pub fn setup_stage(
+    mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+) {
+    let camera_pos = camera_query.get_single().unwrap();
+
+    let stage_data = STAGE_PARK_DATA.clone();
+
+    for spawn in &stage_data.spawns {
+        match spawn {
+            StageSpawn::Destructible(_) => {}
+            StageSpawn::Enemy(spawn) => spawn_enemy(&mut commands, &camera_pos, spawn),
+            StageSpawn::Object(spawn) => spawn_object(&mut commands, &mut assets_sprite, spawn),
+            StageSpawn::Powerup(_) => {}
+        }
+    }
+
+    commands.insert_resource(StageRawData { stage_data });
 }
 
 pub fn spawn_current_stage_bundle(

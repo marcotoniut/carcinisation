@@ -19,7 +19,7 @@ pub fn make_background_bundle(
         PxSpriteBundle::<Layer> {
             sprite,
             anchor: PxAnchor::BottomLeft,
-            layer: Layer::Back,
+            layer: Layer::Background,
             ..default()
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
@@ -30,7 +30,12 @@ pub fn make_background_bundle(
 pub fn make_skybox_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     skybox_data: SkyboxData,
-) -> (PxSpriteBundle<Layer>, PxSubPosition, Name) {
+) -> (
+    PxSpriteBundle<Layer>,
+    PxAnimationBundle,
+    PxSubPosition,
+    Name,
+) {
     info!("skybox: {}", skybox_data.path);
 
     let sprite = assets_sprite.load_animated(skybox_data.path, skybox_data.frames);
@@ -40,6 +45,12 @@ pub fn make_skybox_bundle(
             anchor: PxAnchor::BottomLeft,
             canvas: PxCanvas::Camera,
             layer: Layer::Skybox,
+            ..default()
+        },
+        PxAnimationBundle {
+            // TODO variable time
+            duration: PxAnimationDuration::millis_per_animation(2000),
+            on_finish: PxAnimationFinishBehavior::Loop,
             ..default()
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
