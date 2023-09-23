@@ -33,7 +33,7 @@ use crate::{
     Layer,
 };
 
-pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 4.;
+pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
 
 pub fn assign_mosquito_animation(
     mut commands: Commands,
@@ -197,7 +197,7 @@ pub fn check_idle_mosquito(
                     .entity(entity)
                     .remove::<EnemyMosquitoAnimation>()
                     .insert(EnemyMosquitoAttacking {
-                        attack: Some(EnemyMosquitoAttack::Melee),
+                        attack: Some(EnemyMosquitoAttack::Ranged),
                         last_attack_started: stage_time.elapsed,
                     });
 
@@ -206,7 +206,7 @@ pub fn check_idle_mosquito(
                     make_enemy_mosquito_range_attack_bundle(&mut assets_sprite, depth.clone());
 
                 let mut attacking = EnemyMosquitoAttacking {
-                    attack: Some(EnemyMosquitoAttack::Melee),
+                    attack: Some(EnemyMosquitoAttack::Ranged),
                     last_attack_started: stage_time.elapsed,
                 };
 
@@ -221,7 +221,7 @@ pub fn check_idle_mosquito(
                 commands.spawn((
                     Name::new("Attack Blood"),
                     TargetPosition(target_vec),
-                    LineSpeed((position.0 - target_vec).normalize() * BLOOD_ATTACK_LINE_SPEED),
+                    LineSpeed((target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED),
                     depth,
                     DepthProgress(depth.0.clone() as f32),
                     DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
@@ -264,7 +264,7 @@ pub fn damage_on_reached(
     for (entity, damage) in &mut depth_query.iter() {
         commands.entity(entity).despawn();
         for mut health in &mut player_query.iter_mut() {
-            let new_health: i32 = (health.0 - damage.0) as i32;
+            let new_health = health.0 as i32 - damage.0 as i32;
             health.0 = new_health.max(0) as u32;
         }
     }
