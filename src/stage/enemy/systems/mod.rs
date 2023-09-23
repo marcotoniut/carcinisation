@@ -6,7 +6,10 @@ use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
 use crate::{
     globals::*,
     stage::{
-        components::{Collision, Dead, Health, Hittable, SpawnDrop},
+        components::{
+            Collision, Dead, Depth, Health, Hittable, IncomingSpeed, LineSpeed, SpawnDrop,
+            TargetPosition, TargetReached,
+        },
         data::ContainerSpawn,
         player::components::{
             PlayerAttack, UnhittableList, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,

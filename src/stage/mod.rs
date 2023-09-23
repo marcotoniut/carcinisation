@@ -20,7 +20,7 @@ use self::{
     player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress},
     score::{components::Score, ScorePlugin},
-    systems::{spawn::read_stage_spawn_trigger, *},
+    systems::{movement::*, spawn::read_stage_spawn_trigger, *},
     ui::{pause_menu::pause_menu_renderer, StageUiPlugin},
 };
 use crate::{events::*, AppState};
@@ -65,6 +65,13 @@ impl Plugin for StagePlugin {
                         check_stage_step_timer,
                         check_staged_cleared,
                         pickup_health,
+                        // Movement
+                        advance_incoming,
+                        check_depth_reached,
+                        advance_line,
+                        check_line_target_x_reached,
+                        check_line_target_y_reached,
+                        check_line_target_reached,
                     )
                         .run_if(in_state(StageState::Running)),
                 )
