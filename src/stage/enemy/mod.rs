@@ -25,14 +25,14 @@ impl Plugin for EnemyPlugin {
             .add_systems(
                 Update,
                 (
-                    (enemy_movement, confine_enemy_movement).chain(),
+                    // (enemy_movement, confine_enemy_movement).chain(),
                     (check_got_hit, check_health_at_0).chain(),
                     despawn_dead_mosquitoes,
                     check_dead_drop,
                     assign_mosquito_animation,
                     update_enemy_placeholder_direction,
-                    placeholder_tick_enemy_spawn_timer,
-                    placeholder_spawn_enemies_over_time,
+                    // placeholder_tick_enemy_spawn_timer,
+                    // placeholder_spawn_enemies_over_time,
                 )
                     .run_if(in_state(AppState::Game))
                     .run_if(in_state(GameState::Running))
