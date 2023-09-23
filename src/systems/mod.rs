@@ -97,7 +97,7 @@ pub fn spawn_gb_input(mut commands: Commands) {
             (KeyCode::Z, GBInput::B),
             (KeyCode::X, GBInput::A),
             (KeyCode::Return, GBInput::Start),
-            (KeyCode::ShiftRight, GBInput::Select),
+            (KeyCode::ShiftLeft, GBInput::Select),
             (KeyCode::I, GBInput::DToGame),
             (KeyCode::Back, GBInput::DToMainMenu),
             (KeyCode::Escape, GBInput::DExit),
