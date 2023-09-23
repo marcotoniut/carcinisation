@@ -150,12 +150,12 @@ pub fn check_enemy_got_hit(
                                     // TODO organise
                                     score.value += 10;
                                     health.0 = health.0.saturating_sub(ATTACK_PINCER_DAMAGE * 2);
-                                    println!("Enemy got hit by Pincer! ***CRITICAL***");
+                                    info!("Enemy got hit by Pincer! ***CRITICAL***");
                                 } else {
                                     // TODO organise
                                     score.value += 3;
                                     health.0 = health.0.saturating_sub(ATTACK_PINCER_DAMAGE);
-                                    println!("Enemy got hit by Pincer!");
+                                    info!("Enemy got hit by Pincer!");
                                 }
                             }
                         }
@@ -168,12 +168,12 @@ pub fn check_enemy_got_hit(
                                     // TODO organise
                                     score.value += 4;
                                     health.0 = health.0.saturating_sub(ATTACK_GUN_DAMAGE * 2);
-                                    println!("Enemy got hit by Gun! ***CRITICAL***");
+                                    info!("Enemy got hit by Gun! ***CRITICAL***");
                                 } else {
                                     // TODO organise
                                     score.value += 1;
                                     health.0 = health.0.saturating_sub(ATTACK_GUN_DAMAGE);
-                                    println!("Enemy got hit by Gun!");
+                                    info!("Enemy got hit by Gun!");
                                 }
                             }
                         }

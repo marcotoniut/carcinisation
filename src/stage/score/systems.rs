@@ -13,7 +13,7 @@ pub fn remove_score(mut commands: Commands) {
 
 pub fn update_score(score: Res<Score>) {
     if score.is_changed() {
-        println!("Score: {}", score.value.to_string())
+        info!("Score: {}", score.value.to_string())
     }
 }
 
@@ -33,9 +33,9 @@ pub fn update_high_scores(
 
 pub fn high_scores_updated(high_scores: Res<HighScores>) {
     if high_scores.is_changed() {
-        println!("High scores updated!");
+        info!("High scores updated!");
         for (i, (name, score)) in high_scores.scores.iter().enumerate() {
-            println!("{}. {} - {}", i + 1, name, score);
+            info!("{}. {} - {}", i + 1, name, score);
         }
     }
 }
