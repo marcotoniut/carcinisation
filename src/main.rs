@@ -128,7 +128,7 @@ pub enum AppState {
 #[px_layer]
 pub enum Layer {
     Skybox,
-    Back,
+    Background,
     Middle(usize),
     Attack,
     #[default]
