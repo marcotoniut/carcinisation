@@ -2,6 +2,11 @@ pub mod pause_menu;
 
 use bevy::prelude::*;
 
+use crate::{
+    globals::{FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
+    stage::{score::components::Score, GameState},
+    AppState, Layer,
+};
 use seldom_pixel::{
     prelude::{
         IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
@@ -9,9 +14,8 @@ use seldom_pixel::{
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
-use crate::{stage::{GameState, score::components::Score}, globals::{TYPEFACE_INVERTED_PATH, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, FONT_SIZE}, Layer, AppState};
 
-use self::pause_menu::{PauseMenu, UIBackground, InfoText, ScoreText};
+use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
 
 pub fn pause_menu_renderer(
     mut commands: Commands,
@@ -20,11 +24,10 @@ pub fn pause_menu_renderer(
     mut filters: PxAssets<PxFilter>,
     score: Res<Score>,
     query: Query<Entity, With<PauseMenu>>,
-    state: Res<State<GameState>>
+    state: Res<State<GameState>>,
 ) {
     if state.get().to_owned() == GameState::Paused {
-        if let Ok(entity) = query.get_single()
-        {
+        if let Ok(entity) = query.get_single() {
             //do nothing
         } else {
             spawn_pause_menu_bundle(
@@ -32,20 +35,17 @@ pub fn pause_menu_renderer(
                 &mut typefaces,
                 &mut assets_sprite,
                 &mut filters,
-                score
+                score,
             );
         }
     } else {
-        despawn_pause_menu_bundle(
-            &mut commands,
-            query
-        );
+        despawn_pause_menu_bundle(&mut commands, query);
     }
 }
 
 pub fn despawn_pause_menu_bundle(
     mut commands: &mut Commands,
-    query: Query<Entity, With<PauseMenu>>
+    query: Query<Entity, With<PauseMenu>>,
 ) {
     if let Ok(entity) = query.get_single() {
         commands.entity(entity).despawn_recursive();
@@ -68,7 +68,11 @@ pub fn spawn_pause_menu_bundle(
                 parent.spawn((
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
-                        line: [((SCREEN_RESOLUTION.x / 2) as i32 - 40, i).into(), ((SCREEN_RESOLUTION.x / 2) as i32 + 40 as i32, i).into()].into(),
+                        line: [
+                            ((SCREEN_RESOLUTION.x / 2) as i32 - 40, i).into(),
+                            ((SCREEN_RESOLUTION.x / 2) as i32 + 40 as i32, i).into(),
+                        ]
+                        .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
                         filter: filters.load("filter/color3.png"),
                         ..default()
@@ -83,10 +87,7 @@ pub fn spawn_pause_menu_bundle(
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         rect: IRect::new(
-                            IVec2::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                                90,
-                            ),
+                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 90),
                             IVec2::new(
                                 (SCREEN_RESOLUTION.x / 2) as i32 + 40,
                                 90 + (FONT_SIZE + 2) as i32,
@@ -107,10 +108,7 @@ pub fn spawn_pause_menu_bundle(
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         rect: IRect::new(
-                            IVec2::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                                60,
-                            ),
+                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 60),
                             IVec2::new(
                                 (SCREEN_RESOLUTION.x / 2) as i32 + 40,
                                 60 + (FONT_SIZE + 2) as i32,
@@ -131,10 +129,7 @@ pub fn spawn_pause_menu_bundle(
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         rect: IRect::new(
-                            IVec2::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                                50,
-                            ),
+                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 50),
                             IVec2::new(
                                 (SCREEN_RESOLUTION.x / 2) as i32 + 40,
                                 50 + (FONT_SIZE + 2) as i32,
@@ -149,7 +144,6 @@ pub fn spawn_pause_menu_bundle(
                     Name::new("ScoreText"),
                 ));
             }
-
         })
         .id();
     return entity;

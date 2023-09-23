@@ -25,6 +25,6 @@ pub fn make_player_bundle(
             (SCREEN_RESOLUTION.x / 2) as f32,
             (HUD_HEIGHT as f32) + (SCREEN_RESOLUTION.y / 2) as f32,
         )),
-        Health(100),
+        Health(PLAYER_MAX_HEALTH),
     )
 }

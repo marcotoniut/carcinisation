@@ -1,10 +1,11 @@
+use crate::resource::CAMERA_BASE_SPEED;
 use crate::cinemachine::scene_intro::INTRO_ANIMATIC;
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PowerupSpawn,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
     SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
-    DestructibleType, EnemyStep, EnemyType, PowerupType, StageActionResumeCondition, StageSpawn,
+    DestructibleType, EnemyStep, EnemyType, PickupType, StageActionResumeCondition, StageSpawn,
 };
 use bevy::prelude::*;
 
@@ -67,7 +68,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                 enemy_type: EnemyType::Mosquito,
                 coordinates: Vec2 { x: 60., y: 100. },
                 base_speed: 5.0,
-                elapsed: 1.4,
+                elapsed: 0.4 / CAMERA_BASE_SPEED,
                 steps: vec![
                     EnemyStep::Movement {
                         coordinates: Vec2 { x: 50., y: 0. },
@@ -89,17 +90,17 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         }),
         StageSpawn::Destructible(DestructibleSpawn {
             coordinates: Vec2 { x: 20.0, y: 0.0 },
-            contains: Some(Box::new(ContainerSpawn::Powerup(PowerupSpawn {
-                powerup_type: PowerupType::BigHealthpack,
+            contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                pickup_type: PickupType::BigHealthpack,
                 coordinates: Vec2 { x: 30.0, y: 10.0 },
-                elapsed: 0.0,
+                elapsed: 0.0 / CAMERA_BASE_SPEED,
             }))),
             destructible_type: DestructibleType::Lamp,
         }),
-        StageSpawn::Powerup(PowerupSpawn {
-            powerup_type: PowerupType::BigHealthpack,
+        StageSpawn::Pickup(PickupSpawn {
+            pickup_type: PickupType::BigHealthpack,
             coordinates: Vec2 { x: 30.0, y: 10.0 },
-            elapsed: 0.0,
+            elapsed: 0.0 / CAMERA_BASE_SPEED,
         }),
     ]
 }
@@ -113,13 +114,13 @@ pub fn make_steps() -> Vec<StageStep> {
         // },
         StageStep::Movement {
             coordinates: Vec2 { x: 50.0, y: 0.0 },
-            base_speed: 10.0,
+            base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
                 StageSpawn::Enemy(EnemySpawn {
                     enemy_type: EnemyType::Mosquito,
                     coordinates: Vec2 { x: 60.0, y: 100.0 },
                     base_speed: 5.0,
-                    elapsed: 1.4,
+                    elapsed: 5.4 / CAMERA_BASE_SPEED,
                     steps: vec![
                         EnemyStep::Movement {
                             coordinates: Vec2 { x: 50.0, y: 0.0 },
@@ -135,8 +136,8 @@ pub fn make_steps() -> Vec<StageStep> {
                         },
                         EnemyStep::Circle { duration: 4.0 },
                     ],
-                    contains: Some(Box::new(ContainerSpawn::Powerup(PowerupSpawn {
-                        powerup_type: PowerupType::BigHealthpack,
+                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                        pickup_type: PickupType::BigHealthpack,
                         ..default()
                     }))),
                 }),
@@ -144,7 +145,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     enemy_type: EnemyType::Mosquito,
                     coordinates: Vec2 { x: 120.0, y: 100.0 },
                     base_speed: 5.0,
-                    elapsed: 0.4,
+                    elapsed: 5.1 / CAMERA_BASE_SPEED,
                     steps: vec![],
                     contains: None,
                 }),
@@ -152,7 +153,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     enemy_type: EnemyType::Mosquito,
                     coordinates: Vec2 { x: 130.0, y: 70.0 },
                     base_speed: 5.0,
-                    elapsed: 2.3,
+                    elapsed: 5.8 / CAMERA_BASE_SPEED,
                     steps: vec![],
                     contains: None,
                 }),
@@ -160,25 +161,48 @@ pub fn make_steps() -> Vec<StageStep> {
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
-            max_duration: Some(3),
+            max_duration: Some(30. / CAMERA_BASE_SPEED),
             spawns: vec![StageSpawn::Enemy(EnemySpawn {
                 enemy_type: EnemyType::Mosquito,
                 coordinates: Vec2 { x: 20.0, y: 0.0 },
-                base_speed: 5.0,
-                elapsed: 2.4,
+                base_speed: CAMERA_BASE_SPEED,
+                elapsed: 2.4 / CAMERA_BASE_SPEED,
                 steps: vec![],
                 contains: None,
             })],
         },
+        //TEST down
         StageStep::Movement {
-            coordinates: Vec2 { x: 34.0, y: 62.0 },
-            base_speed: 8.0,
-            spawns: vec![],
+            coordinates: Vec2 { x: 10.0, y: 22.0 },
+            base_speed: CAMERA_BASE_SPEED,
+            spawns: vec![
+                StageSpawn::Enemy(EnemySpawn {
+                    enemy_type: EnemyType::Mosquito,
+                    coordinates: Vec2 { x: 40.0, y: 70.0 },
+                    base_speed: 4.0,
+                    elapsed: 6.8 / CAMERA_BASE_SPEED,
+                    steps: vec![],
+                    contains: None,
+                }),
+                StageSpawn::Enemy(EnemySpawn {
+                    enemy_type: EnemyType::Mosquito,
+                    coordinates: Vec2 { x: 90.0, y: 30.0 },
+                    base_speed: 2.0,
+                    elapsed: 22.8 / CAMERA_BASE_SPEED,
+                    steps: vec![],
+                    contains: None,
+                }),
+                StageSpawn::Pickup(PickupSpawn {
+                    pickup_type: PickupType::BigHealthpack,
+                    coordinates: Vec2 { x: 38.0, y: 68.0 },
+                    elapsed: 2.0 / CAMERA_BASE_SPEED,
+                }),
+            ],
         },
-        //TODO
+        //TEST up
         StageStep::Stop {
             resume_conditions: Some(vec![]),
-            max_duration: Some(4),
+            max_duration: Some(40. / CAMERA_BASE_SPEED),
             spawns: vec![],
         },
         StageStep::Movement {

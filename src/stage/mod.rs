@@ -3,6 +3,7 @@ pub mod components;
 pub mod data;
 pub mod enemy;
 pub mod events;
+pub mod pickup;
 pub mod player;
 pub mod resources;
 pub mod score;
@@ -15,6 +16,7 @@ use bevy::prelude::*;
 use self::{
     enemy::EnemyPlugin,
     events::*,
+    pickup::systems::health::pickup_health,
     player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress},
     score::{components::Score, ScorePlugin},
@@ -62,6 +64,7 @@ impl Plugin for StagePlugin {
                         read_stage_spawn_trigger,
                         check_stage_step_timer,
                         check_staged_cleared,
+                        pickup_health,
                     )
                         .run_if(in_state(StageState::Running)),
                 )
