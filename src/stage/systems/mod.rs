@@ -9,7 +9,7 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
-use crate::{resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput};
+use crate::{resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput, globals::DEBUG_STAGESTEP};
 
 use self::spawn::{spawn_enemy, spawn_object};
 
@@ -135,6 +135,21 @@ pub fn update_stage(
         StageState::Running => {
             if let stage = &stage_data_raw.stage_data {
                 if let Some(action) = stage.steps.get(stage_progress.step) {
+                    
+                    if DEBUG_STAGESTEP {
+                        let curr_action = match action {
+                            StageStep::Movement { coordinates, base_speed, spawns } => {
+                            
+                                "movement".to_string()
+                            }
+                            StageStep::Stop { resume_conditions, max_duration, spawns } => {
+                                "stop".to_string()
+                            },
+                        };
+                        
+                        info!("curr action: {}", curr_action);
+                    }
+                    
                     let spawns = match action {
                         StageStep::Movement {
                             coordinates,
@@ -148,6 +163,10 @@ pub fn update_stage(
                             **camera_pos += time.delta_seconds() * base_speed * direction;
 
                             if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
+                                
+                                if DEBUG_STAGESTEP {
+                                    warn!("================>>>> movement complete? {}", direction.x.to_string());
+                                }
                                 *camera_pos = PxSubPosition(coordinates.clone());
                                 step_event_writer.send(StageStepTrigger {});
                             }
@@ -166,6 +185,14 @@ pub fn update_stage(
                             if let Some(duration) = max_duration {
                             } else {
                                 // DEBUG
+
+                                if DEBUG_STAGESTEP {
+                                    let mut duration = 0;
+                                    if max_duration.is_some() {
+                                        duration = max_duration.unwrap();
+                                    }
+                                    warn!("================>>>> stop complete? {}", duration.to_string());
+                                }
                                 step_event_writer.send(StageStepTrigger {});
                             }
                             spawns
@@ -237,7 +264,7 @@ pub fn read_stage_step_trigger(
             if let Some(action) = stage.steps.get(stage_progress.step) {
                 stage_action_timer.timer.pause();
                 match action {
-                    StageStep::Movement { .. } => {}
+                    StageStep::Movement { .. } => {stage_action_timer.timer.reset();}
                     StageStep::Stop { max_duration, .. } => {
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();
