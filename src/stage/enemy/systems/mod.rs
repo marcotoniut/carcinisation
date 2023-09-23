@@ -12,7 +12,7 @@ use crate::{
             HitList, PlayerAttack, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
         },
         score::components::Score,
-        systems::spawn::spawn_enemy,
+        systems::spawn::{spawn_enemy, spawn_pickup},
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     systems::camera::CameraPos,
@@ -202,34 +202,18 @@ pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
-    mut score: ResMut<Score>,
-    query: Query<(&SpawnDrop, &PxSubPosition), With<Dead>>,
+    query: Query<(&mut SpawnDrop, &PxSubPosition), With<Dead>>,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
     for (spawn_drop, position) in &mut query.iter() {
         match spawn_drop.0.clone() {
-            ContainerSpawn::Powerup(spawn) => {
-                println!("TODO spawn drop powerup: {:?}", spawn);
-                // spawn_powerup(commands, &mut assets_sprite, &mut score, spawn, position);
-                // let texture = assets_sprite.load(PATH_SPRITES_POWERUP_HEALTHPACK);
-                // commands.spawn((
-                //     Name::new("PowerupHealthpack"),
-                //     Powerup {
-                //         powerup_type: PowerupType::Healthpack,
-                //     },
-                //     PxSpriteBundle::<Layer> {
-                //         sprite: texture,
-                //         layer: Layer::Middle(2),
-                //         anchor: PxAnchor::Center,
-                //         ..default()
-                //     },
-                //     PxSubPosition::from(position.0),
-                //     Collision::Circle(POWERUP_HEALTHPACK_RADIUS),
-                // ));
+            ContainerSpawn::Pickup(mut spawn) => {
+                spawn.coordinates = position.0;
+                spawn_pickup(&mut commands, &mut assets_sprite, &camera_pos, &spawn);
             }
-            ContainerSpawn::Enemy(spawn) => {
-                println!("TODO spawn drop enemy: {:?}", spawn);
+            ContainerSpawn::Enemy(mut spawn) => {
+                spawn.coordinates = position.0;
                 spawn_enemy(&mut commands, &camera_pos, &spawn);
             }
         }

@@ -27,7 +27,7 @@ pub enum ObjectType {
 
 // deriving Default for simplicity's sake in defining the stage data
 #[derive(Clone, Debug, Default)]
-pub enum PowerupType {
+pub enum PickupType {
     #[default]
     SmallHealthpack,
     BigHealthpack,
@@ -86,13 +86,13 @@ fn empty_vec<T: Clone>() -> Vec<T> {
 
 #[derive(Clone, Debug)]
 pub enum ContainerSpawn {
-    Powerup(PowerupSpawn),
+    Pickup(PickupSpawn),
     Enemy(EnemySpawn),
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct PowerupSpawn {
-    pub powerup_type: PowerupType,
+pub struct PickupSpawn {
+    pub pickup_type: PickupType,
     pub coordinates: Vec2,
     pub elapsed: f32,
 }
@@ -124,7 +124,7 @@ pub struct EnemySpawn {
 pub enum StageSpawn {
     Object(ObjectSpawn),
     Destructible(DestructibleSpawn),
-    Powerup(PowerupSpawn),
+    Pickup(PickupSpawn),
     Enemy(EnemySpawn),
 }
 
@@ -134,7 +134,7 @@ impl StageSpawn {
             StageSpawn::Destructible(DestructibleSpawn { .. }) => 0.,
             StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed,
             StageSpawn::Object(ObjectSpawn { .. }) => 0.,
-            StageSpawn::Powerup(PowerupSpawn { elapsed, .. }) => *elapsed,
+            StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed,
         }
     }
 
@@ -147,10 +147,10 @@ impl StageSpawn {
             }
             StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => format!("Enemy({:?})", enemy_type),
             StageSpawn::Object(ObjectSpawn { object_type, .. }) => {
-                format!("Destructible({:?})", object_type)
+                format!("Object({:?})", object_type)
             }
-            StageSpawn::Powerup(PowerupSpawn { powerup_type, .. }) => {
-                format!("Powerup({:?})", powerup_type)
+            StageSpawn::Pickup(PickupSpawn { pickup_type, .. }) => {
+                format!("Pickup({:?})", pickup_type)
             }
         }
     }
