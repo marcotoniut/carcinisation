@@ -2,6 +2,11 @@ use bevy::prelude::*;
 
 use crate::stage::data::EnemyStep;
 
+pub const SCORE_RANGED_REGULAR_HIT: u32 = 1;
+pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;
+pub const SCORE_MELEE_REGULAR_HIT: u32 = 3;
+pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
+
 pub const PLACEHOLDER_ENEMY_SPEED: f32 = 10.0;
 
 pub const PLACEHOLDER_ENEMY_SIZE: f32 = 6.0;

@@ -151,6 +151,6 @@ pub fn despawn_dead_mosquitoes(
             ));
         }
 
-        score.value += mosquito.kill_score();
+        score.add_u(mosquito.kill_score());
     }
 }

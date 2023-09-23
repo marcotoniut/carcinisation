@@ -23,7 +23,7 @@ pub fn pickup_health(
                 health.0 = PLAYER_MAX_HEALTH;
             }
 
-            score.value -= recovery.score_deduction();
+            score.add(recovery.score_deduction());
 
             // TODO spawn animated pickup
         }
