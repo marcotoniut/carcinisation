@@ -1,11 +1,11 @@
 use bevy::prelude::*;
 
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PowerupSpawn,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType,
     SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
-    DestructibleType, EnemyStep, EnemyType, PowerupType, StageActionResumeCondition, StageSpawn,
+    DestructibleType, EnemyStep, EnemyType, StageActionResumeCondition, StageSpawn,
 };
 
 use crate::cinemachine::*;
