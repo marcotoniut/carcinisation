@@ -1,13 +1,14 @@
+pub mod bundles;
 pub mod mosquito;
 
 use bevy::{audio::*, prelude::*};
-use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
+use seldom_pixel::{asset::*, prelude::*};
 
 use crate::{
     globals::*,
     stage::{
         components::{
-            Collision, Dead, Depth, Health, Hittable, IncomingSpeed, LineSpeed, SpawnDrop,
+            Collision, Dead, DepthProgress, DepthSpeed, Health, Hittable, LineSpeed, SpawnDrop,
             TargetPosition, TargetReached,
         },
         data::ContainerSpawn,

@@ -1,3 +1,4 @@
+pub mod blood_attack;
 pub mod mosquito;
 
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
@@ -25,3 +26,4 @@ impl Default for AnimationData {
 }
 
 pub const PATH_SPRITES_ENEMIES: &str = "sprites/enemies/";
+pub const PATH_SPRITES_ATTACKS: &str = "sprites/attacks/";

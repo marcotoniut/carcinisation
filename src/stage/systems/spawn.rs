@@ -135,7 +135,7 @@ pub fn spawn_enemy(
                         base_speed: *base_speed,
                         steps: steps.clone(),
                     },
-                    EnemyMosquitoAttacking { attack: None },
+                    EnemyMosquitoAttacking { ..default() },
                     Hittable {},
                     PxSubPosition::from(*coordinates + camera_pos.0),
                     Collision::Circle(ENEMY_MOSQUITO_RADIUS),

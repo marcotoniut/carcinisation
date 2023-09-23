@@ -14,11 +14,16 @@ pub mod ui;
 use bevy::prelude::*;
 
 use self::{
-    enemy::EnemyPlugin,
+    enemy::{
+        systems::mosquito::{
+            check_idle_mosquito, damage_on_reached, read_enemy_attack_depth_changed,
+        },
+        EnemyPlugin,
+    },
     events::*,
     pickup::systems::health::pickup_health,
     player::PlayerPlugin,
-    resources::{StageActionTimer, StageProgress},
+    resources::{StageActionTimer, StageProgress, StageTime},
     score::{components::Score, ScorePlugin},
     systems::{movement::*, spawn::read_stage_spawn_trigger, *},
     ui::{pause_menu::pause_menu_renderer, StageUiPlugin},
@@ -37,10 +42,12 @@ impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             .add_state::<StageState>()
+            .add_event::<DepthChanged>()
             .add_event::<GameOver>()
             .add_event::<StageStepTrigger>()
             .add_event::<StageSpawnTrigger>()
             .init_resource::<StageActionTimer>()
+            .init_resource::<StageTime>()
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
             .add_plugins(EnemyPlugin)
@@ -65,9 +72,14 @@ impl Plugin for StagePlugin {
                         check_stage_step_timer,
                         check_staged_cleared,
                         pickup_health,
+                        damage_on_reached,
+                        // Enemy
+                        check_idle_mosquito,
+                        read_enemy_attack_depth_changed,
                         // Movement
                         advance_incoming,
                         check_depth_reached,
+                        update_depth,
                         advance_line,
                         check_line_target_x_reached,
                         check_line_target_y_reached,

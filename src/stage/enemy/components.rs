@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use crate::stage::data::EnemyStep;
@@ -13,6 +15,10 @@ pub const PLACEHOLDER_ENEMY_SIZE: f32 = 6.0;
 pub const PLACEHOLDER_NUMBER_OF_ENEMIES: usize = 2;
 
 pub const PLACEHOLDER_ENEMY_SPAWN_TIME: f32 = 8.0;
+
+pub const BLOOD_ATTACK_DEPTH_SPEED: f32 = 4.;
+pub const BLOOD_ATTACK_LINE_SPEED: f32 = 70.;
+pub const BLOOD_ATTACK_MAX_DEPTH: usize = 6;
 
 #[derive(Component)]
 pub struct PlaceholderEnemy {
@@ -50,12 +56,13 @@ impl EnemyMosquito {
     }
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Component, Debug, Default)]
 pub struct EnemyMosquitoAttacking {
     pub attack: Option<EnemyMosquitoAttack>,
+    pub last_attack_started: Duration,
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Component, Debug)]
 pub enum EnemyMosquitoAttack {
     Ranged,
     Melee,

@@ -1,14 +1,50 @@
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
-use crate::stage::components::{
-    Depth, DepthReached, IncomingSpeed, LineSpeed, TargetDepth, TargetPosition, TargetReached,
-    TargetXReached, TargetYReached,
+use crate::stage::{
+    components::{
+        Depth, DepthProgress, DepthReached, DepthSpeed, LineSpeed, TargetDepth, TargetPosition,
+        TargetReached, TargetXReached, TargetYReached,
+    },
+    events::DepthChanged,
 };
 
-pub fn advance_incoming(mut incoming_query: Query<(&IncomingSpeed, &mut Depth)>, time: Res<Time>) {
+pub fn advance_incoming(
+    mut incoming_query: Query<(&DepthSpeed, &mut DepthProgress), Without<DepthReached>>,
+    time: Res<Time>,
+) {
     for (speed, mut depth) in &mut incoming_query.iter_mut() {
         depth.0 += speed.0 * time.delta_seconds();
+    }
+}
+
+pub fn update_depth(
+    mut incoming_query: Query<
+        (Entity, &mut Depth, &DepthProgress, &DepthSpeed),
+        Without<DepthReached>,
+    >,
+    mut event_writer: EventWriter<DepthChanged>,
+) {
+    for (entity, mut depth, progress, speed) in &mut incoming_query.iter_mut() {
+        if speed.0 > 0.0 {
+            let next_depth = depth.0 + 1;
+            if progress.0 >= (depth.0 as f32 + 0.5) {
+                depth.0 = next_depth;
+                event_writer.send(DepthChanged {
+                    entity,
+                    depth: depth.clone(),
+                });
+            }
+        } else {
+            let next_depth = depth.0 - 1;
+            if progress.0 <= (depth.0 as f32 - 0.5) {
+                depth.0 = next_depth;
+                event_writer.send(DepthChanged {
+                    entity,
+                    depth: depth.clone(),
+                });
+            }
+        }
     }
 }
 
@@ -17,14 +53,17 @@ pub fn check_depth_reached(
     mut incoming_query: Query<(Entity, &Depth, &TargetDepth), Without<DepthReached>>,
 ) {
     for (entity, depth, target) in &mut incoming_query.iter_mut() {
-        if depth.0 >= target.0 {
+        if depth.0 == target.0 {
             commands.entity(entity).insert(DepthReached {});
         }
     }
 }
 
 pub fn advance_line(
-    mut movement_query: Query<(&mut PxSubPosition, &LineSpeed, &TargetPosition)>,
+    mut movement_query: Query<
+        (&mut PxSubPosition, &LineSpeed, &TargetPosition),
+        Without<TargetReached>,
+    >,
     time: Res<Time>,
 ) {
     for (mut position, speed, target) in &mut movement_query.iter_mut() {

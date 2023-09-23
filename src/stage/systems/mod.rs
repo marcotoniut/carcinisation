@@ -139,7 +139,7 @@ pub fn update_stage(
     mut step_event_writer: EventWriter<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
-    mut stage_data_raw: Res<StageRawData>,
+    stage_data_raw: Res<StageRawData>,
 ) {
     match state.to_owned() {
         StageState::Initial => {
@@ -157,7 +157,7 @@ pub fn update_stage(
 
                         info!("curr action: {}", curr_action);
                     }
-                    
+
                     let mut spawnsVal = None;
                     match action {
                         StageStep::Movement {
@@ -185,7 +185,7 @@ pub fn update_stage(
                             **camera = camera_pos.round().as_ivec2();
 
                             spawnsVal = Some(spawns);
-                        },
+                        }
                         StageStep::Stop {
                             resume_conditions,
                             max_duration,
@@ -196,7 +196,6 @@ pub fn update_stage(
                             if let Some(duration) = max_duration {
                             } else {
                                 // DEBUG
-
                                 if DEBUG_STAGESTEP {
                                     let mut duration = 0.;
                                     if max_duration.is_some() {
@@ -210,8 +209,8 @@ pub fn update_stage(
                                 step_event_writer.send(StageStepTrigger {});
                             }
                             spawnsVal = Some(spawns);
-                        },
-                        StageStep::Cinematic { .. } => {},
+                        }
+                        StageStep::Cinematic { .. } => {}
                     }
 
                     if let Some(spawns) = spawnsVal {
@@ -220,7 +219,8 @@ pub fn update_stage(
                         let mut i = 0;
                         while let Some(spawn) = cloned_spawns.first() {
                             if (stage_progress.spawn_step <= i) {
-                                let elapsed = stage_progress.spawn_step_elapsed - spawn.get_elapsed();
+                                let elapsed =
+                                    stage_progress.spawn_step_elapsed - spawn.get_elapsed();
                                 if 0. <= elapsed {
                                     stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
 
@@ -293,7 +293,7 @@ pub fn read_stage_step_trigger(
                             stage_action_timer.timer.unpause();
                         }
                     }
-                    StageStep::Cinematic { max_duration, .. }  => {
+                    StageStep::Cinematic { max_duration, .. } => {
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();
                             stage_action_timer
@@ -302,7 +302,7 @@ pub fn read_stage_step_trigger(
                             stage_action_timer.timer.unpause();
                         }
                     }
-                    StageStep::Cinematic { max_duration, .. }  => {
+                    StageStep::Cinematic { max_duration, .. } => {
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();
                             stage_action_timer
