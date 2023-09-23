@@ -26,7 +26,7 @@ impl Plugin for EnemyPlugin {
                 Update,
                 (
                     (enemy_movement, confine_enemy_movement).chain(),
-                    (check_enemy_got_hit, check_enemy_health).chain(),
+                    (check_got_hit, check_health_at_0).chain(),
                     despawn_dead_mosquitoes,
                     check_dead_drop,
                     assign_mosquito_animation,
