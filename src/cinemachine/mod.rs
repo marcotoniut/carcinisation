@@ -1,6 +1,8 @@
 pub mod data;
-pub mod scene_park;
 pub mod cinemachine;
+
+pub mod scene_intro;
+pub mod scene_park;
 
 use bevy::prelude::*;
 
@@ -23,6 +25,7 @@ pub fn default_background(
     filters: &mut PxAssets<PxFilter>,
     cinemachine_data: CinemachineData
 ) -> Entity {
+    
     let entity = 
     commands.spawn((CinemachineModule {}, Name::new("CINEMACHINE_MODULE")))
         .with_children(|parent| {
@@ -32,7 +35,7 @@ pub fn default_background(
                         canvas: PxCanvas::Camera,
                         line: [((SCREEN_RESOLUTION.x / 2) as i32 - 40, i).into(), ((SCREEN_RESOLUTION.x / 2) as i32 + 40 as i32, i).into()].into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
-                        filter: filters.load(cinemachine_data.default_background_filter_color),
+                        filter: filters.load("filter/color3.png"),
                         ..default()
                     },
                     UIBackground {},

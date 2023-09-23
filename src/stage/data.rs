@@ -3,6 +3,8 @@ use bevy::{
     reflect::{TypePath, TypeUuid},
 };
 
+use crate::cinemachine::data::CinemachineData;
+
 #[derive(Debug, Clone)]
 pub struct SkyboxData {
     pub path: String,
@@ -161,10 +163,16 @@ pub enum StageActionResumeCondition {
     #[default]
     KillAll,
     KillBoss,
+    CinematicEnd
 }
 
 #[derive(Clone, Debug)]
 pub enum StageStep {
+    Cinematic {
+        resume_conditions: Option<Vec<StageActionResumeCondition>>,
+        max_duration: Option<u64>,
+        cinematic: CinemachineData
+    },
     Movement {
         coordinates: Vec2,
         base_speed: f32,

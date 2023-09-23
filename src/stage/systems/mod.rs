@@ -138,19 +138,23 @@ pub fn update_stage(
                     
                     if DEBUG_STAGESTEP {
                         let curr_action = match action {
-                            StageStep::Movement { coordinates, base_speed, spawns } => {
+                            StageStep::Movement { .. } => {
                             
                                 "movement".to_string()
                             }
-                            StageStep::Stop { resume_conditions, max_duration, spawns } => {
+                            StageStep::Stop { .. } => {
                                 "stop".to_string()
+                            },
+                            StageStep::Cinematic { .. } => {
+                                "cinematic".to_string()
                             },
                         };
                         
                         info!("curr action: {}", curr_action);
                     }
                     
-                    let spawns = match action {
+                    let mut spawnsVal = None;
+                    match action {
                         StageStep::Movement {
                             coordinates,
                             base_speed,
@@ -173,8 +177,8 @@ pub fn update_stage(
 
                             **camera = camera_pos.round().as_ivec2();
 
-                            spawns
-                        }
+                            spawnsVal = Some(spawns);
+                        },
                         StageStep::Stop {
                             resume_conditions,
                             max_duration,
@@ -195,30 +199,33 @@ pub fn update_stage(
                                 }
                                 step_event_writer.send(StageStepTrigger {});
                             }
-                            spawns
-                        }
-                    };
-
-                    let mut cloned_spawns = spawns.clone();
-
-                    let mut i = 0;
-                    while let Some(spawn) = cloned_spawns.first() {
-                        if (stage_progress.spawn_step <= i) {
-                            let elapsed = stage_progress.spawn_step_elapsed - spawn.get_elapsed();
-                            if 0. <= elapsed {
-                                stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
-
-                                spawn_event_writer.send(StageSpawnTrigger {
-                                    spawn: spawn.clone(),
-                                });
-                            } else {
-                                break;
-                            }
-                        }
-                        cloned_spawns.remove(0);
-                        i += 1;
+                            spawnsVal = Some(spawns);
+                        },
+                        StageStep::Cinematic { .. } => {},
                     }
-                    stage_progress.spawn_step = i;
+
+                    if let Some(spawns) = spawnsVal {
+                        let mut cloned_spawns = spawns.clone();
+
+                        let mut i = 0;
+                        while let Some(spawn) = cloned_spawns.first() {
+                            if (stage_progress.spawn_step <= i) {
+                                let elapsed = stage_progress.spawn_step_elapsed - spawn.get_elapsed();
+                                if 0. <= elapsed {
+                                    stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
+
+                                    spawn_event_writer.send(StageSpawnTrigger {
+                                        spawn: spawn.clone(),
+                                    });
+                                } else {
+                                    break;
+                                }
+                            }
+                            cloned_spawns.remove(0);
+                            i += 1;
+                        }
+                        stage_progress.spawn_step = i;
+                    }
                 }
             }
         }
@@ -266,6 +273,15 @@ pub fn read_stage_step_trigger(
                 match action {
                     StageStep::Movement { .. } => {stage_action_timer.timer.reset();}
                     StageStep::Stop { max_duration, .. } => {
+                        if let Some(duration) = max_duration {
+                            stage_action_timer.timer.reset();
+                            stage_action_timer
+                                .timer
+                                .set_duration(Duration::from_secs(duration.clone()));
+                            stage_action_timer.timer.unpause();
+                        }
+                    }
+                    StageStep::Cinematic { max_duration, .. }  => {
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();
                             stage_action_timer
