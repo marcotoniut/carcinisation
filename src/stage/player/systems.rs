@@ -111,7 +111,12 @@ pub fn detect_player_attack(
                 player_attack.make_bundles(&mut assets_sprite, asset_server);
 
             commands.spawn(player_attack_bundle);
-            commands.spawn(audio_bundle);
+            commands.spawn((
+                audio_bundle,
+                AudioSystemBundle {
+                    system_type: AudioSystemType::SFX,
+                },
+            ));
 
             timer.timer.reset();
             timer.timer.unpause();

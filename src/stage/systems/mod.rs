@@ -11,7 +11,10 @@ use seldom_pixel::{
 };
 
 use crate::{
-    globals::DEBUG_STAGESTEP, resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput,
+    globals::DEBUG_STAGESTEP,
+    resource::park::STAGE_PARK_DATA,
+    systems::{camera::CameraPos, spawn::spawn_music},
+    GBInput,
 };
 
 use self::spawn::{spawn_enemy, spawn_object};
@@ -64,6 +67,7 @@ pub struct StageRawData {
 pub fn setup_stage(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
@@ -83,6 +87,12 @@ pub fn setup_stage(
         }
     }
 
+    spawn_music(
+        &mut commands,
+        &asset_server,
+        STAGE_PARK_DATA.music_path.clone(),
+    );
+
     commands.insert_resource(StageRawData { stage_data });
 }
 
@@ -97,7 +107,7 @@ pub fn spawn_current_stage_bundle(
         .spawn((Stage {}, Name::new("Stage")))
         .with_children(|parent| {
             let background_bundle =
-                make_background_bundle(&mut assets_sprite, stage.background.clone());
+                make_background_bundle(&mut assets_sprite, stage.background_path.clone());
             parent.spawn(background_bundle);
 
             let skybox_bundle = make_skybox_bundle(&mut assets_sprite, stage.skybox.clone());

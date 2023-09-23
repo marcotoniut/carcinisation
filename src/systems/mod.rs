@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod camera;
+pub mod spawn;
 
 use bevy::{app::AppExit, audio::Volume, prelude::*};
 use bevy_framepace::Limiter;

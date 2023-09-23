@@ -1,5 +1,6 @@
 mod assets;
 pub mod cinemachine;
+mod components;
 mod cutscene;
 mod events;
 mod game;
