@@ -6,7 +6,7 @@ use crate::{
     Layer,
 };
 
-use super::components::StageClearedText;
+use super::{components::StageClearedText, data::SkyboxData};
 
 pub fn make_background_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
@@ -19,7 +19,7 @@ pub fn make_background_bundle(
         PxSpriteBundle::<Layer> {
             sprite,
             anchor: PxAnchor::BottomLeft,
-            layer: Layer::Back,
+            layer: Layer::Background,
             ..default()
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
@@ -29,12 +29,17 @@ pub fn make_background_bundle(
 
 pub fn make_skybox_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
-    skybox_path: String,
-) -> (PxSpriteBundle<Layer>, PxSubPosition, Name) {
-    info!("skybox: {}", skybox_path);
+    skybox_data: SkyboxData,
+) -> (
+    PxSpriteBundle<Layer>,
+    PxAnimationBundle,
+    PxSubPosition,
+    Name,
+) {
+    info!("skybox: {}", skybox_data.path);
 
-    let sprite = assets_sprite.load(skybox_path);
-    return (
+    let sprite = assets_sprite.load_animated(skybox_data.path, skybox_data.frames);
+    (
         PxSpriteBundle::<Layer> {
             sprite,
             anchor: PxAnchor::BottomLeft,
@@ -42,9 +47,15 @@ pub fn make_skybox_bundle(
             layer: Layer::Skybox,
             ..default()
         },
+        PxAnimationBundle {
+            // TODO variable time
+            duration: PxAnimationDuration::millis_per_animation(2000),
+            on_finish: PxAnimationFinishBehavior::Loop,
+            ..default()
+        },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
         Name::new("Skybox"),
-    );
+    )
 }
 
 // TODO should be in ui

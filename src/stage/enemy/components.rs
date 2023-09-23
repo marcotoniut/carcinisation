@@ -25,21 +25,47 @@ pub struct Enemy {}
 pub const ENEMY_MOSQUITO_RADIUS: f32 = 7.0;
 pub const ENEMY_MOSQUITO_BASE_HEALTH: u32 = 40;
 
-pub const ENEMY_MOSQUITO_IDLE_FRAMES: usize = 3;
-pub const ENEMY_MOSQUITO_IDLE_ANIMATION_SPEED: u64 = 500;
-pub const PATH_SPRITES_ENEMY_MOSQUITO_IDLE_1: &str = "sprites/enemies/mosquito_idle_1.png";
-
-#[derive(Component)]
+#[derive(Component, Clone, Debug)]
 pub struct EnemyMosquito {
     pub base_speed: f32,
     pub steps: Vec<EnemyStep>,
+    // pub state: EnemyMosquitoState,
 }
 
 impl EnemyMosquito {
     pub fn kill_score(&self) -> u32 {
         10
     }
+
+    pub fn current_step(&self) -> &EnemyStep {
+        // TODO temporary
+        self.steps
+            .first()
+            .unwrap_or(&EnemyStep::Idle { duration: 999. })
+    }
 }
+
+#[derive(Component, Clone, Debug)]
+pub struct EnemyMosquitoAttacking {
+    pub attack: Option<EnemyMosquitoAttack>,
+}
+
+#[derive(Clone, Debug)]
+pub enum EnemyMosquitoAttack {
+    Ranged,
+    Melee,
+}
+
+#[derive(Component, Clone, Debug)]
+pub enum EnemyMosquitoAnimation {
+    Idle,
+    Attack,
+    Movement,
+    Circle,
+}
+
+#[derive(Clone, Component, Debug, Default)]
+pub struct CurrentEnemyMosquitoStep(EnemyStep);
 
 #[derive(Component)]
 pub struct EnemySpidey {}
