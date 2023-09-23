@@ -1,9 +1,8 @@
-use bevy::{prelude::*, time::*};
-use serde::Deserialize;
+use bevy::prelude::*;
 
 use super::data::StageData;
 
-#[derive(Debug, Deserialize, Resource, Clone, Default)]
+#[derive(Clone, Debug, Default, Resource)]
 pub struct StageProgress {
     pub elapsed: f32,
     pub step: usize,
@@ -27,19 +26,3 @@ impl Default for StageActionTimer {
 
 #[derive(Resource)]
 pub struct StageDataHandle(pub Handle<StageData>);
-
-// TODO
-// impl StageDataHandle {
-//     pub fn get_action_by_index<'a>(
-//         &self,
-//         assets_stage_data: &Res<'a, Assets<StageData>>,
-//         step: usize,
-//     ) -> Option<&'a StageAction> {
-//         if let Some(stage) = assets_stage_data.get(&self.0) {
-//             let x = stage.actions.get(step);
-//             x
-//         } else {
-//             None
-//         }
-//     }
-// }

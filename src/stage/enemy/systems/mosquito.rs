@@ -7,11 +7,114 @@ use seldom_pixel::{
 use crate::{
     stage::{
         components::Dead,
-        enemy::{components::EnemyMosquito, data::mosquito::MOSQUITO_ANIMATIONS},
+        data::EnemyStep,
+        enemy::{
+            bundles::make_animation_bundle,
+            components::{
+                EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
+            },
+            data::mosquito::MOSQUITO_ANIMATIONS,
+        },
         score::components::Score,
     },
     Layer,
 };
+
+pub fn assign_mosquito_animation(
+    mut commands: Commands,
+    mut query: Query<
+        (
+            Entity,
+            &EnemyMosquito,
+            &PxSubPosition,
+            &EnemyMosquitoAttacking,
+        ),
+        Without<EnemyMosquitoAnimation>,
+    >,
+    mut assets_sprite: PxAssets<PxSprite>,
+) {
+    for (entity, mosquito, position, attacking) in &mut query.iter() {
+        let step = mosquito.current_step();
+
+        // HARDCODED depth, should be a component
+        let depth = 1;
+
+        let bundle_o = if let Some(attack) = &attacking.attack {
+            match attack {
+                EnemyMosquitoAttack::Melee => {
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    animation_o.map(|animation| {
+                        (
+                            EnemyMosquitoAnimation::Attack,
+                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                        )
+                    })
+                }
+                EnemyMosquitoAttack::Ranged => {
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    animation_o.map(|animation| {
+                        (
+                            EnemyMosquitoAnimation::Attack,
+                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                        )
+                    })
+                }
+            }
+        } else {
+            match step {
+                EnemyStep::Attack { .. } => {
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    animation_o.map(|animation| {
+                        (
+                            EnemyMosquitoAnimation::Attack,
+                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                        )
+                    })
+                }
+                EnemyStep::Circle { .. } => {
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    animation_o.map(|animation| {
+                        (
+                            EnemyMosquitoAnimation::Attack,
+                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                        )
+                    })
+                }
+                EnemyStep::Idle { .. } => {
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    animation_o.map(|animation| {
+                        (
+                            EnemyMosquitoAnimation::Attack,
+                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                        )
+                    })
+                }
+                EnemyStep::Movement {
+                    coordinates,
+                    attacking,
+                    speed,
+                } => {
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    animation_o.map(|animation| {
+                        (
+                            EnemyMosquitoAnimation::Attack,
+                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                        )
+                    })
+                }
+            }
+        };
+
+        if let Some((animation, (sprite_bundle, animation_bundle))) = bundle_o {
+            commands.entity(entity).insert((
+                PxSubPosition(position.0),
+                animation,
+                sprite_bundle,
+                animation_bundle,
+            ));
+        }
+    }
+}
 
 pub fn despawn_dead_mosquitoes(
     mut commands: Commands,
@@ -20,8 +123,10 @@ pub fn despawn_dead_mosquitoes(
     query: Query<(Entity, &EnemyMosquito, &PxSubPosition), With<Dead>>,
 ) {
     for (entity, mosquito, position) in query.iter() {
+        // TODO Can I split this?
         commands.entity(entity).despawn();
 
+        // HARDCODED depth, should be a component
         let depth = 1;
         let animation_o = MOSQUITO_ANIMATIONS.death.get(depth);
 
@@ -30,7 +135,7 @@ pub fn despawn_dead_mosquitoes(
                 assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
 
             commands.spawn((
-                Name::new("EnemyMosquito - Death"),
+                Name::new("EnemyMosquito - Dead"),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: texture,

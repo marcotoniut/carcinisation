@@ -8,7 +8,10 @@ use bevy::prelude::*;
 
 use self::{
     resources::*,
-    systems::{mosquito::despawn_dead_mosquitoes, *},
+    systems::{
+        mosquito::{assign_mosquito_animation, despawn_dead_mosquitoes},
+        *,
+    },
 };
 use super::{GameState, StageState};
 use crate::AppState;
@@ -25,6 +28,8 @@ impl Plugin for EnemyPlugin {
                     (enemy_movement, confine_enemy_movement).chain(),
                     (check_enemy_got_hit, check_enemy_health).chain(),
                     despawn_dead_mosquitoes,
+                    check_dead_drop,
+                    assign_mosquito_animation,
                     update_enemy_placeholder_direction,
                     placeholder_tick_enemy_spawn_timer,
                     placeholder_spawn_enemies_over_time,

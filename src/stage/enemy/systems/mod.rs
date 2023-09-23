@@ -6,11 +6,13 @@ use seldom_pixel::{asset::*, prelude::*, sprite::PxSpriteData};
 use crate::{
     globals::*,
     stage::{
-        components::{Collision, Dead, Health},
+        components::{Collision, Dead, Health, SpawnDrop},
+        data::ContainerSpawn,
         player::components::{
             HitList, PlayerAttack, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
         },
         score::components::Score,
+        systems::spawn::spawn_enemy,
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     systems::camera::CameraPos,
@@ -65,13 +67,13 @@ pub fn update_enemy_placeholder_direction(
         }
 
         if direction_changed {
-            let sound_effect_1 = asset_server.load("audio/pluck_001.ogg");
-            let sound_effect_2 = asset_server.load("audio/pluck_001.ogg");
-            let sound_effect = if rand::random::<f32>() > 0.5 {
-                sound_effect_1
-            } else {
-                sound_effect_2
-            };
+            let sound_effect = asset_server.load("audio/sfx/typing_message.ogg");
+            // let sound_effect_2 = asset_server.load("audio/pluck_001.ogg");
+            // let sound_effect = if rand::random::<f32>() > 0.5 {
+            //     sound_effect_1
+            // } else {
+            //     sound_effect_2
+            // };
             let audio = commands
                 .spawn(AudioBundle {
                     source: sound_effect,
@@ -193,5 +195,43 @@ pub fn placeholder_spawn_enemies_over_time(
 ) {
     if enemy_spawn_timer.timer.finished() {
         commands.spawn(make_enemy_bundle(&mut assets_sprite));
+    }
+}
+
+pub fn check_dead_drop(
+    mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    mut score: ResMut<Score>,
+    query: Query<(&SpawnDrop, &PxSubPosition), With<Dead>>,
+) {
+    let camera_pos = camera_query.get_single().unwrap();
+
+    for (spawn_drop, position) in &mut query.iter() {
+        match spawn_drop.0.clone() {
+            ContainerSpawn::Powerup(spawn) => {
+                println!("TODO spawn drop powerup: {:?}", spawn);
+                // spawn_powerup(commands, &mut assets_sprite, &mut score, spawn, position);
+                // let texture = assets_sprite.load(PATH_SPRITES_POWERUP_HEALTHPACK);
+                // commands.spawn((
+                //     Name::new("PowerupHealthpack"),
+                //     Powerup {
+                //         powerup_type: PowerupType::Healthpack,
+                //     },
+                //     PxSpriteBundle::<Layer> {
+                //         sprite: texture,
+                //         layer: Layer::Middle(2),
+                //         anchor: PxAnchor::Center,
+                //         ..default()
+                //     },
+                //     PxSubPosition::from(position.0),
+                //     Collision::Circle(POWERUP_HEALTHPACK_RADIUS),
+                // ));
+            }
+            ContainerSpawn::Enemy(spawn) => {
+                println!("TODO spawn drop enemy: {:?}", spawn);
+                spawn_enemy(&mut commands, &camera_pos, &spawn);
+            }
+        }
     }
 }

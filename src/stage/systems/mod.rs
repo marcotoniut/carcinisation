@@ -9,14 +9,15 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
-use crate::{systems::camera::CameraPos, GBInput, resource::{asteroid::ASTEROID_DATA, asset_data::AssetData, get_stage_data}};
+use crate::{resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput};
+
+use self::spawn::{spawn_enemy, spawn_object};
 
 use super::{
     bundles::*,
     components::Stage,
     data::*,
     events::{StageSpawnTrigger, StageStepTrigger},
-    resources::*,
     resources::{StageActionTimer, StageProgress},
     GameState, StageState,
 };
@@ -48,39 +49,49 @@ pub fn toggle_game(
 
 #[derive(Resource)]
 pub struct StageRawData {
-    stage_data: StageData
+    stage_data: StageData,
 }
 
 pub fn setup_stage(
     mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
-    commands.insert_resource(StageRawData { stage_data: get_stage_data(ASTEROID_DATA) });
+    let camera_pos = camera_query.get_single().unwrap();
+
+    let stage_data = STAGE_PARK_DATA.clone();
+
+    for spawn in &stage_data.spawns {
+        match spawn {
+            StageSpawn::Destructible(_) => {}
+            StageSpawn::Enemy(spawn) => spawn_enemy(&mut commands, &camera_pos, spawn),
+            StageSpawn::Object(spawn) => spawn_object(&mut commands, &mut assets_sprite, spawn),
+            StageSpawn::Powerup(_) => {}
+        }
+    }
+
+    commands.insert_resource(StageRawData { stage_data });
 }
 
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut state: ResMut<NextState<GameState>>,
-    mut stage_data_raw: Res<StageRawData>
+    stage_data_raw: Res<StageRawData>,
 ) {
-    if let stage = &stage_data_raw.stage_data {
-        commands
-            .spawn((Stage {}, Name::new("Stage")))
-            .with_children(|parent| {
-                let background_bundle =
-                    make_background_bundle(&mut assets_sprite, stage.background.clone());
-                parent.spawn(background_bundle);
+    let stage = &stage_data_raw.stage_data;
+    commands
+        .spawn((Stage {}, Name::new("Stage")))
+        .with_children(|parent| {
+            let background_bundle =
+                make_background_bundle(&mut assets_sprite, stage.background.clone());
+            parent.spawn(background_bundle);
 
-                if let Some(skybox_path) = stage.skybox.clone() {
-                    let skybox_bundle = make_skybox_bundle(&mut assets_sprite, skybox_path);
-                    parent.spawn(skybox_bundle);
-                }
-            });
+            let skybox_bundle = make_skybox_bundle(&mut assets_sprite, stage.skybox.clone());
+            parent.spawn(skybox_bundle);
+        });
 
-        state.set(GameState::Running);
-    } else {
-        // Error
-    }
+    state.set(GameState::Running);
 }
 
 // TODO Probably can do without this now
@@ -115,14 +126,13 @@ pub fn update_stage(
     mut step_event_writer: EventWriter<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
-    mut stage_data_raw: Res<StageRawData>
+    mut stage_data_raw: Res<StageRawData>,
 ) {
     match state.to_owned() {
         StageState::Initial => {
             next_state.set(StageState::Running);
         }
         StageState::Running => {
-            
             if let stage = &stage_data_raw.stage_data {
                 if let Some(action) = stage.steps.get(stage_progress.step) {
                     let spawns = match action {
@@ -202,9 +212,8 @@ pub fn update_stage(
 pub fn check_staged_cleared(
     mut next_state: ResMut<NextState<StageState>>,
     stage_progress: Res<StageProgress>,
-    mut stage_data_raw: Res<StageRawData>
+    mut stage_data_raw: Res<StageRawData>,
 ) {
-    return;
     if let stage = &stage_data_raw.stage_data {
         if stage_progress.step >= stage.steps.len() {
             next_state.set(StageState::Clear);
@@ -216,7 +225,7 @@ pub fn read_stage_step_trigger(
     mut event_reader: EventReader<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     mut stage_action_timer: ResMut<StageActionTimer>,
-    mut stage_data_raw: Res<StageRawData>
+    mut stage_data_raw: Res<StageRawData>,
 ) {
     for _ in event_reader.iter() {
         stage_progress.step += 1;
