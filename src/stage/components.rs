@@ -5,6 +5,9 @@ use super::data::ContainerSpawn;
 #[derive(Component)]
 pub struct Stage {}
 
+#[derive(Component, Debug, Clone, Copy)]
+pub struct Depth(pub usize);
+
 #[derive(Component)]
 pub struct Destructible {}
 
@@ -16,16 +19,16 @@ pub struct Object {}
 pub struct StageClearedText {}
 
 #[derive(Component, Debug, Clone)]
-pub struct IncomingSpeed(pub f32);
+pub struct DepthSpeed(pub f32);
 
 #[derive(Component, Debug, Clone)]
-pub struct Depth(pub f32);
+pub struct DepthProgress(pub f32);
 
 #[derive(Component, Debug, Clone)]
 pub struct DepthReached;
 
 #[derive(Component, Debug, Clone)]
-pub struct TargetDepth(pub f32);
+pub struct TargetDepth(pub usize);
 
 #[derive(Component, Debug, Clone)]
 pub struct LineSpeed(pub Vec2);
@@ -52,6 +55,9 @@ pub enum Collision {
 
 #[derive(Component, Debug, Clone)]
 pub struct Health(pub u32);
+
+#[derive(Component, Debug, Clone)]
+pub struct Damage(pub u32);
 
 #[derive(Component, Debug, Clone)]
 pub struct Hittable {}

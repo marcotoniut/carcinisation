@@ -128,3 +128,35 @@ path = "sprites/pickups/bomb_2.png"
 path = "sprites/pickups/health_1.png"
 [[images]]
 path = "sprites/pickups/health_2.png"
+
+# Attacks
+[[images]]
+path = "sprites/ball_red_large.png"
+target_path = "sprites/attacks/blood_attack_hovering_1.png"
+width = 4
+invert_colors = true
+[[images]]
+path = "sprites/ball_red_large.png"
+target_path = "sprites/attacks/blood_attack_hovering_2.png"
+width = 8
+invert_colors = true
+[[images]]
+path = "sprites/ball_red_large.png"
+target_path = "sprites/attacks/blood_attack_hovering_3.png"
+width = 13
+invert_colors = true
+[[images]]
+path = "sprites/ball_red_large.png"
+target_path = "sprites/attacks/blood_attack_hovering_4.png"
+width = 19
+invert_colors = true
+[[images]]
+path = "sprites/ball_red_large.png"
+target_path = "sprites/attacks/blood_attack_hovering_5.png"
+width = 27
+invert_colors = true
+[[images]]
+path = "sprites/ball_red_large.png"
+target_path = "sprites/attacks/blood_attack_hovering_6.png"
+width = 38
+invert_colors = true
