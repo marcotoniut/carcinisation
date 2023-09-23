@@ -172,7 +172,7 @@ pub enum StageStep {
     },
     Stop {
         resume_conditions: Option<Vec<StageActionResumeCondition>>,
-        max_duration: Option<u64>,
+        max_duration: Option<f32>,
         spawns: Vec<StageSpawn>,
     },
 }

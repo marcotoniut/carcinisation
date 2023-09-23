@@ -197,7 +197,7 @@ pub fn update_stage(
                                 // DEBUG
 
                                 if DEBUG_STAGESTEP {
-                                    let mut duration = 0;
+                                    let mut duration = 0.;
                                     if max_duration.is_some() {
                                         duration = max_duration.unwrap();
                                     }
@@ -285,7 +285,7 @@ pub fn read_stage_step_trigger(
                             stage_action_timer.timer.reset();
                             stage_action_timer
                                 .timer
-                                .set_duration(Duration::from_secs(duration.clone()));
+                                .set_duration(Duration::from_secs_f32(duration.clone()));
                             stage_action_timer.timer.unpause();
                         }
                     }

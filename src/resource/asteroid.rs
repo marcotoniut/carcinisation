@@ -1,3 +1,4 @@
+use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
     ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
     SkyboxData, StageData, StageStep,
@@ -74,7 +75,7 @@ pub fn make_steps() -> Vec<StageStep> {
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
-            max_duration: Some(3),
+            max_duration: Some(40. / CAMERA_BASE_SPEED),
             spawns: vec![StageSpawn::Enemy(EnemySpawn {
                 enemy_type: EnemyType::Mosquito,
                 coordinates: Vec2 { x: 20.0, y: 0.0 },
@@ -92,7 +93,7 @@ pub fn make_steps() -> Vec<StageStep> {
         //TODO
         StageStep::Stop {
             resume_conditions: Some(vec![]),
-            max_duration: Some(4),
+            max_duration: Some(4. / CAMERA_BASE_SPEED),
             spawns: vec![],
         },
         StageStep::Movement {

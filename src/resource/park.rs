@@ -1,3 +1,4 @@
+use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
     ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
     SkyboxData, StageData, StageStep,
@@ -10,8 +11,6 @@ use bevy::prelude::*;
 use lazy_static::lazy_static;
 
 const OBJECT_FIBERTREE_Y: f32 = 10.;
-
-const CAMERA_BASE_SPEED: f32 = 10.0;
 
 lazy_static! {
     pub static ref STAGE_PARK_DATA: StageData = StageData {
@@ -156,7 +155,7 @@ pub fn make_steps() -> Vec<StageStep> {
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
-            max_duration: Some(3),
+            max_duration: Some(30. / CAMERA_BASE_SPEED),
             spawns: vec![StageSpawn::Enemy(EnemySpawn {
                 enemy_type: EnemyType::Mosquito,
                 coordinates: Vec2 { x: 20.0, y: 0.0 },
@@ -197,7 +196,7 @@ pub fn make_steps() -> Vec<StageStep> {
         //TEST up
         StageStep::Stop {
             resume_conditions: Some(vec![]),
-            max_duration: Some(4),
+            max_duration: Some(40. / CAMERA_BASE_SPEED),
             spawns: vec![],
         },
         StageStep::Movement {
