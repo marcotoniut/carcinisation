@@ -18,7 +18,8 @@ use crate::{
             bundles::make_animation_bundle,
             components::{
                 EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
-                BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
+                BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_LINE_SPEED,
+                BLOOD_ATTACK_MAX_DEPTH,
             },
             data::mosquito::MOSQUITO_ANIMATIONS,
             systems::bundles::make_enemy_mosquito_range_attack_bundle,
@@ -225,7 +226,7 @@ pub fn check_idle_mosquito(
                     DepthProgress(depth.0.clone() as f32),
                     DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
                     TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
-                    Damage(20),
+                    Damage(BLOOD_ATTACK_DAMAGE),
                     attacking,
                     sprite_bundle,
                     animation_bundle,
@@ -258,12 +259,13 @@ pub fn read_enemy_attack_depth_changed(
 pub fn damage_on_reached(
     mut commands: Commands,
     depth_query: Query<(Entity, &Damage), With<DepthReached>>,
-    player_query: Query<(Entity, &Health), With<Player>>,
+    mut player_query: Query<&mut Health, With<Player>>,
 ) {
     for (entity, damage) in &mut depth_query.iter() {
         commands.entity(entity).despawn();
-        // for (player_entity, mut health) in &mut player_query.iter() {
-        //     health.0 -= damage.0;
-        // }
+        for mut health in &mut player_query.iter_mut() {
+            let new_health: i32 = (health.0 - damage.0) as i32;
+            health.0 = new_health.max(0) as u32;
+        }
     }
 }

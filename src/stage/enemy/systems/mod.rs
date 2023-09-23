@@ -244,7 +244,7 @@ pub fn placeholder_spawn_enemies_over_time(
 pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    mut attack_query: Query<(Entity, &PlayerAttack, &mut UnhittableList)>,
+    mut attack_query: Query<&mut UnhittableList, With<PlayerAttack>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     query: Query<(&mut SpawnDrop, &PxSubPosition), With<Dead>>,
 ) {
@@ -262,7 +262,7 @@ pub fn check_dead_drop(
             }
         };
 
-        for (attack, mut hit_list, mut unhittable_list) in &mut attack_query.iter_mut() {
+        for mut unhittable_list in &mut attack_query.iter_mut() {
             if unhittable_list.0.contains(&spawn_drop.entity) {
                 unhittable_list.0.insert(entity);
             }
