@@ -19,6 +19,7 @@ pub const PLACEHOLDER_ENEMY_SPAWN_TIME: f32 = 8.0;
 pub const BLOOD_ATTACK_DEPTH_SPEED: f32 = 4.;
 pub const BLOOD_ATTACK_LINE_SPEED: f32 = 70.;
 pub const BLOOD_ATTACK_MAX_DEPTH: usize = 6;
+pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
 
 #[derive(Component)]
 pub struct PlaceholderEnemy {
