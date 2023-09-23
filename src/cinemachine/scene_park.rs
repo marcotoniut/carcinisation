@@ -13,9 +13,17 @@ use crate::cinemachine::*;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 
+use super::data::Clip;
+
 lazy_static! {
-    pub static ref PARK_ANIMATIC: CinemachineData = CinemachineData {
+    pub static ref PARK_ANIMATIC: CinemachineData<'static> = CinemachineData {
         name: "park".to_string(),
-        start_coordinates: Some(Vec2::new(0.0, 0.0)),
+        default_background_filter_color: "filter/color3.png",
+        start_coordinates: Vec2::new(0.0, 0.0),
+        clips: make_clips()
     };
+}
+
+fn make_clips() -> Vec<Clip>{
+    vec![]
 }
