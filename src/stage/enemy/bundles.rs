@@ -3,7 +3,7 @@ use seldom_pixel::{asset::*, prelude::*};
 
 use crate::{
     globals::*,
-    stage::components::{Collision, Health},
+    stage::components::{Collision, Health, Hittable},
     Layer,
 };
 
@@ -14,6 +14,7 @@ pub fn make_enemy_bundle(
 ) -> (
     Name,
     Enemy,
+    Hittable,
     PlaceholderEnemy,
     PxSpriteBundle<Layer>,
     PxSubPosition,
@@ -24,6 +25,7 @@ pub fn make_enemy_bundle(
     (
         Name::new("Enemy"),
         Enemy {},
+        Hittable {},
         PlaceholderEnemy {
             direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
         },
@@ -33,11 +35,6 @@ pub fn make_enemy_bundle(
             anchor: PxAnchor::Center,
             ..default()
         },
-        // PxAnimationBundle {
-        //     duration: PxAnimationDuration::millis_per_animation(700),
-        //     on_finish: PxAnimationFinishBehavior::Despawn,
-        //     ..default()
-        // },
         PxSubPosition::from(Vec2::new(
             rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
             HUD_HEIGHT as f32 + rand::random::<f32>() * (SCREEN_RESOLUTION.y - HUD_HEIGHT) as f32,

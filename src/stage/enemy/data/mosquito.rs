@@ -1,3 +1,5 @@
+use seldom_pixel::prelude::PxAnimationFinishBehavior;
+
 use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ENEMIES};
 
 pub struct MosquitoAnimations {
@@ -41,6 +43,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 0),
                     frames: death_frames,
                     speed: death_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Despawn,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -48,6 +51,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 1),
                     frames: death_frames,
                     speed: death_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Despawn,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -55,6 +59,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 2),
                     frames: death_frames,
                     speed: death_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Despawn,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -62,6 +67,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 3),
                     frames: death_frames,
                     speed: death_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Despawn,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },

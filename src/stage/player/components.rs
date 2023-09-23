@@ -32,7 +32,7 @@ pub struct PlayerAttack {
 }
 
 #[derive(Component, Clone, Debug)]
-pub struct HitList(pub HashSet<Entity>);
+pub struct UnhittableList(pub HashSet<Entity>);
 
 impl PlayerAttack {
     pub fn make_bundles(
@@ -45,7 +45,7 @@ impl PlayerAttack {
             PxSpriteBundle<Layer>,
             PxAnimationBundle,
             PxSubPosition,
-            HitList,
+            UnhittableList,
             Name,
         ),
         AudioSourceBundle,
@@ -115,7 +115,7 @@ impl PlayerAttack {
                 sprite_bundle,
                 animation_bundle,
                 position,
-                HitList(HashSet::default()),
+                UnhittableList(HashSet::default()),
                 name,
             ),
             audio_source_bundle,
