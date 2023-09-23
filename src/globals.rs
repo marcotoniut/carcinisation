@@ -15,3 +15,5 @@ pub const DEFAULT_CROSSHAIR_INDEX: u8 = 1;
 pub const DEFAULT_MASTER_VOLUME: f32 = 0.5;
 pub const DEFAULT_SFX_VOLUME: f32 = 0.1;
 pub const DEFAULT_MUSIC_VOLUME: f32 = 1.0;
+
+pub const DEBUG_STAGESTEP: bool = false;
