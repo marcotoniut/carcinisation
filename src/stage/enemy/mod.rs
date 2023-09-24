@@ -8,7 +8,11 @@ use bevy::prelude::*;
 
 use self::{
     resources::*,
-    systems::{mosquito::*, *},
+    systems::{
+        mosquito::*,
+        tardigrade::{assign_tardigrade_animation, check_idle_tardigrade, despawn_dead_tardigrade},
+        *,
+    },
 };
 use super::{GameState, StageState};
 use crate::AppState;
@@ -17,24 +21,35 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<EnemySpawnTimer>()
-            .add_systems(
-                Update,
+        app.init_resource::<EnemySpawnTimer>().add_systems(
+            Update,
+            (
+                // (enemy_movement, confine_enemy_movement).chain(),
+                (check_got_hit, check_health_at_0).chain(),
+                check_dead_drop,
                 (
-                    // (enemy_movement, confine_enemy_movement).chain(),
-                    (check_got_hit, check_health_at_0).chain(),
-                    despawn_dead_mosquitoes,
+                    // Attacks
                     despawn_dead_attacks,
-                    check_dead_drop,
+                    read_enemy_attack_depth_changed,
+                ),
+                (
+                    // Mosquito
                     assign_mosquito_animation,
-                    update_enemy_placeholder_direction,
-                    // placeholder_tick_enemy_spawn_timer,
-                    // placeholder_spawn_enemies_over_time,
-                )
-                    .run_if(in_state(AppState::Game))
-                    .run_if(in_state(GameState::Running))
-                    .run_if(in_state(StageState::Running)),
+                    check_idle_mosquito,
+                    despawn_dead_mosquitoes,
+                ),
+                (
+                    // Tardigrade
+                    assign_tardigrade_animation,
+                    check_idle_tardigrade,
+                    despawn_dead_tardigrade,
+                ), // update_enemy_placeholder_direction,
+                   // placeholder_tick_enemy_spawn_timer,
+                   // placeholder_spawn_enemies_over_time,
             )
-            .add_systems(OnExit(AppState::Game), despawn_enemies);
+                .run_if(in_state(AppState::Game))
+                .run_if(in_state(GameState::Running))
+                .run_if(in_state(StageState::Running)),
+        );
     }
 }

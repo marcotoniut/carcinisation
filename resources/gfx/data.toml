@@ -93,6 +93,54 @@ path = "sprites/enemies/mosquito_melee_3.png"
 [[images]]
 path = "sprites/enemies/worm.png"
 
+[[images]]
+path = "sprites/enemies/tardigrade_death_64x64.png"
+target_path = "sprites/enemies/tardigrade_death_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_death_64x64.png"
+target_path = "sprites/enemies/tardigrade_death_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_death_64x64.png"
+target_path = "sprites/enemies/tardigrade_death_3.png"
+
+[[images]]
+path = "sprites/enemies/tardigrade_idle_64x64.png"
+target_path = "sprites/enemies/tardigrade_idle_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_idle_64x64.png"
+target_path = "sprites/enemies/tardigrade_idle_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_idle_64x64.png"
+target_path = "sprites/enemies/tardigrade_idle_3.png"
+
+[[images]]
+path = "sprites/enemies/tardigrade_attack_64x64.png"
+target_path = "sprites/enemies/tardigrade_attack_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_attack_64x64.png"
+target_path = "sprites/enemies/tardigrade_attack_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_attack_64x64.png"
+target_path = "sprites/enemies/tardigrade_attack_3.png"
+
+[[images]]
+path = "sprites/enemies/tardigrade_sucking_64x64.png"
+target_path = "sprites/enemies/tardigrade_sucking_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_sucking_64x64.png"
+target_path = "sprites/enemies/tardigrade_sucking_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_sucking_64x64.png"
+target_path = "sprites/enemies/tardigrade_sucking_3.png"
+
 # Objects
 [[images]]
 path = "sprites/objects/bench_big.png"
