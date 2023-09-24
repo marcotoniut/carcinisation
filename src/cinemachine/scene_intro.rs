@@ -27,7 +27,7 @@ lazy_static! {
 fn make_clips() -> Vec<Clip>{
     vec![
         Clip {
-            image_path: Some("\\cinematics\\intro\\0.png".to_string()),
+            image_path: Some("/cinematics/intro/0.png".to_string()),
             foreground_elements: None,
             start_coordinates: Vec2{x:0.0,y:0.0},
             layer_index: 100.0, 
@@ -35,7 +35,7 @@ fn make_clips() -> Vec<Clip>{
             goal: CutsceneGoal::TIMED { waitInSeconds: 1.0 },
         },
         Clip {
-            image_path: Some("\\cinematics\\intro\\1.png".to_string()),
+            image_path: Some("/cinematics/intro/1.png".to_string()),
             foreground_elements: None,
             start_coordinates: Vec2{x:0.0,y:0.0},
             layer_index: 110.0, 
