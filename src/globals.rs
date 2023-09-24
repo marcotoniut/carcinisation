@@ -17,3 +17,10 @@ pub const DEFAULT_SFX_VOLUME: f32 = 0.1;
 pub const DEFAULT_MUSIC_VOLUME: f32 = 0.2;
 
 pub const DEBUG_STAGESTEP: bool = false;
+
+pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> bool {
+    position.x >= bottom_left.x
+        && position.x <= top_right.x
+        && position.y >= bottom_left.y
+        && position.y <= top_right.y
+}
