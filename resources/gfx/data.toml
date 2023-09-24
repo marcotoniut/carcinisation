@@ -48,10 +48,10 @@ path = "backgrounds/asteroid/background.png"
 path = "backgrounds/asteroid/skybox.png"
 
 [[images]]
-path = "backgrounds/park/background.png"
+path = "backgrounds/rugpark/background.png"
 
 [[images]]
-path = "backgrounds/park/skybox.png"
+path = "backgrounds/rugpark/skybox.png"
 
 # [[images]]
 # path = "backgrounds/main_menu/blank.png"
@@ -105,8 +105,6 @@ path = "sprites/objects/lamp_broken.png"
 [[images]]
 path = "sprites/objects/lamp.png"
 [[images]]
-path = "sprites/objects/sign.png"
-[[images]]
 path = "sprites/objects/trash_can_1.png"
 [[images]]
 path = "sprites/objects/trash_can_2.png"
@@ -114,6 +112,8 @@ path = "sprites/objects/trash_can_2.png"
 path = "sprites/objects/trash_can_broken_1.png"
 [[images]]
 path = "sprites/objects/trash_can_broken_1.png"
+[[images]]
+path = "sprites/objects/rugpark_sign.png"
 
 # Pickups
 [[images]]
