@@ -10,7 +10,7 @@ use crate::{
     globals::SCREEN_RESOLUTION,
     stage::{
         components::{
-            Damage, Dead, Depth, DepthProgress, DepthReached, DepthSpeed, Health, Hittable,
+            Damage, Dead, Depth, DepthProgress, DepthReached, DepthSpeed, Health, Hittable, InView,
             LineSpeed, TargetDepth, TargetPosition,
         },
         data::EnemyStep,
@@ -272,7 +272,10 @@ pub fn damage_on_reached(
     mut assets_sprite: PxAssets<PxSprite>,
     mut player_query: Query<&mut Health, With<Player>>,
     asset_server: Res<AssetServer>,
-    depth_query: Query<(Entity, &Damage, &PxSubPosition, &Depth), With<DepthReached>>,
+    depth_query: Query<
+        (Entity, &Damage, &PxSubPosition, &Depth),
+        (With<DepthReached>, With<InView>),
+    >,
 ) {
     for (entity, damage, position, depth) in &mut depth_query.iter() {
         let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
@@ -311,6 +314,15 @@ pub fn damage_on_reached(
             ));
         }
 
+        commands.entity(entity).despawn();
+    }
+}
+
+pub fn miss_on_reached(
+    mut commands: Commands,
+    query: Query<Entity, (With<Damage>, With<DepthReached>, Without<InView>)>,
+) {
+    for entity in &mut query.iter() {
         commands.entity(entity).despawn();
     }
 }

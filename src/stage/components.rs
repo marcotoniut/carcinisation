@@ -9,7 +9,7 @@ pub struct Stage {}
 pub struct Depth(pub usize);
 
 #[derive(Component, Debug)]
-pub struct InScope {}
+pub struct InView {}
 
 #[derive(Component)]
 pub struct Destructible {}

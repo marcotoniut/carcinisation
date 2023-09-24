@@ -14,12 +14,7 @@ pub mod ui;
 use bevy::prelude::*;
 
 use self::{
-    enemy::{
-        systems::mosquito::{
-            check_idle_mosquito, damage_on_reached, read_enemy_attack_depth_changed,
-        },
-        EnemyPlugin,
-    },
+    enemy::{systems::mosquito::*, EnemyPlugin},
     events::*,
     pickup::systems::health::pickup_health,
     player::{
@@ -28,7 +23,12 @@ use self::{
     },
     resources::{StageActionTimer, StageProgress, StageTime},
     score::{components::Score, ScorePlugin},
-    systems::{movement::*, spawn::read_stage_spawn_trigger, *},
+    systems::{
+        camera::{check_in_view, check_outside_view},
+        movement::*,
+        spawn::read_stage_spawn_trigger,
+        *,
+    },
     ui::{pause_menu::pause_menu_renderer, StageUiPlugin},
 };
 use crate::{events::*, AppState};
@@ -68,30 +68,44 @@ impl Plugin for StagePlugin {
                 (
                     update_stage,
                     (
-                        // Player
-                        camera_shake,
-                        trigger_shake,
-                        //
-                        increment_elapsed,
-                        tick_stage_step_timer,
-                        read_stage_step_trigger,
-                        read_stage_spawn_trigger,
-                        check_stage_step_timer,
-                        check_staged_cleared,
-                        pickup_health,
-                        damage_on_reached,
-                        // Enemy
-                        check_idle_mosquito,
-                        read_enemy_attack_depth_changed,
-                        // Movement
-                        advance_incoming,
-                        check_depth_reached,
-                        update_depth,
-                        advance_line,
-                        check_line_target_x_reached,
-                        check_line_target_y_reached,
-                        check_line_target_reached,
-                        circle_around,
+                        (
+                            // Camera
+                            check_in_view,
+                            check_outside_view,
+                        ),
+                        (
+                            // Player
+                            camera_shake,
+                            trigger_shake,
+                        ),
+                        (
+                            //
+                            increment_elapsed,
+                            tick_stage_step_timer,
+                            read_stage_step_trigger,
+                            read_stage_spawn_trigger,
+                            check_stage_step_timer,
+                            check_staged_cleared,
+                            pickup_health,
+                            damage_on_reached,
+                            miss_on_reached,
+                        ),
+                        (
+                            // Enemy
+                            check_idle_mosquito,
+                            read_enemy_attack_depth_changed,
+                        ),
+                        (
+                            // Movement
+                            advance_incoming,
+                            check_depth_reached,
+                            update_depth,
+                            advance_line,
+                            check_line_target_x_reached,
+                            check_line_target_y_reached,
+                            check_line_target_reached,
+                            circle_around,
+                        ),
                     )
                         .run_if(in_state(StageState::Running)),
                 )
