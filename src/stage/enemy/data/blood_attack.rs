@@ -29,7 +29,6 @@ lazy_static! {
                     speed: hovering_speed,
                     finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
-                    // collision: CollisionBox::new(),
                 },
                 AnimationData {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ATTACKS, FRAGMENT_BLOOD_ATTACK, FRAGMENT_HOVERING, 2),

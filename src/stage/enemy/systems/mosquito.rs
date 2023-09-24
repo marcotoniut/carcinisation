@@ -10,8 +10,8 @@ use crate::{
     globals::SCREEN_RESOLUTION,
     stage::{
         components::{
-            Damage, Dead, Depth, DepthProgress, DepthReached, DepthSpeed, Health, LineSpeed,
-            TargetDepth, TargetPosition,
+            Damage, Dead, Depth, DepthProgress, DepthReached, DepthSpeed, Health, Hittable,
+            LineSpeed, TargetDepth, TargetPosition,
         },
         data::EnemyStep,
         enemy::{
@@ -205,7 +205,7 @@ pub fn check_idle_mosquito(
                     });
 
                 let depth = Depth(1);
-                let (sprite_bundle, animation_bundle) =
+                let attack_bundle =
                     make_enemy_mosquito_range_attack_bundle(&mut assets_sprite, depth.clone());
 
                 let mut attacking = EnemyMosquitoAttacking {
@@ -221,23 +221,33 @@ pub fn check_idle_mosquito(
                     camera_pos.y + SCREEN_RESOLUTION.y as f32 / 2.,
                 );
 
-                commands.spawn((
-                    Name::new("Attack Blood"),
-                    EnemyAttack {},
-                    TargetPosition(target_vec),
-                    LineSpeed((target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED),
-                    depth,
-                    DepthProgress(depth.0.clone() as f32),
-                    DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
-                    TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
-                    Damage(BLOOD_ATTACK_DAMAGE),
-                    attacking,
-                    sprite_bundle,
-                    animation_bundle,
-                    PxSubPosition(position.0),
-                ));
+                commands
+                    .spawn((
+                        Name::new("Attack Blood"),
+                        EnemyAttack {},
+                        TargetPosition(target_vec),
+                        LineSpeed((target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED),
+                        depth,
+                        DepthProgress(depth.0.clone() as f32),
+                        DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
+                        TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
+                        Damage(BLOOD_ATTACK_DAMAGE),
+                        PxSubPosition(position.0),
+                        Hittable {},
+                        Health(1),
+                    ))
+                    .insert(attack_bundle);
             }
         }
+    }
+}
+
+pub fn despawn_dead_attacks(
+    mut commands: Commands,
+    query: Query<(Entity, &EnemyAttack), With<Dead>>,
+) {
+    for (entity, _) in query.iter() {
+        commands.entity(entity).despawn();
     }
 }
 
@@ -248,12 +258,13 @@ pub fn read_enemy_attack_depth_changed(
 ) {
     for event in event_reader.iter() {
         if event.depth.0 < BLOOD_ATTACK_MAX_DEPTH {
-            let (sprite_bundle, animation_bundle) =
+            let (sprite_bundle, animation_bundle, collision) =
                 make_enemy_mosquito_range_attack_bundle(&mut assets_sprite, event.depth.clone());
 
             commands
                 .entity(event.entity)
                 .insert(sprite_bundle)
+                .insert(collision)
                 .insert(animation_bundle);
         }
     }

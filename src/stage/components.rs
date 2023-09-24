@@ -59,6 +59,7 @@ pub struct Health(pub u32);
 #[derive(Component, Debug, Clone)]
 pub struct Damage(pub u32);
 
+// Should hittable specify whether you can hit with Melee, ranged or both?
 #[derive(Component, Debug, Clone)]
 pub struct Hittable {}
 

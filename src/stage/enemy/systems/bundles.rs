@@ -6,7 +6,7 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::Depth,
+        components::{Collision, Depth},
         enemy::{
             components::{BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_MAX_DEPTH},
             data::blood_attack::BLOOD_ATTACK_ANIMATIONS,
@@ -19,7 +19,7 @@ use crate::{
 pub fn make_enemy_mosquito_range_attack_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     depth: Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle) {
+) -> (PxSpriteBundle<Layer>, PxAnimationBundle, Collision) {
     let animation_o = BLOOD_ATTACK_ANIMATIONS.hovering.get(depth.0);
 
     let animation = animation_o.unwrap();
@@ -39,5 +39,7 @@ pub fn make_enemy_mosquito_range_attack_bundle(
             direction: animation.direction,
             ..default()
         },
+        // TODO hardcoded
+        Collision::Circle(depth.0 as f32 * 4.),
     )
 }
