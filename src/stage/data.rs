@@ -153,11 +153,33 @@ pub struct EnemySpawn {
     pub elapsed: f32,
     pub steps: Vec<EnemyStep>,
     pub contains: Option<Box<ContainerSpawn>>,
+}
 
-    // TEMP hack, as this should actually be inside of the Steps
-    pub direction: MovementDirection,
-    pub radius: f32,
-    pub time_offset: f32,
+impl EnemySpawn {
+    pub fn base_tardigrade(base_speed: f32, coordinates: Vec2) -> EnemySpawn {
+        EnemySpawn {
+            enemy_type: EnemyType::Tardigrade,
+            coordinates,
+            base_speed,
+            elapsed: 0.0,
+            steps: vec![EnemyStep::Attack { duration: 999. }],
+            contains: None,
+        }
+    }
+    pub fn base_mosquito(base_speed: f32, coordinates: Vec2) -> EnemySpawn {
+        EnemySpawn {
+            enemy_type: EnemyType::Mosquito,
+            coordinates,
+            base_speed,
+            elapsed: 0.0,
+            steps: vec![EnemyStep::Circle {
+                duration: 999.,
+                radius: 12.,
+                direction: MovementDirection::Right,
+            }],
+            contains: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -166,6 +188,24 @@ pub enum StageSpawn {
     Destructible(DestructibleSpawn),
     Pickup(PickupSpawn),
     Enemy(EnemySpawn),
+}
+
+impl StageSpawn {
+    pub fn base_tardigrade(base_speed: f32, coordinates: Vec2) -> StageSpawn {
+        StageSpawn::Enemy(EnemySpawn {
+            coordinates,
+            base_speed,
+            ..EnemySpawn::base_tardigrade(base_speed, coordinates)
+        })
+    }
+
+    pub fn base_mosquito(base_speed: f32, coordinates: Vec2) -> StageSpawn {
+        StageSpawn::Enemy(EnemySpawn {
+            coordinates,
+            base_speed,
+            ..EnemySpawn::base_mosquito(base_speed, coordinates)
+        })
+    }
 }
 
 impl StageSpawn {
