@@ -1,4 +1,8 @@
-use bevy::{audio::PlaybackMode, prelude::*, utils::HashSet};
+use bevy::{
+    audio::{PlaybackMode, Volume},
+    prelude::*,
+    utils::HashSet,
+};
 use seldom_pixel::{
     prelude::{
         PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
@@ -7,7 +11,10 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
-use crate::Layer;
+use crate::{
+    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
+    Layer,
+};
 
 #[derive(Component)]
 pub struct Player {}
@@ -39,6 +46,7 @@ impl PlayerAttack {
         &self,
         assets_sprite: &mut PxAssets<PxSprite>,
         asset_server: Res<AssetServer>,
+        volume_settings: Res<VolumeSettings>,
     ) -> (
         (
             Self,
@@ -75,6 +83,7 @@ impl PlayerAttack {
                         source: melee_slash_sound,
                         settings: PlaybackSettings {
                             mode: PlaybackMode::Despawn,
+                            volume: Volume::new_relative(volume_settings.2 * 1.0),
                             ..default()
                         },
                         ..default()
@@ -101,6 +110,7 @@ impl PlayerAttack {
                         source: shoot_sound,
                         settings: PlaybackSettings {
                             mode: PlaybackMode::Despawn,
+                            volume: Volume::new_relative(volume_settings.2 * 1.0),
                             ..default()
                         },
                         ..default()
