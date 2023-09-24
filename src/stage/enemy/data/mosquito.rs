@@ -77,6 +77,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 0),
                     frames: fly_frames,
                     speed: fly_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -84,6 +85,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 1),
                     frames: fly_frames,
                     speed: fly_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -91,6 +93,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 2),
                     frames: fly_frames,
                     speed: fly_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -98,6 +101,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 3),
                     frames: fly_frames,
                     speed: fly_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -107,6 +111,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 0),
                     frames: idle_frames,
                     speed: idle_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -114,6 +119,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 1),
                     frames: idle_frames,
                     speed: idle_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -121,6 +127,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 2),
                     frames: idle_frames,
                     speed: idle_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -128,6 +135,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 3),
                     frames: idle_frames,
                     speed: idle_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -137,6 +145,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 0),
                     frames: attack_frames,
                     speed: melee_attack_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Mark,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -144,6 +153,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 1),
                     frames: attack_frames,
                     speed: melee_attack_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Mark,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -151,6 +161,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 2),
                     frames: attack_frames,
                     speed: melee_attack_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Mark,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },
@@ -158,6 +169,7 @@ lazy_static! {
                     sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 3),
                     frames: attack_frames,
                     speed: melee_attack_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Mark,
                     ..Default::default()
                     // collision: CollisionBox::new(),
                 },

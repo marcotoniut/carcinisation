@@ -4,10 +4,12 @@ use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ATTACKS};
 
 pub struct BloodAttackAnimations {
     pub hovering: Vec<AnimationData>,
+    pub splat: Vec<AnimationData>,
 }
 
 // Animation fragments
 const FRAGMENT_HOVERING: &str = "hovering";
+const FRAGMENT_SPLAT: &str = "splat";
 
 // Enemy
 const FRAGMENT_BLOOD_ATTACK: &str = "blood_attack";
@@ -18,8 +20,11 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u32) -> String
 
 lazy_static! {
     pub static ref BLOOD_ATTACK_ANIMATIONS: BloodAttackAnimations = {
-        let hovering_frames = 1;
-        let hovering_speed = 400;
+        let hovering_frames = 4;
+        let hovering_speed = 700;
+
+        let splat_frames = 1;
+        let splat_speed = 2000;
 
         BloodAttackAnimations {
             hovering: vec![
@@ -69,6 +74,16 @@ lazy_static! {
                     finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                     // collision: CollisionBox::new(),
+                },
+            ],
+
+            splat: vec![
+                AnimationData {
+                    sprite_path: concat_strings_and_number(PATH_SPRITES_ATTACKS, FRAGMENT_BLOOD_ATTACK, FRAGMENT_SPLAT, 7),
+                    frames: splat_frames,
+                    speed: splat_speed,
+                    finish_behavior: PxAnimationFinishBehavior::Mark,
+                    ..Default::default()
                 },
             ],
         }
