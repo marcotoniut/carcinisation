@@ -12,7 +12,10 @@ use seldom_pixel::{
 };
 
 use crate::{
-    globals::DEBUG_STAGESTEP, resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput,
+    globals::DEBUG_STAGESTEP,
+    resource::park::STAGE_PARK_DATA,
+    systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
+    GBInput,
 };
 
 use self::spawn::{spawn_enemy, spawn_object};
@@ -67,6 +70,7 @@ pub fn setup_stage(
     mut assets_sprite: PxAssets<PxSprite>,
     asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    volume_settings: Res<VolumeSettings>,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
@@ -85,12 +89,12 @@ pub fn setup_stage(
         }
     }
 
-    // DEBUG disable music for now
-    // spawn_music(
-    //     &mut commands,
-    //     &asset_server,
-    //     STAGE_PARK_DATA.music_path.clone(),
-    // );
+    spawn_music(
+        &mut commands,
+        &asset_server,
+        volume_settings,
+        STAGE_PARK_DATA.music_path.clone(),
+    );
 
     commands.insert_resource(StageRawData { stage_data });
 }

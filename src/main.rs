@@ -68,7 +68,8 @@ fn main() {
         FramepacePlugin,
         bevy::diagnostic::LogDiagnosticsPlugin::default(),
     ))
-    // .insert_resource(GlobalVolume::new(0.2))
+    // TEMP
+    // .insert_resource(GlobalVolume::new(0.3))
     .insert_resource(ClearColor(Color::BLACK))
     .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
     .insert_resource(VolumeSettings(

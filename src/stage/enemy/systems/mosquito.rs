@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use bevy::{audio::PlaybackMode, prelude::*, render::camera};
+use bevy::{
+    audio::{PlaybackMode, Volume},
+    prelude::*,
+    render::camera,
+};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets, PxSubPosition},
     sprite::{PxSprite, PxSpriteBundle},
@@ -30,7 +34,7 @@ use crate::{
         score::components::Score,
     },
     systems::{
-        audio::{AudioSystemBundle, AudioSystemType},
+        audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
         camera::CameraPos,
     },
     Layer,
@@ -181,7 +185,7 @@ pub fn check_idle_mosquito(
             &mut EnemyMosquitoAttacking,
             &PxSubPosition,
         ),
-        // Without<EnemyMosquitoAttacking>,
+        With<InView>,
     >,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
@@ -276,6 +280,7 @@ pub fn damage_on_reached(
         (Entity, &Damage, &PxSubPosition, &Depth),
         (With<DepthReached>, With<InView>),
     >,
+    volume_settings: Res<VolumeSettings>,
 ) {
     for (entity, damage, position, depth) in &mut depth_query.iter() {
         let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
@@ -290,6 +295,7 @@ pub fn damage_on_reached(
                 source: sound_effect,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Despawn,
+                    volume: Volume::new_relative(volume_settings.2 * 1.0),
                     ..default()
                 },
                 ..default()

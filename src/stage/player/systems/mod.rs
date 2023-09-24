@@ -89,6 +89,7 @@ pub fn detect_player_attack(
     gb_input_query: Query<&ActionState<GBInput>>,
     player_attack_query: Query<&PlayerAttack>,
     player_query: Query<&PxSubPosition, With<Player>>,
+    volume_settings: Res<VolumeSettings>,
 ) {
     if player_attack_query.iter().next().is_none() {
         let position = player_query.get_single().unwrap();
@@ -110,7 +111,7 @@ pub fn detect_player_attack(
             };
 
             let (player_attack_bundle, audio_bundle) =
-                player_attack.make_bundles(&mut assets_sprite, asset_server);
+                player_attack.make_bundles(&mut assets_sprite, asset_server, volume_settings);
 
             commands.spawn(player_attack_bundle);
             commands.spawn((
