@@ -21,7 +21,7 @@ use crate::{
                 EnemyMosquitoAttacking, BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED,
                 BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
             },
-            data::mosquito::MOSQUITO_ANIMATIONS,
+            data::{blood_attack::BLOOD_ATTACK_ANIMATIONS, mosquito::MOSQUITO_ANIMATIONS},
             systems::bundles::make_enemy_mosquito_range_attack_bundle,
         },
         events::DepthChanged,
@@ -161,11 +161,7 @@ pub fn despawn_dead_mosquitoes(
                     anchor: PxAnchor::Center,
                     ..default()
                 },
-                PxAnimationBundle {
-                    duration: PxAnimationDuration::millis_per_animation(animation.speed),
-                    on_finish: animation.finish_behavior,
-                    ..default()
-                },
+                animation.get_animation_bundle(),
             ));
         }
 
@@ -273,12 +269,18 @@ pub fn read_enemy_attack_depth_changed(
 // TODO simplify
 pub fn damage_on_reached(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    depth_query: Query<(Entity, &Damage), With<DepthReached>>,
+    mut assets_sprite: PxAssets<PxSprite>,
     mut player_query: Query<&mut Health, With<Player>>,
+    asset_server: Res<AssetServer>,
+    depth_query: Query<(Entity, &Damage, &PxSubPosition, &Depth), With<DepthReached>>,
 ) {
-    for (entity, damage) in &mut depth_query.iter() {
+    for (entity, damage, position, depth) in &mut depth_query.iter() {
         let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
+
+        for mut health in &mut player_query.iter_mut() {
+            let new_health = health.0 as i32 - damage.0 as i32;
+            health.0 = new_health.max(0) as u32;
+        }
 
         commands.spawn((
             AudioBundle {
@@ -294,10 +296,21 @@ pub fn damage_on_reached(
             },
         ));
 
-        commands.entity(entity).despawn();
-        for mut health in &mut player_query.iter_mut() {
-            let new_health = health.0 as i32 - damage.0 as i32;
-            health.0 = new_health.max(0) as u32;
+        let animation_o = BLOOD_ATTACK_ANIMATIONS.splat.get(depth.0);
+        if let Some(animation) = animation_o {
+            commands.spawn((
+                Name::new("Bloodsplat"),
+                PxSubPosition::from(position.0),
+                PxSpriteBundle::<Layer> {
+                    sprite: assets_sprite.load(animation.sprite_path.clone()),
+                    layer: Layer::Middle(depth.0),
+                    anchor: PxAnchor::Center,
+                    ..default()
+                },
+                animation.get_animation_bundle(),
+            ));
         }
+
+        commands.entity(entity).despawn();
     }
 }

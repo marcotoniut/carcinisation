@@ -1,7 +1,10 @@
 pub mod blood_attack;
 pub mod mosquito;
+use bevy::prelude::*;
 
-use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
+use seldom_pixel::prelude::{
+    PxAnimationBundle, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
+};
 
 pub struct AnimationData {
     pub sprite_path: String,
@@ -10,6 +13,17 @@ pub struct AnimationData {
     pub finish_behavior: PxAnimationFinishBehavior,
     pub direction: PxAnimationDirection,
     // pub collision: Collision,
+}
+
+impl AnimationData {
+    pub fn get_animation_bundle(&self) -> PxAnimationBundle {
+        PxAnimationBundle {
+            duration: PxAnimationDuration::millis_per_animation(self.speed),
+            on_finish: self.finish_behavior,
+            direction: self.direction,
+            ..default()
+        }
+    }
 }
 
 impl Default for AnimationData {

@@ -58,11 +58,6 @@ pub fn make_animation_bundle(
             anchor: PxAnchor::Center,
             ..default()
         },
-        PxAnimationBundle {
-            duration: PxAnimationDuration::millis_per_animation(animation.speed),
-            // on_finish: animation.finish_behavior,
-            on_finish: PxAnimationFinishBehavior::Loop,
-            ..default()
-        },
+        animation.get_animation_bundle(),
     )
 }
