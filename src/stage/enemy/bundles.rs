@@ -3,11 +3,51 @@ use seldom_pixel::{asset::*, prelude::*};
 
 use crate::{
     globals::*,
-    stage::components::{Collision, Health, Hittable},
-    Layer,
+    stage::components::{Health, Hittable},
 };
 
 use super::{components::*, data::AnimationData};
+use seldom_pixel::{
+    prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets, PxCanvas},
+    sprite::{PxSprite, PxSpriteBundle},
+};
+
+use crate::{
+    stage::{
+        components::{Collision, Depth},
+        enemy::data::blood_attack::BLOOD_ATTACK_ANIMATIONS,
+    },
+    Layer,
+};
+
+// Bundle
+pub fn make_blood_attack_bundle(
+    assets_sprite: &mut PxAssets<PxSprite>,
+    depth: Depth,
+) -> (PxSpriteBundle<Layer>, PxAnimationBundle, Collision) {
+    let animation_o = BLOOD_ATTACK_ANIMATIONS.hovering.get(&depth.0);
+
+    let animation = animation_o.unwrap();
+    let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
+
+    (
+        PxSpriteBundle::<Layer> {
+            sprite: texture,
+            // DEBUG
+            layer: Layer::Middle(depth.0 + 2),
+            anchor: PxAnchor::Center,
+            ..default()
+        },
+        PxAnimationBundle {
+            duration: PxAnimationDuration::millis_per_animation(animation.speed),
+            on_finish: animation.finish_behavior,
+            direction: animation.direction,
+            ..default()
+        },
+        // TODO hardcoded
+        Collision::Circle(depth.0 as f32 * 4.),
+    )
+}
 
 pub fn make_enemy_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,

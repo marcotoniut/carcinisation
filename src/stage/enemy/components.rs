@@ -80,22 +80,46 @@ pub enum EnemyMosquitoAttack {
     Melee,
 }
 
+// TODO review
 #[derive(Component, Clone, Debug)]
 pub enum EnemyMosquitoAnimation {
     Idle,
     Attack,
-    Movement,
-    Circle,
+    Fly,
 }
 
 #[derive(Clone, Component, Debug, Default)]
 pub struct CurrentEnemyMosquitoStep(EnemyStep);
 
-#[derive(Component)]
-pub struct EnemySpidey {}
+// Tardigrade
+#[derive(Component, Clone, Debug)]
+pub struct EnemyTardigrade {
+    pub steps: Vec<EnemyStep>,
+}
+
+impl EnemyTardigrade {
+    pub fn kill_score(&self) -> u32 {
+        7
+    }
+
+    pub fn current_step(&self) -> &EnemyStep {
+        // TODO temporary
+        self.steps
+            .first()
+            .unwrap_or(&EnemyStep::Idle { duration: 999. })
+    }
+}
+
+// TODO review
+#[derive(Component, Clone, Debug)]
+pub enum EnemyTardigradeAnimation {
+    Idle,
+    Attack,
+    Sucking,
+}
 
 #[derive(Component)]
-pub struct EnemyTardigrade {}
+pub struct EnemySpidey {}
 
 // Bosses
 
