@@ -14,7 +14,7 @@ use crate::{
             TargetDepth, TargetPosition,
         },
         enemy::{
-            bundles::{make_animation_bundle, make_blood_attack_bundle},
+            bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
             components::*,
             data::tardigrade::TARDIGRADE_ANIMATIONS,
         },
@@ -44,7 +44,7 @@ pub fn assign_tardigrade_animation(
         let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(&depth).map(|animation| {
             (
                 EnemyTardigradeAnimation::Idle,
-                make_animation_bundle(&mut assets_sprite, &animation, depth),
+                make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
             )
         });
 

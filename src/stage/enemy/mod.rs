@@ -26,6 +26,10 @@ impl Plugin for EnemyPlugin {
                 check_no_behavior,
                 check_behavior_timer,
                 (
+                    // Tied components
+                    tied_components_enemy_current_behavior_circle_around
+                ),
+                (
                     // Attacks
                     despawn_dead_attacks,
                     read_enemy_attack_depth_changed,
