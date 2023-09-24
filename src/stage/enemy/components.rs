@@ -48,6 +48,9 @@ pub struct CircleAround {
 pub const ENEMY_MOSQUITO_RADIUS: f32 = 7.0;
 pub const ENEMY_MOSQUITO_BASE_HEALTH: u32 = 40;
 
+pub const ENEMY_TARDIGRADE_RADIUS: f32 = 9.0;
+pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;
+
 #[derive(Component, Clone, Debug)]
 pub struct EnemyMosquito {
     pub base_speed: f32,

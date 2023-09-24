@@ -25,17 +25,17 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> Stri
 
 lazy_static! {
     pub static ref TARDIGRADE_ANIMATIONS: TardigradeAnimations = {
-        let idle_frames = 3;
+        let idle_frames = 2;
         let idle_speed = 500;
 
-        let sucking_frames = 3;
-        let sucking_speed = 90;
+        let sucking_frames = 4;
+        let sucking_speed = 300;
 
-        let death_frames = 20;
+        let death_frames = 5;
         let death_speed = 1000;
 
-        let attack_frames = 8;
-        let attack_speed = 130;
+        let attack_frames = 5;
+        let attack_speed = 330;
 
         let mut death = HashMap::new();
         for i in 1..=3 {
