@@ -78,8 +78,8 @@ pub fn update_enemy_placeholder_direction(
             // } else {
             //     sound_effect_2
             // };
-            let audio = commands
-                .spawn(AudioBundle {
+            commands.spawn((
+                AudioBundle {
                     source: sound_effect,
                     settings: PlaybackSettings {
                         mode: PlaybackMode::Despawn,
@@ -87,11 +87,11 @@ pub fn update_enemy_placeholder_direction(
                         ..default()
                     },
                     ..default()
-                })
-                .id();
-            commands.entity(audio).insert(AudioSystemBundle {
-                system_type: AudioSystemType::SFX,
-            });
+                },
+                AudioSystemBundle {
+                    system_type: AudioSystemType::SFX,
+                },
+            ));
         }
     }
 }
