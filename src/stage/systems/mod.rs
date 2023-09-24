@@ -87,11 +87,12 @@ pub fn setup_stage(
         }
     }
 
-    spawn_music(
-        &mut commands,
-        &asset_server,
-        STAGE_PARK_DATA.music_path.clone(),
-    );
+    // DEBUG disable music for now
+    // spawn_music(
+    //     &mut commands,
+    //     &asset_server,
+    //     STAGE_PARK_DATA.music_path.clone(),
+    // );
 
     commands.insert_resource(StageRawData { stage_data });
 }

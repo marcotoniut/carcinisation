@@ -1,12 +1,13 @@
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
+use std::collections::HashMap;
 
 use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ENEMIES};
 
 pub struct MosquitoAnimations {
-    pub death: Vec<AnimationData>,
-    pub fly: Vec<AnimationData>,
-    pub idle: Vec<AnimationData>,
-    pub melee_attack: Vec<AnimationData>,
+    pub death: HashMap<usize, AnimationData>,
+    pub fly: HashMap<usize, AnimationData>,
+    pub idle: HashMap<usize, AnimationData>,
+    pub melee_attack: HashMap<usize, AnimationData>,
 }
 
 // Animation fragments
@@ -18,7 +19,7 @@ const FRAGMENT_MELEE_ATTACK: &str = "melee_attack";
 // Enemy
 const FRAGMENT_MOSQUITO: &str = "mosquito";
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u32) -> String {
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 
@@ -37,143 +38,48 @@ lazy_static! {
         let attack_frames = 8;
         let melee_attack_speed = 130;
 
-        MosquitoAnimations {
-            death: vec![
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 0),
-                    frames: death_frames,
-                    speed: death_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 1),
-                    frames: death_frames,
-                    speed: death_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 2),
-                    frames: death_frames,
-                    speed: death_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, 3),
-                    frames: death_frames,
-                    speed: death_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-            ],
-            fly: vec![
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 0),
-                    frames: fly_frames,
-                    speed: fly_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 1),
-                    frames: fly_frames,
-                    speed: fly_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 2),
-                    frames: fly_frames,
-                    speed: fly_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, 3),
-                    frames: fly_frames,
-                    speed: fly_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-            ],
-            idle: vec![
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 0),
-                    frames: idle_frames,
-                    speed: idle_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 1),
-                    frames: idle_frames,
-                    speed: idle_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 2),
-                    frames: idle_frames,
-                    speed: idle_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, 3),
-                    frames: idle_frames,
-                    speed: idle_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-            ],
-            melee_attack: vec![
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 0),
-                    frames: attack_frames,
-                    speed: melee_attack_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Mark,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 1),
-                    frames: attack_frames,
-                    speed: melee_attack_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Mark,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 2),
-                    frames: attack_frames,
-                    speed: melee_attack_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Mark,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-                AnimationData {
-                    sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 3),
-                    frames: attack_frames,
-                    speed: melee_attack_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Mark,
-                    ..Default::default()
-                    // collision: CollisionBox::new(),
-                },
-            ]
+        let mut death = HashMap::new();
+        for i in 0..=3 {
+            death.insert(i, AnimationData {
+                sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_DEATH, i),
+                frames: death_frames,
+                speed: death_speed,
+                finish_behavior: PxAnimationFinishBehavior::Despawn,
+                ..Default::default()
+            });
         }
+
+        let mut fly = HashMap::new();
+        for i in 0..=2 {
+            fly.insert(i, AnimationData {
+                sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_FLY, i),
+                frames: fly_frames,
+                speed: fly_speed,
+                finish_behavior: PxAnimationFinishBehavior::Loop,
+                ..Default::default()
+            });
+        }
+
+        let mut idle = HashMap::new();
+        for i in 1..=5 {
+            idle.insert(i, AnimationData {
+                sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_IDLE, i),
+                frames: idle_frames,
+                speed: idle_speed,
+                finish_behavior: PxAnimationFinishBehavior::Loop,
+                ..Default::default()
+            });
+        }
+
+        let mut melee_attack = HashMap::new();
+        melee_attack.insert(0, AnimationData {
+            sprite_path: concat_strings_and_number(PATH_SPRITES_ENEMIES, FRAGMENT_MOSQUITO, FRAGMENT_MELEE_ATTACK, 0),
+            frames: attack_frames,
+            speed: melee_attack_speed,
+            finish_behavior: PxAnimationFinishBehavior::Mark,
+            ..Default::default()
+        });
+
+        MosquitoAnimations { death, fly, idle, melee_attack }
     };
 }
