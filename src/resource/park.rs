@@ -76,7 +76,11 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                         attacking: true,
                         speed: 3.,
                     },
-                    EnemyStep::Circle { duration: 4. },
+                    EnemyStep::Circle {
+                        duration: 4.0,
+                        radius: 10.0,
+                        direction: MovementDirection::Left,
+                    },
                 ],
                 direction: MovementDirection::Left,
                 radius: 15.,
@@ -123,6 +127,11 @@ pub fn make_steps() -> Vec<StageStep> {
                     radius: 15.,
                     time_offset: 1.5,
                     steps: vec![
+                        EnemyStep::Circle {
+                            duration: 4.0,
+                            radius: 10.0,
+                            direction: MovementDirection::Left,
+                        },
                         EnemyStep::Movement {
                             coordinates: Vec2 { x: 50.0, y: 0.0 },
                             attacking: true,
@@ -135,7 +144,6 @@ pub fn make_steps() -> Vec<StageStep> {
                             attacking: true,
                             speed: 3.0,
                         },
-                        EnemyStep::Circle { duration: 4.0 },
                     ],
                     contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
                         pickup_type: PickupType::BigHealthpack,

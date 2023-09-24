@@ -5,7 +5,7 @@ use bevy::{
 
 use crate::cinemachine::data::CinemachineData;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum MovementDirection {
     #[default]
     Left,
@@ -60,11 +60,14 @@ pub enum EnemyStep {
         duration: f32,
     },
     Circle {
+        radius: f32,
+        direction: MovementDirection,
         duration: f32,
     },
     Idle {
         duration: f32,
     },
+    // TODO rename to LineMovement
     Movement {
         coordinates: Vec2,
         attacking: bool,
@@ -85,11 +88,16 @@ impl EnemyStep {
         99999.
     }
 
-    pub fn get_duration(&self) -> Option<f32> {
+    pub fn get_duration(&self) -> f32 {
+        self.get_duration_o()
+            .unwrap_or_else(|| EnemyStep::max_duration())
+    }
+
+    pub fn get_duration_o(&self) -> Option<f32> {
         match self {
-            EnemyStep::Attack { duration } => Some(*duration),
-            EnemyStep::Circle { duration } => Some(*duration),
-            EnemyStep::Idle { duration } => Some(*duration),
+            EnemyStep::Attack { duration, .. } => Some(*duration),
+            EnemyStep::Circle { duration, .. } => Some(*duration),
+            EnemyStep::Idle { duration, .. } => Some(*duration),
             EnemyStep::Movement { .. } => None,
         }
     }

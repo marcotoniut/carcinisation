@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 use crate::stage::data::{EnemyStep, MovementDirection};
 
@@ -26,6 +27,40 @@ pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
 pub struct EnemyCurrentBehavior {
     pub started: Duration,
     pub behavior: EnemyStep,
+}
+
+#[derive(Component, Clone, Debug)]
+pub enum BehaviorBundle {
+    Idle(()),
+    Movement(()),
+    Attack(()),
+    Circle(CircleAround),
+}
+
+impl EnemyCurrentBehavior {
+    pub fn get_bundles(
+        &self,
+        time_offset: Duration,
+        current_position: &PxSubPosition,
+    ) -> BehaviorBundle {
+        match self.behavior {
+            EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
+            EnemyStep::Movement {
+                coordinates,
+                attacking,
+                speed,
+            } => BehaviorBundle::Movement(()),
+            EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
+            EnemyStep::Circle {
+                radius, direction, ..
+            } => BehaviorBundle::Circle(CircleAround {
+                center: current_position.0,
+                radius,
+                direction: direction.clone(),
+                time_offset: time_offset.as_secs_f32(),
+            }),
+        }
+    }
 }
 
 #[derive(Component)]
@@ -57,7 +92,7 @@ pub struct Enemy {}
 #[derive(Component)]
 pub struct EnemyAttack {}
 
-#[derive(Component)]
+#[derive(Component, Clone, Debug)]
 pub struct CircleAround {
     pub radius: f32,
     pub center: Vec2,

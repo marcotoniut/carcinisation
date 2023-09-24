@@ -78,7 +78,7 @@ pub fn make_blood_attack_bundle(
 //     )
 // }
 
-pub fn make_animation_bundle(
+pub fn make_enemy_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     animation: &AnimationData,
     depth: usize,

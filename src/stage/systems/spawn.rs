@@ -142,12 +142,6 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                         steps: steps.clone(),
                     },
                     EnemyMosquitoAttacking { ..default() },
-                    CircleAround {
-                        center: position,
-                        radius: radius.clone(),
-                        direction: direction.clone(),
-                        time_offset: time_offset.clone(),
-                    },
                     Hittable {},
                     PxSubPosition::from(position),
                     Collision::Circle(ENEMY_MOSQUITO_RADIUS),
