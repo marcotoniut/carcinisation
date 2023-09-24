@@ -3,39 +3,39 @@ use std::collections::HashMap;
 
 use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ENEMIES};
 
-pub struct MosquitoAnimations {
+pub struct TardigradeAnimations {
+    pub attack: HashMap<usize, AnimationData>,
     pub death: HashMap<usize, AnimationData>,
-    pub fly: HashMap<usize, AnimationData>,
     pub idle: HashMap<usize, AnimationData>,
-    pub melee_attack: HashMap<usize, AnimationData>,
+    pub sucking: HashMap<usize, AnimationData>,
 }
 
 // Animation fragments
-const FRAGMENT_IDLE: &str = "idle";
-const FRAGMENT_FLY: &str = "fly";
+const FRAGMENT_ATTACK: &str = "attack";
 const FRAGMENT_DEATH: &str = "death";
-const FRAGMENT_MELEE_ATTACK: &str = "melee_attack";
+const FRAGMENT_IDLE: &str = "idle";
+const FRAGMENT_SUCKING: &str = "sucking";
 
 // Enemy
-const FRAGMENT_ENEMY: &str = "mosquito";
+const FRAGMENT_ENEMY: &str = "tardigrade";
 
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 
 lazy_static! {
-    pub static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {
+    pub static ref TARDIGRADE_ANIMATIONS: TardigradeAnimations = {
         let idle_frames = 3;
         let idle_speed = 500;
 
-        let fly_frames = 3;
-        let fly_speed = 90;
+        let sucking_frames = 3;
+        let sucking_speed = 90;
 
         let death_frames = 20;
-        let death_speed = 780;
+        let death_speed = 1000;
 
         let attack_frames = 8;
-        let melee_attack_speed = 130;
+        let attack_speed = 130;
 
         let mut death = HashMap::new();
         for i in 1..=3 {
@@ -57,19 +57,19 @@ lazy_static! {
             );
         }
 
-        let mut fly = HashMap::new();
+        let mut sucking = HashMap::new();
         for i in 1..=3 {
-            fly.insert(
+            sucking.insert(
                 i,
                 AnimationData {
                     sprite_path: concat_strings_and_number(
                         PATH_SPRITES_ENEMIES,
                         FRAGMENT_ENEMY,
-                        FRAGMENT_FLY,
+                        FRAGMENT_SUCKING,
                         i,
                     ),
-                    frames: fly_frames,
-                    speed: fly_speed,
+                    frames: sucking_frames,
+                    speed: sucking_speed,
                     finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                 },
@@ -95,30 +95,30 @@ lazy_static! {
             );
         }
 
-        let mut melee_attack = HashMap::new();
+        let mut attack = HashMap::new();
         for i in 1..=3 {
-            melee_attack.insert(
+            attack.insert(
                 i,
                 AnimationData {
                     sprite_path: concat_strings_and_number(
                         PATH_SPRITES_ENEMIES,
                         FRAGMENT_ENEMY,
-                        FRAGMENT_MELEE_ATTACK,
+                        FRAGMENT_ATTACK,
                         i,
                     ),
                     frames: attack_frames,
-                    speed: melee_attack_speed,
+                    speed: attack_speed,
                     finish_behavior: PxAnimationFinishBehavior::Mark,
                     ..Default::default()
                 },
             );
         }
 
-        MosquitoAnimations {
+        TardigradeAnimations {
             death,
-            fly,
+            sucking,
             idle,
-            melee_attack,
+            attack,
         }
     };
 }

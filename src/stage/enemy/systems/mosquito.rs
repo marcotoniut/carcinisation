@@ -19,14 +19,13 @@ use crate::{
         },
         data::EnemyStep,
         enemy::{
-            bundles::make_animation_bundle,
+            bundles::{make_animation_bundle, make_blood_attack_bundle},
             components::{
                 EnemyAttack, EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack,
                 EnemyMosquitoAttacking, BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED,
                 BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
             },
             data::{blood_attack::BLOOD_ATTACK_ANIMATIONS, mosquito::MOSQUITO_ANIMATIONS},
-            systems::bundles::make_enemy_mosquito_range_attack_bundle,
         },
         events::DepthChanged,
         player::components::Player,
@@ -97,7 +96,7 @@ pub fn assign_mosquito_animation(
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
-                            EnemyMosquitoAnimation::Attack,
+                            EnemyMosquitoAnimation::Fly,
                             make_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
@@ -106,7 +105,7 @@ pub fn assign_mosquito_animation(
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
-                            EnemyMosquitoAnimation::Attack,
+                            EnemyMosquitoAnimation::Idle,
                             make_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
@@ -119,7 +118,7 @@ pub fn assign_mosquito_animation(
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
-                            EnemyMosquitoAnimation::Attack,
+                            EnemyMosquitoAnimation::Fly,
                             make_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
@@ -178,7 +177,7 @@ pub fn check_idle_mosquito(
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<StageTime>,
-    entity_mosquito: Query<
+    query: Query<
         (
             Entity,
             &EnemyMosquito,
@@ -189,7 +188,7 @@ pub fn check_idle_mosquito(
     >,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
-    for (entity, enemy, mut attacking, position) in &mut entity_mosquito.iter() {
+    for (entity, enemy, attacking, position) in &mut query.iter() {
         if attacking.attack.is_none() {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
@@ -205,8 +204,7 @@ pub fn check_idle_mosquito(
                     });
 
                 let depth = Depth(1);
-                let attack_bundle =
-                    make_enemy_mosquito_range_attack_bundle(&mut assets_sprite, depth.clone());
+                let attack_bundle = make_blood_attack_bundle(&mut assets_sprite, depth.clone());
 
                 let mut attacking = EnemyMosquitoAttacking {
                     attack: Some(EnemyMosquitoAttack::Ranged),
@@ -259,7 +257,7 @@ pub fn read_enemy_attack_depth_changed(
     for event in event_reader.iter() {
         if event.depth.0 < BLOOD_ATTACK_MAX_DEPTH {
             let (sprite_bundle, animation_bundle, collision) =
-                make_enemy_mosquito_range_attack_bundle(&mut assets_sprite, event.depth.clone());
+                make_blood_attack_bundle(&mut assets_sprite, event.depth.clone());
 
             commands
                 .entity(event.entity)
@@ -267,68 +265,5 @@ pub fn read_enemy_attack_depth_changed(
                 .insert(collision)
                 .insert(animation_bundle);
         }
-    }
-}
-
-// TODO simplify
-pub fn damage_on_reached(
-    mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut player_query: Query<&mut Health, With<Player>>,
-    asset_server: Res<AssetServer>,
-    depth_query: Query<
-        (Entity, &Damage, &PxSubPosition, &Depth),
-        (With<DepthReached>, With<InView>),
-    >,
-    volume_settings: Res<VolumeSettings>,
-) {
-    for (entity, damage, position, depth) in &mut depth_query.iter() {
-        let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
-
-        for mut health in &mut player_query.iter_mut() {
-            let new_health = health.0 as i32 - damage.0 as i32;
-            health.0 = new_health.max(0) as u32;
-        }
-
-        commands.spawn((
-            AudioBundle {
-                source: sound_effect,
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Despawn,
-                    volume: Volume::new_relative(volume_settings.2 * 1.0),
-                    ..default()
-                },
-                ..default()
-            },
-            AudioSystemBundle {
-                system_type: AudioSystemType::SFX,
-            },
-        ));
-
-        let animation_o = BLOOD_ATTACK_ANIMATIONS.splat.get(&depth.0);
-        if let Some(animation) = animation_o {
-            commands.spawn((
-                Name::new("Bloodsplat"),
-                PxSubPosition::from(position.0),
-                PxSpriteBundle::<Layer> {
-                    sprite: assets_sprite.load(animation.sprite_path.clone()),
-                    layer: Layer::Middle(depth.0),
-                    anchor: PxAnchor::Center,
-                    ..default()
-                },
-                animation.get_animation_bundle(),
-            ));
-        }
-
-        commands.entity(entity).despawn();
-    }
-}
-
-pub fn miss_on_reached(
-    mut commands: Commands,
-    query: Query<Entity, (With<Damage>, With<DepthReached>, Without<InView>)>,
-) {
-    for entity in &mut query.iter() {
-        commands.entity(entity).despawn();
     }
 }

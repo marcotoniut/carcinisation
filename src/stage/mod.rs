@@ -14,7 +14,13 @@ pub mod ui;
 use bevy::prelude::*;
 
 use self::{
-    enemy::{systems::mosquito::*, EnemyPlugin},
+    enemy::{
+        systems::{
+            attacks::{blood_attack_damage_on_reached, miss_on_reached},
+            mosquito::*,
+        },
+        EnemyPlugin,
+    },
     events::*,
     pickup::systems::health::pickup_health,
     player::{
@@ -87,13 +93,8 @@ impl Plugin for StagePlugin {
                             check_stage_step_timer,
                             check_staged_cleared,
                             pickup_health,
-                            damage_on_reached,
+                            blood_attack_damage_on_reached,
                             miss_on_reached,
-                        ),
-                        (
-                            // Enemy
-                            check_idle_mosquito,
-                            read_enemy_attack_depth_changed,
                         ),
                         (
                             // Movement

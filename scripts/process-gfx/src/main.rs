@@ -16,8 +16,8 @@ fn rescale_image(
     img: &ImageBuffer<Rgba<u8>, Vec<u8>>,
 ) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let (width, height) = img.dimensions();
-    let divider = width / target_width;
-    let new_height = height / divider;
+    let divider: f32 = width as f32 / target_width as f32;
+    let new_height = (height as f32 / divider) as u32;
 
     return imageops::resize(img, target_width, new_height, imageops::FilterType::Nearest);
 }
