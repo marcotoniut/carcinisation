@@ -20,7 +20,7 @@ pub fn make_enemy_mosquito_range_attack_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     depth: Depth,
 ) -> (PxSpriteBundle<Layer>, PxAnimationBundle, Collision) {
-    let animation_o = BLOOD_ATTACK_ANIMATIONS.hovering.get(depth.0);
+    let animation_o = BLOOD_ATTACK_ANIMATIONS.hovering.get(&depth.0);
 
     let animation = animation_o.unwrap();
     let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);

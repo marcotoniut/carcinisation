@@ -60,7 +60,7 @@ pub fn assign_mosquito_animation(
         let bundle_o = if let Some(attack) = &attacking.attack {
             match attack {
                 EnemyMosquitoAttack::Melee => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.melee_attack.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -69,7 +69,7 @@ pub fn assign_mosquito_animation(
                     })
                 }
                 EnemyMosquitoAttack::Ranged => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -81,7 +81,7 @@ pub fn assign_mosquito_animation(
         } else {
             match step {
                 EnemyStep::Attack { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -90,7 +90,7 @@ pub fn assign_mosquito_animation(
                     })
                 }
                 EnemyStep::Circle { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -99,7 +99,7 @@ pub fn assign_mosquito_animation(
                     })
                 }
                 EnemyStep::Idle { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -112,7 +112,7 @@ pub fn assign_mosquito_animation(
                     attacking,
                     speed,
                 } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -146,7 +146,7 @@ pub fn despawn_dead_mosquitoes(
 
         // HARDCODED depth, should be a component
         let depth = 1;
-        let animation_o = MOSQUITO_ANIMATIONS.death.get(depth);
+        let animation_o = MOSQUITO_ANIMATIONS.death.get(&depth);
 
         if let Some(animation) = animation_o {
             let texture =
@@ -296,7 +296,7 @@ pub fn damage_on_reached(
             },
         ));
 
-        let animation_o = BLOOD_ATTACK_ANIMATIONS.splat.get(depth.0);
+        let animation_o = BLOOD_ATTACK_ANIMATIONS.splat.get(&depth.0);
         if let Some(animation) = animation_o {
             commands.spawn((
                 Name::new("Bloodsplat"),
