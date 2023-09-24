@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::{prelude::*, render::camera};
+use bevy::{audio::PlaybackMode, prelude::*, render::camera};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets, PxSubPosition},
     sprite::{PxSprite, PxSpriteBundle},
@@ -29,7 +29,10 @@ use crate::{
         resources::StageTime,
         score::components::Score,
     },
-    systems::camera::CameraPos,
+    systems::{
+        audio::{AudioSystemBundle, AudioSystemType},
+        camera::CameraPos,
+    },
     Layer,
 };
 
@@ -259,10 +262,27 @@ pub fn read_enemy_attack_depth_changed(
 // TODO simplify
 pub fn damage_on_reached(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     depth_query: Query<(Entity, &Damage), With<DepthReached>>,
     mut player_query: Query<&mut Health, With<Player>>,
 ) {
     for (entity, damage) in &mut depth_query.iter() {
+        let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
+
+        commands.spawn((
+            AudioBundle {
+                source: sound_effect,
+                settings: PlaybackSettings {
+                    mode: PlaybackMode::Despawn,
+                    ..default()
+                },
+                ..default()
+            },
+            AudioSystemBundle {
+                system_type: AudioSystemType::SFX,
+            },
+        ));
+
         commands.entity(entity).despawn();
         for mut health in &mut player_query.iter_mut() {
             let new_health = health.0 as i32 - damage.0 as i32;
