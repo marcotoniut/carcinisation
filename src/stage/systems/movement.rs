@@ -112,9 +112,16 @@ pub fn check_line_target_y_reached(
 // With, Without
 pub fn check_line_target_reached(
     mut commands: Commands,
-    mut movement_query: Query<(Entity, &TargetXReached, &TargetYReached), Without<TargetReached>>,
+    mut movement_query: Query<
+        Entity,
+        (
+            With<TargetXReached>,
+            With<TargetYReached>,
+            Without<TargetReached>,
+        ),
+    >,
 ) {
-    for (entity, _, _) in &mut movement_query.iter_mut() {
+    for entity in &mut movement_query.iter_mut() {
         {
             commands.entity(entity).insert(TargetReached {});
         }

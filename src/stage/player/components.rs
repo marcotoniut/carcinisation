@@ -122,3 +122,11 @@ impl PlayerAttack {
         )
     }
 }
+
+#[derive(Component)]
+pub struct CameraShake {
+    pub timer: Timer,
+    pub intensity: f32,
+    pub original_pos: Vec2,
+    pub shaking: bool,
+}

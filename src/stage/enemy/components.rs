@@ -33,6 +33,9 @@ pub struct PlaceholderEnemy {
 pub struct Enemy {}
 
 #[derive(Component)]
+pub struct EnemyAttack {}
+
+#[derive(Component)]
 pub struct CircleAround {
     pub radius: f32,
     pub center: Vec2,

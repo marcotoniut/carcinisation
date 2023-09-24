@@ -1,3 +1,5 @@
+pub mod camera;
+
 use std::time::Duration;
 
 use bevy::{

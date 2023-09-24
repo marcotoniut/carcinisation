@@ -17,9 +17,9 @@ use crate::{
         enemy::{
             bundles::make_animation_bundle,
             components::{
-                EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
-                BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_LINE_SPEED,
-                BLOOD_ATTACK_MAX_DEPTH,
+                EnemyAttack, EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack,
+                EnemyMosquitoAttacking, BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED,
+                BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
             },
             data::mosquito::MOSQUITO_ANIMATIONS,
             systems::bundles::make_enemy_mosquito_range_attack_bundle,
@@ -220,6 +220,7 @@ pub fn check_idle_mosquito(
 
                 commands.spawn((
                     Name::new("Attack Blood"),
+                    EnemyAttack {},
                     TargetPosition(target_vec),
                     LineSpeed((target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED),
                     depth,

@@ -11,7 +11,7 @@ use bevy::prelude::*;
 
 use lazy_static::lazy_static;
 
-const OBJECT_FIBERTREE_Y: f32 = 10.;
+const OBJECT_FIBERTREE_Y: f32 = 13.;
 
 lazy_static! {
     pub static ref STAGE_PARK_DATA: StageData = StageData {

@@ -22,7 +22,10 @@ use self::{
     },
     events::*,
     pickup::systems::health::pickup_health,
-    player::PlayerPlugin,
+    player::{
+        systems::camera::{camera_shake, trigger_shake},
+        PlayerPlugin,
+    },
     resources::{StageActionTimer, StageProgress, StageTime},
     score::{components::Score, ScorePlugin},
     systems::{movement::*, spawn::read_stage_spawn_trigger, *},
@@ -65,6 +68,10 @@ impl Plugin for StagePlugin {
                 (
                     update_stage,
                     (
+                        // Player
+                        camera_shake,
+                        trigger_shake,
+                        //
                         increment_elapsed,
                         tick_stage_step_timer,
                         read_stage_step_trigger,
