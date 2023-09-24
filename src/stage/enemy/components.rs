@@ -118,6 +118,12 @@ pub enum EnemyTardigradeAnimation {
     Sucking,
 }
 
+#[derive(Clone, Component, Debug, Default)]
+pub struct EnemyTardigradeAttacking {
+    pub attack: bool,
+    pub last_attack_started: Duration,
+}
+
 #[derive(Component)]
 pub struct EnemySpidey {}
 

@@ -18,8 +18,8 @@ use crate::{
             components::{
                 EnemyAttack, EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack,
                 EnemyMosquitoAttacking, EnemyTardigrade, EnemyTardigradeAnimation,
-                BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_LINE_SPEED,
-                BLOOD_ATTACK_MAX_DEPTH,
+                EnemyTardigradeAttacking, BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED,
+                BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
             },
             data::tardigrade::TARDIGRADE_ANIMATIONS,
         },
@@ -30,7 +30,7 @@ use crate::{
     Layer,
 };
 
-pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
+pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
 
 pub fn assign_tardigrade_animation(
     mut commands: Commands,
@@ -65,7 +65,7 @@ pub fn despawn_dead_tardigrade(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyMosquito, &PxSubPosition), With<Dead>>,
+    query: Query<(Entity, &EnemyTardigrade, &PxSubPosition), With<Dead>>,
 ) {
     for (entity, mosquito, position) in query.iter() {
         // TODO Can I split this?
@@ -104,34 +104,34 @@ pub fn check_idle_tardigrade(
     query: Query<
         (
             Entity,
-            &EnemyMosquito,
-            &mut EnemyMosquitoAttacking,
+            &EnemyTardigrade,
+            &mut EnemyTardigradeAttacking,
             &PxSubPosition,
         ),
         With<InView>,
     >,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
-    for (entity, enemy, mut attacking, position) in &mut query.iter() {
-        if attacking.attack.is_none() {
+    for (entity, enemy, attacking, position) in &mut query.iter() {
+        if attacking.attack == true {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
-                < stage_time.elapsed + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
+                < stage_time.elapsed + Duration::from_secs_f32(ENEMY_TARDIGRADE_ATTACK_SPEED)
             {
                 info!("Tardigrade {:?} is attacking", entity);
                 commands
                     .entity(entity)
-                    .remove::<EnemyMosquitoAnimation>()
-                    .insert(EnemyMosquitoAttacking {
-                        attack: Some(EnemyMosquitoAttack::Ranged),
+                    .remove::<EnemyTardigradeAnimation>()
+                    .insert(EnemyTardigradeAttacking {
+                        attack: true,
                         last_attack_started: stage_time.elapsed,
                     });
 
                 let depth = Depth(1);
                 let attack_bundle = make_blood_attack_bundle(&mut assets_sprite, depth.clone());
 
-                let mut attacking = EnemyMosquitoAttacking {
-                    attack: Some(EnemyMosquitoAttack::Ranged),
+                let mut attacking = EnemyTardigradeAttacking {
+                    attack: true,
                     last_attack_started: stage_time.elapsed,
                 };
 
