@@ -19,7 +19,7 @@ use crate::{
         },
         data::EnemyStep,
         enemy::{
-            bundles::{make_animation_bundle, make_blood_attack_bundle},
+            bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
             components::*,
             data::{blood_attack::BLOOD_ATTACK_ANIMATIONS, mosquito::MOSQUITO_ANIMATIONS},
         },
@@ -63,7 +63,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -72,7 +72,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -84,7 +84,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -93,7 +93,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -102,7 +102,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Idle,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -115,7 +115,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }

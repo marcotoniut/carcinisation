@@ -116,24 +116,15 @@ pub fn make_steps() -> Vec<StageStep> {
                     coordinates: Vec2 { x: 60.0, y: 100.0 },
                     base_speed: 5.0,
                     elapsed: 1.4,
-                    steps: vec![
-                        EnemyStep::Movement {
-                            coordinates: Vec2 { x: 50.0, y: 0.0 },
-                            attacking: true,
-                            speed: 5.0,
-                        },
-                        EnemyStep::Idle { duration: 1.0 },
-                        EnemyStep::Attack { duration: 1.0 },
-                        EnemyStep::Movement {
-                            coordinates: Vec2 { x: 10.0, y: 0.0 },
-                            attacking: true,
-                            speed: 3.0,
-                        },
-                        EnemyStep::Circle { duration: 4.0 },
-                    ],
                     direction: MovementDirection::Right,
                     radius: 15.,
-                    time_offset: 0.5,
+                    time_offset: 1.5,
+
+                    steps: vec![EnemyStep::Circle {
+                        duration: 4.0,
+                        radius: 10.0,
+                        direction: MovementDirection::Left,
+                    }],
                     contains: None,
                 }),
                 StageSpawn::Enemy(EnemySpawn {
