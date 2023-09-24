@@ -151,8 +151,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     direction: MovementDirection::Left,
                     radius: 25.,
                     time_offset: 3.5,
-
-                    contains: None,
+                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                        pickup_type: PickupType::BigHealthpack,
+                        ..default()
+                    }))),
                 }),
                 StageSpawn::Enemy(EnemySpawn {
                     enemy_type: EnemyType::Mosquito,
@@ -163,8 +165,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     direction: MovementDirection::Right,
                     radius: 10.,
                     time_offset: 2.5,
-
-                    contains: None,
+                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                        pickup_type: PickupType::BigHealthpack,
+                        ..default()
+                    }))),
                 }),
             ],
         },

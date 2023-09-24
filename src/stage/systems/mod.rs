@@ -82,13 +82,13 @@ pub fn setup_stage(
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, &camera_pos, spawn);
+                spawn_enemy(&mut commands, camera_pos.0, spawn);
             }
             StageSpawn::Object(spawn) => {
                 spawn_object(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Pickup(spawn) => {
-                spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.clone(), spawn);
+                spawn_pickup(&mut commands, &mut assets_sprite, Vec2::ZERO, spawn);
             }
         }
     }
