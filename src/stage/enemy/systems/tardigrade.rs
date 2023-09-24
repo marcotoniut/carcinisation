@@ -30,17 +30,12 @@ pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
 pub fn assign_tardigrade_animation(
     mut commands: Commands,
     query: Query<
-        (
-            Entity,
-            &EnemyTardigrade,
-            &EnemyCurrentBehavior,
-            &PxSubPosition,
-        ),
-        Without<EnemyTardigradeAnimation>,
+        (Entity, &EnemyCurrentBehavior, &PxSubPosition),
+        (With<EnemyTardigrade>, Without<EnemyTardigradeAnimation>),
     >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
-    for (entity, mosquito, current_behavior, position) in &mut query.iter() {
+    for (entity, current_behavior, position) in &mut query.iter() {
         let step = current_behavior.behavior.clone();
 
         // HARDCODED depth, should be a component
