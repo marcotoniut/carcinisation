@@ -42,16 +42,15 @@ pub fn assign_mosquito_animation(
     query: Query<
         (
             Entity,
-            &EnemyMosquito,
             &EnemyCurrentBehavior,
             &PxSubPosition,
             &EnemyMosquitoAttacking,
         ),
-        Without<EnemyMosquitoAnimation>,
+        (With<EnemyMosquito>, Without<EnemyMosquitoAnimation>),
     >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
-    for (entity, mosquito, behavior, position, attacking) in &mut query.iter() {
+    for (entity, behavior, position, attacking) in &mut query.iter() {
         let step = behavior.behavior.clone();
 
         // HARDCODED depth, should be a component

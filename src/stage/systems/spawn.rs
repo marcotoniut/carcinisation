@@ -54,7 +54,7 @@ pub fn read_stage_spawn_trigger(
 pub fn spawn_pickup(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    camera_pos: &PxSubPosition,
+    offset: &PxSubPosition,
     spawn: &PickupSpawn,
 ) -> Entity {
     info!("Spawning Pickup {:?}", spawn.pickup_type);

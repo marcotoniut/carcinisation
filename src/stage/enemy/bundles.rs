@@ -1,14 +1,8 @@
 use bevy::prelude::*;
-use seldom_pixel::{asset::*, prelude::*};
 
-use crate::{
-    globals::*,
-    stage::components::{Health, Hittable},
-};
-
-use super::{components::*, data::AnimationData};
+use super::data::AnimationData;
 use seldom_pixel::{
-    prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets, PxCanvas},
+    prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},
 };
 

@@ -18,7 +18,7 @@ use crate::{
     GBInput,
 };
 
-use self::spawn::{spawn_enemy, spawn_object};
+use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 
 use super::{
     bundles::*,
@@ -78,14 +78,18 @@ pub fn setup_stage(
 
     for spawn in &stage_data.spawns {
         match spawn {
-            StageSpawn::Destructible(_) => {}
+            StageSpawn::Destructible(spawn) => {
+                spawn_destructible(&mut commands, &mut assets_sprite, spawn);
+            }
             StageSpawn::Enemy(spawn) => {
                 spawn_enemy(&mut commands, &camera_pos, spawn);
             }
             StageSpawn::Object(spawn) => {
                 spawn_object(&mut commands, &mut assets_sprite, spawn);
             }
-            StageSpawn::Pickup(_) => {}
+            StageSpawn::Pickup(spawn) => {
+                spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.clone(), spawn);
+            }
         }
     }
 
@@ -93,7 +97,7 @@ pub fn setup_stage(
         &mut commands,
         &asset_server,
         volume_settings,
-        STAGE_PARK_DATA.music_path.clone(),
+        stage_data.music_path.clone(),
     );
 
     commands.insert_resource(StageRawData { stage_data });
