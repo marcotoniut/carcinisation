@@ -17,9 +17,9 @@ lazy_static! {
     pub static ref STAGE_PARK_DATA: StageData = StageData {
         name: "Park".to_string(),
         music_path: "audio/music/stage_1.ogg".to_string(),
-        background_path: "backgrounds/park/background.png".to_string(),
+        background_path: "backgrounds/rugpark/background.png".to_string(),
         skybox: SkyboxData {
-            path: "backgrounds/park/skybox.png".to_string(),
+            path: "backgrounds/rugpark/skybox.png".to_string(),
             frames: 2,
         },
         start_coordinates: Some(Vec2::new(0.0, 0.0)),
@@ -234,11 +234,7 @@ pub fn make_steps() -> Vec<StageStep> {
             spawns: vec![],
         },
         StageStep::Movement {
-<<<<<<< HEAD
             coordinates: Vec2 { x: 120.0, y: 20.0 },
-=======
-            coordinates: Vec2 { x: 120.0, y: 20.0 }, // Increased Y-axis and X-axis values
->>>>>>> 3e12b3980aa9115b70bea52605fee623aad38452
             base_speed: 4.0,
             spawns: vec![
                 StageSpawn::Enemy(EnemySpawn {
