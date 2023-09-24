@@ -12,7 +12,7 @@ use crate::{
             PickupSpawn, PickupType, StageSpawn,
         },
         enemy::components::{
-            Enemy, EnemyMosquito, EnemyMosquitoAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
+            CircleAround, Enemy, EnemyMosquito, EnemyMosquitoAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
             ENEMY_MOSQUITO_RADIUS,
         },
         events::StageSpawnTrigger,
@@ -123,10 +123,14 @@ pub fn spawn_enemy(
         base_speed,
         steps,
         contains,
+        direction,
+        radius,
+        time_offset,
         ..
     } = enemy_spawn;
     match enemy_type {
         EnemyType::Mosquito => {
+            let position = *coordinates + camera_pos.0;
             let entity = commands
                 .spawn((
                     Name::new("EnemyMosquito"),
@@ -136,8 +140,14 @@ pub fn spawn_enemy(
                         steps: steps.clone(),
                     },
                     EnemyMosquitoAttacking { ..default() },
+                    CircleAround {
+                        center: position,
+                        radius: radius.clone(),
+                        direction: direction.clone(),
+                        time_offset: time_offset.clone(),
+                    },
                     Hittable {},
-                    PxSubPosition::from(*coordinates + camera_pos.0),
+                    PxSubPosition::from(position),
                     Collision::Circle(ENEMY_MOSQUITO_RADIUS),
                     Health(ENEMY_MOSQUITO_BASE_HEALTH),
                 ))

@@ -1,7 +1,7 @@
 use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
-    SkyboxData, StageData, StageStep,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, MovementDirection, ObjectSpawn, ObjectType,
+    PickupSpawn, SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PickupType, StageActionResumeCondition, StageSpawn,
@@ -39,6 +39,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     coordinates: Vec2 { x: 60.0, y: 100.0 },
                     base_speed: 5.0,
                     elapsed: 1.4,
+                    direction: MovementDirection::Right,
+                    radius: 15.,
+                    time_offset: 1.5,
+
                     steps: vec![
                         EnemyStep::Movement {
                             coordinates: Vec2 { x: 50.0, y: 0.0 },
@@ -62,6 +66,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     base_speed: 5.0,
                     elapsed: 0.4,
                     steps: vec![],
+                    direction: MovementDirection::Right,
+                    radius: 15.,
+                    time_offset: 1.5,
+
                     contains: None,
                 }),
                 StageSpawn::Enemy(EnemySpawn {
@@ -70,6 +78,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     base_speed: 5.0,
                     elapsed: 2.3,
                     steps: vec![],
+                    direction: MovementDirection::Right,
+                    radius: 15.,
+                    time_offset: 1.5,
+
                     contains: None,
                 }),
             ],
@@ -83,6 +95,10 @@ pub fn make_steps() -> Vec<StageStep> {
                 base_speed: 5.0,
                 elapsed: 2.4,
                 steps: vec![],
+                direction: MovementDirection::Right,
+                radius: 15.,
+                time_offset: 1.5,
+
                 contains: None,
             })],
         },

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::stage::data::EnemyStep;
+use crate::stage::data::{EnemyStep, MovementDirection};
 
 pub const SCORE_RANGED_REGULAR_HIT: u32 = 1;
 pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;
@@ -31,6 +31,14 @@ pub struct PlaceholderEnemy {
 
 #[derive(Component)]
 pub struct Enemy {}
+
+#[derive(Component)]
+pub struct CircleAround {
+    pub radius: f32,
+    pub center: Vec2,
+    pub time_offset: f32,
+    pub direction: MovementDirection,
+}
 
 // Enemies
 

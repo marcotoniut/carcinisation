@@ -5,6 +5,13 @@ use bevy::{
 
 use crate::cinemachine::data::CinemachineData;
 
+#[derive(Debug, Clone, Default)]
+pub enum MovementDirection {
+    #[default]
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone)]
 pub struct SkyboxData {
     pub path: String,
@@ -120,6 +127,11 @@ pub struct EnemySpawn {
     pub elapsed: f32,
     pub steps: Vec<EnemyStep>,
     pub contains: Option<Box<ContainerSpawn>>,
+
+    // TEMP hack, as this should actually be inside of the Steps
+    pub direction: MovementDirection,
+    pub radius: f32,
+    pub time_offset: f32,
 }
 
 #[derive(Clone, Debug)]
