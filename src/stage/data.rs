@@ -53,6 +53,7 @@ pub enum EnemyType {
     Kyle,
 }
 
+// Should rename to EnemyBehavior?
 #[derive(Clone, Debug)]
 pub enum EnemyStep {
     Attack {
@@ -73,7 +74,24 @@ pub enum EnemyStep {
 
 impl Default for EnemyStep {
     fn default() -> Self {
-        EnemyStep::Idle { duration: 0.0 }
+        EnemyStep::Idle {
+            duration: Self::max_duration(),
+        }
+    }
+}
+
+impl EnemyStep {
+    pub fn max_duration() -> f32 {
+        99999.
+    }
+
+    pub fn get_duration(&self) -> Option<f32> {
+        match self {
+            EnemyStep::Attack { duration } => Some(*duration),
+            EnemyStep::Circle { duration } => Some(*duration),
+            EnemyStep::Idle { duration } => Some(*duration),
+            EnemyStep::Movement { .. } => None,
+        }
     }
 }
 

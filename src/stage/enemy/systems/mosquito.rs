@@ -20,11 +20,7 @@ use crate::{
         data::EnemyStep,
         enemy::{
             bundles::{make_animation_bundle, make_blood_attack_bundle},
-            components::{
-                EnemyAttack, EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack,
-                EnemyMosquitoAttacking, BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED,
-                BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
-            },
+            components::*,
             data::{blood_attack::BLOOD_ATTACK_ANIMATIONS, mosquito::MOSQUITO_ANIMATIONS},
         },
         events::DepthChanged,
@@ -47,6 +43,7 @@ pub fn assign_mosquito_animation(
         (
             Entity,
             &EnemyMosquito,
+            &EnemyCurrentBehavior,
             &PxSubPosition,
             &EnemyMosquitoAttacking,
         ),
@@ -54,8 +51,8 @@ pub fn assign_mosquito_animation(
     >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
-    for (entity, mosquito, position, attacking) in &mut query.iter() {
-        let step = mosquito.current_step();
+    for (entity, mosquito, behavior, position, attacking) in &mut query.iter() {
+        let step = behavior.behavior.clone();
 
         // HARDCODED depth, should be a component
         let depth = 1;

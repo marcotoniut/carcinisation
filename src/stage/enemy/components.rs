@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -9,10 +10,10 @@ pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;
 pub const SCORE_MELEE_REGULAR_HIT: u32 = 3;
 pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
 
-pub const PLACEHOLDER_ENEMY_SPEED: f32 = 10.0;
+// pub const PLACEHOLDER_ENEMY_SPEED: f32 = 10.0;
 
-pub const PLACEHOLDER_ENEMY_SIZE: f32 = 6.0;
-pub const PLACEHOLDER_NUMBER_OF_ENEMIES: usize = 2;
+// pub const PLACEHOLDER_ENEMY_SIZE: f32 = 6.0;
+// pub const PLACEHOLDER_NUMBER_OF_ENEMIES: usize = 2;
 
 pub const PLACEHOLDER_ENEMY_SPAWN_TIME: f32 = 8.0;
 
@@ -20,6 +21,27 @@ pub const BLOOD_ATTACK_DEPTH_SPEED: f32 = 4.;
 pub const BLOOD_ATTACK_LINE_SPEED: f32 = 0.3;
 pub const BLOOD_ATTACK_MAX_DEPTH: usize = 6;
 pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
+
+#[derive(Component, Clone, Debug)]
+pub struct EnemyCurrentBehavior {
+    pub started: Duration,
+    pub behavior: EnemyStep,
+}
+
+#[derive(Component)]
+pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
+
+impl EnemyBehaviors {
+    pub fn new(steps: Vec<EnemyStep>) -> Self {
+        EnemyBehaviors(steps.into())
+    }
+
+    pub fn next(&mut self) -> EnemyStep {
+        self.0.pop_front().unwrap_or_else(|| EnemyStep::Idle {
+            duration: EnemyStep::max_duration(),
+        })
+    }
+}
 
 #[derive(Component)]
 pub struct PlaceholderEnemy {
@@ -62,13 +84,6 @@ impl EnemyMosquito {
     pub fn kill_score(&self) -> u32 {
         10
     }
-
-    pub fn current_step(&self) -> &EnemyStep {
-        // TODO temporary
-        self.steps
-            .first()
-            .unwrap_or(&EnemyStep::Idle { duration: 999. })
-    }
 }
 
 #[derive(Clone, Component, Debug, Default)]
@@ -103,13 +118,6 @@ pub struct EnemyTardigrade {
 impl EnemyTardigrade {
     pub fn kill_score(&self) -> u32 {
         7
-    }
-
-    pub fn current_step(&self) -> &EnemyStep {
-        // TODO temporary
-        self.steps
-            .first()
-            .unwrap_or(&EnemyStep::Idle { duration: 999. })
     }
 }
 

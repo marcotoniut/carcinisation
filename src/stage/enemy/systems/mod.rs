@@ -1,12 +1,12 @@
 pub mod attacks;
+pub mod behaviors;
 pub mod mosquito;
 pub mod tardigrade;
 
-use bevy::{audio::*, prelude::*};
+use bevy::prelude::*;
 use seldom_pixel::{asset::*, prelude::*};
 
 use crate::{
-    globals::*,
     stage::{
         components::{Collision, Dead, Health, Hittable, SpawnDrop},
         data::ContainerSpawn,
@@ -16,11 +16,10 @@ use crate::{
         score::components::Score,
         systems::spawn::{spawn_enemy, spawn_pickup},
     },
-    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     systems::camera::CameraPos,
 };
 
-use super::{bundles::*, components::*, resources::*};
+use super::components::*;
 
 // DEPRECATED
 // pub fn spawn_enemies(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {

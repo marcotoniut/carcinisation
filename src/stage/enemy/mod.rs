@@ -8,11 +8,7 @@ use bevy::prelude::*;
 
 use self::{
     resources::*,
-    systems::{
-        mosquito::*,
-        tardigrade::{assign_tardigrade_animation, check_idle_tardigrade, despawn_dead_tardigrade},
-        *,
-    },
+    systems::{behaviors::*, mosquito::*, tardigrade::*, *},
 };
 use super::{GameState, StageState};
 use crate::AppState;
@@ -27,6 +23,8 @@ impl Plugin for EnemyPlugin {
                 // (enemy_movement, confine_enemy_movement).chain(),
                 (check_got_hit, check_health_at_0).chain(),
                 check_dead_drop,
+                check_no_behavior,
+                check_behavior_timer,
                 (
                     // Attacks
                     despawn_dead_attacks,
