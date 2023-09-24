@@ -39,13 +39,13 @@ pub fn read_stage_spawn_trigger(
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, &camera_pos, spawn);
+                spawn_enemy(&mut commands, camera_pos.0, spawn);
             }
             StageSpawn::Object(spawn) => {
                 spawn_object(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Pickup(spawn) => {
-                spawn_pickup(&mut commands, &mut assets_sprite, &camera_pos, spawn);
+                spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.0, spawn);
             }
         }
     }
@@ -54,7 +54,7 @@ pub fn read_stage_spawn_trigger(
 pub fn spawn_pickup(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    offset: &PxSubPosition,
+    offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
     info!("Spawning Pickup {:?}", spawn.pickup_type);
@@ -65,6 +65,7 @@ pub fn spawn_pickup(
         coordinates,
         elapsed,
     } = spawn;
+    let position = PxSubPosition::from(offset + coordinates.clone());
     match pickup_type {
         PickupType::BigHealthpack => {
             let sprite = assets_sprite.load("sprites/pickups/health_2.png");
@@ -81,7 +82,7 @@ pub fn spawn_pickup(
                         layer: Layer::Middle(2),
                         ..default()
                     },
-                    PxSubPosition::from(spawn.coordinates.clone()),
+                    position,
                     Health(1),
                     Collision::Box(Vec2::new(12., 8.)),
                     HealthRecovery(100),
@@ -104,7 +105,7 @@ pub fn spawn_pickup(
                         layer: Layer::Middle(2),
                         ..default()
                     },
-                    PxSubPosition::from(spawn.coordinates.clone()),
+                    position,
                     Health(1),
                     Collision::Box(Vec2::new(7., 5.)),
                     HealthRecovery(30),
@@ -114,11 +115,7 @@ pub fn spawn_pickup(
     }
 }
 
-pub fn spawn_enemy(
-    commands: &mut Commands,
-    camera_pos: &PxSubPosition,
-    enemy_spawn: &EnemySpawn,
-) -> Entity {
+pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpawn) -> Entity {
     info!("Spawning Enemy {:?}", enemy_spawn.enemy_type);
     let EnemySpawn {
         enemy_type,
@@ -131,7 +128,7 @@ pub fn spawn_enemy(
         time_offset,
         ..
     } = enemy_spawn;
-    let position = *coordinates + camera_pos.0;
+    let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
     match enemy_type {
         EnemyType::Mosquito => {
