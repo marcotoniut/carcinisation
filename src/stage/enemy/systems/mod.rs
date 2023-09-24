@@ -226,19 +226,20 @@ pub fn check_got_hit(
     }
 }
 
-pub fn placeholder_tick_enemy_spawn_timer(mut timer: ResMut<EnemySpawnTimer>, time: Res<Time>) {
-    timer.timer.tick(time.delta());
-}
+// DEPRECATED
+// pub fn placeholder_tick_enemy_spawn_timer(mut timer: ResMut<EnemySpawnTimer>, time: Res<Time>) {
+//     timer.timer.tick(time.delta());
+// }
 
-pub fn placeholder_spawn_enemies_over_time(
-    mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
-    enemy_spawn_timer: Res<EnemySpawnTimer>,
-) {
-    if enemy_spawn_timer.timer.finished() {
-        commands.spawn(make_enemy_bundle(&mut assets_sprite));
-    }
-}
+// pub fn placeholder_spawn_enemies_over_time(
+//     mut commands: Commands,
+//     mut assets_sprite: PxAssets<PxSprite>,
+//     enemy_spawn_timer: Res<EnemySpawnTimer>,
+// ) {
+//     if enemy_spawn_timer.timer.finished() {
+//         commands.spawn(make_enemy_bundle(&mut assets_sprite));
+//     }
+// }
 
 pub fn check_dead_drop(
     mut commands: Commands,

@@ -2,10 +2,13 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
-    globals::{is_inside_area, SCREEN_RESOLUTION},
+    globals::{is_inside_area, HUD_HEIGHT, SCREEN_RESOLUTION},
     stage::components::InView,
     systems::camera::CameraPos,
 };
+
+const IN_VIEW_OFFSET: u32 = 5;
+const IN_VIEW_OFFSET_BOTTOM: u32 = HUD_HEIGHT + IN_VIEW_OFFSET;
 
 pub fn check_in_view(
     mut commands: Commands,
@@ -16,8 +19,12 @@ pub fn check_in_view(
         for (entity, position) in query.iter_mut() {
             if is_inside_area(
                 position.0,
-                camera_pos.0,
-                camera_pos.0 + Vec2::new(SCREEN_RESOLUTION.x as f32, SCREEN_RESOLUTION.y as f32),
+                camera_pos.0 + Vec2::new(IN_VIEW_OFFSET as f32, IN_VIEW_OFFSET_BOTTOM as f32),
+                camera_pos.0
+                    + Vec2::new(
+                        SCREEN_RESOLUTION.x as f32 - IN_VIEW_OFFSET as f32,
+                        SCREEN_RESOLUTION.y as f32 - IN_VIEW_OFFSET as f32,
+                    ),
             ) {
                 commands.entity(entity).insert(InView {});
             }
