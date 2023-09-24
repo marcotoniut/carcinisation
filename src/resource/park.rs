@@ -1,8 +1,8 @@
 use crate::cinemachine::scene_intro::INTRO_ANIMATIC;
 use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
-    SkyboxData, StageData, StageStep,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, MovementDirection, ObjectSpawn, ObjectType,
+    PickupSpawn, SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PickupType, StageActionResumeCondition, StageSpawn,
@@ -85,6 +85,9 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     },
                     EnemyStep::Circle { duration: 4. },
                 ],
+                direction: MovementDirection::Left,
+                radius: 15.,
+                time_offset: 0.5,
                 contains: None,
             }))),
             destructible_type: DestructibleType::Lamp,
@@ -122,6 +125,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     coordinates: Vec2 { x: 60.0, y: 100.0 },
                     base_speed: 5.0,
                     elapsed: 5.4 / CAMERA_BASE_SPEED,
+
+                    direction: MovementDirection::Right,
+                    radius: 15.,
+                    time_offset: 1.5,
                     steps: vec![
                         EnemyStep::Movement {
                             coordinates: Vec2 { x: 50.0, y: 0.0 },
@@ -148,6 +155,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     base_speed: 5.0,
                     elapsed: 5.1 / CAMERA_BASE_SPEED,
                     steps: vec![],
+                    direction: MovementDirection::Left,
+                    radius: 25.,
+                    time_offset: 3.5,
+
                     contains: None,
                 }),
                 StageSpawn::Enemy(EnemySpawn {
@@ -156,6 +167,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     base_speed: 5.0,
                     elapsed: 5.8 / CAMERA_BASE_SPEED,
                     steps: vec![],
+                    direction: MovementDirection::Right,
+                    radius: 10.,
+                    time_offset: 2.5,
+
                     contains: None,
                 }),
             ],
@@ -169,6 +184,10 @@ pub fn make_steps() -> Vec<StageStep> {
                 base_speed: CAMERA_BASE_SPEED,
                 elapsed: 2.4 / CAMERA_BASE_SPEED,
                 steps: vec![],
+                direction: MovementDirection::Right,
+                radius: 15.,
+                time_offset: 3.5,
+
                 contains: None,
             })],
         },
@@ -183,6 +202,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     base_speed: 4.0,
                     elapsed: 6.8 / CAMERA_BASE_SPEED,
                     steps: vec![],
+                    direction: MovementDirection::Right,
+                    radius: 10.,
+                    time_offset: 3.5,
+
                     contains: None,
                 }),
                 StageSpawn::Enemy(EnemySpawn {
@@ -191,6 +214,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     base_speed: 2.0,
                     elapsed: 22.8 / CAMERA_BASE_SPEED,
                     steps: vec![],
+                    direction: MovementDirection::Right,
+                    radius: 10.,
+                    time_offset: 2.5,
+
                     contains: None,
                 }),
                 StageSpawn::Pickup(PickupSpawn {

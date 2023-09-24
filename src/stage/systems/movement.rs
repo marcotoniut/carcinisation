@@ -6,6 +6,8 @@ use crate::stage::{
         Depth, DepthProgress, DepthReached, DepthSpeed, LineSpeed, TargetDepth, TargetPosition,
         TargetReached, TargetXReached, TargetYReached,
     },
+    data::MovementDirection,
+    enemy::components::CircleAround,
     events::DepthChanged,
 };
 
@@ -116,5 +118,17 @@ pub fn check_line_target_reached(
         {
             commands.entity(entity).insert(TargetReached {});
         }
+    }
+}
+
+pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSubPosition)>) {
+    for (circle_around, mut pos) in query.iter_mut() {
+        let angle = match circle_around.direction {
+            MovementDirection::Right => time.elapsed_seconds() + circle_around.time_offset,
+            MovementDirection::Left => -time.elapsed_seconds() + circle_around.time_offset,
+        };
+        let x = circle_around.center.x + circle_around.radius * angle.cos();
+        let y = circle_around.center.y + circle_around.radius * angle.sin();
+        pos.0 = Vec2::new(x, y);
     }
 }

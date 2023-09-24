@@ -84,6 +84,7 @@ impl Plugin for StagePlugin {
                         check_line_target_x_reached,
                         check_line_target_y_reached,
                         check_line_target_reached,
+                        circle_around,
                     )
                         .run_if(in_state(StageState::Running)),
                 )
