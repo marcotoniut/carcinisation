@@ -13,7 +13,7 @@ use seldom_pixel::{
 
 use crate::{
     globals::DEBUG_STAGESTEP,
-    resource::park::STAGE_PARK_DATA,
+    resource::{asteroid::STAGE_ASTEROID_DATA, park::STAGE_PARK_DATA},
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
     GBInput,
 };
@@ -74,7 +74,7 @@ pub fn setup_stage(
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
-    let stage_data = STAGE_PARK_DATA.clone();
+    let stage_data = STAGE_ASTEROID_DATA.clone();
 
     for spawn in &stage_data.spawns {
         match spawn {
