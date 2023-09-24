@@ -12,8 +12,9 @@ use crate::{
             PickupSpawn, PickupType, StageSpawn,
         },
         enemy::components::{
-            CircleAround, Enemy, EnemyMosquito, EnemyMosquitoAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
-            ENEMY_MOSQUITO_RADIUS,
+            CircleAround, Enemy, EnemyMosquito, EnemyMosquitoAttacking, EnemyTardigrade,
+            EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS,
+            ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS,
         },
         events::StageSpawnTrigger,
         pickup::components::HealthRecovery,
@@ -128,9 +129,9 @@ pub fn spawn_enemy(
         time_offset,
         ..
     } = enemy_spawn;
+    let position = *coordinates + camera_pos.0;
     match enemy_type {
         EnemyType::Mosquito => {
-            let position = *coordinates + camera_pos.0;
             let entity = commands
                 .spawn((
                     Name::new("EnemyMosquito"),
@@ -168,7 +169,18 @@ pub fn spawn_enemy(
             .spawn((Name::new("EnemySpidomonsta"), Enemy {}))
             .id(),
         EnemyType::Tardigrade => commands
-            .spawn((Name::new("EnemyTardigrade"), Enemy {}))
+            .spawn((
+                Name::new("EnemyTardigrade"),
+                Enemy {},
+                EnemyTardigrade {
+                    steps: steps.clone(),
+                },
+                EnemyTardigradeAttacking { ..default() },
+                Hittable {},
+                PxSubPosition::from(position),
+                Collision::Circle(ENEMY_TARDIGRADE_RADIUS),
+                Health(ENEMY_TARDIGRADE_BASE_HEALTH),
+            ))
             .id(),
     }
 }
