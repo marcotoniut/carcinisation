@@ -16,8 +16,7 @@ use crate::{
         enemy::{
             bundles::{make_animation_bundle, make_blood_attack_bundle},
             components::{
-                EnemyAttack, EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack,
-                EnemyMosquitoAttacking, EnemyTardigrade, EnemyTardigradeAnimation,
+                EnemyAttack, EnemyTardigrade, EnemyTardigradeAnimation,
                 EnemyTardigradeAttacking, BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED,
                 BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
             },

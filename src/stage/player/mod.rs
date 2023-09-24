@@ -1,6 +1,7 @@
 pub mod bundles;
 pub mod components;
 pub mod crosshair;
+pub mod events;
 pub mod resources;
 pub mod systems;
 

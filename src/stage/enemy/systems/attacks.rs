@@ -9,8 +9,9 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::*, enemy::data::blood_attack::BLOOD_ATTACK_ANIMATIONS,
-        player::components::Player,
+        components::*,
+        enemy::{components::EnemyAttack, data::blood_attack::BLOOD_ATTACK_ANIMATIONS},
+        player::{components::Player, events::CameraShakeTrigger},
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     Layer,
@@ -18,7 +19,7 @@ use crate::{
 
 pub fn miss_on_reached(
     mut commands: Commands,
-    query: Query<Entity, (With<Damage>, With<DepthReached>, Without<InView>)>,
+    query: Query<Entity, (With<EnemyAttack>, With<DepthReached>, Without<InView>)>,
 ) {
     for entity in &mut query.iter() {
         commands.entity(entity).despawn();
@@ -30,10 +31,11 @@ pub fn blood_attack_damage_on_reached(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut player_query: Query<&mut Health, With<Player>>,
+    mut event_writer: EventWriter<CameraShakeTrigger>,
     asset_server: Res<AssetServer>,
     depth_query: Query<
         (Entity, &Damage, &PxSubPosition, &Depth),
-        (With<DepthReached>, With<InView>),
+        (With<EnemyAttack>, With<DepthReached>, With<InView>),
     >,
     volume_settings: Res<VolumeSettings>,
 ) {
@@ -44,6 +46,8 @@ pub fn blood_attack_damage_on_reached(
             let new_health = health.0 as i32 - damage.0 as i32;
             health.0 = new_health.max(0) as u32;
         }
+
+        event_writer.send(CameraShakeTrigger {});
 
         commands.spawn((
             AudioBundle {

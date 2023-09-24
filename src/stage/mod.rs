@@ -24,6 +24,7 @@ use self::{
     events::*,
     pickup::systems::health::pickup_health,
     player::{
+        events::CameraShakeTrigger,
         systems::camera::{camera_shake, trigger_shake},
         PlayerPlugin,
     },
@@ -53,6 +54,7 @@ impl Plugin for StagePlugin {
             .add_state::<StageState>()
             .add_event::<DepthChanged>()
             .add_event::<GameOver>()
+            .add_event::<CameraShakeTrigger>()
             .add_event::<StageStepTrigger>()
             .add_event::<StageSpawnTrigger>()
             .init_resource::<StageActionTimer>()
