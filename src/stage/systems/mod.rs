@@ -1,3 +1,4 @@
+pub mod camera;
 pub mod movement;
 pub mod spawn;
 
@@ -11,10 +12,7 @@ use seldom_pixel::{
 };
 
 use crate::{
-    globals::DEBUG_STAGESTEP,
-    resource::park::STAGE_PARK_DATA,
-    systems::{camera::CameraPos, spawn::spawn_music},
-    GBInput,
+    globals::DEBUG_STAGESTEP, resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput,
 };
 
 use self::spawn::{spawn_enemy, spawn_object};

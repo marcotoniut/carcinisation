@@ -1,4 +1,4 @@
-use seldom_pixel::prelude::PxAnimationFinishBehavior;
+use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
 use std::collections::HashMap;
 
 use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ENEMIES};
@@ -45,6 +45,7 @@ lazy_static! {
                 frames: death_frames,
                 speed: death_speed,
                 finish_behavior: PxAnimationFinishBehavior::Despawn,
+                direction: PxAnimationDirection::Backward,
                 ..Default::default()
             });
         }

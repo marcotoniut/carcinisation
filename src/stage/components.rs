@@ -8,6 +8,9 @@ pub struct Stage {}
 #[derive(Component, Debug, Clone, Copy)]
 pub struct Depth(pub usize);
 
+#[derive(Component, Debug)]
+pub struct InScope {}
+
 #[derive(Component)]
 pub struct Destructible {}
 
