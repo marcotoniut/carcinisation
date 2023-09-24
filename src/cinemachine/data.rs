@@ -10,14 +10,23 @@ pub struct TargetPath {
 }
 
 #[derive(Clone, Debug)]
+pub enum CutsceneGoal{
+    MOVEMENT{
+        pathing: TargetPath
+    },
+    TIMED{
+        waitInSeconds: f32
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Clip {
     pub image_path: Option<String>,
     pub foreground_elements: Option<Vec<Clip>>,
     pub start_coordinates: Vec2,
-    pub simple_pathing: Option<TargetPath>,
     pub layer_index: f32,
     pub snd: Option<String>,
-    pub wait: f32
+    pub goal: CutsceneGoal
 }
 
 #[derive(TypeUuid, TypePath, Clone, Debug)]

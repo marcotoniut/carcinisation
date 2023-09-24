@@ -10,7 +10,7 @@ use seldom_pixel::{
 };
 
 use crate::{
-    globals::DEBUG_STAGESTEP, resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput,
+    globals::DEBUG_STAGESTEP, resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput, cinemachine::cinemachine::CinemachineScene,
 };
 
 use self::spawn::{spawn_enemy, spawn_object};
@@ -204,7 +204,25 @@ pub fn update_stage(
                             }
                             spawnsVal = Some(spawns);
                         },
-                        StageStep::Cinematic { .. } => {},
+                        StageStep::Cinematic { max_duration, .. } => {
+                            if let Some(duration) = max_duration {
+                            } else {
+                                // DEBUG
+
+                                if DEBUG_STAGESTEP {
+                                    let mut duration = 0.;
+                                    if max_duration.is_some() {
+                                        duration = max_duration.unwrap();
+                                    }
+                                    warn!(
+                                        "================>>>> stop complete? {}",
+                                        duration.to_string()
+                                    );
+                                }
+                                step_event_writer.send(StageStepTrigger {});
+                            }
+
+                        },
                     }
 
                     if let Some(spawns) = spawnsVal {
@@ -263,6 +281,8 @@ pub fn read_stage_step_trigger(
     mut stage_progress: ResMut<StageProgress>,
     mut stage_action_timer: ResMut<StageActionTimer>,
     mut stage_data_raw: Res<StageRawData>,
+    mut game_state_next_state: ResMut<NextState<GameState>>,
+    mut current_scene: ResMut<CinemachineScene>
 ) {
     for _ in event_reader.iter() {
         stage_progress.step += 1;
@@ -286,7 +306,8 @@ pub fn read_stage_step_trigger(
                             stage_action_timer.timer.unpause();
                         }
                     }
-                    StageStep::Cinematic { max_duration, .. }  => {
+                    StageStep::Cinematic { max_duration, cinematic, .. }  => {
+
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();
                             stage_action_timer
@@ -294,15 +315,9 @@ pub fn read_stage_step_trigger(
                                 .set_duration(Duration::from_secs_f32(duration.clone()));
                             stage_action_timer.timer.unpause();
                         }
-                    }
-                    StageStep::Cinematic { max_duration, .. }  => {
-                        if let Some(duration) = max_duration {
-                            stage_action_timer.timer.reset();
-                            stage_action_timer
-                                .timer
-                                .set_duration(Duration::from_secs_f32(duration.clone()));
-                            stage_action_timer.timer.unpause();
-                        }
+                        
+                        current_scene.0 = Some(cinematic.clone());
+                        game_state_next_state.set(GameState::Cutscene);
                     }
                 }
             }

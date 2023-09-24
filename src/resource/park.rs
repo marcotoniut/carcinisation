@@ -107,11 +107,16 @@ pub fn make_spawns() -> Vec<StageSpawn> {
 
 pub fn make_steps() -> Vec<StageStep> {
     vec![
-        // StageStep::Cinematic { 
-        //     resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
-        //     max_duration: Some(5),
-        //     cinematic: INTRO_ANIMATIC.clone(),
-        // },
+        StageStep::Movement { 
+            coordinates: Vec2 { x: 0.0, y: 0.0 }, 
+            base_speed: 0.0, 
+            spawns: vec![]
+        },
+        StageStep::Cinematic { 
+            resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
+            max_duration: Some(5.0),
+            cinematic: INTRO_ANIMATIC.clone(),
+        },
         StageStep::Movement {
             coordinates: Vec2 { x: 50.0, y: 0.0 },
             base_speed: CAMERA_BASE_SPEED,

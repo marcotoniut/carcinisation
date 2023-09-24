@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::cinemachine::data::CutsceneGoal;
 use crate::stage::data::{
     ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType,
     SkyboxData, StageData, StageStep,
@@ -25,14 +26,21 @@ lazy_static! {
 
 fn make_clips() -> Vec<Clip>{
     vec![
-        Clip{
-            image_path: Some("/cinematics/intro/0.png".to_string()),
+        Clip {
+            image_path: Some("\\cinematics\\intro\\0.png".to_string()),
             foreground_elements: None,
             start_coordinates: Vec2{x:0.0,y:0.0},
-            simple_pathing: None,
-            layer_index: 0.0, 
+            layer_index: 100.0, 
+            snd: None,
+            goal: CutsceneGoal::TIMED { waitInSeconds: 1.0 },
+        },
+        Clip {
+            image_path: Some("\\cinematics\\intro\\1.png".to_string()),
+            foreground_elements: None,
+            start_coordinates: Vec2{x:0.0,y:0.0},
+            layer_index: 110.0, 
             snd: None, 
-            wait: 1.0
+            goal: CutsceneGoal::TIMED { waitInSeconds: 1.0 },
         }
     ]
 }
