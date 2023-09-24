@@ -49,40 +49,40 @@ pub fn make_blood_attack_bundle(
     )
 }
 
-pub fn make_enemy_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
-) -> (
-    Name,
-    Enemy,
-    Hittable,
-    PlaceholderEnemy,
-    PxSpriteBundle<Layer>,
-    PxSubPosition,
-    Collision,
-    Health,
-) {
-    let texture = assets_sprite.load("sprites/ball_red_large.png");
-    (
-        Name::new("Enemy"),
-        Enemy {},
-        Hittable {},
-        PlaceholderEnemy {
-            direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
-        },
-        PxSpriteBundle::<Layer> {
-            sprite: texture.clone(),
-            layer: Layer::Middle(2),
-            anchor: PxAnchor::Center,
-            ..default()
-        },
-        PxSubPosition::from(Vec2::new(
-            rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
-            HUD_HEIGHT as f32 + rand::random::<f32>() * (SCREEN_RESOLUTION.y - HUD_HEIGHT) as f32,
-        )),
-        Collision::Circle(PLACEHOLDER_ENEMY_SIZE),
-        Health(40),
-    )
-}
+// pub fn make_enemy_bundle(
+//     assets_sprite: &mut PxAssets<PxSprite>,
+// ) -> (
+//     Name,
+//     Enemy,
+//     Hittable,
+//     PlaceholderEnemy,
+//     PxSpriteBundle<Layer>,
+//     PxSubPosition,
+//     Collision,
+//     Health,
+// ) {
+//     let texture = assets_sprite.load("sprites/ball_red_large.png");
+//     (
+//         Name::new("Enemy"),
+//         Enemy {},
+//         Hittable {},
+//         PlaceholderEnemy {
+//             direction: Vec2::new(rand::random::<f32>(), rand::random::<f32>()).normalize(),
+//         },
+//         PxSpriteBundle::<Layer> {
+//             sprite: texture.clone(),
+//             layer: Layer::Middle(2),
+//             anchor: PxAnchor::Center,
+//             ..default()
+//         },
+//         PxSubPosition::from(Vec2::new(
+//             rand::random::<f32>() * SCREEN_RESOLUTION.x as f32,
+//             HUD_HEIGHT as f32 + rand::random::<f32>() * (SCREEN_RESOLUTION.y - HUD_HEIGHT) as f32,
+//         )),
+//         Collision::Circle(PLACEHOLDER_ENEMY_SIZE),
+//         Health(40),
+//     )
+// }
 
 pub fn make_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,

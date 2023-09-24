@@ -12,12 +12,14 @@ use crate::{
             PickupSpawn, PickupType, StageSpawn,
         },
         enemy::components::{
-            CircleAround, Enemy, EnemyMosquito, EnemyMosquitoAttacking, EnemyTardigrade,
-            EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS,
-            ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS,
+            CircleAround, Enemy, EnemyBehaviors, EnemyCurrentBehavior, EnemyMosquito,
+            EnemyMosquitoAttacking, EnemyTardigrade, EnemyTardigradeAttacking,
+            ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS, ENEMY_TARDIGRADE_BASE_HEALTH,
+            ENEMY_TARDIGRADE_RADIUS,
         },
         events::StageSpawnTrigger,
         pickup::components::HealthRecovery,
+        resources::StageTime,
     },
     systems::camera::CameraPos,
     Layer,
@@ -130,12 +132,14 @@ pub fn spawn_enemy(
         ..
     } = enemy_spawn;
     let position = *coordinates + camera_pos.0;
+    let behaviors = EnemyBehaviors::new(steps.clone());
     match enemy_type {
         EnemyType::Mosquito => {
             let entity = commands
                 .spawn((
                     Name::new("EnemyMosquito"),
                     Enemy {},
+                    behaviors,
                     EnemyMosquito {
                         base_speed: *base_speed,
                         steps: steps.clone(),
@@ -162,9 +166,15 @@ pub fn spawn_enemy(
             }
             entity
         }
-        EnemyType::Kyle => commands.spawn((Name::new("EnemyKyle"), Enemy {})).id(),
-        EnemyType::Marauder => commands.spawn((Name::new("EnemyMarauder"), Enemy {})).id(),
-        EnemyType::Spidey => commands.spawn((Name::new("EnemySpidey"), Enemy {})).id(),
+        EnemyType::Kyle => commands
+            .spawn((Name::new("EnemyKyle"), Enemy {}, behaviors))
+            .id(),
+        EnemyType::Marauder => commands
+            .spawn((Name::new("EnemyMarauder"), Enemy {}, behaviors))
+            .id(),
+        EnemyType::Spidey => commands
+            .spawn((Name::new("EnemySpidey"), Enemy {}, behaviors))
+            .id(),
         EnemyType::Spidomonsta => commands
             .spawn((Name::new("EnemySpidomonsta"), Enemy {}))
             .id(),
@@ -172,6 +182,7 @@ pub fn spawn_enemy(
             .spawn((
                 Name::new("EnemyTardigrade"),
                 Enemy {},
+                behaviors,
                 EnemyTardigrade {
                     steps: steps.clone(),
                 },

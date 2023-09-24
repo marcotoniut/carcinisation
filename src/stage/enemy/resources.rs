@@ -14,3 +14,22 @@ impl Default for EnemySpawnTimer {
         }
     }
 }
+
+#[derive(Component)]
+pub struct EnemyBehaviorTimer {
+    pub entity: Entity,
+    pub timer: Timer,
+}
+
+impl EnemyBehaviorTimer {
+    pub fn new(entity: Entity, duration: f32) -> Self {
+        EnemyBehaviorTimer {
+            entity,
+            timer: Timer::from_seconds(duration, TimerMode::Once),
+        }
+    }
+
+    pub fn finished(&self) -> bool {
+        self.timer.finished()
+    }
+}

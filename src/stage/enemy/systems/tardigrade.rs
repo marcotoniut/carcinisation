@@ -15,11 +15,7 @@ use crate::{
         },
         enemy::{
             bundles::{make_animation_bundle, make_blood_attack_bundle},
-            components::{
-                EnemyAttack, EnemyTardigrade, EnemyTardigradeAnimation,
-                EnemyTardigradeAttacking, BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED,
-                BLOOD_ATTACK_LINE_SPEED, BLOOD_ATTACK_MAX_DEPTH,
-            },
+            components::*,
             data::tardigrade::TARDIGRADE_ANIMATIONS,
         },
         resources::StageTime,
@@ -33,11 +29,19 @@ pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
 
 pub fn assign_tardigrade_animation(
     mut commands: Commands,
-    query: Query<(Entity, &EnemyTardigrade, &PxSubPosition), Without<EnemyTardigradeAnimation>>,
+    query: Query<
+        (
+            Entity,
+            &EnemyTardigrade,
+            &EnemyCurrentBehavior,
+            &PxSubPosition,
+        ),
+        Without<EnemyTardigradeAnimation>,
+    >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
-    for (entity, mosquito, position) in &mut query.iter() {
-        let step = mosquito.current_step();
+    for (entity, mosquito, current_behavior, position) in &mut query.iter() {
+        let step = current_behavior.behavior.clone();
 
         // HARDCODED depth, should be a component
         let depth = 1;
