@@ -234,7 +234,11 @@ pub fn make_steps() -> Vec<StageStep> {
             spawns: vec![],
         },
         StageStep::Movement {
+<<<<<<< HEAD
             coordinates: Vec2 { x: 120.0, y: 20.0 },
+=======
+            coordinates: Vec2 { x: 120.0, y: 20.0 }, // Increased Y-axis and X-axis values
+>>>>>>> 3e12b3980aa9115b70bea52605fee623aad38452
             base_speed: 4.0,
             spawns: vec![
                 StageSpawn::Enemy(EnemySpawn {
