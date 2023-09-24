@@ -14,13 +14,7 @@ pub mod ui;
 use bevy::prelude::*;
 
 use self::{
-    enemy::{
-        systems::{
-            attacks::{blood_attack_damage_on_reached, miss_on_reached},
-            mosquito::*,
-        },
-        EnemyPlugin,
-    },
+    enemy::{systems::attacks::*, EnemyPlugin},
     events::*,
     pickup::systems::health::pickup_health,
     player::{
@@ -38,7 +32,7 @@ use self::{
     },
     ui::{pause_menu::pause_menu_renderer, StageUiPlugin},
 };
-use crate::{events::*, AppState};
+use crate::{game::events::GameOver, AppState};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct LoadingSystemSet;
@@ -53,10 +47,12 @@ impl Plugin for StagePlugin {
         app.add_state::<GameState>()
             .add_state::<StageState>()
             .add_event::<DepthChanged>()
-            .add_event::<GameOver>()
             .add_event::<CameraShakeTrigger>()
+            .add_event::<StageClearedTrigger>()
             .add_event::<StageStepTrigger>()
             .add_event::<StageSpawnTrigger>()
+            // TODO temporary
+            .add_event::<GameOver>()
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
             .init_resource::<Score>()
@@ -87,13 +83,14 @@ impl Plugin for StagePlugin {
                             trigger_shake,
                         ),
                         (
-                            //
+                            // Stage
                             increment_elapsed,
                             tick_stage_step_timer,
                             read_stage_step_trigger,
                             read_stage_spawn_trigger,
                             check_stage_step_timer,
                             check_staged_cleared,
+                            read_stage_cleared_trigger,
                             pickup_health,
                             blood_attack_damage_on_reached,
                             miss_on_reached,

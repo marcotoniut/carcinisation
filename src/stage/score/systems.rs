@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use crate::events::*;
+use crate::game::events::GameOver;
 
 pub fn insert_score(mut commands: Commands) {
     commands.insert_resource(Score::default());

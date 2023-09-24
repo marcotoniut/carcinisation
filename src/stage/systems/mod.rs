@@ -22,9 +22,11 @@ use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 
 use super::{
     bundles::*,
-    components::Stage,
+    components::{Destructible, Object, Stage},
     data::*,
-    events::{StageSpawnTrigger, StageStepTrigger},
+    enemy::components::Enemy,
+    events::{StageClearedTrigger, StageSpawnTrigger, StageStepTrigger},
+    player::components::Player,
     resources::{StageActionTimer, StageProgress, StageTime},
     GameState, StageState,
 };
@@ -271,14 +273,41 @@ pub fn update_stage(
 }
 
 pub fn check_staged_cleared(
-    mut next_state: ResMut<NextState<StageState>>,
+    mut event_writer: EventWriter<StageClearedTrigger>,
     stage_progress: Res<StageProgress>,
     mut stage_data_raw: Res<StageRawData>,
 ) {
     if let stage = &stage_data_raw.stage_data {
         if stage_progress.step >= stage.steps.len() {
-            next_state.set(StageState::Clear);
+            event_writer.send(StageClearedTrigger {});
         }
+    }
+}
+
+pub fn read_stage_cleared_trigger(
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<StageState>>,
+    mut event_reader: EventReader<StageClearedTrigger>,
+    enemy_query: Query<Entity, With<Enemy>>,
+    player_query: Query<Entity, With<Player>>,
+    destructible_query: Query<Entity, With<Destructible>>,
+    object_query: Query<Entity, With<Object>>,
+) {
+    for event in event_reader.iter() {
+        for entity in &mut enemy_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut player_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut destructible_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut object_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        next_state.set(StageState::Cleared);
     }
 }
 
