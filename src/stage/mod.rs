@@ -32,6 +32,7 @@ use self::{
     },
     ui::{
         cleared_screen::{despawn_cleared_screen, render_cleared_screen, spawn_screen},
+        game_over_screen::{despawn_game_over_screen, render_game_over_screen},
         pause_menu::pause_menu_renderer,
         StageUiPlugin,
     },
@@ -53,6 +54,7 @@ impl Plugin for StagePlugin {
             .add_event::<DepthChanged>()
             .add_event::<CameraShakeTrigger>()
             .add_event::<StageClearedTrigger>()
+            .add_event::<StageGameOverTrigger>()
             .add_event::<StageStepTrigger>()
             .add_event::<StageSpawnTrigger>()
             // TODO temporary
@@ -95,9 +97,13 @@ impl Plugin for StagePlugin {
                             check_stage_step_timer,
                             check_staged_cleared,
                             read_stage_cleared_trigger,
+                            check_stage_game_over,
+                            read_stage_game_over_trigger,
                             pickup_health,
                             blood_attack_damage_on_reached,
-                            miss_on_reached,
+                            // TEMP
+                            check_stage_game_over,
+                            read_stage_game_over_trigger,
                         ),
                         (
                             // Movement
@@ -124,6 +130,9 @@ impl Plugin for StagePlugin {
                     // Cleared screen
                     render_cleared_screen,
                     despawn_cleared_screen,
+                    // Game Over screen
+                    render_game_over_screen,
+                    despawn_game_over_screen,
                 )
                     .run_if(in_state(GameState::Running))
                     .run_if(in_state(AppState::Game)),
@@ -148,4 +157,6 @@ pub enum StageState {
     Running,
     Clear,
     Cleared,
+    // TODO temporary (for the jame)
+    GameOver,
 }

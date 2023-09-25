@@ -23,11 +23,11 @@ use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 
 use super::{
     bundles::*,
-    components::{Destructible, Object, Stage},
+    components::{Dead, Destructible, Object, Stage},
     data::*,
     enemy::components::Enemy,
-    events::{StageClearedTrigger, StageSpawnTrigger, StageStepTrigger},
-    player::components::Player,
+    events::{StageClearedTrigger, StageGameOverTrigger, StageSpawnTrigger, StageStepTrigger},
+    player::{self, components::Player},
     resources::{StageActionTimer, StageProgress, StageTime},
     GameState, StageState,
 };
@@ -270,7 +270,7 @@ pub fn update_stage(
 
             next_state.set(StageState::Cleared);
         }
-        StageState::Cleared => {}
+        _ => {}
     }
 }
 
@@ -327,11 +327,61 @@ pub fn read_stage_cleared_trigger(
     }
 }
 
+pub fn check_stage_game_over(
+    mut event_writer: EventWriter<StageGameOverTrigger>,
+    player_query: Query<&Player, With<Dead>>,
+) {
+    if let Ok(_) = player_query.get_single() {
+        event_writer.send(StageGameOverTrigger {});
+    }
+}
+
+pub fn read_stage_game_over_trigger(
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<StageState>>,
+    mut event_reader: EventReader<StageGameOverTrigger>,
+    destructible_query: Query<Entity, With<Destructible>>,
+    enemy_query: Query<Entity, With<Enemy>>,
+    music_query: Query<Entity, With<Music>>,
+    object_query: Query<Entity, With<Object>>,
+    player_query: Query<Entity, With<Player>>,
+    asset_server: Res<AssetServer>,
+    volume_settings: Res<VolumeSettings>,
+) {
+    for _ in event_reader.iter() {
+        for entity in &mut destructible_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut enemy_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut music_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut object_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut player_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        spawn_music(
+            &mut commands,
+            &asset_server,
+            &volume_settings,
+            "audio/music/game_over.ogg".to_string(),
+            PlaybackMode::Despawn,
+        );
+
+        next_state.set(StageState::GameOver);
+    }
+}
+
 pub fn read_stage_step_trigger(
     mut event_reader: EventReader<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     mut stage_action_timer: ResMut<StageActionTimer>,
-    mut stage_data_raw: Res<StageRawData>,
+    stage_data_raw: Res<StageRawData>,
 ) {
     for _ in event_reader.iter() {
         stage_progress.step += 1;
