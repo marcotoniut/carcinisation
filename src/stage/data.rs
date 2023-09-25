@@ -22,6 +22,8 @@ pub struct SkyboxData {
 pub enum DestructibleType {
     Lamp,
     Trashcan,
+    Crystal,
+    Mushroom,
     // Window,
     // Plant,
 }
