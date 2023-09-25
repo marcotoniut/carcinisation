@@ -2,9 +2,7 @@ pub mod data;
 pub mod cinemachine;
 
 pub mod scene_intro;
-pub mod scene_park;
-
-use std::{env, time::Duration};
+use std::{time::Duration, env};
 
 use bevy::prelude::*;
 
@@ -41,12 +39,12 @@ pub fn make_clip_bundle(
         },
         PxAnimationBundle {
             // TODO variable time
-            duration: PxAnimationDuration::millis_per_animation(cinemachine_data.clip.frame_duration_millis),
+            duration: PxAnimationDuration::millis_per_animation(2000),
             on_finish: PxAnimationFinishBehavior::Loop,
             ..default()
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
-        Name::new("Skybox"),
+        Name::new(format!("CINEMA_{}_clip", cinemachine_data.name))
     )
 }
 
@@ -57,9 +55,15 @@ pub fn spawn_cinemachine_module(
     filters: &mut PxAssets<PxFilter>,
     cinemachine_data: CinemachineData
 ) -> Entity {
-    let mut fix_path = format!("{}/assets{}", env::current_dir().unwrap().to_str().unwrap().to_string(), cinemachine_data.clip.image_path);
-    //fix_path = format!("{}{}", ".", path.as_str());
-    info!("path: {}", fix_path);
+    let default_path = cinemachine_data.clip.image_path;
+    let mut fix_path = "".to_string();
+    if cfg!(windows) {
+        fix_path = format!("{}/assets{}", env::current_dir().unwrap().to_str().unwrap().to_string(), default_path);
+    
+    } else {
+        fix_path = format!("./assets{}",default_path);
+    }
+
     let texture = assets_sprite.load(fix_path);
 
     let entity = 
