@@ -16,6 +16,7 @@ extern crate lazy_static;
 use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
 use bevy_framepace::*;
+use cinemachine::cinemachine::CurrentClipInfo;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
@@ -76,6 +77,7 @@ fn main() {
         DEFAULT_MUSIC_VOLUME,
         DEFAULT_SFX_VOLUME,
     ))
+    .insert_resource(CurrentClipInfo{ index: 0, isRendered: false, hasFinished: false })
     .add_state::<AppState>()
     // .add_plugins(TransitionVenetianPlugin)
     // .add_plugins(CutscenePlugin)

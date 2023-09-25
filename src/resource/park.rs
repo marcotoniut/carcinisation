@@ -1,4 +1,3 @@
-use crate::cinemachine::scene_intro::INTRO_ANIMATIC;
 use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
     ContainerSpawn, DestructibleSpawn, EnemySpawn, MovementDirection, ObjectSpawn, ObjectType,
@@ -120,7 +119,7 @@ pub fn make_steps() -> Vec<StageStep> {
         },
         StageStep::Stop { 
             resume_conditions: Some(vec![]), 
-            max_duration: Some(13.0), 
+            max_duration: Some(3.0), 
             spawns: vec![] 
         },
         StageStep::Movement {
