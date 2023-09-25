@@ -7,6 +7,9 @@ dev:
 wasm:
 	cargo run --target wasm32-unknown-unknown 
 
+wasm-release:
+	cargo run --release --target wasm32-unknown-unknown 
+
 generate-palettes:
 	cd scripts/generate-palettes && cargo run;
 
