@@ -46,12 +46,16 @@ path = "backgrounds/asteroid/background.png"
 
 [[images]]
 path = "backgrounds/asteroid/skybox.png"
+[[images]]
+path = "backgrounds/asteroid/spaceship_destroyed.png"
 
 [[images]]
 path = "backgrounds/rugpark/background.png"
 
 [[images]]
 path = "backgrounds/rugpark/skybox.png"
+[[images]]
+path = "backgrounds/spaceship/spaceship.png"
 
 # [[images]]
 # path = "backgrounds/main_menu/blank.png"
@@ -91,7 +95,33 @@ path = "sprites/enemies/mosquito_melee_2.png"
 [[images]]
 path = "sprites/enemies/mosquito_melee_3.png"
 [[images]]
+path = "sprites/enemies/mosquito_hydra_idle.png"
+[[images]]
+path = "sprites/enemies/mosquito_hydra_shooting.png"
+[[images]]
+path = "sprites/enemies/mosquito_head_shot.png"
+
+[[images]]
 path = "sprites/enemies/worm.png"
+[[images]]
+path = "sprites/enemies/spider.png"
+[[images]]
+path = "sprites/enemies/spider_death.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_attack.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_death.png"
+[[images]]
+path = "sprites/enemies/spiderBoss.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_web.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_web_attack.png"
+[[images]]
+path = "sprites/enemies/worm.png"
+[[images]]
+path = "sprites/enemies/worm_death.png"
+
 
 [[images]]
 path = "sprites/enemies/tardigrade_death_64x64.png"
@@ -161,6 +191,14 @@ path = "sprites/objects/trash_can_broken_1.png"
 [[images]]
 path = "sprites/objects/trash_can_broken_1.png"
 [[images]]
+path = "sprites/objects/cavern_crystal.png"
+[[images]]
+path = "sprites/objects/cavern_crytal_broken.png"
+[[images]]
+path = "sprites/objects/cavern_mushroom.png"
+[[images]]
+path = "sprites/objects/cavern_mushroom_broken.png"
+[[images]]
 path = "sprites/objects/rugpark_sign.png"
 
 # Pickups
@@ -211,3 +249,23 @@ width = 36
 [[images]]
 path = "sprites/attacks/bloodsplat.png"
 target_path = "sprites/attacks/blood_attack_splat_7.png"
+[[images]]
+path = "sprites/Splat_Thick_Outline.png"
+[[images]]
+path = "sprites/Splat_Thin_Outline.png"
+[[images]]
+path = "sprites/Melee_Attack_120x113_Spreadsheet.png"
+[[images]]
+path = "sprites/Bloodball_45x45_4_Frames_Outlined_Spreadsheet.png"
+
+#cutscenes
+[[images]]
+path = "cinematics/intro/bald_guy.png"
+[[images]]
+path = "cinematics/intro/falling_scene.png"
+[[images]]
+path = "cinematics/intro/falling_ship.png"
+[[images]]
+path = "cinematics/intro/screaming_scene.png"
+[[images]]
+path = "cinematics/intro/transform.png"
