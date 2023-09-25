@@ -18,21 +18,14 @@ use super::data::Clip;
 lazy_static! {
     pub static ref INTRO_ANIMATIC: CinemachineData = CinemachineData {
         name: "intro".to_string(),
-        start_coordinates: Vec2::new(0.0, 0.0),
-        clips: make_clips()
-    };
-}
-
-fn make_clips() -> Vec<Clip>{
-    vec![
-        Clip{
-            image_path: Some("/cinematics/intro/0.png".to_string()),
-            foreground_elements: None,
+        clip: Clip{
+            frame_count: 0,
+            frame_duration_millis: 2000,
+            image_path: "/cinematics/intro/0.png".to_string(),
             start_coordinates: Vec2{x:0.0,y:0.0},
-            simple_pathing: None,
-            layer_index: 0.0, 
-            snd: None, 
-            wait: 1.0
+            layer_index: 100.0, 
+            snd: None,
+            waitInSeconds: 3.0,
         }
-    ]
+    };
 }

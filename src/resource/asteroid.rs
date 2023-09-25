@@ -110,6 +110,16 @@ pub fn make_spawns() -> Vec<StageSpawn> {
 pub fn make_steps() -> Vec<StageStep> {
     vec![
         StageStep::Movement {
+            coordinates: Vec2 { x: 0.0, y: 0.0 },
+            base_speed: 8.0,
+            spawns: vec![],
+        },
+        StageStep::Stop { 
+            resume_conditions: Some(vec![]), 
+            max_duration: Some(3.0), 
+            spawns: vec![] 
+        },
+        StageStep::Movement {
             coordinates: Vec2 { x: 50.0, y: 0.0 },
             base_speed: 10.0,
             spawns: vec![

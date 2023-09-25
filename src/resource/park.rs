@@ -114,6 +114,16 @@ pub fn make_steps() -> Vec<StageStep> {
         //     cinematic: INTRO_ANIMATIC.clone(),
         // },
         StageStep::Movement {
+            coordinates: Vec2 { x: 0.0, y: 0.0 },
+            base_speed: 8.0,
+            spawns: vec![],
+        },
+        StageStep::Stop { 
+            resume_conditions: Some(vec![]), 
+            max_duration: Some(13.0), 
+            spawns: vec![] 
+        },
+        StageStep::Movement {
             coordinates: Vec2 { x: 50.0, y: 0.0 },
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![

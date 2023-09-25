@@ -139,6 +139,7 @@ pub enum GameState {
     Loading,
     Running,
     Paused,
+    Cutscene
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]

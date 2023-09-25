@@ -1,6 +1,6 @@
 use bevy::{
-    prelude::Vec2,
-    reflect::{TypePath, TypeUuid},
+    prelude::{Vec2, warn},
+    reflect::{TypePath, TypeUuid, List},
 };
 
 #[derive(Clone, Debug)]
@@ -11,19 +11,18 @@ pub struct TargetPath {
 
 #[derive(Clone, Debug)]
 pub struct Clip {
-    pub image_path: Option<String>,
-    pub foreground_elements: Option<Vec<Clip>>,
+    pub frame_count: usize,
+    pub frame_duration_millis: u64,
+    pub image_path: String,
     pub start_coordinates: Vec2,
-    pub simple_pathing: Option<TargetPath>,
     pub layer_index: f32,
     pub snd: Option<String>,
-    pub wait: f32
+    pub waitInSeconds: f32
 }
 
 #[derive(TypeUuid, TypePath, Clone, Debug)]
 #[uuid = "8962be51-bbd5-42b4-95a9-269294ddf17a"]
 pub struct CinemachineData { 
     pub name: String,
-    pub start_coordinates: Vec2,
-    pub clips: Vec<Clip>,
+    pub clip: Clip,
 }
