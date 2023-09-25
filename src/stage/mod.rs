@@ -30,7 +30,11 @@ use self::{
         spawn::read_stage_spawn_trigger,
         *,
     },
-    ui::{pause_menu::pause_menu_renderer, StageUiPlugin},
+    ui::{
+        cleared_screen::{despawn_cleared_screen, render_cleared_screen, spawn_screen},
+        pause_menu::pause_menu_renderer,
+        StageUiPlugin,
+    },
 };
 use crate::{game::events::GameOver, AppState};
 
@@ -109,10 +113,21 @@ impl Plugin for StagePlugin {
                     )
                         .run_if(in_state(StageState::Running)),
                 )
-                    .run_if(in_state(GameState::Running)),
+                    .run_if(in_state(GameState::Running))
+                    .run_if(in_state(AppState::Game)),
             )
             // .add_systems(Update, run_timer)
             .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
+            .add_systems(
+                Update,
+                (
+                    // Cleared screen
+                    render_cleared_screen,
+                    despawn_cleared_screen,
+                )
+                    .run_if(in_state(GameState::Running))
+                    .run_if(in_state(AppState::Game)),
+            )
             .add_systems(Update, pause_menu_renderer.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);
     }
