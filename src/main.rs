@@ -113,14 +113,14 @@ pub enum GBInput {
     Right,
     Start,
     Select,
-    // debug inputs
-    // DUp,
-    // DDown,
-    // DLeft,
-    // DRight,
-    // DToGame,
-    // DToMainMenu,
-    // DExit,
+    // DEBUG
+    DUp,
+    DDown,
+    DLeft,
+    DRight,
+    DToGame,
+    DToMainMenu,
+    DExit,
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]

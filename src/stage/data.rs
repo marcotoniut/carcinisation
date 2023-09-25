@@ -243,15 +243,12 @@ pub enum StageActionResumeCondition {
     #[default]
     KillAll,
     KillBoss,
-    CinematicEnd,
 }
 
 #[derive(Clone, Debug)]
 pub enum StageStep {
     Cinematic {
-        resume_conditions: Option<Vec<StageActionResumeCondition>>,
-        //wait after completing cinematic
-        cinematic: CinemachineData
+        cinematic: CinemachineData,
     },
     Movement {
         coordinates: Vec2,
