@@ -38,7 +38,22 @@ struct Config {
 }
 
 fn main() {
-    let data_str = fs::read_to_string(format!("{}{}", RESOURCES_GFX_PATH, "data.toml")).unwrap();
+    let mut data_str = "".to_string();
+    
+    if cfg!(windows) {
+        println!("this is windows");
+        let mut root = std::env::current_dir().unwrap();
+        root.push(RESOURCES_GFX_PATH);
+        println!("{}", root.as_path().to_str().unwrap().to_string());
+
+        let win_path = format!("{}{}", root.as_path().to_str().unwrap().to_string(), "data.toml");
+        println!("WINDOWS PATH: {}", win_path);
+
+        data_str = fs::read_to_string(format!("{}{}", root.as_path().to_str().unwrap().to_string(), "data.toml")).unwrap();
+    } else {
+        data_str = fs::read_to_string(format!("{}{}", RESOURCES_GFX_PATH, "data.toml")).unwrap();
+    }
+
     let data: Config = toml::from_str(&data_str).unwrap();
 
     let palette_image: ImageBuffer<Rgba<u8>, Vec<u8>> =

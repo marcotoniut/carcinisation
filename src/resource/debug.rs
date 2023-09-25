@@ -1,3 +1,4 @@
+use crate::cinemachine::scene_intro::*;
 use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
     ContainerSpawn, DestructibleSpawn, EnemySpawn, MovementDirection, ObjectSpawn, ObjectType,
@@ -89,6 +90,31 @@ pub fn make_steps() -> Vec<StageStep> {
             coordinates: Vec2 { x: 0.0, y: 0.0 },
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![],
+        },
+        StageStep::Cinematic { 
+            resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
+            cinematic: INTRO_ANIMATIC_0.clone(),
+        },
+        StageStep::Cinematic { 
+            resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
+            cinematic: INTRO_ANIMATIC_1.clone(),
+        },
+        StageStep::Cinematic { 
+            resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
+            cinematic: INTRO_ANIMATIC_2.clone(),
+        },
+        StageStep::Cinematic { 
+            resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
+            cinematic: INTRO_ANIMATIC_3.clone(),
+        },
+        StageStep::Cinematic { 
+            resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
+            cinematic: INTRO_ANIMATIC_4.clone(),
+        },
+        StageStep::Stop { 
+            resume_conditions: Some(vec![]), 
+            max_duration: Some(3.0), 
+            spawns: vec![] 
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
