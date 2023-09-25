@@ -7,7 +7,7 @@ mod quantize;
 
 use image::*;
 use paths::*;
-use std::{fs, path::Path};
+use std::{fs, path::{Path, self}};
 
 use crate::quantize::reduce_colors;
 
@@ -38,7 +38,19 @@ struct Config {
 }
 
 fn main() {
-    let data_str = fs::read_to_string(format!("{}{}", RESOURCES_GFX_PATH, "data.toml")).unwrap();
+    let mut data_str = "".to_string();
+    
+    if cfg!(windows) {
+        println!("this is windows");
+        let mut root = std::env::current_dir().unwrap();
+        root.push(RESOURCES_GFX_PATH);
+        println!("{}", root.as_path().to_str().unwrap().to_string());
+
+        data_str = fs::read_to_string(format!("{}{}", root.as_path().to_str().unwrap().to_string(), "data.toml")).unwrap();
+    } else if cfg!(unix) {
+        println!("this is unix alike");
+        data_str = fs::read_to_string(format!("{}{}", RESOURCES_GFX_PATH, "data.toml")).unwrap();
+    }
     let data: Config = toml::from_str(&data_str).unwrap();
 
     let palette_image: ImageBuffer<Rgba<u8>, Vec<u8>> =

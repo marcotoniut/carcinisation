@@ -60,8 +60,10 @@ fn render_clip(
     cinemachine_data: CinemachineData
 ) {
     if let Some(path) = clip.image_path.clone() {
-        let fix_path = format!("{}{}", env::current_dir().unwrap().to_str().unwrap().to_string(), path);
-        let texture = assets_sprite.load(path.as_str());
+        let mut fix_path = format!("{}/assets{}", env::current_dir().unwrap().to_str().unwrap().to_string(), path);
+        //fix_path = format!("{}{}", ".", path.as_str());
+        info!("path: {}", fix_path);
+        let texture = assets_sprite.load(fix_path);
 
         if let Ok(entity) = query.get_single() {
 
@@ -96,14 +98,15 @@ pub fn render_cutscene(
     query: Query<Entity, With<CinemachineModule>>,
     state: Res<State<GameState>>,
     mut game_state_next_state: ResMut<NextState<GameState>>,
-    current_scene: Res<CinemachineScene>,
+    mut current_scene: ResMut<CinemachineScene>,
     mut current_clip_info: ResMut<CurrentClipInfo>,
+    time: Res<Time>
 ) {
     if state.get().to_owned() == GameState::Cutscene {
         let current_scene_option = current_scene.0.to_owned();
 
         if let Ok(entity) = query.get_single() {
-            if let Some(scene)= current_scene_option {
+            if let Some(mut scene)= current_scene_option {
                 let current_clip = &scene.clips[current_clip_info.index.to_owned()];
 
                 if !current_clip_info.isRendered{
@@ -116,13 +119,12 @@ pub fn render_cutscene(
                         &current_clip,
                         scene.clone()
                     );
-
                     match current_clip.goal {
                         data::CutsceneGoal::MOVEMENT { .. } => {
                             
                         },
-                        data::CutsceneGoal::TIMED { .. } => {
-                            
+                        data::CutsceneGoal::TIMED { mut waitInSeconds  } => {
+
                         },
                     }
 
@@ -132,8 +134,11 @@ pub fn render_cutscene(
                         data::CutsceneGoal::MOVEMENT { .. } => {
                             
                         },
-                        data::CutsceneGoal::TIMED { .. } => {
+                        data::CutsceneGoal::TIMED { mut waitInSeconds  } => {
                             
+                            current_clip.goal.subtract_time(time.delta_seconds());
+                            //waitInSeconds -= time.delta_seconds();
+                            warn!("{}", waitInSeconds.to_string());
                         },
                     }
                 }

@@ -128,3 +128,17 @@ path = "sprites/pickups/bomb_2.png"
 path = "sprites/pickups/health_1.png"
 [[images]]
 path = "sprites/pickups/health_2.png"
+
+# cutscenes
+[[images]]
+path = "cinematics/intro/clear.png"
+[[images]]
+path = "cinematics/intro/0.png"
+[[images]]
+path = "cinematics/intro/1.png"
+[[images]]
+path = "cinematics/intro/2.png"
+[[images]]
+path = "cinematics/intro/3.png"
+[[images]]
+path = "cinematics/intro/4.png"

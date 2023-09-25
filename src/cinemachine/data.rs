@@ -1,6 +1,6 @@
 use bevy::{
-    prelude::Vec2,
-    reflect::{TypePath, TypeUuid},
+    prelude::{Vec2, warn},
+    reflect::{TypePath, TypeUuid, List},
 };
 
 #[derive(Clone, Debug)]
@@ -16,6 +16,23 @@ pub enum CutsceneGoal{
     },
     TIMED{
         waitInSeconds: f32
+    }
+}
+
+impl CutsceneGoal {
+    pub fn subtract_time(&mut self, time: f32){
+        if let CutsceneGoal::TIMED(ref mut content) = *self{
+            content.push(time);
+        } else {
+            unreachable!();
+        }
+        /*match &self {
+            CutsceneGoal::MOVEMENT { pathing } => {},
+            CutsceneGoal::TIMED { mut waitInSeconds } => { 
+                waitInSeconds -= time;
+                warn!("{}", waitInSeconds.to_string());
+            },
+        }*/
     }
 }
 

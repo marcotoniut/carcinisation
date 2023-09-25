@@ -16,6 +16,7 @@ pub struct ClipBundle;
 #[derive(Resource, Default)]
 pub struct CinemachineScene(pub Option<CinemachineData>);
 
+
 #[derive(Resource, Default)]
 pub struct CurrentClipInfo{
     ///index
