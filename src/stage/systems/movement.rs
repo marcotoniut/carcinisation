@@ -129,13 +129,14 @@ pub fn check_line_target_reached(
 }
 
 pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSubPosition)>) {
-    for (circle_around, mut pos) in query.iter_mut() {
+    for (circle_around, mut position) in query.iter_mut() {
+        let elapsed_seconds = time.elapsed_seconds();
         let angle = match circle_around.direction {
-            MovementDirection::Right => time.elapsed_seconds() + circle_around.time_offset,
-            MovementDirection::Left => -time.elapsed_seconds() + circle_around.time_offset,
+            MovementDirection::Right => elapsed_seconds + circle_around.time_offset,
+            MovementDirection::Left => -elapsed_seconds + circle_around.time_offset,
         };
         let x = circle_around.center.x + circle_around.radius * angle.cos();
         let y = circle_around.center.y + circle_around.radius * angle.sin();
-        pos.0 = Vec2::new(x, y);
+        position.0 = Vec2::new(x, y);
     }
 }

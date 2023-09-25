@@ -16,14 +16,13 @@ pub struct ClipBundle;
 #[derive(Resource, Default)]
 pub struct CinemachineScene(pub Option<CinemachineData>);
 
-
 #[derive(Resource, Default)]
-pub struct CurrentClipInfo{
+pub struct CurrentClipInfo {
     ///index
     pub index: usize,
     ///is Renderered
-    pub isRendered: bool,
-    pub hasFinished: bool
+    pub is_rendered: bool,
+    pub has_finished: bool,
 }
 
 #[derive(Resource)]
@@ -40,26 +39,25 @@ impl Default for CinemachineTimer {
 }
 
 impl CurrentClipInfo {
-
     pub fn reset(&mut self) {
         self.index = 0;
-        self.isRendered = false;
-        self.hasFinished = false;
+        self.is_rendered = false;
+        self.has_finished = false;
     }
 
-    pub fn startedRender(&mut self) {
-        self.isRendered = true;
+    pub fn started_render(&mut self) {
+        self.is_rendered = true;
     }
 
-    pub fn eof (&mut self){
-        self.hasFinished = true;
+    pub fn eof(&mut self) {
+        self.has_finished = true;
     }
 
     pub fn inc(&mut self) -> bool {
-        if self.hasFinished {
+        if self.has_finished {
             self.index += 1;
-            self.isRendered = false;
-            self.hasFinished = false;
+            self.is_rendered = false;
+            self.has_finished = false;
             return true;
         } else {
             return false;

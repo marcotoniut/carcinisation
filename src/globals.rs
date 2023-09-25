@@ -24,3 +24,12 @@ pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> boo
         && position.y >= bottom_left.y
         && position.y <= top_right.y
 }
+
+pub fn despawn_by_component_query<T: Component>(
+    commands: &mut Commands,
+    query: &Query<Entity, With<T>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
+}

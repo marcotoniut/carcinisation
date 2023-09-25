@@ -1,5 +1,6 @@
 mod assets;
-pub mod cinemachine;
+mod bevy_utils;
+mod cinemachine;
 mod components;
 mod cutscene;
 mod game;
@@ -77,7 +78,11 @@ fn main() {
         DEFAULT_MUSIC_VOLUME,
         DEFAULT_SFX_VOLUME,
     ))
-    .insert_resource(CurrentClipInfo{ index: 0, isRendered: false, hasFinished: false })
+    .insert_resource(CurrentClipInfo {
+        index: 0,
+        is_rendered: false,
+        has_finished: false,
+    })
     .add_state::<AppState>()
     // .add_plugins(TransitionVenetianPlugin)
     // .add_plugins(CutscenePlugin)
