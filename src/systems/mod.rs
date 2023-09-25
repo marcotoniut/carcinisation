@@ -103,13 +103,13 @@ pub fn spawn_gb_input(mut commands: Commands) {
             (KeyCode::Return, GBInput::Start),
             (KeyCode::ShiftLeft, GBInput::Select),
             // DEBUG
-            // (KeyCode::I, GBInput::DToGame),
-            // (KeyCode::Back, GBInput::DToMainMenu),
-            // (KeyCode::Escape, GBInput::DExit),
-            // (KeyCode::A, GBInput::DLeft),
-            // (KeyCode::W, GBInput::DUp),
-            // (KeyCode::D, GBInput::DRight),
-            // (KeyCode::S, GBInput::DDown),
+            (KeyCode::I, GBInput::DToGame),
+            (KeyCode::Back, GBInput::DToMainMenu),
+            (KeyCode::Escape, GBInput::DExit),
+            (KeyCode::A, GBInput::DLeft),
+            (KeyCode::W, GBInput::DUp),
+            (KeyCode::D, GBInput::DRight),
+            (KeyCode::S, GBInput::DDown),
         ]),
     });
 }
