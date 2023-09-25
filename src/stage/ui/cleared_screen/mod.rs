@@ -48,6 +48,8 @@ pub fn despawn_cleared_screen(
     }
 }
 
+pub const HALF_SCREEN_SIZE: i32 = 70;
+
 pub fn spawn_screen(
     commands: &mut Commands,
     typefaces: &mut PxAssets<PxTypeface>,
@@ -61,13 +63,13 @@ pub fn spawn_screen(
     commands
         .spawn((ClearedScreen {}, Name::new("Screen Cleared")))
         .with_children(|parent| {
-            for i in 40..(100 as i32) {
+            for i in 25..(115 as i32) {
                 parent.spawn((
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
                         line: [
-                            ((SCREEN_RESOLUTION.x / 2) as i32 - 40, i).into(),
-                            ((SCREEN_RESOLUTION.x / 2) as i32 + 40 as i32, i).into(),
+                            ((SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE, i).into(),
+                            ((SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE, i).into(),
                         ]
                         .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
@@ -84,14 +86,14 @@ pub fn spawn_screen(
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         rect: IRect::new(
-                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 90),
+                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE, 90),
                             IVec2::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                                (SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE,
                                 90 + (FONT_SIZE + 2) as i32,
                             ),
                         )
                         .into(),
-                        text: "Stage Cleared".into(),
+                        text: "Stage  Cleared".into(),
                         typeface: typeface.clone(),
                         ..default()
                     },
