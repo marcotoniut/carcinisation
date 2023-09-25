@@ -10,46 +10,18 @@ pub struct TargetPath {
 }
 
 #[derive(Clone, Debug)]
-pub enum CutsceneGoal{
-    MOVEMENT{
-        pathing: TargetPath
-    },
-    TIMED{
-        waitInSeconds: f32
-    }
-}
-
-impl CutsceneGoal {
-    pub fn subtract_time(&mut self, time: f32){
-        if let CutsceneGoal::TIMED(ref mut content) = *self{
-            content.push(time);
-        } else {
-            unreachable!();
-        }
-        /*match &self {
-            CutsceneGoal::MOVEMENT { pathing } => {},
-            CutsceneGoal::TIMED { mut waitInSeconds } => { 
-                waitInSeconds -= time;
-                warn!("{}", waitInSeconds.to_string());
-            },
-        }*/
-    }
-}
-
-#[derive(Clone, Debug)]
 pub struct Clip {
-    pub image_path: Option<String>,
-    pub foreground_elements: Option<Vec<Clip>>,
+    pub frame_count: usize,
+    pub image_path: String,
     pub start_coordinates: Vec2,
     pub layer_index: f32,
     pub snd: Option<String>,
-    pub goal: CutsceneGoal
+    pub waitInSeconds: f32
 }
 
 #[derive(TypeUuid, TypePath, Clone, Debug)]
 #[uuid = "8962be51-bbd5-42b4-95a9-269294ddf17a"]
 pub struct CinemachineData { 
     pub name: String,
-    pub start_coordinates: Vec2,
-    pub clips: Vec<Clip>,
+    pub clip: Clip,
 }

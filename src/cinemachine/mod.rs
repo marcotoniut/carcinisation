@@ -4,21 +4,51 @@ pub mod cinemachine;
 pub mod scene_intro;
 pub mod scene_park;
 
-use std::env;
+use std::{env, time::Duration};
 
 use bevy::prelude::*;
 
 use seldom_pixel::{
     prelude::{
         IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
-        PxTextBundle, PxTypeface,
+        PxTextBundle, PxTypeface, PxAnimationBundle,
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
-use crate::{stage::{GameState, score::components::Score}, globals::{TYPEFACE_INVERTED_PATH, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, FONT_SIZE}, Layer, AppState};
+use crate::{stage::{GameState, score::components::Score, resources::StageActionTimer}, globals::{TYPEFACE_INVERTED_PATH, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, FONT_SIZE}, Layer, AppState};
 
-use self::{data::{CinemachineData, Clip}, cinemachine::{UIBackground, CinemachineModule, CinemachineScene, CurrentClipInfo, ClipBundle}};
+use self::{data::{CinemachineData, Clip}, cinemachine::{UIBackground, CinemachineModule, CinemachineScene, CurrentClipInfo, ClipBundle, CinemachineTimer}};
 
+pub fn make_clip_bundle(
+    assets_sprite: &mut PxAssets<PxSprite>,
+    cinemachine_data: CinemachineData
+) -> (
+    PxSpriteBundle<Layer>,
+    PxAnimationBundle,
+    PxSubPosition,
+    Name,
+) {
+    //info!("skybox: {}", skybox_data.path);
+
+    let sprite = assets_sprite.load_animated(cinemachine_data.clip.image_path, cinemachine_data.clip.frame_count);
+    (
+        PxSpriteBundle::<Layer> {
+            sprite,
+            anchor: PxAnchor::BottomLeft,
+            canvas: PxCanvas::Camera,
+            layer: Layer::Skybox,
+            ..default()
+        },
+        PxAnimationBundle {
+            // TODO variable time
+            duration: PxAnimationDuration::millis_per_animation(2000),
+            on_finish: PxAnimationFinishBehavior::Loop,
+            ..default()
+        },
+        PxSubPosition::from(Vec2::new(0.0, 0.0)),
+        Name::new("Skybox"),
+    )
+}
 
 pub fn spawn_cinemachine_module(
     commands: &mut Commands,
@@ -27,7 +57,11 @@ pub fn spawn_cinemachine_module(
     filters: &mut PxAssets<PxFilter>,
     cinemachine_data: CinemachineData
 ) -> Entity {
-    
+    let mut fix_path = format!("{}/assets{}", env::current_dir().unwrap().to_str().unwrap().to_string(), cinemachine_data.clip.image_path);
+    //fix_path = format!("{}{}", ".", path.as_str());
+    info!("path: {}", fix_path);
+    let texture = assets_sprite.load(fix_path);
+
     let entity = 
     commands.spawn((CinemachineModule {}, Name::new("CINEMACHINE_MODULE")))
         .with_children(|parent| {
@@ -41,53 +75,26 @@ pub fn spawn_cinemachine_module(
                         ..default()
                     },
                     UIBackground {},
-                    Name::new(format!("CINEMA_{}_UIBackground", cinemachine_data.name)),
+                    Name::new(format!("CINEMA_{}_UIBackground_LN_{}", cinemachine_data.name, i.to_string())),
                 ));
-            }
+            };
+            parent.spawn(
+                (
+                    PxSpriteBundle::<Layer> {
+                        sprite: texture,
+                        layer: Layer::CutsceneText,
+                        anchor: PxAnchor::BottomLeft,
+                        position: IVec2::new(cinemachine_data.clip.start_coordinates.x as i32, cinemachine_data.clip.start_coordinates.y as i32).into(),
+                        ..Default::default()
+                    },
+                    ClipBundle{},
+                    Name::new(format!("CINEMA_{}_clip", cinemachine_data.name))
+                )
+            );
     })
     .id();
 
     return entity;
-}
-
-fn render_clip(
-    mut commands: Commands,
-    mut typefaces: PxAssets<PxTypeface>,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut filters: PxAssets<PxFilter>,
-    query: Query<Entity, With<CinemachineModule>>,
-    clip: &Clip,
-    cinemachine_data: CinemachineData
-) {
-    if let Some(path) = clip.image_path.clone() {
-        let mut fix_path = format!("{}/assets{}", env::current_dir().unwrap().to_str().unwrap().to_string(), path);
-        //fix_path = format!("{}{}", ".", path.as_str());
-        info!("path: {}", fix_path);
-        let texture = assets_sprite.load(fix_path);
-
-        if let Ok(entity) = query.get_single() {
-
-            let clipBundle = commands.spawn((
-                    PxSpriteBundle::<Layer> {
-                    sprite: texture,
-                    layer: Layer::CutsceneText,
-                    anchor: PxAnchor::TopLeft,
-                    position: IVec2::new(clip.start_coordinates.x as i32, clip.start_coordinates.y as i32).into(),
-                    ..Default::default()
-                },
-                ClipBundle{},
-                Name::new(format!("CINEMA_{}_clip", cinemachine_data.name))
-            )).id();
-
-            commands.entity(entity)
-            .add_child(clipBundle);
-        }
-    }
-}
-
-fn despawn_clip(
-) {
-
 }
 
 pub fn render_cutscene(
@@ -100,55 +107,24 @@ pub fn render_cutscene(
     mut game_state_next_state: ResMut<NextState<GameState>>,
     mut current_scene: ResMut<CinemachineScene>,
     mut current_clip_info: ResMut<CurrentClipInfo>,
-    time: Res<Time>
+    mut timer: ResMut<StageActionTimer>, 
+    //curr_timer: Res<CinemachineTimer>, 
+    time: Res<Time>,
+
 ) {
     if state.get().to_owned() == GameState::Cutscene {
         let current_scene_option = current_scene.0.to_owned();
 
         if let Ok(entity) = query.get_single() {
             if let Some(mut scene)= current_scene_option {
-                let current_clip = &scene.clips[current_clip_info.index.to_owned()];
 
-                if !current_clip_info.isRendered{
-                    render_clip(
-                        commands,
-                        typefaces,
-                        assets_sprite,
-                        filters,
-                        query,
-                        &current_clip,
-                        scene.clone()
-                    );
-                    match current_clip.goal {
-                        data::CutsceneGoal::MOVEMENT { .. } => {
-                            
-                        },
-                        data::CutsceneGoal::TIMED { mut waitInSeconds  } => {
 
-                        },
-                    }
-
-                    current_clip_info.startedRender();
-                } else if !current_clip_info.hasFinished {
-                    match current_clip.goal {
-                        data::CutsceneGoal::MOVEMENT { .. } => {
-                            
-                        },
-                        data::CutsceneGoal::TIMED { mut waitInSeconds  } => {
-                            
-                            current_clip.goal.subtract_time(time.delta_seconds());
-                            //waitInSeconds -= time.delta_seconds();
-                            warn!("{}", waitInSeconds.to_string());
-                        },
-                    }
-                }
+                timer.timer.tick(Duration::from_secs_f32(time.delta_seconds()));
                 
-                current_clip_info.inc();
-                //scene.clips.iter()
-                if current_clip_info.index.to_owned() >= scene.clips.len()
-                {
-                    current_clip_info.reset();
-                    game_state_next_state.set(GameState::Running);
+
+                if timer.timer.finished() {
+                    game_state_next_state.set(GameState::Running)
+                } else {
                 }
             }
         } else {

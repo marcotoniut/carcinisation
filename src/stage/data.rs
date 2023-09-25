@@ -171,7 +171,6 @@ pub enum StageStep {
     Cinematic {
         resume_conditions: Option<Vec<StageActionResumeCondition>>,
         //wait after completing cinematic
-        max_duration: Option<f32>,
         cinematic: CinemachineData
     },
     Movement {

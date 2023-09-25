@@ -204,7 +204,9 @@ pub fn update_stage(
                             }
                             spawnsVal = Some(spawns);
                         },
-                        StageStep::Cinematic { max_duration, .. } => {
+                        StageStep::Cinematic { cinematic, ..} => {
+                            let max_duration = Some(cinematic.clip.waitInSeconds);
+                            
                             if let Some(duration) = max_duration {
                             } else {
                                 // DEBUG
@@ -306,7 +308,9 @@ pub fn read_stage_step_trigger(
                             stage_action_timer.timer.unpause();
                         }
                     }
-                    StageStep::Cinematic { max_duration, cinematic, .. }  => {
+                    StageStep::Cinematic { cinematic, .. }  => {
+
+                        let max_duration = Some(cinematic.clip.waitInSeconds);
 
                         if let Some(duration) = max_duration {
                             stage_action_timer.timer.reset();

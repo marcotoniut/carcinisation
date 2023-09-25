@@ -114,7 +114,6 @@ pub fn make_steps() -> Vec<StageStep> {
         },
         StageStep::Cinematic { 
             resume_conditions: Some(vec![StageActionResumeCondition::CinematicEnd]),
-            max_duration: Some(5.0),
             cinematic: INTRO_ANIMATIC.clone(),
         },
         StageStep::Movement {

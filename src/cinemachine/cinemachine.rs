@@ -26,6 +26,19 @@ pub struct CurrentClipInfo{
     pub hasFinished: bool
 }
 
+#[derive(Resource)]
+pub struct CinemachineTimer {
+    pub timer: Timer,
+}
+
+impl Default for CinemachineTimer {
+    fn default() -> Self {
+        let mut timer = Timer::from_seconds(0., TimerMode::Once);
+        timer.pause();
+        CinemachineTimer { timer }
+    }
+}
+
 impl CurrentClipInfo {
 
     pub fn reset(&mut self) {
