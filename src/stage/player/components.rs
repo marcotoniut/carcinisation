@@ -58,68 +58,75 @@ impl PlayerAttack {
             UnhittableList,
             Name,
         ),
-        AudioSourceBundle,
+        (AudioSourceBundle, AudioSystemBundle),
     ) {
         let position = PxSubPosition::from(self.position);
         let name = Name::new("PlayerAttack");
 
         // TODO sprite
-        let (sprite_bundle, animation_bundle, audio_source_bundle) = match self.weapon {
-            Weapon::Pincer => {
-                let melee_slash_sound = asset_server.load("audio/sfx/player_melee.ogg");
-                let sprite = assets_sprite.load_animated("sprites/melee_slash.png", 9);
-                (
-                    PxSpriteBundle::<Layer> {
-                        sprite,
-                        anchor: PxAnchor::Center,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Attack,
-                        ..default()
-                    },
-                    PxAnimationBundle {
-                        duration: PxAnimationDuration::millis_per_animation(500),
-                        on_finish: PxAnimationFinishBehavior::Despawn,
-                        ..default()
-                    },
-                    AudioBundle {
-                        source: melee_slash_sound,
-                        settings: PlaybackSettings {
-                            mode: PlaybackMode::Despawn,
-                            volume: Volume::new_relative(volume_settings.2 * 1.0),
+        let (sprite_bundle, animation_bundle, audio_source_bundle, audio_system_bundle) =
+            match self.weapon {
+                Weapon::Pincer => {
+                    let melee_slash_sound = asset_server.load("audio/sfx/player_melee.ogg");
+                    let sprite = assets_sprite.load_animated("sprites/melee_slash.png", 9);
+                    (
+                        PxSpriteBundle::<Layer> {
+                            sprite,
+                            anchor: PxAnchor::Center,
+                            canvas: PxCanvas::Camera,
+                            layer: Layer::Attack,
                             ..default()
                         },
-                        ..default()
-                    },
-                )
-            }
-            Weapon::Gun => {
-                let shoot_sound = asset_server.load("audio/sfx/player_shot.ogg");
-                let sprite = assets_sprite.load_animated("sprites/bullet_particles.png", 4);
-                (
-                    PxSpriteBundle::<Layer> {
-                        sprite,
-                        anchor: PxAnchor::Center,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Attack,
-                        ..default()
-                    },
-                    PxAnimationBundle {
-                        duration: PxAnimationDuration::millis_per_animation(80),
-                        on_finish: PxAnimationFinishBehavior::Despawn,
-                        ..default()
-                    },
-                    AudioBundle {
-                        source: shoot_sound,
-                        settings: PlaybackSettings {
-                            mode: PlaybackMode::Despawn,
-                            volume: Volume::new_relative(volume_settings.2 * 1.0),
+                        PxAnimationBundle {
+                            duration: PxAnimationDuration::millis_per_animation(500),
+                            on_finish: PxAnimationFinishBehavior::Despawn,
                             ..default()
                         },
-                        ..default()
-                    },
-                )
-            }
-        };
+                        AudioBundle {
+                            source: melee_slash_sound,
+                            settings: PlaybackSettings {
+                                mode: PlaybackMode::Despawn,
+                                volume: Volume::new_relative(volume_settings.2 * 1.0),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        AudioSystemBundle {
+                            system_type: AudioSystemType::SFX,
+                        },
+                    )
+                }
+                Weapon::Gun => {
+                    let shoot_sound = asset_server.load("audio/sfx/player_shot.ogg");
+                    let sprite = assets_sprite.load_animated("sprites/bullet_particles.png", 4);
+                    (
+                        PxSpriteBundle::<Layer> {
+                            sprite,
+                            anchor: PxAnchor::Center,
+                            canvas: PxCanvas::Camera,
+                            layer: Layer::Attack,
+                            ..default()
+                        },
+                        PxAnimationBundle {
+                            duration: PxAnimationDuration::millis_per_animation(80),
+                            on_finish: PxAnimationFinishBehavior::Despawn,
+                            ..default()
+                        },
+                        AudioBundle {
+                            source: shoot_sound,
+                            settings: PlaybackSettings {
+                                mode: PlaybackMode::Despawn,
+                                volume: Volume::new_relative(volume_settings.2 * 1.0),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        AudioSystemBundle {
+                            system_type: AudioSystemType::SFX,
+                        },
+                    )
+                }
+            };
 
         (
             (
@@ -130,7 +137,7 @@ impl PlayerAttack {
                 UnhittableList(HashSet::default()),
                 name,
             ),
-            audio_source_bundle,
+            (audio_source_bundle, audio_system_bundle),
         )
     }
 }

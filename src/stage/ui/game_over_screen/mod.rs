@@ -17,7 +17,7 @@ use seldom_pixel::{
 
 use self::components::*;
 
-pub fn render_cleared_screen(
+pub fn render_game_over_screen(
     mut commands: Commands,
     mut assets_typeface: PxAssets<PxTypeface>,
     mut assets_sprite: PxAssets<PxSprite>,
@@ -25,7 +25,7 @@ pub fn render_cleared_screen(
     score: Res<Score>,
     stage_state: Res<State<StageState>>,
 ) {
-    if stage_state.is_changed() && *stage_state.get() == StageState::Cleared {
+    if stage_state.is_changed() && *stage_state.get() == StageState::GameOver {
         spawn_screen(
             &mut commands,
             &mut assets_typeface,
@@ -36,12 +36,12 @@ pub fn render_cleared_screen(
     }
 }
 
-pub fn despawn_cleared_screen(
+pub fn despawn_game_over_screen(
     mut commands: Commands,
     stage_state: Res<State<StageState>>,
-    query: Query<Entity, With<ClearedScreen>>,
+    query: Query<Entity, With<GameOverScreen>>,
 ) {
-    if stage_state.is_changed() && *stage_state.get() != StageState::Cleared {
+    if stage_state.is_changed() && *stage_state.get() != StageState::GameOver {
         if let Ok(entity) = query.get_single() {
             commands.entity(entity).despawn_recursive();
         }
@@ -61,7 +61,7 @@ pub fn spawn_screen(
     let score_text = score.value.to_string();
 
     commands
-        .spawn((ClearedScreen {}, Name::new("Screen Cleared")))
+        .spawn((GameOverScreen {}, Name::new("GameOver Screen")))
         .with_children(|parent| {
             for i in 25..(115 as i32) {
                 parent.spawn((
@@ -93,12 +93,12 @@ pub fn spawn_screen(
                             ),
                         )
                         .into(),
-                        text: "Stage  Cleared".into(),
+                        text: "Game  Over".into(),
                         typeface: typeface.clone(),
                         ..default()
                     },
                     InfoText,
-                    Name::new("InfoText_Stage_Cleared"),
+                    Name::new("InfoText_Stage_GameOver"),
                 ));
 
                 parent.spawn((
@@ -139,8 +139,8 @@ pub fn spawn_screen(
                         typeface: typeface.clone(),
                         ..default()
                     },
-                    ScoreText,
-                    Name::new("ScoreText"),
+                    FinalScoreText,
+                    Name::new("FinalScoreText"),
                 ));
             }
         })

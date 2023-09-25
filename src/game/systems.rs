@@ -12,21 +12,3 @@ pub fn pause_game(mut game_state_next_state: ResMut<NextState<GameState>>) {
 pub fn resume_game(mut game_state_next_state: ResMut<NextState<GameState>>) {
     game_state_next_state.set(GameState::Running);
 }
-
-/*
-pub fn toggle_game(
-    gb_input_query: Query<&ActionState<GBInput>>,
-    state: Res<State<GameState>>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    let gb_input = gb_input_query.single();
-    if gb_input.just_pressed(GBInput::Start) {
-        if state.get().to_owned() == GameState::Running {
-            next_state.set(GameState::Paused);
-            info!("excuse me Game Paused.");
-        } else {
-            next_state.set(GameState::Running);
-            info!("Game Running.");
-        }
-    }
-}*/

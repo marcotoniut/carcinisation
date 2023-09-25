@@ -19,15 +19,18 @@ use crate::{
 
 use self::{audio::VolumeSettings, camera::CameraPos};
 
-pub fn input_exit_game(
-    gb_input_query: Query<&ActionState<GBInput>>,
-    mut exit: ResMut<Events<AppExit>>,
-) {
-    let gb_input = gb_input_query.single();
-    if gb_input.just_pressed(GBInput::DExit) {
-        exit.send(AppExit);
-    }
-}
+/**
+ * DEBUG
+ */
+// pub fn input_exit_game(
+//     gb_input_query: Query<&ActionState<GBInput>>,
+//     mut exit: ResMut<Events<AppExit>>,
+// ) {
+//     let gb_input = gb_input_query.single();
+//     if gb_input.just_pressed(GBInput::DExit) {
+//         exit.send(AppExit);
+//     }
+// }
 
 pub fn input_snd_menu(
     gb_input_query: Query<&ActionState<GBInput>>,
@@ -99,45 +102,52 @@ pub fn spawn_gb_input(mut commands: Commands) {
             (KeyCode::X, GBInput::A),
             (KeyCode::Return, GBInput::Start),
             (KeyCode::ShiftLeft, GBInput::Select),
-            (KeyCode::I, GBInput::DToGame),
-            (KeyCode::Back, GBInput::DToMainMenu),
-            (KeyCode::Escape, GBInput::DExit),
-            (KeyCode::A, GBInput::DLeft),
-            (KeyCode::W, GBInput::DUp),
-            (KeyCode::D, GBInput::DRight),
-            (KeyCode::S, GBInput::DDown),
+            // DEBUG
+            // (KeyCode::I, GBInput::DToGame),
+            // (KeyCode::Back, GBInput::DToMainMenu),
+            // (KeyCode::Escape, GBInput::DExit),
+            // (KeyCode::A, GBInput::DLeft),
+            // (KeyCode::W, GBInput::DUp),
+            // (KeyCode::D, GBInput::DRight),
+            // (KeyCode::S, GBInput::DDown),
         ]),
     });
 }
 
-pub fn transition_to_game_state(
-    gb_input_query: Query<&ActionState<GBInput>>,
-    app_state: Res<State<AppState>>,
-    mut next_state: ResMut<NextState<AppState>>,
-) {
-    let gb_input = gb_input_query.single();
-    if gb_input.just_pressed(GBInput::DToGame) {
-        if app_state.get().to_owned() != AppState::Game {
-            next_state.set(AppState::Game);
-            info!("Entered AppState::Game");
-        }
-    }
-}
+// /**
+//  * DEBUG
+//  */
+// pub fn transition_to_game_state(
+//     gb_input_query: Query<&ActionState<GBInput>>,
+//     app_state: Res<State<AppState>>,
+//     mut next_state: ResMut<NextState<AppState>>,
+// ) {
+//     let gb_input = gb_input_query.single();
+//     if gb_input.just_pressed(GBInput::DToGame) {
+//         if app_state.get().to_owned() != AppState::Game {
+//             next_state.set(AppState::Game);
+//             info!("Entered AppState::Game");
+//         }
+//     }
+// }
 
-pub fn transition_to_main_menu_state(
-    gb_input_query: Query<&ActionState<GBInput>>,
-    app_state: Res<State<AppState>>,
-    mut next_state: ResMut<NextState<AppState>>,
-) {
-    let gb_input = gb_input_query.single();
-    if gb_input.just_pressed(GBInput::DToMainMenu) {
-        if app_state.get().to_owned() != AppState::MainMenu {
-            // commands.insert_resource(NextState(Some(AppState::MainMenu)));
-            next_state.set(AppState::MainMenu);
-            info!("Entered AppState::MainMenu");
-        }
-    }
-}
+// /**
+//  * DEBUG
+//  */
+// pub fn transition_to_main_menu_state(
+//     gb_input_query: Query<&ActionState<GBInput>>,
+//     app_state: Res<State<AppState>>,
+//     mut next_state: ResMut<NextState<AppState>>,
+// ) {
+//     let gb_input = gb_input_query.single();
+//     if gb_input.just_pressed(GBInput::DToMainMenu) {
+//         if app_state.get().to_owned() != AppState::MainMenu {
+//             // commands.insert_resource(NextState(Some(AppState::MainMenu)));
+//             next_state.set(AppState::MainMenu);
+//             info!("Entered AppState::MainMenu");
+//         }
+//     }
+// }
 
 pub fn update_master_volume(volume_settings: Res<VolumeSettings>) {
     let master_volume = volume_settings.0;

@@ -1,4 +1,5 @@
 pub mod cleared_screen;
+pub mod game_over_screen;
 pub mod hud;
 pub mod pause_menu;
 
