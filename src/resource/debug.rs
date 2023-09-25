@@ -96,7 +96,10 @@ pub fn make_steps() -> Vec<StageStep> {
             spawns: vec![StageSpawn::Enemy(EnemySpawn {
                 coordinates: Vec2 { x: 70.0, y: 70.0 },
                 elapsed: 2.4 / CAMERA_BASE_SPEED,
-                contains: None,
+                contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                    pickup_type: PickupType::BigHealthpack,
+                    ..default()
+                }))),
                 ..EnemySpawn::base_mosquito(CAMERA_BASE_SPEED, Vec2 { x: 70.0, y: 70.0 })
             })],
         },
@@ -159,7 +162,10 @@ pub fn make_steps() -> Vec<StageStep> {
             spawns: vec![StageSpawn::Enemy(EnemySpawn {
                 coordinates: Vec2 { x: 70.0, y: 70.0 },
                 elapsed: 2.4 / CAMERA_BASE_SPEED,
-                contains: None,
+                contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                    pickup_type: PickupType::BigHealthpack,
+                    ..default()
+                }))),
                 ..EnemySpawn::base_mosquito(CAMERA_BASE_SPEED, Vec2 { x: 70.0, y: 70.0 })
             })],
         },
