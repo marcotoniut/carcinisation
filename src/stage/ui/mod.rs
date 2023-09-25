@@ -1,3 +1,4 @@
+pub mod cleared_screen;
 pub mod hud;
 pub mod pause_menu;
 
