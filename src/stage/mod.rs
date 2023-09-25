@@ -31,7 +31,7 @@ use self::{
         *,
     },
     ui::{
-        cleared_screen::{despawn_cleared_screen, render_cleared_screen, spawn_screen},
+        cleared_screen::{despawn_cleared_screen, render_cleared_screen},
         game_over_screen::{despawn_game_over_screen, render_game_over_screen},
         pause_menu::pause_menu_renderer,
         StageUiPlugin,

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use seldom_pixel::{position, prelude::PxSubPosition};
+use seldom_pixel::{prelude::PxSubPosition};
 
 use crate::stage::{
     enemy::{

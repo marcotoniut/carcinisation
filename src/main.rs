@@ -21,7 +21,7 @@ use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
-use systems::{audio::VolumeSettings, camera::*, *};
+use systems::{audio::VolumeSettings, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {

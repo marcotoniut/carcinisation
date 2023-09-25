@@ -45,7 +45,7 @@ pub fn update_transition(
             let remaining_rows = step_closing - counter.value;
             let rows_to_generate = remaining_rows.min(n);
             for i in 0..rows_to_generate {
-                let row = (step_closing - counter.value - i);
+                let row = step_closing - counter.value - i;
                 commands.spawn(make_transition_venetian_row(filter.clone(), row));
             }
         } else if counter.value < step_buffer {
