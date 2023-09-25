@@ -2,21 +2,19 @@ pub mod camera;
 
 use std::time::Duration;
 
-use bevy::{
-    audio::{PlaybackMode, Volume},
-    prelude::*,
-};
+use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::*;
 
 use crate::{
+    game::events::GameOver,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
-    stage::score::components::Score,
+    stage::{components::Dead, score::components::Score},
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     GBInput,
 };
 
-use super::{bundles::*, components::*, resources::*};
+use super::{bundles::*, components::*};
 use super::{crosshair::CrosshairSettings, resources::AttackTimer};
 
 pub fn spawn_player(
@@ -140,6 +138,23 @@ pub fn check_attack_timer(
     if timer.timer.finished() {
         for (entity, _) in &mut player_attack_query.iter() {
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub const DEATH_SCORE_PENALTY: i32 = 150;
+
+pub fn check_player_died(
+    mut commands: Commands,
+    mut score: ResMut<Score>,
+    mut query: Query<(Entity, &mut Player), With<Dead>>,
+    mut event_writer: EventWriter<GameOver>,
+) {
+    if let Ok((entity, mut player)) = query.get_single_mut() {
+        score.add(-DEATH_SCORE_PENALTY);
+        player.lives = player.lives.saturating_sub(1);
+        if player.lives == 0 {
+            event_writer.send(GameOver { score: score.value });
         }
     }
 }

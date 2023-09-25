@@ -49,9 +49,9 @@ impl Plugin for EnemyPlugin {
                    // placeholder_tick_enemy_spawn_timer,
                    // placeholder_spawn_enemies_over_time,
             )
-                .run_if(in_state(AppState::Game))
+                .run_if(in_state(StageState::Running))
                 .run_if(in_state(GameState::Running))
-                .run_if(in_state(StageState::Running)),
+                .run_if(in_state(AppState::Game)),
         );
     }
 }
