@@ -12,11 +12,14 @@ use crate::{
             PickupSpawn, PickupType, StageSpawn,
         },
         enemy::components::{
-            Enemy, EnemyMosquito, EnemyMosquitoAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
-            ENEMY_MOSQUITO_RADIUS,
+            CircleAround, Enemy, EnemyBehaviors, EnemyCurrentBehavior, EnemyMosquito,
+            EnemyMosquitoAttacking, EnemyTardigrade, EnemyTardigradeAttacking,
+            ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS, ENEMY_TARDIGRADE_BASE_HEALTH,
+            ENEMY_TARDIGRADE_RADIUS,
         },
         events::StageSpawnTrigger,
         pickup::components::HealthRecovery,
+        resources::StageTime,
     },
     systems::camera::CameraPos,
     Layer,
@@ -36,13 +39,13 @@ pub fn read_stage_spawn_trigger(
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, &camera_pos, spawn);
+                spawn_enemy(&mut commands, camera_pos.0, spawn);
             }
             StageSpawn::Object(spawn) => {
                 spawn_object(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Pickup(spawn) => {
-                spawn_pickup(&mut commands, &mut assets_sprite, &camera_pos, spawn);
+                spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.0, spawn);
             }
         }
     }
@@ -51,7 +54,7 @@ pub fn read_stage_spawn_trigger(
 pub fn spawn_pickup(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    camera_pos: &PxSubPosition,
+    offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
     info!("Spawning Pickup {:?}", spawn.pickup_type);
@@ -62,6 +65,7 @@ pub fn spawn_pickup(
         coordinates,
         elapsed,
     } = spawn;
+    let position = PxSubPosition::from(offset + coordinates.clone());
     match pickup_type {
         PickupType::BigHealthpack => {
             let sprite = assets_sprite.load("sprites/pickups/health_2.png");
@@ -78,7 +82,7 @@ pub fn spawn_pickup(
                         layer: Layer::Middle(2),
                         ..default()
                     },
-                    PxSubPosition::from(spawn.coordinates.clone()),
+                    position,
                     Health(1),
                     Collision::Box(Vec2::new(12., 8.)),
                     HealthRecovery(100),
@@ -101,7 +105,7 @@ pub fn spawn_pickup(
                         layer: Layer::Middle(2),
                         ..default()
                     },
-                    PxSubPosition::from(spawn.coordinates.clone()),
+                    position,
                     Health(1),
                     Collision::Box(Vec2::new(7., 5.)),
                     HealthRecovery(30),
@@ -111,11 +115,7 @@ pub fn spawn_pickup(
     }
 }
 
-pub fn spawn_enemy(
-    commands: &mut Commands,
-    camera_pos: &PxSubPosition,
-    enemy_spawn: &EnemySpawn,
-) -> Entity {
+pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpawn) -> Entity {
     info!("Spawning Enemy {:?}", enemy_spawn.enemy_type);
     let EnemySpawn {
         enemy_type,
@@ -125,19 +125,22 @@ pub fn spawn_enemy(
         contains,
         ..
     } = enemy_spawn;
+    let position = offset + *coordinates;
+    let behaviors = EnemyBehaviors::new(steps.clone());
     match enemy_type {
         EnemyType::Mosquito => {
             let entity = commands
                 .spawn((
                     Name::new("EnemyMosquito"),
                     Enemy {},
+                    behaviors,
                     EnemyMosquito {
                         base_speed: *base_speed,
                         steps: steps.clone(),
                     },
-                    EnemyMosquitoAttacking { attack: None },
+                    EnemyMosquitoAttacking { ..default() },
                     Hittable {},
-                    PxSubPosition::from(*coordinates + camera_pos.0),
+                    PxSubPosition::from(position),
                     Collision::Circle(ENEMY_MOSQUITO_RADIUS),
                     Health(ENEMY_MOSQUITO_BASE_HEALTH),
                 ))
@@ -151,14 +154,32 @@ pub fn spawn_enemy(
             }
             entity
         }
-        EnemyType::Kyle => commands.spawn((Name::new("EnemyKyle"), Enemy {})).id(),
-        EnemyType::Marauder => commands.spawn((Name::new("EnemyMarauder"), Enemy {})).id(),
-        EnemyType::Spidey => commands.spawn((Name::new("EnemySpidey"), Enemy {})).id(),
+        EnemyType::Kyle => commands
+            .spawn((Name::new("EnemyKyle"), Enemy {}, behaviors))
+            .id(),
+        EnemyType::Marauder => commands
+            .spawn((Name::new("EnemyMarauder"), Enemy {}, behaviors))
+            .id(),
+        EnemyType::Spidey => commands
+            .spawn((Name::new("EnemySpidey"), Enemy {}, behaviors))
+            .id(),
         EnemyType::Spidomonsta => commands
             .spawn((Name::new("EnemySpidomonsta"), Enemy {}))
             .id(),
         EnemyType::Tardigrade => commands
-            .spawn((Name::new("EnemyTardigrade"), Enemy {}))
+            .spawn((
+                Name::new("EnemyTardigrade"),
+                Enemy {},
+                behaviors,
+                EnemyTardigrade {
+                    steps: steps.clone(),
+                },
+                EnemyTardigradeAttacking { ..default() },
+                Hittable {},
+                PxSubPosition::from(position),
+                Collision::Circle(ENEMY_TARDIGRADE_RADIUS),
+                Health(ENEMY_TARDIGRADE_BASE_HEALTH),
+            ))
             .id(),
     }
 }

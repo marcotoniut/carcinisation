@@ -5,6 +5,12 @@ use super::data::ContainerSpawn;
 #[derive(Component)]
 pub struct Stage {}
 
+#[derive(Component, Debug, Clone, Copy)]
+pub struct Depth(pub usize);
+
+#[derive(Component, Debug)]
+pub struct InView {}
+
 #[derive(Component)]
 pub struct Destructible {}
 
@@ -14,6 +20,33 @@ pub struct Object {}
 // TODO should go in UI
 #[derive(Component, Debug, Clone)]
 pub struct StageClearedText {}
+
+#[derive(Component, Debug, Clone)]
+pub struct DepthSpeed(pub f32);
+
+#[derive(Component, Debug, Clone)]
+pub struct DepthProgress(pub f32);
+
+#[derive(Component, Debug, Clone)]
+pub struct DepthReached;
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetDepth(pub usize);
+
+#[derive(Component, Debug, Clone)]
+pub struct LineSpeed(pub Vec2);
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetPosition(pub Vec2);
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetXReached;
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetYReached;
+
+#[derive(Component, Debug, Clone)]
+pub struct TargetReached;
 
 #[derive(Component, Debug, Clone)]
 pub enum Collision {
@@ -26,6 +59,10 @@ pub enum Collision {
 #[derive(Component, Debug, Clone)]
 pub struct Health(pub u32);
 
+#[derive(Component, Debug, Clone)]
+pub struct Damage(pub u32);
+
+// Should hittable specify whether you can hit with Melee, ranged or both?
 #[derive(Component, Debug, Clone)]
 pub struct Hittable {}
 

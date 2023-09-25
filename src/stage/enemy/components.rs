@@ -1,18 +1,82 @@
-use bevy::prelude::*;
+use std::collections::VecDeque;
+use std::time::Duration;
 
-use crate::stage::data::EnemyStep;
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
+
+use crate::stage::data::{EnemyStep, MovementDirection};
 
 pub const SCORE_RANGED_REGULAR_HIT: u32 = 1;
 pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;
 pub const SCORE_MELEE_REGULAR_HIT: u32 = 3;
 pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
 
-pub const PLACEHOLDER_ENEMY_SPEED: f32 = 10.0;
+// pub const PLACEHOLDER_ENEMY_SPEED: f32 = 10.0;
 
-pub const PLACEHOLDER_ENEMY_SIZE: f32 = 6.0;
-pub const PLACEHOLDER_NUMBER_OF_ENEMIES: usize = 2;
+// pub const PLACEHOLDER_ENEMY_SIZE: f32 = 6.0;
+// pub const PLACEHOLDER_NUMBER_OF_ENEMIES: usize = 2;
 
 pub const PLACEHOLDER_ENEMY_SPAWN_TIME: f32 = 8.0;
+
+pub const BLOOD_ATTACK_DEPTH_SPEED: f32 = 4.;
+pub const BLOOD_ATTACK_LINE_SPEED: f32 = 0.3;
+pub const BLOOD_ATTACK_MAX_DEPTH: usize = 6;
+pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
+
+#[derive(Component, Clone, Debug)]
+pub struct EnemyCurrentBehavior {
+    pub started: Duration,
+    pub behavior: EnemyStep,
+}
+
+#[derive(Component, Clone, Debug)]
+pub enum BehaviorBundle {
+    Idle(()),
+    Movement(()),
+    Attack(()),
+    Circle(CircleAround),
+}
+
+impl EnemyCurrentBehavior {
+    pub fn get_bundles(
+        &self,
+        time_offset: Duration,
+        current_position: &PxSubPosition,
+    ) -> BehaviorBundle {
+        match self.behavior {
+            EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
+            EnemyStep::Movement {
+                coordinates,
+                attacking,
+                speed,
+            } => BehaviorBundle::Movement(()),
+            EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
+            EnemyStep::Circle {
+                radius, direction, ..
+            } => BehaviorBundle::Circle(CircleAround {
+                center: current_position.0,
+                radius,
+                direction: direction.clone(),
+                time_offset: time_offset.as_secs_f32(),
+            }),
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
+
+impl EnemyBehaviors {
+    pub fn new(steps: Vec<EnemyStep>) -> Self {
+        EnemyBehaviors(steps.into())
+    }
+
+    pub fn next(&mut self) -> EnemyStep {
+        self.0.pop_front().unwrap_or_else(|| EnemyStep::Idle {
+            duration: EnemyStep::max_duration(),
+        })
+    }
+}
 
 #[derive(Component)]
 pub struct PlaceholderEnemy {
@@ -25,10 +89,24 @@ pub struct PlaceholderEnemy {
 #[derive(Component)]
 pub struct Enemy {}
 
+#[derive(Component)]
+pub struct EnemyAttack {}
+
+#[derive(Component, Clone, Debug)]
+pub struct CircleAround {
+    pub radius: f32,
+    pub center: Vec2,
+    pub time_offset: f32,
+    pub direction: MovementDirection,
+}
+
 // Enemies
 
 pub const ENEMY_MOSQUITO_RADIUS: f32 = 7.0;
 pub const ENEMY_MOSQUITO_BASE_HEALTH: u32 = 40;
+
+pub const ENEMY_TARDIGRADE_RADIUS: f32 = 9.0;
+pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;
 
 #[derive(Component, Clone, Debug)]
 pub struct EnemyMosquito {
@@ -41,42 +119,59 @@ impl EnemyMosquito {
     pub fn kill_score(&self) -> u32 {
         10
     }
-
-    pub fn current_step(&self) -> &EnemyStep {
-        // TODO temporary
-        self.steps
-            .first()
-            .unwrap_or(&EnemyStep::Idle { duration: 999. })
-    }
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Component, Debug, Default)]
 pub struct EnemyMosquitoAttacking {
     pub attack: Option<EnemyMosquitoAttack>,
+    pub last_attack_started: Duration,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Component, Debug)]
 pub enum EnemyMosquitoAttack {
     Ranged,
     Melee,
 }
 
+// TODO review
 #[derive(Component, Clone, Debug)]
 pub enum EnemyMosquitoAnimation {
     Idle,
     Attack,
-    Movement,
-    Circle,
+    Fly,
 }
 
 #[derive(Clone, Component, Debug, Default)]
 pub struct CurrentEnemyMosquitoStep(EnemyStep);
 
-#[derive(Component)]
-pub struct EnemySpidey {}
+// Tardigrade
+#[derive(Component, Clone, Debug)]
+pub struct EnemyTardigrade {
+    pub steps: Vec<EnemyStep>,
+}
+
+impl EnemyTardigrade {
+    pub fn kill_score(&self) -> u32 {
+        7
+    }
+}
+
+// TODO review
+#[derive(Component, Clone, Debug)]
+pub enum EnemyTardigradeAnimation {
+    Idle,
+    Attack,
+    Sucking,
+}
+
+#[derive(Clone, Component, Debug, Default)]
+pub struct EnemyTardigradeAttacking {
+    pub attack: bool,
+    pub last_attack_started: Duration,
+}
 
 #[derive(Component)]
-pub struct EnemyTardigrade {}
+pub struct EnemySpidey {}
 
 // Bosses
 

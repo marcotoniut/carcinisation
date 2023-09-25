@@ -46,12 +46,16 @@ path = "backgrounds/asteroid/background.png"
 
 [[images]]
 path = "backgrounds/asteroid/skybox.png"
+[[images]]
+path = "backgrounds/asteroid/spaceship_destroyed.png"
 
 [[images]]
-path = "backgrounds/park/background.png"
+path = "backgrounds/rugpark/background.png"
 
 [[images]]
-path = "backgrounds/park/skybox.png"
+path = "backgrounds/rugpark/skybox.png"
+[[images]]
+path = "backgrounds/spaceship/spaceship.png"
 
 # [[images]]
 # path = "backgrounds/main_menu/blank.png"
@@ -91,7 +95,81 @@ path = "sprites/enemies/mosquito_melee_2.png"
 [[images]]
 path = "sprites/enemies/mosquito_melee_3.png"
 [[images]]
+path = "sprites/enemies/mosquito_hydra_idle.png"
+[[images]]
+path = "sprites/enemies/mosquito_hydra_shooting.png"
+[[images]]
+path = "sprites/enemies/mosquito_head_shot.png"
+
+[[images]]
 path = "sprites/enemies/worm.png"
+[[images]]
+path = "sprites/enemies/spider.png"
+[[images]]
+path = "sprites/enemies/spider_death.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_attack.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_death.png"
+[[images]]
+path = "sprites/enemies/spiderBoss.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_web.png"
+[[images]]
+path = "sprites/enemies/spiderBoss_web_attack.png"
+[[images]]
+path = "sprites/enemies/worm.png"
+[[images]]
+path = "sprites/enemies/worm_death.png"
+
+
+[[images]]
+path = "sprites/enemies/tardigrade_death_64x64.png"
+target_path = "sprites/enemies/tardigrade_death_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_death_64x64.png"
+target_path = "sprites/enemies/tardigrade_death_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_death_64x64.png"
+target_path = "sprites/enemies/tardigrade_death_3.png"
+
+[[images]]
+path = "sprites/enemies/tardigrade_idle_64x64.png"
+target_path = "sprites/enemies/tardigrade_idle_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_idle_64x64.png"
+target_path = "sprites/enemies/tardigrade_idle_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_idle_64x64.png"
+target_path = "sprites/enemies/tardigrade_idle_3.png"
+
+[[images]]
+path = "sprites/enemies/tardigrade_attack_64x64.png"
+target_path = "sprites/enemies/tardigrade_attack_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_attack_64x64.png"
+target_path = "sprites/enemies/tardigrade_attack_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_attack_64x64.png"
+target_path = "sprites/enemies/tardigrade_attack_3.png"
+
+[[images]]
+path = "sprites/enemies/tardigrade_sucking_64x64.png"
+target_path = "sprites/enemies/tardigrade_sucking_1.png"
+width = 24
+[[images]]
+path = "sprites/enemies/tardigrade_sucking_64x64.png"
+target_path = "sprites/enemies/tardigrade_sucking_2.png"
+width = 42
+[[images]]
+path = "sprites/enemies/tardigrade_sucking_64x64.png"
+target_path = "sprites/enemies/tardigrade_sucking_3.png"
 
 # Objects
 [[images]]
@@ -105,8 +183,6 @@ path = "sprites/objects/lamp_broken.png"
 [[images]]
 path = "sprites/objects/lamp.png"
 [[images]]
-path = "sprites/objects/sign.png"
-[[images]]
 path = "sprites/objects/trash_can_1.png"
 [[images]]
 path = "sprites/objects/trash_can_2.png"
@@ -114,31 +190,82 @@ path = "sprites/objects/trash_can_2.png"
 path = "sprites/objects/trash_can_broken_1.png"
 [[images]]
 path = "sprites/objects/trash_can_broken_1.png"
+[[images]]
+path = "sprites/objects/cavern_crystal.png"
+[[images]]
+path = "sprites/objects/cavern_crytal_broken.png"
+[[images]]
+path = "sprites/objects/cavern_mushroom.png"
+[[images]]
+path = "sprites/objects/cavern_mushroom_broken.png"
+[[images]]
+path = "sprites/objects/rugpark_sign.png"
 
 # Pickups
 [[images]]
-path = "sprites/pickups/ammo_1.png"
+path = "sprites/pickups/ammo_9x8.png"
+target_path = "sprites/pickups/ammo_1.png"
 [[images]]
-path = "sprites/pickups/ammo_2.png"
+path = "sprites/pickups/ammo_13x12.png"
+target_path = "sprites/pickups/ammo_2.png"
 [[images]]
-path = "sprites/pickups/bomb_1.png"
+path = "sprites/pickups/bomb_9x9.png"
+target_path = "sprites/pickups/bomb1.png"
 [[images]]
-path = "sprites/pickups/bomb_2.png"
+path = "sprites/pickups/bomb_13x11.png"
+target_path = "sprites/pickups/bomb_2.png"
 [[images]]
-path = "sprites/pickups/health_1.png"
+path = "sprites/pickups/health_9x7.png"
+target_path = "sprites/pickups/health_1.png"
 [[images]]
-path = "sprites/pickups/health_2.png"
+path = "sprites/pickups/health_14x10.png"
+target_path = "sprites/pickups/health_2.png"
 
-# cutscenes
+# Attacks
 [[images]]
-path = "cinematics/intro/clear.png"
+path = "sprites/attacks/bloodball_45x45_4.png"
+target_path = "sprites/attacks/blood_attack_hovering_1.png"
+width = 6
 [[images]]
-path = "cinematics/intro/0.png"
+path = "sprites/attacks/bloodball_45x45_4.png"
+target_path = "sprites/attacks/blood_attack_hovering_2.png"
+width = 10
 [[images]]
-path = "cinematics/intro/1.png"
+path = "sprites/attacks/bloodball_45x45_4.png"
+target_path = "sprites/attacks/blood_attack_hovering_3.png"
+width = 15
 [[images]]
-path = "cinematics/intro/2.png"
+path = "sprites/attacks/bloodball_45x45_4.png"
+target_path = "sprites/attacks/blood_attack_hovering_4.png"
+width = 21
 [[images]]
-path = "cinematics/intro/3.png"
+path = "sprites/attacks/bloodball_45x45_4.png"
+target_path = "sprites/attacks/blood_attack_hovering_5.png"
+width = 28
 [[images]]
-path = "cinematics/intro/4.png"
+path = "sprites/attacks/bloodball_45x45_4.png"
+target_path = "sprites/attacks/blood_attack_hovering_6.png"
+width = 36
+[[images]]
+path = "sprites/attacks/bloodsplat.png"
+target_path = "sprites/attacks/blood_attack_splat_7.png"
+[[images]]
+path = "sprites/Splat_Thick_Outline.png"
+[[images]]
+path = "sprites/Splat_Thin_Outline.png"
+[[images]]
+path = "sprites/Melee_Attack_120x113_Spreadsheet.png"
+[[images]]
+path = "sprites/Bloodball_45x45_4_Frames_Outlined_Spreadsheet.png"
+
+#cutscenes
+[[images]]
+path = "cinematics/intro/bald_guy.png"
+[[images]]
+path = "cinematics/intro/falling_scene.png"
+[[images]]
+path = "cinematics/intro/falling_ship.png"
+[[images]]
+path = "cinematics/intro/screaming_scene.png"
+[[images]]
+path = "cinematics/intro/transform.png"

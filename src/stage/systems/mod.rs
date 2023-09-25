@@ -1,3 +1,5 @@
+pub mod camera;
+pub mod movement;
 pub mod spawn;
 
 use std::{ops::Sub, time::Duration};
@@ -10,19 +12,30 @@ use seldom_pixel::{
 };
 
 use crate::{
-    globals::DEBUG_STAGESTEP, resource::park::STAGE_PARK_DATA, systems::camera::CameraPos, GBInput, cinemachine::cinemachine::CinemachineScene,
+    globals::DEBUG_STAGESTEP,
+    resource::{asteroid::STAGE_ASTEROID_DATA, debug::STAGE_DEBUG_DATA, park::STAGE_PARK_DATA},
+    systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
+    GBInput,
 };
 
-use self::spawn::{spawn_enemy, spawn_object};
+use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 
 use super::{
     bundles::*,
-    components::Stage,
+    components::{Destructible, Object, Stage},
     data::*,
-    events::{StageSpawnTrigger, StageStepTrigger},
-    resources::{StageActionTimer, StageProgress},
+    enemy::components::Enemy,
+    events::{StageClearedTrigger, StageSpawnTrigger, StageStepTrigger},
+    player::components::Player,
+    resources::{StageActionTimer, StageProgress, StageTime},
     GameState, StageState,
 };
+
+pub fn tick_stage_time(mut stage_time: ResMut<StageTime>, time: Res<Time>) {
+    let delta = time.delta();
+    stage_time.delta = delta;
+    stage_time.elapsed += delta;
+}
 
 pub fn pause_game(mut game_state_next_state: ResMut<NextState<GameState>>) {
     game_state_next_state.set(GameState::Paused);
@@ -57,24 +70,37 @@ pub struct StageRawData {
 pub fn setup_stage(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    volume_settings: Res<VolumeSettings>,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
-    let stage_data = STAGE_PARK_DATA.clone();
+    let stage_data = STAGE_DEBUG_DATA.clone();
 
     for spawn in &stage_data.spawns {
         match spawn {
-            StageSpawn::Destructible(_) => {}
+            StageSpawn::Destructible(spawn) => {
+                spawn_destructible(&mut commands, &mut assets_sprite, spawn);
+            }
             StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, &camera_pos, spawn);
+                spawn_enemy(&mut commands, camera_pos.0, spawn);
             }
             StageSpawn::Object(spawn) => {
                 spawn_object(&mut commands, &mut assets_sprite, spawn);
             }
-            StageSpawn::Pickup(_) => {}
+            StageSpawn::Pickup(spawn) => {
+                spawn_pickup(&mut commands, &mut assets_sprite, Vec2::ZERO, spawn);
+            }
         }
     }
+
+    spawn_music(
+        &mut commands,
+        &asset_server,
+        volume_settings,
+        stage_data.music_path.clone(),
+    );
 
     commands.insert_resource(StageRawData { stage_data });
 }
@@ -90,7 +116,7 @@ pub fn spawn_current_stage_bundle(
         .spawn((Stage {}, Name::new("Stage")))
         .with_children(|parent| {
             let background_bundle =
-                make_background_bundle(&mut assets_sprite, stage.background.clone());
+                make_background_bundle(&mut assets_sprite, stage.background_path.clone());
             parent.spawn(background_bundle);
 
             let skybox_bundle = make_skybox_bundle(&mut assets_sprite, stage.skybox.clone());
@@ -132,7 +158,7 @@ pub fn update_stage(
     mut step_event_writer: EventWriter<StageStepTrigger>,
     mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
-    mut stage_data_raw: Res<StageRawData>,
+    stage_data_raw: Res<StageRawData>,
 ) {
     match state.to_owned() {
         StageState::Initial => {
@@ -150,7 +176,7 @@ pub fn update_stage(
 
                         info!("curr action: {}", curr_action);
                     }
-                    
+
                     let mut spawnsVal = None;
                     match action {
                         StageStep::Movement {
@@ -178,7 +204,7 @@ pub fn update_stage(
                             **camera = camera_pos.round().as_ivec2();
 
                             spawnsVal = Some(spawns);
-                        },
+                        }
                         StageStep::Stop {
                             resume_conditions,
                             max_duration,
@@ -189,7 +215,6 @@ pub fn update_stage(
                             if let Some(duration) = max_duration {
                             } else {
                                 // DEBUG
-
                                 if DEBUG_STAGESTEP {
                                     let mut duration = 0.;
                                     if max_duration.is_some() {
@@ -233,7 +258,8 @@ pub fn update_stage(
                         let mut i = 0;
                         while let Some(spawn) = cloned_spawns.first() {
                             if (stage_progress.spawn_step <= i) {
-                                let elapsed = stage_progress.spawn_step_elapsed - spawn.get_elapsed();
+                                let elapsed =
+                                    stage_progress.spawn_step_elapsed - spawn.get_elapsed();
                                 if 0. <= elapsed {
                                     stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
 
@@ -267,14 +293,41 @@ pub fn update_stage(
 }
 
 pub fn check_staged_cleared(
-    mut next_state: ResMut<NextState<StageState>>,
+    mut event_writer: EventWriter<StageClearedTrigger>,
     stage_progress: Res<StageProgress>,
     mut stage_data_raw: Res<StageRawData>,
 ) {
     if let stage = &stage_data_raw.stage_data {
         if stage_progress.step >= stage.steps.len() {
-            next_state.set(StageState::Clear);
+            event_writer.send(StageClearedTrigger {});
         }
+    }
+}
+
+pub fn read_stage_cleared_trigger(
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<StageState>>,
+    mut event_reader: EventReader<StageClearedTrigger>,
+    enemy_query: Query<Entity, With<Enemy>>,
+    player_query: Query<Entity, With<Player>>,
+    destructible_query: Query<Entity, With<Destructible>>,
+    object_query: Query<Entity, With<Object>>,
+) {
+    for event in event_reader.iter() {
+        for entity in &mut enemy_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut player_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut destructible_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in &mut object_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        next_state.set(StageState::Cleared);
     }
 }
 

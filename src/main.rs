@@ -1,6 +1,7 @@
 mod assets;
+pub mod cinemachine;
+mod components;
 mod cutscene;
-mod events;
 mod game;
 mod globals;
 mod main_menu;
@@ -8,7 +9,6 @@ mod resource;
 mod stage;
 mod systems;
 mod transitions;
-pub mod cinemachine;
 
 #[macro_use]
 extern crate lazy_static;
@@ -21,14 +21,15 @@ use cutscene::CutscenePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
-use stage::{data::StageData, player::crosshair::CrosshairSettings, StagePlugin};
+use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{audio::VolumeSettings, camera::move_camera, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
     let title: String = "CARCINISATION".to_string();
     let focused: bool = false;
-    let resolution: Vec2 = Vec2::new(576., 480.);
+    // let resolution: Vec2 = Vec2::new(576., 480.);
+    let resolution: Vec2 = Vec2::new(850., 480.);
 
     let mut app = App::new();
     let dev = true;
@@ -68,7 +69,8 @@ fn main() {
         FramepacePlugin,
         bevy::diagnostic::LogDiagnosticsPlugin::default(),
     ))
-    // .insert_resource(GlobalVolume::new(0.2))
+    // TEMP
+    // .insert_resource(GlobalVolume::new(0.3))
     .insert_resource(ClearColor(Color::BLACK))
     .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
     .insert_resource(VolumeSettings(

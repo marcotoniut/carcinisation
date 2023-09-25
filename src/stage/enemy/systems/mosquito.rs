@@ -1,40 +1,57 @@
-use bevy::prelude::*;
+use std::time::Duration;
+
+use bevy::{
+    audio::{PlaybackMode, Volume},
+    prelude::*,
+    render::camera,
+};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets, PxSubPosition},
     sprite::{PxSprite, PxSpriteBundle},
 };
 
 use crate::{
+    globals::SCREEN_RESOLUTION,
     stage::{
-        components::Dead,
+        components::{
+            Damage, Dead, Depth, DepthProgress, DepthReached, DepthSpeed, Health, Hittable, InView,
+            LineSpeed, TargetDepth, TargetPosition,
+        },
         data::EnemyStep,
         enemy::{
-            bundles::make_animation_bundle,
-            components::{
-                EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
-            },
-            data::mosquito::MOSQUITO_ANIMATIONS,
+            bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
+            components::*,
+            data::{blood_attack::BLOOD_ATTACK_ANIMATIONS, mosquito::MOSQUITO_ANIMATIONS},
         },
+        events::DepthChanged,
+        player::components::Player,
+        resources::StageTime,
         score::components::Score,
+    },
+    systems::{
+        audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
+        camera::CameraPos,
     },
     Layer,
 };
 
+pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
+
 pub fn assign_mosquito_animation(
     mut commands: Commands,
-    mut query: Query<
+    query: Query<
         (
             Entity,
-            &EnemyMosquito,
+            &EnemyCurrentBehavior,
             &PxSubPosition,
             &EnemyMosquitoAttacking,
         ),
-        Without<EnemyMosquitoAnimation>,
+        (With<EnemyMosquito>, Without<EnemyMosquitoAnimation>),
     >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
-    for (entity, mosquito, position, attacking) in &mut query.iter() {
-        let step = mosquito.current_step();
+    for (entity, behavior, position, attacking) in &mut query.iter() {
+        let step = behavior.behavior.clone();
 
         // HARDCODED depth, should be a component
         let depth = 1;
@@ -42,20 +59,20 @@ pub fn assign_mosquito_animation(
         let bundle_o = if let Some(attack) = &attacking.attack {
             match attack {
                 EnemyMosquitoAttack::Melee => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.melee_attack.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
                 EnemyMosquitoAttack::Ranged => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -63,29 +80,29 @@ pub fn assign_mosquito_animation(
         } else {
             match step {
                 EnemyStep::Attack { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
                 EnemyStep::Circle { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
-                            EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyMosquitoAnimation::Fly,
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
                 EnemyStep::Idle { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
-                            EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyMosquitoAnimation::Idle,
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -94,11 +111,11 @@ pub fn assign_mosquito_animation(
                     attacking,
                     speed,
                 } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
-                            EnemyMosquitoAnimation::Attack,
-                            make_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyMosquitoAnimation::Fly,
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
                         )
                     })
                 }
@@ -128,7 +145,7 @@ pub fn despawn_dead_mosquitoes(
 
         // HARDCODED depth, should be a component
         let depth = 1;
-        let animation_o = MOSQUITO_ANIMATIONS.death.get(depth);
+        let animation_o = MOSQUITO_ANIMATIONS.death.get(&depth);
 
         if let Some(animation) = animation_o {
             let texture =
@@ -143,14 +160,106 @@ pub fn despawn_dead_mosquitoes(
                     anchor: PxAnchor::Center,
                     ..default()
                 },
-                PxAnimationBundle {
-                    duration: PxAnimationDuration::millis_per_animation(animation.speed),
-                    on_finish: animation.finish_behavior,
-                    ..default()
-                },
+                animation.get_animation_bundle(),
             ));
         }
 
         score.add_u(mosquito.kill_score());
+    }
+}
+
+pub fn check_idle_mosquito(
+    mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    stage_time: Res<StageTime>,
+    query: Query<
+        (
+            Entity,
+            &EnemyMosquito,
+            &mut EnemyMosquitoAttacking,
+            &PxSubPosition,
+        ),
+        With<InView>,
+    >,
+) {
+    let camera_pos = camera_query.get_single().unwrap();
+    for (entity, enemy, attacking, position) in &mut query.iter() {
+        if attacking.attack.is_none() {
+            // if let EnemyStep::Idle { duration } = enemy.current_step() {
+            if attacking.last_attack_started
+                < stage_time.elapsed + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
+            {
+                info!("Mosquito {:?} is attacking", entity);
+                commands
+                    .entity(entity)
+                    .remove::<EnemyMosquitoAnimation>()
+                    .insert(EnemyMosquitoAttacking {
+                        attack: Some(EnemyMosquitoAttack::Ranged),
+                        last_attack_started: stage_time.elapsed,
+                    });
+
+                let depth = Depth(1);
+                let attack_bundle = make_blood_attack_bundle(&mut assets_sprite, depth.clone());
+
+                let mut attacking = EnemyMosquitoAttacking {
+                    attack: Some(EnemyMosquitoAttack::Ranged),
+                    last_attack_started: stage_time.elapsed,
+                };
+
+                attacking.attack = attacking.attack.clone();
+                attacking.last_attack_started = attacking.last_attack_started.clone();
+
+                let target_vec = Vec2::new(
+                    camera_pos.x + SCREEN_RESOLUTION.x as f32 / 2.,
+                    camera_pos.y + SCREEN_RESOLUTION.y as f32 / 2.,
+                );
+
+                commands
+                    .spawn((
+                        Name::new("Attack Blood"),
+                        EnemyAttack {},
+                        TargetPosition(target_vec),
+                        LineSpeed((target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED),
+                        depth,
+                        DepthProgress(depth.0.clone() as f32),
+                        DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
+                        TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
+                        Damage(BLOOD_ATTACK_DAMAGE),
+                        PxSubPosition(position.0),
+                        Hittable {},
+                        Health(1),
+                    ))
+                    .insert(attack_bundle);
+            }
+        }
+    }
+}
+
+pub fn despawn_dead_attacks(
+    mut commands: Commands,
+    query: Query<(Entity, &EnemyAttack), With<Dead>>,
+) {
+    for (entity, _) in query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
+pub fn read_enemy_attack_depth_changed(
+    mut commands: Commands,
+    mut event_reader: EventReader<DepthChanged>,
+    mut assets_sprite: PxAssets<PxSprite>,
+) {
+    for event in event_reader.iter() {
+        if event.depth.0 < BLOOD_ATTACK_MAX_DEPTH {
+            let (sprite_bundle, animation_bundle, collision) =
+                make_blood_attack_bundle(&mut assets_sprite, event.depth.clone());
+
+            commands
+                .entity(event.entity)
+                .insert(sprite_bundle)
+                .insert(collision)
+                .insert(animation_bundle);
+        }
     }
 }

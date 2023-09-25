@@ -5,6 +5,13 @@ use bevy::{
 
 use crate::cinemachine::data::CinemachineData;
 
+#[derive(Clone, Copy, Debug, Default)]
+pub enum MovementDirection {
+    #[default]
+    Left,
+    Right,
+}
+
 #[derive(Debug, Clone)]
 pub struct SkyboxData {
     pub path: String,
@@ -15,6 +22,8 @@ pub struct SkyboxData {
 pub enum DestructibleType {
     Lamp,
     Trashcan,
+    Crystal,
+    Mushroom,
     // Window,
     // Plant,
 }
@@ -46,17 +55,21 @@ pub enum EnemyType {
     Kyle,
 }
 
+// Should rename to EnemyBehavior?
 #[derive(Clone, Debug)]
 pub enum EnemyStep {
     Attack {
         duration: f32,
     },
     Circle {
+        radius: f32,
+        direction: MovementDirection,
         duration: f32,
     },
     Idle {
         duration: f32,
     },
+    // TODO rename to LineMovement
     Movement {
         coordinates: Vec2,
         attacking: bool,
@@ -66,7 +79,29 @@ pub enum EnemyStep {
 
 impl Default for EnemyStep {
     fn default() -> Self {
-        EnemyStep::Idle { duration: 0.0 }
+        EnemyStep::Idle {
+            duration: Self::max_duration(),
+        }
+    }
+}
+
+impl EnemyStep {
+    pub fn max_duration() -> f32 {
+        99999.
+    }
+
+    pub fn get_duration(&self) -> f32 {
+        self.get_duration_o()
+            .unwrap_or_else(|| EnemyStep::max_duration())
+    }
+
+    pub fn get_duration_o(&self) -> Option<f32> {
+        match self {
+            EnemyStep::Attack { duration, .. } => Some(*duration),
+            EnemyStep::Circle { duration, .. } => Some(*duration),
+            EnemyStep::Idle { duration, .. } => Some(*duration),
+            EnemyStep::Movement { .. } => None,
+        }
     }
 }
 
@@ -122,12 +157,57 @@ pub struct EnemySpawn {
     pub contains: Option<Box<ContainerSpawn>>,
 }
 
+impl EnemySpawn {
+    pub fn base_tardigrade(base_speed: f32, coordinates: Vec2) -> EnemySpawn {
+        EnemySpawn {
+            enemy_type: EnemyType::Tardigrade,
+            coordinates,
+            base_speed,
+            elapsed: 0.0,
+            steps: vec![EnemyStep::Attack { duration: 999. }],
+            contains: None,
+        }
+    }
+    pub fn base_mosquito(base_speed: f32, coordinates: Vec2) -> EnemySpawn {
+        EnemySpawn {
+            enemy_type: EnemyType::Mosquito,
+            coordinates,
+            base_speed,
+            elapsed: 0.0,
+            steps: vec![EnemyStep::Circle {
+                duration: 999.,
+                radius: 12.,
+                direction: MovementDirection::Right,
+            }],
+            contains: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum StageSpawn {
     Object(ObjectSpawn),
     Destructible(DestructibleSpawn),
     Pickup(PickupSpawn),
     Enemy(EnemySpawn),
+}
+
+impl StageSpawn {
+    pub fn base_tardigrade(base_speed: f32, coordinates: Vec2) -> StageSpawn {
+        StageSpawn::Enemy(EnemySpawn {
+            coordinates,
+            base_speed,
+            ..EnemySpawn::base_tardigrade(base_speed, coordinates)
+        })
+    }
+
+    pub fn base_mosquito(base_speed: f32, coordinates: Vec2) -> StageSpawn {
+        StageSpawn::Enemy(EnemySpawn {
+            coordinates,
+            base_speed,
+            ..EnemySpawn::base_mosquito(base_speed, coordinates)
+        })
+    }
 }
 
 impl StageSpawn {
@@ -163,7 +243,7 @@ pub enum StageActionResumeCondition {
     #[default]
     KillAll,
     KillBoss,
-    CinematicEnd
+    CinematicEnd,
 }
 
 #[derive(Clone, Debug)]
@@ -189,7 +269,8 @@ pub enum StageStep {
 #[uuid = "c17075ed-7df0-4a51-b961-ce5270a8a934"]
 pub struct StageData {
     pub name: String,
-    pub background: String,
+    pub background_path: String,
+    pub music_path: String,
     pub skybox: SkyboxData,
     pub start_coordinates: Option<Vec2>,
     pub spawns: Vec<StageSpawn>,

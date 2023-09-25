@@ -1,6 +1,7 @@
 pub mod bundles;
 pub mod components;
 pub mod crosshair;
+pub mod events;
 pub mod resources;
 pub mod systems;
 
@@ -12,7 +13,7 @@ use self::{
     resources::AttackTimer,
     systems::*,
 };
-use super::GameState;
+use super::{GameState, StageState};
 use crate::AppState;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -37,8 +38,9 @@ impl Plugin for PlayerPlugin {
                     player_movement.in_set(MovementSystemSet),
                     confine_player_movement.in_set(ConfinementSystemSet),
                 )
-                    .run_if(in_state(AppState::Game))
-                    .run_if(in_state(GameState::Running)),
+                    .run_if(in_state(StageState::Running))
+                    .run_if(in_state(GameState::Running))
+                    .run_if(in_state(AppState::Game)),
             )
             .add_systems(OnExit(AppState::Game), despawn_player);
     }

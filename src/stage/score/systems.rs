@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use crate::events::*;
+use crate::game::events::GameOver;
 
 pub fn insert_score(mut commands: Commands) {
     commands.insert_resource(Score::default());
@@ -9,12 +9,6 @@ pub fn insert_score(mut commands: Commands) {
 
 pub fn remove_score(mut commands: Commands) {
     commands.remove_resource::<Score>();
-}
-
-pub fn update_score(score: Res<Score>) {
-    if score.is_changed() {
-        info!("Score: {}", score.value.to_string())
-    }
 }
 
 pub fn update_high_scores(

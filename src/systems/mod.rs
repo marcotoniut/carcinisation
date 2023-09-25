@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod camera;
+pub mod spawn;
 
 use bevy::{app::AppExit, audio::Volume, prelude::*};
 use bevy_framepace::Limiter;
@@ -11,7 +12,7 @@ use seldom_pixel::prelude::{PxCamera, PxSubPosition};
 
 use crate::{
     audio::AudioSystemType,
-    events::*,
+    game::events::GameOver,
     stage::{resources::StageDataHandle, GameState, StageState},
     AppState, GBInput,
 };
