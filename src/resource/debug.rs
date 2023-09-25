@@ -88,7 +88,7 @@ pub fn make_steps() -> Vec<StageStep> {
     vec![
         StageStep::Movement {
             coordinates: Vec2 { x: 0.0, y: 0.0 },
-            base_speed: 8.0,
+            base_speed: CAMERA_BASE_SPEED,
             spawns: vec![],
         },
         StageStep::Cinematic { 
@@ -116,8 +116,21 @@ pub fn make_steps() -> Vec<StageStep> {
             max_duration: Some(3.0), 
             spawns: vec![] 
         },
+        StageStep::Stop {
+            resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
+            max_duration: Some(30. / CAMERA_BASE_SPEED),
+            spawns: vec![StageSpawn::Enemy(EnemySpawn {
+                coordinates: Vec2 { x: 70.0, y: 70.0 },
+                elapsed: 2.4 / CAMERA_BASE_SPEED,
+                contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                    pickup_type: PickupType::BigHealthpack,
+                    ..default()
+                }))),
+                ..EnemySpawn::base_mosquito(CAMERA_BASE_SPEED, Vec2 { x: 70.0, y: 70.0 })
+            })],
+        },
         StageStep::Movement {
-            coordinates: Vec2 { x: 50.0, y: 0.0 },
+            coordinates: Vec2 { x: 100.0, y: 0.0 },
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
                 StageSpawn::Enemy(EnemySpawn {
@@ -171,11 +184,14 @@ pub fn make_steps() -> Vec<StageStep> {
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
-            max_duration: Some(30. / CAMERA_BASE_SPEED),
+            max_duration: Some(45. / CAMERA_BASE_SPEED),
             spawns: vec![StageSpawn::Enemy(EnemySpawn {
                 coordinates: Vec2 { x: 70.0, y: 70.0 },
                 elapsed: 2.4 / CAMERA_BASE_SPEED,
-                contains: None,
+                contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
+                    pickup_type: PickupType::BigHealthpack,
+                    ..default()
+                }))),
                 ..EnemySpawn::base_mosquito(CAMERA_BASE_SPEED, Vec2 { x: 70.0, y: 70.0 })
             })],
         },

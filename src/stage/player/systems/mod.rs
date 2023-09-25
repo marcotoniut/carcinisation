@@ -108,16 +108,11 @@ pub fn detect_player_attack(
                 weapon,
             };
 
-            let (player_attack_bundle, audio_bundle) =
+            let (player_attack_bundle, player_attack_sound_bundle) =
                 player_attack.make_bundles(&mut assets_sprite, asset_server, volume_settings);
 
             commands.spawn(player_attack_bundle);
-            commands.spawn((
-                audio_bundle,
-                AudioSystemBundle {
-                    system_type: AudioSystemType::SFX,
-                },
-            ));
+            commands.spawn(player_attack_sound_bundle);
 
             timer.timer.reset();
             timer.timer.unpause();

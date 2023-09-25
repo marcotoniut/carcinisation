@@ -12,6 +12,9 @@ pub struct StageStepTrigger {}
 pub struct StageClearedTrigger {}
 
 #[derive(Event)]
+pub struct StageGameOverTrigger {}
+
+#[derive(Event)]
 pub struct StageSpawnTrigger {
     pub spawn: StageSpawn,
 }
