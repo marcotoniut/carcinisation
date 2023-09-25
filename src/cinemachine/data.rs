@@ -1,6 +1,6 @@
 use bevy::{
-    prelude::{Vec2, warn},
-    reflect::{TypePath, TypeUuid, List},
+    prelude::{Vec2},
+    reflect::{TypePath, TypeUuid},
 };
 
 #[derive(Clone, Debug)]
