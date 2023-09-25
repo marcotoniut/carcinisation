@@ -1,11 +1,14 @@
+pub mod events;
 pub mod resources;
 pub mod systems;
 
 use bevy::prelude::*;
 
-use self::systems::*;
-use crate::{events::*, AppState};
-use resources::*;
+use self::{
+    events::{GameOver, GameRestart},
+    systems::*,
+};
+use crate::AppState;
 
 pub struct GamePlugin;
 
@@ -15,6 +18,7 @@ impl Plugin for GamePlugin {
 
         app.add_state::<GameState>()
             .add_event::<GameOver>()
+            .add_event::<GameRestart>()
             //.add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);
     }

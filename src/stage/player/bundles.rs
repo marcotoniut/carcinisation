@@ -13,7 +13,7 @@ pub fn make_player_bundle(
     let sprite = CrosshairInfo::get_sprite(crosshair_info);
     (
         Name::new("Player"),
-        Player {},
+        Player { lives: 3 },
         PxSpriteBundle::<Layer> {
             canvas: PxCanvas::Camera,
             sprite,

@@ -46,11 +46,12 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                         attacking: true,
                         speed: 3.,
                     },
-                    EnemyStep::Circle { duration: 4. },
+                    EnemyStep::Circle {
+                        duration: 4.,
+                        radius: 12.,
+                        direction: MovementDirection::Left,
+                    },
                 ],
-                direction: MovementDirection::Left,
-                radius: 15.,
-                time_offset: 0.5,
                 contains: None,
             }))),
             destructible_type: DestructibleType::Lamp,
@@ -75,11 +76,12 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                         attacking: true,
                         speed: 3.,
                     },
-                    EnemyStep::Circle { duration: 4. },
+                    EnemyStep::Circle {
+                        duration: 4.,
+                        radius: 12.,
+                        direction: MovementDirection::Right,
+                    },
                 ],
-                direction: MovementDirection::Left,
-                radius: 15.,
-                time_offset: 0.5,
                 contains: None,
             }))),
             destructible_type: DestructibleType::Lamp,
@@ -116,10 +118,6 @@ pub fn make_steps() -> Vec<StageStep> {
                     coordinates: Vec2 { x: 60.0, y: 100.0 },
                     base_speed: 5.0,
                     elapsed: 1.4,
-                    direction: MovementDirection::Right,
-                    radius: 15.,
-                    time_offset: 1.5,
-
                     steps: vec![EnemyStep::Circle {
                         duration: 4.0,
                         radius: 10.0,
@@ -128,43 +126,24 @@ pub fn make_steps() -> Vec<StageStep> {
                     contains: None,
                 }),
                 StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    coordinates: Vec2 { x: 120.0, y: 100.0 },
-                    base_speed: 5.0,
-                    elapsed: 0.4,
-                    steps: vec![],
-                    direction: MovementDirection::Left,
-                    radius: 15.,
-                    time_offset: 0.5,
                     contains: None,
+                    elapsed: 4.2,
+                    ..EnemySpawn::base_tardigrade(CAMERA_BASE_SPEED, Vec2 { x: 120.0, y: 100.0 })
                 }),
                 StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    coordinates: Vec2 { x: 100.0, y: 70.0 },
-                    base_speed: 5.0,
-                    elapsed: 2.3,
-                    steps: vec![],
-                    direction: MovementDirection::Right,
-                    radius: 15.,
-                    time_offset: 0.5,
                     contains: None,
+                    elapsed: 2.3,
+                    ..EnemySpawn::base_tardigrade(CAMERA_BASE_SPEED, Vec2 { x: 100.0, y: 70.0 })
                 }),
             ],
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
             max_duration: Some(3.0),
-            spawns: vec![StageSpawn::Enemy(EnemySpawn {
-                enemy_type: EnemyType::Mosquito,
-                coordinates: Vec2 { x: 20.0, y: 0.0 },
-                base_speed: 5.0,
-                elapsed: 2.4,
-                steps: vec![],
-                direction: MovementDirection::Right,
-                radius: 15.,
-                time_offset: 0.8,
-                contains: None,
-            })],
+            spawns: vec![StageSpawn::base_mosquito(
+                CAMERA_BASE_SPEED * 1.2,
+                Vec2 { x: 20.0, y: 0.0 },
+            )],
         },
         StageStep::Movement {
             coordinates: Vec2 { x: 34.0, y: 62.0 },
@@ -185,79 +164,18 @@ pub fn make_steps() -> Vec<StageStep> {
             coordinates: Vec2 { x: 50.0, y: 0.0 },
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    coordinates: Vec2 { x: 60.0, y: 100.0 },
-                    base_speed: 4.0,
-                    elapsed: 5.4 / CAMERA_BASE_SPEED,
-
-                    direction: MovementDirection::Left,
-                    radius: 15.,
-                    time_offset: 1.5,
-                    steps: vec![
-                        EnemyStep::Movement {
-                            coordinates: Vec2 { x: 50.0, y: 0.0 },
-                            attacking: true,
-                            speed: 5.0,
-                        },
-                        EnemyStep::Idle { duration: 1.0 },
-                        EnemyStep::Attack { duration: 1.0 },
-                        EnemyStep::Movement {
-                            coordinates: Vec2 { x: 10.0, y: 0.0 },
-                            attacking: true,
-                            speed: 3.0,
-                        },
-                        EnemyStep::Circle { duration: 4.0 },
-                    ],
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 120.0, y: 100.0 },
-                    base_speed: 5.0,
-                    elapsed: 5.1 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    direction: MovementDirection::Left,
-                    radius: 25.,
-                    time_offset: 3.5,
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    coordinates: Vec2 { x: 110.0, y: 70.0 },
-                    base_speed: 4.0,
-                    elapsed: 5.8 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    direction: MovementDirection::Right,
-                    radius: 10.,
-                    time_offset: 2.5,
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                }),
+                StageSpawn::base_tardigrade(CAMERA_BASE_SPEED, Vec2 { x: 60.0, y: 100.0 }),
+                StageSpawn::base_mosquito(CAMERA_BASE_SPEED, Vec2 { x: 120.0, y: 100.0 }),
             ],
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
             max_duration: Some(30. / CAMERA_BASE_SPEED),
             spawns: vec![StageSpawn::Enemy(EnemySpawn {
-                enemy_type: EnemyType::Mosquito,
-                coordinates: Vec2 { x: 70.0, y: 70.0 },
-                base_speed: CAMERA_BASE_SPEED,
-                elapsed: 2.4 / CAMERA_BASE_SPEED,
+                elapsed: 4.5 / CAMERA_BASE_SPEED,
                 steps: vec![],
-                direction: MovementDirection::Right,
-                radius: 15.,
-                time_offset: 3.5,
-
                 contains: None,
+                ..EnemySpawn::base_mosquito(CAMERA_BASE_SPEED, Vec2 { x: 70.0, y: 70.0 })
             })],
         },
         StageStep::Stop {
@@ -269,10 +187,6 @@ pub fn make_steps() -> Vec<StageStep> {
                 base_speed: CAMERA_BASE_SPEED,
                 elapsed: 2.4 / CAMERA_BASE_SPEED,
                 steps: vec![],
-                direction: MovementDirection::Right,
-                radius: 15.,
-                time_offset: 3.5,
-
                 contains: None,
             })],
         },

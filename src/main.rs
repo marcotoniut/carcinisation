@@ -2,7 +2,6 @@ mod assets;
 pub mod cinemachine;
 mod components;
 mod cutscene;
-mod events;
 mod game;
 mod globals;
 mod main_menu;

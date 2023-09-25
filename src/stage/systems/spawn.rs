@@ -123,9 +123,6 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
         base_speed,
         steps,
         contains,
-        direction,
-        radius,
-        time_offset,
         ..
     } = enemy_spawn;
     let position = offset + *coordinates;
