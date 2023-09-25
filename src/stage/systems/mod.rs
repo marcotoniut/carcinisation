@@ -4,7 +4,7 @@ pub mod spawn;
 
 use std::{ops::Sub, time::Duration};
 
-use bevy::prelude::*;
+use bevy::{audio::PlaybackMode, prelude::*};
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::{
     prelude::{PxAssets, PxCamera, PxSubPosition},
@@ -12,6 +12,7 @@ use seldom_pixel::{
 };
 
 use crate::{
+    components::Music,
     globals::DEBUG_STAGESTEP,
     resource::{asteroid::STAGE_ASTEROID_DATA, debug::STAGE_DEBUG_DATA, park::STAGE_PARK_DATA},
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
@@ -98,8 +99,9 @@ pub fn setup_stage(
     spawn_music(
         &mut commands,
         &asset_server,
-        volume_settings,
+        &volume_settings,
         stage_data.music_path.clone(),
+        PlaybackMode::Loop,
     );
 
     commands.insert_resource(StageRawData { stage_data });
@@ -288,24 +290,38 @@ pub fn read_stage_cleared_trigger(
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageState>>,
     mut event_reader: EventReader<StageClearedTrigger>,
-    enemy_query: Query<Entity, With<Enemy>>,
-    player_query: Query<Entity, With<Player>>,
     destructible_query: Query<Entity, With<Destructible>>,
+    enemy_query: Query<Entity, With<Enemy>>,
+    music_query: Query<Entity, With<Music>>,
     object_query: Query<Entity, With<Object>>,
+    player_query: Query<Entity, With<Player>>,
+    asset_server: Res<AssetServer>,
+    volume_settings: Res<VolumeSettings>,
 ) {
-    for event in event_reader.iter() {
+    for _ in event_reader.iter() {
+        for entity in &mut destructible_query.iter() {
+            commands.entity(entity).despawn();
+        }
         for entity in &mut enemy_query.iter() {
             commands.entity(entity).despawn();
         }
-        for entity in &mut player_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut destructible_query.iter() {
+        for entity in &mut music_query.iter() {
             commands.entity(entity).despawn();
         }
         for entity in &mut object_query.iter() {
             commands.entity(entity).despawn();
         }
+        for entity in &mut player_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        spawn_music(
+            &mut commands,
+            &asset_server,
+            &volume_settings,
+            "audio/music/intro.ogg".to_string(),
+            PlaybackMode::Despawn,
+        );
 
         next_state.set(StageState::Cleared);
     }
