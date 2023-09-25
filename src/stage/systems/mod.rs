@@ -12,11 +12,12 @@ use seldom_pixel::{
 };
 
 use crate::{
+    cinemachine::cinemachine::CinemachineScene,
     components::Music,
-    globals::DEBUG_STAGESTEP,
+    globals::{despawn_by_component_query, DEBUG_STAGESTEP},
     resource::{asteroid::STAGE_ASTEROID_DATA, debug::STAGE_DEBUG_DATA, park::STAGE_PARK_DATA},
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
-    GBInput, cinemachine::cinemachine::CinemachineScene,
+    GBInput,
 };
 
 use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
@@ -27,7 +28,7 @@ use super::{
     data::*,
     enemy::components::Enemy,
     events::{StageClearedTrigger, StageGameOverTrigger, StageSpawnTrigger, StageStepTrigger},
-    player::{self, components::Player},
+    player::components::Player,
     resources::{StageActionTimer, StageProgress, StageTime},
     GameState, StageState,
 };
@@ -167,116 +168,90 @@ pub fn update_stage(
             next_state.set(StageState::Running);
         }
         StageState::Running => {
-            if let stage = &stage_data_raw.stage_data {
-                if let Some(action) = stage.steps.get(stage_progress.step) {
-                    if DEBUG_STAGESTEP {
-                        let curr_action = match action {
-                            StageStep::Movement { .. } => "movement".to_string(),
-                            StageStep::Stop { .. } => "stop".to_string(),
-                            StageStep::Cinematic { .. } => "cinematic".to_string(),
-                        };
+            let stage = &stage_data_raw.stage_data;
+            if let Some(action) = stage.steps.get(stage_progress.step) {
+                if DEBUG_STAGESTEP {
+                    let curr_action = match action {
+                        StageStep::Movement { .. } => "movement".to_string(),
+                        StageStep::Stop { .. } => "stop".to_string(),
+                        StageStep::Cinematic { .. } => "cinematic".to_string(),
+                    };
 
-                        info!("curr action: {}", curr_action);
-                    }
+                    info!("curr action: {}", curr_action);
+                }
 
-                    let mut spawnsVal = None;
-                    match action {
-                        StageStep::Movement {
-                            coordinates,
-                            base_speed,
-                            spawns,
-                            ..
-                        } => {
-                            let mut camera_pos = camera_pos_query.single_mut();
-                            let direction = coordinates.sub(camera_pos.0).normalize();
+                let mut spawnsVal = None;
+                match action {
+                    StageStep::Movement {
+                        coordinates,
+                        base_speed,
+                        spawns,
+                        ..
+                    } => {
+                        let mut camera_pos = camera_pos_query.single_mut();
+                        let direction = coordinates.sub(camera_pos.0).normalize();
 
-                            **camera_pos += time.delta_seconds() * base_speed * direction;
+                        **camera_pos += time.delta_seconds() * base_speed * direction;
 
-                            if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
-                                if DEBUG_STAGESTEP {
-                                    warn!(
-                                        "================>>>> movement complete? {}",
-                                        direction.x.to_string()
-                                    );
-                                }
-                                *camera_pos = PxSubPosition(coordinates.clone());
-                                step_event_writer.send(StageStepTrigger {});
+                        if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
+                            if DEBUG_STAGESTEP {
+                                warn!(
+                                    "================>>>> movement complete? {}",
+                                    direction.x.to_string()
+                                );
                             }
-
-                            **camera = camera_pos.round().as_ivec2();
-
-                            spawnsVal = Some(spawns);
+                            *camera_pos = PxSubPosition(coordinates.clone());
+                            step_event_writer.send(StageStepTrigger {});
                         }
-                        StageStep::Stop {
-                            resume_conditions,
-                            max_duration,
-                            spawns,
-                            ..
-                        } => {
-                            // TODO
-                            if let Some(duration) = max_duration {
+
+                        **camera = camera_pos.round().as_ivec2();
+
+                        spawnsVal = Some(spawns);
+                    }
+                    StageStep::Stop {
+                        resume_conditions,
+                        max_duration,
+                        spawns,
+                        ..
+                    } => {
+                        // TODO
+                        if let Some(duration) = max_duration {
+                        } else {
+                            step_event_writer.send(StageStepTrigger {});
+                        }
+                        spawnsVal = Some(spawns);
+                    }
+                    StageStep::Cinematic { cinematic, .. } => {
+                        let max_duration = Some(cinematic.clip.duration);
+
+                        if let Some(duration) = max_duration {
+                        } else {
+                            step_event_writer.send(StageStepTrigger {});
+                        }
+                    }
+                }
+
+                if let Some(spawns) = spawnsVal {
+                    let mut cloned_spawns = spawns.clone();
+
+                    let mut i = 0;
+                    while let Some(spawn) = cloned_spawns.first() {
+                        if (stage_progress.spawn_step <= i) {
+                            let elapsed = stage_progress.spawn_step_elapsed - spawn.get_elapsed();
+                            if 0. <= elapsed {
+                                stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
+
+                                spawn_event_writer.send(StageSpawnTrigger {
+                                    spawn: spawn.clone(),
+                                });
                             } else {
-                                // DEBUG
-                                if DEBUG_STAGESTEP {
-                                    let mut duration = 0.;
-                                    if max_duration.is_some() {
-                                        duration = max_duration.unwrap();
-                                    }
-                                    warn!(
-                                        "================>>>> stop complete? {}",
-                                        duration.to_string()
-                                    );
-                                }
-                                step_event_writer.send(StageStepTrigger {});
+                                break;
                             }
-                            spawnsVal = Some(spawns);
                         }
-                        StageStep::Cinematic { cinematic, ..} => {
-                            let max_duration = Some(cinematic.clip.waitInSeconds);
-                            
-                            if let Some(duration) = max_duration {
-                            } else {
-                                // DEBUG
-
-                                if DEBUG_STAGESTEP {
-                                    let mut duration = 0.;
-                                    if max_duration.is_some() {
-                                        duration = max_duration.unwrap();
-                                    }
-                                    warn!(
-                                        "================>>>> cinematic complete? {}",
-                                        duration.to_string()
-                                    );
-                                }
-                                step_event_writer.send(StageStepTrigger {});
-                            }
-
-                        },
+                        cloned_spawns.remove(0);
+                        i += 1;
                     }
-
-                    if let Some(spawns) = spawnsVal {
-                        let mut cloned_spawns = spawns.clone();
-
-                        let mut i = 0;
-                        while let Some(spawn) = cloned_spawns.first() {
-                            if (stage_progress.spawn_step <= i) {
-                                let elapsed =
-                                    stage_progress.spawn_step_elapsed - spawn.get_elapsed();
-                                if 0. <= elapsed {
-                                    stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
-
-                                    spawn_event_writer.send(StageSpawnTrigger {
-                                        spawn: spawn.clone(),
-                                    });
-                                } else {
-                                    break;
-                                }
-                            }
-                            cloned_spawns.remove(0);
-                            i += 1;
-                        }
-                        stage_progress.spawn_step = i;
-                    }
+                    stage_progress.spawn_step = i;
                 }
             }
         }
@@ -297,12 +272,11 @@ pub fn update_stage(
 pub fn check_staged_cleared(
     mut event_writer: EventWriter<StageClearedTrigger>,
     stage_progress: Res<StageProgress>,
-    mut stage_data_raw: Res<StageRawData>,
+    stage_data_raw: Res<StageRawData>,
 ) {
-    if let stage = &stage_data_raw.stage_data {
-        if stage_progress.step >= stage.steps.len() {
-            event_writer.send(StageClearedTrigger {});
-        }
+    let stage = &stage_data_raw.stage_data;
+    if stage_progress.step >= stage.steps.len() {
+        event_writer.send(StageClearedTrigger {});
     }
 }
 
@@ -319,21 +293,11 @@ pub fn read_stage_cleared_trigger(
     volume_settings: Res<VolumeSettings>,
 ) {
     for _ in event_reader.iter() {
-        for entity in &mut destructible_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut enemy_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut music_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut object_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut player_query.iter() {
-            commands.entity(entity).despawn();
-        }
+        despawn_by_component_query(&mut commands, &destructible_query);
+        despawn_by_component_query(&mut commands, &enemy_query);
+        despawn_by_component_query(&mut commands, &music_query);
+        despawn_by_component_query(&mut commands, &object_query);
+        despawn_by_component_query(&mut commands, &player_query);
 
         spawn_music(
             &mut commands,
@@ -369,21 +333,11 @@ pub fn read_stage_game_over_trigger(
     volume_settings: Res<VolumeSettings>,
 ) {
     for _ in event_reader.iter() {
-        for entity in &mut destructible_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut enemy_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut music_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut object_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        for entity in &mut player_query.iter() {
-            commands.entity(entity).despawn();
-        }
+        despawn_by_component_query(&mut commands, &destructible_query);
+        despawn_by_component_query(&mut commands, &enemy_query);
+        despawn_by_component_query(&mut commands, &music_query);
+        despawn_by_component_query(&mut commands, &object_query);
+        despawn_by_component_query(&mut commands, &player_query);
 
         spawn_music(
             &mut commands,
@@ -411,37 +365,33 @@ pub fn read_stage_step_trigger(
         stage_progress.spawn_step = 0;
         stage_progress.spawn_step_elapsed = 0.;
 
-        if let stage = &stage_data_raw.stage_data {
-            if let Some(action) = stage.steps.get(stage_progress.step) {
-                stage_action_timer.timer.pause();
-                match action {
-                    StageStep::Movement { .. } => {
+        let stage = &stage_data_raw.stage_data;
+        if let Some(action) = stage.steps.get(stage_progress.step) {
+            stage_action_timer.timer.pause();
+            match action {
+                StageStep::Movement { .. } => {
+                    stage_action_timer.timer.reset();
+                }
+                StageStep::Stop { max_duration, .. } => {
+                    if let Some(duration) = max_duration {
                         stage_action_timer.timer.reset();
+                        stage_action_timer
+                            .timer
+                            .set_duration(Duration::from_secs_f32(duration.clone()));
+                        stage_action_timer.timer.unpause();
                     }
-                    StageStep::Stop { max_duration, .. } => {
-                        if let Some(duration) = max_duration {
-                            stage_action_timer.timer.reset();
-                            stage_action_timer
-                                .timer
-                                .set_duration(Duration::from_secs_f32(duration.clone()));
-                            stage_action_timer.timer.unpause();
-                        }
-                    }
-                    StageStep::Cinematic { cinematic, .. }  => {
+                }
+                StageStep::Cinematic { cinematic, .. } => {
+                    let max_duration = Some(cinematic.clip.duration);
 
-                        let max_duration = Some(cinematic.clip.waitInSeconds);
-
-                        if let Some(duration) = max_duration {
-                            stage_action_timer.timer.reset();
-                            stage_action_timer
-                                .timer
-                                .set_duration(Duration::from_secs_f32(duration.clone()));
-                            stage_action_timer.timer.unpause();
-                        }
-                        
-                        current_scene.0 = Some(cinematic.clone());
-                        game_state_next_state.set(GameState::Cutscene);
+                    if let Some(duration) = max_duration {
+                        stage_action_timer.timer.reset();
+                        stage_action_timer.timer.set_duration(duration.clone());
+                        stage_action_timer.timer.unpause();
                     }
+
+                    current_scene.0 = Some(cinematic.clone());
+                    game_state_next_state.set(GameState::Cutscene);
                 }
             }
         }
