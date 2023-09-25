@@ -137,6 +137,7 @@ pub enum Layer {
     Front,
     UIBackground,
     UI,
+    CutsceneBackground,
     Cutscene(usize),
     Letterbox,
     CutsceneText,
