@@ -37,7 +37,7 @@ use self::{
         StageUiPlugin,
     },
 };
-use crate::{game::events::GameOver, AppState};
+use crate::{game::events::GameOver, AppState, cinemachine::{cinemachine::CinemachineScene, render_cutscene}};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct LoadingSystemSet;
@@ -63,6 +63,7 @@ impl Plugin for StagePlugin {
             .init_resource::<StageTime>()
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
+            .init_resource::<CinemachineScene>()
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
@@ -138,6 +139,7 @@ impl Plugin for StagePlugin {
                     .run_if(in_state(AppState::Game)),
             )
             .add_systems(Update, pause_menu_renderer.run_if(in_state(AppState::Game)))
+            .add_systems(Update, render_cutscene.run_if(in_state(AppState::Game)))
             .add_systems(OnEnter(AppState::Game), resume_game);
     }
 }
@@ -148,6 +150,7 @@ pub enum GameState {
     Loading,
     Running,
     Paused,
+    Cutscene
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
