@@ -3,7 +3,10 @@ use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
     globals::{is_inside_area, HUD_HEIGHT, SCREEN_RESOLUTION},
-    stage::components::InView,
+    stage::{
+        components::{InView, RailPosition},
+        player::components::CameraShake,
+    },
     systems::camera::CameraPos,
 };
 
@@ -47,5 +50,16 @@ pub fn check_outside_view(
                 commands.entity(entity).remove::<InView>();
             }
         }
+    }
+}
+
+pub fn update_camera_pos(
+    mut camera_query: Query<
+        (&RailPosition, &mut PxSubPosition),
+        (With<CameraPos>, Without<CameraShake>),
+    >,
+) {
+    if let Ok((rail_pos, mut camera_pos)) = camera_query.get_single_mut() {
+        camera_pos.0 = rail_pos.0;
     }
 }

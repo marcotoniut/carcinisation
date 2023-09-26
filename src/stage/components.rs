@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::plugins::movement::linear::components::LinearPosition;
+
 use super::data::ContainerSpawn;
 
 #[derive(Component)]
@@ -18,22 +20,22 @@ pub struct Destructible {}
 pub struct Object {}
 
 // TODO should go in UI
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct StageClearedText {}
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct DepthSpeed(pub f32);
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct DepthProgress(pub f32);
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct DepthReached;
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct TargetDepth(pub usize);
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub enum Collision {
     Box(Vec2),
     Circle(f32),
@@ -41,22 +43,37 @@ pub enum Collision {
 
 // TODO impl more complex collision algorithm
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct Health(pub u32);
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct Damage(pub u32);
 
 // Should hittable specify whether you can hit with Melee, ranged or both?
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct Hittable {}
 
 // TODO? critical kill
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct Dead;
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug)]
 pub struct SpawnDrop {
     pub contains: ContainerSpawn,
     pub entity: Entity,
+}
+
+#[derive(Clone, Component, Debug)]
+pub struct RailPosition(pub Vec2);
+
+impl LinearPosition for RailPosition {
+    fn get(&self) -> Vec2 {
+        self.0
+    }
+    fn set(&mut self, position: Vec2) {
+        self.0 = position;
+    }
+    fn add(&mut self, position: Vec2) {
+        self.0 += position;
+    }
 }

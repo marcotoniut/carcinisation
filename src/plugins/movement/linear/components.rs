@@ -1,9 +1,28 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 pub trait DeltaTime: Send + Sync + 'static {
     fn delta_seconds(&self) -> f32;
+}
+
+pub trait LinearPosition: Send + Sync + 'static {
+    fn get(&self) -> Vec2;
+    fn set(&mut self, value: Vec2);
+    fn add(&mut self, value: Vec2);
+}
+
+impl LinearPosition for PxSubPosition {
+    fn get(&self) -> Vec2 {
+        self.0
+    }
+    fn set(&mut self, value: Vec2) {
+        self.0 = value;
+    }
+    fn add(&mut self, value: Vec2) {
+        self.0 += value;
+    }
 }
 
 #[derive(Component, Debug, Clone)]
