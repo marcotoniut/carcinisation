@@ -14,6 +14,7 @@ pub mod ui;
 use bevy::prelude::*;
 
 use self::{
+    components::RailPosition,
     enemy::{systems::attacks::*, EnemyPlugin},
     events::*,
     pickup::systems::health::pickup_health,
@@ -56,7 +57,6 @@ pub struct StagePlugin;
  * TODO
  * - implement a lifecycle state to indicate whether the plugin is active, inactive, (and perhaps initialising or cleaning up.)
  * - implement mapping of buttons exclusive to the plugin. (then we could have the menus create their own mappers.)
- * - RailPosition, to isolate from the camera's PxSubPosition. It would fix the ties to CameraShake, allow it to reset and would lend to a deterministic spawning of mosquitoes.
  */
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
@@ -75,7 +75,7 @@ impl Plugin for StagePlugin {
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
             .init_resource::<CinemachineScene>()
-            .add_plugins(LinearMovementPlugin::<StageTime>::default())
+            .add_plugins(LinearMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
