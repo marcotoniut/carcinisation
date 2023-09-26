@@ -8,7 +8,7 @@ use seldom_pixel::{
 
 use crate::{
     globals::SCREEN_RESOLUTION,
-    plugins::linear::movement::components::*,
+    plugins::movement::linear::components::*,
     stage::{
         components::{
             Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, TargetDepth,
