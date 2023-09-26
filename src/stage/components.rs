@@ -34,21 +34,6 @@ pub struct DepthReached;
 pub struct TargetDepth(pub usize);
 
 #[derive(Component, Debug, Clone)]
-pub struct LineSpeed(pub Vec2);
-
-#[derive(Component, Debug, Clone)]
-pub struct TargetPosition(pub Vec2);
-
-#[derive(Component, Debug, Clone)]
-pub struct TargetXReached;
-
-#[derive(Component, Debug, Clone)]
-pub struct TargetYReached;
-
-#[derive(Component, Debug, Clone)]
-pub struct TargetReached;
-
-#[derive(Component, Debug, Clone)]
 pub enum Collision {
     Box(Vec2),
     Circle(f32),

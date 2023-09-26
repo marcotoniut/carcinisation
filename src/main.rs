@@ -6,6 +6,7 @@ mod cutscene;
 mod game;
 mod globals;
 mod main_menu;
+mod plugins;
 mod resource;
 mod stage;
 mod systems;

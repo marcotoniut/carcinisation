@@ -1,37 +1,25 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use bevy::{
-    audio::{PlaybackMode, Volume},
-    prelude::*,
-    render::camera,
-};
+use bevy::prelude::*;
 use seldom_pixel::{
-    prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets, PxSubPosition},
+    prelude::{PxAnchor, PxAssets, PxSubPosition},
     sprite::{PxSprite, PxSpriteBundle},
 };
 
 use crate::{
     globals::SCREEN_RESOLUTION,
+    plugins::linear::movement::components::*,
     stage::{
         components::{
-            Damage, Dead, Depth, DepthProgress, DepthReached, DepthSpeed, Health, Hittable, InView,
-            LineSpeed, TargetDepth, TargetPosition,
+            Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, TargetDepth,
         },
         data::EnemyStep,
-        enemy::{
-            bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
-            components::*,
-            data::{blood_attack::BLOOD_ATTACK_ANIMATIONS, mosquito::MOSQUITO_ANIMATIONS},
-        },
+        enemy::{bundles::*, components::*, data::mosquito::MOSQUITO_ANIMATIONS},
         events::DepthChanged,
-        player::components::Player,
         resources::StageTime,
         score::components::Score,
     },
-    systems::{
-        audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
-        camera::CameraPos,
-    },
+    systems::camera::CameraPos,
     Layer,
 };
 
@@ -219,8 +207,10 @@ pub fn check_idle_mosquito(
                     .spawn((
                         Name::new("Attack Blood"),
                         EnemyAttack {},
-                        TargetPosition(target_vec),
-                        LineSpeed((target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED),
+                        LinearTargetPosition::<StageTime>::new(target_vec),
+                        LinearSpeed::<StageTime>::new(
+                            (target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED,
+                        ),
                         depth,
                         DepthProgress(depth.0.clone() as f32),
                         DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
