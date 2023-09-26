@@ -130,6 +130,9 @@ pub fn spawn_current_stage_bundle(
 }
 
 // TODO Probably can do without this now
+/**
+ *  @deprecate in favor of the stage_time
+*/
 pub fn increment_elapsed(mut progress: ResMut<StageProgress>, time: Res<Time>) {
     let delta = time.delta_seconds();
     progress.elapsed += delta;

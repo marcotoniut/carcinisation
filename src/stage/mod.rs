@@ -40,7 +40,7 @@ use self::{
 use crate::{
     cinemachine::{cinemachine::CinemachineScene, render_cutscene},
     game::events::GameOver,
-    plugins::linear::movement::LinearMovementPlugin,
+    plugins::movement::linear::LinearMovementPlugin,
     AppState,
 };
 
@@ -52,6 +52,12 @@ pub struct BuildingSystemSet;
 
 pub struct StagePlugin;
 
+/**
+ * TODO
+ * - implement a lifecycle state to indicate whether the plugin is active, inactive, (and perhaps initialising or cleaning up.)
+ * - implement mapping of buttons exclusive to the plugin. (then we could have the menus create their own mappers.)
+ * - RailPosition, to isolate from the camera's PxSubPosition. It would fix the ties to CameraShake, allow it to reset and would lend to a deterministic spawning of mosquitoes.
+ */
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
