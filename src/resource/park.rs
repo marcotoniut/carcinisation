@@ -113,21 +113,21 @@ pub fn make_steps() -> Vec<StageStep> {
             base_speed: 8.0,
             spawns: vec![],
         },
-        StageStep::Cinematic {
-            cinematic: INTRO_ANIMATIC_0.clone(),
-        },
-        StageStep::Cinematic {
-            cinematic: INTRO_ANIMATIC_1.clone(),
-        },
-        StageStep::Cinematic {
-            cinematic: INTRO_ANIMATIC_2.clone(),
-        },
-        StageStep::Cinematic {
-            cinematic: INTRO_ANIMATIC_3.clone(),
-        },
-        StageStep::Cinematic {
-            cinematic: INTRO_ANIMATIC_4.clone(),
-        },
+        // StageStep::Cinematic {
+        //     cinematic: INTRO_ANIMATIC_0.clone(),
+        // },
+        // StageStep::Cinematic {
+        //     cinematic: INTRO_ANIMATIC_1.clone(),
+        // },
+        // StageStep::Cinematic {
+        //     cinematic: INTRO_ANIMATIC_2.clone(),
+        // },
+        // StageStep::Cinematic {
+        //     cinematic: INTRO_ANIMATIC_3.clone(),
+        // },
+        // StageStep::Cinematic {
+        //     cinematic: INTRO_ANIMATIC_4.clone(),
+        // },
         StageStep::Stop {
             resume_conditions: Some(vec![]),
             max_duration: Some(3.0),
