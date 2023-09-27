@@ -192,8 +192,8 @@ pub fn spawn_destructible(
     let (sprite_path, layer) = match spawn.destructible_type {
         DestructibleType::Lamp => ("sprites/objects/lamp.png", Layer::Middle(1)),
         DestructibleType::Trashcan => ("sprites/objects/trashcan.png", Layer::Middle(1)),
-        DestructibleType::Crystal => todo!(),
-        DestructibleType::Mushroom => todo!(),
+        DestructibleType::Crystal => ("sprites/objects/cavern_crystal.png", Layer::Middle(1)),
+        DestructibleType::Mushroom => ("sprites/objects/cavern_mushroom.png", Layer::Middle(1)),
     };
     let sprite = assets_sprite.load(sprite_path);
     commands
