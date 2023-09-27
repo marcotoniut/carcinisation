@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::plugins::movement::pursue::components::Pursue;
+use crate::plugins::movement::structs::MovementVec2Position;
 
 use super::data::ContainerSpawn;
 
@@ -66,7 +66,7 @@ pub struct SpawnDrop {
 #[derive(Clone, Component, Debug)]
 pub struct RailPosition(pub Vec2);
 
-impl Pursue for RailPosition {
+impl MovementVec2Position for RailPosition {
     fn get(&self) -> Vec2 {
         self.0
     }

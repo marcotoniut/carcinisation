@@ -1,38 +1,23 @@
 use std::marker::PhantomData;
 
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
 
-use crate::core::time::DeltaTime;
+use crate::{core::time::DeltaTime, plugins::movement::structs::MovementVec2Position};
 
-pub trait Pursue: Send + Sync + 'static {
-    fn get(&self) -> Vec2;
-    fn set(&mut self, value: Vec2);
-    fn add(&mut self, value: Vec2);
-}
-
-impl Pursue for PxSubPosition {
-    fn get(&self) -> Vec2 {
-        self.0
-    }
-    fn set(&mut self, value: Vec2) {
-        self.0 = value;
-    }
-    fn add(&mut self, value: Vec2) {
-        self.0 += value;
-    }
-}
+// TODO Bundle and on added
 
 #[derive(Component, Debug, Clone)]
-pub struct PursueTargetPosition<T: DeltaTime + Send + Sync + 'static> {
-    _marker: PhantomData<T>,
+pub struct PursueTargetPosition<T: DeltaTime + Send + Sync + 'static, P> {
+    _marker_time: PhantomData<T>,
+    _marker_position: PhantomData<P>,
     pub value: Vec2,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> PursueTargetPosition<T> {
+impl<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> PursueTargetPosition<T, P> {
     pub fn new(value: Vec2) -> Self {
         Self {
-            _marker: PhantomData,
+            _marker_time: PhantomData,
+            _marker_position: PhantomData,
             value,
         }
     }
@@ -40,55 +25,63 @@ impl<T: DeltaTime + Send + Sync + 'static> PursueTargetPosition<T> {
 
 // TODO split into LinearX, Y, Z
 #[derive(Component, Debug, Clone)]
-pub struct PursueSpeed<T: DeltaTime + Send + Sync + 'static> {
-    _marker: PhantomData<T>,
+pub struct PursueSpeed<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> {
+    _marker_position: PhantomData<P>,
+    _marker_time: PhantomData<T>,
     pub value: Vec2,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> PursueSpeed<T> {
+impl<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> PursueSpeed<T, P> {
     pub fn new(value: Vec2) -> Self {
         Self {
-            _marker: PhantomData,
+            _marker_position: PhantomData,
+            _marker_time: PhantomData,
             value,
         }
     }
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct PursueTargetXReached<T: DeltaTime + Send + Sync + 'static> {
-    _marker: PhantomData<T>,
+pub struct PursueTargetXReached<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> {
+    _marker_position: PhantomData<P>,
+    _marker_time: PhantomData<T>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> PursueTargetXReached<T> {
+impl<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> PursueTargetXReached<T, P> {
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData,
+            _marker_position: PhantomData,
+            _marker_time: PhantomData,
         }
     }
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct PursueTargetYReached<T: DeltaTime + Send + Sync + 'static> {
-    _marker: PhantomData<T>,
+pub struct PursueTargetYReached<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> {
+    _marker_position: PhantomData<P>,
+    _marker_time: PhantomData<T>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> PursueTargetYReached<T> {
+impl<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> PursueTargetYReached<T, P> {
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData,
+            _marker_position: PhantomData,
+            _marker_time: PhantomData,
         }
     }
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct PursueTargetReached<T: DeltaTime + Send + Sync + 'static> {
-    _marker: PhantomData<T>,
+pub struct PursueTargetReached<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> {
+    _marker_position: PhantomData<P>,
+    _marker_time: PhantomData<T>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> PursueTargetReached<T> {
+impl<T: DeltaTime + Send + Sync + 'static, P: MovementVec2Position> PursueTargetReached<T, P> {
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData,
+            _marker_position: PhantomData,
+            _marker_time: PhantomData,
         }
     }
 }
