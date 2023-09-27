@@ -7,13 +7,13 @@ pub trait DeltaTime: Send + Sync + 'static {
     fn delta_seconds(&self) -> f32;
 }
 
-pub trait LinearPosition: Send + Sync + 'static {
+pub trait Pursue: Send + Sync + 'static {
     fn get(&self) -> Vec2;
     fn set(&mut self, value: Vec2);
     fn add(&mut self, value: Vec2);
 }
 
-impl LinearPosition for PxSubPosition {
+impl Pursue for PxSubPosition {
     fn get(&self) -> Vec2 {
         self.0
     }
@@ -26,12 +26,12 @@ impl LinearPosition for PxSubPosition {
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct LinearTargetPosition<T: DeltaTime + Send + Sync + 'static> {
+pub struct PursueTargetPosition<T: DeltaTime + Send + Sync + 'static> {
     _marker: PhantomData<T>,
     pub value: Vec2,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> LinearTargetPosition<T> {
+impl<T: DeltaTime + Send + Sync + 'static> PursueTargetPosition<T> {
     pub fn new(value: Vec2) -> Self {
         Self {
             _marker: PhantomData,
@@ -42,12 +42,12 @@ impl<T: DeltaTime + Send + Sync + 'static> LinearTargetPosition<T> {
 
 // TODO split into LinearX, Y, Z
 #[derive(Component, Debug, Clone)]
-pub struct LinearSpeed<T: DeltaTime + Send + Sync + 'static> {
+pub struct PursueSpeed<T: DeltaTime + Send + Sync + 'static> {
     _marker: PhantomData<T>,
     pub value: Vec2,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> LinearSpeed<T> {
+impl<T: DeltaTime + Send + Sync + 'static> PursueSpeed<T> {
     pub fn new(value: Vec2) -> Self {
         Self {
             _marker: PhantomData,
@@ -57,11 +57,11 @@ impl<T: DeltaTime + Send + Sync + 'static> LinearSpeed<T> {
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct LinearTargetXReached<T: DeltaTime + Send + Sync + 'static> {
+pub struct PursueTargetXReached<T: DeltaTime + Send + Sync + 'static> {
     _marker: PhantomData<T>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> LinearTargetXReached<T> {
+impl<T: DeltaTime + Send + Sync + 'static> PursueTargetXReached<T> {
     pub fn new() -> Self {
         Self {
             _marker: PhantomData,
@@ -70,11 +70,11 @@ impl<T: DeltaTime + Send + Sync + 'static> LinearTargetXReached<T> {
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct LinearTargetYReached<T: DeltaTime + Send + Sync + 'static> {
+pub struct PursueTargetYReached<T: DeltaTime + Send + Sync + 'static> {
     _marker: PhantomData<T>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> LinearTargetYReached<T> {
+impl<T: DeltaTime + Send + Sync + 'static> PursueTargetYReached<T> {
     pub fn new() -> Self {
         Self {
             _marker: PhantomData,
@@ -83,11 +83,11 @@ impl<T: DeltaTime + Send + Sync + 'static> LinearTargetYReached<T> {
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct LinearTargetReached<T: DeltaTime + Send + Sync + 'static> {
+pub struct PursueTargetReached<T: DeltaTime + Send + Sync + 'static> {
     _marker: PhantomData<T>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static> LinearTargetReached<T> {
+impl<T: DeltaTime + Send + Sync + 'static> PursueTargetReached<T> {
     pub fn new() -> Self {
         Self {
             _marker: PhantomData,

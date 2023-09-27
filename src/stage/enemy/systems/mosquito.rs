@@ -8,7 +8,7 @@ use seldom_pixel::{
 
 use crate::{
     globals::SCREEN_RESOLUTION,
-    plugins::movement::linear::components::*,
+    plugins::movement::pursue::components::*,
     stage::{
         components::{
             Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, TargetDepth,
@@ -207,8 +207,8 @@ pub fn check_idle_mosquito(
                     .spawn((
                         Name::new("Attack Blood"),
                         EnemyAttack {},
-                        LinearTargetPosition::<StageTime>::new(target_vec),
-                        LinearSpeed::<StageTime>::new(
+                        PursueTargetPosition::<StageTime>::new(target_vec),
+                        PursueSpeed::<StageTime>::new(
                             (target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED,
                         ),
                         depth,

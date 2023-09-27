@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::plugins::movement::linear::components::DeltaTime;
+use crate::plugins::movement::pursue::components::DeltaTime;
 
 use super::data::StageData;
 
