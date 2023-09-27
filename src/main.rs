@@ -2,6 +2,7 @@ mod assets;
 mod bevy_utils;
 mod cinemachine;
 mod components;
+mod core;
 mod cutscene;
 mod game;
 mod globals;
