@@ -3,9 +3,7 @@ use std::marker::PhantomData;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
-pub trait DeltaTime: Send + Sync + 'static {
-    fn delta_seconds(&self) -> f32;
-}
+use crate::core::time::DeltaTime;
 
 pub trait Pursue: Send + Sync + 'static {
     fn get(&self) -> Vec2;

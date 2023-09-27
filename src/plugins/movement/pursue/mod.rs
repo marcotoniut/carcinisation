@@ -5,10 +5,9 @@ use std::marker::PhantomData;
 
 use bevy::prelude::*;
 
-use self::{
-    components::{DeltaTime, Pursue},
-    systems::*,
-};
+use crate::core::time::DeltaTime;
+
+use self::{components::Pursue, systems::*};
 
 pub struct PursueMovementPlugin<T: DeltaTime + 'static + Resource, P: Pursue + 'static + Component>
 {
