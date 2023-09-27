@@ -3,10 +3,10 @@ use bevy::prelude::*;
 use super::components::*;
 
 /** TODO generalise current position via a generic LinearPosition trait */
-pub fn move_linear<T: DeltaTime + 'static + Resource, P: LinearPosition + 'static + Component>(
+pub fn update<T: DeltaTime + 'static + Resource, P: Pursue + 'static + Component>(
     mut movement_query: Query<
-        (&mut P, &LinearSpeed<T>, &LinearTargetPosition<T>),
-        Without<LinearTargetReached<T>>,
+        (&mut P, &PursueSpeed<T>, &PursueTargetPosition<T>),
+        Without<PursueTargetReached<T>>,
     >,
     delta_time: Res<T>,
 ) {
@@ -19,59 +19,53 @@ pub fn move_linear<T: DeltaTime + 'static + Resource, P: LinearPosition + 'stati
     }
 }
 
-pub fn check_linear_x_reached<
-    T: DeltaTime + 'static + Resource,
-    P: LinearPosition + 'static + Component,
->(
+pub fn check_x_reached<T: DeltaTime + 'static + Resource, P: Pursue + 'static + Component>(
     mut commands: Commands,
     mut movement_query: Query<
-        (Entity, &P, &LinearSpeed<T>, &LinearTargetPosition<T>),
-        Without<LinearTargetXReached<T>>,
+        (Entity, &P, &PursueSpeed<T>, &PursueTargetPosition<T>),
+        Without<PursueTargetXReached<T>>,
     >,
 ) {
     for (entity, position, speed, target) in &mut movement_query.iter_mut() {
         let vec = position.get();
-        if (speed.value.x < 0. && vec.x > target.value.x)
-            || (speed.value.x > 0. && vec.x > target.value.x)
+        if (speed.value.x < 0. && vec.x <= target.value.x)
+            || (speed.value.x > 0. && vec.x >= target.value.x)
         {
             commands
                 .entity(entity)
-                .insert(LinearTargetXReached::<T>::new());
+                .insert(PursueTargetXReached::<T>::new());
         }
     }
 }
 
-pub fn check_linear_y_reached<
-    T: DeltaTime + 'static + Resource,
-    P: LinearPosition + 'static + Component,
->(
+pub fn check_y_reached<T: DeltaTime + 'static + Resource, P: Pursue + 'static + Component>(
     mut commands: Commands,
     mut movement_query: Query<
-        (Entity, &P, &LinearSpeed<T>, &LinearTargetPosition<T>),
-        Without<LinearTargetYReached<T>>,
+        (Entity, &P, &PursueSpeed<T>, &PursueTargetPosition<T>),
+        Without<PursueTargetYReached<T>>,
     >,
 ) {
     for (entity, position, speed, target) in &mut movement_query.iter_mut() {
         let vec = position.get();
-        if (speed.value.y < 0. && vec.y > target.value.y)
-            || (speed.value.y > 0. && vec.y > target.value.y)
+        if (speed.value.y < 0. && vec.y <= target.value.y)
+            || (speed.value.y > 0. && vec.y >= target.value.y)
         {
             commands
                 .entity(entity)
-                .insert(LinearTargetYReached::<T>::new());
+                .insert(PursueTargetYReached::<T>::new());
         }
     }
 }
 
 // TODO, could be using the other checks at the same time to avoid a next frame "Reached" status
-pub fn check_linear_reached<T: DeltaTime + 'static + Resource>(
+pub fn check_reached<T: DeltaTime + 'static + Resource>(
     mut commands: Commands,
     mut movement_query: Query<
         Entity,
         (
-            With<LinearTargetXReached<T>>,
-            With<LinearTargetYReached<T>>,
-            Without<LinearTargetReached<T>>,
+            With<PursueTargetXReached<T>>,
+            With<PursueTargetYReached<T>>,
+            Without<PursueTargetReached<T>>,
         ),
     >,
 ) {
@@ -79,7 +73,7 @@ pub fn check_linear_reached<T: DeltaTime + 'static + Resource>(
         {
             commands
                 .entity(entity)
-                .insert(LinearTargetReached::<T>::new());
+                .insert(PursueTargetReached::<T>::new());
         }
     }
 }

@@ -12,6 +12,7 @@ pub mod systems;
 pub mod ui;
 
 use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 use self::{
     components::RailPosition,
@@ -41,7 +42,7 @@ use self::{
 use crate::{
     cinemachine::{cinemachine::CinemachineScene, render_cutscene},
     game::events::GameOver,
-    plugins::movement::linear::LinearMovementPlugin,
+    plugins::movement::pursue::PursueMovementPlugin,
     AppState,
 };
 
@@ -75,7 +76,8 @@ impl Plugin for StagePlugin {
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
             .init_resource::<CinemachineScene>()
-            .add_plugins(LinearMovementPlugin::<StageTime, RailPosition>::default())
+            .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
+            .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
