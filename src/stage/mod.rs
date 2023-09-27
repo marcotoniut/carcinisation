@@ -12,8 +12,10 @@ pub mod systems;
 pub mod ui;
 
 use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 use self::{
+    components::RailPosition,
     enemy::{systems::attacks::*, EnemyPlugin},
     events::*,
     pickup::systems::health::pickup_health,
@@ -37,7 +39,12 @@ use self::{
         StageUiPlugin,
     },
 };
-use crate::{game::events::GameOver, AppState, cinemachine::{cinemachine::CinemachineScene, render_cutscene}};
+use crate::{
+    cinemachine::{cinemachine::CinemachineScene, render_cutscene},
+    game::events::GameOver,
+    plugins::movement::pursue::PursueMovementPlugin,
+    AppState,
+};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct LoadingSystemSet;
@@ -47,6 +54,11 @@ pub struct BuildingSystemSet;
 
 pub struct StagePlugin;
 
+/**
+ * TODO
+ * - implement a lifecycle state to indicate whether the plugin is active, inactive, (and perhaps initialising or cleaning up.)
+ * - implement mapping of buttons exclusive to the plugin. (then we could have the menus create their own mappers.)
+ */
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
@@ -64,6 +76,8 @@ impl Plugin for StagePlugin {
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
             .init_resource::<CinemachineScene>()
+            .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
+            .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
@@ -92,6 +106,7 @@ impl Plugin for StagePlugin {
                         (
                             // Stage
                             increment_elapsed,
+                            tick_stage_time,
                             tick_stage_step_timer,
                             read_stage_step_trigger,
                             read_stage_spawn_trigger,
@@ -111,10 +126,6 @@ impl Plugin for StagePlugin {
                             advance_incoming,
                             check_depth_reached,
                             update_depth,
-                            advance_line,
-                            check_line_target_x_reached,
-                            check_line_target_y_reached,
-                            check_line_target_reached,
                             circle_around,
                         ),
                     )
@@ -150,7 +161,7 @@ pub enum GameState {
     Loading,
     Running,
     Paused,
-    Cutscene
+    Cutscene,
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
