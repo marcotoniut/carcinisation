@@ -8,10 +8,10 @@ use seldom_pixel::{
 
 use crate::{
     globals::SCREEN_RESOLUTION,
+    plugins::movement::pursue::components::{PursueSpeed, PursueTargetPosition},
     stage::{
         components::{
-            Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, LineSpeed,
-            TargetDepth, TargetPosition,
+            Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, TargetDepth,
         },
         enemy::{
             bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
@@ -145,8 +145,11 @@ pub fn check_idle_tardigrade(
                     .spawn((
                         Name::new("Attack Blood"),
                         EnemyAttack {},
-                        TargetPosition(target_vec),
-                        LineSpeed((target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED),
+                        // TODO bundle
+                        PursueTargetPosition::<StageTime, PxSubPosition>::new(target_vec),
+                        PursueSpeed::<StageTime, PxSubPosition>::new(
+                            (target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED,
+                        ),
                         depth,
                         DepthProgress(depth.0.clone() as f32),
                         DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
