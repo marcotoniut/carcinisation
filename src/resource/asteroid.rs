@@ -18,7 +18,7 @@ lazy_static! {
             path: "backgrounds/asteroid/skybox.png".to_string(),
             frames: 1,
         },
-        start_coordinates: Some(Vec2::new(0.0, 800.)),
+        start_coordinates: Some(Vec2::new(0.0, 0.0)),
         spawns: make_spawns(),
         steps: make_steps(),
     };
@@ -114,10 +114,10 @@ pub fn make_steps() -> Vec<StageStep> {
             base_speed: 8.0,
             spawns: vec![],
         },
-        StageStep::Stop { 
-            resume_conditions: Some(vec![]), 
-            max_duration: Some(3.0), 
-            spawns: vec![] 
+        StageStep::Stop {
+            resume_conditions: Some(vec![]),
+            max_duration: Some(3.0),
+            spawns: vec![],
         },
         StageStep::Movement {
             coordinates: Vec2 { x: 50.0, y: 0.0 },
