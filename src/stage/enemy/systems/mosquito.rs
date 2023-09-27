@@ -207,8 +207,8 @@ pub fn check_idle_mosquito(
                     .spawn((
                         Name::new("Attack Blood"),
                         EnemyAttack {},
-                        PursueTargetPosition::<StageTime>::new(target_vec),
-                        PursueSpeed::<StageTime>::new(
+                        PursueTargetPosition::<StageTime, PxSubPosition>::new(target_vec),
+                        PursueSpeed::<StageTime, PxSubPosition>::new(
                             (target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED,
                         ),
                         depth,
