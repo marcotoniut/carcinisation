@@ -19,7 +19,7 @@ pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
 pub const PLACEHOLDER_ENEMY_SPAWN_TIME: f32 = 8.0;
 
 pub const BLOOD_ATTACK_DEPTH_SPEED: f32 = 4.;
-pub const BLOOD_ATTACK_LINE_SPEED: f32 = 0.3;
+pub const BLOOD_ATTACK_LINE_SPEED: f32 = 25.;
 pub const BLOOD_ATTACK_MAX_DEPTH: usize = 6;
 pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
 

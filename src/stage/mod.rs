@@ -42,7 +42,13 @@ use self::{
 use crate::{
     cinemachine::{cinemachine::CinemachineScene, render_cutscene},
     game::events::GameOver,
-    plugins::movement::pursue::PursueMovementPlugin,
+    plugins::movement::{
+        linear::{
+            components::{XAxisPosition, YAxisPosition},
+            LinearMovementPlugin,
+        },
+        pursue::PursueMovementPlugin,
+    },
     AppState,
 };
 
@@ -78,6 +84,8 @@ impl Plugin for StagePlugin {
             .init_resource::<CinemachineScene>()
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
+            .add_plugins(LinearMovementPlugin::<StageTime, XAxisPosition>::default())
+            .add_plugins(LinearMovementPlugin::<StageTime, YAxisPosition>::default())
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
@@ -123,6 +131,8 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Movement
+                            update_pxsubposition_x,
+                            update_pxsubposition_y,
                             advance_incoming,
                             check_depth_reached,
                             update_depth,

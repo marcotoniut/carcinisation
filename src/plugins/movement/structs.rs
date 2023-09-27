@@ -18,3 +18,9 @@ impl MovementVec2Position for PxSubPosition {
         self.0 += value;
     }
 }
+
+pub trait MovementAxisPosition: Send + Sync + 'static {
+    fn get(&self) -> f32;
+    fn set(&mut self, value: f32);
+    fn add(&mut self, value: f32);
+}
