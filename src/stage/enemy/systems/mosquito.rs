@@ -253,6 +253,9 @@ pub fn despawn_dead_attacks(
     }
 }
 
+/**
+ * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose
+ */
 pub fn read_enemy_attack_depth_changed(
     mut commands: Commands,
     mut event_reader: EventReader<DepthChanged>,

@@ -57,6 +57,7 @@ pub fn update_depth(
             let next_depth = depth.0 + 1;
             if progress.0 >= (depth.0 as f32 + 0.5) {
                 depth.0 = next_depth;
+                // REVIEW should this use DepthChanged, or Added<DepthReached> (LinearTargetReached<StageTime, ZAxisPosition>)
                 event_writer.send(DepthChanged {
                     entity,
                     depth: depth.clone(),
