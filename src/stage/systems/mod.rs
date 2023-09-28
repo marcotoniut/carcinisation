@@ -78,8 +78,8 @@ pub fn setup_stage(
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
-    let stage_data = STAGE_DEBUG_DATA.clone();
-    // let stage_data = STAGE_PARK_DATA.clone();
+    // let stage_data = STAGE_DEBUG_DATA.clone();
+    let stage_data = STAGE_PARK_DATA.clone();
 
     for spawn in &stage_data.spawns {
         match spawn {

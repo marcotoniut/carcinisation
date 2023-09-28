@@ -34,27 +34,27 @@ fn main() {
     let resolution: Vec2 = Vec2::new(850., 480.);
 
     let mut app = App::new();
-    let dev = true;
-    if dev {
-        app.add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title,
-                    focused,
-                    resizable: true,
-                    resolution: (resolution
-                        + Vec2::new(
-                            SCREEN_RESOLUTION.x as f32 * 1.5,
-                            SCREEN_RESOLUTION.y as f32 * 1.5,
-                        ))
-                    .into(),
-                    ..default()
-                }),
+    #[cfg(debug_assertions)]
+    {
+        app.add_plugins((DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title,
+                focused,
+                resizable: true,
+                resolution: (resolution
+                    + Vec2::new(
+                        SCREEN_RESOLUTION.x as f32 * 1.5,
+                        SCREEN_RESOLUTION.y as f32 * 1.5,
+                    ))
+                .into(),
                 ..default()
             }),
-            bevy_editor_pls::prelude::EditorPlugin::new(),
-        ));
-    } else {
+            ..default()
+        }),));
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        app.add_plugins((bevy_editor_pls::EditorPlugin::new(), bevy::diagnostic::LogDiagnosticsPlugin::default()));
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title,
@@ -69,7 +69,6 @@ fn main() {
     app.add_plugins((
         PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png".into()),
         FramepacePlugin,
-        bevy::diagnostic::LogDiagnosticsPlugin::default(),
     ))
     // TEMP
     // .insert_resource(GlobalVolume::new(0.3))
