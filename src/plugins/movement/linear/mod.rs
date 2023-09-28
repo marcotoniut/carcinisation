@@ -2,20 +2,20 @@ pub mod components;
 pub mod systems;
 
 use self::systems::*;
-use super::structs::MovementAxisPosition;
+use super::structs::Magnitude;
 use crate::core::time::DeltaTime;
 use bevy::prelude::*;
 use std::marker::PhantomData;
 
 pub struct LinearMovementPlugin<
     T: DeltaTime + 'static + Resource,
-    P: MovementAxisPosition + 'static + Component,
+    P: Magnitude + 'static + Component,
 > {
     _marker: PhantomData<T>,
     _marker_position: PhantomData<P>,
 }
 
-impl<T: DeltaTime + 'static + Resource, P: MovementAxisPosition + Component> Default
+impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Default
     for LinearMovementPlugin<T, P>
 {
     fn default() -> Self {
@@ -26,7 +26,7 @@ impl<T: DeltaTime + 'static + Resource, P: MovementAxisPosition + Component> Def
     }
 }
 
-impl<T: DeltaTime + 'static + Resource, P: MovementAxisPosition + Component> Plugin
+impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Plugin
     for LinearMovementPlugin<T, P>
 {
     fn build(&self, app: &mut App) {
@@ -34,6 +34,7 @@ impl<T: DeltaTime + 'static + Resource, P: MovementAxisPosition + Component> Plu
             Update,
             (
                 update::<T, P>,
+                update_speed::<T, P>,
                 check_reached::<T, P>,
                 on_position_added::<T, P>,
             ),
