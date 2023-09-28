@@ -2,12 +2,12 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
-    plugins::movement::linear::components::{
-        LinearTargetPosition, LinearTargetReached, XAxisPosition, YAxisPosition,
+    plugins::movement::{
+        linear::components::{LinearTargetReached, XAxisPosition, YAxisPosition},
+        structs::MovementDirection,
     },
     stage::{
         components::{Depth, DepthProgress, DepthReached, DepthSpeed, TargetDepth},
-        data::MovementDirection,
         enemy::components::CircleAround,
         events::DepthChanged,
         resources::StageTime,
@@ -90,8 +90,8 @@ pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSu
     for (circle_around, mut position) in query.iter_mut() {
         let elapsed_seconds = time.elapsed_seconds();
         let angle = match circle_around.direction {
-            MovementDirection::Right => elapsed_seconds + circle_around.time_offset,
-            MovementDirection::Left => -elapsed_seconds + circle_around.time_offset,
+            MovementDirection::Positive => elapsed_seconds + circle_around.time_offset,
+            MovementDirection::Negative => -elapsed_seconds + circle_around.time_offset,
         };
         let x = circle_around.center.x + circle_around.radius * angle.cos();
         let y = circle_around.center.y + circle_around.radius * angle.sin();

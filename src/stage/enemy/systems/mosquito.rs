@@ -9,7 +9,7 @@ use seldom_pixel::{
 use crate::{
     globals::{CAMERA_CENTER, HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
     plugins::movement::linear::components::{
-        LinearSpeed, LinearTargetPosition, XAxisPosition, YAxisPosition,
+        LinearDirection, LinearSpeed, LinearTargetPosition, XAxisPosition, YAxisPosition,
     },
     stage::{
         components::{
@@ -210,6 +210,12 @@ pub fn check_idle_mosquito(
                     YAxisPosition(position.0.y),
                     LinearTargetPosition::<StageTime, XAxisPosition>::new(target_pos.x),
                     LinearTargetPosition::<StageTime, YAxisPosition>::new(target_pos.y),
+                    LinearDirection::<StageTime, XAxisPosition>::from_delta(
+                        target_pos.x - position.0.x,
+                    ),
+                    LinearDirection::<StageTime, YAxisPosition>::from_delta(
+                        target_pos.y - position.0.y,
+                    ),
                     LinearSpeed::<StageTime, XAxisPosition>::new(speed.x),
                     LinearSpeed::<StageTime, YAxisPosition>::new(speed.y),
                 );

@@ -3,14 +3,7 @@ use bevy::{
     reflect::{TypePath, TypeUuid},
 };
 
-use crate::cinemachine::data::CinemachineData;
-
-#[derive(Clone, Copy, Debug, Default)]
-pub enum MovementDirection {
-    #[default]
-    Left,
-    Right,
-}
+use crate::{cinemachine::data::CinemachineData, plugins::movement::structs::MovementDirection};
 
 #[derive(Debug, Clone)]
 pub struct SkyboxData {
@@ -177,7 +170,7 @@ impl EnemySpawn {
             steps: vec![EnemyStep::Circle {
                 duration: 999.,
                 radius: 12.,
-                direction: MovementDirection::Right,
+                direction: MovementDirection::Positive,
             }],
             contains: None,
         }

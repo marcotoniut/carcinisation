@@ -1,7 +1,7 @@
+use crate::plugins::movement::structs::MovementDirection;
 use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, MovementDirection, PickupSpawn, SkyboxData,
-    StageData, StageStep,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, PickupSpawn, SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PickupType, StageActionResumeCondition, StageSpawn,
@@ -49,7 +49,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     EnemyStep::Circle {
                         duration: 4.,
                         radius: 12.,
-                        direction: MovementDirection::Left,
+                        direction: MovementDirection::Negative,
                     },
                 ],
                 contains: None,
@@ -79,7 +79,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     EnemyStep::Circle {
                         duration: 4.,
                         radius: 12.,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     },
                 ],
                 contains: None,
@@ -114,10 +114,10 @@ pub fn make_steps() -> Vec<StageStep> {
             base_speed: 8.0,
             spawns: vec![],
         },
-        StageStep::Stop { 
-            resume_conditions: Some(vec![]), 
-            max_duration: Some(3.0), 
-            spawns: vec![] 
+        StageStep::Stop {
+            resume_conditions: Some(vec![]),
+            max_duration: Some(3.0),
+            spawns: vec![],
         },
         StageStep::Movement {
             coordinates: Vec2 { x: 50.0, y: 0.0 },
@@ -131,7 +131,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 4.0,
                         radius: 10.0,
-                        direction: MovementDirection::Left,
+                        direction: MovementDirection::Negative,
                     }],
                     contains: None,
                 }),

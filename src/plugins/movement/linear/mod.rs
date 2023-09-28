@@ -37,6 +37,7 @@ impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Plugin
                 update_speed::<T, P>,
                 check_reached::<T, P>,
                 on_position_added::<T, P>,
+                on_reached::<T, P>,
             ),
         );
     }

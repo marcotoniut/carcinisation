@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use bevy::prelude::*;
 
-use crate::{core::time::DeltaTime, plugins::movement::structs::Magnitude};
+use crate::{
+    core::time::DeltaTime,
+    plugins::movement::structs::{Magnitude, MovementDirection},
+};
 
 #[derive(Component, Debug, Clone)]
 pub struct XAxisPosition(pub f32);
@@ -36,6 +39,30 @@ impl_magnitude!(YAxisPosition);
 impl_magnitude!(ZAxisPosition);
 
 // TODO Bundle and on added
+
+#[derive(Component, Debug, Clone)]
+pub struct LinearDirection<T: DeltaTime + Send + Sync + 'static, P> {
+    _marker_time: PhantomData<T>,
+    _marker_position: PhantomData<P>,
+    pub value: MovementDirection,
+}
+
+impl<T: DeltaTime + Send + Sync + 'static, P> LinearDirection<T, P> {
+    pub fn new(value: MovementDirection) -> Self {
+        Self {
+            _marker_time: PhantomData,
+            _marker_position: PhantomData,
+            value,
+        }
+    }
+    pub fn from_delta(value: f32) -> Self {
+        Self::new(if value > 0.0 {
+            MovementDirection::Positive
+        } else {
+            MovementDirection::Negative
+        })
+    }
+}
 
 #[derive(Component, Debug, Clone)]
 pub struct LinearTargetPosition<T: DeltaTime + Send + Sync + 'static, P> {

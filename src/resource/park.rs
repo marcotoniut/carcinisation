@@ -1,8 +1,9 @@
 use crate::cinemachine::scene_intro::*;
+use crate::plugins::movement::structs::MovementDirection;
 use crate::resource::CAMERA_BASE_SPEED;
 use crate::stage::data::{
-    ContainerSpawn, DestructibleSpawn, EnemySpawn, MovementDirection, ObjectSpawn, ObjectType,
-    PickupSpawn, SkyboxData, StageData, StageStep,
+    ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
+    SkyboxData, StageData, StageStep,
 };
 use crate::stage::data::{
     DestructibleType, EnemyStep, EnemyType, PickupType, StageActionResumeCondition, StageSpawn,
@@ -79,7 +80,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     EnemyStep::Circle {
                         duration: 4.0,
                         radius: 10.0,
-                        direction: MovementDirection::Left,
+                        direction: MovementDirection::Negative,
                     },
                 ],
                 // direction: MovementDirection::Left,
@@ -130,17 +131,7 @@ pub fn make_steps() -> Vec<StageStep> {
         // },
         StageStep::Stop {
             resume_conditions: Some(vec![]),
-            max_duration: Some(3.0),
-            spawns: vec![],
-        },
-        StageStep::Movement {
-            coordinates: Vec2 { x: 0.0, y: 0.0 },
-            base_speed: 8.0,
-            spawns: vec![],
-        },
-        StageStep::Stop {
-            resume_conditions: Some(vec![]),
-            max_duration: Some(3.0),
+            max_duration: Some(0.1),
             spawns: vec![],
         },
         StageStep::Movement {
@@ -157,7 +148,7 @@ pub fn make_steps() -> Vec<StageStep> {
                         EnemyStep::Circle {
                             duration: 4.0,
                             radius: 10.0,
-                            direction: MovementDirection::Left,
+                            direction: MovementDirection::Negative,
                         },
                         EnemyStep::Movement {
                             coordinates: Vec2 { x: 10.0, y: 0.0 },
@@ -225,7 +216,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 3.0,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     }],
                     ..EnemySpawn::base_mosquito(40. / CAMERA_BASE_SPEED, Vec2 { x: 12.0, y: 50.0 })
                 }),
@@ -254,7 +245,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 3.0,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     }],
 
                     ..EnemySpawn::base_mosquito(20. / CAMERA_BASE_SPEED, Vec2 { x: 70.0, y: 60.0 })
@@ -331,7 +322,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 3.0,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     }],
 
                     elapsed: 5.1 / CAMERA_BASE_SPEED,
@@ -447,7 +438,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 13.0,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     }],
                     contains: None,
                     ..EnemySpawn::base_mosquito(
@@ -523,7 +514,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 23.0,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     }],
                     contains: None,
                 }),
@@ -557,7 +548,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 13.0,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     }],
                     contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
                         pickup_type: PickupType::BigHealthpack,
@@ -603,7 +594,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     steps: vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 15.0,
-                        direction: MovementDirection::Right,
+                        direction: MovementDirection::Positive,
                     }],
 
                     contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {

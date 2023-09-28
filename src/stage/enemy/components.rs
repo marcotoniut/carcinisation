@@ -4,7 +4,8 @@ use std::time::Duration;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
-use crate::stage::data::{EnemyStep, MovementDirection};
+use crate::plugins::movement::structs::MovementDirection;
+use crate::stage::data::EnemyStep;
 
 pub const SCORE_RANGED_REGULAR_HIT: u32 = 1;
 pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;

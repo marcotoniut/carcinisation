@@ -18,7 +18,7 @@ use self::{
     components::RailPosition,
     enemy::{systems::attacks::*, EnemyPlugin},
     events::*,
-    pickup::systems::health::pickup_health,
+    pickup::systems::health::{mark_despawn_pickup_feedback, pickup_health},
     player::{
         events::CameraShakeTrigger,
         systems::camera::{camera_shake, trigger_shake},
@@ -112,6 +112,11 @@ impl Plugin for StagePlugin {
                             trigger_shake,
                         ),
                         (
+                            // Pickup
+                            pickup_health,
+                            mark_despawn_pickup_feedback,
+                        ),
+                        (
                             // Stage
                             increment_elapsed,
                             tick_stage_time,
@@ -123,7 +128,6 @@ impl Plugin for StagePlugin {
                             read_stage_cleared_trigger,
                             check_stage_game_over,
                             read_stage_game_over_trigger,
-                            pickup_health,
                             blood_attack_damage_on_reached,
                             // TEMP
                             check_stage_game_over,
