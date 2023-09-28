@@ -317,7 +317,7 @@ pub fn read_stage_cleared_trigger(
 
 pub fn check_stage_game_over(
     mut event_writer: EventWriter<StageGameOverTrigger>,
-    player_query: Query<&Player, With<Dead>>,
+    player_query: Query<&Player, Added<Dead>>,
 ) {
     if let Ok(_) = player_query.get_single() {
         event_writer.send(StageGameOverTrigger {});

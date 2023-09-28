@@ -12,5 +12,5 @@ impl HealthRecovery {
 #[derive(Component, Debug, Clone)]
 pub struct PickupFeedback;
 
-pub const PICKUP_FEEDBACK_TIME: f32 = 0.5;
+pub const PICKUP_FEEDBACK_TIME: f32 = 0.6;
 pub const PICKUP_FEEDBACK_INITIAL_SPEED_Y: f32 = 100.0;
