@@ -128,7 +128,6 @@ impl Plugin for StagePlugin {
                             read_stage_cleared_trigger,
                             check_stage_game_over,
                             read_stage_game_over_trigger,
-                            blood_attack_damage_on_reached,
                             // TEMP
                             check_stage_game_over,
                             read_stage_game_over_trigger,

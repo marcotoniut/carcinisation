@@ -8,7 +8,13 @@ use bevy::prelude::*;
 
 use self::{
     resources::*,
-    systems::{behaviors::*, mosquito::*, tardigrade::*, *},
+    systems::{
+        attacks::{blood_attack_damage_on_reached, miss_on_reached},
+        behaviors::*,
+        mosquito::*,
+        tardigrade::*,
+        *,
+    },
 };
 use super::{GameState, StageState};
 use crate::AppState;
@@ -33,6 +39,8 @@ impl Plugin for EnemyPlugin {
                     // Attacks
                     despawn_dead_attacks,
                     read_enemy_attack_depth_changed,
+                    miss_on_reached,
+                    blood_attack_damage_on_reached,
                 ),
                 (
                     // Mosquito
