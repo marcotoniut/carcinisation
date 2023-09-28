@@ -48,26 +48,25 @@ pub fn pickup_health(
 
             let t = PICKUP_FEEDBACK_TIME;
 
-            let target_x = 15.;
-            let target_y = 8.;
-            let current_x = position.0.x - camera_pos.0.x;
-            let current_y = position.0.y - camera_pos.0.y;
-            let d_x = target_x - current_x;
-            let d_y = target_y - current_y;
+            let target = Vec2::new(12., 8.);
+            let current = position.0 - camera_pos.0;
+            let d = target - current;
 
-            let speed_x = d_x / t;
+            let speed_x = d.x / t;
             let speed_y = PICKUP_FEEDBACK_INITIAL_SPEED_Y;
-            let adjusted_d_y = d_y - speed_y * t;
+            let adjusted_d_y = d.y - speed_y * t;
             let acceleration_y = 2. * adjusted_d_y / (t * t);
             // let acceleration_y = 0.1;
 
+            let direction_delta = target - current;
+
             let movement_bundle = (
-                XAxisPosition(current_x),
-                YAxisPosition(current_y),
-                LinearTargetPosition::<StageTime, XAxisPosition>::new(target_x),
-                LinearTargetPosition::<StageTime, YAxisPosition>::new(target_y),
-                LinearDirection::<StageTime, XAxisPosition>::from_delta(target_x - current_x),
-                LinearDirection::<StageTime, YAxisPosition>::from_delta(target_y - current_y),
+                XAxisPosition(current.x),
+                YAxisPosition(current.y),
+                LinearTargetPosition::<StageTime, XAxisPosition>::new(target.x),
+                LinearTargetPosition::<StageTime, YAxisPosition>::new(target.y),
+                LinearDirection::<StageTime, XAxisPosition>::from_delta(direction_delta.x),
+                LinearDirection::<StageTime, YAxisPosition>::from_delta(direction_delta.y),
                 LinearSpeed::<StageTime, XAxisPosition>::new(speed_x),
                 LinearSpeed::<StageTime, YAxisPosition>::new(speed_y),
                 LinearAcceleration::<StageTime, YAxisPosition>::new(acceleration_y),
@@ -79,7 +78,7 @@ pub fn pickup_health(
                 .spawn((
                     Name::new("Pickup Healthpack Feedback"),
                     PickupFeedback,
-                    PxSubPosition(position.0),
+                    PxSubPosition::from(current),
                     PxSpriteBundle::<Layer> {
                         sprite,
                         anchor: PxAnchor::Center,
