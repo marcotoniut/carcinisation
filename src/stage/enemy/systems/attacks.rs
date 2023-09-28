@@ -8,6 +8,7 @@ use seldom_pixel::{
 };
 
 use crate::{
+    components::DespawnMark,
     stage::{
         components::*,
         enemy::{components::EnemyAttack, data::blood_attack::BLOOD_ATTACK_ANIMATIONS},
@@ -19,10 +20,10 @@ use crate::{
 
 pub fn miss_on_reached(
     mut commands: Commands,
-    query: Query<Entity, (With<EnemyAttack>, With<DepthReached>, Without<InView>)>,
+    query: Query<Entity, (Added<DepthReached>, With<EnemyAttack>, Without<InView>)>,
 ) {
     for entity in &mut query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).insert(DespawnMark);
     }
 }
 
@@ -35,7 +36,7 @@ pub fn blood_attack_damage_on_reached(
     asset_server: Res<AssetServer>,
     depth_query: Query<
         (Entity, &Damage, &PxSubPosition, &Depth),
-        (With<EnemyAttack>, With<DepthReached>, With<InView>),
+        (Added<DepthReached>, With<EnemyAttack>, With<InView>),
     >,
     volume_settings: Res<VolumeSettings>,
 ) {
@@ -79,6 +80,6 @@ pub fn blood_attack_damage_on_reached(
             ));
         }
 
-        commands.entity(entity).despawn();
+        commands.entity(entity).insert(DespawnMark);
     }
 }
