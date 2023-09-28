@@ -1,6 +1,14 @@
 use bevy::prelude::Vec2;
 use seldom_pixel::prelude::PxSubPosition;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum MovementDirection {
+    // TODO should this implement default at all?
+    #[default]
+    Negative,
+    Positive,
+}
+
 pub trait MovementVec2Position: Send + Sync + 'static {
     fn get(&self) -> Vec2;
     fn set(&mut self, value: Vec2);

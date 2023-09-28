@@ -3,9 +3,15 @@ use bevy::{
     prelude::*,
 };
 
-use crate::components::Music;
+use crate::components::{DespawnMark, Music};
 
 use super::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings};
+
+pub fn check_despawn(mut commands: Commands, query: Query<Entity, With<DespawnMark>>) {
+    for entity in &mut query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+}
 
 pub fn spawn_music(
     commands: &mut Commands,

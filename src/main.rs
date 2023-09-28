@@ -24,7 +24,7 @@ use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
-use systems::{audio::VolumeSettings, *};
+use systems::{audio::VolumeSettings, spawn::check_despawn, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
@@ -92,7 +92,9 @@ fn main() {
     // .add_plugins(GamePlugin)
     // .add_plugins(MainMenuPlugin)
     .add_plugins(InputManagerPlugin::<GBInput>::default())
-    .add_systems(Startup, (set_framespace, spawn_camera, spawn_gb_input))
+    // .add_systems(Startup, (set_framespace))
+    .add_systems(Startup, (spawn_camera, spawn_gb_input))
+    .add_systems(Update, check_despawn)
     .add_systems(Update, input_snd_menu)
     // TODO should this be placed at main?
     // .add_systems(Update, handle_game_over)
@@ -150,6 +152,7 @@ pub enum Layer {
     Front,
     UIBackground,
     UI,
+    Pickups,
     CutsceneBackground,
     Cutscene(usize),
     Letterbox,

@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{core::time::DeltaTime, plugins::movement::structs::Magnitude};
+use crate::{
+    core::time::DeltaTime,
+    plugins::movement::structs::{Magnitude, MovementDirection},
+};
 
 use super::components::*;
 
@@ -43,21 +46,40 @@ pub fn check_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component
     mut query: Query<
         (
             Entity,
-            &mut P,
-            &LinearSpeed<T, P>,
+            &P,
+            &LinearDirection<T, P>,
             &LinearTargetPosition<T, P>,
         ),
         Without<LinearTargetReached<T, P>>,
     >,
 ) {
-    for (entity, mut position, speed, target) in &mut query.iter_mut() {
+    for (entity, position, direction, target) in &mut query.iter_mut() {
         let x = position.get();
-        if (speed.value < 0. && x <= target.value) || (speed.value > 0. && x >= target.value) {
-            position.set(target.value);
+        if (direction.value == MovementDirection::Negative && x <= target.value)
+            || (direction.value == MovementDirection::Positive && x >= target.value)
+        {
             commands
                 .entity(entity)
-                .remove::<LinearTargetPosition<T, P>>()
                 .insert(LinearTargetReached::<T, P>::new());
         }
+    }
+}
+
+pub fn on_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
+    mut commands: Commands,
+    mut query: Query<
+        (Entity, &mut P, &LinearTargetPosition<T, P>),
+        Added<LinearTargetReached<T, P>>,
+    >,
+) {
+    for (entity, mut position, target) in &mut query.iter_mut() {
+        position.set(target.value);
+        // TODO remove bundle
+        commands
+            .entity(entity)
+            .remove::<LinearTargetPosition<T, P>>()
+            .remove::<LinearSpeed<T, P>>()
+            .remove::<LinearAcceleration<T, P>>()
+            .remove::<LinearTargetReached<T, P>>();
     }
 }
