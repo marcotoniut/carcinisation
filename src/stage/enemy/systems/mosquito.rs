@@ -7,8 +7,10 @@ use seldom_pixel::{
 };
 
 use crate::{
-    globals::SCREEN_RESOLUTION,
-    plugins::movement::pursue::components::*,
+    globals::{CAMERA_CENTER, HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
+    plugins::movement::linear::components::{
+        LinearSpeed, LinearTargetPosition, XAxisPosition, YAxisPosition,
+    },
     stage::{
         components::{
             Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, TargetDepth,
@@ -198,19 +200,28 @@ pub fn check_idle_mosquito(
                 attacking.attack = attacking.attack.clone();
                 attacking.last_attack_started = attacking.last_attack_started.clone();
 
-                let target_vec = Vec2::new(
-                    camera_pos.x + SCREEN_RESOLUTION.x as f32 / 2.,
-                    camera_pos.y + SCREEN_RESOLUTION.y as f32 / 2.,
+                let target_pos = HALF_SCREEN_RESOLUTION.clone() + camera_pos.0;
+
+                let direction = target_pos - position.0;
+                let speed = direction.normalize() * BLOOD_ATTACK_LINE_SPEED;
+
+                let movement_bundle = (
+                    XAxisPosition(position.0.x),
+                    YAxisPosition(position.0.y),
+                    LinearTargetPosition::<StageTime, XAxisPosition>::new(target_pos.x),
+                    LinearTargetPosition::<StageTime, YAxisPosition>::new(target_pos.y),
+                    LinearSpeed::<StageTime, XAxisPosition>::new(speed.x),
+                    LinearSpeed::<StageTime, YAxisPosition>::new(speed.y),
                 );
 
                 commands
                     .spawn((
                         Name::new("Attack Blood"),
                         EnemyAttack {},
-                        PursueTargetPosition::<StageTime, PxSubPosition>::new(target_vec),
-                        PursueSpeed::<StageTime, PxSubPosition>::new(
-                            (target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED,
-                        ),
+                        // PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
+                        // PursueSpeed::<StageTime, PxSubPosition>::new(
+                        //     (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
+                        // ),
                         depth,
                         DepthProgress(depth.0.clone() as f32),
                         DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
@@ -220,7 +231,8 @@ pub fn check_idle_mosquito(
                         Hittable {},
                         Health(1),
                     ))
-                    .insert(attack_bundle);
+                    .insert(attack_bundle)
+                    .insert(movement_bundle);
             }
         }
     }

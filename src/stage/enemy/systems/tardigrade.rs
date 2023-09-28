@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{ops::Add, time::Duration};
 
 use bevy::prelude::*;
 use seldom_pixel::{
@@ -7,7 +7,7 @@ use seldom_pixel::{
 };
 
 use crate::{
-    globals::SCREEN_RESOLUTION,
+    globals::{CAMERA_CENTER, SCREEN_RESOLUTION},
     plugins::movement::pursue::components::{PursueSpeed, PursueTargetPosition},
     stage::{
         components::{
@@ -136,19 +136,16 @@ pub fn check_idle_tardigrade(
                 attacking.attack = attacking.attack.clone();
                 attacking.last_attack_started = attacking.last_attack_started.clone();
 
-                let target_vec = Vec2::new(
-                    camera_pos.x + SCREEN_RESOLUTION.x as f32 / 2.,
-                    camera_pos.y + SCREEN_RESOLUTION.y as f32 / 2.,
-                );
+                let target_pos = CAMERA_CENTER.clone() + camera_pos.0;
 
                 commands
                     .spawn((
                         Name::new("Attack Blood"),
                         EnemyAttack {},
                         // TODO bundle
-                        PursueTargetPosition::<StageTime, PxSubPosition>::new(target_vec),
+                        PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
                         PursueSpeed::<StageTime, PxSubPosition>::new(
-                            (target_vec - position.0) * BLOOD_ATTACK_LINE_SPEED,
+                            (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
                         ),
                         depth,
                         DepthProgress(depth.0.clone() as f32),

@@ -5,6 +5,15 @@ pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);
 pub const HUD_HEIGHT: u32 = 14;
 pub const FONT_SIZE: u32 = 10;
 
+lazy_static! {
+    pub static ref HALF_SCREEN_RESOLUTION: Vec2 = SCREEN_RESOLUTION.as_vec2() / 2.0;
+    pub static ref HUD_OFFSET: UVec2 = UVec2::new(0, HUD_HEIGHT);
+    pub static ref CAMERA_RESOLUTION: UVec2 =
+        (SCREEN_RESOLUTION.as_vec2() - HUD_OFFSET.as_vec2()).as_uvec2();
+    pub static ref HALF_CAMERA_RESOLUTION: Vec2 = CAMERA_RESOLUTION.as_vec2() / 2.0;
+    pub static ref CAMERA_CENTER: Vec2 = CAMERA_RESOLUTION.as_vec2() / 2.0 + HUD_OFFSET.as_vec2();
+}
+
 pub const TYPEFACE_PATH: &str = "typeface/pixeboy.png";
 pub const TYPEFACE_INVERTED_PATH: &str = "typeface/pixeboy-inverted.png";
 // pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
