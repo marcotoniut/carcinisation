@@ -7,6 +7,7 @@ use seldom_pixel::{
 };
 
 use crate::{
+    components::DespawnMark,
     globals::{CAMERA_CENTER, SCREEN_RESOLUTION},
     plugins::movement::pursue::components::{PursueSpeed, PursueTargetPosition},
     stage::{
@@ -63,11 +64,10 @@ pub fn despawn_dead_tardigrade(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyTardigrade, &PxSubPosition), With<Dead>>,
+    query: Query<(Entity, &EnemyTardigrade, &PxSubPosition), Added<Dead>>,
 ) {
     for (entity, mosquito, position) in query.iter() {
-        // TODO Can I split this?
-        commands.entity(entity).despawn();
+        commands.entity(entity).insert(DespawnMark);
 
         // HARDCODED depth, should be a component
         let depth = 1;

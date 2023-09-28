@@ -26,7 +26,7 @@ use crate::{
 pub fn pickup_health(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &HealthRecovery, &PxSubPosition), With<Dead>>,
+    query: Query<(Entity, &HealthRecovery, &PxSubPosition), Added<Dead>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     mut player_query: Query<&mut Health, With<Player>>,
     mut assets_sprite: PxAssets<PxSprite>,
@@ -34,7 +34,7 @@ pub fn pickup_health(
     let camera_pos = camera_query.get_single().unwrap();
     if let Ok(mut health) = player_query.get_single_mut() {
         for (entity, recovery, position) in query.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).insert(DespawnMark);
 
             health.0 += recovery.0;
             if health.0 > PLAYER_MAX_HEALTH {

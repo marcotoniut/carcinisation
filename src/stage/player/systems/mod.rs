@@ -142,13 +142,14 @@ pub const DEATH_SCORE_PENALTY: i32 = 150;
 pub fn check_player_died(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    mut query: Query<(Entity, &mut Player), With<Dead>>,
+    mut query: Query<(Entity, &mut Player), Added<Dead>>,
     mut event_writer: EventWriter<GameOver>,
 ) {
     if let Ok((entity, mut player)) = query.get_single_mut() {
         score.add(-DEATH_SCORE_PENALTY);
         player.lives = player.lives.saturating_sub(1);
         if player.lives == 0 {
+            // event_writer.send(StageGameOverTrigger {});
             event_writer.send(GameOver { score: score.value });
         }
     }

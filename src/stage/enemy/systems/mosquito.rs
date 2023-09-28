@@ -7,6 +7,7 @@ use seldom_pixel::{
 };
 
 use crate::{
+    components::DespawnMark,
     globals::{CAMERA_CENTER, HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
     plugins::movement::linear::components::{
         LinearDirection, LinearSpeed, LinearTargetPosition, XAxisPosition, YAxisPosition,
@@ -127,11 +128,10 @@ pub fn despawn_dead_mosquitoes(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyMosquito, &PxSubPosition), With<Dead>>,
+    query: Query<(Entity, &EnemyMosquito, &PxSubPosition), Added<Dead>>,
 ) {
     for (entity, mosquito, position) in query.iter() {
-        // TODO Can I split this?
-        commands.entity(entity).despawn();
+        commands.entity(entity).insert(DespawnMark);
 
         // HARDCODED depth, should be a component
         let depth = 1;
@@ -246,10 +246,10 @@ pub fn check_idle_mosquito(
 
 pub fn despawn_dead_attacks(
     mut commands: Commands,
-    query: Query<(Entity, &EnemyAttack), With<Dead>>,
+    query: Query<(Entity, &EnemyAttack), Added<Dead>>,
 ) {
     for (entity, _) in query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).insert(DespawnMark);
     }
 }
 

@@ -244,7 +244,7 @@ pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut attack_query: Query<&mut UnhittableList, With<PlayerAttack>>,
-    query: Query<(&SpawnDrop, &PxSubPosition), With<Dead>>,
+    query: Query<(&SpawnDrop, &PxSubPosition), Added<Dead>>,
 ) {
     for (spawn_drop, position) in &mut query.iter() {
         let entity = match spawn_drop.contains.clone() {
