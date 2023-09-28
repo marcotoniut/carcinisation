@@ -18,7 +18,7 @@ lazy_static! {
             path: "backgrounds/asteroid/skybox.png".to_string(),
             frames: 1,
         },
-        start_coordinates: Some(Vec2::new(0.0, 800.)),
+        start_coordinates: Some(Vec2::new(0.0, 0.0)),
         spawns: make_spawns(),
         steps: make_steps(),
     };
@@ -54,7 +54,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                 ],
                 contains: None,
             }))),
-            destructible_type: DestructibleType::Lamp,
+            destructible_type: DestructibleType::Crystal,
         }),
         StageSpawn::Destructible(DestructibleSpawn {
             coordinates: Vec2 { x: 30., y: 0. },
@@ -84,7 +84,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                 ],
                 contains: None,
             }))),
-            destructible_type: DestructibleType::Lamp,
+            destructible_type: DestructibleType::Mushroom,
         }),
         StageSpawn::Destructible(DestructibleSpawn {
             coordinates: Vec2 { x: 20.0, y: 0.0 },
@@ -93,7 +93,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                 coordinates: Vec2 { x: 30.0, y: 10.0 },
                 elapsed: 0.0 / CAMERA_BASE_SPEED,
             }))),
-            destructible_type: DestructibleType::Lamp,
+            destructible_type: DestructibleType::Mushroom,
         }),
         StageSpawn::Destructible(DestructibleSpawn {
             coordinates: Vec2 { x: 20.0, y: 0.0 },
@@ -102,7 +102,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                 coordinates: Vec2 { x: 30.0, y: 10.0 },
                 elapsed: 0.0 / CAMERA_BASE_SPEED,
             }))),
-            destructible_type: DestructibleType::Lamp,
+            destructible_type: DestructibleType::Crystal,
         }),
     ]
 }
