@@ -19,12 +19,14 @@ extern crate lazy_static;
 use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
 use bevy_framepace::*;
+use bevy_utils::despawn_entities;
 use cinemachine::cinemachine::CurrentClipInfo;
+use components::DespawnMark;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
-use systems::{audio::VolumeSettings, spawn::check_despawn, *};
+use systems::{audio::VolumeSettings, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
@@ -54,7 +56,10 @@ fn main() {
     }
     #[cfg(not(debug_assertions))]
     {
-        app.add_plugins((bevy_editor_pls::EditorPlugin::new(), bevy::diagnostic::LogDiagnosticsPlugin::default()));
+        app.add_plugins((
+            bevy_editor_pls::EditorPlugin::new(),
+            bevy::diagnostic::LogDiagnosticsPlugin::default(),
+        ));
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title,
@@ -93,8 +98,8 @@ fn main() {
     .add_plugins(InputManagerPlugin::<GBInput>::default())
     // .add_systems(Startup, (set_framespace))
     .add_systems(Startup, (spawn_camera, spawn_gb_input))
-    .add_systems(Update, check_despawn)
     .add_systems(Update, input_snd_menu)
+    .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
     // TODO should this be placed at main?
     // .add_systems(Update, handle_game_over)
     // DEBUG

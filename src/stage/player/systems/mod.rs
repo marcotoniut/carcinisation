@@ -7,8 +7,9 @@ use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::*;
 
 use crate::{
+    components::DespawnMark,
     game::events::GameOver,
-    globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
+    globals::{mark_for_despawn_by_component_query, HUD_HEIGHT, SCREEN_RESOLUTION},
     stage::{components::Dead, score::components::Score},
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     GBInput,
@@ -22,16 +23,14 @@ pub fn spawn_player(
     mut assets_sprite: PxAssets<PxSprite>,
     crosshair_settings: Res<CrosshairSettings>,
 ) {
-    // if let Ok((entity, _)) = stage_query.get_single() {
-    //     commands.entity(entity).despawn_recursive();
-    // }
     commands.spawn(make_player_bundle(&mut assets_sprite, crosshair_settings));
 }
 
+/**
+ * deprecate
+ */
 pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>) {
-    for entity in &mut query.iter() {
-        commands.entity(entity).despawn();
-    }
+    mark_for_despawn_by_component_query(&mut commands, &query)
 }
 
 pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {
@@ -132,7 +131,7 @@ pub fn check_attack_timer(
 ) {
     if timer.timer.finished() {
         for (entity, _) in &mut player_attack_query.iter() {
-            commands.entity(entity).despawn();
+            commands.entity(entity).insert(DespawnMark);
         }
     }
 }

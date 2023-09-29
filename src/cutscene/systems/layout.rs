@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use seldom_pixel::{asset::*, filter::*};
 
-use crate::{cutscene::bundles::make_letterbox_row, globals::SCREEN_RESOLUTION};
+use crate::{
+    cutscene::bundles::make_letterbox_row,
+    globals::{mark_for_despawn_by_component_query, SCREEN_RESOLUTION},
+};
 
 use super::super::components::*;
 
@@ -9,10 +12,8 @@ pub fn spawn_cutscene(mut commands: Commands, mut filters: PxAssets<PxFilter>) {
     build_screen(&mut commands, &mut filters);
 }
 
-pub fn despawn_cutscene(mut commands: Commands, query: Query<Entity, With<Cutscene>>) {
-    if let Ok(entity) = query.get_single() {
-        commands.entity(entity).despawn_recursive();
-    }
+pub fn mark_cutscene_for_despawn(mut commands: Commands, query: Query<Entity, With<Cutscene>>) {
+    mark_for_despawn_by_component_query(&mut commands, &query);
 }
 
 pub fn build_letterbox_top(

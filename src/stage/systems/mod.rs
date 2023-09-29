@@ -13,8 +13,8 @@ use seldom_pixel::{
 
 use crate::{
     cinemachine::cinemachine::CinemachineScene,
-    components::Music,
-    globals::{despawn_by_component_query, DEBUG_STAGESTEP},
+    components::{DespawnMark, Music},
+    globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
     resource::{asteroid::STAGE_ASTEROID_DATA, debug::STAGE_DEBUG_DATA, park::STAGE_PARK_DATA},
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
     GBInput,
@@ -261,7 +261,7 @@ pub fn update_stage(
         }
         StageState::Clear => {
             if let Ok((entity, _)) = stage_query.get_single() {
-                commands.entity(entity).despawn_descendants();
+                commands.entity(entity).insert(DespawnMark);
 
                 // TODO
                 // commands.spawn(make_stage_cleared_bundle());
@@ -297,11 +297,11 @@ pub fn read_stage_cleared_trigger(
     volume_settings: Res<VolumeSettings>,
 ) {
     for _ in event_reader.iter() {
-        despawn_by_component_query(&mut commands, &destructible_query);
-        despawn_by_component_query(&mut commands, &enemy_query);
-        despawn_by_component_query(&mut commands, &music_query);
-        despawn_by_component_query(&mut commands, &object_query);
-        despawn_by_component_query(&mut commands, &player_query);
+        mark_for_despawn_by_component_query(&mut commands, &destructible_query);
+        mark_for_despawn_by_component_query(&mut commands, &enemy_query);
+        mark_for_despawn_by_component_query(&mut commands, &music_query);
+        mark_for_despawn_by_component_query(&mut commands, &object_query);
+        mark_for_despawn_by_component_query(&mut commands, &player_query);
 
         spawn_music(
             &mut commands,
@@ -337,11 +337,11 @@ pub fn read_stage_game_over_trigger(
     volume_settings: Res<VolumeSettings>,
 ) {
     for _ in event_reader.iter() {
-        despawn_by_component_query(&mut commands, &destructible_query);
-        despawn_by_component_query(&mut commands, &enemy_query);
-        despawn_by_component_query(&mut commands, &music_query);
-        despawn_by_component_query(&mut commands, &object_query);
-        despawn_by_component_query(&mut commands, &player_query);
+        mark_for_despawn_by_component_query(&mut commands, &destructible_query);
+        mark_for_despawn_by_component_query(&mut commands, &enemy_query);
+        mark_for_despawn_by_component_query(&mut commands, &music_query);
+        mark_for_despawn_by_component_query(&mut commands, &object_query);
+        mark_for_despawn_by_component_query(&mut commands, &player_query);
 
         spawn_music(
             &mut commands,

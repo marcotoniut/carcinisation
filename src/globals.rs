@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::components::DespawnMark;
+
 pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);
 
 pub const HUD_HEIGHT: u32 = 14;
@@ -34,11 +36,11 @@ pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> boo
         && position.y <= top_right.y
 }
 
-pub fn despawn_by_component_query<T: Component>(
+pub fn mark_for_despawn_by_component_query<T: Component>(
     commands: &mut Commands,
     query: &Query<Entity, With<T>>,
 ) {
     for entity in query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).insert(DespawnMark);
     }
 }

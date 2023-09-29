@@ -7,7 +7,6 @@ pub mod pickup;
 pub mod player;
 pub mod resources;
 pub mod score;
-pub mod star;
 pub mod systems;
 pub mod ui;
 
@@ -16,7 +15,7 @@ use seldom_pixel::prelude::PxSubPosition;
 
 use self::{
     components::RailPosition,
-    enemy::{systems::attacks::*, EnemyPlugin},
+    enemy::EnemyPlugin,
     events::*,
     pickup::systems::health::{mark_despawn_pickup_feedback, pickup_health},
     player::{
