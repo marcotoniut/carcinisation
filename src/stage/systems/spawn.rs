@@ -118,7 +118,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
     let EnemySpawn {
         enemy_type,
         coordinates,
-        base_speed,
+        speed: base_speed,
         steps,
         contains,
         ..

@@ -97,7 +97,20 @@ pub fn assign_mosquito_animation(
                         )
                     })
                 }
-                EnemyStep::Movement {
+                EnemyStep::LinearMovement {
+                    coordinates,
+                    attacking,
+                    speed,
+                } => {
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
+                    animation_o.map(|animation| {
+                        (
+                            EnemyMosquitoAnimation::Fly,
+                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                        )
+                    })
+                }
+                EnemyStep::Jump {
                     coordinates,
                     attacking,
                     speed,
