@@ -26,14 +26,9 @@ lazy_static! {
 
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
-        StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2::new(30., 0.),
-            contains: None,
-            destructible_type: DestructibleType::Crystal,
-        }),
-        StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2::new(30., 0.),
-            contains: Some(Box::new(ContainerSpawn::Enemy(
+        StageSpawn::Destructible(DestructibleSpawn::crystal_base(30., 0.)),
+        StageSpawn::Destructible(
+            DestructibleSpawn::mushroom_base(60., 0.).drops(ContainerSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
                     .set_coordinates(Vec2::new(60., 100.))
                     .set_elapsed(0.4)
@@ -51,23 +46,16 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                             direction: MovementDirection::Positive,
                         },
                     ]),
-            ))),
-            destructible_type: DestructibleType::Mushroom,
-        }),
-        StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2::new(20.0, 0.0),
-            contains: Some(Box::new(ContainerSpawn::Pickup(
-                PickupSpawn::big_healthpack_base(),
-            ))),
-            destructible_type: DestructibleType::Mushroom,
-        }),
-        StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2::new(20.0, 0.0),
-            contains: Some(Box::new(ContainerSpawn::Pickup(
-                PickupSpawn::small_healthpack_base(),
-            ))),
-            destructible_type: DestructibleType::Crystal,
-        }),
+            )),
+        ),
+        StageSpawn::Destructible(
+            DestructibleSpawn::mushroom_base(20.0, 0.0)
+                .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+        ),
+        StageSpawn::Destructible(
+            DestructibleSpawn::crystal_base(20., 0.)
+                .drops(ContainerSpawn::Pickup(PickupSpawn::small_healthpack_base())),
+        ),
     ]
 }
 

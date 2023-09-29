@@ -29,35 +29,13 @@ lazy_static! {
 
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
-        StageSpawn::Object(ObjectSpawn {
-            object_type: ObjectType::Fibertree,
-            coordinates: Vec2 {
-                x: 30.,
-                y: OBJECT_FIBERTREE_Y,
-            },
-        }),
-        StageSpawn::Object(ObjectSpawn {
-            object_type: ObjectType::Fibertree,
-            coordinates: Vec2 {
-                x: 180.,
-                y: OBJECT_FIBERTREE_Y,
-            },
-        }),
-        StageSpawn::Object(ObjectSpawn {
-            object_type: ObjectType::BenchBig,
-            coordinates: Vec2::new(20., 65.),
-        }),
-        StageSpawn::Object(ObjectSpawn {
-            object_type: ObjectType::BenchBig,
-            coordinates: Vec2::new(200., 60.),
-        }),
-        StageSpawn::Object(ObjectSpawn {
-            object_type: ObjectType::BenchSmall,
-            coordinates: Vec2::new(100., 65.),
-        }),
-        StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2::new(30., 0.),
-            contains: Some(Box::new(ContainerSpawn::Enemy(
+        StageSpawn::Object(ObjectSpawn::fibertree_base(30., OBJECT_FIBERTREE_Y)),
+        StageSpawn::Object(ObjectSpawn::fibertree_base(180., OBJECT_FIBERTREE_Y)),
+        StageSpawn::Object(ObjectSpawn::bench_big_base(20., 65.)),
+        StageSpawn::Object(ObjectSpawn::bench_big_base(200., 60.)),
+        StageSpawn::Object(ObjectSpawn::bench_small_base(100., 65.)),
+        StageSpawn::Destructible(
+            DestructibleSpawn::lamp_base(30., 0.).drops(ContainerSpawn::Enemy(
                 EnemySpawn::mosquito_base()
                     .set_coordinates(Vec2::new(60., 100.))
                     .set_elapsed(0.4)
@@ -80,16 +58,12 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                             direction: MovementDirection::Negative,
                         },
                     ]),
-            ))),
-            destructible_type: DestructibleType::Lamp,
-        }),
-        StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2::new(20.0, 0.0),
-            contains: Some(Box::new(ContainerSpawn::Pickup(
-                PickupSpawn::big_healthpack_base(),
-            ))),
-            destructible_type: DestructibleType::Lamp,
-        }),
+            )),
+        ),
+        StageSpawn::Destructible(
+            DestructibleSpawn::lamp_base(20.0, 0.0)
+                .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+        ),
         StageSpawn::Pickup(PickupSpawn::big_healthpack_base().set_coordinates(Vec2::new(30., 10.))),
     ]
 }
