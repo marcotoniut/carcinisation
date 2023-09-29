@@ -1293,8 +1293,6 @@ dependencies = [
  "leafwing-input-manager",
  "rand",
  "seldom_pixel",
- "serde",
- "serde_derive",
  "wasm-bindgen",
 ]
 

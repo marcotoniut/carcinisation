@@ -1,6 +1,4 @@
 extern crate image;
-#[macro_use]
-extern crate serde_derive;
 
 mod paths;
 mod quantize;
@@ -39,17 +37,26 @@ struct Config {
 
 fn main() {
     let mut data_str = "".to_string();
-    
+
     if cfg!(windows) {
         println!("this is windows");
         let mut root = std::env::current_dir().unwrap();
         root.push(RESOURCES_GFX_PATH);
         println!("{}", root.as_path().to_str().unwrap().to_string());
 
-        let win_path = format!("{}{}", root.as_path().to_str().unwrap().to_string(), "data.toml");
+        let win_path = format!(
+            "{}{}",
+            root.as_path().to_str().unwrap().to_string(),
+            "data.toml"
+        );
         println!("WINDOWS PATH: {}", win_path);
 
-        data_str = fs::read_to_string(format!("{}{}", root.as_path().to_str().unwrap().to_string(), "data.toml")).unwrap();
+        data_str = fs::read_to_string(format!(
+            "{}{}",
+            root.as_path().to_str().unwrap().to_string(),
+            "data.toml"
+        ))
+        .unwrap();
     } else {
         data_str = fs::read_to_string(format!("{}{}", RESOURCES_GFX_PATH, "data.toml")).unwrap();
     }
