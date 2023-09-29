@@ -6,6 +6,10 @@ edition = "2021"
 [profile.dev.package."*"]
 opt-level = 3
 
+[profile.release]
+opt-level = 'z'
+lto = "thin"
+
 [workspace]
 resolver = "2" # Important! wgpu/Bevy needs this!
 members = [
