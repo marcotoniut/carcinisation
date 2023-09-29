@@ -4,11 +4,12 @@ run:
 dev:
 	cargo watch -x run --features bevy/dynamic_linking;
 
-wasm:
+dev-wasm:
 	cargo run --target wasm32-unknown-unknown 
 
 wasm-release:
-	cargo run --release --target wasm32-unknown-unknown 
+	cargo build --release --target wasm32-unknown-unknown
+	wasm-opt -O -ol 100 -s 100 -o target/wasm32-unknown-unknown/release/carcinisation.opt.wasm target/wasm32-unknown-unknown/release/carcinisation.wasm
 
 generate-palettes:
 	cd scripts/generate-palettes && cargo run;
