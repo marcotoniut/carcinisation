@@ -164,10 +164,85 @@ pub struct DestructibleSpawn {
     pub contains: Option<Box<ContainerSpawn>>,
 }
 
+impl DestructibleSpawn {
+    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+        self.coordinates = value;
+        self
+    }
+    pub fn set_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
+        self.contains = value;
+        self
+    }
+    pub fn drops(mut self, value: ContainerSpawn) -> Self {
+        self.contains = Some(Box::new(value));
+        self
+    }
+
+    pub fn lamp_base(x: f32, y: f32) -> DestructibleSpawn {
+        DestructibleSpawn {
+            destructible_type: DestructibleType::Lamp,
+            coordinates: Vec2::new(x, y),
+            contains: None,
+        }
+    }
+
+    pub fn trashcan_base(x: f32, y: f32) -> DestructibleSpawn {
+        DestructibleSpawn {
+            destructible_type: DestructibleType::Trashcan,
+            coordinates: Vec2::new(x, y),
+            contains: None,
+        }
+    }
+
+    pub fn crystal_base(x: f32, y: f32) -> DestructibleSpawn {
+        DestructibleSpawn {
+            destructible_type: DestructibleType::Crystal,
+            coordinates: Vec2::new(x, y),
+            contains: None,
+        }
+    }
+
+    pub fn mushroom_base(x: f32, y: f32) -> DestructibleSpawn {
+        DestructibleSpawn {
+            destructible_type: DestructibleType::Mushroom,
+            coordinates: Vec2::new(x, y),
+            contains: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ObjectSpawn {
     pub object_type: ObjectType,
     pub coordinates: Vec2,
+}
+
+impl ObjectSpawn {
+    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+        self.coordinates = value;
+        self
+    }
+
+    pub fn bench_big_base(x: f32, y: f32) -> ObjectSpawn {
+        ObjectSpawn {
+            object_type: ObjectType::BenchBig,
+            coordinates: Vec2::new(x, y),
+        }
+    }
+
+    pub fn bench_small_base(x: f32, y: f32) -> ObjectSpawn {
+        ObjectSpawn {
+            object_type: ObjectType::BenchSmall,
+            coordinates: Vec2::new(x, y),
+        }
+    }
+
+    pub fn fibertree_base(x: f32, y: f32) -> ObjectSpawn {
+        ObjectSpawn {
+            object_type: ObjectType::Fibertree,
+            coordinates: Vec2::new(x, y),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -283,9 +358,8 @@ impl StageSpawn {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub enum StageActionResumeCondition {
-    #[default]
     KillAll,
     KillBoss,
 }
