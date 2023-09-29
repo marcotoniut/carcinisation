@@ -96,7 +96,7 @@ fn main() {
     // .add_plugins(GamePlugin)
     // .add_plugins(MainMenuPlugin)
     .add_plugins(InputManagerPlugin::<GBInput>::default())
-    // .add_systems(Startup, (set_framespace))
+    .add_systems(Startup, set_framespace)
     .add_systems(Startup, (spawn_camera, spawn_gb_input))
     .add_systems(Update, input_snd_menu)
     .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
