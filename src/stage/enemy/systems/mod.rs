@@ -3,6 +3,7 @@ pub mod behaviors;
 pub mod mosquito;
 pub mod tardigrade;
 
+use super::components::*;
 use bevy::prelude::*;
 use seldom_pixel::{asset::*, prelude::*};
 
@@ -18,107 +19,6 @@ use crate::{
     },
     systems::camera::CameraPos,
 };
-
-use super::components::*;
-
-// DEPRECATED
-// pub fn spawn_enemies(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
-//     for _ in 0..PLACEHOLDER_NUMBER_OF_ENEMIES {
-//         commands.spawn(make_enemy_bundle(&mut assets_sprite));
-//     }
-// }
-
-// pub fn enemy_movement(mut query: Query<(&mut PxSubPosition, &PlaceholderEnemy)>, time: Res<Time>) {
-//     for (mut position, enemy) in &mut query {
-//         let direction = Vec2::new(enemy.direction.x, enemy.direction.y);
-//         position.0 += direction * PLACEHOLDER_ENEMY_SPEED * time.delta_seconds();
-//     }
-// }
-
-// pub fn despawn_enemies(mut commands: Commands, query: Query<Entity, With<PlaceholderEnemy>>) {
-//     for entity in &mut query.iter() {
-//         commands.entity(entity).despawn();
-//     }
-// }
-
-// pub fn update_enemy_placeholder_direction(
-//     mut query: Query<(&mut PxSubPosition, &mut PlaceholderEnemy)>,
-//     asset_server: Res<AssetServer>,
-//     mut commands: Commands,
-//     volume_settings: Res<VolumeSettings>,
-// ) {
-//     let half_size = PLACEHOLDER_ENEMY_SIZE / 2.0;
-//     let x_min = half_size;
-//     let x_max = SCREEN_RESOLUTION.x as f32 - half_size;
-//     let y_min = HUD_HEIGHT as f32 + half_size;
-//     let y_max = SCREEN_RESOLUTION.y as f32 - half_size;
-
-//     for (position, mut enemy) in &mut query {
-//         let translation = position.0;
-
-//         let mut direction_changed = false;
-
-//         if translation.x <= x_min || translation.x >= x_max {
-//             enemy.direction.x *= -1.0;
-//             direction_changed = true;
-//         }
-
-//         if translation.y <= y_min || translation.y >= y_max {
-//             enemy.direction.y *= -1.0;
-//             direction_changed = true;
-//         }
-
-//         if direction_changed {
-//             let sound_effect = asset_server.load("audio/sfx/typing_message.ogg");
-//             // let sound_effect_2 = asset_server.load("audio/pluck_001.ogg");
-//             // let sound_effect = if rand::random::<f32>() > 0.5 {
-//             //     sound_effect_1
-//             // } else {
-//             //     sound_effect_2
-//             // };
-//             commands.spawn((
-//                 AudioBundle {
-//                     source: sound_effect,
-//                     settings: PlaybackSettings {
-//                         mode: PlaybackMode::Despawn,
-//                         volume: Volume::new_relative(volume_settings.2 * 1.0),
-//                         ..default()
-//                     },
-//                     ..default()
-//                 },
-//                 AudioSystemBundle {
-//                     system_type: AudioSystemType::SFX,
-//                 },
-//             ));
-//         }
-//     }
-// }
-
-// pub fn confine_enemy_movement(mut enemy_query: Query<&mut PxSubPosition, With<PlaceholderEnemy>>) {
-//     let half_size = PLACEHOLDER_ENEMY_SIZE / 2.0;
-//     let x_min = half_size;
-//     let x_max = SCREEN_RESOLUTION.x as f32 - half_size;
-//     let y_min = HUD_HEIGHT as f32 + half_size;
-//     let y_max = SCREEN_RESOLUTION.y as f32 - half_size;
-
-//     for mut position in &mut enemy_query {
-//         let mut translation = position.0;
-
-//         if translation.x < x_min {
-//             translation.x = x_min;
-//         } else if translation.x > x_max {
-//             translation.x = x_max;
-//         }
-
-//         if translation.y < y_min {
-//             translation.y = y_min;
-//         } else if translation.y > y_max {
-//             translation.y = y_max;
-//         }
-
-//         position.0 = translation;
-//     }
-// }
 
 pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health), Without<Dead>>) {
     for (entity, health) in &mut query.iter() {

@@ -3,7 +3,10 @@ pub mod components;
 use bevy::prelude::*;
 
 use crate::{
-    globals::{FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
+    globals::{
+        mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
+        TYPEFACE_INVERTED_PATH,
+    },
     stage::{score::components::Score, StageState},
     Layer,
 };
@@ -42,9 +45,7 @@ pub fn despawn_game_over_screen(
     query: Query<Entity, With<GameOverScreen>>,
 ) {
     if stage_state.is_changed() && *stage_state.get() != StageState::GameOver {
-        if let Ok(entity) = query.get_single() {
-            commands.entity(entity).despawn_recursive();
-        }
+        mark_for_despawn_by_component_query(&mut commands, &query);
     }
 }
 

@@ -30,12 +30,6 @@ pub fn spawn_hud(
     );
 }
 
-pub fn despawn_hud(mut commands: Commands, query: Query<Entity, With<Hud>>) {
-    if let Ok(entity) = query.get_single() {
-        commands.entity(entity).despawn_recursive();
-    }
-}
-
 pub fn spawn_hud_bundle(
     commands: &mut Commands,
     typefaces: &mut PxAssets<PxTypeface>,

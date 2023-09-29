@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::globals::mark_for_despawn_by_component_query;
+
 use super::super::components::*;
 
 pub fn spawn_main_menu(mut commands: Commands) {
@@ -7,9 +9,7 @@ pub fn spawn_main_menu(mut commands: Commands) {
 }
 
 pub fn despawn_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenu>>) {
-    if let Ok(entity) = query.get_single() {
-        commands.entity(entity).despawn_recursive();
-    }
+    mark_for_despawn_by_component_query(&mut commands, &query)
 }
 
 pub fn build_screen(commands: &mut Commands) -> Entity {

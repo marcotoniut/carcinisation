@@ -3,7 +3,10 @@ pub mod pause_menu;
 use bevy::prelude::*;
 
 use crate::{
-    globals::{FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
+    globals::{
+        mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
+        TYPEFACE_INVERTED_PATH,
+    },
     stage::{score::components::Score, GameState},
     AppState, Layer,
 };
@@ -39,16 +42,7 @@ pub fn pause_menu_renderer(
             );
         }
     } else {
-        despawn_pause_menu_bundle(&mut commands, query);
-    }
-}
-
-pub fn despawn_pause_menu_bundle(
-    mut commands: &mut Commands,
-    query: Query<Entity, With<PauseMenu>>,
-) {
-    if let Ok(entity) = query.get_single() {
-        commands.entity(entity).despawn_recursive();
+        mark_for_despawn_by_component_query(&mut commands, &query);
     }
 }
 

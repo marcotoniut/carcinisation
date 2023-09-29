@@ -30,15 +30,16 @@ impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Plugin
     for LinearMovementPlugin<T, P>
 {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                update::<T, P>,
-                update_speed::<T, P>,
-                check_reached::<T, P>,
-                on_position_added::<T, P>,
-                on_reached::<T, P>,
-            ),
-        );
+        app.add_systems(PreUpdate, on_position_added::<T, P>)
+            .add_systems(
+                Update,
+                ((
+                    update_speed::<T, P>,
+                    update::<T, P>,
+                    check_reached::<T, P>,
+                    on_reached::<T, P>,
+                )
+                    .chain(),),
+            );
     }
 }
