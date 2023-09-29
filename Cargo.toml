@@ -25,6 +25,4 @@ rand = "0.8.5"
 seldom_pixel = { git = "https://github.com/Seldom-SE/seldom_pixel", default-features = true, features = [
     "line",
 ] }
-serde = "1.0.188"
-serde_derive = "1.0.183"
 wasm-bindgen = "0.2.87"
