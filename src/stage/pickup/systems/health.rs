@@ -81,6 +81,7 @@ pub fn pickup_health(
                     PxSubPosition::from(current),
                     PxSpriteBundle::<Layer> {
                         sprite,
+                        // TODO the position should be stuck to the floor beneah the dropper
                         anchor: PxAnchor::Center,
                         canvas: PxCanvas::Camera,
                         layer: Layer::Pickups,
@@ -95,7 +96,6 @@ pub fn pickup_health(
 pub fn mark_despawn_pickup_feedback(
     mut commands: Commands,
     query: Query<(Entity, &PickupFeedback), Added<LinearTargetReached<StageTime, YAxisPosition>>>,
-    stage_time: Res<StageTime>,
 ) {
     for (entity, _) in query.iter() {
         commands.entity(entity).insert(DespawnMark);
