@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use seldom_pixel::{prelude::PxSubPosition};
+use seldom_pixel::prelude::PxSubPosition;
 
 use crate::stage::{
     enemy::{
@@ -30,9 +30,10 @@ pub fn check_no_behavior(
         let bundles = current_behavior.get_bundles(stage_time.elapsed, position);
         match bundles {
             BehaviorBundle::Idle(bundles) => commands.entity(entity).insert(bundles),
-            BehaviorBundle::Movement(bundles) => commands.entity(entity).insert(bundles),
+            BehaviorBundle::LinearMovement(bundles) => commands.entity(entity).insert(bundles),
             BehaviorBundle::Attack(bundles) => commands.entity(entity).insert(bundles),
             BehaviorBundle::Circle(bundles) => commands.entity(entity).insert(bundles),
+            BehaviorBundle::Jump(bundles) => commands.entity(entity).insert(bundles),
         };
 
         commands

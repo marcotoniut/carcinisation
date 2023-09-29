@@ -1,9 +1,23 @@
+use std::collections::VecDeque;
+
 use bevy::{
     prelude::Vec2,
     reflect::{TypePath, TypeUuid},
 };
 
-use crate::{cinemachine::data::CinemachineData, plugins::movement::structs::MovementDirection};
+use crate::{
+    cinemachine::data::CinemachineData, globals::HALF_SCREEN_RESOLUTION,
+    plugins::movement::structs::MovementDirection,
+};
+
+lazy_static! {
+    pub static ref DEFAULT_COORDINATES: Vec2 = HALF_SCREEN_RESOLUTION.clone();
+}
+
+pub trait Contains {
+    fn set_contains(&mut self, value: Option<Box<ContainerSpawn>>);
+    fn drops(&mut self, value: ContainerSpawn);
+}
 
 #[derive(Debug, Clone)]
 pub struct SkyboxData {
@@ -29,15 +43,17 @@ pub enum ObjectType {
     Fibertree,
 }
 
-// deriving Default for simplicity's sake in defining the stage data
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub enum PickupType {
-    #[default]
     SmallHealthpack,
     BigHealthpack,
+    // TODO
+    // Weapon,
+    // Ammo,
+    // Shield,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum EnemyType {
     #[default]
     Mosquito,
@@ -49,7 +65,7 @@ pub enum EnemyType {
 }
 
 // Should rename to EnemyBehavior?
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum EnemyStep {
     Attack {
         duration: f32,
@@ -62,8 +78,12 @@ pub enum EnemyStep {
     Idle {
         duration: f32,
     },
-    // TODO rename to LineMovement
-    Movement {
+    LinearMovement {
+        coordinates: Vec2,
+        attacking: bool,
+        speed: f32,
+    },
+    Jump {
         coordinates: Vec2,
         attacking: bool,
         speed: f32,
@@ -93,25 +113,10 @@ impl EnemyStep {
             EnemyStep::Attack { duration, .. } => Some(*duration),
             EnemyStep::Circle { duration, .. } => Some(*duration),
             EnemyStep::Idle { duration, .. } => Some(*duration),
-            EnemyStep::Movement { .. } => None,
+            EnemyStep::LinearMovement { .. } => None,
+            EnemyStep::Jump { .. } => None,
         }
     }
-}
-
-fn default_vec2_zero() -> Vec2 {
-    Vec2::new(0.0, 0.0)
-}
-
-fn default_zero() -> f32 {
-    0.0
-}
-
-fn default_none<T>() -> Option<T> {
-    None
-}
-
-fn empty_vec<T: Clone>() -> Vec<T> {
-    [].to_vec()
 }
 
 #[derive(Clone, Debug)]
@@ -120,11 +125,36 @@ pub enum ContainerSpawn {
     Enemy(EnemySpawn),
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct PickupSpawn {
     pub pickup_type: PickupType,
     pub coordinates: Vec2,
     pub elapsed: f32,
+}
+
+impl PickupSpawn {
+    pub fn set_elapsed(mut self, value: f32) -> Self {
+        self.elapsed = value;
+        self
+    }
+    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+        self.coordinates = value;
+        self
+    }
+    pub fn big_healthpack_base() -> PickupSpawn {
+        PickupSpawn {
+            pickup_type: PickupType::BigHealthpack,
+            coordinates: Vec2::ZERO,
+            elapsed: 0.0,
+        }
+    }
+    pub fn small_healthpack_base() -> PickupSpawn {
+        PickupSpawn {
+            pickup_type: PickupType::SmallHealthpack,
+            coordinates: Vec2::ZERO,
+            elapsed: 0.0,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -143,35 +173,75 @@ pub struct ObjectSpawn {
 #[derive(Clone, Debug, Default)]
 pub struct EnemySpawn {
     pub enemy_type: EnemyType,
-    pub coordinates: Vec2,
-    pub base_speed: f32,
     pub elapsed: f32,
-    pub steps: Vec<EnemyStep>,
     pub contains: Option<Box<ContainerSpawn>>,
+    pub coordinates: Vec2,
+    pub speed: f32,
+    pub steps: VecDeque<EnemyStep>,
 }
 
 impl EnemySpawn {
-    pub fn base_tardigrade(base_speed: f32, coordinates: Vec2) -> EnemySpawn {
+    pub fn set_elapsed(mut self, value: f32) -> Self {
+        self.elapsed = value;
+        self
+    }
+    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+        self.coordinates = value;
+        self
+    }
+    pub fn set_speed(mut self, value: f32) -> Self {
+        self.speed = value;
+        self
+    }
+    pub fn set_steps(mut self, value: VecDeque<EnemyStep>) -> Self {
+        self.steps = value;
+        self
+    }
+    pub fn set_steps_vec(mut self, value: Vec<EnemyStep>) -> Self {
+        self.steps = value.into();
+        self
+    }
+    /** TODO should I implement these as a trait Contains */
+    pub fn set_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
+        self.contains = value;
+        self
+    }
+    pub fn drops(mut self, value: ContainerSpawn) -> Self {
+        self.contains = Some(Box::new(value));
+        self
+    }
+    pub fn tardigrade_base() -> EnemySpawn {
         EnemySpawn {
             enemy_type: EnemyType::Tardigrade,
-            coordinates,
-            base_speed,
+            coordinates: DEFAULT_COORDINATES.clone(),
+            speed: 5.0,
             elapsed: 0.0,
-            steps: vec![EnemyStep::Attack { duration: 999. }],
+            steps: vec![].into(),
             contains: None,
         }
     }
-    pub fn base_mosquito(base_speed: f32, coordinates: Vec2) -> EnemySpawn {
+    pub fn mosquito_base() -> EnemySpawn {
         EnemySpawn {
             enemy_type: EnemyType::Mosquito,
+            coordinates: DEFAULT_COORDINATES.clone(),
+            speed: 40.0,
+            elapsed: 0.0,
+            steps: vec![].into(),
+            contains: None,
+        }
+    }
+    pub fn spidey_base(speed_multiplier: f32, coordinates: Vec2) -> EnemySpawn {
+        EnemySpawn {
+            enemy_type: EnemyType::Spidey,
+            speed: speed_multiplier,
             coordinates,
-            base_speed,
             elapsed: 0.0,
             steps: vec![EnemyStep::Circle {
                 duration: 999.,
                 radius: 12.,
                 direction: MovementDirection::Positive,
-            }],
+            }]
+            .into(),
             contains: None,
         }
     }
@@ -183,24 +253,6 @@ pub enum StageSpawn {
     Destructible(DestructibleSpawn),
     Pickup(PickupSpawn),
     Enemy(EnemySpawn),
-}
-
-impl StageSpawn {
-    pub fn base_tardigrade(base_speed: f32, coordinates: Vec2) -> StageSpawn {
-        StageSpawn::Enemy(EnemySpawn {
-            coordinates,
-            base_speed,
-            ..EnemySpawn::base_tardigrade(base_speed, coordinates)
-        })
-    }
-
-    pub fn base_mosquito(base_speed: f32, coordinates: Vec2) -> StageSpawn {
-        StageSpawn::Enemy(EnemySpawn {
-            coordinates,
-            base_speed,
-            ..EnemySpawn::base_mosquito(base_speed, coordinates)
-        })
-    }
 }
 
 impl StageSpawn {

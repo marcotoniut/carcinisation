@@ -5,9 +5,7 @@ use crate::stage::data::{
     ContainerSpawn, DestructibleSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn,
     SkyboxData, StageData, StageStep,
 };
-use crate::stage::data::{
-    DestructibleType, EnemyStep, EnemyType, PickupType, StageActionResumeCondition, StageSpawn,
-};
+use crate::stage::data::{DestructibleType, EnemyStep, StageActionResumeCondition, StageSpawn};
 use bevy::prelude::*;
 
 use lazy_static::lazy_static;
@@ -47,72 +45,61 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         }),
         StageSpawn::Object(ObjectSpawn {
             object_type: ObjectType::BenchBig,
-            coordinates: Vec2 { x: 20., y: 65. },
+            coordinates: Vec2::new(20., 65.),
         }),
         StageSpawn::Object(ObjectSpawn {
             object_type: ObjectType::BenchBig,
-            coordinates: Vec2 { x: 200., y: 60. },
+            coordinates: Vec2::new(200., 60.),
         }),
         StageSpawn::Object(ObjectSpawn {
             object_type: ObjectType::BenchSmall,
-            coordinates: Vec2 { x: 100., y: 65. },
+            coordinates: Vec2::new(100., 65.),
         }),
         StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2 { x: 30., y: 0. },
-            contains: Some(Box::new(ContainerSpawn::Enemy(EnemySpawn {
-                enemy_type: EnemyType::Mosquito,
-                coordinates: Vec2 { x: 60., y: 100. },
-                base_speed: 5.0,
-                elapsed: 0.4 / CAMERA_BASE_SPEED,
-                steps: vec![
-                    EnemyStep::Movement {
-                        coordinates: Vec2 { x: 50., y: 0. },
-                        attacking: true,
-                        speed: 5.0,
-                    },
-                    EnemyStep::Idle { duration: 1. },
-                    EnemyStep::Attack { duration: 1. },
-                    EnemyStep::Movement {
-                        coordinates: Vec2 { x: 10., y: 0. },
-                        attacking: true,
-                        speed: 3.,
-                    },
-                    EnemyStep::Circle {
-                        duration: 4.0,
-                        radius: 10.0,
-                        direction: MovementDirection::Negative,
-                    },
-                ],
-                // direction: MovementDirection::Left,
-                // radius: 15.,
-                // time_offset: 0.5,
-                contains: None,
-            }))),
+            coordinates: Vec2::new(30., 0.),
+            contains: Some(Box::new(ContainerSpawn::Enemy(
+                EnemySpawn::mosquito_base()
+                    .set_coordinates(Vec2::new(60., 100.))
+                    .set_elapsed(0.4)
+                    .set_steps_vec(vec![
+                        EnemyStep::LinearMovement {
+                            coordinates: Vec2::new(50., 0.),
+                            attacking: true,
+                            speed: 2.,
+                        },
+                        EnemyStep::Idle { duration: 1. },
+                        EnemyStep::Attack { duration: 1. },
+                        EnemyStep::LinearMovement {
+                            coordinates: Vec2::new(10., 0.),
+                            attacking: true,
+                            speed: 3.,
+                        },
+                        EnemyStep::Circle {
+                            duration: 4.0,
+                            radius: 10.0,
+                            direction: MovementDirection::Negative,
+                        },
+                    ]),
+            ))),
             destructible_type: DestructibleType::Lamp,
         }),
         StageSpawn::Destructible(DestructibleSpawn {
-            coordinates: Vec2 { x: 20.0, y: 0.0 },
-            contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                pickup_type: PickupType::BigHealthpack,
-                coordinates: Vec2 { x: 30.0, y: 10.0 },
-                elapsed: 0.0 / CAMERA_BASE_SPEED,
-            }))),
+            coordinates: Vec2::new(20.0, 0.0),
+            contains: Some(Box::new(ContainerSpawn::Pickup(
+                PickupSpawn::big_healthpack_base(),
+            ))),
             destructible_type: DestructibleType::Lamp,
         }),
-        StageSpawn::Pickup(PickupSpawn {
-            pickup_type: PickupType::BigHealthpack,
-            coordinates: Vec2 { x: 30.0, y: 10.0 },
-            elapsed: 0.0 / CAMERA_BASE_SPEED,
-        }),
+        StageSpawn::Pickup(PickupSpawn::big_healthpack_base().set_coordinates(Vec2::new(30., 10.))),
     ]
 }
 
 pub fn make_steps() -> Vec<StageStep> {
     vec![
         StageStep::Movement {
-            coordinates: Vec2 { x: 0.0, y: 0.0 },
+            coordinates: Vec2::new(0.0, 0.0),
             base_speed: 8.0,
-            spawns: vec![],
+            spawns: vec![].into(),
         },
         // StageStep::Cinematic {
         //     cinematic: INTRO_ANIMATIC_0.clone(),
@@ -130,524 +117,341 @@ pub fn make_steps() -> Vec<StageStep> {
         //     cinematic: INTRO_ANIMATIC_4.clone(),
         // },
         StageStep::Stop {
-            resume_conditions: Some(vec![]),
+            resume_conditions: Some(vec![].into()),
             max_duration: Some(0.1),
-            spawns: vec![],
+            spawns: vec![].into(),
         },
         StageStep::Movement {
-            coordinates: Vec2 { x: 50.0, y: 0.0 },
+            coordinates: Vec2::new(50.0, 0.0),
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    coordinates: Vec2 { x: 60.0, y: 100.0 },
-                    base_speed: 5.0,
-                    elapsed: 5.4 / CAMERA_BASE_SPEED,
-
-                    steps: vec![
-                        EnemyStep::Circle {
-                            duration: 4.0,
-                            radius: 10.0,
-                            direction: MovementDirection::Negative,
-                        },
-                        EnemyStep::Movement {
-                            coordinates: Vec2 { x: 10.0, y: 0.0 },
-                            attacking: true,
-                            speed: 3.0,
-                        },
-                    ],
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 120.0, y: 100.0 },
-                    elapsed: 5.1 / CAMERA_BASE_SPEED,
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                    ..EnemySpawn::base_mosquito(
-                        5.1 / CAMERA_BASE_SPEED,
-                        Vec2 { x: 120.0, y: 100.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                    ..EnemySpawn::base_mosquito(5.8 / CAMERA_BASE_SPEED, Vec2 { x: 130.0, y: 70.0 })
-                }),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(60.0, 100.0))
+                        .set_elapsed(5.4)
+                        .set_steps_vec(vec![
+                            EnemyStep::Circle {
+                                duration: 4.0,
+                                radius: 10.0,
+                                direction: MovementDirection::Negative,
+                            },
+                            EnemyStep::LinearMovement {
+                                coordinates: Vec2::new(10.0, 0.0),
+                                attacking: true,
+                                speed: 3.0,
+                            },
+                        ])
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(120.0, 100.0))
+                        .set_elapsed(5.1)
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(130.0, 70.0))
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
             ],
         },
         StageStep::Stop {
             resume_conditions: Some(vec![StageActionResumeCondition::KillAll]),
-            max_duration: Some(30. / CAMERA_BASE_SPEED),
+            max_duration: Some(30.),
             spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 70.0, y: 70.0 },
-                    base_speed: CAMERA_BASE_SPEED,
-                    elapsed: 2.4 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    elapsed: 10.8 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(40. / CAMERA_BASE_SPEED, Vec2 { x: 90.0, y: 70.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    base_speed: 2.0,
-                    elapsed: 24.8 / CAMERA_BASE_SPEED,
-
-                    contains: None,
-                    steps: vec![EnemyStep::Circle {
-                        duration: 999.0,
-                        radius: 3.0,
-                        direction: MovementDirection::Positive,
-                    }],
-                    ..EnemySpawn::base_mosquito(40. / CAMERA_BASE_SPEED, Vec2 { x: 12.0, y: 50.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 170.0, y: 68.0 },
-                    elapsed: 50.8 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                    ..EnemySpawn::base_mosquito(21. / CAMERA_BASE_SPEED, Vec2 { x: 12.0, y: 50.0 })
-                }),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(70.0, 70.0))
+                        .set_elapsed(2.4)
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(90.0, 70.0))
+                        .set_elapsed(10.8),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(12.0, 50.0))
+                        .set_speed(2.0)
+                        .set_elapsed(24.8)
+                        .set_steps_vec(vec![EnemyStep::Circle {
+                            duration: 999.0,
+                            radius: 3.0,
+                            direction: MovementDirection::Positive,
+                        }]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(170.0, 68.0))
+                        .set_elapsed(50.8)
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
             ],
         },
-        //TEST down
         StageStep::Movement {
-            coordinates: Vec2 { x: 220.0, y: 0.0 },
+            coordinates: Vec2::new(220.0, 0.0),
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    elapsed: 6.8 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    steps: vec![EnemyStep::Circle {
-                        duration: 999.0,
-                        radius: 3.0,
-                        direction: MovementDirection::Positive,
-                    }],
-
-                    ..EnemySpawn::base_mosquito(20. / CAMERA_BASE_SPEED, Vec2 { x: 70.0, y: 60.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 12.0, y: 50.0 },
-                    elapsed: 22.8 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(50. / CAMERA_BASE_SPEED, Vec2 { x: 12.0, y: 50.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    coordinates: Vec2 { x: 30.0, y: 90.0 },
-                    base_speed: 2.0,
-                    elapsed: 22.8 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    ..EnemySpawn::base_tardigrade(
-                        40. / CAMERA_BASE_SPEED,
-                        Vec2 { x: 30.0, y: 90.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 30.0, y: 50.0 },
-                    base_speed: 2.0,
-                    elapsed: 22.8 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-
-                    contains: None,
-                }),
-                StageSpawn::Pickup(PickupSpawn {
-                    pickup_type: PickupType::BigHealthpack,
-                    coordinates: Vec2 { x: 144.0, y: 68.0 },
-                    elapsed: 0.0 / CAMERA_BASE_SPEED,
-                }),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(70.0, 60.0))
+                        .set_elapsed(6.8)
+                        .set_steps_vec(vec![EnemyStep::Circle {
+                            duration: 999.0,
+                            radius: 3.0,
+                            direction: MovementDirection::Positive,
+                        }]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(12.0, 50.0))
+                        .set_elapsed(22.8),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::tardigrade_base()
+                        .set_coordinates(Vec2::new(30.0, 90.0))
+                        .set_speed(2.0)
+                        .set_elapsed(22.8),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(30.0, 50.0))
+                        .set_speed(2.0)
+                        .set_elapsed(22.8),
+                ),
+                StageSpawn::Pickup(
+                    PickupSpawn::big_healthpack_base()
+                        .set_coordinates(Vec2::new(144.0, 68.0))
+                        .set_elapsed(0.0),
+                ),
             ],
         },
-        //TEST up
         StageStep::Stop {
-            resume_conditions: Some(vec![]),
-            max_duration: Some(40. / CAMERA_BASE_SPEED),
-            spawns: vec![],
+            resume_conditions: Some(vec![].into()),
+            max_duration: Some(40.),
+            spawns: vec![].into(),
         },
         StageStep::Movement {
-            coordinates: Vec2 { x: 280.0, y: 0.0 },
+            coordinates: Vec2::new(280.0, 0.0),
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    coordinates: Vec2 { x: 60.0, y: 80.0 },
-                    elapsed: 8.4 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(100. / CAMERA_BASE_SPEED, Vec2 { x: 12.0, y: 50.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 100.0, y: 60.0 },
-                    base_speed: 5.0,
-                    elapsed: 6.1 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 30.0, y: 80.0 },
-                    base_speed: 5.0,
-                    elapsed: 7.4 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 130.0, y: 60.0 },
-                    base_speed: 5.0,
-                    steps: vec![EnemyStep::Circle {
-                        duration: 999.0,
-                        radius: 3.0,
-                        direction: MovementDirection::Positive,
-                    }],
-
-                    elapsed: 5.1 / CAMERA_BASE_SPEED,
-
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(60.0, 80.0))
+                        .set_elapsed(8.4),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(100.0, 60.0))
+                        .set_elapsed(6.1),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(30.0, 80.0))
+                        .set_elapsed(7.4),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(120.0, 60.0))
+                        .set_speed(5.0)
+                        .set_elapsed(6.1),
                     // direction: MovementDirection::Left,
                     // radius: 25.0,
                     // time_offset: 2.0,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(100. / CAMERA_BASE_SPEED, Vec2 { x: 12.0, y: 50.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 120.0, y: 80.0 },
-                    base_speed: 5.0,
-                    elapsed: 6.4 / CAMERA_BASE_SPEED,
-                    steps: vec![],
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(80.0, 80.0))
+                        .set_speed(5.0)
+                        .set_elapsed(7.4),
                     // direction: MovementDirection::Right,
                     // radius: 15.0,
                     // time_offset: 0.5,
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    coordinates: Vec2 { x: 60.0, y: 60.0 },
-                    base_speed: 5.0,
-                    elapsed: 8.1 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    // direction: MovementDirection::Left,
-                    // radius: 25.0,
-                    // time_offset: 3.0,
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 100.0, y: 80.0 },
-                    base_speed: 5.0,
-                    elapsed: 7.4 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(2.1 / CAMERA_BASE_SPEED, Vec2 { x: 100.0, y: 80.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 120.0, y: 60.0 },
-                    base_speed: 5.0,
-                    elapsed: 6.1 / CAMERA_BASE_SPEED,
-
-                    // direction: MovementDirection::Left,
-                    // radius: 25.0,
-                    // time_offset: 2.0,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(2.1 / CAMERA_BASE_SPEED, Vec2 { x: 120.0, y: 60.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 80.0, y: 80.0 },
-                    base_speed: 5.0,
-                    elapsed: 7.4 / CAMERA_BASE_SPEED,
-
-                    // direction: MovementDirection::Right,
-                    // radius: 15.0,
-                    // time_offset: 0.5,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(2.1 / CAMERA_BASE_SPEED, Vec2 { x: 80.0, y: 80.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 20.0, y: 60.0 },
-                    base_speed: 5.0,
-                    elapsed: 8.1 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    // direction: MovementDirection::Left,
-                    // radius: 25.0,
-                    // time_offset: 3.0,
-                    contains: None,
-                }),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(20.0, 60.0))
+                        .set_speed(5.0)
+                        .set_elapsed(8.1), // direction: MovementDirection::Left,
+                                           // radius: 25.0,
+                                           // time_offset: 3.0,
+                ),
             ],
         },
         StageStep::Movement {
-            coordinates: Vec2 { x: 500.0, y: 0.0 },
+            coordinates: Vec2::new(500.0, 0.0),
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 100.0, y: 80.0 },
-                    base_speed: 5.0,
-                    elapsed: 8.4 / CAMERA_BASE_SPEED,
-                    // direction: MovementDirection::Right,
-                    // radius: 15.0,
-                    // time_offset: 0.5,
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                    ..EnemySpawn::base_mosquito(2.1 / CAMERA_BASE_SPEED, Vec2 { x: 100.0, y: 80.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 100.0, y: 100.0 },
-                    base_speed: 5.0,
-                    elapsed: 6.1 / CAMERA_BASE_SPEED,
-                    // direction: MovementDirection::Left,
-                    // radius: 25.0,
-                    // time_offset: 3.0,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(
-                        2.1 / CAMERA_BASE_SPEED,
-                        Vec2 { x: 100.0, y: 100.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    elapsed: 7.4 / CAMERA_BASE_SPEED,
-                    steps: vec![EnemyStep::Circle {
-                        duration: 999.0,
-                        radius: 13.0,
-                        direction: MovementDirection::Positive,
-                    }],
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(
-                        120.1 / CAMERA_BASE_SPEED,
-                        Vec2 { x: 60.0, y: 120.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 280.0, y: 160.0 },
-                    base_speed: 5.0,
-                    elapsed: 5.1 / CAMERA_BASE_SPEED,
-
-                    // direction: MovementDirection::Left,
-                    // radius: 25.0,
-                    // time_offset: 2.0,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(2.1 / CAMERA_BASE_SPEED, Vec2 { x: 280.0, y: 80.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Tardigrade,
-                    elapsed: 6.4 / CAMERA_BASE_SPEED,
-
-                    // direction: MovementDirection::Right,
-                    // radius: 15.0,
-                    // time_offset: 0.5,
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                    ..EnemySpawn::base_mosquito(
-                        80. / CAMERA_BASE_SPEED,
-                        Vec2 { x: 320.0, y: 160.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 360.0, y: 160.0 },
-                    base_speed: 5.0,
-                    elapsed: 8.1 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    // direction: MovementDirection::Left,
-                    // radius: 25.0,
-                    // time_offset: 3.0,
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 400.0, y: 170.0 },
-                    elapsed: 7.4 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(
-                        65. / CAMERA_BASE_SPEED,
-                        Vec2 { x: 400.0, y: 160.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 410.0, y: 180.0 },
-                    base_speed: 5.0,
-                    elapsed: 7.4 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    // direction: MovementDirection::Right,
-                    // radius: 15.0,
-                    // time_offset: 1.0,
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 440.0, y: 190.0 },
-                    base_speed: 5.0,
-                    elapsed: 6.1 / CAMERA_BASE_SPEED,
-                    steps: vec![EnemyStep::Circle {
-                        duration: 999.0,
-                        radius: 23.0,
-                        direction: MovementDirection::Positive,
-                    }],
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    elapsed: 6.1 / CAMERA_BASE_SPEED,
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                    ..EnemySpawn::base_mosquito(
-                        325. / CAMERA_BASE_SPEED,
-                        Vec2 { x: 120.0, y: 160.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 480.0, y: 200.0 },
-                    base_speed: 5.0,
-                    elapsed: 7.4 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    // direction: MovementDirection::Right,
-                    // radius: 15.0,
-                    // time_offset: 0.5,
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 520.0, y: 210.0 },
-                    base_speed: 5.0,
-                    elapsed: 8.1 / CAMERA_BASE_SPEED,
-                    steps: vec![EnemyStep::Circle {
-                        duration: 999.0,
-                        radius: 13.0,
-                        direction: MovementDirection::Positive,
-                    }],
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                }),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(100.0, 80.0))
+                        .set_speed(5.0)
+                        .set_elapsed(8.4)
+                        // direction: MovementDirection::Right,
+                        // radius: 15.0,
+                        // time_offset: 0.5,
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(100.0, 100.0))
+                        .set_speed(5.0)
+                        .set_elapsed(6.1), // direction: MovementDirection::Left,
+                                           // radius: 25.0,
+                                           // time_offset: 3.0,
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(60.0, 120.0))
+                        .set_elapsed(7.4)
+                        .set_steps_vec(vec![EnemyStep::Circle {
+                            duration: 999.0,
+                            radius: 13.0,
+                            direction: MovementDirection::Positive,
+                        }]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(280.0, 80.0))
+                        .set_elapsed(5.6),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::tardigrade_base()
+                        .set_elapsed(6.4)
+                        .set_coordinates(Vec2::new(320.0, 160.0))
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(400.0, 160.0))
+                        .set_elapsed(7.4),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(360.0, 160.0))
+                        .set_speed(5.0)
+                        .set_elapsed(8.1)
+                        .set_steps_vec(vec![
+                            // direction: MovementDirection::Left,
+                            // radius: 25.0,
+                            // time_offset: 3.0,
+                        ]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(410.0, 180.0))
+                        .set_speed(5.0)
+                        .set_elapsed(7.4)
+                        .set_steps_vec(vec![
+                            // direction: MovementDirection::Right,
+                            // radius: 15.0,
+                            // time_offset: 1.0,
+                        ]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(440.0, 190.0))
+                        .set_speed(5.0)
+                        .set_elapsed(6.1)
+                        .set_steps_vec(vec![EnemyStep::Circle {
+                            duration: 999.0,
+                            radius: 23.0,
+                            direction: MovementDirection::Positive,
+                        }]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(120.0, 160.0))
+                        .set_elapsed(6.1)
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(140.0, 160.0))
+                        .set_elapsed(7.4)
+                        .set_steps_vec(vec![
+                            // direction: MovementDirection::Right,
+                            // radius: 15.0,
+                            // time_offset: 0.5,
+                        ]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(520.0, 210.0))
+                        .set_speed(5.0)
+                        .set_elapsed(8.1)
+                        .set_steps_vec(vec![EnemyStep::Circle {
+                            duration: 999.0,
+                            radius: 13.0,
+                            direction: MovementDirection::Positive,
+                        }])
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
             ],
         },
         StageStep::Stop {
-            resume_conditions: Some(vec![]),
-            max_duration: Some(40. / CAMERA_BASE_SPEED),
-            spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    base_speed: 5.0,
-                    elapsed: 8.1 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(
-                        123. / CAMERA_BASE_SPEED,
-                        Vec2 { x: 100.0, y: 60.0 },
-                    )
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 530.0, y: 200.0 },
-                    base_speed: 5.0,
-                    elapsed: 8.1 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    // direction: MovementDirection::Right,
-                    // radius: 25.0,
-                    // time_offset: 3.0,
-                    contains: None,
-                }),
-            ],
-        },
-        StageStep::Movement {
-            coordinates: Vec2 { x: 850.0, y: 155.0 },
-            base_speed: CAMERA_BASE_SPEED,
-            spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    base_speed: 5.0,
-                    elapsed: 8.4 / CAMERA_BASE_SPEED,
-
-                    steps: vec![EnemyStep::Circle {
-                        duration: 999.0,
-                        radius: 15.0,
-                        direction: MovementDirection::Positive,
-                    }],
-
-                    contains: Some(Box::new(ContainerSpawn::Pickup(PickupSpawn {
-                        pickup_type: PickupType::BigHealthpack,
-                        ..default()
-                    }))),
-                    ..EnemySpawn::base_mosquito(223. / CAMERA_BASE_SPEED, Vec2 { x: 55.0, y: 60.0 })
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 100.0, y: 60.0 },
-                    base_speed: 5.0,
-                    elapsed: 6.1 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    // direction: MovementDirection::Left,
-                    // radius: 25.0,
-                    // time_offset: 3.0,
-                    contains: None,
-                }),
-            ],
-        },
-        StageStep::Stop {
-            resume_conditions: Some(vec![]),
-            max_duration: Some(40. / CAMERA_BASE_SPEED),
+            resume_conditions: Some(vec![].into()),
+            max_duration: Some(40.),
             spawns: vec![],
         },
         StageStep::Movement {
-            coordinates: Vec2 { x: 920.0, y: 155.0 },
+            coordinates: Vec2::new(850.0, 155.0),
             base_speed: CAMERA_BASE_SPEED,
             spawns: vec![
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    coordinates: Vec2 { x: 60.0, y: 80.0 },
-                    base_speed: 5.0,
-                    elapsed: 8.4 / CAMERA_BASE_SPEED,
-                    steps: vec![],
-                    contains: None,
-                }),
-                StageSpawn::Enemy(EnemySpawn {
-                    coordinates: Vec2 { x: 100.0, y: 60.0 },
-                    elapsed: 6.1 / CAMERA_BASE_SPEED,
-                    contains: None,
-                    ..EnemySpawn::base_mosquito(
-                        223. / CAMERA_BASE_SPEED,
-                        Vec2 { x: 100.0, y: 60.0 },
-                    )
-                }),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(55.0, 60.0))
+                        .set_speed(5.0)
+                        .set_elapsed(8.4)
+                        .set_steps_vec(vec![EnemyStep::Circle {
+                            duration: 999.0,
+                            radius: 15.0,
+                            direction: MovementDirection::Positive,
+                        }])
+                        .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(100.0, 60.0))
+                        .set_speed(5.0)
+                        .set_elapsed(6.1)
+                        .set_steps_vec(vec![
+                            // direction: MovementDirection::Left,
+                            // radius: 25.0,
+                            // time_offset: 3.0,
+                        ]),
+                ),
             ],
         },
         StageStep::Stop {
-            resume_conditions: Some(vec![]),
-            max_duration: Some(40. / CAMERA_BASE_SPEED),
-            spawns: vec![],
+            resume_conditions: Some(vec![].into()),
+            max_duration: Some(40.),
+            spawns: vec![].into(),
+        },
+        StageStep::Movement {
+            coordinates: Vec2::new(920.0, 155.0),
+            base_speed: CAMERA_BASE_SPEED,
+            spawns: vec![
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(60.0, 80.0))
+                        .set_speed(5.0)
+                        .set_elapsed(8.4)
+                        .set_steps_vec(vec![]),
+                ),
+                StageSpawn::Enemy(
+                    EnemySpawn::mosquito_base()
+                        .set_coordinates(Vec2::new(100.0, 60.0))
+                        .set_elapsed(6.1),
+                ),
+            ],
+        },
+        StageStep::Stop {
+            resume_conditions: Some(vec![].into()),
+            max_duration: Some(40.),
+            spawns: vec![].into(),
         },
         //TODO
         StageStep::Stop {
@@ -656,7 +460,7 @@ pub fn make_steps() -> Vec<StageStep> {
                 StageActionResumeCondition::KillBoss,
             ]),
             max_duration: None,
-            spawns: vec![],
+            spawns: vec![].into(),
         },
     ]
 }

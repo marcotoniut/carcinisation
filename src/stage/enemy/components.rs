@@ -33,7 +33,8 @@ pub struct EnemyCurrentBehavior {
 #[derive(Component, Clone, Debug)]
 pub enum BehaviorBundle {
     Idle(()),
-    Movement(()),
+    LinearMovement(()),
+    Jump(()),
     Attack(()),
     Circle(CircleAround),
 }
@@ -46,11 +47,11 @@ impl EnemyCurrentBehavior {
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
-            EnemyStep::Movement {
+            EnemyStep::LinearMovement {
                 coordinates,
                 attacking,
                 speed,
-            } => BehaviorBundle::Movement(()),
+            } => BehaviorBundle::LinearMovement(()),
             EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
             EnemyStep::Circle {
                 radius, direction, ..
@@ -60,6 +61,11 @@ impl EnemyCurrentBehavior {
                 direction: direction.clone(),
                 time_offset: time_offset.as_secs_f32(),
             }),
+            EnemyStep::Jump {
+                coordinates,
+                attacking,
+                speed,
+            } => BehaviorBundle::Jump(()),
         }
     }
 }
@@ -68,8 +74,8 @@ impl EnemyCurrentBehavior {
 pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
 
 impl EnemyBehaviors {
-    pub fn new(steps: Vec<EnemyStep>) -> Self {
-        EnemyBehaviors(steps.into())
+    pub fn new(steps: VecDeque<EnemyStep>) -> Self {
+        EnemyBehaviors(steps)
     }
 
     pub fn next(&mut self) -> EnemyStep {
@@ -112,7 +118,7 @@ pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;
 #[derive(Component, Clone, Debug)]
 pub struct EnemyMosquito {
     pub base_speed: f32,
-    pub steps: Vec<EnemyStep>,
+    pub steps: VecDeque<EnemyStep>,
     // pub state: EnemyMosquitoState,
 }
 
@@ -148,7 +154,7 @@ pub struct CurrentEnemyMosquitoStep(EnemyStep);
 // Tardigrade
 #[derive(Component, Clone, Debug)]
 pub struct EnemyTardigrade {
-    pub steps: Vec<EnemyStep>,
+    pub steps: VecDeque<EnemyStep>,
 }
 
 impl EnemyTardigrade {
