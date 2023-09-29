@@ -76,7 +76,7 @@ pub fn spawn_pickup(
                     Hittable {},
                     PxSpriteBundle::<Layer> {
                         sprite,
-                        anchor: PxAnchor::BottomCenter,
+                        anchor: PxAnchor::Center,
                         layer: Layer::Middle(2),
                         ..default()
                     },
