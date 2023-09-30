@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use bevy::prelude::*;
 use seldom_pixel::{
@@ -8,15 +8,16 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
-    globals::{CAMERA_CENTER, HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
-    plugins::movement::linear::components::{
-        LinearDirection, LinearSpeed, LinearTargetPosition, XAxisPosition, YAxisPosition,
+    globals::HALF_SCREEN_RESOLUTION,
+    plugins::movement::{
+        linear::components::{
+            LinearDirection, LinearSpeed, LinearTargetPosition, XAxisPosition, YAxisPosition,
+            ZAxisPosition,
+        },
+        structs::MovementDirection,
     },
     stage::{
-        components::{
-            Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, InflictsDamage,
-            TargetDepth,
-        },
+        components::{Dead, Depth, Health, Hittable, InView, InflictsDamage},
         data::EnemyStep,
         enemy::{bundles::*, components::*, data::mosquito::MOSQUITO_ANIMATIONS},
         events::DepthChangedEvent,
@@ -220,18 +221,27 @@ pub fn check_idle_mosquito(
                 let speed = direction.normalize() * BLOOD_ATTACK_LINE_SPEED;
 
                 let movement_bundle = (
+                    // XAxis
                     XAxisPosition(position.0.x),
-                    YAxisPosition(position.0.y),
                     LinearTargetPosition::<StageTime, XAxisPosition>::new(target_pos.x),
-                    LinearTargetPosition::<StageTime, YAxisPosition>::new(target_pos.y),
                     LinearDirection::<StageTime, XAxisPosition>::from_delta(
                         target_pos.x - position.0.x,
                     ),
+                    LinearSpeed::<StageTime, XAxisPosition>::new(speed.x),
+                    // YAxis
+                    YAxisPosition(position.0.y),
+                    LinearTargetPosition::<StageTime, YAxisPosition>::new(target_pos.y),
                     LinearDirection::<StageTime, YAxisPosition>::from_delta(
                         target_pos.y - position.0.y,
                     ),
-                    LinearSpeed::<StageTime, XAxisPosition>::new(speed.x),
                     LinearSpeed::<StageTime, YAxisPosition>::new(speed.y),
+                    // ZAxis
+                    ZAxisPosition(depth.0.clone() as f32),
+                    LinearTargetPosition::<StageTime, ZAxisPosition>::new(
+                        BLOOD_ATTACK_MAX_DEPTH + 1.,
+                    ),
+                    LinearDirection::<StageTime, ZAxisPosition>::new(MovementDirection::Positive),
+                    LinearSpeed::<StageTime, ZAxisPosition>::new(BLOOD_ATTACK_DEPTH_SPEED),
                 );
 
                 commands
@@ -243,9 +253,6 @@ pub fn check_idle_mosquito(
                         //     (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
                         // ),
                         depth,
-                        DepthProgress(depth.0.clone() as f32),
-                        DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
-                        TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
                         InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
                         Hittable {},
@@ -276,7 +283,7 @@ pub fn read_enemy_attack_depth_changed(
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
     for event in event_reader.iter() {
-        if event.depth.0 < BLOOD_ATTACK_MAX_DEPTH {
+        if (event.depth.0 as f32) < BLOOD_ATTACK_MAX_DEPTH {
             let (sprite_bundle, animation_bundle, collision) =
                 make_blood_attack_bundle(&mut assets_sprite, event.depth.clone());
 

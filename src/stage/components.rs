@@ -26,18 +26,6 @@ pub struct Object {}
 pub struct StageClearedText {}
 
 #[derive(Clone, Component, Debug)]
-pub struct DepthSpeed(pub f32);
-
-#[derive(Clone, Component, Debug)]
-pub struct DepthProgress(pub f32);
-
-#[derive(Clone, Component, Debug)]
-pub struct DepthReached;
-
-#[derive(Clone, Component, Debug)]
-pub struct TargetDepth(pub usize);
-
-#[derive(Clone, Component, Debug)]
 pub enum Collision {
     Box(Vec2),
     Circle(f32),
