@@ -6,7 +6,7 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::{Collision, Destructible, Flicker, Health, Hittable, Object, SpawnDrop},
+        components::{Collision, Destructible, Flickerer, Health, Hittable, Object, SpawnDrop},
         data::{
             DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, ObjectSpawn, ObjectType,
             PickupSpawn, PickupType, StageSpawn,
@@ -137,7 +137,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                         steps: steps.clone(),
                     },
                     EnemyMosquitoAttacking { ..default() },
-                    Flicker,
+                    Flickerer,
                     Hittable {},
                     PxSubPosition::from(position),
                     Collision::Circle(ENEMY_MOSQUITO_RADIUS),
@@ -174,7 +174,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                     steps: steps.clone(),
                 },
                 EnemyTardigradeAttacking { ..default() },
-                Flicker,
+                Flickerer,
                 Hittable {},
                 PxSubPosition::from(position),
                 Collision::Circle(ENEMY_TARDIGRADE_RADIUS),
@@ -202,7 +202,7 @@ pub fn spawn_destructible(
         .spawn((
             Name::new(format!("Destructible {:?}", spawn.destructible_type)),
             Destructible {},
-            Flicker,
+            Flickerer,
             Hittable {},
             PxSpriteBundle::<Layer> {
                 sprite,

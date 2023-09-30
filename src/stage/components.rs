@@ -44,7 +44,7 @@ pub enum Collision {
 }
 
 #[derive(Clone, Component, Debug)]
-pub struct Flicker;
+pub struct Flickerer;
 
 #[derive(Clone, Component, Debug)]
 pub struct DamageFlicker {
