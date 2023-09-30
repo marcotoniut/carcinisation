@@ -14,6 +14,8 @@ lazy_static! {
     pub static ref DEFAULT_COORDINATES: Vec2 = HALF_SCREEN_RESOLUTION.clone();
 }
 
+pub const CAMERA_BASE_SPEED: f32 = 15.0;
+
 pub trait Contains {
     fn set_contains(&mut self, value: Option<Box<ContainerSpawn>>);
     fn drops(&mut self, value: ContainerSpawn);
@@ -334,9 +336,9 @@ impl StageSpawn {
     pub fn get_elapsed(&self) -> f32 {
         match self {
             StageSpawn::Destructible(DestructibleSpawn { .. }) => 0.,
-            StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed,
+            StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed / CAMERA_BASE_SPEED,
             StageSpawn::Object(ObjectSpawn { .. }) => 0.,
-            StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed,
+            StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed / CAMERA_BASE_SPEED,
         }
     }
 
@@ -375,10 +377,86 @@ pub enum StageStep {
         spawns: Vec<StageSpawn>,
     },
     Stop {
+        // TODO max_duration as a resume condition
         resume_conditions: Option<Vec<StageActionResumeCondition>>,
         max_duration: Option<f32>,
         spawns: Vec<StageSpawn>,
     },
+}
+
+impl StageStep {
+    pub fn speed(&self) -> f32 {
+        match self {
+            StageStep::Movement { base_speed, .. } => *base_speed * CAMERA_BASE_SPEED,
+            StageStep::Stop { .. } => 0.,
+            StageStep::Cinematic { .. } => 0.,
+        }
+    }
+
+    pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
+        match &mut self {
+            StageStep::Movement { spawns, .. } => {
+                spawns.extend(new_spawns);
+            }
+            StageStep::Stop { spawns, .. } => {
+                spawns.extend(new_spawns);
+            }
+            StageStep::Cinematic { .. } => {}
+        };
+        self
+    }
+
+    pub fn set_base_speed(mut self, base_speed: f32) -> Self {
+        if let StageStep::Movement {
+            base_speed: ref mut s,
+            ..
+        } = self
+        {
+            *s = base_speed;
+        }
+        self
+    }
+
+    pub fn set_max_duration(mut self, max_duration: f32) -> Self {
+        if let StageStep::Stop {
+            max_duration: ref mut md,
+            ..
+        } = self
+        {
+            *md = Some(max_duration);
+        }
+        self
+    }
+
+    pub fn set_resume_conditions(
+        mut self,
+        resume_conditions: Vec<StageActionResumeCondition>,
+    ) -> Self {
+        if let StageStep::Stop {
+            resume_conditions: ref mut rc,
+            ..
+        } = self
+        {
+            *rc = Some(resume_conditions);
+        }
+        self
+    }
+
+    pub fn movement_base(x: f32, y: f32) -> Self {
+        StageStep::Movement {
+            coordinates: Vec2::new(x, y),
+            base_speed: 1.,
+            spawns: vec![],
+        }
+    }
+
+    pub fn stop_base() -> Self {
+        StageStep::Stop {
+            resume_conditions: None,
+            max_duration: None,
+            spawns: vec![],
+        }
+    }
 }
 
 #[derive(TypeUuid, TypePath, Clone, Debug)]

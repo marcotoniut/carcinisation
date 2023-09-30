@@ -184,18 +184,17 @@ pub fn update_stage(
                     info!("curr action: {}", curr_action);
                 }
 
-                let mut spawnsVal = None;
+                let mut spawns_val = None;
                 match action {
                     StageStep::Movement {
                         coordinates,
-                        base_speed,
                         spawns,
                         ..
                     } => {
                         let mut camera_pos = camera_pos_query.single_mut();
                         let direction = coordinates.sub(camera_pos.0).normalize();
 
-                        **camera_pos += time.delta_seconds() * base_speed * direction;
+                        **camera_pos += time.delta_seconds() * action.speed() * direction;
 
                         if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
                             if DEBUG_STAGESTEP {
@@ -210,7 +209,7 @@ pub fn update_stage(
 
                         **camera = camera_pos.round().as_ivec2();
 
-                        spawnsVal = Some(spawns);
+                        spawns_val = Some(spawns);
                     }
                     StageStep::Stop {
                         resume_conditions,
@@ -223,7 +222,7 @@ pub fn update_stage(
                         } else {
                             step_event_writer.send(StageStepTrigger {});
                         }
-                        spawnsVal = Some(spawns);
+                        spawns_val = Some(spawns);
                     }
                     StageStep::Cinematic { cinematic, .. } => {
                         let max_duration = Some(cinematic.clip.duration);
@@ -235,7 +234,7 @@ pub fn update_stage(
                     }
                 }
 
-                if let Some(spawns) = spawnsVal {
+                if let Some(spawns) = spawns_val {
                     let mut cloned_spawns = spawns.clone();
 
                     let mut i = 0;
