@@ -7,7 +7,7 @@ use crate::GBInput;
 #[derive(Component)]
 pub struct CameraPos;
 
-const CAMERA_SPEED: f32 = 30.;
+// const CAMERA_MOVEMENT_SPEED: f32 = 30.;
 
 // /**
 // DEBUG Move the camera placement using the debug arrow keys
@@ -28,7 +28,7 @@ const CAMERA_SPEED: f32 = 30.;
 //     .as_vec2()
 //     .normalize_or_zero()
 //         * time.delta_seconds()
-//         * CAMERA_SPEED;
+//         * CAMERA_MOVEMENT_SPEED;
 
 //     **camera = camera_pos.round().as_ivec2();
 // }
