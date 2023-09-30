@@ -40,7 +40,7 @@ pub fn check_damage_flicker_taken(
     stage_time: Res<StageTime>,
     mut event_reader: EventReader<DamageEvent>,
     // TODO Destructibles and Attacks
-    query: Query<Entity, (With<Flicker>, Without<Dead>)>,
+    query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
 ) {
     for event in event_reader.iter() {
         for entity in query.iter() {
