@@ -24,7 +24,6 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         StageSpawn::Destructible(
             DestructibleSpawn::mushroom_base(60., 0.).drops(ContainerSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
-                    .set_coordinates(Vec2::new(60., 100.))
                     .set_elapsed(0.4)
                     .set_steps_vec(vec![
                         EnemyStep::Idle { duration: 1. },
@@ -56,7 +55,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
 pub fn make_steps() -> Vec<StageStep> {
     vec![
         StageStep::movement_base(0.0, 0.0).set_base_speed(8.0),
-        StageStep::stop_base().set_max_duration(3.0),
+        StageStep::Stop(StageStepStop::new().set_max_duration(10.)),
         StageStep::movement_base(50.0, 0.0)
             .set_base_speed(10.0)
             .add_spawns(vec![
@@ -92,25 +91,20 @@ pub fn make_steps() -> Vec<StageStep> {
                 EnemySpawn::tardigrade_base().set_coordinates(Vec2::new(120.0, 100.0)),
             ),
         ]),
-        StageStep::stop_base()
-            .set_max_duration(30.0)
-            .set_resume_conditions(vec![StageActionResumeCondition::KillAll])
-            .add_spawns(vec![StageSpawn::Enemy(
+        StageStep::Stop(StageStepStop::new().set_max_duration(30.).add_spawns(
+            vec![StageSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
                     .set_coordinates(Vec2::new(70.0, 70.0))
                     .set_elapsed(4.),
-            )]),
-        StageStep::stop_base()
-            .set_max_duration(30.0)
-            .set_resume_conditions(vec![StageActionResumeCondition::KillAll])
-            .add_spawns(vec![StageSpawn::Enemy(
+            )],
+        )),
+        StageStep::Stop(StageStepStop::new().set_max_duration(40.).add_spawns(
+            vec![StageSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
                     .set_coordinates(Vec2::new(70.0, 70.0))
                     .set_elapsed(4.),
-            )]),
-        StageStep::stop_base().set_resume_conditions(vec![
-            StageActionResumeCondition::KillAll,
-            StageActionResumeCondition::KillBoss,
-        ]),
+            )],
+        )),
+        StageStep::Stop(StageStepStop::new().set_kill_all(false).set_kill_boss(true)),
     ]
 }

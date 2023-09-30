@@ -211,12 +211,11 @@ pub fn update_stage(
 
                         spawns_val = Some(spawns);
                     }
-                    StageStep::Stop {
-                        resume_conditions,
+                    StageStep::Stop(StageStepStop {
                         max_duration,
                         spawns,
                         ..
-                    } => {
+                    }) => {
                         // TODO
                         if let Some(duration) = max_duration {
                         } else {
@@ -375,7 +374,7 @@ pub fn read_stage_step_trigger(
                 StageStep::Movement { .. } => {
                     stage_action_timer.timer.reset();
                 }
-                StageStep::Stop { max_duration, .. } => {
+                StageStep::Stop(StageStepStop { max_duration, .. }) => {
                     if let Some(duration) = max_duration {
                         stage_action_timer.timer.reset();
                         stage_action_timer

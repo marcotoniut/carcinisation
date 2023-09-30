@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use bevy::{
     prelude::Vec2,
     reflect::{TypePath, TypeUuid},
+    utils::HashMap,
 };
 
 use crate::{
@@ -291,7 +292,7 @@ impl EnemySpawn {
         EnemySpawn {
             enemy_type: EnemyType::Tardigrade,
             coordinates: DEFAULT_COORDINATES.clone(),
-            speed: 5.0,
+            speed: 150.0,
             elapsed: 0.0,
             steps: vec![].into(),
             contains: None,
@@ -301,7 +302,7 @@ impl EnemySpawn {
         EnemySpawn {
             enemy_type: EnemyType::Mosquito,
             coordinates: DEFAULT_COORDINATES.clone(),
-            speed: 40.0,
+            speed: 400.0,
             elapsed: 0.0,
             steps: vec![].into(),
             contains: None,
@@ -360,10 +361,50 @@ impl StageSpawn {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum StageActionResumeCondition {
+    MaxDuration(u32),
     KillAll,
     KillBoss,
+}
+
+#[derive(Clone, Debug)]
+pub struct StageStepStop {
+    pub max_duration: Option<f32>,
+    pub kill_all: bool,
+    pub kill_boss: bool,
+    pub spawns: Vec<StageSpawn>,
+}
+
+impl StageStepStop {
+    pub fn new() -> Self {
+        Self {
+            kill_all: true,
+            kill_boss: false,
+            max_duration: None,
+            spawns: vec![],
+        }
+    }
+
+    pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
+        self.spawns.extend(new_spawns);
+        self
+    }
+
+    pub fn set_kill_all(mut self, value: bool) -> Self {
+        self.kill_all = value;
+        self
+    }
+
+    pub fn set_kill_boss(mut self, value: bool) -> Self {
+        self.kill_boss = value;
+        self
+    }
+
+    pub fn set_max_duration(mut self, value: f32) -> Self {
+        self.max_duration = Some(value);
+        self
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -376,12 +417,7 @@ pub enum StageStep {
         base_speed: f32,
         spawns: Vec<StageSpawn>,
     },
-    Stop {
-        // TODO max_duration as a resume condition
-        resume_conditions: Option<Vec<StageActionResumeCondition>>,
-        max_duration: Option<f32>,
-        spawns: Vec<StageSpawn>,
-    },
+    Stop(StageStepStop),
 }
 
 impl StageStep {
@@ -398,7 +434,7 @@ impl StageStep {
             StageStep::Movement { spawns, .. } => {
                 spawns.extend(new_spawns);
             }
-            StageStep::Stop { spawns, .. } => {
+            StageStep::Stop(StageStepStop { spawns, .. }) => {
                 spawns.extend(new_spawns);
             }
             StageStep::Cinematic { .. } => {}
@@ -417,43 +453,10 @@ impl StageStep {
         self
     }
 
-    pub fn set_max_duration(mut self, max_duration: f32) -> Self {
-        if let StageStep::Stop {
-            max_duration: ref mut md,
-            ..
-        } = self
-        {
-            *md = Some(max_duration);
-        }
-        self
-    }
-
-    pub fn set_resume_conditions(
-        mut self,
-        resume_conditions: Vec<StageActionResumeCondition>,
-    ) -> Self {
-        if let StageStep::Stop {
-            resume_conditions: ref mut rc,
-            ..
-        } = self
-        {
-            *rc = Some(resume_conditions);
-        }
-        self
-    }
-
     pub fn movement_base(x: f32, y: f32) -> Self {
         StageStep::Movement {
             coordinates: Vec2::new(x, y),
             base_speed: 1.,
-            spawns: vec![],
-        }
-    }
-
-    pub fn stop_base() -> Self {
-        StageStep::Stop {
-            resume_conditions: None,
-            max_duration: None,
             spawns: vec![],
         }
     }
