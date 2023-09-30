@@ -154,9 +154,11 @@ pub enum Layer {
     Attack,
     #[default]
     Front,
+    HudBackground,
+    Hud,
+    Pickups,
     UIBackground,
     UI,
-    Pickups,
     CutsceneBackground,
     Cutscene(usize),
     Letterbox,

@@ -46,7 +46,7 @@ pub fn spawn_hud_bundle(
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
                         line: [(0, i).into(), (SCREEN_RESOLUTION.x as i32, i).into()].into(),
-                        layers: PxFilterLayers::single_over(Layer::UIBackground),
+                        layers: PxFilterLayers::single_over(Layer::HudBackground),
                         filter: filters.load("filter/color3.png"),
                         ..default()
                     },
@@ -62,7 +62,7 @@ pub fn spawn_hud_bundle(
                         PxSpriteBundle::<Layer> {
                             anchor: PxAnchor::BottomLeft,
                             canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
+                            layer: Layer::Hud,
                             sprite: assets_sprite.load("sprites/score-icon.png"),
                             ..default()
                         },
@@ -73,7 +73,7 @@ pub fn spawn_hud_bundle(
                         PxTextBundle::<Layer> {
                             alignment: PxAnchor::BottomRight,
                             canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
+                            layer: Layer::Hud,
                             rect: IRect::new(
                                 IVec2::new(SCORE_COUNT_ML, LAYOUT_Y),
                                 IVec2::new(
