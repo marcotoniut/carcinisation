@@ -9,12 +9,12 @@ use seldom_pixel::{
 use crate::{
     components::DespawnMark,
     globals::{CAMERA_CENTER, SCREEN_RESOLUTION},
-    plugins::movement::pursue::components::{PursueSpeed, PursueTargetPosition},
+    plugins::movement::{
+        linear::components::{LinearSpeed, LinearTargetPosition, ZAxisPosition},
+        pursue::components::{PursueSpeed, PursueTargetPosition},
+    },
     stage::{
-        components::{
-            Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, InflictsDamage,
-            TargetDepth,
-        },
+        components::{Dead, Depth, Health, Hittable, InView, InflictsDamage},
         enemy::{
             bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
             components::*,
@@ -149,9 +149,11 @@ pub fn check_idle_tardigrade(
                             (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
                         ),
                         depth,
-                        DepthProgress(depth.0.clone() as f32),
-                        DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
-                        TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
+                        ZAxisPosition(depth.0.clone() as f32),
+                        LinearSpeed::<StageTime, ZAxisPosition>::new(BLOOD_ATTACK_DEPTH_SPEED),
+                        LinearTargetPosition::<StageTime, ZAxisPosition>::new(
+                            BLOOD_ATTACK_MAX_DEPTH + 1.,
+                        ),
                         InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
                         Hittable {},

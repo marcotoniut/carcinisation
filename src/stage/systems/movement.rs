@@ -3,25 +3,17 @@ use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
     plugins::movement::{
-        linear::components::{LinearTargetReached, XAxisPosition, YAxisPosition},
+        linear::components::{
+            LinearDirection, LinearSpeed, LinearTargetReached, XAxisPosition, YAxisPosition,
+            ZAxisPosition,
+        },
         structs::MovementDirection,
     },
     stage::{
-        components::{Depth, DepthProgress, DepthReached, DepthSpeed, TargetDepth},
-        enemy::components::CircleAround,
-        events::DepthChangedEvent,
+        components::Depth, enemy::components::CircleAround, events::DepthChangedEvent,
         resources::StageTime,
     },
 };
-
-pub fn advance_incoming(
-    mut incoming_query: Query<(&DepthSpeed, &mut DepthProgress), Without<DepthReached>>,
-    time: Res<Time>,
-) {
-    for (speed, mut depth) in &mut incoming_query.iter_mut() {
-        depth.0 += speed.0 * time.delta_seconds();
-    }
-}
 
 pub fn update_pxsubposition_x(
     mut incoming_query: Query<
@@ -47,17 +39,22 @@ pub fn update_pxsubposition_y(
 
 pub fn update_depth(
     mut incoming_query: Query<
-        (Entity, &mut Depth, &DepthProgress, &DepthSpeed),
-        Without<DepthReached>,
+        (
+            Entity,
+            &mut Depth,
+            &ZAxisPosition,
+            &LinearSpeed<StageTime, ZAxisPosition>,
+        ),
+        Without<LinearTargetReached<StageTime, ZAxisPosition>>,
     >,
     mut event_writer: EventWriter<DepthChangedEvent>,
 ) {
-    for (entity, mut depth, progress, speed) in &mut incoming_query.iter_mut() {
-        if speed.0 > 0.0 {
+    for (entity, mut depth, position, speed) in &mut incoming_query.iter_mut() {
+        if speed.value > 0.0 {
             let next_depth = depth.0 + 1;
-            if progress.0 >= (depth.0 as f32 + 0.5) {
+            if position.0 >= (depth.0 as f32 + 0.5) {
                 depth.0 = next_depth;
-                // REVIEW should this use DepthChanged, or Added<DepthReached> (LinearTargetReached<StageTime, ZAxisPosition>)
+                // REVIEW should this use DepthChanged, or Added<LinearTargetReached> (LinearTargetReached<StageTime, ZAxisPosition>)
                 event_writer.send(DepthChangedEvent {
                     entity,
                     depth: depth.clone(),
@@ -65,24 +62,13 @@ pub fn update_depth(
             }
         } else {
             let next_depth = depth.0 - 1;
-            if progress.0 <= (depth.0 as f32 - 0.5) {
+            if position.0 <= (depth.0 as f32 - 0.5) {
                 depth.0 = next_depth;
                 event_writer.send(DepthChangedEvent {
                     entity,
                     depth: depth.clone(),
                 });
             }
-        }
-    }
-}
-
-pub fn check_depth_reached(
-    mut commands: Commands,
-    mut incoming_query: Query<(Entity, &Depth, &TargetDepth), Without<DepthReached>>,
-) {
-    for (entity, depth, target) in &mut incoming_query.iter_mut() {
-        if depth.0 == target.0 {
-            commands.entity(entity).insert(DepthReached {});
         }
     }
 }

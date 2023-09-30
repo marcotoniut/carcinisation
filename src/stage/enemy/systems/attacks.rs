@@ -9,11 +9,13 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
+    plugins::movement::linear::components::{LinearTargetReached, ZAxisPosition},
     stage::{
         components::*,
         enemy::{components::EnemyAttack, data::blood_attack::BLOOD_ATTACK_ANIMATIONS},
         events::DamageEvent,
         player::{components::Player, events::CameraShakeEvent},
+        resources::StageTime,
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     Layer,
@@ -21,7 +23,14 @@ use crate::{
 
 pub fn miss_on_reached(
     mut commands: Commands,
-    query: Query<Entity, (Added<DepthReached>, With<EnemyAttack>, Without<InView>)>,
+    query: Query<
+        Entity,
+        (
+            Added<LinearTargetReached<StageTime, ZAxisPosition>>,
+            With<EnemyAttack>,
+            Without<InView>,
+        ),
+    >,
 ) {
     for entity in &mut query.iter() {
         commands.entity(entity).insert(DespawnMark);
@@ -38,7 +47,11 @@ pub fn blood_attack_damage_on_reached(
     asset_server: Res<AssetServer>,
     depth_query: Query<
         (Entity, &InflictsDamage, &PxSubPosition, &Depth),
-        (Added<DepthReached>, With<EnemyAttack>, With<InView>),
+        (
+            Added<LinearTargetReached<StageTime, ZAxisPosition>>,
+            With<EnemyAttack>,
+            With<InView>,
+        ),
     >,
     volume_settings: Res<VolumeSettings>,
 ) {

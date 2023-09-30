@@ -38,7 +38,7 @@ use crate::{
     game::events::GameOver,
     plugins::movement::{
         linear::{
-            components::{XAxisPosition, YAxisPosition},
+            components::{XAxisPosition, YAxisPosition, ZAxisPosition},
             LinearMovementPlugin,
         },
         pursue::PursueMovementPlugin,
@@ -81,6 +81,7 @@ impl Plugin for StagePlugin {
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, XAxisPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, YAxisPosition>::default())
+            .add_plugins(LinearMovementPlugin::<StageTime, ZAxisPosition>::default())
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(ScorePlugin)
@@ -131,8 +132,6 @@ impl Plugin for StagePlugin {
                             // Movement
                             update_pxsubposition_x,
                             update_pxsubposition_y,
-                            advance_incoming,
-                            check_depth_reached,
                             update_depth,
                             circle_around,
                         ),
