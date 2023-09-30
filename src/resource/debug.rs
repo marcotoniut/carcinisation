@@ -63,15 +63,10 @@ pub fn make_steps() -> Vec<StageStep> {
         // StageStep::Cinematic {
         //     cinematic: INTRO_ANIMATIC_4.clone(),
         // },
-        StageStep::stop_base()
-            .set_max_duration(0.1)
-            .set_resume_conditions(vec![]),
-        StageStep::stop_base()
-            .set_max_duration(30.0)
-            .set_resume_conditions(vec![StageActionResumeCondition::KillAll])
-            .add_spawns(vec![StageSpawn::Enemy(
-                EnemySpawn::mosquito_base().set_coordinates(Vec2::new(70.0, 70.0)),
-            )]),
+        StageStep::Stop(StageStepStop::new().set_max_duration(20.).add_spawns(vec![
+            StageSpawn::Enemy(EnemySpawn::mosquito_base().set_coordinates(Vec2::new(70.0, 70.0))),
+            StageSpawn::Enemy(EnemySpawn::mosquito_base().set_coordinates(Vec2::new(30.0, 60.0))),
+        ])),
         StageStep::movement_base(100.0, 0.0).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
