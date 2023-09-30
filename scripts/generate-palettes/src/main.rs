@@ -64,15 +64,18 @@ fn main() {
     fs::create_dir_all(Path::new(&PALETTES_PATH)).expect("could not create directory");
 
     for (key, palette) in palettes.iter() {
-        let mut output_image: ImageBuffer<Rgb<u8>, Vec<u8>> =
+        let mut output_palette_image: ImageBuffer<Rgb<u8>, Vec<u8>> =
             ImageBuffer::new(palette.len() as u32, 1);
 
-        for ((x, y, _), pixel) in output_image.clone().enumerate_pixels().zip(palette) {
-            output_image.put_pixel(x, y, pixel.clone());
+        for ((x, y, _), pixel) in output_palette_image.clone().enumerate_pixels().zip(palette) {
+            output_palette_image.put_pixel(x, y, pixel.clone());
         }
-        output_image
+        output_palette_image
             .save([PALETTES_PATH, &format!("{}.png", *key)].concat())
             .unwrap();
+
+        let mut output_invert_palette: ImageBuffer<Rgb<u8>, Vec<u8>> =
+            ImageBuffer::new(palette.len() as u32, 1);
 
         if *key == "base" {
             fs::create_dir_all(&FILTER_PATH).expect("could not create directory");
@@ -85,6 +88,19 @@ fn main() {
                     .save([FILTER_PATH, &format!("color{}.png", i)].concat())
                     .unwrap();
             }
+
+            let mut palette_invert = palette.clone();
+            palette_invert.reverse();
+            for ((x, y, _), pixel) in output_invert_palette
+                .clone()
+                .enumerate_pixels()
+                .zip(palette_invert)
+            {
+                output_invert_palette.put_pixel(x, y, pixel.clone());
+            }
+            output_invert_palette
+                .save([FILTER_PATH, &format!("invert.png")].concat())
+                .unwrap();
         }
     }
 }

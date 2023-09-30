@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
-    stage::player::{components::CameraShake, events::CameraShakeTrigger},
+    stage::player::{components::CameraShake, events::CameraShakeEvent},
     systems::camera::CameraPos,
 };
 
@@ -28,7 +28,7 @@ pub fn camera_shake(
 
 pub fn trigger_shake(
     mut commands: Commands,
-    mut event_reader: EventReader<CameraShakeTrigger>,
+    mut event_reader: EventReader<CameraShakeEvent>,
     camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
 ) {
     for _ in event_reader.iter() {

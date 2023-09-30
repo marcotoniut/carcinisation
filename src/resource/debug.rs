@@ -66,6 +66,10 @@ pub fn make_steps() -> Vec<StageStep> {
         StageStep::Stop(StageStepStop::new().set_max_duration(20.).add_spawns(vec![
             StageSpawn::Enemy(EnemySpawn::mosquito_base().set_coordinates(Vec2::new(70.0, 70.0))),
             StageSpawn::Enemy(EnemySpawn::mosquito_base().set_coordinates(Vec2::new(30.0, 60.0))),
+            StageSpawn::Enemy(EnemySpawn::tardigrade_base().set_coordinates(Vec2::new(90.0, 50.0))),
+            StageSpawn::Enemy(
+                EnemySpawn::tardigrade_base().set_coordinates(Vec2::new(120.0, 30.0)),
+            ),
         ])),
         StageStep::movement_base(100.0, 0.0).add_spawns(vec![
             StageSpawn::Enemy(

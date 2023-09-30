@@ -19,18 +19,13 @@ use self::{
     events::*,
     pickup::systems::health::{mark_despawn_pickup_feedback, pickup_health},
     player::{
-        events::CameraShakeTrigger,
+        events::CameraShakeEvent,
         systems::camera::{camera_shake, trigger_shake},
         PlayerPlugin,
     },
     resources::{StageActionTimer, StageProgress, StageTime},
     score::{components::Score, ScorePlugin},
-    systems::{
-        camera::{check_in_view, check_outside_view},
-        movement::*,
-        spawn::read_stage_spawn_trigger,
-        *,
-    },
+    systems::{camera::*, damage::*, movement::*, spawn::read_stage_spawn_trigger, *},
     ui::{
         cleared_screen::{despawn_cleared_screen, render_cleared_screen},
         game_over_screen::{despawn_game_over_screen, render_game_over_screen},
@@ -68,12 +63,13 @@ impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
             .add_state::<StageState>()
-            .add_event::<DepthChanged>()
-            .add_event::<CameraShakeTrigger>()
-            .add_event::<StageClearedTrigger>()
-            .add_event::<StageGameOverTrigger>()
-            .add_event::<StageStepTrigger>()
-            .add_event::<StageSpawnTrigger>()
+            .add_event::<CameraShakeEvent>()
+            .add_event::<DamageEvent>()
+            .add_event::<DepthChangedEvent>()
+            .add_event::<StageClearedEvent>()
+            .add_event::<StageGameOverEvent>()
+            .add_event::<StageSpawnEvent>()
+            .add_event::<StageStepEvent>()
             // TODO temporary
             .add_event::<GameOver>()
             .init_resource::<StageActionTimer>()
@@ -139,6 +135,12 @@ impl Plugin for StagePlugin {
                             check_depth_reached,
                             update_depth,
                             circle_around,
+                        ),
+                        (
+                            // Damage
+                            (check_damage_taken, check_damage_flicker_taken).chain(),
+                            add_invert_filter,
+                            remove_invert_filter,
                         ),
                     )
                         .run_if(in_state(StageState::Running)),

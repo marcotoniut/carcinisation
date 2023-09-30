@@ -12,7 +12,8 @@ use crate::{
     plugins::movement::pursue::components::{PursueSpeed, PursueTargetPosition},
     stage::{
         components::{
-            Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, TargetDepth,
+            Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, InflictsDamage,
+            TargetDepth,
         },
         enemy::{
             bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
@@ -151,7 +152,7 @@ pub fn check_idle_tardigrade(
                         DepthProgress(depth.0.clone() as f32),
                         DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
                         TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
-                        Damage(BLOOD_ATTACK_DAMAGE),
+                        InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
                         Hittable {},
                         Health(1),

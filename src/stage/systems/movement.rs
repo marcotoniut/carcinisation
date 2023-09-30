@@ -9,7 +9,7 @@ use crate::{
     stage::{
         components::{Depth, DepthProgress, DepthReached, DepthSpeed, TargetDepth},
         enemy::components::CircleAround,
-        events::DepthChanged,
+        events::DepthChangedEvent,
         resources::StageTime,
     },
 };
@@ -50,7 +50,7 @@ pub fn update_depth(
         (Entity, &mut Depth, &DepthProgress, &DepthSpeed),
         Without<DepthReached>,
     >,
-    mut event_writer: EventWriter<DepthChanged>,
+    mut event_writer: EventWriter<DepthChangedEvent>,
 ) {
     for (entity, mut depth, progress, speed) in &mut incoming_query.iter_mut() {
         if speed.0 > 0.0 {
@@ -58,7 +58,7 @@ pub fn update_depth(
             if progress.0 >= (depth.0 as f32 + 0.5) {
                 depth.0 = next_depth;
                 // REVIEW should this use DepthChanged, or Added<DepthReached> (LinearTargetReached<StageTime, ZAxisPosition>)
-                event_writer.send(DepthChanged {
+                event_writer.send(DepthChangedEvent {
                     entity,
                     depth: depth.clone(),
                 });
@@ -67,7 +67,7 @@ pub fn update_depth(
             let next_depth = depth.0 - 1;
             if progress.0 <= (depth.0 as f32 - 0.5) {
                 depth.0 = next_depth;
-                event_writer.send(DepthChanged {
+                event_writer.send(DepthChangedEvent {
                     entity,
                     depth: depth.clone(),
                 });

@@ -5,6 +5,7 @@ mod quantize;
 
 use image::*;
 use paths::*;
+use serde_derive::*;
 use std::{fs, path::Path};
 
 use crate::quantize::reduce_colors;
