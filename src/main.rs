@@ -98,7 +98,7 @@ fn main() {
     .add_plugins(InputManagerPlugin::<GBInput>::default())
     .add_systems(Startup, set_framespace)
     .add_systems(Startup, (spawn_camera, spawn_gb_input))
-    .add_systems(Update, input_snd_menu)
+    // .add_systems(Update, input_snd_menu)
     .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
     // TODO should this be placed at main?
     // .add_systems(Update, handle_game_over)

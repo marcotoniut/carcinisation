@@ -20,6 +20,8 @@ use seldom_pixel::{
 
 use self::components::*;
 
+use super::components::ScoreText;
+
 pub fn render_cleared_screen(
     mut commands: Commands,
     mut assets_typeface: PxAssets<PxTypeface>,

@@ -7,14 +7,16 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
-use crate::{globals::*, Layer};
+use crate::{globals::*, stage::ui::components::ScoreText, Layer};
 
 use super::super::components::*;
 
 const LAYOUT_Y: i32 = 2;
-const HUD_COUNT_W: i32 = 37;
+const HUD_HEALTH_W: i32 = 37;
+const HUD_HEALTH_ML: i32 = 15;
 
-const SCORE_COUNT_ML: i32 = 15;
+const HUD_SCORE_W: i32 = 95;
+const HUD_SCORE_MR: i32 = 15;
 
 pub fn spawn_hud(
     mut commands: Commands,
@@ -75,9 +77,9 @@ pub fn spawn_hud_bundle(
                             canvas: PxCanvas::Camera,
                             layer: Layer::Hud,
                             rect: IRect::new(
-                                IVec2::new(SCORE_COUNT_ML, LAYOUT_Y),
+                                IVec2::new(HUD_HEALTH_ML, LAYOUT_Y),
                                 IVec2::new(
-                                    SCORE_COUNT_ML + HUD_COUNT_W,
+                                    HUD_HEALTH_ML + HUD_HEALTH_W,
                                     LAYOUT_Y + (FONT_SIZE + 2) as i32,
                                 ),
                             )
@@ -91,48 +93,31 @@ pub fn spawn_hud_bundle(
                     ));
                 });
 
-            // parent
-            //     .spawn((Name::new("Enemies"),))
-            //     .with_children(|parent| {
-            //         parent.spawn((
-            //             PxSpriteBundle::<Layer> {
-            //                 anchor: PxAnchor::BottomRight,
-            //                 canvas: PxCanvas::Camera,
-            //                 layer: Layer::UI,
-            //                 sprite: assets_sprite.load("sprites/enemy-count-icon.png"),
-            //                 ..default()
-            //             },
-            //             PxSubPosition::from(Vec2::new(
-            //                 SCREEN_RESOLUTION.x as f32 - 6.0,
-            //                 LAYOUT_Y as f32,
-            //             )),
-            //             Name::new("EnemyCountIcon"),
-            //         ));
-
-            //         parent.spawn((
-            //             PxTextBundle::<Layer> {
-            //                 alignment: PxAnchor::BottomRight,
-            //                 canvas: PxCanvas::Camera,
-            //                 layer: Layer::UI,
-            //                 rect: IRect::new(
-            //                     IVec2::new(
-            //                         SCREEN_RESOLUTION.x as i32 - SCORE_COUNT_ML - HUD_COUNT_W,
-            //                         LAYOUT_Y,
-            //                     ),
-            //                     IVec2::new(
-            //                         SCREEN_RESOLUTION.x as i32 - HUD_COUNT_W,
-            //                         LAYOUT_Y + (FONT_SIZE + 2) as i32,
-            //                     ),
-            //                 )
-            //                 .into(),
-            //                 text: "0".into(),
-            //                 typeface: typeface.clone(),
-            //                 ..default()
-            //             },
-            //             EnemyCountText,
-            //             Name::new("EnemyCountText"),
-            //         ));
-            //     });
+            parent.spawn((Name::new("Score"),)).with_children(|parent| {
+                parent.spawn((
+                    PxTextBundle::<Layer> {
+                        alignment: PxAnchor::BottomRight,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::Hud,
+                        rect: IRect::new(
+                            IVec2::new(
+                                SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR - HUD_SCORE_W,
+                                LAYOUT_Y,
+                            ),
+                            IVec2::new(
+                                SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
+                                LAYOUT_Y + (FONT_SIZE + 2) as i32,
+                            ),
+                        )
+                        .into(),
+                        text: "0".into(),
+                        typeface: typeface.clone(),
+                        ..default()
+                    },
+                    ScoreText,
+                    Name::new("ScoreText"),
+                ));
+            });
         })
         .id();
 

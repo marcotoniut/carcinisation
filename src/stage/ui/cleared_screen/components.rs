@@ -5,10 +5,6 @@ pub struct ClearedScreen {}
 
 #[derive(Component)]
 ///current score
-pub struct ScoreText;
-
-#[derive(Component)]
-///current score
 pub struct InfoText;
 
 #[derive(Component)]
