@@ -2,21 +2,8 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxText;
 
 use crate::stage::{
-    components::Health,
-    enemy::components::PlaceholderEnemy,
-    player::components::Player,
-    ui::hud::components::{EnemyCountText, HealthText},
+    components::Health, player::components::Player, ui::hud::components::HealthText,
 };
-
-pub fn update_enemy_text(
-    mut text_query: Query<&mut PxText, With<EnemyCountText>>,
-    enemy_query: Query<With<PlaceholderEnemy>>,
-) {
-    let count = enemy_query.iter().count().to_string();
-    for mut text in text_query.iter_mut() {
-        text.0 = count.clone();
-    }
-}
 
 pub fn update_health_text(
     mut query: Query<&mut PxText, With<HealthText>>,

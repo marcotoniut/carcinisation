@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use lazy_static::lazy_static;
 
 const OBJECT_FIBERTREE_Y: f32 = 13.;
+const OBJECT_LAMP_Y: f32 = -5.;
 
 lazy_static! {
     pub static ref STAGE_DEBUG_DATA: StageData = StageData {
@@ -25,10 +26,10 @@ pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
         StageSpawn::Object(ObjectSpawn::fibertree_base(30., OBJECT_FIBERTREE_Y)),
         StageSpawn::Object(ObjectSpawn::fibertree_base(180., OBJECT_FIBERTREE_Y)),
-        StageSpawn::Object(ObjectSpawn::bench_big_base(20., 65.)),
+        StageSpawn::Object(ObjectSpawn::bench_big_base(50., 65.)),
         StageSpawn::Object(ObjectSpawn::bench_big_base(200., 60.)),
         StageSpawn::Destructible(
-            DestructibleSpawn::lamp_base(30., 0.).drops(ContainerSpawn::Enemy(
+            DestructibleSpawn::lamp_base(75., OBJECT_LAMP_Y).drops(ContainerSpawn::Enemy(
                 EnemySpawn::mosquito_base()
                     .set_coordinates(Vec2::new(60., 100.))
                     .set_elapsed(0.4)
@@ -39,7 +40,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
             )),
         ),
         StageSpawn::Destructible(
-            DestructibleSpawn::lamp_base(20., 0.)
+            DestructibleSpawn::lamp_base(260., OBJECT_LAMP_Y)
                 .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
         ),
     ]
