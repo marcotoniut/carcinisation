@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod damage;
 pub mod movement;
 pub mod spawn;
 
@@ -27,7 +28,7 @@ use super::{
     components::{Dead, Destructible, Object, Stage},
     data::*,
     enemy::components::Enemy,
-    events::{StageClearedTrigger, StageGameOverTrigger, StageSpawnTrigger, StageStepTrigger},
+    events::{StageClearedEvent, StageGameOverEvent, StageSpawnEvent, StageStepEvent},
     player::components::Player,
     resources::{StageActionTimer, StageProgress, StageTime},
     GameState, StageState,
@@ -78,8 +79,8 @@ pub fn setup_stage(
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
-    // let stage_data = STAGE_DEBUG_DATA.clone();
-    let stage_data = STAGE_PARK_DATA.clone();
+    let stage_data = STAGE_DEBUG_DATA.clone();
+    // let stage_data = STAGE_PARK_DATA.clone();
 
     for spawn in &stage_data.spawns {
         match spawn {
@@ -147,10 +148,10 @@ pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time
 
 pub fn check_stage_step_timer(
     timer: Res<StageActionTimer>,
-    mut event_writer: EventWriter<StageStepTrigger>,
+    mut event_writer: EventWriter<StageStepEvent>,
 ) {
     if timer.timer.finished() {
-        event_writer.send(StageStepTrigger {});
+        event_writer.send(StageStepEvent {});
     }
 }
 
@@ -161,8 +162,8 @@ pub fn update_stage(
     mut next_state: ResMut<NextState<StageState>>,
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     mut camera: ResMut<PxCamera>,
-    mut spawn_event_writer: EventWriter<StageSpawnTrigger>,
-    mut step_event_writer: EventWriter<StageStepTrigger>,
+    mut spawn_event_writer: EventWriter<StageSpawnEvent>,
+    mut step_event_writer: EventWriter<StageStepEvent>,
     mut stage_progress: ResMut<StageProgress>,
     time: Res<Time>,
     stage_data_raw: Res<StageRawData>,
@@ -204,7 +205,7 @@ pub fn update_stage(
                                 );
                             }
                             *camera_pos = PxSubPosition(coordinates.clone());
-                            step_event_writer.send(StageStepTrigger {});
+                            step_event_writer.send(StageStepEvent {});
                         }
 
                         **camera = camera_pos.round().as_ivec2();
@@ -219,7 +220,7 @@ pub fn update_stage(
                         // TODO
                         if let Some(duration) = max_duration {
                         } else {
-                            step_event_writer.send(StageStepTrigger {});
+                            step_event_writer.send(StageStepEvent {});
                         }
                         spawns_val = Some(spawns);
                     }
@@ -228,7 +229,7 @@ pub fn update_stage(
 
                         if let Some(duration) = max_duration {
                         } else {
-                            step_event_writer.send(StageStepTrigger {});
+                            step_event_writer.send(StageStepEvent {});
                         }
                     }
                 }
@@ -243,7 +244,7 @@ pub fn update_stage(
                             if 0. <= elapsed {
                                 stage_progress.spawn_step_elapsed -= spawn.get_elapsed();
 
-                                spawn_event_writer.send(StageSpawnTrigger {
+                                spawn_event_writer.send(StageSpawnEvent {
                                     spawn: spawn.clone(),
                                 });
                             } else {
@@ -272,20 +273,20 @@ pub fn update_stage(
 }
 
 pub fn check_staged_cleared(
-    mut event_writer: EventWriter<StageClearedTrigger>,
+    mut event_writer: EventWriter<StageClearedEvent>,
     stage_progress: Res<StageProgress>,
     stage_data_raw: Res<StageRawData>,
 ) {
     let stage = &stage_data_raw.stage_data;
     if stage_progress.step >= stage.steps.len() {
-        event_writer.send(StageClearedTrigger {});
+        event_writer.send(StageClearedEvent {});
     }
 }
 
 pub fn read_stage_cleared_trigger(
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageState>>,
-    mut event_reader: EventReader<StageClearedTrigger>,
+    mut event_reader: EventReader<StageClearedEvent>,
     destructible_query: Query<Entity, With<Destructible>>,
     enemy_query: Query<Entity, With<Enemy>>,
     music_query: Query<Entity, With<Music>>,
@@ -314,18 +315,18 @@ pub fn read_stage_cleared_trigger(
 }
 
 pub fn check_stage_game_over(
-    mut event_writer: EventWriter<StageGameOverTrigger>,
+    mut event_writer: EventWriter<StageGameOverEvent>,
     player_query: Query<&Player, Added<Dead>>,
 ) {
     if let Ok(_) = player_query.get_single() {
-        event_writer.send(StageGameOverTrigger {});
+        event_writer.send(StageGameOverEvent {});
     }
 }
 
 pub fn read_stage_game_over_trigger(
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageState>>,
-    mut event_reader: EventReader<StageGameOverTrigger>,
+    mut event_reader: EventReader<StageGameOverEvent>,
     destructible_query: Query<Entity, With<Destructible>>,
     enemy_query: Query<Entity, With<Enemy>>,
     music_query: Query<Entity, With<Music>>,
@@ -354,7 +355,7 @@ pub fn read_stage_game_over_trigger(
 }
 
 pub fn read_stage_step_trigger(
-    mut event_reader: EventReader<StageStepTrigger>,
+    mut event_reader: EventReader<StageStepEvent>,
     mut stage_progress: ResMut<StageProgress>,
     mut stage_action_timer: ResMut<StageActionTimer>,
     stage_data_raw: Res<StageRawData>,

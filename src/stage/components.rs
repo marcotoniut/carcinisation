@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use crate::plugins::movement::structs::MovementVec2Position;
@@ -41,13 +43,25 @@ pub enum Collision {
     Circle(f32),
 }
 
+#[derive(Clone, Component, Debug)]
+pub struct Flicker;
+
+#[derive(Clone, Component, Debug)]
+pub struct DamageFlicker {
+    pub phase_start: Duration,
+    pub count: usize,
+}
+
+#[derive(Component, Debug)]
+pub struct InvertFilter;
+
 // TODO impl more complex collision algorithm
 
 #[derive(Clone, Component, Debug)]
 pub struct Health(pub u32);
 
 #[derive(Clone, Component, Debug)]
-pub struct Damage(pub u32);
+pub struct InflictsDamage(pub u32);
 
 // Should hittable specify whether you can hit with Melee, ranged or both?
 #[derive(Clone, Component, Debug)]

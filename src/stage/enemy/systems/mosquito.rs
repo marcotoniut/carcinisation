@@ -14,11 +14,12 @@ use crate::{
     },
     stage::{
         components::{
-            Damage, Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, TargetDepth,
+            Dead, Depth, DepthProgress, DepthSpeed, Health, Hittable, InView, InflictsDamage,
+            TargetDepth,
         },
         data::EnemyStep,
         enemy::{bundles::*, components::*, data::mosquito::MOSQUITO_ANIMATIONS},
-        events::DepthChanged,
+        events::DepthChangedEvent,
         resources::StageTime,
         score::components::Score,
     },
@@ -245,7 +246,7 @@ pub fn check_idle_mosquito(
                         DepthProgress(depth.0.clone() as f32),
                         DepthSpeed(BLOOD_ATTACK_DEPTH_SPEED),
                         TargetDepth(BLOOD_ATTACK_MAX_DEPTH + 1),
-                        Damage(BLOOD_ATTACK_DAMAGE),
+                        InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
                         Hittable {},
                         Health(1),
@@ -271,7 +272,7 @@ pub fn despawn_dead_attacks(
  */
 pub fn read_enemy_attack_depth_changed(
     mut commands: Commands,
-    mut event_reader: EventReader<DepthChanged>,
+    mut event_reader: EventReader<DepthChangedEvent>,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
     for event in event_reader.iter() {

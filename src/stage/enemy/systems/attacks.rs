@@ -12,7 +12,8 @@ use crate::{
     stage::{
         components::*,
         enemy::{components::EnemyAttack, data::blood_attack::BLOOD_ATTACK_ANIMATIONS},
-        player::{components::Player, events::CameraShakeTrigger},
+        events::DamageEvent,
+        player::{components::Player, events::CameraShakeEvent},
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     Layer,
@@ -31,11 +32,12 @@ pub fn miss_on_reached(
 pub fn blood_attack_damage_on_reached(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    mut player_query: Query<&mut Health, With<Player>>,
-    mut event_writer: EventWriter<CameraShakeTrigger>,
+    mut camera_shake_event_writer: EventWriter<CameraShakeEvent>,
+    mut damage_event_writer: EventWriter<DamageEvent>,
+    mut player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
     depth_query: Query<
-        (Entity, &Damage, &PxSubPosition, &Depth),
+        (Entity, &InflictsDamage, &PxSubPosition, &Depth),
         (Added<DepthReached>, With<EnemyAttack>, With<InView>),
     >,
     volume_settings: Res<VolumeSettings>,
@@ -43,12 +45,12 @@ pub fn blood_attack_damage_on_reached(
     for (entity, damage, position, depth) in &mut depth_query.iter() {
         let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
 
-        for mut health in &mut player_query.iter_mut() {
-            let new_health = health.0 as i32 - damage.0 as i32;
-            health.0 = new_health.max(0) as u32;
+        for entity in &mut player_query.iter_mut() {
+            damage_event_writer.send(DamageEvent::new(entity, damage.0));
         }
 
-        event_writer.send(CameraShakeTrigger {});
+        // TODO CameraShake on damage event read instead?
+        camera_shake_event_writer.send(CameraShakeEvent);
 
         commands.spawn((
             AudioBundle {

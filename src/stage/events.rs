@@ -6,21 +6,39 @@ use super::{components::Depth, data::StageSpawn};
 pub struct StageRestart {}
 
 #[derive(Event)]
-pub struct StageStepTrigger {}
+pub struct StageStepEvent {}
 
 #[derive(Event)]
-pub struct StageClearedTrigger {}
+pub struct StageClearedEvent {}
 
 #[derive(Event)]
-pub struct StageGameOverTrigger {}
+pub struct StageGameOverEvent {}
 
 #[derive(Event)]
-pub struct StageSpawnTrigger {
+pub struct StageSpawnEvent {
     pub spawn: StageSpawn,
 }
 
 #[derive(Event)]
-pub struct DepthChanged {
+pub struct DepthChangedEvent {
     pub entity: Entity,
     pub depth: Depth,
+}
+
+impl DepthChangedEvent {
+    pub fn new(entity: Entity, depth: Depth) -> Self {
+        DepthChangedEvent { entity, depth }
+    }
+}
+
+#[derive(Event)]
+pub struct DamageEvent {
+    pub entity: Entity,
+    pub value: u32,
+}
+
+impl DamageEvent {
+    pub fn new(entity: Entity, value: u32) -> Self {
+        DamageEvent { entity, value }
+    }
 }

@@ -1,5 +1,6 @@
 pub mod attacks;
 pub mod behaviors;
+pub mod damage;
 pub mod mosquito;
 pub mod tardigrade;
 
@@ -11,6 +12,7 @@ use crate::{
     stage::{
         components::{Collision, Dead, Health, Hittable, SpawnDrop},
         data::ContainerSpawn,
+        events::DamageEvent,
         player::components::{
             PlayerAttack, UnhittableList, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
         },
@@ -20,6 +22,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 
+// TODO remove in favor of damage taken?
 pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health), Without<Dead>>) {
     for (entity, health) in &mut query.iter() {
         if health.0 == 0 {
@@ -32,7 +35,9 @@ pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health),
  * Could split between box and circle collision
  */
 pub fn check_got_hit(
+    mut commands: Commands,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    mut event_writer: EventWriter<DamageEvent>,
     mut attack_query: Query<(&PlayerAttack, &mut UnhittableList)>,
     mut hittable_query: Query<(Entity, &PxSubPosition, &Collision, &mut Health), With<Hittable>>,
     mut score: ResMut<Score>,
@@ -44,81 +49,72 @@ pub fn check_got_hit(
                 hit_list.0.insert(entity);
                 let attack_position = camera_pos.0 + attack.position;
                 match attack.weapon {
-                    Weapon::Pincer => {
-                        match collision {
-                            Collision::Circle(radius) => {
-                                let distance = attack_position.distance(position.0);
-                                if distance < *radius {
-                                    if distance * 2.5 < *radius {
-                                        // TODO organise
-                                        score.add_u(SCORE_MELEE_CRITICAL_HIT);
-                                        health.0 =
-                                            health.0.saturating_sub(ATTACK_PINCER_DAMAGE * 2);
-                                        info!("Entity got hit by Pincer! ***CRITICAL***");
-                                    } else {
-                                        // TODO organise
-                                        score.add_u(SCORE_MELEE_REGULAR_HIT);
-                                        health.0 = health.0.saturating_sub(ATTACK_PINCER_DAMAGE);
-                                        info!("Entity got hit by Pincer!");
-                                    }
-                                }
-                            }
-                            Collision::Box(v) => {
-                                let distance = attack_position.distance(position.0);
-                                if distance < v.x && distance < v.y {
-                                    if distance * 2.5 < v.x && distance * 2.5 < v.y {
-                                        // TODO organise
-                                        score.add_u(SCORE_MELEE_CRITICAL_HIT);
-                                        health.0 =
-                                            health.0.saturating_sub(ATTACK_PINCER_DAMAGE * 2);
-                                        info!("Entity got hit by Pincer! ***CRITICAL***");
-                                    } else {
-                                        // TODO organise
-                                        score.add_u(SCORE_MELEE_REGULAR_HIT);
-                                        health.0 = health.0.saturating_sub(ATTACK_PINCER_DAMAGE);
-                                        info!("Entity got hit by Pincer!");
-                                    }
+                    Weapon::Pincer => match collision {
+                        Collision::Circle(radius) => {
+                            let distance = attack_position.distance(position.0);
+                            if distance < *radius {
+                                if distance * 2.5 < *radius {
+                                    event_writer
+                                        .send(DamageEvent::new(entity, ATTACK_PINCER_DAMAGE * 2));
+                                    score.add_u(SCORE_MELEE_CRITICAL_HIT);
+                                    info!("Entity got hit by Pincer! ***CRITICAL***");
+                                } else {
+                                    event_writer
+                                        .send(DamageEvent::new(entity, ATTACK_PINCER_DAMAGE));
+                                    score.add_u(SCORE_MELEE_REGULAR_HIT);
+                                    info!("Entity got hit by Pincer!");
                                 }
                             }
                         }
-                    }
-                    Weapon::Gun => {
-                        match collision {
-                            Collision::Circle(radius) => {
-                                let distance = attack_position.distance(position.0);
-                                if distance < *radius {
-                                    if distance * 2.5 < *radius {
-                                        // TODO organise
-                                        score.add_u(SCORE_RANGED_CRITICAL_HIT);
-                                        health.0 = health.0.saturating_sub(ATTACK_GUN_DAMAGE * 2);
-                                        info!("Entity got hit by Gun! ***CRITICAL***");
-                                    } else {
-                                        // TODO organise
-                                        score.add_u(SCORE_RANGED_REGULAR_HIT);
-                                        health.0 = health.0.saturating_sub(ATTACK_GUN_DAMAGE);
-                                        info!("Entity got hit by Gun!");
-                                    }
-                                }
-                            }
-                            Collision::Box(v) => {
-                                let distance = attack_position.distance(position.0);
-                                if distance < v.x && distance < v.y {
-                                    if distance * 2.5 < v.x && distance * 2.5 < v.y {
-                                        // TODO organise
-                                        score.add_u(SCORE_RANGED_CRITICAL_HIT);
-                                        health.0 =
-                                            health.0.saturating_sub(ATTACK_PINCER_DAMAGE * 2);
-                                        info!("Entity got hit by Gun! ***CRITICAL***");
-                                    } else {
-                                        // TODO organise
-                                        score.add_u(SCORE_RANGED_REGULAR_HIT);
-                                        health.0 = health.0.saturating_sub(ATTACK_PINCER_DAMAGE);
-                                        info!("Entity got hit by Gun!");
-                                    }
+                        Collision::Box(v) => {
+                            let distance = attack_position.distance(position.0);
+                            if distance < v.x && distance < v.y {
+                                if distance * 2.5 < v.x && distance * 2.5 < v.y {
+                                    event_writer
+                                        .send(DamageEvent::new(entity, ATTACK_PINCER_DAMAGE * 2));
+                                    score.add_u(SCORE_MELEE_CRITICAL_HIT);
+                                    info!("Entity got hit by Pincer! ***CRITICAL***");
+                                } else {
+                                    event_writer
+                                        .send(DamageEvent::new(entity, ATTACK_PINCER_DAMAGE));
+                                    score.add_u(SCORE_MELEE_REGULAR_HIT);
+                                    info!("Entity got hit by Pincer!");
                                 }
                             }
                         }
-                    }
+                    },
+                    Weapon::Gun => match collision {
+                        Collision::Circle(radius) => {
+                            let distance = attack_position.distance(position.0);
+                            if distance < *radius {
+                                if distance * 2.5 < *radius {
+                                    event_writer
+                                        .send(DamageEvent::new(entity, ATTACK_GUN_DAMAGE * 2));
+                                    score.add_u(SCORE_RANGED_CRITICAL_HIT);
+                                    info!("Entity got hit by Gun! ***CRITICAL***");
+                                } else {
+                                    event_writer.send(DamageEvent::new(entity, ATTACK_GUN_DAMAGE));
+                                    score.add_u(SCORE_RANGED_REGULAR_HIT);
+                                    info!("Entity got hit by Gun!");
+                                }
+                            }
+                        }
+                        Collision::Box(v) => {
+                            let distance = attack_position.distance(position.0);
+                            if distance < v.x && distance < v.y {
+                                if distance * 2.5 < v.x && distance * 2.5 < v.y {
+                                    event_writer
+                                        .send(DamageEvent::new(entity, ATTACK_GUN_DAMAGE * 2));
+                                    score.add_u(SCORE_RANGED_CRITICAL_HIT);
+                                    info!("Entity got hit by Gun! ***CRITICAL***");
+                                } else {
+                                    event_writer.send(DamageEvent::new(entity, ATTACK_GUN_DAMAGE));
+                                    score.add_u(SCORE_RANGED_REGULAR_HIT);
+                                    info!("Entity got hit by Gun!");
+                                }
+                            }
+                        }
+                    },
                 }
             }
         }

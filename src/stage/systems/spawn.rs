@@ -6,7 +6,7 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::{Collision, Destructible, Health, Hittable, Object, SpawnDrop},
+        components::{Collision, Destructible, Flicker, Health, Hittable, Object, SpawnDrop},
         data::{
             DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, ObjectSpawn, ObjectType,
             PickupSpawn, PickupType, StageSpawn,
@@ -16,7 +16,7 @@ use crate::{
             EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS,
             ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS,
         },
-        events::StageSpawnTrigger,
+        events::StageSpawnEvent,
         pickup::components::HealthRecovery,
     },
     systems::camera::CameraPos,
@@ -25,7 +25,7 @@ use crate::{
 
 pub fn read_stage_spawn_trigger(
     mut commands: Commands,
-    mut event_reader: EventReader<StageSpawnTrigger>,
+    mut event_reader: EventReader<StageSpawnEvent>,
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
@@ -137,6 +137,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                         steps: steps.clone(),
                     },
                     EnemyMosquitoAttacking { ..default() },
+                    Flicker,
                     Hittable {},
                     PxSubPosition::from(position),
                     Collision::Circle(ENEMY_MOSQUITO_RADIUS),
@@ -173,6 +174,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                     steps: steps.clone(),
                 },
                 EnemyTardigradeAttacking { ..default() },
+                Flicker,
                 Hittable {},
                 PxSubPosition::from(position),
                 Collision::Circle(ENEMY_TARDIGRADE_RADIUS),
@@ -200,6 +202,7 @@ pub fn spawn_destructible(
         .spawn((
             Name::new(format!("Destructible {:?}", spawn.destructible_type)),
             Destructible {},
+            Flicker,
             Hittable {},
             PxSpriteBundle::<Layer> {
                 sprite,
