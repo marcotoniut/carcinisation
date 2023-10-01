@@ -3,11 +3,11 @@ use std::collections::VecDeque;
 use bevy::{
     prelude::Vec2,
     reflect::{TypePath, TypeUuid},
-    utils::HashMap,
 };
 
 use crate::{
-    cinemachine::data::CinemachineData, globals::HALF_SCREEN_RESOLUTION,
+    cinemachine::data::CinemachineData,
+    globals::{HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
     plugins::movement::structs::MovementDirection,
 };
 
@@ -15,7 +15,7 @@ lazy_static! {
     pub static ref DEFAULT_COORDINATES: Vec2 = HALF_SCREEN_RESOLUTION.clone();
 }
 
-pub const CAMERA_BASE_SPEED: f32 = 15.0;
+pub const GAME_BASE_SPEED: f32 = 15.0;
 
 pub trait Contains {
     fn set_contains(&mut self, value: Option<Box<ContainerSpawn>>);
@@ -82,9 +82,8 @@ pub enum EnemyStep {
         duration: f32,
     },
     LinearMovement {
-        coordinates: Vec2,
-        attacking: bool,
-        speed: f32,
+        direction: Vec2,
+        trayectory: f32,
     },
     Jump {
         coordinates: Vec2,
@@ -120,6 +119,59 @@ impl EnemyStep {
             EnemyStep::Jump { .. } => None,
         }
     }
+
+    pub fn opposite_direction(mut self) -> Self {
+        match self {
+            EnemyStep::Circle {
+                ref mut direction, ..
+            } => {
+                *direction = direction.opposite();
+            }
+            EnemyStep::LinearMovement {
+                ref mut direction, ..
+            } => {
+                *direction = Vec2::new(-direction.x, -direction.y);
+            }
+            _ => {}
+        }
+        self
+    }
+
+    pub fn set_radius(mut self, value: f32) -> Self {
+        if let EnemyStep::Circle {
+            radius: ref mut r, ..
+        } = self
+        {
+            *r = value;
+        }
+        self
+    }
+
+    pub fn circle_around_base() -> Self {
+        EnemyStep::Circle {
+            radius: 12.,
+            direction: MovementDirection::Negative,
+            duration: 999.,
+        }
+    }
+
+    pub fn linear_movement_base() -> Self {
+        EnemyStep::LinearMovement {
+            direction: Vec2::new(-1., 0.),
+            trayectory: SCREEN_RESOLUTION.x as f32 + 10.,
+        }
+    }
+
+    pub fn set_linear_direction(mut self, value: Vec2) -> Self {
+        if let EnemyStep::LinearMovement {
+            direction: ref mut d,
+            ..
+        } = self
+        {
+            *d = value;
+        }
+        self
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -144,15 +196,15 @@ impl PickupSpawn {
         self.coordinates = value;
         self
     }
-    pub fn big_healthpack_base() -> PickupSpawn {
-        PickupSpawn {
+    pub fn big_healthpack_base() -> Self {
+        Self {
             pickup_type: PickupType::BigHealthpack,
             coordinates: Vec2::ZERO,
             elapsed: 0.0,
         }
     }
-    pub fn small_healthpack_base() -> PickupSpawn {
-        PickupSpawn {
+    pub fn small_healthpack_base() -> Self {
+        Self {
             pickup_type: PickupType::SmallHealthpack,
             coordinates: Vec2::ZERO,
             elapsed: 0.0,
@@ -181,32 +233,32 @@ impl DestructibleSpawn {
         self
     }
 
-    pub fn lamp_base(x: f32, y: f32) -> DestructibleSpawn {
-        DestructibleSpawn {
+    pub fn lamp_base(x: f32, y: f32) -> Self {
+        Self {
             destructible_type: DestructibleType::Lamp,
             coordinates: Vec2::new(x, y),
             contains: None,
         }
     }
 
-    pub fn trashcan_base(x: f32, y: f32) -> DestructibleSpawn {
-        DestructibleSpawn {
+    pub fn trashcan_base(x: f32, y: f32) -> Self {
+        Self {
             destructible_type: DestructibleType::Trashcan,
             coordinates: Vec2::new(x, y),
             contains: None,
         }
     }
 
-    pub fn crystal_base(x: f32, y: f32) -> DestructibleSpawn {
-        DestructibleSpawn {
+    pub fn crystal_base(x: f32, y: f32) -> Self {
+        Self {
             destructible_type: DestructibleType::Crystal,
             coordinates: Vec2::new(x, y),
             contains: None,
         }
     }
 
-    pub fn mushroom_base(x: f32, y: f32) -> DestructibleSpawn {
-        DestructibleSpawn {
+    pub fn mushroom_base(x: f32, y: f32) -> Self {
+        Self {
             destructible_type: DestructibleType::Mushroom,
             coordinates: Vec2::new(x, y),
             contains: None,
@@ -226,22 +278,22 @@ impl ObjectSpawn {
         self
     }
 
-    pub fn bench_big_base(x: f32, y: f32) -> ObjectSpawn {
-        ObjectSpawn {
+    pub fn bench_big_base(x: f32, y: f32) -> Self {
+        Self {
             object_type: ObjectType::BenchBig,
             coordinates: Vec2::new(x, y),
         }
     }
 
-    pub fn bench_small_base(x: f32, y: f32) -> ObjectSpawn {
-        ObjectSpawn {
+    pub fn bench_small_base(x: f32, y: f32) -> Self {
+        Self {
             object_type: ObjectType::BenchSmall,
             coordinates: Vec2::new(x, y),
         }
     }
 
-    pub fn fibertree_base(x: f32, y: f32) -> ObjectSpawn {
-        ObjectSpawn {
+    pub fn fibertree_base(x: f32, y: f32) -> Self {
+        Self {
             object_type: ObjectType::Fibertree,
             coordinates: Vec2::new(x, y),
         }
@@ -267,6 +319,14 @@ impl EnemySpawn {
         self.coordinates = value;
         self
     }
+    pub fn set_coordinates_x(mut self, value: f32) -> Self {
+        self.coordinates.x = value;
+        self
+    }
+    pub fn set_coordinates_y(mut self, value: f32) -> Self {
+        self.coordinates.y = value;
+        self
+    }
     pub fn set_speed(mut self, value: f32) -> Self {
         self.speed = value;
         self
@@ -288,28 +348,54 @@ impl EnemySpawn {
         self.contains = Some(Box::new(value));
         self
     }
-    pub fn tardigrade_base() -> EnemySpawn {
-        EnemySpawn {
+
+    pub fn add_step(mut self, value: EnemyStep) -> Self {
+        self.steps.extend(vec![value]);
+        self
+    }
+
+    // Enemies
+    pub fn tardigrade_base() -> Self {
+        Self {
             enemy_type: EnemyType::Tardigrade,
             coordinates: DEFAULT_COORDINATES.clone(),
-            speed: 150.0,
+            speed: 0.5,
             elapsed: 0.0,
             steps: vec![].into(),
             contains: None,
         }
     }
-    pub fn mosquito_base() -> EnemySpawn {
-        EnemySpawn {
+    pub fn mosquito_base() -> Self {
+        Self {
             enemy_type: EnemyType::Mosquito,
             coordinates: DEFAULT_COORDINATES.clone(),
-            speed: 400.0,
+            speed: 2.0,
             elapsed: 0.0,
             steps: vec![].into(),
             contains: None,
         }
     }
-    pub fn spidey_base(speed_multiplier: f32, coordinates: Vec2) -> EnemySpawn {
-        EnemySpawn {
+    pub fn mosquito_variant_circle() -> Self {
+        Self::mosquito_base().set_steps_vec(vec![EnemyStep::circle_around_base().set_radius(12.)])
+    }
+    pub fn mosquito_variant_linear() -> Self {
+        Self::mosquito_base()
+            .set_coordinates_x(SCREEN_RESOLUTION.x as f32 + 10.)
+            .set_steps_vec(vec![
+                EnemyStep::linear_movement_base(),
+                EnemyStep::linear_movement_base().opposite_direction(),
+            ])
+    }
+    pub fn mosquito_variant_linear_opposite() -> Self {
+        Self::mosquito_base()
+            .set_coordinates_x(-10.)
+            .set_steps_vec(vec![
+                EnemyStep::linear_movement_base().opposite_direction(),
+                EnemyStep::linear_movement_base(),
+            ])
+    }
+    pub fn spidey_base(speed_multiplier: f32, coordinates: Vec2) -> Self {
+        Self {
             enemy_type: EnemyType::Spidey,
             speed: speed_multiplier,
             coordinates,
@@ -337,9 +423,9 @@ impl StageSpawn {
     pub fn get_elapsed(&self) -> f32 {
         match self {
             StageSpawn::Destructible(DestructibleSpawn { .. }) => 0.,
-            StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed / CAMERA_BASE_SPEED,
+            StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
             StageSpawn::Object(ObjectSpawn { .. }) => 0.,
-            StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed / CAMERA_BASE_SPEED,
+            StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
         }
     }
 
@@ -423,7 +509,7 @@ pub enum StageStep {
 impl StageStep {
     pub fn speed(&self) -> f32 {
         match self {
-            StageStep::Movement { base_speed, .. } => *base_speed * CAMERA_BASE_SPEED,
+            StageStep::Movement { base_speed, .. } => *base_speed * GAME_BASE_SPEED,
             StageStep::Stop { .. } => 0.,
             StageStep::Cinematic { .. } => 0.,
         }

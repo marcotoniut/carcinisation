@@ -85,7 +85,7 @@ pub fn despawn_dead_tardigrade(
                 assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
 
             commands.spawn((
-                Name::new("EnemyTardigrade - Dead"),
+                Name::new("Dead - Tardigrade"),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: texture,
@@ -148,8 +148,8 @@ pub fn check_idle_tardigrade(
 
                 commands
                     .spawn((
-                        Name::new("Attack - Blood Shot"),
-                        EnemyAttack {},
+                        Name::new("EnemyAttack - BloodShot"),
+                        EnemyAttack,
                         // TODO bundle
                         PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
                         PursueSpeed::<StageTime, PxSubPosition>::new(

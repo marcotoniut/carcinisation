@@ -28,11 +28,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     .set_steps_vec(vec![
                         EnemyStep::Idle { duration: 1. },
                         EnemyStep::Attack { duration: 1. },
-                        EnemyStep::LinearMovement {
-                            coordinates: Vec2::new(10., 0.),
-                            attacking: true,
-                            speed: 3.,
-                        },
+                        EnemyStep::linear_movement_base().set_linear_direction(Vec2::new(0.5, -1.)),
                         EnemyStep::Circle {
                             duration: 4.,
                             radius: 12.,

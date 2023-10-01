@@ -4,7 +4,9 @@ use seldom_pixel::prelude::PxSubPosition;
 use crate::{
     plugins::movement::{linear::components::*, structs::MovementDirection},
     stage::{
-        components::placement::Depth, enemy::components::CircleAround, events::DepthChangedEvent,
+        components::placement::{Depth, LinearUpdateDisabled},
+        enemy::components::{behavior::EnemyCurrentBehavior, CircleAround, Enemy, LinearMovement},
+        events::DepthChangedEvent,
         resources::StageTime,
     },
 };
@@ -12,7 +14,10 @@ use crate::{
 pub fn update_position_x(
     mut incoming_query: Query<
         (&XAxisPosition, &mut PxSubPosition),
-        Without<LinearTargetReached<StageTime, XAxisPosition>>,
+        (
+            Without<LinearUpdateDisabled>,
+            Without<LinearTargetReached<StageTime, XAxisPosition>>,
+        ),
     >,
 ) {
     for (progress, mut position) in &mut incoming_query.iter_mut() {
@@ -23,7 +28,10 @@ pub fn update_position_x(
 pub fn update_position_y(
     mut incoming_query: Query<
         (&YAxisPosition, &mut PxSubPosition),
-        Without<LinearTargetReached<StageTime, YAxisPosition>>,
+        (
+            Without<LinearUpdateDisabled>,
+            Without<LinearTargetReached<StageTime, YAxisPosition>>,
+        ),
     >,
 ) {
     for (progress, mut position) in &mut incoming_query.iter_mut() {
@@ -77,5 +85,25 @@ pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSu
         let x = circle_around.center.x + circle_around.radius * angle.cos();
         let y = circle_around.center.y + circle_around.radius * angle.sin();
         position.0 = Vec2::new(x, y);
+    }
+}
+
+pub fn check_linear_movement_finished(
+    mut commands: Commands,
+    mut query: Query<
+        (Entity),
+        (
+            With<EnemyCurrentBehavior>,
+            With<LinearMovement>,
+            // TODO hacky, since LinearTargetReached gets removed immediately.
+            With<LinearTargetReached<StageTime, XAxisPosition>>,
+        ),
+    >,
+) {
+    for entity in query.iter_mut() {
+        commands
+            .entity(entity)
+            .remove::<EnemyCurrentBehavior>()
+            .remove::<LinearMovement>();
     }
 }

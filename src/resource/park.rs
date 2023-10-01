@@ -36,23 +36,10 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     .set_coordinates(Vec2::new(79., 100.))
                     .set_elapsed(0.4)
                     .set_steps_vec(vec![
-                        EnemyStep::LinearMovement {
-                            coordinates: Vec2::new(50., 0.),
-                            attacking: true,
-                            speed: 2.,
-                        },
+                        EnemyStep::linear_movement_base(),
                         EnemyStep::Idle { duration: 1. },
-                        EnemyStep::Attack { duration: 1. },
-                        EnemyStep::LinearMovement {
-                            coordinates: Vec2::new(10., 0.),
-                            attacking: true,
-                            speed: 3.,
-                        },
-                        EnemyStep::Circle {
-                            duration: 4.0,
-                            radius: 10.0,
-                            direction: MovementDirection::Negative,
-                        },
+                        EnemyStep::linear_movement_base().opposite_direction(),
+                        EnemyStep::linear_movement_base().set_radius(10.),
                     ]),
             )),
         ),
@@ -84,21 +71,9 @@ pub fn make_steps() -> Vec<StageStep> {
         // },
         StageStep::movement_base(50.0, 0.0).add_spawns(vec![
             StageSpawn::Enemy(
-                EnemySpawn::mosquito_base()
+                EnemySpawn::mosquito_variant_circle()
                     .set_coordinates(Vec2::new(60.0, 100.0))
                     .set_elapsed(5.4)
-                    .set_steps_vec(vec![
-                        EnemyStep::Circle {
-                            duration: 4.0,
-                            radius: 10.0,
-                            direction: MovementDirection::Negative,
-                        },
-                        EnemyStep::LinearMovement {
-                            coordinates: Vec2::new(10.0, 0.0),
-                            attacking: true,
-                            speed: 3.0,
-                        },
-                    ])
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
             StageSpawn::Enemy(
@@ -126,15 +101,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     .set_elapsed(10.8),
             ),
             StageSpawn::Enemy(
-                EnemySpawn::mosquito_base()
+                EnemySpawn::mosquito_variant_circle()
                     .set_coordinates(Vec2::new(12.0, 50.0))
                     .set_speed(2.0)
                     .set_elapsed(24.8)
-                    .set_steps_vec(vec![EnemyStep::Circle {
-                        duration: 999.,
-                        radius: 3.,
-                        direction: MovementDirection::Positive,
-                    }]),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()

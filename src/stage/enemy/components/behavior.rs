@@ -4,7 +4,16 @@ use std::time::Duration;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
-use crate::stage::data::EnemyStep;
+use crate::{
+    plugins::movement::linear::components::{
+        LinearDirection, LinearMovementBundle, LinearSpeed, LinearTargetPosition, XAxisPosition,
+        YAxisPosition,
+    },
+    stage::{
+        data::{EnemyStep, GAME_BASE_SPEED},
+        resources::StageTime,
+    },
+};
 
 use super::{CircleAround, LinearMovement};
 
@@ -17,7 +26,15 @@ pub struct EnemyCurrentBehavior {
 #[derive(Component, Clone, Debug)]
 pub enum BehaviorBundle {
     Idle(()),
-    LinearMovement(LinearMovement),
+    LinearMovement(
+        (
+            LinearMovement,
+            XAxisPosition,
+            LinearMovementBundle<StageTime, XAxisPosition>,
+            YAxisPosition,
+            LinearMovementBundle<StageTime, YAxisPosition>,
+        ),
+    ),
     Jump(()),
     Attack(()),
     Circle(CircleAround),
@@ -28,17 +45,36 @@ impl EnemyCurrentBehavior {
         &self,
         time_offset: Duration,
         current_position: &PxSubPosition,
+        speed: f32,
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
             EnemyStep::LinearMovement {
-                coordinates,
-                attacking,
-                speed,
-            } => BehaviorBundle::LinearMovement(LinearMovement {
-                direction: coordinates - current_position.0,
-                trayectory: coordinates.distance(current_position.0),
-            }),
+                direction,
+                trayectory,
+            } => {
+                let normalised_direction = direction.normalize();
+                let velocity = normalised_direction * speed * GAME_BASE_SPEED;
+                let coordinates = current_position.0 + normalised_direction * trayectory;
+                BehaviorBundle::LinearMovement((
+                    LinearMovement {
+                        direction,
+                        trayectory,
+                    },
+                    XAxisPosition::new(current_position.0.x),
+                    LinearMovementBundle::<StageTime, XAxisPosition>::new(
+                        current_position.0.x,
+                        coordinates.x,
+                        velocity.x,
+                    ),
+                    YAxisPosition::new(current_position.0.y),
+                    LinearMovementBundle::<StageTime, YAxisPosition>::new(
+                        current_position.0.y,
+                        coordinates.y,
+                        velocity.y,
+                    ),
+                ))
+            }
             EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
             EnemyStep::Circle {
                 radius, direction, ..

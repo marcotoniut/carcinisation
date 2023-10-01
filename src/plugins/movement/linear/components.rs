@@ -10,11 +10,29 @@ use crate::{
 #[derive(Component, Debug, Clone)]
 pub struct XAxisPosition(pub f32);
 
+impl XAxisPosition {
+    pub fn new(value: f32) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Component, Debug, Clone)]
 pub struct YAxisPosition(pub f32);
 
+impl YAxisPosition {
+    pub fn new(value: f32) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Component, Debug, Clone)]
 pub struct ZAxisPosition(pub f32);
+
+impl ZAxisPosition {
+    pub fn new(value: f32) -> Self {
+        Self(value)
+    }
+}
 
 macro_rules! impl_magnitude {
     ($type:ty) => {
@@ -157,4 +175,49 @@ impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearTargetReached<T, 
             _marker_time: PhantomData,
         }
     }
+}
+
+#[derive(Bundle, Clone, Debug)]
+pub struct LinearMovementBundle<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+    pub direction: LinearDirection<T, P>,
+    pub speed: LinearSpeed<T, P>,
+    pub target_position: LinearTargetPosition<T, P>,
+}
+
+impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearMovementBundle<T, P> {
+    pub fn new(current_position: f32, target_position: f32, speed: f32) -> Self {
+        Self {
+            direction: LinearDirection::<T, P>::from_delta(target_position - current_position),
+            speed: LinearSpeed::<T, P>::new(speed),
+            target_position: LinearTargetPosition::<T, P>::new(target_position),
+        }
+    }
+}
+
+#[derive(Bundle, Clone, Debug)]
+pub struct LinearMovementAcceleratedBundle<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+    pub acceleration: LinearAcceleration<T, P>,
+    pub direction: LinearDirection<T, P>,
+    pub speed: LinearSpeed<T, P>,
+    pub target_position: LinearTargetPosition<T, P>,
+}
+
+impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearMovementAcceleratedBundle<T, P> {
+    pub fn new(current_position: f32, target_position: f32, speed: f32, acceleration: f32) -> Self {
+        Self {
+            direction: LinearDirection::<T, P>::from_delta(target_position - current_position),
+            speed: LinearSpeed::<T, P>::new(speed),
+            target_position: LinearTargetPosition::<T, P>::new(target_position),
+            acceleration: LinearAcceleration::<T, P>::new(acceleration),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct LinearPositionRemovalBundle<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+    pub acceleration: LinearAcceleration<T, P>,
+    pub direction: LinearDirection<T, P>,
+    pub speed: LinearSpeed<T, P>,
+    pub target_position: LinearTargetPosition<T, P>,
+    pub target_reached: LinearTargetReached<T, P>,
 }

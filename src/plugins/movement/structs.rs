@@ -9,6 +9,15 @@ pub enum MovementDirection {
     Positive,
 }
 
+impl MovementDirection {
+    pub fn opposite(&self) -> MovementDirection {
+        match self {
+            MovementDirection::Negative => MovementDirection::Positive,
+            MovementDirection::Positive => MovementDirection::Negative,
+        }
+    }
+}
+
 pub trait MovementVec2Position: Send + Sync + 'static {
     fn get(&self) -> Vec2;
     fn set(&mut self, value: Vec2);
