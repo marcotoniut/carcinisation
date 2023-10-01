@@ -26,7 +26,7 @@ use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
-use systems::{audio::VolumeSettings, *};
+use systems::{audio::VolumeSettings, camera::move_camera, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
@@ -103,15 +103,15 @@ fn main() {
     // TODO should this be placed at main?
     // .add_systems(Update, handle_game_over)
     // DEBUG
-    // .add_systems(
-    //     Update,
-    //     (
-    //         move_camera,
-    //         transition_to_game_state,
-    //         transition_to_main_menu_state,
-    //         input_exit_game,
-    //     ),
-    // )
+    .add_systems(
+        Update,
+        (
+            move_camera,
+            // transition_to_game_state,
+            // transition_to_main_menu_state,
+            // input_exit_game,
+        ),
+    )
     .run();
 }
 

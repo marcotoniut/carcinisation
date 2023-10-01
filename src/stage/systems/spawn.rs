@@ -6,7 +6,10 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::{Collision, Destructible, Flickerer, Health, Hittable, Object, SpawnDrop},
+        components::{
+            interactive::{Collision, Destructible, Flickerer, Health, Hittable, Object},
+            SpawnDrop,
+        },
         data::{
             DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, ObjectSpawn, ObjectType,
             PickupSpawn, PickupType, StageSpawn,
@@ -201,9 +204,9 @@ pub fn spawn_destructible(
     commands
         .spawn((
             Name::new(format!("Destructible {:?}", spawn.destructible_type)),
-            Destructible {},
+            Destructible,
             Flickerer,
-            Hittable {},
+            Hittable,
             PxSpriteBundle::<Layer> {
                 sprite,
                 anchor: PxAnchor::BottomCenter,
@@ -231,7 +234,7 @@ pub fn spawn_object(
     commands
         .spawn((
             Name::new(format!("Object {:?}", spawn.object_type)),
-            Object {},
+            Object,
             PxSpriteBundle::<Layer> {
                 sprite,
                 anchor: PxAnchor::BottomCenter,

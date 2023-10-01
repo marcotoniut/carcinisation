@@ -3,15 +3,20 @@ pub mod damage;
 pub mod movement;
 pub mod spawn;
 
-use std::{ops::Sub, time::Duration};
-
-use bevy::{audio::PlaybackMode, prelude::*};
-use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::{
-    prelude::{PxAssets, PxCamera, PxSubPosition},
-    sprite::PxSprite,
+use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
+use super::{
+    bundles::*,
+    components::{
+        interactive::{Dead, Destructible, Object},
+        Stage,
+    },
+    data::*,
+    enemy::components::Enemy,
+    events::{StageClearedEvent, StageGameOverEvent, StageSpawnEvent, StageStepEvent},
+    player::components::Player,
+    resources::{StageActionTimer, StageProgress, StageTime},
+    GameState, StageState,
 };
-
 use crate::{
     cinemachine::cinemachine::CinemachineScene,
     components::{DespawnMark, Music},
@@ -20,19 +25,13 @@ use crate::{
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
     GBInput,
 };
-
-use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
-
-use super::{
-    bundles::*,
-    components::{Dead, Destructible, Object, Stage},
-    data::*,
-    enemy::components::Enemy,
-    events::{StageClearedEvent, StageGameOverEvent, StageSpawnEvent, StageStepEvent},
-    player::components::Player,
-    resources::{StageActionTimer, StageProgress, StageTime},
-    GameState, StageState,
+use bevy::{audio::PlaybackMode, prelude::*};
+use leafwing_input_manager::prelude::ActionState;
+use seldom_pixel::{
+    prelude::{PxAssets, PxCamera, PxSubPosition},
+    sprite::PxSprite,
 };
+use std::{ops::Sub, time::Duration};
 
 pub fn tick_stage_time(mut stage_time: ResMut<StageTime>, time: Res<Time>) {
     let delta = time.delta();
@@ -118,7 +117,7 @@ pub fn spawn_current_stage_bundle(
 ) {
     let stage = &stage_data_raw.stage_data;
     commands
-        .spawn((Stage {}, Name::new("Stage")))
+        .spawn((Stage, Name::new("Stage")))
         .with_children(|parent| {
             let background_bundle =
                 make_background_bundle(&mut assets_sprite, stage.background_path.clone());

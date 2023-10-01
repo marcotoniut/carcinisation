@@ -11,7 +11,11 @@ use crate::{
     components::DespawnMark,
     plugins::movement::linear::components::{LinearTargetReached, ZAxisPosition},
     stage::{
-        components::*,
+        components::{
+            damage::InflictsDamage,
+            placement::{Depth, InView},
+            *,
+        },
         enemy::{components::EnemyAttack, data::blood_attack::BLOOD_ATTACK_ANIMATIONS},
         events::DamageEvent,
         player::{components::Player, events::CameraShakeEvent},

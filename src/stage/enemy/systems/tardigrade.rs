@@ -14,7 +14,11 @@ use crate::{
         pursue::components::{PursueSpeed, PursueTargetPosition},
     },
     stage::{
-        components::{Dead, Depth, Health, Hittable, InView, InflictsDamage},
+        components::{
+            damage::InflictsDamage,
+            interactive::{Dead, Health, Hittable},
+            placement::{Depth, InView},
+        },
         enemy::{
             bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
             components::*,

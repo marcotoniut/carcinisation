@@ -11,7 +11,7 @@ use crate::{
         LinearTargetReached, XAxisPosition, YAxisPosition,
     },
     stage::{
-        components::{Dead, Health},
+        components::interactive::{Dead, Health},
         pickup::components::{
             HealthRecovery, PickupFeedback, PICKUP_FEEDBACK_INITIAL_SPEED_Y, PICKUP_FEEDBACK_TIME,
         },
@@ -35,16 +35,8 @@ pub fn pickup_health(
     if let Ok(mut health) = player_query.get_single_mut() {
         for (entity, recovery, position) in query.iter() {
             commands.entity(entity).insert(DespawnMark);
-
-            health.0 += recovery.0;
-            if health.0 > PLAYER_MAX_HEALTH {
-                health.0 = PLAYER_MAX_HEALTH;
-            }
-
+            health.0 = health.0.saturating_add(recovery.0).min(PLAYER_MAX_HEALTH);
             score.add(recovery.score_deduction());
-
-            // let speed_x = PICKUP_FEEDBACK_TIME;
-            // let speed_y = PICKUP_FEEDBACK_ACCELERATION_Y;
 
             let t = PICKUP_FEEDBACK_TIME;
 

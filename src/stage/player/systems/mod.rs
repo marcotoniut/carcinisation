@@ -10,8 +10,8 @@ use crate::{
     components::DespawnMark,
     game::events::GameOver,
     globals::{mark_for_despawn_by_component_query, HUD_HEIGHT, SCREEN_RESOLUTION},
-    stage::{components::Dead, score::components::Score},
-    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
+    stage::{components::interactive::Dead, score::components::Score},
+    systems::audio::VolumeSettings,
     GBInput,
 };
 
@@ -146,7 +146,7 @@ pub fn check_player_died(
 ) {
     if let Ok((entity, mut player)) = query.get_single_mut() {
         score.add(-DEATH_SCORE_PENALTY);
-        player.lives = player.lives.saturating_sub(1);
+        player.lives = player.lives.saturating_sub(1).max(0);
         if player.lives == 0 {
             // event_writer.send(StageGameOverTrigger {});
             event_writer.send(GameOver { score: score.value });

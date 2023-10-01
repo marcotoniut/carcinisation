@@ -17,7 +17,11 @@ use crate::{
         structs::MovementDirection,
     },
     stage::{
-        components::{Dead, Depth, Health, Hittable, InView, InflictsDamage},
+        components::{
+            damage::InflictsDamage,
+            interactive::{Dead, Health, Hittable},
+            placement::{Depth, InView},
+        },
         data::EnemyStep,
         enemy::{bundles::*, components::*, data::mosquito::MOSQUITO_ANIMATIONS},
         events::DepthChangedEvent,
@@ -177,6 +181,8 @@ pub fn check_idle_mosquito(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    // TODO
+    // event_writer: EventWriter<BloodAttackEvent>,
     stage_time: Res<StageTime>,
     query: Query<
         (
