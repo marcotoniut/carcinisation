@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use crate::stage::{
+    components::placement::Speed,
     enemy::{
         components::{
             behavior::{BehaviorBundle, EnemyBehaviors, EnemyCurrentBehavior},
@@ -15,12 +16,12 @@ use crate::stage::{
 pub fn check_no_behavior(
     mut commands: Commands,
     mut query: Query<
-        (Entity, &mut EnemyBehaviors, &PxSubPosition),
+        (Entity, &mut EnemyBehaviors, &PxSubPosition, &Speed),
         (With<Enemy>, Without<EnemyCurrentBehavior>),
     >,
     stage_time: Res<StageTime>,
 ) {
-    for (entity, mut behaviors, position) in query.iter_mut() {
+    for (entity, mut behaviors, position, speed) in query.iter_mut() {
         let behavior = behaviors.next();
 
         let duration_o = behavior.get_duration_o();
@@ -30,7 +31,7 @@ pub fn check_no_behavior(
             behavior,
         };
 
-        let bundles = current_behavior.get_bundles(stage_time.elapsed, position);
+        let bundles = current_behavior.get_bundles(stage_time.elapsed, position, speed.0);
         match bundles {
             BehaviorBundle::Idle(bundles) => commands.entity(entity).insert(bundles),
             BehaviorBundle::LinearMovement(bundles) => commands.entity(entity).insert(bundles),

@@ -77,9 +77,7 @@ pub fn on_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
         // TODO remove bundle
         commands
             .entity(entity)
-            .remove::<LinearTargetPosition<T, P>>()
-            .remove::<LinearSpeed<T, P>>()
-            .remove::<LinearAcceleration<T, P>>()
-            .remove::<LinearTargetReached<T, P>>();
+            .remove::<LinearPositionRemovalBundle<T, P>>()
+            .remove::<P>();
     }
 }

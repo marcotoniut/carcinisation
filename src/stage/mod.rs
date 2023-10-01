@@ -137,6 +137,7 @@ impl Plugin for StagePlugin {
                             update_position_y,
                             update_depth,
                             circle_around,
+                            check_linear_movement_finished,
                         ),
                         (
                             // Damage

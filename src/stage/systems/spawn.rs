@@ -8,6 +8,7 @@ use crate::{
     stage::{
         components::{
             interactive::{Collision, Destructible, Flickerer, Health, Hittable, Object},
+            placement::Speed,
             SpawnDrop,
         },
         data::{
@@ -121,22 +122,23 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
     let EnemySpawn {
         enemy_type,
         coordinates,
-        speed: base_speed,
+        speed,
         steps,
         contains,
         ..
     } = enemy_spawn;
     let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
+    let name = Name::new(format!("Enemy - {:?}", enemy_type));
     match enemy_type {
         EnemyType::Mosquito => {
             let entity = commands
                 .spawn((
-                    Name::new("EnemyMosquito"),
+                    name,
                     Enemy {},
                     behaviors,
+                    Speed(*speed),
                     EnemyMosquito {
-                        base_speed: *base_speed,
                         steps: steps.clone(),
                     },
                     EnemyMosquitoAttacking { ..default() },
@@ -156,22 +158,14 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
             }
             entity
         }
-        EnemyType::Kyle => commands
-            .spawn((Name::new("EnemyKyle"), Enemy {}, behaviors))
-            .id(),
-        EnemyType::Marauder => commands
-            .spawn((Name::new("EnemyMarauder"), Enemy {}, behaviors))
-            .id(),
-        EnemyType::Spidey => commands
-            .spawn((Name::new("EnemySpidey"), Enemy {}, behaviors))
-            .id(),
-        EnemyType::Spidomonsta => commands
-            .spawn((Name::new("EnemySpidomonsta"), Enemy {}))
-            .id(),
+        EnemyType::Kyle => commands.spawn((name, Enemy, behaviors)).id(),
+        EnemyType::Marauder => commands.spawn((name, Enemy, behaviors)).id(),
+        EnemyType::Spidey => commands.spawn((name, Enemy, behaviors)).id(),
+        EnemyType::Spidomonsta => commands.spawn((name, Enemy, behaviors)).id(),
         EnemyType::Tardigrade => commands
             .spawn((
-                Name::new("EnemyTardigrade"),
-                Enemy {},
+                name,
+                Enemy,
                 behaviors,
                 EnemyTardigrade {
                     steps: steps.clone(),
@@ -203,7 +197,7 @@ pub fn spawn_destructible(
     let sprite = assets_sprite.load(sprite_path);
     commands
         .spawn((
-            Name::new(format!("Destructible {:?}", spawn.destructible_type)),
+            Name::new(format!("Destructible - {:?}", spawn.destructible_type)),
             Destructible,
             Flickerer,
             Hittable,

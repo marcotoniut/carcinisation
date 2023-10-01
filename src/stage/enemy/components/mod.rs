@@ -13,10 +13,10 @@ pub const BLOOD_ATTACK_LINE_SPEED: f32 = 25.;
 pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
 
 #[derive(Component)]
-pub struct Enemy {}
+pub struct Enemy;
 
 #[derive(Component)]
-pub struct EnemyAttack {}
+pub struct EnemyAttack;
 
 #[derive(Component, Clone, Debug)]
 pub struct CircleAround {
@@ -42,7 +42,6 @@ pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;
 
 #[derive(Component, Clone, Debug)]
 pub struct EnemyMosquito {
-    pub base_speed: f32,
     pub steps: VecDeque<EnemyStep>,
     // pub state: EnemyMosquitoState,
 }

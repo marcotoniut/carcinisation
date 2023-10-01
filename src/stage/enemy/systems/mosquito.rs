@@ -11,8 +11,8 @@ use crate::{
     globals::HALF_SCREEN_RESOLUTION,
     plugins::movement::{
         linear::components::{
-            LinearDirection, LinearSpeed, LinearTargetPosition, XAxisPosition, YAxisPosition,
-            ZAxisPosition,
+            LinearDirection, LinearMovementBundle, LinearSpeed, LinearTargetPosition,
+            XAxisPosition, YAxisPosition, ZAxisPosition,
         },
         structs::MovementDirection,
     },
@@ -108,11 +108,7 @@ pub fn assign_mosquito_animation(
                         )
                     })
                 }
-                EnemyStep::LinearMovement {
-                    coordinates,
-                    attacking,
-                    speed,
-                } => {
+                EnemyStep::LinearMovement { .. } => {
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth);
                     animation_o.map(|animation| {
                         (
@@ -166,7 +162,7 @@ pub fn despawn_dead_mosquitoes(
                 assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
 
             commands.spawn((
-                Name::new("EnemyMosquito - Dead"),
+                Name::new("Dead - Mosquito"),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: texture,
@@ -233,31 +229,30 @@ pub fn check_idle_mosquito(
                 let speed = direction.normalize() * BLOOD_ATTACK_LINE_SPEED;
 
                 let movement_bundle = (
-                    // XAxis
-                    XAxisPosition(position.0.x),
-                    LinearTargetPosition::<StageTime, XAxisPosition>::new(target_pos.x),
-                    LinearDirection::<StageTime, XAxisPosition>::from_delta(
-                        target_pos.x - position.0.x,
+                    XAxisPosition::new(position.0.x),
+                    LinearMovementBundle::<StageTime, XAxisPosition>::new(
+                        position.0.x,
+                        target_pos.x,
+                        speed.x,
                     ),
-                    LinearSpeed::<StageTime, XAxisPosition>::new(speed.x),
-                    // YAxis
-                    YAxisPosition(position.0.y),
-                    LinearTargetPosition::<StageTime, YAxisPosition>::new(target_pos.y),
-                    LinearDirection::<StageTime, YAxisPosition>::from_delta(
-                        target_pos.y - position.0.y,
+                    YAxisPosition::new(position.0.y),
+                    LinearMovementBundle::<StageTime, YAxisPosition>::new(
+                        position.0.y,
+                        target_pos.y,
+                        speed.y,
                     ),
-                    LinearSpeed::<StageTime, YAxisPosition>::new(speed.y),
-                    // ZAxis
-                    ZAxisPosition(depth.0.clone() as f32),
-                    LinearTargetPosition::<StageTime, ZAxisPosition>::new(PLAYER_DEPTH + 1.),
-                    LinearDirection::<StageTime, ZAxisPosition>::new(MovementDirection::Positive),
-                    LinearSpeed::<StageTime, ZAxisPosition>::new(BLOOD_ATTACK_DEPTH_SPEED),
+                    ZAxisPosition::new(depth.0.clone() as f32),
+                    LinearMovementBundle::<StageTime, ZAxisPosition>::new(
+                        depth.0.clone() as f32,
+                        PLAYER_DEPTH + 1.,
+                        BLOOD_ATTACK_DEPTH_SPEED,
+                    ),
                 );
 
                 commands
                     .spawn((
-                        Name::new("Attack - Blood Shot"),
-                        EnemyAttack {},
+                        Name::new("EnemyAttack - Blood Shot"),
+                        EnemyAttack,
                         // PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
                         // PursueSpeed::<StageTime, PxSubPosition>::new(
                         //     (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
