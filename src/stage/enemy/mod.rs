@@ -6,10 +6,7 @@ pub mod systems;
 
 use bevy::prelude::*;
 
-use self::{
-    resources::*,
-    systems::{behaviors::*, mosquito::*, tardigrade::*, *},
-};
+use self::systems::{behaviors::*, mosquito::*, tardigrade::*, *};
 use super::{GameState, StageState};
 use crate::AppState;
 
@@ -17,7 +14,7 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<EnemySpawnTimer>().add_systems(
+        app.add_systems(
             Update,
             (
                 check_dead_drop,

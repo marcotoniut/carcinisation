@@ -15,9 +15,9 @@ use crate::{
             PickupSpawn, PickupType, StageSpawn,
         },
         enemy::components::{
-            Enemy, EnemyBehaviors, EnemyMosquito, EnemyMosquitoAttacking, EnemyTardigrade,
-            EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS,
-            ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS,
+            behavior::EnemyBehaviors, Enemy, EnemyMosquito, EnemyMosquitoAttacking,
+            EnemyTardigrade, EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
+            ENEMY_MOSQUITO_RADIUS, ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS,
         },
         events::StageSpawnEvent,
         pickup::components::HealthRecovery,

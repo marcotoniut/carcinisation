@@ -21,7 +21,8 @@ use crate::{
             placement::{Depth, InView},
         },
         enemy::{
-            bundles::make_enemy_animation_bundle, components::*,
+            bundles::make_enemy_animation_bundle,
+            components::{behavior::EnemyCurrentBehavior, *},
             data::tardigrade::TARDIGRADE_ANIMATIONS,
         },
         player::components::PLAYER_DEPTH,
