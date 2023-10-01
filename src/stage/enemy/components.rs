@@ -33,7 +33,7 @@ pub struct EnemyCurrentBehavior {
 #[derive(Component, Clone, Debug)]
 pub enum BehaviorBundle {
     Idle(()),
-    LinearMovement(()),
+    LinearMovement(LinearMovement),
     Jump(()),
     Attack(()),
     Circle(CircleAround),
@@ -51,7 +51,10 @@ impl EnemyCurrentBehavior {
                 coordinates,
                 attacking,
                 speed,
-            } => BehaviorBundle::LinearMovement(()),
+            } => BehaviorBundle::LinearMovement(LinearMovement {
+                direction: coordinates - current_position.0,
+                trayectory: coordinates.distance(current_position.0),
+            }),
             EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
             EnemyStep::Circle {
                 radius, direction, ..
@@ -90,9 +93,6 @@ pub struct PlaceholderEnemy {
     pub direction: Vec2,
 }
 
-// #[derive(Component)]
-// pub struct LayerPlacement {}
-
 #[derive(Component)]
 pub struct Enemy {}
 
@@ -105,6 +105,12 @@ pub struct CircleAround {
     pub center: Vec2,
     pub time_offset: f32,
     pub direction: MovementDirection,
+}
+
+#[derive(Component, Clone, Debug)]
+pub struct LinearMovement {
+    pub direction: Vec2,
+    pub trayectory: f32,
 }
 
 // Enemies

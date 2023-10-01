@@ -8,7 +8,7 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::{Collision, Depth},
+        components::{interactive::Collision, placement::Depth},
         enemy::data::blood_attack::BLOOD_ATTACK_ANIMATIONS,
     },
     Layer,

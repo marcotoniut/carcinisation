@@ -161,25 +161,3 @@ impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearTargetReached<T, 
         }
     }
 }
-
-// pub struct LinearMovementBundler<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
-//     pub position: P,
-//     pub target_position: LinearTargetPosition<T, P>,
-//     // pub direction: LinearDirection<T, P>,
-//     pub speed: LinearSpeed<T, P>,
-//     pub acceleration: Option<LinearAcceleration<T, P>>,
-// }
-
-// impl<T: DeltaTime + Send + Sync + 'static, P: Component + Magnitude> LinearMovementBundler<T, P> {
-//     pub fn insert_into_entity(&self, entity: &mut EntityCommands) {
-//         entity.insert(self.position);
-//         entity.insert(self.target_position);
-//         entity.insert(LinearDirection::<T, P>::from_delta(
-//             self.target_position.value - self.position.get(),
-//         ));
-//         entity.insert(self.speed);
-//         if let Some(acc) = self.acceleration {
-//             entity.insert(acc);
-//         }
-//     }
-// }

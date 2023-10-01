@@ -14,7 +14,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use self::{
-    components::RailPosition,
+    components::placement::RailPosition,
     enemy::EnemyPlugin,
     events::*,
     pickup::systems::health::{mark_despawn_pickup_feedback, pickup_health},
@@ -130,8 +130,8 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Movement
-                            update_pxsubposition_x,
-                            update_pxsubposition_y,
+                            update_position_x,
+                            update_position_y,
                             update_depth,
                             circle_around,
                         ),

@@ -1,11 +1,15 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAssets, PxFilter, PxFilterBundle};
+use seldom_pixel::prelude::{PxAssets, PxFilter};
 
-use crate::{
-    stage::{components::*, enemy::components::Enemy, events::DamageEvent, resources::StageTime},
-    Layer,
+use crate::stage::{
+    components::{
+        damage::{DamageFlicker, InvertFilter},
+        interactive::{Dead, Flickerer, Health},
+    },
+    events::DamageEvent,
+    resources::StageTime,
 };
 
 pub const DAMAGE_FLICKER_COUNT: usize = 4;

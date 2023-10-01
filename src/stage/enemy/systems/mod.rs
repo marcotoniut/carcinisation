@@ -10,7 +10,10 @@ use seldom_pixel::{asset::*, prelude::*};
 
 use crate::{
     stage::{
-        components::{Collision, Dead, Health, Hittable, SpawnDrop},
+        components::{
+            interactive::{Collision, Dead, Health, Hittable},
+            SpawnDrop,
+        },
         data::ContainerSpawn,
         events::DamageEvent,
         player::components::{

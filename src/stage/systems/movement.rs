@@ -2,20 +2,14 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
-    plugins::movement::{
-        linear::components::{
-            LinearDirection, LinearSpeed, LinearTargetReached, XAxisPosition, YAxisPosition,
-            ZAxisPosition,
-        },
-        structs::MovementDirection,
-    },
+    plugins::movement::{linear::components::*, structs::MovementDirection},
     stage::{
-        components::Depth, enemy::components::CircleAround, events::DepthChangedEvent,
+        components::placement::Depth, enemy::components::CircleAround, events::DepthChangedEvent,
         resources::StageTime,
     },
 };
 
-pub fn update_pxsubposition_x(
+pub fn update_position_x(
     mut incoming_query: Query<
         (&XAxisPosition, &mut PxSubPosition),
         Without<LinearTargetReached<StageTime, XAxisPosition>>,
@@ -26,7 +20,7 @@ pub fn update_pxsubposition_x(
     }
 }
 
-pub fn update_pxsubposition_y(
+pub fn update_position_y(
     mut incoming_query: Query<
         (&YAxisPosition, &mut PxSubPosition),
         Without<LinearTargetReached<StageTime, YAxisPosition>>,

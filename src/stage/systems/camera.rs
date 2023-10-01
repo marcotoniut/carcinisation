@@ -4,7 +4,7 @@ use seldom_pixel::prelude::PxSubPosition;
 use crate::{
     globals::{is_inside_area, HUD_HEIGHT, SCREEN_RESOLUTION},
     stage::{
-        components::{InView, RailPosition},
+        components::placement::{InView, RailPosition},
         player::components::CameraShake,
     },
     systems::camera::CameraPos,

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::{components::Depth, data::StageSpawn};
+use super::{components::placement::Depth, data::StageSpawn};
 
 #[derive(Event)]
 pub struct StageRestart {}
