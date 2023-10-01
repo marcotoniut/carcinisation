@@ -8,13 +8,7 @@ use bevy::prelude::*;
 
 use self::{
     resources::*,
-    systems::{
-        attacks::{blood_attack_damage_on_reached, miss_on_reached},
-        behaviors::*,
-        mosquito::*,
-        tardigrade::*,
-        *,
-    },
+    systems::{behaviors::*, mosquito::*, tardigrade::*, *},
 };
 use super::{GameState, StageState};
 use crate::AppState;
@@ -26,21 +20,12 @@ impl Plugin for EnemyPlugin {
         app.init_resource::<EnemySpawnTimer>().add_systems(
             Update,
             (
-                // (enemy_movement, confine_enemy_movement).chain(),
-                (check_got_hit, check_health_at_0).chain(),
                 check_dead_drop,
                 check_no_behavior,
-                check_behavior_timer,
+                tick_enemy_behavior_timer,
                 (
                     // Tied components
                     tied_components_enemy_current_behavior_circle_around
-                ),
-                (
-                    // Attacks
-                    despawn_dead_attacks,
-                    read_enemy_attack_depth_changed,
-                    miss_on_reached,
-                    blood_attack_damage_on_reached,
                 ),
                 (
                     // Mosquito

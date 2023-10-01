@@ -1,7 +1,4 @@
 use bevy::prelude::*;
-use leafwing_input_manager::prelude::ActionState;
-
-use crate::GBInput;
 
 use super::GameState;
 

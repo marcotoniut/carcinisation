@@ -7,11 +7,6 @@ use seldom_pixel::prelude::PxSubPosition;
 use crate::plugins::movement::structs::MovementDirection;
 use crate::stage::data::EnemyStep;
 
-pub const SCORE_RANGED_REGULAR_HIT: u32 = 1;
-pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;
-pub const SCORE_MELEE_REGULAR_HIT: u32 = 3;
-pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
-
 // pub const PLACEHOLDER_ENEMY_SPEED: f32 = 10.0;
 
 // pub const PLACEHOLDER_ENEMY_SIZE: f32 = 6.0;
@@ -21,7 +16,6 @@ pub const PLACEHOLDER_ENEMY_SPAWN_TIME: f32 = 8.0;
 
 pub const BLOOD_ATTACK_DEPTH_SPEED: f32 = 4.;
 pub const BLOOD_ATTACK_LINE_SPEED: f32 = 25.;
-pub const BLOOD_ATTACK_MAX_DEPTH: f32 = 6.;
 pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
 
 #[derive(Component, Clone, Debug)]

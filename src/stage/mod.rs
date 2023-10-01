@@ -1,3 +1,4 @@
+pub mod attack;
 pub mod bundles;
 pub mod components;
 pub mod data;
@@ -14,6 +15,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use self::{
+    attack::AttackPlugin,
     components::placement::RailPosition,
     enemy::EnemyPlugin,
     events::*,
@@ -84,6 +86,7 @@ impl Plugin for StagePlugin {
             .add_plugins(LinearMovementPlugin::<StageTime, ZAxisPosition>::default())
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
+            .add_plugins(AttackPlugin)
             .add_plugins(ScorePlugin)
             .add_plugins(StageUiPlugin)
             // .add_plugins(StarPlugin)

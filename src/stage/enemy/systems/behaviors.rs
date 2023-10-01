@@ -47,7 +47,7 @@ pub fn check_no_behavior(
     }
 }
 
-pub fn check_behavior_timer(
+pub fn tick_enemy_behavior_timer(
     mut commands: Commands,
     mut query: Query<&mut EnemyBehaviorTimer>,
     stage_time: Res<StageTime>,

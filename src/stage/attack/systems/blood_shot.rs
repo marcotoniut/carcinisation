@@ -14,7 +14,6 @@ use crate::{
         components::{
             damage::InflictsDamage,
             placement::{Depth, InView},
-            *,
         },
         enemy::{components::EnemyAttack, data::blood_attack::BLOOD_ATTACK_ANIMATIONS},
         events::DamageEvent,
@@ -24,22 +23,6 @@ use crate::{
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     Layer,
 };
-
-pub fn miss_on_reached(
-    mut commands: Commands,
-    query: Query<
-        Entity,
-        (
-            Added<LinearTargetReached<StageTime, ZAxisPosition>>,
-            With<EnemyAttack>,
-            Without<InView>,
-        ),
-    >,
-) {
-    for entity in &mut query.iter() {
-        commands.entity(entity).insert(DespawnMark);
-    }
-}
 
 // TODO simplify
 pub fn blood_attack_damage_on_reached(
@@ -95,7 +78,7 @@ pub fn blood_attack_damage_on_reached(
                     anchor: PxAnchor::Center,
                     ..default()
                 },
-                animation.get_animation_bundle(),
+                animation.make_animation_bundle(),
             ));
         }
 

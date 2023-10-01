@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use bevy::{
-    ecs::{bundle::DynamicBundle, system::EntityCommands},
-    prelude::*,
-};
+use bevy::prelude::*;
 
 use crate::{
     core::time::DeltaTime,
