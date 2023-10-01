@@ -24,7 +24,11 @@ use crate::{
             placement::{Depth, InView},
         },
         data::EnemyStep,
-        enemy::{bundles::*, components::*, data::mosquito::MOSQUITO_ANIMATIONS},
+        enemy::{
+            bundles::*,
+            components::{behavior::EnemyCurrentBehavior, *},
+            data::mosquito::MOSQUITO_ANIMATIONS,
+        },
         player::components::PLAYER_DEPTH,
         resources::StageTime,
         score::components::Score,
