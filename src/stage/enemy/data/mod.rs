@@ -17,7 +17,7 @@ pub struct AnimationData {
 }
 
 impl AnimationData {
-    pub fn get_animation_bundle(&self) -> PxAnimationBundle {
+    pub fn make_animation_bundle(&self) -> PxAnimationBundle {
         PxAnimationBundle {
             duration: PxAnimationDuration::millis_per_animation(self.speed),
             on_finish: self.finish_behavior,

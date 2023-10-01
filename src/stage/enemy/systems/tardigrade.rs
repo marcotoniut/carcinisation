@@ -1,4 +1,4 @@
-use std::{ops::Add, time::Duration};
+use std::time::Duration;
 
 use bevy::prelude::*;
 use seldom_pixel::{
@@ -8,22 +8,23 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
-    globals::{CAMERA_CENTER, SCREEN_RESOLUTION},
+    globals::CAMERA_CENTER,
     plugins::movement::{
         linear::components::{LinearSpeed, LinearTargetPosition, ZAxisPosition},
         pursue::components::{PursueSpeed, PursueTargetPosition},
     },
     stage::{
+        attack::components::blood_shot::make_blood_shot_attack_animation_bundle,
         components::{
             damage::InflictsDamage,
             interactive::{Dead, Health, Hittable},
             placement::{Depth, InView},
         },
         enemy::{
-            bundles::{make_blood_attack_bundle, make_enemy_animation_bundle},
-            components::*,
+            bundles::make_enemy_animation_bundle, components::*,
             data::tardigrade::TARDIGRADE_ANIMATIONS,
         },
+        player::components::PLAYER_DEPTH,
         resources::StageTime,
         score::components::Score,
     },
@@ -91,7 +92,7 @@ pub fn despawn_dead_tardigrade(
                     anchor: PxAnchor::Center,
                     ..default()
                 },
-                animation.get_animation_bundle(),
+                animation.make_animation_bundle(),
             ));
         }
 
@@ -131,7 +132,8 @@ pub fn check_idle_tardigrade(
                     });
 
                 let depth = Depth(1);
-                let attack_bundle = make_blood_attack_bundle(&mut assets_sprite, depth.clone());
+                let attack_bundle =
+                    make_blood_shot_attack_animation_bundle(&mut assets_sprite, depth.clone());
 
                 let mut attacking = EnemyTardigradeAttacking {
                     attack: true,
@@ -145,7 +147,7 @@ pub fn check_idle_tardigrade(
 
                 commands
                     .spawn((
-                        Name::new("Attack Blood"),
+                        Name::new("Attack - Blood Shot"),
                         EnemyAttack {},
                         // TODO bundle
                         PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
@@ -155,9 +157,7 @@ pub fn check_idle_tardigrade(
                         depth,
                         ZAxisPosition(depth.0.clone() as f32),
                         LinearSpeed::<StageTime, ZAxisPosition>::new(BLOOD_ATTACK_DEPTH_SPEED),
-                        LinearTargetPosition::<StageTime, ZAxisPosition>::new(
-                            BLOOD_ATTACK_MAX_DEPTH + 1.,
-                        ),
+                        LinearTargetPosition::<StageTime, ZAxisPosition>::new(PLAYER_DEPTH + 1.),
                         InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
                         Hittable {},

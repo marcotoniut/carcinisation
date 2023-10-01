@@ -17,6 +17,7 @@ use crate::{
         structs::MovementDirection,
     },
     stage::{
+        attack::components::blood_shot::make_blood_shot_attack_animation_bundle,
         components::{
             damage::InflictsDamage,
             interactive::{Dead, Health, Hittable},
@@ -24,7 +25,7 @@ use crate::{
         },
         data::EnemyStep,
         enemy::{bundles::*, components::*, data::mosquito::MOSQUITO_ANIMATIONS},
-        events::DepthChangedEvent,
+        player::components::PLAYER_DEPTH,
         resources::StageTime,
         score::components::Score,
     },
@@ -169,7 +170,7 @@ pub fn despawn_dead_mosquitoes(
                     anchor: PxAnchor::Center,
                     ..default()
                 },
-                animation.get_animation_bundle(),
+                animation.make_animation_bundle(),
             ));
         }
 
@@ -211,7 +212,8 @@ pub fn check_idle_mosquito(
                     });
 
                 let depth = Depth(1);
-                let attack_bundle = make_blood_attack_bundle(&mut assets_sprite, depth.clone());
+                let attack_bundle =
+                    make_blood_shot_attack_animation_bundle(&mut assets_sprite, depth.clone());
 
                 let mut attacking = EnemyMosquitoAttacking {
                     attack: Some(EnemyMosquitoAttack::Ranged),
@@ -243,16 +245,14 @@ pub fn check_idle_mosquito(
                     LinearSpeed::<StageTime, YAxisPosition>::new(speed.y),
                     // ZAxis
                     ZAxisPosition(depth.0.clone() as f32),
-                    LinearTargetPosition::<StageTime, ZAxisPosition>::new(
-                        BLOOD_ATTACK_MAX_DEPTH + 1.,
-                    ),
+                    LinearTargetPosition::<StageTime, ZAxisPosition>::new(PLAYER_DEPTH + 1.),
                     LinearDirection::<StageTime, ZAxisPosition>::new(MovementDirection::Positive),
                     LinearSpeed::<StageTime, ZAxisPosition>::new(BLOOD_ATTACK_DEPTH_SPEED),
                 );
 
                 commands
                     .spawn((
-                        Name::new("Attack Blood"),
+                        Name::new("Attack - Blood Shot"),
                         EnemyAttack {},
                         // PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
                         // PursueSpeed::<StageTime, PxSubPosition>::new(
@@ -267,37 +267,6 @@ pub fn check_idle_mosquito(
                     .insert(attack_bundle)
                     .insert(movement_bundle);
             }
-        }
-    }
-}
-
-pub fn despawn_dead_attacks(
-    mut commands: Commands,
-    query: Query<(Entity, &EnemyAttack), Added<Dead>>,
-) {
-    for (entity, _) in query.iter() {
-        commands.entity(entity).insert(DespawnMark);
-    }
-}
-
-/**
- * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose
- */
-pub fn read_enemy_attack_depth_changed(
-    mut commands: Commands,
-    mut event_reader: EventReader<DepthChangedEvent>,
-    mut assets_sprite: PxAssets<PxSprite>,
-) {
-    for event in event_reader.iter() {
-        if (event.depth.0 as f32) < BLOOD_ATTACK_MAX_DEPTH {
-            let (sprite_bundle, animation_bundle, collision) =
-                make_blood_attack_bundle(&mut assets_sprite, event.depth.clone());
-
-            commands
-                .entity(event.entity)
-                .insert(sprite_bundle)
-                .insert(collision)
-                .insert(animation_bundle);
         }
     }
 }
