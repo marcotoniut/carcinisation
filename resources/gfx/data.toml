@@ -192,13 +192,13 @@ path = "sprites/objects/trashcan_broken_1.png"
 [[images]]
 path = "sprites/objects/trashcan_broken_4.png"
 [[images]]
-path = "sprites/objects/cavern_crystal_base_4.png"
+path = "sprites/objects/crystal_base_4.png"
 [[images]]
-path = "sprites/objects/cavern_crystal_broken_4.png"
+path = "sprites/objects/crystal_broken_4.png"
 [[images]]
-path = "sprites/objects/cavern_mushroom_base_5.png"
+path = "sprites/objects/mushroom_base_5.png"
 [[images]]
-path = "sprites/objects/cavern_mushroom_broken_5.png"
+path = "sprites/objects/mushroom_broken_5.png"
 
 # Pickups
 [[images]]
