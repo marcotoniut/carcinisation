@@ -20,7 +20,7 @@ lazy_static! {
 pub const GAME_BASE_SPEED: f32 = 15.0;
 
 pub trait Contains {
-    fn set_contains(&mut self, value: Option<Box<ContainerSpawn>>);
+    fn with_contains(&mut self, value: Option<Box<ContainerSpawn>>);
     fn drops(&mut self, value: ContainerSpawn);
 }
 
@@ -130,12 +130,23 @@ impl EnemyStep {
         self
     }
 
-    pub fn set_radius(mut self, value: f32) -> Self {
+    pub fn with_radius(mut self, value: f32) -> Self {
         if let EnemyStep::Circle {
             radius: ref mut r, ..
         } = self
         {
             *r = value;
+        }
+        self
+    }
+
+    pub fn with_linear_direction(mut self, value: Vec2) -> Self {
+        if let EnemyStep::LinearMovement {
+            direction: ref mut d,
+            ..
+        } = self
+        {
+            *d = value;
         }
         self
     }
@@ -154,17 +165,6 @@ impl EnemyStep {
             trayectory: SCREEN_RESOLUTION.x as f32 + 10.,
         }
     }
-
-    pub fn set_linear_direction(mut self, value: Vec2) -> Self {
-        if let EnemyStep::LinearMovement {
-            direction: ref mut d,
-            ..
-        } = self
-        {
-            *d = value;
-        }
-        self
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -181,11 +181,11 @@ pub struct PickupSpawn {
 }
 
 impl PickupSpawn {
-    pub fn set_elapsed(mut self, value: f32) -> Self {
+    pub fn with_elapsed(mut self, value: f32) -> Self {
         self.elapsed = value;
         self
     }
-    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+    pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
@@ -212,7 +212,7 @@ pub struct ObjectSpawn {
 }
 
 impl ObjectSpawn {
-    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+    pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
@@ -257,36 +257,36 @@ pub struct EnemySpawn {
 }
 
 impl EnemySpawn {
-    pub fn set_elapsed(mut self, value: f32) -> Self {
+    pub fn with_elapsed(mut self, value: f32) -> Self {
         self.elapsed = value;
         self
     }
-    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+    pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
-    pub fn set_coordinates_x(mut self, value: f32) -> Self {
+    pub fn with_x(mut self, value: f32) -> Self {
         self.coordinates.x = value;
         self
     }
-    pub fn set_coordinates_y(mut self, value: f32) -> Self {
+    pub fn with_y(mut self, value: f32) -> Self {
         self.coordinates.y = value;
         self
     }
-    pub fn set_speed(mut self, value: f32) -> Self {
+    pub fn with_speed(mut self, value: f32) -> Self {
         self.speed = value;
         self
     }
-    pub fn set_steps(mut self, value: VecDeque<EnemyStep>) -> Self {
+    pub fn with_steps(mut self, value: VecDeque<EnemyStep>) -> Self {
         self.steps = value;
         self
     }
-    pub fn set_steps_vec(mut self, value: Vec<EnemyStep>) -> Self {
+    pub fn with_steps_vec(mut self, value: Vec<EnemyStep>) -> Self {
         self.steps = value.into();
         self
     }
     /** TODO should I implement these as a trait Contains */
-    pub fn set_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
+    pub fn with_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
         self.contains = value;
         self
     }
@@ -322,23 +322,21 @@ impl EnemySpawn {
         }
     }
     pub fn mosquito_variant_circle() -> Self {
-        Self::mosquito_base().set_steps_vec(vec![EnemyStep::circle_around_base().set_radius(12.)])
+        Self::mosquito_base().with_steps_vec(vec![EnemyStep::circle_around_base().with_radius(12.)])
     }
     pub fn mosquito_variant_linear() -> Self {
         Self::mosquito_base()
-            .set_coordinates_x(SCREEN_RESOLUTION.x as f32 + 10.)
-            .set_steps_vec(vec![
+            .with_x(SCREEN_RESOLUTION.x as f32 + 10.)
+            .with_steps_vec(vec![
                 EnemyStep::linear_movement_base(),
                 EnemyStep::linear_movement_base().opposite_direction(),
             ])
     }
     pub fn mosquito_variant_linear_opposite() -> Self {
-        Self::mosquito_base()
-            .set_coordinates_x(-10.)
-            .set_steps_vec(vec![
-                EnemyStep::linear_movement_base().opposite_direction(),
-                EnemyStep::linear_movement_base(),
-            ])
+        Self::mosquito_base().with_x(-10.).with_steps_vec(vec![
+            EnemyStep::linear_movement_base().opposite_direction(),
+            EnemyStep::linear_movement_base(),
+        ])
     }
     pub fn spidey_base(speed_multiplier: f32, coordinates: Vec2) -> Self {
         Self {
@@ -423,17 +421,17 @@ impl StageStepStop {
         self
     }
 
-    pub fn set_kill_all(mut self, value: bool) -> Self {
+    pub fn with_kill_all(mut self, value: bool) -> Self {
         self.kill_all = value;
         self
     }
 
-    pub fn set_kill_boss(mut self, value: bool) -> Self {
+    pub fn with_kill_boss(mut self, value: bool) -> Self {
         self.kill_boss = value;
         self
     }
 
-    pub fn set_max_duration(mut self, value: f32) -> Self {
+    pub fn with_max_duration(mut self, value: f32) -> Self {
         self.max_duration = Some(value);
         self
     }
@@ -474,7 +472,7 @@ impl StageStep {
         self
     }
 
-    pub fn set_base_speed(mut self, base_speed: f32) -> Self {
+    pub fn with_base_speed(mut self, base_speed: f32) -> Self {
         if let StageStep::Movement {
             base_speed: ref mut s,
             ..

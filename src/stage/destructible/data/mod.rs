@@ -21,22 +21,22 @@ pub struct DestructibleSpawn {
 }
 
 impl DestructibleSpawn {
-    pub fn set_coordinates(mut self, value: Vec2) -> Self {
+    pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
 
-    pub fn set_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
+    pub fn with_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
         self.contains = value;
         self
     }
 
-    pub fn set_depth(mut self, value: usize) -> Self {
+    pub fn with_depth(mut self, value: usize) -> Self {
         self.depth = value;
         self
     }
 
-    pub fn set_health(mut self, value: u32) -> Self {
+    pub fn with_health(mut self, value: u32) -> Self {
         self.health = value;
         self
     }

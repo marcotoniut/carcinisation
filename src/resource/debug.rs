@@ -38,9 +38,9 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         StageSpawn::Destructible(
             DestructibleSpawn::lamp_base(75., OBJECT_LAMP_Y).drops(ContainerSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(60., 100.))
-                    .set_elapsed(0.4)
-                    .set_steps_vec(vec![
+                    .with_coordinates(Vec2::new(60., 100.))
+                    .with_elapsed(0.4)
+                    .with_steps_vec(vec![
                         EnemyStep::Idle { duration: 1. },
                         EnemyStep::Attack { duration: 1. },
                     ]),
@@ -71,35 +71,35 @@ pub fn make_steps() -> Vec<StageStep> {
         // StageStep::Cinematic {
         //     cinematic: INTRO_ANIMATIC_4.clone(),
         // },
-        StageStep::Stop(StageStepStop::new().set_max_duration(10.).add_spawns(vec![
+        StageStep::Stop(StageStepStop::new().with_max_duration(10.).add_spawns(vec![
                 StageSpawn::Enemy(
-                    EnemySpawn::mosquito_variant_circle().set_coordinates(Vec2::new(30.0, 60.0)),
+                    EnemySpawn::mosquito_variant_circle().with_coordinates(Vec2::new(30.0, 60.0)),
                 ),
                 StageSpawn::Enemy(
-                    EnemySpawn::tardigrade_base().set_coordinates(Vec2::new(90.0, 50.0)),
+                    EnemySpawn::tardigrade_base().with_coordinates(Vec2::new(90.0, 50.0)),
                 ),
                 StageSpawn::Enemy(
-                    EnemySpawn::tardigrade_base().set_coordinates(Vec2::new(120.0, 30.0)),
+                    EnemySpawn::tardigrade_base().with_coordinates(Vec2::new(120.0, 30.0)),
                 ),
                 StageSpawn::Enemy(
                     EnemySpawn::mosquito_variant_linear()
-                        .set_coordinates_y(30.)
-                        .set_elapsed(2.1)
+                        .with_y(30.)
+                        .with_elapsed(2.1)
                         .add_step(EnemyStep::circle_around_base())
                         .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
                 ),
                 StageSpawn::Enemy(
                     EnemySpawn::mosquito_variant_linear_opposite()
-                        .set_elapsed(4.1)
+                        .with_elapsed(4.1)
                         .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
                 ),
             ])),
         StageStep::movement_base(100.0, 0.0).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
-                    .set_coordinates(Vec2::new(60.0, 100.0))
-                    .set_elapsed(5.4)
-                    .set_steps_vec(vec![
+                    .with_coordinates(Vec2::new(60.0, 100.0))
+                    .with_elapsed(5.4)
+                    .with_steps_vec(vec![
                         EnemyStep::Circle {
                             duration: 4.0,
                             radius: 10.0,
@@ -114,23 +114,23 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(120.0, 100.0))
-                    .set_elapsed(5.1)
+                    .with_coordinates(Vec2::new(120.0, 100.0))
+                    .with_elapsed(5.1)
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_variant_circle()
-                    .set_coordinates(Vec2::new(60.0, 70.0))
-                    .set_elapsed(2.8),
+                    .with_coordinates(Vec2::new(60.0, 70.0))
+                    .with_elapsed(2.8),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(130.0, 70.0))
-                    .set_elapsed(1.8)
+                    .with_coordinates(Vec2::new(130.0, 70.0))
+                    .with_elapsed(1.8)
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().set_max_duration(15.)),
-        StageStep::Stop(StageStepStop::new().set_max_duration(100.)),
+        StageStep::Stop(StageStepStop::new().with_max_duration(15.)),
+        StageStep::Stop(StageStepStop::new().with_max_duration(100.)),
     ]
 }
