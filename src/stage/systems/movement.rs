@@ -5,14 +5,14 @@ use crate::{
     plugins::movement::{linear::components::*, structs::MovementDirection},
     stage::{
         components::placement::{Depth, LinearUpdateDisabled},
-        enemy::components::{behavior::EnemyCurrentBehavior, CircleAround, Enemy, LinearMovement},
+        enemy::components::{behavior::EnemyCurrentBehavior, CircleAround, LinearMovement},
         events::DepthChangedEvent,
         resources::StageTime,
     },
 };
 
 pub fn update_position_x(
-    mut incoming_query: Query<
+    mut query: Query<
         (&XAxisPosition, &mut PxSubPosition),
         (
             Without<LinearUpdateDisabled>,
@@ -20,13 +20,13 @@ pub fn update_position_x(
         ),
     >,
 ) {
-    for (progress, mut position) in &mut incoming_query.iter_mut() {
+    for (progress, mut position) in &mut query.iter_mut() {
         position.0.x = progress.0;
     }
 }
 
 pub fn update_position_y(
-    mut incoming_query: Query<
+    mut query: Query<
         (&YAxisPosition, &mut PxSubPosition),
         (
             Without<LinearUpdateDisabled>,
@@ -34,13 +34,13 @@ pub fn update_position_y(
         ),
     >,
 ) {
-    for (progress, mut position) in &mut incoming_query.iter_mut() {
+    for (progress, mut position) in &mut query.iter_mut() {
         position.0.y = progress.0;
     }
 }
 
 pub fn update_depth(
-    mut incoming_query: Query<
+    mut query: Query<
         (
             Entity,
             &mut Depth,
@@ -51,7 +51,7 @@ pub fn update_depth(
     >,
     mut event_writer: EventWriter<DepthChangedEvent>,
 ) {
-    for (entity, mut depth, position, speed) in &mut incoming_query.iter_mut() {
+    for (entity, mut depth, position, speed) in &mut query.iter_mut() {
         if speed.value > 0.0 {
             let next_depth = depth.0 + 1;
             if position.0 >= (depth.0 as f32 + 0.5) {
@@ -91,7 +91,7 @@ pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSu
 pub fn check_linear_movement_finished(
     mut commands: Commands,
     mut query: Query<
-        (Entity),
+        Entity,
         (
             With<EnemyCurrentBehavior>,
             With<LinearMovement>,

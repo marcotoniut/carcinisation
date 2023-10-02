@@ -1,20 +1,28 @@
-use bevy::prelude::*;
+use bevy::{animation, prelude::*};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAssets, PxSubPosition},
     sprite::{PxSprite, PxSpriteBundle},
 };
 
+use crate::stage::{
+    components::{interactive::Dead, placement::Depth, SpawnDrop},
+    data::ContainerSpawn,
+    destructible::{
+        components::{make_animation_bundle, DestructibleState, DestructibleType},
+        data::destructibles::DESTRUCTIBLE_ANIMATIONS,
+    },
+    player::components::{PlayerAttack, UnhittableList},
+};
 use crate::{
     stage::{
         components::{
-            interactive::{Collision, Destructible, Flickerer, Health, Hittable, Object},
+            interactive::{Collision, Flickerer, Health, Hittable, Object},
             placement::Speed,
-            SpawnDrop,
         },
         data::{
-            DestructibleSpawn, DestructibleType, EnemySpawn, EnemyType, ObjectSpawn, ObjectType,
-            PickupSpawn, PickupType, StageSpawn,
+            EnemySpawn, EnemyType, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn,
         },
+        destructible::{components::Destructible, data::DestructibleSpawn},
         enemy::components::{
             behavior::EnemyBehaviors, Enemy, EnemyMosquito, EnemyMosquitoAttacking,
             EnemyTardigrade, EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
@@ -181,6 +189,9 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
     }
 }
 
+/**
+ * TODO move to Destructible mod?
+ */
 pub fn spawn_destructible(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
@@ -188,25 +199,25 @@ pub fn spawn_destructible(
 ) -> Entity {
     info!("Spawning Destructible {:?}", spawn.destructible_type);
 
-    let (sprite_path, layer) = match spawn.destructible_type {
-        DestructibleType::Lamp => ("sprites/objects/lamp.png", Layer::Middle(1)),
-        DestructibleType::Trashcan => ("sprites/objects/trashcan.png", Layer::Middle(1)),
-        DestructibleType::Crystal => ("sprites/objects/cavern_crystal.png", Layer::Middle(1)),
-        DestructibleType::Mushroom => ("sprites/objects/cavern_mushroom.png", Layer::Middle(1)),
-    };
-    let sprite = assets_sprite.load(sprite_path);
+    let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(&spawn.destructible_type);
+    let animation_bundle_o = make_animation_bundle(
+        assets_sprite,
+        animations_map,
+        &DestructibleState::Base,
+        spawn.depth,
+    );
+    let animation_bundle = animation_bundle_o.unwrap();
+
     commands
         .spawn((
             Name::new(format!("Destructible - {:?}", spawn.destructible_type)),
             Destructible,
             Flickerer,
             Hittable,
-            PxSpriteBundle::<Layer> {
-                sprite,
-                anchor: PxAnchor::BottomCenter,
-                layer,
-                ..default()
-            },
+            Depth(spawn.depth),
+            Health(spawn.health),
+            spawn.destructible_type.clone(),
+            animation_bundle,
             PxSubPosition::from(spawn.coordinates.clone()),
         ))
         .id()
@@ -222,7 +233,8 @@ pub fn spawn_object(
     let (sprite_path, layer) = match spawn.object_type {
         ObjectType::BenchBig => ("sprites/objects/bench_big.png", Layer::Middle(1)),
         ObjectType::BenchSmall => ("sprites/objects/bench_small.png", Layer::Middle(1)),
-        ObjectType::Fibertree => ("sprites/objects/fiber_tree.png", Layer::Middle(3)),
+        ObjectType::Fibertree => ("sprites/objects/fiber_tree.png", Layer::Middle(5)),
+        ObjectType::Rugpark => ("sprites/objects/rugpark.png", Layer::Middle(3)),
     };
     let sprite = assets_sprite.load(sprite_path);
     commands
@@ -238,4 +250,30 @@ pub fn spawn_object(
             PxSubPosition::from(spawn.coordinates.clone()),
         ))
         .id()
+}
+
+pub fn check_dead_drop(
+    mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    mut attack_query: Query<&mut UnhittableList, With<PlayerAttack>>,
+    query: Query<(&SpawnDrop, &PxSubPosition), Added<Dead>>,
+) {
+    for (spawn_drop, position) in &mut query.iter() {
+        let entity = match spawn_drop.contains.clone() {
+            ContainerSpawn::Pickup(mut spawn) => {
+                spawn.coordinates = position.0;
+                spawn_pickup(&mut commands, &mut assets_sprite, Vec2::ZERO, &spawn)
+            }
+            ContainerSpawn::Enemy(mut spawn) => {
+                spawn.coordinates = position.0;
+                spawn_enemy(&mut commands, Vec2::ZERO, &spawn)
+            }
+        };
+
+        for mut unhittable_list in &mut attack_query.iter_mut() {
+            if unhittable_list.0.contains(&spawn_drop.entity) {
+                unhittable_list.0.insert(entity);
+            }
+        }
+    }
 }

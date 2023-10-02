@@ -1,7 +1,6 @@
 pub mod bundles;
 pub mod components;
 pub mod data;
-pub mod resources;
 pub mod systems;
 
 use bevy::prelude::*;
@@ -17,7 +16,6 @@ impl Plugin for EnemyPlugin {
         app.add_systems(
             Update,
             (
-                check_dead_drop,
                 check_no_behavior,
                 tick_enemy_behavior_timer,
                 (

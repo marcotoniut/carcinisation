@@ -2,6 +2,7 @@ pub mod attack;
 pub mod bundles;
 pub mod components;
 pub mod data;
+pub mod destructible;
 pub mod enemy;
 pub mod events;
 pub mod pickup;
@@ -17,6 +18,7 @@ use seldom_pixel::prelude::PxSubPosition;
 use self::{
     attack::AttackPlugin,
     components::placement::RailPosition,
+    destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
     events::*,
     pickup::systems::health::{mark_despawn_pickup_feedback, pickup_health},
@@ -27,7 +29,13 @@ use self::{
     },
     resources::{StageActionTimer, StageProgress, StageTime},
     score::{components::Score, ScorePlugin},
-    systems::{camera::*, damage::*, movement::*, spawn::read_stage_spawn_trigger, *},
+    systems::{
+        camera::*,
+        damage::*,
+        movement::*,
+        spawn::{check_dead_drop, read_stage_spawn_trigger},
+        *,
+    },
     ui::{
         cleared_screen::{despawn_cleared_screen, render_cleared_screen},
         game_over_screen::{despawn_game_over_screen, render_game_over_screen},
@@ -84,9 +92,10 @@ impl Plugin for StagePlugin {
             .add_plugins(LinearMovementPlugin::<StageTime, XAxisPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, YAxisPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, ZAxisPosition>::default())
+            .add_plugins(AttackPlugin)
+            .add_plugins(DestructiblePlugin)
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
-            .add_plugins(AttackPlugin)
             .add_plugins(ScorePlugin)
             .add_plugins(StageUiPlugin)
             // .add_plugins(StarPlugin)
@@ -144,6 +153,7 @@ impl Plugin for StagePlugin {
                             (check_damage_taken, check_damage_flicker_taken).chain(),
                             add_invert_filter,
                             remove_invert_filter,
+                            check_dead_drop,
                         ),
                     )
                         .run_if(in_state(StageState::Running)),

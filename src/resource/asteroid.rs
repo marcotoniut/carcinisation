@@ -1,5 +1,6 @@
 use crate::plugins::movement::structs::MovementDirection;
 use crate::stage::data::*;
+use crate::stage::destructible::data::DestructibleSpawn;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 

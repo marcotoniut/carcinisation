@@ -3,12 +3,9 @@ use seldom_pixel::prelude::PxSubPosition;
 
 use crate::stage::{
     components::placement::Speed,
-    enemy::{
-        components::{
-            behavior::{BehaviorBundle, EnemyBehaviors, EnemyCurrentBehavior},
-            CircleAround, Enemy,
-        },
-        resources::EnemyBehaviorTimer,
+    enemy::components::{
+        behavior::{BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior},
+        CircleAround, Enemy,
     },
     resources::StageTime,
 };

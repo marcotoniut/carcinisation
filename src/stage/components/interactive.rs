@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub struct Destructible;
-
-#[derive(Component)]
 pub struct Object;
 
 // TODO impl more complex collision algorithm

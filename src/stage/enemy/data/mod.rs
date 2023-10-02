@@ -39,6 +39,3 @@ impl Default for AnimationData {
         }
     }
 }
-
-pub const PATH_SPRITES_ENEMIES: &str = "sprites/enemies/";
-pub const PATH_SPRITES_ATTACKS: &str = "sprites/attacks/";

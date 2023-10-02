@@ -1,7 +1,7 @@
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
 use std::collections::HashMap;
 
-use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ATTACKS};
+use crate::{globals::PATH_SPRITES_ATTACKS, stage::enemy::data::AnimationData};
 
 pub struct BloodAttackAnimations {
     pub hovering: HashMap<usize, AnimationData>,
