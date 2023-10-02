@@ -25,9 +25,12 @@ lazy_static! {
 
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
+        StageSpawn::Object(ObjectSpawn::rugpark_sign_base(400., 20.)),
         StageSpawn::Destructible(DestructibleSpawn::trashcan_base(100., 67., 1)),
         StageSpawn::Destructible(DestructibleSpawn::trashcan_base(220., 67., 1)),
         StageSpawn::Destructible(DestructibleSpawn::trashcan_base(130., 22., 4)),
+        StageSpawn::Destructible(DestructibleSpawn::crystal_base(175., 32.)),
+        StageSpawn::Destructible(DestructibleSpawn::mushroom_base(230., 12.)),
         StageSpawn::Object(ObjectSpawn::fibertree_base(30., OBJECT_FIBERTREE_Y)),
         StageSpawn::Object(ObjectSpawn::fibertree_base(180., OBJECT_FIBERTREE_Y)),
         StageSpawn::Object(ObjectSpawn::bench_big_base(50., 65.)),

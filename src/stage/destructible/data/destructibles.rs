@@ -63,9 +63,6 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> Stri
 const FRAGMENT_BASE: &str = "base";
 const FRAGMENT_BROKEN: &str = "broken";
 
-const FRAGMENT_LAMP: &str = "lamp";
-const FRAGMENT_TRASHCAN: &str = "trashcan";
-
 lazy_static! {
     pub static ref DESTRUCTIBLE_ANIMATIONS: DestructibleAnimations = {
         let mut animations = DestructibleAnimations::new();
@@ -75,16 +72,17 @@ lazy_static! {
         let lamp_broken_frames = 1;
         let lamp_broken_speed = 300;
         let lamp_depths = [5];
+        let lamp_fragment = "lamp";
 
         // TODO review values
         for i in lamp_depths {
             let collision = match i {
                 5 => Vec2::new(30.0, 50.0),
-                _ => Vec2::new(0.0, 0.0),
+                _ => Vec2::ZERO,
             };
             let collision_offset = match i {
                 5 => Vec2::new(0.0, 100.0),
-                _ => Vec2::new(0.0, 0.0),
+                _ => Vec2::ZERO,
             };
             animations.lamp.insert(
                 i,
@@ -92,7 +90,7 @@ lazy_static! {
                     base: AnimationData {
                         sprite_path: concat_strings_and_number(
                             PATH_SPRITES_OBJECTS,
-                            FRAGMENT_LAMP,
+                            lamp_fragment,
                             FRAGMENT_BASE,
                             i,
                         ),
@@ -106,7 +104,7 @@ lazy_static! {
                     broken: AnimationData {
                         sprite_path: concat_strings_and_number(
                             PATH_SPRITES_OBJECTS,
-                            FRAGMENT_LAMP,
+                            lamp_fragment,
                             FRAGMENT_BROKEN,
                             i,
                         ),
@@ -126,12 +124,13 @@ lazy_static! {
         let trashcan_broken_frames = 1;
         let trashcan_broken_speed = 500;
         let trashcan_depths = [1, 4];
+        let trashcan_fragment = "trashcan";
 
         for i in trashcan_depths {
             let collision = match i {
                 1 => Vec2::new(14.0, 16.0),
                 4 => Vec2::new(33., 38.),
-                _ => Vec2::new(0.0, 0.0),
+                _ => Vec2::ZERO,
             };
             animations.trashcan.insert(
                 i,
@@ -139,7 +138,7 @@ lazy_static! {
                     base: AnimationData {
                         sprite_path: concat_strings_and_number(
                             PATH_SPRITES_OBJECTS,
-                            FRAGMENT_TRASHCAN,
+                            trashcan_fragment,
                             FRAGMENT_BASE,
                             i,
                         ),
@@ -152,7 +151,7 @@ lazy_static! {
                     broken: AnimationData {
                         sprite_path: concat_strings_and_number(
                             PATH_SPRITES_OBJECTS,
-                            FRAGMENT_TRASHCAN,
+                            trashcan_fragment,
                             FRAGMENT_BROKEN,
                             i,
                         ),
@@ -164,8 +163,105 @@ lazy_static! {
                     },
                 },
             );
-        }
 
+            let mushroom_frames = 1;
+            let mushroom_speed = 500;
+            let mushroom_broken_frames = 1;
+            let mushroom_broken_speed = 500;
+            let mushroom_depths = [5];
+            let mushroom_fragment = "mushroom";
+
+            for i in mushroom_depths {
+                let collision = match i {
+                    5 => Vec2::new(33., 38.),
+                    _ => Vec2::ZERO,
+                };
+                let collision_offset = match i {
+                    5 => Vec2::new(-3.0, 15.0),
+                    _ => Vec2::ZERO,
+                };
+                animations.mushroom.insert(
+                    i,
+                    DestructibleAnimationData {
+                        base: AnimationData {
+                            sprite_path: concat_strings_and_number(
+                                PATH_SPRITES_OBJECTS,
+                                mushroom_fragment,
+                                FRAGMENT_BASE,
+                                i,
+                            ),
+                            frames: mushroom_frames,
+                            speed: mushroom_speed,
+                            finish_behavior: PxAnimationFinishBehavior::Loop,
+                            collision: Collision::Box(collision),
+                            ..Default::default()
+                        },
+                        broken: AnimationData {
+                            sprite_path: concat_strings_and_number(
+                                PATH_SPRITES_OBJECTS,
+                                mushroom_fragment,
+                                FRAGMENT_BROKEN,
+                                i,
+                            ),
+                            frames: mushroom_broken_frames,
+                            speed: mushroom_broken_speed,
+                            finish_behavior: PxAnimationFinishBehavior::Mark,
+                            collision: Collision::Box(collision),
+                            ..Default::default()
+                        },
+                    },
+                );
+            }
+
+            let crystal_frames = 1;
+            let crystal_speed = 500;
+            let crystal_broken_frames = 1;
+            let crystal_broken_speed = 500;
+            let crystal_depths = [4];
+            let crystal_fragment = "crystal";
+
+            for i in crystal_depths {
+                let collision = match i {
+                    4 => Vec2::new(33., 38.),
+                    _ => Vec2::ZERO,
+                };
+                let collision_offset = match i {
+                    4 => Vec2::new(-3.0, 15.0),
+                    _ => Vec2::ZERO,
+                };
+                animations.crystal.insert(
+                    i,
+                    DestructibleAnimationData {
+                        base: AnimationData {
+                            sprite_path: concat_strings_and_number(
+                                PATH_SPRITES_OBJECTS,
+                                crystal_fragment,
+                                FRAGMENT_BASE,
+                                i,
+                            ),
+                            frames: crystal_frames,
+                            speed: crystal_speed,
+                            finish_behavior: PxAnimationFinishBehavior::Loop,
+                            collision: Collision::Box(collision),
+                            ..Default::default()
+                        },
+                        broken: AnimationData {
+                            sprite_path: concat_strings_and_number(
+                                PATH_SPRITES_OBJECTS,
+                                crystal_fragment,
+                                FRAGMENT_BROKEN,
+                                i,
+                            ),
+                            frames: crystal_broken_frames,
+                            speed: crystal_broken_speed,
+                            finish_behavior: PxAnimationFinishBehavior::Mark,
+                            collision: Collision::Box(collision),
+                            ..Default::default()
+                        },
+                    },
+                );
+            }
+        }
         animations
     };
 }
