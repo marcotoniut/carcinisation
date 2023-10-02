@@ -5,7 +5,11 @@ use seldom_pixel::{
 };
 
 use crate::stage::{
-    components::{interactive::Dead, placement::Depth, SpawnDrop},
+    components::{
+        interactive::{CollisionData, Dead},
+        placement::Depth,
+        SpawnDrop,
+    },
     data::ContainerSpawn,
     destructible::{
         components::{make_animation_bundle, DestructibleState, DestructibleType},
@@ -94,7 +98,7 @@ pub fn spawn_pickup(
                     },
                     position,
                     Health(1),
-                    Collision::Box(Vec2::new(12., 8.)),
+                    CollisionData::new(Collision::Box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
                 ))
                 .id()
@@ -117,7 +121,7 @@ pub fn spawn_pickup(
                     },
                     position,
                     Health(1),
-                    Collision::Box(Vec2::new(7., 5.)),
+                    CollisionData::new(Collision::Box(Vec2::new(7., 5.))),
                     HealthRecovery(30),
                 ))
                 .id()
@@ -153,7 +157,8 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                     Flickerer,
                     Hittable {},
                     PxSubPosition::from(position),
-                    Collision::Circle(ENEMY_MOSQUITO_RADIUS),
+                    CollisionData::new(Collision::Circle(ENEMY_MOSQUITO_RADIUS))
+                        .with_offset(Vec2::new(0., 2.)),
                     Health(ENEMY_MOSQUITO_BASE_HEALTH),
                 ))
                 .id();
@@ -182,7 +187,8 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                 Flickerer,
                 Hittable {},
                 PxSubPosition::from(position),
-                Collision::Circle(ENEMY_TARDIGRADE_RADIUS),
+                CollisionData::new(Collision::Circle(ENEMY_TARDIGRADE_RADIUS))
+                    .with_offset(Vec2::new(-3., 2.)),
                 Health(ENEMY_TARDIGRADE_BASE_HEALTH),
             ))
             .id(),

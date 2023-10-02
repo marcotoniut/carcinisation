@@ -7,29 +7,21 @@ use std::{env, time::Duration};
 use bevy::prelude::*;
 
 use crate::{
-    components::DespawnMark,
-    globals::{
-        mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
-        TYPEFACE_INVERTED_PATH,
-    },
-    stage::{resources::StageActionTimer, score::components::Score, GameState},
-    AppState, Layer,
+    globals::mark_for_despawn_by_component_query,
+    stage::{resources::StageActionTimer, GameState},
+    Layer,
 };
 use seldom_pixel::{
     prelude::{
-        IRect, PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior,
-        PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition, PxTextBundle,
-        PxTypeface,
+        PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
+        PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition, PxTypeface,
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
 
 use self::{
-    cinemachine::{
-        CinemachineModule, CinemachineScene, CinemachineTimer, ClipBundle, CurrentClipInfo,
-        UIBackground,
-    },
-    data::{CinemachineData, Clip},
+    cinemachine::{CinemachineModule, CinemachineScene, ClipBundle, CurrentClipInfo, UIBackground},
+    data::CinemachineData,
 };
 
 pub fn make_clip_bundle(

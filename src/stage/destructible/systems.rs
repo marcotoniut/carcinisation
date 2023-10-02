@@ -7,14 +7,17 @@ use crate::stage::components::{
     placement::Depth,
 };
 use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
+use seldom_pixel::{prelude::*, sprite::PxSprite};
 
 pub fn check_dead_destructible(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    query: Query<(Entity, &DestructibleType, &Depth), (With<Destructible>, Added<Dead>)>,
+    query: Query<
+        (Entity, &DestructibleType, &PxSubPosition, &Depth),
+        (With<Destructible>, Added<Dead>),
+    >,
 ) {
-    for (entity, destructible_type, depth) in query.iter() {
+    for (entity, destructible_type, position, depth) in query.iter() {
         // TODO Should I do a bundle?
         let mut entity_commands = commands.entity(entity);
         entity_commands.remove::<(Hittable, Flickerer, Destructible)>();
@@ -27,7 +30,9 @@ pub fn check_dead_destructible(
             depth.0,
         );
         if let Some(animation_bundle) = animation_bundle_o {
-            entity_commands.insert(animation_bundle);
+            entity_commands
+                .insert(animation_bundle)
+                .insert(PxSubPosition::from(position.0));
         }
     }
 }
