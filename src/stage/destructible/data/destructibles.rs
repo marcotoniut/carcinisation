@@ -76,6 +76,7 @@ lazy_static! {
         let lamp_broken_speed = 300;
         let lamp_depths = [5];
 
+        // TODO review values
         for i in lamp_depths {
             let collision = match i {
                 5 => Vec2::new(30.0, 50.0),
@@ -111,7 +112,7 @@ lazy_static! {
                         ),
                         frames: lamp_broken_frames,
                         speed: lamp_broken_speed,
-                        finish_behavior: PxAnimationFinishBehavior::Despawn,
+                        finish_behavior: PxAnimationFinishBehavior::Mark,
                         collision_offset,
                         collision: Collision::Box(collision),
                         ..Default::default()
@@ -157,7 +158,7 @@ lazy_static! {
                         ),
                         frames: trashcan_broken_frames,
                         speed: trashcan_broken_speed,
-                        finish_behavior: PxAnimationFinishBehavior::Despawn,
+                        finish_behavior: PxAnimationFinishBehavior::Mark,
                         collision: Collision::Box(collision),
                         ..Default::default()
                     },

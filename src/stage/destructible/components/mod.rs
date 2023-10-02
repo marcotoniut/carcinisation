@@ -6,7 +6,10 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
-use crate::{stage::components::interactive::Collision, Layer};
+use crate::{
+    stage::components::interactive::{Collision, CollisionData},
+    Layer,
+};
 
 use super::data::destructibles::DestructibleAnimationData;
 
@@ -33,7 +36,7 @@ pub fn make_animation_bundle(
     animation_map: &HashMap<usize, DestructibleAnimationData>,
     destructible_state: &DestructibleState,
     depth: usize,
-) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, Collision)> {
+) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData)> {
     animation_map
         .get(&depth)
         .map(|data| data.by_state(destructible_state))
@@ -48,7 +51,10 @@ pub fn make_animation_bundle(
                     ..default()
                 },
                 animation_data.make_animation_bundle(),
-                animation_data.collision.clone(),
+                CollisionData {
+                    collision: animation_data.collision.clone(),
+                    offset: animation_data.collision_offset.clone(),
+                },
             )
         })
 }

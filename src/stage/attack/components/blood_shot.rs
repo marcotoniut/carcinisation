@@ -7,7 +7,10 @@ use seldom_pixel::{
 
 use crate::{
     stage::{
-        components::{interactive::Collision, placement::Depth},
+        components::{
+            interactive::{Collision, CollisionData},
+            placement::Depth,
+        },
         enemy::data::blood_attack::BLOOD_ATTACK_ANIMATIONS,
     },
     Layer,
@@ -17,7 +20,7 @@ use crate::{
 pub fn make_blood_shot_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     depth: Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle, Collision) {
+) -> (PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData) {
     let animation_o = BLOOD_ATTACK_ANIMATIONS.hovering.get(&depth.0);
 
     let animation = animation_o.unwrap();
@@ -38,6 +41,6 @@ pub fn make_blood_shot_attack_animation_bundle(
             ..default()
         },
         // TODO hardcoded
-        Collision::Circle(depth.0 as f32 * 4.),
+        CollisionData::new(Collision::Circle(depth.0 as f32 * 4.)),
     )
 }
