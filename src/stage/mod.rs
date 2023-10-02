@@ -27,13 +27,13 @@ use self::{
         systems::camera::{camera_shake, trigger_shake},
         PlayerPlugin,
     },
-    resources::{StageActionTimer, StageProgress, StageTime},
+    resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
     score::{components::Score, ScorePlugin},
     systems::{
         camera::*,
         damage::*,
         movement::*,
-        spawn::{check_dead_drop, read_stage_spawn_trigger},
+        spawn::{check_dead_drop, check_step_spawn, read_stage_spawn_trigger},
         *,
     },
     ui::{
@@ -86,6 +86,7 @@ impl Plugin for StagePlugin {
             .init_resource::<StageTime>()
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
+            .init_resource::<StageStepSpawner>()
             .init_resource::<CinemachineScene>()
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
@@ -134,6 +135,7 @@ impl Plugin for StagePlugin {
                             check_stage_step_timer,
                             check_staged_cleared,
                             read_stage_cleared_trigger,
+                            check_step_spawn,
                             check_stage_game_over,
                             read_stage_game_over_trigger,
                             // TEMP

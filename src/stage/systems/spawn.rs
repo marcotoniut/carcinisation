@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{animation, prelude::*};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAssets, PxSubPosition},
@@ -16,6 +18,7 @@ use crate::stage::{
         data::destructibles::DESTRUCTIBLE_ANIMATIONS,
     },
     player::components::{PlayerAttack, UnhittableList},
+    resources::{StageStepSpawner, StageTime},
 };
 use crate::{
     stage::{
@@ -38,6 +41,29 @@ use crate::{
     systems::camera::CameraPos,
     Layer,
 };
+
+pub fn check_step_spawn(
+    mut event_writer: EventWriter<StageSpawnEvent>,
+    mut stage_step_spawner: ResMut<StageStepSpawner>,
+    stage_time: Res<StageTime>,
+) {
+    let mut elapsed = stage_step_spawner.elapsed + stage_time.delta;
+
+    stage_step_spawner.spawns.retain_mut(|spawn| {
+        let spawn_elapsed = spawn.get_elapsed();
+        if spawn_elapsed <= elapsed {
+            elapsed -= spawn_elapsed;
+            event_writer.send(StageSpawnEvent {
+                spawn: spawn.clone(),
+            });
+            false
+        } else {
+            true
+        }
+    });
+
+    stage_step_spawner.elapsed = elapsed;
+}
 
 pub fn read_stage_spawn_trigger(
     mut commands: Commands,
