@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
 use bevy::{
     prelude::Vec2,
@@ -364,13 +364,13 @@ pub enum StageSpawn {
 }
 
 impl StageSpawn {
-    pub fn get_elapsed(&self) -> f32 {
-        match self {
+    pub fn get_elapsed(&self) -> Duration {
+        Duration::from_secs_f32(match self {
             StageSpawn::Destructible(DestructibleSpawn { .. }) => 0.,
             StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
             StageSpawn::Object(ObjectSpawn { .. }) => 0.,
             StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
-        }
+        })
     }
 
     pub fn show_spawn_type(&self) -> String {

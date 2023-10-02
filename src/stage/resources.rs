@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::core::time::DeltaTime;
 
-use super::data::StageData;
+use super::data::{StageData, StageSpawn};
 
 #[derive(Resource, Default, Debug, Clone, Copy)]
 pub struct StageTime {
@@ -23,8 +23,6 @@ pub struct StageProgress {
     pub elapsed: f32,
     pub step: usize,
     pub step_elapsed: f32,
-    pub spawn_step: usize,
-    pub spawn_step_elapsed: f32,
 }
 
 #[derive(Resource)]
@@ -42,3 +40,9 @@ impl Default for StageActionTimer {
 
 #[derive(Resource)]
 pub struct StageDataHandle(pub Handle<StageData>);
+
+#[derive(Resource, Default)]
+pub struct StageStepSpawner {
+    pub elapsed: Duration,
+    pub spawns: Vec<StageSpawn>,
+}

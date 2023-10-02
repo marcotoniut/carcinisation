@@ -4,7 +4,7 @@ pub mod placement;
 
 use bevy::prelude::*;
 
-use super::data::ContainerSpawn;
+use super::data::{ContainerSpawn, StageSpawn};
 
 // TODO should go in UI
 #[derive(Clone, Component, Debug)]
