@@ -11,6 +11,8 @@ use crate::{
     plugins::movement::structs::MovementDirection,
 };
 
+use super::destructible::data::DestructibleSpawn;
+
 lazy_static! {
     pub static ref DEFAULT_COORDINATES: Vec2 = HALF_SCREEN_RESOLUTION.clone();
 }
@@ -28,22 +30,13 @@ pub struct SkyboxData {
     pub frames: usize,
 }
 
-#[derive(Clone, Debug)]
-pub enum DestructibleType {
-    Lamp,
-    Trashcan,
-    Crystal,
-    Mushroom,
-    // Window,
-    // Plant,
-}
-
 // deriving Default for simplicity's sake in defining the stage data
 #[derive(Clone, Debug)]
 pub enum ObjectType {
     BenchBig,
     BenchSmall,
     Fibertree,
+    Rugpark,
 }
 
 #[derive(Clone, Debug)]
@@ -213,60 +206,6 @@ impl PickupSpawn {
 }
 
 #[derive(Clone, Debug)]
-pub struct DestructibleSpawn {
-    pub destructible_type: DestructibleType,
-    pub coordinates: Vec2,
-    pub contains: Option<Box<ContainerSpawn>>,
-}
-
-impl DestructibleSpawn {
-    pub fn set_coordinates(mut self, value: Vec2) -> Self {
-        self.coordinates = value;
-        self
-    }
-    pub fn set_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
-        self.contains = value;
-        self
-    }
-    pub fn drops(mut self, value: ContainerSpawn) -> Self {
-        self.contains = Some(Box::new(value));
-        self
-    }
-
-    pub fn lamp_base(x: f32, y: f32) -> Self {
-        Self {
-            destructible_type: DestructibleType::Lamp,
-            coordinates: Vec2::new(x, y),
-            contains: None,
-        }
-    }
-
-    pub fn trashcan_base(x: f32, y: f32) -> Self {
-        Self {
-            destructible_type: DestructibleType::Trashcan,
-            coordinates: Vec2::new(x, y),
-            contains: None,
-        }
-    }
-
-    pub fn crystal_base(x: f32, y: f32) -> Self {
-        Self {
-            destructible_type: DestructibleType::Crystal,
-            coordinates: Vec2::new(x, y),
-            contains: None,
-        }
-    }
-
-    pub fn mushroom_base(x: f32, y: f32) -> Self {
-        Self {
-            destructible_type: DestructibleType::Mushroom,
-            coordinates: Vec2::new(x, y),
-            contains: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
 pub struct ObjectSpawn {
     pub object_type: ObjectType,
     pub coordinates: Vec2,
@@ -295,6 +234,13 @@ impl ObjectSpawn {
     pub fn fibertree_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::Fibertree,
+            coordinates: Vec2::new(x, y),
+        }
+    }
+
+    pub fn rugpark_sign_base(x: f32, y: f32) -> Self {
+        Self {
+            object_type: ObjectType::Rugpark,
             coordinates: Vec2::new(x, y),
         }
     }

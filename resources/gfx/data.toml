@@ -176,27 +176,29 @@ path = "sprites/objects/bench_small.png"
 [[images]]
 path = "sprites/objects/fiber_tree.png"
 [[images]]
-path = "sprites/objects/lamp_broken.png"
-[[images]]
-path = "sprites/objects/lamp.png"
-[[images]]
-path = "sprites/objects/trash_can_1.png"
-[[images]]
-path = "sprites/objects/trash_can_2.png"
-[[images]]
-path = "sprites/objects/trash_can_broken_1.png"
-[[images]]
-path = "sprites/objects/trash_can_broken_1.png"
-[[images]]
-path = "sprites/objects/cavern_crystal.png"
-[[images]]
-path = "sprites/objects/cavern_crystal_broken.png"
-[[images]]
-path = "sprites/objects/cavern_mushroom.png"
-[[images]]
-path = "sprites/objects/cavern_mushroom_broken.png"
-[[images]]
 path = "sprites/objects/rugpark_sign.png"
+
+# Destructibles
+[[images]]
+path = "sprites/objects/lamp_broken_5.png"
+[[images]]
+path = "sprites/objects/lamp_base_5.png"
+[[images]]
+path = "sprites/objects/trashcan_base_1.png"
+[[images]]
+path = "sprites/objects/trashcan_base_4.png"
+[[images]]
+path = "sprites/objects/trashcan_broken_1.png"
+[[images]]
+path = "sprites/objects/trashcan_broken_4.png"
+[[images]]
+path = "sprites/objects/cavern_crystal_base_4.png"
+[[images]]
+path = "sprites/objects/cavern_crystal_broken_4.png"
+[[images]]
+path = "sprites/objects/cavern_mushroom_base_5.png"
+[[images]]
+path = "sprites/objects/cavern_mushroom_broken_5.png"
 
 # Pickups
 [[images]]

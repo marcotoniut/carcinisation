@@ -7,10 +7,11 @@ use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 use super::{
     bundles::*,
     components::{
-        interactive::{Dead, Destructible, Object},
+        interactive::{Dead, Object},
         Stage,
     },
     data::*,
+    destructible::components::Destructible,
     enemy::components::Enemy,
     events::{StageClearedEvent, StageGameOverEvent, StageSpawnEvent, StageStepEvent},
     player::components::Player,

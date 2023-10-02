@@ -1,7 +1,7 @@
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
 use std::collections::HashMap;
 
-use crate::stage::enemy::data::{AnimationData, PATH_SPRITES_ENEMIES};
+use crate::{globals::PATH_SPRITES_ENEMIES, stage::enemy::data::AnimationData};
 
 pub struct TardigradeAnimations {
     pub attack: HashMap<usize, AnimationData>,

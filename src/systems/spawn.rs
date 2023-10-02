@@ -3,7 +3,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::components::{DespawnMark, Music};
+use crate::components::Music;
 
 use super::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings};
 

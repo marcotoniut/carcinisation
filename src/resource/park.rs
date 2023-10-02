@@ -1,6 +1,7 @@
 use crate::cinemachine::scene_intro::*;
 use crate::plugins::movement::structs::MovementDirection;
 use crate::stage::data::*;
+use crate::stage::destructible::data::DestructibleSpawn;
 use bevy::prelude::*;
 
 use lazy_static::lazy_static;
@@ -25,6 +26,7 @@ lazy_static! {
 
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
+        StageSpawn::Object(ObjectSpawn::rugpark_sign_base(400., 20.)),
         StageSpawn::Object(ObjectSpawn::fibertree_base(10., OBJECT_FIBERTREE_Y)),
         StageSpawn::Object(ObjectSpawn::fibertree_base(180., OBJECT_FIBERTREE_Y)),
         StageSpawn::Object(ObjectSpawn::bench_big_base(20., 65.)),
