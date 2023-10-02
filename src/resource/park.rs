@@ -35,13 +35,13 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         StageSpawn::Destructible(
             DestructibleSpawn::lamp_base(70., OBJECT_LAMP_Y).drops(ContainerSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(79., 100.))
-                    .set_elapsed(0.4)
-                    .set_steps_vec(vec![
+                    .with_coordinates(Vec2::new(79., 100.))
+                    .with_elapsed(0.4)
+                    .with_steps_vec(vec![
                         EnemyStep::linear_movement_base(),
                         EnemyStep::Idle { duration: 1. },
                         EnemyStep::linear_movement_base().opposite_direction(),
-                        EnemyStep::linear_movement_base().set_radius(10.),
+                        EnemyStep::linear_movement_base().with_radius(10.),
                     ]),
             )),
         ),
@@ -49,7 +49,9 @@ pub fn make_spawns() -> Vec<StageSpawn> {
             DestructibleSpawn::lamp_base(260.0, OBJECT_LAMP_Y)
                 .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
         ),
-        StageSpawn::Pickup(PickupSpawn::big_healthpack_base().set_coordinates(Vec2::new(30., 10.))),
+        StageSpawn::Pickup(
+            PickupSpawn::big_healthpack_base().with_coordinates(Vec2::new(30., 10.)),
+        ),
     ]
 }
 
@@ -74,53 +76,53 @@ pub fn make_steps() -> Vec<StageStep> {
         StageStep::movement_base(50.0, 0.0).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_variant_circle()
-                    .set_coordinates(Vec2::new(60.0, 100.0))
-                    .set_elapsed(5.4)
+                    .with_coordinates(Vec2::new(60.0, 100.0))
+                    .with_elapsed(5.4)
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(120.0, 100.0))
-                    .set_elapsed(5.1)
+                    .with_coordinates(Vec2::new(120.0, 100.0))
+                    .with_elapsed(5.1)
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(130.0, 70.0))
+                    .with_coordinates(Vec2::new(130.0, 70.0))
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().set_max_duration(30.).add_spawns(vec![
+        StageStep::Stop(StageStepStop::new().with_max_duration(30.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(70.0, 70.0))
-                    .set_elapsed(2.4)
+                    .with_coordinates(Vec2::new(70.0, 70.0))
+                    .with_elapsed(2.4)
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(90.0, 70.0))
-                    .set_elapsed(10.8),
+                    .with_coordinates(Vec2::new(90.0, 70.0))
+                    .with_elapsed(10.8),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_variant_circle()
-                    .set_coordinates(Vec2::new(12.0, 50.0))
-                    .set_speed(2.0)
-                    .set_elapsed(24.8)
+                    .with_coordinates(Vec2::new(12.0, 50.0))
+                    .with_speed(2.0)
+                    .with_elapsed(24.8)
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(170., 68.))
-                    .set_elapsed(50.8)
+                    .with_coordinates(Vec2::new(170., 68.))
+                    .with_elapsed(50.8)
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ])),
         StageStep::movement_base(220., 0.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(70.0, 60.0))
-                    .set_elapsed(6.8)
-                    .set_steps_vec(vec![EnemyStep::Circle {
+                    .with_coordinates(Vec2::new(70.0, 60.0))
+                    .with_elapsed(6.8)
+                    .with_steps_vec(vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 3.0,
                         direction: MovementDirection::Positive,
@@ -128,77 +130,77 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(12.0, 50.0))
-                    .set_elapsed(22.8),
+                    .with_coordinates(Vec2::new(12.0, 50.0))
+                    .with_elapsed(22.8),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
-                    .set_coordinates(Vec2::new(30.0, 90.0))
-                    .set_speed(2.0)
-                    .set_elapsed(22.8),
+                    .with_coordinates(Vec2::new(30.0, 90.0))
+                    .with_speed(2.0)
+                    .with_elapsed(22.8),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(30.0, 50.0))
-                    .set_speed(2.0)
-                    .set_elapsed(22.8),
+                    .with_coordinates(Vec2::new(30.0, 50.0))
+                    .with_speed(2.0)
+                    .with_elapsed(22.8),
             ),
             StageSpawn::Pickup(
                 PickupSpawn::big_healthpack_base()
-                    .set_coordinates(Vec2::new(144.0, 68.0))
-                    .set_elapsed(0.0),
+                    .with_coordinates(Vec2::new(144.0, 68.0))
+                    .with_elapsed(0.0),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().set_max_duration(20.)),
+        StageStep::Stop(StageStepStop::new().with_max_duration(20.)),
         StageStep::movement_base(280., 0.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(60.0, 80.0))
-                    .set_elapsed(8.4),
+                    .with_coordinates(Vec2::new(60.0, 80.0))
+                    .with_elapsed(8.4),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(100.0, 60.0))
-                    .set_elapsed(6.1),
+                    .with_coordinates(Vec2::new(100.0, 60.0))
+                    .with_elapsed(6.1),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(30.0, 80.0))
-                    .set_elapsed(7.4),
+                    .with_coordinates(Vec2::new(30.0, 80.0))
+                    .with_elapsed(7.4),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(120.0, 60.0))
-                    .set_speed(5.0)
-                    .set_elapsed(6.1),
+                    .with_coordinates(Vec2::new(120.0, 60.0))
+                    .with_speed(5.0)
+                    .with_elapsed(6.1),
                 // direction: MovementDirection::Left,
                 // radius: 25.0,
                 // time_offset: 2.0,
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(80.0, 80.0))
-                    .set_speed(5.0)
-                    .set_elapsed(7.4),
+                    .with_coordinates(Vec2::new(80.0, 80.0))
+                    .with_speed(5.0)
+                    .with_elapsed(7.4),
                 // direction: MovementDirection::Right,
                 // radius: 15.0,
                 // time_offset: 0.5,
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(20.0, 60.0))
-                    .set_speed(5.0)
-                    .set_elapsed(8.1), // direction: MovementDirection::Left,
-                                       // radius: 25.0,
-                                       // time_offset: 3.0,
+                    .with_coordinates(Vec2::new(20.0, 60.0))
+                    .with_speed(5.0)
+                    .with_elapsed(8.1), // direction: MovementDirection::Left,
+                                        // radius: 25.0,
+                                        // time_offset: 3.0,
             ),
         ]),
         StageStep::movement_base(500.0, 0.0).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(100.0, 80.0))
-                    .set_speed(5.0)
-                    .set_elapsed(8.4)
+                    .with_coordinates(Vec2::new(100.0, 80.0))
+                    .with_speed(5.0)
+                    .with_elapsed(8.4)
                     // direction: MovementDirection::Right,
                     // radius: 15.0,
                     // time_offset: 0.5,
@@ -206,17 +208,17 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(100.0, 100.0))
-                    .set_speed(5.0)
-                    .set_elapsed(6.1), // direction: MovementDirection::Left,
-                                       // radius: 25.0,
-                                       // time_offset: 3.0,
+                    .with_coordinates(Vec2::new(100.0, 100.0))
+                    .with_speed(5.0)
+                    .with_elapsed(6.1), // direction: MovementDirection::Left,
+                                        // radius: 25.0,
+                                        // time_offset: 3.0,
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(60.0, 120.0))
-                    .set_elapsed(7.4)
-                    .set_steps_vec(vec![EnemyStep::Circle {
+                    .with_coordinates(Vec2::new(60.0, 120.0))
+                    .with_elapsed(7.4)
+                    .with_steps_vec(vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 13.0,
                         direction: MovementDirection::Positive,
@@ -224,26 +226,26 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(280.0, 80.0))
-                    .set_elapsed(5.6),
+                    .with_coordinates(Vec2::new(280.0, 80.0))
+                    .with_elapsed(5.6),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
-                    .set_elapsed(6.4)
-                    .set_coordinates(Vec2::new(320.0, 160.0))
+                    .with_elapsed(6.4)
+                    .with_coordinates(Vec2::new(320.0, 160.0))
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(400.0, 160.0))
-                    .set_elapsed(7.4),
+                    .with_coordinates(Vec2::new(400.0, 160.0))
+                    .with_elapsed(7.4),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(360.0, 160.0))
-                    .set_speed(5.0)
-                    .set_elapsed(8.1)
-                    .set_steps_vec(vec![
+                    .with_coordinates(Vec2::new(360.0, 160.0))
+                    .with_speed(5.0)
+                    .with_elapsed(8.1)
+                    .with_steps_vec(vec![
                         // direction: MovementDirection::Left,
                         // radius: 25.0,
                         // time_offset: 3.0,
@@ -251,10 +253,10 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(410.0, 180.0))
-                    .set_speed(5.0)
-                    .set_elapsed(7.4)
-                    .set_steps_vec(vec![
+                    .with_coordinates(Vec2::new(410.0, 180.0))
+                    .with_speed(5.0)
+                    .with_elapsed(7.4)
+                    .with_steps_vec(vec![
                         // direction: MovementDirection::Right,
                         // radius: 15.0,
                         // time_offset: 1.0,
@@ -262,10 +264,10 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(440.0, 190.0))
-                    .set_speed(5.0)
-                    .set_elapsed(6.1)
-                    .set_steps_vec(vec![EnemyStep::Circle {
+                    .with_coordinates(Vec2::new(440.0, 190.0))
+                    .with_speed(5.0)
+                    .with_elapsed(6.1)
+                    .with_steps_vec(vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 23.0,
                         direction: MovementDirection::Positive,
@@ -273,15 +275,15 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(120.0, 160.0))
-                    .set_elapsed(6.1)
+                    .with_coordinates(Vec2::new(120.0, 160.0))
+                    .with_elapsed(6.1)
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(140.0, 160.0))
-                    .set_elapsed(7.4)
-                    .set_steps_vec(vec![
+                    .with_coordinates(Vec2::new(140.0, 160.0))
+                    .with_elapsed(7.4)
+                    .with_steps_vec(vec![
                         // direction: MovementDirection::Right,
                         // radius: 15.0,
                         // time_offset: 0.5,
@@ -289,10 +291,10 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(520.0, 210.0))
-                    .set_speed(5.0)
-                    .set_elapsed(8.1)
-                    .set_steps_vec(vec![EnemyStep::Circle {
+                    .with_coordinates(Vec2::new(520.0, 210.0))
+                    .with_speed(5.0)
+                    .with_elapsed(8.1)
+                    .with_steps_vec(vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 13.0,
                         direction: MovementDirection::Positive,
@@ -300,14 +302,14 @@ pub fn make_steps() -> Vec<StageStep> {
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().set_max_duration(30.)),
+        StageStep::Stop(StageStepStop::new().with_max_duration(30.)),
         StageStep::movement_base(850., 155.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(55.0, 60.0))
-                    .set_speed(5.0)
-                    .set_elapsed(8.4)
-                    .set_steps_vec(vec![EnemyStep::Circle {
+                    .with_coordinates(Vec2::new(55.0, 60.0))
+                    .with_speed(5.0)
+                    .with_elapsed(8.4)
+                    .with_steps_vec(vec![EnemyStep::Circle {
                         duration: 999.0,
                         radius: 15.0,
                         direction: MovementDirection::Positive,
@@ -316,37 +318,37 @@ pub fn make_steps() -> Vec<StageStep> {
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(100.0, 60.0))
-                    .set_speed(5.0)
-                    .set_elapsed(6.1)
-                    .set_steps_vec(vec![
+                    .with_coordinates(Vec2::new(100.0, 60.0))
+                    .with_speed(5.0)
+                    .with_elapsed(6.1)
+                    .with_steps_vec(vec![
                         // direction: MovementDirection::Left,
                         // radius: 25.0,
                         // time_offset: 3.0,
                     ]),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().set_max_duration(40.)),
+        StageStep::Stop(StageStepStop::new().with_max_duration(40.)),
         StageStep::movement_base(920., 155.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(60.0, 80.0))
-                    .set_speed(5.0)
-                    .set_elapsed(8.4)
-                    .set_steps_vec(vec![]),
+                    .with_coordinates(Vec2::new(60.0, 80.0))
+                    .with_speed(5.0)
+                    .with_elapsed(8.4)
+                    .with_steps_vec(vec![]),
             ),
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
-                    .set_coordinates(Vec2::new(100.0, 60.0))
-                    .set_elapsed(6.1),
+                    .with_coordinates(Vec2::new(100.0, 60.0))
+                    .with_elapsed(6.1),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().set_max_duration(45.)),
+        StageStep::Stop(StageStepStop::new().with_max_duration(45.)),
         StageStep::Stop(
             StageStepStop::new()
-                .set_max_duration(45.)
-                .set_kill_all(false)
-                .set_kill_boss(true),
+                .with_max_duration(45.)
+                .with_kill_all(false)
+                .with_kill_boss(true),
             // TODO
             // .add_spawns(Boss),
         ),
