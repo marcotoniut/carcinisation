@@ -9,7 +9,7 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
-    plugins::movement::linear::components::{LinearTargetReached, ZAxisPosition},
+    plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
     stage::{
         components::{
             damage::InflictsDamage,
@@ -35,7 +35,7 @@ pub fn blood_attack_damage_on_reached(
     depth_query: Query<
         (Entity, &InflictsDamage, &PxSubPosition, &Depth),
         (
-            Added<LinearTargetReached<StageTime, ZAxisPosition>>,
+            Added<LinearTargetReached<StageTime, TargetingPositionZ>>,
             With<EnemyAttack>,
             With<InView>,
         ),

@@ -6,8 +6,8 @@ use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
     plugins::movement::linear::components::{
-        LinearDirection, LinearMovementBundle, LinearSpeed, LinearTargetPosition, XAxisPosition,
-        YAxisPosition,
+        LinearDirection, LinearMovementBundle, LinearSpeed, LinearTargetPosition,
+        TargetingPositionX, TargetingPositionY,
     },
     stage::{
         data::{EnemyStep, GAME_BASE_SPEED},
@@ -29,10 +29,10 @@ pub enum BehaviorBundle {
     LinearMovement(
         (
             LinearMovement,
-            XAxisPosition,
-            LinearMovementBundle<StageTime, XAxisPosition>,
-            YAxisPosition,
-            LinearMovementBundle<StageTime, YAxisPosition>,
+            TargetingPositionX,
+            LinearMovementBundle<StageTime, TargetingPositionX>,
+            TargetingPositionY,
+            LinearMovementBundle<StageTime, TargetingPositionY>,
         ),
     ),
     Jump(()),
@@ -61,14 +61,14 @@ impl EnemyCurrentBehavior {
                         direction,
                         trayectory,
                     },
-                    XAxisPosition::new(current_position.0.x),
-                    LinearMovementBundle::<StageTime, XAxisPosition>::new(
+                    TargetingPositionX::new(current_position.0.x),
+                    LinearMovementBundle::<StageTime, TargetingPositionX>::new(
                         current_position.0.x,
                         coordinates.x,
                         velocity.x,
                     ),
-                    YAxisPosition::new(current_position.0.y),
-                    LinearMovementBundle::<StageTime, YAxisPosition>::new(
+                    TargetingPositionY::new(current_position.0.y),
+                    LinearMovementBundle::<StageTime, TargetingPositionY>::new(
                         current_position.0.y,
                         coordinates.y,
                         velocity.y,

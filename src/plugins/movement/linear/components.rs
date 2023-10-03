@@ -8,27 +8,27 @@ use crate::{
 };
 
 #[derive(Component, Debug, Clone)]
-pub struct XAxisPosition(pub f32);
+pub struct TargetingPositionX(pub f32);
 
-impl XAxisPosition {
+impl TargetingPositionX {
     pub fn new(value: f32) -> Self {
         Self(value)
     }
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct YAxisPosition(pub f32);
+pub struct TargetingPositionY(pub f32);
 
-impl YAxisPosition {
+impl TargetingPositionY {
     pub fn new(value: f32) -> Self {
         Self(value)
     }
 }
 
 #[derive(Component, Debug, Clone)]
-pub struct ZAxisPosition(pub f32);
+pub struct TargetingPositionZ(pub f32);
 
-impl ZAxisPosition {
+impl TargetingPositionZ {
     pub fn new(value: f32) -> Self {
         Self(value)
     }
@@ -52,9 +52,9 @@ macro_rules! impl_magnitude {
     };
 }
 
-impl_magnitude!(XAxisPosition);
-impl_magnitude!(YAxisPosition);
-impl_magnitude!(ZAxisPosition);
+impl_magnitude!(TargetingPositionX);
+impl_magnitude!(TargetingPositionY);
+impl_magnitude!(TargetingPositionZ);
 
 // TODO Bundle and on added
 

@@ -13,10 +13,10 @@ use crate::{
 
 pub fn update_position_x(
     mut query: Query<
-        (&XAxisPosition, &mut PxSubPosition),
+        (&TargetingPositionX, &mut PxSubPosition),
         (
             Without<LinearUpdateDisabled>,
-            Without<LinearTargetReached<StageTime, XAxisPosition>>,
+            Without<LinearTargetReached<StageTime, TargetingPositionX>>,
         ),
     >,
 ) {
@@ -27,10 +27,10 @@ pub fn update_position_x(
 
 pub fn update_position_y(
     mut query: Query<
-        (&YAxisPosition, &mut PxSubPosition),
+        (&TargetingPositionY, &mut PxSubPosition),
         (
             Without<LinearUpdateDisabled>,
-            Without<LinearTargetReached<StageTime, YAxisPosition>>,
+            Without<LinearTargetReached<StageTime, TargetingPositionY>>,
         ),
     >,
 ) {
@@ -44,10 +44,10 @@ pub fn update_depth(
         (
             Entity,
             &mut Depth,
-            &ZAxisPosition,
-            &LinearSpeed<StageTime, ZAxisPosition>,
+            &TargetingPositionZ,
+            &LinearSpeed<StageTime, TargetingPositionZ>,
         ),
-        Without<LinearTargetReached<StageTime, ZAxisPosition>>,
+        Without<LinearTargetReached<StageTime, TargetingPositionZ>>,
     >,
     mut event_writer: EventWriter<DepthChangedEvent>,
 ) {
@@ -96,7 +96,7 @@ pub fn check_linear_movement_finished(
             With<EnemyCurrentBehavior>,
             With<LinearMovement>,
             // TODO hacky, since LinearTargetReached gets removed immediately.
-            With<LinearTargetReached<StageTime, XAxisPosition>>,
+            With<LinearTargetReached<StageTime, TargetingPositionX>>,
         ),
     >,
 ) {

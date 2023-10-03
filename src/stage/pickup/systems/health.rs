@@ -8,7 +8,7 @@ use crate::{
     components::DespawnMark,
     plugins::movement::linear::components::{
         LinearAcceleration, LinearDirection, LinearSpeed, LinearTargetPosition,
-        LinearTargetReached, XAxisPosition, YAxisPosition,
+        LinearTargetReached, TargetingPositionX, TargetingPositionY,
     },
     stage::{
         components::interactive::{Dead, Health},
@@ -53,15 +53,15 @@ pub fn pickup_health(
             let direction_delta = target - current;
 
             let movement_bundle = (
-                XAxisPosition(current.x),
-                YAxisPosition(current.y),
-                LinearTargetPosition::<StageTime, XAxisPosition>::new(target.x),
-                LinearTargetPosition::<StageTime, YAxisPosition>::new(target.y),
-                LinearDirection::<StageTime, XAxisPosition>::from_delta(direction_delta.x),
-                LinearDirection::<StageTime, YAxisPosition>::from_delta(direction_delta.y),
-                LinearSpeed::<StageTime, XAxisPosition>::new(speed_x),
-                LinearSpeed::<StageTime, YAxisPosition>::new(speed_y),
-                LinearAcceleration::<StageTime, YAxisPosition>::new(acceleration_y),
+                TargetingPositionX(current.x),
+                TargetingPositionY(current.y),
+                LinearTargetPosition::<StageTime, TargetingPositionX>::new(target.x),
+                LinearTargetPosition::<StageTime, TargetingPositionY>::new(target.y),
+                LinearDirection::<StageTime, TargetingPositionX>::from_delta(direction_delta.x),
+                LinearDirection::<StageTime, TargetingPositionY>::from_delta(direction_delta.y),
+                LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
+                LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
+                LinearAcceleration::<StageTime, TargetingPositionY>::new(acceleration_y),
             );
 
             let sprite = assets_sprite.load("sprites/pickups/health_2.png");
@@ -87,7 +87,10 @@ pub fn pickup_health(
 
 pub fn mark_despawn_pickup_feedback(
     mut commands: Commands,
-    query: Query<(Entity, &PickupFeedback), Added<LinearTargetReached<StageTime, YAxisPosition>>>,
+    query: Query<
+        (Entity, &PickupFeedback),
+        Added<LinearTargetReached<StageTime, TargetingPositionY>>,
+    >,
 ) {
     for (entity, _) in query.iter() {
         commands.entity(entity).insert(DespawnMark);
