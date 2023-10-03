@@ -12,7 +12,7 @@ use crate::{
     plugins::movement::{
         linear::components::{
             LinearDirection, LinearMovementBundle, LinearSpeed, LinearTargetPosition,
-            XAxisPosition, YAxisPosition, ZAxisPosition,
+            TargetingPositionX, TargetingPositionY, TargetingPositionZ,
         },
         structs::MovementDirection,
     },
@@ -229,20 +229,20 @@ pub fn check_idle_mosquito(
                 let speed = direction.normalize() * BLOOD_ATTACK_LINE_SPEED;
 
                 let movement_bundle = (
-                    XAxisPosition::new(position.0.x),
-                    LinearMovementBundle::<StageTime, XAxisPosition>::new(
+                    TargetingPositionX::new(position.0.x),
+                    LinearMovementBundle::<StageTime, TargetingPositionX>::new(
                         position.0.x,
                         target_pos.x,
                         speed.x,
                     ),
-                    YAxisPosition::new(position.0.y),
-                    LinearMovementBundle::<StageTime, YAxisPosition>::new(
+                    TargetingPositionY::new(position.0.y),
+                    LinearMovementBundle::<StageTime, TargetingPositionY>::new(
                         position.0.y,
                         target_pos.y,
                         speed.y,
                     ),
-                    ZAxisPosition::new(depth.0.clone() as f32),
-                    LinearMovementBundle::<StageTime, ZAxisPosition>::new(
+                    TargetingPositionZ::new(depth.0.clone() as f32),
+                    LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
                         depth.0.clone() as f32,
                         PLAYER_DEPTH + 1.,
                         BLOOD_ATTACK_DEPTH_SPEED,

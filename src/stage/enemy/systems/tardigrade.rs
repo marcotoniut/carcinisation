@@ -10,7 +10,7 @@ use crate::{
     components::DespawnMark,
     globals::CAMERA_CENTER,
     plugins::movement::{
-        linear::components::{LinearSpeed, LinearTargetPosition, ZAxisPosition},
+        linear::components::{LinearSpeed, LinearTargetPosition, TargetingPositionZ},
         pursue::components::{PursueSpeed, PursueTargetPosition},
     },
     stage::{
@@ -156,9 +156,11 @@ pub fn check_idle_tardigrade(
                             (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
                         ),
                         depth,
-                        ZAxisPosition(depth.0.clone() as f32),
-                        LinearSpeed::<StageTime, ZAxisPosition>::new(BLOOD_ATTACK_DEPTH_SPEED),
-                        LinearTargetPosition::<StageTime, ZAxisPosition>::new(PLAYER_DEPTH + 1.),
+                        TargetingPositionZ(depth.0.clone() as f32),
+                        LinearSpeed::<StageTime, TargetingPositionZ>::new(BLOOD_ATTACK_DEPTH_SPEED),
+                        LinearTargetPosition::<StageTime, TargetingPositionZ>::new(
+                            PLAYER_DEPTH + 1.,
+                        ),
                         InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
                         Hittable {},

@@ -48,7 +48,7 @@ use crate::{
     game::events::GameOver,
     plugins::movement::{
         linear::{
-            components::{XAxisPosition, YAxisPosition, ZAxisPosition},
+            components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
             LinearMovementPlugin,
         },
         pursue::PursueMovementPlugin,
@@ -90,9 +90,9 @@ impl Plugin for StagePlugin {
             .init_resource::<CinemachineScene>()
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
-            .add_plugins(LinearMovementPlugin::<StageTime, XAxisPosition>::default())
-            .add_plugins(LinearMovementPlugin::<StageTime, YAxisPosition>::default())
-            .add_plugins(LinearMovementPlugin::<StageTime, ZAxisPosition>::default())
+            .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionX>::default())
+            .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionY>::default())
+            .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionZ>::default())
             .add_plugins(AttackPlugin)
             .add_plugins(DestructiblePlugin)
             .add_plugins(EnemyPlugin)

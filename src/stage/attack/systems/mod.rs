@@ -6,7 +6,7 @@ use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
 use crate::{
     components::DespawnMark,
-    plugins::movement::linear::components::{LinearTargetReached, ZAxisPosition},
+    plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
     stage::{
         components::{
             interactive::{Dead, Health},
@@ -35,7 +35,7 @@ pub fn miss_on_reached(
     query: Query<
         Entity,
         (
-            Added<LinearTargetReached<StageTime, ZAxisPosition>>,
+            Added<LinearTargetReached<StageTime, TargetingPositionZ>>,
             With<EnemyAttack>,
             Without<InView>,
         ),
