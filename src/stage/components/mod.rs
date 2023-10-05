@@ -26,7 +26,6 @@ pub struct Stage;
 #[derive(Component)]
 pub struct CurrentStageStep {
     pub started: Duration,
-    pub step: StageStep,
 }
 
 #[derive(Component, Clone, Debug)]
