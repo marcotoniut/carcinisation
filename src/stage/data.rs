@@ -11,7 +11,10 @@ use crate::{
     plugins::movement::structs::MovementDirection,
 };
 
-use super::destructible::data::DestructibleSpawn;
+use super::{
+    components::{CinematicStageStep, MovementStageStep, StopStageStep},
+    destructible::data::DestructibleSpawn,
+};
 
 lazy_static! {
     pub static ref DEFAULT_COORDINATES: Vec2 = HALF_SCREEN_RESOLUTION.clone();
@@ -399,84 +402,41 @@ pub enum StageActionResumeCondition {
 }
 
 #[derive(Clone, Debug)]
-pub struct StageStepStop {
-    pub max_duration: Option<f32>,
-    pub kill_all: bool,
-    pub kill_boss: bool,
-    pub spawns: Vec<StageSpawn>,
-}
-
-impl StageStepStop {
-    pub fn new() -> Self {
-        Self {
-            kill_all: true,
-            kill_boss: false,
-            max_duration: None,
-            spawns: vec![],
-        }
-    }
-
-    pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
-        self.spawns.extend(new_spawns);
-        self
-    }
-
-    pub fn with_kill_all(mut self, value: bool) -> Self {
-        self.kill_all = value;
-        self
-    }
-
-    pub fn with_kill_boss(mut self, value: bool) -> Self {
-        self.kill_boss = value;
-        self
-    }
-
-    pub fn with_max_duration(mut self, value: f32) -> Self {
-        self.max_duration = Some(value);
-        self
-    }
-}
-
-#[derive(Clone, Debug)]
 pub enum StageStep {
-    Cinematic {
-        cinematic: CinemachineData,
-    },
-    Movement {
-        coordinates: Vec2,
-        base_speed: f32,
-        spawns: Vec<StageSpawn>,
-    },
-    Stop(StageStepStop),
+    Cinematic(CinematicStageStep),
+    Movement(MovementStageStep),
+    Stop(StopStageStep),
 }
 
 impl StageStep {
     pub fn speed(&self) -> f32 {
         match self {
-            StageStep::Movement { base_speed, .. } => *base_speed * GAME_BASE_SPEED,
-            StageStep::Stop { .. } => 0.,
-            StageStep::Cinematic { .. } => 0.,
+            StageStep::Movement(MovementStageStep { base_speed, .. }) => {
+                *base_speed * GAME_BASE_SPEED
+            }
+            StageStep::Stop(StopStageStep { .. }) => 0.,
+            StageStep::Cinematic(CinematicStageStep { .. }) => 0.,
         }
     }
 
     pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
         match &mut self {
-            StageStep::Movement { spawns, .. } => {
+            StageStep::Movement(MovementStageStep { spawns, .. }) => {
                 spawns.extend(new_spawns);
             }
-            StageStep::Stop(StageStepStop { spawns, .. }) => {
+            StageStep::Stop(StopStageStep { spawns, .. }) => {
                 spawns.extend(new_spawns);
             }
-            StageStep::Cinematic { .. } => {}
+            StageStep::Cinematic(CinematicStageStep { .. }) => {}
         };
         self
     }
 
     pub fn with_base_speed(mut self, base_speed: f32) -> Self {
-        if let StageStep::Movement {
+        if let StageStep::Movement(MovementStageStep {
             base_speed: ref mut s,
             ..
-        } = self
+        }) = self
         {
             *s = base_speed;
         }
@@ -484,11 +444,11 @@ impl StageStep {
     }
 
     pub fn movement_base(x: f32, y: f32) -> Self {
-        StageStep::Movement {
+        StageStep::Movement(MovementStageStep {
             coordinates: Vec2::new(x, y),
             base_speed: 1.,
             spawns: vec![],
-        }
+        })
     }
 }
 

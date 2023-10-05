@@ -29,9 +29,7 @@ pub enum BehaviorBundle {
     LinearMovement(
         (
             LinearMovement,
-            TargetingPositionX,
             LinearMovementBundle<StageTime, TargetingPositionX>,
-            TargetingPositionY,
             LinearMovementBundle<StageTime, TargetingPositionY>,
         ),
     ),
@@ -61,13 +59,11 @@ impl EnemyCurrentBehavior {
                         direction,
                         trayectory,
                     },
-                    TargetingPositionX::new(current_position.0.x),
                     LinearMovementBundle::<StageTime, TargetingPositionX>::new(
                         current_position.0.x,
                         coordinates.x,
                         velocity.x,
                     ),
-                    TargetingPositionY::new(current_position.0.y),
                     LinearMovementBundle::<StageTime, TargetingPositionY>::new(
                         current_position.0.y,
                         coordinates.y,

@@ -36,6 +36,10 @@ impl MovementVec2Position for PxSubPosition {
     }
 }
 
+pub trait Constructor<T>: Send + Sync + 'static {
+    fn new(x: T) -> Self;
+}
+
 pub trait Magnitude: Send + Sync + 'static {
     fn get(&self) -> f32;
     fn set(&mut self, value: f32);

@@ -41,8 +41,18 @@ impl Default for StageActionTimer {
 #[derive(Resource)]
 pub struct StageDataHandle(pub Handle<StageData>);
 
-#[derive(Resource, Default)]
+#[derive(Component, Default)]
 pub struct StageStepSpawner {
     pub elapsed: Duration,
+    pub elapsed_since_spawn: Duration,
     pub spawns: Vec<StageSpawn>,
+}
+
+impl StageStepSpawner {
+    pub fn new(spawns: Vec<StageSpawn>) -> Self {
+        StageStepSpawner {
+            spawns,
+            ..Default::default()
+        }
+    }
 }

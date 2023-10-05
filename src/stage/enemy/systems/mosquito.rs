@@ -229,19 +229,16 @@ pub fn check_idle_mosquito(
                 let speed = direction.normalize() * BLOOD_ATTACK_LINE_SPEED;
 
                 let movement_bundle = (
-                    TargetingPositionX::new(position.0.x),
                     LinearMovementBundle::<StageTime, TargetingPositionX>::new(
                         position.0.x,
                         target_pos.x,
                         speed.x,
                     ),
-                    TargetingPositionY::new(position.0.y),
                     LinearMovementBundle::<StageTime, TargetingPositionY>::new(
                         position.0.y,
                         target_pos.y,
                         speed.y,
                     ),
-                    TargetingPositionZ::new(depth.0.clone() as f32),
                     LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
                         depth.0.clone() as f32,
                         PLAYER_DEPTH + 1.,
@@ -260,7 +257,7 @@ pub fn check_idle_mosquito(
                         depth,
                         InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
-                        Hittable {},
+                        Hittable,
                         Health(1),
                     ))
                     .insert(attack_bundle)

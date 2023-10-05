@@ -8,12 +8,12 @@ use super::{
     bundles::*,
     components::{
         interactive::{Dead, Object},
-        Stage,
+        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StopStageStep,
     },
     data::*,
     destructible::components::Destructible,
     enemy::components::Enemy,
-    events::{StageClearedEvent, StageGameOverEvent, StageSpawnEvent, StageStepEvent},
+    events::{NextStepEvent, StageClearedEvent, StageGameOverEvent, StageSpawnEvent},
     player::components::Player,
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
     GameState, StageState,
@@ -22,6 +22,9 @@ use crate::{
     cinemachine::cinemachine::CinemachineScene,
     components::{DespawnMark, Music},
     globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
+    plugins::movement::linear::components::{
+        LinearMovementBundle, LinearTargetReached, TargetingPositionX, TargetingPositionY,
+    },
     resource::{asteroid::STAGE_ASTEROID_DATA, debug::STAGE_DEBUG_DATA, park::STAGE_PARK_DATA},
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
     GBInput,
@@ -147,10 +150,10 @@ pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time
 
 pub fn check_stage_step_timer(
     timer: Res<StageActionTimer>,
-    mut event_writer: EventWriter<StageStepEvent>,
+    mut event_writer: EventWriter<NextStepEvent>,
 ) {
     if timer.timer.finished() {
-        event_writer.send(StageStepEvent {});
+        event_writer.send(NextStepEvent {});
     }
 }
 
@@ -159,12 +162,12 @@ pub fn update_stage(
     state: Res<State<StageState>>,
     stage_query: Query<(Entity, &Stage)>,
     mut next_state: ResMut<NextState<StageState>>,
-    mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
-    mut camera: ResMut<PxCamera>,
-    mut spawn_event_writer: EventWriter<StageSpawnEvent>,
-    mut step_event_writer: EventWriter<StageStepEvent>,
+    // mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
+    // mut camera: ResMut<PxCamera>,
+    // mut spawn_event_writer: EventWriter<StageSpawnEvent>,
+    // mut next_step_event_writer: EventWriter<NextStepEvent>,
     mut stage_progress: ResMut<StageProgress>,
-    time: Res<Time>,
+    // time: Res<Time>,
     stage_data_raw: Res<StageRawData>,
 ) {
     match state.to_owned() {
@@ -184,42 +187,42 @@ pub fn update_stage(
                     info!("curr action: {}", curr_action);
                 }
 
-                match action {
-                    StageStep::Movement { coordinates, .. } => {
-                        let mut camera_pos = camera_pos_query.single_mut();
-                        let direction = coordinates.sub(camera_pos.0).normalize();
+                // match action {
+                //     StageStep::Movement(MovementStageStep { coordinates, .. }) => {
+                //         let mut camera_pos = camera_pos_query.single_mut();
+                //         let direction = coordinates.sub(camera_pos.0).normalize();
 
-                        **camera_pos += time.delta_seconds() * action.speed() * direction;
+                //         **camera_pos += time.delta_seconds() * action.speed() * direction;
 
-                        if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
-                            if DEBUG_STAGESTEP {
-                                warn!(
-                                    "================>>>> movement complete? {}",
-                                    direction.x.to_string()
-                                );
-                            }
-                            *camera_pos = PxSubPosition(coordinates.clone());
-                            step_event_writer.send(StageStepEvent {});
-                        }
+                //         if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
+                //             if DEBUG_STAGESTEP {
+                //                 warn!(
+                //                     "================>>>> movement complete? {}",
+                //                     direction.x.to_string()
+                //                 );
+                //             }
+                //             *camera_pos = PxSubPosition(coordinates.clone());
+                //             next_step_event_writer.send(NextStepEvent {});
+                //         }
 
-                        **camera = camera_pos.round().as_ivec2();
-                    }
-                    StageStep::Stop(StageStepStop { max_duration, .. }) => {
-                        // TODO
-                        if let Some(duration) = max_duration {
-                        } else {
-                            step_event_writer.send(StageStepEvent {});
-                        }
-                    }
-                    StageStep::Cinematic { cinematic, .. } => {
-                        let max_duration = Some(cinematic.clip.duration);
+                //         **camera = camera_pos.round().as_ivec2();
+                //     }
+                //     StageStep::Stop(StopStageStep { max_duration, .. }) => {
+                //         // TODO
+                //         if let Some(duration) = max_duration {
+                //         } else {
+                //             next_step_event_writer.send(NextStepEvent {});
+                //         }
+                //     }
+                //     StageStep::Cinematic(CinematicStageStep { cinematic, .. }) => {
+                //         let max_duration = Some(cinematic.clip.duration);
 
-                        if let Some(duration) = max_duration {
-                        } else {
-                            step_event_writer.send(StageStepEvent {});
-                        }
-                    }
-                }
+                //         if let Some(duration) = max_duration {
+                //         } else {
+                //             next_step_event_writer.send(NextStepEvent {});
+                //         }
+                //     }
+                // }
             }
         }
         StageState::Clear => {
@@ -319,54 +322,203 @@ pub fn read_stage_game_over_trigger(
 }
 
 pub fn read_stage_step_trigger(
-    mut event_reader: EventReader<StageStepEvent>,
+    mut commands: Commands,
+    query: Query<(Entity, &Stage), Without<CurrentStageStep>>,
+    stage_time: Res<StageTime>,
     mut stage_progress: ResMut<StageProgress>,
+
     mut stage_action_timer: ResMut<StageActionTimer>,
     stage_data_raw: Res<StageRawData>,
-    mut game_state_next_state: ResMut<NextState<GameState>>,
     mut current_scene: ResMut<CinemachineScene>,
-    mut stage_step_spawner: ResMut<StageStepSpawner>,
 ) {
-    for _ in event_reader.iter() {
+    if let Ok((entity, stage)) = query.get_single() {
         stage_progress.step += 1;
         stage_progress.step_elapsed = 0.;
 
         let stage = &stage_data_raw.stage_data;
         if let Some(action) = stage.steps.get(stage_progress.step) {
-            stage_action_timer.timer.pause();
-            stage_step_spawner.elapsed = Duration::ZERO;
+            let mut entity_commands = commands.entity(entity);
+            entity_commands.insert(CurrentStageStep {
+                started: stage_time.elapsed,
+                step: action.clone(),
+            });
+
+            // TODO remove
+            // stage_action_timer.timer.pause();
             match action {
-                StageStep::Movement { spawns, .. } => {
-                    stage_action_timer.timer.reset();
-                    stage_step_spawner.spawns = spawns.clone();
-                }
-                StageStep::Stop(StageStepStop {
-                    max_duration,
-                    spawns,
-                    ..
-                }) => {
-                    if let Some(duration) = max_duration {
-                        stage_action_timer.timer.reset();
-                        stage_action_timer
-                            .timer
-                            .set_duration(Duration::from_secs_f32(duration.clone()));
-                        stage_action_timer.timer.unpause();
-                    }
-                    stage_step_spawner.spawns = spawns.clone();
-                }
-                StageStep::Cinematic { cinematic, .. } => {
-                    let max_duration = Some(cinematic.clip.duration);
+                StageStep::Cinematic(step) => {
+                    // let max_duration = Some(cinematic.clip.duration);
 
-                    if let Some(duration) = max_duration {
-                        stage_action_timer.timer.reset();
-                        stage_action_timer.timer.set_duration(duration.clone());
-                        stage_action_timer.timer.unpause();
-                    }
+                    // if let Some(duration) = max_duration {
+                    //     stage_action_timer.timer.reset();
+                    //     stage_action_timer.timer.set_duration(duration.clone());
+                    //     stage_action_timer.timer.unpause();
+                    // }
 
-                    current_scene.0 = Some(cinematic.clone());
-                    game_state_next_state.set(GameState::Cutscene);
+                    // current_scene.0 = Some(cinematic.clone());
+                    entity_commands.insert(step.clone());
+                }
+                StageStep::Movement(step) => {
+                    // TODO won't need the action timer anymore, can simply use StageTime
+                    // stage_action_timer.timer.reset();
+                    // stage_step_spawner.spawns = spawns.clone();
+
+                    entity_commands.insert(step.clone());
+                }
+                StageStep::Stop(step) => {
+                    // if let Some(duration) = max_duration {
+                    //     stage_action_timer.timer.reset();
+                    //     stage_action_timer
+                    //         .timer
+                    //         .set_duration(Duration::from_secs_f32(duration.clone()));
+                    //     stage_action_timer.timer.unpause();
+                    // }
+                    // stage_step_spawner.spawns = spawns.clone();
+                    entity_commands.insert(step.clone());
                 }
             }
+        }
+    }
+}
+
+pub fn initialise_cinematic_step(
+    mut game_state_next_state: ResMut<NextState<GameState>>,
+    query: Query<(Entity, &CinematicStageStep), (With<Stage>, Added<CinematicStageStep>)>,
+) {
+    if let Ok((_, _)) = query.get_single() {
+        // game_state_next_state.set(GameState::Cutscene);
+    }
+}
+
+pub fn initialise_movement_step(
+    mut commands: Commands,
+    query: Query<(Entity, &MovementStageStep), (With<Stage>, Added<MovementStageStep>)>,
+    camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
+) {
+    if let Ok((
+        _,
+        MovementStageStep {
+            coordinates,
+            base_speed,
+            spawns,
+        },
+    )) = query.get_single()
+    {
+        for (entity, position) in camera_query.iter() {
+            let direction = coordinates.clone() - position.0;
+            let speed = direction.normalize() * base_speed.clone() * GAME_BASE_SPEED;
+
+            commands
+                .entity(entity)
+                .insert(LinearMovementBundle::<StageTime, TargetingPositionX>::new(
+                    position.x.clone(),
+                    coordinates.x.clone(),
+                    speed.x,
+                ))
+                .insert(LinearMovementBundle::<StageTime, TargetingPositionY>::new(
+                    position.y.clone(),
+                    coordinates.y.clone(),
+                    speed.y,
+                ))
+                .insert(StageStepSpawner::new(spawns.clone()));
+        }
+    }
+}
+
+pub fn initialise_stop_step(
+    mut commands: Commands,
+    query: Query<(Entity, &StopStageStep), (With<Stage>, Added<StopStageStep>)>,
+) {
+    if let Ok((entity, step)) = query.get_single() {
+        commands
+            .entity(entity)
+            .insert(StageStepSpawner::new(step.spawns.clone()));
+    }
+}
+
+pub fn update_cinematic_step(
+    mut commands: Commands,
+    mut event_writer: EventWriter<NextStepEvent>,
+    query: Query<(Entity, &CinematicStageStep), With<Stage>>,
+) {
+    for (entity, _) in query.iter() {}
+}
+
+pub fn check_movement_step_reached(
+    mut event_writer: EventWriter<NextStepEvent>,
+    query: Query<
+        (Entity, &MovementStageStep),
+        Added<LinearTargetReached<StageTime, TargetingPositionX>>,
+    >,
+) {
+    for (entity, _) in query.iter() {
+        event_writer.send(NextStepEvent {})
+    }
+}
+
+pub fn check_stop_step_finished_by_duration(
+    mut commands: Commands,
+    mut event_writer: EventWriter<NextStepEvent>,
+    query: Query<(Entity, &StopStageStep, &CurrentStageStep), With<Stage>>,
+    stage_time: Res<StageTime>,
+) {
+    for (entity, step, current_step) in query.iter() {
+        if step
+            .max_duration
+            .map(|max_duration| current_step.started + max_duration <= stage_time.elapsed)
+            .unwrap_or(false)
+        {
+            event_writer.send(NextStepEvent {});
+        }
+    }
+}
+
+pub fn cleanup_cinematic_step(
+    mut commands: Commands,
+    mut event_reader: EventReader<NextStepEvent>,
+    query: Query<(Entity, &CinematicStageStep), With<Stage>>,
+) {
+    for _ in event_reader.iter() {
+        for (entity, _) in query.iter() {
+            commands
+                .entity(entity)
+                .remove::<CinematicStageStep>()
+                .remove::<CurrentStageStep>();
+        }
+    }
+}
+
+pub fn cleanup_movement_step(
+    mut commands: Commands,
+    mut event_reader: EventReader<NextStepEvent>,
+    query: Query<(Entity, &MovementStageStep), With<Stage>>,
+) {
+    for _ in event_reader.iter() {
+        // Cleanup logic
+        for (entity, _) in query.iter() {
+            commands
+                .entity(entity)
+                .remove::<MovementStageStep>()
+                .remove::<StageStepSpawner>()
+                .remove::<CurrentStageStep>();
+        }
+    }
+}
+
+pub fn cleanup_stop_step(
+    mut commands: Commands,
+    mut event_reader: EventReader<NextStepEvent>,
+
+    query: Query<(Entity, &StopStageStep), With<Stage>>,
+) {
+    for _ in event_reader.iter() {
+        // Cleanup logic
+        for (entity, _) in query.iter() {
+            commands
+                .entity(entity)
+                .remove::<StopStageStep>()
+                .remove::<StageStepSpawner>()
+                .remove::<CurrentStageStep>();
         }
     }
 }

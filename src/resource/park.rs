@@ -1,5 +1,6 @@
 use crate::cinemachine::scene_intro::*;
 use crate::plugins::movement::structs::MovementDirection;
+use crate::stage::components::StopStageStep;
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
 use bevy::prelude::*;
@@ -92,7 +93,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().with_max_duration(30.).add_spawns(vec![
+        StageStep::Stop(StopStageStep::new().with_max_duration(30.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
                     .with_coordinates(Vec2::new(70.0, 70.0))
@@ -151,7 +152,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_elapsed(0.0),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().with_max_duration(20.)),
+        StageStep::Stop(StopStageStep::new().with_max_duration(20.)),
         StageStep::movement_base(280., 0.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
@@ -302,7 +303,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().with_max_duration(30.)),
+        StageStep::Stop(StopStageStep::new().with_max_duration(30.)),
         StageStep::movement_base(850., 155.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
@@ -328,7 +329,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     ]),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().with_max_duration(40.)),
+        StageStep::Stop(StopStageStep::new().with_max_duration(40.)),
         StageStep::movement_base(920., 155.).add_spawns(vec![
             StageSpawn::Enemy(
                 EnemySpawn::mosquito_base()
@@ -343,9 +344,9 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_elapsed(6.1),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().with_max_duration(45.)),
+        StageStep::Stop(StopStageStep::new().with_max_duration(45.)),
         StageStep::Stop(
-            StageStepStop::new()
+            StopStageStep::new()
                 .with_max_duration(45.)
                 .with_kill_all(false)
                 .with_kill_boss(true),

@@ -27,7 +27,7 @@ use self::{
         systems::camera::{camera_shake, trigger_shake},
         PlayerPlugin,
     },
-    resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
+    resources::{StageActionTimer, StageProgress, StageTime},
     score::{components::Score, ScorePlugin},
     systems::{
         camera::*,
@@ -79,14 +79,13 @@ impl Plugin for StagePlugin {
             .add_event::<StageClearedEvent>()
             .add_event::<StageGameOverEvent>()
             .add_event::<StageSpawnEvent>()
-            .add_event::<StageStepEvent>()
+            .add_event::<NextStepEvent>()
             // TODO temporary
             .add_event::<GameOver>()
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
             .init_resource::<Score>()
             .init_resource::<StageProgress>()
-            .init_resource::<StageStepSpawner>()
             .init_resource::<CinemachineScene>()
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
@@ -114,6 +113,8 @@ impl Plugin for StagePlugin {
                             // Camera
                             check_in_view,
                             check_outside_view,
+                            update_camera_pos_x,
+                            update_camera_pos_y,
                         ),
                         (
                             // Player
@@ -157,6 +158,24 @@ impl Plugin for StagePlugin {
                             remove_invert_filter,
                             check_dead_drop,
                         ),
+                        (
+                            (
+                                initialise_cinematic_step,
+                                initialise_movement_step,
+                                initialise_stop_step,
+                            ),
+                            (
+                                update_cinematic_step,
+                                check_stop_step_finished_by_duration,
+                                check_movement_step_reached,
+                            ),
+                            (
+                                cleanup_movement_step,
+                                cleanup_cinematic_step,
+                                cleanup_stop_step,
+                            ),
+                        )
+                            .chain(),
                     )
                         .run_if(in_state(StageState::Running)),
                 )

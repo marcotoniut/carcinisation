@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     core::time::DeltaTime,
-    plugins::movement::structs::{Magnitude, MovementDirection},
+    plugins::movement::structs::{Constructor, Magnitude, MovementDirection},
 };
 
 #[derive(Component, Debug, Clone)]
@@ -47,6 +47,12 @@ macro_rules! impl_magnitude {
 
             fn add(&mut self, value: f32) {
                 self.0 += value;
+            }
+        }
+
+        impl Constructor<f32> for $type {
+            fn new(x: f32) -> Self {
+                Self(x)
             }
         }
     };
@@ -178,16 +184,23 @@ impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearTargetReached<T, 
 }
 
 #[derive(Bundle, Clone, Debug)]
-pub struct LinearMovementBundle<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+pub struct LinearMovementBundle<
+    T: DeltaTime + Send + Sync + 'static,
+    P: Constructor<f32> + Component + Magnitude,
+> {
     pub direction: LinearDirection<T, P>,
+    pub position: P,
     pub speed: LinearSpeed<T, P>,
     pub target_position: LinearTargetPosition<T, P>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearMovementBundle<T, P> {
+impl<T: DeltaTime + Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
+    LinearMovementBundle<T, P>
+{
     pub fn new(current_position: f32, target_position: f32, speed: f32) -> Self {
         Self {
             direction: LinearDirection::<T, P>::from_delta(target_position - current_position),
+            position: P::new(current_position),
             speed: LinearSpeed::<T, P>::new(speed),
             target_position: LinearTargetPosition::<T, P>::new(target_position),
         }
@@ -195,17 +208,24 @@ impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearMovementBundle<T,
 }
 
 #[derive(Bundle, Clone, Debug)]
-pub struct LinearMovementAcceleratedBundle<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+pub struct LinearMovementAcceleratedBundle<
+    T: DeltaTime + Send + Sync + 'static,
+    P: Constructor<f32> + Component + Magnitude,
+> {
     pub acceleration: LinearAcceleration<T, P>,
     pub direction: LinearDirection<T, P>,
+    pub position: P,
     pub speed: LinearSpeed<T, P>,
     pub target_position: LinearTargetPosition<T, P>,
 }
 
-impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearMovementAcceleratedBundle<T, P> {
+impl<T: DeltaTime + Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
+    LinearMovementAcceleratedBundle<T, P>
+{
     pub fn new(current_position: f32, target_position: f32, speed: f32, acceleration: f32) -> Self {
         Self {
             direction: LinearDirection::<T, P>::from_delta(target_position - current_position),
+            position: P::new(current_position),
             speed: LinearSpeed::<T, P>::new(speed),
             target_position: LinearTargetPosition::<T, P>::new(target_position),
             acceleration: LinearAcceleration::<T, P>::new(acceleration),
@@ -214,7 +234,11 @@ impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearMovementAccelerat
 }
 
 #[derive(Bundle)]
-pub struct LinearPositionRemovalBundle<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+pub struct LinearPositionRemovalBundle<
+    T: DeltaTime + Send + Sync + 'static,
+    P: Component + Magnitude,
+> {
+    pub position: P,
     pub acceleration: LinearAcceleration<T, P>,
     pub direction: LinearDirection<T, P>,
     pub speed: LinearSpeed<T, P>,
