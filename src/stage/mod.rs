@@ -128,7 +128,6 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Stage
-                            increment_elapsed,
                             tick_stage_time,
                             tick_stage_step_timer,
                             read_stage_step_trigger,

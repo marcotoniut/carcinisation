@@ -20,9 +20,7 @@ impl DeltaTime for StageTime {
 
 #[derive(Clone, Debug, Default, Resource)]
 pub struct StageProgress {
-    pub elapsed: f32,
     pub step: usize,
-    pub step_elapsed: f32,
 }
 
 #[derive(Resource)]

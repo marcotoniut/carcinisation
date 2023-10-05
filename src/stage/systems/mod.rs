@@ -134,16 +134,6 @@ pub fn spawn_current_stage_bundle(
     state.set(GameState::Running);
 }
 
-// TODO Probably can do without this now
-/**
- *  @deprecate in favor of the stage_time
-*/
-pub fn increment_elapsed(mut progress: ResMut<StageProgress>, time: Res<Time>) {
-    let delta = time.delta_seconds();
-    progress.elapsed += delta;
-    progress.step_elapsed += delta;
-}
-
 pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }
@@ -160,14 +150,9 @@ pub fn check_stage_step_timer(
 pub fn update_stage(
     mut commands: Commands,
     state: Res<State<StageState>>,
-    stage_query: Query<(Entity, &Stage)>,
+    stage_query: Query<Entity, With<Stage>>,
     mut next_state: ResMut<NextState<StageState>>,
-    // mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
-    // mut camera: ResMut<PxCamera>,
-    // mut spawn_event_writer: EventWriter<StageSpawnEvent>,
-    // mut next_step_event_writer: EventWriter<NextStepEvent>,
-    mut stage_progress: ResMut<StageProgress>,
-    // time: Res<Time>,
+    stage_progress: ResMut<StageProgress>,
     stage_data_raw: Res<StageRawData>,
 ) {
     match state.to_owned() {
@@ -186,47 +171,10 @@ pub fn update_stage(
 
                     info!("curr action: {}", curr_action);
                 }
-
-                // match action {
-                //     StageStep::Movement(MovementStageStep { coordinates, .. }) => {
-                //         let mut camera_pos = camera_pos_query.single_mut();
-                //         let direction = coordinates.sub(camera_pos.0).normalize();
-
-                //         **camera_pos += time.delta_seconds() * action.speed() * direction;
-
-                //         if direction.x.signum() != (coordinates.x - camera_pos.0.x).signum() {
-                //             if DEBUG_STAGESTEP {
-                //                 warn!(
-                //                     "================>>>> movement complete? {}",
-                //                     direction.x.to_string()
-                //                 );
-                //             }
-                //             *camera_pos = PxSubPosition(coordinates.clone());
-                //             next_step_event_writer.send(NextStepEvent {});
-                //         }
-
-                //         **camera = camera_pos.round().as_ivec2();
-                //     }
-                //     StageStep::Stop(StopStageStep { max_duration, .. }) => {
-                //         // TODO
-                //         if let Some(duration) = max_duration {
-                //         } else {
-                //             next_step_event_writer.send(NextStepEvent {});
-                //         }
-                //     }
-                //     StageStep::Cinematic(CinematicStageStep { cinematic, .. }) => {
-                //         let max_duration = Some(cinematic.clip.duration);
-
-                //         if let Some(duration) = max_duration {
-                //         } else {
-                //             next_step_event_writer.send(NextStepEvent {});
-                //         }
-                //     }
-                // }
             }
         }
         StageState::Clear => {
-            if let Ok((entity, _)) = stage_query.get_single() {
+            if let Ok(entity) = stage_query.get_single() {
                 commands.entity(entity).insert(DespawnMark);
 
                 // TODO
@@ -323,57 +271,29 @@ pub fn read_stage_game_over_trigger(
 
 pub fn read_stage_step_trigger(
     mut commands: Commands,
-    query: Query<(Entity, &Stage), Without<CurrentStageStep>>,
-    stage_time: Res<StageTime>,
     mut stage_progress: ResMut<StageProgress>,
-
-    mut stage_action_timer: ResMut<StageActionTimer>,
+    query: Query<Entity, (With<Stage>, Without<CurrentStageStep>)>,
     stage_data_raw: Res<StageRawData>,
-    mut current_scene: ResMut<CinemachineScene>,
+    stage_time: Res<StageTime>,
 ) {
-    if let Ok((entity, stage)) = query.get_single() {
+    if let Ok(entity) = query.get_single() {
         stage_progress.step += 1;
-        stage_progress.step_elapsed = 0.;
 
         let stage = &stage_data_raw.stage_data;
         if let Some(action) = stage.steps.get(stage_progress.step) {
             let mut entity_commands = commands.entity(entity);
             entity_commands.insert(CurrentStageStep {
                 started: stage_time.elapsed,
-                step: action.clone(),
             });
 
-            // TODO remove
-            // stage_action_timer.timer.pause();
             match action {
                 StageStep::Cinematic(step) => {
-                    // let max_duration = Some(cinematic.clip.duration);
-
-                    // if let Some(duration) = max_duration {
-                    //     stage_action_timer.timer.reset();
-                    //     stage_action_timer.timer.set_duration(duration.clone());
-                    //     stage_action_timer.timer.unpause();
-                    // }
-
-                    // current_scene.0 = Some(cinematic.clone());
                     entity_commands.insert(step.clone());
                 }
                 StageStep::Movement(step) => {
-                    // TODO won't need the action timer anymore, can simply use StageTime
-                    // stage_action_timer.timer.reset();
-                    // stage_step_spawner.spawns = spawns.clone();
-
                     entity_commands.insert(step.clone());
                 }
                 StageStep::Stop(step) => {
-                    // if let Some(duration) = max_duration {
-                    //     stage_action_timer.timer.reset();
-                    //     stage_action_timer
-                    //         .timer
-                    //         .set_duration(Duration::from_secs_f32(duration.clone()));
-                    //     stage_action_timer.timer.unpause();
-                    // }
-                    // stage_step_spawner.spawns = spawns.clone();
                     entity_commands.insert(step.clone());
                 }
             }
