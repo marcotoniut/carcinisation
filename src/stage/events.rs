@@ -6,7 +6,7 @@ use super::{components::placement::Depth, data::StageSpawn};
 pub struct StageRestart {}
 
 #[derive(Event)]
-pub struct StageStepEvent {}
+pub struct NextStepEvent {}
 
 #[derive(Event)]
 pub struct StageClearedEvent {}

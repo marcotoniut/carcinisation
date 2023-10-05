@@ -1,4 +1,5 @@
 use crate::plugins::movement::structs::MovementDirection;
+use crate::stage::components::StopStageStep;
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
 use bevy::prelude::*;
@@ -71,7 +72,7 @@ pub fn make_steps() -> Vec<StageStep> {
         // StageStep::Cinematic {
         //     cinematic: INTRO_ANIMATIC_4.clone(),
         // },
-        StageStep::Stop(StageStepStop::new().with_max_duration(10.).add_spawns(vec![
+        StageStep::Stop(StopStageStep::new().with_max_duration(10.).add_spawns(vec![
                 StageSpawn::Enemy(
                     EnemySpawn::mosquito_variant_circle().with_coordinates(Vec2::new(30.0, 60.0)),
                 ),
@@ -132,7 +133,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ]),
-        StageStep::Stop(StageStepStop::new().with_max_duration(15.).add_spawns(
+        StageStep::Stop(StopStageStep::new().with_max_duration(15.).add_spawns(
             vec![StageSpawn::Enemy(
                     EnemySpawn::mosquito_base()
                         .with_coordinates(Vec2::new(130.0, 70.0))
@@ -140,6 +141,6 @@ pub fn make_steps() -> Vec<StageStep> {
                         .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
                 )],
         )),
-        StageStep::Stop(StageStepStop::new().with_max_duration(100.)),
+        StageStep::Stop(StopStageStep::new().with_max_duration(100.)),
     ]
 }

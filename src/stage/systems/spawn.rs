@@ -44,25 +44,27 @@ use crate::{
 
 pub fn check_step_spawn(
     mut event_writer: EventWriter<StageSpawnEvent>,
-    mut stage_step_spawner: ResMut<StageStepSpawner>,
+    mut stage_step_spawner_query: Query<&mut StageStepSpawner>,
     stage_time: Res<StageTime>,
 ) {
-    let mut elapsed = stage_step_spawner.elapsed + stage_time.delta;
+    for mut stage_step_spawner in &mut stage_step_spawner_query.iter_mut() {
+        let mut elapsed = stage_step_spawner.elapsed + stage_time.delta;
 
-    stage_step_spawner.spawns.retain_mut(|spawn| {
-        let spawn_elapsed = spawn.get_elapsed();
-        if spawn_elapsed <= elapsed {
-            elapsed -= spawn_elapsed;
-            event_writer.send(StageSpawnEvent {
-                spawn: spawn.clone(),
-            });
-            false
-        } else {
-            true
-        }
-    });
+        stage_step_spawner.spawns.retain_mut(|spawn| {
+            let spawn_elapsed = spawn.get_elapsed();
+            if spawn_elapsed <= elapsed {
+                elapsed -= spawn_elapsed;
+                event_writer.send(StageSpawnEvent {
+                    spawn: spawn.clone(),
+                });
+                false
+            } else {
+                true
+            }
+        });
 
-    stage_step_spawner.elapsed = elapsed;
+        stage_step_spawner.elapsed = elapsed;
+    }
 }
 
 pub fn read_stage_spawn_trigger(
@@ -97,13 +99,14 @@ pub fn spawn_pickup(
     offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
-    info!("Spawning Pickup {:?}", spawn.pickup_type);
+    let name = Name::new(format!("Pickup {:?}", spawn.pickup_type));
+    info!("Spawning {:?}", name.as_str());
     // TODO depth
     let depth = 1;
     let PickupSpawn {
         pickup_type,
         coordinates,
-        elapsed,
+        ..
     } = spawn;
     let position = PxSubPosition::from(offset + coordinates.clone());
     match pickup_type {
@@ -111,11 +114,8 @@ pub fn spawn_pickup(
             let sprite = assets_sprite.load("sprites/pickups/health_2.png");
             commands
                 .spawn((
-                    Name::new(format!(
-                        "Destructible BigHealthpack {:?}",
-                        spawn.pickup_type
-                    )),
-                    Hittable {},
+                    name,
+                    Hittable,
                     PxSpriteBundle::<Layer> {
                         sprite,
                         anchor: PxAnchor::Center,
@@ -123,6 +123,7 @@ pub fn spawn_pickup(
                         ..default()
                     },
                     position,
+                    Depth(depth),
                     Health(1),
                     CollisionData::new(Collision::Box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
@@ -134,11 +135,8 @@ pub fn spawn_pickup(
 
             commands
                 .spawn((
-                    Name::new(format!(
-                        "Destructible SmallHealthpack {:?}",
-                        spawn.pickup_type
-                    )),
-                    Hittable {},
+                    name,
+                    Hittable,
                     PxSpriteBundle::<Layer> {
                         sprite,
                         anchor: PxAnchor::BottomCenter,
@@ -146,6 +144,7 @@ pub fn spawn_pickup(
                         ..default()
                     },
                     position,
+                    Depth(depth),
                     Health(1),
                     CollisionData::new(Collision::Box(Vec2::new(7., 5.))),
                     HealthRecovery(30),
@@ -156,7 +155,6 @@ pub fn spawn_pickup(
 }
 
 pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpawn) -> Entity {
-    info!("Spawning Enemy {:?}", enemy_spawn.enemy_type);
     let EnemySpawn {
         enemy_type,
         coordinates,
@@ -165,9 +163,10 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
         contains,
         ..
     } = enemy_spawn;
+    let name = Name::new(format!("Enemy {:?}", enemy_type));
+    info!("Spawning {:?}", name.as_str());
     let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
-    let name = Name::new(format!("Enemy - {:?}", enemy_type));
     match enemy_type {
         EnemyType::Mosquito => {
             let entity = commands
@@ -181,7 +180,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                     },
                     EnemyMosquitoAttacking { ..default() },
                     Flickerer,
-                    Hittable {},
+                    Hittable,
                     PxSubPosition::from(position),
                     CollisionData::new(Collision::Circle(ENEMY_MOSQUITO_RADIUS))
                         .with_offset(Vec2::new(0., 2.)),
@@ -211,7 +210,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                 },
                 EnemyTardigradeAttacking { ..default() },
                 Flickerer,
-                Hittable {},
+                Hittable,
                 PxSubPosition::from(position),
                 CollisionData::new(Collision::Circle(ENEMY_TARDIGRADE_RADIUS))
                     .with_offset(Vec2::new(-3., 2.)),
@@ -229,7 +228,8 @@ pub fn spawn_destructible(
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &DestructibleSpawn,
 ) -> Entity {
-    info!("Spawning Destructible {:?}", spawn.destructible_type);
+    let name = Name::new(format!("Destructible {:?}", spawn.destructible_type));
+    info!("Spawning {:?}", name.as_str());
 
     let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(&spawn.destructible_type);
     let animation_bundle_o = make_animation_bundle(
@@ -242,7 +242,6 @@ pub fn spawn_destructible(
 
     commands
         .spawn((
-            Name::new(format!("Destructible - {:?}", spawn.destructible_type)),
             Destructible,
             Flickerer,
             Hittable,
@@ -260,7 +259,8 @@ pub fn spawn_object(
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &ObjectSpawn,
 ) -> Entity {
-    info!("Spawning Object {:?}", spawn.object_type);
+    let name = Name::new(format!("Object {:?}", spawn.object_type));
+    info!("Spawning {:?}", name.as_str());
 
     let (sprite_path, layer) = match spawn.object_type {
         ObjectType::BenchBig => ("sprites/objects/bench_big.png", Layer::Middle(1)),
@@ -271,7 +271,7 @@ pub fn spawn_object(
     let sprite = assets_sprite.load(sprite_path);
     commands
         .spawn((
-            Name::new(format!("Object {:?}", spawn.object_type)),
+            name,
             Object,
             PxSpriteBundle::<Layer> {
                 sprite,

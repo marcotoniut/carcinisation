@@ -206,6 +206,7 @@ lazy_static! {
                             frames: mushroom_broken_frames,
                             speed: mushroom_broken_speed,
                             finish_behavior: PxAnimationFinishBehavior::Mark,
+                            collision_offset,
                             collision: Collision::Box(collision),
                             ..Default::default()
                         },
@@ -222,7 +223,7 @@ lazy_static! {
 
             for i in crystal_depths {
                 let collision = match i {
-                    4 => Vec2::new(33., 38.),
+                    4 => Vec2::new(33., 48.),
                     _ => Vec2::ZERO,
                 };
                 let collision_offset = match i {
@@ -255,6 +256,7 @@ lazy_static! {
                             frames: crystal_broken_frames,
                             speed: crystal_broken_speed,
                             finish_behavior: PxAnimationFinishBehavior::Mark,
+                            collision_offset,
                             collision: Collision::Box(collision),
                             ..Default::default()
                         },

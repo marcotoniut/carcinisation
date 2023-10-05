@@ -3,6 +3,7 @@ use seldom_pixel::prelude::PxSubPosition;
 
 use crate::{
     globals::{is_inside_area, HUD_HEIGHT, SCREEN_RESOLUTION},
+    plugins::movement::linear::components::{TargetingPositionX, TargetingPositionY},
     stage::{
         components::placement::{InView, RailPosition},
         player::components::CameraShake,
@@ -53,13 +54,24 @@ pub fn check_outside_view(
     }
 }
 
-pub fn update_camera_pos(
-    mut camera_query: Query<
-        (&RailPosition, &mut PxSubPosition),
+pub fn update_camera_pos_x(
+    mut query: Query<
+        (&TargetingPositionX, &mut PxSubPosition),
         (With<CameraPos>, Without<CameraShake>),
     >,
 ) {
-    if let Ok((rail_pos, mut camera_pos)) = camera_query.get_single_mut() {
-        camera_pos.0 = rail_pos.0;
+    if let Ok((pos, mut camera_pos)) = query.get_single_mut() {
+        camera_pos.0.x = pos.0;
+    }
+}
+
+pub fn update_camera_pos_y(
+    mut query: Query<
+        (&TargetingPositionY, &mut PxSubPosition),
+        (With<CameraPos>, Without<CameraShake>),
+    >,
+) {
+    if let Ok((pos, mut camera_pos)) = query.get_single_mut() {
+        camera_pos.0.y = pos.0;
     }
 }

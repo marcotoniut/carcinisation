@@ -163,7 +163,7 @@ pub fn check_idle_tardigrade(
                         ),
                         InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
-                        Hittable {},
+                        Hittable,
                         Health(1),
                     ))
                     .insert(attack_bundle);
