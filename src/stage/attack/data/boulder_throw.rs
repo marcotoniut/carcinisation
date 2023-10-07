@@ -7,11 +7,12 @@ use crate::{
     stage::{attack::data::HoveringAttackAnimations, player::components::PLAYER_DEPTH},
 };
 
-// Animation fragments
+pub const BOULDER_THROW_ATTACK_DEPTH_SPEED: f32 = 3.;
+pub const BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION: f32 = -55.;
+pub const BOULDER_THROW_ATTACK_DAMAGE: u32 = 45;
+
 const FRAGMENT_HOVERING: &str = "hovering";
 const FRAGMENT_HIT: &str = "hit";
-
-// Enemy
 const FRAGMENT_ATTACK: &str = "boulder_attack";
 
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {

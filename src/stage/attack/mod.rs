@@ -1,5 +1,6 @@
 pub mod components;
 pub mod data;
+pub mod spawns;
 pub mod systems;
 
 use bevy::prelude::*;

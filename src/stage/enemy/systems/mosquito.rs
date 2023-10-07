@@ -9,20 +9,12 @@ use seldom_pixel::{
 use crate::{
     components::DespawnMark,
     globals::HALF_SCREEN_RESOLUTION,
-    plugins::movement::linear::components::{
-        LinearMovementBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-    },
     stage::{
-        attack::{
-            components::{
-                bundles::make_hovering_attack_animation_bundle, EnemyAttack,
-                EnemyHoveringAttackType,
-            },
-            data::{BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_LINE_SPEED},
+        attack::spawns::{
+            blood_shot::spawn_blood_shot_attack, boulder_throw::spawn_boulder_throw_attack,
         },
         components::{
-            damage::InflictsDamage,
-            interactive::{Dead, Health, Hittable},
+            interactive::Dead,
             placement::{Depth, InView},
         },
         data::EnemyStep,
@@ -31,7 +23,6 @@ use crate::{
             components::{behavior::EnemyCurrentBehavior, *},
             data::mosquito::MOSQUITO_ANIMATIONS,
         },
-        player::components::PLAYER_DEPTH,
         resources::StageTime,
         score::components::Score,
     },
@@ -208,63 +199,15 @@ pub fn check_idle_mosquito(
                         last_attack_started: stage_time.elapsed,
                     });
 
-                let attack_bundle = make_hovering_attack_animation_bundle(
+                spawn_boulder_throw_attack(
+                    // spawn_blood_shot_attack(
+                    &mut commands,
                     &mut assets_sprite,
-                    &EnemyHoveringAttackType::BoulderThrow,
-                    depth.clone(),
+                    &stage_time,
+                    HALF_SCREEN_RESOLUTION.clone() + camera_pos.0,
+                    position.0,
+                    depth,
                 );
-
-                let mut attacking = EnemyMosquitoAttacking {
-                    attack: Some(EnemyMosquitoAttack::Ranged),
-                    last_attack_started: stage_time.elapsed,
-                };
-
-                attacking.attack = attacking.attack.clone();
-                attacking.last_attack_started = attacking.last_attack_started.clone();
-
-                let target_pos = HALF_SCREEN_RESOLUTION.clone() + camera_pos.0;
-
-                let direction = target_pos - position.0;
-                let speed = direction.normalize() * BLOOD_ATTACK_LINE_SPEED;
-
-                let movement_bundle = (
-                    LinearMovementBundle::<StageTime, TargetingPositionX>::new(
-                        position.0.x,
-                        target_pos.x,
-                        speed.x,
-                    ),
-                    LinearMovementBundle::<StageTime, TargetingPositionY>::new(
-                        position.0.y,
-                        target_pos.y,
-                        speed.y,
-                    ),
-                    LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
-                        depth.0.clone() as f32,
-                        PLAYER_DEPTH + 1.,
-                        BLOOD_ATTACK_DEPTH_SPEED,
-                    ),
-                );
-
-                commands
-                    .spawn((
-                        Name::new(format!(
-                            "Attack - {}",
-                            EnemyHoveringAttackType::BloodShot.get_name()
-                        )),
-                        EnemyAttack,
-                        EnemyHoveringAttackType::BloodShot,
-                        // PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
-                        // PursueSpeed::<StageTime, PxSubPosition>::new(
-                        //     (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
-                        // ),
-                        depth.clone(),
-                        InflictsDamage(BLOOD_ATTACK_DAMAGE),
-                        PxSubPosition(position.0),
-                        Hittable,
-                        Health(1),
-                    ))
-                    .insert(attack_bundle)
-                    .insert(movement_bundle);
             }
         }
     }
