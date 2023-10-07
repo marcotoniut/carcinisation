@@ -14,7 +14,7 @@ use crate::{
         pursue::components::{PursueSpeed, PursueTargetPosition},
     },
     stage::{
-        attack::components::blood_shot::make_blood_shot_attack_animation_bundle,
+        attack::components::bundles::make_hovering_attack_animation_bundle,
         components::{
             damage::InflictsDamage,
             interactive::{Dead, Health, Hittable},
@@ -133,8 +133,11 @@ pub fn check_idle_tardigrade(
                     });
 
                 let depth = Depth(1);
-                let attack_bundle =
-                    make_blood_shot_attack_animation_bundle(&mut assets_sprite, depth.clone());
+                let attack_bundle = make_hovering_attack_animation_bundle(
+                    &mut assets_sprite,
+                    &EnemyHoveringAttackType::BoulderThrow,
+                    depth.clone(),
+                );
 
                 let mut attacking = EnemyTardigradeAttacking {
                     attack: true,
@@ -148,7 +151,10 @@ pub fn check_idle_tardigrade(
 
                 commands
                     .spawn((
-                        Name::new("EnemyAttack - BloodShot"),
+                        Name::new(format!(
+                            "Attack - {}",
+                            EnemyHoveringAttackType::BoulderThrow.get_name()
+                        )),
                         EnemyAttack,
                         // TODO bundle
                         PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),

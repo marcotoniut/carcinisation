@@ -1,15 +1,13 @@
+use bevy::utils::HashMap;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
-use std::collections::HashMap;
 
 use crate::{
     globals::PATH_SPRITES_ATTACKS,
-    stage::{enemy::data::AnimationData, player::components::PLAYER_DEPTH},
+    stage::{
+        enemy::data::{AnimationData, HoveringAttackAnimations},
+        player::components::PLAYER_DEPTH,
+    },
 };
-
-pub struct BloodAttackAnimations {
-    pub hovering: HashMap<usize, AnimationData>,
-    pub hit: HashMap<usize, AnimationData>,
-}
 
 // Animation fragments
 const FRAGMENT_HOVERING: &str = "hovering";
@@ -28,7 +26,7 @@ const MAX_DEPTH: usize = 8;
 const HIT_DEPTH: usize = PLAYER_DEPTH as usize + 1;
 
 lazy_static! {
-    pub static ref BLOOD_ATTACK_ANIMATIONS: BloodAttackAnimations = {
+    pub static ref BLOOD_ATTACK_ANIMATIONS: HoveringAttackAnimations = {
         let hovering_frames = 4;
         let hovering_speed = 700;
 
@@ -81,6 +79,6 @@ lazy_static! {
             },
         );
 
-        BloodAttackAnimations { hovering, hit }
+        HoveringAttackAnimations { hovering, hit }
     };
 }

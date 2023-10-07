@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::core::time::DeltaTime;
+use crate::core::time::*;
 
 use super::data::{StageData, StageSpawn};
 
@@ -15,6 +15,16 @@ pub struct StageTime {
 impl DeltaTime for StageTime {
     fn delta_seconds(&self) -> f32 {
         self.delta.as_secs_f32()
+    }
+
+    fn delta(&self) -> Duration {
+        self.delta
+    }
+}
+
+impl ElapsedTime for StageTime {
+    fn elapsed(&self) -> Duration {
+        self.elapsed
     }
 }
 
