@@ -1,4 +1,4 @@
-pub mod blood_shot;
+pub mod bundles;
 
 pub const SCORE_RANGED_REGULAR_HIT: u32 = 1;
 pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;

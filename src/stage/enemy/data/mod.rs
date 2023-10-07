@@ -2,9 +2,20 @@ pub mod blood_attack;
 pub mod boulder_attack;
 pub mod mosquito;
 pub mod tardigrade;
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 
 use seldom_pixel::prelude::*;
+
+pub struct HoveringAttackAnimations {
+    pub hovering: HashMap<usize, AnimationData>,
+    pub hit: HashMap<usize, AnimationData>,
+}
+
+impl HoveringAttackAnimations {
+    pub fn get_ref(&self) -> &Self {
+        self
+    }
+}
 
 pub struct AnimationData {
     pub sprite_path: String,

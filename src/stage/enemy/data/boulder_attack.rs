@@ -1,17 +1,13 @@
-use seldom_pixel::prelude::{
-    PxAnimationDirection, PxAnimationFinishBehavior, PxAnimationFrameTransition,
-};
-use std::collections::HashMap;
+use bevy::utils::HashMap;
+use seldom_pixel::prelude::PxAnimationFinishBehavior;
 
 use crate::{
     globals::PATH_SPRITES_ATTACKS,
-    stage::{enemy::data::AnimationData, player::components::PLAYER_DEPTH},
+    stage::{
+        enemy::data::{AnimationData, HoveringAttackAnimations},
+        player::components::PLAYER_DEPTH,
+    },
 };
-
-pub struct BoulderAttackAnimations {
-    pub hovering: HashMap<usize, AnimationData>,
-    pub hit: HashMap<usize, AnimationData>,
-}
 
 // Animation fragments
 const FRAGMENT_HOVERING: &str = "hovering";
@@ -29,7 +25,7 @@ const MAX_DEPTH: usize = 8;
 const HIT_DEPTH: usize = PLAYER_DEPTH as usize + 1;
 
 lazy_static! {
-    pub static ref BOULDER_ATTACK_ANIMATIONS: BoulderAttackAnimations = {
+    pub static ref BOULDER_ATTACK_ANIMATIONS: HoveringAttackAnimations = {
         let hovering_frames = 2;
         let hovering_speed = 700;
 
@@ -53,7 +49,7 @@ lazy_static! {
         }
 
         let hit_frames = 2;
-        let hit_speed = 600;
+        let hit_speed = 200;
 
         let mut hit = HashMap::new();
 
@@ -68,11 +64,11 @@ lazy_static! {
                 ),
                 frames: hit_frames,
                 speed: hit_speed,
-                finish_behavior: PxAnimationFinishBehavior::Despawn,
+                finish_behavior: PxAnimationFinishBehavior::Mark,
                 ..Default::default()
             },
         );
 
-        BoulderAttackAnimations { hovering, hit }
+        HoveringAttackAnimations { hovering, hit }
     };
 }

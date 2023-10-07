@@ -8,6 +8,10 @@ use bevy::prelude::*;
 use crate::plugins::movement::structs::MovementDirection;
 use crate::stage::data::EnemyStep;
 
+use super::data::blood_attack::BLOOD_ATTACK_ANIMATIONS;
+use super::data::boulder_attack::BOULDER_ATTACK_ANIMATIONS;
+use super::data::HoveringAttackAnimations;
+
 pub const BLOOD_ATTACK_DEPTH_SPEED: f32 = 4.;
 pub const BLOOD_ATTACK_LINE_SPEED: f32 = 25.;
 pub const BLOOD_ATTACK_DAMAGE: u32 = 20;
@@ -17,6 +21,28 @@ pub struct Enemy;
 
 #[derive(Component)]
 pub struct EnemyAttack;
+
+#[derive(Component)]
+pub enum EnemyHoveringAttackType {
+    BloodShot,
+    BoulderThrow,
+}
+
+impl EnemyHoveringAttackType {
+    pub fn get_name(&self) -> String {
+        match self {
+            EnemyHoveringAttackType::BloodShot => "Blood Shot".to_string(),
+            EnemyHoveringAttackType::BoulderThrow => "Boulder Throw".to_string(),
+        }
+    }
+
+    pub fn get_animations(&self) -> &'static HoveringAttackAnimations {
+        match self {
+            EnemyHoveringAttackType::BloodShot => &BLOOD_ATTACK_ANIMATIONS,
+            EnemyHoveringAttackType::BoulderThrow => &BOULDER_ATTACK_ANIMATIONS,
+        }
+    }
+}
 
 #[derive(Component, Clone, Debug)]
 pub struct CircleAround {

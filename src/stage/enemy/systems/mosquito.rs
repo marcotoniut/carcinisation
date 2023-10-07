@@ -9,15 +9,11 @@ use seldom_pixel::{
 use crate::{
     components::DespawnMark,
     globals::HALF_SCREEN_RESOLUTION,
-    plugins::movement::{
-        linear::components::{
-            LinearDirection, LinearMovementBundle, LinearSpeed, LinearTargetPosition,
-            TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-        },
-        structs::MovementDirection,
+    plugins::movement::linear::components::{
+        LinearMovementBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
     },
     stage::{
-        attack::components::blood_shot::make_blood_shot_attack_animation_bundle,
+        attack::components::bundles::make_hovering_attack_animation_bundle,
         components::{
             damage::InflictsDamage,
             interactive::{Dead, Health, Hittable},
@@ -206,8 +202,11 @@ pub fn check_idle_mosquito(
                         last_attack_started: stage_time.elapsed,
                     });
 
-                let attack_bundle =
-                    make_blood_shot_attack_animation_bundle(&mut assets_sprite, depth.clone());
+                let attack_bundle = make_hovering_attack_animation_bundle(
+                    &mut assets_sprite,
+                    &EnemyHoveringAttackType::BoulderThrow,
+                    depth.clone(),
+                );
 
                 let mut attacking = EnemyMosquitoAttacking {
                     attack: Some(EnemyMosquitoAttack::Ranged),
@@ -242,8 +241,12 @@ pub fn check_idle_mosquito(
 
                 commands
                     .spawn((
-                        Name::new("EnemyAttack - Blood Shot"),
+                        Name::new(format!(
+                            "Attack - {}",
+                            EnemyHoveringAttackType::BloodShot.get_name()
+                        )),
                         EnemyAttack,
+                        EnemyHoveringAttackType::BloodShot,
                         // PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
                         // PursueSpeed::<StageTime, PxSubPosition>::new(
                         //     (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,

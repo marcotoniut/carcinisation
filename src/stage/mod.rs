@@ -53,6 +53,7 @@ use crate::{
         },
         pursue::PursueMovementPlugin,
     },
+    systems::{check_despawn_after_delay, delay_despawn},
     AppState,
 };
 
@@ -141,6 +142,11 @@ impl Plugin for StagePlugin {
                             // TEMP
                             check_stage_game_over,
                             read_stage_game_over_trigger,
+                        ),
+                        (
+                            // Effects
+                            delay_despawn::<StageTime>,
+                            check_despawn_after_delay::<StageTime>,
                         ),
                         (
                             // Movement

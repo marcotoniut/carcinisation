@@ -8,10 +8,12 @@ use leafwing_input_manager::{
     prelude::{ActionState, InputMap},
     InputManagerBundle,
 };
-use seldom_pixel::prelude::{PxCamera, PxSubPosition};
+use seldom_pixel::prelude::{PxAnimationFinished, PxCamera, PxSubPosition};
 
 use crate::{
     audio::AudioSystemType,
+    components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
+    core::time::{self, DeltaTime, ElapsedTime},
     game::events::GameOver,
     stage::{resources::StageDataHandle, GameState, StageState},
     AppState, GBInput,
@@ -173,5 +175,31 @@ pub fn update_sfx_volume(
     let sfx_volume = volume_settings.2;
     for mut sfx_source_settings in &mut source_settings {
         sfx_source_settings.volume = Volume::new_relative(sfx_volume);
+    }
+}
+
+pub fn delay_despawn<T: ElapsedTime + Resource>(
+    mut commands: Commands,
+    mut query: Query<(Entity, &DelayedDespawnOnPxAnimationFinished), With<PxAnimationFinished>>,
+    time: Res<T>,
+) {
+    for (entity, delayed) in &mut query.iter_mut() {
+        let elapsed = time.elapsed();
+        commands.entity(entity).insert(DespawnAfterDelay {
+            elapsed,
+            duration: delayed.0,
+        });
+    }
+}
+
+pub fn check_despawn_after_delay<T: ElapsedTime + Resource>(
+    mut commands: Commands,
+    mut query: Query<(Entity, &DespawnAfterDelay)>,
+    time: Res<T>,
+) {
+    for (entity, despawn_after_delay) in &mut query.iter_mut() {
+        if despawn_after_delay.elapsed + despawn_after_delay.duration <= time.elapsed() {
+            commands.entity(entity).insert(DespawnMark);
+        }
     }
 }

@@ -11,17 +11,17 @@ use crate::{
             interactive::{Collision, CollisionData},
             placement::Depth,
         },
-        enemy::data::blood_attack::BLOOD_ATTACK_ANIMATIONS,
+        enemy::components::EnemyHoveringAttackType,
     },
     Layer,
 };
 
-// Bundle
-pub fn make_blood_shot_attack_animation_bundle(
+pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
+    attack_type: &EnemyHoveringAttackType,
     depth: Depth,
 ) -> (PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData) {
-    let animation_o = BLOOD_ATTACK_ANIMATIONS.hovering.get(&depth.0);
+    let animation_o = attack_type.get_animations().hovering.get(&depth.0);
 
     let animation = animation_o.unwrap();
     let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);

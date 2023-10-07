@@ -15,7 +15,7 @@ use crate::{
             damage::InflictsDamage,
             placement::{Depth, InView},
         },
-        enemy::{components::EnemyAttack, data::blood_attack::BLOOD_ATTACK_ANIMATIONS},
+        enemy::components::EnemyHoveringAttackType,
         events::DamageEvent,
         player::{components::Player, events::CameraShakeEvent},
         resources::StageTime,
@@ -24,8 +24,7 @@ use crate::{
     Layer,
 };
 
-// TODO simplify
-pub fn blood_attack_damage_on_reached(
+pub fn hovering_damage_on_reached(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut camera_shake_event_writer: EventWriter<CameraShakeEvent>,
@@ -33,16 +32,21 @@ pub fn blood_attack_damage_on_reached(
     mut player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
     depth_query: Query<
-        (Entity, &InflictsDamage, &PxSubPosition, &Depth),
+        (
+            Entity,
+            &EnemyHoveringAttackType,
+            &InflictsDamage,
+            &PxSubPosition,
+            &Depth,
+        ),
         (
             Added<LinearTargetReached<StageTime, TargetingPositionZ>>,
-            With<EnemyAttack>,
             With<InView>,
         ),
     >,
     volume_settings: Res<VolumeSettings>,
 ) {
-    for (entity, damage, position, depth) in &mut depth_query.iter() {
+    for (entity, attack, damage, position, depth) in &mut depth_query.iter() {
         let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
 
         for entity in &mut player_query.iter_mut() {
@@ -67,10 +71,10 @@ pub fn blood_attack_damage_on_reached(
             },
         ));
 
-        let animation_o = BLOOD_ATTACK_ANIMATIONS.hit.get(&depth.0);
+        let animation_o = attack.get_animations().hit.get(&depth.0);
         if let Some(animation) = animation_o {
             commands.spawn((
-                Name::new("Attack - Blood shot - hit"),
+                Name::new(format!("Attack - {} - hit", attack.get_name())),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: assets_sprite

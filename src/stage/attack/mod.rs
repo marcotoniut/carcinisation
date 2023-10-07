@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 use self::{
     systems::player::*,
-    systems::{blood_shot::*, *},
+    systems::{hovering::*, *},
 };
 use super::{GameState, StageState};
 use crate::AppState;
@@ -21,7 +21,7 @@ impl Plugin for AttackPlugin {
                 despawn_dead_attacks,
                 read_enemy_attack_depth_changed,
                 miss_on_reached,
-                blood_attack_damage_on_reached,
+                hovering_damage_on_reached,
             )
                 .run_if(in_state(StageState::Running))
                 .run_if(in_state(GameState::Running))
