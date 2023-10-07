@@ -11,11 +11,11 @@ use crate::{
     components::DespawnMark,
     plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
     stage::{
+        attack::components::EnemyHoveringAttackType,
         components::{
             damage::InflictsDamage,
             placement::{Depth, InView},
         },
-        enemy::components::EnemyHoveringAttackType,
         events::DamageEvent,
         player::{components::Player, events::CameraShakeEvent},
         resources::StageTime,

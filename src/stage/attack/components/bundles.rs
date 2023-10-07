@@ -6,15 +6,14 @@ use seldom_pixel::{
 };
 
 use crate::{
-    stage::{
-        components::{
-            interactive::{Collision, CollisionData},
-            placement::Depth,
-        },
-        enemy::components::EnemyHoveringAttackType,
+    stage::components::{
+        interactive::{Collision, CollisionData},
+        placement::Depth,
     },
     Layer,
 };
+
+use super::EnemyHoveringAttackType;
 
 pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,

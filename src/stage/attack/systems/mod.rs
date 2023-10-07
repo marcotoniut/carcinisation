@@ -12,14 +12,15 @@ use crate::{
             interactive::{Dead, Health},
             placement::InView,
         },
-        enemy::components::{EnemyAttack, EnemyHoveringAttackType},
         events::DepthChangedEvent,
         player::components::PLAYER_DEPTH,
         resources::StageTime,
     },
 };
 
-use super::components::bundles::make_hovering_attack_animation_bundle;
+use super::components::{
+    bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyHoveringAttackType,
+};
 
 // TODO remove in favor of damage taken?
 pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health), Without<Dead>>) {

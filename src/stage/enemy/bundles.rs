@@ -4,9 +4,7 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
-use crate::Layer;
-
-use super::data::AnimationData;
+use crate::{data::AnimationData, Layer};
 
 /**
  * TODO
