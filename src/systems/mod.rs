@@ -180,7 +180,10 @@ pub fn update_sfx_volume(
 
 pub fn delay_despawn<T: ElapsedTime + Resource>(
     mut commands: Commands,
-    mut query: Query<(Entity, &DelayedDespawnOnPxAnimationFinished), With<PxAnimationFinished>>,
+    mut query: Query<
+        (Entity, &DelayedDespawnOnPxAnimationFinished),
+        (With<PxAnimationFinished>, Without<DespawnAfterDelay>),
+    >,
     time: Res<T>,
 ) {
     for (entity, delayed) in &mut query.iter_mut() {

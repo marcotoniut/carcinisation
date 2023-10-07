@@ -30,7 +30,7 @@ lazy_static! {
         let hovering_speed = 700;
 
         let hit_frames = 1;
-        let hit_speed = 600;
+        let hit_speed = 300;
 
         let mut hovering = HashMap::new();
 

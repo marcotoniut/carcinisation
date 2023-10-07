@@ -26,7 +26,7 @@ const HIT_DEPTH: usize = PLAYER_DEPTH as usize + 1;
 lazy_static! {
     pub static ref BOULDER_ATTACK_ANIMATIONS: HoveringAttackAnimations = {
         let hovering_frames = 2;
-        let hovering_speed = 700;
+        let hovering_speed = 300;
 
         let mut hovering = HashMap::new();
         for i in MIN_DEPTH..=MAX_DEPTH {
