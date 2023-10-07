@@ -4,6 +4,7 @@ mod cinemachine;
 mod components;
 mod core;
 mod cutscene;
+mod data;
 mod game;
 mod globals;
 mod main_menu;

@@ -13,7 +13,13 @@ use crate::{
         LinearMovementBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
     },
     stage::{
-        attack::components::bundles::make_hovering_attack_animation_bundle,
+        attack::{
+            components::{
+                bundles::make_hovering_attack_animation_bundle, EnemyAttack,
+                EnemyHoveringAttackType,
+            },
+            data::{BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_LINE_SPEED},
+        },
         components::{
             damage::InflictsDamage,
             interactive::{Dead, Health, Hittable},
