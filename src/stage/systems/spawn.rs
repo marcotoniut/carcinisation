@@ -161,6 +161,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
         speed,
         steps,
         contains,
+        depth,
         ..
     } = enemy_spawn;
     let name = Name::new(format!("Enemy {:?}", enemy_type));
@@ -178,6 +179,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                     EnemyMosquito {
                         steps: steps.clone(),
                     },
+                    Depth(*depth),
                     EnemyMosquitoAttacking { ..default() },
                     Flickerer,
                     Hittable,
@@ -203,8 +205,9 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
         EnemyType::Tardigrade => commands
             .spawn((
                 name,
-                Enemy,
                 behaviors,
+                Depth(*depth),
+                Enemy,
                 EnemyTardigrade {
                     steps: steps.clone(),
                 },

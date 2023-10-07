@@ -146,10 +146,35 @@ pub enum AppState {
     GameOver,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub enum DepthBase {
+    Zero,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub enum PreBackgroundDepth {
+    Zero,
+    One,
+    Two,
+}
+
 #[px_layer]
 pub enum Layer {
     Skybox,
+
+    PreDepth(PreBackgroundDepth),
     Background,
+    PosDepth(DepthBase),
+
     Middle(usize),
     Attack,
     #[default]

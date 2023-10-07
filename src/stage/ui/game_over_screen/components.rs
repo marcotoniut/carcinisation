@@ -8,7 +8,6 @@ pub struct GameOverScreen {}
 pub struct FinalScoreText;
 
 #[derive(Component)]
-///current score
 pub struct InfoText;
 
 #[derive(Component)]

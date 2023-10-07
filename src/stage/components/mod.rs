@@ -38,6 +38,10 @@ pub struct MovementStageStep {
     pub coordinates: Vec2,
     pub base_speed: f32,
     pub spawns: Vec<StageSpawn>,
+    // TODO
+    // pub is_checkpoint: bool,
+    // pub music_fade: bool,
+    // pub music_track: Option<String>,
 }
 
 #[derive(Component, Clone, Debug)]
@@ -46,6 +50,10 @@ pub struct StopStageStep {
     pub kill_all: bool,
     pub kill_boss: bool,
     pub spawns: Vec<StageSpawn>,
+    // TODO
+    // pub is_checkpoint: bool,
+    // pub music_fade: bool,
+    // pub music_track: Option<String>,
 }
 
 impl StopStageStep {

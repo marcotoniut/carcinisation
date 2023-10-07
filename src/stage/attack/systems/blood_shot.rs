@@ -67,13 +67,14 @@ pub fn blood_attack_damage_on_reached(
             },
         ));
 
-        let animation_o = BLOOD_ATTACK_ANIMATIONS.splat.get(&depth.0);
+        let animation_o = BLOOD_ATTACK_ANIMATIONS.hit.get(&depth.0);
         if let Some(animation) = animation_o {
             commands.spawn((
-                Name::new("Bloodsplat"),
+                Name::new("Attack - Blood shot - hit"),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
-                    sprite: assets_sprite.load(animation.sprite_path.clone()),
+                    sprite: assets_sprite
+                        .load_animated(animation.sprite_path.clone(), animation.frames),
                     layer: Layer::Middle(depth.0),
                     anchor: PxAnchor::Center,
                     ..default()
