@@ -75,24 +75,62 @@ invert_colors = true
 path = "typeface/animated_typeface.png"
 
 # Enemies
+width = 2
 [[images]]
-path = "sprites/enemies/mosquito_death_1.png"
+path = "sprites/enemies/mosquito_death_3.png"
+target_path = "sprites/enemies/mosquito_death_1.png"
+width = 6
 [[images]]
-path = "sprites/enemies/mosquito_death_2.png"
+path = "sprites/enemies/mosquito_death_3.png"
+target_path = "sprites/enemies/mosquito_death_2.png"
+width = 10
 [[images]]
 path = "sprites/enemies/mosquito_death_3.png"
 [[images]]
-path = "sprites/enemies/mosquito_idle_1.png"
+path = "sprites/enemies/mosquito_death_4.png"
 [[images]]
-path = "sprites/enemies/mosquito_idle_2.png"
+path = "sprites/enemies/mosquito_death_5.png"
+[[images]]
+path = "sprites/enemies/mosquito_death_5.png"
+target_path = "sprites/enemies/mosquito_death_6.png"
+width = 50
+[[images]]
+path = "sprites/enemies/mosquito_idle_3.png"
+target_path = "sprites/enemies/mosquito_idle_1.png"
+width = 6
+[[images]]
+path = "sprites/enemies/mosquito_idle_3.png"
+target_path = "sprites/enemies/mosquito_idle_2.png"
+width = 10
 [[images]]
 path = "sprites/enemies/mosquito_idle_3.png"
 [[images]]
-path = "sprites/enemies/mosquito_melee_1.png"
+path = "sprites/enemies/mosquito_idle_4.png"
 [[images]]
-path = "sprites/enemies/mosquito_melee_2.png"
+path = "sprites/enemies/mosquito_idle_5.png"
+[[images]]
+path = "sprites/enemies/mosquito_idle_5.png"
+target_path = "sprites/enemies/mosquito_idle_6.png"
+width = 50
+# TODO Is this necessary?
 [[images]]
 path = "sprites/enemies/mosquito_melee_3.png"
+target_path = "sprites/enemies/mosquito_melee_1.png"
+width = 6
+[[images]]
+path = "sprites/enemies/mosquito_melee_3.png"
+target_path = "sprites/enemies/mosquito_melee_2.png"
+width = 10
+[[images]]
+path = "sprites/enemies/mosquito_melee_3.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_4.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_5.png"
+[[images]]
+path = "sprites/enemies/mosquito_melee_5.png"
+target_path = "sprites/enemies/mosquito_melee_6.png"
+width = 50
 
 # [[images]]
 # path = "sprites/enemies/mosquito_hydra_idle.png"
@@ -222,32 +260,77 @@ target_path = "sprites/pickups/health_2.png"
 
 # Attacks
 [[images]]
-path = "sprites/attacks/bloodball_45x45_4.png"
+path = "sprites/attacks/bloodball_45x45.png"
 target_path = "sprites/attacks/blood_attack_hovering_1.png"
+width = 2
+[[images]]
+path = "sprites/attacks/bloodball_45x45.png"
+target_path = "sprites/attacks/blood_attack_hovering_2.png"
+width = 4
+[[images]]
+path = "sprites/attacks/bloodball_45x45.png"
+target_path = "sprites/attacks/blood_attack_hovering_3.png"
 width = 6
 [[images]]
-path = "sprites/attacks/bloodball_45x45_4.png"
-target_path = "sprites/attacks/blood_attack_hovering_2.png"
+path = "sprites/attacks/bloodball_45x45.png"
+target_path = "sprites/attacks/blood_attack_hovering_4.png"
 width = 10
 [[images]]
-path = "sprites/attacks/bloodball_45x45_4.png"
-target_path = "sprites/attacks/blood_attack_hovering_3.png"
+path = "sprites/attacks/bloodball_45x45.png"
+target_path = "sprites/attacks/blood_attack_hovering_5.png"
 width = 15
 [[images]]
-path = "sprites/attacks/bloodball_45x45_4.png"
-target_path = "sprites/attacks/blood_attack_hovering_4.png"
+path = "sprites/attacks/bloodball_45x45.png"
+target_path = "sprites/attacks/blood_attack_hovering_6.png"
 width = 21
 [[images]]
-path = "sprites/attacks/bloodball_45x45_4.png"
-target_path = "sprites/attacks/blood_attack_hovering_5.png"
+path = "sprites/attacks/bloodball_45x45.png"
+target_path = "sprites/attacks/blood_attack_hovering_7.png"
 width = 28
 [[images]]
-path = "sprites/attacks/bloodball_45x45_4.png"
-target_path = "sprites/attacks/blood_attack_hovering_6.png"
+path = "sprites/attacks/bloodball_45x45.png"
+target_path = "sprites/attacks/blood_attack_hovering_8.png"
 width = 36
 [[images]]
 path = "sprites/attacks/bloodsplat.png"
-target_path = "sprites/attacks/blood_attack_splat_7.png"
+target_path = "sprites/attacks/blood_attack_hit_9.png"
+
+
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_1.png"
+width = 2
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_2.png"
+width = 5
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_3.png"
+width = 9
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_4.png"
+width = 14
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_5.png"
+width = 20
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_6.png"
+width = 28
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_7.png"
+width = 36
+[[images]]
+path = "sprites/attacks/boulder_56x56.png"
+target_path = "sprites/attacks/boulder_attack_hovering_8.png"
+width = 46
+[[images]]
+path = "sprites/attacks/boulder_rubble_62x62.png"
+target_path = "sprites/attacks/boulder_attack_hit_9.png"
 
 #cutscenes
 [[images]]

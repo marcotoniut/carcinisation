@@ -14,8 +14,10 @@ fn main() {
                 Rgb([39, 25, 54]),
                 // #99340b
                 Rgb([153, 52, 11]),
+                // TODO replace with #ba583f
                 // #aa593a
                 Rgb([170, 89, 58]),
+                // TODO replace with #f8d99f
                 // #f6d69c
                 Rgb([246, 214, 156]),
             ],
@@ -68,7 +70,7 @@ fn main() {
             ImageBuffer::new(palette.len() as u32, 1);
 
         for ((x, y, _), pixel) in output_palette_image.clone().enumerate_pixels().zip(palette) {
-            output_palette_image.put_pixel(x, y, pixel.clone());
+            output_palette_image.put_pixel(x, y, *pixel);
         }
         output_palette_image
             .save([PALETTES_PATH, &format!("{}.png", *key)].concat())
@@ -82,14 +84,14 @@ fn main() {
             for (i, color) in palette.iter().enumerate() {
                 let mut color_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(4, 1);
                 for x in 0..4 {
-                    color_image.put_pixel(x, 0, color.clone());
+                    color_image.put_pixel(x, 0, *color);
                 }
                 color_image
                     .save([FILTER_PATH, &format!("color{}.png", i)].concat())
                     .unwrap();
             }
 
-            let mut palette_invert = palette.clone();
+            let mut palette_invert = *palette;
             palette_invert.reverse();
             for ((x, y, _), pixel) in output_invert_palette
                 .clone()

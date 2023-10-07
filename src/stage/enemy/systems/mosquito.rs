@@ -186,17 +186,12 @@ pub fn check_idle_mosquito(
     // event_writer: EventWriter<BloodAttackEvent>,
     stage_time: Res<StageTime>,
     query: Query<
-        (
-            Entity,
-            &EnemyMosquito,
-            &mut EnemyMosquitoAttacking,
-            &PxSubPosition,
-        ),
-        With<InView>,
+        (Entity, &mut EnemyMosquitoAttacking, &PxSubPosition, &Depth),
+        (With<InView>, With<EnemyMosquito>),
     >,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
-    for (entity, enemy, attacking, position) in &mut query.iter() {
+    for (entity, attacking, position, depth) in &mut query.iter() {
         if attacking.attack.is_none() {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
@@ -211,7 +206,6 @@ pub fn check_idle_mosquito(
                         last_attack_started: stage_time.elapsed,
                     });
 
-                let depth = Depth(1);
                 let attack_bundle =
                     make_blood_shot_attack_animation_bundle(&mut assets_sprite, depth.clone());
 
@@ -254,7 +248,7 @@ pub fn check_idle_mosquito(
                         // PursueSpeed::<StageTime, PxSubPosition>::new(
                         //     (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
                         // ),
-                        depth,
+                        depth.clone(),
                         InflictsDamage(BLOOD_ATTACK_DAMAGE),
                         PxSubPosition(position.0),
                         Hittable,

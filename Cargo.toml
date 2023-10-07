@@ -26,7 +26,7 @@ bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls" }
 lazy_static = "1.4.0"
 leafwing-input-manager = "0.10.0"
 rand = "0.8.5"
-seldom_pixel = { git = "https://github.com/Seldom-SE/seldom_pixel", default-features = true, features = [
+seldom_pixel = { git = "https://github.com/marcotoniut/seldom_pixel", default-features = true, features = [
     "line",
 ] }
 wasm-bindgen = "0.2.87"

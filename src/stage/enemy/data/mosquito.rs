@@ -23,6 +23,9 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 
+const MOSQUITO_MIN_DEPTH: usize = 1;
+const MOSQUITO_MAX_DEPTH: usize = 6;
+
 lazy_static! {
     pub static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {
         let idle_frames = 3;
@@ -38,7 +41,7 @@ lazy_static! {
         let melee_attack_speed = 130;
 
         let mut death = HashMap::new();
-        for i in 1..=3 {
+        for i in MOSQUITO_MIN_DEPTH..=MOSQUITO_MAX_DEPTH {
             death.insert(
                 i,
                 AnimationData {
@@ -58,7 +61,7 @@ lazy_static! {
         }
 
         let mut fly = HashMap::new();
-        for i in 1..=3 {
+        for i in MOSQUITO_MIN_DEPTH..=MOSQUITO_MAX_DEPTH {
             fly.insert(
                 i,
                 AnimationData {
@@ -77,7 +80,7 @@ lazy_static! {
         }
 
         let mut idle = HashMap::new();
-        for i in 1..=3 {
+        for i in MOSQUITO_MIN_DEPTH..=MOSQUITO_MAX_DEPTH {
             idle.insert(
                 i,
                 AnimationData {
@@ -96,7 +99,7 @@ lazy_static! {
         }
 
         let mut melee_attack = HashMap::new();
-        for i in 1..=3 {
+        for i in MOSQUITO_MIN_DEPTH..=MOSQUITO_MAX_DEPTH {
             melee_attack.insert(
                 i,
                 AnimationData {

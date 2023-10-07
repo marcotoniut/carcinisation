@@ -1,16 +1,19 @@
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
 use std::collections::HashMap;
 
-use crate::{globals::PATH_SPRITES_ATTACKS, stage::enemy::data::AnimationData};
+use crate::{
+    globals::PATH_SPRITES_ATTACKS,
+    stage::{enemy::data::AnimationData, player::components::PLAYER_DEPTH},
+};
 
 pub struct BloodAttackAnimations {
     pub hovering: HashMap<usize, AnimationData>,
-    pub splat: HashMap<usize, AnimationData>,
+    pub hit: HashMap<usize, AnimationData>,
 }
 
 // Animation fragments
 const FRAGMENT_HOVERING: &str = "hovering";
-const FRAGMENT_SPLAT: &str = "splat";
+const FRAGMENT_HIT: &str = "hit";
 
 // Enemy
 const FRAGMENT_BLOOD_ATTACK: &str = "blood_attack";
@@ -19,16 +22,30 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 
+const MIN_DEPTH: usize = 1;
+const MAX_DEPTH: usize = 8;
+
+const HIT_DEPTH: usize = PLAYER_DEPTH as usize + 1;
+
 lazy_static! {
     pub static ref BLOOD_ATTACK_ANIMATIONS: BloodAttackAnimations = {
         let hovering_frames = 4;
         let hovering_speed = 700;
 
-        let splat_frames = 1;
-        let splat_speed = 600;
+        let hit_frames = 1;
+        let hit_speed = 600;
 
         let mut hovering = HashMap::new();
-        for i in 1..=6 {
+
+        // fn get_size(i: usize) {
+        //     match i {
+        //         1 => 1,
+        //         2 => 2,
+        //         3 => 3,
+        //     }
+        // }
+
+        for i in MIN_DEPTH..=MAX_DEPTH {
             hovering.insert(
                 i,
                 AnimationData {
@@ -41,28 +58,29 @@ lazy_static! {
                     frames: hovering_frames,
                     speed: hovering_speed,
                     finish_behavior: PxAnimationFinishBehavior::Loop,
+                    // size: get_size(i),
                     ..Default::default()
                 },
             );
         }
 
-        let mut splat = HashMap::new();
-        splat.insert(
-            7,
+        let mut hit = HashMap::new();
+        hit.insert(
+            HIT_DEPTH,
             AnimationData {
                 sprite_path: concat_strings_and_number(
                     PATH_SPRITES_ATTACKS,
                     FRAGMENT_BLOOD_ATTACK,
-                    FRAGMENT_SPLAT,
-                    7,
+                    FRAGMENT_HIT,
+                    HIT_DEPTH,
                 ),
-                frames: splat_frames,
-                speed: splat_speed,
+                frames: hit_frames,
+                speed: hit_speed,
                 finish_behavior: PxAnimationFinishBehavior::Despawn,
                 ..Default::default()
             },
         );
 
-        BloodAttackAnimations { hovering, splat }
+        BloodAttackAnimations { hovering, hit }
     };
 }

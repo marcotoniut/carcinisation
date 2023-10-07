@@ -257,6 +257,7 @@ pub struct EnemySpawn {
     pub coordinates: Vec2,
     pub speed: f32,
     pub steps: VecDeque<EnemyStep>,
+    pub depth: usize,
 }
 
 impl EnemySpawn {
@@ -288,6 +289,10 @@ impl EnemySpawn {
         self.steps = value.into();
         self
     }
+    pub fn with_depth(mut self, value: usize) -> Self {
+        self.depth = value;
+        self
+    }
     /** TODO should I implement these as a trait Contains */
     pub fn with_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
         self.contains = value;
@@ -307,9 +312,10 @@ impl EnemySpawn {
     pub fn tardigrade_base() -> Self {
         Self {
             enemy_type: EnemyType::Tardigrade,
-            coordinates: DEFAULT_COORDINATES.clone(),
-            speed: 0.5,
+            coordinates: *DEFAULT_COORDINATES,
+            depth: 3,
             elapsed: 0.0,
+            speed: 0.5,
             steps: vec![].into(),
             contains: None,
         }
@@ -317,9 +323,10 @@ impl EnemySpawn {
     pub fn mosquito_base() -> Self {
         Self {
             enemy_type: EnemyType::Mosquito,
-            coordinates: DEFAULT_COORDINATES.clone(),
-            speed: 2.0,
+            coordinates: *DEFAULT_COORDINATES,
+            depth: 4,
             elapsed: 0.0,
+            speed: 2.0,
             steps: vec![].into(),
             contains: None,
         }
@@ -344,8 +351,8 @@ impl EnemySpawn {
     pub fn spidey_base(speed_multiplier: f32, coordinates: Vec2) -> Self {
         Self {
             enemy_type: EnemyType::Spidey,
-            speed: speed_multiplier,
             coordinates,
+            depth: 3,
             elapsed: 0.0,
             steps: vec![EnemyStep::Circle {
                 duration: 999.,
@@ -353,6 +360,7 @@ impl EnemySpawn {
                 direction: MovementDirection::Positive,
             }]
             .into(),
+            speed: speed_multiplier,
             contains: None,
         }
     }
