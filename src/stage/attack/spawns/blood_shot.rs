@@ -58,6 +58,7 @@ pub fn spawn_blood_shot_attack(
     let speed = direction.normalize() * BLOOD_SHOT_ATTACK_LINE_SPEED;
 
     let movement_bundle = (
+        // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting
         TargetingPositionX::new(current_pos.x),
         LinearSpeed::<StageTime, TargetingPositionX>::new(speed.x),
         TargetingPositionY::new(current_pos.y),
@@ -74,7 +75,6 @@ pub fn spawn_blood_shot_attack(
             Name::new(format!("Attack - {}", attack_type.get_name())),
             EnemyAttack,
             EnemyHoveringAttackType::BloodShot,
-            // PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
             depth.clone(),
             InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
             PxSubPosition(current_pos),

@@ -8,7 +8,7 @@ use seldom_pixel::{
 };
 
 use crate::{
-    components::DespawnMark,
+    components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
     plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
     stage::{
         attack::components::EnemyHoveringAttackType,
@@ -84,6 +84,7 @@ pub fn hovering_damage_on_reached(
                     ..default()
                 },
                 animation.make_animation_bundle(),
+                DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.4),
             ));
         }
 
