@@ -88,6 +88,7 @@ pub enum EnemyTardigradeAnimation {
     Sucking,
 }
 
+// TODO could generalise
 #[derive(Clone, Component, Debug, Default)]
 pub struct EnemyTardigradeAttacking {
     pub attack: bool,

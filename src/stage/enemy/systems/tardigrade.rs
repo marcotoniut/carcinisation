@@ -8,22 +8,11 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
-    globals::CAMERA_CENTER,
-    plugins::movement::{
-        linear::components::{LinearSpeed, LinearTargetPosition, TargetingPositionZ},
-        pursue::components::{PursueSpeed, PursueTargetPosition},
-    },
+    globals::HALF_SCREEN_RESOLUTION,
     stage::{
-        attack::{
-            components::{
-                bundles::make_hovering_attack_animation_bundle, EnemyAttack,
-                EnemyHoveringAttackType,
-            },
-            data::{BLOOD_ATTACK_DAMAGE, BLOOD_ATTACK_DEPTH_SPEED, BLOOD_ATTACK_LINE_SPEED},
-        },
+        attack::spawns::boulder_throw::spawn_boulder_throw_attack,
         components::{
-            damage::InflictsDamage,
-            interactive::{Dead, Health, Hittable},
+            interactive::Dead,
             placement::{Depth, InView},
         },
         enemy::{
@@ -31,7 +20,6 @@ use crate::{
             components::{behavior::EnemyCurrentBehavior, *},
             data::tardigrade::TARDIGRADE_ANIMATIONS,
         },
-        player::components::PLAYER_DEPTH,
         resources::StageTime,
         score::components::Score,
     },
@@ -44,21 +32,18 @@ pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
 pub fn assign_tardigrade_animation(
     mut commands: Commands,
     query: Query<
-        (Entity, &EnemyCurrentBehavior, &PxSubPosition),
+        (Entity, &EnemyCurrentBehavior, &PxSubPosition, &Depth),
         (With<EnemyTardigrade>, Without<EnemyTardigradeAnimation>),
     >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
-    for (entity, current_behavior, position) in &mut query.iter() {
+    for (entity, current_behavior, position, depth) in &mut query.iter() {
         let step = current_behavior.behavior.clone();
 
-        // HARDCODED depth, should be a component
-        let depth = 1;
-
-        let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(&depth).map(|animation| {
+        let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(&depth.0).map(|animation| {
             (
                 EnemyTardigradeAnimation::Idle,
-                make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                make_enemy_animation_bundle(&mut assets_sprite, &animation, depth.0),
             )
         });
 
@@ -77,14 +62,12 @@ pub fn despawn_dead_tardigrade(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyTardigrade, &PxSubPosition), Added<Dead>>,
+    query: Query<(Entity, &EnemyTardigrade, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
-    for (entity, mosquito, position) in query.iter() {
+    for (entity, tardigrade, position, depth) in query.iter() {
         commands.entity(entity).insert(DespawnMark);
 
-        // HARDCODED depth, should be a component
-        let depth = 1;
-        let animation_o = TARDIGRADE_ANIMATIONS.death.get(&depth);
+        let animation_o = TARDIGRADE_ANIMATIONS.death.get(&depth.0);
 
         if let Some(animation) = animation_o {
             let texture =
@@ -95,7 +78,7 @@ pub fn despawn_dead_tardigrade(
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: texture,
-                    layer: Layer::Middle(depth),
+                    layer: Layer::Middle(depth.0),
                     anchor: PxAnchor::Center,
                     ..default()
                 },
@@ -103,7 +86,7 @@ pub fn despawn_dead_tardigrade(
             ));
         }
 
-        score.add_u(mosquito.kill_score());
+        score.add_u(tardigrade.kill_score());
     }
 }
 
@@ -118,12 +101,13 @@ pub fn check_idle_tardigrade(
             &EnemyTardigrade,
             &mut EnemyTardigradeAttacking,
             &PxSubPosition,
+            &Depth,
         ),
         With<InView>,
     >,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
-    for (entity, enemy, attacking, position) in &mut query.iter() {
+    for (entity, enemy, attacking, position, depth) in &mut query.iter() {
         if attacking.attack == true {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
@@ -138,47 +122,14 @@ pub fn check_idle_tardigrade(
                         last_attack_started: stage_time.elapsed,
                     });
 
-                let depth = Depth(1);
-                let attack_bundle = make_hovering_attack_animation_bundle(
+                spawn_boulder_throw_attack(
+                    &mut commands,
                     &mut assets_sprite,
-                    &EnemyHoveringAttackType::BoulderThrow,
-                    depth.clone(),
+                    &stage_time,
+                    HALF_SCREEN_RESOLUTION.clone() + camera_pos.0,
+                    position.0,
+                    depth,
                 );
-
-                let mut attacking = EnemyTardigradeAttacking {
-                    attack: true,
-                    last_attack_started: stage_time.elapsed,
-                };
-
-                attacking.attack = attacking.attack.clone();
-                attacking.last_attack_started = attacking.last_attack_started.clone();
-
-                let target_pos = CAMERA_CENTER.clone() + camera_pos.0;
-
-                commands
-                    .spawn((
-                        Name::new(format!(
-                            "Attack - {}",
-                            EnemyHoveringAttackType::BoulderThrow.get_name()
-                        )),
-                        EnemyAttack,
-                        // TODO bundle
-                        PursueTargetPosition::<StageTime, PxSubPosition>::new(target_pos),
-                        PursueSpeed::<StageTime, PxSubPosition>::new(
-                            (target_pos - position.0) * BLOOD_ATTACK_LINE_SPEED,
-                        ),
-                        depth,
-                        TargetingPositionZ(depth.0.clone() as f32),
-                        LinearSpeed::<StageTime, TargetingPositionZ>::new(BLOOD_ATTACK_DEPTH_SPEED),
-                        LinearTargetPosition::<StageTime, TargetingPositionZ>::new(
-                            PLAYER_DEPTH + 1.,
-                        ),
-                        InflictsDamage(BLOOD_ATTACK_DAMAGE),
-                        PxSubPosition(position.0),
-                        Hittable,
-                        Health(1),
-                    ))
-                    .insert(attack_bundle);
             }
         }
     }

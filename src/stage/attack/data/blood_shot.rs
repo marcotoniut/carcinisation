@@ -7,12 +7,13 @@ use crate::{
     stage::{attack::data::HoveringAttackAnimations, player::components::PLAYER_DEPTH},
 };
 
-// Animation fragments
+pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = 4.;
+pub const BLOOD_SHOT_ATTACK_LINE_SPEED: f32 = 25.;
+pub const BLOOD_SHOT_ATTACK_DAMAGE: u32 = 20;
+
 const FRAGMENT_HOVERING: &str = "hovering";
 const FRAGMENT_HIT: &str = "hit";
-
-// Enemy
-const FRAGMENT_BLOOD_ATTACK: &str = "blood_attack";
+const FRAGMENT_ATTACK: &str = "blood_attack";
 
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
@@ -47,7 +48,7 @@ lazy_static! {
                 AnimationData {
                     sprite_path: concat_strings_and_number(
                         PATH_SPRITES_ATTACKS,
-                        FRAGMENT_BLOOD_ATTACK,
+                        FRAGMENT_ATTACK,
                         FRAGMENT_HOVERING,
                         i,
                     ),
@@ -66,7 +67,7 @@ lazy_static! {
             AnimationData {
                 sprite_path: concat_strings_and_number(
                     PATH_SPRITES_ATTACKS,
-                    FRAGMENT_BLOOD_ATTACK,
+                    FRAGMENT_ATTACK,
                     FRAGMENT_HIT,
                     HIT_DEPTH,
                 ),
