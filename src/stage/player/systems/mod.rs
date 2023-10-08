@@ -6,9 +6,7 @@ use super::resources::AttackTimer;
 use crate::core::time::DeltaTime;
 use crate::{
     components::DespawnMark,
-    game::events::GameOver,
     globals::{mark_for_despawn_by_component_query, HUD_HEIGHT, SCREEN_RESOLUTION},
-    stage::{components::interactive::Dead, score::components::Score},
     systems::audio::VolumeSettings,
     GBInput,
 };
@@ -125,24 +123,6 @@ pub fn check_attack_timer(
     if timer.timer.finished() {
         for (entity, _) in &mut player_attack_query.iter() {
             commands.entity(entity).insert(DespawnMark);
-        }
-    }
-}
-
-pub const DEATH_SCORE_PENALTY: i32 = 150;
-
-pub fn check_player_died(
-    mut commands: Commands,
-    mut score: ResMut<Score>,
-    mut query: Query<(Entity, &mut Player), Added<Dead>>,
-    mut event_writer: EventWriter<GameOver>,
-) {
-    if let Ok((entity, mut player)) = query.get_single_mut() {
-        score.add(-DEATH_SCORE_PENALTY);
-        player.lives = player.lives.saturating_sub(1).max(0);
-        if player.lives == 0 {
-            // event_writer.send(StageGameOverTrigger {});
-            event_writer.send(GameOver { score: score.value });
         }
     }
 }

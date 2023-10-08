@@ -17,10 +17,7 @@ use crate::{
 };
 
 #[derive(Component)]
-pub struct Player {
-    // TODO this does not belong here
-    pub lives: usize,
-}
+pub struct Player;
 
 pub const PLAYER_SPEED: f32 = 125.;
 pub const PLAYER_SIZE: f32 = 0.;

@@ -4,6 +4,7 @@ pub mod spawn;
 pub mod state;
 
 use self::{audio::VolumeSettings, camera::CameraPos};
+use crate::game::events::GameStartupEvent;
 use crate::GBInput;
 use crate::{
     audio::AudioSystemType,
@@ -203,4 +204,8 @@ pub fn check_despawn_after_delay<T: ElapsedTime + Resource>(
             commands.entity(entity).insert(DespawnMark);
         }
     }
+}
+
+pub fn trigger_game_startup(mut event_writer: EventWriter<GameStartupEvent>) {
+    event_writer.send(GameStartupEvent);
 }

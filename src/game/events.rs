@@ -6,4 +6,4 @@ pub struct GameOver {
 }
 
 #[derive(Event)]
-pub struct GameRestart {}
+pub struct GameStartupEvent;

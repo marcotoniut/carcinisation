@@ -1,8 +1,9 @@
 pub mod components;
 pub mod systems;
 
-use self::{components::*, systems::*};
 use bevy::prelude::*;
+
+use self::{components::*, systems::*};
 
 pub struct ScorePlugin;
 

@@ -8,7 +8,6 @@ pub mod events;
 pub mod pickup;
 pub mod player;
 pub mod resources;
-pub mod score;
 pub mod systems;
 pub mod ui;
 
@@ -28,7 +27,6 @@ use self::{
         PlayerPlugin,
     },
     resources::{StageActionTimer, StageProgress, StageTime},
-    score::{components::Score, ScorePlugin},
     systems::{
         camera::*,
         damage::*,
@@ -88,7 +86,6 @@ impl Plugin for StagePlugin {
             .add_event::<GameOver>()
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
-            .init_resource::<Score>()
             .init_resource::<StageProgress>()
             .init_resource::<CinemachineScene>()
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
@@ -100,9 +97,10 @@ impl Plugin for StagePlugin {
             .add_plugins(DestructiblePlugin)
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
-            .add_plugins(ScorePlugin)
             .add_plugins(StageUiPlugin)
-            // .add_plugins(StarPlugin)
+            // .add_event::<StageSetupEvent>()
+            // .add_event::<StageSetupFromCheckpointEvent>()
+            // .add_systems(PreUpdate, (on_setup, on_setup_from_checkpoint))
             .add_systems(PostStartup, setup_stage.in_set(LoadingSystemSet))
             .add_systems(
                 Update,

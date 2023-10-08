@@ -3,11 +3,12 @@ pub mod components;
 use bevy::prelude::*;
 
 use crate::{
+    game::score::components::Score,
     globals::{
         mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
-    stage::{score::components::Score, StageProgressState},
+    stage::StageProgressState,
     Layer,
 };
 use seldom_pixel::{

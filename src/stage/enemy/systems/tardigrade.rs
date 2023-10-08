@@ -8,6 +8,7 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
+    game::score::components::Score,
     globals::HALF_SCREEN_RESOLUTION,
     stage::{
         attack::spawns::boulder_throw::spawn_boulder_throw_attack,
@@ -21,7 +22,6 @@ use crate::{
             data::tardigrade::TARDIGRADE_ANIMATIONS,
         },
         resources::StageTime,
-        score::components::Score,
     },
     systems::camera::CameraPos,
     Layer,

@@ -1,7 +1,7 @@
 pub mod state;
 
 use super::components::ScoreText;
-use crate::stage::score::components::Score;
+use crate::game::score::components::Score;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxText;
 

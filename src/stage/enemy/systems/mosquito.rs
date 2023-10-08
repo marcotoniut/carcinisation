@@ -8,11 +8,10 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
+    game::score::components::Score,
     globals::HALF_SCREEN_RESOLUTION,
     stage::{
-        attack::spawns::{
-            blood_shot::spawn_blood_shot_attack, boulder_throw::spawn_boulder_throw_attack,
-        },
+        attack::spawns::blood_shot::spawn_blood_shot_attack,
         components::{
             interactive::Dead,
             placement::{Depth, InView},
@@ -24,7 +23,6 @@ use crate::{
             data::mosquito::MOSQUITO_ANIMATIONS,
         },
         resources::StageTime,
-        score::components::Score,
     },
     systems::camera::CameraPos,
     Layer,
