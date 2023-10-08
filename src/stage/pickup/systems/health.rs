@@ -6,6 +6,7 @@ use seldom_pixel::{
 
 use crate::{
     components::DespawnMark,
+    game::score::components::Score,
     plugins::movement::linear::components::{
         LinearAcceleration, LinearDirection, LinearSpeed, LinearTargetPosition,
         LinearTargetReached, TargetingPositionX, TargetingPositionY,
@@ -17,7 +18,6 @@ use crate::{
         },
         player::components::{Player, PLAYER_MAX_HEALTH},
         resources::StageTime,
-        score::components::Score,
     },
     systems::camera::CameraPos,
     Layer,

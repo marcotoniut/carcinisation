@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 
 use crate::{
+    game::score::components::Score,
     stage::{
         attack::components::*,
         components::interactive::{Collision, CollisionData, Hittable},
@@ -9,7 +10,6 @@ use crate::{
         player::components::{
             PlayerAttack, UnhittableList, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
         },
-        score::components::Score,
     },
     systems::camera::CameraPos,
 };
