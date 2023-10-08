@@ -8,25 +8,21 @@ use self::{
     events::{GameOver, GameRestart},
     systems::*,
 };
-use crate::AppState;
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        // let data = init_stages_resource();
-
-        app.add_state::<GameState>()
+        app.add_state::<GamePluginUpdateState>()
+            .add_systems(OnEnter(GamePluginUpdateState::Active), start_stage)
             .add_event::<GameOver>()
-            .add_event::<GameRestart>()
-            //.add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
-            .add_systems(OnEnter(AppState::Game), resume_game);
+            .add_event::<GameRestart>();
     }
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum GameState {
+pub enum GamePluginUpdateState {
     #[default]
-    Running,
-    Paused,
+    Inactive,
+    Active,
 }

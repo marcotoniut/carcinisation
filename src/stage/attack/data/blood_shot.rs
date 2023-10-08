@@ -10,6 +10,7 @@ use crate::{
 pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = 4.;
 pub const BLOOD_SHOT_ATTACK_LINE_SPEED: f32 = 25.;
 pub const BLOOD_SHOT_ATTACK_DAMAGE: u32 = 20;
+pub const BLOOD_SHOT_ATTACK_RANDOMNESS: f32 = 20.;
 
 const FRAGMENT_HOVERING: &str = "hovering";
 const FRAGMENT_HIT: &str = "hit";

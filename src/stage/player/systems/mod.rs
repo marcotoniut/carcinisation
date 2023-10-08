@@ -1,11 +1,9 @@
 pub mod camera;
+pub mod events;
 
-use std::time::Duration;
-
-use bevy::prelude::*;
-use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::prelude::*;
-
+use super::components::*;
+use super::resources::AttackTimer;
+use crate::core::time::DeltaTime;
 use crate::{
     components::DespawnMark,
     game::events::GameOver,
@@ -14,17 +12,10 @@ use crate::{
     systems::audio::VolumeSettings,
     GBInput,
 };
-
-use super::{bundles::*, components::*};
-use super::{crosshair::CrosshairSettings, resources::AttackTimer};
-
-pub fn spawn_player(
-    mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
-    crosshair_settings: Res<CrosshairSettings>,
-) {
-    commands.spawn(make_player_bundle(&mut assets_sprite, crosshair_settings));
-}
+use bevy::prelude::*;
+use leafwing_input_manager::prelude::ActionState;
+use seldom_pixel::prelude::*;
+use std::time::Duration;
 
 /**
  * deprecate
@@ -59,10 +50,10 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
     }
 }
 
-pub fn player_movement(
+pub fn player_movement<T: DeltaTime + Resource>(
     gb_input_query: Query<&ActionState<GBInput>>,
     mut query: Query<(&mut PxSubPosition, &Player)>,
-    time: Res<Time>,
+    time: Res<T>,
 ) {
     let gb_input = gb_input_query.single();
     for (mut position, _) in &mut query {
@@ -78,48 +69,50 @@ pub fn player_movement(
         }
     }
 }
+
 pub fn detect_player_attack(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut timer: ResMut<AttackTimer>,
     asset_server: Res<AssetServer>,
+    // TODO re-init as a resource
     gb_input_query: Query<&ActionState<GBInput>>,
     player_attack_query: Query<&PlayerAttack>,
     player_query: Query<&PxSubPosition, With<Player>>,
     volume_settings: Res<VolumeSettings>,
 ) {
     if player_attack_query.iter().next().is_none() {
-        let position = player_query.get_single().unwrap();
-        let gb_input = gb_input_query.get_single().unwrap();
-
-        let attack = if gb_input.just_pressed(GBInput::A) {
-            Some((Weapon::Pincer, 0.6))
-        } else if gb_input.just_pressed(GBInput::B) {
-            Some((Weapon::Gun, 0.08))
-        } else {
-            None
-        };
-
-        if let Some((weapon, duration)) = attack {
-            timer.timer.set_duration(Duration::from_secs_f64(duration));
-            let player_attack = PlayerAttack {
-                position: position.0.clone(),
-                weapon,
+        if let Ok(position) = player_query.get_single() {
+            let gb_input = gb_input_query.single();
+            let attack = if gb_input.just_pressed(GBInput::A) {
+                Some((Weapon::Pincer, 0.6))
+            } else if gb_input.just_pressed(GBInput::B) {
+                Some((Weapon::Gun, 0.08))
+            } else {
+                None
             };
 
-            let (player_attack_bundle, player_attack_sound_bundle) =
-                player_attack.make_bundles(&mut assets_sprite, asset_server, volume_settings);
+            if let Some((weapon, duration)) = attack {
+                timer.timer.set_duration(Duration::from_secs_f64(duration));
+                let player_attack = PlayerAttack {
+                    position: position.0.clone(),
+                    weapon,
+                };
 
-            commands.spawn(player_attack_bundle);
-            commands.spawn(player_attack_sound_bundle);
+                let (player_attack_bundle, player_attack_sound_bundle) =
+                    player_attack.make_bundles(&mut assets_sprite, asset_server, volume_settings);
 
-            timer.timer.reset();
-            timer.timer.unpause();
+                commands.spawn(player_attack_bundle);
+                commands.spawn(player_attack_sound_bundle);
+
+                timer.timer.reset();
+                timer.timer.unpause();
+            }
         }
     }
 }
 
-pub fn tick_attack_timer(mut timer: ResMut<AttackTimer>, time: Res<Time>) {
+pub fn tick_attack_timer<T: DeltaTime + Resource>(mut timer: ResMut<AttackTimer>, time: Res<T>) {
     timer.timer.tick(time.delta());
 }
 

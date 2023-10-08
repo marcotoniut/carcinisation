@@ -10,6 +10,7 @@ use crate::{
 pub const BOULDER_THROW_ATTACK_DEPTH_SPEED: f32 = 3.;
 pub const BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION: f32 = -55.;
 pub const BOULDER_THROW_ATTACK_DAMAGE: u32 = 45;
+pub const BOULDER_THROW_ATTACK_RANDOMNESS: f32 = 35.;
 
 const FRAGMENT_HOVERING: &str = "hovering";
 const FRAGMENT_HIT: &str = "hit";

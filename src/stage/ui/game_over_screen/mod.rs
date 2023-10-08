@@ -7,7 +7,7 @@ use crate::{
         mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
-    stage::{score::components::Score, StageState},
+    stage::{score::components::Score, StageProgressState},
     Layer,
 };
 use seldom_pixel::{
@@ -26,9 +26,9 @@ pub fn render_game_over_screen(
     mut assets_sprite: PxAssets<PxSprite>,
     mut assets_filter: PxAssets<PxFilter>,
     score: Res<Score>,
-    stage_state: Res<State<StageState>>,
+    stage_state: Res<State<StageProgressState>>,
 ) {
-    if stage_state.is_changed() && *stage_state.get() == StageState::GameOver {
+    if stage_state.is_changed() && *stage_state.get() == StageProgressState::GameOver {
         spawn_screen(
             &mut commands,
             &mut assets_typeface,
@@ -41,10 +41,10 @@ pub fn render_game_over_screen(
 
 pub fn despawn_game_over_screen(
     mut commands: Commands,
-    stage_state: Res<State<StageState>>,
+    stage_state: Res<State<StageProgressState>>,
     query: Query<Entity, With<GameOverScreen>>,
 ) {
-    if stage_state.is_changed() && *stage_state.get() != StageState::GameOver {
+    if stage_state.is_changed() && *stage_state.get() != StageProgressState::GameOver {
         mark_for_despawn_by_component_query(&mut commands, &query);
     }
 }

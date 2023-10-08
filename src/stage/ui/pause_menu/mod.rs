@@ -1,24 +1,22 @@
 pub mod pause_menu;
 
-use bevy::prelude::*;
-
+use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::{
     globals::{
         mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
     stage::{score::components::Score, GameState},
-    AppState, Layer,
+    Layer,
 };
+use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
-        IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
-        PxTextBundle, PxTypeface,
+        IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
+        PxTypeface,
     },
-    sprite::{PxSprite, PxSpriteBundle},
+    sprite::PxSprite,
 };
-
-use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
 
 pub fn pause_menu_renderer(
     mut commands: Commands,

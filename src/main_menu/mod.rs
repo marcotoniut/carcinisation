@@ -4,17 +4,24 @@ pub mod systems;
 use bevy::prelude::*;
 
 use self::systems::{interactions::*, layout::*};
-use crate::AppState;
 
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(AppState::MainMenu), spawn_main_menu)
-            .add_systems(OnExit(AppState::MainMenu), despawn_main_menu)
+        app.add_state::<MainMenuState>()
+            .add_systems(OnEnter(MainMenuState::Active), spawn_main_menu)
+            .add_systems(OnExit(MainMenuState::Inactive), despawn_main_menu)
             .add_systems(
                 Update,
-                (press_next, press_esc).run_if(in_state(AppState::MainMenu)),
+                (press_next, press_esc).run_if(in_state(MainMenuState::Active)),
             );
     }
+}
+
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+pub enum MainMenuState {
+    #[default]
+    Inactive,
+    Active,
 }

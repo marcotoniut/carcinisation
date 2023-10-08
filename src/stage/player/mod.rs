@@ -10,11 +10,16 @@ use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
 use self::{
     crosshair::{Crosshair, CrosshairSettings},
+    events::*,
     resources::AttackTimer,
-    systems::*,
+    systems::{
+        camera::{camera_shake, trigger_shake},
+        events::*,
+        *,
+    },
 };
-use super::{GameState, StageState};
-use crate::AppState;
+
+use super::resources::StageTime;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MovementSystemSet;
@@ -28,22 +33,31 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AttackTimer>()
             .configure_set(Update, MovementSystemSet.before(ConfinementSystemSet))
-            .add_systems(OnEnter(AppState::Game), spawn_player)
+            .add_event::<PlayerStartupEvent>()
+            .add_event::<PlayerShutdownEvent>()
+            .add_state::<PlayerPluginUpdateState>()
+            .add_systems(PreUpdate, (on_startup, on_shutdown))
             .add_systems(
                 Update,
                 (
-                    tick_attack_timer,
+                    tick_attack_timer::<StageTime>,
                     check_attack_timer,
                     detect_player_attack,
-                    player_movement.in_set(MovementSystemSet),
+                    camera_shake::<StageTime>,
+                    trigger_shake,
+                    player_movement::<StageTime>.in_set(MovementSystemSet),
                     confine_player_movement.in_set(ConfinementSystemSet),
                 )
-                    .run_if(in_state(StageState::Running))
-                    .run_if(in_state(GameState::Running))
-                    .run_if(in_state(AppState::Game)),
-            )
-            .add_systems(OnExit(AppState::Game), despawn_player);
+                    .run_if(in_state(PlayerPluginUpdateState::Active)),
+            );
     }
+}
+
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+pub enum PlayerPluginUpdateState {
+    #[default]
+    Inactive,
+    Active,
 }
 
 pub struct CrosshairInfo {
@@ -66,7 +80,7 @@ impl CrosshairInfo {
 
     pub fn crosshair_sprite(
         asset_server: &mut PxAssets<PxSprite>,
-        crosshair_settings: Res<CrosshairSettings>,
+        crosshair_settings: &Res<CrosshairSettings>,
     ) -> CrosshairInfo {
         let sprite;
         let crosshair;

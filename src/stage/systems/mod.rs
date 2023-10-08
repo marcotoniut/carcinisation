@@ -2,6 +2,7 @@ pub mod camera;
 pub mod damage;
 pub mod movement;
 pub mod spawn;
+pub mod state;
 
 use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 use super::{
@@ -13,11 +14,12 @@ use super::{
     data::*,
     destructible::components::Destructible,
     enemy::components::Enemy,
-    events::{NextStepEvent, StageClearedEvent, StageGameOverEvent, StageSpawnEvent},
-    player::components::Player,
+    events::{NextStepEvent, StageClearedEvent, StageGameOverEvent},
+    player::{components::Player, events::PlayerStartupEvent},
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
-    GameState, StageState,
+    GameState, StageProgressState,
 };
+
 use crate::{
     cinemachine::cinemachine::CinemachineScene,
     components::{DespawnMark, Music},
@@ -32,23 +34,14 @@ use crate::{
 use bevy::{audio::PlaybackMode, prelude::*};
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::{
-    prelude::{PxAssets, PxCamera, PxSubPosition},
+    prelude::{PxAssets, PxSubPosition},
     sprite::PxSprite,
 };
-use std::{ops::Sub, time::Duration};
 
 pub fn tick_stage_time(mut stage_time: ResMut<StageTime>, time: Res<Time>) {
     let delta = time.delta();
     stage_time.delta = delta;
     stage_time.elapsed += delta;
-}
-
-pub fn pause_game(mut game_state_next_state: ResMut<NextState<GameState>>) {
-    game_state_next_state.set(GameState::Paused);
-}
-
-pub fn resume_game(mut game_state_next_state: ResMut<NextState<GameState>>) {
-    game_state_next_state.set(GameState::Running);
 }
 
 pub fn toggle_game(
@@ -76,10 +69,14 @@ pub struct StageRawData {
 pub fn setup_stage(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
+
+    mut event_writer: EventWriter<PlayerStartupEvent>,
     asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     volume_settings: Res<VolumeSettings>,
 ) {
+    event_writer.send(PlayerStartupEvent);
+
     let camera_pos = camera_query.get_single().unwrap();
 
     let stage_data = STAGE_DEBUG_DATA.clone();
@@ -149,17 +146,17 @@ pub fn check_stage_step_timer(
 
 pub fn update_stage(
     mut commands: Commands,
-    state: Res<State<StageState>>,
+    state: Res<State<StageProgressState>>,
     stage_query: Query<Entity, With<Stage>>,
-    mut next_state: ResMut<NextState<StageState>>,
+    mut next_state: ResMut<NextState<StageProgressState>>,
     stage_progress: ResMut<StageProgress>,
     stage_data_raw: Res<StageRawData>,
 ) {
     match state.to_owned() {
-        StageState::Initial => {
-            next_state.set(StageState::Running);
+        StageProgressState::Initial => {
+            next_state.set(StageProgressState::Running);
         }
-        StageState::Running => {
+        StageProgressState::Running => {
             let stage = &stage_data_raw.stage_data;
             if let Some(action) = stage.steps.get(stage_progress.step) {
                 if DEBUG_STAGESTEP {
@@ -173,7 +170,7 @@ pub fn update_stage(
                 }
             }
         }
-        StageState::Clear => {
+        StageProgressState::Clear => {
             if let Ok(entity) = stage_query.get_single() {
                 commands.entity(entity).insert(DespawnMark);
 
@@ -181,7 +178,7 @@ pub fn update_stage(
                 // commands.spawn(make_stage_cleared_bundle());
             }
 
-            next_state.set(StageState::Cleared);
+            next_state.set(StageProgressState::Cleared);
         }
         _ => {}
     }
@@ -200,7 +197,7 @@ pub fn check_staged_cleared(
 
 pub fn read_stage_cleared_trigger(
     mut commands: Commands,
-    mut next_state: ResMut<NextState<StageState>>,
+    mut next_state: ResMut<NextState<StageProgressState>>,
     mut event_reader: EventReader<StageClearedEvent>,
     destructible_query: Query<Entity, With<Destructible>>,
     enemy_query: Query<Entity, With<Enemy>>,
@@ -225,7 +222,7 @@ pub fn read_stage_cleared_trigger(
             PlaybackMode::Despawn,
         );
 
-        next_state.set(StageState::Cleared);
+        next_state.set(StageProgressState::Cleared);
     }
 }
 
@@ -240,7 +237,7 @@ pub fn check_stage_game_over(
 
 pub fn read_stage_game_over_trigger(
     mut commands: Commands,
-    mut next_state: ResMut<NextState<StageState>>,
+    mut next_state: ResMut<NextState<StageProgressState>>,
     mut event_reader: EventReader<StageGameOverEvent>,
     destructible_query: Query<Entity, With<Destructible>>,
     enemy_query: Query<Entity, With<Enemy>>,
@@ -265,7 +262,7 @@ pub fn read_stage_game_over_trigger(
             PlaybackMode::Despawn,
         );
 
-        next_state.set(StageState::GameOver);
+        next_state.set(StageProgressState::GameOver);
     }
 }
 

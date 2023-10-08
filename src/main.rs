@@ -23,11 +23,12 @@ use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use cinemachine::cinemachine::CurrentClipInfo;
 use components::DespawnMark;
+use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
-use systems::{audio::VolumeSettings, camera::move_camera, *};
+use systems::{audio::VolumeSettings, camera::move_camera, state::start_game, *};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
@@ -90,20 +91,16 @@ fn main() {
         is_rendered: false,
         has_finished: false,
     })
-    .add_state::<AppState>()
     // .add_plugins(TransitionVenetianPlugin)
     // .add_plugins(CutscenePlugin)
     .add_plugins(StagePlugin)
-    // .add_plugins(GamePlugin)
+    .add_plugins(GamePlugin)
     // .add_plugins(MainMenuPlugin)
     .add_plugins(InputManagerPlugin::<GBInput>::default())
     .add_systems(Startup, set_framespace)
     .add_systems(Startup, (spawn_camera, spawn_gb_input))
-    // .add_systems(Update, input_snd_menu)
+    .add_systems(PostStartup, start_game)
     .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
-    // TODO should this be placed at main?
-    // .add_systems(Update, handle_game_over)
-    // DEBUG
     .add_systems(
         Update,
         (
@@ -135,16 +132,6 @@ pub enum GBInput {
     DToGame,
     DToMainMenu,
     DExit,
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum AppState {
-    Cutscene,
-    Transition,
-    MainMenu,
-    #[default]
-    Game,
-    GameOver,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
