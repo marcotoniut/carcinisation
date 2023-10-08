@@ -2,18 +2,18 @@ use bevy::prelude::*;
 
 #[derive(Component)]
 pub struct Crosshair {
-    pub name: String
+    pub name: String,
 }
 
 pub struct CrosshairBundle {
-    pub crosshair: Crosshair
+    pub crosshair: Crosshair,
 }
 
-#[derive(Resource)]
+#[derive(Debug, Clone, Copy, Resource)]
 pub struct CrosshairSettings(pub u8);
 
 impl Default for CrosshairSettings {
     fn default() -> Self {
         CrosshairSettings(1)
     }
-} 
+}

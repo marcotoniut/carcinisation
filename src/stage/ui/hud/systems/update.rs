@@ -1,9 +1,8 @@
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxText;
-
 use crate::stage::{
     components::interactive::Health, player::components::Player, ui::hud::components::HealthText,
 };
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxText;
 
 pub fn update_health_text(
     mut query: Query<&mut PxText, With<HealthText>>,

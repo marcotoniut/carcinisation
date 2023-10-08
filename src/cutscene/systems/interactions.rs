@@ -1,8 +1,3 @@
-use bevy::app::AppExit;
-use bevy::prelude::*;
-
-use super::super::components::*;
-use crate::AppState;
 
 pub fn play_cutscene() {}
 

@@ -199,8 +199,7 @@ pub fn check_idle_mosquito(
                         last_attack_started: stage_time.elapsed,
                     });
 
-                spawn_boulder_throw_attack(
-                    // spawn_blood_shot_attack(
+                spawn_blood_shot_attack(
                     &mut commands,
                     &mut assets_sprite,
                     &stage_time,

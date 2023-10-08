@@ -19,7 +19,7 @@ use crate::{
             },
             data::blood_shot::{
                 BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED,
-                BLOOD_SHOT_ATTACK_LINE_SPEED,
+                BLOOD_SHOT_ATTACK_LINE_SPEED, BLOOD_SHOT_ATTACK_RANDOMNESS,
             },
         },
         components::{
@@ -42,6 +42,11 @@ pub fn spawn_blood_shot_attack(
     depth: &Depth,
 ) {
     let attack_type = EnemyHoveringAttackType::BloodShot;
+    let target_pos = target_pos
+        + Vec2::new(
+            (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
+            (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
+        );
 
     let animation_bundle =
         make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());

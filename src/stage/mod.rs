@@ -34,6 +34,7 @@ use self::{
         damage::*,
         movement::*,
         spawn::{check_dead_drop, check_step_spawn, read_stage_spawn_trigger},
+        state::{on_active, on_inactive},
         *,
     },
     ui::{
@@ -54,7 +55,6 @@ use crate::{
         pursue::PursueMovementPlugin,
     },
     systems::{check_despawn_after_delay, delay_despawn},
-    AppState,
 };
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -72,8 +72,11 @@ pub struct StagePlugin;
  */
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<GameState>()
-            .add_state::<StageState>()
+        app.add_state::<StagePluginUpdateState>()
+            .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
+            .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
+            .add_state::<GameState>()
+            .add_state::<StageProgressState>()
             .add_event::<CameraShakeEvent>()
             .add_event::<DamageEvent>()
             .add_event::<DepthChangedEvent>()
@@ -116,11 +119,6 @@ impl Plugin for StagePlugin {
                             check_outside_view,
                             update_camera_pos_x,
                             update_camera_pos_y,
-                        ),
-                        (
-                            // Player
-                            camera_shake,
-                            trigger_shake,
                         ),
                         (
                             // Pickup
@@ -182,13 +180,10 @@ impl Plugin for StagePlugin {
                         )
                             .chain(),
                     )
-                        .run_if(in_state(StageState::Running)),
+                        .run_if(in_state(StageProgressState::Running)),
                 )
-                    .run_if(in_state(GameState::Running))
-                    .run_if(in_state(AppState::Game)),
+                    .run_if(in_state(StagePluginUpdateState::Active)),
             )
-            // .add_systems(Update, run_timer)
-            .add_systems(Update, toggle_game.run_if(in_state(AppState::Game)))
             .add_systems(
                 Update,
                 (
@@ -198,16 +193,18 @@ impl Plugin for StagePlugin {
                     // Game Over screen
                     render_game_over_screen,
                     despawn_game_over_screen,
+                    // Pause menu
+                    pause_menu_renderer,
+                    toggle_game,
+                    // Cutscene
+                    render_cutscene,
                 )
-                    .run_if(in_state(GameState::Running))
-                    .run_if(in_state(AppState::Game)),
-            )
-            .add_systems(Update, pause_menu_renderer.run_if(in_state(AppState::Game)))
-            .add_systems(Update, render_cutscene.run_if(in_state(AppState::Game)))
-            .add_systems(OnEnter(AppState::Game), resume_game);
+                    .run_if(in_state(StagePluginUpdateState::Active)),
+            );
     }
 }
 
+// TODO why is this here?
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 pub enum GameState {
     #[default]
@@ -218,7 +215,7 @@ pub enum GameState {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum StageState {
+pub enum StageProgressState {
     #[default]
     Initial,
     Running,
@@ -226,4 +223,11 @@ pub enum StageState {
     Cleared,
     // TODO temporary (for the jame)
     GameOver,
+}
+
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+pub enum StagePluginUpdateState {
+    #[default]
+    Inactive,
+    Active,
 }

@@ -18,6 +18,7 @@ use crate::{
 
 #[derive(Component)]
 pub struct Player {
+    // TODO this does not belong here
     pub lives: usize,
 }
 

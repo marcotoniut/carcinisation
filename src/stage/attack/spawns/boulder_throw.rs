@@ -17,7 +17,7 @@ use crate::{
             },
             data::boulder_throw::{
                 BOULDER_THROW_ATTACK_DAMAGE, BOULDER_THROW_ATTACK_DEPTH_SPEED,
-                BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
+                BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION, BOULDER_THROW_ATTACK_RANDOMNESS,
             },
         },
         components::{
@@ -40,6 +40,11 @@ pub fn spawn_boulder_throw_attack(
     depth: &Depth,
 ) {
     let attack_type = EnemyHoveringAttackType::BoulderThrow;
+    let target_pos = target_pos
+        + Vec2::new(
+            (1. - rand::random::<f32>()) * BOULDER_THROW_ATTACK_RANDOMNESS,
+            (1. - rand::random::<f32>()) * BOULDER_THROW_ATTACK_RANDOMNESS,
+        );
 
     let animation_bundle =
         make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
@@ -58,6 +63,7 @@ pub fn spawn_boulder_throw_attack(
 
     let speed_x = d.x / t;
 
+    // TODO: remember that boulder throws in outter space wouldn't have as much gravity, if any at all
     let value = d.y - 0.5 * BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION * t.powi(2);
     let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
 

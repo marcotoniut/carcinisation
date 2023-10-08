@@ -7,7 +7,7 @@ use super::{components::*, crosshair::CrosshairSettings, CrosshairInfo};
 
 pub fn make_player_bundle(
     asset_server: &mut PxAssets<PxSprite>,
-    crosshair_settings: Res<CrosshairSettings>,
+    crosshair_settings: &Res<CrosshairSettings>,
 ) -> (Name, Player, PxSpriteBundle<Layer>, PxSubPosition, Health) {
     let crosshair_info = CrosshairInfo::crosshair_sprite(asset_server, crosshair_settings);
     let sprite = CrosshairInfo::get_sprite(crosshair_info);

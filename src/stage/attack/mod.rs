@@ -9,14 +9,12 @@ use self::{
     systems::player::*,
     systems::{hovering::*, *},
 };
-use super::{GameState, StageState};
-use crate::AppState;
 
 pub struct AttackPlugin;
 
 impl Plugin for AttackPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.add_state::<AttackPluginUpdateState>().add_systems(
             Update,
             (
                 (check_got_hit, check_health_at_0).chain(),
@@ -25,9 +23,14 @@ impl Plugin for AttackPlugin {
                 miss_on_reached,
                 hovering_damage_on_reached,
             )
-                .run_if(in_state(StageState::Running))
-                .run_if(in_state(GameState::Running))
-                .run_if(in_state(AppState::Game)),
+                .run_if(in_state(AttackPluginUpdateState::Active)),
         );
     }
+}
+
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+pub enum AttackPluginUpdateState {
+    #[default]
+    Inactive,
+    Active,
 }

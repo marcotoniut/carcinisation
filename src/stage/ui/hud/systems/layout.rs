@@ -1,3 +1,5 @@
+use super::super::components::*;
+use crate::{globals::*, stage::ui::components::ScoreText, Layer};
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
@@ -6,10 +8,6 @@ use seldom_pixel::{
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
-
-use crate::{globals::*, stage::ui::components::ScoreText, Layer};
-
-use super::super::components::*;
 
 const LAYOUT_Y: i32 = 2;
 const HUD_HEALTH_W: i32 = 37;
