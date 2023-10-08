@@ -25,10 +25,18 @@ use cinemachine::cinemachine::CurrentClipInfo;
 use components::DespawnMark;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
-use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
+use leafwing_input_manager::{
+    prelude::{ActionState, InputManagerPlugin},
+    Actionlike,
+};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
-use systems::{audio::VolumeSettings, camera::move_camera, *};
+use systems::{
+    audio::VolumeSettings,
+    camera::move_camera,
+    setup::{init_gb_input, set_framespace, spawn_camera},
+    *,
+};
 // use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
@@ -97,8 +105,8 @@ fn main() {
     .add_plugins(GamePlugin)
     // .add_plugins(MainMenuPlugin)
     .add_plugins(InputManagerPlugin::<GBInput>::default())
-    .add_systems(Startup, set_framespace)
-    .add_systems(Startup, (spawn_camera, spawn_gb_input))
+    .init_resource::<ActionState<GBInput>>()
+    .add_systems(Startup, (spawn_camera, set_framespace, init_gb_input))
     .add_systems(PostStartup, trigger_game_startup)
     .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
     .add_systems(
