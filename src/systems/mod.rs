@@ -1,11 +1,11 @@
 pub mod audio;
 pub mod camera;
+pub mod setup;
 pub mod spawn;
 pub mod state;
 
-use self::{audio::VolumeSettings, camera::CameraPos};
+use self::audio::VolumeSettings;
 use crate::game::events::GameStartupEvent;
-use crate::GBInput;
 use crate::{
     audio::AudioSystemType,
     components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
@@ -13,12 +13,7 @@ use crate::{
     game::events::GameOver,
 };
 use bevy::{audio::Volume, prelude::*};
-use bevy_framepace::Limiter;
-use leafwing_input_manager::{
-    prelude::{ActionState, InputMap},
-    InputManagerBundle,
-};
-use seldom_pixel::prelude::{PxAnimationFinished, PxSubPosition};
+use seldom_pixel::prelude::PxAnimationFinished;
 
 /**
  * DEBUG
@@ -80,39 +75,6 @@ pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOver>) {
     for game_over in game_over_event_reader.iter() {
         info!("Your final score: {}", game_over.score);
     }
-}
-
-pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {
-    settings.limiter = Limiter::from_framerate(59.727500569606);
-}
-
-pub fn spawn_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
-    commands.spawn((PxSubPosition::default(), CameraPos));
-}
-
-pub fn spawn_gb_input(mut commands: Commands) {
-    commands.spawn(InputManagerBundle::<GBInput> {
-        action_state: ActionState::default(),
-        input_map: InputMap::new([
-            (KeyCode::Left, GBInput::Left),
-            (KeyCode::Up, GBInput::Up),
-            (KeyCode::Right, GBInput::Right),
-            (KeyCode::Down, GBInput::Down),
-            (KeyCode::Z, GBInput::B),
-            (KeyCode::X, GBInput::A),
-            (KeyCode::Return, GBInput::Start),
-            (KeyCode::ShiftRight, GBInput::Select),
-            // DEBUG
-            (KeyCode::I, GBInput::DToGame),
-            (KeyCode::Back, GBInput::DToMainMenu),
-            (KeyCode::Escape, GBInput::DExit),
-            (KeyCode::A, GBInput::DLeft),
-            (KeyCode::W, GBInput::DUp),
-            (KeyCode::D, GBInput::DRight),
-            (KeyCode::S, GBInput::DDown),
-        ]),
-    });
 }
 
 // /**

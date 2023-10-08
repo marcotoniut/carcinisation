@@ -45,11 +45,10 @@ pub fn tick_stage_time(mut stage_time: ResMut<StageTime>, time: Res<Time>) {
 }
 
 pub fn toggle_game(
-    gb_input_query: Query<&ActionState<GBInput>>,
+    gb_input: Res<ActionState<GBInput>>,
     state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    let gb_input = gb_input_query.single();
     if gb_input.just_pressed(GBInput::Start) {
         if state.get().to_owned() == GameState::Running {
             next_state.set(GameState::Paused);

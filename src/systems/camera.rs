@@ -14,12 +14,10 @@ const CAMERA_MOVEMENT_SPEED: f32 = 30.;
 // */
 pub fn move_camera(
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
-    gb_input_query: Query<&ActionState<GBInput>>,
+    gb_input: Res<ActionState<GBInput>>,
     time: Res<Time>,
     mut camera: ResMut<PxCamera>,
 ) {
-    let gb_input = gb_input_query.single();
-
     let mut camera_pos = camera_pos_query.single_mut();
     **camera_pos += IVec2::new(
         gb_input.pressed(GBInput::DRight) as i32 - gb_input.pressed(GBInput::DLeft) as i32,

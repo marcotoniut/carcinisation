@@ -49,11 +49,10 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
 }
 
 pub fn player_movement<T: DeltaTime + Resource>(
-    gb_input_query: Query<&ActionState<GBInput>>,
+    gb_input: Res<ActionState<GBInput>>,
     mut query: Query<(&mut PxSubPosition, &Player)>,
     time: Res<T>,
 ) {
-    let gb_input = gb_input_query.single();
     for (mut position, _) in &mut query {
         let mut direction = Vec2::new(
             (gb_input.pressed(GBInput::Right) as i32 - gb_input.pressed(GBInput::Left) as i32)
@@ -73,15 +72,13 @@ pub fn detect_player_attack(
     mut assets_sprite: PxAssets<PxSprite>,
     mut timer: ResMut<AttackTimer>,
     asset_server: Res<AssetServer>,
-    // TODO re-init as a resource
-    gb_input_query: Query<&ActionState<GBInput>>,
+    gb_input: Res<ActionState<GBInput>>,
     player_attack_query: Query<&PlayerAttack>,
     player_query: Query<&PxSubPosition, With<Player>>,
     volume_settings: Res<VolumeSettings>,
 ) {
     if player_attack_query.iter().next().is_none() {
         if let Ok(position) = player_query.get_single() {
-            let gb_input = gb_input_query.single();
             let attack = if gb_input.just_pressed(GBInput::A) {
                 Some((Weapon::Pincer, 0.6))
             } else if gb_input.just_pressed(GBInput::B) {
