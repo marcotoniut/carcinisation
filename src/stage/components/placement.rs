@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::plugins::movement::structs::MovementVec2Position;
 
 #[derive(Component, Debug, Clone, Copy)]
-pub struct Depth(pub usize);
+pub struct Depth(pub u8);
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct Speed(pub f32);

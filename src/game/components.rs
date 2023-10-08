@@ -8,7 +8,7 @@ use crate::stage::data::{EnemyStep, MovementDirection};
 
 #[derive(Resource)]
 pub struct GameProgress {
-    index: usize,
+    index: u8,
 }
 
 #[derive(Component)]

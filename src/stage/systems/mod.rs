@@ -17,12 +17,13 @@ use super::{
     events::{NextStepEvent, StageClearedEvent, StageGameOverEvent},
     player::{components::Player, events::PlayerStartupEvent},
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
-    GameState, StageProgressState,
+    StageProgressState,
 };
 
 use crate::{
     cinemachine::cinemachine::CinemachineScene,
     components::{DespawnMark, Music},
+    game::GameProgressState,
     globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
     plugins::movement::linear::components::{
         LinearMovementBundle, LinearTargetReached, TargetingPositionX, TargetingPositionY,
@@ -46,15 +47,15 @@ pub fn tick_stage_time(mut stage_time: ResMut<StageTime>, time: Res<Time>) {
 
 pub fn toggle_game(
     gb_input: Res<ActionState<GBInput>>,
-    state: Res<State<GameState>>,
-    mut next_state: ResMut<NextState<GameState>>,
+    state: Res<State<GameProgressState>>,
+    mut next_state: ResMut<NextState<GameProgressState>>,
 ) {
     if gb_input.just_pressed(GBInput::Start) {
-        if state.get().to_owned() == GameState::Running {
-            next_state.set(GameState::Paused);
+        if state.get().to_owned() == GameProgressState::Running {
+            next_state.set(GameProgressState::Paused);
             info!("Game Paused.");
         } else {
-            next_state.set(GameState::Running);
+            next_state.set(GameProgressState::Running);
             info!("Game Running.");
         }
     }
@@ -112,7 +113,7 @@ pub fn setup_stage(
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    mut state: ResMut<NextState<GameState>>,
+    mut state: ResMut<NextState<GameProgressState>>,
     stage_data_raw: Res<StageRawData>,
 ) {
     let stage = &stage_data_raw.stage_data;
@@ -127,7 +128,7 @@ pub fn spawn_current_stage_bundle(
             parent.spawn(skybox_bundle);
         });
 
-    state.set(GameState::Running);
+    state.set(GameProgressState::Running);
 }
 
 pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
@@ -298,7 +299,7 @@ pub fn read_stage_step_trigger(
 }
 
 pub fn initialise_cinematic_step(
-    mut game_state_next_state: ResMut<NextState<GameState>>,
+    mut game_state_next_state: ResMut<NextState<GameProgressState>>,
     query: Query<(Entity, &CinematicStageStep), (With<Stage>, Added<CinematicStageStep>)>,
 ) {
     if let Ok((_, _)) = query.get_single() {

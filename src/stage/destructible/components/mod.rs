@@ -33,9 +33,9 @@ pub enum DestructibleState {
 
 pub fn make_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
-    animation_map: &HashMap<usize, DestructibleAnimationData>,
+    animation_map: &HashMap<u8, DestructibleAnimationData>,
     destructible_state: &DestructibleState,
-    depth: usize,
+    depth: u8,
 ) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData)> {
     animation_map
         .get(&depth)

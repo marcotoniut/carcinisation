@@ -15,7 +15,7 @@ use super::components::DestructibleType;
 pub struct DestructibleSpawn {
     pub contains: Option<Box<ContainerSpawn>>,
     pub coordinates: Vec2,
-    pub depth: usize,
+    pub depth: u8,
     pub destructible_type: DestructibleType,
     pub health: u32,
 }
@@ -31,7 +31,7 @@ impl DestructibleSpawn {
         self
     }
 
-    pub fn with_depth(mut self, value: usize) -> Self {
+    pub fn with_depth(mut self, value: u8) -> Self {
         self.depth = value;
         self
     }
@@ -59,7 +59,7 @@ impl DestructibleSpawn {
     /**
      * depth needs to be 1 or 4
      */
-    pub fn trashcan_base(x: f32, y: f32, depth: usize) -> Self {
+    pub fn trashcan_base(x: f32, y: f32, depth: u8) -> Self {
         Self {
             destructible_type: DestructibleType::Trashcan,
             coordinates: Vec2::new(x, y),

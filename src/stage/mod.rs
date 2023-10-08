@@ -21,11 +21,7 @@ use self::{
     enemy::EnemyPlugin,
     events::*,
     pickup::systems::health::{mark_despawn_pickup_feedback, pickup_health},
-    player::{
-        events::CameraShakeEvent,
-        systems::camera::{camera_shake, trigger_shake},
-        PlayerPlugin,
-    },
+    player::{events::CameraShakeEvent, PlayerPlugin},
     resources::{StageActionTimer, StageProgress, StageTime},
     systems::{
         camera::*,
@@ -44,7 +40,7 @@ use self::{
 };
 use crate::{
     cinemachine::{cinemachine::CinemachineScene, render_cutscene},
-    game::events::GameOver,
+    game::{events::GameOverEvent, GameProgressState},
     plugins::movement::{
         linear::{
             components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
@@ -73,7 +69,6 @@ impl Plugin for StagePlugin {
         app.add_state::<StagePluginUpdateState>()
             .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
             .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
-            .add_state::<GameState>()
             .add_state::<StageProgressState>()
             .add_event::<CameraShakeEvent>()
             .add_event::<DamageEvent>()
@@ -83,7 +78,7 @@ impl Plugin for StagePlugin {
             .add_event::<StageSpawnEvent>()
             .add_event::<NextStepEvent>()
             // TODO temporary
-            .add_event::<GameOver>()
+            .add_event::<GameOverEvent>()
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
             .init_resource::<StageProgress>()
@@ -102,9 +97,10 @@ impl Plugin for StagePlugin {
             // .add_event::<StageSetupFromCheckpointEvent>()
             // .add_systems(PreUpdate, (on_setup, on_setup_from_checkpoint))
             .add_systems(PostStartup, setup_stage.in_set(LoadingSystemSet))
+            // TEMP
             .add_systems(
                 Update,
-                spawn_current_stage_bundle.run_if(in_state(GameState::Loading)),
+                spawn_current_stage_bundle.run_if(in_state(GameProgressState::Loading)),
             )
             .add_systems(
                 Update,
@@ -200,16 +196,6 @@ impl Plugin for StagePlugin {
                     .run_if(in_state(StagePluginUpdateState::Active)),
             );
     }
-}
-
-// TODO why is this here?
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum GameState {
-    #[default]
-    Loading,
-    Running,
-    Paused,
-    Cutscene,
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]

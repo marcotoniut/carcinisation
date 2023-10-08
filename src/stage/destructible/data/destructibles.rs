@@ -27,10 +27,10 @@ impl DestructibleAnimationData {
 }
 
 pub struct DestructibleAnimations {
-    pub crystal: HashMap<usize, DestructibleAnimationData>,
-    pub lamp: HashMap<usize, DestructibleAnimationData>,
-    pub mushroom: HashMap<usize, DestructibleAnimationData>,
-    pub trashcan: HashMap<usize, DestructibleAnimationData>,
+    pub crystal: HashMap<u8, DestructibleAnimationData>,
+    pub lamp: HashMap<u8, DestructibleAnimationData>,
+    pub mushroom: HashMap<u8, DestructibleAnimationData>,
+    pub trashcan: HashMap<u8, DestructibleAnimationData>,
 }
 
 impl DestructibleAnimations {
@@ -46,7 +46,7 @@ impl DestructibleAnimations {
     pub fn get_animation_data(
         &self,
         destructible_type: &DestructibleType,
-    ) -> &HashMap<usize, DestructibleAnimationData> {
+    ) -> &HashMap<u8, DestructibleAnimationData> {
         match destructible_type {
             DestructibleType::Crystal => &self.crystal,
             DestructibleType::Lamp => &self.lamp,
@@ -56,7 +56,7 @@ impl DestructibleAnimations {
     }
 }
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 

@@ -16,13 +16,13 @@ const FRAGMENT_HOVERING: &str = "hovering";
 const FRAGMENT_HIT: &str = "hit";
 const FRAGMENT_ATTACK: &str = "boulder_attack";
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 
-const MIN_DEPTH: usize = 1;
-const MAX_DEPTH: usize = 8;
-const HIT_DEPTH: usize = PLAYER_DEPTH as usize + 1;
+const MIN_DEPTH: u8 = 1;
+const MAX_DEPTH: u8 = 8;
+const HIT_DEPTH: u8 = PLAYER_DEPTH as u8 + 1;
 
 lazy_static! {
     pub static ref BOULDER_ATTACK_ANIMATIONS: HoveringAttackAnimations = {

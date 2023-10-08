@@ -12,7 +12,7 @@ use crate::stage::{
     resources::StageTime,
 };
 
-pub const DAMAGE_FLICKER_COUNT: usize = 4;
+pub const DAMAGE_FLICKER_COUNT: u8 = 4;
 
 lazy_static! {
     pub static ref DAMAGE_REGULAR_DURATION: Duration = Duration::from_secs_f32(0.2);

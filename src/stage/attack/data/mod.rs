@@ -6,6 +6,6 @@ use bevy::utils::HashMap;
 use crate::data::AnimationData;
 
 pub struct HoveringAttackAnimations {
-    pub hovering: HashMap<usize, AnimationData>,
-    pub hit: HashMap<usize, AnimationData>,
+    pub hovering: HashMap<u8, AnimationData>,
+    pub hit: HashMap<u8, AnimationData>,
 }

@@ -2,12 +2,11 @@ pub mod pause_menu;
 
 use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::{
-    game::score::components::Score,
+    game::{score::components::Score, GameProgressState},
     globals::{
         mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
-    stage::GameState,
     Layer,
 };
 use bevy::prelude::*;
@@ -26,9 +25,9 @@ pub fn pause_menu_renderer(
     mut filters: PxAssets<PxFilter>,
     score: Res<Score>,
     query: Query<Entity, With<PauseMenu>>,
-    state: Res<State<GameState>>,
+    state: Res<State<GameProgressState>>,
 ) {
-    if state.get().to_owned() == GameState::Paused {
+    if state.get().to_owned() == GameProgressState::Paused {
         if let Ok(entity) = query.get_single() {
             //do nothing
         } else {

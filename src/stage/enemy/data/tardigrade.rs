@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use crate::{data::AnimationData, globals::PATH_SPRITES_ENEMIES};
 
 pub struct TardigradeAnimations {
-    pub attack: HashMap<usize, AnimationData>,
-    pub death: HashMap<usize, AnimationData>,
-    pub idle: HashMap<usize, AnimationData>,
-    pub sucking: HashMap<usize, AnimationData>,
+    pub attack: HashMap<u8, AnimationData>,
+    pub death: HashMap<u8, AnimationData>,
+    pub idle: HashMap<u8, AnimationData>,
+    pub sucking: HashMap<u8, AnimationData>,
 }
 
 // Animation fragments
@@ -19,7 +19,7 @@ const FRAGMENT_SUCKING: &str = "sucking";
 // Enemy
 const FRAGMENT_ENEMY: &str = "tardigrade";
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 

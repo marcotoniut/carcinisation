@@ -43,7 +43,7 @@ pub fn assign_tardigrade_animation(
         let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(&depth.0).map(|animation| {
             (
                 EnemyTardigradeAnimation::Idle,
-                make_enemy_animation_bundle(&mut assets_sprite, &animation, depth.0),
+                make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
             )
         });
 
