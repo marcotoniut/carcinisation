@@ -171,7 +171,7 @@ pub enum Layer {
     Background,
     PosDepth(DepthBase),
 
-    Middle(usize),
+    Middle(u8),
     Attack,
     #[default]
     Front,
@@ -181,7 +181,7 @@ pub enum Layer {
     UIBackground,
     UI,
     CutsceneBackground,
-    Cutscene(usize),
+    Cutscene(u8),
     Letterbox,
     CutsceneText,
     Transition,

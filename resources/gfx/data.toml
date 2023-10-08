@@ -94,6 +94,26 @@ path = "sprites/enemies/mosquito_death_5.png"
 path = "sprites/enemies/mosquito_death_5.png"
 target_path = "sprites/enemies/mosquito_death_6.png"
 width = 50
+
+[[images]]
+path = "sprites/enemies/mosquito_fly_3.png"
+target_path = "sprites/enemies/mosquito_fly_1.png"
+width = 6
+[[images]]
+path = "sprites/enemies/mosquito_fly_3.png"
+target_path = "sprites/enemies/mosquito_fly_2.png"
+width = 10
+[[images]]
+path = "sprites/enemies/mosquito_fly_3.png"
+[[images]]
+path = "sprites/enemies/mosquito_fly_4.png"
+[[images]]
+path = "sprites/enemies/mosquito_fly_5.png"
+[[images]]
+path = "sprites/enemies/mosquito_fly_5.png"
+target_path = "sprites/enemies/mosquito_fly_6.png"
+width = 50
+
 [[images]]
 path = "sprites/enemies/mosquito_idle_3.png"
 target_path = "sprites/enemies/mosquito_idle_1.png"
@@ -112,6 +132,7 @@ path = "sprites/enemies/mosquito_idle_5.png"
 path = "sprites/enemies/mosquito_idle_5.png"
 target_path = "sprites/enemies/mosquito_idle_6.png"
 width = 50
+
 # TODO Is this necessary?
 [[images]]
 path = "sprites/enemies/mosquito_melee_3.png"

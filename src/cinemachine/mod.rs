@@ -7,9 +7,8 @@ use std::{env, time::Duration};
 use bevy::prelude::*;
 
 use crate::{
-    globals::mark_for_despawn_by_component_query,
-    stage::{resources::StageActionTimer, GameState},
-    Layer,
+    game::GameProgressState, globals::mark_for_despawn_by_component_query,
+    stage::resources::StageActionTimer, Layer,
 };
 use seldom_pixel::{
     prelude::{
@@ -125,26 +124,26 @@ pub fn render_cutscene(
     mut typefaces: PxAssets<PxTypeface>,
     mut assets_sprite: PxAssets<PxSprite>,
     mut filters: PxAssets<PxFilter>,
-    query: Query<Entity, With<CinemachineModule>>,
-    state: Res<State<GameState>>,
-    mut game_state_next_state: ResMut<NextState<GameState>>,
+    cinemachine_query: Query<Entity, With<CinemachineModule>>,
+    state: Res<State<GameProgressState>>,
+    mut game_state_next_state: ResMut<NextState<GameProgressState>>,
     mut current_scene: ResMut<CinemachineScene>,
     mut current_clip_info: ResMut<CurrentClipInfo>,
     mut timer: ResMut<StageActionTimer>,
     //curr_timer: Res<CinemachineTimer>,
     time: Res<Time>,
 ) {
-    if state.get().to_owned() == GameState::Cutscene {
+    if state.get().to_owned() == GameProgressState::Cutscene {
         let current_scene_option = current_scene.0.to_owned();
 
-        if let Ok(entity) = query.get_single() {
+        if let Ok(entity) = cinemachine_query.get_single() {
             if let Some(mut scene) = current_scene_option {
                 timer
                     .timer
                     .tick(Duration::from_secs_f32(time.delta_seconds()));
 
                 if timer.timer.finished() {
-                    game_state_next_state.set(GameState::Running)
+                    game_state_next_state.set(GameProgressState::Running)
                 } else {
                 }
             }
@@ -160,6 +159,6 @@ pub fn render_cutscene(
             }
         }
     } else {
-        mark_for_despawn_by_component_query(&mut commands, &query);
+        mark_for_despawn_by_component_query(&mut commands, &cinemachine_query);
     }
 }

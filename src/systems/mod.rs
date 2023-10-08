@@ -10,7 +10,7 @@ use crate::{
     audio::AudioSystemType,
     components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
     core::time::ElapsedTime,
-    game::events::GameOver,
+    game::events::GameOverEvent,
 };
 use bevy::{audio::Volume, prelude::*};
 use seldom_pixel::prelude::PxAnimationFinished;
@@ -71,7 +71,7 @@ use seldom_pixel::prelude::PxAnimationFinished;
 //     }
 // }
 
-pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOver>) {
+pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOverEvent>) {
     for game_over in game_over_event_reader.iter() {
         info!("Your final score: {}", game_over.score);
     }

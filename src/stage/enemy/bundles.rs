@@ -4,7 +4,7 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
-use crate::{data::AnimationData, Layer};
+use crate::{data::AnimationData, stage::components::placement::Depth, Layer};
 
 /**
  * TODO
@@ -15,14 +15,14 @@ use crate::{data::AnimationData, Layer};
 pub fn make_enemy_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     data: &AnimationData,
-    depth: usize,
+    depth: &Depth,
 ) -> (PxSpriteBundle<Layer>, PxAnimationBundle) {
     let texture = assets_sprite.load_animated(data.sprite_path.as_str(), data.frames);
 
     (
         PxSpriteBundle::<Layer> {
             sprite: texture,
-            layer: Layer::Middle(depth),
+            layer: Layer::Middle(depth.0),
             anchor: PxAnchor::Center,
             ..default()
         },

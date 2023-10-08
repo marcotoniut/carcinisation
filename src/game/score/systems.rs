@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use crate::game::events::GameOver;
+use crate::game::events::GameOverEvent;
 
 pub fn update_high_scores(
-    mut game_over_event_reader: EventReader<GameOver>,
+    mut game_over_event_reader: EventReader<GameOverEvent>,
     mut high_scores: ResMut<HighScores>,
 ) {
     for game_over in game_over_event_reader.iter() {

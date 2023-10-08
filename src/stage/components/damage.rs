@@ -11,5 +11,5 @@ pub struct InflictsDamage(pub u32);
 #[derive(Clone, Component, Debug)]
 pub struct DamageFlicker {
     pub phase_start: Duration,
-    pub count: usize,
+    pub count: u8,
 }

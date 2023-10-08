@@ -1,11 +1,3 @@
-use std::time::Duration;
-
-use bevy::{animation, prelude::*};
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
-
 use crate::stage::{
     components::{
         interactive::{CollisionData, Dead},
@@ -14,7 +6,7 @@ use crate::stage::{
     },
     data::ContainerSpawn,
     destructible::{
-        components::{make_animation_bundle, DestructibleState, DestructibleType},
+        components::{make_animation_bundle, DestructibleState},
         data::destructibles::DESTRUCTIBLE_ANIMATIONS,
     },
     player::components::{PlayerAttack, UnhittableList},
@@ -40,6 +32,11 @@ use crate::{
     },
     systems::camera::CameraPos,
     Layer,
+};
+use bevy::prelude::*;
+use seldom_pixel::{
+    prelude::{PxAnchor, PxAssets, PxSubPosition},
+    sprite::{PxSprite, PxSpriteBundle},
 };
 
 pub fn check_step_spawn(
@@ -102,7 +99,6 @@ pub fn spawn_pickup(
     let name = Name::new(format!("Pickup {:?}", spawn.pickup_type));
     info!("Spawning {:?}", name.as_str());
     // TODO depth
-    let depth = 1;
     let PickupSpawn {
         pickup_type,
         coordinates,
@@ -123,7 +119,7 @@ pub fn spawn_pickup(
                         ..default()
                     },
                     position,
-                    Depth(depth),
+                    Depth(spawn.depth),
                     Health(1),
                     CollisionData::new(Collision::Box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
@@ -144,7 +140,7 @@ pub fn spawn_pickup(
                         ..default()
                     },
                     position,
-                    Depth(depth),
+                    Depth(spawn.depth),
                     Health(1),
                     CollisionData::new(Collision::Box(Vec2::new(7., 5.))),
                     HealthRecovery(30),

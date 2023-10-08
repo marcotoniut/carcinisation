@@ -6,8 +6,6 @@ pub mod systems;
 
 use bevy::prelude::*;
 
-use crate::stage::GameState;
-
 use self::{
     events::*,
     score::{components::Score, ScorePlugin},
@@ -21,17 +19,27 @@ impl Plugin for GamePlugin {
         app.add_plugins(ScorePlugin)
             .add_state::<GamePluginUpdateState>()
             .init_resource::<Score>()
+            .add_state::<GameProgressState>()
             // DEBUG
-            .add_event::<GameOver>()
+            .add_event::<GameOverEvent>()
             .add_event::<GameStartupEvent>()
             .add_systems(PreUpdate, on_startup)
             .add_systems(
                 Update,
                 check_player_died
                     .run_if(in_state(GamePluginUpdateState::Active))
-                    .run_if(in_state(GameState::Running)),
+                    .run_if(in_state(GameProgressState::Running)),
             );
     }
+}
+
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+pub enum GameProgressState {
+    #[default]
+    Loading,
+    Running,
+    Paused,
+    Cutscene,
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]

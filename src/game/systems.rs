@@ -1,6 +1,6 @@
 use super::{
     data::{DEATH_SCORE_PENALTY, STARTING_LIVES},
-    events::{GameOver, GameStartupEvent},
+    events::{GameOverEvent, GameStartupEvent},
     resources::Lives,
     score::components::Score,
     GamePluginUpdateState,
@@ -32,14 +32,14 @@ pub fn on_startup(
 pub fn check_player_died(
     mut score: ResMut<Score>,
     mut query: Query<(Added<Dead>, With<Player>)>,
-    mut event_writer: EventWriter<GameOver>,
+    mut event_writer: EventWriter<GameOverEvent>,
     mut lives: ResMut<Lives>,
 ) {
     if let Ok(_) = query.get_single_mut() {
         score.add(-DEATH_SCORE_PENALTY);
         lives.0 = lives.0.saturating_sub(1).max(0);
         if lives.0 == 0 {
-            event_writer.send(GameOver { score: score.value });
+            event_writer.send(GameOverEvent { score: score.value });
         } else {
             // TODO restart from checkpoint
         }

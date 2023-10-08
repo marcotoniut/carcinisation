@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use crate::{data::AnimationData, globals::PATH_SPRITES_ENEMIES};
 
 pub struct MosquitoAnimations {
-    pub death: HashMap<usize, AnimationData>,
-    pub fly: HashMap<usize, AnimationData>,
-    pub idle: HashMap<usize, AnimationData>,
-    pub melee_attack: HashMap<usize, AnimationData>,
+    pub death: HashMap<u8, AnimationData>,
+    pub fly: HashMap<u8, AnimationData>,
+    pub idle: HashMap<u8, AnimationData>,
+    pub melee_attack: HashMap<u8, AnimationData>,
 }
 
 // Animation fragments
@@ -19,12 +19,12 @@ const FRAGMENT_MELEE_ATTACK: &str = "melee_attack";
 // Enemy
 const FRAGMENT_ENEMY: &str = "mosquito";
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: usize) -> String {
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 
-const MOSQUITO_MIN_DEPTH: usize = 1;
-const MOSQUITO_MAX_DEPTH: usize = 6;
+const MOSQUITO_MIN_DEPTH: u8 = 1;
+const MOSQUITO_MAX_DEPTH: u8 = 6;
 
 lazy_static! {
     pub static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {

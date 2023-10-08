@@ -181,6 +181,7 @@ pub struct PickupSpawn {
     pub pickup_type: PickupType,
     pub coordinates: Vec2,
     pub elapsed: f32,
+    pub depth: u8,
 }
 
 impl PickupSpawn {
@@ -197,6 +198,7 @@ impl PickupSpawn {
             pickup_type: PickupType::BigHealthpack,
             coordinates: Vec2::ZERO,
             elapsed: 0.0,
+            depth: 3,
         }
     }
     pub fn small_healthpack_base() -> Self {
@@ -204,6 +206,7 @@ impl PickupSpawn {
             pickup_type: PickupType::SmallHealthpack,
             coordinates: Vec2::ZERO,
             elapsed: 0.0,
+            depth: 3,
         }
     }
 }
@@ -257,7 +260,7 @@ pub struct EnemySpawn {
     pub coordinates: Vec2,
     pub speed: f32,
     pub steps: VecDeque<EnemyStep>,
-    pub depth: usize,
+    pub depth: u8,
 }
 
 impl EnemySpawn {
@@ -289,7 +292,7 @@ impl EnemySpawn {
         self.steps = value.into();
         self
     }
-    pub fn with_depth(mut self, value: usize) -> Self {
+    pub fn with_depth(mut self, value: u8) -> Self {
         self.depth = value;
         self
     }

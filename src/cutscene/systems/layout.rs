@@ -37,7 +37,7 @@ pub fn build_letterbox_bottom(
 pub fn build_screen(commands: &mut Commands, filters: &mut PxAssets<PxFilter>) -> Entity {
     let letterbox_filter = filters.load("filter/color1.png");
 
-    let mut entity_commands = commands.spawn(Cutscene {});
+    let mut entity_commands = commands.spawn(Cutscene);
 
     entity_commands.with_children(|parent| {
         build_letterbox_top(parent, letterbox_filter.clone());

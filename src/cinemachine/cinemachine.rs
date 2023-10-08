@@ -19,7 +19,7 @@ pub struct CinemachineScene(pub Option<CinemachineData>);
 #[derive(Resource, Default)]
 pub struct CurrentClipInfo {
     ///index
-    pub index: usize,
+    pub index: u8,
     ///is Renderered
     pub is_rendered: bool,
     pub has_finished: bool,
