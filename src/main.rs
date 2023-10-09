@@ -5,6 +5,7 @@ mod components;
 mod core;
 mod cutscene;
 mod data;
+mod debug;
 mod game;
 mod globals;
 mod main_menu;
@@ -23,8 +24,9 @@ use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use cinemachine::cinemachine::CurrentClipInfo;
 use components::DespawnMark;
+use debug::DebugPlugin;
 use game::GamePlugin;
-use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION};
+use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
 use leafwing_input_manager::{
     prelude::{ActionState, InputManagerPlugin},
     Actionlike,
@@ -42,8 +44,6 @@ use systems::{
 fn main() {
     let title: String = "CARCINISATION".to_string();
     let focused: bool = false;
-    // let resolution: Vec2 = Vec2::new(576., 480.);
-    let resolution: Vec2 = Vec2::new(850., 480.);
 
     let mut app = App::new();
     #[cfg(debug_assertions)]
@@ -54,18 +54,14 @@ fn main() {
                     title,
                     focused,
                     resizable: true,
-                    resolution: (resolution
-                        + Vec2::new(
-                            SCREEN_RESOLUTION.x as f32 * 2.,
-                            SCREEN_RESOLUTION.y as f32 * 1.4,
-                        ))
-                    .into(),
+                    resolution: VIEWPORT_RESOLUTION.into(),
                     ..default()
                 }),
                 ..default()
             }),
             bevy_editor_pls::EditorPlugin::new(),
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
+            DebugPlugin,
         ));
     }
     #[cfg(not(debug_assertions))]
@@ -75,50 +71,56 @@ fn main() {
                 title,
                 focused,
                 resizable: false,
-                resolution: resolution.into(),
+                resolution: VIEWPORT_RESOLUTION.into(),
                 ..default()
             }),
             ..default()
         }));
     }
-    app.add_plugins((
-        PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png".into()),
-        FramepacePlugin,
-    ))
-    // TEMP
-    // .insert_resource(GlobalVolume::new(0.3))
-    .insert_resource(ClearColor(Color::BLACK))
-    .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
-    .insert_resource(VolumeSettings(
-        DEFAULT_MASTER_VOLUME,
-        DEFAULT_MUSIC_VOLUME,
-        DEFAULT_SFX_VOLUME,
-    ))
-    .insert_resource(CurrentClipInfo {
-        index: 0,
-        is_rendered: false,
-        has_finished: false,
-    })
-    // .add_plugins(TransitionVenetianPlugin)
-    // .add_plugins(CutscenePlugin)
-    .add_plugins(StagePlugin)
-    .add_plugins(GamePlugin)
-    // .add_plugins(MainMenuPlugin)
-    .add_plugins(InputManagerPlugin::<GBInput>::default())
-    .init_resource::<ActionState<GBInput>>()
-    .add_systems(Startup, (spawn_camera, set_framespace, init_gb_input))
-    .add_systems(PostStartup, trigger_game_startup)
-    .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
-    .add_systems(
-        Update,
-        (
-            move_camera,
-            // transition_to_game_state,
-            // transition_to_main_menu_state,
-            // input_exit_game,
-        ),
-    )
-    .run();
+    app
+        // TEMP
+        // .insert_resource(GlobalVolume::new(0.3))
+        .insert_resource(VolumeSettings(
+            DEFAULT_MASTER_VOLUME,
+            DEFAULT_MUSIC_VOLUME,
+            DEFAULT_SFX_VOLUME,
+        ))
+        // Input
+        .add_plugins(InputManagerPlugin::<GBInput>::default())
+        .init_resource::<ActionState<GBInput>>()
+        //  Setup
+        .add_plugins(FramepacePlugin)
+        .add_systems(Startup, (spawn_camera, set_framespace, init_gb_input))
+        // Graphics and Game
+        .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
+        .insert_resource(CurrentClipInfo {
+            index: 0,
+            is_rendered: false,
+            has_finished: false,
+        })
+        .add_plugins(PxPlugin::<Layer>::new(
+            SCREEN_RESOLUTION,
+            "palette/base.png".into(),
+        ))
+        // .add_plugins(TransitionVenetianPlugin)
+        // .add_plugins(CutscenePlugin)
+        // .add_plugins(MainMenuPlugin)
+        .add_plugins(StagePlugin)
+        .add_plugins(GamePlugin)
+        .add_systems(PostStartup, trigger_game_startup)
+        .add_systems(
+            Update,
+            (
+                move_camera,
+                // transition_to_game_state,
+                // transition_to_main_menu_state,
+                // input_exit_game,
+            ),
+        )
+        // Cleanup
+        .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
+        .run();
 }
 
 // This is the list of "things in the game I want to be able to do based on input"

@@ -9,6 +9,7 @@ use super::{
     bundles::*,
     components::{
         interactive::{Dead, Object},
+        placement::spawn_floor_depths,
         CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StopStageStep,
     },
     data::*,
@@ -318,6 +319,7 @@ pub fn initialise_movement_step(
             coordinates,
             base_speed,
             spawns,
+            floor_depths,
         },
     )) = query.get_single()
     {
@@ -338,6 +340,10 @@ pub fn initialise_movement_step(
                     speed.y,
                 ))
                 .insert(StageStepSpawner::new(spawns.clone()));
+
+            if let Some(floor_depths) = floor_depths {
+                spawn_floor_depths(&mut commands, floor_depths);
+            }
         }
     }
 }
@@ -346,10 +352,22 @@ pub fn initialise_stop_step(
     mut commands: Commands,
     query: Query<(Entity, &StopStageStep), (With<Stage>, Added<StopStageStep>)>,
 ) {
-    if let Ok((entity, step)) = query.get_single() {
+    if let Ok((
+        entity,
+        StopStageStep {
+            spawns,
+            floor_depths,
+            ..
+        },
+    )) = query.get_single()
+    {
         commands
             .entity(entity)
-            .insert(StageStepSpawner::new(step.spawns.clone()));
+            .insert(StageStepSpawner::new(spawns.clone()));
+
+        if let Some(floor_depths) = floor_depths {
+            spawn_floor_depths(&mut commands, &floor_depths);
+        }
     }
 }
 

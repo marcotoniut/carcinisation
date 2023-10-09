@@ -11,18 +11,22 @@ pub struct CutscenePlugin;
 
 impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<CutsceneState>()
-            .add_systems(OnEnter(CutsceneState::Active), spawn_cutscene)
-            .add_systems(OnExit(CutsceneState::Inactive), mark_cutscene_for_despawn)
+        app.add_state::<CutscenePluginUpdateState>()
+            .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
+            .add_systems(
+                OnExit(CutscenePluginUpdateState::Inactive),
+                mark_cutscene_for_despawn,
+            )
             .add_systems(
                 Update,
-                (play_cutscene, press_next, press_esc).run_if(in_state(CutsceneState::Active)),
+                (play_cutscene, press_next, press_esc)
+                    .run_if(in_state(CutscenePluginUpdateState::Active)),
             );
     }
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum CutsceneState {
+pub enum CutscenePluginUpdateState {
     #[default]
     Inactive,
     Active,

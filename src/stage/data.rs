@@ -3,6 +3,7 @@ use std::{collections::VecDeque, time::Duration};
 use bevy::{
     prelude::Vec2,
     reflect::{TypePath, TypeUuid},
+    utils::HashMap,
 };
 
 use crate::{
@@ -454,11 +455,31 @@ impl StageStep {
         self
     }
 
+    pub fn with_floor_depths(mut self, floor_depths: HashMap<u8, f32>) -> Self {
+        match &mut self {
+            StageStep::Movement(MovementStageStep {
+                floor_depths: ref mut f,
+                ..
+            }) => {
+                *f = Some(floor_depths);
+            }
+            StageStep::Stop(StopStageStep {
+                floor_depths: ref mut f,
+                ..
+            }) => {
+                *f = Some(floor_depths);
+            }
+            _ => {}
+        };
+        self
+    }
+
     pub fn movement_base(x: f32, y: f32) -> Self {
         StageStep::Movement(MovementStageStep {
             coordinates: Vec2::new(x, y),
             base_speed: 1.,
             spawns: vec![],
+            floor_depths: None,
         })
     }
 }
