@@ -1,9 +1,7 @@
-use std::time::Duration;
-
 use bevy::prelude::*;
 use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxPosition, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
+    prelude::{PxAssets, PxSubPosition},
+    sprite::PxSprite,
 };
 
 use crate::{
@@ -48,7 +46,7 @@ pub fn spawn_blood_shot_attack(
             (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
         );
 
-    let animation_bundle =
+    let (sprite, animation, collision_o) =
         make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
 
     let mut attacking = EnemyMosquitoAttacking {
@@ -75,17 +73,21 @@ pub fn spawn_blood_shot_attack(
         ),
     );
 
-    commands
-        .spawn((
-            Name::new(format!("Attack - {}", attack_type.get_name())),
-            EnemyAttack,
-            EnemyHoveringAttackType::BloodShot,
-            depth.clone(),
-            InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
-            PxSubPosition(current_pos),
-            Hittable,
-            Health(1),
-        ))
+    let mut entity_commands = commands.spawn((
+        Name::new(format!("Attack - {}", attack_type.get_name())),
+        EnemyAttack,
+        EnemyHoveringAttackType::BloodShot,
+        depth.clone(),
+        InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
+        PxSubPosition(current_pos),
+        Hittable,
+        Health(1),
+    ));
+    entity_commands
         .insert(movement_bundle)
-        .insert(animation_bundle);
+        .insert((sprite, animation));
+
+    if let Some(collision) = collision_o {
+        entity_commands.insert(collision);
+    }
 }

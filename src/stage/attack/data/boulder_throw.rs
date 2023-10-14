@@ -1,11 +1,14 @@
-use bevy::utils::HashMap;
-use seldom_pixel::prelude::PxAnimationFinishBehavior;
-
 use crate::{
     data::AnimationData,
     globals::PATH_SPRITES_ATTACKS,
-    stage::{attack::data::HoveringAttackAnimations, player::components::PLAYER_DEPTH},
+    stage::{
+        attack::data::HoveringAttackAnimations,
+        components::interactive::{Collision, CollisionData},
+        player::components::PLAYER_DEPTH,
+    },
 };
+use bevy::utils::HashMap;
+use seldom_pixel::prelude::PxAnimationFinishBehavior;
 
 pub const BOULDER_THROW_ATTACK_DEPTH_SPEED: f32 = 3.;
 pub const BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION: f32 = -55.;
@@ -31,18 +34,31 @@ lazy_static! {
 
         let mut hovering = HashMap::new();
         for i in MIN_DEPTH..=MAX_DEPTH {
+            let collision = match i {
+                1 => 1.,
+                2 => 2.5,
+                3 => 4.5,
+                4 => 7.,
+                5 => 10.,
+                6 => 14.,
+                7 => 18.,
+                8 => 23.,
+                _ => 0.,
+            };
+
             hovering.insert(
                 i,
                 AnimationData {
+                    collision: Some(CollisionData::new(Collision::Circle(collision))),
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
+                    frames: hovering_frames,
+                    speed: hovering_speed,
                     sprite_path: concat_strings_and_number(
                         PATH_SPRITES_ATTACKS,
                         FRAGMENT_ATTACK,
                         FRAGMENT_HOVERING,
                         i,
                     ),
-                    frames: hovering_frames,
-                    speed: hovering_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                 },
             );
@@ -56,15 +72,15 @@ lazy_static! {
         hit.insert(
             HIT_DEPTH,
             AnimationData {
+                finish_behavior: PxAnimationFinishBehavior::Mark,
+                frames: hit_frames,
+                speed: hit_speed,
                 sprite_path: concat_strings_and_number(
                     PATH_SPRITES_ATTACKS,
                     FRAGMENT_ATTACK,
                     FRAGMENT_HIT,
                     HIT_DEPTH,
                 ),
-                frames: hit_frames,
-                speed: hit_speed,
-                finish_behavior: PxAnimationFinishBehavior::Mark,
                 ..Default::default()
             },
         );

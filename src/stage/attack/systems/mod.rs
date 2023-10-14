@@ -60,18 +60,20 @@ pub fn read_enemy_attack_depth_changed(
         if (event.depth.0 as f32) < PLAYER_DEPTH {
             for (entity, attack_type) in &query {
                 if entity == event.entity {
-                    let (sprite_bundle, animation_bundle, collision) =
+                    let (sprite_bundle, animation_bundle, collision_o) =
                         make_hovering_attack_animation_bundle(
                             &mut assets_sprite,
                             attack_type,
                             event.depth.clone(),
                         );
 
-                    commands
-                        .entity(event.entity)
-                        .insert(sprite_bundle)
-                        .insert(collision)
-                        .insert(animation_bundle);
+                    // TODO could probably unify the use of this with the ones under spawns
+                    let mut entity_commands = commands.entity(event.entity);
+
+                    entity_commands.insert((sprite_bundle, animation_bundle));
+                    if let Some(collision) = collision_o {
+                        entity_commands.insert(collision);
+                    }
 
                     break;
                 }

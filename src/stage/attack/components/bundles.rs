@@ -19,12 +19,15 @@ pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     attack_type: &EnemyHoveringAttackType,
     depth: Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData) {
+) -> (
+    PxSpriteBundle<Layer>,
+    PxAnimationBundle,
+    Option<CollisionData>,
+) {
     let animation_o = attack_type.get_animations().hovering.get(&depth.0);
 
     let animation = animation_o.unwrap();
     let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
-
     (
         PxSpriteBundle::<Layer> {
             sprite: texture,
@@ -39,7 +42,6 @@ pub fn make_hovering_attack_animation_bundle(
             direction: animation.direction,
             ..default()
         },
-        // TODO hardcoded
-        CollisionData::new(Collision::Circle(depth.0 as f32 * 4.)),
+        animation.collision.clone(),
     )
 }

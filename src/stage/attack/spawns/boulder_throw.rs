@@ -6,8 +6,8 @@ use seldom_pixel::{
 
 use crate::{
     plugins::movement::linear::components::{
-        LinearAcceleration, LinearMovementBundle, LinearSpeed, LinearTargetPosition,
-        TargetingPositionX, TargetingPositionY, TargetingPositionZ,
+        LinearAcceleration, LinearMovementBundle, LinearSpeed, TargetingPositionX,
+        TargetingPositionY, TargetingPositionZ,
     },
     stage::{
         attack::{
@@ -46,7 +46,7 @@ pub fn spawn_boulder_throw_attack(
             (1. - rand::random::<f32>()) * BOULDER_THROW_ATTACK_RANDOMNESS,
         );
 
-    let animation_bundle =
+    let (sprite, animation, collision_o) =
         make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
 
     let mut attacking = EnemyTardigradeAttacking {
@@ -85,19 +85,23 @@ pub fn spawn_boulder_throw_attack(
     attacking.attack = attacking.attack.clone();
     attacking.last_attack_started = attacking.last_attack_started.clone();
 
-    commands
-        .spawn((
-            Name::new(format!("Attack - {}", attack_type.get_name())),
-            EnemyAttack,
-            EnemyHoveringAttackType::BoulderThrow,
-            depth.clone(),
-            TargetingPositionZ(depth.0.clone() as f32),
-            InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
-            PxSubPosition(current_pos),
-            Flickerer,
-            Hittable,
-            Health(100),
-        ))
+    let mut entity_commands = commands.spawn((
+        Name::new(format!("Attack - {}", attack_type.get_name())),
+        EnemyAttack,
+        EnemyHoveringAttackType::BoulderThrow,
+        depth.clone(),
+        TargetingPositionZ(depth.0.clone() as f32),
+        InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
+        PxSubPosition(current_pos),
+        Flickerer,
+        Hittable,
+        Health(100),
+    ));
+    entity_commands
         .insert(movement_bundle)
-        .insert(animation_bundle);
+        .insert((sprite, animation));
+
+    if let Some(collision) = collision_o {
+        entity_commands.insert(collision);
+    }
 }
