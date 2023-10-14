@@ -1,11 +1,14 @@
-use bevy::utils::HashMap;
-use seldom_pixel::prelude::PxAnimationFinishBehavior;
-
 use crate::{
     data::AnimationData,
     globals::PATH_SPRITES_ATTACKS,
-    stage::{attack::data::HoveringAttackAnimations, player::components::PLAYER_DEPTH},
+    stage::{
+        attack::data::HoveringAttackAnimations,
+        components::interactive::{Collision, CollisionData},
+        player::components::PLAYER_DEPTH,
+    },
 };
+use bevy::utils::HashMap;
+use seldom_pixel::prelude::PxAnimationFinishBehavior;
 
 pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = 4.;
 pub const BLOOD_SHOT_ATTACK_LINE_SPEED: f32 = 25.;
@@ -35,28 +38,32 @@ lazy_static! {
 
         let mut hovering = HashMap::new();
 
-        // fn get_size(i: u8) {
-        //     match i {
-        //         1 => 1,
-        //         2 => 2,
-        //         3 => 3,
-        //     }
-        // }
-
         for i in MIN_DEPTH..=MAX_DEPTH {
+            let collision = match i {
+                1 => 1.,
+                2 => 2.,
+                3 => 3.,
+                4 => 5.,
+                5 => 7.5,
+                6 => 10.5,
+                7 => 14.,
+                8 => 18.,
+                _ => 0.,
+            };
+
             hovering.insert(
                 i,
                 AnimationData {
+                    collision: Some(CollisionData::new(Collision::Circle(collision))),
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
+                    frames: hovering_frames,
+                    speed: hovering_speed,
                     sprite_path: concat_strings_and_number(
                         PATH_SPRITES_ATTACKS,
                         FRAGMENT_ATTACK,
                         FRAGMENT_HOVERING,
                         i,
                     ),
-                    frames: hovering_frames,
-                    speed: hovering_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    // size: get_size(i),
                     ..Default::default()
                 },
             );
@@ -66,15 +73,15 @@ lazy_static! {
         hit.insert(
             HIT_DEPTH,
             AnimationData {
+                finish_behavior: PxAnimationFinishBehavior::Despawn,
+                frames: hit_frames,
                 sprite_path: concat_strings_and_number(
                     PATH_SPRITES_ATTACKS,
                     FRAGMENT_ATTACK,
                     FRAGMENT_HIT,
                     HIT_DEPTH,
                 ),
-                frames: hit_frames,
                 speed: hit_speed,
-                finish_behavior: PxAnimationFinishBehavior::Despawn,
                 ..Default::default()
             },
         );
