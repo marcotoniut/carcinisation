@@ -5,15 +5,23 @@ use crate::components::DespawnMark;
 pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);
 
 #[cfg(debug_assertions)]
-pub const VIEWPORT_RESOLUTION: Vec2 = Vec2::new(
-    SCREEN_RESOLUTION.x as f32 * 6. * 1.,
-    SCREEN_RESOLUTION.y as f32 * 6. * 0.7,
-);
+pub const VIEWPORT_MULTIPLIER: f32 = 4.;
 #[cfg(not(debug_assertions))]
-pub const VIEWPORT_RESOLUTION: Vec2 = Vec2::new(
-    SCREEN_RESOLUTION.x as f32 * 3.,
-    SCREEN_RESOLUTION.y as f32 * 3.,
+pub const VIEWPORT_MULTIPLIER: f32 = 3.;
+
+pub const REAL_RESOLUTION: Vec2 = Vec2::new(
+    SCREEN_RESOLUTION.x as f32 * VIEWPORT_MULTIPLIER,
+    SCREEN_RESOLUTION.y as f32 * VIEWPORT_MULTIPLIER,
 );
+
+const EXTRA_X: f32 = 1.4;
+
+#[cfg(debug_assertions)]
+pub const VIEWPORT_RESOLUTION: Vec2 = Vec2::new(REAL_RESOLUTION.x * EXTRA_X, REAL_RESOLUTION.y);
+#[cfg(not(debug_assertions))]
+pub const VIEWPORT_RESOLUTION: Vec2 = REAL_RESOLUTION;
+
+pub const VIEWPORT_RESOLUTION_OFFSET: Vec2 = Vec2::new(EXTRA_X / 2., 0.);
 
 pub const HUD_HEIGHT: u32 = 14;
 pub const FONT_SIZE: u32 = 10;
