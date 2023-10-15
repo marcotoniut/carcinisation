@@ -32,7 +32,7 @@ use leafwing_input_manager::{
     Actionlike,
 };
 use seldom_pixel::prelude::*;
-use stage::{player::crosshair::CrosshairSettings, StagePlugin};
+use stage::{components::StageEntityType, player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
     audio::VolumeSettings,
     camera::move_camera,
@@ -188,3 +188,7 @@ pub enum Layer {
     CutsceneText,
     Transition,
 }
+
+// impl Layer {
+//     pub fn get_from_depth(entity_type: StageEntityType, depth: DepthBase) -> Self {}
+// }

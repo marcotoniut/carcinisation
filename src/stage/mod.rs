@@ -146,7 +146,14 @@ impl Plugin for StagePlugin {
                             update_position_y,
                             update_depth,
                             circle_around,
-                            check_linear_movement_finished,
+                            (
+                                (
+                                    check_linear_movement_x_finished,
+                                    check_linear_movement_y_finished,
+                                ),
+                                check_linear_movement_finished,
+                            )
+                                .chain(),
                         ),
                         (
                             // Damage

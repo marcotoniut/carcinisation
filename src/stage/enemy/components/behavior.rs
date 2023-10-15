@@ -1,15 +1,16 @@
-use std::collections::VecDeque;
 use std::time::Duration;
+use std::{collections::VecDeque, ops::Add};
 
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
+use crate::stage::enemy::data::mosquito::{MOSQUITO_MAX_DEPTH, MOSQUITO_MIN_DEPTH};
 use crate::{
     plugins::movement::linear::components::{
-        LinearDirection, LinearMovementBundle, LinearSpeed, LinearTargetPosition,
-        TargetingPositionX, TargetingPositionY,
+        LinearMovementBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
     },
     stage::{
+        components::placement::Depth,
         data::{EnemyStep, GAME_BASE_SPEED},
         resources::StageTime,
     },
@@ -31,6 +32,7 @@ pub enum BehaviorBundle {
             LinearMovement,
             LinearMovementBundle<StageTime, TargetingPositionX>,
             LinearMovementBundle<StageTime, TargetingPositionY>,
+            Option<LinearMovementBundle<StageTime, TargetingPositionZ>>,
         ),
     ),
     Jump(()),
@@ -44,31 +46,50 @@ impl EnemyCurrentBehavior {
         time_offset: Duration,
         current_position: &PxSubPosition,
         speed: f32,
+        depth: u8,
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
             EnemyStep::LinearMovement {
+                detph_movement,
                 direction,
                 trayectory,
             } => {
                 let normalised_direction = direction.normalize();
-                let velocity = normalised_direction * speed * GAME_BASE_SPEED;
-                let coordinates = current_position.0 + normalised_direction * trayectory;
+                let enemy_speed = speed * GAME_BASE_SPEED;
+                let velocity = normalised_direction * enemy_speed;
+                let target_position = current_position.0 + normalised_direction * trayectory;
+
                 BehaviorBundle::LinearMovement((
                     LinearMovement {
                         direction,
                         trayectory,
+                        reached_x: false,
+                        reached_y: false,
                     },
                     LinearMovementBundle::<StageTime, TargetingPositionX>::new(
                         current_position.0.x,
-                        coordinates.x,
+                        target_position.x,
                         velocity.x,
                     ),
                     LinearMovementBundle::<StageTime, TargetingPositionY>::new(
                         current_position.0.y,
-                        coordinates.y,
+                        target_position.y,
                         velocity.y,
                     ),
+                    detph_movement.map(|depth_movement| {
+                        let target_depth = depth
+                            .saturating_add_signed(depth_movement)
+                            .min(MOSQUITO_MIN_DEPTH)
+                            .max(MOSQUITO_MAX_DEPTH)
+                            as f32;
+
+                        LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
+                            depth as f32,
+                            target_depth,
+                            target_depth / enemy_speed,
+                        )
+                    }),
                 ))
             }
             EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
@@ -81,8 +102,9 @@ impl EnemyCurrentBehavior {
                 time_offset: time_offset.as_secs_f32(),
             }),
             EnemyStep::Jump {
-                coordinates,
                 attacking,
+                coordinates,
+                detph_movement,
                 speed,
             } => BehaviorBundle::Jump(()),
         }
@@ -116,10 +138,6 @@ impl EnemyBehaviorTimer {
             entity,
             timer: Timer::from_seconds(duration, TimerMode::Once),
         }
-    }
-
-    pub fn finished(&self) -> bool {
-        self.timer.finished()
     }
 }
 

@@ -110,6 +110,7 @@ pub fn assign_mosquito_animation(
                     coordinates,
                     attacking,
                     speed,
+                    ..
                 } => {
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
                     animation_o.map(|animation| {

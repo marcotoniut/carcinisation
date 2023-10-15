@@ -387,6 +387,7 @@ pub fn check_movement_step_reached(
     >,
 ) {
     for (entity, _) in query.iter() {
+        // TODO review cleanup of PositionY
         event_writer.send(NextStepEvent {})
     }
 }

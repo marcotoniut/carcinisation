@@ -82,22 +82,44 @@ pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSu
     }
 }
 
-pub fn check_linear_movement_finished(
-    mut commands: Commands,
+pub fn check_linear_movement_x_finished(
     mut query: Query<
-        Entity,
+        &mut LinearMovement,
         (
             With<EnemyCurrentBehavior>,
-            With<LinearMovement>,
-            // TODO hacky, since LinearTargetReached gets removed immediately.
-            With<LinearTargetReached<StageTime, TargetingPositionX>>,
+            Added<LinearTargetReached<StageTime, TargetingPositionX>>,
         ),
     >,
 ) {
-    for entity in query.iter_mut() {
-        commands
-            .entity(entity)
-            .remove::<EnemyCurrentBehavior>()
-            .remove::<LinearMovement>();
+    for mut linear_movement in query.iter_mut() {
+        linear_movement.reached_x = true;
+    }
+}
+
+pub fn check_linear_movement_y_finished(
+    mut query: Query<
+        &mut LinearMovement,
+        (
+            With<EnemyCurrentBehavior>,
+            Added<LinearTargetReached<StageTime, TargetingPositionY>>,
+        ),
+    >,
+) {
+    for mut linear_movement in query.iter_mut() {
+        linear_movement.reached_y = true;
+    }
+}
+
+pub fn check_linear_movement_finished(
+    mut commands: Commands,
+    mut query: Query<(Entity, &LinearMovement), (With<EnemyCurrentBehavior>,)>,
+) {
+    for (entity, linear_movement) in query.iter_mut() {
+        if linear_movement.reached_x && linear_movement.reached_y {
+            commands
+                .entity(entity)
+                .remove::<EnemyCurrentBehavior>()
+                .remove::<LinearMovement>();
+        }
     }
 }

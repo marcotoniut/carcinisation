@@ -39,10 +39,12 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     .with_coordinates(Vec2::new(79., 100.))
                     .with_elapsed(0.4)
                     .with_steps_vec(vec![
-                        EnemyStep::linear_movement_base(),
+                        EnemyStep::linear_movement_base().with_detph_movement(1),
                         EnemyStep::Idle { duration: 1. },
                         EnemyStep::linear_movement_base().opposite_direction(),
-                        EnemyStep::linear_movement_base().with_radius(10.),
+                        EnemyStep::linear_movement_base()
+                            .with_radius(10.)
+                            .with_detph_movement(-1),
                     ]),
             )),
         ),
@@ -130,9 +132,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_coordinates(Vec2::new(70.0, 60.0))
                     .with_elapsed(6.8)
                     .with_steps_vec(vec![EnemyStep::Circle {
+                        detph_movement: None,
+                        direction: MovementDirection::Positive,
                         duration: 999.0,
                         radius: 3.0,
-                        direction: MovementDirection::Positive,
                     }]),
             ),
             StageSpawn::Enemy(
@@ -226,9 +229,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_coordinates(Vec2::new(60.0, 120.0))
                     .with_elapsed(7.4)
                     .with_steps_vec(vec![EnemyStep::Circle {
+                        detph_movement: None,
                         duration: 999.0,
-                        radius: 13.0,
                         direction: MovementDirection::Positive,
+                        radius: 13.0,
                     }]),
             ),
             StageSpawn::Enemy(
@@ -275,9 +279,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_speed(5.0)
                     .with_elapsed(6.1)
                     .with_steps_vec(vec![EnemyStep::Circle {
+                        detph_movement: None,
+                        direction: MovementDirection::Positive,
                         duration: 999.0,
                         radius: 23.0,
-                        direction: MovementDirection::Positive,
                     }]),
             ),
             StageSpawn::Enemy(
@@ -302,6 +307,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_speed(5.0)
                     .with_elapsed(8.1)
                     .with_steps_vec(vec![EnemyStep::Circle {
+                        detph_movement: None,
                         duration: 999.0,
                         radius: 13.0,
                         direction: MovementDirection::Positive,
@@ -317,6 +323,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_speed(5.0)
                     .with_elapsed(8.4)
                     .with_steps_vec(vec![EnemyStep::Circle {
+                        detph_movement: None,
                         duration: 999.0,
                         radius: 15.0,
                         direction: MovementDirection::Positive,
