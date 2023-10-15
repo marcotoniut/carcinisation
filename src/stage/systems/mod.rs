@@ -73,12 +73,9 @@ pub fn setup_stage(
 
     mut event_writer: EventWriter<PlayerStartupEvent>,
     asset_server: Res<AssetServer>,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
     volume_settings: Res<VolumeSettings>,
 ) {
     event_writer.send(PlayerStartupEvent);
-
-    let camera_pos = camera_query.get_single().unwrap();
 
     let stage_data = STAGE_DEBUG_DATA.clone();
     // let stage_data = STAGE_PARK_DATA.clone();
@@ -89,7 +86,7 @@ pub fn setup_stage(
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, camera_pos.0, spawn);
+                spawn_enemy(&mut commands, Vec2::ZERO, spawn);
             }
             StageSpawn::Object(spawn) => {
                 spawn_object(&mut commands, &mut assets_sprite, spawn);
