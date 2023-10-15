@@ -10,17 +10,29 @@ fn main() {
         (
             "base",
             [
-                // #471226
-                Rgb([39, 25, 54]),
-                // #99340b
-                Rgb([153, 52, 11]),
-                // TODO replace with #ba583f
-                // #aa593a
-                Rgb([170, 89, 58]),
-                // TODO replace with #f8d99f
-                // #f6d69c
-                Rgb([246, 214, 156]),
+                // #421033
+                Rgb([66, 16, 51]),
+                // #91300a
+                Rgb([145, 48, 10]),
+                // #b76540
+                Rgb([183, 101, 64]),
+                // #fbe29f
+                Rgb([251, 226, 159]),
             ],
+            // [
+            //     // TODO replace with #431235
+            //     // #471226
+            //     Rgb([39, 25, 54]),
+            //     // TODO replace with #872108
+            //     // #99340b
+            //     Rgb([153, 52, 11]),
+            //     // TODO replace with #be6941
+            //     // #aa593a
+            //     Rgb([170, 89, 58]),
+            //     // TODO replace with #fbe1a8
+            //     // #f6d69c
+            //     Rgb([246, 214, 156]),
+            // ],
         ),
         (
             "alt",
