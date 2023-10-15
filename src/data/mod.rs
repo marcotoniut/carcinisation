@@ -19,7 +19,7 @@ impl AnimationData {
             duration: PxAnimationDuration::millis_per_animation(self.speed),
             frame_transition: self.frame_transition,
             on_finish: self.finish_behavior,
-            ..default()
+            ..Default::default()
         }
     }
 }

@@ -55,9 +55,9 @@ fn main() {
                     focused,
                     resizable: true,
                     resolution: VIEWPORT_RESOLUTION.into(),
-                    ..default()
+                    ..Default::default()
                 }),
-                ..default()
+                ..Default::default()
             }),
             bevy_editor_pls::EditorPlugin::new(),
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
@@ -72,9 +72,9 @@ fn main() {
                 focused,
                 resizable: false,
                 resolution: VIEWPORT_RESOLUTION.into(),
-                ..default()
+                ..Default::default()
             }),
-            ..default()
+            ..Default::default()
         }));
     }
     app

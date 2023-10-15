@@ -44,13 +44,13 @@ pub fn make_clip_bundle(
             anchor: PxAnchor::BottomLeft,
             canvas: PxCanvas::Camera,
             layer: Layer::Skybox,
-            ..default()
+            ..Default::default()
         },
         PxAnimationBundle {
             // TODO variable time
             duration: PxAnimationDuration::millis_per_animation(2000),
             on_finish: PxAnimationFinishBehavior::Loop,
-            ..default()
+            ..Default::default()
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
         Name::new(format!("CINEMA_{}_clip", cinemachine_data.name)),
@@ -88,7 +88,7 @@ pub fn spawn_cinemachine_module(
                         line: [(0, i).into(), (160, i).into()].into(),
                         layers: PxFilterLayers::single_over(Layer::CutsceneBackground),
                         filter: filters.load("filter/color3.png"),
-                        ..default()
+                        ..Default::default()
                     },
                     UIBackground {},
                     Name::new(format!(

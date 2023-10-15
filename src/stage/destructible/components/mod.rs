@@ -48,7 +48,7 @@ pub fn make_animation_bundle(
                     sprite,
                     layer: Layer::Middle(depth),
                     anchor: animation_data.anchor,
-                    ..default()
+                    ..Default::default()
                 },
                 animation_data.make_animation_bundle(),
                 CollisionData {

@@ -77,7 +77,7 @@ pub fn pickup_health(
                         anchor: PxAnchor::Center,
                         canvas: PxCanvas::Camera,
                         layer: Layer::Pickups,
-                        ..default()
+                        ..Default::default()
                     },
                 ))
                 .insert(movement_bundle);

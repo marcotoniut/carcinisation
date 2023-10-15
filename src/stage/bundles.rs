@@ -15,7 +15,7 @@ pub fn make_background_bundle(
             sprite,
             anchor: PxAnchor::BottomLeft,
             layer: Layer::Background,
-            ..default()
+            ..Default::default()
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
         Name::new("Background"),
@@ -40,13 +40,13 @@ pub fn make_skybox_bundle(
             anchor: PxAnchor::BottomLeft,
             canvas: PxCanvas::Camera,
             layer: Layer::Skybox,
-            ..default()
+            ..Default::default()
         },
         PxAnimationBundle {
             // TODO variable time
             duration: PxAnimationDuration::millis_per_animation(2000),
             on_finish: PxAnimationFinishBehavior::Loop,
-            ..default()
+            ..Default::default()
         },
         PxSubPosition::from(Vec2::new(0.0, 0.0)),
         Name::new("Skybox"),

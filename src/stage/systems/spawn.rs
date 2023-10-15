@@ -116,9 +116,10 @@ pub fn spawn_pickup(
                         sprite,
                         anchor: PxAnchor::Center,
                         layer: Layer::Middle(2),
-                        ..default()
+                        ..Default::default()
                     },
                     position,
+                    // TODO should this be the spawn depth or the spawner's?
                     Depth(spawn.depth),
                     Health(1),
                     CollisionData::new(Collision::Box(Vec2::new(12., 8.))),
@@ -137,7 +138,7 @@ pub fn spawn_pickup(
                         sprite,
                         anchor: PxAnchor::BottomCenter,
                         layer: Layer::Middle(2),
-                        ..default()
+                        ..Default::default()
                     },
                     position,
                     Depth(spawn.depth),
@@ -176,7 +177,9 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                         steps: steps.clone(),
                     },
                     Depth(*depth),
-                    EnemyMosquitoAttacking { ..default() },
+                    EnemyMosquitoAttacking {
+                        ..Default::default()
+                    },
                     Flickerer,
                     Hittable,
                     PxSubPosition::from(position),
@@ -207,12 +210,15 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                 EnemyTardigrade {
                     steps: steps.clone(),
                 },
-                EnemyTardigradeAttacking { ..default() },
+                EnemyTardigradeAttacking {
+                    ..Default::default()
+                },
                 Flickerer,
                 Hittable,
                 PxSubPosition::from(position),
-                CollisionData::new(Collision::Circle(ENEMY_TARDIGRADE_RADIUS))
-                    .with_offset(Vec2::new(-3., 2.)),
+                // TODO
+                // CollisionData::new(Collision::Circle(ENEMY_TARDIGRADE_RADIUS))
+                //     .with_offset(Vec2::new(-3., 2.)),
                 Health(ENEMY_TARDIGRADE_BASE_HEALTH),
             ))
             .id(),
@@ -276,7 +282,7 @@ pub fn spawn_object(
                 sprite,
                 anchor: PxAnchor::BottomCenter,
                 layer,
-                ..default()
+                ..Default::default()
             },
             PxSubPosition::from(spawn.coordinates.clone()),
         ))
