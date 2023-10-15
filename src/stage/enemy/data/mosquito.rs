@@ -1,7 +1,6 @@
+use crate::{data::AnimationData, globals::PATH_SPRITES_ENEMIES};
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
 use std::collections::HashMap;
-
-use crate::{data::AnimationData, globals::PATH_SPRITES_ENEMIES};
 
 pub struct MosquitoAnimations {
     pub death: HashMap<u8, AnimationData>,

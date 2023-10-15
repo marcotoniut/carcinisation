@@ -1,8 +1,3 @@
-use std::time::Duration;
-
-use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAssets, PxFilter};
-
 use crate::stage::{
     components::{
         damage::{DamageFlicker, InvertFilter},
@@ -11,6 +6,9 @@ use crate::stage::{
     events::DamageEvent,
     resources::StageTime,
 };
+use bevy::prelude::*;
+use seldom_pixel::prelude::{PxAssets, PxFilter};
+use std::time::Duration;
 
 pub const DAMAGE_FLICKER_COUNT: u8 = 4;
 

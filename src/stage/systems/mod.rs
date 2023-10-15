@@ -1,10 +1,10 @@
 pub mod camera;
 pub mod damage;
 pub mod movement;
+pub mod setup;
 pub mod spawn;
 pub mod state;
 
-use self::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 use super::{
     bundles::*,
     components::{
@@ -16,20 +16,17 @@ use super::{
     destructible::components::Destructible,
     enemy::components::Enemy,
     events::{NextStepEvent, StageClearedEvent, StageGameOverEvent},
-    player::{components::Player, events::PlayerStartupEvent},
+    player::components::Player,
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
     StageProgressState,
 };
-
 use crate::{
-    cinemachine::cinemachine::CinemachineScene,
     components::{DespawnMark, Music},
     game::GameProgressState,
     globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
     plugins::movement::linear::components::{
         LinearMovementBundle, LinearTargetReached, TargetingPositionX, TargetingPositionY,
     },
-    resource::{asteroid::STAGE_ASTEROID_DATA, debug::STAGE_DEBUG_DATA, park::STAGE_PARK_DATA},
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
     GBInput,
 };
@@ -62,73 +59,27 @@ pub fn toggle_game(
     }
 }
 
-#[derive(Resource)]
-pub struct StageRawData {
-    stage_data: StageData,
-}
-
-pub fn setup_stage(
-    mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
-
-    mut event_writer: EventWriter<PlayerStartupEvent>,
-    asset_server: Res<AssetServer>,
-    volume_settings: Res<VolumeSettings>,
-) {
-    event_writer.send(PlayerStartupEvent);
-
-    let stage_data = STAGE_DEBUG_DATA.clone();
-    // let stage_data = STAGE_PARK_DATA.clone();
-
-    for spawn in &stage_data.spawns {
-        match spawn {
-            StageSpawn::Destructible(spawn) => {
-                spawn_destructible(&mut commands, &mut assets_sprite, spawn);
-            }
-            StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, Vec2::ZERO, spawn);
-            }
-            StageSpawn::Object(spawn) => {
-                spawn_object(&mut commands, &mut assets_sprite, spawn);
-            }
-            StageSpawn::Pickup(spawn) => {
-                spawn_pickup(&mut commands, &mut assets_sprite, Vec2::ZERO, spawn);
-            }
-        }
-    }
-
-    spawn_music(
-        &mut commands,
-        &asset_server,
-        &volume_settings,
-        stage_data.music_path.clone(),
-        PlaybackMode::Loop,
-    );
-
-    commands.insert_resource(StageRawData { stage_data });
-}
-
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut state: ResMut<NextState<GameProgressState>>,
-    stage_data_raw: Res<StageRawData>,
+    stage_data: Res<StageData>,
 ) {
-    let stage = &stage_data_raw.stage_data;
     commands
         .spawn((Stage, Name::new("Stage")))
         .with_children(|parent| {
             let background_bundle =
-                make_background_bundle(&mut assets_sprite, stage.background_path.clone());
+                make_background_bundle(&mut assets_sprite, stage_data.background_path.clone());
             parent.spawn(background_bundle);
 
-            let skybox_bundle = make_skybox_bundle(&mut assets_sprite, stage.skybox.clone());
+            let skybox_bundle = make_skybox_bundle(&mut assets_sprite, stage_data.skybox.clone());
             parent.spawn(skybox_bundle);
         });
 
     state.set(GameProgressState::Running);
 }
 
+// TODO combine the two and use just_finished and StageTime
 pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }
@@ -148,15 +99,14 @@ pub fn update_stage(
     stage_query: Query<Entity, With<Stage>>,
     mut next_state: ResMut<NextState<StageProgressState>>,
     stage_progress: ResMut<StageProgress>,
-    stage_data_raw: Res<StageRawData>,
+    stage_data: Res<StageData>,
 ) {
     match state.to_owned() {
         StageProgressState::Initial => {
             next_state.set(StageProgressState::Running);
         }
         StageProgressState::Running => {
-            let stage = &stage_data_raw.stage_data;
-            if let Some(action) = stage.steps.get(stage_progress.step) {
+            if let Some(action) = stage_data.steps.get(stage_progress.step) {
                 if DEBUG_STAGESTEP {
                     let curr_action = match action {
                         StageStep::Movement { .. } => "movement".to_string(),
@@ -185,10 +135,9 @@ pub fn update_stage(
 pub fn check_staged_cleared(
     mut event_writer: EventWriter<StageClearedEvent>,
     stage_progress: Res<StageProgress>,
-    stage_data_raw: Res<StageRawData>,
+    stage_data: Res<StageData>,
 ) {
-    let stage = &stage_data_raw.stage_data;
-    if stage_progress.step >= stage.steps.len() {
+    if stage_progress.step >= stage_data.steps.len() {
         event_writer.send(StageClearedEvent {});
     }
 }
@@ -268,14 +217,13 @@ pub fn read_stage_step_trigger(
     mut commands: Commands,
     mut stage_progress: ResMut<StageProgress>,
     query: Query<Entity, (With<Stage>, Without<CurrentStageStep>)>,
-    stage_data_raw: Res<StageRawData>,
+    stage_data: Res<StageData>,
     stage_time: Res<StageTime>,
 ) {
     if let Ok(entity) = query.get_single() {
         stage_progress.step += 1;
 
-        let stage = &stage_data_raw.stage_data;
-        if let Some(action) = stage.steps.get(stage_progress.step) {
+        if let Some(action) = stage_data.steps.get(stage_progress.step) {
             let mut entity_commands = commands.entity(entity);
             entity_commands.insert(CurrentStageStep {
                 started: stage_time.elapsed,
@@ -367,23 +315,14 @@ pub fn initialise_stop_step(
         }
     }
 }
-
-pub fn update_cinematic_step(
-    mut commands: Commands,
-    mut event_writer: EventWriter<NextStepEvent>,
-    query: Query<(Entity, &CinematicStageStep), With<Stage>>,
-) {
-    for (entity, _) in query.iter() {}
-}
-
 pub fn check_movement_step_reached(
     mut event_writer: EventWriter<NextStepEvent>,
-    query: Query<
-        (Entity, &MovementStageStep),
+    query: Query<(
+        With<MovementStageStep>,
         Added<LinearTargetReached<StageTime, TargetingPositionX>>,
-    >,
+    )>,
 ) {
-    for (entity, _) in query.iter() {
+    for _ in query.iter() {
         // TODO review cleanup of PositionY
         event_writer.send(NextStepEvent {})
     }
@@ -404,6 +343,14 @@ pub fn check_stop_step_finished_by_duration(
             event_writer.send(NextStepEvent {});
         }
     }
+}
+
+pub fn update_cinematic_step(
+    mut commands: Commands,
+    mut event_writer: EventWriter<NextStepEvent>,
+    query: Query<(Entity, &CinematicStageStep), With<Stage>>,
+) {
+    for (entity, _) in query.iter() {}
 }
 
 pub fn cleanup_cinematic_step(

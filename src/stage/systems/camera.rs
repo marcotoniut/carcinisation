@@ -1,15 +1,11 @@
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
-
 use crate::{
     globals::{is_inside_area, HUD_HEIGHT, SCREEN_RESOLUTION},
     plugins::movement::linear::components::{TargetingPositionX, TargetingPositionY},
-    stage::{
-        components::placement::{InView, RailPosition},
-        player::components::CameraShake,
-    },
+    stage::{components::placement::InView, player::components::CameraShake},
     systems::camera::CameraPos,
 };
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 const IN_VIEW_OFFSET: u32 = 5;
 const IN_VIEW_OFFSET_BOTTOM: u32 = HUD_HEIGHT + IN_VIEW_OFFSET;

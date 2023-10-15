@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
-
 use crate::{
     plugins::movement::{linear::components::*, structs::MovementDirection},
     stage::{

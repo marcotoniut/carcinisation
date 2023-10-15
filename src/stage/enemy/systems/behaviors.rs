@@ -1,6 +1,3 @@
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
-
 use crate::stage::{
     components::placement::{Depth, Speed},
     enemy::components::{
@@ -9,6 +6,8 @@ use crate::stage::{
     },
     resources::StageTime,
 };
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 pub fn check_no_behavior(
     mut commands: Commands,
