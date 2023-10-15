@@ -67,6 +67,15 @@ impl MovementStageStep {
         self
     }
 
+    pub fn base(x: f32, y: f32) -> Self {
+        Self {
+            coordinates: Vec2::new(x, y),
+            base_speed: 1.,
+            spawns: vec![],
+            floor_depths: None,
+        }
+    }
+
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
