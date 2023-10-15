@@ -41,10 +41,10 @@ pub fn make_spawns() -> Vec<StageSpawn> {
             ))
             .into(),
         DestructibleSpawn::mushroom_base(20.0, 0.0)
-            .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base()))
+            .drops(PickupSpawn::big_healthpack_base().into())
             .into(),
         DestructibleSpawn::crystal_base(20., 0.)
-            .drops(ContainerSpawn::Pickup(PickupSpawn::small_healthpack_base()))
+            .drops(PickupSpawn::small_healthpack_base().into())
             .into(),
     ]
 }
