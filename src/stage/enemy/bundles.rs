@@ -24,7 +24,7 @@ pub fn make_enemy_animation_bundle(
             sprite: texture,
             layer: Layer::Middle(depth.0),
             anchor: PxAnchor::Center,
-            ..default()
+            ..Default::default()
         },
         data.make_animation_bundle(),
     )

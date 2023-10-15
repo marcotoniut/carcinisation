@@ -48,7 +48,7 @@ pub fn spawn_hud_bundle(
                         line: [(0, i).into(), (SCREEN_RESOLUTION.x as i32, i).into()].into(),
                         layers: PxFilterLayers::single_over(Layer::HudBackground),
                         filter: filters.load("filter/color3.png"),
-                        ..default()
+                        ..Default::default()
                     },
                     UIBackground {},
                     Name::new("UIBackground"),
@@ -64,7 +64,7 @@ pub fn spawn_hud_bundle(
                             canvas: PxCanvas::Camera,
                             layer: Layer::Hud,
                             sprite: assets_sprite.load("sprites/score-icon.png"),
-                            ..default()
+                            ..Default::default()
                         },
                         PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),
                         Name::new("HealthIcon"),
@@ -84,7 +84,7 @@ pub fn spawn_hud_bundle(
                             .into(),
                             text: "0".into(),
                             typeface: typeface.clone(),
-                            ..default()
+                            ..Default::default()
                         },
                         HealthText,
                         Name::new("HealthText"),
@@ -110,7 +110,7 @@ pub fn spawn_hud_bundle(
                         .into(),
                         text: "0".into(),
                         typeface: typeface.clone(),
-                        ..default()
+                        ..Default::default()
                     },
                     ScoreText,
                     Name::new("ScoreText"),

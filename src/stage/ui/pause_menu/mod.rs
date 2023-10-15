@@ -67,7 +67,7 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
                         filter: filters.load("filter/color3.png"),
-                        ..default()
+                        ..Default::default()
                     },
                     UIBackground {},
                     Name::new("UIBackground"),
@@ -88,7 +88,7 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         text: "Paused".into(),
                         typeface: typeface.clone(),
-                        ..default()
+                        ..Default::default()
                     },
                     InfoText,
                     Name::new("InfoText_Pause"),
@@ -109,7 +109,7 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         text: "Score:".into(),
                         typeface: typeface.clone(),
-                        ..default()
+                        ..Default::default()
                     },
                     InfoText,
                     Name::new("InfoText_Score"),
@@ -130,7 +130,7 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         text: score_text.clone().into(),
                         typeface: typeface.clone(),
-                        ..default()
+                        ..Default::default()
                     },
                     ScoreText,
                     Name::new("ScoreText"),

@@ -34,13 +34,13 @@ pub fn make_hovering_attack_animation_bundle(
             // DEBUG
             layer: Layer::Middle(depth.0 + 2),
             anchor: PxAnchor::Center,
-            ..default()
+            ..Default::default()
         },
         PxAnimationBundle {
             duration: PxAnimationDuration::millis_per_animation(animation.speed),
             on_finish: animation.finish_behavior,
             direction: animation.direction,
-            ..default()
+            ..Default::default()
         },
         animation.collision.clone(),
     )

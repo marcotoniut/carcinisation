@@ -74,21 +74,21 @@ impl PlayerAttack {
                             anchor: PxAnchor::Center,
                             canvas: PxCanvas::Camera,
                             layer: Layer::Attack,
-                            ..default()
+                            ..Default::default()
                         },
                         PxAnimationBundle {
                             duration: PxAnimationDuration::millis_per_animation(500),
                             on_finish: PxAnimationFinishBehavior::Despawn,
-                            ..default()
+                            ..Default::default()
                         },
                         AudioBundle {
                             source: melee_slash_sound,
                             settings: PlaybackSettings {
                                 mode: PlaybackMode::Despawn,
                                 volume: Volume::new_relative(volume_settings.2 * 1.0),
-                                ..default()
+                                ..Default::default()
                             },
-                            ..default()
+                            ..Default::default()
                         },
                         AudioSystemBundle {
                             system_type: AudioSystemType::SFX,
@@ -104,21 +104,21 @@ impl PlayerAttack {
                             anchor: PxAnchor::Center,
                             canvas: PxCanvas::Camera,
                             layer: Layer::Attack,
-                            ..default()
+                            ..Default::default()
                         },
                         PxAnimationBundle {
                             duration: PxAnimationDuration::millis_per_animation(80),
                             on_finish: PxAnimationFinishBehavior::Despawn,
-                            ..default()
+                            ..Default::default()
                         },
                         AudioBundle {
                             source: shoot_sound,
                             settings: PlaybackSettings {
                                 mode: PlaybackMode::Despawn,
                                 volume: Volume::new_relative(volume_settings.2 * 1.0),
-                                ..default()
+                                ..Default::default()
                             },
-                            ..default()
+                            ..Default::default()
                         },
                         AudioSystemBundle {
                             system_type: AudioSystemType::SFX,

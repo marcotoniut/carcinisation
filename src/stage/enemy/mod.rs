@@ -5,7 +5,9 @@ pub mod systems;
 
 use bevy::prelude::*;
 
-use self::systems::{behaviors::*, mosquito::*, tardigrade::*, *};
+use self::systems::{
+    animation::read_enemy_depth_changed, behaviors::*, mosquito::*, tardigrade::*, *,
+};
 
 pub struct EnemyPlugin;
 
@@ -15,6 +17,7 @@ impl Plugin for EnemyPlugin {
             Update,
             (
                 check_no_behavior,
+                read_enemy_depth_changed,
                 tick_enemy_behavior_timer,
                 (
                     // Tied components

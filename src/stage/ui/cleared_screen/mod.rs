@@ -78,7 +78,7 @@ pub fn spawn_screen(
                         .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
                         filter: filters.load("filter/color3.png"),
-                        ..default()
+                        ..Default::default()
                     },
                     UIBackground {},
                     Name::new("UIBackground"),
@@ -99,7 +99,7 @@ pub fn spawn_screen(
                         .into(),
                         text: "Stage  Cleared".into(),
                         typeface: typeface.clone(),
-                        ..default()
+                        ..Default::default()
                     },
                     InfoText,
                     Name::new("InfoText_Stage_Cleared"),
@@ -120,7 +120,7 @@ pub fn spawn_screen(
                         .into(),
                         text: "Score:".into(),
                         typeface: typeface.clone(),
-                        ..default()
+                        ..Default::default()
                     },
                     InfoText,
                     Name::new("InfoText_Score"),
@@ -141,7 +141,7 @@ pub fn spawn_screen(
                         .into(),
                         text: score_text.clone().into(),
                         typeface: typeface.clone(),
-                        ..default()
+                        ..Default::default()
                     },
                     ScoreText,
                     Name::new("ScoreText"),

@@ -1,5 +1,7 @@
 use crate::{data::AnimationData, globals::PATH_SPRITES_ENEMIES};
-use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
+use seldom_pixel::prelude::{
+    PxAnimationDirection, PxAnimationFinishBehavior, PxAnimationFrameTransition,
+};
 use std::collections::HashMap;
 
 pub struct MosquitoAnimations {
@@ -36,7 +38,7 @@ lazy_static! {
         let death_frames = 20;
         let death_speed = 780;
 
-        let attack_frames = 8;
+        let melee_attack_frames = 8;
         let melee_attack_speed = 130;
 
         let mut death = HashMap::new();
@@ -73,6 +75,7 @@ lazy_static! {
                     frames: fly_frames,
                     speed: fly_speed,
                     finish_behavior: PxAnimationFinishBehavior::Loop,
+                    frame_transition: PxAnimationFrameTransition::Dither,
                     ..Default::default()
                 },
             );
@@ -108,7 +111,7 @@ lazy_static! {
                         FRAGMENT_MELEE_ATTACK,
                         i,
                     ),
-                    frames: attack_frames,
+                    frames: melee_attack_frames,
                     speed: melee_attack_speed,
                     finish_behavior: PxAnimationFinishBehavior::Mark,
                     ..Default::default()

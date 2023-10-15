@@ -19,7 +19,7 @@ pub fn make_letterbox_row(
             .into(),
             layers: PxFilterLayers::single_over(Layer::Letterbox),
             filter,
-            ..default()
+            ..Default::default()
         },
         LetterboxRow { row },
         Name::new("LetterboxRow"),
