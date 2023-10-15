@@ -52,10 +52,10 @@ lazy_static! {
                         FRAGMENT_DEATH,
                         i,
                     ),
+                    direction: PxAnimationDirection::Backward,
+                    finish_behavior: PxAnimationFinishBehavior::Despawn,
                     frames: death_frames,
                     speed: death_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
-                    direction: PxAnimationDirection::Backward,
                     ..Default::default()
                 },
             );
@@ -72,10 +72,9 @@ lazy_static! {
                         FRAGMENT_FLY,
                         i,
                     ),
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     frames: fly_frames,
                     speed: fly_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    frame_transition: PxAnimationFrameTransition::Dither,
                     ..Default::default()
                 },
             );
@@ -92,9 +91,9 @@ lazy_static! {
                         FRAGMENT_IDLE,
                         i,
                     ),
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     frames: idle_frames,
                     speed: idle_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
                     ..Default::default()
                 },
             );
@@ -111,9 +110,9 @@ lazy_static! {
                         FRAGMENT_MELEE_ATTACK,
                         i,
                     ),
+                    finish_behavior: PxAnimationFinishBehavior::Mark,
                     frames: melee_attack_frames,
                     speed: melee_attack_speed,
-                    finish_behavior: PxAnimationFinishBehavior::Mark,
                     ..Default::default()
                 },
             );

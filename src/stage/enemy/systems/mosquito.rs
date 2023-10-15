@@ -158,7 +158,7 @@ pub fn despawn_dead_mosquitoes(
                     sprite: texture,
                     layer: Layer::Middle(depth.0),
                     anchor: PxAnchor::Center,
-                    ..Default::default()
+                    ..default()
                 },
                 animation.make_animation_bundle(),
             ));

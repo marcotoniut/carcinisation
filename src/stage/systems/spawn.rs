@@ -9,6 +9,7 @@ use crate::stage::{
         components::{make_animation_bundle, DestructibleState},
         data::destructibles::DESTRUCTIBLE_ANIMATIONS,
     },
+    enemy::components::ENEMY_TARDIGRADE_RADIUS,
     player::components::{PlayerAttack, UnhittableList},
     resources::{StageStepSpawner, StageTime},
 };
@@ -25,7 +26,7 @@ use crate::{
         enemy::components::{
             behavior::EnemyBehaviors, Enemy, EnemyMosquito, EnemyMosquitoAttacking,
             EnemyTardigrade, EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
-            ENEMY_MOSQUITO_RADIUS, ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS,
+            ENEMY_MOSQUITO_RADIUS, ENEMY_TARDIGRADE_BASE_HEALTH,
         },
         events::StageSpawnEvent,
         pickup::components::HealthRecovery,
@@ -215,10 +216,11 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                 },
                 Flickerer,
                 Hittable,
+                // TODO speed needs to be assigned otherwise the check_no_behavior function cannot find the target enemy
+                Speed(*speed),
                 PxSubPosition::from(position),
-                // TODO
-                // CollisionData::new(Collision::Circle(ENEMY_TARDIGRADE_RADIUS))
-                //     .with_offset(Vec2::new(-3., 2.)),
+                CollisionData::new(Collision::Circle(ENEMY_TARDIGRADE_RADIUS))
+                    .with_offset(Vec2::new(-3., 2.)),
                 Health(ENEMY_TARDIGRADE_BASE_HEALTH),
             ))
             .id(),

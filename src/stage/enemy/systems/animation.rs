@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
 use crate::stage::{
-    enemy::components::{Enemy, EnemyMosquitoAnimation, EnemyTardigrade, EnemyTardigradeAnimation},
+    enemy::components::{Enemy, EnemyMosquitoAnimation, EnemyTardigradeAnimation},
     events::DepthChangedEvent,
 };
 
