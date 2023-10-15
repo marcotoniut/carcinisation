@@ -23,8 +23,8 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String 
     format!("{}{}_{}_{}.png", s1, s2, s3, index)
 }
 
-const MOSQUITO_MIN_DEPTH: u8 = 1;
-const MOSQUITO_MAX_DEPTH: u8 = 6;
+pub const MOSQUITO_MIN_DEPTH: u8 = 1;
+pub const MOSQUITO_MAX_DEPTH: u8 = 6;
 
 lazy_static! {
     pub static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 use crate::stage::{
-    components::placement::Speed,
+    components::placement::{Depth, Speed},
     enemy::components::{
         behavior::{BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior},
         CircleAround, Enemy,
@@ -13,12 +13,12 @@ use crate::stage::{
 pub fn check_no_behavior(
     mut commands: Commands,
     mut query: Query<
-        (Entity, &mut EnemyBehaviors, &PxSubPosition, &Speed),
+        (Entity, &mut EnemyBehaviors, &PxSubPosition, &Speed, &Depth),
         (With<Enemy>, Without<EnemyCurrentBehavior>),
     >,
     stage_time: Res<StageTime>,
 ) {
-    for (entity, mut behaviors, position, speed) in query.iter_mut() {
+    for (entity, mut behaviors, position, speed, depth) in query.iter_mut() {
         let behavior = behaviors.next();
 
         let duration_o = behavior.get_duration_o();
@@ -28,13 +28,46 @@ pub fn check_no_behavior(
             behavior,
         };
 
-        let bundles = current_behavior.get_bundles(stage_time.elapsed, position, speed.0);
+        let bundles = current_behavior.get_bundles(stage_time.elapsed, position, speed.0, depth.0);
         match bundles {
-            BehaviorBundle::Idle(bundles) => commands.entity(entity).insert(bundles),
-            BehaviorBundle::LinearMovement(bundles) => commands.entity(entity).insert(bundles),
-            BehaviorBundle::Attack(bundles) => commands.entity(entity).insert(bundles),
-            BehaviorBundle::Circle(bundles) => commands.entity(entity).insert(bundles),
-            BehaviorBundle::Jump(bundles) => commands.entity(entity).insert(bundles),
+            BehaviorBundle::Idle(bundles) => {
+                commands.entity(entity).insert(bundles);
+            }
+            BehaviorBundle::LinearMovement((
+                linear_movement,
+                linear_movement_bundle_x,
+                linear_movement_bundle_y,
+                linear_movement_bundle_z_o,
+            )) => {
+                let mut entity_commands = commands.entity(entity);
+                entity_commands.insert((
+                    linear_movement,
+                    linear_movement_bundle_x,
+                    linear_movement_bundle_y,
+                ));
+                if let Some(linear_movement_bundle_z) = linear_movement_bundle_z_o {
+                    entity_commands.insert(linear_movement_bundle_z);
+                }
+            }
+            BehaviorBundle::Attack(bundles) => {
+                commands.entity(entity).insert(bundles);
+            }
+            BehaviorBundle::Circle(bundles) => {
+                commands.entity(entity).insert(bundles);
+            }
+            BehaviorBundle::Jump(bundles) => {
+                commands.entity(entity).insert(bundles);
+                // let mut entity_commands = commands.entity(entity).insert((
+                //     linear_movement,
+                //     linear_movement_bundle_x,
+                //     linear_movement_bundle_y,
+                // ));
+                // if let Some(linear_movement_bundle_z) = linear_movement_bundle_z_o {
+                //     entity_commands.insert(linear_movement_bundle_z)
+                // } else {
+                //     entity_commands
+                // }
+            }
         };
 
         commands
@@ -55,8 +88,7 @@ pub fn tick_enemy_behavior_timer(
 ) {
     for mut behavior in query.iter_mut() {
         behavior.timer.tick(stage_time.delta);
-
-        if behavior.finished() {
+        if behavior.timer.just_finished() {
             commands
                 .entity(behavior.entity)
                 .remove::<EnemyCurrentBehavior>();

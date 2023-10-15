@@ -10,6 +10,13 @@ use crate::cinemachine::data::CinemachineData;
 
 use super::data::{ContainerSpawn, StageSpawn};
 
+pub enum StageEntityType {
+    Player,
+    Enemy,
+    Destructible,
+    Attack,
+}
+
 // TODO should go in UI
 #[derive(Clone, Component, Debug)]
 pub struct StageClearedText {}

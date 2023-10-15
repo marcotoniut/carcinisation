@@ -71,20 +71,23 @@ pub enum EnemyStep {
         duration: f32,
     },
     Circle {
-        radius: f32,
+        detph_movement: Option<i8>,
         direction: MovementDirection,
         duration: f32,
+        radius: f32,
     },
     Idle {
         duration: f32,
     },
     LinearMovement {
+        detph_movement: Option<i8>,
         direction: Vec2,
         trayectory: f32,
     },
     Jump {
-        coordinates: Vec2,
         attacking: bool,
+        coordinates: Vec2,
+        detph_movement: Option<i8>,
         speed: f32,
     },
 }
@@ -155,18 +158,65 @@ impl EnemyStep {
         self
     }
 
+    pub fn with_detph_movement(mut self, value: i8) -> Self {
+        match self {
+            EnemyStep::Circle {
+                detph_movement: ref mut d,
+                ..
+            } => {
+                *d = Some(value as i8);
+            }
+            EnemyStep::LinearMovement {
+                detph_movement: ref mut d,
+                ..
+            } => {
+                *d = Some(value as i8);
+            }
+            EnemyStep::Jump {
+                detph_movement: ref mut d,
+                ..
+            } => {
+                *d = Some(value as i8);
+            }
+            _ => {}
+        }
+        self
+    }
+
+    pub fn with_trayectory(mut self, value: f32) -> Self {
+        if let EnemyStep::LinearMovement {
+            trayectory: ref mut t,
+            ..
+        } = self
+        {
+            *t = value;
+        }
+        self
+    }
+
     pub fn circle_around_base() -> Self {
         EnemyStep::Circle {
-            radius: 12.,
+            detph_movement: None,
             direction: MovementDirection::Negative,
             duration: 999.,
+            radius: 12.,
         }
     }
 
     pub fn linear_movement_base() -> Self {
         EnemyStep::LinearMovement {
+            detph_movement: None,
             direction: Vec2::new(-1., 0.),
             trayectory: SCREEN_RESOLUTION.x as f32 + 10.,
+        }
+    }
+
+    pub fn jump_base() -> Self {
+        EnemyStep::Jump {
+            coordinates: Vec2::ZERO,
+            attacking: false,
+            detph_movement: None,
+            speed: 0.5,
         }
     }
 }
@@ -359,6 +409,7 @@ impl EnemySpawn {
             depth: 3,
             elapsed: 0.0,
             steps: vec![EnemyStep::Circle {
+                detph_movement: None,
                 duration: 999.,
                 radius: 12.,
                 direction: MovementDirection::Positive,
