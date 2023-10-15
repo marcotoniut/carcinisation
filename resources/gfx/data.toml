@@ -53,11 +53,13 @@ path = "backgrounds/rugpark/background.png"
 [[images]]
 path = "backgrounds/rugpark/skybox.png"
 
-# [[images]]
-# path = "backgrounds/spaceship/spaceship.png"
+[[images]]
+path = "backgrounds/spaceship/background.png"
+[[images]]
+path = "backgrounds/spaceship/skybox.png"
 
-# [[images]]
-# path = "backgrounds/main_menu/blank.png"
+[[images]]
+path = "main_menu/blank.png"
 
 [[images]]
 path = "typeface/typeface.png"
@@ -268,7 +270,7 @@ path = "sprites/pickups/ammo_13x12.png"
 target_path = "sprites/pickups/ammo_2.png"
 [[images]]
 path = "sprites/pickups/bomb_9x9.png"
-target_path = "sprites/pickups/bomb1.png"
+target_path = "sprites/pickups/bomb_1.png"
 [[images]]
 path = "sprites/pickups/bomb_13x11.png"
 target_path = "sprites/pickups/bomb_2.png"
