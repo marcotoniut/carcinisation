@@ -16,7 +16,7 @@ use crate::{
             interactive::Dead,
             placement::{Depth, InView},
         },
-        data::EnemyStep,
+        data::{EnemyStep, JumpEnemyStep},
         enemy::{
             bundles::*,
             components::{behavior::EnemyCurrentBehavior, *},
@@ -106,12 +106,12 @@ pub fn assign_mosquito_animation(
                         )
                     })
                 }
-                EnemyStep::Jump {
+                EnemyStep::Jump(JumpEnemyStep {
                     coordinates,
                     attacking,
                     speed,
                     ..
-                } => {
+                }) => {
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
                     animation_o.map(|animation| {
                         (

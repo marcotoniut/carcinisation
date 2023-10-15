@@ -28,16 +28,15 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                 EnemySpawn::tardigrade_base()
                     .with_elapsed(0.4)
                     .with_steps_vec(vec![
-                        EnemyStep::Idle { duration: 1. },
-                        EnemyStep::Attack { duration: 1. },
+                        EnemyStep::idle_base().with_duration(1.).into(),
+                        EnemyStep::attack_base().with_duration(3.).into(),
                         EnemyStep::linear_movement_base()
-                            .with_linear_direction(Vec2::new(0.5, -1.)),
-                        EnemyStep::Circle {
-                            detph_movement: None,
-                            direction: MovementDirection::Positive,
-                            duration: 4.,
-                            radius: 12.,
-                        },
+                            .with_direction(Vec2::new(0.5, -1.))
+                            .into(),
+                        EnemyStep::circle_around_base()
+                            .opposite_direction()
+                            .with_radius(4.)
+                            .into(),
                     ]),
             )),
         ),
@@ -63,12 +62,10 @@ pub fn make_steps() -> Vec<StageStep> {
                     EnemySpawn::tardigrade_base()
                         .with_coordinates(Vec2::new(60.0, 100.0))
                         .with_elapsed(1.4)
-                        .with_steps_vec(vec![EnemyStep::Circle {
-                            detph_movement: None,
-                            direction: MovementDirection::Negative,
-                            duration: 4.0,
-                            radius: 10.0,
-                        }]),
+                        .with_steps_vec(vec![EnemyStep::circle_around_base()
+                            .with_radius(10.)
+                            .with_duration(4.)
+                            .into()]),
                 ),
                 StageSpawn::Enemy(
                     EnemySpawn::tardigrade_base()
