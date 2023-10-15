@@ -31,7 +31,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                         EnemyStep::idle_base().with_duration(1.).into(),
                         EnemyStep::attack_base().with_duration(3.).into(),
                         EnemyStep::linear_movement_base()
-                            .with_direction(Vec2::new(0.5, -1.))
+                            .with_direction(0.5, -1.)
                             .into(),
                         EnemyStep::circle_around_base()
                             .opposite_direction()

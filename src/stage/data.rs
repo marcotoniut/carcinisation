@@ -247,6 +247,24 @@ impl EnemySpawn {
             .with_radius(12.)
             .into()])
     }
+    pub fn mosquito_variant_approacher() -> Self {
+        Self::mosquito_base()
+            .with_depth(1)
+            .with_x(SCREEN_RESOLUTION.x as f32 + 10.)
+            .with_steps_vec(vec![
+                EnemyStep::linear_movement_base()
+                    .with_direction(-1., -0.1)
+                    .with_depth_movement(1)
+                    .with_trayectory(100.)
+                    .into(),
+                EnemyStep::linear_movement_base()
+                    .with_depth_movement(2)
+                    .with_direction(0.3, -0.2)
+                    .with_trayectory(80.)
+                    .into(),
+                EnemyStep::idle_base().into(),
+            ])
+    }
     pub fn mosquito_variant_linear() -> Self {
         Self::mosquito_base()
             .with_x(SCREEN_RESOLUTION.x as f32 + 10.)

@@ -1,16 +1,13 @@
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
-
 use crate::{
-    globals::{
-        SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION, VIEWPORT_RESOLUTION_OFFSET,
-    },
+    globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
     stage::components::{
         interactive::{Collision, CollisionData},
         placement::*,
     },
     systems::camera::CameraPos,
 };
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 pub const LINE_EXTENSION: f32 = 1000.;
 
@@ -65,25 +62,6 @@ pub fn draw_collisions(
 
     for (data, position) in query.iter() {
         let absolute_position = position.0 - camera_pos.0;
-        // let radius = 1.;
-        // gizmos.circle_2d(
-        //     // to_viewport_coordinates(absolute_position - Vec2::new(radius, radius)),
-        //     to_viewport_coordinates(absolute_position),
-        //     // to_coordinate_x(radius),
-        //     to_viewport_ratio_x(radius),
-        //     Color::ALICE_BLUE,
-        // );
-
-        let rect = Vec2::new(10., 10.);
-
-        // gizmos.rect_2d(
-        //     to_viewport_coordinates(absolute_position),
-        //     // to_viewport_coordinates(absolute_position),
-        //     0.,
-        //     to_viewport_ratio(rect),
-        //     Color::FUCHSIA,
-        // );
-
         match data.collision {
             Collision::Circle(radius) => {
                 gizmos.circle_2d(
@@ -93,7 +71,6 @@ pub fn draw_collisions(
                 );
             }
             Collision::Box(size) => {
-                let half_rect = size / 2.;
                 gizmos.rect_2d(
                     // to_viewport_coordinates(absolute_position - half_rect),
                     to_viewport_coordinates(absolute_position + data.offset),

@@ -113,8 +113,8 @@ impl LinearMovementEnemyStep {
         self
     }
 
-    pub fn with_direction(mut self, value: Vec2) -> Self {
-        self.direction = value;
+    pub fn with_direction(mut self, x: f32, y: f32) -> Self {
+        self.direction = Vec2::new(x, y);
         self
     }
 

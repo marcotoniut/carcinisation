@@ -83,13 +83,13 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_elapsed(0.1)
                     .with_steps_vec(vec![
                         EnemyStep::linear_movement_base()
-                            .with_direction(Vec2::new(-1., -0.2))
+                            .with_direction(-1., -0.2)
                             .with_trayectory(30.)
                             .with_depth_movement(2)
                             .into(),
                         EnemyStep::idle_base().with_duration(3.).into(),
                         EnemyStep::linear_movement_base()
-                            .with_direction(Vec2::new(1., -0.5))
+                            .with_direction(1., -0.5)
                             .with_trayectory(50.)
                             .with_depth_movement(-1)
                             .into(),
@@ -119,13 +119,18 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_elapsed(45.1)
                     .drops(PickupSpawn::big_healthpack_base().into())
                     .into(),
+                EnemySpawn::mosquito_variant_approacher()
+                    .with_coordinates(Vec2::new(140.0, 130.0))
+                    .with_elapsed(2.1)
+                    .drops(PickupSpawn::big_healthpack_base().into())
+                    .into(),
             ])
             .into(),
         MovementStageStep::base(100.0, 0.0)
             .add_spawns(vec![
-                EnemySpawn::mosquito_base()
-                    .with_coordinates(Vec2::new(120.0, 100.0))
-                    .with_elapsed(35.1)
+                EnemySpawn::mosquito_variant_approacher()
+                    .with_coordinates(Vec2::new(140.0, 130.0))
+                    .with_elapsed(2.1)
                     .drops(PickupSpawn::big_healthpack_base().into())
                     .into(),
                 // EnemySpawn::mosquito_variant_circle()
