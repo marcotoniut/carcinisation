@@ -71,6 +71,19 @@ pub enum ContainerSpawn {
     Enemy(EnemySpawn),
 }
 
+impl From<PickupSpawn> for ContainerSpawn {
+    fn from(value: PickupSpawn) -> Self {
+        ContainerSpawn::Pickup(value)
+    }
+}
+
+impl From<EnemySpawn> for ContainerSpawn {
+    fn from(value: EnemySpawn) -> Self {
+        ContainerSpawn::Enemy(value)
+    }
+}
+
+// TODO move pickup data under its own module?
 #[derive(Clone, Debug)]
 pub struct PickupSpawn {
     pub pickup_type: PickupType,
