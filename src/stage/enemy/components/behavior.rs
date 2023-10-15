@@ -4,6 +4,7 @@ use std::{collections::VecDeque, ops::Add};
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
+use crate::stage::data::{CircleEnemyStep, JumpEnemyStep, LinearMovementEnemyStep};
 use crate::stage::enemy::data::mosquito::{MOSQUITO_MAX_DEPTH, MOSQUITO_MIN_DEPTH};
 use crate::{
     plugins::movement::linear::components::{
@@ -50,11 +51,11 @@ impl EnemyCurrentBehavior {
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
-            EnemyStep::LinearMovement {
-                detph_movement,
+            EnemyStep::LinearMovement(LinearMovementEnemyStep {
+                depth_movement_o,
                 direction,
                 trayectory,
-            } => {
+            }) => {
                 let normalised_direction = direction.normalize();
                 let enemy_speed = speed * GAME_BASE_SPEED;
                 let velocity = normalised_direction * enemy_speed;
@@ -77,7 +78,7 @@ impl EnemyCurrentBehavior {
                         target_position.y,
                         velocity.y,
                     ),
-                    detph_movement.map(|depth_movement| {
+                    depth_movement_o.map(|depth_movement| {
                         let target_depth = depth
                             .saturating_add_signed(depth_movement)
                             .min(MOSQUITO_MIN_DEPTH)
@@ -93,20 +94,20 @@ impl EnemyCurrentBehavior {
                 ))
             }
             EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
-            EnemyStep::Circle {
+            EnemyStep::Circle(CircleEnemyStep {
                 radius, direction, ..
-            } => BehaviorBundle::Circle(CircleAround {
+            }) => BehaviorBundle::Circle(CircleAround {
                 center: current_position.0,
                 radius,
                 direction: direction.clone(),
                 time_offset: time_offset.as_secs_f32(),
             }),
-            EnemyStep::Jump {
+            EnemyStep::Jump(JumpEnemyStep {
                 attacking,
                 coordinates,
-                detph_movement,
+                depth_movement,
                 speed,
-            } => BehaviorBundle::Jump(()),
+            }) => BehaviorBundle::Jump(()),
         }
     }
 }
@@ -120,9 +121,7 @@ impl EnemyBehaviors {
     }
 
     pub fn next(&mut self) -> EnemyStep {
-        self.0.pop_front().unwrap_or_else(|| EnemyStep::Idle {
-            duration: EnemyStep::max_duration(),
-        })
+        self.0.pop_front().unwrap_or_else(|| EnemyStep::default())
     }
 }
 
