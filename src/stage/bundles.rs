@@ -1,9 +1,7 @@
+use super::data::SkyboxData;
+use crate::Layer;
 use bevy::prelude::*;
 use seldom_pixel::{asset::*, prelude::*};
-
-use crate::Layer;
-
-use super::data::SkyboxData;
 
 pub fn make_background_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,

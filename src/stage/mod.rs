@@ -27,6 +27,7 @@ use self::{
         camera::*,
         damage::*,
         movement::*,
+        setup::{insert_stage_resource, setup_stage},
         spawn::{check_dead_drop, check_step_spawn, read_stage_spawn_trigger},
         state::{on_active, on_inactive},
         *,
@@ -96,6 +97,8 @@ impl Plugin for StagePlugin {
             // .add_event::<StageSetupEvent>()
             // .add_event::<StageSetupFromCheckpointEvent>()
             // .add_systems(PreUpdate, (on_setup, on_setup_from_checkpoint))
+            // TODO use state instead of Startup and PostStartup
+            .add_systems(Startup, insert_stage_resource.in_set(LoadingSystemSet))
             .add_systems(PostStartup, setup_stage.in_set(LoadingSystemSet))
             // TEMP
             .add_systems(
