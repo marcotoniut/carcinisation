@@ -13,7 +13,7 @@ use crate::{
         attack::{
             components::{
                 bundles::make_hovering_attack_animation_bundle, EnemyAttack,
-                EnemyHoveringAttackType,
+                EnemyAttackOriginDepth, EnemyAttackOriginPosition, EnemyHoveringAttackType,
             },
             data::blood_shot::{
                 BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED,
@@ -77,6 +77,9 @@ pub fn spawn_blood_shot_attack(
         Name::new(format!("Attack - {}", attack_type.get_name())),
         EnemyAttack,
         EnemyHoveringAttackType::BloodShot,
+        // TODO
+        // EnemyAttackOriginPosition(current_pos),
+        // EnemyAttackOriginDepth(depth.clone()),
         depth.clone(),
         InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
         PxSubPosition(current_pos),
