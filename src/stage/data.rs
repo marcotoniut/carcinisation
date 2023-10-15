@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, time::Duration};
 
 use bevy::{
-    prelude::Vec2,
+    prelude::{Resource, Vec2},
     reflect::{TypePath, TypeUuid},
     utils::HashMap,
 };
@@ -301,6 +301,30 @@ impl StageSpawn {
     }
 }
 
+impl From<ObjectSpawn> for StageSpawn {
+    fn from(value: ObjectSpawn) -> Self {
+        StageSpawn::Object(value)
+    }
+}
+
+impl From<DestructibleSpawn> for StageSpawn {
+    fn from(value: DestructibleSpawn) -> Self {
+        StageSpawn::Destructible(value)
+    }
+}
+
+impl From<PickupSpawn> for StageSpawn {
+    fn from(value: PickupSpawn) -> Self {
+        StageSpawn::Pickup(value)
+    }
+}
+
+impl From<EnemySpawn> for StageSpawn {
+    fn from(value: EnemySpawn) -> Self {
+        StageSpawn::Enemy(value)
+    }
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum StageActionResumeCondition {
     MaxDuration(u32),
@@ -379,7 +403,7 @@ impl StageStep {
     }
 }
 
-#[derive(TypeUuid, TypePath, Clone, Debug)]
+#[derive(TypeUuid, TypePath, Clone, Debug, Resource)]
 #[uuid = "c17075ed-7df0-4a51-b961-ce5270a8a934"]
 pub struct StageData {
     pub name: String,
