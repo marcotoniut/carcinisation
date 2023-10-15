@@ -78,6 +78,9 @@ pub fn make_steps() -> Vec<StageStep> {
             )
             .with_max_duration(30.)
             .add_spawns(vec![
+                EnemySpawn::tardigrade_base()
+                    .with_coordinates(Vec2::new(40.0, 70.0))
+                    .into(),
                 EnemySpawn::mosquito_base()
                     .with_coordinates(Vec2::new(60.0, 100.0))
                     .with_elapsed(0.1)
