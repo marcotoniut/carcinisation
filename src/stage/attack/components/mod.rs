@@ -21,6 +21,12 @@ pub enum EnemyHoveringAttackType {
     BoulderThrow,
 }
 
+pub struct EnemyAttackOriginPosition(pub Vec2);
+
+// TODO this should impact damage
+// (but it should also be affected by the stage's environment)
+pub struct EnemyAttackOriginDepth(pub f32);
+
 impl EnemyHoveringAttackType {
     pub fn get_name(&self) -> String {
         match self {
