@@ -1,4 +1,4 @@
-use crate::stage::components::StopStageStep;
+use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
 use crate::stage::enemy::data::steps::EnemyStep;
@@ -51,9 +51,11 @@ pub fn make_spawns() -> Vec<StageSpawn> {
 
 pub fn make_steps() -> Vec<StageStep> {
     vec![
-        StageStep::movement_base(0.0, 0.0).with_base_speed(8.0),
-        StageStep::Stop(StopStageStep::new().with_max_duration(10.)),
-        StageStep::movement_base(50.0, 0.0)
+        MovementStageStep::base(0.0, 0.0)
+            .with_base_speed(8.0)
+            .into(),
+        StopStageStep::new().with_max_duration(10.).into(),
+        MovementStageStep::base(50.0, 0.0)
             .with_base_speed(10.0)
             .add_spawns(vec![
                 EnemySpawn::tardigrade_base()
@@ -72,30 +74,44 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_coordinates(Vec2::new(100.0, 70.0))
                     .with_elapsed(2.4)
                     .into(),
-            ]),
-        StageStep::movement_base(34.0, 62.0).with_base_speed(8.0),
-        StageStep::movement_base(90.0, 0.0).with_base_speed(4.0),
-        StageStep::movement_base(0.0, 0.0).with_base_speed(2.0),
-        StageStep::movement_base(50.0, 0.0).add_spawns(vec![
-            EnemySpawn::tardigrade_base()
-                .with_coordinates(Vec2::new(60.0, 100.0))
-                .into(),
-            EnemySpawn::tardigrade_base()
-                .with_coordinates(Vec2::new(120.0, 100.0))
-                .into(),
-        ]),
-        StageStep::Stop(StopStageStep::new().with_max_duration(30.).add_spawns(vec![
+            ])
+            .into(),
+        MovementStageStep::base(34.0, 62.0)
+            .with_base_speed(8.0)
+            .into(),
+        MovementStageStep::base(90.0, 0.0)
+            .with_base_speed(4.0)
+            .into(),
+        MovementStageStep::base(0.0, 0.0)
+            .with_base_speed(2.0)
+            .into(),
+        MovementStageStep::base(50.0, 0.0)
+            .add_spawns(vec![
                 EnemySpawn::tardigrade_base()
-                    .with_coordinates(Vec2::new(70.0, 70.0))
-                    .with_elapsed(4.).into()])),
-        StageStep::Stop(StopStageStep::new().with_max_duration(40.).add_spawns(vec![
+                    .with_coordinates(Vec2::new(60.0, 100.0))
+                    .into(),
                 EnemySpawn::tardigrade_base()
-                    .with_coordinates(Vec2::new(70.0, 70.0))
-                    .with_elapsed(4.).into()])),
-        StageStep::Stop(
-            StopStageStep::new()
-                .with_kill_all(false)
-                .with_kill_boss(true),
-        ),
+                    .with_coordinates(Vec2::new(120.0, 100.0))
+                    .into(),
+            ])
+            .into(),
+        StopStageStep::new()
+            .with_max_duration(30.)
+            .add_spawns(vec![EnemySpawn::tardigrade_base()
+                .with_coordinates(Vec2::new(70.0, 70.0))
+                .with_elapsed(4.)
+                .into()])
+            .into(),
+        StopStageStep::new()
+            .with_max_duration(40.)
+            .add_spawns(vec![EnemySpawn::tardigrade_base()
+                .with_coordinates(Vec2::new(70.0, 70.0))
+                .with_elapsed(4.)
+                .into()])
+            .into(),
+        StopStageStep::new()
+            .with_kill_all(false)
+            .with_kill_boss(true)
+            .into(),
     ]
 }

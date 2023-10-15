@@ -339,6 +339,24 @@ pub enum StageStep {
     Stop(StopStageStep),
 }
 
+impl From<CinematicStageStep> for StageStep {
+    fn from(value: CinematicStageStep) -> Self {
+        Self::Cinematic(value)
+    }
+}
+
+impl From<MovementStageStep> for StageStep {
+    fn from(value: MovementStageStep) -> Self {
+        Self::Movement(value)
+    }
+}
+
+impl From<StopStageStep> for StageStep {
+    fn from(value: StopStageStep) -> Self {
+        Self::Stop(value)
+    }
+}
+
 impl StageStep {
     pub fn speed(&self) -> f32 {
         match self {
@@ -393,13 +411,8 @@ impl StageStep {
         self
     }
 
-    pub fn movement_base(x: f32, y: f32) -> Self {
-        StageStep::Movement(MovementStageStep {
-            coordinates: Vec2::new(x, y),
-            base_speed: 1.,
-            spawns: vec![],
-            floor_depths: None,
-        })
+    pub fn movement_base(x: f32, y: f32) -> MovementStageStep {
+        MovementStageStep::base(x, y)
     }
 }
 
