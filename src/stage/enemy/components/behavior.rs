@@ -1,23 +1,18 @@
-use std::time::Duration;
-use std::{collections::VecDeque, ops::Add};
-
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
-
-use crate::stage::data::{CircleEnemyStep, JumpEnemyStep, LinearMovementEnemyStep};
+use super::{CircleAround, LinearMovement};
 use crate::stage::enemy::data::mosquito::{MOSQUITO_MAX_DEPTH, MOSQUITO_MIN_DEPTH};
+use crate::stage::enemy::data::steps::{
+    CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearMovementEnemyStep,
+};
 use crate::{
     plugins::movement::linear::components::{
         LinearMovementBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
     },
-    stage::{
-        components::placement::Depth,
-        data::{EnemyStep, GAME_BASE_SPEED},
-        resources::StageTime,
-    },
+    stage::{data::GAME_BASE_SPEED, resources::StageTime},
 };
-
-use super::{CircleAround, LinearMovement};
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
+use std::collections::VecDeque;
+use std::time::Duration;
 
 #[derive(Component, Clone, Debug)]
 pub struct EnemyCurrentBehavior {
@@ -94,7 +89,7 @@ impl EnemyCurrentBehavior {
                 ))
             }
             EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
-            EnemyStep::Circle(CircleEnemyStep {
+            EnemyStep::Circle(CircleAroundEnemyStep {
                 radius, direction, ..
             }) => BehaviorBundle::Circle(CircleAround {
                 center: current_position.0,

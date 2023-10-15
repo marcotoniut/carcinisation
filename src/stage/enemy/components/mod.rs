@@ -1,12 +1,10 @@
 pub mod behavior;
 
+use super::data::steps::EnemyStep;
+use crate::plugins::movement::structs::MovementDirection;
+use bevy::prelude::*;
 use std::collections::VecDeque;
 use std::time::Duration;
-
-use bevy::prelude::*;
-
-use crate::plugins::movement::structs::MovementDirection;
-use crate::stage::data::EnemyStep;
 
 #[derive(Component)]
 pub struct Enemy;
