@@ -52,8 +52,9 @@ impl EnemyCurrentBehavior {
                 trayectory,
             }) => {
                 let normalised_direction = direction.normalize();
-                let enemy_speed = speed * GAME_BASE_SPEED;
-                let velocity = normalised_direction * enemy_speed;
+                // TODO use a better formula to increase speed for higher depths
+                let adapted_speed = (depth as f32 - 3.) / 6.;
+                let velocity = normalised_direction * (speed + adapted_speed) * GAME_BASE_SPEED;
                 let target_position = current_position.0 + normalised_direction * trayectory;
 
                 BehaviorBundle::LinearMovement((
@@ -76,14 +77,18 @@ impl EnemyCurrentBehavior {
                     depth_movement_o.map(|depth_movement| {
                         let target_depth = depth
                             .saturating_add_signed(depth_movement)
-                            .min(MOSQUITO_MIN_DEPTH)
-                            .max(MOSQUITO_MAX_DEPTH)
+                            .min(MOSQUITO_MAX_DEPTH)
+                            .max(MOSQUITO_MIN_DEPTH)
                             as f32;
+
+                        let t = (target_position - current_position.0).length() / velocity.length();
+                        let x = target_depth - depth as f32;
 
                         LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
                             depth as f32,
                             target_depth,
-                            target_depth / enemy_speed,
+                            // REVIEW extra multiplier
+                            x / t,
                         )
                     }),
                 ))
