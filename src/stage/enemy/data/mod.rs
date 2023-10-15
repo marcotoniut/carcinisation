@@ -1,5 +1,3 @@
 pub mod mosquito;
+pub mod steps;
 pub mod tardigrade;
-use bevy::prelude::*;
-
-use seldom_pixel::prelude::*;

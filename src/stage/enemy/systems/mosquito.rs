@@ -16,11 +16,13 @@ use crate::{
             interactive::Dead,
             placement::{Depth, InView},
         },
-        data::{EnemyStep, JumpEnemyStep},
         enemy::{
             bundles::*,
             components::{behavior::EnemyCurrentBehavior, *},
-            data::mosquito::MOSQUITO_ANIMATIONS,
+            data::{
+                mosquito::MOSQUITO_ANIMATIONS,
+                steps::{EnemyStep, JumpEnemyStep},
+            },
         },
         resources::StageTime,
     },

@@ -1,7 +1,7 @@
-use crate::plugins::movement::structs::MovementDirection;
 use crate::stage::components::StopStageStep;
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
+use crate::stage::enemy::data::steps::EnemyStep;
 use bevy::prelude::*;
 
 use lazy_static::lazy_static;

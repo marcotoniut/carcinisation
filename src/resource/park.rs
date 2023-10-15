@@ -1,10 +1,8 @@
-use crate::cinemachine::scene_intro::*;
-use crate::plugins::movement::structs::MovementDirection;
 use crate::stage::components::StopStageStep;
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
+use crate::stage::enemy::data::steps::EnemyStep;
 use bevy::prelude::*;
-
 use lazy_static::lazy_static;
 
 const OBJECT_FIBERTREE_Y: f32 = 13.;
@@ -305,7 +303,8 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_elapsed(8.1)
                     .with_steps_vec(vec![EnemyStep::circle_around_base()
                         .with_radius(13.)
-                        .opposite_direction().into()])
+                        .opposite_direction()
+                        .into()])
                     .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base())),
             ),
         ]),
