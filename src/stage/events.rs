@@ -1,6 +1,11 @@
+use std::{rc::Rc, sync::Arc};
+
 use bevy::prelude::*;
 
-use super::{components::placement::Depth, data::StageSpawn};
+use super::{
+    components::placement::Depth,
+    data::{StageData, StageSpawn},
+};
 
 #[derive(Event)]
 pub struct StageRestart {}
@@ -17,6 +22,11 @@ pub struct StageGameOverEvent {}
 #[derive(Event)]
 pub struct StageSpawnEvent {
     pub spawn: StageSpawn,
+}
+
+#[derive(Event)]
+pub struct StageStartupEvent {
+    pub data: Arc<StageData>,
 }
 
 #[derive(Event)]

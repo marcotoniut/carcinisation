@@ -4,9 +4,10 @@ use crate::stage::destructible::data::DestructibleSpawn;
 use crate::stage::enemy::data::steps::EnemyStep;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
+use std::sync::Arc;
 
 lazy_static! {
-    pub static ref STAGE_ASTEROID_DATA: StageData = StageData {
+    pub static ref STAGE_ASTEROID_DATA: Arc<StageData> = StageData {
         name: "Asteroid".to_string(),
         background_path: "backgrounds/asteroid/background.png".to_string(),
         music_path: "audio/music/stage_3.ogg".to_string(),
@@ -17,7 +18,8 @@ lazy_static! {
         start_coordinates: Some(Vec2::new(0.0, 0.0)),
         spawns: make_spawns(),
         steps: make_steps(),
-    };
+    }
+    .into();
 }
 
 pub fn make_spawns() -> Vec<StageSpawn> {

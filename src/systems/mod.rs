@@ -2,7 +2,6 @@ pub mod audio;
 pub mod camera;
 pub mod setup;
 pub mod spawn;
-pub mod state;
 
 use self::audio::VolumeSettings;
 use crate::game::events::GameStartupEvent;

@@ -46,9 +46,6 @@ impl Default for StageActionTimer {
     }
 }
 
-#[derive(Resource)]
-pub struct StageDataHandle(pub Handle<StageData>);
-
 #[derive(Component, Default)]
 pub struct StageStepSpawner {
     pub elapsed: Duration,

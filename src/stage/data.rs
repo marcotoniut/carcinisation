@@ -9,7 +9,6 @@ use bevy::{
 use crate::{
     cinemachine::data::CinemachineData,
     globals::{HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
-    plugins::movement::structs::MovementDirection,
 };
 
 use super::{
@@ -447,8 +446,7 @@ impl StageStep {
     }
 }
 
-#[derive(TypeUuid, TypePath, Clone, Debug, Resource)]
-#[uuid = "c17075ed-7df0-4a51-b961-ce5270a8a934"]
+#[derive(Clone, Debug, Resource)]
 pub struct StageData {
     pub name: String,
     pub background_path: String,
