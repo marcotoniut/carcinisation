@@ -6,11 +6,6 @@ use seldom_pixel::prelude::PxSubPosition;
 
 use crate::stage::data::{EnemyStep, MovementDirection};
 
-#[derive(Resource)]
-pub struct GameProgress {
-    index: u8,
-}
-
 #[derive(Component)]
 pub enum GameStep {
     Credits,

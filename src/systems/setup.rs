@@ -1,11 +1,7 @@
-use crate::game::events::GameStartupEvent;
 use crate::GBInput;
-use bevy::{audio::Volume, prelude::*};
+use bevy::prelude::*;
 use bevy_framepace::Limiter;
-use leafwing_input_manager::{
-    prelude::{ActionState, InputMap},
-    InputManagerBundle,
-};
+use leafwing_input_manager::prelude::{ActionState, InputMap};
 use seldom_pixel::prelude::PxSubPosition;
 
 use super::camera::CameraPos;

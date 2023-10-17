@@ -32,7 +32,7 @@ use leafwing_input_manager::{
     Actionlike,
 };
 use seldom_pixel::prelude::*;
-use stage::{components::StageEntityType, player::crosshair::CrosshairSettings, StagePlugin};
+use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
     audio::VolumeSettings,
     camera::move_camera,

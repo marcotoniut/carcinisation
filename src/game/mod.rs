@@ -8,8 +8,9 @@ use bevy::prelude::*;
 
 use self::{
     events::*,
-    score::{components::Score, ScorePlugin},
-    systems::*,
+    resources::GameProgress,
+    score::ScorePlugin,
+    systems::{setup::*, *},
 };
 
 pub struct GamePlugin;
@@ -18,7 +19,6 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ScorePlugin)
             .add_state::<GamePluginUpdateState>()
-            .init_resource::<Score>()
             .add_state::<GameProgressState>()
             // DEBUG
             .add_event::<GameOverEvent>()
@@ -26,9 +26,9 @@ impl Plugin for GamePlugin {
             .add_systems(PreUpdate, on_startup)
             .add_systems(
                 Update,
-                check_player_died
-                    .run_if(in_state(GamePluginUpdateState::Active))
-                    .run_if(in_state(GameProgressState::Running)),
+                ((progress, on_stage_cleared, check_player_died)
+                    .run_if(resource_exists::<GameProgress>()),)
+                    .run_if(in_state(GamePluginUpdateState::Active)),
             );
     }
 }

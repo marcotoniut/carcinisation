@@ -1,4 +1,10 @@
 use bevy::prelude::*;
 
-#[derive(Resource, Debug, Clone, Copy)]
+// TODO should default be 3?
+#[derive(Resource, Debug, Default, Clone, Copy)]
 pub struct Lives(pub u8);
+
+#[derive(Resource, Default, Clone, Copy)]
+pub struct GameProgress {
+    pub index: usize,
+}

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
@@ -9,7 +11,7 @@ const OBJECT_FIBERTREE_Y: f32 = 13.;
 const OBJECT_LAMP_Y: f32 = -5.;
 
 lazy_static! {
-    pub static ref STAGE_PARK_DATA: StageData = StageData {
+    pub static ref STAGE_PARK_DATA: Arc<StageData> = StageData {
         name: "Park".to_string(),
         music_path: "audio/music/stage_1.ogg".to_string(),
         background_path: "backgrounds/rugpark/background.png".to_string(),
@@ -20,7 +22,8 @@ lazy_static! {
         start_coordinates: Some(Vec2::new(0.0, 0.0)),
         spawns: make_spawns(),
         steps: make_steps(),
-    };
+    }
+    .into();
 }
 
 pub fn make_spawns() -> Vec<StageSpawn> {
