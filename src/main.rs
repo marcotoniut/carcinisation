@@ -1,6 +1,5 @@
 mod assets;
 mod bevy_utils;
-mod cinemachine;
 mod components;
 mod core;
 mod cutscene;
@@ -22,8 +21,8 @@ use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VO
 use bevy::prelude::*;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
-use cinemachine::cinemachine::CurrentClipInfo;
 use components::DespawnMark;
+use cutscene::{cinemachine::CurrentClipInfo, CutscenePlugin};
 use debug::DebugPlugin;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
@@ -104,7 +103,7 @@ fn main() {
             "palette/base.png".into(),
         ))
         // .add_plugins(TransitionVenetianPlugin)
-        // .add_plugins(CutscenePlugin)
+        .add_plugins(CutscenePlugin)
         // .add_plugins(MainMenuPlugin)
         .add_plugins(StagePlugin)
         .add_plugins(GamePlugin)

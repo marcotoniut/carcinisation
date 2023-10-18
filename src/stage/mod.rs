@@ -11,9 +11,6 @@ pub mod resources;
 pub mod systems;
 pub mod ui;
 
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
-
 use self::{
     attack::AttackPlugin,
     components::placement::RailPosition,
@@ -40,7 +37,7 @@ use self::{
     },
 };
 use crate::{
-    cinemachine::{cinemachine::CinemachineScene, render_cutscene},
+    cutscene::cinemachine::CinemachineScene,
     game::events::GameOverEvent,
     plugins::movement::{
         linear::{
@@ -51,6 +48,8 @@ use crate::{
     },
     systems::{check_despawn_after_delay, delay_despawn},
 };
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct LoadingSystemSet;
@@ -200,8 +199,6 @@ impl Plugin for StagePlugin {
                     // Pause menu
                     pause_menu_renderer,
                     toggle_game,
-                    // Cutscene
-                    render_cutscene,
                 )
                     .run_if(in_state(StagePluginUpdateState::Active)),
             );
