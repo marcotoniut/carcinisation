@@ -7,7 +7,7 @@ use bevy::{
 };
 
 use crate::{
-    cinemachine::data::CinemachineData,
+    cutscene::data::CinemachineData,
     globals::{HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
 };
 

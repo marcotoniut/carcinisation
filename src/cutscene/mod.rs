@@ -1,17 +1,23 @@
 pub mod bundles;
+pub mod cinemachine;
 pub mod components;
+pub mod data;
+pub mod events;
 pub mod resources;
 pub mod systems;
 
+use self::{
+    events::CinematicStartupEvent,
+    systems::{interactions::*, layout::*, render_cutscene},
+};
 use bevy::prelude::*;
-
-use self::systems::{interactions::*, layout::*};
 
 pub struct CutscenePlugin;
 
 impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<CutscenePluginUpdateState>()
+            .add_event::<CinematicStartupEvent>()
             .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
             .add_systems(
                 OnExit(CutscenePluginUpdateState::Inactive),
@@ -19,7 +25,7 @@ impl Plugin for CutscenePlugin {
             )
             .add_systems(
                 Update,
-                (play_cutscene, press_next, press_esc)
+                (play_cutscene, render_cutscene, press_next, press_esc)
                     .run_if(in_state(CutscenePluginUpdateState::Active)),
             );
     }

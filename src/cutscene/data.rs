@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use bevy::{
-    prelude::Vec2,
-    reflect::{TypePath, TypeUuid},
-};
+use bevy::prelude::Vec2;
 
 #[derive(Clone, Debug)]
 pub struct TargetPath {
@@ -21,8 +18,7 @@ pub struct Clip {
     pub duration: Duration,
 }
 
-#[derive(TypeUuid, TypePath, Clone, Debug)]
-#[uuid = "8962be51-bbd5-42b4-95a9-269294ddf17a"]
+#[derive(Clone, Debug)]
 pub struct CinemachineData {
     pub name: String,
     pub clip: Clip,
