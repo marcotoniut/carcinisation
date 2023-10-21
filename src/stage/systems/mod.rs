@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod damage;
+pub mod game_over;
 pub mod movement;
 pub mod setup;
 pub mod spawn;
@@ -10,7 +11,7 @@ use super::{
     components::{
         interactive::{Dead, Object},
         placement::spawn_floor_depths,
-        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StopStageStep,
+        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StageEntity, StopStageStep,
     },
     data::*,
     destructible::components::Destructible,
@@ -27,7 +28,7 @@ use crate::{
     plugins::movement::linear::components::{
         LinearMovementBundle, LinearTargetReached, TargetingPositionX, TargetingPositionY,
     },
-    systems::{audio::VolumeSettings, camera::CameraPos, spawn::spawn_music},
+    systems::{audio::VolumeSettings, camera::CameraPos, spawn::make_music_bundle},
     GBInput,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
@@ -36,12 +37,6 @@ use seldom_pixel::{
     prelude::{PxAssets, PxSubPosition},
     sprite::PxSprite,
 };
-
-pub fn tick_stage_time(mut stage_time: ResMut<StageTime>, time: Res<Time>) {
-    let delta = time.delta();
-    stage_time.delta = delta;
-    stage_time.elapsed += delta;
-}
 
 pub fn toggle_game(
     gb_input: Res<ActionState<GBInput>>,
@@ -80,6 +75,7 @@ pub fn spawn_current_stage_bundle(
 }
 
 // TODO combine the two and use just_finished and StageTime
+// TODO should be using StageTime instead of Time
 pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }
@@ -161,13 +157,14 @@ pub fn read_stage_cleared_trigger(
         mark_for_despawn_by_component_query(&mut commands, &object_query);
         mark_for_despawn_by_component_query(&mut commands, &player_query);
 
-        spawn_music(
-            &mut commands,
+        let music_bundle = make_music_bundle(
             &asset_server,
             &volume_settings,
             "audio/music/intro.ogg".to_string(),
             PlaybackMode::Despawn,
         );
+
+        commands.spawn((music_bundle, StageEntity));
 
         next_state.set(StageProgressState::Cleared);
     }
@@ -201,19 +198,19 @@ pub fn read_stage_game_over_trigger(
         mark_for_despawn_by_component_query(&mut commands, &object_query);
         mark_for_despawn_by_component_query(&mut commands, &player_query);
 
-        spawn_music(
-            &mut commands,
+        let music_bundle = make_music_bundle(
             &asset_server,
             &volume_settings,
             "audio/music/game_over.ogg".to_string(),
             PlaybackMode::Despawn,
         );
+        commands.spawn((music_bundle, StageEntity));
 
         next_state.set(StageProgressState::GameOver);
     }
 }
 
-pub fn read_stage_step_trigger(
+pub fn read_step_trigger(
     mut commands: Commands,
     mut stage_progress: ResMut<StageProgress>,
     query: Query<Entity, (With<Stage>, Without<CurrentStageStep>)>,

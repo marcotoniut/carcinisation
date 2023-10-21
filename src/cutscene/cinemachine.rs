@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-use super::data::CinemachineData;
-
 #[derive(Component)]
 ///cinemachine: self
 pub struct CinemachineModule;
@@ -12,9 +10,6 @@ pub struct UIBackground;
 
 #[derive(Component)]
 pub struct ClipBundle;
-
-#[derive(Resource, Default)]
-pub struct CinemachineScene(pub Option<CinemachineData>);
 
 #[derive(Resource, Default)]
 pub struct CurrentClipInfo {

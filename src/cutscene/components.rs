@@ -1,7 +1,17 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub struct Cutscene;
+pub struct Cinematic;
+
+#[derive(Component)]
+pub struct CutsceneEntity;
+
+#[derive(Component)]
+pub struct CurrentCutsceneStep {
+    pub started: Duration,
+}
 
 #[derive(Component)]
 pub struct LetterboxRow {

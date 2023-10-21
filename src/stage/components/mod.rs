@@ -2,13 +2,14 @@ pub mod damage;
 pub mod interactive;
 pub mod placement;
 
-use std::time::Duration;
-
-use bevy::{prelude::*, utils::HashMap};
-
-use crate::cutscene::data::CinemachineData;
+use crate::cutscene::data::CutsceneAnimationSpawn;
 
 use super::data::{ContainerSpawn, StageSpawn};
+use bevy::{prelude::*, utils::HashMap};
+use std::time::Duration;
+
+#[derive(Component)]
+pub struct StageEntity;
 
 pub enum StageEntityType {
     Player,
@@ -36,8 +37,8 @@ pub struct CurrentStageStep {
 }
 
 #[derive(Component, Clone, Debug)]
-pub struct CinematicStageStep {
-    pub cinematic: CinemachineData,
+pub enum CinematicStageStep {
+    CutsceneAnimationSpawn(CutsceneAnimationSpawn),
 }
 
 #[derive(Component, Clone, Debug)]

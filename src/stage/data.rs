@@ -1,21 +1,14 @@
-use std::{collections::VecDeque, time::Duration};
-
-use bevy::{
-    prelude::{Resource, Vec2},
-    reflect::{TypePath, TypeUuid},
-    utils::HashMap,
-};
-
-use crate::{
-    cutscene::data::CinemachineData,
-    globals::{HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION},
-};
-
 use super::{
     components::{CinematicStageStep, MovementStageStep, StopStageStep},
     destructible::data::DestructibleSpawn,
     enemy::data::steps::EnemyStep,
 };
+use crate::globals::{HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION};
+use bevy::{
+    prelude::{Resource, Vec2},
+    utils::HashMap,
+};
+use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
     pub static ref DEFAULT_COORDINATES: Vec2 = HALF_SCREEN_RESOLUTION.clone();
@@ -394,7 +387,7 @@ impl StageStep {
                 *base_speed * GAME_BASE_SPEED
             }
             StageStep::Stop(StopStageStep { .. }) => 0.,
-            StageStep::Cinematic(CinematicStageStep { .. }) => 0.,
+            StageStep::Cinematic(_) => 0.,
         }
     }
 
@@ -406,7 +399,7 @@ impl StageStep {
             StageStep::Stop(StopStageStep { spawns, .. }) => {
                 spawns.extend(new_spawns);
             }
-            StageStep::Cinematic(CinematicStageStep { .. }) => {}
+            StageStep::Cinematic(_) => {}
         };
         self
     }

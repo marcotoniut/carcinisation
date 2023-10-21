@@ -2,7 +2,7 @@ use crate::stage::{
     components::{
         interactive::{CollisionData, Dead},
         placement::Depth,
-        SpawnDrop,
+        SpawnDrop, StageEntity,
     },
     data::ContainerSpawn,
     destructible::{
@@ -171,7 +171,8 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
             let entity = commands
                 .spawn((
                     name,
-                    Enemy {},
+                    StageEntity,
+                    Enemy,
                     behaviors,
                     Speed(*speed),
                     EnemyMosquito {
@@ -207,6 +208,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                 name,
                 behaviors,
                 Depth(*depth),
+                StageEntity,
                 Enemy,
                 EnemyTardigrade {
                     steps: steps.clone(),
@@ -257,6 +259,7 @@ pub fn spawn_destructible(
             spawn.destructible_type.clone(),
             animation_bundle,
             PxSubPosition::from(spawn.coordinates.clone()),
+            StageEntity,
         ))
         .id()
 }
@@ -287,6 +290,7 @@ pub fn spawn_object(
                 ..Default::default()
             },
             PxSubPosition::from(spawn.coordinates.clone()),
+            StageEntity,
         ))
         .id()
 }

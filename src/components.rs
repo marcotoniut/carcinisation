@@ -3,10 +3,13 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 #[derive(Component)]
+pub struct Tag(pub String);
+
+#[derive(Component)]
 pub struct DespawnMark;
 
 #[derive(Component)]
-pub struct Music {}
+pub struct Music;
 
 #[derive(Component)]
 pub struct DelayedDespawnOnPxAnimationFinished(pub Duration);

@@ -1,23 +1,20 @@
+use super::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings};
+use crate::components::Music;
 use bevy::{
     audio::{PlaybackMode, Volume},
     prelude::*,
 };
 
-use crate::components::Music;
-
-use super::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings};
-
-pub fn spawn_music(
-    commands: &mut Commands,
+pub fn make_music_bundle(
     asset_server: &Res<AssetServer>,
     volume_settings: &Res<VolumeSettings>,
     music_path: String,
     mode: PlaybackMode,
-) {
-    let sound_effect = asset_server.load(music_path);
-    commands.spawn((
+) -> (AudioBundle, AudioSystemBundle, Music) {
+    let source = asset_server.load(music_path);
+    (
         AudioBundle {
-            source: sound_effect,
+            source,
             settings: PlaybackSettings {
                 mode,
                 volume: Volume::new_relative(volume_settings.1 * 1.0),
@@ -28,6 +25,6 @@ pub fn spawn_music(
         AudioSystemBundle {
             system_type: AudioSystemType::MUSIC,
         },
-        Music {},
-    ));
+        Music,
+    )
 }

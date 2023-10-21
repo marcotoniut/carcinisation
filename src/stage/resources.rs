@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::core::time::*;
 
-use super::data::{StageData, StageSpawn};
+use super::data::StageSpawn;
 
 #[derive(Resource, Default, Debug, Clone, Copy)]
 pub struct StageTime {
@@ -25,6 +25,13 @@ impl DeltaTime for StageTime {
 impl ElapsedTime for StageTime {
     fn elapsed(&self) -> Duration {
         self.elapsed
+    }
+}
+
+impl Ticker for StageTime {
+    fn tick(&mut self, delta: Duration) {
+        self.delta = delta;
+        self.elapsed += delta;
     }
 }
 
