@@ -1,5 +1,8 @@
-use super::super::components::*;
-use crate::{globals::*, stage::ui::components::ScoreText, Layer};
+use crate::{
+    globals::*,
+    stage::{components::StageEntity, ui::components::ScoreText},
+    Layer,
+};
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
@@ -9,6 +12,8 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
+use super::components::{HealthText, Hud, UIBackground};
+
 const LAYOUT_Y: i32 = 2;
 const HUD_HEALTH_W: i32 = 37;
 const HUD_HEALTH_ML: i32 = 15;
@@ -17,20 +22,6 @@ const HUD_SCORE_W: i32 = 95;
 const HUD_SCORE_MR: i32 = 15;
 
 pub fn spawn_hud(
-    mut commands: Commands,
-    mut typefaces: PxAssets<PxTypeface>,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut filters: PxAssets<PxFilter>,
-) {
-    spawn_hud_bundle(
-        &mut commands,
-        &mut typefaces,
-        &mut assets_sprite,
-        &mut filters,
-    );
-}
-
-pub fn spawn_hud_bundle(
     commands: &mut Commands,
     typefaces: &mut PxAssets<PxTypeface>,
     assets_sprite: &mut PxAssets<PxSprite>,
@@ -39,7 +30,7 @@ pub fn spawn_hud_bundle(
     let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
 
     let entity = commands
-        .spawn((Hud {}, Name::new("Hud")))
+        .spawn((Hud, Name::new("Hud"), StageEntity))
         .with_children(|parent| {
             for i in 0..(HUD_HEIGHT as i32) {
                 parent.spawn((
@@ -50,7 +41,7 @@ pub fn spawn_hud_bundle(
                         filter: filters.load("filter/color3.png"),
                         ..Default::default()
                     },
-                    UIBackground {},
+                    UIBackground,
                     Name::new("UIBackground"),
                 ));
             }

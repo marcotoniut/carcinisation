@@ -23,6 +23,7 @@ use self::{
     systems::{
         camera::*,
         damage::*,
+        game_over::on_game_over_input,
         movement::*,
         setup::on_startup,
         spawn::{check_dead_drop, check_step_spawn, read_stage_spawn_trigger},
@@ -37,7 +38,7 @@ use self::{
     },
 };
 use crate::{
-    cutscene::cinemachine::CinemachineScene,
+    core::time::tick_time,
     game::events::GameOverEvent,
     plugins::movement::{
         linear::{
@@ -83,7 +84,6 @@ impl Plugin for StagePlugin {
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
             .init_resource::<StageProgress>()
-            .init_resource::<CinemachineScene>()
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionX>::default())
@@ -123,9 +123,9 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Stage
-                            tick_stage_time,
+                            tick_time::<StageTime>,
                             tick_stage_step_timer,
-                            read_stage_step_trigger,
+                            read_step_trigger,
                             read_stage_spawn_trigger,
                             check_stage_step_timer,
                             check_staged_cleared,
@@ -184,6 +184,7 @@ impl Plugin for StagePlugin {
                             .chain(),
                     )
                         .run_if(in_state(StageProgressState::Running)),
+                    (on_game_over_input).run_if(in_state(StageProgressState::GameOver)),
                 )
                     .run_if(in_state(StagePluginUpdateState::Active)),
             )
