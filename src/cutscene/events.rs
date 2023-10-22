@@ -6,3 +6,6 @@ use std::sync::Arc;
 pub struct CinematicStartupEvent {
     pub data: Arc<CinematicData>,
 }
+
+#[derive(Event)]
+pub struct CutsceneShutdownEvent;

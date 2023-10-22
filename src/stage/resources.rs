@@ -37,7 +37,7 @@ impl Ticker for StageTime {
 
 #[derive(Clone, Debug, Default, Resource)]
 pub struct StageProgress {
-    pub step: usize,
+    pub index: usize,
 }
 
 #[derive(Resource)]

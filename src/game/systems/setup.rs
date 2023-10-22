@@ -36,10 +36,10 @@ pub fn on_stage_cleared(
     mut event_reader: EventReader<StageClearedEvent>,
     mut commands: Commands,
     mut stage_state_next_state: ResMut<NextState<StagePluginUpdateState>>,
-    mut game_progress: ResMut<GameProgress>,
+    mut progress: ResMut<GameProgress>,
 ) {
     for _ in event_reader.iter() {
-        game_progress.index += 1;
+        progress.index += 1;
         stage_state_next_state.set(StagePluginUpdateState::Inactive);
         commands.remove_resource::<StageData>();
     }

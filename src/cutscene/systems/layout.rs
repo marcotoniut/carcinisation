@@ -12,10 +12,6 @@ pub fn spawn_cutscene(mut commands: Commands, mut filters: PxAssets<PxFilter>) {
     build_screen(&mut commands, &mut filters);
 }
 
-pub fn mark_cutscene_for_despawn(mut commands: Commands, query: Query<Entity, With<Cinematic>>) {
-    mark_for_despawn_by_component_query(&mut commands, &query);
-}
-
 pub fn build_letterbox_top(
     commands: &mut ChildBuilder<'_, '_, '_>,
     filter: Handle<PxAsset<PxFilterData>>,
