@@ -102,7 +102,7 @@ pub fn update_stage(
             next_state.set(StageProgressState::Running);
         }
         StageProgressState::Running => {
-            if let Some(action) = stage_data.steps.get(stage_progress.step) {
+            if let Some(action) = stage_data.steps.get(stage_progress.index) {
                 if DEBUG_STAGESTEP {
                     let curr_action = match action {
                         StageStep::Movement { .. } => "movement".to_string(),
@@ -133,7 +133,7 @@ pub fn check_staged_cleared(
     stage_progress: Res<StageProgress>,
     stage_data: Res<StageData>,
 ) {
-    if stage_progress.step >= stage_data.steps.len() {
+    if stage_progress.index >= stage_data.steps.len() {
         event_writer.send(StageClearedEvent {});
     }
 }
@@ -212,15 +212,13 @@ pub fn read_stage_game_over_trigger(
 
 pub fn read_step_trigger(
     mut commands: Commands,
-    mut stage_progress: ResMut<StageProgress>,
+    mut progress: ResMut<StageProgress>,
     query: Query<Entity, (With<Stage>, Without<CurrentStageStep>)>,
     stage_data: Res<StageData>,
     stage_time: Res<StageTime>,
 ) {
     if let Ok(entity) = query.get_single() {
-        stage_progress.step += 1;
-
-        if let Some(action) = stage_data.steps.get(stage_progress.step) {
+        if let Some(action) = stage_data.steps.get(progress.index) {
             let mut entity_commands = commands.entity(entity);
             entity_commands.insert(CurrentStageStep {
                 started: stage_time.elapsed,
@@ -237,6 +235,8 @@ pub fn read_step_trigger(
                     entity_commands.insert(step.clone());
                 }
             }
+            // TODO review progress
+            progress.index += 1;
         }
     }
 }

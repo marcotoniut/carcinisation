@@ -9,11 +9,6 @@ pub struct Cinematic;
 pub struct CutsceneEntity;
 
 #[derive(Component)]
-pub struct CurrentCutsceneStep {
-    pub started: Duration,
-}
-
-#[derive(Component)]
 pub struct LetterboxRow {
     pub row: u32,
 }

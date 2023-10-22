@@ -6,6 +6,9 @@ use bevy::prelude::*;
 pub struct Tag(pub String);
 
 #[derive(Component)]
+pub struct StepStarted(pub Duration);
+
+#[derive(Component)]
 pub struct DespawnMark;
 
 #[derive(Component)]

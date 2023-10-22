@@ -318,7 +318,6 @@ width = 36
 path = "sprites/attacks/bloodsplat.png"
 target_path = "sprites/attacks/blood_attack_hit_9.png"
 
-
 [[images]]
 path = "sprites/attacks/boulder_56x56.png"
 target_path = "sprites/attacks/boulder_attack_hovering_1.png"
@@ -355,11 +354,17 @@ width = 46
 path = "sprites/attacks/boulder_rubble_62x62.png"
 target_path = "sprites/attacks/boulder_attack_hit_9.png"
 
-#cutscenes
+# Cinematics
 [[images]]
-path = "cinematics/intro/bald_guy.png"
+path = "cinematics/intro/acrab_travelling.png"
 [[images]]
-path = "cinematics/intro/falling_scene.png"
+path = "cinematics/intro/asteroid_waves.png"
+[[images]]
+path = "cinematics/intro/clear.png"
+[[images]]
+path = "cinematics/intro/falling_scene_animated.png"
+[[images]]
+path = "cinematics/intro/planet.png"
 [[images]]
 path = "cinematics/intro/falling_ship.png"
 [[images]]

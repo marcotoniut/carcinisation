@@ -98,6 +98,7 @@ impl Plugin for StagePlugin {
             // .add_event::<StageSetupFromCheckpointEvent>()
             // .add_systems(PreUpdate, (on_setup, on_setup_from_checkpoint))
             // TODO should this be only used when plugin is active?
+            // Should initialisation functions be chained to startup?
             .add_systems(PostUpdate, on_startup)
             // // TEMP
             // .add_systems(
