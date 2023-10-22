@@ -1,8 +1,8 @@
 use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
-        data::CinematicData,
-        events::{CinematicStartupEvent, CutsceneShutdownEvent},
+        data::CutsceneData,
+        events::{CutsceneShutdownEvent, CutsceneStartupEvent},
         resources::CutsceneProgress,
         CutscenePluginUpdateState,
     },
@@ -12,7 +12,7 @@ use bevy::prelude::*;
 
 pub fn on_startup(
     mut commands: Commands,
-    mut event_reader: EventReader<CinematicStartupEvent>,
+    mut event_reader: EventReader<CutsceneStartupEvent>,
     mut cutscene_state_next_state: ResMut<NextState<CutscenePluginUpdateState>>,
 ) {
     for e in event_reader.iter() {
@@ -20,7 +20,7 @@ pub fn on_startup(
 
         let data = e.data.as_ref();
 
-        commands.insert_resource::<CinematicData>(data.clone());
+        commands.insert_resource::<CutsceneData>(data.clone());
         commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });
 
         commands.spawn((Cinematic, Name::new("Cutscene")));

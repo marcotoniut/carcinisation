@@ -1,10 +1,10 @@
-use super::data::CinematicData;
+use super::data::CutsceneData;
 use bevy::prelude::*;
 use std::sync::Arc;
 
 #[derive(Event)]
-pub struct CinematicStartupEvent {
-    pub data: Arc<CinematicData>,
+pub struct CutsceneStartupEvent {
+    pub data: Arc<CutsceneData>,
 }
 
 #[derive(Event)]

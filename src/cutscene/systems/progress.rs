@@ -24,7 +24,7 @@ pub fn read_step_trigger(
     mut cutscene_shutdown_event_writer: EventWriter<CutsceneShutdownEvent>,
     mut progress: ResMut<CutsceneProgress>,
     query: Query<Entity, (With<Cinematic>, Without<CutsceneElapsedStarted>)>,
-    data: Res<CinematicData>,
+    data: Res<CutsceneData>,
     time: Res<CutsceneTime>,
 ) {
     for entity in query.iter() {
