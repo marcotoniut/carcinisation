@@ -2,7 +2,7 @@ pub mod damage;
 pub mod interactive;
 pub mod placement;
 
-use crate::cutscene::data::CutsceneAnimationSpawn;
+use crate::cutscene::data::CutsceneAnimationsSpawn;
 
 use super::data::{ContainerSpawn, StageSpawn};
 use bevy::{prelude::*, utils::HashMap};
@@ -38,7 +38,7 @@ pub struct CurrentStageStep {
 
 #[derive(Component, Clone, Debug)]
 pub enum CinematicStageStep {
-    CutsceneAnimationSpawn(CutsceneAnimationSpawn),
+    CutsceneAnimationSpawn(CutsceneAnimationsSpawn),
 }
 
 #[derive(Component, Clone, Debug)]

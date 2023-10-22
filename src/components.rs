@@ -6,7 +6,7 @@ use bevy::prelude::*;
 pub struct Tag(pub String);
 
 #[derive(Component)]
-pub struct StepStarted(pub Duration);
+pub struct CutsceneElapsedStarted(pub Duration);
 
 #[derive(Component)]
 pub struct DespawnMark;
@@ -27,4 +27,11 @@ impl DelayedDespawnOnPxAnimationFinished {
 pub struct DespawnAfterDelay {
     pub elapsed: Duration,
     pub duration: Duration,
+}
+
+pub fn despawn_step<C: Component>(commands: &mut Commands, entity: Entity) {
+    commands
+        .entity(entity)
+        .remove::<C>()
+        .remove::<CutsceneElapsedStarted>();
 }
