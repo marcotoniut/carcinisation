@@ -12,10 +12,8 @@ use self::{
     events::{CinematicStartupEvent, CutsceneShutdownEvent},
     resources::CutsceneTime,
     systems::{
-        interactions::*,
-        layout::*,
-        progress::{check_cutscene_elapsed_step, read_step_trigger},
-        setup::{initialise_cutscene_animation_spawn_step, on_shutdown, on_startup},
+        progress::*,
+        setup::{on_shutdown, on_startup},
     },
 };
 use bevy::prelude::*;
@@ -36,15 +34,15 @@ impl Plugin for CutscenePlugin {
                     (
                         read_step_trigger,
                         (
-                            check_cutscene_elapsed_step,
-                            initialise_cutscene_animation_spawn_step,
+                            check_cutscene_elapsed,
+                            process_cutscene_animations_spawn,
+                            process_cutscene_despawn,
+                            process_cutscene_music_spawn,
+                            process_cutscene_music_despawn,
                         ),
                     )
                         .chain(),
-                    play_cutscene,
                     // render_cutscene,
-                    press_next,
-                    press_esc,
                     tick_time::<CutsceneTime>,
                 )
                     .run_if(in_state(CutscenePluginUpdateState::Active)),
