@@ -1,21 +1,19 @@
 pub mod bundles;
-pub mod cinemachine;
 pub mod components;
 pub mod data;
 pub mod events;
 pub mod resources;
 pub mod systems;
 
-use crate::core::time::tick_time;
-
 use self::{
-    events::{CinematicStartupEvent, CutsceneShutdownEvent},
+    events::{CutsceneShutdownEvent, CutsceneStartupEvent},
     resources::CutsceneTime,
     systems::{
         progress::*,
         setup::{on_shutdown, on_startup},
     },
 };
+use crate::core::time::tick_time;
 use bevy::prelude::*;
 
 pub struct CutscenePlugin;
@@ -23,7 +21,7 @@ pub struct CutscenePlugin;
 impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<CutscenePluginUpdateState>()
-            .add_event::<CinematicStartupEvent>()
+            .add_event::<CutsceneStartupEvent>()
             .add_event::<CutsceneShutdownEvent>()
             .init_resource::<CutsceneTime>()
             .add_systems(PostUpdate, (on_startup, on_shutdown))

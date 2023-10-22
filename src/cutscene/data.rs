@@ -208,7 +208,7 @@ impl From<CutsceneSpawn> for CinematicStageStep {
 }
 
 #[derive(Clone, Debug, Resource)]
-pub struct CinematicData {
+pub struct CutsceneData {
     pub name: String,
     pub steps: Vec<CinematicStageStep>,
 }

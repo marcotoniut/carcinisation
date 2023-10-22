@@ -1,5 +1,9 @@
 use crate::{
-    cutscene::events::CinematicStartupEvent,
+    cutscene::{
+        data::CutsceneData,
+        events::{CutsceneShutdownEvent, CutsceneStartupEvent},
+        CutscenePluginUpdateState,
+    },
     game::{
         data::{
             CinematicGameStep, CreditsGameStep, GameData, GameStep, StageGameStep,
@@ -35,13 +39,27 @@ pub fn on_startup(
 pub fn on_stage_cleared(
     mut event_reader: EventReader<StageClearedEvent>,
     mut commands: Commands,
-    mut stage_state_next_state: ResMut<NextState<StagePluginUpdateState>>,
+    mut next_update_state: ResMut<NextState<StagePluginUpdateState>>,
     mut progress: ResMut<GameProgress>,
 ) {
     for _ in event_reader.iter() {
         progress.index += 1;
-        stage_state_next_state.set(StagePluginUpdateState::Inactive);
+        next_update_state.set(StagePluginUpdateState::Inactive);
         commands.remove_resource::<StageData>();
+    }
+}
+
+pub fn on_cutscene_shutdown(
+    mut event_reader: EventReader<CutsceneShutdownEvent>,
+    mut commands: Commands,
+    mut next_update_state: ResMut<NextState<CutscenePluginUpdateState>>,
+    mut progress: ResMut<GameProgress>,
+) {
+    for _ in event_reader.iter() {
+        progress.index += 1;
+        // TODO should this be handled inside of the plugin instead?
+        next_update_state.set(CutscenePluginUpdateState::Inactive);
+        commands.remove_resource::<CutsceneData>();
     }
 }
 
@@ -49,7 +67,7 @@ pub fn progress(
     game_progress: Res<GameProgress>,
     game_data: Res<GameData>,
     mut stage_startup_event_writer: EventWriter<StageStartupEvent>,
-    mut cinematic_startup_event_writer: EventWriter<CinematicStartupEvent>,
+    mut cinematic_startup_event_writer: EventWriter<CutsceneStartupEvent>,
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
         if let Some(data) = game_data.steps.get(game_progress.index) {
@@ -62,7 +80,7 @@ pub fn progress(
                 }
                 GameStep::Cinematic(CinematicGameStep { data }) => {
                     cinematic_startup_event_writer
-                        .send(CinematicStartupEvent { data: data.clone() });
+                        .send(CutsceneStartupEvent { data: data.clone() });
                 }
                 GameStep::Transition(TransitionGameStep {}) => {
                     // TODO

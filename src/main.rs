@@ -22,7 +22,7 @@ use bevy::prelude::*;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use components::DespawnMark;
-use cutscene::{cinemachine::CurrentClipInfo, CutscenePlugin};
+use cutscene::CutscenePlugin;
 use debug::DebugPlugin;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
@@ -93,11 +93,6 @@ fn main() {
         // Graphics and Game
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
-        .insert_resource(CurrentClipInfo {
-            index: 0,
-            is_rendered: false,
-            has_finished: false,
-        })
         .add_plugins(PxPlugin::<Layer>::new(
             SCREEN_RESOLUTION,
             "palette/base.png".into(),

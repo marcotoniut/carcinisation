@@ -1,4 +1,4 @@
-use crate::{cutscene::data::CinematicData, stage::data::StageData};
+use crate::{cutscene::data::CutsceneData, stage::data::StageData};
 use bevy::prelude::*;
 use std::sync::Arc;
 
@@ -7,7 +7,7 @@ pub const DEATH_SCORE_PENALTY: i32 = 150;
 
 #[derive(Component, Clone, Debug)]
 pub struct CinematicGameStep {
-    pub data: Arc<CinematicData>,
+    pub data: Arc<CutsceneData>,
     // pub cinematic: bool,
     // pub is_checkpoint: bool,
     // pub music_fade: bool,

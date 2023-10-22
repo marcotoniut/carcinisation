@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use std::{sync::Arc, time::Duration};
 
 lazy_static! {
-    pub static ref CINEMATIC_INTRO_DATA: Arc<CinematicData> = Arc::new(CinematicData {
+    pub static ref CINEMATIC_INTRO_DATA: Arc<CutsceneData> = Arc::new(CutsceneData {
         name: "Intro".to_string(),
         steps: vec![
             CutsceneMusicSpawn::new("audio/music/action.ogg".to_string()).into(),
