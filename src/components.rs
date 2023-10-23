@@ -29,7 +29,7 @@ pub struct DespawnAfterDelay {
     pub duration: Duration,
 }
 
-pub fn despawn_step<C: Component>(commands: &mut Commands, entity: Entity) {
+pub fn remove_step<C: Component>(commands: &mut Commands, entity: Entity) {
     commands
         .entity(entity)
         .remove::<C>()

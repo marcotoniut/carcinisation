@@ -34,7 +34,7 @@ pub fn on_shutdown(
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
 ) {
     for _ in event_reader.iter() {
-        mark_for_despawn_by_component_query(&mut commands, &cinematic_query);
         mark_for_despawn_by_component_query(&mut commands, &cutscene_entity_query);
+        mark_for_despawn_by_component_query(&mut commands, &cinematic_query);
     }
 }

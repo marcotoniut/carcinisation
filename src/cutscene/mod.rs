@@ -24,7 +24,7 @@ impl Plugin for CutscenePlugin {
             .add_event::<CutsceneStartupEvent>()
             .add_event::<CutsceneShutdownEvent>()
             .init_resource::<CutsceneTime>()
-            .add_systems(PostUpdate, (on_startup, on_shutdown))
+            .add_systems(PreUpdate, (on_startup, on_shutdown))
             // .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
             .add_systems(
                 Update,
@@ -34,7 +34,6 @@ impl Plugin for CutscenePlugin {
                         (
                             check_cutscene_elapsed,
                             process_cutscene_animations_spawn,
-                            process_cutscene_despawn,
                             process_cutscene_music_spawn,
                             process_cutscene_music_despawn,
                         ),

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::game::data::{CinematicGameStep, GameData, GameStep, StageGameStep};
 use crate::resource::asteroid::STAGE_ASTEROID_DATA;
 use crate::resource::cinematics::intro::CINEMATIC_INTRO_DATA;
