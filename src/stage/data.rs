@@ -33,7 +33,7 @@ pub enum ObjectType {
     BenchBig,
     BenchSmall,
     Fibertree,
-    Rugpark,
+    RugparkSign,
 }
 
 #[derive(Clone, Debug)]
@@ -146,7 +146,7 @@ impl ObjectSpawn {
 
     pub fn rugpark_sign_base(x: f32, y: f32) -> Self {
         Self {
-            object_type: ObjectType::Rugpark,
+            object_type: ObjectType::RugparkSign,
             coordinates: Vec2::new(x, y),
         }
     }

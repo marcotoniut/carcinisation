@@ -276,7 +276,7 @@ pub fn spawn_object(
         ObjectType::BenchBig => ("sprites/objects/bench_big.png", Layer::Middle(1)),
         ObjectType::BenchSmall => ("sprites/objects/bench_small.png", Layer::Middle(1)),
         ObjectType::Fibertree => ("sprites/objects/fiber_tree.png", Layer::Middle(5)),
-        ObjectType::Rugpark => ("sprites/objects/rugpark.png", Layer::Middle(3)),
+        ObjectType::RugparkSign => ("sprites/objects/rugpark_sign.png", Layer::Middle(3)),
     };
     let sprite = assets_sprite.load(sprite_path);
     commands
