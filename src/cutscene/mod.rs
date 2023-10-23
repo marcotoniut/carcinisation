@@ -13,7 +13,13 @@ use self::{
         setup::{on_shutdown, on_startup},
     },
 };
-use crate::core::time::tick_time;
+use crate::{
+    core::time::tick_time,
+    plugins::movement::linear::{
+        components::{TargetingPositionX, TargetingPositionY},
+        LinearMovementPlugin,
+    },
+};
 use bevy::prelude::*;
 
 pub struct CutscenePlugin;
@@ -24,6 +30,8 @@ impl Plugin for CutscenePlugin {
             .add_event::<CutsceneStartupEvent>()
             .add_event::<CutsceneShutdownEvent>()
             .init_resource::<CutsceneTime>()
+            .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionX>::default())
+            .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionY>::default())
             .add_systems(PreUpdate, (on_startup, on_shutdown))
             // .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
             .add_systems(
@@ -34,6 +42,7 @@ impl Plugin for CutscenePlugin {
                         (
                             check_cutscene_elapsed,
                             process_cutscene_animations_spawn,
+                            process_cutscene_images_spawn,
                             process_cutscene_music_spawn,
                             process_cutscene_music_despawn,
                         ),

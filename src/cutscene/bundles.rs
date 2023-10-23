@@ -3,7 +3,7 @@ use seldom_pixel::{asset::*, filter::*, prelude::*};
 
 use crate::{globals::SCREEN_RESOLUTION, Layer};
 
-use super::components::LetterboxRow;
+use super::{components::LetterboxRow, data::CutsceneLayer};
 
 pub fn make_letterbox_row(
     filter: Handle<PxAsset<PxFilterData>>,
@@ -17,7 +17,7 @@ pub fn make_letterbox_row(
                 (SCREEN_RESOLUTION.x as i32, row as i32).into(),
             ]
             .into(),
-            layers: PxFilterLayers::single_over(Layer::Letterbox),
+            layers: PxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
             filter,
             ..Default::default()
         },

@@ -1,6 +1,8 @@
-use crate::cutscene::data::*;
+use crate::{cutscene::data::*, Layer};
 use lazy_static::lazy_static;
 use std::sync::Arc;
+
+pub const TAG_SHIP: &str = "ship";
 
 lazy_static! {
     pub static ref CINEMATIC_INTRO_DATA: Arc<CutsceneData> = Arc::new(CutsceneData {
@@ -19,42 +21,46 @@ lazy_static! {
                 ))
                 .with_elapse(3.0),
             CutsceneAct::new()
-                .spawn_animations(CutsceneAnimationsSpawn::new().push_spawn(
-                    CutsceneAnimationSpawn::new(
+                .spawn_images(
+                    CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
                         "cinematics/intro/asteroid_waves.png".to_string(),
-                        1,
-                        4.0
-                    )
-                ))
+                    ))
+                )
                 .with_elapse(2.5),
             CutsceneAct::new()
-                .spawn_animations(CutsceneAnimationsSpawn::new().push_spawn(
-                    CutsceneAnimationSpawn::new(
+                .spawn_images(
+                    CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
                         "cinematics/intro/screaming_scene.png".to_string(),
-                        1,
-                        2.0
-                    )
-                ))
+                    ))
+                )
                 .with_elapse(2.5),
             CutsceneAct::new()
-                .spawn_animations(CutsceneAnimationsSpawn::new().push_spawn(
-                    CutsceneAnimationSpawn::new(
+                .spawn_images(
+                    CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
                         "cinematics/intro/transform.png".to_string(),
-                        1,
-                        2.0
-                    )
-                ))
+                    ))
+                )
                 .with_elapse(2.5),
             CutsceneAct::new()
-                .spawn_animations(CutsceneAnimationsSpawn::new().push_spawn(
-                    CutsceneAnimationSpawn::new(
-                        "cinematics/intro/falling_scene_animated.png".to_string(),
-                        2,
-                        0.2
+                .spawn_animations(
+                    CutsceneAnimationsSpawn::new().push_spawn(
+                        CutsceneAnimationSpawn::new(
+                            "cinematics/intro/falling_ship.png".to_string(),
+                            2,
+                            0.2
+                        )
+                        .with_tag(TAG_SHIP.to_string())
+                        .with_coordinates(25., 60.)
+                        .with_layer(Layer::CutsceneLayer(CutsceneLayer::Middle(0)))
+                        .with_target_movement(TargetMovement::new(40., 20.).with_speed(0.3))
                     )
-                ))
-                .with_elapse(3.0)
-                .despawn_music(),
+                )
+                .spawn_images(
+                    CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
+                        "cinematics/intro/planet.png".to_string()
+                    ))
+                )
+                .with_elapse(5.0),
             CutsceneAct::new().despawn_music()
         ]
     });

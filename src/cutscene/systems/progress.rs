@@ -46,10 +46,11 @@ pub fn read_step_trigger(
             if let Some(spawn_animations) = &act.spawn_animations_o {
                 entity_commands.insert(spawn_animations.clone());
             }
+            if let Some(spawn_images) = &act.spawn_images_o {
+                entity_commands.insert(spawn_images.clone());
+            }
             if act.await_input {
-                // for tag in despawn_entities.iter() {
-                //     mark_for_despawn_by_component_query(&mut commands, &cutscene_query);
-                // }
+                // TODO
             }
         } else {
             cutscene_shutdown_event_writer.send(CutsceneShutdownEvent);
@@ -92,7 +93,7 @@ pub fn process_cutscene_animations_spawn(
                 PxSpriteBundle::<Layer> {
                     sprite,
                     anchor: PxAnchor::BottomLeft,
-                    layer: Layer::CutsceneBackground,
+                    layer: spawn.layer.clone(),
                     ..Default::default()
                 },
                 PxAnimationBundle {
@@ -108,9 +109,44 @@ pub fn process_cutscene_animations_spawn(
             if let Some(tag) = &spawn.tag_o {
                 entity_commands.insert(Tag(tag.clone()));
             }
+
+            if let Some(target_movement) = &spawn.target_movement_o {
+                entity_commands.insert(target_movement.make_bundles(spawn.coordinates.clone()));
+            }
         }
 
         commands.entity(entity).remove::<CutsceneAnimationsSpawn>();
+    }
+}
+
+pub fn process_cutscene_images_spawn(
+    mut commands: Commands,
+    query: Query<(Entity, &CutsceneImagesSpawn), (With<Cinematic>, Added<CutsceneImagesSpawn>)>,
+    mut assets_sprite: PxAssets<PxSprite>,
+) {
+    for (entity, spawns) in query.iter() {
+        for spawn in spawns.spawns.iter() {
+            let sprite = assets_sprite.load(spawn.image_path.clone());
+
+            let mut entity_commands = commands.spawn((
+                CutsceneEntity,
+                // TODO should I make a bundle that automatically includes both graphic and entity?
+                CutsceneGraphic,
+                PxSpriteBundle::<Layer> {
+                    sprite,
+                    anchor: PxAnchor::BottomLeft,
+                    layer: spawn.layer.clone(),
+                    ..Default::default()
+                },
+                PxSubPosition::from(spawn.coordinates),
+            ));
+
+            if let Some(tag) = &spawn.tag_o {
+                entity_commands.insert(Tag(tag.clone()));
+            }
+        }
+
+        commands.entity(entity).remove::<CutsceneImagesSpawn>();
     }
 }
 

@@ -145,8 +145,6 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Movement
-                            update_position_x,
-                            update_position_y,
                             update_depth,
                             circle_around,
                             (

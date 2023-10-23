@@ -22,7 +22,7 @@ use bevy::prelude::*;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use components::DespawnMark;
-use cutscene::CutscenePlugin;
+use cutscene::{data::CutsceneLayer, CutscenePlugin};
 use debug::DebugPlugin;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
@@ -35,6 +35,7 @@ use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
     audio::VolumeSettings,
     camera::move_camera,
+    movement::{update_position_x, update_position_y},
     setup::{init_gb_input, set_framespace, spawn_camera},
     *,
 };
@@ -107,6 +108,8 @@ fn main() {
             Update,
             (
                 move_camera,
+                update_position_x,
+                update_position_y,
                 // transition_to_game_state,
                 // transition_to_main_menu_state,
                 // input_exit_game,
@@ -176,10 +179,11 @@ pub enum Layer {
     Pickups,
     UIBackground,
     UI,
-    CutsceneBackground,
-    Cutscene(u8),
-    Letterbox,
-    CutsceneText,
+    CutsceneLayer(CutsceneLayer),
+    // CutsceneBackground,
+    // Cutscene(u8),
+    // Letterbox,
+    // CutsceneText,
     Transition,
 }
 
