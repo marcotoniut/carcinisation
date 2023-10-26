@@ -1,12 +1,3 @@
-use bevy::{
-    audio::{PlaybackMode, Volume},
-    prelude::*,
-};
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
-
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
     plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
@@ -22,6 +13,15 @@ use crate::{
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     Layer,
+};
+use assert_assets_path::assert_assets_path;
+use bevy::{
+    audio::{PlaybackMode, Volume},
+    prelude::*,
+};
+use seldom_pixel::{
+    prelude::{PxAnchor, PxAssets, PxSubPosition},
+    sprite::{PxSprite, PxSpriteBundle},
 };
 
 pub fn hovering_damage_on_reached(
@@ -47,7 +47,7 @@ pub fn hovering_damage_on_reached(
     volume_settings: Res<VolumeSettings>,
 ) {
     for (entity, attack, damage, position, depth) in &mut depth_query.iter() {
-        let sound_effect = asset_server.load("audio/sfx/enemy_melee.ogg");
+        let sound_effect = asset_server.load(assert_assets_path!("audio/sfx/enemy_melee.ogg"));
 
         for entity in &mut player_query.iter_mut() {
             damage_event_writer.send(DamageEvent::new(entity, damage.0));

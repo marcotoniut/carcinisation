@@ -5,9 +5,6 @@ pub mod events;
 pub mod resources;
 pub mod systems;
 
-use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
-
 use self::{
     crosshair::{Crosshair, CrosshairSettings},
     events::*,
@@ -18,8 +15,10 @@ use self::{
         *,
     },
 };
-
 use super::resources::StageTime;
+use assert_assets_path::assert_assets_path;
+use bevy::prelude::*;
+use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MovementSystemSet;
@@ -87,25 +86,29 @@ impl CrosshairInfo {
 
         match crosshair_settings.0 {
             2 => {
-                sprite = asset_server.load("sprites/crosshairs/squiggly.png");
+                sprite = asset_server.load(assert_assets_path!("sprites/crosshairs/squiggly.png"));
                 crosshair = Crosshair {
                     name: "squiggly".to_string(),
                 };
             }
             1 => {
-                sprite = asset_server.load("sprites/crosshairs/gun_sight.png");
+                sprite = asset_server.load(assert_assets_path!("sprites/crosshairs/gun_sight.png"));
                 crosshair = Crosshair {
                     name: "negative".to_string(),
                 };
             }
             0 => {
-                sprite = asset_server.load("sprites/crosshairs/gun_sight_inverted.png");
+                sprite = asset_server.load(assert_assets_path!(
+                    "sprites/crosshairs/gun_sight_inverted.png"
+                ));
                 crosshair = Crosshair {
                     name: "default".to_string(),
                 };
             }
             _ => {
-                sprite = asset_server.load("sprites/crosshairs/gun_sight_inverted.png");
+                sprite = asset_server.load(assert_assets_path!(
+                    "sprites/crosshairs/gun_sight_inverted.png"
+                ));
                 crosshair = Crosshair {
                     name: "default".to_string(),
                 };

@@ -34,6 +34,7 @@ use crate::{
     systems::camera::CameraPos,
     Layer,
 };
+use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{PxAnchor, PxAssets, PxSubPosition},
@@ -108,7 +109,7 @@ pub fn spawn_pickup(
     let position = PxSubPosition::from(offset + coordinates.clone());
     match pickup_type {
         PickupType::BigHealthpack => {
-            let sprite = assets_sprite.load("sprites/pickups/health_2.png");
+            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_2.png"));
             commands
                 .spawn((
                     name,
@@ -129,7 +130,7 @@ pub fn spawn_pickup(
                 .id()
         }
         PickupType::SmallHealthpack => {
-            let sprite = assets_sprite.load("sprites/pickups/health_1.png");
+            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_1.png"));
 
             commands
                 .spawn((
@@ -273,10 +274,22 @@ pub fn spawn_object(
     info!("Spawning {:?}", name.as_str());
 
     let (sprite_path, layer) = match spawn.object_type {
-        ObjectType::BenchBig => ("sprites/objects/bench_big.png", Layer::Middle(1)),
-        ObjectType::BenchSmall => ("sprites/objects/bench_small.png", Layer::Middle(1)),
-        ObjectType::Fibertree => ("sprites/objects/fiber_tree.png", Layer::Middle(5)),
-        ObjectType::RugparkSign => ("sprites/objects/rugpark_sign.png", Layer::Middle(3)),
+        ObjectType::BenchBig => (
+            assert_assets_path!("sprites/objects/bench_big.png"),
+            Layer::Middle(1),
+        ),
+        ObjectType::BenchSmall => (
+            assert_assets_path!("sprites/objects/bench_small.png"),
+            Layer::Middle(1),
+        ),
+        ObjectType::Fibertree => (
+            assert_assets_path!("sprites/objects/fiber_tree.png"),
+            Layer::Middle(5),
+        ),
+        ObjectType::RugparkSign => (
+            assert_assets_path!("sprites/objects/rugpark_sign.png"),
+            Layer::Middle(3),
+        ),
     };
     let sprite = assets_sprite.load(sprite_path);
     commands

@@ -1,0 +1,13 @@
+[package]
+name = "assert_assets_path"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0"
+cached = "0.46.0"
+quote = "1.0"
+proc-macro2 = "1.0"

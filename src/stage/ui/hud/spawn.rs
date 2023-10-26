@@ -1,8 +1,10 @@
+use super::components::{HealthText, Hud, UIBackground};
 use crate::{
     globals::*,
     stage::{components::StageEntity, ui::components::ScoreText},
     Layer,
 };
+use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
@@ -11,8 +13,6 @@ use seldom_pixel::{
     },
     sprite::{PxSprite, PxSpriteBundle},
 };
-
-use super::components::{HealthText, Hud, UIBackground};
 
 const LAYOUT_Y: i32 = 2;
 const HUD_HEALTH_W: i32 = 37;
@@ -54,7 +54,8 @@ pub fn spawn_hud(
                             anchor: PxAnchor::BottomLeft,
                             canvas: PxCanvas::Camera,
                             layer: Layer::Hud,
-                            sprite: assets_sprite.load("sprites/score-icon.png"),
+                            sprite: assets_sprite
+                                .load(assert_assets_path!("sprites/score-icon.png")),
                             ..Default::default()
                         },
                         PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),

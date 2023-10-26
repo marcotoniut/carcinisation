@@ -31,6 +31,7 @@ use crate::{
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::make_music_bundle},
     GBInput,
 };
+use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::{
@@ -160,7 +161,7 @@ pub fn read_stage_cleared_trigger(
         let music_bundle = make_music_bundle(
             &asset_server,
             &volume_settings,
-            "audio/music/intro.ogg".to_string(),
+            assert_assets_path!("audio/music/intro.ogg").to_string(),
             PlaybackMode::Despawn,
         );
 
@@ -201,7 +202,7 @@ pub fn read_stage_game_over_trigger(
         let music_bundle = make_music_bundle(
             &asset_server,
             &volume_settings,
-            "audio/music/game_over.ogg".to_string(),
+            assert_assets_path!("audio/music/game_over.ogg").to_string(),
             PlaybackMode::Despawn,
         );
         commands.spawn((music_bundle, StageEntity));

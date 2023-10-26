@@ -1,11 +1,11 @@
-use std::sync::Arc;
-
 use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
 use crate::stage::enemy::data::steps::EnemyStep;
+use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
+use std::sync::Arc;
 
 const OBJECT_FIBERTREE_Y: f32 = 13.;
 const OBJECT_LAMP_Y: f32 = -5.;
@@ -13,10 +13,10 @@ const OBJECT_LAMP_Y: f32 = -5.;
 lazy_static! {
     pub static ref STAGE_PARK_DATA: Arc<StageData> = StageData {
         name: "Park".to_string(),
-        music_path: "audio/music/stage_1.ogg".to_string(),
-        background_path: "backgrounds/rugpark/background.png".to_string(),
+        music_path: assert_assets_path!("audio/music/stage_1.ogg").to_string(),
+        background_path: assert_assets_path!("backgrounds/rugpark/background.png").to_string(),
         skybox: SkyboxData {
-            path: "backgrounds/rugpark/skybox.png".to_string(),
+            path: assert_assets_path!("backgrounds/rugpark/skybox.png").to_string(),
             frames: 2,
         },
         start_coordinates: Some(Vec2::new(0.0, 0.0)),

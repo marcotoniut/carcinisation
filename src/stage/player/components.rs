@@ -1,3 +1,4 @@
+use assert_assets_path::assert_assets_path;
 use bevy::{
     audio::{PlaybackMode, Volume},
     prelude::*,
@@ -66,8 +67,10 @@ impl PlayerAttack {
         let (sprite_bundle, animation_bundle, audio_source_bundle, audio_system_bundle) =
             match self.weapon {
                 Weapon::Pincer => {
-                    let melee_slash_sound = asset_server.load("audio/sfx/player_melee.ogg");
-                    let sprite = assets_sprite.load_animated("sprites/melee_slash.png", 9);
+                    let melee_slash_sound =
+                        asset_server.load(assert_assets_path!("audio/sfx/player_melee.ogg"));
+                    let sprite = assets_sprite
+                        .load_animated(assert_assets_path!("sprites/melee_slash.png"), 9);
                     (
                         PxSpriteBundle::<Layer> {
                             sprite,
@@ -96,8 +99,10 @@ impl PlayerAttack {
                     )
                 }
                 Weapon::Gun => {
-                    let shoot_sound = asset_server.load("audio/sfx/player_shot.ogg");
-                    let sprite = assets_sprite.load_animated("sprites/bullet_particles.png", 4);
+                    let shoot_sound =
+                        asset_server.load(assert_assets_path!("audio/sfx/player_shot.ogg"));
+                    let sprite = assets_sprite
+                        .load_animated(assert_assets_path!("sprites/bullet_particles.png"), 4);
                     (
                         PxSpriteBundle::<Layer> {
                             sprite,

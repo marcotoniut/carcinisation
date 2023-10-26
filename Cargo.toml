@@ -13,12 +13,14 @@ opt-level = 'z'
 [workspace]
 resolver = "2"
 members = [
+    "assert_assets_path",
     "scripts/generate-palettes",
     "scripts/generate-typeface",
     "scripts/process-gfx",
 ]
 
 [dependencies]
+assert_assets_path = { path = "assert_assets_path" }
 bevy = { version = "0.11.3", features = [
     "wayland",
 ] } # dynamic_linking cannot be used for webassembly, not required for MacOS
