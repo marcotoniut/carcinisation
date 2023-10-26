@@ -2,6 +2,7 @@ use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
 use crate::stage::enemy::data::steps::EnemyStep;
+use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
 use std::sync::Arc;
@@ -9,10 +10,10 @@ use std::sync::Arc;
 lazy_static! {
     pub static ref STAGE_ASTEROID_DATA: Arc<StageData> = StageData {
         name: "Asteroid".to_string(),
-        background_path: "backgrounds/asteroid/background.png".to_string(),
-        music_path: "audio/music/stage_3.ogg".to_string(),
+        background_path: assert_assets_path!("backgrounds/asteroid/background.png").to_string(),
+        music_path: assert_assets_path!("audio/music/stage_3.ogg").to_string(),
         skybox: SkyboxData {
-            path: "backgrounds/asteroid/skybox.png".to_string(),
+            path: assert_assets_path!("backgrounds/asteroid/skybox.png").to_string(),
             frames: 1,
         },
         start_coordinates: Some(Vec2::new(0.0, 0.0)),

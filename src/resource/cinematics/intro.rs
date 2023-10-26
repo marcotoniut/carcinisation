@@ -1,4 +1,5 @@
 use crate::{cutscene::data::*, Layer};
+use assert_assets_path::assert_assets_path;
 use lazy_static::lazy_static;
 use std::sync::Arc;
 
@@ -10,11 +11,11 @@ lazy_static! {
         steps: vec![
             CutsceneAct::new()
                 .spawn_music(CutsceneMusicSpawn::new(
-                    "audio/music/action.ogg".to_string()
+                    assert_assets_path!("audio/music/action.ogg").to_string()
                 ))
                 .spawn_animations(CutsceneAnimationsSpawn::new().push_spawn(
                     CutsceneAnimationSpawn::new(
-                        "cinematics/intro/acrab_travelling.png".to_string(),
+                        assert_assets_path!("cinematics/intro/acrab_travelling.png").to_string(),
                         5,
                         0.3
                     )
@@ -23,21 +24,21 @@ lazy_static! {
             CutsceneAct::new()
                 .spawn_images(
                     CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
-                        "cinematics/intro/asteroid_waves.png".to_string(),
+                        assert_assets_path!("cinematics/intro/asteroid_waves.png").to_string(),
                     ))
                 )
                 .with_elapse(2.5),
             CutsceneAct::new()
                 .spawn_images(
                     CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
-                        "cinematics/intro/screaming_scene.png".to_string(),
+                        assert_assets_path!("cinematics/intro/screaming_scene.png").to_string(),
                     ))
                 )
                 .with_elapse(2.5),
             CutsceneAct::new()
                 .spawn_images(
                     CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
-                        "cinematics/intro/transform.png".to_string(),
+                        assert_assets_path!("cinematics/intro/transform.png").to_string(),
                     ))
                 )
                 .with_elapse(2.5),
@@ -45,7 +46,7 @@ lazy_static! {
                 .spawn_animations(
                     CutsceneAnimationsSpawn::new().push_spawn(
                         CutsceneAnimationSpawn::new(
-                            "cinematics/intro/falling_ship.png".to_string(),
+                            assert_assets_path!("cinematics/intro/falling_ship.png").to_string(),
                             2,
                             0.2
                         )
@@ -57,7 +58,7 @@ lazy_static! {
                 )
                 .spawn_images(
                     CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
-                        "cinematics/intro/planet.png".to_string()
+                        assert_assets_path!("cinematics/intro/planet.png").to_string()
                     ))
                 )
                 .with_elapse(5.0),
