@@ -46,6 +46,22 @@
     {
       "type": "lldb",
       "request": "launch",
+      "name": "Create Asset Paths",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=create-asset-paths",
+          "--package=create-asset-paths"
+        ],
+        "filter": {
+          "name": "create-asset-paths",
+          "kind": "bin"
+        }
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
       "name": "Generate Palettes",
       "cargo": {
         "args": [

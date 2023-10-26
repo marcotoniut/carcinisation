@@ -51,7 +51,7 @@ use seldom_pixel::prelude::PxAnimationFinished;
 //             // commands.insert_resource(NextState(Some(AppState::MainMenu)));
 //             info!("Entered AppState::MainMenu");
 
-//             let stage_data_handle = StageDataHandle(asset_server.load("stages/settings.yaml"));
+//             let stage_data_handle = StageDataHandle(asset_server.load(STAGES__SETTINGS__YAML));
 //             commands.insert_resource(stage_data_handle);
 
 //             next_app_state.set(AppState::MainMenu);

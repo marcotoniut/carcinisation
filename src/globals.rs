@@ -39,8 +39,8 @@ pub const PATH_SPRITES_ENEMIES: &str = assert_assets_path!("sprites/enemies/");
 pub const PATH_SPRITES_ATTACKS: &str = assert_assets_path!("sprites/attacks/");
 pub const PATH_SPRITES_OBJECTS: &str = assert_assets_path!("sprites/objects/");
 
-pub const TYPEFACE_PATH: &str = "typeface/pixeboy.png";
-pub const TYPEFACE_INVERTED_PATH: &str = "typeface/pixeboy-inverted.png";
+pub const TYPEFACE_PATH: &str = TYPEFACE__PIXEBOY__PNG;
+pub const TYPEFACE_INVERTED_PATH: &str = TYPEFACE__PIXEBOY_INVERTED__PNG;
 // pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?";
 

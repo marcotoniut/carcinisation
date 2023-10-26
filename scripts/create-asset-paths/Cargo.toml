@@ -1,0 +1,9 @@
+[package]
+name = "create-asset-paths"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+heck = "0.3.3"
+ignore = "0.4.18"
+walkdir = "2.3.2"

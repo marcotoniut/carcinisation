@@ -1,3 +1,4 @@
+use crate::{assets::*, cutscene::data::*, Layer};
 use crate::{cutscene::data::*, Layer};
 use assert_assets_path::assert_assets_path;
 use lazy_static::lazy_static;
