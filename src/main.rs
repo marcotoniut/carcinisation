@@ -1,5 +1,6 @@
 mod assets;
 mod bevy_utils;
+mod bundles;
 mod components;
 mod core;
 mod cutscene;
@@ -8,6 +9,7 @@ mod debug;
 mod game;
 mod globals;
 mod main_menu;
+mod pixel;
 mod plugins;
 mod resource;
 mod stage;
@@ -30,6 +32,7 @@ use leafwing_input_manager::{
     prelude::{ActionState, InputManagerPlugin},
     Actionlike,
 };
+use pixel::{systems::update_rectangle_position, PixelPlugin};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
@@ -90,6 +93,7 @@ fn main() {
         .init_resource::<ActionState<GBInput>>()
         //  Setup
         .add_plugins(FramepacePlugin)
+        .add_plugins(PixelPlugin::<Layer>::default())
         .add_systems(Startup, (spawn_camera, set_framespace, init_gb_input))
         // Graphics and Game
         .insert_resource(ClearColor(Color::BLACK))

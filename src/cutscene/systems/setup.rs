@@ -9,6 +9,7 @@ use crate::{
     globals::mark_for_despawn_by_component_query,
 };
 use bevy::prelude::*;
+use seldom_pixel::prelude::PxSubPosition;
 
 pub fn on_startup(
     mut commands: Commands,
@@ -23,7 +24,11 @@ pub fn on_startup(
         commands.insert_resource::<CutsceneData>(data.clone());
         commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });
 
-        commands.spawn((Cinematic, Name::new("Cutscene")));
+        commands.spawn((
+            Cinematic,
+            Name::new("Cutscene"),
+            PxSubPosition(Vec2::new(50., 30.)),
+        ));
     }
 }
 

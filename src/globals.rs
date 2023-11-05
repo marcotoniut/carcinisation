@@ -35,7 +35,7 @@ lazy_static! {
     pub static ref CAMERA_CENTER: Vec2 = CAMERA_RESOLUTION.as_vec2() / 2.0 + HUD_OFFSET.as_vec2();
 }
 
-pub const PATH_SPRITES_ENEMIES: &str = assert_assets_path!("sprites/enemies/");
+pub const PATH_SPRITES_ENEMIES: &str = ("sprites/enemies/");
 pub const PATH_SPRITES_ATTACKS: &str = assert_assets_path!("sprites/attacks/");
 pub const PATH_SPRITES_OBJECTS: &str = assert_assets_path!("sprites/objects/");
 
@@ -65,5 +65,24 @@ pub fn mark_for_despawn_by_component_query<T: Component>(
 ) {
     for entity in query.iter() {
         commands.entity(entity).insert(DespawnMark);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum GBColor {
+    Black,
+    DarkGray,
+    LightGray,
+    White,
+}
+
+impl GBColor {
+    pub fn get_filter_path(&self) -> &'static str {
+        match self {
+            GBColor::Black => "filter/color0.png",
+            GBColor::DarkGray => "filter/color1.png",
+            GBColor::LightGray => "filter/color2.png",
+            GBColor::White => "filter/color3.png",
+        }
     }
 }
