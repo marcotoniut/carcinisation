@@ -5,6 +5,7 @@ use seldom_pixel::{asset::PxAsset, filter::PxFilterData, prelude::*};
 pub struct PxRectangle<L: PxLayer> {
     pub canvas: PxCanvas,
     pub filter: Handle<PxAsset<PxFilterData>>,
+    pub anchor: PxAnchor,
     pub layer: L,
     pub height: u32,
     pub width: u32,
