@@ -29,6 +29,7 @@ pub struct DespawnAfterDelay {
     pub duration: Duration,
 }
 
+// TODO why am I using this?
 pub fn remove_step<C: Component>(commands: &mut Commands, entity: Entity) {
     commands
         .entity(entity)

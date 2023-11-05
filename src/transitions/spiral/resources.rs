@@ -1,9 +1,42 @@
+use std::time::Duration;
+
 use bevy::{
     prelude::Resource,
     time::{Timer, TimerMode},
 };
 
+use crate::core::time::{DeltaTime, ElapsedTime, Ticker};
+
 use super::components::TRANSITION_UPDATE_TIME;
+
+#[derive(Resource)]
+pub struct TransitionVenetianTime {
+    pub delta: Duration,
+    pub elapsed: Duration,
+}
+
+impl DeltaTime for TransitionVenetianTime {
+    fn delta_seconds(&self) -> f32 {
+        self.delta.as_secs_f32()
+    }
+
+    fn delta(&self) -> Duration {
+        self.delta
+    }
+}
+
+impl ElapsedTime for TransitionVenetianTime {
+    fn elapsed(&self) -> Duration {
+        self.elapsed
+    }
+}
+
+impl Ticker for TransitionVenetianTime {
+    fn tick(&mut self, delta: Duration) {
+        self.delta = delta;
+        self.elapsed += delta;
+    }
+}
 
 #[derive(Resource)]
 pub struct TransitionUpdateTimer {

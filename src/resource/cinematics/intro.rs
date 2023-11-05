@@ -9,6 +9,7 @@ lazy_static! {
     pub static ref CINEMATIC_INTRO_DATA: Arc<CutsceneData> = Arc::new(CutsceneData {
         name: "Intro".to_string(),
         steps: vec![
+            // CutsceneAct::new().run_transition(),
             CutsceneAct::new()
                 .spawn_music(CutsceneMusicSpawn::new(
                     assert_assets_path!("audio/music/action.ogg").to_string()

@@ -229,6 +229,7 @@ pub struct CutsceneAct {
     pub music_spawn_o: Option<CutsceneMusicSpawn>,
     pub spawn_animations_o: Option<CutsceneAnimationsSpawn>,
     pub spawn_images_o: Option<CutsceneImagesSpawn>,
+    pub transition_o: Option<CutsceneTransition>,
 }
 
 impl CutsceneAct {
@@ -241,6 +242,7 @@ impl CutsceneAct {
             music_spawn_o: None,
             spawn_animations_o: None,
             spawn_images_o: None,
+            transition_o: None,
         }
     }
 
@@ -307,6 +309,15 @@ impl CutsceneSpriteSpawn {
             coordinates,
             tag_o: None,
         }
+    }
+}
+
+#[derive(Clone, Debug, Component)]
+pub struct CutsceneTransition {}
+
+impl CutsceneTransition {
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
