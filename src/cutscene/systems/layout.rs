@@ -1,39 +1,25 @@
 use super::super::components::*;
-use crate::{cutscene::bundles::make_letterbox_row, globals::SCREEN_RESOLUTION};
+use crate::{
+    cutscene::data::CutsceneLayer,
+    globals::{GBColor, SCREEN_RESOLUTION},
+    pixel::components::PxRectangle,
+    Layer,
+};
 use bevy::prelude::*;
-use seldom_pixel::{asset::*, filter::*};
+use seldom_pixel::{
+    asset::*,
+    filter::*,
+    prelude::{PxAnchor, PxCanvas, PxSubPosition},
+};
 
-pub fn spawn_cutscene(mut commands: Commands, mut filters: PxAssets<PxFilter>) {
-    build_screen(&mut commands, &mut filters);
-}
+// pub fn build_screen(commands: &mut Commands, filters: &mut PxAssets<PxFilter>) -> Entity {
+//     let mut entity_commands = commands.spawn(Cinematic);
 
-pub fn build_letterbox_top(
-    commands: &mut ChildBuilder<'_, '_, '_>,
-    filter: Handle<PxAsset<PxFilterData>>,
-) {
-    for row in 0..LETTERBOX_HEIGHT {
-        commands.spawn(make_letterbox_row(filter.clone(), row));
-    }
-}
+//     let letterbox_filter = filters.load(GBColor::DarkGray.get_filter_path());
+//     entity_commands.with_children(|parent| {
+//         build_letterbox_top(parent, letterbox_filter.clone());
+//         build_letterbox_bottom(parent, letterbox_filter.clone());
+//     });
 
-pub fn build_letterbox_bottom(
-    commands: &mut ChildBuilder<'_, '_, '_>,
-    filter: Handle<PxAsset<PxFilterData>>,
-) {
-    for row in (SCREEN_RESOLUTION.y - LETTERBOX_HEIGHT)..SCREEN_RESOLUTION.y {
-        commands.spawn(make_letterbox_row(filter.clone(), row));
-    }
-}
-
-pub fn build_screen(commands: &mut Commands, filters: &mut PxAssets<PxFilter>) -> Entity {
-    let letterbox_filter = filters.load("filter/color1.png");
-
-    let mut entity_commands = commands.spawn(Cinematic);
-
-    entity_commands.with_children(|parent| {
-        build_letterbox_top(parent, letterbox_filter.clone());
-        build_letterbox_bottom(parent, letterbox_filter.clone());
-    });
-
-    return entity_commands.id();
-}
+//     return entity_commands.id();
+// }
