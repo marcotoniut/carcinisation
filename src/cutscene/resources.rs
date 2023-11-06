@@ -1,5 +1,4 @@
-use super::components::LETTERBOX_UPDATE_TIME;
-use crate::core::time::*;
+use crate::{core::time::*, letterbox::components::LETTERBOX_UPDATE_TIME};
 use bevy::{
     prelude::Resource,
     time::{Timer, TimerMode},

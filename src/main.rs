@@ -7,6 +7,7 @@ mod data;
 mod debug;
 mod game;
 mod globals;
+mod letterbox;
 mod main_menu;
 mod pixel;
 mod plugins;
@@ -31,6 +32,7 @@ use leafwing_input_manager::{
     prelude::{ActionState, InputManagerPlugin},
     Actionlike,
 };
+use letterbox::LetterboxPlugin;
 use pixel::{systems::update_rectangle_position, PixelPlugin};
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
@@ -103,6 +105,7 @@ fn main() {
         ))
         // .add_plugins(TransitionVenetianPlugin)
         .add_plugins(CutscenePlugin)
+        .add_plugins(LetterboxPlugin)
         // .add_plugins(MainMenuPlugin)
         .add_plugins(StagePlugin)
         .add_plugins(GamePlugin)

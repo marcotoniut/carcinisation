@@ -21,6 +21,9 @@ impl<L: PxLayer> Default for PixelPlugin<L> {
 impl<L: PxLayer> Plugin for PixelPlugin<L> {
     fn build(&self, app: &mut App) {
         app.add_systems(PreUpdate, construct_rectangle::<L>)
-            .add_systems(Update, update_rectangle_position::<L>);
+            .add_systems(
+                Update,
+                (update_rectangle_color::<L>, update_rectangle_position::<L>).chain(),
+            );
     }
 }
