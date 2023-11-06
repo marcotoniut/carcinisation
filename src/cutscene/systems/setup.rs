@@ -1,21 +1,20 @@
 use crate::{
     cutscene::{
-        components::{build_letterbox_bottom, build_letterbox_top, Cinematic, CutsceneEntity},
+        components::{Cinematic, CutsceneEntity},
         data::CutsceneData,
         events::{CutsceneShutdownEvent, CutsceneStartupEvent},
         resources::CutsceneProgress,
         CutscenePluginUpdateState,
     },
-    globals::{mark_for_despawn_by_component_query, GBColor},
+    globals::mark_for_despawn_by_component_query,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAssets, PxFilter, PxSubPosition};
+use seldom_pixel::prelude::PxSubPosition;
 
 pub fn on_startup(
     mut commands: Commands,
     mut event_reader: EventReader<CutsceneStartupEvent>,
     mut cutscene_state_next_state: ResMut<NextState<CutscenePluginUpdateState>>,
-    mut filters: PxAssets<PxFilter>,
 ) {
     for e in event_reader.iter() {
         cutscene_state_next_state.set(CutscenePluginUpdateState::Active);
@@ -30,11 +29,6 @@ pub fn on_startup(
             Name::new("Cutscene"),
             PxSubPosition(Vec2::new(50., 30.)),
         ));
-
-        let filter = filters.load(GBColor::Black.get_filter_path());
-
-        build_letterbox_top(&mut commands, &filter);
-        build_letterbox_bottom(&mut commands, &filter);
     }
 }
 
