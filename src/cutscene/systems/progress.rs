@@ -7,6 +7,7 @@ use crate::{
         resources::{CutsceneProgress, CutsceneTime},
     },
     globals::mark_for_despawn_by_component_query,
+    letterbox::events::LetterboxMoveEvent,
     systems::{audio::VolumeSettings, spawn::make_music_bundle},
     Layer,
 };
@@ -23,11 +24,16 @@ pub fn read_step_trigger(
     mut commands: Commands,
     mut cutscene_shutdown_event_writer: EventWriter<CutsceneShutdownEvent>,
     mut progress: ResMut<CutsceneProgress>,
+    mut event_writer: EventWriter<LetterboxMoveEvent>,
     query: Query<Entity, (With<Cinematic>, Without<CutsceneElapsedStarted>)>,
     data: Res<CutsceneData>,
     time: Res<CutsceneTime>,
 ) {
     for entity in query.iter() {
+        event_writer.send(LetterboxMoveEvent {
+            speed: 30.,
+            row: 30.,
+        });
         if let Some(act) = data.steps.get(progress.index) {
             progress.index += 1;
             let mut entity_commands = commands.entity(entity);
@@ -62,7 +68,7 @@ pub fn check_cutscene_elapsed(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneElapsedStarted, &CutsceneElapse), With<Cinematic>>,
     cutscene_query: Query<Entity, With<CutsceneGraphic>>,
-    time: ResMut<CutsceneTime>,
+    time: Res<CutsceneTime>,
 ) {
     for (entity, started, elapse) in query.iter() {
         if started.0 + elapse.duration < time.elapsed {
