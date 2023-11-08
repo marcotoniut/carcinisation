@@ -62,13 +62,13 @@ pub fn on_move(
             insert_linear_movement(
                 &mut commands,
                 (entity, position),
-                SCREEN_RESOLUTION.y as f32 - e.row,
+                SCREEN_RESOLUTION.y as f32 - e.target,
                 e.speed,
             );
         }
 
         for (entity, position) in bottom_query.iter() {
-            insert_linear_movement(&mut commands, (entity, position), e.row, e.speed);
+            insert_linear_movement(&mut commands, (entity, position), e.target, e.speed);
         }
     }
 }

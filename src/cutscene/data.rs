@@ -2,6 +2,7 @@ use bevy::prelude::{Component, Resource, Vec2};
 use std::time::Duration;
 
 use crate::{
+    letterbox::events::LetterboxMoveEvent,
     plugins::movement::linear::components::{
         LinearMovementBundle, TargetingPositionX, TargetingPositionY,
     },
@@ -225,6 +226,7 @@ pub struct CutsceneAct {
     pub await_input: bool,
     pub despawn_entities: Vec<String>,
     pub elapse: Duration,
+    pub letterbox_move_o: Option<LetterboxMoveEvent>,
     pub music_despawn_o: Option<CutsceneMusicDespawn>,
     pub music_spawn_o: Option<CutsceneMusicSpawn>,
     pub spawn_animations_o: Option<CutsceneAnimationsSpawn>,
@@ -238,12 +240,18 @@ impl CutsceneAct {
             await_input: false,
             despawn_entities: vec![],
             elapse: Duration::ZERO,
+            letterbox_move_o: None,
             music_despawn_o: None,
             music_spawn_o: None,
             spawn_animations_o: None,
             spawn_images_o: None,
             transition_o: None,
         }
+    }
+
+    pub fn move_letterbox(mut self, event: LetterboxMoveEvent) -> Self {
+        self.letterbox_move_o = Some(event);
+        self
     }
 
     pub fn spawn_animations(mut self, spawns: CutsceneAnimationsSpawn) -> Self {
@@ -325,4 +333,18 @@ impl CutsceneTransition {
 pub struct CutsceneData {
     pub name: String,
     pub steps: Vec<CutsceneAct>,
+}
+
+impl CutsceneData {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            steps: vec![],
+        }
+    }
+
+    pub fn set_steps(mut self, steps: Vec<CutsceneAct>) -> Self {
+        self.steps = steps;
+        self
+    }
 }

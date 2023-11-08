@@ -5,12 +5,7 @@ use crate::{
         CutscenePluginUpdateState,
     },
     game::{
-        data::{
-            CinematicGameStep, CreditsGameStep, GameData, GameStep, StageGameStep,
-            TransitionGameStep, STARTING_LIVES,
-        },
-        events::GameStartupEvent,
-        resources::{GameProgress, Lives},
+        components::steps::*, data::*, events::GameStartupEvent, resources::*,
         GamePluginUpdateState,
     },
     resource::game::GAME_DATA,
@@ -78,7 +73,10 @@ pub fn progress(
                 GameStep::Credits(CreditsGameStep {}) => {
                     // TODO
                 }
-                GameStep::Cinematic(CinematicGameStep { data }) => {
+                GameStep::Cinematic(CinematicGameStep {
+                    data,
+                    is_checkpoint,
+                }) => {
                     cinematic_startup_event_writer
                         .send(CutsceneStartupEvent { data: data.clone() });
                 }

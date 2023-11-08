@@ -36,6 +36,37 @@ pub struct CurrentStageStep {
     pub started: Duration,
 }
 
+// TODO use this instead of CurrentStageStep?
+#[derive(Clone, Debug, Component)]
+pub struct StageElapse {
+    pub duration: Duration,
+    pub clear_graphics: bool,
+}
+
+impl StageElapse {
+    pub fn new(duration: Duration) -> Self {
+        Self {
+            duration,
+            clear_graphics: false,
+        }
+    }
+
+    pub fn from_secs_f32(secs: f32) -> Self {
+        Self {
+            duration: Duration::from_secs_f32(secs),
+            clear_graphics: false,
+        }
+    }
+
+    pub fn clear_graphics(mut self) -> Self {
+        self.clear_graphics = true;
+        self
+    }
+}
+
+#[derive(Component)]
+pub struct StageElapsedStarted(pub Duration);
+
 #[derive(Component, Clone, Debug)]
 pub enum CinematicStageStep {
     CutsceneAnimationSpawn(CutsceneAnimationsSpawn),

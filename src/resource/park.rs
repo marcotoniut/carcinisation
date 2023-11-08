@@ -64,7 +64,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
 
 pub fn make_steps() -> Vec<StageStep> {
     vec![
-        MovementStageStep::base(0.0, 0.0).into(),
+        // MovementStageStep::base(0.0, 0.0).into(),
         // StageStep::Cinematic {
         //     cinematic: INTRO_ANIMATIC_0.clone(),
         // },

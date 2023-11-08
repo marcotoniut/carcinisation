@@ -1,4 +1,4 @@
-use crate::{cutscene::data::*, Layer};
+use crate::{cutscene::data::*, letterbox::events::LetterboxMoveEvent, Layer};
 use assert_assets_path::assert_assets_path;
 use lazy_static::lazy_static;
 use std::sync::Arc;
@@ -10,6 +10,8 @@ lazy_static! {
         name: "Intro".to_string(),
         steps: vec![
             // CutsceneAct::new().run_transition(),
+            CutsceneAct::new()
+                .move_letterbox(LetterboxMoveEvent::open()),
             CutsceneAct::new()
                 .spawn_music(CutsceneMusicSpawn::new(
                     assert_assets_path!("audio/music/action.ogg").to_string()
@@ -63,7 +65,8 @@ lazy_static! {
                     ))
                 )
                 .with_elapse(5.0),
-            CutsceneAct::new().despawn_music()
+            CutsceneAct::new().despawn_music().move_letterbox(LetterboxMoveEvent::close())
+
         ]
     });
 }
