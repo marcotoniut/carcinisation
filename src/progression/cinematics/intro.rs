@@ -68,5 +68,15 @@ lazy_static! {
             CutsceneAct::new().despawn_music().move_letterbox(LetterboxMoveEvent::close())
 
         ]
-    });
+    }.set_steps(
+        vec![
+            CutsceneAct::new()
+            .spawn_images(
+                CutsceneImagesSpawn::new().push_spawn(CutsceneImageSpawn::new(
+                    assert_assets_path!("cinematics/intro/transform.png").to_string(),
+                ))
+            )
+            .with_elapse(2.0)
+            ]
+        ));
 }
