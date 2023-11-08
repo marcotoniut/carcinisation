@@ -11,7 +11,7 @@ mod letterbox;
 mod main_menu;
 mod pixel;
 mod plugins;
-mod resource;
+mod progression;
 mod stage;
 mod systems;
 mod transitions;
