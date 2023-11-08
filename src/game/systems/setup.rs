@@ -8,7 +8,7 @@ use crate::{
         components::steps::*, data::*, events::GameStartupEvent, resources::*,
         GamePluginUpdateState,
     },
-    resource::game::GAME_DATA,
+    progression::game::GAME_DATA,
     stage::{
         data::StageData,
         events::{StageClearedEvent, StageStartupEvent},
