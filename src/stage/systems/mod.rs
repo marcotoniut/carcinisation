@@ -11,7 +11,8 @@ use super::{
     components::{
         interactive::{Dead, Object},
         placement::spawn_floor_depths,
-        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StageEntity, StopStageStep,
+        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StageElapse,
+        StageElapsedStarted, StageEntity, StopStageStep,
     },
     data::*,
     destructible::components::Destructible,
@@ -216,14 +217,20 @@ pub fn read_step_trigger(
     mut progress: ResMut<StageProgress>,
     query: Query<Entity, (With<Stage>, Without<CurrentStageStep>)>,
     stage_data: Res<StageData>,
-    stage_time: Res<StageTime>,
+    time: Res<StageTime>,
 ) {
     if let Ok(entity) = query.get_single() {
         if let Some(action) = stage_data.steps.get(progress.index) {
+            progress.index += 1;
+
             let mut entity_commands = commands.entity(entity);
-            entity_commands.insert(CurrentStageStep {
-                started: stage_time.elapsed,
-            });
+            entity_commands.insert((
+                CurrentStageStep {
+                    started: time.elapsed,
+                },
+                // StageElapse::new(action.elapse),
+                StageElapsedStarted(time.elapsed),
+            ));
 
             match action {
                 StageStep::Cinematic(step) => {
@@ -236,8 +243,6 @@ pub fn read_step_trigger(
                     entity_commands.insert(step.clone());
                 }
             }
-            // TODO review progress
-            progress.index += 1;
         }
     }
 }

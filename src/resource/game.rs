@@ -1,4 +1,6 @@
-use crate::game::data::{CinematicGameStep, GameData, GameStep, StageGameStep};
+use crate::game::components::steps::*;
+use crate::game::data::GameStep;
+use crate::game::resources::GameData;
 use crate::resource::asteroid::STAGE_ASTEROID_DATA;
 use crate::resource::cinematics::intro::CINEMATIC_INTRO_DATA;
 use crate::resource::park::STAGE_PARK_DATA;
@@ -14,21 +16,9 @@ lazy_static! {
 
 pub fn make_steps() -> Vec<GameStep> {
     vec![
-        CinematicGameStep {
-            data: CINEMATIC_INTRO_DATA.clone(),
-        }
-        .into(),
-        StageGameStep {
-            data: STAGE_PARK_DATA.clone(),
-        }
-        .into(),
-        StageGameStep {
-            data: STAGE_SPACESHIP_DATA.clone(),
-        }
-        .into(),
-        StageGameStep {
-            data: STAGE_ASTEROID_DATA.clone(),
-        }
-        .into(),
+        CinematicGameStep::new(CINEMATIC_INTRO_DATA.clone()).into(),
+        StageGameStep::new(STAGE_PARK_DATA.clone()).into(),
+        StageGameStep::new(STAGE_SPACESHIP_DATA.clone()).into(),
+        StageGameStep::new(STAGE_ASTEROID_DATA.clone()).into(),
     ]
 }

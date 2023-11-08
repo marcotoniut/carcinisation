@@ -24,16 +24,12 @@ pub fn read_step_trigger(
     mut commands: Commands,
     mut cutscene_shutdown_event_writer: EventWriter<CutsceneShutdownEvent>,
     mut progress: ResMut<CutsceneProgress>,
-    mut event_writer: EventWriter<LetterboxMoveEvent>,
+    mut letterbox_move_event_writer: EventWriter<LetterboxMoveEvent>,
     query: Query<Entity, (With<Cinematic>, Without<CutsceneElapsedStarted>)>,
     data: Res<CutsceneData>,
     time: Res<CutsceneTime>,
 ) {
     for entity in query.iter() {
-        event_writer.send(LetterboxMoveEvent {
-            speed: 30.,
-            row: 30.,
-        });
         if let Some(act) = data.steps.get(progress.index) {
             progress.index += 1;
             let mut entity_commands = commands.entity(entity);
@@ -43,6 +39,9 @@ pub fn read_step_trigger(
                 CutsceneElapsedStarted(time.elapsed),
             ));
 
+            if let Some(event) = &act.letterbox_move_o {
+                letterbox_move_event_writer.send(event.clone());
+            }
             if let Some(music_despawn) = &act.music_despawn_o {
                 entity_commands.insert(music_despawn.clone());
             }
