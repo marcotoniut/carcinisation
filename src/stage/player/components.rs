@@ -150,6 +150,6 @@ impl PlayerAttack {
 pub struct CameraShake {
     pub timer: Timer,
     pub intensity: f32,
-    pub original_pos: Vec2,
+    pub original_position: Vec2,
     pub shaking: bool,
 }

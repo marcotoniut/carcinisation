@@ -1,5 +1,5 @@
 use crate::{
-    components::{remove_step, CutsceneElapsedStarted, Music, Tag},
+    components::{remove_step, Cleared, CutsceneElapsedStarted, Music, Tag},
     cutscene::{
         components::{Cinematic, CutsceneEntity, CutsceneGraphic},
         data::*,
@@ -25,14 +25,22 @@ pub fn read_step_trigger(
     mut cutscene_shutdown_event_writer: EventWriter<CutsceneShutdownEvent>,
     mut progress: ResMut<CutsceneProgress>,
     mut letterbox_move_event_writer: EventWriter<LetterboxMoveEvent>,
-    query: Query<Entity, (With<Cinematic>, Without<CutsceneElapsedStarted>)>,
+    query: Query<
+        Entity,
+        (
+            With<Cinematic>,
+            Without<CutsceneElapsedStarted>,
+            Without<Cleared>,
+        ),
+    >,
     data: Res<CutsceneData>,
     time: Res<CutsceneTime>,
 ) {
     for entity in query.iter() {
+        let mut entity_commands = commands.entity(entity);
+
         if let Some(act) = data.steps.get(progress.index) {
             progress.index += 1;
-            let mut entity_commands = commands.entity(entity);
 
             entity_commands.insert((
                 CutsceneElapse::new(act.elapse),
@@ -58,6 +66,7 @@ pub fn read_step_trigger(
                 // TODO
             }
         } else {
+            entity_commands.insert(Cleared);
             cutscene_shutdown_event_writer.send(CutsceneShutdownEvent);
         }
     }

@@ -7,13 +7,13 @@ use seldom_pixel::prelude::PxLayer;
 use std::marker::PhantomData;
 
 pub struct PixelPlugin<L: PxLayer> {
-    _marker: PhantomData<L>,
+    _phantom_l: PhantomData<L>,
 }
 
 impl<L: PxLayer> Default for PixelPlugin<L> {
     fn default() -> Self {
         Self {
-            _marker: PhantomData,
+            _phantom_l: PhantomData,
         }
     }
 }

@@ -34,8 +34,11 @@ use leafwing_input_manager::{
 };
 use letterbox::LetterboxPlugin;
 use pixel::{systems::update_rectangle_position, PixelPlugin};
+use plugins::movement::linear::components::{
+    extra::LinearMovement2DReachCheck, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
+};
 use seldom_pixel::prelude::*;
-use stage::{player::crosshair::CrosshairSettings, StagePlugin};
+use stage::{player::crosshair::CrosshairSettings, resources::StageTime, StagePlugin};
 use systems::{
     audio::VolumeSettings,
     camera::move_camera,
@@ -67,6 +70,7 @@ fn main() {
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
             DebugPlugin,
         ));
+        register_types(&mut app);
     }
     #[cfg(not(debug_assertions))]
     {
@@ -124,6 +128,14 @@ fn main() {
         // Cleanup
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
         .run();
+}
+
+// TODO move to its own module
+fn register_types(app: &mut App) {
+    app.register_type::<StageTime>()
+        .register_type::<TargetingPositionX>()
+        .register_type::<TargetingPositionY>()
+        .register_type::<TargetingPositionZ>();
 }
 
 // This is the list of "things in the game I want to be able to do based on input"

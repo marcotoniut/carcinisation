@@ -6,7 +6,7 @@ use crate::core::time::*;
 
 use super::data::StageSpawn;
 
-#[derive(Resource, Default, Debug, Clone, Copy)]
+#[derive(Resource, Default, Debug, Clone, Copy, Reflect)]
 pub struct StageTime {
     pub delta: Duration,
     pub elapsed: Duration,

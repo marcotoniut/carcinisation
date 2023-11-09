@@ -58,7 +58,7 @@ pub fn spawn_blood_shot_attack(
     attacking.last_attack_started = attacking.last_attack_started.clone();
 
     let direction = target_pos - current_pos;
-    let speed = direction.normalize() * BLOOD_SHOT_ATTACK_LINE_SPEED;
+    let speed = direction.normalize_or_zero() * BLOOD_SHOT_ATTACK_LINE_SPEED;
 
     let movement_bundle = (
         // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting

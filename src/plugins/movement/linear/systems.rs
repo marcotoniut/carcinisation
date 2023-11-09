@@ -5,7 +5,7 @@ use crate::{
     plugins::movement::structs::{Magnitude, MovementDirection},
 };
 
-use super::components::*;
+use super::components::{extra::LinearMovement2DReachCheck, *};
 
 pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
     mut query: Query<(&mut P, &LinearSpeed<T, P>), Without<LinearTargetReached<T, P>>>,
@@ -79,5 +79,29 @@ pub fn on_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
             .entity(entity)
             .remove::<LinearPositionRemovalBundle<T, P>>()
             .remove::<P>();
+    }
+}
+
+pub fn check_2d_x_reached<
+    T: DeltaTime + 'static + Resource,
+    X: Magnitude + Component,
+    Y: Magnitude + Component,
+>(
+    mut query: Query<&mut LinearMovement2DReachCheck<T, X, Y>, Added<LinearTargetReached<T, X>>>,
+) {
+    for mut check in query.iter_mut() {
+        check.reached.0 = true;
+    }
+}
+
+pub fn check_2d_y_reached<
+    T: DeltaTime + 'static + Resource,
+    X: Magnitude + Component,
+    Y: Magnitude + Component,
+>(
+    mut query: Query<&mut LinearMovement2DReachCheck<T, X, Y>, Added<LinearTargetReached<T, Y>>>,
+) {
+    for mut check in query.iter_mut() {
+        check.reached.1 = true;
     }
 }

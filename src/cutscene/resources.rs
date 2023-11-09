@@ -1,8 +1,5 @@
-use crate::{core::time::*, letterbox::components::LETTERBOX_UPDATE_TIME};
-use bevy::{
-    prelude::Resource,
-    time::{Timer, TimerMode},
-};
+use crate::core::time::*;
+use bevy::prelude::*;
 use std::time::Duration;
 
 #[derive(Resource, Default, Debug, Clone, Copy)]
@@ -37,22 +34,4 @@ impl Ticker for CutsceneTime {
 #[derive(Resource, Default, Clone, Copy)]
 pub struct CutsceneProgress {
     pub index: usize,
-}
-
-#[derive(Resource)]
-pub struct LetterboxUpdateTimer {
-    pub timer: Timer,
-}
-
-#[derive(Resource, Default)]
-pub struct LetterboxCounter {
-    pub value: u32,
-}
-
-impl Default for LetterboxUpdateTimer {
-    fn default() -> Self {
-        LetterboxUpdateTimer {
-            timer: Timer::from_seconds(LETTERBOX_UPDATE_TIME, TimerMode::Repeating),
-        }
-    }
 }

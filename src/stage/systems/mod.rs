@@ -27,7 +27,8 @@ use crate::{
     game::GameProgressState,
     globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
     plugins::movement::linear::components::{
-        LinearMovementBundle, LinearTargetReached, TargetingPositionX, TargetingPositionY,
+        extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
+        LinearTargetReached, TargetingPositionX, TargetingPositionY,
     },
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::make_music_bundle},
     GBInput,
@@ -87,7 +88,7 @@ pub fn check_stage_step_timer(
     mut event_writer: EventWriter<NextStepEvent>,
 ) {
     if timer.timer.finished() {
-        event_writer.send(NextStepEvent {});
+        event_writer.send(NextStepEvent);
     }
 }
 
@@ -136,7 +137,7 @@ pub fn check_staged_cleared(
     stage_data: Res<StageData>,
 ) {
     if stage_progress.index >= stage_data.steps.len() {
-        event_writer.send(StageClearedEvent {});
+        event_writer.send(StageClearedEvent);
     }
 }
 
@@ -177,7 +178,7 @@ pub fn check_stage_game_over(
     player_query: Query<&Player, Added<Dead>>,
 ) {
     if let Ok(_) = player_query.get_single() {
-        event_writer.send(StageGameOverEvent {});
+        event_writer.send(StageGameOverEvent);
     }
 }
 
@@ -271,12 +272,12 @@ pub fn initialise_movement_step(
         },
     )) = query.get_single()
     {
-        for (entity, position) in camera_query.iter() {
+        if let Ok((camera_entity, position)) = camera_query.get_single() {
             let direction = coordinates.clone() - position.0;
-            let speed = direction.normalize() * base_speed.clone() * GAME_BASE_SPEED;
+            let speed = direction.normalize_or_zero() * base_speed.clone() * GAME_BASE_SPEED;
 
             commands
-                .entity(entity)
+                .entity(camera_entity)
                 .insert(LinearMovementBundle::<StageTime, TargetingPositionX>::new(
                     position.x.clone(),
                     coordinates.x.clone(),
@@ -287,6 +288,11 @@ pub fn initialise_movement_step(
                     coordinates.y.clone(),
                     speed.y,
                 ))
+                .insert(LinearMovement2DReachCheck::<
+                    StageTime,
+                    TargetingPositionX,
+                    TargetingPositionY,
+                >::new())
                 .insert(StageStepSpawner::new(spawns.clone()));
 
             if let Some(floor_depths) = floor_depths {
@@ -318,32 +324,50 @@ pub fn initialise_stop_step(
         }
     }
 }
+
 pub fn check_movement_step_reached(
+    mut commands: Commands,
     mut event_writer: EventWriter<NextStepEvent>,
-    query: Query<(
-        With<MovementStageStep>,
-        Added<LinearTargetReached<StageTime, TargetingPositionX>>,
-    )>,
+    step_query: Query<Entity, With<MovementStageStep>>,
+    camera_query: Query<
+        (
+            Entity,
+            &LinearMovement2DReachCheck<StageTime, TargetingPositionX, TargetingPositionY>,
+        ),
+        With<CameraPos>,
+    >,
 ) {
-    for _ in query.iter() {
-        // TODO review cleanup of PositionY
-        event_writer.send(NextStepEvent {})
+    if let Ok((camera_entity, reach_check)) = camera_query.get_single() {
+        if reach_check.reached() {
+            for _ in step_query.iter() {
+                let mut entity_commands = commands.entity(camera_entity);
+                entity_commands.remove::<LinearMovement2DReachCheck<
+                    StageTime,
+                    TargetingPositionX,
+                    TargetingPositionY,
+                >>();
+                entity_commands
+                    .remove::<LinearPositionRemovalBundle<StageTime, TargetingPositionX>>();
+                entity_commands
+                    .remove::<LinearPositionRemovalBundle<StageTime, TargetingPositionY>>();
+                event_writer.send(NextStepEvent);
+            }
+        }
     }
 }
 
 pub fn check_stop_step_finished_by_duration(
-    mut commands: Commands,
     mut event_writer: EventWriter<NextStepEvent>,
-    query: Query<(Entity, &StopStageStep, &CurrentStageStep), With<Stage>>,
+    query: Query<(&StopStageStep, &CurrentStageStep), With<Stage>>,
     stage_time: Res<StageTime>,
 ) {
-    for (entity, step, current_step) in query.iter() {
+    for (step, current_step) in query.iter() {
         if step
             .max_duration
             .map(|max_duration| current_step.started + max_duration <= stage_time.elapsed)
             .unwrap_or(false)
         {
-            event_writer.send(NextStepEvent {});
+            event_writer.send(NextStepEvent);
         }
     }
 }

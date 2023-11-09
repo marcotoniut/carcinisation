@@ -90,7 +90,7 @@ pub fn spawn_boulder_throw_attack(
         EnemyAttack,
         EnemyHoveringAttackType::BoulderThrow,
         depth.clone(),
-        TargetingPositionZ(depth.0.clone() as f32),
+        TargetingPositionZ::new(depth.0.into()),
         InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
         PxSubPosition(current_pos),
         Flickerer,

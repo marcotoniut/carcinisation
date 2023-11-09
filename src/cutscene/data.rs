@@ -56,7 +56,7 @@ impl TargetMovement {
         LinearMovementBundle<CutsceneTime, TargetingPositionX>,
         LinearMovementBundle<CutsceneTime, TargetingPositionY>,
     ) {
-        let normalised_direction = (self.position - coordinates).normalize();
+        let normalised_direction = (self.position - coordinates).normalize_or_zero();
         let velocity = normalised_direction * self.speed * GAME_BASE_SPEED;
 
         (
