@@ -21,6 +21,7 @@ pub struct CircleAround {
 pub struct LinearMovement {
     pub direction: Vec2,
     pub trayectory: f32,
+    // TODO replace with LinearMovement2DReached
     pub reached_x: bool,
     pub reached_y: bool,
 }

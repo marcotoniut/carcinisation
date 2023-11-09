@@ -15,8 +15,8 @@ pub struct PursueMovementPlugin<
     T: DeltaTime + 'static + Resource,
     P: MovementVec2Position + 'static + Component,
 > {
-    _marker: PhantomData<T>,
-    _marker_position: PhantomData<P>,
+    _phantom_t: PhantomData<T>,
+    _phantom_p: PhantomData<P>,
 }
 
 impl<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Component> Default
@@ -24,8 +24,8 @@ impl<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Component> Def
 {
     fn default() -> Self {
         Self {
-            _marker: PhantomData,
-            _marker_position: PhantomData,
+            _phantom_t: PhantomData,
+            _phantom_p: PhantomData,
         }
     }
 }

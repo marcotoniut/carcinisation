@@ -51,7 +51,7 @@ impl EnemyCurrentBehavior {
                 direction,
                 trayectory,
             }) => {
-                let normalised_direction = direction.normalize();
+                let normalised_direction = direction.normalize_or_zero();
                 // TODO use a better formula to increase speed for higher depths
                 let adapted_speed = (depth as f32 - 3.) / 6.;
                 let velocity = normalised_direction * (speed + adapted_speed) * GAME_BASE_SPEED;

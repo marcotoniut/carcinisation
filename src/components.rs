@@ -6,6 +6,9 @@ use bevy::prelude::*;
 pub struct Tag(pub String);
 
 #[derive(Component)]
+pub struct Cleared;
+
+#[derive(Component)]
 pub struct CutsceneElapsedStarted(pub Duration);
 
 #[derive(Component)]

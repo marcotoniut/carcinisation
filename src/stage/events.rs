@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use bevy::prelude::*;
 
@@ -8,16 +8,16 @@ use super::{
 };
 
 #[derive(Event)]
-pub struct StageRestart {}
+pub struct StageRestart;
 
 #[derive(Event)]
-pub struct NextStepEvent {}
+pub struct NextStepEvent;
 
 #[derive(Event)]
-pub struct StageClearedEvent {}
+pub struct StageClearedEvent;
 
 #[derive(Event)]
-pub struct StageGameOverEvent {}
+pub struct StageGameOverEvent;
 
 #[derive(Event)]
 pub struct StageSpawnEvent {

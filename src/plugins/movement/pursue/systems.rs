@@ -14,7 +14,7 @@ pub fn update<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Compo
 ) {
     for (mut position, speed, target) in &mut movement_query.iter_mut() {
         let direction = target.value - position.get();
-        let direction = direction.normalize();
+        let direction = direction.normalize_or_zero();
         let direction = direction * speed.value * delta_time.delta_seconds();
 
         position.add(direction);

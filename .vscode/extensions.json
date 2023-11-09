@@ -2,6 +2,7 @@
   "recommendations": [
     "stxr.iconfont-preview",
     "vadimcn.vscode-lldb",
-    "rust-lang.rust-analyzer"
+    "rust-lang.rust-analyzer",
+    "shardulm94.trailing-spaces"
   ]
 }

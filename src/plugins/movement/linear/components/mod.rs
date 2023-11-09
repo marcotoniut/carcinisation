@@ -1,13 +1,14 @@
-use std::marker::PhantomData;
+pub mod extra;
 
 use bevy::prelude::*;
+use std::marker::PhantomData;
 
 use crate::{
     core::time::DeltaTime,
     plugins::movement::structs::{Constructor, Magnitude, MovementDirection},
 };
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct TargetingPositionX(pub f32);
 
 impl TargetingPositionX {
@@ -16,7 +17,7 @@ impl TargetingPositionX {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct TargetingPositionY(pub f32);
 
 impl TargetingPositionY {
@@ -25,7 +26,7 @@ impl TargetingPositionY {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct TargetingPositionZ(pub f32);
 
 impl TargetingPositionZ {
@@ -61,8 +62,6 @@ macro_rules! impl_magnitude {
 impl_magnitude!(TargetingPositionX);
 impl_magnitude!(TargetingPositionY);
 impl_magnitude!(TargetingPositionZ);
-
-// TODO Bundle and on added
 
 #[derive(Component, Debug, Clone)]
 pub struct LinearDirection<T: DeltaTime + Send + Sync + 'static, P> {

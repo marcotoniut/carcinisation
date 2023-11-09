@@ -43,7 +43,7 @@ use crate::{
     plugins::movement::{
         linear::{
             components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
-            LinearMovementPlugin,
+            LinearMovement2DPlugin, LinearMovementPlugin,
         },
         pursue::PursueMovementPlugin,
     },
@@ -89,6 +89,11 @@ impl Plugin for StagePlugin {
             .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionX>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionY>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionZ>::default())
+            .add_plugins(LinearMovement2DPlugin::<
+                StageTime,
+                TargetingPositionX,
+                TargetingPositionY,
+            >::default())
             .add_plugins(AttackPlugin)
             .add_plugins(DestructiblePlugin)
             .add_plugins(EnemyPlugin)
