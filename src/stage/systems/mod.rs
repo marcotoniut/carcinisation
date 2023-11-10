@@ -217,11 +217,11 @@ pub fn read_step_trigger(
     mut commands: Commands,
     mut progress: ResMut<StageProgress>,
     query: Query<Entity, (With<Stage>, Without<CurrentStageStep>)>,
-    stage_data: Res<StageData>,
+    data: Res<StageData>,
     time: Res<StageTime>,
 ) {
     if let Ok(entity) = query.get_single() {
-        if let Some(action) = stage_data.steps.get(progress.index) {
+        if let Some(action) = data.steps.get(progress.index) {
             progress.index += 1;
 
             let mut entity_commands = commands.entity(entity);

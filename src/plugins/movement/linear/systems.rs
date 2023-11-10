@@ -8,20 +8,21 @@ use crate::{
 use super::components::{extra::LinearMovement2DReachCheck, *};
 
 pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
-    mut query: Query<(&mut P, &LinearSpeed<T, P>), Without<LinearTargetReached<T, P>>>,
+    mut query: Query<
+        (
+            &mut P,
+            &mut LinearSpeed<T, P>,
+            Option<&LinearAcceleration<T, P>>,
+        ),
+        Without<LinearTargetReached<T, P>>,
+    >,
     delta_time: Res<T>,
 ) {
-    for (mut position, speed) in &mut query.iter_mut() {
+    for (mut position, mut speed, acceleration_o) in &mut query.iter_mut() {
+        if let Some(acceleration) = acceleration_o {
+            speed.add(acceleration.value * delta_time.delta_seconds());
+        }
         position.add(speed.value * delta_time.delta_seconds());
-    }
-}
-
-pub fn update_speed<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
-    mut query: Query<(&mut LinearSpeed<T, P>, &LinearAcceleration<T, P>)>,
-    delta_time: Res<T>,
-) {
-    for (mut speed, acceleration) in &mut query.iter_mut() {
-        speed.add(acceleration.value * delta_time.delta_seconds());
     }
 }
 
@@ -46,18 +47,19 @@ pub fn check_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component
     mut query: Query<
         (
             Entity,
-            &P,
+            &mut P,
             &LinearDirection<T, P>,
             &LinearTargetPosition<T, P>,
         ),
         Without<LinearTargetReached<T, P>>,
     >,
 ) {
-    for (entity, position, direction, target) in &mut query.iter_mut() {
+    for (entity, mut position, direction, target) in &mut query.iter_mut() {
         let x = position.get();
         if (direction.value == MovementDirection::Negative && x <= target.value)
             || (direction.value == MovementDirection::Positive && x >= target.value)
         {
+            position.set(target.value);
             commands
                 .entity(entity)
                 .insert(LinearTargetReached::<T, P>::new());
@@ -65,16 +67,12 @@ pub fn check_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component
     }
 }
 
+// TODO check if this is prone to race conditions when systems that update data based on P execute in between this and update
 pub fn on_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
     mut commands: Commands,
-    mut query: Query<
-        (Entity, &mut P, &LinearTargetPosition<T, P>),
-        Added<LinearTargetReached<T, P>>,
-    >,
+    mut query: Query<Entity, Added<LinearTargetReached<T, P>>>,
 ) {
-    for (entity, mut position, target) in &mut query.iter_mut() {
-        position.set(target.value);
-        // TODO remove bundle
+    for entity in &mut query.iter_mut() {
         commands
             .entity(entity)
             .remove::<LinearPositionRemovalBundle<T, P>>()
