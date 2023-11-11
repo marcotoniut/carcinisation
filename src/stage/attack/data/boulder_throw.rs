@@ -34,22 +34,20 @@ lazy_static! {
 
         let mut hovering = HashMap::new();
         for i in MIN_DEPTH..=MAX_DEPTH {
-            let collision = match i {
-                1 => 1.,
-                2 => 2.5,
-                3 => 4.5,
-                4 => 7.,
-                5 => 10.,
-                6 => 14.,
-                7 => 18.,
-                8 => 23.,
-                _ => 0.,
-            };
-
             hovering.insert(
                 i,
                 AnimationData {
-                    collision: Some(CollisionData::new(Collision::Circle(collision))),
+                    collision: CollisionData::from_one(Collision::new_circle(match i {
+                        1 => 1.,
+                        2 => 2.5,
+                        3 => 4.5,
+                        4 => 7.,
+                        5 => 10.,
+                        6 => 14.,
+                        7 => 18.,
+                        8 => 23.,
+                        _ => 0.,
+                    })),
                     finish_behavior: PxAnimationFinishBehavior::Loop,
                     frames: hovering_frames,
                     speed: hovering_speed,

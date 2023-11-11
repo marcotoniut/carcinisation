@@ -1,6 +1,6 @@
 use crate::stage::{
     components::{
-        interactive::{CollisionData, Dead},
+        interactive::{Collision, CollisionData, Dead},
         placement::Depth,
         SpawnDrop, StageEntity,
     },
@@ -16,7 +16,7 @@ use crate::stage::{
 use crate::{
     stage::{
         components::{
-            interactive::{Collision, Flickerer, Health, Hittable, Object},
+            interactive::{CollisionShape, Flickerer, Health, Hittable, Object},
             placement::Speed,
         },
         data::{
@@ -124,7 +124,7 @@ pub fn spawn_pickup(
                     // TODO should this be the spawn depth or the spawner's?
                     Depth(spawn.depth),
                     Health(1),
-                    CollisionData::new(Collision::Box(Vec2::new(12., 8.))),
+                    CollisionData::from_one(Collision::new_box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
                 ))
                 .id()
@@ -145,7 +145,7 @@ pub fn spawn_pickup(
                     position,
                     Depth(spawn.depth),
                     Health(1),
-                    CollisionData::new(Collision::Box(Vec2::new(7., 5.))),
+                    CollisionData::from_one(Collision::new_box(Vec2::new(7., 5.))),
                     HealthRecovery(30),
                 ))
                 .id()
@@ -169,6 +169,10 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
     let behaviors = EnemyBehaviors::new(steps.clone());
     match enemy_type {
         EnemyType::Mosquito => {
+            let collision =
+                Collision::new_circle(ENEMY_MOSQUITO_RADIUS).with_offset(Vec2::new(0., 2.));
+            let critical_collision = collision.new_scaled(0.4).with_defense(0.4);
+
             let entity = commands
                 .spawn((
                     name,
@@ -186,8 +190,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                     Flickerer,
                     Hittable,
                     PxSubPosition::from(position),
-                    CollisionData::new(Collision::Circle(ENEMY_MOSQUITO_RADIUS))
-                        .with_offset(Vec2::new(0., 2.)),
+                    CollisionData::from_many(vec![critical_collision, collision]),
                     Health(ENEMY_MOSQUITO_BASE_HEALTH),
                 ))
                 .id();
@@ -204,29 +207,34 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
         EnemyType::Marauder => commands.spawn((name, Enemy, behaviors)).id(),
         EnemyType::Spidey => commands.spawn((name, Enemy, behaviors)).id(),
         EnemyType::Spidomonsta => commands.spawn((name, Enemy, behaviors)).id(),
-        EnemyType::Tardigrade => commands
-            .spawn((
-                name,
-                behaviors,
-                Depth(*depth),
-                StageEntity,
-                Enemy,
-                EnemyTardigrade {
-                    steps: steps.clone(),
-                },
-                EnemyTardigradeAttacking {
-                    ..Default::default()
-                },
-                Flickerer,
-                Hittable,
-                // TODO speed needs to be assigned otherwise the check_no_behavior function cannot find the target enemy
-                Speed(*speed),
-                PxSubPosition::from(position),
-                CollisionData::new(Collision::Circle(ENEMY_TARDIGRADE_RADIUS))
-                    .with_offset(Vec2::new(-3., 2.)),
-                Health(ENEMY_TARDIGRADE_BASE_HEALTH),
-            ))
-            .id(),
+        EnemyType::Tardigrade => {
+            let collision =
+                Collision::new_circle(ENEMY_TARDIGRADE_RADIUS).with_offset(Vec2::new(-3., 2.));
+            let critical_collision = collision.new_scaled(0.4).with_defense(0.2);
+
+            commands
+                .spawn((
+                    name,
+                    behaviors,
+                    Depth(*depth),
+                    StageEntity,
+                    Enemy,
+                    EnemyTardigrade {
+                        steps: steps.clone(),
+                    },
+                    EnemyTardigradeAttacking {
+                        ..Default::default()
+                    },
+                    Flickerer,
+                    Hittable,
+                    // TODO speed needs to be assigned otherwise the check_no_behavior function cannot find the target enemy
+                    Speed(*speed),
+                    PxSubPosition::from(position),
+                    CollisionData::from_many(vec![collision, critical_collision]),
+                    Health(ENEMY_TARDIGRADE_BASE_HEALTH),
+                ))
+                .id()
+        }
     }
 }
 

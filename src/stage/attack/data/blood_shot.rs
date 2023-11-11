@@ -3,7 +3,7 @@ use crate::{
     globals::PATH_SPRITES_ATTACKS,
     stage::{
         attack::data::HoveringAttackAnimations,
-        components::interactive::{Collision, CollisionData},
+        components::interactive::{Collision, CollisionData, CollisionShape},
         player::components::PLAYER_DEPTH,
     },
 };
@@ -39,22 +39,20 @@ lazy_static! {
         let mut hovering = HashMap::new();
 
         for i in MIN_DEPTH..=MAX_DEPTH {
-            let collision = match i {
-                1 => 1.,
-                2 => 2.,
-                3 => 3.,
-                4 => 5.,
-                5 => 7.5,
-                6 => 10.5,
-                7 => 14.,
-                8 => 18.,
-                _ => 0.,
-            };
-
             hovering.insert(
                 i,
                 AnimationData {
-                    collision: Some(CollisionData::new(Collision::Circle(collision))),
+                    collision: CollisionData::from_one(Collision::new_circle(match i {
+                        1 => 1.,
+                        2 => 2.,
+                        3 => 3.,
+                        4 => 5.,
+                        5 => 7.5,
+                        6 => 10.5,
+                        7 => 14.,
+                        8 => 18.,
+                        _ => 0.,
+                    })),
                     finish_behavior: PxAnimationFinishBehavior::Loop,
                     frames: hovering_frames,
                     speed: hovering_speed,

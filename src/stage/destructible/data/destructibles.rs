@@ -1,16 +1,14 @@
-use bevy::prelude::*;
-use seldom_pixel::prelude::PxAnimationFinishBehavior;
-use std::collections::HashMap;
-
+use super::AnimationData;
 use crate::{
     globals::PATH_SPRITES_OBJECTS,
     stage::{
-        components::interactive::Collision,
+        components::interactive::{Collision, CollisionData},
         destructible::components::{DestructibleState, DestructibleType},
     },
 };
-
-use super::AnimationData;
+use bevy::prelude::*;
+use seldom_pixel::prelude::PxAnimationFinishBehavior;
+use std::collections::HashMap;
 
 pub struct DestructibleAnimationData {
     pub base: AnimationData,
@@ -75,14 +73,6 @@ lazy_static! {
         let lamp_fragment = "lamp";
 
         for i in lamp_depths {
-            let collision = match i {
-                5 => Vec2::new(17.0, 19.0),
-                _ => Vec2::ZERO,
-            };
-            let collision_offset = match i {
-                5 => Vec2::new(-1.0, 122.0),
-                _ => Vec2::ZERO,
-            };
             animations.lamp.insert(
                 i,
                 DestructibleAnimationData {
@@ -96,8 +86,13 @@ lazy_static! {
                         frames: lamp_base_frames,
                         speed: lamp_base_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
-                        collision: Collision::Box(collision),
-                        collision_offset,
+                        collision_data: match i {
+                            5 => CollisionData::from_one(
+                                Collision::new_box(Vec2::new(17.0, 19.0))
+                                    .with_offset(Vec2::new(-1.0, 122.0)),
+                            ),
+                            _ => CollisionData::new(),
+                        },
                         ..Default::default()
                     },
                     broken: AnimationData {
@@ -124,16 +119,6 @@ lazy_static! {
         let trashcan_fragment = "trashcan";
 
         for i in trashcan_depths {
-            let collision = match i {
-                1 => Vec2::new(8.0, 11.0),
-                4 => Vec2::new(18., 24.),
-                _ => Vec2::ZERO,
-            };
-            let collision_offset = match i {
-                1 => Vec2::new(-1.0, 6.0),
-                4 => Vec2::new(-2.0, 16.0),
-                _ => Vec2::ZERO,
-            };
             animations.trashcan.insert(
                 i,
                 DestructibleAnimationData {
@@ -147,8 +132,17 @@ lazy_static! {
                         frames: trashcan_frames,
                         speed: trashcan_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
-                        collision: Collision::Box(collision),
-                        collision_offset,
+                        collision_data: match i {
+                            1 => CollisionData::from_one(
+                                Collision::new_box(Vec2::new(8.0, 11.0))
+                                    .with_offset(Vec2::new(-1.0, 6.0)),
+                            ),
+                            4 => CollisionData::from_one(
+                                Collision::new_box(Vec2::new(18., 24.))
+                                    .with_offset(Vec2::new(-2.0, 16.0)),
+                            ),
+                            _ => CollisionData::new(),
+                        },
                         ..Default::default()
                     },
                     broken: AnimationData {
@@ -174,22 +168,6 @@ lazy_static! {
             let mushroom_fragment = "mushroom";
 
             for i in mushroom_depths {
-                let box_collision = match i {
-                    5 => Vec2::new(15., 70.),
-                    _ => Vec2::ZERO,
-                };
-                let box_collision_offset = match i {
-                    5 => Vec2::new(1., 49.),
-                    _ => Vec2::ZERO,
-                };
-                let circle_collision = match i {
-                    5 => 24.,
-                    _ => 0.,
-                };
-                let circle_collision_offset = match i {
-                    5 => Vec2::new(-1.0, 57.0),
-                    _ => Vec2::ZERO,
-                };
                 animations.mushroom.insert(
                     i,
                     DestructibleAnimationData {
@@ -203,10 +181,14 @@ lazy_static! {
                             frames: mushroom_frames,
                             speed: mushroom_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
-                            collision: Collision::Box(box_collision),
-                            collision_offset: box_collision_offset,
-                            // collision: Collision::Circle(circle_collision),
-                            // collision_offset: circle_collision_offset,
+                            collision_data: match i {
+                                5 => CollisionData::from_many(vec![
+                                    Collision::new_box(Vec2::new(15., 70.))
+                                        .with_offset(Vec2::new(1., 49.)),
+                                    Collision::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
+                                ]),
+                                _ => CollisionData::new(),
+                            },
                             ..Default::default()
                         },
                         broken: AnimationData {
@@ -233,14 +215,6 @@ lazy_static! {
             let crystal_fragment = "crystal";
 
             for i in crystal_depths {
-                let collision = match i {
-                    4 => Vec2::new(40., 60.),
-                    _ => Vec2::ZERO,
-                };
-                let collision_offset = match i {
-                    4 => Vec2::new(-4.0, 40.0),
-                    _ => Vec2::ZERO,
-                };
                 animations.crystal.insert(
                     i,
                     DestructibleAnimationData {
@@ -254,8 +228,13 @@ lazy_static! {
                             frames: crystal_frames,
                             speed: crystal_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
-                            collision: Collision::Box(collision),
-                            collision_offset,
+                            collision_data: match i {
+                                4 => CollisionData::from_one(
+                                    Collision::new_box(Vec2::new(40., 60.))
+                                        .with_offset(Vec2::new(-4., 40.)),
+                                ),
+                                _ => CollisionData::new(),
+                            },
                             ..Default::default()
                         },
                         broken: AnimationData {
