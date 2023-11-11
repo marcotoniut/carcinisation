@@ -7,7 +7,10 @@ use seldom_pixel::prelude::{
     PxAnimationFinishBehavior,
 };
 
-use crate::stage::{components::interactive::Collision, data::ContainerSpawn};
+use crate::stage::{
+    components::interactive::{Collision, CollisionData, CollisionShape},
+    data::ContainerSpawn,
+};
 
 use super::components::DestructibleType;
 
@@ -92,8 +95,7 @@ impl DestructibleSpawn {
 
 pub struct AnimationData {
     pub anchor: PxAnchor,
-    pub collision: Collision,
-    pub collision_offset: Vec2,
+    pub collision_data: CollisionData,
     pub direction: PxAnimationDirection,
     pub finish_behavior: PxAnimationFinishBehavior,
     pub frames: usize,
@@ -116,8 +118,7 @@ impl Default for AnimationData {
     fn default() -> Self {
         AnimationData {
             anchor: PxAnchor::BottomCenter,
-            collision: Collision::Box(Vec2::new(0., 0.)),
-            collision_offset: Vec2::new(0., 0.),
+            collision_data: CollisionData::new(),
             direction: PxAnimationDirection::Foreward,
             finish_behavior: PxAnimationFinishBehavior::Mark,
             frames: 0,

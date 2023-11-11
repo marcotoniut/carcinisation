@@ -1,16 +1,10 @@
-use bevy::prelude::*;
-
+use crate::{
+    stage::components::{interactive::CollisionData, placement::Depth},
+    Layer,
+};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},
-};
-
-use crate::{
-    stage::components::{
-        interactive::{Collision, CollisionData},
-        placement::Depth,
-    },
-    Layer,
 };
 
 use super::EnemyHoveringAttackType;
@@ -19,11 +13,7 @@ pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     attack_type: &EnemyHoveringAttackType,
     depth: Depth,
-) -> (
-    PxSpriteBundle<Layer>,
-    PxAnimationBundle,
-    Option<CollisionData>,
-) {
+) -> (PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData) {
     let animation_o = attack_type.get_animations().hovering.get(&depth.0);
 
     let animation = animation_o.unwrap();

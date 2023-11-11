@@ -1,7 +1,7 @@
 use crate::{
     globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
     stage::components::{
-        interactive::{Collision, CollisionData},
+        interactive::{CollisionData, CollisionShape},
         placement::*,
     },
     systems::camera::CameraPos,
@@ -62,22 +62,24 @@ pub fn draw_collisions(
 
     for (data, position) in query.iter() {
         let absolute_position = position.0 - camera_pos.0;
-        match data.collision {
-            Collision::Circle(radius) => {
-                gizmos.circle_2d(
-                    to_viewport_coordinates(absolute_position + data.offset),
-                    to_viewport_ratio_x(radius),
-                    Color::ALICE_BLUE,
-                );
-            }
-            Collision::Box(size) => {
-                gizmos.rect_2d(
-                    // to_viewport_coordinates(absolute_position - half_rect),
-                    to_viewport_coordinates(absolute_position + data.offset),
-                    0.,
-                    to_viewport_ratio(size),
-                    Color::FUCHSIA,
-                );
+        for collision in data.0.iter() {
+            match collision.shape {
+                CollisionShape::Circle(radius) => {
+                    gizmos.circle_2d(
+                        to_viewport_coordinates(absolute_position + collision.offset),
+                        to_viewport_ratio_x(radius),
+                        Color::ALICE_BLUE,
+                    );
+                }
+                CollisionShape::Box(size) => {
+                    gizmos.rect_2d(
+                        // to_viewport_coordinates(absolute_position - half_rect),
+                        to_viewport_coordinates(absolute_position + collision.offset),
+                        0.,
+                        to_viewport_ratio(size),
+                        Color::FUCHSIA,
+                    );
+                }
             }
         }
     }

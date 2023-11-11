@@ -1,9 +1,8 @@
 use crate::stage::components::interactive::CollisionData;
-use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 
 pub struct AnimationData {
-    pub collision: Option<CollisionData>,
+    pub collision: CollisionData,
     pub direction: PxAnimationDirection,
     pub finish_behavior: PxAnimationFinishBehavior,
     pub frame_transition: PxAnimationFrameTransition,
@@ -27,7 +26,7 @@ impl AnimationData {
 impl Default for AnimationData {
     fn default() -> Self {
         AnimationData {
-            collision: None,
+            collision: CollisionData::new(),
             direction: PxAnimationDirection::Foreward,
             finish_behavior: PxAnimationFinishBehavior::Mark,
             frame_transition: PxAnimationFrameTransition::None,

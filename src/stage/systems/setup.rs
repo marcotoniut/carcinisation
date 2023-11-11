@@ -73,13 +73,16 @@ pub fn on_startup(
                 parent.spawn(skybox_bundle);
             });
 
-        let music_bundle = make_music_bundle(
-            &asset_server,
-            &volume_settings,
-            e.data.music_path.clone(),
-            PlaybackMode::Loop,
-        );
+        // DEBUG
 
-        commands.spawn((music_bundle, StageEntity));
+        // TODO turn this into a spawn, like in cutscene, or make it a StageSpawn
+        // let music_bundle = make_music_bundle(
+        //     &asset_server,
+        //     &volume_settings,
+        //     e.data.music_path.clone(),
+        //     PlaybackMode::Loop,
+        // );
+
+        // commands.spawn((music_bundle, StageEntity));
     }
 }

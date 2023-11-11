@@ -38,6 +38,7 @@ pub enum Weapon {
 pub struct PlayerAttack {
     pub weapon: Weapon,
     pub position: Vec2,
+    // TODO reach
 }
 
 #[derive(Component, Clone, Debug)]

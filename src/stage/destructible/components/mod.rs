@@ -1,17 +1,11 @@
-use std::collections::HashMap;
-
+use super::data::destructibles::DestructibleAnimationData;
+use crate::{stage::components::interactive::CollisionData, Layer};
 use bevy::prelude::*;
 use seldom_pixel::{
-    prelude::{PxAnchor, PxAnimationBundle, PxAssets},
+    prelude::{PxAnimationBundle, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},
 };
-
-use crate::{
-    stage::components::interactive::{Collision, CollisionData},
-    Layer,
-};
-
-use super::data::destructibles::DestructibleAnimationData;
+use std::collections::HashMap;
 
 #[derive(Component)]
 pub struct Destructible;
@@ -51,10 +45,7 @@ pub fn make_animation_bundle(
                     ..Default::default()
                 },
                 animation_data.make_animation_bundle(),
-                CollisionData {
-                    collision: animation_data.collision.clone(),
-                    offset: animation_data.collision_offset.clone(),
-                },
+                animation_data.collision_data.clone(),
             )
         })
 }
