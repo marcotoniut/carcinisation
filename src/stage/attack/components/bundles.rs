@@ -14,15 +14,14 @@ pub fn make_hovering_attack_animation_bundle(
     attack_type: &EnemyHoveringAttackType,
     depth: Depth,
 ) -> (PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData) {
-    let animation_o = attack_type.get_animations().hovering.get(&depth.0);
+    let animation_o = attack_type.get_animations().hovering.get(&depth);
 
     let animation = animation_o.unwrap();
     let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
     (
         PxSpriteBundle::<Layer> {
             sprite: texture,
-            // DEBUG
-            layer: Layer::Middle(depth.0 + 2),
+            layer: (depth - 1).to_layer(),
             anchor: PxAnchor::Center,
             ..Default::default()
         },

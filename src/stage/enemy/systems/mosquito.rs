@@ -52,7 +52,7 @@ pub fn assign_mosquito_animation(
         let bundle_o = if let Some(attack) = &attacking.attack {
             match attack {
                 EnemyMosquitoAttack::Melee => {
-                    let animation_o = MOSQUITO_ANIMATIONS.melee_attack.get(&depth.0);
+                    let animation_o = MOSQUITO_ANIMATIONS.melee_attack.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -61,7 +61,7 @@ pub fn assign_mosquito_animation(
                     })
                 }
                 EnemyMosquitoAttack::Ranged => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -73,7 +73,7 @@ pub fn assign_mosquito_animation(
         } else {
             match step {
                 EnemyStep::Attack { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
@@ -82,7 +82,7 @@ pub fn assign_mosquito_animation(
                     })
                 }
                 EnemyStep::Circle { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
@@ -91,7 +91,7 @@ pub fn assign_mosquito_animation(
                     })
                 }
                 EnemyStep::Idle { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Idle,
@@ -100,7 +100,7 @@ pub fn assign_mosquito_animation(
                     })
                 }
                 EnemyStep::LinearMovement { .. } => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
@@ -114,7 +114,7 @@ pub fn assign_mosquito_animation(
                     speed,
                     ..
                 }) => {
-                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(&depth.0);
+                    let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
@@ -145,7 +145,7 @@ pub fn despawn_dead_mosquitoes(
     for (entity, mosquito, position, depth) in query.iter() {
         commands.entity(entity).insert(DespawnMark);
 
-        let animation_o = MOSQUITO_ANIMATIONS.death.get(&depth.0);
+        let animation_o = MOSQUITO_ANIMATIONS.death.get(depth);
 
         if let Some(animation) = animation_o {
             let texture =
@@ -156,7 +156,7 @@ pub fn despawn_dead_mosquitoes(
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: texture,
-                    layer: Layer::Middle(depth.0),
+                    layer: depth.to_layer(),
                     anchor: PxAnchor::Center,
                     ..default()
                 },

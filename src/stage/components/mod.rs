@@ -4,6 +4,8 @@ pub mod placement;
 
 use crate::cutscene::data::CutsceneAnimationsSpawn;
 
+use self::placement::Depth;
+
 use super::data::{ContainerSpawn, StageSpawn};
 use bevy::{prelude::*, utils::HashMap};
 use std::time::Duration;
@@ -77,7 +79,7 @@ pub struct MovementStageStep {
     pub coordinates: Vec2,
     pub base_speed: f32,
     pub spawns: Vec<StageSpawn>,
-    pub floor_depths: Option<HashMap<u8, f32>>,
+    pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,
     // pub music_fade: bool,
@@ -108,17 +110,17 @@ impl MovementStageStep {
         }
     }
 
-    pub fn with_coordinates(mut self, value: Vec2) -> Self {
-        self.coordinates = value;
-        self
-    }
-
     pub fn with_base_speed(mut self, value: f32) -> Self {
         self.base_speed = value;
         self
     }
 
-    pub fn with_floor_depths(mut self, value: HashMap<u8, f32>) -> Self {
+    pub fn with_coordinates(mut self, value: Vec2) -> Self {
+        self.coordinates = value;
+        self
+    }
+
+    pub fn with_floor_depths(mut self, value: HashMap<Depth, f32>) -> Self {
         self.floor_depths = Some(value);
         self
     }
@@ -130,7 +132,7 @@ pub struct StopStageStep {
     pub kill_all: bool,
     pub kill_boss: bool,
     pub spawns: Vec<StageSpawn>,
-    pub floor_depths: Option<HashMap<u8, f32>>,
+    pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,
     // pub music_fade: bool,
@@ -168,7 +170,7 @@ impl StopStageStep {
         self
     }
 
-    pub fn with_floor_depths(mut self, value: HashMap<u8, f32>) -> Self {
+    pub fn with_floor_depths(mut self, value: HashMap<Depth, f32>) -> Self {
         self.floor_depths = Some(value);
         self
     }

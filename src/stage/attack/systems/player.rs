@@ -26,6 +26,7 @@ pub fn check_got_hit(
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     mut event_writer: EventWriter<DamageEvent>,
     mut attack_query: Query<(&PlayerAttack, &mut UnhittableList)>,
+    // mut attack_query: Query<(&PlayerAttack, &mut UnhittableList, Option<&Reach>)>,
     mut hittable_query: Query<(Entity, &PxSubPosition, &CollisionData, &Depth), With<Hittable>>,
     mut score: ResMut<Score>,
 ) {

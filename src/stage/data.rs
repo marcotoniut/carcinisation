@@ -1,5 +1,5 @@
 use super::{
-    components::{CinematicStageStep, MovementStageStep, StopStageStep},
+    components::{placement::Depth, CinematicStageStep, MovementStageStep, StopStageStep},
     destructible::data::DestructibleSpawn,
     enemy::data::steps::EnemyStep,
 };
@@ -81,7 +81,7 @@ pub struct PickupSpawn {
     pub pickup_type: PickupType,
     pub coordinates: Vec2,
     pub elapsed: f32,
-    pub depth: u8,
+    pub depth: Depth,
 }
 
 impl PickupSpawn {
@@ -98,7 +98,7 @@ impl PickupSpawn {
             pickup_type: PickupType::BigHealthpack,
             coordinates: Vec2::ZERO,
             elapsed: 0.0,
-            depth: 3,
+            depth: Depth::Six,
         }
     }
     pub fn small_healthpack_base() -> Self {
@@ -106,7 +106,7 @@ impl PickupSpawn {
             pickup_type: PickupType::SmallHealthpack,
             coordinates: Vec2::ZERO,
             elapsed: 0.0,
-            depth: 3,
+            depth: Depth::Six,
         }
     }
 }
@@ -115,6 +115,7 @@ impl PickupSpawn {
 pub struct ObjectSpawn {
     pub object_type: ObjectType,
     pub coordinates: Vec2,
+    pub depth: Depth,
 }
 
 impl ObjectSpawn {
@@ -127,6 +128,8 @@ impl ObjectSpawn {
         Self {
             object_type: ObjectType::BenchBig,
             coordinates: Vec2::new(x, y),
+            // TODO should be Six
+            depth: Depth::Eight,
         }
     }
 
@@ -134,6 +137,8 @@ impl ObjectSpawn {
         Self {
             object_type: ObjectType::BenchSmall,
             coordinates: Vec2::new(x, y),
+            // TODO should be Six
+            depth: Depth::Eight,
         }
     }
 
@@ -141,6 +146,7 @@ impl ObjectSpawn {
         Self {
             object_type: ObjectType::Fibertree,
             coordinates: Vec2::new(x, y),
+            depth: Depth::Two,
         }
     }
 
@@ -148,6 +154,7 @@ impl ObjectSpawn {
         Self {
             object_type: ObjectType::RugparkSign,
             coordinates: Vec2::new(x, y),
+            depth: Depth::Three,
         }
     }
 }
@@ -160,7 +167,7 @@ pub struct EnemySpawn {
     pub coordinates: Vec2,
     pub speed: f32,
     pub steps: VecDeque<EnemyStep>,
-    pub depth: u8,
+    pub depth: Depth,
 }
 
 impl EnemySpawn {
@@ -192,7 +199,7 @@ impl EnemySpawn {
         self.steps = value.into();
         self
     }
-    pub fn with_depth(mut self, value: u8) -> Self {
+    pub fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
         self
     }
@@ -216,7 +223,7 @@ impl EnemySpawn {
         Self {
             enemy_type: EnemyType::Tardigrade,
             coordinates: *DEFAULT_COORDINATES,
-            depth: 3,
+            depth: Depth::Six,
             elapsed: 0.0,
             speed: 0.5,
             steps: vec![].into(),
@@ -227,7 +234,7 @@ impl EnemySpawn {
         Self {
             enemy_type: EnemyType::Mosquito,
             coordinates: *DEFAULT_COORDINATES,
-            depth: 4,
+            depth: Depth::Five,
             elapsed: 0.0,
             speed: 2.0,
             steps: vec![].into(),
@@ -241,16 +248,16 @@ impl EnemySpawn {
     }
     pub fn mosquito_variant_approacher() -> Self {
         Self::mosquito_base()
-            .with_depth(1)
+            .with_depth(Depth::Eight)
             .with_x(SCREEN_RESOLUTION.x as f32 + 10.)
             .with_steps_vec(vec![
                 EnemyStep::linear_movement_base()
                     .with_direction(-1., -0.1)
-                    .with_depth_movement(1)
                     .with_trayectory(100.)
+                    .depth_advance(1)
                     .into(),
                 EnemyStep::linear_movement_base()
-                    .with_depth_movement(2)
+                    .depth_advance(2)
                     .with_direction(0.3, -0.2)
                     .with_trayectory(80.)
                     .into(),
@@ -279,7 +286,7 @@ impl EnemySpawn {
         Self {
             enemy_type: EnemyType::Spidey,
             coordinates,
-            depth: 3,
+            depth: Depth::Six,
             elapsed: 0.0,
             steps: vec![EnemyStep::circle_around_base().opposite_direction().into()].into(),
             speed: speed_multiplier,
@@ -415,7 +422,7 @@ impl StageStep {
         self
     }
 
-    pub fn with_floor_depths(mut self, floor_depths: HashMap<u8, f32>) -> Self {
+    pub fn with_floor_depths(mut self, floor_depths: HashMap<Depth, f32>) -> Self {
         match &mut self {
             StageStep::Movement(MovementStageStep {
                 floor_depths: ref mut f,

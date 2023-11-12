@@ -18,31 +18,51 @@ use crate::stage::{
 // }
 
 pub fn on_active(
-    mut attack_state: ResMut<NextState<AttackPluginUpdateState>>,
-    mut destructible_state: ResMut<NextState<DestructiblePluginUpdateState>>,
-    mut enemy_state: ResMut<NextState<EnemyPluginUpdateState>>,
-    mut player_state: ResMut<NextState<PlayerPluginUpdateState>>,
-    mut stage_ui_state: ResMut<NextState<StageUiPluginUpdateState>>,
-    // mut pickup_state: ResMut<State<PickupPluginUpdateState>>,
+    attack_state_o: Option<ResMut<NextState<AttackPluginUpdateState>>>,
+    destructible_state_o: Option<ResMut<NextState<DestructiblePluginUpdateState>>>,
+    enemy_state_o: Option<ResMut<NextState<EnemyPluginUpdateState>>>,
+    player_state_o: Option<ResMut<NextState<PlayerPluginUpdateState>>>,
+    stage_ui_state_o: Option<ResMut<NextState<StageUiPluginUpdateState>>>,
+    // pickup_state_o: Option<ResMut<State<PickupPluginUpdateState>>>,
 ) {
-    attack_state.set(AttackPluginUpdateState::Active);
-    destructible_state.set(DestructiblePluginUpdateState::Active);
-    enemy_state.set(EnemyPluginUpdateState::Active);
-    player_state.set(PlayerPluginUpdateState::Active);
-    stage_ui_state.set(StageUiPluginUpdateState::Active);
+    if let Some(mut state) = attack_state_o {
+        state.set(AttackPluginUpdateState::Active);
+    }
+    if let Some(mut state) = destructible_state_o {
+        state.set(DestructiblePluginUpdateState::Active);
+    }
+    if let Some(mut state) = enemy_state_o {
+        state.set(EnemyPluginUpdateState::Active);
+    }
+    if let Some(mut state) = player_state_o {
+        state.set(PlayerPluginUpdateState::Active);
+    }
+    if let Some(mut state) = stage_ui_state_o {
+        state.set(StageUiPluginUpdateState::Active);
+    }
 }
 
 pub fn on_inactive(
-    mut attack_state: ResMut<NextState<AttackPluginUpdateState>>,
-    mut destructible_state: ResMut<NextState<DestructiblePluginUpdateState>>,
-    mut enemy_state: ResMut<NextState<EnemyPluginUpdateState>>,
-    mut player_state: ResMut<NextState<PlayerPluginUpdateState>>,
-    mut stage_ui_state: ResMut<NextState<StageUiPluginUpdateState>>,
-    // mut pickup_state: ResMut<State<PickupPluginUpdateState>>,
+    attack_state_o: Option<ResMut<NextState<AttackPluginUpdateState>>>,
+    destructible_state_o: Option<ResMut<NextState<DestructiblePluginUpdateState>>>,
+    enemy_state_o: Option<ResMut<NextState<EnemyPluginUpdateState>>>,
+    player_state_o: Option<ResMut<NextState<PlayerPluginUpdateState>>>,
+    stage_ui_state_o: Option<ResMut<NextState<StageUiPluginUpdateState>>>,
+    // pickup_state_o: Option<ResMut<State<PickupPluginUpdateState>>>,
 ) {
-    attack_state.set(AttackPluginUpdateState::Inactive);
-    destructible_state.set(DestructiblePluginUpdateState::Inactive);
-    enemy_state.set(EnemyPluginUpdateState::Inactive);
-    player_state.set(PlayerPluginUpdateState::Inactive);
-    stage_ui_state.set(StageUiPluginUpdateState::Inactive);
+    if let Some(mut state) = attack_state_o {
+        state.set(AttackPluginUpdateState::Inactive);
+    }
+    if let Some(mut state) = destructible_state_o {
+        state.set(DestructiblePluginUpdateState::Inactive);
+    }
+    if let Some(mut state) = enemy_state_o {
+        state.set(EnemyPluginUpdateState::Inactive);
+    }
+    if let Some(mut state) = player_state_o {
+        state.set(PlayerPluginUpdateState::Inactive);
+    }
+    if let Some(mut state) = stage_ui_state_o {
+        state.set(StageUiPluginUpdateState::Inactive);
+    }
 }

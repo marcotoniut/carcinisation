@@ -2,7 +2,10 @@ use super::AnimationData;
 use crate::{
     globals::PATH_SPRITES_OBJECTS,
     stage::{
-        components::interactive::{Collision, CollisionData},
+        components::{
+            interactive::{Collision, CollisionData},
+            placement::Depth,
+        },
         destructible::components::{DestructibleState, DestructibleType},
     },
 };
@@ -25,10 +28,10 @@ impl DestructibleAnimationData {
 }
 
 pub struct DestructibleAnimations {
-    pub crystal: HashMap<u8, DestructibleAnimationData>,
-    pub lamp: HashMap<u8, DestructibleAnimationData>,
-    pub mushroom: HashMap<u8, DestructibleAnimationData>,
-    pub trashcan: HashMap<u8, DestructibleAnimationData>,
+    pub crystal: HashMap<Depth, DestructibleAnimationData>,
+    pub lamp: HashMap<Depth, DestructibleAnimationData>,
+    pub mushroom: HashMap<Depth, DestructibleAnimationData>,
+    pub trashcan: HashMap<Depth, DestructibleAnimationData>,
 }
 
 impl DestructibleAnimations {
@@ -44,7 +47,7 @@ impl DestructibleAnimations {
     pub fn get_animation_data(
         &self,
         destructible_type: &DestructibleType,
-    ) -> &HashMap<u8, DestructibleAnimationData> {
+    ) -> &HashMap<Depth, DestructibleAnimationData> {
         match destructible_type {
             DestructibleType::Crystal => &self.crystal,
             DestructibleType::Lamp => &self.lamp,
@@ -54,8 +57,8 @@ impl DestructibleAnimations {
     }
 }
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
-    format!("{}{}_{}_{}.png", s1, s2, s3, index)
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
+    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_filedepth())
 }
 
 const FRAGMENT_BASE: &str = "base";
@@ -69,7 +72,7 @@ lazy_static! {
         let lamp_base_speed = 300;
         let lamp_broken_frames = 1;
         let lamp_broken_speed = 300;
-        let lamp_depths = [5];
+        let lamp_depths = [Depth::Four];
         let lamp_fragment = "lamp";
 
         for i in lamp_depths {
@@ -87,7 +90,7 @@ lazy_static! {
                         speed: lamp_base_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
                         collision_data: match i {
-                            5 => CollisionData::from_one(
+                            Depth::Four => CollisionData::from_one(
                                 Collision::new_box(Vec2::new(17.0, 19.0))
                                     .with_offset(Vec2::new(-1.0, 122.0)),
                             ),
@@ -115,7 +118,7 @@ lazy_static! {
         let trashcan_speed = 500;
         let trashcan_broken_frames = 1;
         let trashcan_broken_speed = 500;
-        let trashcan_depths = [1, 4];
+        let trashcan_depths = [Depth::Eight, Depth::Five];
         let trashcan_fragment = "trashcan";
 
         for i in trashcan_depths {
@@ -133,11 +136,11 @@ lazy_static! {
                         speed: trashcan_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
                         collision_data: match i {
-                            1 => CollisionData::from_one(
+                            Depth::Eight => CollisionData::from_one(
                                 Collision::new_box(Vec2::new(8.0, 11.0))
                                     .with_offset(Vec2::new(-1.0, 6.0)),
                             ),
-                            4 => CollisionData::from_one(
+                            Depth::Five => CollisionData::from_one(
                                 Collision::new_box(Vec2::new(18., 24.))
                                     .with_offset(Vec2::new(-2.0, 16.0)),
                             ),
@@ -164,7 +167,7 @@ lazy_static! {
             let mushroom_speed = 500;
             let mushroom_broken_frames = 1;
             let mushroom_broken_speed = 500;
-            let mushroom_depths = [5];
+            let mushroom_depths = [Depth::Four];
             let mushroom_fragment = "mushroom";
 
             for i in mushroom_depths {
@@ -182,7 +185,7 @@ lazy_static! {
                             speed: mushroom_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
                             collision_data: match i {
-                                5 => CollisionData::from_many(vec![
+                                Depth::Four => CollisionData::from_many(vec![
                                     Collision::new_box(Vec2::new(15., 70.))
                                         .with_offset(Vec2::new(1., 49.)),
                                     Collision::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
@@ -211,7 +214,7 @@ lazy_static! {
             let crystal_speed = 500;
             let crystal_broken_frames = 1;
             let crystal_broken_speed = 500;
-            let crystal_depths = [4];
+            let crystal_depths = [Depth::Five];
             let crystal_fragment = "crystal";
 
             for i in crystal_depths {
@@ -229,7 +232,7 @@ lazy_static! {
                             speed: crystal_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
                             collision_data: match i {
-                                4 => CollisionData::from_one(
+                                Depth::Five => CollisionData::from_one(
                                     Collision::new_box(Vec2::new(40., 60.))
                                         .with_offset(Vec2::new(-4., 40.)),
                                 ),

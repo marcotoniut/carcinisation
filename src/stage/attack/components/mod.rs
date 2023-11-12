@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::stage::components::placement::Depth;
+
 use super::data::{
     blood_shot::BLOOD_ATTACK_ANIMATIONS, boulder_throw::BOULDER_ATTACK_ANIMATIONS,
     HoveringAttackAnimations,
@@ -25,7 +27,7 @@ pub struct EnemyAttackOriginPosition(pub Vec2);
 
 // TODO this should impact damage
 // (but it should also be affected by the stage's environment)
-pub struct EnemyAttackOriginDepth(pub f32);
+pub struct EnemyAttackOriginDepth(pub Depth);
 
 impl EnemyHoveringAttackType {
     pub fn get_name(&self) -> String {

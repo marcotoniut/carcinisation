@@ -17,7 +17,7 @@ lazy_static! {
 
 pub fn make_steps() -> Vec<GameStep> {
     vec![
-        CinematicGameStep::new(CINEMATIC_INTRO_DATA.clone()).into(),
+        // CinematicGameStep::new(CINEMATIC_INTRO_DATA.clone()).into(),
         StageGameStep::new(STAGE_DEBUG_DATA.clone()).into(),
         StageGameStep::new(STAGE_SPACESHIP_DATA.clone()).into(),
         StageGameStep::new(STAGE_ASTEROID_DATA.clone()).into(),

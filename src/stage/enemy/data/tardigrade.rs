@@ -1,12 +1,14 @@
-use crate::{data::AnimationData, globals::PATH_SPRITES_ENEMIES};
+use crate::{
+    data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
+};
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
 use std::collections::HashMap;
 
 pub struct TardigradeAnimations {
-    pub attack: HashMap<u8, AnimationData>,
-    pub death: HashMap<u8, AnimationData>,
-    pub idle: HashMap<u8, AnimationData>,
-    pub sucking: HashMap<u8, AnimationData>,
+    pub attack: HashMap<Depth, AnimationData>,
+    pub death: HashMap<Depth, AnimationData>,
+    pub idle: HashMap<Depth, AnimationData>,
+    pub sucking: HashMap<Depth, AnimationData>,
 }
 
 // Animation fragments
@@ -18,12 +20,12 @@ const FRAGMENT_SUCKING: &str = "sucking";
 // Enemy
 const FRAGMENT_ENEMY: &str = "tardigrade";
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
-    format!("{}{}_{}_{}.png", s1, s2, s3, index)
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
+    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_filedepth())
 }
 
-pub const TARDIGRADE_MIN_DEPTH: u8 = 1;
-pub const TARDIGRADE_MAX_DEPTH: u8 = 6;
+pub const TARDIGRADE_MIN_DEPTH: Depth = Depth::Three;
+pub const TARDIGRADE_MAX_DEPTH: Depth = Depth::Eight;
 
 lazy_static! {
     pub static ref TARDIGRADE_ANIMATIONS: TardigradeAnimations = {

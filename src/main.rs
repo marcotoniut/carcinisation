@@ -1,3 +1,5 @@
+#![feature(step_trait)]
+
 mod assets;
 mod bevy_utils;
 mod components;
@@ -38,7 +40,10 @@ use plugins::movement::linear::components::{
     extra::LinearMovement2DReachCheck, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
 };
 use seldom_pixel::prelude::*;
-use stage::{player::crosshair::CrosshairSettings, resources::StageTime, StagePlugin};
+use stage::{
+    components::placement::Depth, player::crosshair::CrosshairSettings, resources::StageTime,
+    StagePlugin,
+};
 use systems::{
     audio::VolumeSettings,
     camera::move_camera,
@@ -132,7 +137,8 @@ fn main() {
 
 // TODO move to its own module
 fn register_types(app: &mut App) {
-    app.register_type::<StageTime>()
+    app.register_type::<Depth>()
+        .register_type::<StageTime>()
         .register_type::<TargetingPositionX>()
         .register_type::<TargetingPositionY>()
         .register_type::<TargetingPositionZ>();
@@ -160,35 +166,31 @@ pub enum GBInput {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub enum DepthBase {
-    Zero,
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
+pub enum MidDepth {
     Six,
-    Seven,
-    Eight,
-    Nine,
+    Five,
+    Four,
+    Three,
+    Two,
+    One,
+    Zero,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum PreBackgroundDepth {
-    Zero,
-    One,
-    Two,
+    Nine,
+    Eight,
+    Seven,
 }
 
 #[px_layer]
 pub enum Layer {
     Skybox,
 
-    PreDepth(PreBackgroundDepth),
+    PreBackgroundDepth(PreBackgroundDepth),
     Background,
-    PosDepth(DepthBase),
+    MidDepth(MidDepth),
 
-    Middle(u8),
     Attack,
     #[default]
     Front,

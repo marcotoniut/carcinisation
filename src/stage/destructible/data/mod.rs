@@ -1,24 +1,21 @@
 pub mod destructibles;
 
+use super::components::DestructibleType;
+use crate::stage::{
+    components::{interactive::CollisionData, placement::Depth},
+    data::ContainerSpawn,
+};
 use bevy::prelude::*;
-
 use seldom_pixel::prelude::{
     PxAnchor, PxAnimationBundle, PxAnimationDirection, PxAnimationDuration,
     PxAnimationFinishBehavior,
 };
 
-use crate::stage::{
-    components::interactive::{Collision, CollisionData, CollisionShape},
-    data::ContainerSpawn,
-};
-
-use super::components::DestructibleType;
-
 #[derive(Clone, Debug)]
 pub struct DestructibleSpawn {
     pub contains: Option<Box<ContainerSpawn>>,
     pub coordinates: Vec2,
-    pub depth: u8,
+    pub depth: Depth,
     pub destructible_type: DestructibleType,
     pub health: u32,
 }
@@ -34,7 +31,7 @@ impl DestructibleSpawn {
         self
     }
 
-    pub fn with_depth(mut self, value: u8) -> Self {
+    pub fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
         self
     }
@@ -55,14 +52,14 @@ impl DestructibleSpawn {
             coordinates: Vec2::new(x, y),
             destructible_type: DestructibleType::Lamp,
             health: 60,
-            depth: 5,
+            depth: Depth::Four,
         }
     }
 
     /**
      * depth needs to be 1 or 4
      */
-    pub fn trashcan_base(x: f32, y: f32, depth: u8) -> Self {
+    pub fn trashcan_base(x: f32, y: f32, depth: Depth) -> Self {
         Self {
             destructible_type: DestructibleType::Trashcan,
             coordinates: Vec2::new(x, y),
@@ -78,7 +75,7 @@ impl DestructibleSpawn {
             coordinates: Vec2::new(x, y),
             contains: None,
             health: 300,
-            depth: 4,
+            depth: Depth::Five,
         }
     }
 
@@ -88,7 +85,7 @@ impl DestructibleSpawn {
             coordinates: Vec2::new(x, y),
             contains: None,
             health: 120,
-            depth: 5,
+            depth: Depth::Four,
         }
     }
 }

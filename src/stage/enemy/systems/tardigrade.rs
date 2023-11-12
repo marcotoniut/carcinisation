@@ -40,7 +40,7 @@ pub fn assign_tardigrade_animation(
     for (entity, current_behavior, position, depth) in &mut query.iter() {
         let step = current_behavior.behavior.clone();
 
-        let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(&depth.0).map(|animation| {
+        let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(depth).map(|animation| {
             (
                 EnemyTardigradeAnimation::Idle,
                 make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
@@ -67,7 +67,7 @@ pub fn despawn_dead_tardigrade(
     for (entity, tardigrade, position, depth) in query.iter() {
         commands.entity(entity).insert(DespawnMark);
 
-        let animation_o = TARDIGRADE_ANIMATIONS.death.get(&depth.0);
+        let animation_o = TARDIGRADE_ANIMATIONS.death.get(depth);
 
         if let Some(animation) = animation_o {
             let texture =
@@ -78,7 +78,7 @@ pub fn despawn_dead_tardigrade(
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
                     sprite: texture,
-                    layer: Layer::Middle(depth.0),
+                    layer: depth.to_layer(),
                     anchor: PxAnchor::Center,
                     ..Default::default()
                 },

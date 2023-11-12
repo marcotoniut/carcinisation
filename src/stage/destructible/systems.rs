@@ -27,7 +27,7 @@ pub fn check_dead_destructible(
             &mut assets_sprite,
             animations_map,
             &DestructibleState::Broken,
-            depth.0,
+            depth,
         );
         if let Some(animation_bundle) = animation_bundle_o {
             entity_commands

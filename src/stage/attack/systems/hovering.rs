@@ -71,7 +71,8 @@ pub fn hovering_damage_on_reached(
             },
         ));
 
-        let animation_o = attack.get_animations().hit.get(&depth.0);
+        // Depth is One on reached!
+        let animation_o = attack.get_animations().hit.get(depth);
         if let Some(animation) = animation_o {
             commands.spawn((
                 Name::new(format!("Attack - {} - hit", attack.get_name())),
@@ -79,7 +80,7 @@ pub fn hovering_damage_on_reached(
                 PxSpriteBundle::<Layer> {
                     sprite: assets_sprite
                         .load_animated(animation.sprite_path.clone(), animation.frames),
-                    layer: Layer::Middle(depth.0),
+                    layer: depth.to_layer(),
                     anchor: PxAnchor::Center,
                     ..Default::default()
                 },

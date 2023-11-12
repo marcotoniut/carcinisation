@@ -1,5 +1,8 @@
 use super::data::destructibles::DestructibleAnimationData;
-use crate::{stage::components::interactive::CollisionData, Layer};
+use crate::{
+    stage::components::{interactive::CollisionData, placement::Depth},
+    Layer,
+};
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{PxAnimationBundle, PxAssets},
@@ -27,12 +30,12 @@ pub enum DestructibleState {
 
 pub fn make_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
-    animation_map: &HashMap<u8, DestructibleAnimationData>,
+    animation_map: &HashMap<Depth, DestructibleAnimationData>,
     destructible_state: &DestructibleState,
-    depth: u8,
+    depth: &Depth,
 ) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData)> {
     animation_map
-        .get(&depth)
+        .get(depth)
         .map(|data| data.by_state(destructible_state))
         .map(|animation_data| {
             let sprite = assets_sprite
@@ -40,7 +43,7 @@ pub fn make_animation_bundle(
             (
                 PxSpriteBundle::<Layer> {
                     sprite,
-                    layer: Layer::Middle(depth),
+                    layer: depth.to_layer(),
                     anchor: animation_data.anchor,
                     ..Default::default()
                 },
