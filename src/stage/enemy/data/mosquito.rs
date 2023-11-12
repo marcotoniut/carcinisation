@@ -1,14 +1,16 @@
-use crate::{data::AnimationData, globals::PATH_SPRITES_ENEMIES};
+use crate::{
+    data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
+};
 use seldom_pixel::prelude::{
     PxAnimationDirection, PxAnimationFinishBehavior, PxAnimationFrameTransition,
 };
 use std::collections::HashMap;
 
 pub struct MosquitoAnimations {
-    pub death: HashMap<u8, AnimationData>,
-    pub fly: HashMap<u8, AnimationData>,
-    pub idle: HashMap<u8, AnimationData>,
-    pub melee_attack: HashMap<u8, AnimationData>,
+    pub death: HashMap<Depth, AnimationData>,
+    pub fly: HashMap<Depth, AnimationData>,
+    pub idle: HashMap<Depth, AnimationData>,
+    pub melee_attack: HashMap<Depth, AnimationData>,
 }
 
 // Animation fragments
@@ -20,12 +22,12 @@ const FRAGMENT_MELEE_ATTACK: &str = "melee_attack";
 // Enemy
 const FRAGMENT_ENEMY: &str = "mosquito";
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
-    format!("{}{}_{}_{}.png", s1, s2, s3, index)
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
+    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_filedepth())
 }
 
-pub const MOSQUITO_MIN_DEPTH: u8 = 1;
-pub const MOSQUITO_MAX_DEPTH: u8 = 6;
+pub const MOSQUITO_MIN_DEPTH: Depth = Depth::Three;
+pub const MOSQUITO_MAX_DEPTH: Depth = Depth::Eight;
 
 lazy_static! {
     pub static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {

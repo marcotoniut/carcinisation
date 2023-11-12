@@ -13,6 +13,7 @@ use seldom_pixel::{
 };
 
 use crate::{
+    stage::components::placement::Depth,
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
     Layer,
 };
@@ -23,7 +24,7 @@ pub struct Player;
 pub const PLAYER_SPEED: f32 = 125.;
 pub const PLAYER_SIZE: f32 = 0.;
 pub const PLAYER_MAX_HEALTH: u32 = 100;
-pub const PLAYER_DEPTH: f32 = 8.;
+pub const PLAYER_DEPTH: Depth = Depth::Zero;
 
 pub const ATTACK_PINCER_DAMAGE: u32 = 70;
 pub const ATTACK_GUN_DAMAGE: u32 = 30;

@@ -22,7 +22,7 @@ pub fn make_enemy_animation_bundle(
     (
         PxSpriteBundle::<Layer> {
             sprite: texture,
-            layer: Layer::Middle(depth.0),
+            layer: depth.to_layer(),
             anchor: PxAnchor::Center,
             ..Default::default()
         },

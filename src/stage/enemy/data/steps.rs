@@ -42,8 +42,8 @@ impl CircleAroundEnemyStep {
         self
     }
 
-    pub fn with_depth_movement(mut self, value: i8) -> Self {
-        self.depth_movement_o = Some(value);
+    pub fn depth_advance(mut self, value: u8) -> Self {
+        self.depth_movement_o = Some(-(value as i8));
         self
     }
 
@@ -123,8 +123,13 @@ impl LinearMovementEnemyStep {
         self
     }
 
-    pub fn with_depth_movement(mut self, value: i8) -> Self {
-        self.depth_movement_o = Some(value);
+    pub fn depth_advance(mut self, value: u8) -> Self {
+        self.depth_movement_o = Some(-(value as i8));
+        self
+    }
+
+    pub fn depth_retreat(mut self, value: u8) -> Self {
+        self.depth_movement_o = Some(value as i8);
         self
     }
 }

@@ -316,7 +316,7 @@ target_path = "sprites/attacks/blood_attack_hovering_8.png"
 width = 36
 [[images]]
 path = "sprites/attacks/bloodsplat.png"
-target_path = "sprites/attacks/blood_attack_hit_9.png"
+target_path = "sprites/attacks/blood_attack_hit_0.png"
 
 [[images]]
 path = "sprites/attacks/boulder_56x56.png"
@@ -352,7 +352,7 @@ target_path = "sprites/attacks/boulder_attack_hovering_8.png"
 width = 46
 [[images]]
 path = "sprites/attacks/boulder_rubble_62x62.png"
-target_path = "sprites/attacks/boulder_attack_hit_9.png"
+target_path = "sprites/attacks/boulder_attack_hit_0.png"
 
 # Cinematics
 [[images]]

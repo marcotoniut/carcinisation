@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::stage::components::placement::Depth;
 use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
@@ -30,8 +31,8 @@ lazy_static! {
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
         ObjectSpawn::rugpark_sign_base(400., 20.).into(),
-        DestructibleSpawn::trashcan_base(100., 67., 1).into(),
-        DestructibleSpawn::trashcan_base(220., 67., 1).into(),
+        DestructibleSpawn::trashcan_base(100., 67., Depth::Eight).into(),
+        DestructibleSpawn::trashcan_base(220., 67., Depth::Eight).into(),
         // DestructibleSpawn::crystal_base(125., 32.).into(),
         // DestructibleSpawn::mushroom_base(60., 12.).into(),
         ObjectSpawn::fibertree_base(30., OBJECT_FIBERTREE_Y).into(),
@@ -75,9 +76,14 @@ pub fn make_steps() -> Vec<StageStep> {
         // },
         StopStageStep::new()
             .with_floor_depths(
-                vec![(3, 70.0), (4, 50.0), (5, 30.0), (6, 0.0)]
-                    .into_iter()
-                    .collect(),
+                vec![
+                    (Depth::Six, 70.0),
+                    (Depth::Five, 50.0),
+                    (Depth::Four, 30.0),
+                    (Depth::Three, 0.0),
+                ]
+                .into_iter()
+                .collect(),
             )
             .with_max_duration(30.)
             .add_spawns(vec![
@@ -91,13 +97,13 @@ pub fn make_steps() -> Vec<StageStep> {
                         EnemyStep::linear_movement_base()
                             .with_direction(-1., -0.2)
                             .with_trayectory(30.)
-                            .with_depth_movement(2)
+                            .depth_advance(2)
                             .into(),
                         EnemyStep::idle_base().with_duration(3.).into(),
                         EnemyStep::linear_movement_base()
                             .with_direction(1., -0.5)
                             .with_trayectory(50.)
-                            .with_depth_movement(-1)
+                            .depth_retreat(1)
                             .into(),
                         EnemyStep::linear_movement_base()
                             .opposite_direction()

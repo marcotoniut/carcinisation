@@ -1,4 +1,5 @@
 use super::{CircleAround, LinearMovement};
+use crate::stage::components::placement::Depth;
 use crate::stage::enemy::data::mosquito::{MOSQUITO_MAX_DEPTH, MOSQUITO_MIN_DEPTH};
 use crate::stage::enemy::data::steps::{
     CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearMovementEnemyStep,
@@ -42,7 +43,7 @@ impl EnemyCurrentBehavior {
         time_offset: Duration,
         current_position: &PxSubPosition,
         speed: f32,
-        depth: u8,
+        depth: Depth,
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
@@ -53,7 +54,7 @@ impl EnemyCurrentBehavior {
             }) => {
                 let normalised_direction = direction.normalize_or_zero();
                 // TODO use a better formula to increase speed for higher depths
-                let adapted_speed = (depth as f32 - 3.) / 6.;
+                let adapted_speed = (depth.to_f32() - 3.) / 6.;
                 let velocity = normalised_direction * (speed + adapted_speed) * GAME_BASE_SPEED;
                 let target_position = current_position.0 + normalised_direction * trayectory;
 
@@ -75,17 +76,17 @@ impl EnemyCurrentBehavior {
                         velocity.y,
                     ),
                     depth_movement_o.map(|depth_movement| {
-                        let target_depth = depth
-                            .saturating_add_signed(depth_movement)
+                        let target_depth = depth + depth_movement;
+                        let target_depth = target_depth
                             .min(MOSQUITO_MAX_DEPTH)
                             .max(MOSQUITO_MIN_DEPTH)
-                            as f32;
+                            .to_f32();
 
                         let t = (target_position - current_position.0).length() / velocity.length();
-                        let x = target_depth - depth as f32;
+                        let x = target_depth - depth.to_f32();
 
                         LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
-                            depth as f32,
+                            depth.to_f32(),
                             target_depth,
                             // REVIEW extra multiplier
                             x / t,

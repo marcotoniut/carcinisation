@@ -29,8 +29,11 @@ bevy_framepace = "0.13.3"
 bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls" }
 lazy_static = "1.4.0"
 leafwing-input-manager = "0.10.0"
+num_enum = "0.7.1"
 rand = "0.8.5"
 seldom_pixel = { git = "https://github.com/marcotoniut/seldom_pixel", default-features = true, features = [
     "line",
 ] }
+strum = "0.25.0"
+strum_macros = "0.25.0"
 wasm-bindgen = "0.2.87"

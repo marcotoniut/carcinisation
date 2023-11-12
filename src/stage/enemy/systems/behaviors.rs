@@ -27,7 +27,7 @@ pub fn check_no_behavior(
             behavior,
         };
 
-        let bundles = current_behavior.get_bundles(stage_time.elapsed, position, speed.0, depth.0);
+        let bundles = current_behavior.get_bundles(stage_time.elapsed, position, speed.0, *depth);
         match bundles {
             BehaviorBundle::Idle(bundles) => {
                 commands.entity(entity).insert(bundles);

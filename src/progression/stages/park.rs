@@ -1,3 +1,4 @@
+use crate::stage::components::placement::Depth;
 use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::DestructibleSpawn;
@@ -40,16 +41,12 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     .with_coordinates(Vec2::new(79., 100.))
                     .with_elapsed(0.4)
                     .with_steps_vec(vec![
-                        EnemyStep::linear_movement_base()
-                            .with_depth_movement(1)
-                            .into(),
+                        EnemyStep::linear_movement_base().depth_advance(1).into(),
                         EnemyStep::idle_base().with_duration(4.).into(),
                         EnemyStep::linear_movement_base()
                             .opposite_direction()
                             .into(),
-                        EnemyStep::linear_movement_base()
-                            .with_depth_movement(-1)
-                            .into(),
+                        EnemyStep::linear_movement_base().depth_retreat(1).into(),
                     ]),
             ))
             .into(),
@@ -82,9 +79,14 @@ pub fn make_steps() -> Vec<StageStep> {
         // },
         MovementStageStep::base(50.0, 0.0)
             .with_floor_depths(
-                vec![(3, 70.0), (4, 50.0), (5, 30.0), (6, 0.0)]
-                    .into_iter()
-                    .collect(),
+                vec![
+                    (Depth::Six, 70.0),
+                    (Depth::Five, 50.0),
+                    (Depth::Four, 30.0),
+                    (Depth::Three, 0.0),
+                ]
+                .into_iter()
+                .collect(),
             )
             .add_spawns(vec![
                 EnemySpawn::mosquito_variant_circle()

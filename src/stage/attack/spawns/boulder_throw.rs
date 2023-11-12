@@ -39,6 +39,7 @@ pub fn spawn_boulder_throw_attack(
     current_pos: Vec2,
     depth: &Depth,
 ) {
+    let depth_f32 = depth.to_f32();
     let attack_type = EnemyHoveringAttackType::BoulderThrow;
     let target_pos = target_pos
         + Vec2::new(
@@ -54,10 +55,10 @@ pub fn spawn_boulder_throw_attack(
         last_attack_started: stage_time.elapsed,
     };
 
-    let target_depth = PLAYER_DEPTH + 1.;
+    let target_depth = PLAYER_DEPTH;
 
     let speed_z = BOULDER_THROW_ATTACK_DEPTH_SPEED;
-    let t = (target_depth - depth.0 as f32) / speed_z;
+    let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
 
     let d = target_pos - current_pos;
 
@@ -76,8 +77,8 @@ pub fn spawn_boulder_throw_attack(
             BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
         ),
         LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
-            depth.0.clone() as f32,
-            target_depth,
+            depth_f32,
+            target_depth.to_f32(),
             BOULDER_THROW_ATTACK_DEPTH_SPEED,
         ),
     );
@@ -90,7 +91,7 @@ pub fn spawn_boulder_throw_attack(
         EnemyAttack,
         EnemyHoveringAttackType::BoulderThrow,
         depth.clone(),
-        TargetingPositionZ::new(depth.0.into()),
+        TargetingPositionZ::new(depth_f32),
         InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
         PxSubPosition(current_pos),
         Flickerer,

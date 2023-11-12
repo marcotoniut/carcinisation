@@ -24,16 +24,14 @@ pub fn update_depth(
 ) {
     for (entity, mut depth, position, speed) in &mut query.iter_mut() {
         if speed.value > 0.0 {
-            let next_depth = depth.0.saturating_add(1);
-            if position.0 >= (depth.0 as f32 + 0.5) {
-                depth.0 = next_depth;
+            if position.0 >= (depth.to_f32() + 0.5) {
+                *depth = *depth + 1;
                 // REVIEW should this use DepthChanged, or Added<LinearTargetReached> (LinearTargetReached<StageTime, ZAxisPosition>)
                 event_writer.send(DepthChangedEvent::new(entity, depth.clone()));
             }
         } else {
-            let next_depth = depth.0.saturating_sub(1);
-            if position.0 <= (depth.0 as f32 - 0.5) {
-                depth.0 = next_depth;
+            if position.0 <= (depth.to_f32() - 0.5) {
+                *depth = *depth - 1;
                 event_writer.send(DepthChangedEvent::new(entity, depth.clone()));
             }
         }

@@ -3,14 +3,16 @@ use crate::{
     globals::PATH_SPRITES_ATTACKS,
     stage::{
         attack::data::HoveringAttackAnimations,
-        components::interactive::{Collision, CollisionData, CollisionShape},
-        player::components::PLAYER_DEPTH,
+        components::{
+            interactive::{Collision, CollisionData},
+            placement::Depth,
+        },
     },
 };
 use bevy::utils::HashMap;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
 
-pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = 4.;
+pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = -2.;
 pub const BLOOD_SHOT_ATTACK_LINE_SPEED: f32 = 25.;
 pub const BLOOD_SHOT_ATTACK_DAMAGE: u32 = 20;
 pub const BLOOD_SHOT_ATTACK_RANDOMNESS: f32 = 20.;
@@ -19,14 +21,15 @@ const FRAGMENT_HOVERING: &str = "hovering";
 const FRAGMENT_HIT: &str = "hit";
 const FRAGMENT_ATTACK: &str = "blood_attack";
 
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, index: u8) -> String {
-    format!("{}{}_{}_{}.png", s1, s2, s3, index)
+fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
+    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_filedepth())
 }
 
-const MIN_DEPTH: u8 = 1;
-const MAX_DEPTH: u8 = 8;
+const MIN_DEPTH: Depth = Depth::One;
+const MAX_DEPTH: Depth = Depth::Eight;
 
-const HIT_DEPTH: u8 = PLAYER_DEPTH as u8 + 1;
+// TODO PLAYER_DEPTH + 1;
+const HIT_DEPTH: Depth = Depth::MIN;
 
 lazy_static! {
     pub static ref BLOOD_ATTACK_ANIMATIONS: HoveringAttackAnimations = {
@@ -43,14 +46,14 @@ lazy_static! {
                 i,
                 AnimationData {
                     collision: CollisionData::from_one(Collision::new_circle(match i {
-                        1 => 1.,
-                        2 => 2.,
-                        3 => 3.,
-                        4 => 5.,
-                        5 => 7.5,
-                        6 => 10.5,
-                        7 => 14.,
-                        8 => 18.,
+                        Depth::Eight => 1.,
+                        Depth::Seven => 2.,
+                        Depth::Six => 3.,
+                        Depth::Five => 5.,
+                        Depth::Four => 7.5,
+                        Depth::Three => 10.5,
+                        Depth::Two => 14.,
+                        Depth::One => 18.,
                         _ => 0.,
                     })),
                     finish_behavior: PxAnimationFinishBehavior::Loop,
@@ -77,7 +80,9 @@ lazy_static! {
                     PATH_SPRITES_ATTACKS,
                     FRAGMENT_ATTACK,
                     FRAGMENT_HIT,
-                    HIT_DEPTH,
+                    // HIT_DEPTH,
+                    // TODO HACK while files are renamed
+                    Depth::Nine,
                 ),
                 speed: hit_speed,
                 ..Default::default()

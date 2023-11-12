@@ -117,12 +117,11 @@ pub fn spawn_pickup(
                     PxSpriteBundle::<Layer> {
                         sprite,
                         anchor: PxAnchor::Center,
-                        layer: Layer::Middle(2),
+                        layer: spawn.depth.to_layer(),
                         ..Default::default()
                     },
                     position,
-                    // TODO should this be the spawn depth or the spawner's?
-                    Depth(spawn.depth),
+                    spawn.depth.clone(),
                     Health(1),
                     CollisionData::from_one(Collision::new_box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
@@ -139,11 +138,11 @@ pub fn spawn_pickup(
                     PxSpriteBundle::<Layer> {
                         sprite,
                         anchor: PxAnchor::BottomCenter,
-                        layer: Layer::Middle(2),
+                        layer: spawn.depth.to_layer(),
                         ..Default::default()
                     },
                     position,
-                    Depth(spawn.depth),
+                    spawn.depth.clone(),
                     Health(1),
                     CollisionData::from_one(Collision::new_box(Vec2::new(7., 5.))),
                     HealthRecovery(30),
@@ -183,7 +182,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                     EnemyMosquito {
                         steps: steps.clone(),
                     },
-                    Depth(*depth),
+                    depth.clone(),
                     EnemyMosquitoAttacking {
                         ..Default::default()
                     },
@@ -216,7 +215,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
                 .spawn((
                     name,
                     behaviors,
-                    Depth(*depth),
+                    depth.clone(),
                     StageEntity,
                     Enemy,
                     EnemyTardigrade {
@@ -254,7 +253,7 @@ pub fn spawn_destructible(
         assets_sprite,
         animations_map,
         &DestructibleState::Base,
-        spawn.depth,
+        &spawn.depth,
     );
     let animation_bundle = animation_bundle_o.unwrap();
 
@@ -263,7 +262,7 @@ pub fn spawn_destructible(
             Destructible,
             Flickerer,
             Hittable,
-            Depth(spawn.depth),
+            spawn.depth.clone(),
             Health(spawn.health),
             spawn.destructible_type.clone(),
             animation_bundle,
@@ -281,25 +280,12 @@ pub fn spawn_object(
     let name = Name::new(format!("Object {:?}", spawn.object_type));
     info!("Spawning {:?}", name.as_str());
 
-    let (sprite_path, layer) = match spawn.object_type {
-        ObjectType::BenchBig => (
-            assert_assets_path!("sprites/objects/bench_big.png"),
-            Layer::Middle(1),
-        ),
-        ObjectType::BenchSmall => (
-            assert_assets_path!("sprites/objects/bench_small.png"),
-            Layer::Middle(1),
-        ),
-        ObjectType::Fibertree => (
-            assert_assets_path!("sprites/objects/fiber_tree.png"),
-            Layer::Middle(5),
-        ),
-        ObjectType::RugparkSign => (
-            assert_assets_path!("sprites/objects/rugpark_sign.png"),
-            Layer::Middle(3),
-        ),
-    };
-    let sprite = assets_sprite.load(sprite_path);
+    let sprite = assets_sprite.load(match spawn.object_type {
+        ObjectType::BenchBig => assert_assets_path!("sprites/objects/bench_big.png"),
+        ObjectType::BenchSmall => assert_assets_path!("sprites/objects/bench_small.png"),
+        ObjectType::Fibertree => assert_assets_path!("sprites/objects/fiber_tree.png"),
+        ObjectType::RugparkSign => assert_assets_path!("sprites/objects/rugpark_sign.png"),
+    });
     commands
         .spawn((
             name,
@@ -307,7 +293,7 @@ pub fn spawn_object(
             PxSpriteBundle::<Layer> {
                 sprite,
                 anchor: PxAnchor::BottomCenter,
-                layer,
+                layer: spawn.depth.to_layer(),
                 ..Default::default()
             },
             PxSubPosition::from(spawn.coordinates.clone()),
