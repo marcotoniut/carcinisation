@@ -21,13 +21,13 @@ pub struct DestructibleSpawn {
 }
 
 pub enum LampDepth {
-    Four,
+    Three,
 }
 
 impl LampDepth {
     pub fn to_depth(&self) -> Depth {
         match self {
-            LampDepth::Four => Depth::Four,
+            LampDepth::Three => Depth::Three,
         }
     }
 }

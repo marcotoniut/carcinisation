@@ -23,7 +23,7 @@ impl CinematicGameStep {
 }
 
 #[derive(Component, Clone, Debug)]
-pub struct CreditsGameStep {}
+pub struct CreditsGameStep;
 
 #[derive(Component, Clone, Debug)]
 pub struct TransitionGameStep {

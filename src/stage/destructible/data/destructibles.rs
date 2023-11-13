@@ -76,7 +76,7 @@ lazy_static! {
         let lamp_base_speed = 300;
         let lamp_broken_frames = 1;
         let lamp_broken_speed = 300;
-        let lamp_depths = [LampDepth::Four];
+        let lamp_depths = [LampDepth::Three];
         let lamp_fragment = "lamp";
 
         for i in lamp_depths {
@@ -95,7 +95,7 @@ lazy_static! {
                         speed: lamp_base_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
                         collision_data: match i {
-                            LampDepth::Four => CollisionData::from_one(
+                            LampDepth::Three => CollisionData::from_one(
                                 Collision::new_box(Vec2::new(17.0, 19.0))
                                     .with_offset(Vec2::new(-1.0, 122.0)),
                             ),

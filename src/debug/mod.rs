@@ -1,13 +1,14 @@
 pub mod systems;
+pub mod types;
 
+use self::{systems::*, types::register_types};
 use bevy::prelude::*;
-
-use self::systems::*;
 
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
+        register_types(app);
         app.add_state::<DebugPluginUpdateState>().add_systems(
             Update,
             (draw_floor_lines, draw_collisions).run_if(in_state(DebugPluginUpdateState::Active)),

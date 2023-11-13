@@ -35,15 +35,9 @@ use leafwing_input_manager::{
     Actionlike,
 };
 use letterbox::LetterboxPlugin;
-use pixel::{systems::update_rectangle_position, PixelPlugin};
-use plugins::movement::linear::components::{
-    extra::LinearMovement2DReachCheck, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-};
+use pixel::PixelPlugin;
 use seldom_pixel::prelude::*;
-use stage::{
-    components::placement::Depth, player::crosshair::CrosshairSettings, resources::StageTime,
-    StagePlugin,
-};
+use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
     audio::VolumeSettings,
     camera::move_camera,
@@ -51,7 +45,6 @@ use systems::{
     setup::{init_gb_input, set_framespace, spawn_camera},
     *,
 };
-// use transitions::spiral::TransitionVenetianPlugin;
 
 fn main() {
     let title: String = "CARCINISATION".to_string();
@@ -75,7 +68,6 @@ fn main() {
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
             DebugPlugin,
         ));
-        register_types(&mut app);
     }
     #[cfg(not(debug_assertions))]
     {
@@ -135,15 +127,6 @@ fn main() {
         .run();
 }
 
-// TODO move to its own module
-fn register_types(app: &mut App) {
-    app.register_type::<Depth>()
-        .register_type::<StageTime>()
-        .register_type::<TargetingPositionX>()
-        .register_type::<TargetingPositionY>()
-        .register_type::<TargetingPositionZ>();
-}
-
 // This is the list of "things in the game I want to be able to do based on input"
 #[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 pub enum GBInput {
@@ -165,7 +148,7 @@ pub enum GBInput {
     DExit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect)]
 pub enum MidDepth {
     Six,
     Five,
@@ -176,13 +159,14 @@ pub enum MidDepth {
     Zero,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect)]
 pub enum PreBackgroundDepth {
     Nine,
     Eight,
     Seven,
 }
 
+#[derive(Reflect)]
 #[px_layer]
 pub enum Layer {
     Skybox,

@@ -15,7 +15,7 @@ use seldom_pixel::prelude::PxSubPosition;
 use std::collections::VecDeque;
 use std::time::Duration;
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
 pub struct EnemyCurrentBehavior {
     pub started: Duration,
     pub behavior: EnemyStep,
@@ -113,7 +113,7 @@ impl EnemyCurrentBehavior {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
 
 impl EnemyBehaviors {

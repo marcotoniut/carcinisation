@@ -9,7 +9,7 @@ use std::time::Duration;
 #[derive(Component)]
 pub struct Enemy;
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
 pub struct CircleAround {
     pub radius: f32,
     pub center: Vec2,
@@ -17,7 +17,7 @@ pub struct CircleAround {
     pub direction: MovementDirection,
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
 pub struct LinearMovement {
     pub direction: Vec2,
     pub trayectory: f32,
@@ -34,7 +34,7 @@ pub const ENEMY_MOSQUITO_BASE_HEALTH: u32 = 40;
 pub const ENEMY_TARDIGRADE_RADIUS: f32 = 9.0;
 pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
 pub struct EnemyMosquito {
     pub steps: VecDeque<EnemyStep>,
     // pub state: EnemyMosquitoState,
@@ -46,31 +46,31 @@ impl EnemyMosquito {
     }
 }
 
-#[derive(Clone, Component, Debug, Default)]
+#[derive(Clone, Component, Debug, Default, Reflect)]
 pub struct EnemyMosquitoAttacking {
     pub attack: Option<EnemyMosquitoAttack>,
     pub last_attack_started: Duration,
 }
 
-#[derive(Clone, Component, Debug)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub enum EnemyMosquitoAttack {
     Ranged,
     Melee,
 }
 
 // TODO review
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub enum EnemyMosquitoAnimation {
     Idle,
     Attack,
     Fly,
 }
 
-#[derive(Clone, Component, Debug, Default)]
+#[derive(Clone, Component, Debug, Default, Reflect)]
 pub struct CurrentEnemyMosquitoStep(EnemyStep);
 
 // Tardigrade
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct EnemyTardigrade {
     pub steps: VecDeque<EnemyStep>,
 }
@@ -82,7 +82,7 @@ impl EnemyTardigrade {
 }
 
 // TODO review
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub enum EnemyTardigradeAnimation {
     Idle,
     Attack,
@@ -90,7 +90,7 @@ pub enum EnemyTardigradeAnimation {
 }
 
 // TODO could generalise
-#[derive(Clone, Component, Debug, Default)]
+#[derive(Clone, Component, Debug, Default, Reflect)]
 pub struct EnemyTardigradeAttacking {
     pub attack: bool,
     pub last_attack_started: Duration,

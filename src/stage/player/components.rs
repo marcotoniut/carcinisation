@@ -1,3 +1,8 @@
+use crate::{
+    stage::components::placement::Depth,
+    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
+    Layer,
+};
 use assert_assets_path::assert_assets_path;
 use bevy::{
     audio::{PlaybackMode, Volume},
@@ -12,12 +17,6 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
-use crate::{
-    stage::components::placement::Depth,
-    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
-    Layer,
-};
-
 #[derive(Component)]
 pub struct Player;
 
@@ -29,13 +28,13 @@ pub const PLAYER_DEPTH: Depth = Depth::Zero;
 pub const ATTACK_PINCER_DAMAGE: u32 = 70;
 pub const ATTACK_GUN_DAMAGE: u32 = 30;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub enum Weapon {
     Pincer,
     Gun,
 }
 
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Clone, Component, Copy, Debug, Reflect)]
 pub struct PlayerAttack {
     pub weapon: Weapon,
     pub position: Vec2,
@@ -148,7 +147,7 @@ impl PlayerAttack {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct CameraShake {
     pub timer: Timer,
     pub intensity: f32,
