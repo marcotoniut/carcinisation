@@ -90,7 +90,7 @@ impl MovementStageStep {
     pub fn new() -> Self {
         Self {
             coordinates: Vec2::ZERO,
-            base_speed: 0.0,
+            base_speed: 1.0,
             spawns: vec![],
             floor_depths: None,
         }
@@ -102,12 +102,7 @@ impl MovementStageStep {
     }
 
     pub fn base(x: f32, y: f32) -> Self {
-        Self {
-            coordinates: Vec2::new(x, y),
-            base_speed: 1.,
-            spawns: vec![],
-            floor_depths: None,
-        }
+        Self::new().with_coordinates(Vec2::new(x, y))
     }
 
     pub fn with_base_speed(mut self, value: f32) -> Self {

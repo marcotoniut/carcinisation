@@ -72,8 +72,12 @@ impl CrystalDepth {
 }
 
 impl DestructibleSpawn {
+    pub fn get_name(&self) -> Name {
+        Name::new(self.show_type())
+    }
+    // TODO could use a Spawn trait
     pub fn show_type(&self) -> String {
-        format!("Destructible({:?})", self.destructible_type)
+        format!("Destructible<{:?}>", self.destructible_type)
     }
 
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
