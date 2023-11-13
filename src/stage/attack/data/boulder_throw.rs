@@ -13,7 +13,7 @@ use crate::{
 use bevy::utils::HashMap;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
 
-pub const BOULDER_THROW_ATTACK_DEPTH_SPEED: f32 = -3.;
+pub const BOULDER_THROW_ATTACK_DEPTH_SPEED: f32 = -1.6;
 pub const BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION: f32 = -55.;
 pub const BOULDER_THROW_ATTACK_DAMAGE: u32 = 45;
 pub const BOULDER_THROW_ATTACK_RANDOMNESS: f32 = 35.;

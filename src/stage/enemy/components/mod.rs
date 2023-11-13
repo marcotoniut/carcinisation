@@ -35,10 +35,7 @@ pub const ENEMY_TARDIGRADE_RADIUS: f32 = 9.0;
 pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;
 
 #[derive(Component, Clone, Debug, Reflect)]
-pub struct EnemyMosquito {
-    pub steps: VecDeque<EnemyStep>,
-    // pub state: EnemyMosquitoState,
-}
+pub struct EnemyMosquito;
 
 impl EnemyMosquito {
     pub fn kill_score(&self) -> u32 {
@@ -50,6 +47,14 @@ impl EnemyMosquito {
 pub struct EnemyMosquitoAttacking {
     pub attack: Option<EnemyMosquitoAttack>,
     pub last_attack_started: Duration,
+}
+
+impl EnemyMosquitoAttacking {
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Clone, Component, Debug, Reflect)]
@@ -71,9 +76,7 @@ pub struct CurrentEnemyMosquitoStep(EnemyStep);
 
 // Tardigrade
 #[derive(Clone, Component, Debug, Reflect)]
-pub struct EnemyTardigrade {
-    pub steps: VecDeque<EnemyStep>,
-}
+pub struct EnemyTardigrade;
 
 impl EnemyTardigrade {
     pub fn kill_score(&self) -> u32 {
@@ -96,13 +99,21 @@ pub struct EnemyTardigradeAttacking {
     pub last_attack_started: Duration,
 }
 
+impl EnemyTardigradeAttacking {
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Component)]
-pub struct EnemySpidey {}
+pub struct EnemySpidey;
 
 // Bosses
 
 #[derive(Component)]
-pub struct EnemyMarauder {}
+pub struct EnemyMarauder;
 
 #[derive(Component)]
 pub struct EnemySpidomonsta {}

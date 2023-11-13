@@ -332,6 +332,15 @@ impl StageSpawn {
             StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
         })
     }
+
+    pub fn show_type(&self) -> String {
+        match self {
+            StageSpawn::Destructible(spawn) => spawn.show_type(),
+            StageSpawn::Enemy(spawn) => spawn.show_type(),
+            StageSpawn::Object(spawn) => spawn.show_type(),
+            StageSpawn::Pickup(spawn) => spawn.show_type(),
+        }
+    }
 }
 
 impl From<ObjectSpawn> for StageSpawn {
