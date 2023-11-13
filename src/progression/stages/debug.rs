@@ -39,7 +39,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         ObjectSpawn::fibertree_base(180., OBJECT_FIBERTREE_Y).into(),
         ObjectSpawn::bench_big_base(50., 65.).into(),
         ObjectSpawn::bench_big_base(200., 60.).into(),
-        DestructibleSpawn::lamp_base(75., OBJECT_LAMP_Y, LampDepth::Four)
+        DestructibleSpawn::lamp_base(75., OBJECT_LAMP_Y, LampDepth::Three)
             .drops(ContainerSpawn::Enemy(
                 EnemySpawn::mosquito_base()
                     .with_coordinates(Vec2::new(60., 100.))
@@ -50,7 +50,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     ]),
             ))
             .into(),
-        DestructibleSpawn::lamp_base(260., OBJECT_LAMP_Y, LampDepth::Four)
+        DestructibleSpawn::lamp_base(260., OBJECT_LAMP_Y, LampDepth::Three)
             .drops(PickupSpawn::big_healthpack_base().into())
             .into(),
     ]
@@ -85,7 +85,7 @@ pub fn make_steps() -> Vec<StageStep> {
                 .into_iter()
                 .collect(),
             )
-            .with_max_duration(30.)
+            .with_max_duration(12.)
             .add_spawns(vec![
                 EnemySpawn::tardigrade_base()
                     .with_coordinates(Vec2::new(40.0, 70.0))

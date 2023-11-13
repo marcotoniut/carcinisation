@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Reflect)]
 pub struct HealthRecovery(pub u32);
 
 impl HealthRecovery {

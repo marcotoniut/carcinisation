@@ -110,20 +110,20 @@ impl Depth {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Reflect)]
 pub struct Floor(pub f32);
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Reflect)]
 pub struct Speed(pub f32);
 
 #[derive(Component, Debug)]
-pub struct InView {}
+pub struct InView;
 
 #[derive(Component, Debug)]
 pub struct LinearUpdateDisabled;
 
 // DEPRECATED
-#[derive(Clone, Component, Debug)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct RailPosition(pub Vec2);
 
 // DEPRECATED

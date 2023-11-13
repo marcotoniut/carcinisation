@@ -22,7 +22,7 @@ pub enum StageEntityType {
 
 // TODO should go in UI
 #[derive(Clone, Component, Debug)]
-pub struct StageClearedText {}
+pub struct StageClearedText;
 
 #[derive(Clone, Component, Debug)]
 pub struct SpawnDrop {
@@ -33,13 +33,13 @@ pub struct SpawnDrop {
 #[derive(Component)]
 pub struct Stage;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct CurrentStageStep {
     pub started: Duration,
 }
 
 // TODO use this instead of CurrentStageStep?
-#[derive(Clone, Debug, Component)]
+#[derive(Clone, Debug, Component, Reflect)]
 pub struct StageElapse {
     pub duration: Duration,
     pub clear_graphics: bool,
@@ -66,7 +66,7 @@ impl StageElapse {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 pub struct StageElapsedStarted(pub Duration);
 
 #[derive(Component, Clone, Debug)]

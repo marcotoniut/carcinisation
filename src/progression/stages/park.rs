@@ -35,7 +35,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         ObjectSpawn::bench_big_base(20., 65.).into(),
         ObjectSpawn::bench_big_base(200., 60.).into(),
         ObjectSpawn::bench_small_base(100., 65.).into(),
-        DestructibleSpawn::lamp_base(70., OBJECT_LAMP_Y, LampDepth::Four)
+        DestructibleSpawn::lamp_base(70., OBJECT_LAMP_Y, LampDepth::Three)
             .drops(ContainerSpawn::Enemy(
                 EnemySpawn::mosquito_base()
                     .with_coordinates(Vec2::new(79., 100.))
@@ -50,7 +50,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     ]),
             ))
             .into(),
-        DestructibleSpawn::lamp_base(260.0, OBJECT_LAMP_Y, LampDepth::Four)
+        DestructibleSpawn::lamp_base(260.0, OBJECT_LAMP_Y, LampDepth::Three)
             .drops(ContainerSpawn::Pickup(PickupSpawn::big_healthpack_base()))
             .into(),
         PickupSpawn::big_healthpack_base()

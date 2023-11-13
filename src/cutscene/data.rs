@@ -1,6 +1,4 @@
-use bevy::prelude::{Component, Resource, Vec2};
-use std::time::Duration;
-
+use super::resources::CutsceneTime;
 use crate::{
     letterbox::events::LetterboxMoveEvent,
     plugins::movement::linear::components::{
@@ -9,10 +7,10 @@ use crate::{
     stage::data::GAME_BASE_SPEED,
     Layer,
 };
+use bevy::prelude::*;
+use std::time::Duration;
 
-use super::resources::CutsceneTime;
-
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Reflect)]
 pub enum CutsceneLayer {
     Background(u8),
     Middle(u8),
@@ -23,7 +21,7 @@ pub enum CutsceneLayer {
     Overtext(u8),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub struct TargetMovement {
     pub position: Vec2,
     pub speed: f32,
@@ -74,7 +72,7 @@ impl TargetMovement {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Reflect)]
 pub struct CutsceneAnimationSpawn {
     pub duration: Duration,
     pub frame_count: usize,
@@ -119,7 +117,7 @@ impl CutsceneAnimationSpawn {
     }
 }
 
-#[derive(Clone, Debug, Component)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct CutsceneAnimationsSpawn {
     pub spawns: Vec<CutsceneAnimationSpawn>,
 }

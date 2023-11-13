@@ -69,7 +69,7 @@ pub fn mark_for_despawn_by_component_query<T: Component>(
 }
 
 // TODO move to components.rs
-#[derive(Component, Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Component, Copy, Default, Debug, Reflect, PartialEq, Eq, Hash)]
 pub enum GBColor {
     #[default]
     Black,

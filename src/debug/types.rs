@@ -1,0 +1,60 @@
+use bevy::prelude::*;
+
+use crate::{
+    cutscene::data::CutsceneAnimationsSpawn,
+    globals::GBColor,
+    plugins::movement::linear::components::{
+        TargetingPositionX, TargetingPositionY, TargetingPositionZ,
+    },
+    stage::{
+        components::{
+            damage::{DamageFlicker, InflictsDamage},
+            interactive::{CollisionData, Health},
+            placement::{Depth, Floor, RailPosition, Speed},
+            CurrentStageStep, StageElapsedStarted,
+        },
+        enemy::components::{
+            behavior::{EnemyBehaviors, EnemyCurrentBehavior},
+            *,
+        },
+        pickup::components::HealthRecovery,
+        player::components::{CameraShake, PlayerAttack},
+        resources::StageTime,
+    },
+    Layer,
+};
+
+pub fn register_types(app: &mut App) {
+    app.register_type::<CameraShake>()
+        .register_type::<CircleAround>()
+        .register_type::<CollisionData>()
+        .register_type::<CurrentEnemyMosquitoStep>()
+        .register_type::<CurrentStageStep>()
+        .register_type::<CutsceneAnimationsSpawn>()
+        .register_type::<DamageFlicker>()
+        .register_type::<Depth>()
+        .register_type::<EnemyBehaviors>()
+        .register_type::<EnemyCurrentBehavior>()
+        .register_type::<EnemyMosquito>()
+        .register_type::<EnemyMosquitoAttacking>()
+        .register_type::<EnemyMosquitoAttack>()
+        .register_type::<EnemyMosquitoAnimation>()
+        .register_type::<EnemyTardigrade>()
+        .register_type::<EnemyTardigradeAnimation>()
+        .register_type::<EnemyTardigradeAttacking>()
+        .register_type::<Floor>()
+        .register_type::<Health>()
+        .register_type::<HealthRecovery>()
+        .register_type::<InflictsDamage>()
+        .register_type::<GBColor>()
+        .register_type::<Layer>()
+        .register_type::<LinearMovement>()
+        .register_type::<PlayerAttack>()
+        .register_type::<RailPosition>()
+        .register_type::<Speed>()
+        .register_type::<StageTime>()
+        .register_type::<StageElapsedStarted>()
+        .register_type::<TargetingPositionX>()
+        .register_type::<TargetingPositionY>()
+        .register_type::<TargetingPositionZ>();
+}

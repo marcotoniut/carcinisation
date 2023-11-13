@@ -1,7 +1,7 @@
-use bevy::prelude::Vec2;
+use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 pub enum MovementDirection {
     // TODO should this implement default at all?
     #[default]

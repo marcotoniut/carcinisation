@@ -3,7 +3,7 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Object;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub enum CollisionShape {
     Box(Vec2),
     Circle(f32),
@@ -20,7 +20,7 @@ impl CollisionShape {
 }
 
 // TODO impl more complex collision algorithm
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub struct Collision {
     pub shape: CollisionShape,
     pub defense: f32,
@@ -75,7 +75,7 @@ impl From<CollisionShape> for Collision {
     }
 }
 
-#[derive(Clone, Component, Debug)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct CollisionData(pub Vec<Collision>);
 
 impl CollisionData {
@@ -131,5 +131,5 @@ pub struct Hittable;
 #[derive(Clone, Component, Debug)]
 pub struct Dead;
 
-#[derive(Clone, Component, Debug)]
+#[derive(Clone, Component, Debug, Reflect)]
 pub struct Health(pub u32);

@@ -11,8 +11,8 @@ use super::{
     components::{
         interactive::{Dead, Object},
         placement::spawn_floor_depths,
-        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StageElapse,
-        StageElapsedStarted, StageEntity, StopStageStep,
+        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StageElapsedStarted,
+        StageEntity, StopStageStep,
     },
     data::*,
     destructible::components::Destructible,
