@@ -65,7 +65,7 @@ pub fn pickup_health(
                 LinearAcceleration::<StageTime, TargetingPositionY>::new(acceleration_y),
             );
 
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_2.png"));
+            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
 
             commands
                 .spawn((

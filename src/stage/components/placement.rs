@@ -94,21 +94,6 @@ impl Depth {
         *self as i8
     }
 
-    pub fn to_filedepth(&self) -> i8 {
-        match self {
-            Self::Nine => 0,
-            Self::Eight => 1,
-            Self::Seven => 2,
-            Self::Six => 3,
-            Self::Five => 4,
-            Self::Four => 5,
-            Self::Three => 6,
-            Self::Two => 7,
-            Self::One => 8,
-            Self::Zero => 9,
-        }
-    }
-
     pub fn to_layer(&self) -> Layer {
         match self {
             Self::Nine => Layer::PreBackgroundDepth(PreBackgroundDepth::Nine),

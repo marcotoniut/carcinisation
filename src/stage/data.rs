@@ -313,13 +313,10 @@ impl StageSpawn {
         })
     }
 
+    // TODO could use a Spawn trait
     pub fn show_spawn_type(&self) -> String {
         match self {
-            StageSpawn::Destructible(DestructibleSpawn {
-                destructible_type, ..
-            }) => {
-                format!("Destructible({:?})", destructible_type)
-            }
+            StageSpawn::Destructible(spawn) => spawn.show_type(),
             StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => format!("Enemy({:?})", enemy_type),
             StageSpawn::Object(ObjectSpawn { object_type, .. }) => {
                 format!("Object({:?})", object_type)

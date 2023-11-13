@@ -1,6 +1,6 @@
 use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
-use crate::stage::destructible::data::DestructibleSpawn;
+use crate::stage::destructible::data::{CrystalDepth, DestructibleSpawn, MushroomDepth};
 use crate::stage::enemy::data::steps::EnemyStep;
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
@@ -25,8 +25,8 @@ lazy_static! {
 
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
-        DestructibleSpawn::crystal_base(30., 0.).into(),
-        DestructibleSpawn::mushroom_base(60., 0.)
+        DestructibleSpawn::crystal_base(30., 0., CrystalDepth::Five).into(),
+        DestructibleSpawn::mushroom_base(60., 0., MushroomDepth::Four)
             .drops(ContainerSpawn::Enemy(
                 EnemySpawn::tardigrade_base()
                     .with_elapsed(0.4)
@@ -43,10 +43,10 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                     ]),
             ))
             .into(),
-        DestructibleSpawn::mushroom_base(20.0, 0.0)
+        DestructibleSpawn::mushroom_base(20.0, 0.0, MushroomDepth::Four)
             .drops(PickupSpawn::big_healthpack_base().into())
             .into(),
-        DestructibleSpawn::crystal_base(20., 0.)
+        DestructibleSpawn::crystal_base(20., 0., CrystalDepth::Five)
             .drops(PickupSpawn::small_healthpack_base().into())
             .into(),
     ]

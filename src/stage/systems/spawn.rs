@@ -1,7 +1,6 @@
 use crate::stage::{
     components::{
         interactive::{Collision, CollisionData, Dead},
-        placement::Depth,
         SpawnDrop, StageEntity,
     },
     data::ContainerSpawn,
@@ -16,7 +15,7 @@ use crate::stage::{
 use crate::{
     stage::{
         components::{
-            interactive::{CollisionShape, Flickerer, Health, Hittable, Object},
+            interactive::{Flickerer, Health, Hittable, Object},
             placement::Speed,
         },
         data::{
@@ -109,7 +108,7 @@ pub fn spawn_pickup(
     let position = PxSubPosition::from(offset + coordinates.clone());
     match pickup_type {
         PickupType::BigHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_2.png"));
+            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
             commands
                 .spawn((
                     name,
@@ -129,7 +128,7 @@ pub fn spawn_pickup(
                 .id()
         }
         PickupType::SmallHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_1.png"));
+            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_6.png"));
 
             commands
                 .spawn((
@@ -245,7 +244,7 @@ pub fn spawn_destructible(
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &DestructibleSpawn,
 ) -> Entity {
-    let name = Name::new(format!("Destructible {:?}", spawn.destructible_type));
+    let name = Name::new(spawn.show_type());
     info!("Spawning {:?}", name.as_str());
 
     let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(&spawn.destructible_type);

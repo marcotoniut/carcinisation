@@ -23,7 +23,7 @@ const FRAGMENT_MELEE_ATTACK: &str = "melee_attack";
 const FRAGMENT_ENEMY: &str = "mosquito";
 
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
-    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_filedepth())
+    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
 pub const MOSQUITO_MIN_DEPTH: Depth = Depth::Three;
