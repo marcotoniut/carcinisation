@@ -38,7 +38,7 @@ use self::{
     },
 };
 use crate::{
-    core::time::tick_time,
+    core::time::{tick_time, TimeMultiplier},
     game::events::GameOverEvent,
     plugins::movement::{
         linear::{
@@ -67,6 +67,9 @@ pub struct StagePlugin;
  */
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
+        #[cfg(debug_assertions)]
+        app.insert_resource(TimeMultiplier::<StageTime>::new(3.));
+
         app.add_state::<StagePluginUpdateState>()
             .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
             .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
