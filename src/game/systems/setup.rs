@@ -19,11 +19,11 @@ use bevy::prelude::*;
 
 pub fn on_startup(
     mut event_reader: EventReader<GameStartupEvent>,
-    mut game_state_next_state: ResMut<NextState<GamePluginUpdateState>>,
+    mut next_state: ResMut<NextState<GamePluginUpdateState>>,
     mut commands: Commands,
 ) {
     for _ in event_reader.iter() {
-        game_state_next_state.set(GamePluginUpdateState::Active);
+        next_state.set(GamePluginUpdateState::Active);
         commands.insert_resource::<GameProgress>(GameProgress { index: 0 });
         commands.insert_resource::<GameData>(GAME_DATA.clone());
         commands.insert_resource(Lives(STARTING_LIVES));

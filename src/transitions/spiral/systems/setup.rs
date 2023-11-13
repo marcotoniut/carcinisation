@@ -14,10 +14,10 @@ use bevy::prelude::*;
 pub fn on_startup(
     mut commands: Commands,
     mut event_reader: EventReader<TransitionVenetianStartupEvent>,
-    mut transition_state_next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
+    mut next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
 ) {
     for e in event_reader.iter() {
-        transition_state_next_state.set(TransitionVenetianPluginUpdateState::Active);
+        next_state.set(TransitionVenetianPluginUpdateState::Active);
 
         let data = e.data.as_ref();
 

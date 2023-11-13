@@ -35,12 +35,12 @@ lazy_static! {
     pub static ref CAMERA_CENTER: Vec2 = CAMERA_RESOLUTION.as_vec2() / 2.0 + HUD_OFFSET.as_vec2();
 }
 
-pub const PATH_SPRITES_ENEMIES: &str = ("sprites/enemies/");
+pub const PATH_SPRITES_ENEMIES: &str = assert_assets_path!("sprites/enemies/");
 pub const PATH_SPRITES_ATTACKS: &str = assert_assets_path!("sprites/attacks/");
 pub const PATH_SPRITES_OBJECTS: &str = assert_assets_path!("sprites/objects/");
 
-pub const TYPEFACE_PATH: &str = "typeface/pixeboy.png";
-pub const TYPEFACE_INVERTED_PATH: &str = "typeface/pixeboy-inverted.png";
+pub const TYPEFACE_PATH: &str = assert_assets_path!("typeface/pixeboy.png");
+pub const TYPEFACE_INVERTED_PATH: &str = assert_assets_path!("typeface/pixeboy-inverted.png");
 // pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?";
 

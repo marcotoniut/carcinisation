@@ -249,11 +249,11 @@ pub fn read_step_trigger(
 }
 
 pub fn initialise_cinematic_step(
-    mut game_state_next_state: ResMut<NextState<GameProgressState>>,
+    mut next_state: ResMut<NextState<GameProgressState>>,
     query: Query<(Entity, &CinematicStageStep), (With<Stage>, Added<CinematicStageStep>)>,
 ) {
     if let Ok((_, _)) = query.get_single() {
-        // game_state_next_state.set(GameState::Cutscene);
+        // next_state.set(GameState::Cutscene);
     }
 }
 

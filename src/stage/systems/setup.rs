@@ -24,13 +24,12 @@ pub fn on_startup(
     mut typefaces: PxAssets<PxTypeface>,
     mut event_writer: EventWriter<PlayerStartupEvent>,
     mut event_reader: EventReader<StageStartupEvent>,
-    mut stage_state_next_state: ResMut<NextState<StagePluginUpdateState>>,
+    mut next_state: ResMut<NextState<StagePluginUpdateState>>,
     asset_server: Res<AssetServer>,
-
     volume_settings: Res<VolumeSettings>,
 ) {
     for e in event_reader.iter() {
-        stage_state_next_state.set(StagePluginUpdateState::Active);
+        next_state.set(StagePluginUpdateState::Active);
 
         event_writer.send(PlayerStartupEvent);
         let stage_data = e.data.as_ref();
