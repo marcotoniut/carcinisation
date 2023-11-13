@@ -50,10 +50,13 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
 
 pub fn player_movement<T: DeltaTime + Resource>(
     gb_input: Res<ActionState<GBInput>>,
-    mut query: Query<(&mut PxSubPosition, &Player)>,
+    // TODO should this system refer to a Cursor component instead?
+    mut query: Query<&mut PxSubPosition, With<Player>>,
     time: Res<T>,
 ) {
-    for (mut position, _) in &mut query {
+    for mut position in &mut query {
+        // TODO review what's more expensive, querying or input subroutine, although, most of the times
+        // a player will exist, so it's probably more that the former is redundant
         let mut direction = Vec2::new(
             (gb_input.pressed(GBInput::Right) as i32 - gb_input.pressed(GBInput::Left) as i32)
                 as f32,
