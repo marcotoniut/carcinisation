@@ -33,7 +33,9 @@ path = "backgrounds/spaceship/background.png"
 path = "backgrounds/spaceship/skybox.png"
 
 [[images]]
-path = "main_menu/blank.png"
+# TEMP
+path = "cinematics/intro/planet.png"
+target_path = "ui/main_menu/background.png"
 
 [[images]]
 path = "typeface/typeface.png"

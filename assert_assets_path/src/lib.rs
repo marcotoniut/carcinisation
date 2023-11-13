@@ -13,6 +13,7 @@ fn check_assets_path_exists(path: String) -> bool {
     path_buf.exists()
 }
 
+// TODO should check for a file, and reject folders. Could add a different function for folders
 #[proc_macro]
 pub fn assert_assets_path(input: TokenStream) -> TokenStream {
     let path_lit = parse_macro_input!(input as LitStr);

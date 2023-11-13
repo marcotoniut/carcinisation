@@ -35,6 +35,7 @@ use leafwing_input_manager::{
     Actionlike,
 };
 use letterbox::LetterboxPlugin;
+use main_menu::MainMenuPlugin;
 use pixel::PixelPlugin;
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
@@ -107,10 +108,11 @@ fn main() {
         // .add_plugins(TransitionVenetianPlugin)
         .add_plugins(CutscenePlugin)
         .add_plugins(LetterboxPlugin)
-        // .add_plugins(MainMenuPlugin)
+        .add_plugins(MainMenuPlugin)
         .add_plugins(StagePlugin)
         .add_plugins(GamePlugin)
-        .add_systems(PostStartup, trigger_game_startup)
+        // .add_systems(PostStartup, debug_trigger_game_startup)
+        .add_systems(PostStartup, on_post_startup)
         .add_systems(
             Update,
             (

@@ -6,6 +6,7 @@ pub mod spawn;
 
 use self::audio::VolumeSettings;
 use crate::game::events::GameStartupEvent;
+use crate::main_menu::events::MainMenuStartupEvent;
 use crate::{
     audio::AudioSystemType,
     components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
@@ -168,6 +169,10 @@ pub fn check_despawn_after_delay<T: ElapsedTime + Resource>(
     }
 }
 
-pub fn trigger_game_startup(mut event_writer: EventWriter<GameStartupEvent>) {
+pub fn debug_trigger_game_startup(mut event_writer: EventWriter<GameStartupEvent>) {
     event_writer.send(GameStartupEvent);
+}
+
+pub fn on_post_startup(mut event_writer: EventWriter<MainMenuStartupEvent>) {
+    event_writer.send(MainMenuStartupEvent);
 }

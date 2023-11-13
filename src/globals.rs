@@ -59,6 +59,16 @@ pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> boo
         && position.y <= top_right.y
 }
 
+// REVIEW?
+// pub fn mark_for_despawn_by_iterator<T: Component>(
+//     commands: &mut Commands,
+//     iter: &QueryIter<Entity>,
+// ) {
+//     for entity in iter {
+//         commands.entity(entity).insert(DespawnMark);
+//     }
+// }
+
 pub fn mark_for_despawn_by_component_query<T: Component>(
     commands: &mut Commands,
     query: &Query<Entity, With<T>>,
