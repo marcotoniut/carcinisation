@@ -7,12 +7,12 @@ use super::{
 use crate::stage::{components::interactive::Dead, player::components::Player};
 use bevy::prelude::*;
 
-pub fn pause_game(mut game_state_next_state: ResMut<NextState<GamePluginUpdateState>>) {
-    game_state_next_state.set(GamePluginUpdateState::Active);
+pub fn pause_game(mut next_state: ResMut<NextState<GamePluginUpdateState>>) {
+    next_state.set(GamePluginUpdateState::Active);
 }
 
-pub fn resume_game(mut game_state_next_state: ResMut<NextState<GamePluginUpdateState>>) {
-    game_state_next_state.set(GamePluginUpdateState::Inactive);
+pub fn resume_game(mut next_state: ResMut<NextState<GamePluginUpdateState>>) {
+    next_state.set(GamePluginUpdateState::Inactive);
 }
 
 pub fn check_player_died(

@@ -55,7 +55,7 @@ pub fn spawn_hud(
                             canvas: PxCanvas::Camera,
                             layer: Layer::Hud,
                             sprite: assets_sprite
-                                .load(assert_assets_path!("sprites/score-icon.png")),
+                                .load(assert_assets_path!("sprites/pickups/health_6.png")),
                             ..Default::default()
                         },
                         PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),
