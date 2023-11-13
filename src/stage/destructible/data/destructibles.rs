@@ -6,7 +6,10 @@ use crate::{
             interactive::{Collision, CollisionData},
             placement::Depth,
         },
-        destructible::components::{DestructibleState, DestructibleType},
+        destructible::{
+            components::{DestructibleState, DestructibleType},
+            data::{CrystalDepth, LampDepth, MushroomDepth, TrashcanDepth},
+        },
     },
 };
 use bevy::prelude::*;
@@ -57,8 +60,9 @@ impl DestructibleAnimations {
     }
 }
 
+// TODO turn this into a general access macro
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
-    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_filedepth())
+    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
 const FRAGMENT_BASE: &str = "base";
@@ -72,29 +76,29 @@ lazy_static! {
         let lamp_base_speed = 300;
         let lamp_broken_frames = 1;
         let lamp_broken_speed = 300;
-        let lamp_depths = [Depth::Four];
+        let lamp_depths = [LampDepth::Four];
         let lamp_fragment = "lamp";
 
         for i in lamp_depths {
+            let depth = i.to_depth();
             animations.lamp.insert(
-                i,
+                depth,
                 DestructibleAnimationData {
                     base: AnimationData {
                         sprite_path: concat_strings_and_number(
                             PATH_SPRITES_OBJECTS,
                             lamp_fragment,
                             FRAGMENT_BASE,
-                            i,
+                            depth,
                         ),
                         frames: lamp_base_frames,
                         speed: lamp_base_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
                         collision_data: match i {
-                            Depth::Four => CollisionData::from_one(
+                            LampDepth::Four => CollisionData::from_one(
                                 Collision::new_box(Vec2::new(17.0, 19.0))
                                     .with_offset(Vec2::new(-1.0, 122.0)),
                             ),
-                            _ => CollisionData::new(),
                         },
                         ..Default::default()
                     },
@@ -103,7 +107,7 @@ lazy_static! {
                             PATH_SPRITES_OBJECTS,
                             lamp_fragment,
                             FRAGMENT_BROKEN,
-                            i,
+                            depth,
                         ),
                         frames: lamp_broken_frames,
                         speed: lamp_broken_speed,
@@ -118,29 +122,30 @@ lazy_static! {
         let trashcan_speed = 500;
         let trashcan_broken_frames = 1;
         let trashcan_broken_speed = 500;
-        let trashcan_depths = [Depth::Eight, Depth::Five];
+        let trashcan_depths = [TrashcanDepth::Six, TrashcanDepth::Four];
         let trashcan_fragment = "trashcan";
 
         for i in trashcan_depths {
+            let depth = i.to_depth();
             animations.trashcan.insert(
-                i,
+                depth,
                 DestructibleAnimationData {
                     base: AnimationData {
                         sprite_path: concat_strings_and_number(
                             PATH_SPRITES_OBJECTS,
                             trashcan_fragment,
                             FRAGMENT_BASE,
-                            i,
+                            depth,
                         ),
                         frames: trashcan_frames,
                         speed: trashcan_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
                         collision_data: match i {
-                            Depth::Eight => CollisionData::from_one(
+                            TrashcanDepth::Six => CollisionData::from_one(
                                 Collision::new_box(Vec2::new(8.0, 11.0))
                                     .with_offset(Vec2::new(-1.0, 6.0)),
                             ),
-                            Depth::Five => CollisionData::from_one(
+                            TrashcanDepth::Four => CollisionData::from_one(
                                 Collision::new_box(Vec2::new(18., 24.))
                                     .with_offset(Vec2::new(-2.0, 16.0)),
                             ),
@@ -153,7 +158,7 @@ lazy_static! {
                             PATH_SPRITES_OBJECTS,
                             trashcan_fragment,
                             FRAGMENT_BROKEN,
-                            i,
+                            depth,
                         ),
                         frames: trashcan_broken_frames,
                         speed: trashcan_broken_speed,
@@ -167,30 +172,30 @@ lazy_static! {
             let mushroom_speed = 500;
             let mushroom_broken_frames = 1;
             let mushroom_broken_speed = 500;
-            let mushroom_depths = [Depth::Four];
+            let mushroom_depths = [MushroomDepth::Four];
             let mushroom_fragment = "mushroom";
 
             for i in mushroom_depths {
+                let depth = i.to_depth();
                 animations.mushroom.insert(
-                    i,
+                    depth,
                     DestructibleAnimationData {
                         base: AnimationData {
                             sprite_path: concat_strings_and_number(
                                 PATH_SPRITES_OBJECTS,
                                 mushroom_fragment,
                                 FRAGMENT_BASE,
-                                i,
+                                depth,
                             ),
                             frames: mushroom_frames,
                             speed: mushroom_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
                             collision_data: match i {
-                                Depth::Four => CollisionData::from_many(vec![
+                                MushroomDepth::Four => CollisionData::from_many(vec![
                                     Collision::new_box(Vec2::new(15., 70.))
                                         .with_offset(Vec2::new(1., 49.)),
                                     Collision::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
                                 ]),
-                                _ => CollisionData::new(),
                             },
                             ..Default::default()
                         },
@@ -199,7 +204,7 @@ lazy_static! {
                                 PATH_SPRITES_OBJECTS,
                                 mushroom_fragment,
                                 FRAGMENT_BROKEN,
-                                i,
+                                depth,
                             ),
                             frames: mushroom_broken_frames,
                             speed: mushroom_broken_speed,
@@ -214,29 +219,29 @@ lazy_static! {
             let crystal_speed = 500;
             let crystal_broken_frames = 1;
             let crystal_broken_speed = 500;
-            let crystal_depths = [Depth::Five];
+            let crystal_depths = [CrystalDepth::Five];
             let crystal_fragment = "crystal";
 
             for i in crystal_depths {
+                let depth = i.to_depth();
                 animations.crystal.insert(
-                    i,
+                    depth,
                     DestructibleAnimationData {
                         base: AnimationData {
                             sprite_path: concat_strings_and_number(
                                 PATH_SPRITES_OBJECTS,
                                 crystal_fragment,
                                 FRAGMENT_BASE,
-                                i,
+                                depth,
                             ),
                             frames: crystal_frames,
                             speed: crystal_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
                             collision_data: match i {
-                                Depth::Five => CollisionData::from_one(
+                                CrystalDepth::Five => CollisionData::from_one(
                                     Collision::new_box(Vec2::new(40., 60.))
                                         .with_offset(Vec2::new(-4., 40.)),
                                 ),
-                                _ => CollisionData::new(),
                             },
                             ..Default::default()
                         },
@@ -245,7 +250,7 @@ lazy_static! {
                                 PATH_SPRITES_OBJECTS,
                                 crystal_fragment,
                                 FRAGMENT_BROKEN,
-                                i,
+                                depth,
                             ),
                             frames: crystal_broken_frames,
                             speed: crystal_broken_speed,

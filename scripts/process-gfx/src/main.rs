@@ -89,7 +89,7 @@ fn main() {
         );
         println!();
 
-        image::open(format!("{}{}", RESOURCES_GFX_PATH, image.path))
+        let _ = match image::open(format!("{}{}", RESOURCES_GFX_PATH, image.path))
             .map(|img| img.into_rgba8())
             .map(|img| {
                 if let Some(width) = image.width {
@@ -99,7 +99,13 @@ fn main() {
                 }
             })
             .map(|img| reduce_colors(&palette_image, image.invert_colors, &img))
-            .and_then(|img| img.save(asset_path))
-            .unwrap();
+        {
+            Ok(img) => Ok(img.save(asset_path)),
+            Err(error) => {
+                println!("Processing error on: {}", image.path);
+                Err(error)
+            }
+        }
+        .unwrap();
     }
 }
