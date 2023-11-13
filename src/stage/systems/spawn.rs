@@ -97,7 +97,7 @@ pub fn spawn_pickup(
     offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
-    let name = Name::new(format!("Pickup {:?}", spawn.pickup_type));
+    let name = spawn.get_name();
     info!("Spawning {:?}", name.as_str());
     // TODO depth
     let PickupSpawn {
@@ -151,7 +151,7 @@ pub fn spawn_pickup(
     }
 }
 
-pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpawn) -> Entity {
+pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) -> Entity {
     let EnemySpawn {
         enemy_type,
         coordinates,
@@ -160,8 +160,8 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, enemy_spawn: &EnemySpa
         contains,
         depth,
         ..
-    } = enemy_spawn;
-    let name = Name::new(format!("Enemy {:?}", enemy_type));
+    } = spawn;
+    let name = spawn.get_name();
     info!("Spawning {:?}", name.as_str());
     let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
@@ -244,7 +244,7 @@ pub fn spawn_destructible(
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &DestructibleSpawn,
 ) -> Entity {
-    let name = Name::new(spawn.show_type());
+    let name = spawn.get_name();
     info!("Spawning {:?}", name.as_str());
 
     let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(&spawn.destructible_type);
@@ -276,7 +276,7 @@ pub fn spawn_object(
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &ObjectSpawn,
 ) -> Entity {
-    let name = Name::new(format!("Object {:?}", spawn.object_type));
+    let name = spawn.get_name();
     info!("Spawning {:?}", name.as_str());
 
     let sprite = assets_sprite.load(match spawn.object_type {

@@ -5,7 +5,7 @@ use super::{
 };
 use crate::globals::{HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION};
 use bevy::{
-    prelude::{Resource, Vec2},
+    prelude::{Name, Resource, Vec2},
     utils::HashMap,
 };
 use std::{collections::VecDeque, time::Duration};
@@ -85,6 +85,12 @@ pub struct PickupSpawn {
 }
 
 impl PickupSpawn {
+    pub fn get_name(&self) -> Name {
+        Name::new(self.show_type())
+    }
+    pub fn show_type(&self) -> String {
+        format!("Pickup<{:?}>", self.pickup_type)
+    }
     pub fn with_elapsed(mut self, value: f32) -> Self {
         self.elapsed = value;
         self
@@ -119,6 +125,13 @@ pub struct ObjectSpawn {
 }
 
 impl ObjectSpawn {
+    pub fn get_name(&self) -> Name {
+        Name::new(self.show_type())
+    }
+    pub fn show_type(&self) -> String {
+        format!("Object<{:?}>", self.object_type)
+    }
+
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
@@ -171,6 +184,13 @@ pub struct EnemySpawn {
 }
 
 impl EnemySpawn {
+    pub fn get_name(&self) -> Name {
+        Name::new(self.show_type())
+    }
+    pub fn show_type(&self) -> String {
+        format!("Enemy<{:?}>", self.enemy_type)
+    }
+
     pub fn with_elapsed(mut self, value: f32) -> Self {
         self.elapsed = value;
         self
@@ -312,20 +332,6 @@ impl StageSpawn {
             StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
         })
     }
-
-    // TODO could use a Spawn trait
-    pub fn show_spawn_type(&self) -> String {
-        match self {
-            StageSpawn::Destructible(spawn) => spawn.show_type(),
-            StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => format!("Enemy({:?})", enemy_type),
-            StageSpawn::Object(ObjectSpawn { object_type, .. }) => {
-                format!("Object({:?})", object_type)
-            }
-            StageSpawn::Pickup(PickupSpawn { pickup_type, .. }) => {
-                format!("Pickup({:?})", pickup_type)
-            }
-        }
-    }
 }
 
 impl From<ObjectSpawn> for StageSpawn {
@@ -381,65 +387,6 @@ impl From<MovementStageStep> for StageStep {
 impl From<StopStageStep> for StageStep {
     fn from(value: StopStageStep) -> Self {
         Self::Stop(value)
-    }
-}
-
-impl StageStep {
-    pub fn speed(&self) -> f32 {
-        match self {
-            StageStep::Movement(MovementStageStep { base_speed, .. }) => {
-                *base_speed * GAME_BASE_SPEED
-            }
-            StageStep::Stop(StopStageStep { .. }) => 0.,
-            StageStep::Cinematic(_) => 0.,
-        }
-    }
-
-    pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
-        match &mut self {
-            StageStep::Movement(MovementStageStep { spawns, .. }) => {
-                spawns.extend(new_spawns);
-            }
-            StageStep::Stop(StopStageStep { spawns, .. }) => {
-                spawns.extend(new_spawns);
-            }
-            StageStep::Cinematic(_) => {}
-        };
-        self
-    }
-
-    pub fn with_base_speed(mut self, base_speed: f32) -> Self {
-        if let StageStep::Movement(MovementStageStep {
-            base_speed: ref mut s,
-            ..
-        }) = self
-        {
-            *s = base_speed;
-        }
-        self
-    }
-
-    pub fn with_floor_depths(mut self, floor_depths: HashMap<Depth, f32>) -> Self {
-        match &mut self {
-            StageStep::Movement(MovementStageStep {
-                floor_depths: ref mut f,
-                ..
-            }) => {
-                *f = Some(floor_depths);
-            }
-            StageStep::Stop(StopStageStep {
-                floor_depths: ref mut f,
-                ..
-            }) => {
-                *f = Some(floor_depths);
-            }
-            _ => {}
-        };
-        self
-    }
-
-    pub fn movement_base(x: f32, y: f32) -> MovementStageStep {
-        MovementStageStep::base(x, y)
     }
 }
 
