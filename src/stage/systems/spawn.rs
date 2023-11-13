@@ -97,8 +97,6 @@ pub fn spawn_pickup(
     offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
-    let name = spawn.get_name();
-    info!("Spawning {:?}", name.as_str());
     // TODO depth
     let PickupSpawn {
         pickup_type,
@@ -111,7 +109,7 @@ pub fn spawn_pickup(
             let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
             commands
                 .spawn((
-                    name,
+                    spawn.get_name(),
                     Hittable,
                     PxSpriteBundle::<Layer> {
                         sprite,
@@ -129,10 +127,9 @@ pub fn spawn_pickup(
         }
         PickupType::SmallHealthpack => {
             let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_6.png"));
-
             commands
                 .spawn((
-                    name,
+                    spawn.get_name(),
                     Hittable,
                     PxSpriteBundle::<Layer> {
                         sprite,
@@ -162,7 +159,6 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
         ..
     } = spawn;
     let name = spawn.get_name();
-    info!("Spawning {:?}", name.as_str());
     let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
     match enemy_type {
@@ -178,13 +174,9 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
                     Enemy,
                     behaviors,
                     Speed(*speed),
-                    EnemyMosquito {
-                        steps: steps.clone(),
-                    },
+                    EnemyMosquito,
                     depth.clone(),
-                    EnemyMosquitoAttacking {
-                        ..Default::default()
-                    },
+                    EnemyMosquitoAttacking::new(),
                     Flickerer,
                     Hittable,
                     PxSubPosition::from(position),
@@ -217,12 +209,8 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
                     depth.clone(),
                     StageEntity,
                     Enemy,
-                    EnemyTardigrade {
-                        steps: steps.clone(),
-                    },
-                    EnemyTardigradeAttacking {
-                        ..Default::default()
-                    },
+                    EnemyTardigrade,
+                    EnemyTardigradeAttacking::new(),
                     Flickerer,
                     Hittable,
                     // TODO speed needs to be assigned otherwise the check_no_behavior function cannot find the target enemy
@@ -244,9 +232,6 @@ pub fn spawn_destructible(
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &DestructibleSpawn,
 ) -> Entity {
-    let name = spawn.get_name();
-    info!("Spawning {:?}", name.as_str());
-
     let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(&spawn.destructible_type);
     let animation_bundle_o = make_animation_bundle(
         assets_sprite,
@@ -261,6 +246,7 @@ pub fn spawn_destructible(
             Destructible,
             Flickerer,
             Hittable,
+            spawn.get_name(),
             spawn.depth.clone(),
             Health(spawn.health),
             spawn.destructible_type.clone(),
@@ -276,9 +262,6 @@ pub fn spawn_object(
     assets_sprite: &mut PxAssets<PxSprite>,
     spawn: &ObjectSpawn,
 ) -> Entity {
-    let name = spawn.get_name();
-    info!("Spawning {:?}", name.as_str());
-
     let sprite = assets_sprite.load(match spawn.object_type {
         ObjectType::BenchBig => assert_assets_path!("sprites/objects/bench_big.png"),
         ObjectType::BenchSmall => assert_assets_path!("sprites/objects/bench_small.png"),
@@ -287,7 +270,7 @@ pub fn spawn_object(
     });
     commands
         .spawn((
-            name,
+            spawn.get_name(),
             Object,
             PxSpriteBundle::<Layer> {
                 sprite,

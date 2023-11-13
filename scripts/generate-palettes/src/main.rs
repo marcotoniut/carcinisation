@@ -19,20 +19,6 @@ fn main() {
                 // #fbe29f
                 Rgb([251, 226, 159]),
             ],
-            // [
-            //     // TODO replace with #431235
-            //     // #471226
-            //     Rgb([39, 25, 54]),
-            //     // TODO replace with #872108
-            //     // #99340b
-            //     Rgb([153, 52, 11]),
-            //     // TODO replace with #be6941
-            //     // #aa593a
-            //     Rgb([170, 89, 58]),
-            //     // TODO replace with #fbe1a8
-            //     // #f6d69c
-            //     Rgb([246, 214, 156]),
-            // ],
         ),
         (
             "alt",

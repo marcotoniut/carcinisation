@@ -19,7 +19,6 @@ impl CollisionShape {
     }
 }
 
-// TODO impl more complex collision algorithm
 #[derive(Clone, Copy, Debug, Reflect)]
 pub struct Collision {
     pub shape: CollisionShape,

@@ -23,10 +23,12 @@ pub enum EnemyHoveringAttackType {
     BoulderThrow,
 }
 
+#[derive(Component, Reflect)]
 pub struct EnemyAttackOriginPosition(pub Vec2);
 
 // TODO this should impact damage
 // (but it should also be affected by the stage's environment)
+#[derive(Component, Reflect)]
 pub struct EnemyAttackOriginDepth(pub Depth);
 
 impl EnemyHoveringAttackType {

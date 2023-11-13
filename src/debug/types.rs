@@ -7,6 +7,7 @@ use crate::{
         TargetingPositionX, TargetingPositionY, TargetingPositionZ,
     },
     stage::{
+        attack::components::{EnemyAttackOriginDepth, EnemyAttackOriginPosition},
         components::{
             damage::{DamageFlicker, InflictsDamage},
             interactive::{CollisionData, Health},
@@ -33,6 +34,8 @@ pub fn register_types(app: &mut App) {
         .register_type::<CutsceneAnimationsSpawn>()
         .register_type::<DamageFlicker>()
         .register_type::<Depth>()
+        .register_type::<EnemyAttackOriginDepth>()
+        .register_type::<EnemyAttackOriginPosition>()
         .register_type::<EnemyBehaviors>()
         .register_type::<EnemyCurrentBehavior>()
         .register_type::<EnemyMosquito>()

@@ -45,6 +45,7 @@ pub fn on_startup(
                 &mut filters,
             );
 
+            info!("Spawning {:?}", spawn.show_type());
             match spawn {
                 StageSpawn::Destructible(spawn) => {
                     spawn_destructible(&mut commands, &mut assets_sprite, spawn);
