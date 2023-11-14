@@ -14,6 +14,7 @@ mod main_menu;
 mod pixel;
 mod plugins;
 mod progression;
+mod resources;
 mod stage;
 mod systems;
 mod transitions;
@@ -35,7 +36,7 @@ use leafwing_input_manager::{
     Actionlike,
 };
 use letterbox::LetterboxPlugin;
-use main_menu::MainMenuPlugin;
+use main_menu::{resources::DifficultySelection, MainMenuPlugin};
 use pixel::PixelPlugin;
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
@@ -86,6 +87,7 @@ fn main() {
     app
         // TEMP
         // .insert_resource(GlobalVolume::new(0.3))
+        .init_resource::<DifficultySelection>()
         .insert_resource(VolumeSettings(
             DEFAULT_MASTER_VOLUME,
             DEFAULT_MUSIC_VOLUME,
@@ -129,7 +131,6 @@ fn main() {
         .run();
 }
 
-// This is the list of "things in the game I want to be able to do based on input"
 #[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
 pub enum GBInput {
     A,

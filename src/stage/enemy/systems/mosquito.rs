@@ -9,7 +9,7 @@ use seldom_pixel::{
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
-    globals::HALF_SCREEN_RESOLUTION,
+    globals::SCREEN_RESOLUTION_F32_H,
     stage::{
         attack::spawns::blood_shot::spawn_blood_shot_attack,
         components::{
@@ -200,7 +200,7 @@ pub fn check_idle_mosquito(
                     &mut commands,
                     &mut assets_sprite,
                     &stage_time,
-                    HALF_SCREEN_RESOLUTION.clone() + camera_pos.0,
+                    SCREEN_RESOLUTION_F32_H.clone() + camera_pos.0,
                     position.0,
                     depth,
                 );

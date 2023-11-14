@@ -3,7 +3,7 @@ use super::{
     destructible::data::DestructibleSpawn,
     enemy::data::steps::EnemyStep,
 };
-use crate::globals::{HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION};
+use crate::globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H};
 use bevy::{
     prelude::{Name, Resource, Vec2},
     utils::HashMap,
@@ -11,7 +11,7 @@ use bevy::{
 use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
-    pub static ref DEFAULT_COORDINATES: Vec2 = HALF_SCREEN_RESOLUTION.clone();
+    pub static ref DEFAULT_COORDINATES: Vec2 = SCREEN_RESOLUTION_F32_H.clone();
 }
 
 pub const GAME_BASE_SPEED: f32 = 15.0;

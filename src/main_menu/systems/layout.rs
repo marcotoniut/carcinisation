@@ -1,15 +1,19 @@
 use super::super::components::*;
 use crate::{
+    cutscene::data::CutsceneLayer,
     globals::{
-        mark_for_despawn_by_component_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
-        TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_component_query, GBColor, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
+        TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
+    pixel::components::PxRectangle,
     Layer,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::{
-    prelude::{IRect, PxAnchor, PxAssets, PxCanvas, PxTextBundle, PxTypeface},
+    prelude::{
+        IRect, PxAnchor, PxAssets, PxCanvas, PxPosition, PxSubPosition, PxTextBundle, PxTypeface,
+    },
     sprite::{PxSprite, PxSpriteBundle},
 };
 
@@ -53,4 +57,27 @@ pub fn spawn_main_menu(
 
 pub fn despawn_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenu>>) {
     mark_for_despawn_by_component_query(&mut commands, &query)
+}
+
+pub fn spawn_main_menu_select(mut commands: Commands) {
+    let color = GBColor::White;
+
+    commands
+        .spawn((
+            MainMenuSelect,
+            MainMenuEntity,
+            PxSubPosition(Vec2::new(
+                SCREEN_RESOLUTION_F32.x / 2.,
+                SCREEN_RESOLUTION_F32.y / 2.,
+            )),
+            PxRectangle {
+                anchor: PxAnchor::Center,
+                canvas: PxCanvas::Camera,
+                color,
+                width: SCREEN_RESOLUTION.x - 50,
+                height: SCREEN_RESOLUTION.y - 50,
+                layer: Layer::Hud,
+            },
+        ))
+        .id();
 }

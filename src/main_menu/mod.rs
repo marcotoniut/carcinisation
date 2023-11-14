@@ -1,5 +1,6 @@
 pub mod components;
 pub mod events;
+pub mod resources;
 pub mod systems;
 
 use self::{
@@ -30,8 +31,9 @@ impl Plugin for MainMenuPlugin {
                 Update,
                 (
                     (press_start).run_if(in_state(MainMenuScreenState::PressStart)),
-                    press_next,
-                    press_esc,
+                    (main_select_select_option).run_if(in_state(MainMenuScreenState::MainSelect)),
+                    (game_difficulty_select_option)
+                        .run_if(in_state(MainMenuScreenState::GameDifficulty)),
                 )
                     .run_if(in_state(MainMenuPluginUpdateState::Active)),
             );
