@@ -9,7 +9,7 @@ use seldom_pixel::{
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
-    globals::HALF_SCREEN_RESOLUTION,
+    globals::SCREEN_RESOLUTION_F32_H,
     stage::{
         attack::spawns::boulder_throw::spawn_boulder_throw_attack,
         components::{
@@ -126,7 +126,7 @@ pub fn check_idle_tardigrade(
                     &mut commands,
                     &mut assets_sprite,
                     &stage_time,
-                    HALF_SCREEN_RESOLUTION.clone() + camera_pos.0,
+                    SCREEN_RESOLUTION_F32_H.clone() + camera_pos.0,
                     position.0,
                     depth,
                 );
