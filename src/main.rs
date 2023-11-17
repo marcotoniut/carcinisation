@@ -36,8 +36,9 @@ use leafwing_input_manager::{
     Actionlike,
 };
 use letterbox::LetterboxPlugin;
-use main_menu::{resources::DifficultySelection, MainMenuPlugin};
+use main_menu::MainMenuPlugin;
 use pixel::PixelPlugin;
+use resources::DifficultySelected;
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
@@ -87,7 +88,7 @@ fn main() {
     app
         // TEMP
         // .insert_resource(GlobalVolume::new(0.3))
-        .init_resource::<DifficultySelection>()
+        .init_resource::<DifficultySelected>()
         .insert_resource(VolumeSettings(
             DEFAULT_MASTER_VOLUME,
             DEFAULT_MUSIC_VOLUME,

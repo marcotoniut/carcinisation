@@ -7,7 +7,7 @@ use crate::{
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-pub fn press_start(
+pub fn check_press_start_input(
     mut game_startup_event_writer: EventWriter<GameStartupEvent>,
     mut main_menu_event_writer: EventWriter<MainMenuShutdownEvent>,
     gb_input: Res<ActionState<GBInput>>,
@@ -21,7 +21,7 @@ pub fn press_start(
     }
 }
 
-pub fn main_select_select_option(
+pub fn check_main_select_select_option_input(
     mut game_startup_event_writer: EventWriter<GameStartupEvent>,
     mut main_menu_event_writer: EventWriter<MainMenuShutdownEvent>,
     gb_input: Res<ActionState<GBInput>>,
