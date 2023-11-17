@@ -7,7 +7,7 @@ use std::{
     iter::Step,
     ops::{Add, Sub},
 };
-use strum_macros::{EnumIter, EnumString};
+use strum_macros::EnumIter;
 
 #[derive(
     Component,
@@ -16,7 +16,6 @@ use strum_macros::{EnumIter, EnumString};
     Copy,
     PartialEq,
     EnumIter,
-    EnumString,
     Eq,
     Hash,
     PartialOrd,

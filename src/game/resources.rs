@@ -2,6 +2,7 @@ use super::data::GameStep;
 use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
 use std::iter::Step;
+use strum_macros::EnumIter;
 
 // TODO should default be 3?
 #[derive(Resource, Debug, Default, Clone, Copy)]
@@ -19,7 +20,17 @@ pub struct GameData {
 }
 
 #[derive(
-    Resource, Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Hash, Default, TryFromPrimitive,
+    Resource,
+    Debug,
+    Clone,
+    Copy,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Hash,
+    Default,
+    EnumIter,
+    TryFromPrimitive,
 )]
 #[repr(i8)]
 pub enum Difficulty {

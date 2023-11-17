@@ -10,4 +10,10 @@ pub struct MainMenuEntity;
 pub struct MainMenuSelect;
 
 #[derive(Component)]
-pub struct MainMenuSelectOptions;
+pub struct MainMenuSelectScreenEntity;
+
+#[derive(Component)]
+pub struct PressStartScreenEntity;
+
+#[derive(Component)]
+pub struct DifficultySelectScreenEntity;
