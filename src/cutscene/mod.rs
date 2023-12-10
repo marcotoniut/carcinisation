@@ -8,6 +8,7 @@ use self::{
     events::{CutsceneShutdownEvent, CutsceneStartupEvent},
     resources::CutsceneTime,
     systems::{
+        interactions::check_press_start_input,
         progress::*,
         setup::{on_shutdown, on_startup},
     },
@@ -51,6 +52,10 @@ impl Plugin for CutscenePlugin {
                     tick_time::<CutsceneTime>,
                 )
                     .run_if(in_state(CutscenePluginUpdateState::Active)),
+            )
+            .add_systems(
+                PostUpdate,
+                (check_press_start_input).run_if(in_state(CutscenePluginUpdateState::Active)),
             );
     }
 }

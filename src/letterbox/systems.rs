@@ -4,6 +4,7 @@ use super::resources::LetterboxTime;
 use crate::globals::mark_for_despawn_by_component_query;
 use crate::globals::GBColor;
 use crate::plugins::movement::linear::components::LinearMovementBundle;
+use crate::plugins::movement::linear::components::LinearPositionRemovalBundle;
 use crate::plugins::movement::linear::components::TargetingPositionY;
 use crate::{
     cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, pixel::components::PxRectangle,
@@ -80,7 +81,12 @@ pub fn insert_linear_movement(
     speed: f32,
 ) {
     let speed = speed * (target - position.y).signum();
-    commands.entity(entity).insert(
-        LinearMovementBundle::<LetterboxTime, TargetingPositionY>::new(position.y, target, speed),
-    );
+    commands
+        .entity(entity)
+        // .remove::<LinearPositionRemovalBundle<LetterboxTime, TargetingPositionY>>()
+        .insert(
+            LinearMovementBundle::<LetterboxTime, TargetingPositionY>::new(
+                position.y, target, speed,
+            ),
+        );
 }

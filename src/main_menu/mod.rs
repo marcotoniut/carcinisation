@@ -32,12 +32,16 @@ impl Plugin for MainMenuPlugin {
             // )
             .add_systems(
                 Update,
+                ((
+                    on_change_main_menu_screen,
+                    (spawn_game_difficulty_screen, spawn_press_start_screen),
+                )
+                    .chain(),)
+                    .run_if(in_state(MainMenuPluginUpdateState::Active)),
+            )
+            .add_systems(
+                PostUpdate,
                 (
-                    (
-                        on_change_main_menu_screen,
-                        (spawn_game_difficulty_screen, spawn_press_start_screen),
-                    )
-                        .chain(),
                     (check_press_start_input)
                         .run_if(resource_exists_and_equals(MainMenuScreen::PressStart)),
                     (check_main_select_select_option_input)

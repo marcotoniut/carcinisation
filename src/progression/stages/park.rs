@@ -106,7 +106,7 @@ pub fn make_steps() -> Vec<StageStep> {
             ])
             .into(),
         StopStageStep::new()
-            .with_max_duration(30.)
+            .with_max_duration(12.)
             .add_spawns(vec![
                 EnemySpawn::mosquito_base()
                     .with_coordinates(Vec2::new(70.0, 70.0))
@@ -159,7 +159,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .into(),
             ])
             .into(),
-        StopStageStep::new().with_max_duration(20.).into(),
+        StopStageStep::new().with_max_duration(10.).into(),
         MovementStageStep::base(280., 0.)
             .add_spawns(vec![
                 EnemySpawn::mosquito_base()
@@ -291,7 +291,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .into(),
             ])
             .into(),
-        StopStageStep::new().with_max_duration(30.).into(),
+        StopStageStep::new().with_max_duration(10.).into(),
         MovementStageStep::base(850., 155.)
             .add_spawns(vec![
                 EnemySpawn::mosquito_base()
@@ -316,7 +316,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .into(),
             ])
             .into(),
-        StopStageStep::new().with_max_duration(40.).into(),
+        StopStageStep::new().with_max_duration(10.).into(),
         MovementStageStep::base(920., 155.)
             .add_spawns(vec![
                 EnemySpawn::mosquito_base()
@@ -331,7 +331,6 @@ pub fn make_steps() -> Vec<StageStep> {
                     .into(),
             ])
             .into(),
-        StopStageStep::new().with_max_duration(45.).into(),
         StopStageStep::new()
             .with_max_duration(45.)
             .with_kill_all(false)
