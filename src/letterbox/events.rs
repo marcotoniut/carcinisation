@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::components::{LETTERBOX_HEIGHT, LETTERBOX_NORMAL_SPEED};
+use super::components::{LETTERBOX_HEIGHT, LETTERBOX_INSTANT_SPEED, LETTERBOX_NORMAL_SPEED};
 
 #[derive(Event, Clone, Debug)]
 pub struct LetterboxMoveEvent {
@@ -22,11 +22,11 @@ impl LetterboxMoveEvent {
     }
 
     pub fn show() -> Self {
-        Self::new(LETTERBOX_NORMAL_SPEED, LETTERBOX_HEIGHT as f32)
+        Self::new(LETTERBOX_INSTANT_SPEED, LETTERBOX_HEIGHT as f32)
     }
 
     pub fn hide() -> Self {
-        Self::new(LETTERBOX_NORMAL_SPEED, 0.0)
+        Self::new(LETTERBOX_INSTANT_SPEED, 0.0)
     }
 
     pub fn move_to(target: f32) -> Self {

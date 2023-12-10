@@ -68,7 +68,7 @@ pub struct StagePlugin;
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
         #[cfg(debug_assertions)]
-        app.insert_resource(TimeMultiplier::<StageTime>::new(3.));
+        app.insert_resource(TimeMultiplier::<StageTime>::new(1.));
 
         app.add_state::<StagePluginUpdateState>()
             .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)

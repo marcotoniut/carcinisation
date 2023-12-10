@@ -7,6 +7,7 @@ use crate::{
         CutscenePluginUpdateState,
     },
     globals::mark_for_despawn_by_component_query,
+    letterbox::events::LetterboxMoveEvent,
 };
 use bevy::prelude::*;
 
@@ -33,9 +34,11 @@ pub fn on_shutdown(
     mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
     cinematic_query: Query<Entity, With<Cinematic>>,
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
+    mut letterbox_move_event_writer: EventWriter<LetterboxMoveEvent>,
 ) {
     for _ in event_reader.iter() {
         next_state.set(CutscenePluginUpdateState::Inactive);
+        letterbox_move_event_writer.send(LetterboxMoveEvent::hide());
 
         mark_for_despawn_by_component_query(&mut commands, &cutscene_entity_query);
         mark_for_despawn_by_component_query(&mut commands, &cinematic_query);

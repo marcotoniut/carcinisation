@@ -76,13 +76,13 @@ pub fn on_startup(
         // DEBUG
 
         // TODO turn this into a spawn, like in cutscene, or make it a StageSpawn
-        // let music_bundle = make_music_bundle(
-        //     &asset_server,
-        //     &volume_settings,
-        //     e.data.music_path.clone(),
-        //     PlaybackMode::Loop,
-        // );
+        let music_bundle = make_music_bundle(
+            &asset_server,
+            &volume_settings,
+            e.data.music_path.clone(),
+            PlaybackMode::Loop,
+        );
 
-        // commands.spawn((music_bundle, StageEntity));
+        commands.spawn((music_bundle, StageEntity));
     }
 }

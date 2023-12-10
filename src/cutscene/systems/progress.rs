@@ -22,7 +22,7 @@ use seldom_pixel::{
 
 pub fn read_step_trigger(
     mut commands: Commands,
-    mut cutscene_shutdown_event_writer: EventWriter<CutsceneShutdownEvent>,
+    mut shutdown_event_writer: EventWriter<CutsceneShutdownEvent>,
     mut progress: ResMut<CutsceneProgress>,
     mut letterbox_move_event_writer: EventWriter<LetterboxMoveEvent>,
     query: Query<
@@ -67,7 +67,7 @@ pub fn read_step_trigger(
             }
         } else {
             entity_commands.insert(Cleared);
-            cutscene_shutdown_event_writer.send(CutsceneShutdownEvent);
+            shutdown_event_writer.send(CutsceneShutdownEvent);
         }
     }
 }
