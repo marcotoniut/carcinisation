@@ -24,6 +24,7 @@ extern crate lazy_static;
 
 use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
+use bevy_editor_pls::controls::UserInput;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use components::DespawnMark;
@@ -94,10 +95,8 @@ fn main() {
             DEFAULT_MUSIC_VOLUME,
             DEFAULT_SFX_VOLUME,
         ))
-        // Input
+        // Setup
         .add_plugins(InputManagerPlugin::<GBInput>::default())
-        .init_resource::<ActionState<GBInput>>()
-        //  Setup
         .add_plugins(FramepacePlugin)
         .add_plugins(PixelPlugin::<Layer>::default())
         .add_systems(Startup, (spawn_camera, set_framespace, init_gb_input))
@@ -150,6 +149,29 @@ pub enum GBInput {
     DToGame,
     DToMainMenu,
     DExit,
+}
+
+impl From<GBInput> for KeyCode {
+    fn from(x: GBInput) -> Self {
+        match x {
+            GBInput::A => KeyCode::X,
+            GBInput::B => KeyCode::Z,
+            GBInput::Up => KeyCode::Up,
+            GBInput::Down => KeyCode::Down,
+            GBInput::Left => KeyCode::Left,
+            GBInput::Right => KeyCode::Right,
+            GBInput::Start => KeyCode::Return,
+            GBInput::Select => KeyCode::ShiftRight,
+            // DEBUG
+            GBInput::DUp => KeyCode::W,
+            GBInput::DDown => KeyCode::S,
+            GBInput::DLeft => KeyCode::A,
+            GBInput::DRight => KeyCode::D,
+            GBInput::DToGame => KeyCode::I,
+            GBInput::DToMainMenu => KeyCode::Back,
+            GBInput::DExit => KeyCode::Escape,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect)]

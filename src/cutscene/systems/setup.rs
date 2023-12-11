@@ -1,15 +1,17 @@
+use crate::GBInput;
 use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
         data::CutsceneData,
         events::{CutsceneShutdownEvent, CutsceneStartupEvent},
-        resources::CutsceneProgress,
+        resources::{CutsceneInput, CutsceneProgress},
         CutscenePluginUpdateState,
     },
     globals::mark_for_despawn_by_component_query,
     letterbox::events::LetterboxMoveEvent,
 };
 use bevy::prelude::*;
+use leafwing_input_manager::{action_state::ActionState, input_map::InputMap};
 
 pub fn on_startup(
     mut commands: Commands,
@@ -43,4 +45,14 @@ pub fn on_shutdown(
         mark_for_despawn_by_component_query(&mut commands, &cutscene_entity_query);
         mark_for_despawn_by_component_query(&mut commands, &cinematic_query);
     }
+}
+
+pub fn init_input(mut commands: Commands) {
+    let ys: Vec<(KeyCode, CutsceneInput)> = vec![
+        (GBInput::B.into(), CutsceneInput::Skip),
+        (GBInput::A.into(), CutsceneInput::Skip),
+        (GBInput::Start.into(), CutsceneInput::Skip),
+    ];
+    commands.insert_resource(ActionState::<CutsceneInput>::default());
+    commands.insert_resource(InputMap::<CutsceneInput>::new(ys));
 }

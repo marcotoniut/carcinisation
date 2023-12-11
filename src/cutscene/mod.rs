@@ -6,11 +6,11 @@ pub mod systems;
 
 use self::{
     events::{CutsceneShutdownEvent, CutsceneStartupEvent},
-    resources::CutsceneTime,
+    resources::{CutsceneInput, CutsceneTime},
     systems::{
         interactions::check_press_start_input,
         progress::*,
-        setup::{on_shutdown, on_startup},
+        setup::{init_input, on_shutdown, on_startup},
     },
 };
 use crate::{
@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
+use leafwing_input_manager::plugin::InputManagerPlugin;
 
 pub struct CutscenePlugin;
 
@@ -30,8 +31,10 @@ impl Plugin for CutscenePlugin {
             .add_event::<CutsceneStartupEvent>()
             .add_event::<CutsceneShutdownEvent>()
             .init_resource::<CutsceneTime>()
+            .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionX>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionY>::default())
+            .add_systems(Startup, init_input)
             .add_systems(PreUpdate, (on_startup, on_shutdown))
             // .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
             .add_systems(

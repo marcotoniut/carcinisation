@@ -1,7 +1,11 @@
 pub mod components;
+pub mod events;
+pub mod resources;
+pub mod setup;
+pub mod systems;
 
-use bevy::prelude::*;
-
+use self::components::*;
+use super::components::ScoreText;
 use crate::{
     game::score::components::Score,
     globals::{
@@ -11,6 +15,7 @@ use crate::{
     stage::StageProgressState,
     Layer,
 };
+use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
         IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
@@ -18,10 +23,6 @@ use seldom_pixel::{
     },
     sprite::PxSprite,
 };
-
-use self::components::*;
-
-use super::components::ScoreText;
 
 pub fn render_cleared_screen(
     mut commands: Commands,

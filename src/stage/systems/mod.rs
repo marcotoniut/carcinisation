@@ -28,7 +28,7 @@ use crate::{
     globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
     plugins::movement::linear::components::{
         extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
-        LinearTargetReached, TargetingPositionX, TargetingPositionY,
+        TargetingPositionX, TargetingPositionY,
     },
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::make_music_bundle},
     GBInput,
