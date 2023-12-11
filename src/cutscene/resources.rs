@@ -1,5 +1,7 @@
 use crate::core::time::*;
 use bevy::prelude::*;
+use bevy::reflect::Reflect;
+use leafwing_input_manager::Actionlike;
 use std::time::Duration;
 
 #[derive(Resource, Default, Debug, Clone, Copy)]
@@ -34,4 +36,9 @@ impl Ticker for CutsceneTime {
 #[derive(Resource, Default, Clone, Copy)]
 pub struct CutsceneProgress {
     pub index: usize,
+}
+
+#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
+pub enum CutsceneInput {
+    Skip,
 }
