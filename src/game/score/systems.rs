@@ -7,7 +7,7 @@ pub fn update_high_scores(
     mut game_over_event_reader: EventReader<GameOverEvent>,
     mut high_scores: ResMut<HighScores>,
 ) {
-    for game_over in game_over_event_reader.iter() {
+    for game_over in game_over_event_reader.read() {
         high_scores
             .scores
             .push(("Player".to_string(), game_over.score));

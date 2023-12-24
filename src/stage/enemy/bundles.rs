@@ -17,7 +17,7 @@ pub fn make_enemy_animation_bundle(
     data: &AnimationData,
     depth: &Depth,
 ) -> (PxSpriteBundle<Layer>, PxAnimationBundle) {
-    let texture = assets_sprite.load_animated(data.sprite_path.as_str(), data.frames);
+    let texture = assets_sprite.load_animated(data.sprite_path.clone(), data.frames);
 
     (
         PxSpriteBundle::<Layer> {

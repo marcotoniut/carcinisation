@@ -58,7 +58,7 @@ pub fn on_move(
     top_query: Query<(Entity, &PxSubPosition), With<LetterboxTop>>,
     bottom_query: Query<(Entity, &PxSubPosition), With<LetterboxBottom>>,
 ) {
-    for e in event_reader.iter() {
+    for e in event_reader.read() {
         for (entity, position) in top_query.iter() {
             insert_linear_movement(
                 &mut commands,

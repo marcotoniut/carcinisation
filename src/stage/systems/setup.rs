@@ -28,7 +28,7 @@ pub fn on_startup(
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {
-    for e in event_reader.iter() {
+    for e in event_reader.read() {
         next_state.set(StagePluginUpdateState::Active);
 
         event_writer.send(PlayerStartupEvent);

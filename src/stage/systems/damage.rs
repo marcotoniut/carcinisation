@@ -22,7 +22,7 @@ pub fn check_damage_taken(
     mut event_reader: EventReader<DamageEvent>,
     mut query: Query<(Entity, &mut Health), Without<Dead>>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         for (entity, mut health) in &mut query.iter_mut() {
             if entity == event.entity {
                 health.0 = health.0.saturating_sub(event.value);
@@ -44,7 +44,7 @@ pub fn check_damage_flicker_taken(
     // TODO Destructibles and Attacks
     query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         for entity in query.iter() {
             if entity == event.entity {
                 commands.entity(entity).insert(DamageFlicker {

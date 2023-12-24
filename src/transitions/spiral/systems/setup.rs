@@ -16,7 +16,7 @@ pub fn on_startup(
     mut event_reader: EventReader<TransitionVenetianStartupEvent>,
     mut next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
 ) {
-    for e in event_reader.iter() {
+    for e in event_reader.read() {
         next_state.set(TransitionVenetianPluginUpdateState::Active);
 
         let data = e.data.as_ref();
@@ -33,7 +33,7 @@ pub fn on_shutdown(
     mut event_reader: EventReader<TransitionVenetianShutdownEvent>,
     transition_query: Query<Entity, With<TransitionVenetian>>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         mark_for_despawn_by_component_query(&mut commands, &transition_query);
     }
 }
