@@ -1,15 +1,11 @@
 pub mod components;
 pub mod systems;
 
-use std::marker::PhantomData;
-
-use bevy::prelude::*;
-
-use crate::core::time::DeltaTime;
-
 use self::systems::*;
-
 use super::structs::MovementVec2Position;
+use crate::core::time::DeltaTime;
+use bevy::prelude::*;
+use std::marker::PhantomData;
 
 pub struct PursueMovementPlugin<
     T: DeltaTime + 'static + Resource,

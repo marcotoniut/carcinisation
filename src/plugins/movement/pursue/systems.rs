@@ -1,8 +1,6 @@
-use bevy::prelude::*;
-
-use crate::{core::time::DeltaTime, plugins::movement::structs::MovementVec2Position};
-
 use super::components::*;
+use crate::{core::time::DeltaTime, plugins::movement::structs::MovementVec2Position};
+use bevy::prelude::*;
 
 /** TODO generalise current position via a generic LinearPosition trait */
 pub fn update<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Component>(
