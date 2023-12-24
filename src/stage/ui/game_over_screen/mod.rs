@@ -1,7 +1,14 @@
 pub mod components;
+pub mod events;
+pub mod input;
+pub mod setup;
+pub mod systems;
 
-use bevy::prelude::*;
-
+use self::{
+    components::*, events::GameOverScreenShutdownEvent, input::GameOverScreenInput,
+    setup::init_input, systems::check_press_continue_input,
+};
+use super::StageUiPluginUpdateState;
 use crate::{
     game::score::components::Score,
     globals::{
@@ -11,6 +18,8 @@ use crate::{
     stage::StageProgressState,
     Layer,
 };
+use bevy::prelude::*;
+use leafwing_input_manager::plugin::InputManagerPlugin;
 use seldom_pixel::{
     prelude::{
         IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
@@ -18,8 +27,6 @@ use seldom_pixel::{
     },
     sprite::PxSprite,
 };
-
-use self::components::*;
 
 pub fn render_game_over_screen(
     mut commands: Commands,
@@ -63,7 +70,7 @@ pub fn spawn_screen(
     let score_text = score.value.to_string();
 
     commands
-        .spawn((GameOverScreen {}, Name::new("GameOver Screen")))
+        .spawn((GameOverScreen, Name::new("GameOver Screen")))
         .with_children(|parent| {
             for i in 25..(115 as i32) {
                 parent.spawn((
@@ -147,4 +154,14 @@ pub fn spawn_screen(
             }
         })
         .id()
+}
+
+pub fn game_over_screen_plugin(app: &mut App) {
+    app.add_event::<GameOverScreenShutdownEvent>()
+        .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
+        .add_systems(Startup, init_input)
+        .add_systems(
+            PostUpdate,
+            check_press_continue_input.run_if(in_state(StageUiPluginUpdateState::Active)),
+        );
 }

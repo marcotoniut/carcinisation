@@ -1,4 +1,4 @@
-use super::{events::ClearScreenShutdownEvent, resources::ClearScreenInput};
+use super::{events::ClearScreenShutdownEvent, input::ClearScreenInput};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 

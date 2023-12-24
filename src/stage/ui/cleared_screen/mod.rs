@@ -1,11 +1,14 @@
 pub mod components;
 pub mod events;
-pub mod resources;
+pub mod input;
 pub mod setup;
 pub mod systems;
 
-use self::components::*;
-use super::components::ScoreText;
+use self::{
+    components::*, events::ClearScreenShutdownEvent, input::ClearScreenInput, setup::init_input,
+    systems::check_press_continue_input,
+};
+use super::{components::ScoreText, StageUiPluginUpdateState};
 use crate::{
     game::score::components::Score,
     globals::{
@@ -16,6 +19,7 @@ use crate::{
     Layer,
 };
 use bevy::prelude::*;
+use leafwing_input_manager::plugin::InputManagerPlugin;
 use seldom_pixel::{
     prelude::{
         IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
@@ -150,4 +154,14 @@ pub fn spawn_screen(
             }
         })
         .id()
+}
+
+pub fn cleared_screen_plugin(app: &mut App) {
+    app.add_event::<ClearScreenShutdownEvent>()
+        .add_plugins(InputManagerPlugin::<ClearScreenInput>::default())
+        .add_systems(Startup, init_input)
+        .add_systems(
+            PostUpdate,
+            check_press_continue_input.run_if(in_state(StageUiPluginUpdateState::Active)),
+        );
 }

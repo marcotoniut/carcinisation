@@ -1,12 +1,14 @@
 pub mod components;
 pub mod data;
 pub mod events;
+pub mod input;
 pub mod resources;
 pub mod systems;
 
 use self::{
     events::{CutsceneShutdownEvent, CutsceneStartupEvent},
-    resources::{CutsceneInput, CutsceneTime},
+    input::CutsceneInput,
+    resources::CutsceneTime,
     systems::{
         interactions::check_press_start_input,
         progress::*,
