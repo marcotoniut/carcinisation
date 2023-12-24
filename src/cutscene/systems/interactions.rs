@@ -1,4 +1,4 @@
-use crate::cutscene::{events::CutsceneShutdownEvent, resources::CutsceneInput};
+use crate::cutscene::{events::CutsceneShutdownEvent, input::CutsceneInput};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
