@@ -31,7 +31,7 @@ pub fn trigger_shake(
     mut event_reader: EventReader<CameraShakeEvent>,
     camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         if let Ok((entity, position)) = camera_query.get_single() {
             commands.entity(entity).insert(CameraShake {
                 timer: Timer::from_seconds(0.05, TimerMode::Once),

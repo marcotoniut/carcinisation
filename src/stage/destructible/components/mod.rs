@@ -39,7 +39,7 @@ pub fn make_animation_bundle(
         .map(|data| data.by_state(destructible_state))
         .map(|animation_data| {
             let sprite = assets_sprite
-                .load_animated(animation_data.sprite_path.as_str(), animation_data.frames);
+                .load_animated(animation_data.sprite_path.clone(), animation_data.frames);
             (
                 PxSpriteBundle::<Layer> {
                     sprite,

@@ -18,7 +18,7 @@ pub fn on_startup(
     mut event_reader: EventReader<CutsceneStartupEvent>,
     mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
 ) {
-    for e in event_reader.iter() {
+    for e in event_reader.read() {
         next_state.set(CutscenePluginUpdateState::Active);
 
         let data = e.data.as_ref();
@@ -38,7 +38,7 @@ pub fn on_shutdown(
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
     mut letterbox_move_event_writer: EventWriter<LetterboxMoveEvent>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         next_state.set(CutscenePluginUpdateState::Inactive);
         letterbox_move_event_writer.send(LetterboxMoveEvent::hide());
 

@@ -73,7 +73,7 @@ pub fn read_stage_spawn_trigger(
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         match &event.spawn {
             StageSpawn::Destructible(spawn) => {
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);

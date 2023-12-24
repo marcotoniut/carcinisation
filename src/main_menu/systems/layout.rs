@@ -25,7 +25,7 @@ pub fn on_change_main_menu_screen(
     mut event_reader: EventReader<ChangeMainMenuScreenEvent>,
     mut screen: ResMut<MainMenuScreen>,
 ) {
-    for e in event_reader.iter() {
+    for e in event_reader.read() {
         match e.0 {
             MainMenuScreen::DifficultySelect => {
                 mark_for_despawn_by_component_query(&mut commands, &difficulty_select_query)

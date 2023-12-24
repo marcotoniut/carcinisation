@@ -73,7 +73,7 @@ use seldom_pixel::prelude::PxAnimationFinished;
 // }
 
 pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOverEvent>) {
-    for game_over in game_over_event_reader.iter() {
+    for game_over in game_over_event_reader.read() {
         info!("Your final score: {}", game_over.score);
     }
 }

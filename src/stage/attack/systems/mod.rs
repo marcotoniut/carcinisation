@@ -56,7 +56,7 @@ pub fn read_enemy_attack_depth_changed(
     mut assets_sprite: PxAssets<PxSprite>,
     query: Query<(Entity, &EnemyHoveringAttackType)>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         if event.depth > PLAYER_DEPTH {
             for (entity, attack_type) in &query {
                 if entity == event.entity {

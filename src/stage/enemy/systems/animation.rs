@@ -14,7 +14,7 @@ pub fn read_enemy_depth_changed(
     mut event_reader: EventReader<DepthChangedEvent>,
     query: Query<(Entity, &Enemy)>,
 ) {
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         for (entity, attack_type) in &query {
             if entity == event.entity {
                 // TODO hacked with hardcoded enemy references

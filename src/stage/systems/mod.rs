@@ -153,7 +153,7 @@ pub fn read_stage_cleared_trigger(
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         mark_for_despawn_by_component_query(&mut commands, &destructible_query);
         mark_for_despawn_by_component_query(&mut commands, &enemy_query);
         mark_for_despawn_by_component_query(&mut commands, &music_query);
@@ -194,7 +194,7 @@ pub fn read_stage_game_over_trigger(
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         mark_for_despawn_by_component_query(&mut commands, &destructible_query);
         mark_for_despawn_by_component_query(&mut commands, &enemy_query);
         mark_for_despawn_by_component_query(&mut commands, &music_query);
@@ -385,7 +385,7 @@ pub fn cleanup_cinematic_step(
     mut event_reader: EventReader<NextStepEvent>,
     query: Query<(Entity, &CinematicStageStep), With<Stage>>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         for (entity, _) in query.iter() {
             commands
                 .entity(entity)
@@ -400,7 +400,7 @@ pub fn cleanup_movement_step(
     mut event_reader: EventReader<NextStepEvent>,
     query: Query<(Entity, &MovementStageStep), With<Stage>>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         // Cleanup logic
         for (entity, _) in query.iter() {
             commands
@@ -418,7 +418,7 @@ pub fn cleanup_stop_step(
 
     query: Query<(Entity, &StopStageStep), With<Stage>>,
 ) {
-    for _ in event_reader.iter() {
+    for _ in event_reader.read() {
         // Cleanup logic
         for (entity, _) in query.iter() {
             commands
