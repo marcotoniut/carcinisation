@@ -1,13 +1,11 @@
+use super::components::*;
+use crate::globals::GBColor;
 use bevy::{prelude::*, utils::HashMap};
 use seldom_pixel::{
     asset::PxAsset,
     filter::PxFilterData,
     prelude::{PxAssets, PxFilter, PxFilterLayers, PxLayer, PxLine, PxLineBundle, PxSubPosition},
 };
-
-use crate::globals::GBColor;
-
-use super::components::*;
 
 pub fn spawn_rectangle_rows<L: PxLayer>(
     parent: &mut ChildBuilder<'_, '_, '_>,

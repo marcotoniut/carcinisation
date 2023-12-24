@@ -1,7 +1,6 @@
+use crate::globals::GBColor;
 use bevy::prelude::*;
 use seldom_pixel::prelude::*;
-
-use crate::globals::GBColor;
 
 #[derive(Component, Default)]
 pub struct PxRectangle<L: PxLayer> {

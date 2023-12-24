@@ -31,7 +31,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AttackTimer>()
-            .configure_set(Update, MovementSystemSet.before(ConfinementSystemSet))
+            .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
             .add_event::<PlayerStartupEvent>()
             .add_event::<PlayerShutdownEvent>()
             .add_state::<PlayerPluginUpdateState>()

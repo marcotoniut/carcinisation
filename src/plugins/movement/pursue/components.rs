@@ -1,8 +1,6 @@
-use std::marker::PhantomData;
-
-use bevy::prelude::*;
-
 use crate::{core::time::DeltaTime, plugins::movement::structs::MovementVec2Position};
+use bevy::prelude::*;
+use std::marker::PhantomData;
 
 // TODO Bundle and on added
 
