@@ -1,5 +1,6 @@
 pub mod cleared_screen;
 pub mod components;
+pub mod death_screen;
 pub mod game_over_screen;
 pub mod hud;
 pub mod pause_menu;
@@ -7,6 +8,7 @@ pub mod systems;
 
 use self::{
     cleared_screen::cleared_screen_plugin,
+    death_screen::death_screen_plugin,
     game_over_screen::game_over_screen_plugin,
     hud::HudPlugin,
     systems::{
@@ -26,6 +28,7 @@ impl Plugin for StageUiPlugin {
             .add_systems(OnEnter(StageUiPluginUpdateState::Inactive), on_inactive)
             .add_plugins(HudPlugin)
             .fn_plugin(cleared_screen_plugin)
+            .fn_plugin(death_screen_plugin)
             .fn_plugin(game_over_screen_plugin)
             .add_systems(
                 Update,

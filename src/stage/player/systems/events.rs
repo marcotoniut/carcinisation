@@ -7,7 +7,6 @@ use crate::{
         events::{PlayerShutdownEvent, PlayerStartupEvent},
     },
 };
-
 use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 

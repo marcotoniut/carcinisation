@@ -3881,6 +3881,7 @@ dependencies = [
 [[package]]
 name = "seldom_pixel"
 version = "0.4.0"
+source = "git+https://github.com/Seldom-SE/seldom_pixel.git#cd11c5d206625e17723c213203c76927a60c712f"
 dependencies = [
  "bevy",
  "line_drawing",
@@ -3891,6 +3892,7 @@ dependencies = [
 [[package]]
 name = "seldom_pixel_macros"
 version = "0.1.0"
+source = "git+https://github.com/Seldom-SE/seldom_pixel.git#cd11c5d206625e17723c213203c76927a60c712f"
 dependencies = [
  "quote",
  "syn 1.0.109",

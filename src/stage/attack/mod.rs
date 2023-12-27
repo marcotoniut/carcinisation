@@ -3,12 +3,11 @@ pub mod data;
 pub mod spawns;
 pub mod systems;
 
-use bevy::prelude::*;
-
 use self::{
     systems::player::*,
     systems::{hovering::*, *},
 };
+use bevy::prelude::*;
 
 pub struct AttackPlugin;
 

@@ -3,7 +3,6 @@ pub mod behavior;
 use super::data::steps::EnemyStep;
 use crate::plugins::movement::structs::MovementDirection;
 use bevy::prelude::*;
-use std::collections::VecDeque;
 use std::time::Duration;
 
 #[derive(Component)]

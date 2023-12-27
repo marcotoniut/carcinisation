@@ -2,23 +2,14 @@ pub mod damage;
 pub mod interactive;
 pub mod placement;
 
-use crate::cutscene::data::CutsceneAnimationsSpawn;
-
 use self::placement::Depth;
-
 use super::data::{ContainerSpawn, StageSpawn};
+use crate::cutscene::data::CutsceneAnimationsSpawn;
 use bevy::{prelude::*, utils::HashMap};
 use std::time::Duration;
 
 #[derive(Component)]
 pub struct StageEntity;
-
-pub enum StageEntityType {
-    Player,
-    Enemy,
-    Destructible,
-    Attack,
-}
 
 // TODO should go in UI
 #[derive(Clone, Component, Debug)]

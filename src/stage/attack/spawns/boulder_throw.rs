@@ -1,9 +1,3 @@
-use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAssets, PxSubPosition},
-    sprite::PxSprite,
-};
-
 use crate::{
     plugins::movement::linear::components::{
         LinearAcceleration, LinearMovementBundle, LinearSpeed, TargetingPositionX,
@@ -29,6 +23,11 @@ use crate::{
         player::components::PLAYER_DEPTH,
         resources::StageTime,
     },
+};
+use bevy::prelude::*;
+use seldom_pixel::{
+    prelude::{PxAssets, PxSubPosition},
+    sprite::PxSprite,
 };
 
 pub fn spawn_boulder_throw_attack(

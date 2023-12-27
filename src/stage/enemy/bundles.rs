@@ -1,10 +1,8 @@
-use bevy::prelude::*;
+use crate::{data::AnimationData, stage::components::placement::Depth, Layer};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},
 };
-
-use crate::{data::AnimationData, stage::components::placement::Depth, Layer};
 
 /**
  * TODO

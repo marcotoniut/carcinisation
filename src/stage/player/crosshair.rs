@@ -5,10 +5,6 @@ pub struct Crosshair {
     pub name: String,
 }
 
-pub struct CrosshairBundle {
-    pub crosshair: Crosshair,
-}
-
 #[derive(Debug, Clone, Copy, Resource)]
 pub struct CrosshairSettings(pub u8);
 

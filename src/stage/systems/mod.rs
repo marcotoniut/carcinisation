@@ -1,6 +1,5 @@
 pub mod camera;
 pub mod damage;
-pub mod game_over;
 pub mod movement;
 pub mod setup;
 pub mod spawn;
@@ -17,14 +16,14 @@ use super::{
     data::*,
     destructible::components::Destructible,
     enemy::components::Enemy,
-    events::{NextStepEvent, StageClearedEvent, StageGameOverEvent},
+    events::{NextStepEvent, StageClearedEvent, StageDeathEvent},
     player::components::Player,
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
     StageProgressState,
 };
 use crate::{
     components::{DespawnMark, Music},
-    game::GameProgressState,
+    game::{resources::Lives, GameProgressState},
     globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
     plugins::movement::linear::components::{
         extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
@@ -57,6 +56,7 @@ pub fn toggle_game(
     }
 }
 
+// REVIEW
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
@@ -173,19 +173,20 @@ pub fn read_stage_cleared_trigger(
     }
 }
 
-pub fn check_stage_game_over(
-    mut event_writer: EventWriter<StageGameOverEvent>,
+pub fn check_stage_death(
+    mut event_writer: EventWriter<StageDeathEvent>,
     player_query: Query<&Player, Added<Dead>>,
 ) {
     if let Ok(_) = player_query.get_single() {
-        event_writer.send(StageGameOverEvent);
+        event_writer.send(StageDeathEvent);
     }
 }
 
-pub fn read_stage_game_over_trigger(
+pub fn read_stage_death_trigger(
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageProgressState>>,
-    mut event_reader: EventReader<StageGameOverEvent>,
+    mut event_reader: EventReader<StageDeathEvent>,
+    mut lives: ResMut<Lives>,
     destructible_query: Query<Entity, With<Destructible>>,
     enemy_query: Query<Entity, With<Enemy>>,
     music_query: Query<Entity, With<Music>>,
@@ -209,7 +210,12 @@ pub fn read_stage_game_over_trigger(
         );
         commands.spawn((music_bundle, StageEntity));
 
-        next_state.set(StageProgressState::GameOver);
+        lives.0 = lives.0.saturating_sub(1);
+        if 0 == lives.0 {
+            next_state.set(StageProgressState::GameOver);
+        } else {
+            next_state.set(StageProgressState::Death);
+        }
     }
 }
 

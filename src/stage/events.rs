@@ -17,7 +17,7 @@ pub struct NextStepEvent;
 pub struct StageClearedEvent;
 
 #[derive(Event)]
-pub struct StageGameOverEvent;
+pub struct StageDeathEvent;
 
 #[derive(Event)]
 pub struct StageSpawnEvent {

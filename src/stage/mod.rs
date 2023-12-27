@@ -23,7 +23,6 @@ use self::{
     systems::{
         camera::*,
         damage::*,
-        game_over::on_game_over_input,
         movement::*,
         setup::on_startup,
         spawn::{check_dead_drop, check_step_spawn, read_stage_spawn_trigger},
@@ -32,6 +31,7 @@ use self::{
     },
     ui::{
         cleared_screen::{despawn_cleared_screen, render_cleared_screen},
+        death_screen::{despawn_death_screen, render_death_screen},
         game_over_screen::{despawn_game_over_screen, render_game_over_screen},
         pause_menu::pause_menu_renderer,
         StageUiPlugin,
@@ -78,7 +78,7 @@ impl Plugin for StagePlugin {
             .add_event::<DamageEvent>()
             .add_event::<DepthChangedEvent>()
             .add_event::<StageClearedEvent>()
-            .add_event::<StageGameOverEvent>()
+            .add_event::<StageDeathEvent>()
             .add_event::<StageSpawnEvent>()
             .add_event::<StageStartupEvent>()
             .add_event::<NextStepEvent>()
@@ -140,11 +140,11 @@ impl Plugin for StagePlugin {
                             check_staged_cleared,
                             read_stage_cleared_trigger,
                             check_step_spawn,
-                            check_stage_game_over,
-                            read_stage_game_over_trigger,
+                            check_stage_death,
+                            read_stage_death_trigger,
                             // TEMP
-                            check_stage_game_over,
-                            read_stage_game_over_trigger,
+                            check_stage_death,
+                            read_stage_death_trigger,
                         ),
                         (
                             // Effects
@@ -191,7 +191,6 @@ impl Plugin for StagePlugin {
                             .chain(),
                     )
                         .run_if(in_state(StageProgressState::Running)),
-                    (on_game_over_input).run_if(in_state(StageProgressState::GameOver)),
                 )
                     .run_if(in_state(StagePluginUpdateState::Active)),
             )
@@ -201,6 +200,9 @@ impl Plugin for StagePlugin {
                     // Cleared screen
                     render_cleared_screen,
                     despawn_cleared_screen,
+                    // Death screen
+                    render_death_screen,
+                    despawn_death_screen,
                     // Game Over screen
                     render_game_over_screen,
                     despawn_game_over_screen,
@@ -220,7 +222,7 @@ pub enum StageProgressState {
     Running,
     Clear,
     Cleared,
-    // TODO temporary (for the jame)
+    Death,
     GameOver,
 }
 

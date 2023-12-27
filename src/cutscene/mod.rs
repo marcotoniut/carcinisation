@@ -7,12 +7,12 @@ pub mod systems;
 
 use self::{
     events::{CutsceneShutdownEvent, CutsceneStartupEvent},
-    input::CutsceneInput,
+    input::{init_input, CutsceneInput},
     resources::CutsceneTime,
     systems::{
         interactions::check_press_start_input,
         progress::*,
-        setup::{init_input, on_shutdown, on_startup},
+        setup::{on_shutdown, on_startup},
     },
 };
 use crate::{
