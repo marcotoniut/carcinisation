@@ -5,13 +5,13 @@ pub mod systems;
 
 use self::{
     components::*,
-    events::GameOverScreenShutdownEvent,
-    input::{init_input, GameOverScreenInput},
+    events::DeathScreenRestartEvent,
+    input::{init_input, DeathScreenInput},
     systems::check_press_continue_input,
 };
 use super::StageUiPluginUpdateState;
 use crate::{
-    game::score::components::Score,
+    game::{resources::Lives, score::components::Score},
     globals::{
         mark_for_despawn_by_component_query, GBColor, PxSpriteColorLoader, FONT_SIZE,
         SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
@@ -28,20 +28,22 @@ use seldom_pixel::prelude::{
 
 pub const HALF_SCREEN_SIZE: i32 = 70;
 
-pub fn render_game_over_screen(
+pub fn render_death_screen(
     mut commands: Commands,
     mut assets_typeface: PxAssets<PxTypeface>,
     mut assets_filter: PxAssets<PxFilter>,
+    lives: Res<Lives>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
 ) {
-    if stage_state.is_changed() && *stage_state.get() == StageProgressState::GameOver {
+    if stage_state.is_changed() && *stage_state.get() == StageProgressState::Death {
         let typeface =
             assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+        let lives_text = "Lives ".to_string() + &lives.0.to_string();
         let score_text = score.value.to_string();
 
         commands
-            .spawn((GameOverScreen, Name::new("GameOver Screen")))
+            .spawn((DeathScreen, Name::new("Death Screen")))
             .with_children(|parent| {
                 for i in 25..(115 as i32) {
                     parent.spawn((
@@ -73,12 +75,12 @@ pub fn render_game_over_screen(
                                 ),
                             )
                             .into(),
-                            text: "Game  Over".into(),
+                            text: lives_text.clone().into(),
                             typeface: typeface.clone(),
                             ..Default::default()
                         },
                         InfoText,
-                        Name::new("InfoText_Stage_GameOver"),
+                        Name::new("InfoText_Stage_Lives"),
                     ));
 
                     parent.spawn((
@@ -119,7 +121,7 @@ pub fn render_game_over_screen(
                             typeface: typeface.clone(),
                             ..Default::default()
                         },
-                        FinalScoreText,
+                        CurrentScoreText,
                         Name::new("FinalScoreText"),
                     ));
                 }
@@ -127,19 +129,19 @@ pub fn render_game_over_screen(
     }
 }
 
-pub fn despawn_game_over_screen(
+pub fn despawn_death_screen(
     mut commands: Commands,
     stage_state: Res<State<StageProgressState>>,
-    query: Query<Entity, With<GameOverScreen>>,
+    query: Query<Entity, With<DeathScreen>>,
 ) {
     if stage_state.is_changed() && *stage_state.get() != StageProgressState::GameOver {
         mark_for_despawn_by_component_query(&mut commands, &query);
     }
 }
 
-pub fn game_over_screen_plugin(app: &mut App) {
-    app.add_event::<GameOverScreenShutdownEvent>()
-        .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
+pub fn death_screen_plugin(app: &mut App) {
+    app.add_event::<DeathScreenRestartEvent>()
+        .add_plugins(InputManagerPlugin::<DeathScreenInput>::default())
         .add_systems(Startup, init_input)
         .add_systems(
             PostUpdate,

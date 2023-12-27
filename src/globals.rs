@@ -1,6 +1,11 @@
 use crate::components::DespawnMark;
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
+use seldom_pixel::{
+    asset::{PxAsset, PxAssets},
+    filter::{PxFilter, PxFilterData},
+    sprite::PxSprite,
+};
 
 pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);
 
@@ -101,5 +106,16 @@ impl GBColor {
             GBColor::LightGray => "filter/color2.png",
             GBColor::White => "filter/color3.png",
         }
+    }
+}
+
+pub trait PxSpriteColorLoader {
+    /// Runs `f` on `self`
+    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter>;
+}
+
+impl PxSpriteColorLoader for PxAssets<'_, '_, PxAsset<PxFilterData>> {
+    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter> {
+        self.load(color.get_filter_path())
     }
 }

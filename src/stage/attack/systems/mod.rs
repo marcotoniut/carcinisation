@@ -1,9 +1,9 @@
 pub mod hovering;
 pub mod player;
 
-use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
-
+use super::components::{
+    bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyHoveringAttackType,
+};
 use crate::{
     components::DespawnMark,
     plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
@@ -17,10 +17,8 @@ use crate::{
         resources::StageTime,
     },
 };
-
-use super::components::{
-    bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyHoveringAttackType,
-};
+use bevy::prelude::*;
+use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
 // TODO remove in favor of damage taken?
 pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health), Without<Dead>>) {

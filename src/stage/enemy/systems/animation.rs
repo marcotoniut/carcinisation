@@ -1,10 +1,9 @@
-use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
-
 use crate::stage::{
     enemy::components::{Enemy, EnemyMosquitoAnimation, EnemyTardigradeAnimation},
     events::DepthChangedEvent,
 };
+use bevy::prelude::*;
+use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
 /**
  * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose

@@ -1,13 +1,11 @@
-use bevy::prelude::*;
-use seldom_pixel::prelude::*;
-
+use super::{components::*, crosshair::CrosshairSettings, CrosshairInfo};
 use crate::{
     globals::*,
     stage::components::{interactive::Health, StageEntity},
     Layer,
 };
-
-use super::{components::*, crosshair::CrosshairSettings, CrosshairInfo};
+use bevy::prelude::*;
+use seldom_pixel::prelude::*;
 
 pub fn make_player_bundle(
     asset_server: &mut PxAssets<PxSprite>,

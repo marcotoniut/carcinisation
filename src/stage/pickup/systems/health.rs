@@ -1,10 +1,3 @@
-use assert_assets_path::assert_assets_path;
-use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxCanvas, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
-
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -22,6 +15,12 @@ use crate::{
     },
     systems::camera::CameraPos,
     Layer,
+};
+use assert_assets_path::assert_assets_path;
+use bevy::prelude::*;
+use seldom_pixel::{
+    prelude::{PxAnchor, PxAssets, PxCanvas, PxSubPosition},
+    sprite::{PxSprite, PxSpriteBundle},
 };
 
 pub fn pickup_health(

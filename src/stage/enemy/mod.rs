@@ -3,11 +3,10 @@ pub mod components;
 pub mod data;
 pub mod systems;
 
-use bevy::prelude::*;
-
 use self::systems::{
     animation::read_enemy_depth_changed, behaviors::*, mosquito::*, tardigrade::*, *,
 };
+use bevy::prelude::*;
 
 pub struct EnemyPlugin;
 

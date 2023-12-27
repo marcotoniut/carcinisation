@@ -1,3 +1,4 @@
+use super::EnemyHoveringAttackType;
 use crate::{
     stage::components::{interactive::CollisionData, placement::Depth},
     Layer,
@@ -6,8 +7,6 @@ use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},
 };
-
-use super::EnemyHoveringAttackType;
 
 pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,

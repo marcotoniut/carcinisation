@@ -1,13 +1,11 @@
-use bevy::prelude::*;
-
-use crate::stage::components::placement::Depth;
+pub mod bundles;
 
 use super::data::{
     blood_shot::BLOOD_ATTACK_ANIMATIONS, boulder_throw::BOULDER_ATTACK_ANIMATIONS,
     HoveringAttackAnimations,
 };
-
-pub mod bundles;
+use crate::stage::components::placement::Depth;
+use bevy::prelude::*;
 
 pub const SCORE_RANGED_REGULAR_HIT: u32 = 1;
 pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;

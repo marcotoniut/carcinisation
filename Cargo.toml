@@ -32,7 +32,7 @@ leafwing-input-manager = "0.11.2"
 num_enum = "0.7.1"
 rand = "0.8.5"
 seldom_fn_plugin = "0.5.0"
-seldom_pixel = { path = "/Users/marcotoniut/repos/seldom_pixel", default-features = true, features = [
+seldom_pixel = { git = "https://github.com/Seldom-SE/seldom_pixel.git", default-features = true, features = [
     "line",
 ] }
 strum = "0.25.0"
