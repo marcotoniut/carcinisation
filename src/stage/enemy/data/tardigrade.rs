@@ -2,7 +2,7 @@ use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::RangeInclusive};
 
 pub struct TardigradeAnimations {
     pub attack: HashMap<Depth, AnimationData>,
@@ -24,8 +24,7 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
-pub const TARDIGRADE_MIN_DEPTH: Depth = Depth::Three;
-pub const TARDIGRADE_MAX_DEPTH: Depth = Depth::Eight;
+pub const TARDIGRADE_DEPTH_RANGE: RangeInclusive<Depth> = Depth::Three..=Depth::Eight;
 
 lazy_static! {
     pub static ref TARDIGRADE_ANIMATIONS: TardigradeAnimations = {
@@ -42,7 +41,7 @@ lazy_static! {
         let attack_speed = 330;
 
         let mut death = HashMap::new();
-        for i in TARDIGRADE_MIN_DEPTH..=TARDIGRADE_MAX_DEPTH {
+        for i in TARDIGRADE_DEPTH_RANGE {
             death.insert(
                 i,
                 AnimationData {
@@ -62,7 +61,7 @@ lazy_static! {
         }
 
         let mut sucking = HashMap::new();
-        for i in TARDIGRADE_MIN_DEPTH..=TARDIGRADE_MAX_DEPTH {
+        for i in TARDIGRADE_DEPTH_RANGE {
             sucking.insert(
                 i,
                 AnimationData {
@@ -81,7 +80,7 @@ lazy_static! {
         }
 
         let mut idle = HashMap::new();
-        for i in TARDIGRADE_MIN_DEPTH..=TARDIGRADE_MAX_DEPTH {
+        for i in TARDIGRADE_DEPTH_RANGE {
             idle.insert(
                 i,
                 AnimationData {
@@ -100,7 +99,7 @@ lazy_static! {
         }
 
         let mut attack = HashMap::new();
-        for i in TARDIGRADE_MIN_DEPTH..=TARDIGRADE_MAX_DEPTH {
+        for i in TARDIGRADE_DEPTH_RANGE {
             attack.insert(
                 i,
                 AnimationData {
