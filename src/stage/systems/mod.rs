@@ -6,6 +6,7 @@ pub mod spawn;
 pub mod state;
 
 use super::{
+    attack::components::EnemyAttack,
     bundles::*,
     components::{
         interactive::{Dead, Object},
@@ -23,7 +24,10 @@ use super::{
 };
 use crate::{
     components::{DespawnMark, Music},
-    game::{resources::Lives, GameProgressState},
+    game::{
+        data::DEATH_SCORE_PENALTY, events::GameOverEvent, resources::Lives,
+        score::components::Score, GameProgressState,
+    },
     globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
     plugins::movement::linear::components::{
         extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
@@ -174,11 +178,15 @@ pub fn read_stage_cleared_trigger(
 }
 
 pub fn check_stage_death(
-    mut event_writer: EventWriter<StageDeathEvent>,
+    mut lives: ResMut<Lives>,
+    mut score: ResMut<Score>,
+    mut stage_death_event_writer: EventWriter<StageDeathEvent>,
     player_query: Query<&Player, Added<Dead>>,
 ) {
     if let Ok(_) = player_query.get_single() {
-        event_writer.send(StageDeathEvent);
+        score.add(-DEATH_SCORE_PENALTY);
+        lives.0 = lives.0.saturating_sub(1);
+        stage_death_event_writer.send(StageDeathEvent);
     }
 }
 
@@ -186,7 +194,10 @@ pub fn read_stage_death_trigger(
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageProgressState>>,
     mut event_reader: EventReader<StageDeathEvent>,
-    mut lives: ResMut<Lives>,
+    mut game_over_event_writer: EventWriter<GameOverEvent>,
+    lives: Res<Lives>,
+    score: Res<Score>,
+    attack_query: Query<Entity, With<EnemyAttack>>,
     destructible_query: Query<Entity, With<Destructible>>,
     enemy_query: Query<Entity, With<Enemy>>,
     music_query: Query<Entity, With<Music>>,
@@ -196,6 +207,7 @@ pub fn read_stage_death_trigger(
     volume_settings: Res<VolumeSettings>,
 ) {
     for _ in event_reader.read() {
+        mark_for_despawn_by_component_query(&mut commands, &attack_query);
         mark_for_despawn_by_component_query(&mut commands, &destructible_query);
         mark_for_despawn_by_component_query(&mut commands, &enemy_query);
         mark_for_despawn_by_component_query(&mut commands, &music_query);
@@ -210,8 +222,8 @@ pub fn read_stage_death_trigger(
         );
         commands.spawn((music_bundle, StageEntity));
 
-        lives.0 = lives.0.saturating_sub(1);
         if 0 == lives.0 {
+            game_over_event_writer.send(GameOverEvent { score: score.value });
             next_state.set(StageProgressState::GameOver);
         } else {
             next_state.set(StageProgressState::Death);
@@ -425,7 +437,6 @@ pub fn cleanup_stop_step(
     query: Query<(Entity, &StopStageStep), With<Stage>>,
 ) {
     for _ in event_reader.read() {
-        // Cleanup logic
         for (entity, _) in query.iter() {
             commands
                 .entity(entity)

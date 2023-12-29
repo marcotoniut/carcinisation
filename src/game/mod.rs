@@ -5,14 +5,8 @@ pub mod resources;
 pub mod score;
 pub mod systems;
 
+use self::{events::*, resources::GameProgress, score::ScorePlugin, systems::setup::*};
 use bevy::prelude::*;
-
-use self::{
-    events::*,
-    resources::GameProgress,
-    score::ScorePlugin,
-    systems::{setup::*, *},
-};
 
 pub struct GamePlugin;
 
@@ -27,12 +21,7 @@ impl Plugin for GamePlugin {
             .add_systems(PreUpdate, on_startup)
             .add_systems(
                 Update,
-                ((
-                    progress,
-                    on_stage_cleared,
-                    on_cutscene_shutdown,
-                    check_player_died,
-                )
+                ((progress, on_stage_cleared, on_cutscene_shutdown)
                     .run_if(resource_exists::<GameProgress>()),)
                     .run_if(in_state(GamePluginUpdateState::Active)),
             );

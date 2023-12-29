@@ -1,6 +1,6 @@
 use super::{CircleAround, LinearMovement};
 use crate::stage::components::placement::Depth;
-use crate::stage::enemy::data::mosquito::{MOSQUITO_MAX_DEPTH, MOSQUITO_MIN_DEPTH};
+use crate::stage::enemy::data::mosquito::MOSQUITO_DEPTH_RANGE;
 use crate::stage::enemy::data::steps::{
     CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearMovementEnemyStep,
 };
@@ -78,8 +78,7 @@ impl EnemyCurrentBehavior {
                     depth_movement_o.map(|depth_movement| {
                         let target_depth = depth + depth_movement;
                         let target_depth = target_depth
-                            .min(MOSQUITO_MAX_DEPTH)
-                            .max(MOSQUITO_MIN_DEPTH)
+                            .clamp(*MOSQUITO_DEPTH_RANGE.start(), *MOSQUITO_DEPTH_RANGE.end())
                             .to_f32();
 
                         let t = (target_position - current_position.0).length() / velocity.length();

@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use crate::{
     data::AnimationData,
     globals::PATH_SPRITES_ATTACKS,
@@ -26,8 +28,7 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
-const MIN_DEPTH: Depth = Depth::One;
-const MAX_DEPTH: Depth = Depth::Eight;
+pub const BOULDER_THROW_DEPTH_RANGE: RangeInclusive<Depth> = Depth::One..=Depth::Eight;
 const HIT_DEPTH: Depth = PLAYER_DEPTH;
 
 lazy_static! {
@@ -36,7 +37,7 @@ lazy_static! {
         let hovering_speed = 300;
 
         let mut hovering = HashMap::new();
-        for i in MIN_DEPTH..=MAX_DEPTH {
+        for i in BOULDER_THROW_DEPTH_RANGE {
             hovering.insert(
                 i,
                 AnimationData {

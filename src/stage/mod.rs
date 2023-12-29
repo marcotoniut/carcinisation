@@ -142,9 +142,6 @@ impl Plugin for StagePlugin {
                             check_step_spawn,
                             check_stage_death,
                             read_stage_death_trigger,
-                            // TEMP
-                            check_stage_death,
-                            read_stage_death_trigger,
                         ),
                         (
                             // Effects
