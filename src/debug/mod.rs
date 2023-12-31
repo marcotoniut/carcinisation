@@ -11,7 +11,7 @@ impl Plugin for DebugPlugin {
         register_types(app);
         app.add_state::<DebugPluginUpdateState>().add_systems(
             Update,
-            (draw_floor_lines, draw_collisions).run_if(in_state(DebugPluginUpdateState::Active)),
+            (draw_floor_lines, draw_colliders).run_if(in_state(DebugPluginUpdateState::Active)),
         );
     }
 }

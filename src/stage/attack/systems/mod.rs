@@ -58,7 +58,7 @@ pub fn read_enemy_attack_depth_changed(
         if event.depth > PLAYER_DEPTH {
             for (entity, attack_type) in &query {
                 if entity == event.entity {
-                    let (sprite_bundle, animation_bundle, collision_data) =
+                    let (sprite_bundle, animation_bundle, collider_data) =
                         make_hovering_attack_animation_bundle(
                             &mut assets_sprite,
                             attack_type,
@@ -69,8 +69,8 @@ pub fn read_enemy_attack_depth_changed(
                     let mut entity_commands = commands.entity(event.entity);
 
                     entity_commands.insert((sprite_bundle, animation_bundle));
-                    if !collision_data.0.is_empty() {
-                        entity_commands.insert(collision_data);
+                    if !collider_data.0.is_empty() {
+                        entity_commands.insert(collider_data);
                     }
 
                     break;

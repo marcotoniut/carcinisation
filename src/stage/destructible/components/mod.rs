@@ -1,6 +1,6 @@
 use super::data::destructibles::DestructibleAnimationData;
 use crate::{
-    stage::components::{interactive::CollisionData, placement::Depth},
+    stage::components::{interactive::ColliderData, placement::Depth},
     Layer,
 };
 use bevy::prelude::*;
@@ -33,7 +33,7 @@ pub fn make_animation_bundle(
     animation_map: &HashMap<Depth, DestructibleAnimationData>,
     destructible_state: &DestructibleState,
     depth: &Depth,
-) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData)> {
+) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, ColliderData)> {
     animation_map
         .get(depth)
         .map(|data| data.by_state(destructible_state))
@@ -48,7 +48,7 @@ pub fn make_animation_bundle(
                     ..Default::default()
                 },
                 animation_data.make_animation_bundle(),
-                animation_data.collision_data.clone(),
+                animation_data.collider_data.clone(),
             )
         })
 }
