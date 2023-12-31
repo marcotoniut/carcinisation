@@ -1,7 +1,7 @@
 use crate::{
     globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
     stage::components::{
-        interactive::{CollisionData, CollisionShape},
+        interactive::{ColliderData, ColliderShape},
         placement::*,
     },
     systems::camera::CameraPos,
@@ -53,28 +53,28 @@ pub fn draw_floor_lines(mut gizmos: Gizmos, query: Query<(&Depth, &Floor)>) {
     }
 }
 
-pub fn draw_collisions(
+pub fn draw_colliders(
     mut gizmos: Gizmos,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
-    query: Query<(&CollisionData, &PxSubPosition)>,
+    query: Query<(&ColliderData, &PxSubPosition)>,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
 
     for (data, position) in query.iter() {
         let absolute_position = position.0 - camera_pos.0;
-        for collision in data.0.iter() {
-            match collision.shape {
-                CollisionShape::Circle(radius) => {
+        for data in data.0.iter() {
+            match data.shape {
+                ColliderShape::Circle(radius) => {
                     gizmos.circle_2d(
-                        to_viewport_coordinates(absolute_position + collision.offset),
+                        to_viewport_coordinates(absolute_position + data.offset),
                         to_viewport_ratio_x(radius),
                         Color::ALICE_BLUE,
                     );
                 }
-                CollisionShape::Box(size) => {
+                ColliderShape::Box(size) => {
                     gizmos.rect_2d(
                         // to_viewport_coordinates(absolute_position - half_rect),
-                        to_viewport_coordinates(absolute_position + collision.offset),
+                        to_viewport_coordinates(absolute_position + data.offset),
                         0.,
                         to_viewport_ratio(size),
                         Color::FUCHSIA,

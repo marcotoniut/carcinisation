@@ -4,53 +4,53 @@ use bevy::prelude::*;
 pub struct Object;
 
 #[derive(Clone, Copy, Debug, Reflect)]
-pub enum CollisionShape {
+pub enum ColliderShape {
     Box(Vec2),
     Circle(f32),
 }
 
-impl CollisionShape {
-    pub fn point_collides(&self, collision_position: Vec2, point_position: Vec2) -> bool {
-        let distance = collision_position.distance(point_position);
+impl ColliderShape {
+    pub fn point_collides(&self, collider_position: Vec2, point_position: Vec2) -> bool {
+        let distance = collider_position.distance(point_position);
         match &self {
-            CollisionShape::Box(size) => distance < size.x && distance < size.y,
-            CollisionShape::Circle(radius) => distance <= *radius,
+            ColliderShape::Box(size) => distance < size.x && distance < size.y,
+            ColliderShape::Circle(radius) => distance <= *radius,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Reflect)]
-pub struct Collision {
-    pub shape: CollisionShape,
+pub struct Collider {
+    pub shape: ColliderShape,
     pub defense: f32,
     pub offset: Vec2,
 }
 
-impl Collision {
-    pub fn new(collision: CollisionShape) -> Self {
+impl Collider {
+    pub fn new(shape: ColliderShape) -> Self {
         Self {
-            shape: collision,
+            shape,
             defense: 1.,
             offset: Vec2::ZERO,
         }
     }
 
     pub fn new_circle(radius: f32) -> Self {
-        Self::new(CollisionShape::Circle(radius))
+        Self::new(ColliderShape::Circle(radius))
     }
 
     pub fn new_box(size: Vec2) -> Self {
-        Self::new(CollisionShape::Box(size))
+        Self::new(ColliderShape::Box(size))
     }
 
-    pub fn new_scaled(mut self, scale: f32) -> Self {
+    pub fn new_scaled(self, scale: f32) -> Self {
         let mut new = self.clone();
         match new.shape {
-            CollisionShape::Box(ref mut size) => {
+            ColliderShape::Box(ref mut size) => {
                 size.x *= scale;
                 size.y *= scale;
             }
-            CollisionShape::Circle(ref mut radius) => {
+            ColliderShape::Circle(ref mut radius) => {
                 *radius *= scale;
             }
         }
@@ -68,39 +68,38 @@ impl Collision {
     }
 }
 
-impl From<CollisionShape> for Collision {
-    fn from(collision: CollisionShape) -> Self {
-        Collision::new(collision)
+impl From<ColliderShape> for Collider {
+    fn from(shape: ColliderShape) -> Self {
+        Collider::new(shape)
     }
 }
 
 #[derive(Clone, Component, Debug, Reflect)]
-pub struct CollisionData(pub Vec<Collision>);
+pub struct ColliderData(pub Vec<Collider>);
 
-impl CollisionData {
+impl ColliderData {
     pub fn new() -> Self {
         Self(vec![])
     }
 
-    pub fn from_one(collision: Collision) -> Self {
-        Self(vec![collision])
+    pub fn from_one(collider: Collider) -> Self {
+        Self(vec![collider])
     }
 
-    pub fn from_many(collisions: Vec<Collision>) -> Self {
-        Self(collisions)
+    pub fn from_many(colliders: Vec<Collider>) -> Self {
+        Self(colliders)
     }
 
     pub fn point_collides_with(
         &self,
-        collision_position: Vec2,
+        collider_position: Vec2,
         point_position: Vec2,
-    ) -> Vec<Collision> {
+    ) -> Vec<Collider> {
         self.0
             .iter()
-            .filter(|collision| {
-                collision
-                    .shape
-                    .point_collides(collision_position + collision.offset, point_position)
+            .filter(|x| {
+                x.shape
+                    .point_collides(collider_position + x.offset, point_position)
             })
             .cloned()
             .collect()
@@ -108,13 +107,12 @@ impl CollisionData {
 
     pub fn point_collides(
         &self,
-        collision_position: Vec2,
+        collider_position: Vec2,
         circle_position: Vec2,
-    ) -> Option<&Collision> {
-        self.0.iter().find(|collision| {
-            collision
-                .shape
-                .point_collides(collision_position + collision.offset, circle_position)
+    ) -> Option<&Collider> {
+        self.0.iter().find(|x| {
+            x.shape
+                .point_collides(collider_position + x.offset, circle_position)
         })
     }
 }

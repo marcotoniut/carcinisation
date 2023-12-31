@@ -10,7 +10,7 @@ use crate::{
         attack::components::{EnemyAttackOriginDepth, EnemyAttackOriginPosition},
         components::{
             damage::{DamageFlicker, InflictsDamage},
-            interactive::{CollisionData, Health},
+            interactive::{ColliderData, Health},
             placement::{Depth, Floor, RailPosition, Speed},
             CurrentStageStep, StageElapsedStarted,
         },
@@ -28,7 +28,7 @@ use crate::{
 pub fn register_types(app: &mut App) {
     app.register_type::<CameraShake>()
         .register_type::<CircleAround>()
-        .register_type::<CollisionData>()
+        .register_type::<ColliderData>()
         .register_type::<CurrentEnemyMosquitoStep>()
         .register_type::<CurrentStageStep>()
         .register_type::<CutsceneAnimationsSpawn>()

@@ -1,6 +1,6 @@
 use super::EnemyHoveringAttackType;
 use crate::{
-    stage::components::{interactive::CollisionData, placement::Depth},
+    stage::components::{interactive::ColliderData, placement::Depth},
     Layer,
 };
 use seldom_pixel::{
@@ -12,7 +12,7 @@ pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     attack_type: &EnemyHoveringAttackType,
     depth: Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle, CollisionData) {
+) -> (PxSpriteBundle<Layer>, PxAnimationBundle, ColliderData) {
     let animation_o = attack_type.get_animations().hovering.get(&depth);
 
     let animation = animation_o.unwrap();
@@ -30,6 +30,6 @@ pub fn make_hovering_attack_animation_bundle(
             direction: animation.direction,
             ..Default::default()
         },
-        animation.collision.clone(),
+        animation.collider_data.clone(),
     )
 }

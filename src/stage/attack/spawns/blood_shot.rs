@@ -45,7 +45,7 @@ pub fn spawn_blood_shot_attack(
             (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
         );
 
-    let (sprite, animation, collision_data) =
+    let (sprite, animation, collider_data) =
         make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
 
     let mut attacking = EnemyMosquitoAttacking {
@@ -88,7 +88,7 @@ pub fn spawn_blood_shot_attack(
         .insert(movement_bundle)
         .insert((sprite, animation));
 
-    if !collision_data.0.is_empty() {
-        entity_commands.insert(collision_data);
+    if !collider_data.0.is_empty() {
+        entity_commands.insert(collider_data);
     }
 }

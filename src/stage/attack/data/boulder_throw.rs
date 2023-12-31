@@ -6,7 +6,7 @@ use crate::{
     stage::{
         attack::data::HoveringAttackAnimations,
         components::{
-            interactive::{Collision, CollisionData},
+            interactive::{Collider, ColliderData},
             placement::Depth,
         },
         player::components::PLAYER_DEPTH,
@@ -41,7 +41,7 @@ lazy_static! {
             hovering.insert(
                 i,
                 AnimationData {
-                    collision: CollisionData::from_one(Collision::new_circle(match i {
+                    collider_data: ColliderData::from_one(Collider::new_circle(match i {
                         Depth::Eight => 1.,
                         Depth::Seven => 2.5,
                         Depth::Six => 4.5,

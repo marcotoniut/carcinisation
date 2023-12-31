@@ -3,7 +3,7 @@ use crate::{
     globals::PATH_SPRITES_OBJECTS,
     stage::{
         components::{
-            interactive::{Collision, CollisionData},
+            interactive::{Collider, ColliderData},
             placement::Depth,
         },
         destructible::{
@@ -94,9 +94,9 @@ lazy_static! {
                         frames: lamp_base_frames,
                         speed: lamp_base_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
-                        collision_data: match i {
-                            LampDepth::Three => CollisionData::from_one(
-                                Collision::new_box(Vec2::new(17.0, 19.0))
+                        collider_data: match i {
+                            LampDepth::Three => ColliderData::from_one(
+                                Collider::new_box(Vec2::new(17.0, 19.0))
                                     .with_offset(Vec2::new(-1.0, 122.0)),
                             ),
                         },
@@ -140,16 +140,16 @@ lazy_static! {
                         frames: trashcan_frames,
                         speed: trashcan_speed,
                         finish_behavior: PxAnimationFinishBehavior::Loop,
-                        collision_data: match i {
-                            TrashcanDepth::Six => CollisionData::from_one(
-                                Collision::new_box(Vec2::new(8.0, 11.0))
+                        collider_data: match i {
+                            TrashcanDepth::Six => ColliderData::from_one(
+                                Collider::new_box(Vec2::new(8.0, 11.0))
                                     .with_offset(Vec2::new(-1.0, 6.0)),
                             ),
-                            TrashcanDepth::Four => CollisionData::from_one(
-                                Collision::new_box(Vec2::new(18., 24.))
+                            TrashcanDepth::Four => ColliderData::from_one(
+                                Collider::new_box(Vec2::new(18., 24.))
                                     .with_offset(Vec2::new(-2.0, 16.0)),
                             ),
-                            _ => CollisionData::new(),
+                            _ => ColliderData::new(),
                         },
                         ..Default::default()
                     },
@@ -190,11 +190,11 @@ lazy_static! {
                             frames: mushroom_frames,
                             speed: mushroom_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
-                            collision_data: match i {
-                                MushroomDepth::Four => CollisionData::from_many(vec![
-                                    Collision::new_box(Vec2::new(15., 70.))
+                            collider_data: match i {
+                                MushroomDepth::Four => ColliderData::from_many(vec![
+                                    Collider::new_box(Vec2::new(15., 70.))
                                         .with_offset(Vec2::new(1., 49.)),
-                                    Collision::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
+                                    Collider::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
                                 ]),
                             },
                             ..Default::default()
@@ -237,9 +237,9 @@ lazy_static! {
                             frames: crystal_frames,
                             speed: crystal_speed,
                             finish_behavior: PxAnimationFinishBehavior::Loop,
-                            collision_data: match i {
-                                CrystalDepth::Five => CollisionData::from_one(
-                                    Collision::new_box(Vec2::new(40., 60.))
+                            collider_data: match i {
+                                CrystalDepth::Five => ColliderData::from_one(
+                                    Collider::new_box(Vec2::new(40., 60.))
                                         .with_offset(Vec2::new(-4., 40.)),
                                 ),
                             },
