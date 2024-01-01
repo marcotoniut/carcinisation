@@ -8,7 +8,7 @@ use crate::cutscene::data::CutsceneAnimationsSpawn;
 use bevy::{prelude::*, utils::HashMap};
 use std::time::Duration;
 
-#[derive(Component)]
+#[derive(Component, Debug, Default)]
 pub struct StageEntity;
 
 // TODO should go in UI

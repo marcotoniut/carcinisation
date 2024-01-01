@@ -14,9 +14,18 @@ use crate::{
             placement::{Depth, Floor, RailPosition, Speed},
             CurrentStageStep, StageElapsedStarted,
         },
-        enemy::components::{
-            behavior::{EnemyBehaviors, EnemyCurrentBehavior},
-            *,
+        enemy::{
+            components::{
+                behavior::{EnemyBehaviors, EnemyCurrentBehavior},
+                *,
+            },
+            mosquito::entity::{
+                CurrentEnemyMosquitoStep, EnemyMosquito, EnemyMosquitoAnimation,
+                EnemyMosquitoAttack, EnemyMosquitoAttacking,
+            },
+            tardigrade::entity::{
+                EnemyTardigrade, EnemyTardigradeAnimation, EnemyTardigradeAttacking,
+            },
         },
         pickup::components::HealthRecovery,
         player::components::{CameraShake, PlayerAttack},

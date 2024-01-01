@@ -191,6 +191,7 @@ pub struct LinearMovementBundle<
     pub position: P,
     pub speed: LinearSpeed<T, P>,
     pub target_position: LinearTargetPosition<T, P>,
+    // TODO check if Option<LinearTargetReached> = None will auto-remove
 }
 
 impl<T: DeltaTime + Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>

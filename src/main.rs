@@ -24,7 +24,6 @@ extern crate lazy_static;
 
 use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
-use bevy_editor_pls::controls::UserInput;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use components::DespawnMark;
@@ -32,10 +31,7 @@ use cutscene::{data::CutsceneLayer, CutscenePlugin};
 use debug::DebugPlugin;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
-use leafwing_input_manager::{
-    prelude::{ActionState, InputManagerPlugin},
-    Actionlike,
-};
+use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use letterbox::LetterboxPlugin;
 use main_menu::MainMenuPlugin;
 use pixel::PixelPlugin;

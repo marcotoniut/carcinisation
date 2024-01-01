@@ -112,7 +112,7 @@ impl EnemyCurrentBehavior {
     }
 }
 
-#[derive(Component, Reflect)]
+#[derive(Component, Debug, Reflect)]
 pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
 
 impl EnemyBehaviors {
