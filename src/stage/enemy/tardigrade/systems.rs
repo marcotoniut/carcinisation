@@ -1,11 +1,4 @@
-use std::time::Duration;
-
-use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
-
+use super::entity::{EnemyTardigrade, EnemyTardigradeAnimation};
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -20,12 +13,19 @@ use crate::{
             bundles::make_enemy_animation_bundle,
             components::{behavior::EnemyCurrentBehavior, *},
             data::tardigrade::TARDIGRADE_ANIMATIONS,
+            tardigrade::entity::EnemyTardigradeAttacking,
         },
         resources::StageTime,
     },
     systems::camera::CameraPos,
     Layer,
 };
+use bevy::prelude::*;
+use seldom_pixel::{
+    prelude::{PxAnchor, PxAssets, PxSubPosition},
+    sprite::{PxSprite, PxSpriteBundle},
+};
+use std::time::Duration;
 
 pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
 

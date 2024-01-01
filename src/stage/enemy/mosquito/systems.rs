@@ -1,11 +1,4 @@
-use std::time::Duration;
-
-use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
-
+use super::entity::*;
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -29,6 +22,12 @@ use crate::{
     systems::camera::CameraPos,
     Layer,
 };
+use bevy::prelude::*;
+use seldom_pixel::{
+    prelude::{PxAnchor, PxAssets, PxSubPosition},
+    sprite::{PxSprite, PxSpriteBundle},
+};
+use std::time::Duration;
 
 pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
 

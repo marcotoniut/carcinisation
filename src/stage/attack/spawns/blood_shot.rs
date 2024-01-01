@@ -19,7 +19,7 @@ use crate::{
             interactive::{Health, Hittable},
             placement::Depth,
         },
-        enemy::components::*,
+        enemy::mosquito::entity::{EnemyMosquitoAttack, EnemyMosquitoAttacking},
         player::components::PLAYER_DEPTH,
         resources::StageTime,
     },

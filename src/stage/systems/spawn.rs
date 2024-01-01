@@ -8,7 +8,11 @@ use crate::stage::{
         components::{make_animation_bundle, DestructibleState},
         data::destructibles::DESTRUCTIBLE_ANIMATIONS,
     },
-    enemy::components::ENEMY_TARDIGRADE_RADIUS,
+    enemy::{
+        entity::EnemyType,
+        mosquito::entity::{MosquitoBundle, ENEMY_MOSQUITO_RADIUS},
+        tardigrade::entity::{TardigradeBundle, ENEMY_TARDIGRADE_RADIUS},
+    },
     player::components::{PlayerAttack, UnhittableList},
     resources::{StageStepSpawner, StageTime},
 };
@@ -18,15 +22,9 @@ use crate::{
             interactive::{Flickerer, Health, Hittable, Object},
             placement::Speed,
         },
-        data::{
-            EnemySpawn, EnemyType, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn,
-        },
+        data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
         destructible::{components::Destructible, data::DestructibleSpawn},
-        enemy::components::{
-            behavior::EnemyBehaviors, Enemy, EnemyMosquito, EnemyMosquitoAttacking,
-            EnemyTardigrade, EnemyTardigradeAttacking, ENEMY_MOSQUITO_BASE_HEALTH,
-            ENEMY_MOSQUITO_RADIUS, ENEMY_TARDIGRADE_BASE_HEALTH,
-        },
+        enemy::components::{behavior::EnemyBehaviors, Enemy},
         events::StageSpawnEvent,
         pickup::components::HealthRecovery,
     },
@@ -158,31 +156,24 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
         depth,
         ..
     } = spawn;
-    let name = spawn.get_name();
+    let name = spawn.enemy_type.get_name();
     let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
     match enemy_type {
         EnemyType::Mosquito => {
-            let collider =
+            let collider: Collider =
                 Collider::new_circle(ENEMY_MOSQUITO_RADIUS).with_offset(Vec2::new(0., 2.));
             let critical_collider = collider.new_scaled(0.4).with_defense(0.4);
 
             let entity = commands
-                .spawn((
-                    name,
-                    StageEntity,
-                    Enemy,
+                .spawn(MosquitoBundle {
+                    depth: depth.clone(),
+                    speed: Speed(*speed),
                     behaviors,
-                    Speed(*speed),
-                    EnemyMosquito,
-                    depth.clone(),
-                    EnemyMosquitoAttacking::new(),
-                    Flickerer,
-                    Hittable,
-                    PxSubPosition::from(position),
-                    ColliderData::from_many(vec![critical_collider, collider]),
-                    Health(ENEMY_MOSQUITO_BASE_HEALTH),
-                ))
+                    position: PxSubPosition::from(position),
+                    collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                    default: Default::default(),
+                })
                 .id();
 
             if let Some(contains) = contains {
@@ -203,22 +194,14 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
             let critical_collider = collider.new_scaled(0.4).with_defense(0.2);
 
             commands
-                .spawn((
-                    name,
+                .spawn(TardigradeBundle {
+                    depth: depth.clone(),
+                    speed: Speed(*speed),
                     behaviors,
-                    depth.clone(),
-                    StageEntity,
-                    Enemy,
-                    EnemyTardigrade,
-                    EnemyTardigradeAttacking::new(),
-                    Flickerer,
-                    Hittable,
-                    // TODO speed needs to be assigned otherwise the check_no_behavior function cannot find the target enemy
-                    Speed(*speed),
-                    PxSubPosition::from(position),
-                    ColliderData::from_many(vec![collider, critical_collider]),
-                    Health(ENEMY_TARDIGRADE_BASE_HEALTH),
-                ))
+                    position: PxSubPosition::from(position),
+                    collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                    default: Default::default(),
+                })
                 .id()
         }
     }

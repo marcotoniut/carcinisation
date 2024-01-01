@@ -1,10 +1,15 @@
 pub mod bundles;
 pub mod components;
 pub mod data;
+pub mod entity;
+pub mod mosquito;
 pub mod systems;
+pub mod tardigrade;
 
-use self::systems::{
-    animation::read_enemy_depth_changed, behaviors::*, mosquito::*, tardigrade::*, *,
+use self::{
+    mosquito::systems::*,
+    systems::{animation::read_enemy_depth_changed, behaviors::*},
+    tardigrade::systems::*,
 };
 use bevy::prelude::*;
 

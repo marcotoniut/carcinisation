@@ -1,13 +1,10 @@
 use super::{
     components::{placement::Depth, CinematicStageStep, MovementStageStep, StopStageStep},
     destructible::data::DestructibleSpawn,
-    enemy::data::steps::EnemyStep,
+    enemy::{data::steps::EnemyStep, entity::EnemyType},
 };
 use crate::globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H};
-use bevy::{
-    prelude::{Name, Resource, Vec2},
-    utils::HashMap,
-};
+use bevy::prelude::{Name, Resource, Vec2};
 use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
@@ -44,17 +41,6 @@ pub enum PickupType {
     // Weapon,
     // Ammo,
     // Shield,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub enum EnemyType {
-    #[default]
-    Mosquito,
-    Spidey,
-    Tardigrade,
-    Marauder,
-    Spidomonsta,
-    Kyle,
 }
 
 #[derive(Clone, Debug)]
@@ -184,13 +170,6 @@ pub struct EnemySpawn {
 }
 
 impl EnemySpawn {
-    pub fn get_name(&self) -> Name {
-        Name::new(self.show_type())
-    }
-    pub fn show_type(&self) -> String {
-        format!("Enemy<{:?}>", self.enemy_type)
-    }
-
     pub fn with_elapsed(mut self, value: f32) -> Self {
         self.elapsed = value;
         self
@@ -336,7 +315,7 @@ impl StageSpawn {
     pub fn show_type(&self) -> String {
         match self {
             StageSpawn::Destructible(spawn) => spawn.show_type(),
-            StageSpawn::Enemy(spawn) => spawn.show_type(),
+            StageSpawn::Enemy(spawn) => spawn.enemy_type.show_type(),
             StageSpawn::Object(spawn) => spawn.show_type(),
             StageSpawn::Pickup(spawn) => spawn.show_type(),
         }

@@ -19,7 +19,7 @@ use crate::{
             interactive::{Flickerer, Health, Hittable},
             placement::Depth,
         },
-        enemy::components::*,
+        enemy::tardigrade::entity::EnemyTardigradeAttacking,
         player::components::PLAYER_DEPTH,
         resources::StageTime,
     },
