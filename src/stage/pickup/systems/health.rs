@@ -23,6 +23,82 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
+// TODO could be generalised
+#[derive(Bundle)]
+pub struct PickupFeedbackMovementBundle {
+    pub targeting_position_x: TargetingPositionX,
+    pub targeting_position_y: TargetingPositionY,
+    pub linear_speed_x: LinearSpeed<StageTime, TargetingPositionX>,
+    pub linear_speed_y: LinearSpeed<StageTime, TargetingPositionY>,
+    pub linear_acceleration_y: LinearAcceleration<StageTime, TargetingPositionY>,
+    pub linear_direction_x: LinearDirection<StageTime, TargetingPositionX>,
+    pub linear_direction_y: LinearDirection<StageTime, TargetingPositionY>,
+    pub linear_target_position_x: LinearTargetPosition<StageTime, TargetingPositionX>,
+    pub linear_target_position_y: LinearTargetPosition<StageTime, TargetingPositionY>,
+}
+
+impl PickupFeedbackMovementBundle {
+    pub fn new(current: Vec2) -> Self {
+        let t = PICKUP_FEEDBACK_TIME;
+
+        let target = Vec2::new(12., 8.);
+        let d = target - current;
+
+        let speed_x = d.x / t;
+        let speed_y = PICKUP_FEEDBACK_INITIAL_SPEED_Y;
+        let adjusted_d_y = d.y - speed_y * t;
+        let acceleration_y = 2. * adjusted_d_y / (t * t);
+        // let acceleration_y = 0.1;
+
+        let direction_delta = target - current;
+
+        Self {
+            targeting_position_x: current.x.into(),
+            targeting_position_y: current.y.into(),
+            linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
+            linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
+            linear_acceleration_y: LinearAcceleration::<StageTime, TargetingPositionY>::new(
+                acceleration_y,
+            ),
+            linear_direction_x: LinearDirection::<StageTime, TargetingPositionX>::from_delta(
+                direction_delta.x,
+            ),
+            linear_direction_y: LinearDirection::<StageTime, TargetingPositionY>::from_delta(
+                direction_delta.y,
+            ),
+            linear_target_position_x: LinearTargetPosition::<StageTime, TargetingPositionX>::new(
+                target.x,
+            ),
+            linear_target_position_y: LinearTargetPosition::<StageTime, TargetingPositionY>::new(
+                target.y,
+            ),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct PickupFeedbackDefaultBundle {
+    name: Name,
+    pickup_feedback: PickupFeedback,
+}
+
+impl Default for PickupFeedbackDefaultBundle {
+    fn default() -> Self {
+        Self {
+            name: Name::new("Pickup Healthpack Feedback"),
+            pickup_feedback: PickupFeedback,
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct PickupFeedbackBundle {
+    position: PxSubPosition,
+    sprite: PxSpriteBundle<Layer>,
+    movement: PickupFeedbackMovementBundle,
+    default: PickupFeedbackDefaultBundle,
+}
+
 pub fn pickup_health(
     mut commands: Commands,
     mut score: ResMut<Score>,
@@ -35,53 +111,26 @@ pub fn pickup_health(
     if let Ok(mut health) = player_query.get_single_mut() {
         for (entity, recovery, position) in query.iter() {
             commands.entity(entity).insert(DespawnMark);
+
             health.0 = health.0.saturating_add(recovery.0).min(PLAYER_MAX_HEALTH);
             score.add(recovery.score_deduction());
 
-            let t = PICKUP_FEEDBACK_TIME;
-
-            let target = Vec2::new(12., 8.);
             let current = position.0 - camera_pos.0;
-            let d = target - current;
-
-            let speed_x = d.x / t;
-            let speed_y = PICKUP_FEEDBACK_INITIAL_SPEED_Y;
-            let adjusted_d_y = d.y - speed_y * t;
-            let acceleration_y = 2. * adjusted_d_y / (t * t);
-            // let acceleration_y = 0.1;
-
-            let direction_delta = target - current;
-
-            // TODO Bundle
-            let movement_bundle = (
-                TargetingPositionX(current.x),
-                TargetingPositionY(current.y),
-                LinearTargetPosition::<StageTime, TargetingPositionX>::new(target.x),
-                LinearTargetPosition::<StageTime, TargetingPositionY>::new(target.y),
-                LinearDirection::<StageTime, TargetingPositionX>::from_delta(direction_delta.x),
-                LinearDirection::<StageTime, TargetingPositionY>::from_delta(direction_delta.y),
-                LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
-                LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
-                LinearAcceleration::<StageTime, TargetingPositionY>::new(acceleration_y),
-            );
-
             let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
 
-            commands
-                .spawn((
-                    Name::new("Pickup Healthpack Feedback"),
-                    PickupFeedback,
-                    PxSubPosition::from(current),
-                    PxSpriteBundle::<Layer> {
-                        sprite,
-                        // TODO the position should be stuck to the floor beneah the dropper
-                        anchor: PxAnchor::Center,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Pickups,
-                        ..Default::default()
-                    },
-                ))
-                .insert(movement_bundle);
+            commands.spawn(PickupFeedbackBundle {
+                position: current.into(),
+                sprite: PxSpriteBundle::<Layer> {
+                    sprite,
+                    // TODO the position should be stuck to the floor beneah the dropper
+                    anchor: PxAnchor::Center,
+                    canvas: PxCanvas::Camera,
+                    layer: Layer::Pickups,
+                    ..Default::default()
+                },
+                movement: PickupFeedbackMovementBundle::new(current),
+                default: Default::default(),
+            });
         }
     }
 }
