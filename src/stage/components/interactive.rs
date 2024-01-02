@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use derive_new::new;
 
 #[derive(Component)]
 pub struct Object;
@@ -19,22 +20,16 @@ impl ColliderShape {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(new, Clone, Copy, Debug, Reflect)]
 pub struct Collider {
     pub shape: ColliderShape,
+    #[new(value = "1.")]
     pub defense: f32,
+    #[new(default)]
     pub offset: Vec2,
 }
 
 impl Collider {
-    pub fn new(shape: ColliderShape) -> Self {
-        Self {
-            shape,
-            defense: 1.,
-            offset: Vec2::ZERO,
-        }
-    }
-
     pub fn new_circle(radius: f32) -> Self {
         Self::new(ColliderShape::Circle(radius))
     }

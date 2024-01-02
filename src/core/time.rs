@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use derive_new::new;
 use std::{marker::PhantomData, time::Duration};
 
 pub trait DeltaTime: Send + Sync + 'static {
@@ -14,19 +15,11 @@ pub trait Ticker: DeltaTime + ElapsedTime {
     fn tick(&mut self, delta: Duration);
 }
 
-#[derive(Resource)]
+#[derive(new, Resource)]
 pub struct TimeMultiplier<T: Ticker> {
+    #[new(default)]
     _phantom: PhantomData<T>,
     pub value: f32,
-}
-
-impl<T: Ticker> TimeMultiplier<T> {
-    pub fn new(value: f32) -> Self {
-        Self {
-            _phantom: PhantomData,
-            value,
-        }
-    }
 }
 
 #[cfg(not(debug_assertions))]

@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use derive_new::new;
 
 use crate::core::time::*;
 
@@ -53,18 +54,11 @@ impl Default for StageActionTimer {
     }
 }
 
-#[derive(Component, Default)]
+#[derive(new, Component, Default)]
 pub struct StageStepSpawner {
+    #[new(default)]
     pub elapsed: Duration,
+    #[new(default)]
     pub elapsed_since_spawn: Duration,
     pub spawns: Vec<StageSpawn>,
-}
-
-impl StageStepSpawner {
-    pub fn new(spawns: Vec<StageSpawn>) -> Self {
-        StageStepSpawner {
-            spawns,
-            ..Default::default()
-        }
-    }
 }

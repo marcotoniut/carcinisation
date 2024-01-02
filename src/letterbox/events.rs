@@ -1,18 +1,15 @@
 use bevy::prelude::*;
+use derive_new::new;
 
 use super::components::{LETTERBOX_HEIGHT, LETTERBOX_INSTANT_SPEED, LETTERBOX_NORMAL_SPEED};
 
-#[derive(Event, Clone, Debug)]
+#[derive(new, Event, Clone, Debug)]
 pub struct LetterboxMoveEvent {
     pub speed: f32,
     pub target: f32,
 }
 
 impl LetterboxMoveEvent {
-    pub fn new(speed: f32, target: f32) -> Self {
-        Self { speed, target }
-    }
-
     pub fn open() -> Self {
         Self::new(LETTERBOX_NORMAL_SPEED, LETTERBOX_HEIGHT as f32)
     }

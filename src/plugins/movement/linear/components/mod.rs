@@ -1,6 +1,7 @@
 pub mod extra;
 
 use bevy::prelude::*;
+use derive_new::new;
 use std::marker::PhantomData;
 
 use crate::{
@@ -8,32 +9,15 @@ use crate::{
     plugins::movement::structs::{Constructor, Magnitude, MovementDirection},
 };
 
-#[derive(Clone, Component, Debug, Reflect)]
+// TODO From
+#[derive(new, Clone, Component, Debug, Reflect)]
 pub struct TargetingPositionX(pub f32);
 
-impl TargetingPositionX {
-    pub fn new(value: f32) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(Clone, Component, Debug, Reflect)]
+#[derive(new, Clone, Component, Debug, Reflect)]
 pub struct TargetingPositionY(pub f32);
 
-impl TargetingPositionY {
-    pub fn new(value: f32) -> Self {
-        Self(value)
-    }
-}
-
-#[derive(Clone, Component, Debug, Reflect)]
+#[derive(new, Clone, Component, Debug, Reflect)]
 pub struct TargetingPositionZ(pub f32);
-
-impl TargetingPositionZ {
-    pub fn new(value: f32) -> Self {
-        Self(value)
-    }
-}
 
 macro_rules! impl_magnitude {
     ($type:ty) => {
@@ -63,21 +47,16 @@ impl_magnitude!(TargetingPositionX);
 impl_magnitude!(TargetingPositionY);
 impl_magnitude!(TargetingPositionZ);
 
-#[derive(Component, Debug, Clone)]
+#[derive(new, Component, Debug, Clone)]
 pub struct LinearDirection<T: DeltaTime + Send + Sync + 'static, P> {
+    #[new(default)]
     _marker_time: PhantomData<T>,
+    #[new(default)]
     _marker_position: PhantomData<P>,
     pub value: MovementDirection,
 }
 
 impl<T: DeltaTime + Send + Sync + 'static, P> LinearDirection<T, P> {
-    pub fn new(value: MovementDirection) -> Self {
-        Self {
-            _marker_time: PhantomData,
-            _marker_position: PhantomData,
-            value,
-        }
-    }
     pub fn from_delta(value: f32) -> Self {
         Self::new(if value > 0.0 {
             MovementDirection::Positive
@@ -87,39 +66,23 @@ impl<T: DeltaTime + Send + Sync + 'static, P> LinearDirection<T, P> {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(new, Component, Debug, Clone)]
 pub struct LinearTargetPosition<T: DeltaTime + Send + Sync + 'static, P> {
+    #[new(default)]
     _marker_time: PhantomData<T>,
+    #[new(default)]
     _marker_position: PhantomData<P>,
     pub value: f32,
-}
-
-impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearTargetPosition<T, P> {
-    pub fn new(value: f32) -> Self {
-        Self {
-            _marker_time: PhantomData,
-            _marker_position: PhantomData,
-            value,
-        }
-    }
 }
 
 // TODO split into LinearX, Y, Z
-#[derive(Component, Debug, Clone)]
+#[derive(new, Component, Debug, Clone)]
 pub struct LinearSpeed<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+    #[new(default)]
     _marker_position: PhantomData<P>,
+    #[new(default)]
     _marker_time: PhantomData<T>,
     pub value: f32,
-}
-
-impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearSpeed<T, P> {
-    pub fn new(value: f32) -> Self {
-        Self {
-            _marker_position: PhantomData,
-            _marker_time: PhantomData,
-            value,
-        }
-    }
 }
 
 impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> Magnitude for LinearSpeed<T, P> {
@@ -136,21 +99,13 @@ impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> Magnitude for LinearSpe
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(new, Component, Debug, Clone)]
 pub struct LinearAcceleration<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+    #[new(default)]
     _marker_position: PhantomData<P>,
+    #[new(default)]
     _marker_time: PhantomData<T>,
     pub value: f32,
-}
-
-impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearAcceleration<T, P> {
-    pub fn new(value: f32) -> Self {
-        Self {
-            _marker_position: PhantomData,
-            _marker_time: PhantomData,
-            value,
-        }
-    }
 }
 
 impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> Magnitude for LinearAcceleration<T, P> {
@@ -167,19 +122,12 @@ impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> Magnitude for LinearAcc
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(new, Component, Debug, Clone)]
 pub struct LinearTargetReached<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
+    #[new(default)]
     _marker_position: PhantomData<P>,
+    #[new(default)]
     _marker_time: PhantomData<T>,
-}
-
-impl<T: DeltaTime + Send + Sync + 'static, P: Magnitude> LinearTargetReached<T, P> {
-    pub fn new() -> Self {
-        Self {
-            _marker_position: PhantomData,
-            _marker_time: PhantomData,
-        }
-    }
 }
 
 #[derive(Bundle, Clone, Debug)]

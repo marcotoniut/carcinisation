@@ -8,6 +8,7 @@ use crate::{
     Layer,
 };
 use bevy::prelude::*;
+use derive_new::new;
 use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Reflect)]
@@ -117,45 +118,30 @@ impl CutsceneAnimationSpawn {
     }
 }
 
-#[derive(Clone, Component, Debug, Reflect)]
+#[derive(new, Clone, Component, Debug, Reflect)]
 pub struct CutsceneAnimationsSpawn {
+    #[new(default)]
     pub spawns: Vec<CutsceneAnimationSpawn>,
 }
 
 impl CutsceneAnimationsSpawn {
-    pub fn new() -> Self {
-        Self { spawns: vec![] }
-    }
-
     pub fn push_spawn(mut self, spawn: CutsceneAnimationSpawn) -> Self {
         self.spawns.push(spawn);
         self
     }
 }
 
-#[derive(Clone, Debug, Component)]
+#[derive(new, Clone, Debug, Component)]
 pub struct CutsceneAwaitInput;
 
-impl CutsceneAwaitInput {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Clone, Debug, Component)]
+#[derive(new, Clone, Debug, Component)]
 pub struct CutsceneElapse {
     pub duration: Duration,
+    #[new(value = "false")]
     pub clear_graphics: bool,
 }
 
 impl CutsceneElapse {
-    pub fn new(duration: Duration) -> Self {
-        Self {
-            duration,
-            clear_graphics: false,
-        }
-    }
-
     pub fn from_secs_f32(secs: f32) -> Self {
         Self {
             duration: Duration::from_secs_f32(secs),
@@ -203,50 +189,42 @@ impl CutsceneImageSpawn {
     }
 }
 
-#[derive(Clone, Debug, Component)]
+#[derive(new, Clone, Debug, Component)]
 pub struct CutsceneImagesSpawn {
+    #[new(default)]
     pub spawns: Vec<CutsceneImageSpawn>,
 }
 
 impl CutsceneImagesSpawn {
-    pub fn new() -> Self {
-        Self { spawns: vec![] }
-    }
-
     pub fn push_spawn(mut self, spawn: CutsceneImageSpawn) -> Self {
         self.spawns.push(spawn);
         self
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(new, Clone, Debug)]
 pub struct CutsceneAct {
+    #[new(default)]
     pub await_input: bool,
+    #[new(default)]
     pub despawn_entities: Vec<String>,
+    #[new(default)]
     pub elapse: Duration,
+    #[new(default)]
     pub letterbox_move_o: Option<LetterboxMoveEvent>,
+    #[new(default)]
     pub music_despawn_o: Option<CutsceneMusicDespawn>,
+    #[new(default)]
     pub music_spawn_o: Option<CutsceneMusicSpawn>,
+    #[new(default)]
     pub spawn_animations_o: Option<CutsceneAnimationsSpawn>,
+    #[new(default)]
     pub spawn_images_o: Option<CutsceneImagesSpawn>,
+    #[new(default)]
     pub transition_o: Option<CutsceneTransition>,
 }
 
 impl CutsceneAct {
-    pub fn new() -> Self {
-        Self {
-            await_input: false,
-            despawn_entities: vec![],
-            elapse: Duration::ZERO,
-            letterbox_move_o: None,
-            music_despawn_o: None,
-            music_spawn_o: None,
-            spawn_animations_o: None,
-            spawn_images_o: None,
-            transition_o: None,
-        }
-    }
-
     pub fn move_letterbox(mut self, event: LetterboxMoveEvent) -> Self {
         self.letterbox_move_o = Some(event);
         self
@@ -278,69 +256,36 @@ impl CutsceneAct {
     }
 }
 
-#[derive(Clone, Debug, Component)]
+#[derive(new, Clone, Debug, Component)]
 pub struct CutsceneMusicSpawn {
     pub music_path: String,
     // TODO fade_in
 }
 
-impl CutsceneMusicSpawn {
-    pub fn new(music_path: String) -> Self {
-        Self { music_path }
-    }
-}
-
-#[derive(Clone, Debug, Component)]
+#[derive(new, Clone, Debug, Component)]
 pub struct CutsceneMusicDespawn {
     // TODO fade_out
 }
 
-impl CutsceneMusicDespawn {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Clone, Debug, Component)]
+#[derive(new, Clone, Debug, Component)]
 pub struct CutsceneSpriteSpawn {
     pub image_path: String,
     pub coordinates: Vec2,
+    #[new(default)]
     pub tag_o: Option<String>,
 }
 
-impl CutsceneSpriteSpawn {
-    pub fn new(image_path: String, coordinates: Vec2) -> Self {
-        Self {
-            image_path,
-            coordinates,
-            tag_o: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Component)]
+#[derive(new, Clone, Debug, Component)]
 pub struct CutsceneTransition {}
 
-impl CutsceneTransition {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[derive(Clone, Debug, Resource)]
+#[derive(new, Clone, Debug, Resource)]
 pub struct CutsceneData {
     pub name: String,
+    #[new(default)]
     pub steps: Vec<CutsceneAct>,
 }
 
 impl CutsceneData {
-    pub fn new(name: String) -> Self {
-        Self {
-            name,
-            steps: vec![],
-        }
-    }
-
     pub fn set_steps(mut self, steps: Vec<CutsceneAct>) -> Self {
         self.steps = steps;
         self

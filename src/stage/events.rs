@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use bevy::prelude::*;
+use derive_new::new;
 
 use super::{
     components::placement::Depth,
@@ -29,26 +30,14 @@ pub struct StageStartupEvent {
     pub data: Arc<StageData>,
 }
 
-#[derive(Event)]
+#[derive(new, Event)]
 pub struct DepthChangedEvent {
     pub entity: Entity,
     pub depth: Depth,
 }
 
-impl DepthChangedEvent {
-    pub fn new(entity: Entity, depth: Depth) -> Self {
-        DepthChangedEvent { entity, depth }
-    }
-}
-
-#[derive(Event)]
+#[derive(new, Event)]
 pub struct DamageEvent {
     pub entity: Entity,
     pub value: u32,
-}
-
-impl DamageEvent {
-    pub fn new(entity: Entity, value: u32) -> Self {
-        DamageEvent { entity, value }
-    }
 }

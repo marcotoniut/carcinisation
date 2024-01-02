@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use derive_new::new;
 use seldom_pixel::position::PxSubPosition;
 use std::time::Duration;
 
@@ -27,18 +28,12 @@ impl EnemyMosquito {
     }
 }
 
-#[derive(Clone, Component, Debug, Default, Reflect)]
+#[derive(new, Clone, Component, Debug, Default, Reflect)]
 pub struct EnemyMosquitoAttacking {
+    #[new(default)]
     pub attack: Option<EnemyMosquitoAttack>,
+    #[new(default)]
     pub last_attack_started: Duration,
-}
-
-impl EnemyMosquitoAttacking {
-    pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
 }
 
 #[derive(Clone, Component, Debug, Reflect)]
