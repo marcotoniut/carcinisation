@@ -1,7 +1,7 @@
 use super::spawn::*;
 use crate::{
     stage::{
-        bundles::{make_background_bundle, make_skybox_bundle},
+        bundles::{BackgroundBundle, SkyboxBundle},
         components::{Stage, StageEntity},
         data::{StageData, StageSpawn},
         events::StageStartupEvent,
@@ -64,13 +64,13 @@ pub fn on_startup(
         commands
             .spawn((Stage, Name::new("Stage")))
             .with_children(|parent| {
-                let background_bundle =
-                    make_background_bundle(&mut assets_sprite, stage_data.background_path.clone());
-                parent.spawn(background_bundle);
-
-                let skybox_bundle =
-                    make_skybox_bundle(&mut assets_sprite, stage_data.skybox.clone());
-                parent.spawn(skybox_bundle);
+                parent.spawn(BackgroundBundle::new(
+                    assets_sprite.load(stage_data.background_path.clone()),
+                ));
+                parent.spawn(SkyboxBundle::new(
+                    &mut assets_sprite,
+                    stage_data.skybox.clone(),
+                ));
             });
 
         // DEBUG

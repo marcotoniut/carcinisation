@@ -70,12 +70,13 @@ pub fn spawn_current_stage_bundle(
     commands
         .spawn((Stage, Name::new("Stage")))
         .with_children(|parent| {
-            let background_bundle =
-                make_background_bundle(&mut assets_sprite, stage_data.background_path.clone());
-            parent.spawn(background_bundle);
-
-            let skybox_bundle = make_skybox_bundle(&mut assets_sprite, stage_data.skybox.clone());
-            parent.spawn(skybox_bundle);
+            parent.spawn(BackgroundBundle::new(
+                assets_sprite.load(stage_data.background_path.clone()),
+            ));
+            parent.spawn(SkyboxBundle::new(
+                &mut assets_sprite,
+                stage_data.skybox.clone(),
+            ));
         });
 
     state.set(GameProgressState::Running);
