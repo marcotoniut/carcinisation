@@ -12,21 +12,21 @@ pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;
 pub const SCORE_MELEE_REGULAR_HIT: u32 = 3;
 pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct EnemyAttack;
 
-#[derive(Component)]
+#[derive(Component, Debug, Reflect)]
 pub enum EnemyHoveringAttackType {
     BloodShot,
     BoulderThrow,
 }
 
-#[derive(Component, Reflect)]
+#[derive(Component, Debug, Reflect)]
 pub struct EnemyAttackOriginPosition(pub Vec2);
 
 // TODO this should impact damage
 // (but it should also be affected by the stage's environment)
-#[derive(Component, Reflect)]
+#[derive(Component, Debug, Reflect)]
 pub struct EnemyAttackOriginDepth(pub Depth);
 
 impl EnemyHoveringAttackType {

@@ -30,6 +30,66 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
+#[derive(Bundle)]
+pub struct BloodShotDefaultBundle {
+    pub name: Name,
+    pub enemy_attack: EnemyAttack,
+    pub health: Health,
+    pub hittable: Hittable,
+}
+
+impl Default for BloodShotDefaultBundle {
+    fn default() -> Self {
+        Self {
+            name: Name::new("Attack<BloodShot>"),
+            enemy_attack: EnemyAttack,
+            health: Health(1),
+            hittable: Hittable,
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct BloodShotMovementBundle {
+    // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting
+    targeting_position_x: TargetingPositionX,
+    linear_speed_x: LinearSpeed<StageTime, TargetingPositionX>,
+    targeting_position_y: TargetingPositionY,
+    linear_speed_y: LinearSpeed<StageTime, TargetingPositionY>,
+    linear_movement_z: LinearMovementBundle<StageTime, TargetingPositionZ>,
+}
+
+impl BloodShotMovementBundle {
+    pub fn new(depth: &Depth, current_pos: Vec2, target_pos: Vec2) -> Self {
+        let direction = target_pos - current_pos;
+        let speed = direction.normalize_or_zero() * BLOOD_SHOT_ATTACK_LINE_SPEED;
+
+        Self {
+            targeting_position_x: TargetingPositionX::new(current_pos.x),
+            linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed.x),
+            targeting_position_y: TargetingPositionY::new(current_pos.y),
+            linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed.y),
+            linear_movement_z: LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
+                depth.to_f32(),
+                PLAYER_DEPTH.to_f32(),
+                BLOOD_SHOT_ATTACK_DEPTH_SPEED,
+            ),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct BloodShotBundle {
+    pub enemy_attack_origin_position: EnemyAttackOriginPosition,
+    pub enemy_attack_origin_depth: EnemyAttackOriginDepth,
+    pub enemy_hovering_attack_type: EnemyHoveringAttackType,
+    pub depth: Depth,
+    pub inflicts_damage: InflictsDamage,
+    pub position: PxSubPosition,
+    pub movement: BloodShotMovementBundle,
+    pub default: BloodShotDefaultBundle,
+}
+
 pub fn spawn_blood_shot_attack(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
@@ -39,6 +99,7 @@ pub fn spawn_blood_shot_attack(
     depth: &Depth,
 ) {
     let attack_type = EnemyHoveringAttackType::BloodShot;
+    // TODO should this account for player speed?
     let target_pos = target_pos
         + Vec2::new(
             (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
@@ -56,37 +117,18 @@ pub fn spawn_blood_shot_attack(
     attacking.attack = attacking.attack.clone();
     attacking.last_attack_started = attacking.last_attack_started.clone();
 
-    let direction = target_pos - current_pos;
-    let speed = direction.normalize_or_zero() * BLOOD_SHOT_ATTACK_LINE_SPEED;
+    let mut entity_commands = commands.spawn(BloodShotBundle {
+        enemy_attack_origin_position: EnemyAttackOriginPosition(current_pos),
+        enemy_attack_origin_depth: EnemyAttackOriginDepth(depth.clone()),
+        enemy_hovering_attack_type: EnemyHoveringAttackType::BloodShot,
+        depth: depth.clone(),
+        inflicts_damage: InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
+        position: PxSubPosition(current_pos),
+        movement: BloodShotMovementBundle::new(depth, current_pos, target_pos),
+        default: Default::default(),
+    });
 
-    let movement_bundle = (
-        // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting
-        TargetingPositionX::new(current_pos.x),
-        LinearSpeed::<StageTime, TargetingPositionX>::new(speed.x),
-        TargetingPositionY::new(current_pos.y),
-        LinearSpeed::<StageTime, TargetingPositionY>::new(speed.y),
-        LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
-            depth.to_f32(),
-            PLAYER_DEPTH.to_f32(),
-            BLOOD_SHOT_ATTACK_DEPTH_SPEED,
-        ),
-    );
-
-    let mut entity_commands = commands.spawn((
-        Name::new(format!("Attack<{}>", attack_type.get_name())),
-        EnemyAttack,
-        EnemyAttackOriginPosition(current_pos),
-        EnemyAttackOriginDepth(depth.clone()),
-        EnemyHoveringAttackType::BloodShot,
-        depth.clone(),
-        InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
-        PxSubPosition(current_pos),
-        Hittable,
-        Health(1),
-    ));
-    entity_commands
-        .insert(movement_bundle)
-        .insert((sprite, animation));
+    entity_commands.insert((sprite, animation));
 
     if !collider_data.0.is_empty() {
         entity_commands.insert(collider_data);
