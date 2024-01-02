@@ -13,6 +13,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
+use derive_new::new;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
 use std::collections::HashMap;
 
@@ -30,23 +31,19 @@ impl DestructibleAnimationData {
     }
 }
 
+#[derive(new)]
 pub struct DestructibleAnimations {
+    #[new(default)]
     pub crystal: HashMap<Depth, DestructibleAnimationData>,
+    #[new(default)]
     pub lamp: HashMap<Depth, DestructibleAnimationData>,
+    #[new(default)]
     pub mushroom: HashMap<Depth, DestructibleAnimationData>,
+    #[new(default)]
     pub trashcan: HashMap<Depth, DestructibleAnimationData>,
 }
 
 impl DestructibleAnimations {
-    pub fn new() -> Self {
-        Self {
-            crystal: HashMap::new(),
-            lamp: HashMap::new(),
-            mushroom: HashMap::new(),
-            trashcan: HashMap::new(),
-        }
-    }
-
     pub fn get_animation_data(
         &self,
         destructible_type: &DestructibleType,

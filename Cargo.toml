@@ -25,8 +25,9 @@ bevy = { version = "0.12", features = [
     "wayland",
 ] } # dynamic_linking cannot be used for webassembly, not required for MacOS
 # bevy = { version = "0.12", features = ["dynamic_linking"] } # required for Windows builds
-bevy_editor_pls = "0.6.0"
+bevy_editor_pls = "0.7.0"
 bevy_framepace = "0.14.1"
+derive-new = "0.6.0"
 lazy_static = "1.4.0"
 leafwing-input-manager = "0.11.2"
 num_enum = "0.7.1"

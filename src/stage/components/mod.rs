@@ -6,6 +6,7 @@ use self::placement::Depth;
 use super::data::{ContainerSpawn, StageSpawn};
 use crate::cutscene::data::CutsceneAnimationsSpawn;
 use bevy::{prelude::*, utils::HashMap};
+use derive_new::new;
 use std::time::Duration;
 
 #[derive(Component, Debug, Default)]
@@ -30,20 +31,14 @@ pub struct CurrentStageStep {
 }
 
 // TODO use this instead of CurrentStageStep?
-#[derive(Clone, Debug, Component, Reflect)]
+#[derive(new, Clone, Debug, Component, Reflect)]
 pub struct StageElapse {
     pub duration: Duration,
+    #[new(default)]
     pub clear_graphics: bool,
 }
 
 impl StageElapse {
-    pub fn new(duration: Duration) -> Self {
-        Self {
-            duration,
-            clear_graphics: false,
-        }
-    }
-
     pub fn from_secs_f32(secs: f32) -> Self {
         Self {
             duration: Duration::from_secs_f32(secs),
@@ -65,11 +60,15 @@ pub enum CinematicStageStep {
     CutsceneAnimationSpawn(CutsceneAnimationsSpawn),
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(new, Component, Clone, Debug)]
 pub struct MovementStageStep {
+    #[new(default)]
     pub coordinates: Vec2,
+    #[new(value = "1.")]
     pub base_speed: f32,
+    #[new(default)]
     pub spawns: Vec<StageSpawn>,
+    #[new(default)]
     pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,
@@ -78,15 +77,6 @@ pub struct MovementStageStep {
 }
 
 impl MovementStageStep {
-    pub fn new() -> Self {
-        Self {
-            coordinates: Vec2::ZERO,
-            base_speed: 1.0,
-            spawns: vec![],
-            floor_depths: None,
-        }
-    }
-
     pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
         self.spawns.extend(new_spawns);
         self
@@ -112,12 +102,17 @@ impl MovementStageStep {
     }
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(new, Component, Clone, Debug)]
 pub struct StopStageStep {
+    #[new(default)]
     pub max_duration: Option<Duration>,
+    #[new(value = "true")]
     pub kill_all: bool,
+    #[new(default)]
     pub kill_boss: bool,
+    #[new(default)]
     pub spawns: Vec<StageSpawn>,
+    #[new(default)]
     pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,
@@ -126,16 +121,6 @@ pub struct StopStageStep {
 }
 
 impl StopStageStep {
-    pub fn new() -> Self {
-        Self {
-            kill_all: true,
-            kill_boss: false,
-            max_duration: None,
-            spawns: vec![],
-            floor_depths: None,
-        }
-    }
-
     pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
         self.spawns.extend(new_spawns);
         self

@@ -11,6 +11,7 @@ use crate::{
     stage::{data::GAME_BASE_SPEED, resources::StageTime},
 };
 use bevy::prelude::*;
+use derive_new::new;
 use seldom_pixel::prelude::PxSubPosition;
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -112,14 +113,10 @@ impl EnemyCurrentBehavior {
     }
 }
 
-#[derive(Component, Debug, Reflect)]
+#[derive(new, Component, Debug, Reflect)]
 pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
 
 impl EnemyBehaviors {
-    pub fn new(steps: VecDeque<EnemyStep>) -> Self {
-        EnemyBehaviors(steps)
-    }
-
     pub fn next(&mut self) -> EnemyStep {
         self.0.pop_front().unwrap_or_else(|| EnemyStep::default())
     }

@@ -12,6 +12,7 @@ use crate::stage::{
     },
 };
 use bevy::prelude::*;
+use derive_new::new;
 use seldom_pixel::position::PxSubPosition;
 
 pub const ENEMY_TARDIGRADE_RADIUS: f32 = 9.0;
@@ -36,18 +37,12 @@ pub enum EnemyTardigradeAnimation {
 }
 
 // TODO could generalise
-#[derive(Clone, Component, Debug, Default, Reflect)]
+#[derive(new, Clone, Component, Debug, Default, Reflect)]
 pub struct EnemyTardigradeAttacking {
+    #[new(default)]
     pub attack: bool,
+    #[new(default)]
     pub last_attack_started: Duration,
-}
-
-impl EnemyTardigradeAttacking {
-    pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
 }
 
 #[derive(Bundle, Debug)]

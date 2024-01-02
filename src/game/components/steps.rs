@@ -1,21 +1,16 @@
 use crate::{cutscene::data::CutsceneData, stage::data::StageData};
 use bevy::prelude::*;
+use derive_new::new;
 use std::sync::Arc;
 
-#[derive(Component, Clone, Debug)]
+#[derive(new, Component, Clone, Debug)]
 pub struct CinematicGameStep {
     pub data: Arc<CutsceneData>,
+    #[new(value = "true")]
     pub is_checkpoint: bool,
 }
 
 impl CinematicGameStep {
-    pub fn new(data: Arc<CutsceneData>) -> Self {
-        Self {
-            data,
-            is_checkpoint: true,
-        }
-    }
-
     pub fn is_checkpoint(mut self, is_checkpoint: bool) -> Self {
         self.is_checkpoint = is_checkpoint;
         self
@@ -31,13 +26,7 @@ pub struct TransitionGameStep {
     // pub transition: bool,
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(new, Component, Clone, Debug)]
 pub struct StageGameStep {
     pub data: Arc<StageData>,
-}
-
-impl StageGameStep {
-    pub fn new(data: Arc<StageData>) -> Self {
-        Self { data }
-    }
 }
