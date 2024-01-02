@@ -65,9 +65,9 @@ impl BloodShotMovementBundle {
         let speed = direction.normalize_or_zero() * BLOOD_SHOT_ATTACK_LINE_SPEED;
 
         Self {
-            targeting_position_x: TargetingPositionX::new(current_pos.x),
+            targeting_position_x: current_pos.x.into(),
             linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed.x),
-            targeting_position_y: TargetingPositionY::new(current_pos.y),
+            targeting_position_y: current_pos.y.into(),
             linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed.y),
             linear_movement_z: LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
                 depth.to_f32(),

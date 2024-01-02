@@ -1,5 +1,6 @@
 use crate::plugins::movement::structs::MovementDirection;
 use bevy::prelude::*;
+use derive_more::From;
 
 #[derive(Clone, Copy, Debug, Reflect)]
 pub struct AttackEnemyStep {
@@ -154,7 +155,7 @@ impl JumpEnemyStep {
 }
 
 // Should rename to EnemyBehavior?
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Copy, Debug, From, Reflect)]
 pub enum EnemyStep {
     Attack(AttackEnemyStep),
     Circle(CircleAroundEnemyStep),
@@ -207,35 +208,5 @@ impl EnemyStep {
 
     pub fn linear_movement_base() -> LinearMovementEnemyStep {
         LinearMovementEnemyStep::base()
-    }
-}
-
-impl From<AttackEnemyStep> for EnemyStep {
-    fn from(step: AttackEnemyStep) -> Self {
-        EnemyStep::Attack(step)
-    }
-}
-
-impl From<IdleEnemyStep> for EnemyStep {
-    fn from(step: IdleEnemyStep) -> Self {
-        EnemyStep::Idle(step)
-    }
-}
-
-impl From<CircleAroundEnemyStep> for EnemyStep {
-    fn from(step: CircleAroundEnemyStep) -> Self {
-        EnemyStep::Circle(step)
-    }
-}
-
-impl From<LinearMovementEnemyStep> for EnemyStep {
-    fn from(step: LinearMovementEnemyStep) -> Self {
-        EnemyStep::LinearMovement(step)
-    }
-}
-
-impl From<JumpEnemyStep> for EnemyStep {
-    fn from(step: JumpEnemyStep) -> Self {
-        EnemyStep::Jump(step)
     }
 }

@@ -28,6 +28,7 @@ bevy = { version = "0.12", features = [
 bevy_editor_pls = "0.7.0"
 bevy_framepace = "0.14.1"
 derive-new = "0.6.0"
+derive_more = "0.99.17"
 lazy_static = "1.4.0"
 leafwing-input-manager = "0.11.2"
 num_enum = "0.7.1"

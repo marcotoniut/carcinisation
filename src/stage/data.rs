@@ -5,6 +5,7 @@ use super::{
 };
 use crate::globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H};
 use bevy::prelude::{Name, Resource, Vec2};
+use derive_more::From;
 use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
@@ -43,22 +44,10 @@ pub enum PickupType {
     // Shield,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, From)]
 pub enum ContainerSpawn {
     Pickup(PickupSpawn),
     Enemy(EnemySpawn),
-}
-
-impl From<PickupSpawn> for ContainerSpawn {
-    fn from(value: PickupSpawn) -> Self {
-        ContainerSpawn::Pickup(value)
-    }
-}
-
-impl From<EnemySpawn> for ContainerSpawn {
-    fn from(value: EnemySpawn) -> Self {
-        ContainerSpawn::Enemy(value)
-    }
 }
 
 // TODO move pickup data under its own module?
@@ -294,7 +283,7 @@ impl EnemySpawn {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, From)]
 pub enum StageSpawn {
     Object(ObjectSpawn),
     Destructible(DestructibleSpawn),
@@ -322,30 +311,6 @@ impl StageSpawn {
     }
 }
 
-impl From<ObjectSpawn> for StageSpawn {
-    fn from(value: ObjectSpawn) -> Self {
-        StageSpawn::Object(value)
-    }
-}
-
-impl From<DestructibleSpawn> for StageSpawn {
-    fn from(value: DestructibleSpawn) -> Self {
-        StageSpawn::Destructible(value)
-    }
-}
-
-impl From<PickupSpawn> for StageSpawn {
-    fn from(value: PickupSpawn) -> Self {
-        StageSpawn::Pickup(value)
-    }
-}
-
-impl From<EnemySpawn> for StageSpawn {
-    fn from(value: EnemySpawn) -> Self {
-        StageSpawn::Enemy(value)
-    }
-}
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum StageActionResumeCondition {
     MaxDuration(u32),
@@ -353,29 +318,11 @@ pub enum StageActionResumeCondition {
     KillBoss,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, From)]
 pub enum StageStep {
     Cinematic(CinematicStageStep),
     Movement(MovementStageStep),
     Stop(StopStageStep),
-}
-
-impl From<CinematicStageStep> for StageStep {
-    fn from(value: CinematicStageStep) -> Self {
-        Self::Cinematic(value)
-    }
-}
-
-impl From<MovementStageStep> for StageStep {
-    fn from(value: MovementStageStep) -> Self {
-        Self::Movement(value)
-    }
-}
-
-impl From<StopStageStep> for StageStep {
-    fn from(value: StopStageStep) -> Self {
-        Self::Stop(value)
-    }
 }
 
 #[derive(Clone, Debug, Resource)]

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use derive_more::From;
 use derive_new::new;
 
 #[derive(Component)]
@@ -20,7 +21,7 @@ impl ColliderShape {
     }
 }
 
-#[derive(new, Clone, Copy, Debug, Reflect)]
+#[derive(new, Clone, Copy, Debug, From, Reflect)]
 pub struct Collider {
     pub shape: ColliderShape,
     #[new(value = "1.")]
@@ -60,12 +61,6 @@ impl Collider {
     pub fn with_offset(mut self, offset: Vec2) -> Self {
         self.offset = offset;
         self
-    }
-}
-
-impl From<ColliderShape> for Collider {
-    fn from(shape: ColliderShape) -> Self {
-        Collider::new(shape)
     }
 }
 

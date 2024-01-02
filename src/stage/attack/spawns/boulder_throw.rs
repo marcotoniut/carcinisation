@@ -90,9 +90,9 @@ impl BoulderThrowMovementBundle {
         let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
 
         Self {
-            targeting_position_x: TargetingPositionX::new(current_pos.x),
+            targeting_position_x: current_pos.x.into(),
             linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
-            targeting_position_y: TargetingPositionY::new(current_pos.y),
+            targeting_position_y: current_pos.y.into(),
             linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
             linear_acceleration_y: LinearAcceleration::<StageTime, TargetingPositionY>::new(
                 BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
