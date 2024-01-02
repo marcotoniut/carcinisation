@@ -30,6 +30,82 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
+#[derive(Bundle)]
+pub struct BoulderThrowDefaultBundle {
+    pub enemy_attack: EnemyAttack,
+    pub enemy_attack_type: EnemyHoveringAttackType,
+    pub flickerer: Flickerer,
+    pub health: Health,
+    pub hittable: Hittable,
+    pub name: Name,
+}
+
+impl Default for BoulderThrowDefaultBundle {
+    fn default() -> Self {
+        Self {
+            enemy_attack: EnemyAttack,
+            flickerer: Flickerer,
+            health: Health(100),
+            hittable: Hittable,
+            enemy_attack_type: EnemyHoveringAttackType::BoulderThrow,
+            name: Name::new("Attack<BoulderShot>"),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct BoulderThrowMovementBundle {
+    // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting
+    pub targeting_position_x: TargetingPositionX,
+    pub linear_speed_x: LinearSpeed<StageTime, TargetingPositionX>,
+    pub targeting_position_y: TargetingPositionY,
+    pub linear_speed_y: LinearSpeed<StageTime, TargetingPositionY>,
+    pub linear_acceleration_y: LinearAcceleration<StageTime, TargetingPositionY>,
+    pub linear_movement_z: LinearMovementBundle<StageTime, TargetingPositionZ>,
+}
+
+#[derive(Bundle)]
+pub struct BoulderThrowBundle {
+    pub depth: Depth,
+    pub inflicts_damage: InflictsDamage,
+    pub position: PxSubPosition,
+    pub movement: BoulderThrowMovementBundle,
+    pub default: BoulderThrowDefaultBundle,
+}
+
+impl BoulderThrowMovementBundle {
+    pub fn new(depth: &Depth, current_pos: Vec2, target_pos: Vec2) -> Self {
+        let depth_f32 = depth.to_f32();
+        let target_depth = PLAYER_DEPTH;
+
+        let speed_z = BOULDER_THROW_ATTACK_DEPTH_SPEED;
+        let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
+
+        let d = target_pos - current_pos;
+
+        let speed_x = d.x / t;
+
+        // TODO: remember that boulder throws in outter space wouldn't have as much gravity, if any at all
+        let value = d.y - 0.5 * BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION * t.powi(2);
+        let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
+
+        Self {
+            targeting_position_x: TargetingPositionX::new(current_pos.x),
+            linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
+            targeting_position_y: TargetingPositionY::new(current_pos.y),
+            linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
+            linear_acceleration_y: LinearAcceleration::<StageTime, TargetingPositionY>::new(
+                BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
+            ),
+            linear_movement_z: LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
+                depth_f32,
+                target_depth.to_f32(),
+                BOULDER_THROW_ATTACK_DEPTH_SPEED,
+            ),
+        }
+    }
+}
+
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
@@ -38,7 +114,6 @@ pub fn spawn_boulder_throw_attack(
     current_pos: Vec2,
     depth: &Depth,
 ) {
-    let depth_f32 = depth.to_f32();
     let attack_type = EnemyHoveringAttackType::BoulderThrow;
     let target_pos = target_pos
         + Vec2::new(
@@ -54,52 +129,17 @@ pub fn spawn_boulder_throw_attack(
         last_attack_started: stage_time.elapsed,
     };
 
-    let target_depth = PLAYER_DEPTH;
-
-    let speed_z = BOULDER_THROW_ATTACK_DEPTH_SPEED;
-    let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
-
-    let d = target_pos - current_pos;
-
-    let speed_x = d.x / t;
-
-    // TODO: remember that boulder throws in outter space wouldn't have as much gravity, if any at all
-    let value = d.y - 0.5 * BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION * t.powi(2);
-    let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
-
-    let movement_bundle = (
-        TargetingPositionX::new(current_pos.x),
-        LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
-        TargetingPositionY::new(current_pos.y),
-        LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
-        LinearAcceleration::<StageTime, TargetingPositionY>::new(
-            BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
-        ),
-        LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
-            depth_f32,
-            target_depth.to_f32(),
-            BOULDER_THROW_ATTACK_DEPTH_SPEED,
-        ),
-    );
-
     attacking.attack = attacking.attack.clone();
     attacking.last_attack_started = attacking.last_attack_started.clone();
 
-    let mut entity_commands = commands.spawn((
-        Name::new(format!("Attack - {}", attack_type.get_name())),
-        EnemyAttack,
-        EnemyHoveringAttackType::BoulderThrow,
-        depth.clone(),
-        TargetingPositionZ::new(depth_f32),
-        InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
-        PxSubPosition(current_pos),
-        Flickerer,
-        Hittable,
-        Health(100),
-    ));
-    entity_commands
-        .insert(movement_bundle)
-        .insert((sprite, animation));
+    let mut entity_commands = commands.spawn(BoulderThrowBundle {
+        depth: depth.clone(),
+        inflicts_damage: InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
+        position: PxSubPosition(current_pos),
+        movement: BoulderThrowMovementBundle::new(depth, current_pos, target_pos),
+        default: Default::default(),
+    });
+    entity_commands.insert((sprite, animation));
 
     if !collider_data.0.is_empty() {
         entity_commands.insert(collider_data);
