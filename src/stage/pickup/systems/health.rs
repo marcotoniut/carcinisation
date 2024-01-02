@@ -52,6 +52,7 @@ pub fn pickup_health(
 
             let direction_delta = target - current;
 
+            // TODO Bundle
             let movement_bundle = (
                 TargetingPositionX(current.x),
                 TargetingPositionY(current.y),

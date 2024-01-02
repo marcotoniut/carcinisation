@@ -1,22 +1,21 @@
 pub mod extra;
 
-use bevy::prelude::*;
-use derive_new::new;
-use std::marker::PhantomData;
-
 use crate::{
     core::time::DeltaTime,
     plugins::movement::structs::{Constructor, Magnitude, MovementDirection},
 };
+use bevy::prelude::*;
+use derive_more::From;
+use derive_new::new;
+use std::marker::PhantomData;
 
-// TODO From
-#[derive(new, Clone, Component, Debug, Reflect)]
+#[derive(new, Clone, Component, Debug, From, Reflect)]
 pub struct TargetingPositionX(pub f32);
 
-#[derive(new, Clone, Component, Debug, Reflect)]
+#[derive(new, Clone, Component, Debug, From, Reflect)]
 pub struct TargetingPositionY(pub f32);
 
-#[derive(new, Clone, Component, Debug, Reflect)]
+#[derive(new, Clone, Component, Debug, From, Reflect)]
 pub struct TargetingPositionZ(pub f32);
 
 macro_rules! impl_magnitude {
@@ -66,7 +65,7 @@ impl<T: DeltaTime + Send + Sync + 'static, P> LinearDirection<T, P> {
     }
 }
 
-#[derive(new, Component, Debug, Clone)]
+#[derive(new, Clone, Component, Debug)]
 pub struct LinearTargetPosition<T: DeltaTime + Send + Sync + 'static, P> {
     #[new(default)]
     _marker_time: PhantomData<T>,
@@ -76,7 +75,7 @@ pub struct LinearTargetPosition<T: DeltaTime + Send + Sync + 'static, P> {
 }
 
 // TODO split into LinearX, Y, Z
-#[derive(new, Component, Debug, Clone)]
+#[derive(new, Clone, Component, Debug)]
 pub struct LinearSpeed<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
     #[new(default)]
     _marker_position: PhantomData<P>,
