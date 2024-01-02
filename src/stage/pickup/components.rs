@@ -9,7 +9,7 @@ impl HealthRecovery {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Clone, Component, Debug, Default)]
 pub struct PickupFeedback;
 
 pub const PICKUP_FEEDBACK_TIME: f32 = 0.6;
