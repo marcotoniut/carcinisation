@@ -12,7 +12,7 @@ use crate::{
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
-        IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
+        PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
         PxTypeface,
     },
     sprite::PxSprite,
@@ -79,11 +79,10 @@ pub fn spawn_pause_menu_bundle(
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         rect: IRect::new(
-                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 90),
-                            IVec2::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                90 + (FONT_SIZE + 2) as i32,
-                            ),
+                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                            90,
+                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                            90 + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
                         text: "Paused".into(),
@@ -100,11 +99,10 @@ pub fn spawn_pause_menu_bundle(
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         rect: IRect::new(
-                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 60),
-                            IVec2::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                60 + (FONT_SIZE + 2) as i32,
-                            ),
+                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                            60,
+                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                            60 + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
                         text: "Score:".into(),
@@ -121,11 +119,10 @@ pub fn spawn_pause_menu_bundle(
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         rect: IRect::new(
-                            IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 50),
-                            IVec2::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                50 + (FONT_SIZE + 2) as i32,
-                            ),
+                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                            50,
+                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                            50 + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
                         text: score_text.clone().into(),

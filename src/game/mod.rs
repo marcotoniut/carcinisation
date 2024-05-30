@@ -13,8 +13,8 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ScorePlugin)
-            .add_state::<GamePluginUpdateState>()
-            .add_state::<GameProgressState>()
+            .init_state::<GamePluginUpdateState>()
+            .init_state::<GameProgressState>()
             // DEBUG
             .add_event::<GameOverEvent>()
             .add_event::<GameStartupEvent>()
@@ -22,7 +22,7 @@ impl Plugin for GamePlugin {
             .add_systems(
                 Update,
                 ((progress, on_stage_cleared, on_cutscene_shutdown)
-                    .run_if(resource_exists::<GameProgress>()),)
+                    .run_if(resource_exists::<GameProgress>),)
                     .run_if(in_state(GamePluginUpdateState::Active)),
             );
     }

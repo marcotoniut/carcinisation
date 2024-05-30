@@ -10,11 +10,11 @@ pub enum DeathScreenInput {
 }
 
 pub fn init_input(mut commands: Commands) {
-    let ys: Vec<(KeyCode, DeathScreenInput)> = vec![
-        (GBInput::B.into(), DeathScreenInput::Restart),
-        (GBInput::A.into(), DeathScreenInput::Restart),
-        (GBInput::Start.into(), DeathScreenInput::Restart),
+    let ms: Vec<(DeathScreenInput, KeyCode)> = vec![
+        (DeathScreenInput::Restart, GBInput::B.into()),
+        (DeathScreenInput::Restart, GBInput::A.into()),
+        (DeathScreenInput::Restart, GBInput::Start.into()),
     ];
     commands.insert_resource(ActionState::<DeathScreenInput>::default());
-    commands.insert_resource(InputMap::<DeathScreenInput>::new(ys));
+    commands.insert_resource(InputMap::<DeathScreenInput>::new(ms));
 }

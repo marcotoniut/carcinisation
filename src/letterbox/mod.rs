@@ -15,7 +15,7 @@ pub struct LetterboxPlugin;
 
 impl Plugin for LetterboxPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<LetterboxPluginUpdateState>()
+        app.init_state::<LetterboxPluginUpdateState>()
             .add_event::<LetterboxMoveEvent>()
             .init_resource::<LetterboxTime>()
             .add_systems(OnEnter(LetterboxPluginUpdateState::Active), on_startup)

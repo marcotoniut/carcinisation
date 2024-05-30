@@ -13,7 +13,7 @@ pub struct AttackPlugin;
 
 impl Plugin for AttackPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<AttackPluginUpdateState>().add_systems(
+        app.init_state::<AttackPluginUpdateState>().add_systems(
             Update,
             (
                 (check_got_hit, check_health_at_0).chain(),

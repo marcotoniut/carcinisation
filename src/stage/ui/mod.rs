@@ -23,7 +23,7 @@ pub struct StageUiPlugin;
 
 impl Plugin for StageUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<StageUiPluginUpdateState>()
+        app.init_state::<StageUiPluginUpdateState>()
             .add_systems(OnEnter(StageUiPluginUpdateState::Active), on_active)
             .add_systems(OnEnter(StageUiPluginUpdateState::Inactive), on_inactive)
             .add_plugins(HudPlugin)

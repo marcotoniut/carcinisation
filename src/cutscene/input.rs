@@ -10,7 +10,7 @@ pub enum CutsceneInput {
 }
 
 pub fn init_input(mut commands: Commands) {
-    let ys: Vec<(KeyCode, CutsceneInput)> = vec![(GBInput::Start.into(), CutsceneInput::Skip)];
+    let ms: Vec<(CutsceneInput, KeyCode)> = vec![(CutsceneInput::Skip, GBInput::Start.into())];
     commands.insert_resource(ActionState::<CutsceneInput>::default());
-    commands.insert_resource(InputMap::<CutsceneInput>::new(ys));
+    commands.insert_resource(InputMap::<CutsceneInput>::new(ms));
 }

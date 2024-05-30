@@ -58,9 +58,10 @@ pub fn player_movement<T: DeltaTime + Resource>(
         // TODO review what's more expensive, querying or input subroutine, although, most of the times
         // a player will exist, so it's probably more that the former is redundant
         let mut direction = Vec2::new(
-            (gb_input.pressed(GBInput::Right) as i32 - gb_input.pressed(GBInput::Left) as i32)
+            (gb_input.pressed(&GBInput::Right) as i32 - gb_input.pressed(&GBInput::Left) as i32)
                 as f32,
-            (gb_input.pressed(GBInput::Up) as i32 - gb_input.pressed(GBInput::Down) as i32) as f32,
+            (gb_input.pressed(&GBInput::Up) as i32 - gb_input.pressed(&GBInput::Down) as i32)
+                as f32,
         );
 
         if direction.length() > 0.0 {
@@ -82,9 +83,9 @@ pub fn detect_player_attack(
 ) {
     if player_attack_query.iter().next().is_none() {
         if let Ok(position) = player_query.get_single() {
-            let attack = if gb_input.just_pressed(GBInput::A) {
+            let attack = if gb_input.just_pressed(&GBInput::A) {
                 Some((Weapon::Pincer, 0.6))
-            } else if gb_input.just_pressed(GBInput::B) {
+            } else if gb_input.just_pressed(&GBInput::B) {
                 Some((Weapon::Gun, 0.08))
             } else {
                 None

@@ -34,7 +34,7 @@ impl Plugin for PlayerPlugin {
             .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
             .add_event::<PlayerStartupEvent>()
             .add_event::<PlayerShutdownEvent>()
-            .add_state::<PlayerPluginUpdateState>()
+            .init_state::<PlayerPluginUpdateState>()
             .add_systems(PreUpdate, (on_startup, on_shutdown))
             .add_systems(
                 Update,

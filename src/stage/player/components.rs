@@ -89,7 +89,7 @@ impl PlayerAttack {
                             source: melee_slash_sound,
                             settings: PlaybackSettings {
                                 mode: PlaybackMode::Despawn,
-                                volume: Volume::new_relative(volume_settings.2 * 1.0),
+                                volume: Volume::new(volume_settings.2 * 1.0),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -121,7 +121,7 @@ impl PlayerAttack {
                             source: shoot_sound,
                             settings: PlaybackSettings {
                                 mode: PlaybackMode::Despawn,
-                                volume: Volume::new_relative(volume_settings.2 * 1.0),
+                                volume: Volume::new(volume_settings.2 * 1.0),
                                 ..Default::default()
                             },
                             ..Default::default()

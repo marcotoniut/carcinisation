@@ -61,7 +61,7 @@ pub fn hovering_damage_on_reached(
                 source: sound_effect,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Despawn,
-                    volume: Volume::new_relative(volume_settings.2 * 1.0),
+                    volume: Volume::new(volume_settings.2 * 1.0),
                     ..Default::default()
                 },
                 ..Default::default()

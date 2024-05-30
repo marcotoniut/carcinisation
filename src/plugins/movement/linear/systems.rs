@@ -31,14 +31,12 @@ pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
  */
 pub fn on_position_added<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
     mut commands: Commands,
-    mut query: Query<(Entity, Added<LinearTargetPosition<T, P>>)>,
+    mut query: Query<Entity, Added<LinearTargetPosition<T, P>>>,
 ) {
-    for (entity, added) in &mut query.iter_mut() {
-        if added {
-            commands
-                .entity(entity)
-                .remove::<LinearTargetReached<T, P>>();
-        }
+    for entity in &mut query.iter_mut() {
+        commands
+            .entity(entity)
+            .remove::<LinearTargetReached<T, P>>();
     }
 }
 

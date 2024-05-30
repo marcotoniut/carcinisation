@@ -7,7 +7,7 @@ pub fn check_press_continue_input(
     // mut main_menu_event_writer: EventWriter<MainMenuShutdownEvent>,
     input: Res<ActionState<ClearScreenInput>>,
 ) {
-    if input.just_pressed(ClearScreenInput::Continue) {
+    if input.just_pressed(&ClearScreenInput::Continue) {
         screen_shutdown_event_writer.send(ClearScreenShutdownEvent);
         // main_menu_event_writer.send(MainMenuShutdownEvent);
     }

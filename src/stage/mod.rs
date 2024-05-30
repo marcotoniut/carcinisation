@@ -70,10 +70,10 @@ impl Plugin for StagePlugin {
         #[cfg(debug_assertions)]
         app.insert_resource(TimeMultiplier::<StageTime>::new(1.));
 
-        app.add_state::<StagePluginUpdateState>()
+        app.init_state::<StagePluginUpdateState>()
             .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
             .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
-            .add_state::<StageProgressState>()
+            .init_state::<StageProgressState>()
             .add_event::<CameraShakeEvent>()
             .add_event::<DamageEvent>()
             .add_event::<DepthChangedEvent>()

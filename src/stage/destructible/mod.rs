@@ -9,7 +9,7 @@ pub struct DestructiblePlugin;
 
 impl Plugin for DestructiblePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<DestructiblePluginUpdateState>()
+        app.init_state::<DestructiblePluginUpdateState>()
             .add_systems(
                 Update,
                 (check_dead_destructible).run_if(in_state(DestructiblePluginUpdateState::Active)),

@@ -17,7 +17,7 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<EnemyPluginUpdateState>().add_systems(
+        app.init_state::<EnemyPluginUpdateState>().add_systems(
             Update,
             (
                 check_no_behavior,

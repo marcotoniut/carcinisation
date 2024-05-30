@@ -14,14 +14,14 @@ pub enum MainMenuScreenInput {
 }
 
 pub fn init_input(mut commands: Commands) {
-    let ys: Vec<(KeyCode, MainMenuScreenInput)> = vec![
-        (GBInput::A.into(), MainMenuScreenInput::Select),
-        (GBInput::B.into(), MainMenuScreenInput::Cancel),
-        (GBInput::Down.into(), MainMenuScreenInput::Down),
-        (GBInput::Up.into(), MainMenuScreenInput::Up),
-        (GBInput::Select.into(), MainMenuScreenInput::Switch),
-        (GBInput::Start.into(), MainMenuScreenInput::Select),
+    let ms: Vec<(MainMenuScreenInput, KeyCode)> = vec![
+        (MainMenuScreenInput::Select, GBInput::A.into()),
+        (MainMenuScreenInput::Cancel, GBInput::B.into()),
+        (MainMenuScreenInput::Down, GBInput::Down.into()),
+        (MainMenuScreenInput::Up, GBInput::Up.into()),
+        (MainMenuScreenInput::Switch, GBInput::Select.into()),
+        (MainMenuScreenInput::Select, GBInput::Start.into()),
     ];
     commands.insert_resource(ActionState::<MainMenuScreenInput>::default());
-    commands.insert_resource(InputMap::<MainMenuScreenInput>::new(ys));
+    commands.insert_resource(InputMap::<MainMenuScreenInput>::new(ms));
 }
