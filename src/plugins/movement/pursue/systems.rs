@@ -24,9 +24,9 @@ pub fn update<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Compo
  */
 pub fn on_position_added<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Component>(
     mut commands: Commands,
-    mut movement_query: Query<(Entity, Added<PursueTargetPosition<T, P>>)>,
+    mut movement_query: Query<Entity, Added<PursueTargetPosition<T, P>>>,
 ) {
-    for (entity, _) in &mut movement_query.iter_mut() {
+    for entity in &mut movement_query.iter_mut() {
         commands
             .entity(entity)
             .remove::<PursueTargetXReached<T, P>>()

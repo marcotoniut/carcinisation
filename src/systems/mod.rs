@@ -24,7 +24,7 @@ use seldom_pixel::prelude::PxAnimationFinished;
 //     mut exit: ResMut<Events<AppExit>>,
 // ) {
 //     let gb_input = gb_input_query.single();
-//     if gb_input.just_pressed(GBInput::DExit) {
+//     if gb_input.just_pressed(&GBInput::DExit) {
 //         exit.send(AppExit);
 //     }
 // }
@@ -45,7 +45,7 @@ use seldom_pixel::prelude::PxAnimationFinished;
 //     time: Res<Time>,
 // ) {
 //     let gb_input = gb_input_query.single();
-//     if gb_input.just_pressed(GBInput::Select) {
+//     if gb_input.just_pressed(&GBInput::Select) {
 //         info!("open pause menu");
 
 //         if app_state.get().to_owned() != AppState::MainMenu {
@@ -87,7 +87,7 @@ pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOverEvent>) 
 //     mut next_state: ResMut<NextState<AppState>>,
 // ) {
 //     let gb_input = gb_input_query.single();
-//     if gb_input.just_pressed(GBInput::DToGame) {
+//     if gb_input.just_pressed(&GBInput::DToGame) {
 //         if app_state.get().to_owned() != AppState::Game {
 //             next_state.set(AppState::Game);
 //             info!("Entered AppState::Game");
@@ -104,7 +104,7 @@ pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOverEvent>) 
 //     mut next_state: ResMut<NextState<AppState>>,
 // ) {
 //     let gb_input = gb_input_query.single();
-//     if gb_input.just_pressed(GBInput::DToMainMenu) {
+//     if gb_input.just_pressed(&GBInput::DToMainMenu) {
 //         if app_state.get().to_owned() != AppState::MainMenu {
 //             // commands.insert_resource(NextState(Some(AppState::MainMenu)));
 //             next_state.set(AppState::MainMenu);
@@ -125,7 +125,7 @@ pub fn update_music_volume(
     let music_volume = volume_settings.1;
     for (mut music_source_settings, audio_system_type) in source_settings.iter_mut() {
         if matches!(audio_system_type, AudioSystemType::SFX) {
-            music_source_settings.volume = Volume::new_relative(music_volume);
+            music_source_settings.volume = Volume::new(music_volume);
         }
     }
 }
@@ -136,7 +136,7 @@ pub fn update_sfx_volume(
 ) {
     let sfx_volume = volume_settings.2;
     for mut sfx_source_settings in &mut source_settings {
-        sfx_source_settings.volume = Volume::new_relative(sfx_volume);
+        sfx_source_settings.volume = Volume::new(sfx_volume);
     }
 }
 

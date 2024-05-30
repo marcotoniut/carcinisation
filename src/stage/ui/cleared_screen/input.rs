@@ -10,11 +10,11 @@ pub enum ClearScreenInput {
 }
 
 pub fn init_input(mut commands: Commands) {
-    let ys: Vec<(KeyCode, ClearScreenInput)> = vec![
-        (GBInput::B.into(), ClearScreenInput::Continue),
-        (GBInput::A.into(), ClearScreenInput::Continue),
-        (GBInput::Start.into(), ClearScreenInput::Continue),
+    let ms: Vec<(ClearScreenInput, KeyCode)> = vec![
+        (ClearScreenInput::Continue, GBInput::B.into()),
+        (ClearScreenInput::Continue, GBInput::A.into()),
+        (ClearScreenInput::Continue, GBInput::Start.into()),
     ];
     commands.insert_resource(ActionState::<ClearScreenInput>::default());
-    commands.insert_resource(InputMap::<ClearScreenInput>::new(ys));
+    commands.insert_resource(InputMap::<ClearScreenInput>::new(ms));
 }

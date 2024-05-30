@@ -22,8 +22,7 @@ use crate::{
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 use seldom_pixel::prelude::{
-    IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
-    PxTypeface,
+    PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle, PxTypeface,
 };
 
 pub fn render_cleared_screen(
@@ -64,11 +63,10 @@ pub fn render_cleared_screen(
                             canvas: PxCanvas::Camera,
                             layer: Layer::UI,
                             rect: IRect::new(
-                                IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE, 90),
-                                IVec2::new(
-                                    (SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE,
-                                    90 + (FONT_SIZE + 2) as i32,
-                                ),
+                                (SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE,
+                                90,
+                                (SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE,
+                                90 + (FONT_SIZE + 2) as i32,
                             )
                             .into(),
                             text: "Stage  Cleared".into(),
@@ -85,11 +83,10 @@ pub fn render_cleared_screen(
                             canvas: PxCanvas::Camera,
                             layer: Layer::UI,
                             rect: IRect::new(
-                                IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 60),
-                                IVec2::new(
-                                    (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                    60 + (FONT_SIZE + 2) as i32,
-                                ),
+                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                                60,
+                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                                60 + (FONT_SIZE + 2) as i32,
                             )
                             .into(),
                             text: "Score:".into(),
@@ -106,11 +103,10 @@ pub fn render_cleared_screen(
                             canvas: PxCanvas::Camera,
                             layer: Layer::UI,
                             rect: IRect::new(
-                                IVec2::new((SCREEN_RESOLUTION.x / 2) as i32 - 40, 50),
-                                IVec2::new(
-                                    (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                    50 + (FONT_SIZE + 2) as i32,
-                                ),
+                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                                50,
+                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                                50 + (FONT_SIZE + 2) as i32,
                             )
                             .into(),
                             text: score_text.clone().into(),

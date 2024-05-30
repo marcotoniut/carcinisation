@@ -17,7 +17,7 @@ pub fn make_music_bundle(
             source,
             settings: PlaybackSettings {
                 mode,
-                volume: Volume::new_relative(volume_settings.1 * 1.0),
+                volume: Volume::new(volume_settings.1 * 1.0),
                 ..Default::default()
             },
             ..Default::default()

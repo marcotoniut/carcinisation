@@ -19,7 +19,7 @@ pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<MainMenuPluginUpdateState>()
+        app.init_state::<MainMenuPluginUpdateState>()
             .add_event::<ChangeMainMenuScreenEvent>()
             .add_event::<MainMenuStartupEvent>()
             .add_event::<MainMenuShutdownEvent>()

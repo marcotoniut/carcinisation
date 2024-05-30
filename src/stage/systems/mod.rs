@@ -49,7 +49,7 @@ pub fn toggle_game(
     state: Res<State<GameProgressState>>,
     mut next_state: ResMut<NextState<GameProgressState>>,
 ) {
-    if gb_input.just_pressed(GBInput::Start) {
+    if gb_input.just_pressed(&GBInput::Start) {
         if state.get().to_owned() == GameProgressState::Running {
             next_state.set(GameProgressState::Paused);
             info!("Game Paused.");

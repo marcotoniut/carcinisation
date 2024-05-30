@@ -20,7 +20,7 @@ pub struct TransitionVenetianPlugin;
 
 impl Plugin for TransitionVenetianPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<TransitionVenetianPluginUpdateState>()
+        app.init_state::<TransitionVenetianPluginUpdateState>()
             .add_event::<TransitionVenetianStartupEvent>()
             .add_event::<TransitionVenetianShutdownEvent>()
             .init_resource::<TransitionUpdateTimer>()

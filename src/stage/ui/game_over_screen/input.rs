@@ -10,11 +10,11 @@ pub enum GameOverScreenInput {
 }
 
 pub fn init_input(mut commands: Commands) {
-    let ys: Vec<(KeyCode, GameOverScreenInput)> = vec![
-        (GBInput::B.into(), GameOverScreenInput::BackToMenu),
-        (GBInput::A.into(), GameOverScreenInput::BackToMenu),
-        (GBInput::Start.into(), GameOverScreenInput::BackToMenu),
+    let ms: Vec<(GameOverScreenInput, KeyCode)> = vec![
+        (GameOverScreenInput::BackToMenu, GBInput::B.into()),
+        (GameOverScreenInput::BackToMenu, GBInput::A.into()),
+        (GameOverScreenInput::BackToMenu, GBInput::Start.into()),
     ];
     commands.insert_resource(ActionState::<GameOverScreenInput>::default());
-    commands.insert_resource(InputMap::<GameOverScreenInput>::new(ys));
+    commands.insert_resource(InputMap::<GameOverScreenInput>::new(ms));
 }

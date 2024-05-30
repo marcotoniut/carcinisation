@@ -8,7 +8,7 @@ use seldom_pixel::{
 };
 
 pub fn spawn_rectangle_rows<L: PxLayer>(
-    parent: &mut ChildBuilder<'_, '_, '_>,
+    parent: &mut ChildBuilder<'_>,
     rectangle: &PxRectangle<L>,
     filter: &Handle<PxAsset<PxFilterData>>,
 ) {

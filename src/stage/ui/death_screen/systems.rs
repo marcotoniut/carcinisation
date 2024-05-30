@@ -6,7 +6,7 @@ pub fn check_press_continue_input(
     mut screen_shutdown_event_writer: EventWriter<DeathScreenRestartEvent>,
     input: Res<ActionState<DeathScreenInput>>,
 ) {
-    if input.just_pressed(DeathScreenInput::Restart) {
+    if input.just_pressed(&DeathScreenInput::Restart) {
         screen_shutdown_event_writer.send(DeathScreenRestartEvent);
     }
 }

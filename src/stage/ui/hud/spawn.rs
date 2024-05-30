@@ -8,7 +8,7 @@ use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{
-        IRect, PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
+        PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
         PxTextBundle, PxTypeface,
     },
     sprite::{PxSprite, PxSpriteBundle},
@@ -67,11 +67,10 @@ pub fn spawn_hud(
                             canvas: PxCanvas::Camera,
                             layer: Layer::Hud,
                             rect: IRect::new(
-                                IVec2::new(HUD_HEALTH_ML, LAYOUT_Y),
-                                IVec2::new(
-                                    HUD_HEALTH_ML + HUD_HEALTH_W,
-                                    LAYOUT_Y + (FONT_SIZE + 2) as i32,
-                                ),
+                                HUD_HEALTH_ML,
+                                LAYOUT_Y,
+                                HUD_HEALTH_ML + HUD_HEALTH_W,
+                                LAYOUT_Y + (FONT_SIZE + 2) as i32,
                             )
                             .into(),
                             text: "0".into(),
@@ -90,14 +89,10 @@ pub fn spawn_hud(
                         canvas: PxCanvas::Camera,
                         layer: Layer::Hud,
                         rect: IRect::new(
-                            IVec2::new(
-                                SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR - HUD_SCORE_W,
-                                LAYOUT_Y,
-                            ),
-                            IVec2::new(
-                                SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
-                                LAYOUT_Y + (FONT_SIZE + 2) as i32,
-                            ),
+                            SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR - HUD_SCORE_W,
+                            LAYOUT_Y,
+                            SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
+                            LAYOUT_Y + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
                         text: "0".into(),

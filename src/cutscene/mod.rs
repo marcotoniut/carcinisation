@@ -29,7 +29,7 @@ pub struct CutscenePlugin;
 
 impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<CutscenePluginUpdateState>()
+        app.init_state::<CutscenePluginUpdateState>()
             .add_event::<CutsceneStartupEvent>()
             .add_event::<CutsceneShutdownEvent>()
             .init_resource::<CutsceneTime>()

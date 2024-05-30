@@ -12,7 +12,7 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::{
-    prelude::{IRect, PxAnchor, PxAssets, PxCanvas, PxSubPosition, PxTextBundle, PxTypeface},
+    prelude::{PxAnchor, PxAssets, PxCanvas, PxSubPosition, PxTextBundle, PxTypeface},
     sprite::{PxSprite, PxSpriteBundle},
 };
 use strum::IntoEnumIterator;
@@ -76,7 +76,7 @@ pub fn spawn_press_start_screen(
                 canvas: PxCanvas::Camera,
                 // TODO Menu layers
                 layer: Layer::Hud,
-                rect: IRect::new(IVec2::ZERO, IVec2::new(SCREEN_RESOLUTION.x as i32, 60)).into(),
+                rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
                 text: "Press Start".into(),
                 typeface: typeface.clone(),
                 ..Default::default()
@@ -132,8 +132,7 @@ pub fn spawn_game_difficulty_screen(
                     canvas: PxCanvas::Camera,
                     // TODO Menu layers
                     layer: Layer::Hud,
-                    rect: IRect::new(IVec2::ZERO, IVec2::new(SCREEN_RESOLUTION.x as i32, 60))
-                        .into(),
+                    rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
                     text: name.clone().into(),
                     typeface: typeface.clone(),
                     ..Default::default()

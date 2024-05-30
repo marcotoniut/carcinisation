@@ -8,7 +8,7 @@ pub struct HudPlugin;
 
 impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<HudPluginUpdateState>().add_systems(
+        app.init_state::<HudPluginUpdateState>().add_systems(
             Update,
             (update_health_text).run_if(in_state(HudPluginUpdateState::Active)),
         );

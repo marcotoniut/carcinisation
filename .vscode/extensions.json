@@ -3,6 +3,7 @@
     "stxr.iconfont-preview",
     "vadimcn.vscode-lldb",
     "rust-lang.rust-analyzer",
-    "shardulm94.trailing-spaces"
+    "shardulm94.trailing-spaces",
+    "tamasfe.even-better-toml"
   ]
 }

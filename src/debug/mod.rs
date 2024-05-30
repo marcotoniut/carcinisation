@@ -9,7 +9,7 @@ pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         register_types(app);
-        app.add_state::<DebugPluginUpdateState>().add_systems(
+        app.init_state::<DebugPluginUpdateState>().add_systems(
             Update,
             (draw_floor_lines, draw_colliders).run_if(in_state(DebugPluginUpdateState::Active)),
         );

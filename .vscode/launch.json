@@ -9,7 +9,11 @@
       "request": "launch",
       "name": "Debug executable 'carcinisation'",
       "cargo": {
-        "args": ["build", "--bin=carcinisation", "--package=carcinisation"],
+        "args": [
+          "build",
+          "--bin=carcinisation",
+          "--package=carcinisation"
+        ],
         "filter": {
           "name": "carcinisation",
           "kind": "bin"
@@ -18,7 +22,8 @@
       "args": [],
       "cwd": "${workspaceFolder}",
       "env": {
-        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+        "LD_LIBRARY_PATH": "${workspaceFolder}/target/debug/deps:${env:HOME}/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib",
       }
     },
     {
@@ -90,7 +95,11 @@
       "request": "launch",
       "name": "Process Graphics",
       "cargo": {
-        "args": ["build", "--bin=process-gfx", "--package=process-gfx"],
+        "args": [
+          "build",
+          "--bin=process-gfx",
+          "--package=process-gfx"
+        ],
         "filter": {
           "name": "process-gfx",
           "kind": "bin"

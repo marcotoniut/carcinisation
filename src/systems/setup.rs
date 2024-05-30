@@ -15,24 +15,24 @@ pub fn spawn_camera(mut commands: Commands) {
 }
 
 pub fn init_gb_input(mut commands: Commands) {
-    let ys: Vec<(KeyCode, GBInput)> = vec![
-        (GBInput::Left.into(), GBInput::Left),
-        (GBInput::Up.into(), GBInput::Up),
-        (GBInput::Right.into(), GBInput::Right),
-        (GBInput::Down.into(), GBInput::Down),
-        (GBInput::B.into(), GBInput::B),
-        (GBInput::A.into(), GBInput::A),
-        (GBInput::Start.into(), GBInput::Start),
-        (GBInput::Select.into(), GBInput::Select),
+    let ms: Vec<(GBInput, KeyCode)> = vec![
+        (GBInput::Left, GBInput::Left.into()),
+        (GBInput::Up, GBInput::Up.into()),
+        (GBInput::Right, GBInput::Right.into()),
+        (GBInput::Down, GBInput::Down.into()),
+        (GBInput::B, GBInput::B.into()),
+        (GBInput::A, GBInput::A.into()),
+        (GBInput::Start, GBInput::Start.into()),
+        (GBInput::Select, GBInput::Select.into()),
         // DEBUG
-        (GBInput::DToGame.into(), GBInput::DToGame),
-        (GBInput::DToMainMenu.into(), GBInput::DToMainMenu),
-        (GBInput::DExit.into(), GBInput::DExit),
-        (GBInput::DLeft.into(), GBInput::DLeft),
-        (GBInput::DUp.into(), GBInput::DUp),
-        (GBInput::DRight.into(), GBInput::DRight),
-        (GBInput::DDown.into(), GBInput::DDown),
+        (GBInput::DToGame, GBInput::DToGame.into()),
+        (GBInput::DToMainMenu, GBInput::DToMainMenu.into()),
+        (GBInput::DExit, GBInput::DExit.into()),
+        (GBInput::DLeft, GBInput::DLeft.into()),
+        (GBInput::DUp, GBInput::DUp.into()),
+        (GBInput::DRight, GBInput::DRight.into()),
+        (GBInput::DDown, GBInput::DDown.into()),
     ];
     commands.insert_resource(ActionState::<GBInput>::default());
-    commands.insert_resource(InputMap::<GBInput>::new(ys));
+    commands.insert_resource(InputMap::<GBInput>::new(ms));
 }
