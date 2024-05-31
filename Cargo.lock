@@ -3920,9 +3920,9 @@ dependencies = [
 
 [[package]]
 name = "seldom_pixel"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49b582150ef16c4c17e888f3ee721cd21682964adea529e54794160de52357ee"
+checksum = "1ae623470a61504ec58bdf93d359290939182a4dc2b828dff16f4e301be491c8"
 dependencies = [
  "bevy",
  "line_drawing",
