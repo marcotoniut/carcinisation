@@ -15,13 +15,6 @@ use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::*;
 use std::time::Duration;
 
-/**
- * deprecate
- */
-pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>) {
-    mark_for_despawn_by_query(&mut commands, &query)
-}
-
 pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {
     if let Ok(mut position) = player_query.get_single_mut() {
         let half_player_size = PLAYER_SIZE / 2.0;
