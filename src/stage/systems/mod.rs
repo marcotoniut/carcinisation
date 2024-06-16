@@ -28,7 +28,7 @@ use crate::{
         data::DEATH_SCORE_PENALTY, events::GameOverEvent, resources::Lives,
         score::components::Score, GameProgressState,
     },
-    globals::{mark_for_despawn_by_component_query, DEBUG_STAGESTEP},
+    globals::{mark_for_despawn_by_query, DEBUG_STAGESTEP},
     plugins::movement::linear::components::{
         extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
         TargetingPositionX, TargetingPositionY,
@@ -159,11 +159,11 @@ pub fn read_stage_cleared_trigger(
     volume_settings: Res<VolumeSettings>,
 ) {
     for _ in event_reader.read() {
-        mark_for_despawn_by_component_query(&mut commands, &destructible_query);
-        mark_for_despawn_by_component_query(&mut commands, &enemy_query);
-        mark_for_despawn_by_component_query(&mut commands, &music_query);
-        mark_for_despawn_by_component_query(&mut commands, &object_query);
-        mark_for_despawn_by_component_query(&mut commands, &player_query);
+        mark_for_despawn_by_query(&mut commands, &destructible_query);
+        mark_for_despawn_by_query(&mut commands, &enemy_query);
+        mark_for_despawn_by_query(&mut commands, &music_query);
+        mark_for_despawn_by_query(&mut commands, &object_query);
+        mark_for_despawn_by_query(&mut commands, &player_query);
 
         let music_bundle = make_music_bundle(
             &asset_server,
@@ -208,12 +208,12 @@ pub fn read_stage_death_trigger(
     volume_settings: Res<VolumeSettings>,
 ) {
     for _ in event_reader.read() {
-        mark_for_despawn_by_component_query(&mut commands, &attack_query);
-        mark_for_despawn_by_component_query(&mut commands, &destructible_query);
-        mark_for_despawn_by_component_query(&mut commands, &enemy_query);
-        mark_for_despawn_by_component_query(&mut commands, &music_query);
-        mark_for_despawn_by_component_query(&mut commands, &object_query);
-        mark_for_despawn_by_component_query(&mut commands, &player_query);
+        mark_for_despawn_by_query(&mut commands, &attack_query);
+        mark_for_despawn_by_query(&mut commands, &destructible_query);
+        mark_for_despawn_by_query(&mut commands, &enemy_query);
+        mark_for_despawn_by_query(&mut commands, &music_query);
+        mark_for_despawn_by_query(&mut commands, &object_query);
+        mark_for_despawn_by_query(&mut commands, &player_query);
 
         let music_bundle = make_music_bundle(
             &asset_server,

@@ -1,5 +1,5 @@
 use crate::{
-    globals::mark_for_despawn_by_component_query,
+    globals::mark_for_despawn_by_query,
     main_menu::{
         components::{MainMenu, MainMenuEntity},
         events::{MainMenuShutdownEvent, MainMenuStartupEvent},
@@ -27,7 +27,7 @@ pub fn on_shutdown(
     for _ in event_reader.read() {
         next_state.set(MainMenuPluginUpdateState::Inactive);
 
-        mark_for_despawn_by_component_query(&mut commands, &main_menu_query);
-        mark_for_despawn_by_component_query(&mut commands, &main_menu_entity_query);
+        mark_for_despawn_by_query(&mut commands, &main_menu_query);
+        mark_for_despawn_by_query(&mut commands, &main_menu_entity_query);
     }
 }

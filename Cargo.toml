@@ -25,7 +25,7 @@ bevy = { version = "0.13", features = ["wayland"] }
 # dynamic_linking cannot be used for webassembly, not required for MacOS
 # bevy = { version = "0.12", features = ["dynamic_linking"] } # required for Windows builds
 bevy_editor_pls = "0.8.0"
-bevy_framepace = "0.15"
+bevy_framepace = "0.16.0"
 derive-new = "0.6.0"
 derive_more = "0.99.17"
 lazy_static = "1.4.0"
@@ -36,6 +36,6 @@ seldom_fn_plugin = "0.6"
 seldom_pixel = { version = "0.6.1", default-features = true, features = [
     "line",
 ] }
-strum = "0.25.0"
-strum_macros = "0.25.0"
+strum = "0.26.2"
+strum_macros = "0.26.4"
 wasm-bindgen = "0.2.87"

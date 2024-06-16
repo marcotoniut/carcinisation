@@ -17,7 +17,7 @@ use self::{
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
     events::*,
-    pickup::systems::health::{mark_despawn_pickup_feedback, pickup_health},
+    pickup::systems::health::pickup_health,
     player::{events::CameraShakeEvent, PlayerPlugin},
     resources::{StageActionTimer, StageProgress, StageTime},
     systems::{
@@ -40,9 +40,12 @@ use self::{
 use crate::{
     core::time::{tick_time, TimeMultiplier},
     game::events::GameOverEvent,
+    globals::mark_for_despawn_by_query_system,
     plugins::movement::{
         linear::{
-            components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
+            components::{
+                LinearTargetReached, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
+            },
             LinearMovement2DPlugin, LinearMovementPlugin,
         },
         pursue::PursueMovementPlugin,
@@ -50,6 +53,7 @@ use crate::{
     systems::{check_despawn_after_delay, delay_despawn},
 };
 use bevy::prelude::*;
+use pickup::{components::PickupFeedback, systems::health::PickupDespawnFilter};
 use seldom_pixel::prelude::PxSubPosition;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -128,7 +132,7 @@ impl Plugin for StagePlugin {
                         (
                             // Pickup
                             pickup_health,
-                            mark_despawn_pickup_feedback,
+                            mark_for_despawn_by_query_system::<PickupDespawnFilter>,
                         ),
                         (
                             // Stage

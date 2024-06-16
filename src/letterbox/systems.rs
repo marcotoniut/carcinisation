@@ -1,7 +1,7 @@
 use super::components::*;
 use super::events::LetterboxMoveEvent;
 use super::resources::LetterboxTime;
-use crate::globals::mark_for_despawn_by_component_query;
+use crate::globals::mark_for_despawn_by_query;
 use crate::globals::GBColor;
 use crate::plugins::movement::linear::components::LinearMovementBundle;
 // use crate::plugins::movement::linear::components::LinearPositionRemovalBundle;
@@ -49,7 +49,7 @@ pub fn on_startup(mut commands: Commands) {
 }
 
 pub fn on_shutdown(mut commands: Commands, entity_query: Query<Entity, With<LetterboxEntity>>) {
-    mark_for_despawn_by_component_query(&mut commands, &entity_query);
+    mark_for_despawn_by_query(&mut commands, &entity_query);
 }
 
 pub fn on_move(

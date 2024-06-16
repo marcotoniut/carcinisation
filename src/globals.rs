@@ -1,6 +1,9 @@
 use crate::components::DespawnMark;
 use assert_assets_path::assert_assets_path;
-use bevy::prelude::*;
+use bevy::{
+    ecs::query::{QueryData, QueryFilter},
+    prelude::*,
+};
 use seldom_pixel::{
     asset::{PxAsset, PxAssets},
     filter::{PxFilter, PxFilterData},
@@ -79,13 +82,20 @@ pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> boo
 //     }
 // }
 
-pub fn mark_for_despawn_by_component_query<T: Component>(
+pub fn mark_for_despawn_by_query<F: QueryFilter>(
     commands: &mut Commands,
-    query: &Query<Entity, With<T>>,
+    query: &Query<'_, '_, Entity, F>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).insert(DespawnMark);
     }
+}
+
+pub fn mark_for_despawn_by_query_system<F: QueryFilter>(
+    mut commands: Commands,
+    query: Query<'_, '_, Entity, F>,
+) {
+    mark_for_despawn_by_query(&mut commands, &query);
 }
 
 // TODO move to components.rs
