@@ -4,7 +4,7 @@ use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::{
     game::{score::components::Score, GameProgressState},
     globals::{
-        mark_for_despawn_by_component_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
+        mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
     Layer,
@@ -40,7 +40,7 @@ pub fn pause_menu_renderer(
             );
         }
     } else {
-        mark_for_despawn_by_component_query(&mut commands, &query);
+        mark_for_despawn_by_query(&mut commands, &query);
     }
 }
 

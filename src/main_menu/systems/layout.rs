@@ -2,7 +2,7 @@ use super::super::components::*;
 use crate::{
     game::resources::Difficulty,
     globals::{
-        mark_for_despawn_by_component_query, GBColor, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
+        mark_for_despawn_by_query, GBColor, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
         TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
     main_menu::{events::ChangeMainMenuScreenEvent, MainMenuScreen},
@@ -28,13 +28,13 @@ pub fn on_change_main_menu_screen(
     for e in event_reader.read() {
         match e.0 {
             MainMenuScreen::DifficultySelect => {
-                mark_for_despawn_by_component_query(&mut commands, &difficulty_select_query)
+                mark_for_despawn_by_query(&mut commands, &difficulty_select_query)
             }
             MainMenuScreen::MainMenuSelect => {
-                mark_for_despawn_by_component_query(&mut commands, &main_menu_select_query)
+                mark_for_despawn_by_query(&mut commands, &main_menu_select_query)
             }
             MainMenuScreen::PressStart => {
-                mark_for_despawn_by_component_query(&mut commands, &press_start_query)
+                mark_for_despawn_by_query(&mut commands, &press_start_query)
             }
         }
         *screen = e.0.clone();

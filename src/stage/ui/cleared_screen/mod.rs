@@ -13,7 +13,7 @@ use super::{components::ScoreText, StageUiPluginUpdateState};
 use crate::{
     game::score::components::Score,
     globals::{
-        mark_for_despawn_by_component_query, GBColor, PxSpriteColorLoader, FONT_SIZE,
+        mark_for_despawn_by_query, GBColor, PxSpriteColorLoader, FONT_SIZE,
         SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
     stage::StageProgressState,
@@ -127,7 +127,7 @@ pub fn despawn_cleared_screen(
     query: Query<Entity, With<ClearedScreen>>,
 ) {
     if stage_state.is_changed() && *stage_state.get() != StageProgressState::Cleared {
-        mark_for_despawn_by_component_query(&mut commands, &query);
+        mark_for_despawn_by_query(&mut commands, &query);
     }
 }
 

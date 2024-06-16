@@ -1,5 +1,5 @@
 use crate::{
-    globals::mark_for_despawn_by_component_query,
+    globals::mark_for_despawn_by_query,
     transitions::{
         data::TransitionVenetianData,
         spiral::{
@@ -34,6 +34,6 @@ pub fn on_shutdown(
     transition_query: Query<Entity, With<TransitionVenetian>>,
 ) {
     for _ in event_reader.read() {
-        mark_for_despawn_by_component_query(&mut commands, &transition_query);
+        mark_for_despawn_by_query(&mut commands, &transition_query);
     }
 }

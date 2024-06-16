@@ -6,7 +6,7 @@ use crate::{
         events::CutsceneShutdownEvent,
         resources::{CutsceneProgress, CutsceneTime},
     },
-    globals::mark_for_despawn_by_component_query,
+    globals::mark_for_despawn_by_query,
     letterbox::events::LetterboxMoveEvent,
     systems::{audio::VolumeSettings, spawn::make_music_bundle},
     Layer,
@@ -82,7 +82,7 @@ pub fn check_cutscene_elapsed(
         if started.0 + elapse.duration < time.elapsed {
             remove_step::<CutsceneElapse>(&mut commands, entity);
             if elapse.clear_graphics {
-                mark_for_despawn_by_component_query(&mut commands, &cutscene_query);
+                mark_for_despawn_by_query(&mut commands, &cutscene_query);
             }
         }
     }
@@ -172,7 +172,7 @@ pub fn process_cutscene_music_spawn(
     volume_settings: Res<VolumeSettings>,
 ) {
     for (entity, spawn) in query.iter() {
-        mark_for_despawn_by_component_query(&mut commands, &music_query);
+        mark_for_despawn_by_query(&mut commands, &music_query);
 
         let music_bundle = make_music_bundle(
             &asset_server,
@@ -192,7 +192,7 @@ pub fn process_cutscene_music_despawn(
     music_query: Query<Entity, With<Music>>,
 ) {
     for (entity, despawn) in query.iter() {
-        mark_for_despawn_by_component_query(&mut commands, &music_query);
+        mark_for_despawn_by_query(&mut commands, &music_query);
         commands.entity(entity).remove::<CutsceneMusicDespawn>();
     }
 }

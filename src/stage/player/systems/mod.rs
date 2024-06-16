@@ -6,7 +6,7 @@ use super::resources::AttackTimer;
 use crate::core::time::DeltaTime;
 use crate::{
     components::DespawnMark,
-    globals::{mark_for_despawn_by_component_query, HUD_HEIGHT, SCREEN_RESOLUTION},
+    globals::{mark_for_despawn_by_query, HUD_HEIGHT, SCREEN_RESOLUTION},
     systems::audio::VolumeSettings,
     GBInput,
 };
@@ -19,7 +19,7 @@ use std::time::Duration;
  * deprecate
  */
 pub fn despawn_player(mut commands: Commands, query: Query<Entity, With<Player>>) {
-    mark_for_despawn_by_component_query(&mut commands, &query)
+    mark_for_despawn_by_query(&mut commands, &query)
 }
 
 pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {

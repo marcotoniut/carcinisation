@@ -135,14 +135,7 @@ pub fn pickup_health(
     }
 }
 
-pub fn mark_despawn_pickup_feedback(
-    mut commands: Commands,
-    query: Query<
-        (Entity, &PickupFeedback),
-        Added<LinearTargetReached<StageTime, TargetingPositionY>>,
-    >,
-) {
-    for (entity, _) in query.iter() {
-        commands.entity(entity).insert(DespawnMark);
-    }
-}
+pub type PickupDespawnFilter = (
+    With<PickupFeedback>,
+    Added<LinearTargetReached<StageTime, TargetingPositionY>>,
+);
