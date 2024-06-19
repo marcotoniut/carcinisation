@@ -24,10 +24,14 @@ extern crate lazy_static;
 
 use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
+use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use components::DespawnMark;
-use cutscene::{data::CutsceneLayer, CutscenePlugin};
+use cutscene::{
+    data::{CutsceneData, CutsceneLayer},
+    CutscenePlugin,
+};
 use debug::DebugPlugin;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
@@ -37,6 +41,7 @@ use main_menu::MainMenuPlugin;
 use pixel::PixelPlugin;
 use resources::DifficultySelected;
 use seldom_pixel::prelude::*;
+use serde::{Deserialize, Serialize};
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
     audio::VolumeSettings,
@@ -170,7 +175,7 @@ impl From<GBInput> for KeyCode {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize)]
 pub enum MidDepth {
     Six,
     Five,
@@ -181,14 +186,14 @@ pub enum MidDepth {
     Zero,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize)]
 pub enum PreBackgroundDepth {
     Nine,
     Eight,
     Seven,
 }
 
-#[derive(Reflect)]
+#[derive(Deserialize, Reflect, Serialize)]
 #[px_layer]
 pub enum Layer {
     Skybox,

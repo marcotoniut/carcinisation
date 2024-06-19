@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 use derive_new::new;
+use serde::{Deserialize, Serialize};
 
 use super::components::{LETTERBOX_HEIGHT, LETTERBOX_INSTANT_SPEED, LETTERBOX_NORMAL_SPEED};
 
-#[derive(new, Event, Clone, Debug)]
+#[derive(new, Event, Clone, Debug, Deserialize, Serialize)]
 pub struct LetterboxMoveEvent {
     pub speed: f32,
     pub target: f32,

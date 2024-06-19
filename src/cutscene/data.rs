@@ -9,9 +9,10 @@ use crate::{
 };
 use bevy::prelude::*;
 use derive_new::new;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Reflect)]
+#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Eq, Ord, Reflect, Serialize)]
 pub enum CutsceneLayer {
     Background(u8),
     Middle(u8),
@@ -22,7 +23,7 @@ pub enum CutsceneLayer {
     Overtext(u8),
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct TargetMovement {
     pub position: Vec2,
     pub speed: f32,
@@ -73,7 +74,7 @@ impl TargetMovement {
     }
 }
 
-#[derive(Clone, Debug, Reflect)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAnimationSpawn {
     pub duration: Duration,
     pub frame_count: usize,
@@ -118,7 +119,7 @@ impl CutsceneAnimationSpawn {
     }
 }
 
-#[derive(new, Clone, Component, Debug, Reflect)]
+#[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAnimationsSpawn {
     #[new(default)]
     pub spawns: Vec<CutsceneAnimationSpawn>,
@@ -155,7 +156,7 @@ impl CutsceneElapse {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CutsceneImageSpawn {
     pub image_path: String,
     pub coordinates: Vec2,
@@ -189,7 +190,7 @@ impl CutsceneImageSpawn {
     }
 }
 
-#[derive(new, Clone, Debug, Component)]
+#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
 pub struct CutsceneImagesSpawn {
     #[new(default)]
     pub spawns: Vec<CutsceneImageSpawn>,
@@ -202,7 +203,7 @@ impl CutsceneImagesSpawn {
     }
 }
 
-#[derive(new, Clone, Debug)]
+#[derive(new, Clone, Debug, Deserialize, Serialize)]
 pub struct CutsceneAct {
     #[new(default)]
     pub await_input: bool,
@@ -256,18 +257,18 @@ impl CutsceneAct {
     }
 }
 
-#[derive(new, Clone, Debug, Component)]
+#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
 pub struct CutsceneMusicSpawn {
     pub music_path: String,
     // TODO fade_in
 }
 
-#[derive(new, Clone, Debug, Component)]
+#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
 pub struct CutsceneMusicDespawn {
     // TODO fade_out
 }
 
-#[derive(new, Clone, Debug, Component)]
+#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
 pub struct CutsceneSpriteSpawn {
     pub image_path: String,
     pub coordinates: Vec2,
@@ -275,10 +276,10 @@ pub struct CutsceneSpriteSpawn {
     pub tag_o: Option<String>,
 }
 
-#[derive(new, Clone, Debug, Component)]
-pub struct CutsceneTransition {}
+#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
+pub struct CutsceneTransition;
 
-#[derive(new, Clone, Debug, Resource)]
+#[derive(new, Asset, Clone, Debug, Deserialize, Resource, Serialize, bevy::reflect::TypePath)]
 pub struct CutsceneData {
     pub name: String,
     #[new(default)]

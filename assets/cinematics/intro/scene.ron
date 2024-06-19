@@ -1,0 +1,32 @@
+(
+    name: "Intro",
+    steps: [
+        (
+            spawn_music: (
+                path: "audio/music/action.ogg",
+            ),
+            spawn_animations: [
+                (
+                    path: "cinematics/intro/acrab_travelling.png",
+                    frames: 5,
+                    speed: 0.3,
+                ),
+            ],
+            elapse: 3.0,
+        ),
+        (
+            spawn_images: [
+                (
+                    path: "cinematics/intro/asteroid_waves.png",
+                ),
+                (
+                    path: "cinematics/intro/screaming_scene.png",
+                ),
+                (
+                    path: "cinematics/intro/transform.png",
+                ),
+            ],
+            elapse: 2.5,
+        ),
+    ],
+)
