@@ -1,5 +1,5 @@
 use crate::{
-    components::DespawnMark,
+    globals::mark_for_despawn_by_query,
     stage::player::{
         bundles::make_player_bundle,
         components::Player,
@@ -27,8 +27,6 @@ pub fn on_shutdown(
     query: Query<Entity, With<Player>>,
 ) {
     for _ in event_reader.read() {
-        for entity in query.iter() {
-            commands.entity(entity).insert(DespawnMark);
-        }
+        mark_for_despawn_by_query(&mut commands, &query);
     }
 }

@@ -170,6 +170,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.86"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -470,6 +476,19 @@ dependencies = [
  "bevy_utils",
  "cpal",
  "rodio",
+]
+
+[[package]]
+name = "bevy_common_assets"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17516cc66d8c00ea3fdba144d518c20f1a8d8c5a7d14af3642dc2488e4bdb3a6"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "ron",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -1453,6 +1472,7 @@ version = "0.2.0"
 dependencies = [
  "assert_assets_path",
  "bevy",
+ "bevy_common_assets",
  "bevy_editor_pls",
  "bevy_framepace",
  "derive-new",
@@ -1463,6 +1483,7 @@ dependencies = [
  "rand",
  "seldom_fn_plugin",
  "seldom_pixel",
+ "serde",
  "strum",
  "strum_macros",
  "wasm-bindgen",

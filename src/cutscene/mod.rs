@@ -3,7 +3,9 @@ pub mod data;
 pub mod events;
 pub mod input;
 pub mod resources;
+pub mod serde;
 pub mod systems;
+use assert_assets_path::assert_assets_path;
 
 use self::{
     events::{CutsceneShutdownEvent, CutsceneStartupEvent},
@@ -23,6 +25,8 @@ use crate::{
     },
 };
 use bevy::prelude::*;
+use bevy_common_assets::ron::RonAssetPlugin;
+use data::CutsceneData;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
 pub struct CutscenePlugin;
@@ -33,6 +37,10 @@ impl Plugin for CutscenePlugin {
             .add_event::<CutsceneStartupEvent>()
             .add_event::<CutsceneShutdownEvent>()
             .init_resource::<CutsceneTime>()
+            // Assets
+            .add_plugins(RonAssetPlugin::<CutsceneData>::new(&[assert_assets_path!(
+                "cinematics/intro/scene.ron"
+            )]))
             .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionX>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionY>::default())

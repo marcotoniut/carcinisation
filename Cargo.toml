@@ -21,9 +21,10 @@ members = [
 
 [dependencies]
 assert_assets_path = { path = "assert_assets_path" }
-bevy = { version = "0.13", features = ["wayland"] }
+bevy = { features = ["wayland"], version = "0.13" }
 # dynamic_linking cannot be used for webassembly, not required for MacOS
 # bevy = { version = "0.12", features = ["dynamic_linking"] } # required for Windows builds
+bevy_common_assets = { features = ["ron"], version = "0.10" }
 bevy_editor_pls = "0.8.0"
 bevy_framepace = "0.16.0"
 derive-new = "0.6.0"
@@ -33,9 +34,10 @@ leafwing-input-manager = "0.13"
 num_enum = "0.7.1"
 rand = "0.8.5"
 seldom_fn_plugin = "0.6"
-seldom_pixel = { version = "0.6.1", default-features = true, features = [
+seldom_pixel = { default-features = true, features = [
     "line",
-] }
+], version = "0.6.1" }
+serde = { version = "1.0", features = ["derive"] }
 strum = "0.26.2"
 strum_macros = "0.26.4"
 wasm-bindgen = "0.2.87"
