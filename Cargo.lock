@@ -2005,6 +2005,7 @@ dependencies = [
  "derive-new",
  "derive_more",
  "lazy_static",
+ "ron",
  "serde",
  "serde_with",
 ]

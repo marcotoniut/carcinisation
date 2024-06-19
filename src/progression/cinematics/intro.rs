@@ -1,4 +1,4 @@
-use crate::{cutscene::data::*, letterbox::events::LetterboxMoveEvent, Layer};
+use crate::{cutscene::data::*, layer::Layer, letterbox::events::LetterboxMoveEvent};
 use assert_assets_path::assert_assets_path;
 use lazy_static::lazy_static;
 use std::sync::Arc;

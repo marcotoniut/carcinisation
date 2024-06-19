@@ -9,6 +9,7 @@ mod data;
 mod debug;
 mod game;
 mod globals;
+mod input;
 mod layer;
 mod letterbox;
 mod main_menu;
@@ -25,25 +26,21 @@ extern crate lazy_static;
 
 use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
-use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use components::DespawnMark;
-use cutscene::{
-    data::{CutsceneData, CutsceneLayer},
-    CutscenePlugin,
-};
+use cutscene::CutscenePlugin;
 use debug::DebugPlugin;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
+use input::GBInput;
 use layer::Layer;
-use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
+use leafwing_input_manager::prelude::InputManagerPlugin;
 use letterbox::LetterboxPlugin;
 use main_menu::MainMenuPlugin;
 use pixel::PixelPlugin;
 use resources::DifficultySelected;
 use seldom_pixel::prelude::*;
-use serde::{Deserialize, Serialize};
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
     audio::VolumeSettings,
@@ -132,47 +129,4 @@ fn main() {
         // Cleanup
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
         .run();
-}
-
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
-pub enum GBInput {
-    A,
-    B,
-    Up,
-    Down,
-    Left,
-    Right,
-    Start,
-    Select,
-    // DEBUG
-    DUp,
-    DDown,
-    DLeft,
-    DRight,
-    DToGame,
-    DToMainMenu,
-    DExit,
-}
-
-impl From<GBInput> for KeyCode {
-    fn from(x: GBInput) -> Self {
-        match x {
-            GBInput::A => KeyCode::KeyX,
-            GBInput::B => KeyCode::KeyZ,
-            GBInput::Up => KeyCode::ArrowUp,
-            GBInput::Down => KeyCode::ArrowDown,
-            GBInput::Left => KeyCode::ArrowLeft,
-            GBInput::Right => KeyCode::ArrowRight,
-            GBInput::Start => KeyCode::Enter,
-            GBInput::Select => KeyCode::ShiftRight,
-            // DEBUG
-            GBInput::DUp => KeyCode::KeyW,
-            GBInput::DDown => KeyCode::KeyS,
-            GBInput::DLeft => KeyCode::KeyA,
-            GBInput::DRight => KeyCode::KeyD,
-            GBInput::DToGame => KeyCode::KeyI,
-            GBInput::DToMainMenu => KeyCode::Delete,
-            GBInput::DExit => KeyCode::Escape,
-        }
-    }
 }
