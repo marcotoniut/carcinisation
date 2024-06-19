@@ -3,6 +3,7 @@ use crate::{
     components::DespawnMark,
     game::score::components::Score,
     globals::SCREEN_RESOLUTION_F32_H,
+    layer::Layer,
     stage::{
         attack::spawns::blood_shot::spawn_blood_shot_attack,
         components::{
@@ -20,7 +21,6 @@ use crate::{
         resources::StageTime,
     },
     systems::camera::CameraPos,
-    Layer,
 };
 use bevy::prelude::*;
 use seldom_pixel::{

@@ -17,6 +17,7 @@ use crate::stage::{
     resources::{StageStepSpawner, StageTime},
 };
 use crate::{
+    layer::Layer,
     stage::{
         components::{
             interactive::{Flickerer, Health, Hittable, Object},
@@ -29,7 +30,6 @@ use crate::{
         pickup::components::HealthRecovery,
     },
     systems::camera::CameraPos,
-    Layer,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;

@@ -7,9 +7,9 @@ use crate::{
         resources::{CutsceneProgress, CutsceneTime},
     },
     globals::mark_for_despawn_by_query,
+    layer::Layer,
     letterbox::events::LetterboxMoveEvent,
     systems::{audio::VolumeSettings, spawn::make_music_bundle},
-    Layer,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::{

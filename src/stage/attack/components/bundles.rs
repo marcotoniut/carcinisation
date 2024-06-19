@@ -1,7 +1,7 @@
 use super::EnemyHoveringAttackType;
 use crate::{
+    layer::Layer,
     stage::components::{interactive::ColliderData, placement::Depth},
-    Layer,
 };
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets},

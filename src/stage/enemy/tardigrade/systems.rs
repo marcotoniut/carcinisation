@@ -3,6 +3,7 @@ use crate::{
     components::DespawnMark,
     game::score::components::Score,
     globals::SCREEN_RESOLUTION_F32_H,
+    layer::Layer,
     stage::{
         attack::spawns::boulder_throw::spawn_boulder_throw_attack,
         components::{
@@ -18,7 +19,6 @@ use crate::{
         resources::StageTime,
     },
     systems::camera::CameraPos,
-    Layer,
 };
 use bevy::prelude::*;
 use seldom_pixel::{

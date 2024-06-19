@@ -5,9 +5,9 @@ use crate::{
         mark_for_despawn_by_query, GBColor, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
         TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
+    layer::Layer,
     main_menu::{events::ChangeMainMenuScreenEvent, MainMenuScreen},
     pixel::components::PxRectangle,
-    Layer,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;

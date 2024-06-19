@@ -1,5 +1,6 @@
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
+    layer::Layer,
     plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
     stage::{
         attack::components::EnemyHoveringAttackType,
@@ -12,7 +13,6 @@ use crate::{
         resources::StageTime,
     },
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
-    Layer,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{
