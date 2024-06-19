@@ -3,7 +3,6 @@ pub mod data;
 pub mod events;
 pub mod input;
 pub mod resources;
-pub mod serde;
 pub mod systems;
 use assert_assets_path::assert_assets_path;
 

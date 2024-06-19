@@ -21,7 +21,12 @@ impl Plugin for GamePlugin {
             .add_systems(PreUpdate, on_startup)
             .add_systems(
                 Update,
-                ((progress, on_stage_cleared, on_cutscene_shutdown)
+                ((
+                    check_cutscene_data_loaded,
+                    progress,
+                    on_stage_cleared,
+                    on_cutscene_shutdown,
+                )
                     .run_if(resource_exists::<GameProgress>),)
                     .run_if(in_state(GamePluginUpdateState::Active)),
             );

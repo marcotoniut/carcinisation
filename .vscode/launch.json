@@ -51,6 +51,28 @@
     {
       "type": "lldb",
       "request": "launch",
+      "name": "Run editor",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=editor",
+          "--package=editor"
+        ],
+        "filter": {
+          "name": "editor",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+        "LD_LIBRARY_PATH": "${workspaceFolder}/target/debug/deps:${env:HOME}/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib",
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
       "name": "Generate Palettes",
       "cargo": {
         "args": [

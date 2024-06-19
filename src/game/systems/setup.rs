@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     cutscene::{
         data::CutsceneData,
@@ -15,7 +17,7 @@ use crate::{
         StagePluginUpdateState,
     },
 };
-use bevy::prelude::*;
+use bevy::{asset::AssetContainer, prelude::*};
 
 pub fn on_startup(
     mut event_reader: EventReader<GameStartupEvent>,
@@ -61,8 +63,8 @@ pub fn on_cutscene_shutdown(
 pub fn progress(
     game_progress: Res<GameProgress>,
     game_data: Res<GameData>,
+    asset_server: Res<AssetServer>,
     mut stage_startup_event_writer: EventWriter<StageStartupEvent>,
-    mut cinematic_startup_event_writer: EventWriter<CutsceneStartupEvent>,
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
         if let Some(data) = game_data.steps.get(game_progress.index) {
@@ -73,17 +75,38 @@ pub fn progress(
                 GameStep::Credits(CreditsGameStep {}) => {
                     // TODO
                 }
-                GameStep::Cinematic(CinematicGameStep {
-                    data,
-                    is_checkpoint,
-                }) => {
-                    cinematic_startup_event_writer
-                        .send(CutsceneStartupEvent { data: data.clone() });
+                GameStep::Cinematic(CinematicGameStep { src, is_checkpoint }) => {
+                    asset_server.load::<CutsceneData>(src);
+                    // let data = Arc::new();
+                    // cinematic_startup_event_writer.send(CutsceneStartupEvent { data });
                 }
                 GameStep::Transition(TransitionGameStep {}) => {
                     // TODO
                 }
             }
         }
+    }
+}
+
+#[derive(Resource)]
+pub struct CutsceneAssetHandle {
+    handle: Handle<CutsceneData>,
+}
+
+pub fn check_cutscene_data_loaded(
+    asset_handle: Res<CutsceneAssetHandle>,
+    cutscene_data_assets: Res<Assets<CutsceneData>>,
+    mut cinematic_startup_event_writer: EventWriter<CutsceneStartupEvent>,
+) {
+    if let Some(cutscene_data) = cutscene_data_assets.get(&asset_handle.handle) {
+        // Asset is loaded, you can now use cutscene_data
+        println!("Cutscene data loaded: {:?}", cutscene_data);
+        cinematic_startup_event_writer.send(CutsceneStartupEvent {
+            // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
+            data: Arc::new(cutscene_data.clone()),
+        });
+    } else {
+        // Asset is not yet loaded
+        println!("Cutscene data is still loading...");
     }
 }
