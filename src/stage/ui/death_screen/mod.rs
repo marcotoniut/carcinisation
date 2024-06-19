@@ -16,8 +16,8 @@ use crate::{
         mark_for_despawn_by_query, GBColor, PxSpriteColorLoader, FONT_SIZE, SCREEN_RESOLUTION,
         TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
+    layer::Layer,
     stage::StageProgressState,
-    Layer,
 };
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;

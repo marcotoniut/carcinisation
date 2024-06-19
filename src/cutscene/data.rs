@@ -1,11 +1,11 @@
 use super::resources::CutsceneTime;
 use crate::{
+    layer::Layer,
     letterbox::events::LetterboxMoveEvent,
     plugins::movement::linear::components::{
         LinearMovementBundle, TargetingPositionX, TargetingPositionY,
     },
     stage::data::GAME_BASE_SPEED,
-    Layer,
 };
 use bevy::prelude::*;
 use derive_new::new;

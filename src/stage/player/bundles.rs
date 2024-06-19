@@ -1,8 +1,8 @@
 use super::{components::*, crosshair::CrosshairSettings, CrosshairInfo};
 use crate::{
     globals::*,
+    layer::Layer,
     stage::components::{interactive::Health, StageEntity},
-    Layer,
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::*;

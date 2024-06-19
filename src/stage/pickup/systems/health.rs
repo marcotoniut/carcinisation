@@ -1,6 +1,7 @@
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
+    layer::Layer,
     plugins::movement::linear::components::{
         LinearAcceleration, LinearDirection, LinearSpeed, LinearTargetPosition,
         LinearTargetReached, TargetingPositionX, TargetingPositionY,
@@ -14,7 +15,6 @@ use crate::{
         resources::StageTime,
     },
     systems::camera::CameraPos,
-    Layer,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;

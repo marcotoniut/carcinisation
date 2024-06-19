@@ -1,7 +1,7 @@
 use super::data::destructibles::DestructibleAnimationData;
 use crate::{
+    layer::Layer,
     stage::components::{interactive::ColliderData, placement::Depth},
-    Layer,
 };
 use bevy::prelude::*;
 use seldom_pixel::{

@@ -1,8 +1,8 @@
 use super::components::{HealthText, Hud, UIBackground};
 use crate::{
     globals::*,
+    layer::Layer,
     stage::{components::StageEntity, ui::components::ScoreText},
-    Layer,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;

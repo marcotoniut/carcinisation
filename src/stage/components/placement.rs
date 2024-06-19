@@ -1,5 +1,6 @@
 use crate::{
-    plugins::movement::structs::MovementVec2Position, Layer, MidDepth, PreBackgroundDepth,
+    layer::{Layer, MidDepth, PreBackgroundDepth},
+    plugins::movement::structs::MovementVec2Position,
 };
 use bevy::{prelude::*, utils::HashMap};
 use num_enum::TryFromPrimitive;

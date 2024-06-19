@@ -1,7 +1,7 @@
 use crate::{
+    layer::Layer,
     stage::components::placement::Depth,
     systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
-    Layer,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{

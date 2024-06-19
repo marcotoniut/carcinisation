@@ -7,8 +7,8 @@ use crate::plugins::movement::linear::components::LinearMovementBundle;
 // use crate::plugins::movement::linear::components::LinearPositionRemovalBundle;
 use crate::plugins::movement::linear::components::TargetingPositionY;
 use crate::{
-    cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, pixel::components::PxRectangle,
-    Layer,
+    cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, layer::Layer,
+    pixel::components::PxRectangle,
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;

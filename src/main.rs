@@ -9,6 +9,7 @@ mod data;
 mod debug;
 mod game;
 mod globals;
+mod layer;
 mod letterbox;
 mod main_menu;
 mod pixel;
@@ -35,6 +36,7 @@ use cutscene::{
 use debug::DebugPlugin;
 use game::GamePlugin;
 use globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION};
+use layer::Layer;
 use leafwing_input_manager::{prelude::InputManagerPlugin, Actionlike};
 use letterbox::LetterboxPlugin;
 use main_menu::MainMenuPlugin;
@@ -174,50 +176,3 @@ impl From<GBInput> for KeyCode {
         }
     }
 }
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize)]
-pub enum MidDepth {
-    Six,
-    Five,
-    Four,
-    Three,
-    Two,
-    One,
-    Zero,
-}
-
-#[derive(Debug, Deserialize, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize)]
-pub enum PreBackgroundDepth {
-    Nine,
-    Eight,
-    Seven,
-}
-
-#[derive(Deserialize, Reflect, Serialize)]
-#[px_layer]
-pub enum Layer {
-    Skybox,
-
-    PreBackgroundDepth(PreBackgroundDepth),
-    Background,
-    MidDepth(MidDepth),
-
-    Attack,
-    #[default]
-    Front,
-    HudBackground,
-    Hud,
-    Pickups,
-    UIBackground,
-    UI,
-    CutsceneLayer(CutsceneLayer),
-    // CutsceneBackground,
-    // Cutscene(u8),
-    // Letterbox,
-    // CutsceneText,
-    Transition,
-}
-
-// impl Layer {
-//     pub fn get_from_depth(entity_type: StageEntityType, depth: DepthBase) -> Self {}
-// }

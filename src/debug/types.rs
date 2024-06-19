@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     cutscene::data::CutsceneAnimationsSpawn,
     globals::GBColor,
+    layer::Layer,
     plugins::movement::linear::components::{
         TargetingPositionX, TargetingPositionY, TargetingPositionZ,
     },
@@ -31,7 +32,6 @@ use crate::{
         player::components::{CameraShake, PlayerAttack},
         resources::StageTime,
     },
-    Layer,
 };
 
 pub fn register_types(app: &mut App) {

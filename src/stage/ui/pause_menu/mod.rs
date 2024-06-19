@@ -7,7 +7,7 @@ use crate::{
         mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
-    Layer,
+    layer::Layer,
 };
 use bevy::prelude::*;
 use seldom_pixel::{
