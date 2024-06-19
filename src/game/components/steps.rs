@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 #[derive(new, Component, Clone, Debug)]
 pub struct CinematicGameStep {
-    pub data: Arc<CutsceneData>,
+    // pub data: Arc<CutsceneData>,
+    pub src: String,
     #[new(value = "true")]
     pub is_checkpoint: bool,
 }

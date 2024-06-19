@@ -10,6 +10,7 @@ use crate::{
 use bevy::prelude::*;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DurationSeconds};
 use std::time::Duration;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Eq, Ord, Reflect, Serialize)]
@@ -74,8 +75,10 @@ impl TargetMovement {
     }
 }
 
+#[serde_as]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAnimationSpawn {
+    #[serde_as(as = "DurationSeconds")]
     pub duration: Duration,
     pub frame_count: usize,
     pub image_path: String,
