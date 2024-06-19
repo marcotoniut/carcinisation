@@ -1,8 +1,8 @@
 use crate::{
     game::{events::GameStartupEvent, resources::Difficulty},
+    input::GBInput,
     main_menu::{events::MainMenuShutdownEvent, resources::DifficultySelection},
     resources::DifficultySelected,
-    GBInput,
 };
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;

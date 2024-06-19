@@ -1,4 +1,4 @@
-use crate::GBInput;
+use crate::input::GBInput;
 use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},

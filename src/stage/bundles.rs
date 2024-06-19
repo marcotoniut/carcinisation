@@ -1,5 +1,5 @@
 use super::data::SkyboxData;
-use crate::Layer;
+use crate::layer::Layer;
 use bevy::prelude::*;
 use seldom_pixel::{asset::*, prelude::*};
 

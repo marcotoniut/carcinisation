@@ -1,5 +1,6 @@
+use crate::input::GBInput;
+
 use super::camera::CameraPos;
-use crate::GBInput;
 use bevy::prelude::*;
 use bevy_framepace::Limiter;
 use leafwing_input_manager::prelude::{ActionState, InputMap};

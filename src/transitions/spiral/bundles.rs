@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use seldom_pixel::{asset::*, filter::*, prelude::*};
 
-use crate::{globals::SCREEN_RESOLUTION, Layer};
+use crate::{globals::SCREEN_RESOLUTION, layer::Layer};
 
 use super::{components::TransitionVenetianRow, resources::*};
 

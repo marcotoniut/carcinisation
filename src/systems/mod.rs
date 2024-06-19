@@ -4,11 +4,10 @@ pub mod movement;
 pub mod setup;
 pub mod spawn;
 
-use self::audio::VolumeSettings;
+use self::audio::{AudioSystemType, VolumeSettings};
 use crate::game::events::GameStartupEvent;
 use crate::main_menu::events::MainMenuStartupEvent;
 use crate::{
-    audio::AudioSystemType,
     components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
     core::time::ElapsedTime,
     game::events::GameOverEvent,

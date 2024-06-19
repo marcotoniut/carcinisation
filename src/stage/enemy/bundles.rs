@@ -1,4 +1,4 @@
-use crate::{data::AnimationData, stage::components::placement::Depth, Layer};
+use crate::{data::AnimationData, layer::Layer, stage::components::placement::Depth};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},

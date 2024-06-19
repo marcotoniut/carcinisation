@@ -29,12 +29,12 @@ use crate::{
         score::components::Score, GameProgressState,
     },
     globals::{mark_for_despawn_by_query, DEBUG_STAGESTEP},
+    input::GBInput,
     plugins::movement::linear::components::{
         extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
         TargetingPositionX, TargetingPositionY,
     },
     systems::{audio::VolumeSettings, camera::CameraPos, spawn::make_music_bundle},
-    GBInput,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};

@@ -1,4 +1,4 @@
-use crate::GBInput;
+use crate::input::GBInput;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
 use leafwing_input_manager::Actionlike;

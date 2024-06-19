@@ -2,7 +2,7 @@ use bevy::{prelude::*, time::Time};
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::{PxCamera, PxSubPosition};
 
-use crate::GBInput;
+use crate::input::GBInput;
 
 #[derive(Component)]
 pub struct CameraPos;
