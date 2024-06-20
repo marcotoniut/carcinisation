@@ -2,11 +2,10 @@
   "rust-analyzer.cargo.loadOutDirsFromCheck": true,
   "rust-analyzer.cargo.buildScripts.enable": true,
   "rust-analyzer.linkedProjects": [
-    "./Cargo.toml",
-    "./scripts/generate-typeface/Cargo.toml"
+    "./Cargo.toml"
   ],
   "rust-analyzer.procMacro.enable": true,
   "[jsonc]": {
     "editor.defaultFormatter": "dprint.dprint"
-  }
+  },
 }

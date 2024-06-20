@@ -1,7 +1,7 @@
 use super::resources::CutsceneTime;
 use crate::{
     layer::Layer,
-    letterbox::events::LetterboxMoveEvent,
+    letterbox::events::LetterboxMove,
     plugins::movement::linear::components::{
         LinearMovementBundle, TargetingPositionX, TargetingPositionY,
     },
@@ -10,7 +10,7 @@ use crate::{
 use bevy::prelude::*;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DurationSeconds};
+use serde_with::{serde_as, DurationSecondsWithFrac};
 use std::time::Duration;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Eq, Ord, Reflect, Serialize)]
@@ -24,10 +24,19 @@ pub enum CutsceneLayer {
     Overtext(u8),
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
+impl Default for CutsceneLayer {
+    fn default() -> Self {
+        CutsceneLayer::Background(0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]
+#[serde_as]
 pub struct TargetMovement {
     pub position: Vec2,
+    #[serde(default)]
     pub speed: f32,
+    #[serde(default)]
     pub acceleration: f32,
 }
 
@@ -76,31 +85,25 @@ impl TargetMovement {
 }
 
 #[serde_as]
-#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+#[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAnimationSpawn {
-    #[serde_as(as = "DurationSeconds")]
-    pub duration: Duration,
-    pub frame_count: usize,
     pub image_path: String,
-    pub coordinates: Vec2,
+    pub frame_count: usize,
+    #[serde_as(as = "DurationSecondsWithFrac")]
+    pub duration: Duration,
     pub layer: Layer,
+    #[new(default)]
+    #[serde(default)]
+    pub coordinates: Vec2,
+    #[new(default)]
+    #[serde(default)]
     pub tag_o: Option<String>,
+    #[new(default)]
+    #[serde(default)]
     pub target_movement_o: Option<TargetMovement>,
 }
 
 impl CutsceneAnimationSpawn {
-    pub fn new(image_path: String, frame_count: usize, secs: f32) -> Self {
-        Self {
-            duration: Duration::from_secs_f32(secs),
-            frame_count,
-            image_path,
-            coordinates: Vec2::ZERO,
-            layer: Layer::CutsceneLayer(CutsceneLayer::Background(0)),
-            tag_o: None,
-            target_movement_o: None,
-        }
-    }
-
     pub fn with_coordinates(mut self, x: f32, y: f32) -> Self {
         self.coordinates = Vec2::new(x, y);
         self
@@ -159,24 +162,19 @@ impl CutsceneElapse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Debug, Deserialize, Serialize)]
 pub struct CutsceneImageSpawn {
     pub image_path: String,
-    pub coordinates: Vec2,
     pub layer: Layer,
+    #[new(default)]
+    #[serde(default)]
+    pub coordinates: Vec2,
+    #[new(default)]
+    #[serde(default)]
     pub tag_o: Option<String>,
 }
 
 impl CutsceneImageSpawn {
-    pub fn new(image_path: String) -> Self {
-        Self {
-            image_path,
-            coordinates: Vec2::ZERO,
-            layer: Layer::CutsceneLayer(CutsceneLayer::Background(0)),
-            tag_o: None,
-        }
-    }
-
     pub fn with_coordinates(mut self, x: f32, y: f32) -> Self {
         self.coordinates = Vec2::new(x, y);
         self
@@ -206,31 +204,42 @@ impl CutsceneImagesSpawn {
     }
 }
 
+#[serde_as]
 #[derive(new, Clone, Debug, Deserialize, Serialize)]
 pub struct CutsceneAct {
     #[new(default)]
+    #[serde(default)]
     pub await_input: bool,
     #[new(default)]
+    #[serde(default)]
     pub despawn_entities: Vec<String>,
     #[new(default)]
+    #[serde_as(as = "DurationSecondsWithFrac")]
+    #[serde(default)]
     pub elapse: Duration,
     #[new(default)]
-    pub letterbox_move_o: Option<LetterboxMoveEvent>,
+    #[serde(default)]
+    pub letterbox_move_o: Option<LetterboxMove>,
     #[new(default)]
+    #[serde(default)]
     pub music_despawn_o: Option<CutsceneMusicDespawn>,
     #[new(default)]
+    #[serde(default)]
     pub music_spawn_o: Option<CutsceneMusicSpawn>,
     #[new(default)]
+    #[serde(default)]
     pub spawn_animations_o: Option<CutsceneAnimationsSpawn>,
     #[new(default)]
+    #[serde(default)]
     pub spawn_images_o: Option<CutsceneImagesSpawn>,
     #[new(default)]
+    #[serde(default)]
     pub transition_o: Option<CutsceneTransition>,
 }
 
 impl CutsceneAct {
-    pub fn move_letterbox(mut self, event: LetterboxMoveEvent) -> Self {
-        self.letterbox_move_o = Some(event);
+    pub fn move_letterbox(mut self, x: LetterboxMove) -> Self {
+        self.letterbox_move_o = Some(x);
         self
     }
 

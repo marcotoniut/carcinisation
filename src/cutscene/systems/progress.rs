@@ -47,8 +47,8 @@ pub fn read_step_trigger(
                 CutsceneElapsedStarted(time.elapsed),
             ));
 
-            if let Some(event) = &act.letterbox_move_o {
-                letterbox_move_event_writer.send(event.clone());
+            if let Some(x) = &act.letterbox_move_o {
+                letterbox_move_event_writer.send(x.clone().into());
             }
             if let Some(music_despawn) = &act.music_despawn_o {
                 entity_commands.insert(music_despawn.clone());

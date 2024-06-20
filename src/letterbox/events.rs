@@ -35,3 +35,33 @@ impl LetterboxMoveEvent {
         Self::new(speed, target)
     }
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum LetterboxMove {
+    To(f32),
+    ToAt(f32, f32),
+    Hide,
+    Show,
+    Close,
+    Open,
+}
+
+impl From<LetterboxMove> for LetterboxMoveEvent {
+    fn from(x: LetterboxMove) -> Self {
+        match x {
+            LetterboxMove::To(target) => LetterboxMoveEvent::move_to(target),
+            LetterboxMove::ToAt(target, speed) => LetterboxMoveEvent::move_to_at(target, speed),
+            LetterboxMove::Hide => LetterboxMoveEvent::hide(),
+            LetterboxMove::Show => LetterboxMoveEvent::show(),
+            LetterboxMove::Close => LetterboxMoveEvent::close(),
+            LetterboxMove::Open => LetterboxMoveEvent::open(),
+        }
+    }
+}
+
+impl From<LetterboxMoveEvent> for LetterboxMove {
+    fn from(e: LetterboxMoveEvent) -> Self {
+        let LetterboxMoveEvent { target, speed } = e;
+        LetterboxMove::ToAt(target, speed)
+    }
+}
