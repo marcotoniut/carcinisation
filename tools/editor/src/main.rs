@@ -4,8 +4,8 @@ use ron::de::from_str;
 use std::{fs, path::Path};
 
 fn main() {
-    let path =
-        Path::new("../assets/").join(assert_assets_path!("cinematics/intro/scene.ron").to_string());
+    let path = Path::new("../../assets/")
+        .join(assert_assets_path!("cinematics/intro/scene.ron").to_string());
 
     println!("{:?}", path);
 
