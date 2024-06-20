@@ -133,11 +133,11 @@ pub fn spawn_game_difficulty_screen(
                     // TODO Menu layers
                     layer: Layer::Hud,
                     rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
-                    text: name.clone().into(),
+                    text: name.into(),
                     typeface: typeface.clone(),
                     ..Default::default()
                 },
-                Name::new(format!("Text<{}>", name.clone())),
+                Name::new(format!("Text<{}>", name)),
             ));
         }
     }

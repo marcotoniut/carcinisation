@@ -1,3 +1,5 @@
+.PHONY: run dev dev-wasm editor release-wasm generate-palettes generate-typeface process-gfx
+
 run:
 	RUST_BACKTRACE=full; cargo run --features bevy/dynamic_linking
 

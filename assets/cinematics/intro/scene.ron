@@ -1,32 +1,107 @@
 (
     name: "Intro",
     steps: [
-        (
-            spawn_music: (
-                path: "audio/music/action.ogg",
+        CutsceneAct(
+            letterbox_move_o: Some(
+                Open,
             ),
-            spawn_animations: [
-                (
-                    path: "cinematics/intro/acrab_travelling.png",
-                    frames: 5,
-                    speed: 0.3,
+        ),
+        CutsceneAct(
+            music_spawn_o: Some(
+                CutsceneMusicSpawn(
+                    music_path: "audio/music/action.ogg",
                 ),
-            ],
+            ),
+            spawn_animations_o: Some(
+                CutsceneAnimationsSpawn(
+                    spawns: [
+                        CutsceneAnimationSpawn(
+                            image_path: "cinematics/intro/acrab_travelling.png",
+                            frame_count: 5,
+                            duration: 0.3,
+                            layer: CutsceneLayer(Background(0)),
+                        ),
+                    ],
+                ),
+            ),
             elapse: 3.0,
         ),
-        (
-            spawn_images: [
-                (
-                    path: "cinematics/intro/asteroid_waves.png",
+        CutsceneAct(
+            spawn_images_o: Some(
+                CutsceneImagesSpawn(
+                    spawns: [
+                        CutsceneImageSpawn(
+                            image_path: "cinematics/intro/asteroid_waves.png",
+                            layer: CutsceneLayer(Background(0),),
+                        ),
+                    ],
                 ),
-                (
-                    path: "cinematics/intro/screaming_scene.png",
-                ),
-                (
-                    path: "cinematics/intro/transform.png",
-                ),
-            ],
+            ),
             elapse: 2.5,
+        ),
+        CutsceneAct(
+            spawn_images_o: Some(
+                CutsceneImagesSpawn(
+                    spawns: [
+                        CutsceneImageSpawn(
+                            image_path: "cinematics/intro/screaming_scene.png",
+                            layer: CutsceneLayer(Background(0),),
+                        ),
+                    ],
+                ),
+            ),
+            elapse: 2.5,
+        ),
+        CutsceneAct(
+            spawn_images_o: Some(
+                CutsceneImagesSpawn(
+                    spawns: [
+                        CutsceneImageSpawn(
+                            image_path: "cinematics/intro/transform.png",
+                            layer: CutsceneLayer(Background(0),),
+                        ),
+                    ],
+                ),
+            ),
+            elapse: 2.5,
+        ),
+        CutsceneAct(
+            spawn_animations_o: Some(
+                CutsceneAnimationsSpawn(
+                    spawns: [
+                        CutsceneAnimationSpawn(
+                            image_path: "cinematics/intro/falling_ship.png",
+                            frame_count: 2,
+                            duration: 0.2,
+                            layer: CutsceneLayer(Background(0),),
+                            tag: Some("ship",),
+                            coordinates: (25.0, 60.0),
+                            target_movement_o: Some(
+                                TargetMovement(
+                                    position: (40.0, 20.0),
+                                    speed: 0.3,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            spawn_images_o: Some(
+                CutsceneImagesSpawn(
+                    spawns: [
+                        CutsceneImageSpawn(
+                            image_path: "cinematics/intro/planet.png",
+                            layer: CutsceneLayer(Background(0),),
+                        ),
+                    ],
+                ),
+            ),
+            elapse: 5.0,
+        ),
+        CutsceneAct(
+            letterbox_move_o: Some(
+                Hide,
+            ),
         ),
     ],
 )

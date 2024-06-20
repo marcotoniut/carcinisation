@@ -17,7 +17,7 @@ use crate::{
         StagePluginUpdateState,
     },
 };
-use bevy::{asset::AssetContainer, prelude::*};
+use bevy::prelude::*;
 
 pub fn on_startup(
     mut event_reader: EventReader<GameStartupEvent>,
@@ -61,9 +61,10 @@ pub fn on_cutscene_shutdown(
 }
 
 pub fn progress(
+    asset_server: Res<AssetServer>,
     game_progress: Res<GameProgress>,
     game_data: Res<GameData>,
-    asset_server: Res<AssetServer>,
+    mut commands: Commands,
     mut stage_startup_event_writer: EventWriter<StageStartupEvent>,
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
@@ -76,9 +77,8 @@ pub fn progress(
                     // TODO
                 }
                 GameStep::Cinematic(CinematicGameStep { src, is_checkpoint }) => {
-                    asset_server.load::<CutsceneData>(src);
-                    // let data = Arc::new();
-                    // cinematic_startup_event_writer.send(CutsceneStartupEvent { data });
+                    let handle = asset_server.load::<CutsceneData>(src);
+                    commands.insert_resource(CutsceneAssetHandle { handle });
                 }
                 GameStep::Transition(TransitionGameStep {}) => {
                     // TODO
@@ -88,23 +88,19 @@ pub fn progress(
     }
 }
 
-#[derive(Resource)]
-pub struct CutsceneAssetHandle {
-    handle: Handle<CutsceneData>,
-}
-
 pub fn check_cutscene_data_loaded(
-    asset_handle: Res<CutsceneAssetHandle>,
+    cutscene_asset_handle: Res<CutsceneAssetHandle>,
     cutscene_data_assets: Res<Assets<CutsceneData>>,
     mut cinematic_startup_event_writer: EventWriter<CutsceneStartupEvent>,
+    mut commands: Commands,
 ) {
-    if let Some(cutscene_data) = cutscene_data_assets.get(&asset_handle.handle) {
-        // Asset is loaded, you can now use cutscene_data
+    if let Some(cutscene_data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
         println!("Cutscene data loaded: {:?}", cutscene_data);
         cinematic_startup_event_writer.send(CutsceneStartupEvent {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
             data: Arc::new(cutscene_data.clone()),
         });
+        commands.remove_resource::<CutsceneAssetHandle>();
     } else {
         // Asset is not yet loaded
         println!("Cutscene data is still loading...");

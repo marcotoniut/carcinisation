@@ -4,12 +4,15 @@ use ron::de::from_str;
 use std::{fs, path::Path};
 
 fn main() {
-    // let path = Path::new(("../../assets/").join(assert_assets_path!("cinematics/intro/scene.ron")));
+    let path =
+        Path::new("../assets/").join(assert_assets_path!("cinematics/intro/scene.ron").to_string());
 
-    // let data = fs::read_to_string(path).expect("Unable to read file");
+    println!("{:?}", path);
 
-    // let cutscene_data: CutsceneData = from_str(&data).expect("RON was not well-formatted");
+    let data = fs::read_to_string(path).expect("Unable to read file");
 
-    // // Print the deserialized data
-    // println!("{:?}", cutscene_data);
+    let cutscene_data: CutsceneData = from_str(&data).expect("RON was not well-formatted");
+
+    // Print the deserialized data
+    println!("{:?}", cutscene_data);
 }

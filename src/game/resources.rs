@@ -1,3 +1,5 @@
+use crate::cutscene::data::CutsceneData;
+
 use super::data::GameStep;
 use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
@@ -54,4 +56,9 @@ impl Step for Difficulty {
         let end = start as i8 - count as i8;
         Difficulty::try_from(end).ok()
     }
+}
+
+#[derive(Resource)]
+pub struct CutsceneAssetHandle {
+    pub handle: Handle<CutsceneData>,
 }
