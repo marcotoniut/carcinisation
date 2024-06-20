@@ -14,10 +14,11 @@ opt-level = 'z'
 resolver = "2"
 members = [
     "assert_assets_path",
-    "editor",
     "scripts/generate-palettes",
     "scripts/generate-typeface",
     "scripts/process-gfx",
+    "tools/editor",
+    "tools/scene-file-watcher",
 ]
 
 [dependencies]

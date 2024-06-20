@@ -1590,6 +1590,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
+name = "colored"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbf2150cce219b664a8a70df7a1f933836724b503f8a413af9365b4dcc4d90b8"
+dependencies = [
+ "lazy_static",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
 name = "com"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2232,6 +2242,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "filetime"
+version = "0.2.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ee447700ac8aa0b2f2bd7bc4462ad686ba06baa6727ac149a2d6277f0d240fd"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "redox_syscall 0.4.1",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2296,6 +2318,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "fsevent-sys"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76ee7a02da4d231650c7cea31349b889be2f45ddb3ef3032d2ec8185f6313fd2"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -2391,7 +2422,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85c132270a155f2548e67d66e731075c336c39098afc555752f3df8f882c720e"
 dependencies = [
  "core-foundation",
- "inotify",
+ "inotify 0.10.2",
  "io-kit-sys",
  "js-sys",
  "libc",
@@ -2771,6 +2802,17 @@ checksum = "a257582fdcde896fd96463bf2d40eefea0580021c0712a0e2b028b60b47a837a"
 
 [[package]]
 name = "inotify"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8069d3ec154eb856955c1c0fbffefbf5f3c40a104ec912d4797314c1801abff"
+dependencies = [
+ "bitflags 1.3.2",
+ "inotify-sys",
+ "libc",
+]
+
+[[package]]
+name = "inotify"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdd168d97690d0b8c412d6b6c10360277f4d7ee495c5d0d5d5fe0854923255cc"
@@ -2888,6 +2930,26 @@ name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
+
+[[package]]
+name = "kqueue"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7447f1ca1b7b563588a205fe93dea8df60fd981423a768bc1c0ded35ed147d0c"
+dependencies = [
+ "kqueue-sys",
+ "libc",
+]
+
+[[package]]
+name = "kqueue-sys"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed9625ffda8729b85e45cf04090035ac368927b8cebc34898e7c120f52e4838b"
+dependencies = [
+ "bitflags 1.3.2",
+ "libc",
+]
 
 [[package]]
 name = "ktx2"
@@ -3110,6 +3172,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e53debba6bda7a793e5f99b8dacf19e626084f525f7829104ba9898f367d85ff"
 
 [[package]]
+name = "mio"
+version = "0.8.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4a650543ca06a924e8b371db273b2756685faae30f8487da1b56505a8f78b0c"
+dependencies = [
+ "libc",
+ "log",
+ "wasi",
+ "windows-sys 0.48.0",
+]
+
+[[package]]
 name = "naga"
 version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3221,6 +3295,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5831952a9476f2fed74b77d74182fa5ddc4d21c72ec45a333b250e3ed0272804"
 dependencies = [
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "notify"
+version = "6.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6205bd8bb1e454ad2e27422015fb5e4f2bcc7e08fa8f27058670d208324a4d2d"
+dependencies = [
+ "bitflags 2.5.0",
+ "crossbeam-channel",
+ "filetime",
+ "fsevent-sys",
+ "inotify 0.9.6",
+ "kqueue",
+ "libc",
+ "log",
+ "mio",
+ "walkdir",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -4065,6 +4158,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "scene-file-watcher"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_common_assets",
+ "bevy_editor_pls",
+ "carcinisation",
+ "colored",
+ "derive-new",
+ "derive_more",
+ "lazy_static",
+ "notify",
+ "ron",
+ "serde",
+ "serde_with",
 ]
 
 [[package]]
