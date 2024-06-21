@@ -18,7 +18,7 @@ lazy_static! {
 pub fn make_steps() -> Vec<GameStep> {
     vec![
         CinematicGameStep {
-            src: assert_assets_path!("cinematics/intro/scene.ron").to_string(),
+            src: assert_assets_path!("cinematics/intro/data.cs.ron").to_string(),
             is_checkpoint: true,
         }
         .into(),

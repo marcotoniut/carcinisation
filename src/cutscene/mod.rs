@@ -37,9 +37,7 @@ impl Plugin for CutscenePlugin {
             .add_event::<CutsceneShutdownEvent>()
             .init_resource::<CutsceneTime>()
             // Assets
-            .add_plugins(RonAssetPlugin::<CutsceneData>::new(&[assert_assets_path!(
-                "cinematics/intro/scene.ron"
-            )]))
+            .add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
             .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionX>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionY>::default())
