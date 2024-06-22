@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
 use bevy::{
-    asset::{AssetServer, Assets},
-    prelude::{Commands, EventWriter, Res},
+    asset::Assets,
+    prelude::{Camera2dBundle, Commands, EventWriter, Res},
 };
 use carcinisation::CutsceneData;
 
 use crate::{events::CutsceneLoadedEvent, resources::CutsceneAssetHandle};
+
+pub fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2dBundle::default());
+}
 
 pub fn check_cutscene_data_loaded(
     cutscene_asset_handle: Res<CutsceneAssetHandle>,
