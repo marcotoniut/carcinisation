@@ -6,9 +6,12 @@ mod systems;
 use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
+use bevy::window::Window;
 use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
-use carcinisation::cutscene::data::CutsceneData;
+use carcinisation::cutscene::data::{
+    CutsceneAct, CutsceneData, CutsceneImageSpawn, CutsceneImagesSpawn,
+};
 use events::{CutsceneLoadedEvent, CutsceneUnloadedEvent};
 use futures_lite::future;
 use inspector::InspectorPlugin;
@@ -53,7 +56,14 @@ fn main() {
         .add_event::<CutsceneLoadedEvent>()
         .add_event::<CutsceneUnloadedEvent>()
         .add_systems(Startup, setup_ui)
-        .add_systems(Update, (file_selector_system, poll_selected_file))
+        .add_systems(
+            Update,
+            (
+                file_selector_system,
+                poll_selected_file,
+                display_cutscene_images,
+            ),
+        )
         .add_systems(
             Update,
             (check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),),
@@ -61,8 +71,17 @@ fn main() {
         .run();
 }
 
-fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2dBundle::default());
+fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>, windows: Query<&Window>) {
+    let window = windows.single();
+    let window_width = window.width();
+
+    let camera_x = window_width / 2.0;
+    let camera_y = 0.0;
+
+    commands.spawn(Camera2dBundle {
+        transform: Transform::from_xyz(camera_x, camera_y, 0.0),
+        ..Default::default()
+    });
 
     commands
         .spawn(NodeBundle {
@@ -150,6 +169,43 @@ fn poll_selected_file(
                 commands.insert_resource(CutsceneAssetHandle { handle });
             }
             commands.entity(entity).remove::<SelectedFile>();
+        }
+    }
+}
+
+fn display_cutscene_images(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    // cutscene_data_assets: Res<Assets<CutsceneData>>,
+    mut event_reader: EventReader<CutsceneLoadedEvent>,
+) {
+    for e in event_reader.read() {
+        for (act_index, act) in e.data.steps.iter().enumerate() {
+            if let Some(spawn_images) = &act.spawn_images_o {
+                for (image_index, image_spawn) in spawn_images.spawns.iter().enumerate() {
+                    let transform = Transform {
+                        translation: Vec3::new(
+                            220.0 * act_index as f32,
+                            180.0 * image_index as f32,
+                            0.0,
+                        ),
+                        ..Default::default()
+                    };
+
+                    commands.spawn((
+                        Name::new(format!(
+                            "Act {} : Image {}",
+                            act_index.to_string(),
+                            image_index.to_string()
+                        )),
+                        SpriteBundle {
+                            texture: asset_server.load(&image_spawn.image_path),
+                            transform,
+                            ..Default::default()
+                        },
+                    ));
+                }
+            }
         }
     }
 }
