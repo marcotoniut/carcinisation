@@ -1,3 +1,4 @@
+mod components;
 mod constants;
 mod events;
 mod file_manager;
@@ -12,12 +13,17 @@ use bevy::window::Window;
 use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use carcinisation::cutscene::data::CutsceneData;
+use components::CutsceneImage;
 use constants::ASSETS_PATH;
 use events::{CutsceneLoadedEvent, CutsceneUnloadedEvent};
 use file_manager::FileManagerPlugin;
 use inspector::InspectorPlugin;
 use resources::CutsceneAssetHandle;
-use systems::{check_cutscene_data_loaded, setup_camera};
+use systems::{
+    check_cutscene_data_loaded,
+    input::{on_mouse_motion, on_mouse_wheel},
+    setup_camera,
+};
 
 // #[derive(Resource)]
 // pub struct SelectedFileText(Option<String>);
@@ -54,6 +60,7 @@ fn main() {
             Update,
             (check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),),
         )
+        .add_systems(Update, (on_mouse_motion, on_mouse_wheel))
         .run();
 }
 
@@ -87,6 +94,7 @@ fn display_cutscene_images(
                             act_index.to_string(),
                             image_index.to_string()
                         )),
+                        CutsceneImage,
                         SpriteBundle {
                             texture: asset_server.load(&image_spawn.image_path),
                             transform,
