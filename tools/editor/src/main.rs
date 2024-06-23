@@ -13,7 +13,7 @@ use bevy::window::Window;
 use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use carcinisation::cutscene::data::CutsceneData;
-use components::CutsceneImage;
+use components::{CutsceneImage, Draggable};
 use constants::ASSETS_PATH;
 use events::{CutsceneLoadedEvent, CutsceneUnloadedEvent};
 use file_manager::FileManagerPlugin;
@@ -21,7 +21,7 @@ use inspector::InspectorPlugin;
 use resources::CutsceneAssetHandle;
 use systems::{
     check_cutscene_data_loaded,
-    input::{on_mouse_motion, on_mouse_wheel},
+    input::{on_mouse_motion, on_mouse_press, on_mouse_wheel},
     setup_camera,
 };
 
@@ -60,7 +60,7 @@ fn main() {
             Update,
             (check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),),
         )
-        .add_systems(Update, (on_mouse_motion, on_mouse_wheel))
+        .add_systems(Update, (on_mouse_press, on_mouse_motion, on_mouse_wheel))
         .run();
 }
 
@@ -95,6 +95,7 @@ fn display_cutscene_images(
                             image_index.to_string()
                         )),
                         CutsceneImage,
+                        Draggable,
                         SpriteBundle {
                             texture: asset_server.load(&image_spawn.image_path),
                             transform,
