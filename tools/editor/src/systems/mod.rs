@@ -1,3 +1,4 @@
+pub mod cutscene;
 pub mod input;
 
 use std::sync::Arc;
