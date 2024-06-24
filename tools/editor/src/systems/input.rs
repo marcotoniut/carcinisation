@@ -7,60 +7,6 @@ use bevy::input::mouse::MouseButton;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 
-pub fn on_mouse_press(
-    buttons: Res<ButtonInput<MouseButton>>,
-    mut windows: Query<&Window>,
-    mut selected_query: Query<Entity, With<SelectedItem>>,
-    mut commands: Commands,
-    draggable_query: Query<
-        (Entity, &Transform, &GlobalTransform, &Sprite),
-        (With<Draggable>, Without<SelectedItem>),
-    >,
-    camera_query: Query<&Transform, With<Camera>>,
-) {
-    if buttons.just_pressed(MouseButton::Left) {
-        // Clear all selected items
-        for entity in selected_query.iter_mut() {
-            commands.entity(entity).remove::<SelectedItem>();
-        }
-
-        let window = windows.single_mut();
-        if let Some(cursor_position) = window.cursor_position() {
-            let window_size = Vec2::new(window.width(), window.height());
-            let ndc = (cursor_position / window_size) * 2.0 - Vec2::ONE;
-
-            if let Ok(camera_transform) = camera_query.get_single() {
-                let camera_matrix = camera_transform.compute_matrix();
-                let world_position = camera_matrix * ndc.extend(-1.0).extend(1.0);
-                let world_position = Vec3::new(world_position.x, world_position.y, 0.0);
-
-                // Sort draggable entities by their z index
-                let mut sorted_entities: Vec<_> = draggable_query.iter().collect();
-                sorted_entities
-                    .sort_by(|a, b| b.1.translation.z.partial_cmp(&a.1.translation.z).unwrap());
-
-                // Find the topmost entity that intersects with the cursor position
-                for (entity, transform, global_transform, sprite) in sorted_entities {
-                    let position = global_transform.translation();
-                    let size = Vec2::new(
-                        sprite.custom_size.unwrap_or(Vec2::new(100.0, 100.0)).x,
-                        sprite.custom_size.unwrap_or(Vec2::new(100.0, 100.0)).y,
-                    );
-
-                    if (world_position.x > position.x - size.x / 2.0
-                        && world_position.x < position.x + size.x / 2.0)
-                        && (world_position.y > position.y - size.y / 2.0
-                            && world_position.y < position.y + size.y / 2.0)
-                    {
-                        commands.entity(entity).insert(SelectedItem);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-}
-
 pub fn on_mouse_motion(
     mut mouse_motion_events: EventReader<MouseMotion>,
     mut cursor_moved_events: EventReader<CursorMoved>,
@@ -82,7 +28,6 @@ pub fn on_mouse_motion(
                 camera_transform.translation.x -= delta.x * CAMERA_MOVE_SENSITIVITY;
                 camera_transform.translation.y += delta.y * CAMERA_MOVE_SENSITIVITY;
 
-                // Constrain camera movement within boundaries
                 camera_transform.translation.x = camera_transform
                     .translation
                     .x
@@ -113,6 +58,62 @@ pub fn on_mouse_motion(
                 }
             }
         }
+    }
+}
+
+pub fn on_mouse_press(
+    buttons: Res<ButtonInput<MouseButton>>,
+    mut windows: Query<&Window>,
+    mut selected_query: Query<Entity, With<SelectedItem>>,
+    mut commands: Commands,
+    draggable_query: Query<
+        (Entity, &Transform, &GlobalTransform, &Sprite),
+        (With<Draggable>, Without<SelectedItem>),
+    >,
+    camera_query: Query<&Transform, With<Camera>>,
+) {
+    if buttons.just_pressed(MouseButton::Left) {
+        for entity in selected_query.iter_mut() {
+            commands.entity(entity).remove::<SelectedItem>();
+        }
+
+        let window = windows.single_mut();
+        if let Some(cursor_position) = window.cursor_position() {
+            let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+            let ndc = (cursor_position / window_size) * 2.0 - Vec2::ONE;
+
+            if let Ok(camera_transform) = camera_query.get_single() {
+                let camera_matrix = camera_transform.compute_matrix();
+                let world_position = camera_matrix * ndc.extend(-1.0).extend(1.0);
+                let world_position = Vec3::new(world_position.x, world_position.y, 0.0);
+
+                // Sort draggable entities by their z index
+                let mut sorted_entities: Vec<_> = draggable_query.iter().collect();
+                sorted_entities
+                    .sort_by(|a, b| b.1.translation.z.partial_cmp(&a.1.translation.z).unwrap());
+
+                for (entity, transform, global_transform, sprite) in sorted_entities {
+                    let position = global_transform.translation();
+                    let size = sprite.custom_size.unwrap_or(Vec2::new(100.0, 100.0));
+
+                    if world_position.x > position.x - size.x / 2.0
+                        && world_position.x < position.x + size.x / 2.0
+                        && world_position.y > position.y - size.y / 2.0
+                        && world_position.y < position.y + size.y / 2.0
+                    {
+                        commands.entity(entity).insert(SelectedItem);
+                        println!("POSITION: {} {}", position.to_string(), size.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn on_mouse_release(mut commands: Commands, selected_query: Query<Entity, With<SelectedItem>>) {
+    for entity in selected_query.iter() {
+        commands.entity(entity).remove::<SelectedItem>();
     }
 }
 
