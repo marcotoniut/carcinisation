@@ -21,7 +21,7 @@ use inspector::InspectorPlugin;
 use resources::CutsceneAssetHandle;
 use systems::{
     check_cutscene_data_loaded,
-    cutscene::display_cutscene_acts,
+    cutscene::{display_cutscene_acts, update_cutscene_act_connections},
     input::{on_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel},
     setup_camera,
 };
@@ -57,7 +57,10 @@ fn main() {
         .add_event::<CutsceneLoadedEvent>()
         .add_event::<CutsceneUnloadedEvent>()
         .add_systems(Startup, setup_camera)
-        .add_systems(Update, (display_cutscene_acts,))
+        .add_systems(
+            Update,
+            (display_cutscene_acts, update_cutscene_act_connections),
+        )
         .add_systems(
             Update,
             (check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),),

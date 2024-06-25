@@ -1,16 +1,25 @@
 use bevy::prelude::*;
 
-#[derive(Component)]
-pub struct ActLabel;
+#[derive(Component, Debug)]
+pub struct CutsceneActNode;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct CutsceneImage;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
+pub struct CutsceneActConnection {
+    pub origin: Entity,
+    pub target: Entity,
+}
+
+#[derive(Component, Debug)]
+pub struct CutsceneImageLabel;
+
+#[derive(Component, Debug)]
 pub struct Draggable;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct LetterboxLabel;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct SelectedItem;
