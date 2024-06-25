@@ -1,13 +1,9 @@
 use crate::components::DespawnMark;
 use assert_assets_path::assert_assets_path;
-use bevy::{
-    ecs::query::{QueryData, QueryFilter},
-    prelude::*,
-};
+use bevy::{ecs::query::QueryFilter, prelude::*};
 use seldom_pixel::{
     asset::{PxAsset, PxAssets},
     filter::{PxFilter, PxFilterData},
-    sprite::PxSprite,
 };
 
 pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);

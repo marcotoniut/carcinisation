@@ -2,7 +2,7 @@ use carcinisation::cutscene::data::CutsceneData;
 
 use bevy::prelude::*;
 
-#[derive(Resource)]
+#[derive(Debug, Resource, Reflect)]
 pub struct CutsceneAssetHandle {
     pub handle: Handle<CutsceneData>,
 }

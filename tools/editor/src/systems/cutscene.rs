@@ -1,16 +1,15 @@
 use bevy::prelude::*;
 use bevy::render::color::Color;
 use bevy::sprite::Anchor;
-use bevy_inspector_egui::egui::Stroke;
-use bevy_prototype_lyon::draw::Fill;
+use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::entity::{Path, ShapeBundle};
 use bevy_prototype_lyon::geometry::GeometryBuilder;
 use bevy_prototype_lyon::path::PathBuilder;
 use carcinisation::globals::SCREEN_RESOLUTION;
 
 use crate::components::{
-    CutsceneActConnection, CutsceneActNode, CutsceneImage, CutsceneImageLabel, Draggable,
-    LetterboxLabel,
+    CutsceneActConnection, CutsceneActLabel, CutsceneActNode, CutsceneImage, CutsceneImageLabel,
+    Draggable, LetterboxLabel,
 };
 use crate::constants::FONT_PATH;
 use crate::events::CutsceneLoadedEvent;
@@ -28,6 +27,18 @@ pub fn display_cutscene_acts(
         let mut camera_transform = camera_query.single_mut();
         camera_transform.translation.x = act_offset * e.data.steps.len() as f32 / 2.0;
 
+        let h1_text_style = TextStyle {
+            font: asset_server.load(FONT_PATH),
+            font_size: 16.0,
+            color: Color::WHITE,
+        };
+        let h2_text_style = TextStyle {
+            // TODO assert_assets_path! with right base path to assets
+            font: asset_server.load(FONT_PATH),
+            font_size: 14.0,
+            color: Color::WHITE,
+        };
+
         let mut previous_entity_o: Option<Entity> = None;
 
         let mut connection_bundles = Vec::new();
@@ -43,28 +54,40 @@ pub fn display_cutscene_acts(
                 Draggable,
                 SpatialBundle::from_transform(Transform::from_translation(act_position)),
             ));
-            entity_commands.with_children(|parent| {
-                parent.spawn((
-                    LetterboxLabel,
-                    Text2dBundle {
-                        text: Text::from_section(
-                            format!("Act: {}", act_index),
-                            TextStyle {
-                                font: asset_server.load(FONT_PATH),
-                                font_size: 16.0,
-                                color: Color::WHITE,
-                            },
-                        ),
+            entity_commands.with_children(|p0| {
+                p0.spawn((
+                    CutsceneActLabel,
+                    Name::new("Act Header"),
+                    NodeBundle {
+                        style: Style {
+                            justify_content: JustifyContent::SpaceEvenly,
+                            column_gap: Val::Px(10.0),
+                            ..default()
+                        },
                         transform: Transform::from_xyz(
                             0.0,
                             SCREEN_RESOLUTION.y as f32 / 2.0 + 25.0,
                             0.0,
                         ),
-                        text_anchor: Anchor::BottomCenter,
-                        ..Default::default()
+                        ..default()
                     },
-                    Name::new(format!("Label : Act {}", act_index)),
-                ));
+                ))
+                .with_children(|p1| {
+                    p1.spawn(Text2dBundle {
+                        text: Text::from_section(
+                            format!("Act {}", act_index),
+                            h1_text_style.clone(),
+                        ),
+                        ..default()
+                    });
+                    p1.spawn(Text2dBundle {
+                        text: Text::from_section(
+                            format!("{}s", act.elapse.as_secs_f32()),
+                            h1_text_style.clone(),
+                        ),
+                        ..default()
+                    });
+                });
 
                 if let Some(spawn_images) = &act.spawn_images_o {
                     for (image_index, image_spawn) in spawn_images.spawns.iter().enumerate() {
@@ -72,43 +95,33 @@ pub fn display_cutscene_acts(
 
                         let texture = asset_server.load(&image_spawn.image_path);
 
-                        parent
-                            .spawn((
-                                Name::new(format!(
-                                    "Act {} : Image {}",
-                                    act_index.to_string(),
-                                    image_index.to_string()
-                                )),
-                                CutsceneImage,
-                                SpriteBundle {
-                                    texture,
-                                    transform,
-                                    ..Default::default()
+                        p0.spawn((
+                            Name::new(format!(
+                                "Act {} : Image {}",
+                                act_index.to_string(),
+                                image_index.to_string()
+                            )),
+                            CutsceneImage,
+                            SpriteBundle {
+                                texture,
+                                transform,
+                                ..default()
+                            },
+                        ))
+                        .with_children(|p2| {
+                            p2.spawn((
+                                CutsceneImageLabel,
+                                Text2dBundle {
+                                    text: Text::from_section(
+                                        &image_spawn.image_path,
+                                        h2_text_style.clone(),
+                                    ),
+                                    text_anchor: Anchor::TopLeft,
+                                    ..default()
                                 },
-                            ))
-                            .with_children(|p2| {
-                                p2.spawn((
-                                    CutsceneImageLabel,
-                                    Text2dBundle {
-                                        text: Text::from_section(
-                                            format!(
-                                                "Image {}: {}",
-                                                image_index.to_string(),
-                                                &image_spawn.image_path
-                                            ),
-                                            TextStyle {
-                                                // TODO assert_assets_path! with right base path to assets
-                                                font: asset_server.load(FONT_PATH),
-                                                font_size: 14.0,
-                                                color: Color::WHITE,
-                                            },
-                                        ),
-                                        text_anchor: Anchor::TopLeft,
-                                        ..Default::default()
-                                    },
-                                    Name::new(format!("Label - Image {}", image_index.to_string())),
-                                ));
-                            });
+                                Name::new(format!("Label - Image {}", image_index.to_string())),
+                            ));
+                        });
                     }
                 }
 
@@ -122,35 +135,38 @@ pub fn display_cutscene_acts(
                         LetterboxMove::ToAt(x, y) => format!("ToAt {} {}", x, y),
                     };
 
-                    parent.spawn((
+                    p0.spawn((
                         LetterboxLabel,
-                        Text2dBundle {
-                            text: Text::from_section(
-                                format!("Letterbox: {}", instruction),
-                                TextStyle {
-                                    // TODO assert_assets_path! with right base path to assets
-                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                    font_size: 16.0,
-                                    color: Color::WHITE,
-                                },
-                            ),
+                        Name::new("Letterbox Header"),
+                        NodeBundle {
+                            style: Style {
+                                row_gap: Val::Px(10.0),
+                                ..default()
+                            },
                             transform: Transform::from_xyz(
                                 0.0,
                                 SCREEN_RESOLUTION.y as f32 / 2.0 + 10.0,
                                 0.0,
                             ),
-                            text_anchor: Anchor::BottomCenter,
-                            ..Default::default()
+                            ..default()
                         },
-                        Name::new(format!("Label - Act {} Letterbox", act_index)),
-                    ));
+                    ))
+                    .with_children(|p1| {
+                        p1.spawn(Text2dBundle {
+                            text: Text::from_section(
+                                format!("Letterbox {}", instruction),
+                                h1_text_style.clone(),
+                            ),
+                            ..default()
+                        });
+                    });
                 }
 
                 if let Some(previous_entity) = previous_entity_o {
                     let path_builder = PathBuilder::new();
                     let shape = path_builder.build();
 
-                    let current_entity = parent.parent_entity();
+                    let current_entity = p0.parent_entity();
 
                     connection_bundles.push((
                         Name::new(format!(
@@ -160,12 +176,13 @@ pub fn display_cutscene_acts(
                         )),
                         CutsceneActConnection {
                             origin: previous_entity,
-                            target: parent.parent_entity(),
+                            target: p0.parent_entity(),
                         },
                         ShapeBundle {
                             path: GeometryBuilder::build_as(&shape),
-                            ..Default::default()
+                            ..default()
                         },
+                        Stroke::new(Color::WHITE, 2.0),
                     ));
                 }
             });

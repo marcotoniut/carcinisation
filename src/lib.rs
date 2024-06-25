@@ -6,7 +6,7 @@ mod components;
 mod core;
 pub mod cutscene;
 mod data;
-mod debug;
+pub mod debug;
 mod game;
 pub mod globals;
 mod input;

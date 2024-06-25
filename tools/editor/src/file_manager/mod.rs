@@ -1,4 +1,4 @@
-mod components;
+pub mod components;
 mod constants;
 mod systems;
 
