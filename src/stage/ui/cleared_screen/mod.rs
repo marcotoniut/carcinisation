@@ -39,9 +39,9 @@ pub fn render_cleared_screen(
 
         commands
             .spawn((ClearedScreen {}, Name::new("Screen Cleared")))
-            .with_children(|parent| {
+            .with_children(|p0| {
                 for i in 25..(115 as i32) {
-                    parent.spawn((
+                    p0.spawn((
                         PxLineBundle::<Layer> {
                             canvas: PxCanvas::Camera,
                             line: [
@@ -51,13 +51,13 @@ pub fn render_cleared_screen(
                             .into(),
                             layers: PxFilterLayers::single_over(Layer::UIBackground),
                             filter: assets_filter.load_color(GBColor::White),
-                            ..Default::default()
+                            ..default()
                         },
                         UIBackground {},
                         Name::new("UIBackground"),
                     ));
 
-                    parent.spawn((
+                    p0.spawn((
                         PxTextBundle::<Layer> {
                             alignment: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
@@ -71,13 +71,13 @@ pub fn render_cleared_screen(
                             .into(),
                             text: "Stage  Cleared".into(),
                             typeface: typeface.clone(),
-                            ..Default::default()
+                            ..default()
                         },
                         InfoText,
                         Name::new("InfoText_Stage_Cleared"),
                     ));
 
-                    parent.spawn((
+                    p0.spawn((
                         PxTextBundle::<Layer> {
                             alignment: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
@@ -91,13 +91,13 @@ pub fn render_cleared_screen(
                             .into(),
                             text: "Score:".into(),
                             typeface: typeface.clone(),
-                            ..Default::default()
+                            ..default()
                         },
                         InfoText,
                         Name::new("InfoText_Score"),
                     ));
 
-                    parent.spawn((
+                    p0.spawn((
                         PxTextBundle::<Layer> {
                             alignment: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
@@ -111,7 +111,7 @@ pub fn render_cleared_screen(
                             .into(),
                             text: score_text.clone().into(),
                             typeface: typeface.clone(),
-                            ..Default::default()
+                            ..default()
                         },
                         ScoreText,
                         Name::new("ScoreText"),

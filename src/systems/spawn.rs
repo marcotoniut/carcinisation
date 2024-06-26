@@ -18,9 +18,9 @@ pub fn make_music_bundle(
             settings: PlaybackSettings {
                 mode,
                 volume: Volume::new(volume_settings.1 * 1.0),
-                ..Default::default()
+                ..default()
             },
-            ..Default::default()
+            ..default()
         },
         AudioSystemBundle {
             system_type: AudioSystemType::MUSIC,

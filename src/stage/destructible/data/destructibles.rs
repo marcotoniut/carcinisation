@@ -97,7 +97,7 @@ lazy_static! {
                                     .with_offset(Vec2::new(-1.0, 122.0)),
                             ),
                         },
-                        ..Default::default()
+                        ..default()
                     },
                     broken: AnimationData {
                         sprite_path: concat_strings_and_number(
@@ -109,7 +109,7 @@ lazy_static! {
                         frames: lamp_broken_frames,
                         speed: lamp_broken_speed,
                         finish_behavior: PxAnimationFinishBehavior::Mark,
-                        ..Default::default()
+                        ..default()
                     },
                 },
             );
@@ -148,7 +148,7 @@ lazy_static! {
                             ),
                             _ => ColliderData::new(),
                         },
-                        ..Default::default()
+                        ..default()
                     },
                     broken: AnimationData {
                         sprite_path: concat_strings_and_number(
@@ -160,7 +160,7 @@ lazy_static! {
                         frames: trashcan_broken_frames,
                         speed: trashcan_broken_speed,
                         finish_behavior: PxAnimationFinishBehavior::Mark,
-                        ..Default::default()
+                        ..default()
                     },
                 },
             );
@@ -194,7 +194,7 @@ lazy_static! {
                                     Collider::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
                                 ]),
                             },
-                            ..Default::default()
+                            ..default()
                         },
                         broken: AnimationData {
                             sprite_path: concat_strings_and_number(
@@ -206,7 +206,7 @@ lazy_static! {
                             frames: mushroom_broken_frames,
                             speed: mushroom_broken_speed,
                             finish_behavior: PxAnimationFinishBehavior::Mark,
-                            ..Default::default()
+                            ..default()
                         },
                     },
                 );
@@ -240,7 +240,7 @@ lazy_static! {
                                         .with_offset(Vec2::new(-4., 40.)),
                                 ),
                             },
-                            ..Default::default()
+                            ..default()
                         },
                         broken: AnimationData {
                             sprite_path: concat_strings_and_number(
@@ -252,7 +252,7 @@ lazy_static! {
                             frames: crystal_broken_frames,
                             speed: crystal_broken_speed,
                             finish_behavior: PxAnimationFinishBehavior::Mark,
-                            ..Default::default()
+                            ..default()
                         },
                     },
                 );

@@ -19,7 +19,7 @@ pub fn make_transition_venetian_row(
             .into(),
             layers: PxFilterLayers::single_over(Layer::Transition),
             filter,
-            ..Default::default()
+            ..default()
         },
         TransitionVenetianRow { row },
         Name::new("TransitionSpiralLine"),

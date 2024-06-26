@@ -39,15 +39,15 @@ fn main() {
             DefaultPlugins
                 .set(AssetPlugin {
                     file_path: ASSETS_PATH.into(),
-                    ..Default::default()
+                    ..default()
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title,
                         resizable: true,
-                        ..Default::default()
+                        ..default()
                     }),
-                    ..Default::default()
+                    ..default()
                 }),
         )
         .add_plugins(DebugPlugin)

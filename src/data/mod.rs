@@ -1,4 +1,5 @@
 use crate::stage::components::interactive::ColliderData;
+use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 
 pub struct AnimationData {
@@ -18,7 +19,7 @@ impl AnimationData {
             duration: PxAnimationDuration::millis_per_animation(self.speed),
             frame_transition: self.frame_transition,
             on_finish: self.finish_behavior,
-            ..Default::default()
+            ..default()
         }
     }
 }

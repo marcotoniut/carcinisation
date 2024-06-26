@@ -55,9 +55,9 @@ pub fn spawn_pause_menu_bundle(
     let score_text = score.value.to_string();
     let entity = commands
         .spawn((PauseMenu {}, Name::new("PauseMenu")))
-        .with_children(|parent| {
+        .with_children(|p0| {
             for i in 40..(100 as i32) {
-                parent.spawn((
+                p0.spawn((
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
                         line: [
@@ -67,13 +67,13 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
                         filter: filters.load("filter/color3.png"),
-                        ..Default::default()
+                        ..default()
                     },
                     UIBackground {},
                     Name::new("UIBackground"),
                 ));
 
-                parent.spawn((
+                p0.spawn((
                     PxTextBundle::<Layer> {
                         alignment: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
@@ -87,13 +87,13 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         text: "Paused".into(),
                         typeface: typeface.clone(),
-                        ..Default::default()
+                        ..default()
                     },
                     InfoText,
                     Name::new("InfoText_Pause"),
                 ));
 
-                parent.spawn((
+                p0.spawn((
                     PxTextBundle::<Layer> {
                         alignment: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
@@ -107,13 +107,13 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         text: "Score:".into(),
                         typeface: typeface.clone(),
-                        ..Default::default()
+                        ..default()
                     },
                     InfoText,
                     Name::new("InfoText_Score"),
                 ));
 
-                parent.spawn((
+                p0.spawn((
                     PxTextBundle::<Layer> {
                         alignment: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
@@ -127,7 +127,7 @@ pub fn spawn_pause_menu_bundle(
                         .into(),
                         text: score_text.clone().into(),
                         typeface: typeface.clone(),
-                        ..Default::default()
+                        ..default()
                     },
                     ScoreText,
                     Name::new("ScoreText"),

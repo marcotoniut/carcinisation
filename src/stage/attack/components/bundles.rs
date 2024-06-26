@@ -3,6 +3,7 @@ use crate::{
     layer::Layer,
     stage::components::{interactive::ColliderData, placement::Depth},
 };
+use bevy::prelude::*;
 use seldom_pixel::{
     prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},
@@ -22,13 +23,13 @@ pub fn make_hovering_attack_animation_bundle(
             sprite: texture,
             layer: (depth - 1).to_layer(),
             anchor: PxAnchor::Center,
-            ..Default::default()
+            ..default()
         },
         PxAnimationBundle {
             duration: PxAnimationDuration::millis_per_animation(animation.speed),
             on_finish: animation.finish_behavior,
             direction: animation.direction,
-            ..Default::default()
+            ..default()
         },
         animation.collider_data.clone(),
     )

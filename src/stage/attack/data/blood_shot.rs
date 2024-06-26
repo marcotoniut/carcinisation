@@ -1,5 +1,3 @@
-use std::ops::RangeInclusive;
-
 use crate::{
     data::AnimationData,
     globals::PATH_SPRITES_ATTACKS,
@@ -12,8 +10,10 @@ use crate::{
         player::components::PLAYER_DEPTH,
     },
 };
+use bevy::prelude::*;
 use bevy::utils::HashMap;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
+use std::ops::RangeInclusive;
 
 pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = -2.;
 pub const BLOOD_SHOT_ATTACK_LINE_SPEED: f32 = 25.;
@@ -65,7 +65,7 @@ lazy_static! {
                         FRAGMENT_HOVERING,
                         i,
                     ),
-                    ..Default::default()
+                    ..default()
                 },
             );
         }
@@ -83,7 +83,7 @@ lazy_static! {
                     HIT_DEPTH,
                 ),
                 speed: hit_speed,
-                ..Default::default()
+                ..default()
             },
         );
 

@@ -137,7 +137,7 @@ pub fn spawn_boulder_throw_attack(
         inflicts_damage: InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
         position: PxSubPosition(current_pos),
         movement: BoulderThrowMovementBundle::new(depth, current_pos, target_pos),
-        default: Default::default(),
+        default: default(),
     });
     entity_commands.insert((sprite, animation));
 

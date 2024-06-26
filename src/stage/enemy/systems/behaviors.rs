@@ -72,9 +72,9 @@ pub fn check_no_behavior(
         commands
             .entity(entity)
             .insert(current_behavior)
-            .with_children(|parent| {
+            .with_children(|p0| {
                 if let Some(duration) = duration_o {
-                    parent.spawn(EnemyBehaviorTimer::new(entity, duration));
+                    p0.spawn(EnemyBehaviorTimer::new(entity, duration));
                 }
             });
     }

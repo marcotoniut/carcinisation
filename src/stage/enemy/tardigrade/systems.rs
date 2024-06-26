@@ -80,7 +80,7 @@ pub fn despawn_dead_tardigrade(
                     sprite: texture,
                     layer: depth.to_layer(),
                     anchor: PxAnchor::Center,
-                    ..Default::default()
+                    ..default()
                 },
                 animation.make_animation_bundle(),
             ));

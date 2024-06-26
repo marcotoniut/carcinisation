@@ -45,7 +45,7 @@ pub fn make_animation_bundle(
                     sprite,
                     layer: depth.to_layer(),
                     anchor: animation_data.anchor,
-                    ..Default::default()
+                    ..default()
                 },
                 animation_data.make_animation_bundle(),
                 animation_data.collider_data.clone(),
