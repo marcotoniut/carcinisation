@@ -7,9 +7,9 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use super::components::SelectedFile;
+use super::components::{SaveButton, SelectFileButton, SelectedFile};
 use super::constants::RECENT_FILE_PATH;
-use crate::constants::ASSETS_PATH;
+use crate::constants::{ASSETS_PATH, FONT_PATH};
 use crate::resources::CutsceneAssetHandle;
 use crate::ui::styles::*;
 
@@ -18,6 +18,19 @@ pub fn setup_ui(
     asset_server: Res<AssetServer>,
     // selected_file_text: Res<SelectedFileText>,
 ) {
+    let button_style = Style {
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        padding: UiRect::axes(Val::Px(15.0), Val::Px(7.0)),
+        ..default()
+    };
+
+    let h1_text_style = TextStyle {
+        font: asset_server.load(FONT_PATH),
+        font_size: 16.0,
+        color: COLOR_SELECT_FILE,
+    };
+
     commands
         .spawn(NodeBundle {
             style: Style {
@@ -31,27 +44,36 @@ pub fn setup_ui(
             ..default()
         })
         .with_children(|p0| {
-            p0.spawn(ButtonBundle {
-                style: Style {
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::axes(Val::Px(15.0), Val::Px(7.0)),
+            p0.spawn((
+                SelectFileButton,
+                ButtonBundle {
+                    style: button_style.clone(),
+                    background_color: COLOR_NORMAL.into(),
                     ..default()
                 },
-                background_color: COLOR_NORMAL.into(),
-                ..default()
-            })
+            ))
             .with_children(|p1| {
                 p1.spawn((
                     TextBundle {
-                        text: Text::from_section(
-                            "Select File",
-                            TextStyle {
-                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                font_size: 16.0,
-                                color: COLOR_SELECT_FILE,
-                            },
-                        ),
+                        text: Text::from_section("Select File", h1_text_style.clone()),
+                        ..default()
+                    },
+                    Label,
+                ));
+            });
+
+            p0.spawn((
+                SaveButton,
+                ButtonBundle {
+                    style: button_style.clone(),
+                    background_color: COLOR_NORMAL.into(),
+                    ..default()
+                },
+            ))
+            .with_children(|p1| {
+                p1.spawn((
+                    TextBundle {
+                        text: Text::from_section("Save", h1_text_style.clone()),
                         ..default()
                     },
                     Label,
@@ -79,17 +101,34 @@ pub fn load_recent_file(mut commands: Commands) {
     commands.spawn(SelectedFile(task));
 }
 
-pub fn file_selector_system(
+pub fn on_button_interaction(
     mut interaction_query: Query<
         (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<Button>),
     >,
-    mut commands: Commands,
 ) {
     for (interaction, mut background_color) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Pressed => {
                 *background_color = COLOR_PRESSED.into();
+            }
+            Interaction::Hovered => {
+                *background_color = COLOR_HOVERED.into();
+            }
+            Interaction::None => {
+                *background_color = COLOR_NORMAL.into();
+            }
+        }
+    }
+}
+
+pub fn on_select_file(
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SelectFileButton>)>,
+    mut commands: Commands,
+) {
+    for interaction in interaction_query.iter_mut() {
+        match *interaction {
+            Interaction::Pressed => {
                 let thread_pool = AsyncComputeTaskPool::get();
                 let task = thread_pool.spawn(async move {
                     FileDialog::new()
@@ -99,12 +138,19 @@ pub fn file_selector_system(
                 });
                 commands.spawn(SelectedFile(task));
             }
-            Interaction::Hovered => {
-                *background_color = COLOR_HOVERED.into();
-            }
-            Interaction::None => {
-                *background_color = COLOR_NORMAL.into();
-            }
+            _ => {}
+        }
+    }
+}
+
+pub fn on_save(
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
+    mut commands: Commands,
+) {
+    for interaction in interaction_query.iter_mut() {
+        match *interaction {
+            Interaction::Pressed => {}
+            _ => {}
         }
     }
 }
