@@ -43,9 +43,9 @@ pub fn render_death_screen(
 
         commands
             .spawn((DeathScreen, Name::new("Death Screen")))
-            .with_children(|parent| {
+            .with_children(|p0| {
                 for i in 25..(115 as i32) {
-                    parent.spawn((
+                    p0.spawn((
                         PxLineBundle::<Layer> {
                             canvas: PxCanvas::Camera,
                             line: [
@@ -55,13 +55,13 @@ pub fn render_death_screen(
                             .into(),
                             layers: PxFilterLayers::single_over(Layer::UIBackground),
                             filter: assets_filter.load_color(GBColor::White),
-                            ..Default::default()
+                            ..default()
                         },
                         UIBackground {},
                         Name::new("UIBackground"),
                     ));
 
-                    parent.spawn((
+                    p0.spawn((
                         PxTextBundle::<Layer> {
                             alignment: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
@@ -75,13 +75,13 @@ pub fn render_death_screen(
                             .into(),
                             text: lives_text.clone().into(),
                             typeface: typeface.clone(),
-                            ..Default::default()
+                            ..default()
                         },
                         InfoText,
                         Name::new("InfoText_Stage_Lives"),
                     ));
 
-                    parent.spawn((
+                    p0.spawn((
                         PxTextBundle::<Layer> {
                             alignment: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
@@ -95,13 +95,13 @@ pub fn render_death_screen(
                             .into(),
                             text: "Score:".into(),
                             typeface: typeface.clone(),
-                            ..Default::default()
+                            ..default()
                         },
                         InfoText,
                         Name::new("InfoText_Score"),
                     ));
 
-                    parent.spawn((
+                    p0.spawn((
                         PxTextBundle::<Layer> {
                             alignment: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
@@ -115,7 +115,7 @@ pub fn render_death_screen(
                             .into(),
                             text: score_text.clone().into(),
                             typeface: typeface.clone(),
-                            ..Default::default()
+                            ..default()
                         },
                         CurrentScoreText,
                         Name::new("FinalScoreText"),

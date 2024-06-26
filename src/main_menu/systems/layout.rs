@@ -45,15 +45,15 @@ pub fn spawn_main_menu(mut commands: Commands, mut assets_sprite: PxAssets<PxSpr
     let entity = commands.spawn(MainMenu).id();
 
     let mut entity_commands = commands.entity(entity);
-    entity_commands.with_children(|parent| {
+    entity_commands.with_children(|p0| {
         let background_sprite =
             assets_sprite.load(assert_assets_path!("ui/main_menu/background.png"));
-        parent.spawn((
+        p0.spawn((
             PxSpriteBundle::<Layer> {
                 sprite: background_sprite,
                 anchor: PxAnchor::BottomLeft,
                 layer: Layer::Hud,
-                ..Default::default()
+                ..default()
             },
             Name::new("MainMenuBackground"),
         ));
@@ -79,7 +79,7 @@ pub fn spawn_press_start_screen(
                 rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
                 text: "Press Start".into(),
                 typeface: typeface.clone(),
-                ..Default::default()
+                ..default()
             },
             Name::new("Text<PressStart>"),
         ));
@@ -135,7 +135,7 @@ pub fn spawn_game_difficulty_screen(
                     rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
                     text: name.into(),
                     typeface: typeface.clone(),
-                    ..Default::default()
+                    ..default()
                 },
                 Name::new(format!("Text<{}>", name)),
             ));

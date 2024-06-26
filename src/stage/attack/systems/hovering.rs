@@ -62,9 +62,9 @@ pub fn hovering_damage_on_reached(
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Despawn,
                     volume: Volume::new(volume_settings.2 * 1.0),
-                    ..Default::default()
+                    ..default()
                 },
-                ..Default::default()
+                ..default()
             },
             AudioSystemBundle {
                 system_type: AudioSystemType::SFX,
@@ -82,7 +82,7 @@ pub fn hovering_damage_on_reached(
                         .load_animated(animation.sprite_path.clone(), animation.frames),
                     layer: depth.to_layer(),
                     anchor: PxAnchor::Center,
-                    ..Default::default()
+                    ..default()
                 },
                 animation.make_animation_bundle(),
                 DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.4),

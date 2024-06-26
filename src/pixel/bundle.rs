@@ -14,19 +14,19 @@ pub fn insert_rectangle(
         .insert(PxRectangle {
             height,
             width,
-            ..Default::default()
+            ..default()
         })
-        .with_children(|parent| {
+        .with_children(|p0| {
             for row in 0..height {
                 let i = row as i32;
-                parent.spawn((
+                p0.spawn((
                     PxRectangleRow(row),
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
                         line: [(0, i).into(), (width as i32, i).into()].into(),
                         layers: PxFilterLayers::single_over(Layer::Transition),
                         filter: filters.load(color.get_filter_path()),
-                        ..Default::default()
+                        ..default()
                     },
                 ));
             }

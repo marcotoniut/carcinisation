@@ -113,7 +113,7 @@ pub fn spawn_pickup(
                         sprite,
                         anchor: PxAnchor::Center,
                         layer: spawn.depth.to_layer(),
-                        ..Default::default()
+                        ..default()
                     },
                     position,
                     spawn.depth.clone(),
@@ -133,7 +133,7 @@ pub fn spawn_pickup(
                         sprite,
                         anchor: PxAnchor::BottomCenter,
                         layer: spawn.depth.to_layer(),
-                        ..Default::default()
+                        ..default()
                     },
                     position,
                     spawn.depth.clone(),
@@ -172,7 +172,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
                     behaviors,
                     position: PxSubPosition::from(position),
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    default: Default::default(),
+                    default: default(),
                 })
                 .id();
 
@@ -200,7 +200,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
                     behaviors,
                     position: PxSubPosition::from(position),
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    default: Default::default(),
+                    default: default(),
                 })
                 .id()
         }
@@ -259,7 +259,7 @@ pub fn spawn_object(
                 sprite,
                 anchor: PxAnchor::BottomCenter,
                 layer: spawn.depth.to_layer(),
-                ..Default::default()
+                ..default()
             },
             PxSubPosition::from(spawn.coordinates.clone()),
             StageEntity,

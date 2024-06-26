@@ -125,7 +125,7 @@ pub fn spawn_blood_shot_attack(
         inflicts_damage: InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
         position: PxSubPosition(current_pos),
         movement: BloodShotMovementBundle::new(depth, current_pos, target_pos),
-        default: Default::default(),
+        default: default(),
     });
 
     entity_commands.insert((sprite, animation));

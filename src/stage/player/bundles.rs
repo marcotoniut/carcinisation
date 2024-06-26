@@ -29,7 +29,7 @@ pub fn make_player_bundle(
             sprite,
             layer: Layer::Front,
             anchor: PxAnchor::Center,
-            ..Default::default()
+            ..default()
         },
         PxSubPosition::from(Vec2::new(
             (SCREEN_RESOLUTION.x / 2) as f32,

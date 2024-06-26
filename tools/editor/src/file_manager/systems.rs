@@ -25,39 +25,38 @@ pub fn setup_ui(
                 height: Val::Percent(100.0),
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Start,
-                ..Default::default()
+                ..default()
             },
             background_color: Color::NONE.into(),
-            ..Default::default()
+            ..default()
         })
-        .with_children(|parent| {
-            parent
-                .spawn(ButtonBundle {
-                    style: Style {
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        padding: UiRect::axes(Val::Px(15.0), Val::Px(7.0)),
-                        ..Default::default()
+        .with_children(|p0| {
+            p0.spawn(ButtonBundle {
+                style: Style {
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    padding: UiRect::axes(Val::Px(15.0), Val::Px(7.0)),
+                    ..default()
+                },
+                background_color: COLOR_NORMAL.into(),
+                ..default()
+            })
+            .with_children(|p1| {
+                p1.spawn((
+                    TextBundle {
+                        text: Text::from_section(
+                            "Select File",
+                            TextStyle {
+                                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 16.0,
+                                color: COLOR_SELECT_FILE,
+                            },
+                        ),
+                        ..default()
                     },
-                    background_color: COLOR_NORMAL.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn((
-                        TextBundle {
-                            text: Text::from_section(
-                                "Select File",
-                                TextStyle {
-                                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                                    font_size: 16.0,
-                                    color: COLOR_SELECT_FILE,
-                                },
-                            ),
-                            ..Default::default()
-                        },
-                        Label,
-                    ));
-                });
+                    Label,
+                ));
+            });
         });
 }
 

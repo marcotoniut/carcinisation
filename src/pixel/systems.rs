@@ -22,7 +22,7 @@ pub fn spawn_rectangle_rows<L: PxLayer>(
                 line: rectangle.row_line_vec(Vec2::ZERO, &row).into(),
                 filter: filter.clone(),
                 layers: PxFilterLayers::single_over(rectangle.layer.clone()),
-                ..Default::default()
+                ..default()
             },
         ));
     }
@@ -37,9 +37,9 @@ pub fn construct_rectangle<L: PxLayer>(
         commands
             .entity(entity)
             .insert(rectangle.color)
-            .with_children(|parent| {
+            .with_children(|p0| {
                 let filter = filters.load(rectangle.color.get_filter_path());
-                spawn_rectangle_rows(parent, rectangle, &filter);
+                spawn_rectangle_rows(p0, rectangle, &filter);
             });
     }
 }
@@ -54,9 +54,9 @@ pub fn update_rectangle_color<L: PxLayer>(
             commands
                 .entity(parent)
                 .despawn_descendants()
-                .with_children(|parent| {
+                .with_children(|p0| {
                     let filter = filters.load(color.get_filter_path());
-                    spawn_rectangle_rows(parent, rectangle, &filter);
+                    spawn_rectangle_rows(p0, rectangle, &filter);
                 });
         }
     }

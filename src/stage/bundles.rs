@@ -19,7 +19,7 @@ impl BackgroundBundle {
                 sprite,
                 anchor: PxAnchor::BottomLeft,
                 layer: Layer::Background,
-                ..Default::default()
+                ..default()
             },
         }
     }
@@ -41,7 +41,7 @@ impl SkyboxBundle {
             animation: PxAnimationBundle {
                 duration: PxAnimationDuration::millis_per_animation(2000),
                 on_finish: PxAnimationFinishBehavior::Loop,
-                ..Default::default()
+                ..default()
             },
             name: Name::new("Skybox"),
             position: Vec2::ZERO.into(),
@@ -50,7 +50,7 @@ impl SkyboxBundle {
                 anchor: PxAnchor::BottomLeft,
                 canvas: PxCanvas::Camera,
                 layer: Layer::Skybox,
-                ..Default::default()
+                ..default()
             },
         }
     }

@@ -31,58 +31,56 @@ pub fn spawn_hud(
 
     let entity = commands
         .spawn((Hud, Name::new("Hud"), StageEntity))
-        .with_children(|parent| {
+        .with_children(|p0| {
             for i in 0..(HUD_HEIGHT as i32) {
-                parent.spawn((
+                p0.spawn((
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
                         line: [(0, i).into(), (SCREEN_RESOLUTION.x as i32, i).into()].into(),
                         layers: PxFilterLayers::single_over(Layer::HudBackground),
                         filter: filters.load("filter/color3.png"),
-                        ..Default::default()
+                        ..default()
                     },
                     UIBackground,
                     Name::new("UIBackground"),
                 ));
             }
 
-            parent
-                .spawn((Name::new("Health"),))
-                .with_children(|parent| {
-                    parent.spawn((
-                        PxSpriteBundle::<Layer> {
-                            anchor: PxAnchor::BottomLeft,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::Hud,
-                            sprite: assets_sprite
-                                .load(assert_assets_path!("sprites/pickups/health_6.png")),
-                            ..Default::default()
-                        },
-                        PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),
-                        Name::new("HealthIcon"),
-                    ));
-                    parent.spawn((
-                        PxTextBundle::<Layer> {
-                            alignment: PxAnchor::BottomRight,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::Hud,
-                            rect: IRect::new(
-                                HUD_HEALTH_ML,
-                                LAYOUT_Y,
-                                HUD_HEALTH_ML + HUD_HEALTH_W,
-                                LAYOUT_Y + (FONT_SIZE + 2) as i32,
-                            )
-                            .into(),
-                            text: "0".into(),
-                            typeface: typeface.clone(),
-                            ..Default::default()
-                        },
-                        HealthText,
-                        Name::new("HealthText"),
-                    ));
-                });
+            p0.spawn((Name::new("Health"),)).with_children(|parent| {
+                parent.spawn((
+                    PxSpriteBundle::<Layer> {
+                        anchor: PxAnchor::BottomLeft,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::Hud,
+                        sprite: assets_sprite
+                            .load(assert_assets_path!("sprites/pickups/health_6.png")),
+                        ..default()
+                    },
+                    PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),
+                    Name::new("HealthIcon"),
+                ));
+                parent.spawn((
+                    PxTextBundle::<Layer> {
+                        alignment: PxAnchor::BottomRight,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::Hud,
+                        rect: IRect::new(
+                            HUD_HEALTH_ML,
+                            LAYOUT_Y,
+                            HUD_HEALTH_ML + HUD_HEALTH_W,
+                            LAYOUT_Y + (FONT_SIZE + 2) as i32,
+                        )
+                        .into(),
+                        text: "0".into(),
+                        typeface: typeface.clone(),
+                        ..default()
+                    },
+                    HealthText,
+                    Name::new("HealthText"),
+                ));
+            });
 
-            parent.spawn((Name::new("Score"),)).with_children(|parent| {
+            p0.spawn((Name::new("Score"),)).with_children(|parent| {
                 parent.spawn((
                     PxTextBundle::<Layer> {
                         alignment: PxAnchor::BottomRight,
@@ -97,7 +95,7 @@ pub fn spawn_hud(
                         .into(),
                         text: "0".into(),
                         typeface: typeface.clone(),
-                        ..Default::default()
+                        ..default()
                     },
                     ScoreText,
                     Name::new("ScoreText"),

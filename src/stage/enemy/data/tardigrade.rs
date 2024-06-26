@@ -1,6 +1,7 @@
 use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
+use bevy::prelude::*;
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
 use std::{collections::HashMap, ops::RangeInclusive};
 
@@ -55,7 +56,7 @@ lazy_static! {
                     finish_behavior: PxAnimationFinishBehavior::Despawn,
                     frames: death_frames,
                     speed: death_speed,
-                    ..Default::default()
+                    ..default()
                 },
             );
         }
@@ -74,7 +75,7 @@ lazy_static! {
                     finish_behavior: PxAnimationFinishBehavior::Loop,
                     frames: sucking_frames,
                     speed: sucking_speed,
-                    ..Default::default()
+                    ..default()
                 },
             );
         }
@@ -93,7 +94,7 @@ lazy_static! {
                     finish_behavior: PxAnimationFinishBehavior::Loop,
                     frames: idle_frames,
                     speed: idle_speed,
-                    ..Default::default()
+                    ..default()
                 },
             );
         }
@@ -112,7 +113,7 @@ lazy_static! {
                     finish_behavior: PxAnimationFinishBehavior::Mark,
                     frames: attack_frames,
                     speed: attack_speed,
-                    ..Default::default()
+                    ..default()
                 },
             );
         }

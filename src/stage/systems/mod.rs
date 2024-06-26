@@ -69,11 +69,11 @@ pub fn spawn_current_stage_bundle(
 ) {
     commands
         .spawn((Stage, Name::new("Stage")))
-        .with_children(|parent| {
-            parent.spawn(BackgroundBundle::new(
+        .with_children(|p0| {
+            p0.spawn(BackgroundBundle::new(
                 assets_sprite.load(stage_data.background_path.clone()),
             ));
-            parent.spawn(SkyboxBundle::new(
+            p0.spawn(SkyboxBundle::new(
                 &mut assets_sprite,
                 stage_data.skybox.clone(),
             ));

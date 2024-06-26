@@ -108,14 +108,14 @@ pub fn process_cutscene_animations_spawn(
                     sprite,
                     anchor: PxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
-                    ..Default::default()
+                    ..default()
                 },
                 PxAnimationBundle {
                     duration: PxAnimationDuration::millis_per_animation(
                         spawn.duration.as_millis() as u64
                     ),
                     on_finish: PxAnimationFinishBehavior::Loop,
-                    ..Default::default()
+                    ..default()
                 },
                 PxSubPosition::from(spawn.coordinates),
             ));
@@ -150,7 +150,7 @@ pub fn process_cutscene_images_spawn(
                     sprite,
                     anchor: PxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
-                    ..Default::default()
+                    ..default()
                 },
                 PxSubPosition::from(spawn.coordinates),
             ));

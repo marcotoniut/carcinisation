@@ -126,10 +126,10 @@ pub fn pickup_health(
                     anchor: PxAnchor::Center,
                     canvas: PxCanvas::Camera,
                     layer: Layer::Pickups,
-                    ..Default::default()
+                    ..default()
                 },
                 movement: PickupFeedbackMovementBundle::new(current),
-                default: Default::default(),
+                default: default(),
             });
         }
     }

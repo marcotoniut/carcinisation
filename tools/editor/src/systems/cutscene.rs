@@ -60,8 +60,7 @@ pub fn display_cutscene_acts(
                     Name::new("Act Header"),
                     NodeBundle {
                         style: Style {
-                            justify_content: JustifyContent::SpaceEvenly,
-                            column_gap: Val::Px(10.0),
+                            row_gap: Val::Px(10.0),
                             ..default()
                         },
                         transform: Transform::from_xyz(

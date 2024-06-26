@@ -165,7 +165,7 @@ impl AnimationData {
             duration: PxAnimationDuration::millis_per_animation(self.speed),
             on_finish: self.finish_behavior,
             direction: self.direction,
-            ..Default::default()
+            ..default()
         }
     }
 }
