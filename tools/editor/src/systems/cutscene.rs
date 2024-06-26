@@ -55,37 +55,17 @@ pub fn display_cutscene_acts(
                 SpatialBundle::from_transform(Transform::from_translation(act_position)),
             ));
             entity_commands.with_children(|p0| {
-                p0.spawn((
-                    CutsceneActLabel,
-                    Name::new("Act Header"),
-                    NodeBundle {
-                        style: Style {
-                            row_gap: Val::Px(10.0),
-                            ..default()
-                        },
-                        transform: Transform::from_xyz(
-                            0.0,
-                            SCREEN_RESOLUTION.y as f32 / 2.0 + 25.0,
-                            0.0,
-                        ),
-                        ..default()
-                    },
-                ))
-                .with_children(|p1| {
-                    p1.spawn(Text2dBundle {
-                        text: Text::from_section(
-                            format!("Act {}", act_index),
-                            h1_text_style.clone(),
-                        ),
-                        ..default()
-                    });
-                    p1.spawn(Text2dBundle {
-                        text: Text::from_section(
-                            format!("{}s", act.elapse.as_secs_f32()),
-                            h1_text_style.clone(),
-                        ),
-                        ..default()
-                    });
+                p0.spawn(Text2dBundle {
+                    text: Text::from_section(
+                        format!("Act {} ({}s)", act_index, act.elapse.as_secs_f32()),
+                        h1_text_style.clone(),
+                    ),
+                    transform: Transform::from_xyz(
+                        0.0,
+                        SCREEN_RESOLUTION.y as f32 / 2.0 + 25.0,
+                        0.0,
+                    ),
+                    ..default()
                 });
 
                 if let Some(spawn_images) = &act.spawn_images_o {
@@ -107,8 +87,8 @@ pub fn display_cutscene_acts(
                                 ..default()
                             },
                         ))
-                        .with_children(|p2| {
-                            p2.spawn((
+                        .with_children(|p1| {
+                            p1.spawn((
                                 CutsceneImageLabel,
                                 Text2dBundle {
                                     text: Text::from_section(

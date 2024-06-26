@@ -10,7 +10,8 @@ use bevy::prelude::*;
 pub fn on_mouse_motion(
     mut mouse_motion_events: EventReader<MouseMotion>,
     mut cursor_moved_events: EventReader<CursorMoved>,
-    buttons: Res<ButtonInput<MouseButton>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    keyboard_buttons: Res<ButtonInput<KeyCode>>,
     mut selected_query: Query<
         &mut Transform,
         (With<SelectedItem>, With<Draggable>, Without<Camera>),
@@ -18,29 +19,31 @@ pub fn on_mouse_motion(
     mut camera_query: Query<&mut Transform, (With<Camera>, Without<SelectedItem>)>,
     mut windows: Query<&Window>,
 ) {
-    if selected_query.is_empty() {
-        if buttons.pressed(MouseButton::Left) {
-            for event in mouse_motion_events.read() {
-                let delta = event.delta;
+    // Check if the Ctrl key and left mouse button are both pressed
+    let ctrl_pressed = keyboard_buttons.pressed(KeyCode::ControlLeft)
+        || keyboard_buttons.pressed(KeyCode::ControlRight);
 
-                let mut camera_transform = camera_query.single_mut();
+    if selected_query.is_empty() && ctrl_pressed && mouse_buttons.pressed(MouseButton::Left) {
+        for event in mouse_motion_events.read() {
+            let delta = event.delta;
 
-                camera_transform.translation.x -= delta.x * CAMERA_MOVE_SENSITIVITY;
-                camera_transform.translation.y += delta.y * CAMERA_MOVE_SENSITIVITY;
+            let mut camera_transform = camera_query.single_mut();
 
-                camera_transform.translation.x = camera_transform
-                    .translation
-                    .x
-                    .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
-                camera_transform.translation.y = camera_transform
-                    .translation
-                    .y
-                    .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
-            }
+            camera_transform.translation.x -= delta.x * CAMERA_MOVE_SENSITIVITY;
+            camera_transform.translation.y += delta.y * CAMERA_MOVE_SENSITIVITY;
+
+            camera_transform.translation.x = camera_transform
+                .translation
+                .x
+                .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
+            camera_transform.translation.y = camera_transform
+                .translation
+                .y
+                .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
         }
     }
 
-    if buttons.pressed(MouseButton::Left) {
+    if mouse_buttons.pressed(MouseButton::Right) {
         let window = windows.single_mut();
         let window_size: Vec2 = Vec2::new(window.width(), window.height());
 
