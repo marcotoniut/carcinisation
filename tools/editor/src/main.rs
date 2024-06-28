@@ -1,6 +1,5 @@
 mod components;
 mod constants;
-mod debug;
 mod events;
 mod file_manager;
 mod inspector;
@@ -17,7 +16,6 @@ use bevy_prototype_lyon::plugin::ShapePlugin;
 use carcinisation::cutscene::data::CutsceneData;
 use components::LoadedScene;
 use constants::ASSETS_PATH;
-use debug::DebugPlugin;
 use events::UnloadSceneEvent;
 use file_manager::FileManagerPlugin;
 use inspector::InspectorPlugin;
@@ -51,11 +49,10 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugins(DebugPlugin)
+        .add_plugins(InspectorPlugin)
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
         .add_plugins(EguiPlugin)
-        .add_plugins(InspectorPlugin)
         .add_plugins(FileManagerPlugin)
         .add_plugins(ShapePlugin)
         .add_event::<UnloadSceneEvent>()
