@@ -15,15 +15,16 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 use carcinisation::cutscene::data::CutsceneData;
+use components::LoadedScene;
 use constants::ASSETS_PATH;
 use debug::DebugPlugin;
-use events::{CutsceneLoadedEvent, CutsceneUnloadedEvent};
+use events::UnloadSceneEvent;
 use file_manager::FileManagerPlugin;
 use inspector::InspectorPlugin;
 use resources::CutsceneAssetHandle;
 use systems::{
     check_cutscene_data_loaded,
-    cutscene::{display_cutscene_acts, update_cutscene_act_connections},
+    cutscene::{on_loaded_scene, update_cutscene_act_connections},
     input::{on_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel},
     setup_camera,
 };
@@ -57,12 +58,12 @@ fn main() {
         .add_plugins(InspectorPlugin)
         .add_plugins(FileManagerPlugin)
         .add_plugins(ShapePlugin)
-        .add_event::<CutsceneLoadedEvent>()
-        .add_event::<CutsceneUnloadedEvent>()
+        .add_event::<UnloadSceneEvent>()
         .add_systems(Startup, setup_camera)
+        .add_systems(Update, (update_cutscene_act_connections,))
         .add_systems(
             Update,
-            (display_cutscene_acts, update_cutscene_act_connections),
+            on_loaded_scene.run_if(resource_exists::<LoadedScene>),
         )
         .add_systems(
             Update,

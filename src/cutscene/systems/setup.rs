@@ -1,10 +1,8 @@
-use crate::input::GBInput;
 use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
         data::CutsceneData,
         events::{CutsceneShutdownEvent, CutsceneStartupEvent},
-        input::CutsceneInput,
         resources::CutsceneProgress,
         CutscenePluginUpdateState,
     },
@@ -12,7 +10,6 @@ use crate::{
     letterbox::events::LetterboxMoveEvent,
 };
 use bevy::prelude::*;
-use leafwing_input_manager::{action_state::ActionState, input_map::InputMap};
 
 pub fn on_startup(
     mut commands: Commands,

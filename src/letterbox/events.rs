@@ -36,7 +36,7 @@ impl LetterboxMoveEvent {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub enum LetterboxMove {
     To(f32),
     ToAt(f32, f32),

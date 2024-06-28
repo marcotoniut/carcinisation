@@ -162,7 +162,7 @@ impl CutsceneElapse {
     }
 }
 
-#[derive(new, Clone, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneImageSpawn {
     pub image_path: String,
     pub layer: Layer,
@@ -191,7 +191,7 @@ impl CutsceneImageSpawn {
     }
 }
 
-#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneImagesSpawn {
     #[new(default)]
     pub spawns: Vec<CutsceneImageSpawn>,
@@ -205,7 +205,7 @@ impl CutsceneImagesSpawn {
 }
 
 #[serde_as]
-#[derive(new, Clone, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAct {
     #[new(default)]
     #[serde(default)]
@@ -269,18 +269,18 @@ impl CutsceneAct {
     }
 }
 
-#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneMusicSpawn {
     pub music_path: String,
     // TODO fade_in
 }
 
-#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneMusicDespawn {
     // TODO fade_out
 }
 
-#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneSpriteSpawn {
     pub image_path: String,
     pub coordinates: Vec2,
@@ -288,10 +288,10 @@ pub struct CutsceneSpriteSpawn {
     pub tag_o: Option<String>,
 }
 
-#[derive(new, Clone, Component, Debug, Deserialize, Serialize)]
+#[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneTransition;
 
-#[derive(new, Asset, Clone, Debug, Deserialize, Resource, Serialize, bevy::reflect::TypePath)]
+#[derive(new, Asset, Clone, Debug, Deserialize, Resource, Reflect, Serialize)]
 pub struct CutsceneData {
     pub name: String,
     #[new(default)]

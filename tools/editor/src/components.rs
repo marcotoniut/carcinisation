@@ -1,7 +1,10 @@
 use bevy::prelude::*;
+use carcinisation::CutsceneData;
 
 #[derive(Component, Debug, Reflect)]
-pub struct CutsceneActNode;
+pub struct CutsceneActNode {
+    pub act_index: usize,
+}
 
 #[derive(Component, Debug, Reflect)]
 pub struct CutsceneImage;
@@ -11,9 +14,6 @@ pub struct CutsceneActConnection {
     pub origin: Entity,
     pub target: Entity,
 }
-
-#[derive(Component, Debug, Reflect)]
-pub struct CutsceneActLabel;
 
 #[derive(Component, Debug, Reflect)]
 pub struct CutsceneImageLabel;
@@ -26,3 +26,8 @@ pub struct LetterboxLabel;
 
 #[derive(Component, Debug, Reflect)]
 pub struct SelectedItem;
+
+#[derive(Clone, Debug, Reflect, Resource)]
+pub enum LoadedScene {
+    Cutscene(CutsceneData),
+}
