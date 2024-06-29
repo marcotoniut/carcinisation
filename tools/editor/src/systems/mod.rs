@@ -3,7 +3,7 @@ pub mod input;
 
 use bevy::{
     asset::Assets,
-    prelude::{Camera2dBundle, Commands, Res, ResMut},
+    prelude::{Camera2dBundle, Commands, Res},
 };
 use carcinisation::CutsceneData;
 

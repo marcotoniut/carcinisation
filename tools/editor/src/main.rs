@@ -7,9 +7,9 @@ mod resources;
 mod systems;
 mod ui;
 
-use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy::window::Window;
+use bevy::{diagnostic::LogDiagnosticsPlugin, window::WindowResolution};
 use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
