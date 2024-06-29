@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use bevy::prelude::*;
 use bevy::render::color::Color;
 use bevy::sprite::Anchor;

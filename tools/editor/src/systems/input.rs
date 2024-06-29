@@ -17,7 +17,7 @@ pub fn on_mouse_motion(
         (With<SelectedItem>, With<Draggable>, Without<Camera>),
     >,
     mut camera_query: Query<&mut Transform, (With<Camera>, Without<SelectedItem>)>,
-    mut windows: Query<&Window>,
+    mut window_query: Query<&Window>,
 ) {
     // Check if the Ctrl key and left mouse button are both pressed
     let ctrl_pressed = keyboard_buttons.pressed(KeyCode::ControlLeft)
@@ -44,7 +44,7 @@ pub fn on_mouse_motion(
     }
 
     if mouse_buttons.pressed(MouseButton::Right) {
-        let window = windows.single_mut();
+        let window = window_query.single_mut();
         let window_size: Vec2 = Vec2::new(window.width(), window.height());
 
         if let Ok(camera_transform) = camera_query.get_single() {
@@ -66,7 +66,7 @@ pub fn on_mouse_motion(
 
 pub fn on_mouse_press(
     buttons: Res<ButtonInput<MouseButton>>,
-    mut windows: Query<&Window>,
+    mut window_query: Query<&Window>,
     mut selected_query: Query<Entity, With<SelectedItem>>,
     mut commands: Commands,
     draggable_query: Query<
@@ -80,7 +80,7 @@ pub fn on_mouse_press(
             commands.entity(entity).remove::<SelectedItem>();
         }
 
-        let window = windows.single_mut();
+        let window = window_query.single_mut();
         if let Some(cursor_position) = window.cursor_position() {
             let window_size = Vec2::new(window.width() as f32, window.height() as f32);
             let ndc = (cursor_position / window_size) * 2.0 - Vec2::ONE;
