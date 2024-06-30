@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use carcinisation::CutsceneData;
+use carcinisation::{stage::data::StageData, CutsceneData};
 
 #[derive(Component, Debug, Reflect)]
 pub struct CutsceneActNode {
@@ -30,6 +30,7 @@ pub struct SelectedItem;
 #[derive(Clone, Debug, Reflect, Resource)]
 pub enum SceneData {
     Cutscene(CutsceneData),
+    Stage(StageData),
 }
 
 #[derive(Component, Debug, Reflect)]
@@ -37,3 +38,6 @@ pub struct SceneItem;
 
 #[derive(Component, Debug, Default, Reflect, Resource)]
 pub struct ScenePath(pub String);
+
+#[derive(Component, Debug, Default, Reflect, Resource)]
+pub struct StageSpawnLabel;

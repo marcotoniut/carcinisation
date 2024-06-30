@@ -171,6 +171,19 @@ pub fn on_save_button_pressed(
                             })
                             .detach();
                     }
+                    SceneData::Stage(data) => {
+                        let path = scene_path.0.clone();
+                        AsyncComputeTaskPool::get()
+                            .spawn(async move {
+                                let pretty_config: PrettyConfig = PrettyConfig::new()
+                                    .struct_names(true)
+                                    .extensions(Extensions::all());
+                                let ron_string = to_string_pretty(&data, pretty_config).unwrap();
+                                let mut file = File::create(path).unwrap();
+                                file.write_all(ron_string.as_bytes()).unwrap();
+                            })
+                            .detach();
+                    }
                 }
             }
             _ => {}

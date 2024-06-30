@@ -8,12 +8,13 @@ use seldom_pixel::{
     prelude::{PxAnimationBundle, PxAssets},
     sprite::{PxSprite, PxSpriteBundle},
 };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Component)]
 pub struct Destructible;
 
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub enum DestructibleType {
     Lamp,
     Trashcan,

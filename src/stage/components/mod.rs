@@ -7,6 +7,7 @@ use super::data::{ContainerSpawn, StageSpawn};
 use crate::cutscene::data::CutsceneAnimationsSpawn;
 use bevy::{prelude::*, utils::HashMap};
 use derive_new::new;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Component, Debug, Default)]
@@ -55,12 +56,12 @@ impl StageElapse {
 #[derive(Component, Reflect)]
 pub struct StageElapsedStarted(pub Duration);
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub enum CinematicStageStep {
     CutsceneAnimationSpawn(CutsceneAnimationsSpawn),
 }
 
-#[derive(new, Component, Clone, Debug)]
+#[derive(new, Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct MovementStageStep {
     #[new(default)]
     pub coordinates: Vec2,
@@ -102,7 +103,7 @@ impl MovementStageStep {
     }
 }
 
-#[derive(new, Component, Clone, Debug)]
+#[derive(new, Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct StopStageStep {
     #[new(default)]
     pub max_duration: Option<Duration>,

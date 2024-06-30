@@ -10,9 +10,11 @@ use seldom_pixel::prelude::{
     PxAnchor, PxAnimationBundle, PxAnimationDirection, PxAnimationDuration,
     PxAnimationFinishBehavior,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct DestructibleSpawn {
+    #[reflect(ignore)]
     pub contains: Option<Box<ContainerSpawn>>,
     pub coordinates: Vec2,
     pub depth: Depth,

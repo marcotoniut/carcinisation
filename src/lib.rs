@@ -17,7 +17,7 @@ mod pixel;
 mod plugins;
 mod progression;
 mod resources;
-mod stage;
+pub mod stage;
 mod systems;
 mod transitions;
 

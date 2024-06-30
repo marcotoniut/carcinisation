@@ -1,8 +1,9 @@
 use crate::plugins::movement::structs::MovementDirection;
 use bevy::prelude::*;
 use derive_more::From;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct AttackEnemyStep {
     pub duration: f32,
 }
@@ -20,7 +21,7 @@ impl AttackEnemyStep {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct CircleAroundEnemyStep {
     pub depth_movement_o: Option<i8>,
     pub direction: MovementDirection,
@@ -69,7 +70,7 @@ impl CircleAroundEnemyStep {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct IdleEnemyStep {
     pub duration: f32,
 }
@@ -93,7 +94,7 @@ impl Default for IdleEnemyStep {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct LinearMovementEnemyStep {
     pub depth_movement_o: Option<i8>,
     pub direction: Vec2,
@@ -135,7 +136,7 @@ impl LinearMovementEnemyStep {
     }
 }
 
-#[derive(Clone, Copy, Debug, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct JumpEnemyStep {
     pub attacking: bool,
     pub coordinates: Vec2,
@@ -155,7 +156,7 @@ impl JumpEnemyStep {
 }
 
 // Should rename to EnemyBehavior?
-#[derive(Clone, Copy, Debug, From, Reflect)]
+#[derive(Clone, Copy, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum EnemyStep {
     Attack(AttackEnemyStep),
     Circle(CircleAroundEnemyStep),

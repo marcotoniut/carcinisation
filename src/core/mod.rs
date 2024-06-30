@@ -1,2 +1,2 @@
-pub mod time;
 pub mod collisions;
+pub mod time;

@@ -4,8 +4,13 @@ use super::{
     enemy::{data::steps::EnemyStep, entity::EnemyType},
 };
 use crate::globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H};
-use bevy::prelude::{Name, Resource, Vec2};
+use bevy::{
+    asset::Asset,
+    prelude::{Name, Resource, Vec2},
+    reflect::Reflect,
+};
 use derive_more::From;
+use serde::{Deserialize, Serialize};
 use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
@@ -19,14 +24,14 @@ pub trait Contains {
     fn drops(&mut self, value: ContainerSpawn);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct SkyboxData {
     pub path: String,
     pub frames: usize,
 }
 
 // deriving Default for simplicity's sake in defining the stage data
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub enum ObjectType {
     BenchBig,
     BenchSmall,
@@ -34,7 +39,7 @@ pub enum ObjectType {
     RugparkSign,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub enum PickupType {
     SmallHealthpack,
     BigHealthpack,
@@ -44,14 +49,14 @@ pub enum PickupType {
     // Shield,
 }
 
-#[derive(Clone, Debug, From)]
+#[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum ContainerSpawn {
     Pickup(PickupSpawn),
     Enemy(EnemySpawn),
 }
 
 // TODO move pickup data under its own module?
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct PickupSpawn {
     pub pickup_type: PickupType,
     pub coordinates: Vec2,
@@ -92,7 +97,7 @@ impl PickupSpawn {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct ObjectSpawn {
     pub object_type: ObjectType,
     pub coordinates: Vec2,
@@ -147,10 +152,11 @@ impl ObjectSpawn {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
 pub struct EnemySpawn {
     pub enemy_type: EnemyType,
     pub elapsed: f32,
+    #[reflect(ignore)]
     pub contains: Option<Box<ContainerSpawn>>,
     pub coordinates: Vec2,
     pub speed: f32,
@@ -283,7 +289,7 @@ impl EnemySpawn {
     }
 }
 
-#[derive(Clone, Debug, From)]
+#[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum StageSpawn {
     Object(ObjectSpawn),
     Destructible(DestructibleSpawn),
@@ -318,14 +324,14 @@ pub enum StageActionResumeCondition {
     KillBoss,
 }
 
-#[derive(Clone, Debug, From)]
+#[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum StageStep {
     Cinematic(CinematicStageStep),
     Movement(MovementStageStep),
     Stop(StopStageStep),
 }
 
-#[derive(Clone, Debug, Resource)]
+#[derive(Asset, Clone, Debug, Deserialize, Resource, Reflect, Serialize)]
 pub struct StageData {
     pub name: String,
     pub background_path: String,

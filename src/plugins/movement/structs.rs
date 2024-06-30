@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Reflect, Serialize)]
 pub enum MovementDirection {
     // TODO should this implement default at all?
     #[default]
