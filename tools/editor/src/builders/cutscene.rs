@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy::render::color::Color;
-use bevy::sprite::Anchor;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::geometry::GeometryBuilder;
@@ -9,13 +8,12 @@ use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::CutsceneData;
 
 use crate::components::{
-    CutsceneActConnection, CutsceneActNode, CutsceneImage, CutsceneImageLabel, Draggable,
-    LetterboxLabel, SceneItem,
+    CutsceneActConnection, CutsceneActNode, CutsceneImage, Draggable, LetterboxLabel, SceneItem,
 };
 use crate::constants::FONT_PATH;
 use carcinisation::letterbox::events::LetterboxMove;
 
-const ACT_OFFSET: f32 = 200.0;
+const ACT_OFFSET: f32 = 250.0;
 
 pub fn spawn_cutscene(
     commands: &mut Commands,
@@ -31,11 +29,11 @@ pub fn spawn_cutscene(
         font_size: 16.0,
         color: Color::WHITE,
     };
-    let h2_text_style = TextStyle {
-        font: asset_server.load(FONT_PATH),
-        font_size: 14.0,
-        color: Color::WHITE,
-    };
+    // let h2_text_style = TextStyle {
+    //     font: asset_server.load(FONT_PATH),
+    //     font_size: 14.0,
+    //     color: Color::WHITE,
+    // };
 
     let mut previous_entity_o: Option<Entity> = None;
 
@@ -75,21 +73,7 @@ pub fn spawn_cutscene(
                             transform,
                             ..default()
                         },
-                    ))
-                    .with_children(|p1| {
-                        p1.spawn((
-                            CutsceneImageLabel,
-                            Text2dBundle {
-                                text: Text::from_section(
-                                    &image_spawn.image_path,
-                                    h2_text_style.clone(),
-                                ),
-                                text_anchor: Anchor::TopLeft,
-                                ..default()
-                            },
-                            Name::new(format!("Label - Image {}", image_index)),
-                        ));
-                    });
+                    ));
                 }
             }
 
