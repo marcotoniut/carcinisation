@@ -8,7 +8,7 @@ opt-level = 1
 
 [dependencies]
 assert_assets_path = { path = "../../assert_assets_path" }
-bevy = { features = ["wayland"], version = "0.13" }
+bevy = { features = ["wayland"], version = "0.13.2" }
 bevy_common_assets = { features = ["ron"], version = "0.10" }
 bevy-inspector-egui = "0.24.0"
 bevy_prototype_lyon = "0.11.0"

@@ -4,6 +4,7 @@ use crate::{
 };
 use bevy::{prelude::*, utils::HashMap};
 use num_enum::TryFromPrimitive;
+use serde::{Deserialize, Serialize};
 use std::{
     iter::Step,
     ops::{Add, Sub},
@@ -13,6 +14,7 @@ use strum_macros::EnumIter;
 #[derive(
     Component,
     Debug,
+    Deserialize,
     Clone,
     Copy,
     PartialEq,
@@ -23,6 +25,7 @@ use strum_macros::EnumIter;
     Ord,
     Reflect,
     TryFromPrimitive,
+    Serialize,
 )]
 #[repr(i8)]
 pub enum Depth {

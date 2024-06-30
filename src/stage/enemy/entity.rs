@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]
 pub enum EnemyType {
     #[default]
     Mosquito,
