@@ -1,3 +1,4 @@
+mod builders;
 mod components;
 mod constants;
 mod events;
@@ -7,9 +8,9 @@ mod resources;
 mod systems;
 mod ui;
 
+use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy::window::Window;
-use bevy::{diagnostic::LogDiagnosticsPlugin, window::WindowResolution};
 use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
@@ -22,9 +23,9 @@ use inspector::InspectorPlugin;
 use resources::CutsceneAssetHandle;
 use systems::{
     check_cutscene_data_loaded,
-    cutscene::{on_loaded_scene, update_cutscene_act_connections},
+    cutscene::update_cutscene_act_connections,
     input::{on_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel},
-    setup_camera,
+    on_loaded_scene, on_unload_scene, setup_camera,
 };
 
 // #[derive(Resource)]
@@ -57,11 +58,11 @@ fn main() {
         .add_plugins(ShapePlugin)
         .add_event::<UnloadSceneEvent>()
         .add_systems(Startup, setup_camera)
-        .add_systems(Update, (update_cutscene_act_connections,))
         .add_systems(
-            Update,
+            PreUpdate,
             on_loaded_scene.run_if(resource_exists::<LoadedScene>),
         )
+        .add_systems(Update, update_cutscene_act_connections)
         .add_systems(
             Update,
             (check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),),
@@ -75,5 +76,6 @@ fn main() {
                 on_mouse_wheel,
             ),
         )
+        .add_systems(PostUpdate, on_unload_scene)
         .run();
 }

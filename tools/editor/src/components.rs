@@ -31,3 +31,6 @@ pub struct SelectedItem;
 pub enum LoadedScene {
     Cutscene(CutsceneData),
 }
+
+#[derive(Component, Debug, Reflect)]
+pub struct SceneItem;
