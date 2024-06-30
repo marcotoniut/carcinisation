@@ -145,7 +145,6 @@ pub fn on_select_file(
 
 pub fn on_save(
     mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
-    mut commands: Commands,
 ) {
     for interaction in interaction_query.iter_mut() {
         match *interaction {

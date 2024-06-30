@@ -2,12 +2,17 @@ pub mod cutscene;
 pub mod input;
 
 use bevy::{
-    asset::Assets,
-    prelude::{Camera2dBundle, Commands, Res},
+    asset::{AssetServer, Assets},
+    prelude::*,
 };
 use carcinisation::CutsceneData;
 
-use crate::{components::LoadedScene, resources::CutsceneAssetHandle};
+use crate::{
+    builders::cutscene::spawn_cutscene,
+    components::{LoadedScene, SceneItem},
+    events::UnloadSceneEvent,
+    resources::CutsceneAssetHandle,
+};
 
 pub fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
@@ -25,5 +30,37 @@ pub fn check_cutscene_data_loaded(
     } else {
         // Asset is not yet loaded
         println!("Cutscene data is still loading...");
+    }
+}
+
+pub fn on_loaded_scene(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    loaded_scene: Res<LoadedScene>,
+    scene_item_query: Query<Entity, With<SceneItem>>,
+    // mut camera_query: Query<&mut Transform, With<Camera>>,
+) {
+    if loaded_scene.is_changed() {
+        for entity in scene_item_query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+        match loaded_scene.clone() {
+            LoadedScene::Cutscene(data) => {
+                spawn_cutscene(&mut commands, &asset_server, &data);
+            }
+            _ => {}
+        }
+    }
+}
+
+pub fn on_unload_scene(
+    mut commands: Commands,
+    scene_item_query: Query<Entity, With<SceneItem>>,
+    mut unload_scene_event_reader: EventReader<UnloadSceneEvent>,
+) {
+    for _ in unload_scene_event_reader.read() {
+        for entity in scene_item_query.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
     }
 }
