@@ -28,9 +28,12 @@ pub struct LetterboxLabel;
 pub struct SelectedItem;
 
 #[derive(Clone, Debug, Reflect, Resource)]
-pub enum LoadedScene {
+pub enum SceneData {
     Cutscene(CutsceneData),
 }
 
 #[derive(Component, Debug, Reflect)]
 pub struct SceneItem;
+
+#[derive(Component, Debug, Default, Reflect, Resource)]
+pub struct ScenePath(pub String);

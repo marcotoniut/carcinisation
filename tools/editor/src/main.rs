@@ -15,7 +15,7 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
 use carcinisation::cutscene::data::CutsceneData;
-use components::LoadedScene;
+use components::SceneData;
 use constants::ASSETS_PATH;
 use events::UnloadSceneEvent;
 use file_manager::FileManagerPlugin;
@@ -60,7 +60,7 @@ fn main() {
         .add_systems(Startup, setup_camera)
         .add_systems(
             PreUpdate,
-            on_loaded_scene.run_if(resource_exists::<LoadedScene>),
+            on_loaded_scene.run_if(resource_exists::<SceneData>),
         )
         .add_systems(Update, update_cutscene_act_connections)
         .add_systems(

@@ -3,12 +3,16 @@ use bevy::tasks::AsyncComputeTaskPool;
 use carcinisation::CutsceneData;
 use futures_lite::future;
 use rfd::FileDialog;
+use ron::extensions::Extensions;
+use ron::ser::{to_string_pretty, PrettyConfig};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use super::components::{SaveButton, SelectFileButton, SelectedFile};
 use super::constants::RECENT_FILE_PATH;
+use super::events::WriteRecentFilePathEvent;
+use crate::components::{SceneData, ScenePath};
 use crate::constants::{ASSETS_PATH, FONT_PATH};
 use crate::resources::CutsceneAssetHandle;
 use crate::ui::styles::*;
@@ -122,7 +126,7 @@ pub fn on_button_interaction(
     }
 }
 
-pub fn on_select_file(
+pub fn on_select_file_button_pressed(
     mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SelectFileButton>)>,
     mut commands: Commands,
 ) {
@@ -143,12 +147,32 @@ pub fn on_select_file(
     }
 }
 
-pub fn on_save(
+pub fn on_save_button_pressed(
+    scene_path: Res<ScenePath>,
+    scene_data: Res<SceneData>,
     mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
+    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     for interaction in interaction_query.iter_mut() {
         match *interaction {
-            Interaction::Pressed => {}
+            Interaction::Pressed => {
+                write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
+                match scene_data.to_owned() {
+                    SceneData::Cutscene(data) => {
+                        let path = scene_path.0.clone();
+                        AsyncComputeTaskPool::get()
+                            .spawn(async move {
+                                let pretty_config: PrettyConfig = PrettyConfig::new()
+                                    .struct_names(true)
+                                    .extensions(Extensions::all());
+                                let ron_string = to_string_pretty(&data, pretty_config).unwrap();
+                                let mut file = File::create(path).unwrap();
+                                file.write_all(ron_string.as_bytes()).unwrap();
+                            })
+                            .detach();
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -158,6 +182,7 @@ pub fn poll_selected_file(
     mut commands: Commands,
     mut selected_files: Query<(Entity, &mut SelectedFile)>,
     asset_server: Res<AssetServer>,
+    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     for (entity, mut selected_file) in selected_files.iter_mut() {
         if let Some(result) = future::block_on(future::poll_once(&mut selected_file.0)) {
@@ -165,17 +190,34 @@ pub fn poll_selected_file(
                 println!("Selected file: {:?}", path);
                 let path_str = path.to_str().unwrap().to_string();
                 let handle = asset_server.load::<CutsceneData>(path_str.clone());
-                commands.insert_resource(CutsceneAssetHandle { handle });
+                commands.insert_resource(CutsceneAssetHandle {
+                    handle,
+                    path: path_str.clone(),
+                });
 
+                write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
+            }
+            commands.entity(entity).remove::<SelectedFile>();
+        }
+    }
+}
+
+pub fn on_create_recent_file(
+    scene_path: Res<ScenePath>,
+    mut write_recent_file_path_event_reader: EventReader<WriteRecentFilePathEvent>,
+) {
+    for _ in write_recent_file_path_event_reader.read() {
+        let path = scene_path.0.clone();
+        AsyncComputeTaskPool::get()
+            .spawn(async move {
                 if let Ok(mut file) = File::create(RECENT_FILE_PATH) {
-                    if let Err(e) = writeln!(file, "{}", path_str) {
+                    if let Err(e) = writeln!(file, "{}", path) {
                         eprintln!("Failed to write to recent file path: {:?}", e);
                     }
                 } else {
                     eprintln!("Failed to create recent file path");
                 }
-            }
-            commands.entity(entity).remove::<SelectedFile>();
-        }
+            })
+            .detach();
     }
 }
