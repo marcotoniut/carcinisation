@@ -1,10 +1,10 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{
     bevy_egui::EguiContext,
-    egui::{self, Align2},
+    egui::{self, epaint::Shadow, Align2},
 };
 
-use crate::components::LoadedScene;
+use crate::components::{SceneData, ScenePath};
 
 pub fn inspector_ui(world: &mut World) {
     let Ok((egui_context, window)) = world
@@ -31,16 +31,39 @@ pub fn inspector_ui(world: &mut World) {
         });
 
     egui::Window::new("Scene")
+        .title_bar(false)
         .anchor(egui::Align2::RIGHT_TOP, [0.0, 0.0])
         .collapsible(false)
         .movable(false)
-        .min_height(window_height)
-        .max_height(window_height)
+        .min_height(window_height - 15.0)
+        .max_height(window_height - 15.0)
         .default_width(525.0)
         .resizable([true, false])
         .show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
-                bevy_inspector_egui::bevy_inspector::ui_for_resource::<LoadedScene>(world, ui);
+                bevy_inspector_egui::bevy_inspector::ui_for_resource::<SceneData>(world, ui);
+            });
+        });
+
+    egui::Window::new("Path")
+        .title_bar(false)
+        .anchor(egui::Align2::LEFT_TOP, [0.0, 35.0])
+        .collapsible(false)
+        .resizable(false)
+        .movable(false)
+        .show(ctx, |ui| {
+            ctx.set_style(egui::Style {
+                visuals: egui::Visuals {
+                    window_shadow: Shadow {
+                        offset: egui::Vec2::new(0.0, 0.0),
+                        ..default()
+                    },
+                    ..egui::Visuals::dark()
+                },
+                ..default()
+            });
+            egui::ScrollArea::horizontal().show(ui, |ui| {
+                bevy_inspector_egui::bevy_inspector::ui_for_resource::<ScenePath>(world, ui);
             });
         });
 }

@@ -1,107 +1,151 @@
-(
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+CutsceneData(
     name: "Intro",
     steps: [
         CutsceneAct(
-            letterbox_move_o: Some(
-                Open,
-            ),
+            await_input: false,
+            despawn_entities: [],
+            elapse: 0.0,
+            letterbox_move_o: Open,
+            music_despawn_o: None,
+            music_spawn_o: None,
+            spawn_animations_o: None,
+            spawn_images_o: None,
+            transition_o: None,
         ),
         CutsceneAct(
-            music_spawn_o: Some(
-                CutsceneMusicSpawn(
-                    music_path: "audio/music/action.ogg",
-                ),
-            ),
-            spawn_animations_o: Some(
-                CutsceneAnimationsSpawn(
-                    spawns: [
-                        CutsceneAnimationSpawn(
-                            image_path: "cinematics/intro/acrab_travelling.png",
-                            frame_count: 5,
-                            duration: 0.3,
-                            layer: CutsceneLayer(Background(0)),
-                        ),
-                    ],
-                ),
-            ),
+            await_input: false,
+            despawn_entities: [],
             elapse: 3.0,
+            letterbox_move_o: None,
+            music_despawn_o: None,
+            music_spawn_o: CutsceneMusicSpawn(
+                music_path: "audio/music/action.ogg",
+            ),
+            spawn_animations_o: CutsceneAnimationsSpawn(
+                spawns: [
+                    CutsceneAnimationSpawn(
+                        image_path: "cinematics/intro/acrab_travelling.png",
+                        frame_count: 5,
+                        duration: 0.3,
+                        layer: CutsceneLayer(Background(0)),
+                        coordinates: Vec2(0.0, 0.0),
+                        tag_o: None,
+                        target_movement_o: None,
+                    ),
+                ],
+            ),
+            spawn_images_o: None,
+            transition_o: None,
         ),
         CutsceneAct(
-            spawn_images_o: Some(
-                CutsceneImagesSpawn(
-                    spawns: [
-                        CutsceneImageSpawn(
-                            image_path: "cinematics/intro/asteroid_waves.png",
-                            layer: CutsceneLayer(Background(0),),
-                        ),
-                    ],
-                ),
-            ),
+            await_input: false,
+            despawn_entities: [],
             elapse: 2.5,
+            letterbox_move_o: None,
+            music_despawn_o: None,
+            music_spawn_o: None,
+            spawn_animations_o: None,
+            spawn_images_o: CutsceneImagesSpawn(
+                spawns: [
+                    CutsceneImageSpawn(
+                        image_path: "cinematics/intro/asteroid_waves.png",
+                        layer: CutsceneLayer(Background(0)),
+                        coordinates: Vec2(0.0, 0.0),
+                        tag_o: None,
+                    ),
+                ],
+            ),
+            transition_o: None,
         ),
         CutsceneAct(
-            spawn_images_o: Some(
-                CutsceneImagesSpawn(
-                    spawns: [
-                        CutsceneImageSpawn(
-                            image_path: "cinematics/intro/screaming_scene.png",
-                            layer: CutsceneLayer(Background(0),),
-                        ),
-                    ],
-                ),
-            ),
+            await_input: false,
+            despawn_entities: [],
             elapse: 2.5,
+            letterbox_move_o: None,
+            music_despawn_o: None,
+            music_spawn_o: None,
+            spawn_animations_o: None,
+            spawn_images_o: CutsceneImagesSpawn(
+                spawns: [
+                    CutsceneImageSpawn(
+                        image_path: "cinematics/intro/screaming_scene.png",
+                        layer: CutsceneLayer(Background(0)),
+                        coordinates: Vec2(0.0, 0.0),
+                        tag_o: None,
+                    ),
+                ],
+            ),
+            transition_o: None,
         ),
         CutsceneAct(
-            spawn_images_o: Some(
-                CutsceneImagesSpawn(
-                    spawns: [
-                        CutsceneImageSpawn(
-                            image_path: "cinematics/intro/transform.png",
-                            layer: CutsceneLayer(Background(0),),
-                        ),
-                    ],
-                ),
-            ),
+            await_input: false,
+            despawn_entities: [],
             elapse: 2.5,
+            letterbox_move_o: None,
+            music_despawn_o: None,
+            music_spawn_o: None,
+            spawn_animations_o: None,
+            spawn_images_o: CutsceneImagesSpawn(
+                spawns: [
+                    CutsceneImageSpawn(
+                        image_path: "cinematics/intro/transform.png",
+                        layer: CutsceneLayer(Background(0)),
+                        coordinates: Vec2(0.0, 0.0),
+                        tag_o: None,
+                    ),
+                ],
+            ),
+            transition_o: None,
         ),
         CutsceneAct(
-            spawn_animations_o: Some(
-                CutsceneAnimationsSpawn(
-                    spawns: [
-                        CutsceneAnimationSpawn(
-                            image_path: "cinematics/intro/falling_ship.png",
-                            frame_count: 2,
-                            duration: 0.2,
-                            layer: CutsceneLayer(Background(0),),
-                            tag: Some("ship",),
-                            coordinates: (25.0, 60.0),
-                            target_movement_o: Some(
-                                TargetMovement(
-                                    position: (40.0, 20.0),
-                                    speed: 0.3,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
-            ),
-            spawn_images_o: Some(
-                CutsceneImagesSpawn(
-                    spawns: [
-                        CutsceneImageSpawn(
-                            image_path: "cinematics/intro/planet.png",
-                            layer: CutsceneLayer(Background(0),),
-                        ),
-                    ],
-                ),
-            ),
+            await_input: false,
+            despawn_entities: [],
             elapse: 5.0,
+            letterbox_move_o: None,
+            music_despawn_o: None,
+            music_spawn_o: None,
+            spawn_animations_o: CutsceneAnimationsSpawn(
+                spawns: [
+                    CutsceneAnimationSpawn(
+                        image_path: "cinematics/intro/falling_ship.png",
+                        frame_count: 2,
+                        duration: 0.2,
+                        layer: CutsceneLayer(Background(0)),
+                        coordinates: Vec2(25.0, 60.0),
+                        tag_o: None,
+                        target_movement_o: TargetMovement(
+                            position: Vec2(40.0, 20.0),
+                            speed: 0.3,
+                            acceleration: 0.0,
+                        ),
+                    ),
+                ],
+            ),
+            spawn_images_o: CutsceneImagesSpawn(
+                spawns: [
+                    CutsceneImageSpawn(
+                        image_path: "cinematics/intro/planet.png",
+                        layer: CutsceneLayer(Background(0)),
+                        coordinates: Vec2(0.0, 0.0),
+                        tag_o: None,
+                    ),
+                ],
+            ),
+            transition_o: None,
         ),
         CutsceneAct(
-            letterbox_move_o: Some(
-                Hide,
-            ),
+            await_input: false,
+            despawn_entities: [],
+            elapse: 0.0,
+            letterbox_move_o: Hide,
+            music_despawn_o: None,
+            music_spawn_o: None,
+            spawn_animations_o: None,
+            spawn_images_o: None,
+            transition_o: None,
         ),
     ],
 )

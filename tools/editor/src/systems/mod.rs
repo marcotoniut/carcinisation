@@ -9,7 +9,7 @@ use carcinisation::CutsceneData;
 
 use crate::{
     builders::cutscene::spawn_cutscene,
-    components::{LoadedScene, SceneItem},
+    components::{SceneData, SceneItem, ScenePath},
     events::UnloadSceneEvent,
     resources::CutsceneAssetHandle,
 };
@@ -26,7 +26,8 @@ pub fn check_cutscene_data_loaded(
     if let Some(cutscene_data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
         println!("Cutscene data loaded: {:?}", cutscene_data);
         commands.remove_resource::<CutsceneAssetHandle>();
-        commands.insert_resource(LoadedScene::Cutscene(cutscene_data.clone()));
+        commands.insert_resource(SceneData::Cutscene(cutscene_data.clone()));
+        commands.insert_resource(ScenePath(cutscene_asset_handle.path.clone()));
     } else {
         // Asset is not yet loaded
         println!("Cutscene data is still loading...");
@@ -36,7 +37,7 @@ pub fn check_cutscene_data_loaded(
 pub fn on_loaded_scene(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    loaded_scene: Res<LoadedScene>,
+    loaded_scene: Res<SceneData>,
     scene_item_query: Query<Entity, With<SceneItem>>,
     // mut camera_query: Query<&mut Transform, With<Camera>>,
 ) {
@@ -45,7 +46,7 @@ pub fn on_loaded_scene(
             commands.entity(entity).despawn_recursive();
         }
         match loaded_scene.clone() {
-            LoadedScene::Cutscene(data) => {
+            SceneData::Cutscene(data) => {
                 spawn_cutscene(&mut commands, &asset_server, &data);
             }
             _ => {}
@@ -56,10 +57,12 @@ pub fn on_loaded_scene(
 pub fn on_unload_scene(
     mut commands: Commands,
     scene_item_query: Query<Entity, With<SceneItem>>,
+    mut scene_path: ResMut<ScenePath>,
     mut unload_scene_event_reader: EventReader<UnloadSceneEvent>,
 ) {
     for _ in unload_scene_event_reader.read() {
         for entity in scene_item_query.iter() {
+            *scene_path = ScenePath("".to_string());
             commands.entity(entity).despawn_recursive();
         }
     }
