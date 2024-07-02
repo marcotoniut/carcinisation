@@ -160,6 +160,7 @@ pub struct EnemySpawn {
     pub contains: Option<Box<ContainerSpawn>>,
     pub coordinates: Vec2,
     pub speed: f32,
+    #[serde(default)]
     pub steps: VecDeque<EnemyStep>,
     pub depth: Depth,
 }
