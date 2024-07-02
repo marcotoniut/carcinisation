@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
+use carcinisation::stage::data::StageData;
 use carcinisation::CutsceneData;
 use futures_lite::future;
 use rfd::FileDialog;
@@ -14,7 +15,7 @@ use super::constants::RECENT_FILE_PATH;
 use super::events::WriteRecentFilePathEvent;
 use crate::components::{SceneData, ScenePath};
 use crate::constants::{ASSETS_PATH, FONT_PATH};
-use crate::resources::CutsceneAssetHandle;
+use crate::resources::{CutsceneAssetHandle, StageAssetHandle};
 use crate::ui::styles::*;
 
 pub fn setup_ui(
@@ -202,12 +203,22 @@ pub fn poll_selected_file(
             if let Some(path) = result {
                 println!("Selected file: {:?}", path);
                 let path_str = path.to_str().unwrap().to_string();
-                let handle = asset_server.load::<CutsceneData>(path_str.clone());
-                commands.insert_resource(CutsceneAssetHandle {
-                    handle,
-                    path: path_str.clone(),
-                });
 
+                if path_str.ends_with(".cs.ron") {
+                    let handle = asset_server.load::<CutsceneData>(path_str.clone());
+                    commands.insert_resource(CutsceneAssetHandle {
+                        handle,
+                        path: path_str,
+                    });
+                } else if path_str.ends_with(".sg.ron") {
+                    let handle = asset_server.load::<StageData>(path_str.clone());
+                    commands.insert_resource(StageAssetHandle {
+                        handle,
+                        path: path_str,
+                    });
+                } else {
+                    eprintln!("Unsupported file type: {:?}", path_str);
+                };
                 write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
             }
             commands.entity(entity).remove::<SelectedFile>();

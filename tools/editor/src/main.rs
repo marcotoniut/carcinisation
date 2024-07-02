@@ -14,15 +14,15 @@ use bevy::window::Window;
 use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_prototype_lyon::plugin::ShapePlugin;
-use carcinisation::cutscene::data::CutsceneData;
+use carcinisation::{cutscene::data::CutsceneData, stage::data::StageData};
 use components::SceneData;
 use constants::ASSETS_PATH;
 use events::UnloadSceneEvent;
 use file_manager::FileManagerPlugin;
 use inspector::InspectorPlugin;
-use resources::CutsceneAssetHandle;
+use resources::{CutsceneAssetHandle, StageAssetHandle};
 use systems::{
-    check_cutscene_data_loaded,
+    check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
     input::{on_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel},
     on_loaded_scene, on_unload_scene, setup_camera,
@@ -53,6 +53,7 @@ fn main() {
         .add_plugins(InspectorPlugin)
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
+        .add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
         .add_plugins(EguiPlugin)
         .add_plugins(FileManagerPlugin)
         .add_plugins(ShapePlugin)
@@ -66,6 +67,10 @@ fn main() {
         .add_systems(
             Update,
             (check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),),
+        )
+        .add_systems(
+            Update,
+            (check_stage_data_loaded.run_if(resource_exists::<StageAssetHandle>),),
         )
         .add_systems(
             Update,

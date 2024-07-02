@@ -1,17 +1,18 @@
 pub mod cutscene;
 pub mod input;
 
+use bevy::asset::LoadState;
 use bevy::{
     asset::{AssetServer, Assets},
     prelude::*,
 };
-use carcinisation::CutsceneData;
+use carcinisation::{stage::data::StageData, CutsceneData};
 
 use crate::{
-    builders::cutscene::spawn_cutscene,
+    builders::{cutscene::spawn_cutscene, stage::spawn_stage},
     components::{SceneData, SceneItem, ScenePath},
     events::UnloadSceneEvent,
-    resources::CutsceneAssetHandle,
+    resources::{CutsceneAssetHandle, StageAssetHandle},
 };
 
 pub fn setup_camera(mut commands: Commands) {
@@ -19,18 +20,68 @@ pub fn setup_camera(mut commands: Commands) {
 }
 
 pub fn check_cutscene_data_loaded(
+    asset_server: Res<AssetServer>,
     cutscene_asset_handle: Res<CutsceneAssetHandle>,
     cutscene_data_assets: Res<Assets<CutsceneData>>,
     mut commands: Commands,
+    mut scene_path: ResMut<ScenePath>,
 ) {
-    if let Some(cutscene_data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
-        println!("Cutscene data loaded: {:?}", cutscene_data);
-        commands.remove_resource::<CutsceneAssetHandle>();
-        commands.insert_resource(SceneData::Cutscene(cutscene_data.clone()));
-        commands.insert_resource(ScenePath(cutscene_asset_handle.path.clone()));
-    } else {
-        // Asset is not yet loaded
-        println!("Cutscene data is still loading...");
+    if let Some(state) = asset_server.get_load_state(cutscene_asset_handle.handle.clone()) {
+        match state {
+            LoadState::Loaded => {
+                if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
+                    *scene_path = ScenePath(cutscene_asset_handle.path.to_string());
+                    println!("Cutscene data loaded: {:?}", data);
+                    commands.remove_resource::<CutsceneAssetHandle>();
+                    commands.insert_resource(SceneData::Cutscene(data.clone()));
+                    commands.insert_resource(ScenePath(cutscene_asset_handle.path.clone()));
+                } else {
+                }
+            }
+            LoadState::Loading => {
+                println!("Cutscene data is still loading...");
+            }
+            LoadState::NotLoaded => {
+                println!("Cutscene data is not loaded");
+            }
+            LoadState::Failed => {
+                commands.remove_resource::<CutsceneAssetHandle>();
+                println!("Cutscene data failed to load");
+            }
+        }
+    }
+}
+
+pub fn check_stage_data_loaded(
+    asset_server: Res<AssetServer>,
+    stage_asset_handle: Res<StageAssetHandle>,
+    stage_data_assets: Res<Assets<StageData>>,
+    mut commands: Commands,
+    mut scene_path: ResMut<ScenePath>,
+) {
+    if let Some(state) = asset_server.get_load_state(stage_asset_handle.handle.clone()) {
+        match state {
+            LoadState::Loaded => {
+                if let Some(data) = stage_data_assets.get(&stage_asset_handle.handle) {
+                    *scene_path = ScenePath(stage_asset_handle.path.to_string());
+                    println!("Stage data loaded: {:?}", data);
+                    commands.remove_resource::<StageAssetHandle>();
+                    commands.insert_resource(SceneData::Stage(data.clone()));
+                    commands.insert_resource(ScenePath(stage_asset_handle.path.clone()));
+                } else {
+                }
+            }
+            LoadState::Loading => {
+                println!("Stage data is still loading...");
+            }
+            LoadState::NotLoaded => {
+                println!("Stage data is not loaded");
+            }
+            LoadState::Failed => {
+                commands.remove_resource::<StageAssetHandle>();
+                println!("Stage data failed to load");
+            }
+        }
     }
 }
 
@@ -39,7 +90,6 @@ pub fn on_loaded_scene(
     asset_server: Res<AssetServer>,
     loaded_scene: Res<SceneData>,
     scene_item_query: Query<Entity, With<SceneItem>>,
-    // mut camera_query: Query<&mut Transform, With<Camera>>,
 ) {
     if loaded_scene.is_changed() {
         for entity in scene_item_query.iter() {
@@ -49,7 +99,9 @@ pub fn on_loaded_scene(
             SceneData::Cutscene(data) => {
                 spawn_cutscene(&mut commands, &asset_server, &data);
             }
-            _ => {}
+            SceneData::Stage(data) => {
+                spawn_stage(&mut commands, &asset_server, &data);
+            }
         }
     }
 }
