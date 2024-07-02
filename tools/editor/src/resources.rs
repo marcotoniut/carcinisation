@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use carcinisation::{cutscene::data::CutsceneData, stage::data::StageData};
 
 use bevy::prelude::*;
@@ -13,3 +15,6 @@ pub struct StageAssetHandle {
     pub handle: Handle<StageData>,
     pub path: String,
 }
+
+#[derive(Debug, Default, Resource, Reflect)]
+pub struct StageElapsedUI(Duration);
