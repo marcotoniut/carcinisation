@@ -3,683 +3,575 @@
 #![enable(unwrap_variant_newtypes)]
 StageData(
     name: "Park",
-    music_path: "audio/music/stage_1.ogg",
     background_path: "backgrounds/rugpark/background.png",
-    skybox: (
+    music_path: "audio/music/stage_1.ogg",
+    skybox: SkyboxData(
         path: "backgrounds/rugpark/skybox.png",
         frames: 2,
     ),
-    start_coordinates: (0.0, 0.0),
+    start_coordinates: Vec2(0.0, 0.0),
     spawns: [
-        (
-            Object: (
-                object_type: RugparkSign,
-                coordinates: (400.0, 20.0),
-                depth: Three,
-            ),
+        Object(
+            object_type: RugparkSign,
+            coordinates: Vec2(400.0, 20.0),
+            depth: Three,
         ),
-        (
-            Object: (
-                object_type: Fibertree,
-                coordinates: (10.0, 13.0),
-                depth: Two,
-            ),
+        Object(
+            object_type: Fibertree,
+            coordinates: Vec2(10.0, 13.0),
+            depth: Two,
         ),
-        (
-            Object: (
-                object_type: Fibertree,
-                coordinates: (180.0, 13.0),
-                depth: Two,
-            ),
+        Object(
+            object_type: Fibertree,
+            coordinates: Vec2(180.0, 13.0),
+            depth: Two,
         ),
-        (
-            Object: (
-                object_type: BenchBig,
-                coordinates: (20.0, 65.0),
-                depth: Eight,
-            ),
+        Object(
+            object_type: BenchBig,
+            coordinates: Vec2(20.0, 65.0),
+            depth: Eight,
         ),
-        (
-            Object: (
-                object_type: BenchBig,
-                coordinates: (200.0, 60.0),
-                depth: Eight,
-            ),
+        Object(
+            object_type: BenchBig,
+            coordinates: Vec2(200.0, 60.0),
+            depth: Eight,
         ),
-        (
-            Object: (
-                object_type: BenchSmall,
-                coordinates: (100.0, 65.0),
-                depth: Eight,
-            ),
+        Object(
+            object_type: BenchSmall,
+            coordinates: Vec2(100.0, 65.0),
+            depth: Eight,
         ),
-        (
-            Destructible: (
-                coordinates: (70.0, -5.0),
-                depth: Three,
-                destructible_type: Lamp,
-                health: 60,
-                contains: Box(Enemy(
-                    enemy_type: Mosquito,
-                    coordinates: (79.0, 100.0),
-                    elapsed: 0.4,
-                    depth: Five,
-                    speed: 2.0,
-                    contains: None,
-                    steps: [
-                        LinearMovement((
-                            direction: (-1.0, 0.0),
-                            depth_movement_o: -1,
-                            trayectory: 0.0,
-                        )),
-                        Idle((
-                            duration: 4.0,
-                        )),
-                        LinearMovement((
-                            direction: (1.0, 0.0),
-                            depth_movement_o: None,
-                            trayectory: 0.0,
-                        )),
-                        LinearMovement((
-                            direction: (-1.0, 0.0),
-                            depth_movement_o: 1,
-                            trayectory: 0.0,
-                        )),
-                    ].into(),
-                )),
+        Destructible(
+            contains: Enemy(
+                enemy_type: Mosquito,
+                elapsed: 0.4,
+                contains: None,
+                coordinates: Vec2(79.0, 100.0),
+                speed: 2.0,
+                steps: [
+                    LinearMovement(
+                        depth_movement_o: -1,
+                        direction: Vec2(-1.0, 0.0),
+                        trayectory: 0.0,
+                    ),
+                    Idle(
+                        duration: 4.0,
+                    ),
+                    LinearMovement(
+                        depth_movement_o: None,
+                        direction: Vec2(1.0, 0.0),
+                        trayectory: 0.0,
+                    ),
+                    LinearMovement(
+                        depth_movement_o: 1,
+                        direction: Vec2(-1.0, 0.0),
+                        trayectory: 0.0,
+                    ),
+                ],
+                depth: Five,
             ),
+            coordinates: Vec2(70.0, -5.0),
+            depth: Three,
+            destructible_type: Lamp,
+            health: 60,
         ),
-        (
-            Destructible: (
-                coordinates: (260.0, -5.0),
-                depth: Three,
-                destructible_type: Lamp,
-                health: 60,
-                contains: Box(Pickup(
-                    pickup_type: BigHealthpack,
-                    coordinates: (0.0, 0.0),
-                    elapsed: 0.0,
-                    depth: Six,
-                )),
-            ),
-        ),
-        (
-            Pickup: (
+        Destructible(
+            contains: Pickup(
                 pickup_type: BigHealthpack,
-                coordinates: (30.0, 10.0),
+                coordinates: Vec2(0.0, 0.0),
                 elapsed: 0.0,
                 depth: Six,
             ),
+            coordinates: Vec2(260.0, -5.0),
+            depth: Three,
+            destructible_type: Lamp,
+            health: 60,
+        ),
+        Pickup(
+            pickup_type: BigHealthpack,
+            coordinates: Vec2(30.0, 10.0),
+            elapsed: 0.0,
+            depth: Six,
         ),
     ],
     steps: [
-        (
-            Movement: (
-                coordinates: (50.0, 0.0),
-                base_speed: 1.0,
-                spawns: [
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (60.0, 100.0),
-                            elapsed: 5.4,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: Box(Pickup(
-                                pickup_type: BigHealthpack,
-                                coordinates: (0.0, 0.0),
-                                elapsed: 0.0,
-                                depth: Six,
-                            )),
-                            steps: [
-                                Circle((
-                                    direction: -1,
-                                    radius: 12.0,
-                                    duration: 99999.0,
-                                    depth_movement_o: None,
-                                )),
-                            ].into(),
-                        ),
+        Movement(
+            coordinates: Vec2(50.0, 0.0),
+            base_speed: 1.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 5.4,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
                     ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (120.0, 100.0),
-                            elapsed: 5.1,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: Box(Pickup(
-                                pickup_type: BigHealthpack,
-                                coordinates: (0.0, 0.0),
-                                elapsed: 0.0,
-                                depth: Six,
-                            )),
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (130.0, 70.0),
-                            elapsed: 0.0,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: Box(Pickup(
-                                pickup_type: BigHealthpack,
-                                coordinates: (0.0, 0.0),
-                                elapsed: 0.0,
-                                depth: Six,
-                            )),
-                            steps: [].into(),
-                        ),
-                    ),
-                ],
-                floor_depths: {
-                    Depth::Six: 70.0,
-                    Depth::Five: 50.0,
-                    Depth::Four: 30.0,
-                    Depth::Three: 0.0,
-                }.into_iter().collect(),
-            ),
-        ),
-        (
-            Stop: (
-                max_duration: 12.0,
-                kill_all: true,
-                kill_boss: false,
-                spawns: [
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (70.0, 70.0),
-                            elapsed: 2.4,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: Box(Pickup(
-                                pickup_type: BigHealthpack,
-                                coordinates: (0.0, 0.0),
-                                elapsed: 0.0,
-                                depth: Six,
-                            )),
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (90.0, 70.0),
-                            elapsed: 10.8,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (12.0, 50.0),
-                            elapsed: 24.8,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (170.0, 68.0),
-                            elapsed: 50.8,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: Box(Pickup(
-                                pickup_type: BigHealthpack,
-                                coordinates: (0.0, 0.0),
-                                elapsed: 0.0,
-                                depth: Six,
-                            )),
-                            steps: [].into(),
-                        ),
-                    ),
-                ],
-                floor_depths: None,
-            ),
-        ),
-        (
-            Movement: (
-                coordinates: (220.0, 0.0),
-                base_speed: 1.0,
-                spawns: [
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (70.0, 60.0),
-                            elapsed: 6.8,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [
-                                Circle((
-                                    direction: -1,
-                                    radius: 3.0,
-                                    duration: 99999.0,
-                                    depth_movement_o: None,
-                                )),
-                            ].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (12.0, 50.0),
-                            elapsed: 22.8,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Tardigrade,
-                            coordinates: (30.0, 90.0),
-                            elapsed: 22.8,
-                            depth: Six,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (30.0, 50.0),
-                            elapsed: 22.8,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Pickup: (
-                            pickup_type: BigHealthpack,
-                            coordinates: (144.0, 68.0),
-                            elapsed: 0.0,
-                            depth: Six,
-                        ),
-                    ),
-                ],
-                floor_depths: None,
-            ),
-        ),
-        (
-            Stop: (
-                max_duration: 10.0,
-                kill_all: true,
-                kill_boss: false,
-                spawns: [],
-                floor_depths: None,
-            ),
-        ),
-        (
-            Movement: (
-                coordinates: (280.0, 0.0),
-                base_speed: 1.0,
-                spawns: [
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (60.0, 80.0),
-                            elapsed: 8.4,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                        ),
-                    ),
-                    (
-                        Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (100.0, 60.0),
-                            elapsed: 6.1,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (30.0, 80.0),
-                            elapsed: 7.4,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (120.0, 60.0),
-                            elapsed: 6.1,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (80.0, 80.0),
-                            elapsed: 7.4,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (20.0, 60.0),
-                            elapsed: 8.1,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            ],
-                            floor_depths: None,
-                            ),
-                            ),
-                            (
-                            Movement: (
-                            coordinates: (500.0, 0.0),
-                            base_speed: 1.0,
-                            spawns: [
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (100.0, 80.0),
-                            elapsed: 8.4,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: Box(Pickup(
-                            pickup_type: BigHealthpack,
-                            coordinates: (0.0, 0.0),
-                            elapsed: 0.0,
-                            depth: Six,
-                            )),
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (100.0, 100.0),
-                            elapsed: 6.1,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (60.0, 120.0),
-                            elapsed: 7.4,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [
-                            Circle((
-                            direction: -1,
-                            radius: 13.0,
-                            duration: 99999.0,
+                    coordinates: Vec2(60.0, 100.0),
+                    speed: 2.0,
+                    steps: [
+                        Circle(
                             depth_movement_o: None,
-                            )),
-                            ].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (280.0, 80.0),
-                            elapsed: 5.6,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Tardigrade,
-                            coordinates: (320.0, 160.0),
-                            elapsed: 6.4,
-                            depth: Six,
-                            speed: 2.0,
-                            contains: Box(Pickup(
-                            pickup_type: BigHealthpack,
-                            coordinates: (0.0, 0.0),
-                            elapsed: 0.0,
-                            depth: Six,
-                            )),
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (400.0, 160.0),
-                            elapsed: 7.4,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (360.0, 160.0),
-                            elapsed: 8.1,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (410.0, 180.0),
-                            elapsed: 7.4,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (440.0, 190.0),
-                            elapsed: 6.1,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [
-                            Circle((
-                            direction: 1,
+                            direction: Negative,
+                            duration: 99999.0,
+                            radius: 12.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 5.1,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(120.0, 100.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 0.0,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(130.0, 70.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: {
+                Four: 30.0,
+                Six: 70.0,
+                Five: 50.0,
+                Three: 0.0,
+            },
+        ),
+        Stop(
+            max_duration: 12.0,
+            kill_all: true,
+            kill_boss: false,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 2.4,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(70.0, 70.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 10.8,
+                    contains: None,
+                    coordinates: Vec2(90.0, 70.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 24.8,
+                    contains: None,
+                    coordinates: Vec2(12.0, 50.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 50.8,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(170.0, 68.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(220.0, 0.0),
+            base_speed: 1.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.8,
+                    contains: None,
+                    coordinates: Vec2(70.0, 60.0),
+                    speed: 2.0,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 99999.0,
+                            radius: 3.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 22.8,
+                    contains: None,
+                    coordinates: Vec2(12.0, 50.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 22.8,
+                    contains: None,
+                    coordinates: Vec2(30.0, 90.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Six,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 22.8,
+                    contains: None,
+                    coordinates: Vec2(30.0, 50.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Pickup(
+                    pickup_type: BigHealthpack,
+                    coordinates: Vec2(144.0, 68.0),
+                    elapsed: 0.0,
+                    depth: Six,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 10.0,
+            kill_all: true,
+            kill_boss: false,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(280.0, 0.0),
+            base_speed: 1.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 8.4,
+                    contains: None,
+                    coordinates: Vec2(60.0, 80.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.1,
+                    contains: None,
+                    coordinates: Vec2(100.0, 60.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 7.4,
+                    contains: None,
+                    coordinates: Vec2(30.0, 80.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.1,
+                    contains: None,
+                    coordinates: Vec2(120.0, 60.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 7.4,
+                    contains: None,
+                    coordinates: Vec2(80.0, 80.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 8.1,
+                    contains: None,
+                    coordinates: Vec2(20.0, 60.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(500.0, 0.0),
+            base_speed: 1.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 8.4,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(100.0, 80.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.1,
+                    contains: None,
+                    coordinates: Vec2(100.0, 100.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 7.4,
+                    contains: None,
+                    coordinates: Vec2(60.0, 120.0),
+                    speed: 2.0,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 99999.0,
+                            radius: 13.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 5.6,
+                    contains: None,
+                    coordinates: Vec2(280.0, 80.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 6.4,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(320.0, 160.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Six,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 7.4,
+                    contains: None,
+                    coordinates: Vec2(400.0, 160.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 8.1,
+                    contains: None,
+                    coordinates: Vec2(360.0, 160.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 7.4,
+                    contains: None,
+                    coordinates: Vec2(410.0, 180.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.1,
+                    contains: None,
+                    coordinates: Vec2(440.0, 190.0),
+                    speed: 5.0,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Positive,
+                            duration: 99999.0,
                             radius: 23.0,
-                            duration: 99999.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.1,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(120.0, 160.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 7.4,
+                    contains: None,
+                    coordinates: Vec2(140.0, 160.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 8.1,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(520.0, 210.0),
+                    speed: 5.0,
+                    steps: [
+                        Circle(
                             depth_movement_o: None,
-                            )),
-                            ].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (120.0, 160.0),
-                            elapsed: 6.1,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: Box(Pickup(
-                            pickup_type: BigHealthpack,
-                            coordinates: (0.0, 0.0),
-                            elapsed: 0.0,
-                            depth: Six,
-                            )),
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (140.0, 160.0),
-                            elapsed: 7.4,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (520.0, 210.0),
-                            elapsed: 8.1,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: Box(Pickup(
-                            pickup_type: BigHealthpack,
-                            coordinates: (0.0, 0.0),
-                            elapsed: 0.0,
-                            depth: Six,
-                            )),
-                            steps: [
-                            Circle((
-                            direction: -1,
+                            direction: Negative,
+                            duration: 99999.0,
                             radius: 13.0,
-                            duration: 99999.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 10.0,
+            kill_all: true,
+            kill_boss: false,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(850.0, 155.0),
+            base_speed: 1.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 8.4,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                        coordinates: Vec2(0.0, 0.0),
+                        elapsed: 0.0,
+                        depth: Six,
+                    ),
+                    coordinates: Vec2(55.0, 60.0),
+                    speed: 5.0,
+                    steps: [
+                        Circle(
                             depth_movement_o: None,
-                            )),
-                            ].into(),
-                            ),
-                            ),
-                            ],
-                            floor_depths: None,
-                            ),
-                            ),
-                            (
-                            Stop: (
-                            max_duration: 10.0,
-                            kill_all: true,
-                            kill_boss: false,
-                            spawns: [],
-                            floor_depths: None,
-                            ),
-                            ),
-                            (
-                            Movement: (
-                            coordinates: (850.0, 155.0),
-                            base_speed: 1.0,
-                            spawns: [
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (55.0, 60.0),
-                            elapsed: 8.4,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: Box(Pickup(
-                            pickup_type: BigHealthpack,
-                            coordinates: (0.0, 0.0),
-                            elapsed: 0.0,
-                            depth: Six,
-                            )),
-                            steps: [
-                            Circle((
-                            direction: -1,
+                            direction: Negative,
+                            duration: 99999.0,
                             radius: 15.0,
-                            duration: 99999.0,
-                            depth_movement_o: None,
-                            )),
-                            ].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (100.0, 60.0),
-                            elapsed: 6.1,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            ],
-                            floor_depths: None,
-                            ),
-                            ),
-                            (
-                            Stop: (
-                            max_duration: 10.0,
-                            kill_all: true,
-                            kill_boss: false,
-                            spawns: [],
-                            floor_depths: None,
-                            ),
-                            ),
-                            (
-                            Movement: (
-                            coordinates: (920.0, 155.0),
-                            base_speed: 1.0,
-                            spawns: [
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (60.0, 80.0),
-                            elapsed: 8.4,
-                            depth: Five,
-                            speed: 5.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            (
-                            Enemy: (
-                            enemy_type: Mosquito,
-                            coordinates: (100.0, 60.0),
-                            elapsed: 6.1,
-                            depth: Five,
-                            speed: 2.0,
-                            contains: None,
-                            steps: [].into(),
-                            ),
-                            ),
-                            ],
-                            floor_depths: None,
-                            ),
-                            ),
-                            (
-                            Stop: (
-                            max_duration: 45.0,
-                            kill_all: false,
-                            kill_boss: true,
-                            spawns: [],
-                            floor_depths: None,
-                            ),
-                            ),
-                            ],
-                            )
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.1,
+                    contains: None,
+                    coordinates: Vec2(100.0, 60.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 10.0,
+            kill_all: true,
+            kill_boss: false,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(920.0, 155.0),
+            base_speed: 1.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 8.4,
+                    contains: None,
+                    coordinates: Vec2(60.0, 80.0),
+                    speed: 5.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 6.1,
+                    contains: None,
+                    coordinates: Vec2(100.0, 60.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 45.0,
+            kill_all: false,
+            kill_boss: true,
+            spawns: [],
+            floor_depths: None,
+        ),
+    ],
+)

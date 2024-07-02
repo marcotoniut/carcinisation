@@ -8,6 +8,7 @@ use crate::cutscene::data::CutsceneAnimationsSpawn;
 use bevy::{prelude::*, utils::HashMap};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DurationSecondsWithFrac};
 use std::time::Duration;
 
 #[derive(Component, Debug, Default)]
@@ -103,17 +104,23 @@ impl MovementStageStep {
     }
 }
 
+#[serde_as]
 #[derive(new, Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct StopStageStep {
     #[new(default)]
+    #[serde_as(as = "Option<DurationSecondsWithFrac>")]
+    #[serde(default)]
     pub max_duration: Option<Duration>,
     #[new(value = "true")]
     pub kill_all: bool,
     #[new(default)]
+    #[serde(default)]
     pub kill_boss: bool,
     #[new(default)]
+    #[serde(default)]
     pub spawns: Vec<StageSpawn>,
     #[new(default)]
+    #[serde(default)]
     pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,
