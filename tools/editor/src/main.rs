@@ -25,7 +25,7 @@ use systems::{
     check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
     input::{on_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel},
-    on_loaded_scene, on_unload_scene, setup_camera,
+    on_scene_change, on_unload_scene, setup_camera,
 };
 use ui::systems::update_ui;
 
@@ -61,7 +61,7 @@ fn main() {
         // .add_systems(Startup, setup_elapsed_ui)
         .add_systems(
             PreUpdate,
-            on_loaded_scene.run_if(resource_exists::<SceneData>),
+            on_scene_change.run_if(resource_exists::<SceneData>),
         )
         .add_systems(Update, update_cutscene_act_connections)
         .add_systems(

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct DestructibleSpawn {
     #[reflect(ignore)]
+    #[serde(default)]
     pub contains: Option<Box<ContainerSpawn>>,
     pub coordinates: Vec2,
     pub depth: Depth,

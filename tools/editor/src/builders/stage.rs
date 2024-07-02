@@ -1,15 +1,21 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy::render::color::Color;
 use bevy_prototype_lyon::geometry::GeometryBuilder;
 use bevy_prototype_lyon::shapes;
-use carcinisation::stage::data::{StageData, StageSpawn};
+use carcinisation::stage::data::{ObjectType, PickupType, StageData, StageSpawn, StageStep};
+use carcinisation::stage::destructible::components::DestructibleType;
+use carcinisation::stage::enemy::entity::EnemyType;
 
 use crate::components::{Draggable, SceneItem, StageSpawnLabel};
 use crate::constants::FONT_PATH;
+use crate::resources::StageElapsedUI;
 
 pub fn spawn_stage(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
+    stage_elapsed_ui: &Res<StageElapsedUI>,
     stage_data: &StageData,
 ) {
     let background_texture = asset_server.load(&stage_data.background_path);
@@ -31,48 +37,94 @@ pub fn spawn_stage(
         color: Color::WHITE,
     };
 
-    // Spawn all stage elements
+    let mut elapsed: f32 = 0.0;
+
     for (spawn_index, spawn) in stage_data.spawns.iter().enumerate() {
-        let (position, name, color) = match spawn {
-            StageSpawn::Object(obj) => (obj.coordinates, obj.show_type(), Color::BLUE),
-            StageSpawn::Destructible(dest) => (dest.coordinates, dest.show_type(), Color::GREEN),
-            StageSpawn::Pickup(pickup) => (pickup.coordinates, pickup.show_type(), Color::YELLOW),
-            StageSpawn::Enemy(enemy) => {
-                (enemy.coordinates, enemy.enemy_type.show_type(), Color::RED)
+        let (position, name, show) = match spawn {
+            StageSpawn::Object(x) => match x.object_type {
+                ObjectType::BenchBig => (x.coordinates, x.show_type(), true),
+                ObjectType::BenchSmall => (x.coordinates, x.show_type(), true),
+                ObjectType::Fibertree => (x.coordinates, x.show_type(), true),
+                ObjectType::RugparkSign => (x.coordinates, x.show_type(), true),
+            },
+            StageSpawn::Destructible(x) => match x.destructible_type {
+                DestructibleType::Lamp => (x.coordinates, x.show_type(), true),
+                DestructibleType::Trashcan => (x.coordinates, x.show_type(), true),
+                DestructibleType::Crystal => (x.coordinates, x.show_type(), true),
+                DestructibleType::Mushroom => (x.coordinates, x.show_type(), true),
+            },
+            StageSpawn::Pickup(x) => {
+                elapsed += x.elapsed;
+                let show = stage_elapsed_ui.0.as_secs_f32() <= elapsed;
+                match x.pickup_type {
+                    PickupType::SmallHealthpack => (x.coordinates, x.show_type(), show),
+                    PickupType::BigHealthpack => (x.coordinates, x.show_type(), show),
+                }
+            }
+            StageSpawn::Enemy(x) => {
+                elapsed += x.elapsed;
+                let show = stage_elapsed_ui.0.as_secs_f32() <= elapsed;
+                match x.enemy_type {
+                    EnemyType::Mosquito => (x.coordinates, x.enemy_type.show_type(), show),
+                    EnemyType::Spidey => (x.coordinates, x.enemy_type.show_type(), show),
+                    EnemyType::Tardigrade => (x.coordinates, x.enemy_type.show_type(), show),
+                    EnemyType::Marauder => (x.coordinates, x.enemy_type.show_type(), show),
+                    EnemyType::Spidomonsta => (x.coordinates, x.enemy_type.show_type(), show),
+                    EnemyType::Kyle => (x.coordinates, x.enemy_type.show_type(), show),
+                }
             }
         };
 
-        commands
-            .spawn((
-                Name::new(format!("Spawn {}: {}", spawn_index, name)),
-                StageSpawnLabel,
-                Draggable,
-                SceneItem,
-                SpatialBundle::from_transform(Transform::from_translation(position.extend(1.0))),
-            ))
-            .with_children(|parent| {
-                // Spawn a colored circle for the spawn point
-                parent.spawn((
-                    // FillMode::color(color), Transform::default()
-                    GeometryBuilder::new()
-                        .add(&shapes::Circle {
-                            radius: 5.0,
-                            center: Vec2::ZERO,
-                        })
-                        .build(),
-                    Name::new(format!("Circle {}", spawn_index)),
-                ));
+        if show {
+            commands
+                .spawn((
+                    Name::new(format!("Spawn {}: {}", spawn_index, name)),
+                    StageSpawnLabel,
+                    Draggable,
+                    SceneItem,
+                    SpatialBundle::from_transform(Transform::from_translation(
+                        position.extend(1.0),
+                    )),
+                ))
+                .with_children(|parent| {
+                    // Spawn a colored circle for the spawn point
+                    parent.spawn((
+                        // FillMode::color(color), Transform::default()
+                        GeometryBuilder::new()
+                            .add(&shapes::Circle {
+                                radius: 5.0,
+                                center: Vec2::ZERO,
+                            })
+                            .build(),
+                        Name::new(format!("Circle {}", spawn_index)),
+                    ));
 
-                // Spawn text label
-                parent.spawn(Text2dBundle {
-                    text: Text::from_section(name, label_style.clone()),
-                    transform: Transform::from_xyz(0.0, 10.0, 0.0),
-                    ..default()
+                    parent.spawn(Text2dBundle {
+                        text: Text::from_section(name, label_style.clone()),
+                        transform: Transform::from_xyz(0.0, 10.0, 0.0),
+                        ..default()
+                    });
                 });
-            });
+        }
     }
 
-    // Spawn stage info text
+    let mut position = Vec2::ZERO;
+    let mut elapsed: f32 = 0.0;
+    for (spawn_index, step) in stage_data.steps.iter().enumerate() {
+        match step {
+            StageStep::Cinematic(s) => {
+                // TODO
+            }
+            StageStep::Movement(s) => {}
+            StageStep::Stop(s) => {
+                elapsed += s
+                    .max_duration
+                    .unwrap_or(Duration::from_secs(0))
+                    .as_secs_f32();
+            }
+        }
+    }
+
     commands.spawn((
         Name::new("Stage Info"),
         SceneItem,

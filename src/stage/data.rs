@@ -157,6 +157,7 @@ pub struct EnemySpawn {
     pub enemy_type: EnemyType,
     pub elapsed: f32,
     #[reflect(ignore)]
+    #[serde(default)]
     pub contains: Option<Box<ContainerSpawn>>,
     pub coordinates: Vec2,
     pub speed: f32,

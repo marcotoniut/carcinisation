@@ -131,6 +131,7 @@ StageData(
                     ),
                     coordinates: Vec2(120.0, 100.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -144,14 +145,15 @@ StageData(
                     ),
                     coordinates: Vec2(130.0, 70.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
             ],
             floor_depths: {
-                Four: 30.0,
-                Six: 70.0,
-                Five: 50.0,
                 Three: 0.0,
+                Six: 70.0,
+                Four: 30.0,
+                Five: 50.0,
             },
         ),
         Stop(
@@ -170,6 +172,7 @@ StageData(
                     ),
                     coordinates: Vec2(70.0, 70.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -178,6 +181,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(90.0, 70.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -186,6 +190,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(12.0, 50.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -199,6 +204,7 @@ StageData(
                     ),
                     coordinates: Vec2(170.0, 68.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
             ],
@@ -230,6 +236,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(12.0, 50.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -238,6 +245,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(30.0, 90.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Six,
                 ),
                 Enemy(
@@ -246,6 +254,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(30.0, 50.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Pickup(
@@ -274,6 +283,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(60.0, 80.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -282,6 +292,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(100.0, 60.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -290,6 +301,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(30.0, 80.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -298,6 +310,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(120.0, 60.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -306,6 +319,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(80.0, 80.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -314,6 +328,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(20.0, 60.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
             ],
@@ -334,6 +349,7 @@ StageData(
                     ),
                     coordinates: Vec2(100.0, 80.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -342,6 +358,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(100.0, 100.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -366,6 +383,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(280.0, 80.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -379,6 +397,7 @@ StageData(
                     ),
                     coordinates: Vec2(320.0, 160.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Six,
                 ),
                 Enemy(
@@ -387,6 +406,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(400.0, 160.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -395,6 +415,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(360.0, 160.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -403,6 +424,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(410.0, 180.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -432,6 +454,7 @@ StageData(
                     ),
                     coordinates: Vec2(120.0, 160.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -440,6 +463,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(140.0, 160.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -504,6 +528,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(100.0, 60.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
             ],
@@ -526,6 +551,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(60.0, 80.0),
                     speed: 5.0,
+                    steps: [],
                     depth: Five,
                 ),
                 Enemy(
@@ -534,6 +560,7 @@ StageData(
                     contains: None,
                     coordinates: Vec2(100.0, 60.0),
                     speed: 2.0,
+                    steps: [],
                     depth: Five,
                 ),
             ],
