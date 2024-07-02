@@ -17,4 +17,4 @@ pub struct StageAssetHandle {
 }
 
 #[derive(Debug, Default, Resource, Reflect)]
-pub struct StageElapsedUI(Duration);
+pub struct StageElapsedUI(pub Duration);

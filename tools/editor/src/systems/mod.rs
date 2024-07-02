@@ -8,6 +8,7 @@ use bevy::{
 };
 use carcinisation::{stage::data::StageData, CutsceneData};
 
+use crate::resources::StageElapsedUI;
 use crate::{
     builders::{cutscene::spawn_cutscene, stage::spawn_stage},
     components::{SceneData, SceneItem, ScenePath},
@@ -85,13 +86,14 @@ pub fn check_stage_data_loaded(
     }
 }
 
-pub fn on_loaded_scene(
+pub fn on_scene_change(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     loaded_scene: Res<SceneData>,
+    stage_elapsed_ui: Res<StageElapsedUI>,
     scene_item_query: Query<Entity, With<SceneItem>>,
 ) {
-    if loaded_scene.is_changed() {
+    if loaded_scene.is_changed() || stage_elapsed_ui.is_changed() {
         for entity in scene_item_query.iter() {
             commands.entity(entity).despawn_recursive();
         }
@@ -100,7 +102,7 @@ pub fn on_loaded_scene(
                 spawn_cutscene(&mut commands, &asset_server, &data);
             }
             SceneData::Stage(data) => {
-                spawn_stage(&mut commands, &asset_server, &data);
+                spawn_stage(&mut commands, &asset_server, &stage_elapsed_ui, &data);
             }
         }
     }
