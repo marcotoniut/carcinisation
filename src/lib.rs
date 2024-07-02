@@ -1,7 +1,7 @@
 #![feature(step_trait)]
 
 mod assets;
-mod bevy_utils;
+pub mod bevy_utils;
 mod components;
 mod core;
 pub mod cutscene;
