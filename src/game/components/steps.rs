@@ -4,18 +4,18 @@ use derive_new::new;
 use std::sync::Arc;
 
 #[derive(new, Component, Clone, Debug)]
-pub struct CinematicGameStep {
-    // pub data: Arc<CutsceneData>,
-    pub src: String,
+pub struct CutsceneGameStep {
+    pub data: Arc<CutsceneData>,
     #[new(value = "true")]
     pub is_checkpoint: bool,
 }
 
-impl CinematicGameStep {
-    pub fn is_checkpoint(mut self, is_checkpoint: bool) -> Self {
-        self.is_checkpoint = is_checkpoint;
-        self
-    }
+#[derive(new, Component, Clone, Debug)]
+pub struct CinematicAssetGameStep {
+    // pub data: Arc<CutsceneData>,
+    pub src: String,
+    #[new(value = "true")]
+    pub is_checkpoint: bool,
 }
 
 #[derive(Component, Clone, Debug)]
@@ -31,3 +31,6 @@ pub struct TransitionGameStep {
 pub struct StageGameStep {
     pub data: Arc<StageData>,
 }
+
+#[derive(Component, Clone, Debug)]
+pub struct StageAssetGameStep(pub String);

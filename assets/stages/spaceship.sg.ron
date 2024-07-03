@@ -1,0 +1,15 @@
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+StageData(
+    name: "Spaceship",
+    background_path: "backgrounds/spaceship/background.png",
+    music_path: "audio/music/stage_2.ogg",
+    skybox: SkyboxData(
+        path: "backgrounds/spaceship/skybox.png",
+        frames: 6,
+    ),
+    start_coordinates: Vec2(0.0, 0.0),
+    spawns: [],
+    steps: [],
+)

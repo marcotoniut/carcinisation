@@ -65,20 +65,33 @@ pub fn progress(
     game_progress: Res<GameProgress>,
     game_data: Res<GameData>,
     mut commands: Commands,
+    mut cutscene_startup_event_writer: EventWriter<CutsceneStartupEvent>,
     mut stage_startup_event_writer: EventWriter<StageStartupEvent>,
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
         if let Some(data) = game_data.steps.get(game_progress.index) {
             match data {
-                GameStep::Stage(StageGameStep { data }) => {
-                    stage_startup_event_writer.send(StageStartupEvent { data: data.clone() });
-                }
                 GameStep::Credits(CreditsGameStep {}) => {
                     // TODO
                 }
-                GameStep::Cinematic(CinematicGameStep { src, is_checkpoint }) => {
-                    let handle = asset_server.load::<CutsceneData>(src);
-                    commands.insert_resource(CutsceneAssetHandle { handle });
+                GameStep::Cutscene(CutsceneGameStep {
+                    data,
+                    is_checkpoint,
+                }) => {
+                    cutscene_startup_event_writer.send(CutsceneStartupEvent { data: data.clone() });
+                }
+                GameStep::CutsceneAsset(CinematicAssetGameStep { src, is_checkpoint }) => {
+                    commands.insert_resource(CutsceneAssetHandle {
+                        handle: asset_server.load::<CutsceneData>(src),
+                    });
+                }
+                GameStep::Stage(StageGameStep { data }) => {
+                    stage_startup_event_writer.send(StageStartupEvent { data: data.clone() });
+                }
+                GameStep::StageAsset(StageAssetGameStep(src)) => {
+                    commands.insert_resource(StageAssetHandle {
+                        handle: asset_server.load::<StageData>(src),
+                    });
                 }
                 GameStep::Transition(TransitionGameStep {}) => {
                     // TODO
@@ -94,15 +107,34 @@ pub fn check_cutscene_data_loaded(
     mut cinematic_startup_event_writer: EventWriter<CutsceneStartupEvent>,
     mut commands: Commands,
 ) {
-    if let Some(cutscene_data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
-        println!("Cutscene data loaded: {:?}", cutscene_data);
+    if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
+        println!("Cutscene data loaded: {:?}", data);
         cinematic_startup_event_writer.send(CutsceneStartupEvent {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
-            data: Arc::new(cutscene_data.clone()),
+            data: Arc::new(data.clone()),
         });
         commands.remove_resource::<CutsceneAssetHandle>();
     } else {
         // Asset is not yet loaded
         println!("Cutscene data is still loading...");
+    }
+}
+
+pub fn check_stage_data_loaded(
+    cutscene_asset_handle: Res<StageAssetHandle>,
+    cutscene_data_assets: Res<Assets<StageData>>,
+    mut cinematic_startup_event_writer: EventWriter<StageStartupEvent>,
+    mut commands: Commands,
+) {
+    if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
+        println!("Stage data loaded: {:?}", data);
+        cinematic_startup_event_writer.send(StageStartupEvent {
+            // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
+            data: Arc::new(data.clone()),
+        });
+        commands.remove_resource::<StageAssetHandle>();
+    } else {
+        // Asset is not yet loaded
+        println!("Stage data is still loading...");
     }
 }

@@ -1,0 +1,219 @@
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+StageData(
+    name: "Asteroid",
+    background_path: "backgrounds/asteroid/background.png",
+    music_path: "audio/music/stage_3.ogg",
+    skybox: SkyboxData(
+        path: "backgrounds/asteroid/skybox.png",
+        frames: 1,
+    ),
+    start_coordinates: Vec2(0.0, 0.0),
+    spawns: [
+        Destructible(
+            contains: None,
+            coordinates: Vec2(30.0, 0.0),
+            depth: Five,
+            destructible_type: Crystal,
+            health: 100,
+        ),
+        Destructible(
+            contains: Enemy(
+                enemy_type: Tardigrade,
+                elapsed: 0.4,
+                contains: None,
+                coordinates: Vec2(60.0, 0.0),
+                speed: 2.0,
+                steps: [
+                    Idle(
+                        duration: 1.0,
+                    ),
+                    Attack(
+                        duration: 3.0,
+                    ),
+                    LinearMovement(
+                        depth_movement_o: None,
+                        direction: Vec2(0.5, -1.0),
+                        trayectory: 0.0,
+                    ),
+                    Circle(
+                        depth_movement_o: None,
+                        direction: Negative,
+                        duration: None,
+                        radius: 4.0,
+                    ),
+                ],
+                depth: Four,
+            ),
+            coordinates: Vec2(60.0, 0.0),
+            depth: Four,
+            destructible_type: Mushroom,
+            health: 50,
+        ),
+        Destructible(
+            contains: Pickup(
+                pickup_type: BigHealthpack,
+                coordinates: Vec2(0.0, 0.0),
+                elapsed: 0.0,
+                depth: Six,
+            ),
+            coordinates: Vec2(20.0, 0.0),
+            depth: Four,
+            destructible_type: Mushroom,
+            health: 50,
+        ),
+        Destructible(
+            contains: Pickup(
+                pickup_type: SmallHealthpack,
+                coordinates: Vec2(0.0, 0.0),
+                elapsed: 0.0,
+                depth: Six,
+            ),
+            coordinates: Vec2(20.0, 0.0),
+            depth: Five,
+            destructible_type: Crystal,
+            health: 100,
+        ),
+    ],
+    steps: [
+        Movement(
+            coordinates: Vec2(0.0, 0.0),
+            base_speed: 8.0,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 10.0,
+            kill_all: false,
+            kill_boss: false,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(50.0, 0.0),
+            base_speed: 10.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 1.4,
+                    contains: None,
+                    coordinates: Vec2(60.0, 100.0),
+                    speed: 2.0,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 4.0,
+                            radius: 10.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 4.2,
+                    contains: None,
+                    coordinates: Vec2(120.0, 100.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 2.4,
+                    contains: None,
+                    coordinates: Vec2(100.0, 70.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(34.0, 62.0),
+            base_speed: 8.0,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(90.0, 0.0),
+            base_speed: 4.0,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(0.0, 0.0),
+            base_speed: 2.0,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Movement(
+            coordinates: Vec2(50.0, 0.0),
+            base_speed: 1.0,
+            spawns: [
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(60.0, 100.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(120.0, 100.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 30.0,
+            kill_all: false,
+            kill_boss: false,
+            spawns: [
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 4.0,
+                    contains: None,
+                    coordinates: Vec2(70.0, 70.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 40.0,
+            kill_all: false,
+            kill_boss: false,
+            spawns: [
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 4.0,
+                    contains: None,
+                    coordinates: Vec2(70.0, 70.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: None,
+            kill_all: false,
+            kill_boss: true,
+            spawns: [],
+            floor_depths: None,
+        ),
+    ],
+)
