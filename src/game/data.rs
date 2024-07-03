@@ -6,8 +6,10 @@ pub const DEATH_SCORE_PENALTY: i32 = 150;
 
 #[derive(Clone, Debug, From)]
 pub enum GameStep {
-    Cinematic(CinematicGameStep),
     Credits(CreditsGameStep),
-    Transition(TransitionGameStep),
+    Cutscene(CutsceneGameStep),
+    CutsceneAsset(CinematicAssetGameStep),
     Stage(StageGameStep),
+    StageAsset(StageAssetGameStep),
+    Transition(TransitionGameStep),
 }

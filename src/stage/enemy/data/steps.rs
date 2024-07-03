@@ -24,18 +24,20 @@ impl AttackEnemyStep {
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct CircleAroundEnemyStep {
     pub depth_movement_o: Option<i8>,
+    #[serde(default)]
     pub direction: MovementDirection,
-    pub duration: f32,
-    pub radius: f32,
+    pub duration: Option<f32>,
+    pub radius: Option<f32>,
 }
 
 impl CircleAroundEnemyStep {
+    // TODO get rid of this
     pub fn base() -> Self {
         Self {
             depth_movement_o: None,
             direction: MovementDirection::Negative,
-            duration: EnemyStep::max_duration(),
-            radius: 12.,
+            duration: Some(EnemyStep::max_duration()),
+            radius: Some(12.),
         }
     }
 
@@ -60,12 +62,12 @@ impl CircleAroundEnemyStep {
     }
 
     pub fn with_duration(mut self, value: f32) -> Self {
-        self.duration = value;
+        self.duration = Some(value);
         self
     }
 
     pub fn with_radius(mut self, value: f32) -> Self {
-        self.radius = value;
+        self.radius = Some(value);
         self
     }
 }
@@ -98,6 +100,7 @@ impl Default for IdleEnemyStep {
 pub struct LinearMovementEnemyStep {
     pub depth_movement_o: Option<i8>,
     pub direction: Vec2,
+    #[serde(default)]
     pub trayectory: f32,
 }
 
@@ -184,7 +187,7 @@ impl EnemyStep {
     pub fn get_duration_o(&self) -> Option<f32> {
         match self {
             EnemyStep::Attack(AttackEnemyStep { duration, .. }) => Some(*duration),
-            EnemyStep::Circle(CircleAroundEnemyStep { duration, .. }) => Some(*duration),
+            EnemyStep::Circle(CircleAroundEnemyStep { duration, .. }) => *duration,
             EnemyStep::Idle(IdleEnemyStep { duration, .. }) => Some(*duration),
             EnemyStep::LinearMovement { .. } => None,
             EnemyStep::Jump { .. } => None,

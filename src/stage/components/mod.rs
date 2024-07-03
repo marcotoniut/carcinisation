@@ -62,15 +62,22 @@ pub enum CinematicStageStep {
     CutsceneAnimationSpawn(CutsceneAnimationsSpawn),
 }
 
+fn default_base_speed() -> f32 {
+    1.0
+}
+
 #[derive(new, Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct MovementStageStep {
     #[new(default)]
     pub coordinates: Vec2,
     #[new(value = "1.")]
+    #[serde(default = "default_base_speed")]
     pub base_speed: f32,
     #[new(default)]
+    #[serde(default)]
     pub spawns: Vec<StageSpawn>,
     #[new(default)]
+    #[serde(default)]
     pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,
@@ -112,6 +119,7 @@ pub struct StopStageStep {
     #[serde(default)]
     pub max_duration: Option<Duration>,
     #[new(value = "true")]
+    #[serde(default)]
     pub kill_all: bool,
     #[new(default)]
     #[serde(default)]

@@ -7,7 +7,7 @@ pub mod systems;
 
 use self::{events::*, resources::GameProgress, score::ScorePlugin, systems::setup::*};
 use bevy::prelude::*;
-use resources::CutsceneAssetHandle;
+use resources::{CutsceneAssetHandle, StageAssetHandle};
 
 pub struct GamePlugin;
 
@@ -24,6 +24,7 @@ impl Plugin for GamePlugin {
                 Update,
                 ((
                     check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),
+                    check_stage_data_loaded.run_if(resource_exists::<StageAssetHandle>),
                     progress,
                     on_stage_cleared,
                     on_cutscene_shutdown,

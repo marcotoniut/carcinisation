@@ -53,6 +53,8 @@ use crate::{
     systems::{check_despawn_after_delay, delay_despawn},
 };
 use bevy::prelude::*;
+use bevy_common_assets::ron::RonAssetPlugin;
+use data::StageData;
 use pickup::{components::PickupFeedback, systems::health::PickupDespawnFilter};
 use seldom_pixel::prelude::PxSubPosition;
 
@@ -75,9 +77,13 @@ impl Plugin for StagePlugin {
         app.insert_resource(TimeMultiplier::<StageTime>::new(1.));
 
         app.init_state::<StagePluginUpdateState>()
+            .init_resource::<StageActionTimer>()
+            .init_resource::<StageTime>()
+            .init_resource::<StageProgress>()
+            .init_state::<StageProgressState>()
             .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
             .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
-            .init_state::<StageProgressState>()
+            .add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
             .add_event::<CameraShakeEvent>()
             .add_event::<DamageEvent>()
             .add_event::<DepthChangedEvent>()
@@ -88,9 +94,6 @@ impl Plugin for StagePlugin {
             .add_event::<NextStepEvent>()
             // TODO temporary
             .add_event::<GameOverEvent>()
-            .init_resource::<StageActionTimer>()
-            .init_resource::<StageTime>()
-            .init_resource::<StageProgress>()
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionX>::default())

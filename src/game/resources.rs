@@ -1,4 +1,4 @@
-use crate::cutscene::data::CutsceneData;
+use crate::{cutscene::data::CutsceneData, stage::data::StageData};
 
 use super::data::GameStep;
 use bevy::prelude::*;
@@ -61,4 +61,9 @@ impl Step for Difficulty {
 #[derive(Resource)]
 pub struct CutsceneAssetHandle {
     pub handle: Handle<CutsceneData>,
+}
+
+#[derive(Resource)]
+pub struct StageAssetHandle {
+    pub handle: Handle<StageData>,
 }

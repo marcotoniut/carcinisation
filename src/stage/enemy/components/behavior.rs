@@ -99,7 +99,8 @@ impl EnemyCurrentBehavior {
                 radius, direction, ..
             }) => BehaviorBundle::Circle(CircleAround {
                 center: current_position.0,
-                radius,
+                // TODO hardcoded values should be coming from the enemy type
+                radius: radius.unwrap_or_else(|| 12.),
                 direction: direction.clone(),
                 time_offset: time_offset.as_secs_f32(),
             }),
