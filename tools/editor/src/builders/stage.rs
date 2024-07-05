@@ -96,54 +96,123 @@ pub fn spawn_stage(
         };
 
         if show {
-            commands
-                .spawn((
-                    Name::new(format!("Stage spawn {}: {}", spawn_index, name)),
-                    StageSpawnLabel,
-                    Draggable,
-                    SceneItem,
-                    SpriteBundle {
-                        texture: asset_server.load(&thumbnail.0),
-                        transform: Transform::from_xyz(position.x, position.y, 0.0),
-                        sprite: Sprite {
-                            anchor: Anchor::BottomCenter,
-                            ..default()
-                        },
+            commands.spawn((
+                Name::new(format!("Stage spawn {}: {}", spawn_index, name)),
+                StageSpawnLabel,
+                Draggable,
+                SceneItem,
+                SpriteBundle {
+                    texture: asset_server.load(&thumbnail.0),
+                    transform: Transform::from_xyz(position.x, position.y, 0.0),
+                    sprite: Sprite {
+                        anchor: Anchor::BottomCenter,
                         ..default()
                     },
-                ))
-                .with_children(|parent| {
-                    // Spawn a colored circle for the spawn point
-                    parent.spawn((
-                        // FillMode::color(color), Transform::default()
-                        GeometryBuilder::new()
-                            .add(&shapes::Circle {
-                                radius: 5.0,
-                                center: Vec2::ZERO,
-                            })
-                            .build(),
-                        Name::new(format!("Circle {}", spawn_index)),
-                    ));
-
-                    parent.spawn(Text2dBundle {
-                        text: Text::from_section(name, label_style.clone()),
-                        transform: Transform::from_xyz(0.0, 10.0, 0.0),
-                        ..default()
-                    });
-                });
+                    ..default()
+                },
+            ));
         }
     }
 
-    let mut position = Vec2::ZERO;
-    let mut elapsed: f32 = 0.0;
+    let mut current_position = stage_data.start_coordinates.unwrap_or(Vec2::ZERO);
+    let mut current_elapsed: f32 = 0.0;
     for (spawn_index, step) in stage_data.steps.iter().enumerate() {
         match step {
             StageStep::Cinematic(s) => {
                 // TODO
             }
-            StageStep::Movement(s) => {}
+            StageStep::Movement(s) => {
+                for spawn in s.spawns.iter() {
+                    let ((position, name, show), thumbnail) = match spawn {
+                        StageSpawn::Object(x) => (
+                            match x.object_type {
+                                ObjectType::BenchBig => (x.coordinates, x.show_type(), true),
+                                ObjectType::BenchSmall => (x.coordinates, x.show_type(), true),
+                                ObjectType::Fibertree => (x.coordinates, x.show_type(), true),
+                                ObjectType::RugparkSign => (x.coordinates, x.show_type(), true),
+                            },
+                            get_object_thumbnail(x.object_type.clone()),
+                        ),
+                        StageSpawn::Destructible(x) => (
+                            match x.destructible_type {
+                                DestructibleType::Lamp => (x.coordinates, x.show_type(), true),
+                                DestructibleType::Trashcan => (x.coordinates, x.show_type(), true),
+                                DestructibleType::Crystal => (x.coordinates, x.show_type(), true),
+                                DestructibleType::Mushroom => (x.coordinates, x.show_type(), true),
+                            },
+                            get_destructible_thumbnail(x.destructible_type.clone()),
+                        ),
+                        StageSpawn::Pickup(x) => {
+                            current_elapsed += x.elapsed;
+                            let show = stage_elapsed_ui.0.as_secs_f32() <= current_elapsed;
+                            (
+                                match x.pickup_type {
+                                    PickupType::SmallHealthpack => {
+                                        (x.coordinates, x.show_type(), show)
+                                    }
+                                    PickupType::BigHealthpack => {
+                                        (x.coordinates, x.show_type(), show)
+                                    }
+                                },
+                                get_pickup_thumbnail(x.pickup_type.clone()),
+                            )
+                        }
+                        StageSpawn::Enemy(x) => {
+                            current_elapsed += x.elapsed;
+                            let show = stage_elapsed_ui.0.as_secs_f32() <= current_elapsed;
+                            (
+                                match x.enemy_type {
+                                    EnemyType::Mosquito => {
+                                        (x.coordinates, x.enemy_type.show_type(), show)
+                                    }
+                                    EnemyType::Spidey => {
+                                        (x.coordinates, x.enemy_type.show_type(), show)
+                                    }
+                                    EnemyType::Tardigrade => {
+                                        (x.coordinates, x.enemy_type.show_type(), show)
+                                    }
+                                    EnemyType::Marauder => {
+                                        (x.coordinates, x.enemy_type.show_type(), show)
+                                    }
+                                    EnemyType::Spidomonsta => {
+                                        (x.coordinates, x.enemy_type.show_type(), show)
+                                    }
+                                    EnemyType::Kyle => {
+                                        (x.coordinates, x.enemy_type.show_type(), show)
+                                    }
+                                },
+                                get_enemy_thumbnail(x.enemy_type.clone()),
+                            )
+                        }
+                    };
+
+                    if show {
+                        let v = current_position + position;
+                        commands.spawn((
+                            Name::new(format!("Stage spawn {}: {}", spawn_index, name)),
+                            StageSpawnLabel,
+                            Draggable,
+                            SceneItem,
+                            SpriteBundle {
+                                texture: asset_server.load(&thumbnail.0),
+                                transform: Transform::from_translation(v.extend(0.0)),
+                                sprite: Sprite {
+                                    anchor: Anchor::BottomCenter,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                        ));
+                    }
+                }
+
+                let distance = s.coordinates.distance(current_position);
+                let time_to_move = distance / s.base_speed;
+                current_position = s.coordinates;
+                current_elapsed += time_to_move;
+            }
             StageStep::Stop(s) => {
-                elapsed += s
+                current_elapsed += s
                     .max_duration
                     .unwrap_or(Duration::from_secs(0))
                     .as_secs_f32();
