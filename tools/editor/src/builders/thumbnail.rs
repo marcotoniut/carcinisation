@@ -103,7 +103,7 @@ pub fn get_destructible_thumbnail(
     }
 }
 
-pub fn get_object_thumbnail(object_type: ObjectType) -> (String, Option<Rect>) {
+pub fn get_object_thumbnail(object_type: ObjectType, depth: Depth) -> (String, Option<Rect>) {
     match object_type {
         ObjectType::BenchBig => ("sprites/objects/bench_big.png".into(), None),
         ObjectType::BenchSmall => ("sprites/objects/bench_small.png".into(), None),
@@ -112,7 +112,7 @@ pub fn get_object_thumbnail(object_type: ObjectType) -> (String, Option<Rect>) {
     }
 }
 
-pub fn get_pickup_thumbnail(pickup_type: PickupType) -> (String, Option<Rect>) {
+pub fn get_pickup_thumbnail(pickup_type: PickupType, depth: Depth) -> (String, Option<Rect>) {
     match pickup_type {
         PickupType::BigHealthpack => ("sprites/pickups/health_6.png".into(), None),
         PickupType::SmallHealthpack => ("sprites/pickups/health_6.png".into(), None),
