@@ -300,6 +300,15 @@ pub enum StageSpawn {
 }
 
 impl StageSpawn {
+    pub fn get_coordinates(&self) -> &Vec2 {
+        match self {
+            StageSpawn::Destructible(DestructibleSpawn { coordinates, .. }) => coordinates,
+            StageSpawn::Enemy(EnemySpawn { coordinates, .. }) => coordinates,
+            StageSpawn::Object(ObjectSpawn { coordinates, .. }) => coordinates,
+            StageSpawn::Pickup(PickupSpawn { coordinates, .. }) => coordinates,
+        }
+    }
+
     pub fn get_elapsed(&self) -> Duration {
         Duration::from_secs_f32(match self {
             StageSpawn::Destructible(DestructibleSpawn { .. }) => 0.,
