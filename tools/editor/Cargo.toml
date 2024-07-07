@@ -21,6 +21,7 @@ rfd = "0.14.1"
 ron = "0.8.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_with = "3.8.1"
+strum = "0.26.2"
 
 # For now it is recomendended to use the following patches of the libraries we are using
 [patch.crates-io]

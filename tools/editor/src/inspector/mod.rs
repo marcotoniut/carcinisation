@@ -1,5 +1,6 @@
 mod systems;
 mod types;
+pub mod utils;
 
 use self::systems::inspector_ui;
 use bevy::prelude::*;

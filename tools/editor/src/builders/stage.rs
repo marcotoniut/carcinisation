@@ -1,10 +1,9 @@
 use std::time::Duration;
 
+use crate::inspector::utils::DepthEditorZIndex;
 use bevy::prelude::*;
 use bevy::render::color::Color;
 use bevy::sprite::Anchor;
-use bevy_prototype_lyon::geometry::GeometryBuilder;
-use bevy_prototype_lyon::shapes;
 use carcinisation::stage::data::{ObjectType, PickupType, StageData, StageSpawn, StageStep};
 use carcinisation::stage::destructible::components::DestructibleType;
 use carcinisation::stage::enemy::entity::EnemyType;
@@ -31,10 +30,13 @@ pub fn spawn_stage(
         SceneItem,
         SpriteBundle {
             texture: background_texture,
+            transform: Transform::from_xyz(0.0, 0.0, -10.0),
             sprite: Sprite {
                 anchor: Anchor::BottomLeft,
+
                 ..default()
             },
+
             ..default()
         },
     ));
@@ -65,11 +67,11 @@ pub fn spawn_stage(
                     DestructibleType::Crystal => (x.coordinates, x.show_type(), true),
                     DestructibleType::Mushroom => (x.coordinates, x.show_type(), true),
                 },
-                get_destructible_thumbnail(x.destructible_type.clone()),
+                get_destructible_thumbnail(x.destructible_type.clone(), x.depth.clone()),
             ),
             StageSpawn::Pickup(x) => {
                 elapsed += x.elapsed;
-                let show = stage_elapsed_ui.0.as_secs_f32() <= elapsed;
+                let show = elapsed <= stage_elapsed_ui.0.as_secs_f32();
                 (
                     match x.pickup_type {
                         PickupType::SmallHealthpack => (x.coordinates, x.show_type(), show),
@@ -80,7 +82,7 @@ pub fn spawn_stage(
             }
             StageSpawn::Enemy(x) => {
                 elapsed += x.elapsed;
-                let show = stage_elapsed_ui.0.as_secs_f32() <= elapsed;
+                let show = elapsed <= stage_elapsed_ui.0.as_secs_f32();
                 (
                     match x.enemy_type {
                         EnemyType::Mosquito => (x.coordinates, x.enemy_type.show_type(), show),
@@ -90,7 +92,7 @@ pub fn spawn_stage(
                         EnemyType::Spidomonsta => (x.coordinates, x.enemy_type.show_type(), show),
                         EnemyType::Kyle => (x.coordinates, x.enemy_type.show_type(), show),
                     },
-                    get_enemy_thumbnail(x.enemy_type.clone()),
+                    get_enemy_thumbnail(x.enemy_type.clone(), x.depth.clone()),
                 )
             }
         };
@@ -103,9 +105,12 @@ pub fn spawn_stage(
                 SceneItem,
                 SpriteBundle {
                     texture: asset_server.load(&thumbnail.0),
-                    transform: Transform::from_xyz(position.x, position.y, 0.0),
+                    transform: Transform::from_translation(
+                        position.extend(spawn.get_depth_editor_z_index()),
+                    ),
                     sprite: Sprite {
                         anchor: Anchor::BottomCenter,
+                        rect: thumbnail.1,
                         ..default()
                     },
                     ..default()
@@ -140,11 +145,14 @@ pub fn spawn_stage(
                                 DestructibleType::Crystal => (x.coordinates, x.show_type(), true),
                                 DestructibleType::Mushroom => (x.coordinates, x.show_type(), true),
                             },
-                            get_destructible_thumbnail(x.destructible_type.clone()),
+                            get_destructible_thumbnail(
+                                x.destructible_type.clone(),
+                                x.depth.clone(),
+                            ),
                         ),
                         StageSpawn::Pickup(x) => {
                             current_elapsed += x.elapsed;
-                            let show = stage_elapsed_ui.0.as_secs_f32() <= current_elapsed;
+                            let show = current_elapsed <= stage_elapsed_ui.0.as_secs_f32();
                             (
                                 match x.pickup_type {
                                     PickupType::SmallHealthpack => {
@@ -159,7 +167,7 @@ pub fn spawn_stage(
                         }
                         StageSpawn::Enemy(x) => {
                             current_elapsed += x.elapsed;
-                            let show = stage_elapsed_ui.0.as_secs_f32() <= current_elapsed;
+                            let show = current_elapsed <= stage_elapsed_ui.0.as_secs_f32();
                             (
                                 match x.enemy_type {
                                     EnemyType::Mosquito => {
@@ -181,7 +189,7 @@ pub fn spawn_stage(
                                         (x.coordinates, x.enemy_type.show_type(), show)
                                     }
                                 },
-                                get_enemy_thumbnail(x.enemy_type.clone()),
+                                get_enemy_thumbnail(x.enemy_type.clone(), x.depth.clone()),
                             )
                         }
                     };
@@ -195,9 +203,12 @@ pub fn spawn_stage(
                             SceneItem,
                             SpriteBundle {
                                 texture: asset_server.load(&thumbnail.0),
-                                transform: Transform::from_translation(v.extend(0.0)),
+                                transform: Transform::from_translation(
+                                    v.extend(spawn.get_depth_editor_z_index()),
+                                ),
                                 sprite: Sprite {
                                     anchor: Anchor::BottomCenter,
+                                    rect: thumbnail.1,
                                     ..default()
                                 },
                                 ..default()

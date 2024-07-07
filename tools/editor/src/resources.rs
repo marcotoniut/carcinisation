@@ -16,5 +16,11 @@ pub struct StageAssetHandle {
     pub path: String,
 }
 
-#[derive(Debug, Default, Resource, Reflect)]
+#[derive(Debug, Resource, Reflect)]
 pub struct StageElapsedUI(pub Duration);
+
+impl Default for StageElapsedUI {
+    fn default() -> Self {
+        StageElapsedUI(Duration::from_secs(900))
+    }
+}
