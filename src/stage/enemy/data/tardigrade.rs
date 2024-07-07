@@ -25,7 +25,7 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
-pub const TARDIGRADE_DEPTH_RANGE: RangeInclusive<Depth> = Depth::Three..=Depth::Eight;
+pub const TARDIGRADE_DEPTH_RANGE: RangeInclusive<Depth> = Depth::Six..=Depth::Eight;
 
 lazy_static! {
     pub static ref TARDIGRADE_ANIMATIONS: TardigradeAnimations = {

@@ -309,6 +309,15 @@ impl StageSpawn {
         })
     }
 
+    pub fn get_depth(&self) -> Depth {
+        match self {
+            StageSpawn::Destructible(DestructibleSpawn { depth, .. }) => *depth,
+            StageSpawn::Enemy(EnemySpawn { depth, .. }) => *depth,
+            StageSpawn::Object(ObjectSpawn { depth, .. }) => *depth,
+            StageSpawn::Pickup(PickupSpawn { depth, .. }) => *depth,
+        }
+    }
+
     pub fn show_type(&self) -> String {
         match self {
             StageSpawn::Destructible(spawn) => spawn.show_type(),

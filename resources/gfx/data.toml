@@ -53,7 +53,7 @@ invert_colors = true
 path = "typeface/animated_typeface.png"
 
 # Enemies
-width = 2
+# width = 2
 [[images]]
 path = "sprites/enemies/mosquito_death_6.png"
 target_path = "sprites/enemies/mosquito_death_8.png"
