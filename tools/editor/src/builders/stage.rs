@@ -4,35 +4,64 @@ use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
 use bevy::prelude::*;
 use bevy::render::color::Color;
 use bevy::sprite::Anchor;
+use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::stage::data::{StageData, StageStep};
 
-use crate::components::{Draggable, SceneItem, StageSpawnLabel};
+use crate::components::{AnimationIndices, AnimationTimer, Draggable, SceneItem, StageSpawnLabel};
 use crate::constants::FONT_PATH;
-use crate::resources::StageElapsedUI;
+use crate::resources::{StageControlsUI, StageElapsedUI};
 
 pub fn spawn_stage(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
+    stage_controls_ui: &Res<StageControlsUI>,
     stage_elapsed_ui: &Res<StageElapsedUI>,
     stage_data: &StageData,
+    texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
 ) {
-    let background_texture = asset_server.load(&stage_data.background_path);
+    if stage_controls_ui.background_is_visible() {
+        let texture = asset_server.load(&stage_data.background_path);
 
-    commands.spawn((
-        Name::new("SG Background"),
-        SceneItem,
-        SpriteBundle {
-            texture: background_texture,
-            transform: Transform::from_xyz(0.0, 0.0, -10.0),
-            sprite: Sprite {
-                anchor: Anchor::BottomLeft,
-
+        commands.spawn((
+            Name::new("SG Background"),
+            SceneItem,
+            SpriteBundle {
+                texture,
+                transform: Transform::from_xyz(0.0, 0.0, -10.0),
+                sprite: Sprite {
+                    anchor: Anchor::BottomLeft,
+                    ..default()
+                },
                 ..default()
             },
+        ));
+    }
 
-            ..default()
-        },
-    ));
+    // TODO Make skybox follow camera via elapsed
+    // TODO Animate skybox
+    if stage_controls_ui.skybox_is_visible() {
+        let texture = asset_server.load(&stage_data.skybox.path);
+        let texture_atlas_layout =
+            TextureAtlasLayout::from_grid(SCREEN_RESOLUTION.as_vec2(), 1, 2, None, None);
+        let layout = texture_atlas_layouts.add(texture_atlas_layout);
+
+        commands.spawn((
+            Name::new("SG Skybox"),
+            SceneItem,
+            SpriteBundle {
+                sprite: Sprite {
+                    anchor: Anchor::BottomLeft,
+                    ..default()
+                },
+                texture,
+                transform: Transform::from_xyz(0.0, 0.0, -11.0),
+                ..default()
+            },
+            TextureAtlas { layout, index: 0 },
+            AnimationIndices { first: 0, last: 1 },
+            AnimationTimer(Timer::from_seconds(2.0, TimerMode::Repeating)),
+        ));
+    }
 
     let label_style = TextStyle {
         font: asset_server.load(FONT_PATH),
@@ -40,7 +69,12 @@ pub fn spawn_stage(
         color: Color::WHITE,
     };
 
-    for (index, spawn) in stage_data.spawns.iter().enumerate() {
+    for (index, spawn) in stage_data
+        .spawns
+        .iter()
+        .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
+        .enumerate()
+    {
         if spawn.get_elapsed() <= stage_elapsed_ui.0 {
             let thumbnail = spawn.get_thumbnail();
             commands.spawn((
@@ -74,7 +108,11 @@ pub fn spawn_stage(
                 // TODO
             }
             StageStep::Movement(s) => {
-                for spawn in s.spawns.iter() {
+                for spawn in s
+                    .spawns
+                    .iter()
+                    .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
+                {
                     current_elapsed += spawn.get_elapsed();
                     let show = current_elapsed <= stage_elapsed_ui.0;
                     if show {
@@ -108,6 +146,38 @@ pub fn spawn_stage(
             }
             StageStep::Stop(s) => {
                 current_elapsed += s.max_duration.unwrap_or(Duration::ZERO);
+
+                // TODO elapsed?
+                for spawn in s
+                    .spawns
+                    .iter()
+                    .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
+                {
+                    current_elapsed += spawn.get_elapsed();
+                    let show = current_elapsed <= stage_elapsed_ui.0;
+                    if show {
+                        let v = current_position + *spawn.get_coordinates();
+                        let thumbnail = spawn.get_thumbnail();
+                        commands.spawn((
+                            spawn.get_editor_name_component(index),
+                            StageSpawnLabel,
+                            Draggable,
+                            SceneItem,
+                            SpriteBundle {
+                                texture: asset_server.load(&thumbnail.0),
+                                transform: Transform::from_translation(
+                                    v.extend(spawn.get_depth_editor_z_index()),
+                                ),
+                                sprite: Sprite {
+                                    anchor: Anchor::BottomCenter,
+                                    rect: thumbnail.1,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                        ));
+                    }
+                }
             }
         }
     }

@@ -351,7 +351,7 @@ pub enum StageStep {
     Stop(StopStageStep),
 }
 
-#[derive(Asset, Clone, Debug, Deserialize, Resource, Reflect, Serialize)]
+#[derive(Asset, Clone, Debug, Deserialize, Reflect, Resource, Serialize)]
 pub struct StageData {
     pub name: String,
     pub background_path: String,
