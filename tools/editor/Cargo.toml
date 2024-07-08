@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [profile.dev]
-opt-level = 1
+opt-level = 0
 
 [dependencies]
 assert_assets_path = { path = "../../assert_assets_path" }
-bevy = { features = ["wayland"], version = "0.13.2" }
+bevy = { features = ["dynamic_linking", "wayland"], version = "0.13.2" }
 bevy_common_assets = { features = ["ron"], version = "0.10" }
 bevy-inspector-egui = "0.24.0"
 bevy_prototype_lyon = "0.11.0"
