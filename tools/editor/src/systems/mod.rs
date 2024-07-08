@@ -9,6 +9,8 @@ use bevy::{
 };
 use carcinisation::{stage::data::StageData, CutsceneData};
 
+// TODO should this be it
+use crate::file_manager::events::WriteRecentFilePathEvent;
 use crate::resources::StageElapsedUI;
 use crate::{
     builders::{cutscene::spawn_cutscene, stage::spawn_stage},
@@ -40,6 +42,7 @@ pub fn check_cutscene_data_loaded(
     cutscene_data_assets: Res<Assets<CutsceneData>>,
     mut commands: Commands,
     mut scene_path: ResMut<ScenePath>,
+    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     if let Some(state) = asset_server.get_load_state(cutscene_asset_handle.handle.clone()) {
         match state {
@@ -50,7 +53,9 @@ pub fn check_cutscene_data_loaded(
                     commands.remove_resource::<CutsceneAssetHandle>();
                     commands.insert_resource(SceneData::Cutscene(data.clone()));
                     commands.insert_resource(ScenePath(cutscene_asset_handle.path.clone()));
+                    write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
                 } else {
+                    println!("Cutscene data error");
                 }
             }
             LoadState::Loading => {
@@ -73,6 +78,7 @@ pub fn check_stage_data_loaded(
     stage_data_assets: Res<Assets<StageData>>,
     mut commands: Commands,
     mut scene_path: ResMut<ScenePath>,
+    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     if let Some(state) = asset_server.get_load_state(stage_asset_handle.handle.clone()) {
         match state {
@@ -83,7 +89,9 @@ pub fn check_stage_data_loaded(
                     commands.remove_resource::<StageAssetHandle>();
                     commands.insert_resource(SceneData::Stage(data.clone()));
                     commands.insert_resource(ScenePath(stage_asset_handle.path.clone()));
+                    write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
                 } else {
+                    println!("Stage data error");
                 }
             }
             LoadState::Loading => {
