@@ -6,6 +6,8 @@ use carcinisation::{
 };
 
 use bevy::prelude::*;
+use derive_new::new;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Reflect, Resource)]
 pub struct CutsceneAssetHandle {
@@ -19,17 +21,11 @@ pub struct StageAssetHandle {
     pub path: String,
 }
 
-#[derive(Debug, Reflect, Resource)]
-pub struct StageElapsedUI(pub Duration);
-
-impl Default for StageElapsedUI {
-    fn default() -> Self {
-        StageElapsedUI(Duration::from_secs(900))
-    }
-}
-
-#[derive(Debug, Reflect, Resource)]
+#[derive(Debug, Reflect, Resource, Deserialize, Serialize)]
+#[reflect(Resource)]
 pub struct StageControlsUI {
+    pub ElapsedDuration: Duration,
+
     pub ElapsedPath: bool,
 
     pub Skybox: bool,
@@ -51,10 +47,9 @@ impl Default for StageControlsUI {
     fn default() -> Self {
         StageControlsUI {
             ElapsedPath: true,
-
-            Background: true,
+            ElapsedDuration: Duration::from_secs(999),
             Skybox: true,
-
+            Background: true,
             Nine: true,
             Eight: true,
             Seven: true,

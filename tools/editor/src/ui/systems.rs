@@ -4,7 +4,7 @@ use bevy_inspector_egui::{
     egui::{self, epaint::Shadow},
 };
 
-use crate::resources::{StageControlsUI, StageElapsedUI};
+use crate::resources::StageControlsUI;
 
 pub fn update_ui(world: &mut World) {
     let Ok((egui_context, window)) = world
@@ -27,20 +27,9 @@ pub fn update_ui(world: &mut World) {
     };
 
     let ctx = egui_context.get_mut();
-    egui::Window::new("Stage Elapsed")
-        .anchor(egui::Align2::LEFT_TOP, [0.0, 70.0])
-        .collapsible(false)
-        .resizable(false)
-        .movable(false)
-        .show(ctx, |ui| {
-            ctx.set_style(egui_style.clone());
-            egui::ScrollArea::horizontal().show(ui, |ui| {
-                bevy_inspector_egui::bevy_inspector::ui_for_resource::<StageElapsedUI>(world, ui);
-            });
-        });
 
-    egui::Window::new("Depth UI")
-        .anchor(egui::Align2::LEFT_TOP, [0.0, 137.0])
+    egui::Window::new("Stage Controls")
+        .anchor(egui::Align2::LEFT_TOP, [0.0, 70.0])
         .resizable(false)
         .show(ctx, |ui| {
             ctx.set_style(egui_style.clone());

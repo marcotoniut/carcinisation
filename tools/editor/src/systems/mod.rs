@@ -12,7 +12,7 @@ use carcinisation::{stage::data::StageData, CutsceneData};
 use crate::components::{AnimationIndices, AnimationTimer};
 // TODO should this be it
 use crate::file_manager::events::WriteRecentFilePathEvent;
-use crate::resources::{StageControlsUI, StageElapsedUI};
+use crate::resources::StageControlsUI;
 use crate::{
     builders::{cutscene::spawn_cutscene, stage::spawn_stage},
     components::{SceneData, SceneItem, ScenePath},
@@ -114,11 +114,10 @@ pub fn on_scene_change(
     asset_server: Res<AssetServer>,
     layer_shown_ui: Res<StageControlsUI>,
     loaded_scene: Res<SceneData>,
-    stage_elapsed_ui: Res<StageElapsedUI>,
     scene_item_query: Query<Entity, With<SceneItem>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    if loaded_scene.is_changed() || layer_shown_ui.is_changed() || stage_elapsed_ui.is_changed() {
+    if loaded_scene.is_changed() || layer_shown_ui.is_changed() {
         for entity in scene_item_query.iter() {
             commands.entity(entity).despawn_recursive();
         }
@@ -131,7 +130,6 @@ pub fn on_scene_change(
                     &mut commands,
                     &asset_server,
                     &layer_shown_ui,
-                    &stage_elapsed_ui,
                     &data,
                     &mut texture_atlas_layouts,
                 );

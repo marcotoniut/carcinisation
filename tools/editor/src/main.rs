@@ -20,7 +20,7 @@ use constants::ASSETS_PATH;
 use events::UnloadSceneEvent;
 use file_manager::FileManagerPlugin;
 use inspector::InspectorPlugin;
-use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI, StageElapsedUI};
+use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI};
 use systems::{
     animate_sprite, check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
@@ -34,7 +34,6 @@ fn main() {
 
     App::new()
         .init_resource::<StageControlsUI>()
-        .init_resource::<StageElapsedUI>()
         .add_plugins(
             DefaultPlugins
                 .set(AssetPlugin {

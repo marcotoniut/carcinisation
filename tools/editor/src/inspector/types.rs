@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     components::*,
-    resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI, StageElapsedUI},
+    resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI},
 };
 
 pub fn register_types(app: &mut App) {
@@ -12,9 +12,8 @@ pub fn register_types(app: &mut App) {
         .register_type::<CutsceneAssetHandle>()
         .register_type::<CutsceneImageLabel>()
         .register_type::<Draggable>()
-        .register_type::<StageControlsUI>()
         .register_type::<LetterboxLabel>()
         .register_type::<SelectedItem>()
         .register_type::<StageAssetHandle>()
-        .register_type::<StageElapsedUI>();
+        .register_type::<StageControlsUI>();
 }
