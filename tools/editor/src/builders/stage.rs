@@ -9,13 +9,12 @@ use carcinisation::stage::data::{StageData, StageStep};
 
 use crate::components::{AnimationIndices, AnimationTimer, Draggable, SceneItem, StageSpawnLabel};
 use crate::constants::FONT_PATH;
-use crate::resources::{StageControlsUI, StageElapsedUI};
+use crate::resources::StageControlsUI;
 
 pub fn spawn_stage(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     stage_controls_ui: &Res<StageControlsUI>,
-    stage_elapsed_ui: &Res<StageElapsedUI>,
     stage_data: &StageData,
     texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
 ) {
@@ -75,7 +74,7 @@ pub fn spawn_stage(
         .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
         .enumerate()
     {
-        if spawn.get_elapsed() <= stage_elapsed_ui.0 {
+        if spawn.get_elapsed() <= stage_controls_ui.ElapsedDuration {
             let thumbnail = spawn.get_thumbnail();
             commands.spawn((
                 spawn.get_editor_name_component(index),
@@ -114,7 +113,7 @@ pub fn spawn_stage(
                     .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
                 {
                     current_elapsed += spawn.get_elapsed();
-                    let show = current_elapsed <= stage_elapsed_ui.0;
+                    let show = current_elapsed <= stage_controls_ui.ElapsedDuration;
                     if show {
                         let v = current_position + *spawn.get_coordinates();
                         let thumbnail = spawn.get_thumbnail();
@@ -154,7 +153,7 @@ pub fn spawn_stage(
                     .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
                 {
                     current_elapsed += spawn.get_elapsed();
-                    let show = current_elapsed <= stage_elapsed_ui.0;
+                    let show = current_elapsed <= stage_controls_ui.ElapsedDuration;
                     if show {
                         let v = current_position + *spawn.get_coordinates();
                         let thumbnail = spawn.get_thumbnail();
