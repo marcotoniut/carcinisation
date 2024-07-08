@@ -21,10 +21,9 @@ pub fn update_cutscene_act_connections(
                 path_builder.move_to(origin_position.truncate());
                 path_builder.line_to(target_position.truncate());
                 let shape = path_builder.build();
-                commands.entity(connection_entity).insert((
-                    shape,
-                    Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
-                ));
+                commands
+                    .entity(connection_entity)
+                    .insert((shape, Transform::from_xyz(0.0, 0.0, -1.0)));
             }
             _ => {
                 // If either the origin or target entity is not found, despawn the connection entity

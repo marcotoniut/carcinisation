@@ -291,7 +291,7 @@ pub struct CutsceneSpriteSpawn {
 #[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneTransition;
 
-#[derive(new, Asset, Clone, Debug, Deserialize, Resource, Reflect, Serialize)]
+#[derive(new, Asset, Clone, Debug, Deserialize, Reflect, Resource, Serialize)]
 pub struct CutsceneData {
     pub name: String,
     #[new(default)]

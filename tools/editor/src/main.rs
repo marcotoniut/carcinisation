@@ -20,9 +20,9 @@ use constants::ASSETS_PATH;
 use events::UnloadSceneEvent;
 use file_manager::FileManagerPlugin;
 use inspector::InspectorPlugin;
-use resources::{CutsceneAssetHandle, StageAssetHandle, StageElapsedUI};
+use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI, StageElapsedUI};
 use systems::{
-    check_cutscene_data_loaded, check_stage_data_loaded,
+    animate_sprite, check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
     input::{on_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel},
     on_scene_change, on_unload_scene, setup_camera,
@@ -33,6 +33,7 @@ fn main() {
     let title: String = "SCENE EDITOR".to_string();
 
     App::new()
+        .init_resource::<StageControlsUI>()
         .init_resource::<StageElapsedUI>()
         .add_plugins(
             DefaultPlugins
@@ -82,6 +83,7 @@ fn main() {
             ),
         )
         .add_systems(Update, update_ui)
+        .add_systems(Update, animate_sprite)
         .add_systems(PostUpdate, on_unload_scene)
         .run();
 }

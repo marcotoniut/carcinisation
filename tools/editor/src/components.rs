@@ -1,6 +1,15 @@
 use bevy::prelude::*;
 use carcinisation::{stage::data::StageData, CutsceneData};
 
+#[derive(Component)]
+pub struct AnimationIndices {
+    pub first: usize,
+    pub last: usize,
+}
+
+#[derive(Component, Deref, DerefMut)]
+pub struct AnimationTimer(pub Timer);
+
 #[derive(Component, Debug, Reflect)]
 pub struct CutsceneActNode {
     pub act_index: usize,
