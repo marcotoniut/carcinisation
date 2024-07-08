@@ -26,7 +26,7 @@ members = [
 
 [dependencies]
 assert_assets_path = { path = "assert_assets_path" }
-bevy = { features = ["wayland"], version = "0.13.2" }
+bevy = { features = ["dynamic_linking", "wayland"], version = "0.13.2" }
 # dynamic_linking cannot be used for webassembly, not required for MacOS
 # bevy = { version = "0.12", features = ["dynamic_linking"] } # required for Windows builds
 bevy_common_assets = { features = ["ron"], version = "0.10" }

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::inspector::utils::StageSpawnUtils;
+use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
 use bevy::prelude::*;
 use bevy::render::color::Color;
 use bevy::sprite::Anchor;
@@ -18,9 +18,8 @@ pub fn spawn_stage(
 ) {
     let background_texture = asset_server.load(&stage_data.background_path);
 
-    // Spawn background
     commands.spawn((
-        Name::new("Stage Background"),
+        Name::new("SG Background"),
         SceneItem,
         SpriteBundle {
             texture: background_texture,
@@ -114,7 +113,7 @@ pub fn spawn_stage(
     }
 
     commands.spawn((
-        Name::new("Stage Info"),
+        Name::new("SG Info"),
         SceneItem,
         Text2dBundle {
             text: Text::from_sections([
@@ -122,8 +121,26 @@ pub fn spawn_stage(
                 TextSection::new(&stage_data.name, label_style.clone()),
                 TextSection::new("\nMusic: ", label_style.clone()),
                 TextSection::new(&stage_data.music_path, label_style.clone()),
+                TextSection::new("\nStart Coordinates: ", label_style.clone()),
+                TextSection::new(
+                    &stage_data
+                        .start_coordinates
+                        .unwrap_or_else(|| Vec2::ZERO)
+                        .to_string(),
+                    label_style.clone(),
+                ),
+                TextSection::new("\nSteps: ", label_style.clone()),
+                TextSection::new(&stage_data.steps.len().to_string(), label_style.clone()),
+                TextSection::new("\nStatic Spawns: ", label_style.clone()),
+                TextSection::new(&stage_data.spawns.len().to_string(), label_style.clone()),
+                TextSection::new("\nDynamic Spawns: ", label_style.clone()),
+                TextSection::new(
+                    &stage_data.dynamic_spawn_count().to_string(),
+                    label_style.clone(),
+                ),
             ]),
-            transform: Transform::from_xyz(-400.0, 300.0, 10.0),
+            transform: Transform::from_xyz(0.0, -15.0, 0.0),
+            text_anchor: Anchor::TopLeft,
             ..default()
         },
     ));

@@ -12,7 +12,7 @@
         "args": [
           "build",
           "--bin=carcinisation",
-          "--package=carcinisation"
+          "--package=carcinisation",
         ],
         "filter": {
           "name": "carcinisation",
@@ -23,7 +23,7 @@
       "cwd": "${workspaceFolder}",
       "env": {
         "CARGO_MANIFEST_DIR": "${workspaceFolder}",
-        "LD_LIBRARY_PATH": "${workspaceFolder}/target/debug/deps:${env:HOME}/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib",
+        "DYLD_LIBRARY_PATH": "${workspaceFolder}/target/debug/deps:${env:HOME}/.rustup/toolchains/nightly-aarch64-apple-darwin/lib"
       }
     },
     {
@@ -56,7 +56,7 @@
         "args": [
           "build",
           "--bin=editor",
-          "--package=editor"
+          "--package=editor",
         ],
         "filter": {
           "name": "editor",
@@ -67,8 +67,11 @@
       "cwd": "${workspaceFolder}/tools/editor",
       "env": {
         "CARGO_MANIFEST_DIR": "${workspaceFolder}/tools/editor",
-        "LD_LIBRARY_PATH": "${workspaceFolder}/target/debug/deps:${env:HOME}/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib",
-      }
+        "DYLD_LIBRARY_PATH": "${workspaceFolder}/target/debug/deps:${env:HOME}/.rustup/toolchains/nightly-aarch64-apple-darwin/lib"
+      },
+      "sourceLanguages": [
+        "rust"
+      ]
     },
     {
       "type": "lldb",

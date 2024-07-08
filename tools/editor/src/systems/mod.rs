@@ -2,6 +2,7 @@ pub mod cutscene;
 pub mod input;
 
 use bevy::asset::LoadState;
+use bevy::window::PrimaryWindow;
 use bevy::{
     asset::{AssetServer, Assets},
     prelude::*,
@@ -16,8 +17,21 @@ use crate::{
     resources::{CutsceneAssetHandle, StageAssetHandle},
 };
 
-pub fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+pub fn setup_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
+    let Ok(window) = window_query.get_single() else {
+        return;
+    };
+
+    let camera_translation = Vec3::new(
+        window.width() / 2.0 - 25.0,
+        window.height() / 2.0 - 150.0,
+        0.0,
+    );
+
+    commands.spawn(Camera2dBundle {
+        transform: Transform::from_translation(camera_translation),
+        ..Default::default()
+    });
 }
 
 pub fn check_cutscene_data_loaded(

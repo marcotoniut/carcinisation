@@ -1,10 +1,27 @@
 use bevy::{core::Name, math::Rect};
 use carcinisation::stage::{
-    data::{EnemySpawn, ObjectSpawn, PickupSpawn, StageSpawn},
+    data::{EnemySpawn, ObjectSpawn, PickupSpawn, StageData, StageSpawn, StageStep},
     destructible::data::DestructibleSpawn,
 };
 
 use crate::builders::thumbnail::*;
+
+pub trait StageDataUtils {
+    fn dynamic_spawn_count(&self) -> usize;
+}
+
+impl StageDataUtils for StageData {
+    fn dynamic_spawn_count(&self) -> usize {
+        self.steps
+            .iter()
+            .map(|x| match x {
+                StageStep::Cinematic(_) => 0,
+                StageStep::Movement(s) => s.spawns.len(),
+                StageStep::Stop(x) => x.spawns.len(),
+            })
+            .sum::<usize>()
+    }
+}
 
 pub trait StageSpawnUtils {
     fn get_editor_name_component(&self, index: usize) -> Name;
