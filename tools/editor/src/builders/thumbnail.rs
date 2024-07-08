@@ -36,7 +36,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
                     format!("{}8{}", loc, ext),
                     URect::new(0, 0, 5, 5).as_rect().into(),
                 ),
-                _ => panic!("Invalid depth"),
+                _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
             }
         }
         EnemyType::Spidey => {
@@ -51,7 +51,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
                     format!("{}7{}", loc, ext),
                     URect::new(0, 0, 35, 35).as_rect().into(),
                 ),
-                _ => panic!("Invalid depth"),
+                _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
             }
         }
         EnemyType::Tardigrade => {
@@ -70,7 +70,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
                     format!("{}8{}", loc, ext),
                     URect::new(0, 0, 23, 23).as_rect().into(),
                 ),
-                _ => panic!("Invalid depth"),
+                _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
             }
         }
         EnemyType::Marauder => {

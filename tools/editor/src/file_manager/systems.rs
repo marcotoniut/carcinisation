@@ -196,7 +196,6 @@ pub fn poll_selected_file(
     mut commands: Commands,
     mut selected_files: Query<(Entity, &mut SelectedFile)>,
     asset_server: Res<AssetServer>,
-    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     for (entity, mut selected_file) in selected_files.iter_mut() {
         if let Some(result) = future::block_on(future::poll_once(&mut selected_file.0)) {
@@ -219,7 +218,6 @@ pub fn poll_selected_file(
                 } else {
                     eprintln!("Unsupported file type: {:?}", path_str);
                 };
-                write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
             }
             commands.entity(entity).remove::<SelectedFile>();
         }
@@ -234,12 +232,17 @@ pub fn on_create_recent_file(
         let path = scene_path.0.clone();
         AsyncComputeTaskPool::get()
             .spawn(async move {
-                if let Ok(mut file) = File::create(RECENT_FILE_PATH) {
-                    if let Err(e) = writeln!(file, "{}", path) {
-                        eprintln!("Failed to write to recent file path: {:?}", e);
+                match File::create(RECENT_FILE_PATH) {
+                    Ok(mut file) => {
+                        println!("{}", path);
+                        if let Err(e) = writeln!(file, "{}", path) {
+                            eprintln!("Failed to write to recent file path: {:?}", e);
+                        }
+                        file.flush();
                     }
-                } else {
-                    eprintln!("Failed to create recent file path");
+                    Err(e) => {
+                        eprintln!("Failed to create recent file path: {:?}", e);
+                    }
                 }
             })
             .detach();

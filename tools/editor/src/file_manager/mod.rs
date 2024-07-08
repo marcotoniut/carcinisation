@@ -1,6 +1,6 @@
 pub mod components;
 mod constants;
-mod events;
+pub mod events;
 mod systems;
 
 use bevy::prelude::*;
