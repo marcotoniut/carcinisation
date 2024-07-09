@@ -96,7 +96,7 @@ StageData(
     ],
     steps: [
         Movement(
-            coordinates: Vec2(50.0, 0.0),
+            coordinates: Vec2(5.0, 0.0),
             base_speed: 1.0,
             spawns: [
                 Enemy(
@@ -150,8 +150,8 @@ StageData(
                 ),
             ],
             floor_depths: {
-                Five: 50.0,
                 Three: 0.0,
+                Five: 50.0,
                 Six: 70.0,
                 Four: 30.0,
             },
@@ -335,7 +335,7 @@ StageData(
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(500.0, 0.0),
+            coordinates: Vec2(513.0, 0.0),
             base_speed: 1.0,
             spawns: [
                 Enemy(
@@ -498,7 +498,7 @@ StageData(
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(850.0, 155.0),
+            coordinates: Vec2(800.0, 155.0),
             base_speed: 1.0,
             spawns: [
                 Enemy(
@@ -542,7 +542,7 @@ StageData(
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(920.0, 155.0),
+            coordinates: Vec2(930.0, 155.0),
             base_speed: 1.0,
             spawns: [
                 Enemy(

@@ -180,8 +180,7 @@ impl EnemyStep {
     }
 
     pub fn get_duration(&self) -> f32 {
-        self.get_duration_o()
-            .unwrap_or_else(|| EnemyStep::max_duration())
+        self.get_duration_o().unwrap_or(EnemyStep::max_duration())
     }
 
     pub fn get_duration_o(&self) -> Option<f32> {

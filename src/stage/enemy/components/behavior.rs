@@ -100,7 +100,7 @@ impl EnemyCurrentBehavior {
             }) => BehaviorBundle::Circle(CircleAround {
                 center: current_position.0,
                 // TODO hardcoded values should be coming from the enemy type
-                radius: radius.unwrap_or_else(|| 12.),
+                radius: radius.unwrap_or(12.),
                 direction: direction.clone(),
                 time_offset: time_offset.as_secs_f32(),
             }),
@@ -119,7 +119,7 @@ pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
 
 impl EnemyBehaviors {
     pub fn next(&mut self) -> EnemyStep {
-        self.0.pop_front().unwrap_or_else(|| EnemyStep::default())
+        self.0.pop_front().unwrap_or(EnemyStep::default())
     }
 }
 

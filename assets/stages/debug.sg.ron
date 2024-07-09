@@ -13,7 +13,7 @@ StageData(
     spawns: [
         Object(
             object_type: RugparkSign,
-            coordinates: Vec2(400.0, 20.0),
+            coordinates: Vec2(522.0, 10.0),
             depth: Three,
         ),
         Destructible(
@@ -101,10 +101,10 @@ StageData(
                     enemy_type: Tardigrade,
                     elapsed: 0.0,
                     contains: None,
-                    coordinates: Vec2(40.0, 70.0),
+                    coordinates: Vec2(35.0, 105.0),
                     speed: 2.0,
                     steps: [],
-                    depth: Five,
+                    depth: Eight,
                 ),
                 Enemy(
                     enemy_type: Mosquito,
@@ -199,7 +199,7 @@ StageData(
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(100.0, 0.0),
+            coordinates: Vec2(180.0, 0.0),
             base_speed: 1.0,
             spawns: [
                 Enemy(
