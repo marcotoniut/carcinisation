@@ -65,6 +65,10 @@ impl Default for StageControlsUI {
 }
 
 impl StageControlsUI {
+    pub fn path_is_visible(&self) -> bool {
+        self.ElapsedPath
+    }
+
     pub fn background_is_visible(&self) -> bool {
         self.Background
     }

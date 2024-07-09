@@ -54,7 +54,7 @@ impl Add<i8> for Depth {
         let value = (self as i8 + other)
             .min(Depth::MAX.to_i8())
             .max(Depth::MIN.to_i8());
-        Depth::try_from(value).unwrap_or_else(|_| Depth::MAX)
+        Depth::try_from(value).unwrap_or(Depth::MAX)
     }
 }
 
@@ -65,7 +65,7 @@ impl Sub<i8> for Depth {
         let value = (self as i8 - other)
             .min(Depth::MAX.to_i8())
             .max(Depth::MIN.to_i8());
-        Depth::try_from(value).unwrap_or_else(|_| Depth::MIN)
+        Depth::try_from(value).unwrap_or(Depth::MIN)
     }
 }
 
