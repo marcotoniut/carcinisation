@@ -1,14 +1,7 @@
-use crate::{
-    layer::Layer,
-    stage::components::placement::Depth,
-    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
-};
+use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
+use crate::{layer::Layer, stage::components::placement::Depth};
 use assert_assets_path::assert_assets_path;
-use bevy::{
-    audio::{PlaybackMode, Volume},
-    prelude::*,
-    utils::HashSet,
-};
+use bevy::{audio::PlaybackMode, prelude::*, utils::HashSet};
 use seldom_pixel::{
     prelude::{
         PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
@@ -89,7 +82,7 @@ impl PlayerAttack {
                             source: melee_slash_sound,
                             settings: PlaybackSettings {
                                 mode: PlaybackMode::Despawn,
-                                volume: Volume::new(volume_settings.2 * 1.0),
+                                volume: volume_settings.sfx.clone(),
                                 ..default()
                             },
                             ..default()
@@ -121,7 +114,7 @@ impl PlayerAttack {
                             source: shoot_sound,
                             settings: PlaybackSettings {
                                 mode: PlaybackMode::Despawn,
-                                volume: Volume::new(volume_settings.2 * 1.0),
+                                volume: volume_settings.sfx.clone(),
                                 ..default()
                             },
                             ..default()

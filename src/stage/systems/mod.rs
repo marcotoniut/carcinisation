@@ -22,6 +22,7 @@ use super::{
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
     StageProgressState,
 };
+use crate::components::VolumeSettings;
 use crate::{
     components::{DespawnMark, Music},
     game::{
@@ -34,7 +35,7 @@ use crate::{
         extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
         TargetingPositionX, TargetingPositionY,
     },
-    systems::{audio::VolumeSettings, camera::CameraPos, spawn::make_music_bundle},
+    systems::{camera::CameraPos, spawn::make_music_bundle},
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};

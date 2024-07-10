@@ -1,9 +1,5 @@
-use super::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings};
-use crate::components::Music;
-use bevy::{
-    audio::{PlaybackMode, Volume},
-    prelude::*,
-};
+use crate::components::{AudioSystemBundle, AudioSystemType, Music, VolumeSettings};
+use bevy::{audio::PlaybackMode, prelude::*};
 
 pub fn make_music_bundle(
     asset_server: &Res<AssetServer>,
@@ -17,7 +13,7 @@ pub fn make_music_bundle(
             source,
             settings: PlaybackSettings {
                 mode,
-                volume: Volume::new(volume_settings.1 * 1.0),
+                volume: volume_settings.music.clone(),
                 ..default()
             },
             ..default()

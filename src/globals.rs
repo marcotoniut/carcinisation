@@ -55,10 +55,6 @@ pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno
 
 pub const DEFAULT_CROSSHAIR_INDEX: u8 = 1;
 
-pub const DEFAULT_MASTER_VOLUME: f32 = 0.8;
-pub const DEFAULT_SFX_VOLUME: f32 = 0.08;
-pub const DEFAULT_MUSIC_VOLUME: f32 = 0.06;
-
 pub const DEBUG_STAGESTEP: bool = false;
 
 pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> bool {

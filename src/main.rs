@@ -24,11 +24,10 @@ mod transitions;
 #[macro_use]
 extern crate lazy_static;
 
-use crate::globals::{DEFAULT_MASTER_VOLUME, DEFAULT_MUSIC_VOLUME, DEFAULT_SFX_VOLUME};
 use bevy::prelude::*;
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
-use components::DespawnMark;
+use components::{DespawnMark, VolumeSettings};
 use cutscene::CutscenePlugin;
 use debug::DebugPlugin;
 use game::GamePlugin;
@@ -43,7 +42,6 @@ use resources::DifficultySelected;
 use seldom_pixel::prelude::*;
 use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
-    audio::VolumeSettings,
     camera::move_camera,
     movement::{update_position_x, update_position_y},
     setup::{init_gb_input, set_framespace, spawn_camera},
@@ -90,11 +88,7 @@ fn main() {
         // TEMP
         // .insert_resource(GlobalVolume::new(0.3))
         .init_resource::<DifficultySelected>()
-        .insert_resource(VolumeSettings(
-            DEFAULT_MASTER_VOLUME,
-            DEFAULT_MUSIC_VOLUME,
-            DEFAULT_SFX_VOLUME,
-        ))
+        .init_resource::<VolumeSettings>()
         // Setup
         .add_plugins(InputManagerPlugin::<GBInput>::default())
         .add_plugins(FramepacePlugin)

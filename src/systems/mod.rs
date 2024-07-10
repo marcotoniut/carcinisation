@@ -1,10 +1,9 @@
-pub mod audio;
 pub mod camera;
 pub mod movement;
 pub mod setup;
 pub mod spawn;
 
-use self::audio::{AudioSystemType, VolumeSettings};
+use crate::components::{AudioSystemType, VolumeSettings};
 use crate::game::events::GameStartupEvent;
 use crate::main_menu::events::MainMenuStartupEvent;
 use crate::{
@@ -12,7 +11,7 @@ use crate::{
     core::time::ElapsedTime,
     game::events::GameOverEvent,
 };
-use bevy::{audio::Volume, prelude::*};
+use bevy::prelude::*;
 use seldom_pixel::prelude::PxAnimationFinished;
 
 /**
@@ -112,19 +111,13 @@ pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOverEvent>) 
 //     }
 // }
 
-pub fn update_master_volume(volume_settings: Res<VolumeSettings>) {
-    let master_volume = volume_settings.0;
-    GlobalVolume::new(master_volume);
-}
-
 pub fn update_music_volume(
     mut source_settings: Query<(&mut PlaybackSettings, &AudioSystemType)>,
     volume_settings: Res<VolumeSettings>,
 ) {
-    let music_volume = volume_settings.1;
     for (mut music_source_settings, audio_system_type) in source_settings.iter_mut() {
         if matches!(audio_system_type, AudioSystemType::SFX) {
-            music_source_settings.volume = Volume::new(music_volume);
+            music_source_settings.volume = volume_settings.music.clone();
         }
     }
 }
@@ -133,9 +126,8 @@ pub fn update_sfx_volume(
     mut source_settings: Query<&mut PlaybackSettings>,
     volume_settings: Res<VolumeSettings>,
 ) {
-    let sfx_volume = volume_settings.2;
     for mut sfx_source_settings in &mut source_settings {
-        sfx_source_settings.volume = Volume::new(sfx_volume);
+        sfx_source_settings.volume = volume_settings.sfx.clone();
     }
 }
 
