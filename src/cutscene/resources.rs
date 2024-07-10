@@ -9,10 +9,6 @@ pub struct CutsceneTime {
 }
 
 impl DeltaTime for CutsceneTime {
-    fn delta_seconds(&self) -> f32 {
-        self.delta.as_secs_f32()
-    }
-
     fn delta(&self) -> Duration {
         self.delta
     }

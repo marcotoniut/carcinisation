@@ -9,10 +9,6 @@ pub struct LetterboxTime {
 }
 
 impl DeltaTime for LetterboxTime {
-    fn delta_seconds(&self) -> f32 {
-        self.delta.as_secs_f32()
-    }
-
     fn delta(&self) -> Duration {
         self.delta
     }

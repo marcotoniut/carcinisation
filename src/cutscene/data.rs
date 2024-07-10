@@ -30,8 +30,8 @@ impl Default for CutsceneLayer {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]
 #[serde_as]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]
 pub struct TargetMovement {
     pub position: Vec2,
     #[serde(default)]
@@ -214,8 +214,8 @@ pub struct CutsceneAct {
     #[serde(default)]
     pub despawn_entities: Vec<String>,
     #[new(default)]
-    #[serde_as(as = "DurationSecondsWithFrac")]
     #[serde(default)]
+    #[serde_as(as = "DurationSecondsWithFrac")]
     pub elapse: Duration,
     #[new(default)]
     #[serde(default)]

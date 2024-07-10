@@ -8,6 +8,7 @@ use bevy::{asset::Asset, prelude::*, reflect::Reflect};
 use derive_more::From;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DurationSecondsWithFrac};
 use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
@@ -53,11 +54,14 @@ pub enum ContainerSpawn {
 }
 
 // TODO move pickup data under its own module?
+#[serde_as]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct PickupSpawn {
     pub pickup_type: PickupType,
     pub coordinates: Vec2,
-    pub elapsed: f32,
+    #[serde(default)]
+    #[serde_as(as = "DurationSecondsWithFrac")]
+    pub elapsed: Duration,
     pub depth: Depth,
 }
 
@@ -68,8 +72,8 @@ impl PickupSpawn {
     pub fn show_type(&self) -> String {
         format!("Pickup<{:?}>", self.pickup_type)
     }
-    pub fn with_elapsed(mut self, value: f32) -> Self {
-        self.elapsed = value;
+    pub fn with_elapsed_f32(mut self, value: f32) -> Self {
+        self.elapsed = Duration::from_secs_f32(value);
         self
     }
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
@@ -80,7 +84,7 @@ impl PickupSpawn {
         Self {
             pickup_type: PickupType::BigHealthpack,
             coordinates: Vec2::ZERO,
-            elapsed: 0.0,
+            elapsed: Duration::ZERO,
             depth: Depth::Six,
         }
     }
@@ -88,7 +92,7 @@ impl PickupSpawn {
         Self {
             pickup_type: PickupType::SmallHealthpack,
             coordinates: Vec2::ZERO,
-            elapsed: 0.0,
+            elapsed: Duration::ZERO,
             depth: Depth::Six,
         }
     }
@@ -106,7 +110,7 @@ impl PickupDropSpawn {
             pickup_type: self.pickup_type.clone(),
             coordinates,
             depth,
-            elapsed: 0.0,
+            elapsed: Duration::ZERO,
         }
     }
 }
@@ -166,10 +170,13 @@ impl ObjectSpawn {
     }
 }
 
+#[serde_as]
 #[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
 pub struct EnemySpawn {
     pub enemy_type: EnemyType,
-    pub elapsed: f32,
+    #[serde(default)]
+    #[serde_as(as = "DurationSecondsWithFrac")]
+    pub elapsed: Duration,
     #[reflect(ignore)]
     #[serde(default)]
     pub contains: Option<Box<ContainerSpawn>>,
@@ -200,14 +207,14 @@ impl EnemyDropSpawn {
             speed: self.speed,
             steps: self.steps.clone(),
             contains: self.contains.clone(),
-            elapsed: 0.0,
+            elapsed: Duration::ZERO,
         }
     }
 }
 
 impl EnemySpawn {
-    pub fn with_elapsed(mut self, value: f32) -> Self {
-        self.elapsed = value;
+    pub fn with_elapsed_f32(mut self, value: f32) -> Self {
+        self.elapsed = Duration::from_secs_f32(value);
         self
     }
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
@@ -259,7 +266,7 @@ impl EnemySpawn {
             enemy_type: EnemyType::Tardigrade,
             coordinates: *DEFAULT_COORDINATES,
             depth: Depth::Six,
-            elapsed: 0.0,
+            elapsed: Duration::ZERO,
             speed: 0.5,
             steps: vec![].into(),
             contains: None,
@@ -270,7 +277,7 @@ impl EnemySpawn {
             enemy_type: EnemyType::Mosquito,
             coordinates: *DEFAULT_COORDINATES,
             depth: Depth::Five,
-            elapsed: 0.0,
+            elapsed: Duration::ZERO,
             speed: 2.0,
             steps: vec![].into(),
             contains: None,
@@ -322,7 +329,7 @@ impl EnemySpawn {
             enemy_type: EnemyType::Spidey,
             coordinates,
             depth: Depth::Six,
-            elapsed: 0.0,
+            elapsed: Duration::ZERO,
             steps: vec![EnemyStep::circle_around_base().opposite_direction().into()].into(),
             speed: speed_multiplier,
             contains: None,
@@ -341,20 +348,20 @@ pub enum StageSpawn {
 impl StageSpawn {
     pub fn get_coordinates(&self) -> &Vec2 {
         match self {
-            StageSpawn::Destructible(DestructibleSpawn { coordinates, .. }) => coordinates,
-            StageSpawn::Enemy(EnemySpawn { coordinates, .. }) => coordinates,
-            StageSpawn::Object(ObjectSpawn { coordinates, .. }) => coordinates,
-            StageSpawn::Pickup(PickupSpawn { coordinates, .. }) => coordinates,
+            StageSpawn::Destructible(s) => &s.coordinates,
+            StageSpawn::Enemy(s) => &s.coordinates,
+            StageSpawn::Object(s) => &s.coordinates,
+            StageSpawn::Pickup(s) => &s.coordinates,
         }
     }
 
     pub fn get_elapsed(&self) -> Duration {
-        Duration::from_secs_f32(match self {
-            StageSpawn::Destructible(DestructibleSpawn { .. }) => 0.,
-            StageSpawn::Enemy(EnemySpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
-            StageSpawn::Object(ObjectSpawn { .. }) => 0.,
-            StageSpawn::Pickup(PickupSpawn { elapsed, .. }) => *elapsed / GAME_BASE_SPEED,
-        })
+        match self {
+            StageSpawn::Destructible(_) => Duration::ZERO,
+            StageSpawn::Enemy(s) => s.elapsed.div_f32(GAME_BASE_SPEED),
+            StageSpawn::Object(_) => Duration::ZERO,
+            StageSpawn::Pickup(s) => s.elapsed.div_f32(GAME_BASE_SPEED),
+        }
     }
 
     pub fn get_depth(&self) -> Depth {
@@ -368,10 +375,10 @@ impl StageSpawn {
 
     pub fn show_type(&self) -> String {
         match self {
-            StageSpawn::Destructible(spawn) => spawn.show_type(),
-            StageSpawn::Enemy(spawn) => spawn.enemy_type.show_type(),
-            StageSpawn::Object(spawn) => spawn.show_type(),
-            StageSpawn::Pickup(spawn) => spawn.show_type(),
+            StageSpawn::Destructible(s) => s.show_type(),
+            StageSpawn::Enemy(s) => s.enemy_type.show_type(),
+            StageSpawn::Object(s) => s.show_type(),
+            StageSpawn::Pickup(s) => s.show_type(),
         }
     }
 }

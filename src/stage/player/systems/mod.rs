@@ -58,7 +58,7 @@ pub fn player_movement<T: DeltaTime + Resource>(
 
         if direction.length() > 0.0 {
             direction = direction.normalize_or_zero();
-            position.0 += direction * PLAYER_SPEED * time.delta_seconds();
+            position.0 += direction * PLAYER_SPEED * time.delta().as_secs_f32();
         }
     }
 }
