@@ -1,3 +1,4 @@
+use crate::components::VolumeSettings;
 use crate::{
     components::{remove_step, Cleared, CutsceneElapsedStarted, Music, Tag},
     cutscene::{
@@ -9,7 +10,7 @@ use crate::{
     globals::mark_for_despawn_by_query,
     layer::Layer,
     letterbox::events::LetterboxMoveEvent,
-    systems::{audio::VolumeSettings, spawn::make_music_bundle},
+    systems::spawn::make_music_bundle,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::{

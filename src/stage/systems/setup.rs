@@ -1,4 +1,5 @@
 use super::spawn::*;
+use crate::components::VolumeSettings;
 use crate::{
     stage::{
         bundles::{BackgroundBundle, SkyboxBundle},
@@ -9,7 +10,7 @@ use crate::{
         ui::hud::spawn::spawn_hud,
         StagePluginUpdateState,
     },
-    systems::{audio::VolumeSettings, spawn::make_music_bundle},
+    systems::spawn::make_music_bundle,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::{

@@ -1,3 +1,4 @@
+use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
     layer::Layer,
@@ -12,13 +13,9 @@ use crate::{
         player::{components::Player, events::CameraShakeEvent},
         resources::StageTime,
     },
-    systems::audio::{AudioSystemBundle, AudioSystemType, VolumeSettings},
 };
 use assert_assets_path::assert_assets_path;
-use bevy::{
-    audio::{PlaybackMode, Volume},
-    prelude::*,
-};
+use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::{
     prelude::{PxAnchor, PxAssets, PxSubPosition},
     sprite::{PxSprite, PxSpriteBundle},
@@ -61,7 +58,7 @@ pub fn hovering_damage_on_reached(
                 source: sound_effect,
                 settings: PlaybackSettings {
                     mode: PlaybackMode::Despawn,
-                    volume: Volume::new(volume_settings.2 * 1.0),
+                    volume: volume_settings.sfx.clone(),
                     ..default()
                 },
                 ..default()

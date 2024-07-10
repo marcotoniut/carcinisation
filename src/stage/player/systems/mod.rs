@@ -6,9 +6,8 @@ use super::resources::AttackTimer;
 use crate::core::time::DeltaTime;
 use crate::input::GBInput;
 use crate::{
-    components::DespawnMark,
+    components::{DespawnMark, VolumeSettings},
     globals::{mark_for_despawn_by_query, HUD_HEIGHT, SCREEN_RESOLUTION},
-    systems::audio::VolumeSettings,
 };
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
