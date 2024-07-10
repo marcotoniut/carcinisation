@@ -7,7 +7,31 @@ use bevy::input::mouse::MouseButton;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 
-pub fn on_mouse_motion(
+const ZOOM_SENSITIVITY: f32 = 0.05;
+const ZOOM_MIN: f32 = 0.25;
+const ZOOM_MAX: f32 = 3.0;
+
+pub fn on_alt_mouse_motion(
+    mut mouse_motion_events: EventReader<MouseMotion>,
+    keyboard_buttons: Res<ButtonInput<KeyCode>>,
+    mut orthographic_camera_query: Query<&mut OrthographicProjection>,
+) {
+    let alt_pressed =
+        keyboard_buttons.pressed(KeyCode::AltLeft) || keyboard_buttons.pressed(KeyCode::AltRight);
+
+    if alt_pressed {
+        for event in mouse_motion_events.read() {
+            let delta = event.delta;
+
+            if let Ok(mut ortho_projection) = orthographic_camera_query.get_single_mut() {
+                ortho_projection.scale -= delta.y * ZOOM_SENSITIVITY;
+                ortho_projection.scale = ortho_projection.scale.clamp(ZOOM_MIN, ZOOM_MAX);
+            }
+        }
+    }
+}
+
+pub fn on_ctrl_mouse_motion(
     mut mouse_motion_events: EventReader<MouseMotion>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -23,7 +47,7 @@ pub fn on_mouse_motion(
     let ctrl_pressed = keyboard_buttons.pressed(KeyCode::ControlLeft)
         || keyboard_buttons.pressed(KeyCode::ControlRight);
 
-    if selected_query.is_empty() && ctrl_pressed && mouse_buttons.pressed(MouseButton::Left) {
+    if selected_query.is_empty() && ctrl_pressed {
         for event in mouse_motion_events.read() {
             let delta = event.delta;
 

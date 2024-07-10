@@ -31,9 +31,8 @@ pub fn inspector_ui(world: &mut World) {
         });
 
     egui::Window::new("Scene")
-        .title_bar(false)
+        .title_bar(true)
         .anchor(egui::Align2::RIGHT_TOP, [0.0, 0.0])
-        .collapsible(false)
         .movable(false)
         .min_height(window_height - 15.0)
         .max_height(window_height - 15.0)
