@@ -41,24 +41,6 @@ pub struct TargetMovement {
 }
 
 impl TargetMovement {
-    pub fn new(x: f32, y: f32) -> Self {
-        Self {
-            position: Vec2::new(x, y),
-            speed: 0.,
-            acceleration: 0.,
-        }
-    }
-
-    pub fn with_speed(mut self, speed: f32) -> Self {
-        self.speed = speed;
-        self
-    }
-
-    pub fn with_acceleration(mut self, acceleration: f32) -> Self {
-        self.acceleration = acceleration;
-        self
-    }
-
     pub fn make_bundles(
         self,
         coordinates: Vec2,
@@ -103,39 +85,10 @@ pub struct CutsceneAnimationSpawn {
     pub target_movement_o: Option<TargetMovement>,
 }
 
-impl CutsceneAnimationSpawn {
-    pub fn with_coordinates(mut self, x: f32, y: f32) -> Self {
-        self.coordinates = Vec2::new(x, y);
-        self
-    }
-
-    pub fn with_layer(mut self, layer: Layer) -> Self {
-        self.layer = layer;
-        self
-    }
-
-    pub fn with_tag(mut self, tag: String) -> Self {
-        self.tag_o = Some(tag);
-        self
-    }
-
-    pub fn with_target_movement(mut self, target_movement: TargetMovement) -> Self {
-        self.target_movement_o = Some(target_movement);
-        self
-    }
-}
-
 #[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAnimationsSpawn {
     #[new(default)]
     pub spawns: Vec<CutsceneAnimationSpawn>,
-}
-
-impl CutsceneAnimationsSpawn {
-    pub fn push_spawn(mut self, spawn: CutsceneAnimationSpawn) -> Self {
-        self.spawns.push(spawn);
-        self
-    }
 }
 
 #[derive(new, Clone, Debug, Component)]
@@ -148,20 +101,6 @@ pub struct CutsceneElapse {
     pub clear_graphics: bool,
 }
 
-impl CutsceneElapse {
-    pub fn from_secs_f32(secs: f32) -> Self {
-        Self {
-            duration: Duration::from_secs_f32(secs),
-            clear_graphics: false,
-        }
-    }
-
-    pub fn clear_graphics(mut self) -> Self {
-        self.clear_graphics = true;
-        self
-    }
-}
-
 #[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneImageSpawn {
     pub image_path: String,
@@ -172,23 +111,6 @@ pub struct CutsceneImageSpawn {
     #[new(default)]
     #[serde(default)]
     pub tag_o: Option<String>,
-}
-
-impl CutsceneImageSpawn {
-    pub fn with_coordinates(mut self, x: f32, y: f32) -> Self {
-        self.coordinates = Vec2::new(x, y);
-        self
-    }
-
-    pub fn with_layer(mut self, layer: Layer) -> Self {
-        self.layer = layer;
-        self
-    }
-
-    pub fn with_tag(mut self, tag: String) -> Self {
-        self.tag_o = Some(tag);
-        self
-    }
 }
 
 #[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
