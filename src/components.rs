@@ -2,8 +2,6 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use bevy::{audio::Volume, prelude::*};
-
 #[derive(Component)]
 pub enum AudioSystemType {
     SFX,
