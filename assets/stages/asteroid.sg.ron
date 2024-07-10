@@ -9,7 +9,7 @@ StageData(
         path: "backgrounds/asteroid/skybox.png",
         frames: 1,
     ),
-    start_coordinates: Vec2(0.0, 0.0),
+    start_coordinates: Vec2(0.0, 577.0),
     spawns: [
         Destructible(
             contains: None,
@@ -21,9 +21,7 @@ StageData(
         Destructible(
             contains: Enemy(
                 enemy_type: Tardigrade,
-                elapsed: 0.4,
                 contains: None,
-                coordinates: Vec2(60.0, 0.0),
                 speed: 2.0,
                 steps: [
                     Idle(
@@ -44,7 +42,6 @@ StageData(
                         radius: 4.0,
                     ),
                 ],
-                depth: Six,
             ),
             coordinates: Vec2(60.0, 0.0),
             depth: Four,
@@ -54,9 +51,6 @@ StageData(
         Destructible(
             contains: Pickup(
                 pickup_type: BigHealthpack,
-                coordinates: Vec2(0.0, 0.0),
-                elapsed: 0.0,
-                depth: Six,
             ),
             coordinates: Vec2(20.0, 0.0),
             depth: Four,
@@ -66,9 +60,6 @@ StageData(
         Destructible(
             contains: Pickup(
                 pickup_type: SmallHealthpack,
-                coordinates: Vec2(0.0, 0.0),
-                elapsed: 0.0,
-                depth: Six,
             ),
             coordinates: Vec2(20.0, 0.0),
             depth: Five,
@@ -78,7 +69,7 @@ StageData(
     ],
     steps: [
         Movement(
-            coordinates: Vec2(0.0, 0.0),
+            coordinates: Vec2(0.0, 577.0),
             base_speed: 8.0,
             spawns: [],
             floor_depths: None,
@@ -91,7 +82,7 @@ StageData(
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(50.0, 0.0),
+            coordinates: Vec2(50.0, 577.0),
             base_speed: 10.0,
             spawns: [
                 Enemy(
@@ -132,25 +123,25 @@ StageData(
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(34.0, 62.0),
+            coordinates: Vec2(34.0, 577.0),
             base_speed: 8.0,
             spawns: [],
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(90.0, 0.0),
+            coordinates: Vec2(90.0, 577.0),
             base_speed: 4.0,
             spawns: [],
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(0.0, 0.0),
+            coordinates: Vec2(0.0, 577.0),
             base_speed: 2.0,
             spawns: [],
             floor_depths: None,
         ),
         Movement(
-            coordinates: Vec2(50.0, 0.0),
+            coordinates: Vec2(50.0, 577.0),
             base_speed: 1.0,
             spawns: [
                 Enemy(
