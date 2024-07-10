@@ -27,49 +27,6 @@ use seldom_pixel::prelude::PxAnimationFinished;
 //     }
 // }
 
-// pub fn input_snd_menu(
-//     gb_input_query: Query<&ActionState<GBInput>>,
-//     app_state: Res<State<AppState>>,
-//     mut next_app_state: ResMut<NextState<AppState>>,
-//     mut commands: Commands,
-//     asset_server: Res<AssetServer>,
-
-//     mut next_game_state: ResMut<NextState<GameState>>,
-
-//     state: Res<State<StageProgressState>>,
-//     mut next_stage_state: ResMut<NextState<StageProgressState>>,
-//     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
-//     mut camera: ResMut<PxCamera>,
-//     time: Res<Time>,
-// ) {
-//     let gb_input = gb_input_query.single();
-//     if gb_input.just_pressed(&GBInput::Select) {
-//         info!("open pause menu");
-
-//         if app_state.get().to_owned() != AppState::MainMenu {
-//             // commands.insert_resource(NextState(Some(AppState::MainMenu)));
-//             info!("Entered AppState::MainMenu");
-
-//             let stage_data_handle = StageDataHandle(asset_server.load("stages/settings.yaml"));
-//             commands.insert_resource(stage_data_handle);
-
-//             next_app_state.set(AppState::MainMenu);
-//             next_stage_state.set(StageProgressState::Initial);
-//             next_game_state.set(GameState::Loading);
-//         } else if app_state.get().to_owned() != AppState::Game {
-//             // commands.insert_resource(NextState(Some(AppState::MainMenu)));
-
-//             info!("Entered AppState::Game");
-
-//             info!("TODO Initialise game");
-
-//             next_app_state.set(AppState::Game);
-//             next_stage_state.set(StageProgressState::Running);
-//             next_game_state.set(GameState::Loading);
-//         }
-//     }
-// }
-
 pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOverEvent>) {
     for game_over in game_over_event_reader.read() {
         info!("Your final score: {}", game_over.score);
