@@ -7,7 +7,4 @@ pub struct Hud;
 pub struct HealthText;
 
 #[derive(Component)]
-pub struct EnemyCountText;
-
-#[derive(Component)]
 pub struct UIBackground;

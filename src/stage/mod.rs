@@ -43,9 +43,7 @@ use crate::{
     globals::mark_for_despawn_by_query_system,
     plugins::movement::{
         linear::{
-            components::{
-                LinearTargetReached, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-            },
+            components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
             LinearMovement2DPlugin, LinearMovementPlugin,
         },
         pursue::PursueMovementPlugin,
@@ -55,7 +53,7 @@ use crate::{
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use data::StageData;
-use pickup::{components::PickupFeedback, systems::health::PickupDespawnFilter};
+use pickup::systems::health::PickupDespawnFilter;
 use seldom_pixel::prelude::PxSubPosition;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]

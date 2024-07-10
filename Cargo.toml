@@ -38,7 +38,6 @@ lazy_static = "1.4.0"
 leafwing-input-manager = "0.13"
 num_enum = "0.7.2"
 rand = "0.8.5"
-seldom_fn_plugin = "0.6"
 seldom_pixel = { default-features = true, features = [
     "line",
 ], version = "0.6.1" }
