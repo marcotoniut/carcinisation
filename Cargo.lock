@@ -1707,7 +1707,6 @@ dependencies = [
  "leafwing-input-manager",
  "num_enum",
  "rand",
- "seldom_fn_plugin",
  "seldom_pixel",
  "serde",
  "serde_with",
