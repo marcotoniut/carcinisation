@@ -25,7 +25,7 @@ pub fn move_camera(
     )
     .as_vec2()
     .normalize_or_zero()
-        * time.delta_seconds()
+        * time.delta().as_secs_f32()
         * CAMERA_MOVEMENT_SPEED;
 
     **camera = camera_pos.round().as_ivec2();

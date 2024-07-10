@@ -20,9 +20,9 @@ pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
 ) {
     for (mut position, mut speed, acceleration_o) in &mut query.iter_mut() {
         if let Some(acceleration) = acceleration_o {
-            speed.add(acceleration.value * delta_time.delta_seconds());
+            speed.add(acceleration.value * delta_time.delta().as_secs_f32());
         }
-        position.add(speed.value * delta_time.delta_seconds());
+        position.add(speed.value * delta_time.delta().as_secs_f32());
     }
 }
 
