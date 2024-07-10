@@ -24,7 +24,9 @@ use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI};
 use systems::{
     animate_sprite, check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
-    input::{on_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel},
+    input::{
+        on_alt_mouse_motion, on_ctrl_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel,
+    },
     on_scene_change, on_unload_scene, setup_camera,
 };
 use ui::systems::update_ui;
@@ -75,7 +77,8 @@ fn main() {
         .add_systems(
             Update,
             (
-                on_mouse_motion,
+                on_alt_mouse_motion,
+                on_ctrl_mouse_motion,
                 on_mouse_press,
                 on_mouse_release,
                 on_mouse_wheel,
