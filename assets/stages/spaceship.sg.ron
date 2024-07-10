@@ -9,7 +9,7 @@ StageData(
         path: "backgrounds/spaceship/skybox.png",
         frames: 6,
     ),
-    start_coordinates: Vec2(0.0, 0.0),
+    start_coordinates: Vec2(0.0, 412.0),
     spawns: [],
     steps: [],
 )

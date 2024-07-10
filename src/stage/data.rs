@@ -4,12 +4,9 @@ use super::{
     enemy::{data::steps::EnemyStep, entity::EnemyType},
 };
 use crate::globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H};
-use bevy::{
-    asset::Asset,
-    prelude::{Name, Resource, Vec2},
-    reflect::Reflect,
-};
+use bevy::{asset::Asset, prelude::*, reflect::Reflect};
 use derive_more::From;
+use derive_new::new;
 use serde::{Deserialize, Serialize};
 use std::{collections::VecDeque, time::Duration};
 
@@ -51,8 +48,8 @@ pub enum PickupType {
 
 #[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum ContainerSpawn {
-    Pickup(PickupSpawn),
-    Enemy(EnemySpawn),
+    Pickup(PickupDropSpawn),
+    Enemy(EnemyDropSpawn),
 }
 
 // TODO move pickup data under its own module?
@@ -93,6 +90,23 @@ impl PickupSpawn {
             coordinates: Vec2::ZERO,
             elapsed: 0.0,
             depth: Depth::Six,
+        }
+    }
+}
+
+// TODO move pickup data under its own module?
+#[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
+pub struct PickupDropSpawn {
+    pub pickup_type: PickupType,
+}
+
+impl PickupDropSpawn {
+    pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> PickupSpawn {
+        PickupSpawn {
+            pickup_type: self.pickup_type.clone(),
+            coordinates,
+            depth,
+            elapsed: 0.0,
         }
     }
 }
@@ -164,6 +178,31 @@ pub struct EnemySpawn {
     #[serde(default)]
     pub steps: VecDeque<EnemyStep>,
     pub depth: Depth,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
+pub struct EnemyDropSpawn {
+    pub enemy_type: EnemyType,
+    #[reflect(ignore)]
+    #[serde(default)]
+    pub contains: Option<Box<ContainerSpawn>>,
+    pub speed: f32,
+    #[serde(default)]
+    pub steps: VecDeque<EnemyStep>,
+}
+
+impl EnemyDropSpawn {
+    pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> EnemySpawn {
+        EnemySpawn {
+            enemy_type: self.enemy_type.clone(),
+            coordinates,
+            depth,
+            speed: self.speed,
+            steps: self.steps.clone(),
+            contains: self.contains.clone(),
+            elapsed: 0.0,
+        }
+    }
 }
 
 impl EnemySpawn {

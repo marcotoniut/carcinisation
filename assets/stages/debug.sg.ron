@@ -53,9 +53,7 @@ StageData(
         Destructible(
             contains: Enemy(
                 enemy_type: Mosquito,
-                elapsed: 0.4,
                 contains: None,
-                coordinates: Vec2(60.0, 100.0),
                 speed: 2.0,
                 steps: [
                     Idle(
@@ -65,7 +63,6 @@ StageData(
                         duration: 1.0,
                     ),
                 ],
-                depth: Five,
             ),
             coordinates: Vec2(75.0, -5.0),
             depth: Three,
@@ -75,9 +72,6 @@ StageData(
         Destructible(
             contains: Pickup(
                 pickup_type: BigHealthpack,
-                coordinates: Vec2(0.0, 0.0),
-                elapsed: 0.0,
-                depth: Six,
             ),
             coordinates: Vec2(260.0, -5.0),
             depth: Three,
@@ -111,9 +105,6 @@ StageData(
                     elapsed: 0.1,
                     contains: Pickup(
                         pickup_type: SmallHealthpack,
-                        coordinates: Vec2(0.0, 0.0),
-                        elapsed: 0.0,
-                        depth: Six,
                     ),
                     coordinates: Vec2(60.0, 100.0),
                     speed: 2.0,
@@ -144,9 +135,6 @@ StageData(
                     elapsed: 85.0,
                     contains: Pickup(
                         pickup_type: BigHealthpack,
-                        coordinates: Vec2(0.0, 0.0),
-                        elapsed: 0.0,
-                        depth: Six,
                     ),
                     coordinates: Vec2(30.0, 60.0),
                     speed: 2.0,
@@ -165,9 +153,6 @@ StageData(
                     elapsed: 45.1,
                     contains: Pickup(
                         pickup_type: BigHealthpack,
-                        coordinates: Vec2(0.0, 0.0),
-                        elapsed: 0.0,
-                        depth: Six,
                     ),
                     coordinates: Vec2(30.0, 60.0),
                     speed: 2.0,
@@ -186,9 +171,6 @@ StageData(
                     elapsed: 2.1,
                     contains: Pickup(
                         pickup_type: BigHealthpack,
-                        coordinates: Vec2(0.0, 0.0),
-                        elapsed: 0.0,
-                        depth: Six,
                     ),
                     coordinates: Vec2(140.0, 130.0),
                     speed: 2.0,
@@ -207,9 +189,6 @@ StageData(
                     elapsed: 2.1,
                     contains: Pickup(
                         pickup_type: BigHealthpack,
-                        coordinates: Vec2(0.0, 0.0),
-                        elapsed: 0.0,
-                        depth: Six,
                     ),
                     coordinates: Vec2(140.0, 130.0),
                     speed: 2.0,
@@ -229,9 +208,6 @@ StageData(
                     elapsed: 35.0,
                     contains: Pickup(
                         pickup_type: BigHealthpack,
-                        coordinates: Vec2(0.0, 0.0),
-                        elapsed: 0.0,
-                        depth: Six,
                     ),
                     coordinates: Vec2(130.0, 70.0),
                     speed: 2.0,

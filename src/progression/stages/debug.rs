@@ -5,6 +5,7 @@ use crate::stage::components::{MovementStageStep, StopStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::{DestructibleSpawn, LampDepth, TrashcanDepth};
 use crate::stage::enemy::data::steps::EnemyStep;
+use crate::stage::enemy::entity::EnemyType;
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use lazy_static::lazy_static;
@@ -40,18 +41,22 @@ pub fn make_spawns() -> Vec<StageSpawn> {
         ObjectSpawn::bench_big_base(50., 65.).into(),
         ObjectSpawn::bench_big_base(200., 60.).into(),
         DestructibleSpawn::lamp_base(75., OBJECT_LAMP_Y, LampDepth::Three)
-            .drops(ContainerSpawn::Enemy(
-                EnemySpawn::mosquito_base()
-                    .with_coordinates(Vec2::new(60., 100.))
-                    .with_elapsed(0.4)
-                    .with_steps_vec(vec![
+            .drops(
+                EnemyDropSpawn {
+                    enemy_type: EnemyType::Mosquito,
+                    contains: None,
+                    steps: vec![
                         EnemyStep::idle_base().with_duration(3.).into(),
                         EnemyStep::attack_base().with_duration(1.).into(),
-                    ]),
-            ))
+                    ]
+                    .into(),
+                    ..default()
+                }
+                .into(),
+            )
             .into(),
         DestructibleSpawn::lamp_base(260., OBJECT_LAMP_Y, LampDepth::Three)
-            .drops(PickupSpawn::big_healthpack_base().into())
+            .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
             .into(),
     ]
 }
@@ -109,7 +114,7 @@ pub fn make_steps() -> Vec<StageStep> {
                             .opposite_direction()
                             .into(),
                     ])
-                    .drops(PickupSpawn::small_healthpack_base().into())
+                    .drops(PickupDropSpawn::new(PickupType::SmallHealthpack).into())
                     .into(),
                 EnemySpawn::mosquito_variant_circle()
                     .with_coordinates(Vec2::new(30.0, 60.0))
@@ -125,16 +130,16 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_y(30.)
                     .with_elapsed(85.0)
                     .add_step(EnemyStep::circle_around_base().into())
-                    .drops(PickupSpawn::big_healthpack_base().into())
+                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
                     .into(),
                 EnemySpawn::mosquito_variant_linear_opposite()
                     .with_elapsed(45.1)
-                    .drops(PickupSpawn::big_healthpack_base().into())
+                    .drops(PickupDropSpawn::new(PickupType::SmallHealthpack).into())
                     .into(),
                 EnemySpawn::mosquito_variant_approacher()
                     .with_coordinates(Vec2::new(140.0, 130.0))
                     .with_elapsed(2.1)
-                    .drops(PickupSpawn::big_healthpack_base().into())
+                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
                     .into(),
             ])
             .into(),
@@ -143,7 +148,7 @@ pub fn make_steps() -> Vec<StageStep> {
                 EnemySpawn::mosquito_variant_approacher()
                     .with_coordinates(Vec2::new(140.0, 130.0))
                     .with_elapsed(2.1)
-                    .drops(PickupSpawn::big_healthpack_base().into())
+                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
                     .into(),
                 // EnemySpawn::mosquito_variant_circle()
                 //     .with_coordinates(Vec2::new(60.0, 70.0))
@@ -161,7 +166,7 @@ pub fn make_steps() -> Vec<StageStep> {
             .add_spawns(vec![EnemySpawn::mosquito_base()
                 .with_coordinates(Vec2::new(130.0, 70.0))
                 .with_elapsed(35.)
-                .drops(PickupSpawn::big_healthpack_base().into())
+                .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
                 .into()])
             .into(),
         StopStageStep::new().with_max_duration(100.).into(),
