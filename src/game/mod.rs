@@ -5,9 +5,12 @@ pub mod resources;
 pub mod score;
 pub mod systems;
 
+use crate::core::event::on_trigger_write_event;
+
 use self::{events::*, resources::GameProgress, score::ScorePlugin, systems::setup::*};
 use bevy::prelude::*;
 use resources::{CutsceneAssetHandle, StageAssetHandle};
+use systems::debug::debug_on_game_over;
 
 pub struct GamePlugin;
 
@@ -16,10 +19,11 @@ impl Plugin for GamePlugin {
         app.add_plugins(ScorePlugin)
             .init_state::<GamePluginUpdateState>()
             .init_state::<GameProgressState>()
-            // DEBUG
-            .add_event::<GameOverEvent>()
-            .add_event::<GameStartupEvent>()
-            .add_systems(PreUpdate, on_startup)
+            .add_event::<GameOverTrigger>()
+            .observe(on_game_over)
+            .observe(on_trigger_write_event::<GameOverTrigger>)
+            .add_event::<GameStartupTrigger>()
+            .observe(on_game_startup)
             .add_systems(
                 Update,
                 ((
@@ -32,6 +36,11 @@ impl Plugin for GamePlugin {
                     .run_if(resource_exists::<GameProgress>),)
                     .run_if(in_state(GamePluginUpdateState::Active)),
             );
+
+        #[cfg(debug_assertions)]
+        {
+            app.observe(debug_on_game_over);
+        }
     }
 }
 

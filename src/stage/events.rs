@@ -14,19 +14,20 @@ pub struct StageRestart;
 #[derive(Event)]
 pub struct NextStepEvent;
 
-#[derive(Event)]
-pub struct StageClearedEvent;
+#[derive(Clone, Event)]
+pub struct StageClearedTrigger;
 
 #[derive(Event)]
 pub struct StageDeathEvent;
 
 #[derive(Event)]
-pub struct StageSpawnEvent {
+pub struct StageSpawnTrigger {
     pub spawn: StageSpawn,
 }
 
+// TODO maybe this should be an event instead? Or I should have some trigger-eventwriter system too
 #[derive(Event)]
-pub struct StageStartupEvent {
+pub struct StageStartupTrigger {
     pub data: Arc<StageData>,
 }
 

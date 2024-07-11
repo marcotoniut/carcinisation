@@ -3,38 +3,54 @@ use std::sync::Arc;
 use crate::{
     cutscene::{
         data::CutsceneData,
-        events::{CutsceneShutdownEvent, CutsceneStartupEvent},
+        events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
         CutscenePluginUpdateState,
     },
+    debug::plugin::{debug_print_shutdown, debug_print_startup},
     game::{
-        components::steps::*, data::*, events::GameStartupEvent, resources::*,
+        components::steps::*, data::*, events::GameStartupTrigger, resources::*, GameOverTrigger,
         GamePluginUpdateState,
     },
     progression::game::GAME_DATA,
     stage::{
         data::StageData,
-        events::{StageClearedEvent, StageStartupEvent},
+        events::{StageClearedTrigger, StageStartupTrigger},
         StagePluginUpdateState,
     },
 };
 use bevy::prelude::*;
 
-pub fn on_startup(
-    mut event_reader: EventReader<GameStartupEvent>,
+const DEBUG_MODULE: &str = "Game";
+
+pub fn on_game_startup(
+    _trigger: Trigger<GameStartupTrigger>,
     mut next_state: ResMut<NextState<GamePluginUpdateState>>,
     mut commands: Commands,
 ) {
-    for _ in event_reader.read() {
-        next_state.set(GamePluginUpdateState::Active);
-        commands.insert_resource::<GameProgress>(GameProgress { index: 0 });
-        commands.insert_resource::<GameData>(GAME_DATA.clone());
-        commands.insert_resource(Lives(STARTING_LIVES));
-    }
+    #[cfg(debug_assertions)]
+    debug_print_startup(DEBUG_MODULE);
+
+    next_state.set(GamePluginUpdateState::Active);
+    commands.insert_resource::<GameProgress>(GameProgress { index: 0 });
+    commands.insert_resource::<GameData>(GAME_DATA.clone());
+    commands.insert_resource(Lives(STARTING_LIVES));
 }
+
+// pub fn on_game_shutdown(
+//     _trigger: Trigger<GameShutdownTrigger>,
+//     mut next_state: ResMut<NextState<GamePluginUpdateState>>,
+// ) {
+//     #[cfg(debug_assertions)]
+//     debug_print_shutdown(DEBUG_MODULE);
+
+//     next_state.set(GamePluginUpdateState::Inactive);
+// }
+
+pub fn on_game_over(_trigger: Trigger<GameOverTrigger>) {}
 
 // TODO Should I use stage_shutdown instead?
 pub fn on_stage_cleared(
-    mut event_reader: EventReader<StageClearedEvent>,
+    mut event_reader: EventReader<StageClearedTrigger>,
     mut commands: Commands,
     mut next_update_state: ResMut<NextState<StagePluginUpdateState>>,
     mut progress: ResMut<GameProgress>,
@@ -47,7 +63,7 @@ pub fn on_stage_cleared(
 }
 
 pub fn on_cutscene_shutdown(
-    mut event_reader: EventReader<CutsceneShutdownEvent>,
+    mut event_reader: EventReader<CutsceneShutdownTrigger>,
     mut commands: Commands,
     mut next_update_state: ResMut<NextState<CutscenePluginUpdateState>>,
     mut progress: ResMut<GameProgress>,
@@ -65,8 +81,8 @@ pub fn progress(
     game_progress: Res<GameProgress>,
     game_data: Res<GameData>,
     mut commands: Commands,
-    mut cutscene_startup_event_writer: EventWriter<CutsceneStartupEvent>,
-    mut stage_startup_event_writer: EventWriter<StageStartupEvent>,
+    // mut cutscene_startup_event_writer: EventWriter<CutsceneStartupEvent>,
+    mut stage_startup_event_writer: EventWriter<StageStartupTrigger>,
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
         if let Some(data) = game_data.steps.get(game_progress.index) {
@@ -78,7 +94,8 @@ pub fn progress(
                     data,
                     is_checkpoint,
                 }) => {
-                    cutscene_startup_event_writer.send(CutsceneStartupEvent { data: data.clone() });
+                    commands.trigger(CutsceneStartupTrigger { data: data.clone() });
+                    // cutscene_startup_event_writer.send();
                 }
                 GameStep::CutsceneAsset(CinematicAssetGameStep { src, is_checkpoint }) => {
                     commands.insert_resource(CutsceneAssetHandle {
@@ -86,7 +103,7 @@ pub fn progress(
                     });
                 }
                 GameStep::Stage(StageGameStep { data }) => {
-                    stage_startup_event_writer.send(StageStartupEvent { data: data.clone() });
+                    stage_startup_event_writer.send(StageStartupTrigger { data: data.clone() });
                 }
                 GameStep::StageAsset(StageAssetGameStep(src)) => {
                     commands.insert_resource(StageAssetHandle {
@@ -104,18 +121,16 @@ pub fn progress(
 pub fn check_cutscene_data_loaded(
     cutscene_asset_handle: Res<CutsceneAssetHandle>,
     cutscene_data_assets: Res<Assets<CutsceneData>>,
-    mut cinematic_startup_event_writer: EventWriter<CutsceneStartupEvent>,
     mut commands: Commands,
 ) {
     if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
         println!("Cutscene data loaded: {:?}", data);
-        cinematic_startup_event_writer.send(CutsceneStartupEvent {
+        commands.remove_resource::<CutsceneAssetHandle>();
+        commands.trigger(CutsceneStartupTrigger {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
             data: Arc::new(data.clone()),
         });
-        commands.remove_resource::<CutsceneAssetHandle>();
     } else {
-        // Asset is not yet loaded
         println!("Cutscene data is still loading...");
     }
 }
@@ -123,18 +138,16 @@ pub fn check_cutscene_data_loaded(
 pub fn check_stage_data_loaded(
     cutscene_asset_handle: Res<StageAssetHandle>,
     cutscene_data_assets: Res<Assets<StageData>>,
-    mut cinematic_startup_event_writer: EventWriter<StageStartupEvent>,
     mut commands: Commands,
 ) {
     if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
         println!("Stage data loaded: {:?}", data);
-        cinematic_startup_event_writer.send(StageStartupEvent {
+        commands.remove_resource::<StageAssetHandle>();
+        commands.trigger(StageStartupTrigger {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
             data: Arc::new(data.clone()),
         });
-        commands.remove_resource::<StageAssetHandle>();
     } else {
-        // Asset is not yet loaded
         println!("Stage data is still loading...");
     }
 }

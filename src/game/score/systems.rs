@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use crate::game::events::GameOverEvent;
+use crate::game::events::GameOverTrigger;
 
-pub fn update_high_scores(
-    mut game_over_event_reader: EventReader<GameOverEvent>,
+pub fn on_game_over_update_high_scores(
+    mut reader: EventReader<GameOverTrigger>,
     mut high_scores: ResMut<HighScores>,
 ) {
-    for game_over in game_over_event_reader.read() {
+    for game_over in reader.read() {
         high_scores
             .scores
             .push(("Player".to_string(), game_over.score));
@@ -17,11 +17,11 @@ pub fn update_high_scores(
     }
 }
 
-pub fn high_scores_updated(high_scores: Res<HighScores>) {
+pub fn debug_high_scores_updated(high_scores: Res<HighScores>) {
     if high_scores.is_changed() {
         info!("High scores updated!");
         for (i, (name, score)) in high_scores.scores.iter().enumerate() {
-            info!("{}. {} - {}", i + 1, name, score);
+            println!("{}. {} - {}", i + 1, name, score);
         }
     }
 }

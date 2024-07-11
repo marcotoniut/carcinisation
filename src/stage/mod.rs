@@ -8,7 +8,7 @@ pub mod events;
 pub mod pickup;
 pub mod player;
 pub mod resources;
-pub mod systems;
+mod systems;
 pub mod ui;
 
 use self::{
@@ -18,14 +18,14 @@ use self::{
     enemy::EnemyPlugin,
     events::*,
     pickup::systems::health::pickup_health,
-    player::{events::CameraShakeEvent, PlayerPlugin},
+    player::{events::CameraShakeTrigger, PlayerPlugin},
     resources::{StageActionTimer, StageProgress, StageTime},
     systems::{
         camera::*,
         damage::*,
         movement::*,
-        setup::on_startup,
-        spawn::{check_dead_drop, check_step_spawn, read_stage_spawn_trigger},
+        setup::on_stage_startup,
+        spawn::{check_dead_drop, check_step_spawn, on_stage_spawn},
         state::{on_active, on_inactive},
         *,
     },
@@ -38,8 +38,11 @@ use self::{
     },
 };
 use crate::{
-    core::time::{tick_time, TimeMultiplier},
-    game::events::GameOverEvent,
+    core::{
+        event::on_trigger_write_event,
+        time::{tick_time, TimeMultiplier},
+    },
+    game::events::GameOverTrigger,
     globals::mark_for_despawn_by_query_system,
     plugins::movement::{
         linear::{
@@ -74,24 +77,30 @@ impl Plugin for StagePlugin {
         #[cfg(debug_assertions)]
         app.insert_resource(TimeMultiplier::<StageTime>::new(1.));
 
-        app.init_state::<StagePluginUpdateState>()
+        app.add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
+            .init_state::<StagePluginUpdateState>()
+            .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
             .init_resource::<StageProgress>()
-            .init_state::<StageProgressState>()
-            .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
-            .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
-            .add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
-            .add_event::<CameraShakeEvent>()
             .add_event::<DamageEvent>()
             .add_event::<DepthChangedEvent>()
-            .add_event::<StageClearedEvent>()
             .add_event::<StageDeathEvent>()
-            .add_event::<StageSpawnEvent>()
-            .add_event::<StageStartupEvent>()
+            .observe(on_death)
             .add_event::<NextStepEvent>()
-            // TODO temporary
-            .add_event::<GameOverEvent>()
+            .observe(on_next_step_cleanup_movement_step)
+            .observe(on_next_step_cleanup_cinematic_step)
+            .observe(on_next_step_cleanup_stop_step)
+            .add_event::<StageStartupTrigger>()
+            .observe(on_stage_startup)
+            .add_event::<StageSpawnTrigger>()
+            .observe(on_stage_spawn)
+            .add_event::<StageClearedTrigger>()
+            .observe(on_stage_cleared)
+            .observe(on_trigger_write_event::<StageClearedTrigger>)
+            // TODO .observe(on_startup_from_checkpoint))
+            .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
+            .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionX>::default())
@@ -107,17 +116,6 @@ impl Plugin for StagePlugin {
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(StageUiPlugin)
-            // .add_event::<StageSetupEvent>()
-            // .add_event::<StageSetupFromCheckpointEvent>()
-            // .add_systems(PreUpdate, (on_setup, on_setup_from_checkpoint))
-            // TODO should this be only used when plugin is active?
-            // Should initialisation functions be chained to startup?
-            .add_systems(PostUpdate, on_startup)
-            // // TEMP
-            // .add_systems(
-            //     Update,
-            //     spawn_current_stage_bundle.run_if(in_state(GameProgressState::Loading)),
-            // )
             .add_systems(
                 Update,
                 (
@@ -140,13 +138,10 @@ impl Plugin for StagePlugin {
                             tick_time::<StageTime>,
                             tick_stage_step_timer,
                             read_step_trigger,
-                            read_stage_spawn_trigger,
                             check_stage_step_timer,
                             check_staged_cleared,
-                            read_stage_cleared_trigger,
                             check_step_spawn,
                             check_stage_death,
-                            read_stage_death_trigger,
                         ),
                         (
                             // Effects
@@ -168,7 +163,7 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Damage
-                            (check_damage_taken, check_damage_flicker_taken).chain(),
+                            (on_damage, check_damage_flicker_taken).chain(),
                             add_invert_filter,
                             remove_invert_filter,
                             check_dead_drop,
@@ -183,11 +178,6 @@ impl Plugin for StagePlugin {
                                 update_cinematic_step,
                                 check_stop_step_finished_by_duration,
                                 check_movement_step_reached,
-                            ),
-                            (
-                                cleanup_movement_step,
-                                cleanup_cinematic_step,
-                                cleanup_stop_step,
                             ),
                         )
                             .chain(),

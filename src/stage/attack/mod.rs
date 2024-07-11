@@ -18,7 +18,7 @@ impl Plugin for AttackPlugin {
             (
                 (check_got_hit, check_health_at_0).chain(),
                 despawn_dead_attacks,
-                read_enemy_attack_depth_changed,
+                on_enemy_attack_depth_changed,
                 miss_on_reached,
                 hovering_damage_on_reached,
             )

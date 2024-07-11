@@ -10,7 +10,7 @@ use self::{
     events::*,
     resources::AttackTimer,
     systems::{
-        camera::{camera_shake, trigger_shake},
+        camera::{camera_shake, on_camera_shake},
         events::*,
         *,
     },
@@ -31,11 +31,14 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AttackTimer>()
-            .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
-            .add_event::<PlayerStartupEvent>()
-            .add_event::<PlayerShutdownEvent>()
             .init_state::<PlayerPluginUpdateState>()
-            .add_systems(PreUpdate, (on_startup, on_shutdown))
+            .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
+            .add_event::<CameraShakeTrigger>()
+            .observe(on_camera_shake)
+            .add_event::<PlayerStartupTrigger>()
+            .observe(on_player_startup)
+            .add_event::<PlayerShutdownTrigger>()
+            .observe(on_player_shutdown)
             .add_systems(
                 Update,
                 (
@@ -43,7 +46,6 @@ impl Plugin for PlayerPlugin {
                     check_attack_timer,
                     detect_player_attack,
                     camera_shake::<StageTime>,
-                    trigger_shake,
                     player_movement::<StageTime>.in_set(MovementSystemSet),
                     confine_player_movement.in_set(ConfinementSystemSet),
                 )

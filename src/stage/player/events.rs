@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
 #[derive(Event)]
-pub struct CameraShakeEvent;
+pub struct CameraShakeTrigger;
 
 #[derive(Event)]
-pub struct PlayerStartupEvent;
+pub struct PlayerStartupTrigger;
 
 #[derive(Event)]
-pub struct PlayerShutdownEvent;
+pub struct PlayerShutdownTrigger;

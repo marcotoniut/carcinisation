@@ -1,5 +1,5 @@
 use crate::{
-    game::{events::GameStartupEvent, resources::Difficulty},
+    game::{events::GameStartupTrigger, resources::Difficulty},
     input::GBInput,
     main_menu::{events::MainMenuShutdownEvent, resources::DifficultySelection},
     resources::DifficultySelected,
@@ -7,28 +7,23 @@ use crate::{
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-pub fn check_press_start_input(
-    mut game_startup_event_writer: EventWriter<GameStartupEvent>,
-    mut main_menu_event_writer: EventWriter<MainMenuShutdownEvent>,
-    gb_input: Res<ActionState<GBInput>>,
-) {
+pub fn check_press_start_input(mut commands: Commands, gb_input: Res<ActionState<GBInput>>) {
     if gb_input.just_pressed(&GBInput::Start)
         || gb_input.just_pressed(&GBInput::A)
         || gb_input.just_pressed(&GBInput::B)
     {
-        game_startup_event_writer.send(GameStartupEvent);
-        main_menu_event_writer.send(MainMenuShutdownEvent);
+        commands.trigger(GameStartupTrigger);
+        commands.trigger(MainMenuShutdownEvent);
     }
 }
 
 pub fn check_main_select_select_option_input(
-    mut game_startup_event_writer: EventWriter<GameStartupEvent>,
-    mut main_menu_event_writer: EventWriter<MainMenuShutdownEvent>,
+    mut commands: Commands,
     gb_input: Res<ActionState<GBInput>>,
 ) {
     if gb_input.just_pressed(&GBInput::Start) || gb_input.just_pressed(&GBInput::A) {
-        game_startup_event_writer.send(GameStartupEvent);
-        main_menu_event_writer.send(MainMenuShutdownEvent);
+        commands.trigger(GameStartupTrigger);
+        commands.trigger(MainMenuShutdownEvent);
     }
 }
 

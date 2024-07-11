@@ -27,7 +27,7 @@ use crate::{
         data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
         destructible::{components::Destructible, data::DestructibleSpawn},
         enemy::components::{behavior::EnemyBehaviors, Enemy},
-        events::StageSpawnEvent,
+        events::StageSpawnTrigger,
         pickup::components::HealthRecovery,
     },
     systems::camera::CameraPos,
@@ -40,7 +40,7 @@ use seldom_pixel::{
 };
 
 pub fn check_step_spawn(
-    mut event_writer: EventWriter<StageSpawnEvent>,
+    mut commands: Commands,
     mut stage_step_spawner_query: Query<&mut StageStepSpawner>,
     stage_time: Res<StageTime>,
 ) {
@@ -51,7 +51,7 @@ pub fn check_step_spawn(
             let spawn_elapsed = spawn.get_elapsed();
             if spawn_elapsed <= elapsed {
                 elapsed -= spawn_elapsed;
-                event_writer.send(StageSpawnEvent {
+                commands.trigger(StageSpawnTrigger {
                     spawn: spawn.clone(),
                 });
                 false
@@ -64,28 +64,26 @@ pub fn check_step_spawn(
     }
 }
 
-pub fn read_stage_spawn_trigger(
+pub fn on_stage_spawn(
+    trigger: Trigger<StageSpawnTrigger>,
     mut commands: Commands,
-    mut event_reader: EventReader<StageSpawnEvent>,
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
-    let camera_pos = camera_query.get_single().unwrap();
-
-    for event in event_reader.read() {
-        match &event.spawn {
-            StageSpawn::Destructible(spawn) => {
-                spawn_destructible(&mut commands, &mut assets_sprite, spawn);
-            }
-            StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, camera_pos.0, spawn);
-            }
-            StageSpawn::Object(spawn) => {
-                spawn_object(&mut commands, &mut assets_sprite, spawn);
-            }
-            StageSpawn::Pickup(spawn) => {
-                spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.0, spawn);
-            }
+    match &trigger.event().spawn {
+        StageSpawn::Destructible(x) => {
+            spawn_destructible(&mut commands, &mut assets_sprite, x);
+        }
+        StageSpawn::Enemy(x) => {
+            let camera_pos = camera_query.get_single().unwrap();
+            spawn_enemy(&mut commands, camera_pos.0, x);
+        }
+        StageSpawn::Object(x) => {
+            spawn_object(&mut commands, &mut assets_sprite, x);
+        }
+        StageSpawn::Pickup(x) => {
+            let camera_pos = camera_query.get_single().unwrap();
+            spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.0, x);
         }
     }
 }
@@ -102,7 +100,7 @@ pub fn spawn_pickup(
         coordinates,
         ..
     } = spawn;
-    let position = PxSubPosition::from(offset + coordinates.clone());
+    let position = PxSubPosition::from(offset + *coordinates);
     match pickup_type {
         PickupType::BigHealthpack => {
             let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));

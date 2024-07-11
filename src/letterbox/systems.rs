@@ -1,6 +1,8 @@
 use super::components::*;
-use super::events::LetterboxMoveEvent;
+use super::events::LetterboxMoveTrigger;
 use super::resources::LetterboxTime;
+use crate::debug::plugin::debug_print_shutdown;
+use crate::debug::plugin::debug_print_startup;
 use crate::globals::mark_for_despawn_by_query;
 use crate::globals::GBColor;
 use crate::plugins::movement::linear::components::LinearMovementBundle;
@@ -14,7 +16,12 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 use seldom_pixel::prelude::*;
 
-pub fn on_startup(mut commands: Commands) {
+const DEBUG_MODULE: &str = "Letterbox";
+
+pub fn on_letterbox_startup(mut commands: Commands) {
+    #[cfg(debug_assertions)]
+    debug_print_startup(DEBUG_MODULE);
+
     let color = GBColor::Black;
 
     commands.spawn((
@@ -48,29 +55,30 @@ pub fn on_startup(mut commands: Commands) {
     ));
 }
 
-pub fn on_shutdown(mut commands: Commands, entity_query: Query<Entity, With<LetterboxEntity>>) {
+pub fn on_letterbox_shutdown(
+    mut commands: Commands,
+    entity_query: Query<Entity, With<LetterboxEntity>>,
+) {
+    #[cfg(debug_assertions)]
+    debug_print_shutdown(DEBUG_MODULE);
+
     mark_for_despawn_by_query(&mut commands, &entity_query);
 }
 
 pub fn on_move(
+    trigger: Trigger<LetterboxMoveTrigger>,
     mut commands: Commands,
-    mut event_reader: EventReader<LetterboxMoveEvent>,
     top_query: Query<(Entity, &PxSubPosition), With<LetterboxTop>>,
     bottom_query: Query<(Entity, &PxSubPosition), With<LetterboxBottom>>,
 ) {
-    for e in event_reader.read() {
-        for (entity, position) in top_query.iter() {
-            insert_linear_movement(
-                &mut commands,
-                (entity, position),
-                SCREEN_RESOLUTION.y as f32 - e.target,
-                e.speed,
-            );
-        }
+    let e = trigger.event();
+    for xs in top_query.iter() {
+        let target = SCREEN_RESOLUTION.y as f32 - e.target;
+        insert_linear_movement(&mut commands, xs, target, e.speed);
+    }
 
-        for (entity, position) in bottom_query.iter() {
-            insert_linear_movement(&mut commands, (entity, position), e.target, e.speed);
-        }
+    for xs in bottom_query.iter() {
+        insert_linear_movement(&mut commands, xs, e.target, e.speed);
     }
 }
 

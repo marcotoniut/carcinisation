@@ -5,12 +5,12 @@ pub mod resources;
 pub mod systems;
 
 use self::{
-    events::{ChangeMainMenuScreenEvent, MainMenuShutdownEvent, MainMenuStartupEvent},
+    events::{ChangeMainMenuScreenTrigger, MainMenuShutdownEvent, MainMenuStartupEvent},
     resources::DifficultySelection,
     systems::{
         interactions::*,
         layout::*,
-        setup::{on_shutdown, on_startup},
+        setup::{on_main_menu_shutdown, on_main_menu_startup},
     },
 };
 use bevy::prelude::*;
@@ -20,12 +20,14 @@ pub struct MainMenuPlugin;
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<MainMenuPluginUpdateState>()
-            .add_event::<ChangeMainMenuScreenEvent>()
-            .add_event::<MainMenuStartupEvent>()
-            .add_event::<MainMenuShutdownEvent>()
             .init_resource::<MainMenuScreen>()
             .init_resource::<DifficultySelection>()
-            .add_systems(PreUpdate, (on_startup, on_shutdown))
+            .add_event::<ChangeMainMenuScreenTrigger>()
+            .observe(on_change_main_menu_screen)
+            .add_event::<MainMenuStartupEvent>()
+            .observe(on_main_menu_startup)
+            .add_event::<MainMenuShutdownEvent>()
+            .observe(on_main_menu_shutdown)
             .add_systems(OnEnter(MainMenuPluginUpdateState::Active), spawn_main_menu)
             // .add_systems(
             //     OnExit(MainMenuPluginUpdateState::Inactive),
@@ -33,11 +35,7 @@ impl Plugin for MainMenuPlugin {
             // )
             .add_systems(
                 Update,
-                ((
-                    on_change_main_menu_screen,
-                    (spawn_game_difficulty_screen, spawn_press_start_screen),
-                )
-                    .chain(),)
+                (spawn_game_difficulty_screen, spawn_press_start_screen)
                     .run_if(in_state(MainMenuPluginUpdateState::Active)),
             )
             .add_systems(

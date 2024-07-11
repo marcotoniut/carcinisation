@@ -48,8 +48,9 @@ pub fn miss_on_reached(
 /**
  * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose
  */
-pub fn read_enemy_attack_depth_changed(
+pub fn on_enemy_attack_depth_changed(
     mut commands: Commands,
+    // TODO do I need an EventReader for this? Can't I just use a query that checks for Changed<Depth>?
     mut event_reader: EventReader<DepthChangedEvent>,
     mut assets_sprite: PxAssets<PxSprite>,
     query: Query<(Entity, &EnemyHoveringAttackType)>,
@@ -82,9 +83,9 @@ pub fn read_enemy_attack_depth_changed(
 
 pub fn despawn_dead_attacks(
     mut commands: Commands,
-    query: Query<(Entity, &EnemyAttack), Added<Dead>>,
+    query: Query<Entity, (Added<Dead>, With<EnemyAttack>)>,
 ) {
-    for (entity, _) in query.iter() {
+    for entity in query.iter() {
         commands.entity(entity).insert(DespawnMark);
     }
 }

@@ -10,7 +10,7 @@ use crate::{
             placement::{Depth, InView},
         },
         events::DamageEvent,
-        player::{components::Player, events::CameraShakeEvent},
+        player::{components::Player, events::CameraShakeTrigger},
         resources::StageTime,
     },
 };
@@ -24,7 +24,6 @@ use seldom_pixel::{
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    mut camera_shake_event_writer: EventWriter<CameraShakeEvent>,
     mut damage_event_writer: EventWriter<DamageEvent>,
     mut player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
@@ -49,9 +48,6 @@ pub fn hovering_damage_on_reached(
         for entity in &mut player_query.iter_mut() {
             damage_event_writer.send(DamageEvent::new(entity, damage.0));
         }
-
-        // TODO CameraShake on damage event read instead?
-        camera_shake_event_writer.send(CameraShakeEvent);
 
         commands.spawn((
             AudioBundle {
@@ -87,5 +83,8 @@ pub fn hovering_damage_on_reached(
         }
 
         commands.entity(entity).insert(DespawnMark);
+
+        // TODO CameraShake on damage event read instead?
+        commands.trigger(CameraShakeTrigger);
     }
 }

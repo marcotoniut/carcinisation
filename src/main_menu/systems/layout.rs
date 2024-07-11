@@ -6,7 +6,7 @@ use crate::{
         TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
-    main_menu::{events::ChangeMainMenuScreenEvent, MainMenuScreen},
+    main_menu::{events::ChangeMainMenuScreenTrigger, MainMenuScreen},
     pixel::components::PxRectangle,
 };
 use assert_assets_path::assert_assets_path;
@@ -18,27 +18,24 @@ use seldom_pixel::{
 use strum::IntoEnumIterator;
 
 pub fn on_change_main_menu_screen(
+    trigger: Trigger<ChangeMainMenuScreenTrigger>,
     mut commands: Commands,
     difficulty_select_query: Query<Entity, With<DifficultySelectScreenEntity>>,
     press_start_query: Query<Entity, With<PressStartScreenEntity>>,
     main_menu_select_query: Query<Entity, With<MainMenuSelectScreenEntity>>,
-    mut event_reader: EventReader<ChangeMainMenuScreenEvent>,
     mut screen: ResMut<MainMenuScreen>,
 ) {
-    for e in event_reader.read() {
-        match e.0 {
-            MainMenuScreen::DifficultySelect => {
-                mark_for_despawn_by_query(&mut commands, &difficulty_select_query)
-            }
-            MainMenuScreen::MainMenuSelect => {
-                mark_for_despawn_by_query(&mut commands, &main_menu_select_query)
-            }
-            MainMenuScreen::PressStart => {
-                mark_for_despawn_by_query(&mut commands, &press_start_query)
-            }
+    let e = trigger.event();
+    match e.0 {
+        MainMenuScreen::DifficultySelect => {
+            mark_for_despawn_by_query(&mut commands, &difficulty_select_query)
         }
-        *screen = e.0.clone();
+        MainMenuScreen::MainMenuSelect => {
+            mark_for_despawn_by_query(&mut commands, &main_menu_select_query)
+        }
+        MainMenuScreen::PressStart => mark_for_despawn_by_query(&mut commands, &press_start_query),
     }
+    *screen = e.0.clone();
 }
 
 pub fn spawn_main_menu(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {

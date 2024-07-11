@@ -149,15 +149,14 @@ pub fn on_select_file_button_pressed(
 }
 
 pub fn on_save_button_pressed(
+    mut commands: Commands,
     scene_path: Res<ScenePath>,
     scene_data: Res<SceneData>,
     mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SaveButton>)>,
-    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     for interaction in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Pressed => {
-                write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
                 match scene_data.to_owned() {
                     SceneData::Cutscene(data) => {
                         let path = scene_path.0.clone();
@@ -186,6 +185,7 @@ pub fn on_save_button_pressed(
                             .detach();
                     }
                 }
+                commands.trigger(WriteRecentFilePathEvent);
             }
             _ => {}
         }
@@ -224,27 +224,25 @@ pub fn poll_selected_file(
     }
 }
 
-pub fn on_create_recent_file(
+pub fn on_write_recent_file_path(
+    _trigger: Trigger<WriteRecentFilePathEvent>,
     scene_path: Res<ScenePath>,
-    mut write_recent_file_path_event_reader: EventReader<WriteRecentFilePathEvent>,
 ) {
-    for _ in write_recent_file_path_event_reader.read() {
-        let path = scene_path.0.clone();
-        AsyncComputeTaskPool::get()
-            .spawn(async move {
-                match File::create(RECENT_FILE_PATH) {
-                    Ok(mut file) => {
-                        println!("{}", path);
-                        if let Err(e) = writeln!(file, "{}", path) {
-                            eprintln!("Failed to write to recent file path: {:?}", e);
-                        }
-                        file.flush();
+    let path = scene_path.0.clone();
+    AsyncComputeTaskPool::get()
+        .spawn(async move {
+            match File::create(RECENT_FILE_PATH) {
+                Ok(mut file) => {
+                    println!("{}", path);
+                    if let Err(e) = writeln!(file, "{}", path) {
+                        eprintln!("Failed to write to recent file path: {:?}", e);
                     }
-                    Err(e) => {
-                        eprintln!("Failed to create recent file path: {:?}", e);
-                    }
+                    file.flush();
                 }
-            })
-            .detach();
-    }
+                Err(e) => {
+                    eprintln!("Failed to create recent file path: {:?}", e);
+                }
+            }
+        })
+        .detach();
 }

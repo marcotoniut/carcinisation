@@ -17,18 +17,16 @@ lazy_static! {
     pub static ref DAMAGE_INVERT_DURATION: Duration = Duration::from_secs_f32(0.15);
 }
 
-pub fn check_damage_taken(
+pub fn on_damage(
     mut commands: Commands,
     mut event_reader: EventReader<DamageEvent>,
-    mut query: Query<(Entity, &mut Health), Without<Dead>>,
+    mut query: Query<&mut Health, Without<Dead>>,
 ) {
-    for event in event_reader.read() {
-        for (entity, mut health) in &mut query.iter_mut() {
-            if entity == event.entity {
-                health.0 = health.0.saturating_sub(event.value);
-                if health.0 == 0 {
-                    commands.entity(entity).insert(Dead);
-                }
+    for e in event_reader.read() {
+        if let Ok(mut health) = query.get_mut(e.entity) {
+            health.0 = health.0.saturating_sub(e.value);
+            if health.0 == 0 {
+                commands.entity(e.entity).insert(Dead);
             }
         }
     }

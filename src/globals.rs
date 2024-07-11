@@ -74,6 +74,7 @@ pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> boo
 //     }
 // }
 
+// TODO could replace with a generic trigger/observe?
 pub fn mark_for_despawn_by_query<F: QueryFilter>(
     commands: &mut Commands,
     query: &Query<'_, '_, Entity, F>,

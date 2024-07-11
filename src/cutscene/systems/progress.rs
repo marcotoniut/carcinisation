@@ -4,12 +4,12 @@ use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity, CutsceneGraphic},
         data::*,
-        events::CutsceneShutdownEvent,
+        events::CutsceneShutdownTrigger,
         resources::{CutsceneProgress, CutsceneTime},
     },
     globals::mark_for_despawn_by_query,
     layer::Layer,
-    letterbox::events::LetterboxMoveEvent,
+    letterbox::events::LetterboxMoveTrigger,
     systems::spawn::make_music_bundle,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
@@ -23,9 +23,7 @@ use seldom_pixel::{
 
 pub fn read_step_trigger(
     mut commands: Commands,
-    mut shutdown_event_writer: EventWriter<CutsceneShutdownEvent>,
     mut progress: ResMut<CutsceneProgress>,
-    mut letterbox_move_event_writer: EventWriter<LetterboxMoveEvent>,
     query: Query<
         Entity,
         (
@@ -38,37 +36,39 @@ pub fn read_step_trigger(
     time: Res<CutsceneTime>,
 ) {
     for entity in query.iter() {
-        let mut entity_commands = commands.entity(entity);
-
         if let Some(act) = data.steps.get(progress.index) {
             progress.index += 1;
+
+            if let Some(x) = &act.letterbox_move_o {
+                commands.trigger(LetterboxMoveTrigger::from(x.clone()));
+            }
+
+            let mut entity_commands = commands.entity(entity);
 
             entity_commands.insert((
                 CutsceneElapse::new(act.elapse),
                 CutsceneElapsedStarted(time.elapsed),
             ));
 
-            if let Some(x) = &act.letterbox_move_o {
-                letterbox_move_event_writer.send(x.clone().into());
+            if let Some(x) = &act.music_despawn_o {
+                entity_commands.insert(x.clone());
             }
-            if let Some(music_despawn) = &act.music_despawn_o {
-                entity_commands.insert(music_despawn.clone());
+            if let Some(x) = &act.music_spawn_o {
+                entity_commands.insert(x.clone());
             }
-            if let Some(music_spawn) = &act.music_spawn_o {
-                entity_commands.insert(music_spawn.clone());
+            if let Some(x) = &act.spawn_animations_o {
+                entity_commands.insert(x.clone());
             }
-            if let Some(spawn_animations) = &act.spawn_animations_o {
-                entity_commands.insert(spawn_animations.clone());
-            }
-            if let Some(spawn_images) = &act.spawn_images_o {
-                entity_commands.insert(spawn_images.clone());
+            if let Some(x) = &act.spawn_images_o {
+                entity_commands.insert(x.clone());
             }
             if act.await_input {
                 // TODO
             }
         } else {
+            let mut entity_commands = commands.entity(entity);
             entity_commands.insert(Cleared);
-            shutdown_event_writer.send(CutsceneShutdownEvent);
+            commands.trigger(CutsceneShutdownTrigger);
         }
     }
 }

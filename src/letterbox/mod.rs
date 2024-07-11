@@ -8,23 +8,26 @@ use crate::{
     plugins::movement::linear::{components::TargetingPositionY, LinearMovementPlugin},
 };
 
-use self::{events::LetterboxMoveEvent, resources::LetterboxTime, systems::*};
+use self::{events::LetterboxMoveTrigger, resources::LetterboxTime, systems::*};
 use bevy::prelude::*;
 
 pub struct LetterboxPlugin;
 
 impl Plugin for LetterboxPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<LetterboxPluginUpdateState>()
-            .add_event::<LetterboxMoveEvent>()
-            .init_resource::<LetterboxTime>()
-            .add_systems(OnEnter(LetterboxPluginUpdateState::Active), on_startup)
-            .add_systems(OnEnter(LetterboxPluginUpdateState::Inactive), on_shutdown)
-            .add_plugins(LinearMovementPlugin::<LetterboxTime, TargetingPositionY>::default())
+        app.init_resource::<LetterboxTime>()
+            .init_state::<LetterboxPluginUpdateState>()
+            .add_event::<LetterboxMoveTrigger>()
             .add_systems(
-                PreUpdate,
-                (on_move).run_if(in_state(LetterboxPluginUpdateState::Active)),
+                OnEnter(LetterboxPluginUpdateState::Active),
+                on_letterbox_startup,
             )
+            .add_systems(
+                OnEnter(LetterboxPluginUpdateState::Inactive),
+                on_letterbox_shutdown,
+            )
+            .add_plugins(LinearMovementPlugin::<LetterboxTime, TargetingPositionY>::default())
+            .observe(on_move)
             .add_systems(
                 Update,
                 (tick_time::<LetterboxTime>).run_if(in_state(LetterboxPluginUpdateState::Active)),

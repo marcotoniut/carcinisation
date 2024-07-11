@@ -6,17 +6,17 @@ pub mod resources;
 pub mod systems;
 
 use self::{
-    events::{CutsceneShutdownEvent, CutsceneStartupEvent},
+    events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
     input::{init_input, CutsceneInput},
     resources::CutsceneTime,
     systems::{
         interactions::check_press_start_input,
         progress::*,
-        setup::{on_shutdown, on_startup},
+        setup::{on_cutscene_shutdown, on_cutscene_startup},
     },
 };
 use crate::{
-    core::time::tick_time,
+    core::{event::on_trigger_write_event, time::tick_time},
     plugins::movement::linear::{
         components::{TargetingPositionX, TargetingPositionY},
         LinearMovementPlugin,
@@ -31,18 +31,19 @@ pub struct CutscenePlugin;
 
 impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<CutscenePluginUpdateState>()
-            .add_event::<CutsceneStartupEvent>()
-            .add_event::<CutsceneShutdownEvent>()
-            .init_resource::<CutsceneTime>()
-            // Assets
-            .add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
+        app.add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
             .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionX>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionY>::default())
-            .add_systems(Startup, init_input)
-            .add_systems(PreUpdate, (on_startup, on_shutdown))
+            .init_state::<CutscenePluginUpdateState>()
+            .init_resource::<CutsceneTime>()
+            .add_event::<CutsceneStartupTrigger>()
+            .observe(on_cutscene_startup)
+            .add_event::<CutsceneShutdownTrigger>()
+            .observe(on_cutscene_shutdown)
+            .observe(on_trigger_write_event::<CutsceneShutdownTrigger>)
             // .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
+            .add_systems(Startup, init_input)
             .add_systems(
                 Update,
                 (
