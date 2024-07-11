@@ -22,15 +22,15 @@ pub struct StageUiPlugin;
 
 impl Plugin for StageUiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<StageUiPluginUpdateState>()
-            .add_systems(OnEnter(StageUiPluginUpdateState::Active), on_active)
-            .add_systems(OnEnter(StageUiPluginUpdateState::Inactive), on_inactive)
-            .add_plugins(HudPlugin)
+        app.add_plugins(HudPlugin)
             .add_plugins((
                 cleared_screen_plugin,
                 death_screen_plugin,
                 game_over_screen_plugin,
             ))
+            .init_state::<StageUiPluginUpdateState>()
+            .add_systems(OnEnter(StageUiPluginUpdateState::Active), on_active)
+            .add_systems(OnEnter(StageUiPluginUpdateState::Inactive), on_inactive)
             .add_systems(
                 Update,
                 update_score_text.run_if(in_state(StageUiPluginUpdateState::Active)),

@@ -1,6 +1,6 @@
 use crate::{
     core::time::DeltaTime,
-    stage::player::{components::CameraShake, events::CameraShakeEvent},
+    stage::player::{components::CameraShake, events::CameraShakeTrigger},
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
@@ -26,19 +26,17 @@ pub fn camera_shake<T: DeltaTime + Resource>(
     }
 }
 
-pub fn trigger_shake(
+pub fn on_camera_shake(
+    _trigger: Trigger<CameraShakeTrigger>,
     mut commands: Commands,
-    mut event_reader: EventReader<CameraShakeEvent>,
     camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
 ) {
-    for _ in event_reader.read() {
-        if let Ok((entity, position)) = camera_query.get_single() {
-            commands.entity(entity).insert(CameraShake {
-                timer: Timer::from_seconds(0.05, TimerMode::Once),
-                intensity: 3.0,
-                original_position: position.0,
-                shaking: true,
-            });
-        }
+    if let Ok((entity, position)) = camera_query.get_single() {
+        commands.entity(entity).insert(CameraShake {
+            timer: Timer::from_seconds(0.05, TimerMode::Once),
+            intensity: 3.0,
+            original_position: position.0,
+            shaking: true,
+        });
     }
 }

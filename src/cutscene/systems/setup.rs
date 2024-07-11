@@ -2,45 +2,50 @@ use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
         data::CutsceneData,
-        events::{CutsceneShutdownEvent, CutsceneStartupEvent},
+        events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
         resources::CutsceneProgress,
         CutscenePluginUpdateState,
     },
+    debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
-    letterbox::events::LetterboxMoveEvent,
+    letterbox::events::LetterboxMoveTrigger,
 };
-use bevy::prelude::*;
+use bevy::{log::tracing_subscriber::field::debug, prelude::*};
 
-pub fn on_startup(
+const DEBUG_MODULE: &str = "Cutscene";
+
+pub fn on_cutscene_startup(
+    trigger: Trigger<CutsceneStartupTrigger>,
     mut commands: Commands,
-    mut event_reader: EventReader<CutsceneStartupEvent>,
     mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
 ) {
-    for e in event_reader.read() {
-        next_state.set(CutscenePluginUpdateState::Active);
+    #[cfg(debug_assertions)]
+    debug_print_startup(DEBUG_MODULE);
 
-        let data = e.data.as_ref();
+    let e = trigger.event();
+    next_state.set(CutscenePluginUpdateState::Active);
 
-        commands.insert_resource::<CutsceneData>(data.clone());
-        commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });
+    let data = e.data.as_ref();
 
-        commands.spawn((Cinematic, Name::new("Cutscene")));
-    }
+    commands.insert_resource::<CutsceneData>(data.clone());
+    commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });
+
+    commands.spawn((Cinematic, Name::new("Cutscene")));
 }
 
-pub fn on_shutdown(
+pub fn on_cutscene_shutdown(
+    trigger: Trigger<CutsceneShutdownTrigger>,
     mut commands: Commands,
-    mut event_reader: EventReader<CutsceneShutdownEvent>,
     mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
     cinematic_query: Query<Entity, With<Cinematic>>,
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
-    mut letterbox_move_event_writer: EventWriter<LetterboxMoveEvent>,
 ) {
-    for _ in event_reader.read() {
-        next_state.set(CutscenePluginUpdateState::Inactive);
-        letterbox_move_event_writer.send(LetterboxMoveEvent::hide());
+    #[cfg(debug_assertions)]
+    debug_print_shutdown(DEBUG_MODULE);
 
-        mark_for_despawn_by_query(&mut commands, &cutscene_entity_query);
-        mark_for_despawn_by_query(&mut commands, &cinematic_query);
-    }
+    next_state.set(CutscenePluginUpdateState::Inactive);
+    commands.trigger(LetterboxMoveTrigger::hide());
+
+    mark_for_despawn_by_query(&mut commands, &cutscene_entity_query);
+    mark_for_despawn_by_query(&mut commands, &cinematic_query);
 }

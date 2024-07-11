@@ -9,4 +9,4 @@ pub struct MainMenuStartupEvent;
 pub struct MainMenuShutdownEvent;
 
 #[derive(Event)]
-pub struct ChangeMainMenuScreenEvent(pub MainMenuScreen);
+pub struct ChangeMainMenuScreenTrigger(pub MainMenuScreen);

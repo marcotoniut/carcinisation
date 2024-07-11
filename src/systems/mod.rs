@@ -4,12 +4,11 @@ pub mod setup;
 pub mod spawn;
 
 use crate::components::{AudioSystemType, VolumeSettings};
-use crate::game::events::GameStartupEvent;
+use crate::game::events::GameStartupTrigger;
 use crate::main_menu::events::MainMenuStartupEvent;
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
     core::time::ElapsedTime,
-    game::events::GameOverEvent,
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxAnimationFinished;
@@ -26,12 +25,6 @@ use seldom_pixel::prelude::PxAnimationFinished;
 //         exit.send(AppExit);
 //     }
 // }
-
-pub fn handle_game_over(mut game_over_event_reader: EventReader<GameOverEvent>) {
-    for game_over in game_over_event_reader.read() {
-        info!("Your final score: {}", game_over.score);
-    }
-}
 
 // /**
 //  * DEBUG
@@ -117,10 +110,10 @@ pub fn check_despawn_after_delay<T: ElapsedTime + Resource>(
     }
 }
 
-pub fn debug_trigger_game_startup(mut event_writer: EventWriter<GameStartupEvent>) {
-    event_writer.send(GameStartupEvent);
+pub fn debug_trigger_game_startup(mut commands: Commands) {
+    commands.trigger(GameStartupTrigger);
 }
 
-pub fn on_post_startup(mut event_writer: EventWriter<MainMenuStartupEvent>) {
-    event_writer.send(MainMenuStartupEvent);
+pub fn on_post_startup(mut commands: Commands) {
+    commands.trigger(MainMenuStartupEvent);
 }

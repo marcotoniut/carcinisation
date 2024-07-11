@@ -113,7 +113,9 @@ pub fn check_idle_tardigrade(
             if attacking.last_attack_started
                 < stage_time.elapsed + Duration::from_secs_f32(ENEMY_TARDIGRADE_ATTACK_SPEED)
             {
+                #[cfg(debug_assertions)]
                 info!("Tardigrade {:?} is attacking", entity);
+
                 commands
                     .entity(entity)
                     .remove::<EnemyTardigradeAnimation>()

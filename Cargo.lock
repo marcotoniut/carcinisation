@@ -1684,6 +1684,7 @@ dependencies = [
  "bevy_common_assets",
  "bevy_editor_pls",
  "bevy_framepace",
+ "colored",
  "derive-new",
  "derive_more",
  "lazy_static",

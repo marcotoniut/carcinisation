@@ -16,6 +16,7 @@ use crate::{
     },
     systems::camera::CameraPos,
 };
+use colored::*;
 
 const CRITICAL_THRESHOLD: f32 = 0.5;
 
@@ -48,10 +49,14 @@ pub fn check_got_hit(
                             ));
                             if collider.defense <= CRITICAL_THRESHOLD {
                                 score.add_u(SCORE_MELEE_CRITICAL_HIT);
-                                info!("Entity got hit by Pincer! ***CRITICAL***");
+
+                                #[cfg(debug_assertions)]
+                                println!("{} Pincer! ***CRITICAL***", "HIT".yellow());
                             } else {
                                 score.add_u(SCORE_MELEE_REGULAR_HIT);
-                                info!("Entity got hit by Pincer!");
+
+                                #[cfg(debug_assertions)]
+                                println!("{} Pincer!", "HIT".yellow());
                             }
                         }
                     }
@@ -65,10 +70,14 @@ pub fn check_got_hit(
                             ));
                             if collider.defense <= CRITICAL_THRESHOLD {
                                 score.add_u(SCORE_RANGED_CRITICAL_HIT);
-                                info!("Entity got hit by Gun! ***CRITICAL***");
+
+                                #[cfg(debug_assertions)]
+                                println!("{} Gun! ***CRITICAL***", "HIT".yellow());
                             } else {
                                 score.add_u(SCORE_RANGED_REGULAR_HIT);
-                                info!("Entity got hit by Gun!");
+
+                                #[cfg(debug_assertions)]
+                                println!("{} Gun!", "HIT".yellow());
                             }
                         }
                     }

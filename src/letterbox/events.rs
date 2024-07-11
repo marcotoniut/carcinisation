@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 
 use super::components::{LETTERBOX_HEIGHT, LETTERBOX_INSTANT_SPEED, LETTERBOX_NORMAL_SPEED};
 
-#[derive(new, Event, Clone, Debug, Deserialize, Serialize)]
-pub struct LetterboxMoveEvent {
+#[derive(new, Clone, Debug, Deserialize, Event, Serialize)]
+pub struct LetterboxMoveTrigger {
     pub speed: f32,
     pub target: f32,
 }
 
-impl LetterboxMoveEvent {
+impl LetterboxMoveTrigger {
     pub fn open() -> Self {
         Self::new(LETTERBOX_NORMAL_SPEED, LETTERBOX_HEIGHT as f32)
     }
@@ -46,22 +46,22 @@ pub enum LetterboxMove {
     Open,
 }
 
-impl From<LetterboxMove> for LetterboxMoveEvent {
+impl From<LetterboxMove> for LetterboxMoveTrigger {
     fn from(x: LetterboxMove) -> Self {
         match x {
-            LetterboxMove::To(target) => LetterboxMoveEvent::move_to(target),
-            LetterboxMove::ToAt(target, speed) => LetterboxMoveEvent::move_to_at(target, speed),
-            LetterboxMove::Hide => LetterboxMoveEvent::hide(),
-            LetterboxMove::Show => LetterboxMoveEvent::show(),
-            LetterboxMove::Close => LetterboxMoveEvent::close(),
-            LetterboxMove::Open => LetterboxMoveEvent::open(),
+            LetterboxMove::To(target) => LetterboxMoveTrigger::move_to(target),
+            LetterboxMove::ToAt(target, speed) => LetterboxMoveTrigger::move_to_at(target, speed),
+            LetterboxMove::Hide => LetterboxMoveTrigger::hide(),
+            LetterboxMove::Show => LetterboxMoveTrigger::show(),
+            LetterboxMove::Close => LetterboxMoveTrigger::close(),
+            LetterboxMove::Open => LetterboxMoveTrigger::open(),
         }
     }
 }
 
-impl From<LetterboxMoveEvent> for LetterboxMove {
-    fn from(e: LetterboxMoveEvent) -> Self {
-        let LetterboxMoveEvent { target, speed } = e;
+impl From<LetterboxMoveTrigger> for LetterboxMove {
+    fn from(e: LetterboxMoveTrigger) -> Self {
+        let LetterboxMoveTrigger { target, speed } = e;
         LetterboxMove::ToAt(target, speed)
     }
 }

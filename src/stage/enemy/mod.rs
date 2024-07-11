@@ -8,7 +8,7 @@ pub mod tardigrade;
 
 use self::{
     mosquito::systems::*,
-    systems::{animation::read_enemy_depth_changed, behaviors::*},
+    systems::{animation::on_enemy_depth_changed, behaviors::*},
     tardigrade::systems::*,
 };
 use bevy::prelude::*;
@@ -21,7 +21,7 @@ impl Plugin for EnemyPlugin {
             Update,
             (
                 check_no_behavior,
-                read_enemy_depth_changed,
+                on_enemy_depth_changed,
                 tick_enemy_behavior_timer,
                 (
                     // Tied components

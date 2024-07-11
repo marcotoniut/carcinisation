@@ -17,7 +17,7 @@ use bevy_prototype_lyon::plugin::ShapePlugin;
 use carcinisation::{cutscene::data::CutsceneData, stage::data::StageData};
 use components::SceneData;
 use constants::ASSETS_PATH;
-use events::UnloadSceneEvent;
+use events::UnloadSceneTrigger;
 use file_manager::FileManagerPlugin;
 use inspector::InspectorPlugin;
 use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI};
@@ -58,7 +58,8 @@ fn main() {
         .add_plugins(EguiPlugin)
         .add_plugins(FileManagerPlugin)
         .add_plugins(ShapePlugin)
-        .add_event::<UnloadSceneEvent>()
+        .add_event::<UnloadSceneTrigger>()
+        .observe(on_unload_scene)
         .add_systems(Startup, (setup_camera))
         // .add_systems(Startup, setup_elapsed_ui)
         .add_systems(

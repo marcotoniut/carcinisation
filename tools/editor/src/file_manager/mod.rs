@@ -15,6 +15,7 @@ impl Plugin for FileManagerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ScenePath>()
             .add_event::<WriteRecentFilePathEvent>()
+            .observe(on_write_recent_file_path)
             .add_systems(Startup, (setup_ui, load_recent_file))
             .add_systems(
                 Update,
@@ -26,7 +27,6 @@ impl Plugin for FileManagerPlugin {
                     on_button_interaction,
                     on_select_file_button_pressed,
                     poll_selected_file,
-                    on_create_recent_file,
                 ),
             );
     }

@@ -186,7 +186,9 @@ pub fn check_idle_mosquito(
             if attacking.last_attack_started
                 < stage_time.elapsed + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
             {
+                #[cfg(debug_assertions)]
                 info!("Mosquito {:?} is attacking", entity);
+
                 commands
                     .entity(entity)
                     .remove::<EnemyMosquitoAnimation>()

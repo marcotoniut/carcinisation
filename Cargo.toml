@@ -32,6 +32,7 @@ bevy = { features = ["dynamic_linking", "wayland"], version = "0.14.0" }
 bevy_common_assets = { features = ["ron"], version = "0.11.0" }
 bevy_editor_pls = { git = "https://github.com/zhaop/bevy_editor_pls.git", branch = "bevy-0.14" }
 bevy_framepace = "0.17.1"
+colored = "2.1.0"
 derive-new = "0.6.0"
 derive_more = "0.99.18"
 lazy_static = "1.4.0"

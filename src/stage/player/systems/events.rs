@@ -1,32 +1,37 @@
 use crate::{
+    debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
     stage::player::{
         bundles::make_player_bundle,
         components::Player,
         crosshair::CrosshairSettings,
-        events::{PlayerShutdownEvent, PlayerStartupEvent},
+        events::{PlayerShutdownTrigger, PlayerStartupTrigger},
     },
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 
-pub fn on_startup(
+const DEBUG_MODULE: &str = "Player";
+
+pub fn on_player_startup(
+    _trigger: Trigger<PlayerStartupTrigger>,
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    mut event_reader: EventReader<PlayerStartupEvent>,
     crosshair_settings: Res<CrosshairSettings>,
 ) {
-    for _ in event_reader.read() {
-        commands.spawn(make_player_bundle(&mut assets_sprite, &crosshair_settings));
-    }
+    #[cfg(debug_assertions)]
+    debug_print_startup(DEBUG_MODULE);
+
+    commands.spawn(make_player_bundle(&mut assets_sprite, &crosshair_settings));
 }
 
-pub fn on_shutdown(
+pub fn on_player_shutdown(
+    _trigger: Trigger<PlayerShutdownTrigger>,
     mut commands: Commands,
-    mut event_reader: EventReader<PlayerShutdownEvent>,
     query: Query<Entity, With<Player>>,
 ) {
-    for _ in event_reader.read() {
-        mark_for_despawn_by_query(&mut commands, &query);
-    }
+    #[cfg(debug_assertions)]
+    debug_print_shutdown(DEBUG_MODULE);
+
+    mark_for_despawn_by_query(&mut commands, &query);
 }

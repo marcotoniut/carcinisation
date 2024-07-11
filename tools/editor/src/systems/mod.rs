@@ -16,7 +16,7 @@ use crate::resources::StageControlsUI;
 use crate::{
     builders::{cutscene::spawn_cutscene, stage::spawn_stage},
     components::{SceneData, SceneItem, ScenePath},
-    events::UnloadSceneEvent,
+    events::UnloadSceneTrigger,
     resources::{CutsceneAssetHandle, StageAssetHandle},
 };
 
@@ -38,12 +38,11 @@ pub fn setup_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
 }
 
 pub fn check_cutscene_data_loaded(
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     cutscene_asset_handle: Res<CutsceneAssetHandle>,
     cutscene_data_assets: Res<Assets<CutsceneData>>,
-    mut commands: Commands,
     mut scene_path: ResMut<ScenePath>,
-    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     if let Some(state) = asset_server.get_load_state(cutscene_asset_handle.handle.id()) {
         match state {
@@ -54,7 +53,7 @@ pub fn check_cutscene_data_loaded(
                     commands.remove_resource::<CutsceneAssetHandle>();
                     commands.insert_resource(SceneData::Cutscene(data.clone()));
                     commands.insert_resource(ScenePath(cutscene_asset_handle.path.clone()));
-                    write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
+                    commands.trigger(WriteRecentFilePathEvent);
                 } else {
                     println!("Cutscene data error");
                 }
@@ -79,7 +78,6 @@ pub fn check_stage_data_loaded(
     stage_data_assets: Res<Assets<StageData>>,
     mut commands: Commands,
     mut scene_path: ResMut<ScenePath>,
-    mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
     if let Some(state) = asset_server.get_load_state(stage_asset_handle.handle.id()) {
         match state {
@@ -90,7 +88,7 @@ pub fn check_stage_data_loaded(
                     commands.remove_resource::<StageAssetHandle>();
                     commands.insert_resource(SceneData::Stage(data.clone()));
                     commands.insert_resource(ScenePath(stage_asset_handle.path.clone()));
-                    write_recent_file_path_event_writer.send(WriteRecentFilePathEvent);
+                    commands.trigger(WriteRecentFilePathEvent);
                 } else {
                     println!("Stage data error");
                 }
@@ -139,16 +137,14 @@ pub fn on_scene_change(
 }
 
 pub fn on_unload_scene(
+    trigger: Trigger<UnloadSceneTrigger>,
     mut commands: Commands,
     scene_item_query: Query<Entity, With<SceneItem>>,
     mut scene_path: ResMut<ScenePath>,
-    mut unload_scene_event_reader: EventReader<UnloadSceneEvent>,
 ) {
-    for _ in unload_scene_event_reader.read() {
-        for entity in scene_item_query.iter() {
-            *scene_path = ScenePath("".to_string());
-            commands.entity(entity).despawn_recursive();
-        }
+    for entity in scene_item_query.iter() {
+        *scene_path = ScenePath("".to_string());
+        commands.entity(entity).despawn_recursive();
     }
 }
 

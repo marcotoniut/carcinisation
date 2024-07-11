@@ -9,7 +9,7 @@ use self::{
     events::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
     resources::{TransitionUpdateTimer, TransitionVenetianTime},
     systems::{
-        setup::{on_shutdown, on_startup},
+        setup::{on_transition_shutdown, on_transition_startup},
         tick_timer,
     },
 };
@@ -21,10 +21,11 @@ pub struct TransitionVenetianPlugin;
 impl Plugin for TransitionVenetianPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<TransitionVenetianPluginUpdateState>()
-            .add_event::<TransitionVenetianStartupEvent>()
-            .add_event::<TransitionVenetianShutdownEvent>()
             .init_resource::<TransitionUpdateTimer>()
-            .add_systems(PreUpdate, (on_startup, on_shutdown))
+            .add_event::<TransitionVenetianStartupEvent>()
+            .observe(on_transition_startup)
+            .add_event::<TransitionVenetianShutdownEvent>()
+            .observe(on_transition_shutdown)
             .add_systems(
                 Update,
                 (

@@ -26,7 +26,7 @@ pub fn check_in_view(
                         SCREEN_RESOLUTION.y as f32 - IN_VIEW_OFFSET as f32,
                     ),
             ) {
-                commands.entity(entity).insert(InView {});
+                commands.entity(entity).insert(InView);
             }
         }
     }
