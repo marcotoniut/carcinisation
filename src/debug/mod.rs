@@ -22,3 +22,15 @@ pub enum DebugPluginUpdateState {
     #[default]
     Active,
 }
+
+pub trait DebugColor {
+    const YELLOW_GREEN: Self;
+    const ALICE_BLUE: Self;
+    const FUCHSIA: Self;
+}
+
+impl DebugColor for Color {
+    const YELLOW_GREEN: Self = Color::srgb(0.6, 0.8, 0.2);
+    const ALICE_BLUE: Self = Color::srgb(0.94, 0.97, 1.0);
+    const FUCHSIA: Self = Color::srgb(1.0, 0.0, 1.0);
+}

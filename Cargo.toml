@@ -26,21 +26,21 @@ members = [
 
 [dependencies]
 assert_assets_path = { path = "assert_assets_path" }
-bevy = { features = ["dynamic_linking", "wayland"], version = "0.13.2" }
+bevy = { features = ["dynamic_linking", "wayland"], version = "0.14.0" }
 # dynamic_linking cannot be used for webassembly, not required for MacOS
 # bevy = { version = "0.12", features = ["dynamic_linking"] } # required for Windows builds
-bevy_common_assets = { features = ["ron"], version = "0.10" }
-bevy_editor_pls = "0.8.1"
-bevy_framepace = "0.16.0"
+bevy_common_assets = { features = ["ron"], version = "0.11.0" }
+bevy_editor_pls = { git = "https://github.com/zhaop/bevy_editor_pls.git", branch = "bevy-0.14" }
+bevy_framepace = "0.17.1"
 derive-new = "0.6.0"
 derive_more = "0.99.18"
 lazy_static = "1.4.0"
-leafwing-input-manager = "0.13"
+leafwing-input-manager = "0.14.0"
 num_enum = "0.7.2"
 rand = "0.8.5"
 seldom_pixel = { default-features = true, features = [
     "line",
-], version = "0.6.1" }
+], version = "0.7.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_with = "3.8.1"
 strum = "0.26.2"

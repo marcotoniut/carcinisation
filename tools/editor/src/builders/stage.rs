@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::constants::EditorColor;
 use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
@@ -151,7 +152,7 @@ pub fn spawn_stage(
     if stage_controls_ui.skybox_is_visible() {
         let texture = asset_server.load(&stage_data.skybox.path);
         let texture_atlas_layout =
-            TextureAtlasLayout::from_grid(SCREEN_RESOLUTION.as_vec2(), 1, 2, None, None);
+            TextureAtlasLayout::from_grid(SCREEN_RESOLUTION, 1, 2, None, None);
         let layout = texture_atlas_layouts.add(texture_atlas_layout);
 
         let camera_position =
