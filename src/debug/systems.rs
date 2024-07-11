@@ -1,3 +1,4 @@
+use super::DebugColor;
 use crate::{
     globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
     stage::components::{

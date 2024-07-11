@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::color::Color;
 use bevy_prototype_lyon::draw::Stroke;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::geometry::GeometryBuilder;

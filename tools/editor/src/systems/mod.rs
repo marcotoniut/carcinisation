@@ -45,7 +45,7 @@ pub fn check_cutscene_data_loaded(
     mut scene_path: ResMut<ScenePath>,
     mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
-    if let Some(state) = asset_server.get_load_state(cutscene_asset_handle.handle.clone()) {
+    if let Some(state) = asset_server.get_load_state(cutscene_asset_handle.handle.id()) {
         match state {
             LoadState::Loaded => {
                 if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
@@ -65,9 +65,9 @@ pub fn check_cutscene_data_loaded(
             LoadState::NotLoaded => {
                 println!("Cutscene data is not loaded");
             }
-            LoadState::Failed => {
+            LoadState::Failed(e) => {
                 commands.remove_resource::<CutsceneAssetHandle>();
-                println!("Cutscene data failed to load");
+                println!("Cutscene data failed to load: {}", e.to_string());
             }
         }
     }
@@ -81,7 +81,7 @@ pub fn check_stage_data_loaded(
     mut scene_path: ResMut<ScenePath>,
     mut write_recent_file_path_event_writer: EventWriter<WriteRecentFilePathEvent>,
 ) {
-    if let Some(state) = asset_server.get_load_state(stage_asset_handle.handle.clone()) {
+    if let Some(state) = asset_server.get_load_state(stage_asset_handle.handle.id()) {
         match state {
             LoadState::Loaded => {
                 if let Some(data) = stage_data_assets.get(&stage_asset_handle.handle) {
@@ -101,9 +101,9 @@ pub fn check_stage_data_loaded(
             LoadState::NotLoaded => {
                 println!("Stage data is not loaded");
             }
-            LoadState::Failed => {
+            LoadState::Failed(e) => {
                 commands.remove_resource::<StageAssetHandle>();
-                println!("Stage data failed to load");
+                println!("Stage data failed to load {}", e.to_string());
             }
         }
     }
