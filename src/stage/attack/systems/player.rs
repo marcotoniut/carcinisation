@@ -51,12 +51,12 @@ pub fn check_got_hit(
                                 score.add_u(SCORE_MELEE_CRITICAL_HIT);
 
                                 #[cfg(debug_assertions)]
-                                println!("{} Pincer! ***CRITICAL***", "HIT".yellow());
+                                println!("{} Pincer ***CRITICAL***", "HIT".yellow());
                             } else {
                                 score.add_u(SCORE_MELEE_REGULAR_HIT);
 
                                 #[cfg(debug_assertions)]
-                                println!("{} Pincer!", "HIT".yellow());
+                                println!("{} Pincer", "HIT".yellow());
                             }
                         }
                     }
@@ -72,12 +72,12 @@ pub fn check_got_hit(
                                 score.add_u(SCORE_RANGED_CRITICAL_HIT);
 
                                 #[cfg(debug_assertions)]
-                                println!("{} Gun! ***CRITICAL***", "HIT".yellow());
+                                println!("{} Gun ***CRITICAL***", "HIT".yellow());
                             } else {
                                 score.add_u(SCORE_RANGED_REGULAR_HIT);
 
                                 #[cfg(debug_assertions)]
-                                println!("{} Gun!", "HIT".yellow());
+                                println!("{} Gun", "HIT".yellow());
                             }
                         }
                     }

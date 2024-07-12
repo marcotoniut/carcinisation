@@ -6,6 +6,7 @@ use crate::stage::{
     events::DamageEvent,
     resources::StageTime,
 };
+use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::prelude::{PxAssets, PxFilter};
 use std::time::Duration;
@@ -38,18 +39,16 @@ pub fn on_damage(
 pub fn check_damage_flicker_taken(
     mut commands: Commands,
     stage_time: Res<StageTime>,
-    mut event_reader: EventReader<DamageEvent>,
+    mut reader: EventReader<DamageEvent>,
     // TODO Destructibles and Attacks
     query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
 ) {
-    for event in event_reader.read() {
-        for entity in query.iter() {
-            if entity == event.entity {
-                commands.entity(entity).insert(DamageFlicker {
-                    phase_start: stage_time.elapsed + DAMAGE_REGULAR_DURATION.clone(),
-                    count: DAMAGE_FLICKER_COUNT,
-                });
-            }
+    for e in reader.read() {
+        if let (_) = query.get(e.entity) {
+            commands.entity(e.entity).insert(DamageFlicker {
+                phase_start: stage_time.elapsed + DAMAGE_REGULAR_DURATION.clone(),
+                count: DAMAGE_FLICKER_COUNT,
+            });
         }
     }
 }
@@ -64,9 +63,10 @@ pub fn add_invert_filter(
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
         if stage_time.elapsed < damage_flicker.phase_start + regular_duration {
             damage_flicker.phase_start = stage_time.elapsed;
-            commands
-                .entity(entity)
-                .insert((InvertFilter, filters.load("filter/invert.png")));
+            commands.entity(entity).insert((
+                InvertFilter,
+                filters.load(assert_assets_path!("filter/invert.png")),
+            ));
         }
     }
 }

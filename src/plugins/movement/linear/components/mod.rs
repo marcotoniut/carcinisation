@@ -74,7 +74,6 @@ pub struct LinearTargetPosition<T: DeltaTime + Send + Sync + 'static, P> {
     pub value: f32,
 }
 
-// TODO split into LinearX, Y, Z
 #[derive(new, Clone, Component, Debug)]
 pub struct LinearSpeed<T: DeltaTime + Send + Sync + 'static, P: Magnitude> {
     #[new(default)]

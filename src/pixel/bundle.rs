@@ -1,5 +1,5 @@
 use super::components::*;
-use crate::{globals::GBColor, Layer};
+use crate::Layer;
 use bevy::{ecs::system::EntityCommands, prelude::BuildChildren};
 use seldom_pixel::prelude::{PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle};
 

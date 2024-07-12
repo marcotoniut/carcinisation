@@ -1,10 +1,10 @@
 use super::components::*;
 use super::events::LetterboxMoveTrigger;
 use super::resources::LetterboxTime;
+use crate::components::GBColor;
 use crate::debug::plugin::debug_print_shutdown;
 use crate::debug::plugin::debug_print_startup;
 use crate::globals::mark_for_despawn_by_query;
-use crate::globals::GBColor;
 use crate::plugins::movement::linear::components::LinearMovementBundle;
 // use crate::plugins::movement::linear::components::LinearPositionRemovalBundle;
 use crate::plugins::movement::linear::components::TargetingPositionY;

@@ -10,7 +10,6 @@ use bevy::{
 use carcinisation::{stage::data::StageData, CutsceneData};
 
 use crate::components::{AnimationIndices, AnimationTimer};
-// TODO should this be it
 use crate::file_manager::events::WriteRecentFilePathEvent;
 use crate::resources::StageControlsUI;
 use crate::{

@@ -79,7 +79,6 @@ impl StageSpawnUtils for StageSpawn {
         ))
     }
 
-    // TODO this should be implemented only in the editor
     fn get_depth_editor_z_index(&self) -> f32 {
         match self {
             StageSpawn::Destructible(DestructibleSpawn { depth, .. }) => {

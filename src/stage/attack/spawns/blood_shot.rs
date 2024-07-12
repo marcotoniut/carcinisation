@@ -99,7 +99,7 @@ pub fn spawn_blood_shot_attack(
     depth: &Depth,
 ) {
     let attack_type = EnemyHoveringAttackType::BloodShot;
-    // TODO should this account for player speed?
+    // TODO should this account for player speed/direction?
     let target_pos = target_pos
         + Vec2::new(
             (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,

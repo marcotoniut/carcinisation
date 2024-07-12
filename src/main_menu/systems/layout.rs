@@ -1,9 +1,10 @@
 use super::super::components::*;
 use crate::{
+    components::GBColor,
     game::resources::Difficulty,
     globals::{
-        mark_for_despawn_by_query, GBColor, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
-        TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32, TYPEFACE_CHARACTERS,
+        TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
     main_menu::{events::ChangeMainMenuScreenTrigger, MainMenuScreen},

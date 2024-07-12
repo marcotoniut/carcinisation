@@ -1,6 +1,6 @@
 use crate::components::VolumeSettings;
 use crate::{
-    components::{remove_step, Cleared, CutsceneElapsedStarted, Music, Tag},
+    components::{Cleared, CutsceneElapsedStarted, Music, Tag},
     cutscene::{
         components::{Cinematic, CutsceneEntity, CutsceneGraphic},
         data::*,
@@ -81,7 +81,11 @@ pub fn check_cutscene_elapsed(
 ) {
     for (entity, started, elapse) in query.iter() {
         if started.0 + elapse.duration < time.elapsed {
-            remove_step::<CutsceneElapse>(&mut commands, entity);
+            commands
+                .entity(entity)
+                .remove::<CutsceneElapse>()
+                .remove::<CutsceneElapsedStarted>();
+
             if elapse.clear_graphics {
                 mark_for_despawn_by_query(&mut commands, &cutscene_query);
             }
@@ -103,7 +107,6 @@ pub fn process_cutscene_animations_spawn(
 
             let mut entity_commands = commands.spawn((
                 CutsceneEntity,
-                // TODO should I make a bundle that automatically includes both graphic and entity?
                 CutsceneGraphic,
                 PxSpriteBundle::<Layer> {
                     sprite,
@@ -145,7 +148,6 @@ pub fn process_cutscene_images_spawn(
 
             let mut entity_commands = commands.spawn((
                 CutsceneEntity,
-                // TODO should I make a bundle that automatically includes both graphic and entity?
                 CutsceneGraphic,
                 PxSpriteBundle::<Layer> {
                     sprite,

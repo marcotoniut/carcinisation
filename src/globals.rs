@@ -1,10 +1,6 @@
 use crate::components::DespawnMark;
 use assert_assets_path::assert_assets_path;
 use bevy::{ecs::query::QueryFilter, prelude::*};
-use seldom_pixel::{
-    asset::{PxAsset, PxAssets},
-    filter::{PxFilter, PxFilterData},
-};
 
 pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);
 
@@ -64,16 +60,6 @@ pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> boo
         && position.y <= top_right.y
 }
 
-// REVIEW?
-// pub fn mark_for_despawn_by_iterator<T: Component>(
-//     commands: &mut Commands,
-//     iter: &QueryIter<Entity>,
-// ) {
-//     for entity in iter {
-//         commands.entity(entity).insert(DespawnMark);
-//     }
-// }
-
 // TODO could replace with a generic trigger/observe?
 pub fn mark_for_despawn_by_query<F: QueryFilter>(
     commands: &mut Commands,
@@ -89,36 +75,4 @@ pub fn mark_for_despawn_by_query_system<F: QueryFilter>(
     query: Query<'_, '_, Entity, F>,
 ) {
     mark_for_despawn_by_query(&mut commands, &query);
-}
-
-// TODO move to components.rs
-#[derive(Clone, Component, Copy, Default, Debug, Reflect, PartialEq, Eq, Hash)]
-pub enum GBColor {
-    #[default]
-    Black,
-    DarkGray,
-    LightGray,
-    White,
-}
-
-impl GBColor {
-    pub fn get_filter_path(&self) -> &'static str {
-        match self {
-            GBColor::Black => "filter/color0.png",
-            GBColor::DarkGray => "filter/color1.png",
-            GBColor::LightGray => "filter/color2.png",
-            GBColor::White => "filter/color3.png",
-        }
-    }
-}
-
-pub trait PxSpriteColorLoader {
-    /// Runs `f` on `self`
-    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter>;
-}
-
-impl PxSpriteColorLoader for PxAssets<'_, '_, PxAsset<PxFilterData>> {
-    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter> {
-        self.load(color.get_filter_path())
-    }
 }
