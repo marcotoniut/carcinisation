@@ -6,7 +6,6 @@ use num_enum::TryFromPrimitive;
 use std::iter::Step;
 use strum_macros::EnumIter;
 
-// TODO should default be 3?
 #[derive(Resource, Debug, Default, Clone, Copy)]
 pub struct Lives(pub u8);
 

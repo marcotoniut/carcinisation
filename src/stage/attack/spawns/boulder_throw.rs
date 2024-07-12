@@ -85,7 +85,7 @@ impl BoulderThrowMovementBundle {
 
         let speed_x = d.x / t;
 
-        // TODO: remember that boulder throws in outter space wouldn't have as much gravity, if any at all
+        // TODO: remember that boulder throws in outter space wouldn't have as much gravity, if any
         let value = d.y - 0.5 * BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION * t.powi(2);
         let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
 

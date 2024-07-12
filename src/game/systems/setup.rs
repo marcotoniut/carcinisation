@@ -48,7 +48,6 @@ pub fn on_game_startup(
 
 pub fn on_game_over(_trigger: Trigger<GameOverTrigger>) {}
 
-// TODO Should I use stage_shutdown instead?
 pub fn on_stage_cleared(
     mut event_reader: EventReader<StageClearedTrigger>,
     mut commands: Commands,
@@ -119,11 +118,12 @@ pub fn progress(
 }
 
 pub fn check_cutscene_data_loaded(
-    cutscene_asset_handle: Res<CutsceneAssetHandle>,
-    cutscene_data_assets: Res<Assets<CutsceneData>>,
+    asset_handle: Res<CutsceneAssetHandle>,
+    data_assets: Res<Assets<CutsceneData>>,
     mut commands: Commands,
 ) {
-    if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
+    if let Some(data) = data_assets.get(&asset_handle.handle) {
+        #[cfg(debug_assertions)]
         println!("Cutscene data loaded: {:?}", data);
         commands.remove_resource::<CutsceneAssetHandle>();
         commands.trigger(CutsceneStartupTrigger {
@@ -131,16 +131,18 @@ pub fn check_cutscene_data_loaded(
             data: Arc::new(data.clone()),
         });
     } else {
+        #[cfg(debug_assertions)]
         println!("Cutscene data is still loading...");
     }
 }
 
 pub fn check_stage_data_loaded(
-    cutscene_asset_handle: Res<StageAssetHandle>,
-    cutscene_data_assets: Res<Assets<StageData>>,
+    asset_handle: Res<StageAssetHandle>,
+    data_assets: Res<Assets<StageData>>,
     mut commands: Commands,
 ) {
-    if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
+    if let Some(data) = data_assets.get(&asset_handle.handle) {
+        #[cfg(debug_assertions)]
         println!("Stage data loaded: {:?}", data);
         commands.remove_resource::<StageAssetHandle>();
         commands.trigger(StageStartupTrigger {
@@ -148,6 +150,7 @@ pub fn check_stage_data_loaded(
             data: Arc::new(data.clone()),
         });
     } else {
+        #[cfg(debug_assertions)]
         println!("Stage data is still loading...");
     }
 }

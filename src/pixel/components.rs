@@ -1,4 +1,4 @@
-use crate::globals::GBColor;
+use crate::components::GBColor;
 use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 

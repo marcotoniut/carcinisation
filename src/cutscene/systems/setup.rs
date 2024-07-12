@@ -10,7 +10,7 @@ use crate::{
     globals::mark_for_despawn_by_query,
     letterbox::events::LetterboxMoveTrigger,
 };
-use bevy::{log::tracing_subscriber::field::debug, prelude::*};
+use bevy::prelude::*;
 
 const DEBUG_MODULE: &str = "Cutscene";
 
@@ -25,16 +25,14 @@ pub fn on_cutscene_startup(
     let e = trigger.event();
     next_state.set(CutscenePluginUpdateState::Active);
 
-    let data = e.data.as_ref();
-
-    commands.insert_resource::<CutsceneData>(data.clone());
+    commands.insert_resource::<CutsceneData>(e.data.as_ref().clone());
     commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });
 
     commands.spawn((Cinematic, Name::new("Cutscene")));
 }
 
 pub fn on_cutscene_shutdown(
-    trigger: Trigger<CutsceneShutdownTrigger>,
+    _trigger: Trigger<CutsceneShutdownTrigger>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
     cinematic_query: Query<Entity, With<Cinematic>>,

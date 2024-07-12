@@ -24,7 +24,6 @@ impl AttackEnemyStep {
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct CircleAroundEnemyStep {
     pub depth_movement_o: Option<i8>,
-    #[serde(default)]
     pub direction: MovementDirection,
     pub duration: Option<f32>,
     pub radius: Option<f32>,

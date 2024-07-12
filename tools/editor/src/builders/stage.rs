@@ -147,8 +147,6 @@ pub fn spawn_stage(
         ));
     }
 
-    // TODO Make skybox follow camera via elapsed
-    // TODO Animate skybox
     if stage_controls_ui.skybox_is_visible() {
         let texture = asset_server.load(&stage_data.skybox.path);
         let texture_atlas_layout =

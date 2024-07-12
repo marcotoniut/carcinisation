@@ -1,5 +1,6 @@
+use crate::components::GBColor;
+
 use super::components::*;
-use crate::globals::GBColor;
 use bevy::{prelude::*, utils::HashMap};
 use seldom_pixel::{
     asset::PxAsset,

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
+    components::GBColor,
     cutscene::data::CutsceneAnimationsSpawn,
-    globals::GBColor,
     layer::Layer,
     plugins::movement::linear::components::{
         TargetingPositionX, TargetingPositionY, TargetingPositionZ,

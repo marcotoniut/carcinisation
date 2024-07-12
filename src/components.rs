@@ -1,6 +1,11 @@
 use std::time::Duration;
 
+use assert_assets_path::assert_assets_path;
 use bevy::{audio::Volume, prelude::*};
+use seldom_pixel::{
+    asset::{PxAsset, PxAssets},
+    filter::{PxFilter, PxFilterData},
+};
 
 #[derive(Component)]
 pub enum AudioSystemType {
@@ -11,6 +16,37 @@ pub enum AudioSystemType {
 #[derive(Bundle)]
 pub struct AudioSystemBundle {
     pub system_type: AudioSystemType,
+}
+
+#[derive(Clone, Component, Copy, Default, Debug, Reflect, PartialEq, Eq, Hash)]
+pub enum GBColor {
+    #[default]
+    Black,
+    DarkGray,
+    LightGray,
+    White,
+}
+
+impl GBColor {
+    pub fn get_filter_path(&self) -> &'static str {
+        match self {
+            GBColor::Black => assert_assets_path!("filter/color0.png"),
+            GBColor::DarkGray => assert_assets_path!("filter/color1.png"),
+            GBColor::LightGray => assert_assets_path!("filter/color2.png"),
+            GBColor::White => assert_assets_path!("filter/color3.png"),
+        }
+    }
+}
+
+pub trait PxSpriteColorLoader {
+    /// Runs `f` on `self`
+    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter>;
+}
+
+impl PxSpriteColorLoader for PxAssets<'_, '_, PxAsset<PxFilterData>> {
+    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter> {
+        self.load(color.get_filter_path())
+    }
 }
 
 #[derive(Component)]
@@ -59,12 +95,4 @@ impl Default for VolumeSettings {
             sfx: Volume::new(0.08),
         }
     }
-}
-
-// TODO why am I using this?
-pub fn remove_step<C: Component>(commands: &mut Commands, entity: Entity) {
-    commands
-        .entity(entity)
-        .remove::<C>()
-        .remove::<CutsceneElapsedStarted>();
 }

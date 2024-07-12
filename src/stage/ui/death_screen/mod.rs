@@ -11,10 +11,11 @@ use self::{
 };
 use super::StageUiPluginUpdateState;
 use crate::{
+    components::{GBColor, PxSpriteColorLoader},
     game::{resources::Lives, score::components::Score},
     globals::{
-        mark_for_despawn_by_query, GBColor, PxSpriteColorLoader, FONT_SIZE, SCREEN_RESOLUTION,
-        TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
+        TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
     stage::StageProgressState,
