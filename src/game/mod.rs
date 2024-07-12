@@ -3,7 +3,7 @@ pub mod data;
 pub mod events;
 pub mod resources;
 pub mod score;
-pub mod systems;
+mod systems;
 
 use crate::core::event::on_trigger_write_event;
 

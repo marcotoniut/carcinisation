@@ -1,7 +1,7 @@
 pub mod components;
 pub mod data;
 pub mod spawns;
-pub mod systems;
+mod systems;
 
 use self::{
     systems::player::*,

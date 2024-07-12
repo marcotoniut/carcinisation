@@ -2,7 +2,7 @@ pub mod bundles;
 pub mod components;
 pub mod events;
 pub mod resources;
-pub mod systems;
+mod systems;
 
 use self::{
     bundles::{progress, update_transition},

@@ -3,7 +3,7 @@ pub mod data;
 pub mod events;
 pub mod input;
 pub mod resources;
-pub mod systems;
+mod systems;
 
 use self::{
     events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},

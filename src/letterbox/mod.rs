@@ -1,7 +1,7 @@
 pub mod components;
 pub mod events;
 pub mod resources;
-pub mod systems;
+mod systems;
 
 use crate::{
     core::time::tick_time,

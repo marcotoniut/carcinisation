@@ -1,6 +1,6 @@
 pub mod components;
 pub mod spawn;
-pub mod systems;
+mod systems;
 
 use self::systems::update::*;
 use bevy::prelude::*;

@@ -3,7 +3,7 @@ pub mod components;
 pub mod data;
 pub mod entity;
 pub mod mosquito;
-pub mod systems;
+mod systems;
 pub mod tardigrade;
 
 use self::{

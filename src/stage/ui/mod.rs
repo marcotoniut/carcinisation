@@ -4,7 +4,7 @@ pub mod death_screen;
 pub mod game_over_screen;
 pub mod hud;
 pub mod pause_menu;
-pub mod systems;
+mod systems;
 
 use self::{
     cleared_screen::cleared_screen_plugin,

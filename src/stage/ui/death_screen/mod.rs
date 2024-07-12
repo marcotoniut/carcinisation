@@ -1,7 +1,7 @@
 pub mod components;
 pub mod events;
 pub mod input;
-pub mod systems;
+mod systems;
 
 use self::{
     components::*,

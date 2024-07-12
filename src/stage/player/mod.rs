@@ -3,7 +3,7 @@ pub mod components;
 pub mod crosshair;
 pub mod events;
 pub mod resources;
-pub mod systems;
+mod systems;
 
 use self::{
     crosshair::{Crosshair, CrosshairSettings},
