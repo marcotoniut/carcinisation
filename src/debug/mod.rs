@@ -1,5 +1,5 @@
 pub mod plugin;
-pub mod systems;
+mod systems;
 pub mod types;
 
 use self::{systems::*, types::register_types};

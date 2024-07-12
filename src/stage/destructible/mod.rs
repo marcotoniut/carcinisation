@@ -1,6 +1,6 @@
 pub mod components;
 pub mod data;
-pub mod systems;
+mod systems;
 
 use self::systems::check_dead_destructible;
 use bevy::prelude::*;

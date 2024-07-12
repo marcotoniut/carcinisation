@@ -18,7 +18,7 @@ use self::{
     enemy::EnemyPlugin,
     events::*,
     pickup::systems::health::pickup_health,
-    player::{events::CameraShakeTrigger, PlayerPlugin},
+    player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress, StageTime},
     systems::{
         camera::*,
@@ -42,7 +42,6 @@ use crate::{
         event::on_trigger_write_event,
         time::{tick_time, TimeMultiplier},
     },
-    game::events::GameOverTrigger,
     globals::mark_for_despawn_by_query_system,
     plugins::movement::{
         linear::{

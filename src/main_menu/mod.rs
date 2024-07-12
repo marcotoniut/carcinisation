@@ -2,7 +2,7 @@ pub mod components;
 pub mod events;
 pub mod input;
 pub mod resources;
-pub mod systems;
+mod systems;
 
 use self::{
     events::{ChangeMainMenuScreenTrigger, MainMenuShutdownEvent, MainMenuStartupEvent},
