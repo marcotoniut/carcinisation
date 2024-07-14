@@ -168,7 +168,10 @@ pub fn spawn_stage(
                 ..default()
             },
             TextureAtlas { layout, index: 0 },
-            AnimationIndices { first: 0, last: 1 },
+            AnimationIndices {
+                first: 0,
+                last: stage_data.skybox.frames.saturating_sub(1),
+            },
             AnimationTimer(Timer::from_seconds(2.0, TimerMode::Repeating)),
         ));
     }
