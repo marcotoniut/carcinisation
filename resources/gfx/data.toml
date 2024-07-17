@@ -23,6 +23,11 @@ path = "backgrounds/asteroid/skybox.png"
 path = "backgrounds/asteroid/spaceship_destroyed.png"
 
 [[images]]
+path = "backgrounds/beach/background.png"
+[[images]]
+path = "backgrounds/beach/skybox.png"
+
+[[images]]
 path = "backgrounds/rugpark/background.png"
 [[images]]
 path = "backgrounds/rugpark/skybox.png"

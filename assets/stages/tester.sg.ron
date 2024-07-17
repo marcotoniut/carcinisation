@@ -1,0 +1,135 @@
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+StageData(
+    name: "Debug",
+    background_path: "backgrounds/beach/background.png",
+    music_path: "audio/music/stage_1.ogg",
+    skybox: SkyboxData(
+        path: "backgrounds/beach/skybox.png",
+        frames: 1,
+    ),
+    start_coordinates: Vec2(18.0, 10.0),
+    spawns: [
+        Destructible(
+            contains: None,
+            coordinates: Vec2(58.0, 35.0),
+            depth: Six,
+            destructible_type: Trashcan,
+            health: 50,
+        ),
+        Destructible(
+            contains: None,
+            coordinates: Vec2(170.0, 38.0),
+            depth: Six,
+            destructible_type: Trashcan,
+            health: 50,
+        ),
+        Object(
+            object_type: Fibertree,
+            coordinates: Vec2(30.0, 8.0),
+            depth: Two,
+        ),
+        Object(
+            object_type: Fibertree,
+            coordinates: Vec2(180.0, 8.0),
+            depth: Two,
+        ),
+    ],
+    steps: [
+        Stop(
+            max_duration: 99999.0,
+            kill_all: true,
+            kill_boss: false,
+            spawns: [
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(35.0, 105.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Eight,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 0.1,
+                    contains: Pickup(
+                        pickup_type: SmallHealthpack,
+                    ),
+                    coordinates: Vec2(60.0, 100.0),
+                    speed: 2.0,
+                    steps: [
+                        LinearMovement(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 30.0,
+                        ),
+                        Idle(
+                            duration: 3.0,
+                        ),
+                        LinearMovement(
+                            depth_movement_o: 1,
+                            direction: Vec2(1.0, -0.5),
+                            trayectory: 50.0,
+                        ),
+                        LinearMovement(
+                            depth_movement_o: None,
+                            direction: Vec2(1.0, 1.0),
+                            trayectory: 0.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 85.0,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                    ),
+                    coordinates: Vec2(30.0, 60.0),
+                    speed: 2.0,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Positive,
+                            duration: 99999.0,
+                            radius: 12.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 45.1,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                    ),
+                    coordinates: Vec2(30.0, 60.0),
+                    speed: 2.0,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 99999.0,
+                            radius: 12.0,
+                        ),
+                    ],
+                    depth: Five,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 2.1,
+                    contains: Pickup(
+                        pickup_type: BigHealthpack,
+                    ),
+                    coordinates: Vec2(140.0, 130.0),
+                    speed: 2.0,
+                    steps: [],
+                    depth: Five,
+                ),
+            ],
+            floor_depths: None,
+        ),
+    ],
+)

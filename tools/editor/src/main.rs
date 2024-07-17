@@ -87,6 +87,5 @@ fn main() {
         )
         .add_systems(Update, update_ui)
         .add_systems(Update, animate_sprite)
-        .add_systems(PostUpdate, on_unload_scene)
         .run();
 }
