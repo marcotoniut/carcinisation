@@ -18,10 +18,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxCanvas, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
 
 // TODO could be generalised
 #[derive(Bundle)]
@@ -93,10 +90,13 @@ impl Default for PickupFeedbackDefaultBundle {
 
 #[derive(Bundle)]
 pub struct PickupFeedbackBundle {
-    position: PxSubPosition,
-    sprite: PxSpriteBundle<Layer>,
-    movement: PickupFeedbackMovementBundle,
+    anchor: PxAnchor,
+    canvas: PxCanvas,
     default: PickupFeedbackDefaultBundle,
+    layer: Layer,
+    movement: PickupFeedbackMovementBundle,
+    position: PxSubPosition,
+    sprite: PxSprite,
 }
 
 pub fn pickup_health(
@@ -105,7 +105,7 @@ pub fn pickup_health(
     query: Query<(Entity, &HealthRecovery, &PxSubPosition), Added<Dead>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     mut player_query: Query<&mut Health, With<Player>>,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
 ) {
     let camera_pos = camera_query.get_single().unwrap();
     if let Ok(mut health) = player_query.get_single_mut() {
@@ -116,20 +116,18 @@ pub fn pickup_health(
             score.add(recovery.score_deduction());
 
             let current = position.0 - camera_pos.0;
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
+            let sprite =
+                PxSprite(asset_server.load(assert_assets_path!("sprites/pickups/health_4.png")));
 
             commands.spawn(PickupFeedbackBundle {
-                position: current.into(),
-                sprite: PxSpriteBundle::<Layer> {
-                    sprite,
-                    // TODO the position should be stuck to the floor beneah the dropper
-                    anchor: PxAnchor::Center,
-                    canvas: PxCanvas::Camera,
-                    layer: Layer::Pickups,
-                    ..default()
-                },
-                movement: PickupFeedbackMovementBundle::new(current),
+                // TODO the position should be stuck to the floor beneah the dropper
+                anchor: PxAnchor::Center,
+                canvas: PxCanvas::Camera,
                 default: default(),
+                layer: Layer::Pickups,
+                movement: PickupFeedbackMovementBundle::new(current),
+                position: current.into(),
+                sprite,
             });
         }
     }

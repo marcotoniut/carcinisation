@@ -8,7 +8,7 @@ use crate::stage::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAssets, PxFilter};
+use seldom_pixel::prelude::PxFilter;
 use std::time::Duration;
 
 pub const DAMAGE_FLICKER_COUNT: u8 = 4;
@@ -55,9 +55,9 @@ pub fn check_damage_flicker_taken(
 
 pub fn add_invert_filter(
     mut commands: Commands,
-    stage_time: Res<StageTime>,
     mut query: Query<(Entity, &mut DamageFlicker), Without<InvertFilter>>,
-    mut filters: PxAssets<PxFilter>,
+    stage_time: Res<StageTime>,
+    asset_server: Res<AssetServer>,
 ) {
     let regular_duration = DAMAGE_REGULAR_DURATION.clone();
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
@@ -65,7 +65,7 @@ pub fn add_invert_filter(
             damage_flicker.phase_start = stage_time.elapsed;
             commands.entity(entity).insert((
                 InvertFilter,
-                filters.load(assert_assets_path!("filter/invert.png")),
+                PxFilter(asset_server.load(assert_assets_path!("filter/invert.png"))),
             ));
         }
     }
@@ -73,8 +73,8 @@ pub fn add_invert_filter(
 
 pub fn remove_invert_filter(
     mut commands: Commands,
-    stage_time: Res<StageTime>,
     mut query: Query<(Entity, &mut DamageFlicker), With<InvertFilter>>,
+    stage_time: Res<StageTime>,
 ) {
     let invert_duration = DAMAGE_INVERT_DURATION.clone();
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
@@ -82,7 +82,8 @@ pub fn remove_invert_filter(
             let mut entity_commands = commands.entity(entity);
             entity_commands
                 .remove::<InvertFilter>()
-                .remove::<Handle<PxFilter>>();
+                // TODO review Handle<PxFilterAsset> ?
+                .remove::<PxFilter>();
             if damage_flicker.count > 0 {
                 damage_flicker.count -= 1;
                 damage_flicker.phase_start = stage_time.elapsed;

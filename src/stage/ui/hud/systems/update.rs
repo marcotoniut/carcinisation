@@ -10,7 +10,7 @@ pub fn update_health_text(
 ) {
     for health in player_query.iter() {
         for mut text in query.iter_mut() {
-            text.0 = health.0.to_string();
+            text.value = health.0.to_string();
         }
     }
 }

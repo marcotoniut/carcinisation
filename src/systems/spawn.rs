@@ -6,16 +6,18 @@ pub fn make_music_bundle(
     volume_settings: &Res<VolumeSettings>,
     music_path: String,
     mode: PlaybackMode,
-) -> (AudioBundle, AudioSystemBundle, Music) {
+) -> (
+    AudioPlayer<AudioSource>,
+    PlaybackSettings,
+    AudioSystemBundle,
+    Music,
+) {
     let source = asset_server.load(music_path);
     (
-        AudioBundle {
-            source,
-            settings: PlaybackSettings {
-                mode,
-                volume: volume_settings.music.clone(),
-                ..default()
-            },
+        AudioPlayer::new(source),
+        PlaybackSettings {
+            mode,
+            volume: volume_settings.music.clone(),
             ..default()
         },
         AudioSystemBundle {

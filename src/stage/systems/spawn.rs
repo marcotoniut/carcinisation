@@ -34,10 +34,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 pub fn check_step_spawn(
     mut commands: Commands,
@@ -67,30 +64,30 @@ pub fn check_step_spawn(
 pub fn on_stage_spawn(
     trigger: Trigger<StageSpawnTrigger>,
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
     match &trigger.event().spawn {
         StageSpawn::Destructible(x) => {
-            spawn_destructible(&mut commands, &mut assets_sprite, x);
+            spawn_destructible(&mut commands, &asset_server, x);
         }
         StageSpawn::Enemy(x) => {
             let camera_pos = camera_query.get_single().unwrap();
             spawn_enemy(&mut commands, camera_pos.0, x);
         }
         StageSpawn::Object(x) => {
-            spawn_object(&mut commands, &mut assets_sprite, x);
+            spawn_object(&mut commands, &asset_server, x);
         }
         StageSpawn::Pickup(x) => {
             let camera_pos = camera_query.get_single().unwrap();
-            spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.0, x);
+            spawn_pickup(&mut commands, &asset_server, camera_pos.0, x);
         }
     }
 }
 
 pub fn spawn_pickup(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
     offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
@@ -103,17 +100,15 @@ pub fn spawn_pickup(
     let position = PxSubPosition::from(offset + *coordinates);
     match pickup_type {
         PickupType::BigHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
+            let sprite =
+                PxSprite(asset_server.load(assert_assets_path!("sprites/pickups/health_4.png")));
             commands
                 .spawn((
                     spawn.get_name(),
                     Hittable,
-                    PxSpriteBundle::<Layer> {
-                        sprite,
-                        anchor: PxAnchor::Center,
-                        layer: spawn.depth.to_layer(),
-                        ..default()
-                    },
+                    sprite,
+                    PxAnchor::Center,
+                    spawn_depth.to_layer(),
                     position,
                     spawn.depth.clone(),
                     Health(1),
@@ -123,17 +118,15 @@ pub fn spawn_pickup(
                 .id()
         }
         PickupType::SmallHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_6.png"));
+            let sprite =
+                PxSprite(asset_server.load(assert_assets_path!("sprites/pickups/health_6.png")));
             commands
                 .spawn((
                     spawn.get_name(),
                     Hittable,
-                    PxSpriteBundle::<Layer> {
-                        sprite,
-                        anchor: PxAnchor::BottomCenter,
-                        layer: spawn.depth.to_layer(),
-                        ..default()
-                    },
+                    sprite,
+                    PxAnchor::BottomCenter,
+                    spawn_depth.to_layer(),
                     position,
                     spawn.depth.clone(),
                     Health(1),
@@ -211,12 +204,12 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
  */
 pub fn spawn_destructible(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
     spawn: &DestructibleSpawn,
 ) -> Entity {
     let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(&spawn.destructible_type);
     let animation_bundle_o = make_animation_bundle(
-        assets_sprite,
+        asset_server,
         animations_map,
         &DestructibleState::Base,
         &spawn.depth,
@@ -241,25 +234,22 @@ pub fn spawn_destructible(
 
 pub fn spawn_object(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
     spawn: &ObjectSpawn,
 ) -> Entity {
-    let sprite = assets_sprite.load(match spawn.object_type {
+    let sprite = PxSprite(asset_server.load(match spawn.object_type {
         ObjectType::BenchBig => assert_assets_path!("sprites/objects/bench_big.png"),
         ObjectType::BenchSmall => assert_assets_path!("sprites/objects/bench_small.png"),
         ObjectType::Fibertree => assert_assets_path!("sprites/objects/fiber_tree.png"),
         ObjectType::RugparkSign => assert_assets_path!("sprites/objects/rugpark_sign.png"),
-    });
+    }));
     commands
         .spawn((
             spawn.get_name(),
             Object,
-            PxSpriteBundle::<Layer> {
-                sprite,
-                anchor: PxAnchor::BottomCenter,
-                layer: spawn.depth.to_layer(),
-                ..default()
-            },
+            sprite,
+            PxAnchor::BottomCenter,
+            spawn_depth.to_layer(),
             PxSubPosition::from(spawn.coordinates.clone()),
             StageEntity,
         ))
@@ -268,15 +258,15 @@ pub fn spawn_object(
 
 pub fn check_dead_drop(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
     mut attack_query: Query<&mut UnhittableList, With<PlayerAttack>>,
+    asset_server: Res<AssetServer>,
     query: Query<(&SpawnDrop, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
     for (spawn_drop, position, depth) in &mut query.iter() {
         let entity = match spawn_drop.contains.clone() {
             ContainerSpawn::Pickup(spawn) => spawn_pickup(
                 &mut commands,
-                &mut assets_sprite,
+                &asset_server,
                 Vec2::ZERO,
                 &spawn.from_spawn(position.0, depth.clone()),
             ),

@@ -76,7 +76,6 @@ pub fn draw_colliders(
                     gizmos.rect_2d(
                         // to_viewport_coordinates(absolute_position - half_rect),
                         to_viewport_coordinates(absolute_position + data.offset),
-                        0.,
                         to_viewport_ratio(size),
                         Color::FUCHSIA,
                     );

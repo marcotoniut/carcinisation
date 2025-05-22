@@ -11,7 +11,8 @@ use crate::{
             placement::{Depth, InView},
         },
         enemy::{
-            bundles::make_enemy_animation_bundle,
+            self,
+            bundles::{make_enemy_animation_bundle, EnemyAnimationBundle},
             components::{behavior::EnemyCurrentBehavior, *},
             data::tardigrade::TARDIGRADE_ANIMATIONS,
             tardigrade::entity::EnemyTardigradeAttacking,
@@ -21,10 +22,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 use std::time::Duration;
 
 pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
@@ -35,7 +33,7 @@ pub fn assign_tardigrade_animation(
         (Entity, &EnemyCurrentBehavior, &PxSubPosition, &Depth),
         (With<EnemyTardigrade>, Without<EnemyTardigradeAnimation>),
     >,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
 ) {
     for (entity, current_behavior, position, depth) in &mut query.iter() {
         let step = current_behavior.behavior.clone();
@@ -43,16 +41,15 @@ pub fn assign_tardigrade_animation(
         let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(depth).map(|animation| {
             (
                 EnemyTardigradeAnimation::Idle,
-                make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                EnemyAnimationBundle::new(&asset_server, &animation, depth),
             )
         });
 
-        if let Some((animation, (sprite_bundle, animation_bundle))) = bundle_o {
+        if let Some((animation, enemy_animation_bundle)) = bundle_o {
             commands.entity(entity).insert((
                 PxSubPosition(position.0),
                 animation,
-                sprite_bundle,
-                animation_bundle,
+                enemy_animation_bundle,
             ));
         }
     }
@@ -60,8 +57,8 @@ pub fn assign_tardigrade_animation(
 
 pub fn despawn_dead_tardigrade(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
+    asset_server: &Res<AssetServer>,
     query: Query<(Entity, &EnemyTardigrade, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
     for (entity, tardigrade, position, depth) in query.iter() {
@@ -70,18 +67,15 @@ pub fn despawn_dead_tardigrade(
         let animation_o = TARDIGRADE_ANIMATIONS.death.get(depth);
 
         if let Some(animation) = animation_o {
-            let texture =
-                assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
+            let texture = PxSprite(asset_server.load(animation.sprite_path.as_str()));
+            // TODO animate animation.frames
 
             commands.spawn((
                 Name::new("Dead - Tardigrade"),
                 PxSubPosition::from(position.0),
-                PxSpriteBundle::<Layer> {
-                    sprite: texture,
-                    layer: depth.to_layer(),
-                    anchor: PxAnchor::Center,
-                    ..default()
-                },
+                texture,
+                depth.to_layer(),
+                PxAnchor::Center,
                 animation.make_animation_bundle(),
             ));
         }
@@ -92,7 +86,7 @@ pub fn despawn_dead_tardigrade(
 
 pub fn check_idle_tardigrade(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<StageTime>,
     query: Query<
@@ -126,7 +120,7 @@ pub fn check_idle_tardigrade(
 
                 spawn_boulder_throw_attack(
                     &mut commands,
-                    &mut assets_sprite,
+                    &asset_server,
                     &stage_time,
                     SCREEN_RESOLUTION_F32_H.clone() + camera_pos.0,
                     position.0,

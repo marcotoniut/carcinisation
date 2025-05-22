@@ -38,10 +38,10 @@ impl Plugin for CutscenePlugin {
             .init_state::<CutscenePluginUpdateState>()
             .init_resource::<CutsceneTime>()
             .add_event::<CutsceneStartupTrigger>()
-            .observe(on_cutscene_startup)
+            .add_observer(on_cutscene_startup)
             .add_event::<CutsceneShutdownTrigger>()
-            .observe(on_cutscene_shutdown)
-            .observe(on_trigger_write_event::<CutsceneShutdownTrigger>)
+            .add_observer(on_cutscene_shutdown)
+            .add_observer(on_trigger_write_event::<CutsceneShutdownTrigger>)
             // .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
             .add_systems(Startup, init_input)
             .add_systems(

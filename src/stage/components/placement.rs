@@ -70,8 +70,26 @@ impl Sub<i8> for Depth {
 }
 
 impl Step for Depth {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        Some(((*end as i8 - *start as i8).abs()) as usize)
+    // steps_between(&start, &end) -> (lower_bound, Some(upper_bound))
+    // except for start > end => (0, None)
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
+        let s = start.to_i8();
+        let e = end.to_i8();
+
+        if s > e {
+            // start > end => (0, None)
+            (0, None)
+        } else if s == e {
+            // same => (0, Some(0))
+            (0, Some(0))
+        } else {
+            // s < e => forward steps
+            // We know it won't overflow i8 in this range
+            let diff = e - s; // 1..=9
+            let steps = diff as usize;
+            // The docs say to return (steps, Some(steps)) if no overflow
+            (steps, Some(steps))
+        }
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {

@@ -40,10 +40,10 @@ pub fn update_depth(
 
 pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSubPosition)>) {
     for (circle_around, mut position) in query.iter_mut() {
-        let elapsed_seconds = time.elapsed_seconds();
+        let elapsed_secs = time.elapsed_secs();
         let angle = match circle_around.direction {
-            MovementDirection::Positive => elapsed_seconds + circle_around.time_offset,
-            MovementDirection::Negative => -elapsed_seconds + circle_around.time_offset,
+            MovementDirection::Positive => elapsed_secs + circle_around.time_offset,
+            MovementDirection::Negative => -elapsed_secs + circle_around.time_offset,
         };
         let x = circle_around.center.x + circle_around.radius * angle.cos();
         let y = circle_around.center.y + circle_around.radius * angle.sin();

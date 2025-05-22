@@ -4,15 +4,19 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { features = ["wayland"], version = "0.14.0" }
-bevy_common_assets = { features = ["ron"], version = "0.11.0" }
-bevy_editor_pls = { git = "https://github.com/zhaop/bevy_editor_pls.git", branch = "bevy-0.14" }
+bevy = { features = ["wayland"], version = "0.15.1" }
+bevy_common_assets = { features = ["ron"], version = "0.12.0" }
+bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls", branch = "bevy-main" }
 carcinisation = { path = "../../" }
-colored = "2.1.0"
-derive-new = "0.6.0"
-derive_more = "0.99.17"
+colored = "3.0.0"
+derive-new = "0.7.0"
+derive_more = "1.0.0"
 lazy_static = "1.4.0"
-notify = "6.1.1"
+notify = "7.0.0"
 ron = "0.8.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_with = "3.8.1"
+
+[patch.crates-io]
+# Used by bevy_editor_pls
+transform-gizmo-bevy = { git = "https://github.com/ActuallyHappening/transform-gizmo" }

@@ -7,8 +7,7 @@ use crate::stage::{
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxAnimationBundle, PxAnimationDirection, PxAnimationDuration,
-    PxAnimationFinishBehavior,
+    PxAnchor, PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
 };
 use serde::{Deserialize, Serialize};
 
@@ -163,8 +162,8 @@ pub struct AnimationData {
 }
 
 impl AnimationData {
-    pub fn make_animation_bundle(&self) -> PxAnimationBundle {
-        PxAnimationBundle {
+    pub fn make_animation_bundle(&self) -> PxAnimation {
+        PxAnimation {
             duration: PxAnimationDuration::millis_per_animation(self.speed),
             on_finish: self.finish_behavior,
             direction: self.direction,

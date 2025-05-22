@@ -16,13 +16,13 @@ const DEBUG_MODULE: &str = "Player";
 pub fn on_player_startup(
     _trigger: Trigger<PlayerStartupTrigger>,
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     crosshair_settings: Res<CrosshairSettings>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
-    commands.spawn(make_player_bundle(&mut assets_sprite, &crosshair_settings));
+    commands.spawn(make_player_bundle(&asset_server, &crosshair_settings));
 }
 
 pub fn on_player_shutdown(

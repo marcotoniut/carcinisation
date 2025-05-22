@@ -11,7 +11,7 @@ use seldom_pixel::{prelude::*, sprite::PxSprite};
 
 pub fn check_dead_destructible(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     query: Query<
         (Entity, &DestructibleType, &PxSubPosition, &Depth),
         (With<Destructible>, Added<Dead>),
@@ -24,7 +24,7 @@ pub fn check_dead_destructible(
 
         let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(destructible_type);
         let animation_bundle_o = make_animation_bundle(
-            &mut assets_sprite,
+            &asset_server,
             animations_map,
             &DestructibleState::Broken,
             depth,

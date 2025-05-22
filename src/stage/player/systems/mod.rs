@@ -65,7 +65,6 @@ pub fn player_movement<T: DeltaTime + Resource>(
 
 pub fn detect_player_attack(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
     mut timer: ResMut<AttackTimer>,
     asset_server: Res<AssetServer>,
     gb_input: Res<ActionState<GBInput>>,
@@ -91,7 +90,7 @@ pub fn detect_player_attack(
                 };
 
                 let (player_attack_bundle, player_attack_sound_bundle) =
-                    player_attack.make_bundles(&mut assets_sprite, asset_server, volume_settings);
+                    player_attack.make_bundles(asset_server, volume_settings);
 
                 commands.spawn(player_attack_bundle);
                 commands.spawn(player_attack_sound_bundle);

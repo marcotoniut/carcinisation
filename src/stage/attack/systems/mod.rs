@@ -18,7 +18,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
+use seldom_pixel::prelude::PxSprite;
 
 // TODO remove in favor of damage taken?
 pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health), Without<Dead>>) {
@@ -52,7 +52,7 @@ pub fn on_enemy_attack_depth_changed(
     mut commands: Commands,
     // TODO do I need an EventReader for this? Can't I just use a query that checks for Changed<Depth>?
     mut event_reader: EventReader<DepthChangedEvent>,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     query: Query<(Entity, &EnemyHoveringAttackType)>,
 ) {
     for event in event_reader.read() {
@@ -61,7 +61,7 @@ pub fn on_enemy_attack_depth_changed(
                 if entity == event.entity {
                     let (sprite_bundle, animation_bundle, collider_data) =
                         make_hovering_attack_animation_bundle(
-                            &mut assets_sprite,
+                            &asset_server,
                             attack_type,
                             event.depth.clone(),
                         );

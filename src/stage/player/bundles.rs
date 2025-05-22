@@ -8,13 +8,16 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 
 pub fn make_player_bundle(
-    asset_server: &mut PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
     crosshair_settings: &Res<CrosshairSettings>,
 ) -> (
     Name,
     Player,
     Health,
-    PxSpriteBundle<Layer>,
+    PxCanvas,
+    PxSprite,
+    Layer,
+    PxAnchor,
     PxSubPosition,
     StageEntity,
 ) {
@@ -24,13 +27,10 @@ pub fn make_player_bundle(
         Name::new("Player"),
         Player,
         Health(PLAYER_MAX_HEALTH),
-        PxSpriteBundle::<Layer> {
-            canvas: PxCanvas::Camera,
-            sprite,
-            layer: Layer::Front,
-            anchor: PxAnchor::Center,
-            ..default()
-        },
+        PxCanvas::Camera,
+        sprite,
+        Layer::Front,
+        PxAnchor::Center,
         PxSubPosition::from(Vec2::new(
             (SCREEN_RESOLUTION.x / 2) as f32,
             (HUD_HEIGHT as f32) + (SCREEN_RESOLUTION.y / 2) as f32,

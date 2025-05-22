@@ -12,10 +12,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxCanvas, PxSubPosition, PxTextBundle, PxTypeface},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition, PxText, PxTypeface};
 use strum::IntoEnumIterator;
 
 pub fn on_change_main_menu_screen(
@@ -39,20 +36,17 @@ pub fn on_change_main_menu_screen(
     *screen = e.0.clone();
 }
 
-pub fn spawn_main_menu(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
+pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     let entity = commands.spawn(MainMenu).id();
 
     let mut entity_commands = commands.entity(entity);
     entity_commands.with_children(|p0| {
         let background_sprite =
-            assets_sprite.load(assert_assets_path!("ui/main_menu/background.png"));
+            PxSprite(asset_server.load(assert_assets_path!("ui/main_menu/background.png")));
         p0.spawn((
-            PxSpriteBundle::<Layer> {
-                sprite: background_sprite,
-                anchor: PxAnchor::BottomLeft,
-                layer: Layer::Hud,
-                ..default()
-            },
+            background_sprite,
+            PxAnchor::BottomLeft,
+            Layer::Hud,
             Name::new("MainMenuBackground"),
         ));
     });
@@ -60,24 +54,26 @@ pub fn spawn_main_menu(mut commands: Commands, mut assets_sprite: PxAssets<PxSpr
 
 pub fn spawn_press_start_screen(
     mut commands: Commands,
-    mut typefaces: PxAssets<PxTypeface>,
+    asset_server: &Res<AssetServer>,
     screen: Res<MainMenuScreen>,
 ) {
     if screen.is_changed() && *screen.as_ref() == MainMenuScreen::PressStart {
-        let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+        let typeface = PxTypeface(
+            asset_server.load(TYPEFACE_INVERTED_PATH),
+            TYPEFACE_CHARACTERS,
+            [(' ', 4)],
+        );
 
         commands.spawn((
             MainMenuEntity,
             PressStartScreenEntity,
-            PxTextBundle::<Layer> {
-                alignment: PxAnchor::Center,
-                canvas: PxCanvas::Camera,
-                // TODO Menu layers
-                layer: Layer::Hud,
-                rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
-                text: "Press Start".into(),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            Layer::Hud,
+            PxRectangle(IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60)),
+            PxText {
+                value: "Press Start".to_string(),
                 typeface: typeface.clone(),
-                ..default()
             },
             Name::new("Text<PressStart>"),
         ));
@@ -86,12 +82,16 @@ pub fn spawn_press_start_screen(
 
 pub fn spawn_game_difficulty_screen(
     mut commands: Commands,
-    mut typefaces: PxAssets<PxTypeface>,
+    asset_server: &Res<AssetServer>,
     screen: Res<MainMenuScreen>,
 ) {
     if screen.is_changed() && *screen.as_ref() == MainMenuScreen::DifficultySelect {
         let color = GBColor::White;
-        let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+        let typeface = PxTypeface(
+            asset_server.load(TYPEFACE_INVERTED_PATH),
+            TYPEFACE_CHARACTERS,
+            [(' ', 4)],
+        );
 
         commands.spawn((
             MainMenuEntity,
@@ -125,15 +125,13 @@ pub fn spawn_game_difficulty_screen(
                     SCREEN_RESOLUTION_F32.x / 2.,
                     SCREEN_RESOLUTION_F32.y / 2.,
                 )),
-                PxTextBundle::<Layer> {
-                    alignment: PxAnchor::Center,
-                    canvas: PxCanvas::Camera,
-                    // TODO Menu layers
-                    layer: Layer::Hud,
-                    rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
-                    text: name.into(),
+                PxAnchor::Center,
+                PxCanvas::Camera,
+                Layer::Hud,
+                PxRectangle(IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60)),
+                PxText {
+                    value: name.to_string(),
                     typeface: typeface.clone(),
-                    ..default()
                 },
                 Name::new(format!("Text<{}>", name)),
             ));

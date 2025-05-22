@@ -18,7 +18,7 @@ use self::{
 use super::resources::StageTime;
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
+use seldom_pixel::prelude::PxSprite;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct MovementSystemSet;
@@ -34,11 +34,11 @@ impl Plugin for PlayerPlugin {
             .init_state::<PlayerPluginUpdateState>()
             .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
             .add_event::<CameraShakeTrigger>()
-            .observe(on_camera_shake)
+            .add_observer(on_camera_shake)
             .add_event::<PlayerStartupTrigger>()
-            .observe(on_player_startup)
+            .add_observer(on_player_startup)
             .add_event::<PlayerShutdownTrigger>()
-            .observe(on_player_shutdown)
+            .add_observer(on_player_shutdown)
             .add_systems(
                 Update,
                 (
@@ -80,7 +80,7 @@ impl CrosshairInfo {
     }
 
     pub fn crosshair_sprite(
-        asset_server: &mut PxAssets<PxSprite>,
+        asset_server: &Res<AssetServer>,
         crosshair_settings: &Res<CrosshairSettings>,
     ) -> CrosshairInfo {
         let sprite;
@@ -88,29 +88,33 @@ impl CrosshairInfo {
 
         match crosshair_settings.0 {
             2 => {
-                sprite = asset_server.load(assert_assets_path!("sprites/crosshairs/squiggly.png"));
+                sprite = PxSprite(
+                    asset_server.load(assert_assets_path!("sprites/crosshairs/squiggly.png")),
+                );
                 crosshair = Crosshair {
                     name: "squiggly".to_string(),
                 };
             }
             1 => {
-                sprite = asset_server.load(assert_assets_path!("sprites/crosshairs/gun_sight.png"));
+                sprite = PxSprite(
+                    asset_server.load(assert_assets_path!("sprites/crosshairs/gun_sight.png")),
+                );
                 crosshair = Crosshair {
                     name: "negative".to_string(),
                 };
             }
             0 => {
-                sprite = asset_server.load(assert_assets_path!(
+                sprite = PxSprite(asset_server.load(assert_assets_path!(
                     "sprites/crosshairs/gun_sight_inverted.png"
-                ));
+                )));
                 crosshair = Crosshair {
                     name: "default".to_string(),
                 };
             }
             _ => {
-                sprite = asset_server.load(assert_assets_path!(
+                sprite = PxSprite(asset_server.load(assert_assets_path!(
                     "sprites/crosshairs/gun_sight_inverted.png"
-                ));
+                )));
                 crosshair = Crosshair {
                     name: "default".to_string(),
                 };

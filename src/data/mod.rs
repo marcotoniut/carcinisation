@@ -13,8 +13,8 @@ pub struct AnimationData {
 }
 
 impl AnimationData {
-    pub fn make_animation_bundle(&self) -> PxAnimationBundle {
-        PxAnimationBundle {
+    pub fn make_animation_bundle(&self) -> PxAnimation {
+        PxAnimation {
             direction: self.direction,
             duration: PxAnimationDuration::millis_per_animation(self.speed),
             frame_transition: self.frame_transition,

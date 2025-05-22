@@ -13,12 +13,8 @@ use crate::{
     systems::spawn::make_music_bundle,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::{
-    prelude::{
-        PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
-        PxSubPosition,
-    },
-    sprite::{PxSprite, PxSpriteBundle},
+use seldom_pixel::prelude::{
+    PxAnchor, PxAnimation, PxAnimationDuration, PxAnimationFinishBehavior, PxSprite, PxSubPosition,
 };
 
 pub fn read_step_trigger(
@@ -99,22 +95,20 @@ pub fn process_cutscene_animations_spawn(
         (Entity, &CutsceneAnimationsSpawn),
         (With<Cinematic>, Added<CutsceneAnimationsSpawn>),
     >,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
 ) {
     for (entity, spawns) in query.iter() {
         for spawn in spawns.spawns.iter() {
-            let sprite = assets_sprite.load_animated(spawn.image_path.clone(), spawn.frame_count);
+            let sprite = PxSprite(asset_server.load(spawn.image_path.clone()));
+            // TODO animate spawn.frame_count
 
             let mut entity_commands = commands.spawn((
                 CutsceneEntity,
                 CutsceneGraphic,
-                PxSpriteBundle::<Layer> {
-                    sprite,
-                    anchor: PxAnchor::BottomLeft,
-                    layer: spawn.layer.clone(),
-                    ..default()
-                },
-                PxAnimationBundle {
+                sprite,
+                PxAnchor::BottomLeft,
+                spawn.layer.clone(),
+                PxAnimation {
                     duration: PxAnimationDuration::millis_per_animation(
                         spawn.duration.as_millis() as u64
                     ),
@@ -140,21 +134,18 @@ pub fn process_cutscene_animations_spawn(
 pub fn process_cutscene_images_spawn(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneImagesSpawn), (With<Cinematic>, Added<CutsceneImagesSpawn>)>,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
 ) {
     for (entity, spawns) in query.iter() {
         for spawn in spawns.spawns.iter() {
-            let sprite = assets_sprite.load(spawn.image_path.clone());
+            let sprite = asset_server.load(spawn.image_path.clone());
 
             let mut entity_commands = commands.spawn((
                 CutsceneEntity,
                 CutsceneGraphic,
-                PxSpriteBundle::<Layer> {
-                    sprite,
-                    anchor: PxAnchor::BottomLeft,
-                    layer: spawn.layer.clone(),
-                    ..default()
-                },
+                sprite,
+                PxAnchor::BottomLeft,
+                spawn.layer.clone(),
                 PxSubPosition::from(spawn.coordinates),
             ));
 

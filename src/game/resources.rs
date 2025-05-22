@@ -20,40 +20,69 @@ pub struct GameData {
     pub steps: Vec<GameStep>,
 }
 
-#[derive(
-    Resource,
-    Debug,
-    Clone,
-    Copy,
-    Eq,
-    PartialEq,
-    PartialOrd,
-    Hash,
-    Default,
-    EnumIter,
-    TryFromPrimitive,
-)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Hash, Default)]
 #[repr(i8)]
 pub enum Difficulty {
-    Easy,
+    Easy = 0,
     #[default]
-    Normal,
-    Hard,
+    Normal = 1,
+    Hard = 2,
 }
 
+// Nightly-only Step impl.
 impl Step for Difficulty {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        Some(((*end as i8 - *start as i8).abs()) as usize)
+    // The new signature returns (min_steps, Some(max_steps)) unless a > b
+    // or overflow might happen. If start > end, we return (0, None).
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
+        let s = *start as i8;
+        let e = *end as i8;
+
+        // If start > end, return (0, None) per the docs.
+        if s > e {
+            return (0, None);
+        }
+
+        // If they're equal, it’s (0, Some(0)).
+        if s == e {
+            return (0, Some(0));
+        }
+
+        // Otherwise s < e. Calculate how many forward steps are needed.
+        let diff = e.wrapping_sub(s); // or just e - s since we’re dealing with small i8
+                                      // In a real type you would check for overflow, but with 3 variants, we’re safe:
+                                      // e - s can't overflow i8 in this small enum.
+
+        let steps = diff as usize;
+        // Return (steps, Some(steps)) as long as it fits in usize and doesn’t overflow.
+        (steps, Some(steps))
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        let end = start as i8 + count as i8;
-        Difficulty::try_from(end).ok()
+        let s = start as i8;
+        // Checking that adding `count` as i8 won't overflow i8 could be done,
+        // but for three variants it’s not strictly necessary.
+        let end = s.checked_add(count as i8)?;
+        Self::try_from(end).ok()
     }
 
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        let end = start as i8 - count as i8;
-        Difficulty::try_from(end).ok()
+        let s = start as i8;
+        let end = s.checked_sub(count as i8)?;
+        Self::try_from(end).ok()
+    }
+}
+
+// Provide a TryFrom<i8> that covers your enum range.
+impl std::convert::TryFrom<i8> for Difficulty {
+    type Error = ();
+
+    fn try_from(value: i8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Difficulty::Easy),
+            1 => Ok(Difficulty::Normal),
+            2 => Ok(Difficulty::Hard),
+            _ => Err(()),
+        }
     }
 }
 

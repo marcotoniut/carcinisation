@@ -40,10 +40,7 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
 use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::{
-    prelude::{PxAssets, PxSubPosition},
-    sprite::PxSprite,
-};
+use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 pub fn toggle_game(
     gb_input: Res<ActionState<GBInput>>,
@@ -68,20 +65,17 @@ pub fn toggle_game(
 // REVIEW
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
     mut state: ResMut<NextState<GameProgressState>>,
+    asset_server: Res<AssetServer>,
     stage_data: Res<StageData>,
 ) {
     commands
         .spawn((Stage, Name::new("Stage")))
         .with_children(|p0| {
-            p0.spawn(BackgroundBundle::new(
-                assets_sprite.load(stage_data.background_path.clone()),
-            ));
-            p0.spawn(SkyboxBundle::new(
-                &mut assets_sprite,
-                stage_data.skybox.clone(),
-            ));
+            p0.spawn(BackgroundBundle::new(PxSprite(
+                asset_server.load(stage_data.background_path.clone()),
+            )));
+            p0.spawn(SkyboxBundle::new(&asset_server, stage_data.skybox.clone()));
         });
 
     state.set(GameProgressState::Running);

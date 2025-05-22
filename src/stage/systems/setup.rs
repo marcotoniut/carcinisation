@@ -13,17 +13,11 @@ use crate::{
     systems::spawn::make_music_bundle,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::{
-    prelude::{PxAssets, PxFilter, PxTypeface},
-    sprite::PxSprite,
-};
+use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
 
 pub fn on_stage_startup(
     trigger: Trigger<StageStartupTrigger>,
     mut commands: Commands,
-    mut filters: PxAssets<PxFilter>,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut typefaces: PxAssets<PxTypeface>,
     mut next_state: ResMut<NextState<StagePluginUpdateState>>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
@@ -34,28 +28,23 @@ pub fn on_stage_startup(
     commands.insert_resource::<StageData>(data.clone());
 
     for spawn in &data.spawns {
-        spawn_hud(
-            &mut commands,
-            &mut typefaces,
-            &mut assets_sprite,
-            &mut filters,
-        );
+        spawn_hud(&mut commands, &asset_server);
 
         #[cfg(debug_assertions)]
         info!("Spawning {:?}", spawn.show_type());
 
         match spawn {
             StageSpawn::Destructible(spawn) => {
-                spawn_destructible(&mut commands, &mut assets_sprite, spawn);
+                spawn_destructible(&mut commands, &asset_server, spawn);
             }
             StageSpawn::Enemy(spawn) => {
                 spawn_enemy(&mut commands, Vec2::ZERO, spawn);
             }
             StageSpawn::Object(spawn) => {
-                spawn_object(&mut commands, &mut assets_sprite, spawn);
+                spawn_object(&mut commands, &asset_server, spawn);
             }
             StageSpawn::Pickup(spawn) => {
-                spawn_pickup(&mut commands, &mut assets_sprite, Vec2::ZERO, spawn);
+                spawn_pickup(&mut commands, &asset_server, Vec2::ZERO, spawn);
             }
         }
     }
@@ -63,10 +52,10 @@ pub fn on_stage_startup(
     commands
         .spawn((Stage, Name::new("Stage")))
         .with_children(|p0| {
-            p0.spawn(BackgroundBundle::new(
-                assets_sprite.load(data.background_path.clone()),
-            ));
-            p0.spawn(SkyboxBundle::new(&mut assets_sprite, data.skybox.clone()));
+            p0.spawn(BackgroundBundle::new(PxSprite(
+                asset_server.load(data.background_path.clone()),
+            )));
+            p0.spawn(SkyboxBundle::new(&asset_server, data.skybox.clone()));
         });
 
     // DEBUG

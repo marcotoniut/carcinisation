@@ -11,34 +11,34 @@ use self::{
 };
 use super::StageUiPluginUpdateState;
 use crate::{
-    components::{GBColor, PxSpriteColorLoader},
     game::{resources::Lives, score::components::Score},
     globals::{
         mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
+    pixel::components::PxRectangle,
     stage::StageProgressState,
 };
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
-use seldom_pixel::prelude::{
-    PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle, PxTypeface,
-};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxTypeface};
 
 pub const HALF_SCREEN_SIZE: i32 = 70;
 
 pub fn render_death_screen(
     mut commands: Commands,
-    mut assets_typeface: PxAssets<PxTypeface>,
-    mut assets_filter: PxAssets<PxFilter>,
+    asset_server: &Res<AssetServer>,
     lives: Res<Lives>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
 ) {
     if stage_state.is_changed() && *stage_state.get() == StageProgressState::Death {
-        let typeface =
-            assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+        let typeface = PxTypeface(
+            asset_server.load(TYPEFACE_INVERTED_PATH),
+            TYPEFACE_CHARACTERS,
+            [(' ', 4)],
+        );
         let lives_text = "Lives ".to_string() + &lives.0.to_string();
         let score_text = score.value.to_string();
 
@@ -47,76 +47,67 @@ pub fn render_death_screen(
             .with_children(|p0| {
                 for i in 25..(115 as i32) {
                     p0.spawn((
-                        PxLineBundle::<Layer> {
-                            canvas: PxCanvas::Camera,
-                            line: [
-                                ((SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE, i).into(),
-                                ((SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE, i).into(),
-                            ]
-                            .into(),
-                            layers: PxFilterLayers::single_over(Layer::UIBackground),
-                            filter: assets_filter.load_color(GBColor::White),
-                            ..default()
-                        },
-                        UIBackground {},
+                        // TODO review
+                        // canvas: PxCanvas::Camera,
+                        PxLine::from([
+                            ((SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE, i).into(),
+                            ((SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE, i).into(),
+                        ]),
+                        PxFilterLayers::single_over(Layer::UIBackground),
+                        PxFilter(asset_server.load(GBColor::White.get_filter_path())),
+                        UIBackground,
                         Name::new("UIBackground"),
                     ));
 
                     p0.spawn((
-                        PxTextBundle::<Layer> {
-                            alignment: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            rect: IRect::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE,
-                                90,
-                                (SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE,
-                                90 + (FONT_SIZE + 2) as i32,
-                            )
-                            .into(),
-                            text: lives_text.clone().into(),
+                        PxAnchor::BottomCenter,
+                        PxCanvas::Camera,
+                        Layer::UI,
+                        PxRectangle(IRect::new(
+                            (SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE,
+                            90,
+                            (SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE,
+                            90 + (FONT_SIZE + 2) as i32,
+                        )),
+                        PxText {
+                            value: lives_text.to_string(),
                             typeface: typeface.clone(),
-                            ..default()
                         },
                         InfoText,
                         Name::new("InfoText_Stage_Lives"),
                     ));
 
                     p0.spawn((
-                        PxTextBundle::<Layer> {
-                            alignment: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            rect: IRect::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                                60,
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                60 + (FONT_SIZE + 2) as i32,
-                            )
-                            .into(),
-                            text: "Score:".into(),
+                        PxAnchor::BottomCenter,
+                        PxCanvas::Camera,
+                        Layer::UI,
+                        PxRectangle(IRect::new(
+                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                            60,
+                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                            60 + (FONT_SIZE + 2) as i32,
+                        )),
+                        PxText {
+                            value: score_text.to_string(),
                             typeface: typeface.clone(),
-                            ..default()
                         },
                         InfoText,
                         Name::new("InfoText_Score"),
                     ));
 
                     p0.spawn((
-                        PxTextBundle::<Layer> {
-                            alignment: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            rect: IRect::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                                50,
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                50 + (FONT_SIZE + 2) as i32,
-                            )
-                            .into(),
-                            text: score_text.clone().into(),
+                        PxAnchor::BottomCenter,
+                        PxCanvas::Camera,
+                        Layer::UI,
+                        PxRectangle(IRect::new(
+                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
+                            50,
+                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
+                            50 + (FONT_SIZE + 2) as i32,
+                        )),
+                        PxText {
+                            value: score_text.to_string(),
                             typeface: typeface.clone(),
-                            ..default()
                         },
                         CurrentScoreText,
                         Name::new("FinalScoreText"),

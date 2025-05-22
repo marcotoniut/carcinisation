@@ -5,7 +5,7 @@ use bevy::{prelude::*, utils::HashMap};
 use seldom_pixel::{
     asset::PxAsset,
     filter::PxFilterData,
-    prelude::{PxAssets, PxFilter, PxFilterLayers, PxLayer, PxLine, PxLineBundle, PxSubPosition},
+    prelude::{PxFilter, PxFilterLayers, PxLayer, PxLine, PxLineBundle, PxSubPosition},
 };
 
 pub fn spawn_rectangle_rows<L: PxLayer>(
@@ -31,7 +31,7 @@ pub fn spawn_rectangle_rows<L: PxLayer>(
 
 pub fn construct_rectangle<L: PxLayer>(
     mut commands: Commands,
-    mut filters: PxAssets<PxFilter>,
+    asset_server: Res<AssetServer>,
     query: Query<(Entity, &PxRectangle<L>), Added<PxRectangle<L>>>,
 ) {
     for (entity, rectangle) in query.iter() {
@@ -39,7 +39,7 @@ pub fn construct_rectangle<L: PxLayer>(
             .entity(entity)
             .insert(rectangle.color)
             .with_children(|p0| {
-                let filter = filters.load(rectangle.color.get_filter_path());
+                let filter = PxFilter(asset_server.load(rectangle.color.get_filter_path()));
                 spawn_rectangle_rows(p0, rectangle, &filter);
             });
     }
@@ -47,8 +47,8 @@ pub fn construct_rectangle<L: PxLayer>(
 
 pub fn update_rectangle_color<L: PxLayer>(
     mut commands: Commands,
-    mut filters: PxAssets<PxFilter>,
     mut query: Query<(Entity, &PxRectangle<L>, Ref<GBColor>)>,
+    asset_server: Res<AssetServer>,
 ) {
     for (parent, rectangle, color) in query.iter_mut() {
         if color.is_changed() && !color.is_added() {
@@ -56,7 +56,7 @@ pub fn update_rectangle_color<L: PxLayer>(
                 .entity(parent)
                 .despawn_descendants()
                 .with_children(|p0| {
-                    let filter = filters.load(color.get_filter_path());
+                    let filter = PxFilter(asset_server.load(color.get_filter_path()));
                     spawn_rectangle_rows(p0, rectangle, &filter);
                 });
         }

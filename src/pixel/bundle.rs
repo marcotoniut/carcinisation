@@ -1,13 +1,13 @@
 use super::components::*;
 use crate::Layer;
 use bevy::{ecs::system::EntityCommands, prelude::BuildChildren};
-use seldom_pixel::prelude::{PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle};
+use seldom_pixel::prelude::{PxCanvas, PxFilter, PxFilterLayers, PxLineBundle};
 
 pub fn insert_rectangle(
     entity_commands: &mut EntityCommands,
     width: u32,
     height: u32,
-    filters: &mut PxAssets<PxFilter>,
+    asset_server: &Res<AssetServer>,
     color: GBColor,
 ) {
     entity_commands
@@ -25,7 +25,7 @@ pub fn insert_rectangle(
                         canvas: PxCanvas::Camera,
                         line: [(0, i).into(), (width as i32, i).into()].into(),
                         layers: PxFilterLayers::single_over(Layer::Transition),
-                        filter: filters.load(color.get_filter_path()),
+                        filter: PxFilter(asset_server.load(color.get_filter_path())),
                         ..default()
                     },
                 ));

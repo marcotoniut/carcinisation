@@ -6,8 +6,8 @@ use crate::{
     stage::{
         attack::{
             components::{
-                bundles::make_hovering_attack_animation_bundle, EnemyAttack,
-                EnemyHoveringAttackType,
+                bundles::{make_hovering_attack_animation_bundle, HoveringAttackAnimationBundle},
+                EnemyAttack, EnemyHoveringAttackType,
             },
             data::boulder_throw::{
                 BOULDER_THROW_ATTACK_DAMAGE, BOULDER_THROW_ATTACK_DEPTH_SPEED,
@@ -25,10 +25,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAssets, PxSubPosition},
-    sprite::PxSprite,
-};
+use seldom_pixel::{prelude::PxSubPosition, sprite::PxSprite};
 
 #[derive(Bundle)]
 pub struct BoulderThrowDefaultBundle {
@@ -108,7 +105,7 @@ impl BoulderThrowMovementBundle {
 
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
     stage_time: &Res<StageTime>,
     target_pos: Vec2,
     current_pos: Vec2,
@@ -121,8 +118,8 @@ pub fn spawn_boulder_throw_attack(
             (1. - rand::random::<f32>()) * BOULDER_THROW_ATTACK_RANDOMNESS,
         );
 
-    let (sprite, animation, collider_data) =
-        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
+    let attack_bundle =
+        HoveringAttackAnimationBundle::new(asset_server, &attack_type, depth.clone());
 
     let mut attacking = EnemyTardigradeAttacking {
         attack: true,
@@ -139,9 +136,5 @@ pub fn spawn_boulder_throw_attack(
         movement: BoulderThrowMovementBundle::new(depth, current_pos, target_pos),
         default: default(),
     });
-    entity_commands.insert((sprite, animation));
-
-    if !collider_data.0.is_empty() {
-        entity_commands.insert(collider_data);
-    }
+    entity_commands.insert(attack_bundle);
 }

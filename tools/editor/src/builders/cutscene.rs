@@ -50,7 +50,7 @@ pub fn spawn_cutscene(
         ));
         entity_commands.with_children(|p0| {
             p0.spawn(Text2dBundle {
-                text: Text::from_section(
+                text: Text::with_section(
                     format!("Act {} ({}s)", act_index, act.elapse.as_secs_f32()),
                     h1_text_style.clone(),
                 ),

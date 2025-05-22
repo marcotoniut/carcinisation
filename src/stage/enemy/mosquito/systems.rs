@@ -23,10 +23,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 use std::time::Duration;
 
 pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
@@ -43,7 +40,7 @@ pub fn assign_mosquito_animation(
         ),
         (With<EnemyMosquito>, Without<EnemyMosquitoAnimation>),
     >,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
 ) {
     for (entity, behavior, position, attacking, depth) in &mut query.iter() {
         let step = behavior.behavior.clone();
@@ -55,7 +52,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyAnimationBundle::new(&asset_server, &animation, depth),
                         )
                     })
                 }
@@ -64,7 +61,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyAnimationBundle::new(&asset_server, &animation, depth),
                         )
                     })
                 }
@@ -76,7 +73,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyAnimationBundle::new(&asset_server, &animation, depth),
                         )
                     })
                 }
@@ -85,7 +82,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyAnimationBundle::new(&asset_server, &animation, depth),
                         )
                     })
                 }
@@ -94,7 +91,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Idle,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyAnimationBundle::new(&asset_server, &animation, depth),
                         )
                     })
                 }
@@ -103,7 +100,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyAnimationBundle::new(&asset_server, &animation, depth),
                         )
                     })
                 }
@@ -117,19 +114,18 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            EnemyAnimationBundle::new(&asset_server, &animation, depth),
                         )
                     })
                 }
             }
         };
 
-        if let Some((animation, (sprite_bundle, animation_bundle))) = bundle_o {
+        if let Some((animation, enemy_animation_bundle)) = bundle_o {
             commands.entity(entity).insert((
                 PxSubPosition(position.0),
                 animation,
-                sprite_bundle,
-                animation_bundle,
+                enemy_animation_bundle,
             ));
         }
     }
@@ -137,7 +133,6 @@ pub fn assign_mosquito_animation(
 
 pub fn despawn_dead_mosquitoes(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
     query: Query<(Entity, &EnemyMosquito, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
@@ -147,18 +142,15 @@ pub fn despawn_dead_mosquitoes(
         let animation_o = MOSQUITO_ANIMATIONS.death.get(depth);
 
         if let Some(animation) = animation_o {
-            let texture =
-                assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
+            let texture = PxSprite(assets_sprite.load(animation.sprite_path.as_str()));
+            // TODO animate animation.frames
 
             commands.spawn((
                 Name::new("Dead - Mosquito"),
                 PxSubPosition::from(position.0),
-                PxSpriteBundle::<Layer> {
-                    sprite: texture,
-                    layer: depth.to_layer(),
-                    anchor: PxAnchor::Center,
-                    ..default()
-                },
+                texture,
+                depth.to_layer(),
+                PxAnchor::Center,
                 animation.make_animation_bundle(),
             ));
         }
@@ -169,7 +161,7 @@ pub fn despawn_dead_mosquitoes(
 
 pub fn check_idle_mosquito(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     // TODO
     // event_writer: EventWriter<BloodAttackEvent>,
@@ -199,7 +191,7 @@ pub fn check_idle_mosquito(
 
                 spawn_blood_shot_attack(
                     &mut commands,
-                    &mut assets_sprite,
+                    &asset_server,
                     &stage_time,
                     SCREEN_RESOLUTION_F32_H.clone() + camera_pos.0,
                     position.0,

@@ -1,9 +1,14 @@
 use crate::{data::AnimationData, layer::Layer, stage::components::placement::Depth};
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAnimationBundle, PxAssets},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxAnimation, PxSprite};
+
+#[derive(Bundle)]
+pub struct EnemyAnimationBundle {
+    pub anchor: PxAnchor,
+    pub animation: PxAnimation,
+    pub depth: Depth,
+    pub sprite: PxSprite,
+}
 
 /**
  * TODO
@@ -11,20 +16,16 @@ use seldom_pixel::{
  * - anchor data should be included in the AnimationData
  * - this function could be agnostic
  */
-pub fn make_enemy_animation_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
-    data: &AnimationData,
-    depth: &Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle) {
-    let texture = assets_sprite.load_animated(data.sprite_path.clone(), data.frames);
+impl EnemyAnimationBundle {
+    pub fn new(asset_server: &Res<AssetServer>, data: &AnimationData, depth: &Depth) -> Self {
+        let sprite = PxSprite(asset_server.load(data.sprite_path.clone()));
+        // TODO animate data.frames
 
-    (
-        PxSpriteBundle::<Layer> {
-            sprite: texture,
-            layer: depth.to_layer(),
+        Self {
             anchor: PxAnchor::Center,
-            ..default()
-        },
-        data.make_animation_bundle(),
-    )
+            animation: data.make_animation_bundle(),
+            depth: depth.clone(),
+            sprite,
+        }
+    }
 }

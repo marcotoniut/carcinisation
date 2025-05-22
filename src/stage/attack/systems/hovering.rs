@@ -16,14 +16,10 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
     mut damage_event_writer: EventWriter<DamageEvent>,
     mut player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
@@ -50,13 +46,10 @@ pub fn hovering_damage_on_reached(
         }
 
         commands.spawn((
-            AudioBundle {
-                source: sound_effect,
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Despawn,
-                    volume: volume_settings.sfx.clone(),
-                    ..default()
-                },
+            AudioPlayer::new(sound_effect),
+            PlaybackSettings {
+                mode: PlaybackMode::Despawn,
+                volume: volume_settings.sfx.clone(),
                 ..default()
             },
             AudioSystemBundle {
@@ -70,13 +63,9 @@ pub fn hovering_damage_on_reached(
             commands.spawn((
                 Name::new(format!("Attack - {} - hit", attack.get_name())),
                 PxSubPosition::from(position.0),
-                PxSpriteBundle::<Layer> {
-                    sprite: assets_sprite
-                        .load_animated(animation.sprite_path.clone(), animation.frames),
-                    layer: depth.to_layer(),
-                    anchor: PxAnchor::Center,
-                    ..default()
-                },
+                PxSprite(asset_server.load(animation.sprite_path.clone())),
+                depth.to_layer(),
+                PxAnchor::Center,
                 animation.make_animation_bundle(),
                 DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.4),
             ));

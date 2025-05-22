@@ -20,10 +20,10 @@ impl Plugin for GamePlugin {
             .init_state::<GamePluginUpdateState>()
             .init_state::<GameProgressState>()
             .add_event::<GameOverTrigger>()
-            .observe(on_game_over)
-            .observe(on_trigger_write_event::<GameOverTrigger>)
+            .add_observer(on_game_over)
+            .add_observer(on_trigger_write_event::<GameOverTrigger>)
             .add_event::<GameStartupTrigger>()
-            .observe(on_game_startup)
+            .add_observer(on_game_startup)
             .add_systems(
                 Update,
                 ((
@@ -39,7 +39,7 @@ impl Plugin for GamePlugin {
 
         #[cfg(debug_assertions)]
         {
-            app.observe(debug_on_game_over);
+            app.add_observer(debug_on_game_over);
         }
     }
 }

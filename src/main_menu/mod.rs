@@ -23,11 +23,11 @@ impl Plugin for MainMenuPlugin {
             .init_resource::<MainMenuScreen>()
             .init_resource::<DifficultySelection>()
             .add_event::<ChangeMainMenuScreenTrigger>()
-            .observe(on_change_main_menu_screen)
+            .add_observer(on_change_main_menu_screen)
             .add_event::<MainMenuStartupEvent>()
-            .observe(on_main_menu_startup)
+            .add_observer(on_main_menu_startup)
             .add_event::<MainMenuShutdownEvent>()
-            .observe(on_main_menu_shutdown)
+            .add_observer(on_main_menu_shutdown)
             .add_systems(OnEnter(MainMenuPluginUpdateState::Active), spawn_main_menu)
             // .add_systems(
             //     OnExit(MainMenuPluginUpdateState::Inactive),

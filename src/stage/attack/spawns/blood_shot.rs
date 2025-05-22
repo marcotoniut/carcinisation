@@ -6,8 +6,9 @@ use crate::{
     stage::{
         attack::{
             components::{
-                bundles::make_hovering_attack_animation_bundle, EnemyAttack,
-                EnemyAttackOriginDepth, EnemyAttackOriginPosition, EnemyHoveringAttackType,
+                bundles::{make_hovering_attack_animation_bundle, HoveringAttackAnimationBundle},
+                EnemyAttack, EnemyAttackOriginDepth, EnemyAttackOriginPosition,
+                EnemyHoveringAttackType,
             },
             data::blood_shot::{
                 BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED,
@@ -25,10 +26,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAssets, PxSubPosition},
-    sprite::PxSprite,
-};
+use seldom_pixel::{prelude::PxSubPosition, sprite::PxSprite};
 
 #[derive(Bundle)]
 pub struct BloodShotDefaultBundle {
@@ -92,7 +90,7 @@ pub struct BloodShotBundle {
 
 pub fn spawn_blood_shot_attack(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &Res<AssetServer>,
     stage_time: &Res<StageTime>,
     target_pos: Vec2,
     current_pos: Vec2,
@@ -106,8 +104,8 @@ pub fn spawn_blood_shot_attack(
             (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
         );
 
-    let (sprite, animation, collider_data) =
-        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
+    let attack_bundle =
+        HoveringAttackAnimationBundle::new(asset_server, &attack_type, depth.clone());
 
     let mut attacking = EnemyMosquitoAttacking {
         attack: Some(EnemyMosquitoAttack::Ranged),
@@ -128,9 +126,5 @@ pub fn spawn_blood_shot_attack(
         default: default(),
     });
 
-    entity_commands.insert((sprite, animation));
-
-    if !collider_data.0.is_empty() {
-        entity_commands.insert(collider_data);
-    }
+    entity_commands.insert(attack_bundle);
 }

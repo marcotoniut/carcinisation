@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use seldom_pixel::{asset::*, filter::*, prelude::*};
+use seldom_pixel::{filter::*, prelude::*};
 
 use crate::{globals::SCREEN_RESOLUTION, layer::Layer};
 
@@ -30,13 +30,13 @@ pub fn update_transition(
     mut commands: Commands,
     timer: Res<TransitionUpdateTimer>,
     mut counter: ResMut<TransitionCounter>,
-    mut filters: PxAssets<PxFilter>,
+    asset_server: Res<AssetServer>,
     transition_line_query: Query<(Entity, &TransitionVenetianRow)>,
 ) {
     let n = 6;
 
     if timer.timer.finished() {
-        let filter = filters.load("filter/color2.png");
+        let filter = PxFilter(asset_server.load("filter/color2.png"));
         let step_closing = SCREEN_RESOLUTION.y;
         let step_buffer = step_closing + (0.35 * SCREEN_RESOLUTION.y as f32) as u32;
         let step_opening = step_buffer + (SCREEN_RESOLUTION.y as f32) as u32;
@@ -73,7 +73,7 @@ pub fn progress(
     mut commands: Commands,
     time: Res<TransitionVenetianTime>,
     // mut counter: ResMut<TransitionCounter>,
-    mut filters: PxAssets<PxFilter>,
+    asset_server: Res<AssetServer>,
 ) {
     // let n = 6;
 

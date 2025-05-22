@@ -27,7 +27,7 @@ impl Plugin for LetterboxPlugin {
                 on_letterbox_shutdown,
             )
             .add_plugins(LinearMovementPlugin::<LetterboxTime, TargetingPositionY>::default())
-            .observe(on_move)
+            .add_observer(on_move)
             .add_systems(
                 Update,
                 (tick_time::<LetterboxTime>).run_if(in_state(LetterboxPluginUpdateState::Active)),

@@ -4,33 +4,35 @@ use crate::{
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxAnimation, PxAnimationDuration, PxSprite};
 
-pub fn make_hovering_attack_animation_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
-    attack_type: &EnemyHoveringAttackType,
-    depth: Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle, ColliderData) {
-    let animation_o = attack_type.get_animations().hovering.get(&depth);
+#[derive(Bundle)]
+pub struct HoveringAttackAnimationBundle {
+    pub sprite: PxSprite,
+    pub animation: PxAnimation,
+    pub collider_data: ColliderData,
+    pub depth: Depth,
+    pub anchor: PxAnchor,
+}
 
-    let animation = animation_o.unwrap();
-    let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
-    (
-        PxSpriteBundle::<Layer> {
+impl HoveringAttackAnimationBundle {
+    pub fn new(
+        asset_server: &Res<AssetServer>,
+        attack_type: &EnemyHoveringAttackType,
+        depth: Depth,
+    ) -> Self {
+        let animation_o = attack_type.get_animations().hovering.get(&depth);
+
+        let animation = animation_o.unwrap();
+        let texture = PxSprite(asset_server.load(animation.sprite_path.as_str()));
+        // TODO animate animation.frames
+
+        Self {
             sprite: texture,
-            layer: (depth - 1).to_layer(),
+            animation: animation.make_animation_bundle(),
+            collider_data: ColliderData::new(),
+            depth,
             anchor: PxAnchor::Center,
-            ..default()
-        },
-        PxAnimationBundle {
-            duration: PxAnimationDuration::millis_per_animation(animation.speed),
-            on_finish: animation.finish_behavior,
-            direction: animation.direction,
-            ..default()
-        },
-        animation.collider_data.clone(),
-    )
+        }
+    }
 }

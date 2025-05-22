@@ -2,16 +2,13 @@ use super::components::{HealthText, Hud, UIBackground};
 use crate::{
     globals::*,
     layer::Layer,
+    pixel::components::PxRectangle,
     stage::{components::StageEntity, ui::components::ScoreText},
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{
-        PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
-        PxTextBundle, PxTypeface,
-    },
-    sprite::{PxSprite, PxSpriteBundle},
+use seldom_pixel::prelude::{
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxSprite, PxSubPosition, PxTypeface,
 };
 
 const LAYOUT_Y: i32 = 2;
@@ -21,13 +18,9 @@ const HUD_HEALTH_ML: i32 = 15;
 const HUD_SCORE_W: i32 = 95;
 const HUD_SCORE_MR: i32 = 15;
 
-pub fn spawn_hud(
-    commands: &mut Commands,
-    typefaces: &mut PxAssets<PxTypeface>,
-    assets_sprite: &mut PxAssets<PxSprite>,
-    filters: &mut PxAssets<PxFilter>,
-) -> Entity {
-    let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+pub fn spawn_hud(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
+    let typeface_asset = asset_server.load(TYPEFACE_INVERTED_PATH);
+    let typeface = PxTypeface(typeface_asset, TYPEFACE_CHARACTERS, [(' ', 4)]);
 
     let entity = commands
         .spawn((Hud, Name::new("Hud"), StageEntity))
@@ -48,32 +41,28 @@ pub fn spawn_hud(
 
             p0.spawn((Name::new("Health"),)).with_children(|parent| {
                 parent.spawn((
-                    PxSpriteBundle::<Layer> {
-                        anchor: PxAnchor::BottomLeft,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Hud,
-                        sprite: assets_sprite
-                            .load(assert_assets_path!("sprites/pickups/health_6.png")),
-                        ..default()
-                    },
+                    PxAnchor::BottomLeft,
+                    PxCanvas::Camera,
+                    Layer::Hud,
+                    PxSprite(
+                        assets_sprite.load(assert_assets_path!("sprites/pickups/health_6.png")),
+                    ),
                     PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),
                     Name::new("HealthIcon"),
                 ));
                 parent.spawn((
-                    PxTextBundle::<Layer> {
-                        alignment: PxAnchor::BottomRight,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Hud,
-                        rect: IRect::new(
-                            HUD_HEALTH_ML,
-                            LAYOUT_Y,
-                            HUD_HEALTH_ML + HUD_HEALTH_W,
-                            LAYOUT_Y + (FONT_SIZE + 2) as i32,
-                        )
-                        .into(),
-                        text: "0".into(),
+                    PxAnchor::BottomRight,
+                    PxCanvas::Camera,
+                    Layer::UI,
+                    PxRectangle(IRect::new(
+                        HUD_HEALTH_ML,
+                        LAYOUT_Y,
+                        HUD_HEALTH_ML + HUD_HEALTH_W,
+                        LAYOUT_Y + (FONT_SIZE + 2) as i32,
+                    )),
+                    PxText {
+                        value: "0".to_string(),
                         typeface: typeface.clone(),
-                        ..default()
                     },
                     HealthText,
                     Name::new("HealthText"),
@@ -82,20 +71,18 @@ pub fn spawn_hud(
 
             p0.spawn((Name::new("Score"),)).with_children(|parent| {
                 parent.spawn((
-                    PxTextBundle::<Layer> {
-                        alignment: PxAnchor::BottomRight,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Hud,
-                        rect: IRect::new(
-                            SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR - HUD_SCORE_W,
-                            LAYOUT_Y,
-                            SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
-                            LAYOUT_Y + (FONT_SIZE + 2) as i32,
-                        )
-                        .into(),
-                        text: "0".into(),
+                    PxAnchor::BottomRight,
+                    PxCanvas::Camera,
+                    Layer::UI,
+                    PxRectangle(IRect::new(
+                        SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR - HUD_SCORE_W,
+                        LAYOUT_Y,
+                        SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
+                        LAYOUT_Y + (FONT_SIZE + 2) as i32,
+                    )),
+                    PxText {
+                        value: "0".to_string(),
                         typeface: typeface.clone(),
-                        ..default()
                     },
                     ScoreText,
                     Name::new("ScoreText"),
