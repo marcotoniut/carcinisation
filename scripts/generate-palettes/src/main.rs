@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::fs;
 
 use image::{ImageBuffer, Rgb};
 
@@ -61,45 +61,44 @@ fn main() {
         ),
     ];
 
-    fs::create_dir_all(Path::new(&PALETTES_PATH)).expect("could not create directory");
+    fs::create_dir_all(PALETTES_PATH).expect("could not create directory");
 
     for (key, palette) in palettes.iter() {
         let mut output_palette_image: ImageBuffer<Rgb<u8>, Vec<u8>> =
             ImageBuffer::new(palette.len() as u32, 1);
 
-        for ((x, y, _), pixel) in output_palette_image.clone().enumerate_pixels().zip(palette) {
-            output_palette_image.put_pixel(x, y, *pixel);
+        for (pixel, source) in output_palette_image.pixels_mut().zip(palette.iter()) {
+            *pixel = *source;
         }
         output_palette_image
-            .save([PALETTES_PATH, &format!("{}.png", *key)].concat())
+            .save(format!("{PALETTES_PATH}{key}.png"))
             .unwrap();
 
         let mut output_invert_palette: ImageBuffer<Rgb<u8>, Vec<u8>> =
             ImageBuffer::new(palette.len() as u32, 1);
 
         if *key == "base" {
-            fs::create_dir_all(&FILTER_PATH).expect("could not create directory");
+            fs::create_dir_all(FILTER_PATH).expect("could not create directory");
             for (i, color) in palette.iter().enumerate() {
                 let mut color_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(4, 1);
                 for x in 0..4 {
                     color_image.put_pixel(x, 0, *color);
                 }
                 color_image
-                    .save([FILTER_PATH, &format!("color{}.png", i)].concat())
+                    .save(format!("{FILTER_PATH}color{i}.png"))
                     .unwrap();
             }
 
             let mut palette_invert = *palette;
             palette_invert.reverse();
-            for ((x, y, _), pixel) in output_invert_palette
-                .clone()
-                .enumerate_pixels()
-                .zip(palette_invert)
+            for (pixel, source) in output_invert_palette
+                .pixels_mut()
+                .zip(palette_invert.into_iter())
             {
-                output_invert_palette.put_pixel(x, y, pixel.clone());
+                *pixel = source;
             }
             output_invert_palette
-                .save([FILTER_PATH, &format!("invert.png")].concat())
+                .save(format!("{FILTER_PATH}invert.png"))
                 .unwrap();
         }
     }
