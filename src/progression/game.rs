@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref GAME_DATA: GameData = GameData {
         name: "Main story".to_string(),
-        steps: make_steps(),
+        steps: make_steps()
     };
 }
 

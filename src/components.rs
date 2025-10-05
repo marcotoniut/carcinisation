@@ -30,10 +30,18 @@ pub enum GBColor {
 impl GBColor {
     pub fn get_filter_path(&self) -> &'static str {
         match self {
-            GBColor::Black => assert_assets_path!("filter/color0.png"),
-            GBColor::DarkGray => assert_assets_path!("filter/color1.png"),
-            GBColor::LightGray => assert_assets_path!("filter/color2.png"),
-            GBColor::White => assert_assets_path!("filter/color3.png"),
+            GBColor::Black => {
+                assert_assets_path!("filter/color0.png")
+            }
+            GBColor::DarkGray => {
+                assert_assets_path!("filter/color1.png")
+            }
+            GBColor::LightGray => {
+                assert_assets_path!("filter/color2.png")
+            }
+            GBColor::White => {
+                assert_assets_path!("filter/color3.png")
+            }
         }
     }
 }

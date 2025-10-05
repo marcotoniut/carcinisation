@@ -78,11 +78,13 @@ fn handle_event(event: Event, last_processed: Arc<Mutex<HashMap<PathBuf, Instant
                         println!("{}", format!("{:?}", err));
                     }
                 },
-                Err(err) => println!(
-                    "{} {}",
-                    "FAILED".red().bold(),
-                    format!("to read file: {:?}", err)
-                ),
+                Err(err) => {
+                    println!(
+                        "{} {}",
+                        "FAILED".red().bold(),
+                        format!("to read file: {:?}", err)
+                    )
+                }
             }
         }
     }
