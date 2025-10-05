@@ -1,8 +1,11 @@
+//! Letterbox-specific time resource used for movement animations.
+
 use crate::core::time::*;
 use bevy::prelude::*;
 use std::time::Duration;
 
 #[derive(Resource, Default, Debug, Clone, Copy)]
+/// Tracks elapsed time for letterbox movement easing.
 pub struct LetterboxTime {
     pub delta: Duration,
     pub elapsed: Duration,

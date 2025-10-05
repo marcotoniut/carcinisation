@@ -1,3 +1,5 @@
+//! Serialized cutscene definitions: layers, steps, images, animations, music.
+
 use super::resources::CutsceneTime;
 use crate::{
     layer::Layer,

@@ -1,8 +1,11 @@
+//! Helper for inserting pixel rectangles into entity hierarchies.
+
 use super::components::*;
 use crate::Layer;
 use bevy::{ecs::system::EntityCommands, prelude::BuildChildren};
 use seldom_pixel::prelude::{PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle};
 
+/// Inserts a pixel rectangle of the given size and colour onto the supplied entity.
 pub fn insert_rectangle(
     entity_commands: &mut EntityCommands,
     width: u32,

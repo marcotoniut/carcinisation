@@ -1,7 +1,10 @@
+//! Shared animation data helpers for stage/enemy definitions.
+
 use crate::stage::components::interactive::ColliderData;
 use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 
+/// Serialized animation metadata used by stage/enemy bundles.
 pub struct AnimationData {
     pub collider_data: ColliderData,
     pub direction: PxAnimationDirection,
@@ -13,6 +16,7 @@ pub struct AnimationData {
 }
 
 impl AnimationData {
+    /// Converts this metadata into a ready-to-use animation bundle.
     pub fn make_animation_bundle(&self) -> PxAnimationBundle {
         PxAnimationBundle {
             direction: self.direction,

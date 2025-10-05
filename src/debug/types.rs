@@ -1,3 +1,5 @@
+//! Registers frequently-inspected types for the Bevy editor/debug tooling.
+
 use bevy::prelude::*;
 
 use crate::{
@@ -34,6 +36,7 @@ use crate::{
     },
 };
 
+/// Registers types needed for reflection-based debugging/inspection.
 pub fn register_types(app: &mut App) {
     app.register_type::<CameraShake>()
         .register_type::<CircleAround>()

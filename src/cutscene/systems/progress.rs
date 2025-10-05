@@ -21,6 +21,7 @@ use seldom_pixel::{
     sprite::{PxSprite, PxSpriteBundle},
 };
 
+/// @system Applies the next cutscene act when none is currently active.
 pub fn read_step_trigger(
     mut commands: Commands,
     mut progress: ResMut<CutsceneProgress>,
@@ -73,6 +74,7 @@ pub fn read_step_trigger(
     }
 }
 
+/// @system Clears timed cutscene segments and optionally their graphics.
 pub fn check_cutscene_elapsed(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneElapsedStarted, &CutsceneElapse), With<Cinematic>>,
@@ -93,6 +95,7 @@ pub fn check_cutscene_elapsed(
     }
 }
 
+/// @system Spawns animated cutscene graphics defined for the current act.
 pub fn process_cutscene_animations_spawn(
     mut commands: Commands,
     query: Query<
@@ -137,6 +140,7 @@ pub fn process_cutscene_animations_spawn(
     }
 }
 
+/// @system Spawns static cutscene images for the active act.
 pub fn process_cutscene_images_spawn(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneImagesSpawn), (With<Cinematic>, Added<CutsceneImagesSpawn>)>,
@@ -167,6 +171,7 @@ pub fn process_cutscene_images_spawn(
     }
 }
 
+/// @system Starts the configured cutscene music, replacing any previous tracks.
 pub fn process_cutscene_music_spawn(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneMusicSpawn), (With<Cinematic>, Added<CutsceneMusicSpawn>)>,
@@ -189,6 +194,7 @@ pub fn process_cutscene_music_spawn(
     }
 }
 
+/// @system Stops cutscene music when the act requests it.
 pub fn process_cutscene_music_despawn(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneMusicDespawn), (With<Cinematic>, Added<CutsceneMusicDespawn>)>,

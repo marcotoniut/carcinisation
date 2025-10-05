@@ -1,3 +1,5 @@
+//! Startup/shutdown handling and progression logic for the main game loop.
+
 use std::sync::Arc;
 
 use crate::{
@@ -22,6 +24,7 @@ use bevy::prelude::*;
 
 const DEBUG_MODULE: &str = "Game";
 
+/// @trigger Initialises game resources and enables the progression plugin.
 pub fn on_game_startup(
     _trigger: Trigger<GameStartupTrigger>,
     mut next_state: ResMut<NextState<GamePluginUpdateState>>,
@@ -46,8 +49,10 @@ pub fn on_game_startup(
 //     next_state.set(GamePluginUpdateState::Inactive);
 // }
 
+/// @trigger Placeholder hook for future game-over cleanup.
 pub fn on_game_over(_trigger: Trigger<GameOverTrigger>) {}
 
+/// @trigger Advances progress when a stage reports it has been cleared.
 pub fn on_stage_cleared(
     mut event_reader: EventReader<StageClearedTrigger>,
     mut commands: Commands,
@@ -61,6 +66,7 @@ pub fn on_stage_cleared(
     }
 }
 
+/// @trigger Advances progress when a cutscene finishes.
 pub fn on_cutscene_shutdown(
     mut event_reader: EventReader<CutsceneShutdownTrigger>,
     mut commands: Commands,
@@ -75,6 +81,7 @@ pub fn on_cutscene_shutdown(
     }
 }
 
+/// @system Reacts to game progression changes, triggering the next step.
 pub fn progress(
     asset_server: Res<AssetServer>,
     game_progress: Res<GameProgress>,
@@ -117,6 +124,7 @@ pub fn progress(
     }
 }
 
+/// @system Triggers cutscene startup once the associated asset finishes loading.
 pub fn check_cutscene_data_loaded(
     asset_handle: Res<CutsceneAssetHandle>,
     data_assets: Res<Assets<CutsceneData>>,
@@ -136,6 +144,7 @@ pub fn check_cutscene_data_loaded(
     }
 }
 
+/// @system Triggers stage startup once the associated asset finishes loading.
 pub fn check_stage_data_loaded(
     asset_handle: Res<StageAssetHandle>,
     data_assets: Res<Assets<StageData>>,

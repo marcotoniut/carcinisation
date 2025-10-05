@@ -1,3 +1,5 @@
+//! Cutscene system: data loading, input handling, progression, and playback state.
+
 pub mod components;
 pub mod data;
 pub mod events;
@@ -27,6 +29,7 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use data::CutsceneData;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
+/// Registers cutscene resources, input mapping, and playback systems.
 pub struct CutscenePlugin;
 
 impl Plugin for CutscenePlugin {
@@ -46,6 +49,7 @@ impl Plugin for CutscenePlugin {
             .add_systems(Startup, init_input)
             .add_systems(
                 Update,
+                // Core playback loop: reads steps, spawns assets, ticks timers.
                 (
                     (
                         read_step_trigger,
@@ -71,6 +75,7 @@ impl Plugin for CutscenePlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Toggle for enabling/disabling cutscene playback systems.
 pub enum CutscenePluginUpdateState {
     #[default]
     Inactive,

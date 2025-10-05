@@ -1,3 +1,5 @@
+//! Stage system orchestration: camera, damage, movement, lifecycle, and spawn logic.
+
 pub mod camera;
 pub mod damage;
 pub mod movement;
@@ -45,6 +47,7 @@ use seldom_pixel::{
     sprite::PxSprite,
 };
 
+/// @system Toggles the game state between running and paused on `Start`.
 pub fn toggle_game(
     gb_input: Res<ActionState<GBInput>>,
     state: Res<State<GameProgressState>>,
@@ -66,6 +69,7 @@ pub fn toggle_game(
 }
 
 // REVIEW
+/// @system Spawns the core stage bundle and kicks off gameplay.
 pub fn spawn_current_stage_bundle(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
@@ -89,16 +93,19 @@ pub fn spawn_current_stage_bundle(
 
 // TODO combine the two and use just_finished and StageTime
 // TODO should be using StageTime instead of Time
+/// @system Advances the stage action timer every frame.
 pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
     timer.timer.tick(time.delta());
 }
 
+/// @system Emits `NextStepEvent` when the action timer elapses.
 pub fn check_stage_step_timer(timer: Res<StageActionTimer>, mut commands: Commands) {
     if timer.timer.finished() {
         commands.trigger(NextStepEvent);
     }
 }
 
+/// @system Evaluates the current stage progress and transitions between states.
 pub fn update_stage(
     mut commands: Commands,
     state: Res<State<StageProgressState>>,
@@ -138,6 +145,7 @@ pub fn update_stage(
     }
 }
 
+/// @system Triggers `StageClearedTrigger` once all steps are complete.
 pub fn check_staged_cleared(
     mut commands: Commands,
     stage_progress: Res<StageProgress>,
@@ -148,6 +156,7 @@ pub fn check_staged_cleared(
     }
 }
 
+/// @trigger Handles cleanup and celebration when the stage is cleared.
 pub fn on_stage_cleared(
     trigger: Trigger<StageClearedTrigger>,
     mut commands: Commands,
@@ -178,6 +187,7 @@ pub fn on_stage_cleared(
     next_state.set(StageProgressState::Cleared);
 }
 
+/// @system Applies death penalties and fires `StageDeathEvent` when the player dies.
 pub fn check_stage_death(
     mut commands: Commands,
     mut lives: ResMut<Lives>,
@@ -191,6 +201,7 @@ pub fn check_stage_death(
     }
 }
 
+/// @trigger Responds to `StageDeathEvent`, transitioning to Game Over or restarting.
 pub fn on_death(
     _trigger: Trigger<StageDeathEvent>,
     mut commands: Commands,
@@ -230,6 +241,7 @@ pub fn on_death(
     }
 }
 
+/// @system Applies the next stage step to the stage entity when none is active.
 pub fn read_step_trigger(
     mut commands: Commands,
     mut progress: ResMut<StageProgress>,
@@ -265,6 +277,7 @@ pub fn read_step_trigger(
     }
 }
 
+/// @system Prepares cinematic steps (placeholder for future cutscene integration).
 pub fn initialise_cinematic_step(
     mut next_state: ResMut<NextState<GameProgressState>>,
     query: Query<(Entity, &CinematicStageStep), (With<Stage>, Added<CinematicStageStep>)>,
@@ -274,6 +287,7 @@ pub fn initialise_cinematic_step(
     }
 }
 
+/// @system Sets up camera movement and spawns tied to a movement step.
 pub fn initialise_movement_step(
     mut commands: Commands,
     query: Query<(Entity, &MovementStageStep), (With<Stage>, Added<MovementStageStep>)>,
@@ -319,6 +333,7 @@ pub fn initialise_movement_step(
     }
 }
 
+/// @system Seeds stop-step spawners and optional floor markers.
 pub fn initialise_stop_step(
     mut commands: Commands,
     query: Query<(Entity, &StopStageStep), (With<Stage>, Added<StopStageStep>)>,
@@ -342,6 +357,7 @@ pub fn initialise_stop_step(
     }
 }
 
+/// @system Advances once the camera finishes its scripted movement.
 pub fn check_movement_step_reached(
     mut commands: Commands,
     step_query: Query<Entity, With<MovementStageStep>>,
@@ -372,6 +388,7 @@ pub fn check_movement_step_reached(
     }
 }
 
+/// @system Advances stop steps once their optional duration expires.
 pub fn check_stop_step_finished_by_duration(
     mut commands: Commands,
     query: Query<(&StopStageStep, &CurrentStageStep), With<Stage>>,
@@ -388,6 +405,7 @@ pub fn check_stop_step_finished_by_duration(
     }
 }
 
+/// @system Placeholder hook for updating cinematic steps each frame.
 pub fn update_cinematic_step(
     mut commands: Commands,
     query: Query<(Entity, &CinematicStageStep), With<Stage>>,
@@ -395,6 +413,7 @@ pub fn update_cinematic_step(
     for (entity, _) in query.iter() {}
 }
 
+/// @trigger Removes cinematic step markers after `NextStepEvent` fires.
 pub fn on_next_step_cleanup_cinematic_step(
     trigger: Trigger<NextStepEvent>,
     mut commands: Commands,
@@ -408,6 +427,7 @@ pub fn on_next_step_cleanup_cinematic_step(
     }
 }
 
+/// @trigger Cleans up movement step components once the stage advances.
 pub fn on_next_step_cleanup_movement_step(
     trigger: Trigger<NextStepEvent>,
     mut commands: Commands,
@@ -422,6 +442,7 @@ pub fn on_next_step_cleanup_movement_step(
     }
 }
 
+/// @trigger Cleans up stop step components once the stage advances.
 pub fn on_next_step_cleanup_stop_step(
     trigger: Trigger<NextStepEvent>,
     mut commands: Commands,

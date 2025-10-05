@@ -1,3 +1,5 @@
+//! Serialized stage definitions: spawns, pickups, objects, and scripted steps.
+
 use super::{
     components::{placement::Depth, CinematicStageStep, MovementStageStep, StopStageStep},
     destructible::data::DestructibleSpawn,
@@ -12,17 +14,20 @@ use serde_with::{serde_as, DurationSecondsWithFrac};
 use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
+    /// Convenience spawn position centred on the gameplay viewport.
     pub static ref DEFAULT_COORDINATES: Vec2 = SCREEN_RESOLUTION_F32_H.clone();
 }
 
 pub const GAME_BASE_SPEED: f32 = 15.0;
 
+/// Common methods for spawn containers that may hold pickups or enemies.
 pub trait Contains {
     fn with_contains(&mut self, value: Option<Box<ContainerSpawn>>);
     fn drops(&mut self, value: ContainerSpawn);
 }
 
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+/// Metadata required to load an animated skybox.
 pub struct SkyboxData {
     pub path: String,
     pub frames: usize,
@@ -30,6 +35,7 @@ pub struct SkyboxData {
 
 // deriving Default for simplicity's sake in defining the stage data
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+/// Static props that can populate the stage background.
 pub enum ObjectType {
     BenchBig,
     BenchSmall,
@@ -38,6 +44,7 @@ pub enum ObjectType {
 }
 
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+/// Pickup categories available for drop spawns.
 pub enum PickupType {
     SmallHealthpack,
     BigHealthpack,
@@ -48,6 +55,7 @@ pub enum PickupType {
 }
 
 #[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
+/// Container that either spawns a pickup or an enemy payload.
 pub enum ContainerSpawn {
     Pickup(PickupDropSpawn),
     Enemy(EnemyDropSpawn),
@@ -56,6 +64,7 @@ pub enum ContainerSpawn {
 // TODO move pickup data under its own module?
 #[serde_as]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+/// Runtime spawn instruction for a pickup entity.
 pub struct PickupSpawn {
     pub pickup_type: PickupType,
     pub coordinates: Vec2,
@@ -66,9 +75,11 @@ pub struct PickupSpawn {
 }
 
 impl PickupSpawn {
+    /// Builds a Bevy name for debugging.
     pub fn get_name(&self) -> Name {
         Name::new(self.show_type())
     }
+    /// Display string describing the pickup type.
     pub fn show_type(&self) -> String {
         format!("Pickup<{:?}>", self.pickup_type)
     }
@@ -100,11 +111,13 @@ impl PickupSpawn {
 
 // TODO move pickup data under its own module?
 #[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
+/// Template describing which pickup type should drop.
 pub struct PickupDropSpawn {
     pub pickup_type: PickupType,
 }
 
 impl PickupDropSpawn {
+    /// Creates a concrete spawn from this template at the provided location/depth.
     pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> PickupSpawn {
         PickupSpawn {
             pickup_type: self.pickup_type.clone(),
@@ -116,6 +129,7 @@ impl PickupDropSpawn {
 }
 
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+/// Static prop placement within the stage map.
 pub struct ObjectSpawn {
     pub object_type: ObjectType,
     pub coordinates: Vec2,
@@ -123,9 +137,11 @@ pub struct ObjectSpawn {
 }
 
 impl ObjectSpawn {
+    /// Builds a Bevy name for debugging.
     pub fn get_name(&self) -> Name {
         Name::new(self.show_type())
     }
+    /// Display string describing the object type.
     pub fn show_type(&self) -> String {
         format!("Object<{:?}>", self.object_type)
     }

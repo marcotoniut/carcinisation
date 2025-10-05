@@ -1,3 +1,5 @@
+//! Gizmo drawing helpers for visualising stage data during development.
+
 use super::DebugColor;
 use crate::{
     globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
@@ -42,6 +44,7 @@ pub fn to_viewport_coordinates(position: Vec2) -> Vec2 {
     )
 }
 
+/// @system Renders the configured floor heights as horizontal gizmo lines.
 pub fn draw_floor_lines(mut gizmos: Gizmos, query: Query<(&Depth, &Floor)>) {
     for (_, floor) in query.iter() {
         let floor_y = to_viewport_coordinate_y(floor.0);
@@ -54,6 +57,7 @@ pub fn draw_floor_lines(mut gizmos: Gizmos, query: Query<(&Depth, &Floor)>) {
     }
 }
 
+/// @system Visualises collider shapes in the viewport-relative coordinate space.
 pub fn draw_colliders(
     mut gizmos: Gizmos,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,

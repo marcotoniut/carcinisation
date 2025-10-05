@@ -1,6 +1,9 @@
+//! Score-related resources.
+
 use bevy::prelude::*;
 
 #[derive(Resource, Default)]
+/// Tracks the current run score.
 pub struct Score {
     pub value: u32,
 }
@@ -21,6 +24,7 @@ impl Score {
 }
 
 #[derive(Resource)]
+/// Stores the top high scores for display.
 pub struct HighScores {
     pub scores: Vec<(String, u32)>,
 }

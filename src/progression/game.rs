@@ -1,3 +1,5 @@
+//! Defines the default sequence of game steps (cinematics and stages).
+
 use crate::game::components::steps::*;
 use crate::game::data::GameStep;
 use crate::game::resources::GameData;
@@ -5,12 +7,14 @@ use assert_assets_path::assert_assets_path;
 use lazy_static::lazy_static;
 
 lazy_static! {
+    /// Main campaign definition exposed to menus/startup.
     pub static ref GAME_DATA: GameData = GameData {
         name: "Main story".to_string(),
         steps: make_steps()
     };
 }
 
+/// Builds the ordered list of game steps for the campaign.
 pub fn make_steps() -> Vec<GameStep> {
     vec![
         CinematicAssetGameStep {

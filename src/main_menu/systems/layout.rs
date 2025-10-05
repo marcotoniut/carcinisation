@@ -84,6 +84,7 @@ pub fn spawn_press_start_screen(
     }
 }
 
+/// @system Builds the difficulty selection UI when that screen activates.
 pub fn spawn_game_difficulty_screen(
     mut commands: Commands,
     mut typefaces: PxAssets<PxTypeface>,

@@ -1,3 +1,5 @@
+//! Handles enemy attack entities, their lifecycle, and collision outcomes.
+
 pub mod components;
 pub mod data;
 pub mod spawns;
@@ -9,12 +11,14 @@ use self::{
 };
 use bevy::prelude::*;
 
+/// Schedules attack-related systems and gating state.
 pub struct AttackPlugin;
 
 impl Plugin for AttackPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<AttackPluginUpdateState>().add_systems(
             Update,
+            // Only advance attack behaviour when the plugin is explicitly active.
             (
                 (check_got_hit, check_health_at_0).chain(),
                 despawn_dead_attacks,
@@ -28,6 +32,7 @@ impl Plugin for AttackPlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Controls when attack systems tick (mirrors the stage lifecycle).
 pub enum AttackPluginUpdateState {
     #[default]
     Inactive,

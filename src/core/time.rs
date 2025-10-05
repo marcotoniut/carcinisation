@@ -1,3 +1,5 @@
+//! Time abstractions and helpers shared across plugins (stage, movement, etc.).
+
 use bevy::prelude::*;
 use derive_new::new;
 use std::{marker::PhantomData, time::Duration};
@@ -15,6 +17,7 @@ pub trait Ticker: DeltaTime + ElapsedTime {
 }
 
 #[derive(new, Resource)]
+/// Optional runtime multiplier applied to ticking resources (debug only).
 pub struct TimeMultiplier<T: Ticker> {
     #[new(default)]
     _phantom: PhantomData<T>,
@@ -22,11 +25,13 @@ pub struct TimeMultiplier<T: Ticker> {
 }
 
 #[cfg(not(debug_assertions))]
+/// @system Ticks a `Ticker` resource using Bevy's `Time` delta (release builds).
 pub fn tick_time<T: Ticker + Resource>(mut time: ResMut<T>, app_time: Res<Time>) {
     time.tick(app_time.delta());
 }
 #[cfg(debug_assertions)]
 
+/// @system Ticks a `Ticker` resource, respecting optional debug multipliers.
 pub fn tick_time<T: Ticker + Resource>(
     mut time: ResMut<T>,
     app_time: Res<Time>,

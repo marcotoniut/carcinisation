@@ -1,3 +1,5 @@
+//! Player stage systems: movement, attacks, camera shake, and crosshair assets.
+
 pub mod bundles;
 pub mod components;
 pub mod crosshair;
@@ -21,11 +23,14 @@ use bevy::prelude::*;
 use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+/// Player movement systems run before confinement to ensure corrected positions.
 pub struct MovementSystemSet;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+/// Ensures players stay within the stage bounds after movement systems run.
 pub struct ConfinementSystemSet;
 
+/// Plugin that schedules player input, attack timers, and camera effects.
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -41,6 +46,7 @@ impl Plugin for PlayerPlugin {
             .observe(on_player_shutdown)
             .add_systems(
                 Update,
+                // Player logic only runs when the plugin is active.
                 (
                     tick_attack_timer::<StageTime>,
                     check_attack_timer,
@@ -55,12 +61,14 @@ impl Plugin for PlayerPlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Stage-level toggle that enables/disables player systems.
 pub enum PlayerPluginUpdateState {
     #[default]
     Inactive,
     Active,
 }
 
+/// Convenience holder for the chosen crosshair sprite and metadata.
 pub struct CrosshairInfo {
     pub sprite: Handle<seldom_pixel::asset::PxAsset<seldom_pixel::sprite::PxSpriteData>>,
     pub crosshair: Crosshair,
@@ -68,6 +76,7 @@ pub struct CrosshairInfo {
 
 impl CrosshairInfo {
     /** REVIEW if these are needed */
+    /// Returns the underlying sprite handle (consumes the wrapper).
     pub fn get_sprite(
         crosshair: CrosshairInfo,
     ) -> Handle<seldom_pixel::asset::PxAsset<seldom_pixel::sprite::PxSpriteData>> {
@@ -75,10 +84,12 @@ impl CrosshairInfo {
     }
 
     /** REVIEW if these are needed */
+    /// Returns the crosshair metadata (consumes the wrapper).
     pub fn get_crosshair(crosshair: CrosshairInfo) -> Crosshair {
         crosshair.crosshair
     }
 
+    /// Loads the sprite matching the configured index and returns the combined info.
     pub fn crosshair_sprite(
         asset_server: &mut PxAssets<PxSprite>,
         crosshair_settings: &Res<CrosshairSettings>,
@@ -117,6 +128,6 @@ impl CrosshairInfo {
             }
         }
 
-        return CrosshairInfo { sprite, crosshair };
+        CrosshairInfo { sprite, crosshair }
     }
 }

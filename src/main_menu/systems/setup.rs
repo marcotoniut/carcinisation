@@ -1,3 +1,5 @@
+//! Startup/shutdown transitions for the main menu.
+
 use crate::{
     debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
@@ -22,6 +24,7 @@ pub fn on_main_menu_startup(
     next_state.set(MainMenuPluginUpdateState::Active);
 }
 
+/// @trigger Cleans up main menu entities and disables the plugin.
 pub fn on_main_menu_shutdown(
     _trigger: Trigger<MainMenuShutdownEvent>,
     mut commands: Commands,

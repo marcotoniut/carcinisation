@@ -1,3 +1,5 @@
+//! Letterbox bars shown during cutscenes and transitions.
+
 pub mod components;
 pub mod events;
 pub mod resources;
@@ -11,6 +13,7 @@ use crate::{
 use self::{events::LetterboxMoveTrigger, resources::LetterboxTime, systems::*};
 use bevy::prelude::*;
 
+/// Manages letterbox entities, movement triggers, and timing.
 pub struct LetterboxPlugin;
 
 impl Plugin for LetterboxPlugin {
@@ -30,12 +33,14 @@ impl Plugin for LetterboxPlugin {
             .observe(on_move)
             .add_systems(
                 Update,
+                // Keep letterbox movement timers in sync when active.
                 (tick_time::<LetterboxTime>).run_if(in_state(LetterboxPluginUpdateState::Active)),
             );
     }
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Indicates whether the letterbox UI is currently in use.
 pub enum LetterboxPluginUpdateState {
     Inactive,
     #[default]

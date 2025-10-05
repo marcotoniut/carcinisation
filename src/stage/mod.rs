@@ -1,3 +1,5 @@
+//! Stage gameplay orchestration: spawns enemies, drives progression, and renders UI overlays.
+
 pub mod attack;
 pub mod bundles;
 pub mod components;
@@ -59,11 +61,14 @@ use pickup::systems::health::PickupDespawnFilter;
 use seldom_pixel::prelude::PxSubPosition;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+/// Systems that load stage data and assets before play begins.
 pub struct LoadingSystemSet;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+/// Systems that build out level entities once resources are available.
 pub struct BuildingSystemSet;
 
+/// Registers all stage-related plugins, assets, events, and frame drives.
 pub struct StagePlugin;
 
 /**
@@ -77,11 +82,13 @@ impl Plugin for StagePlugin {
         app.insert_resource(TimeMultiplier::<StageTime>::new(1.));
 
         app.add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
+            // Core stage state/resources that every sub-system relies on.
             .init_state::<StagePluginUpdateState>()
             .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
             .init_resource::<StageProgress>()
+            // Event streams for the combat/progression loop.
             .add_event::<DamageEvent>()
             .add_event::<DepthChangedEvent>()
             .add_event::<StageDeathEvent>()
@@ -100,6 +107,7 @@ impl Plugin for StagePlugin {
             // TODO .observe(on_startup_from_checkpoint))
             .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
             .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
+            // Shared movement helpers (linear/pursue) reused by multiple enemy types.
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
             .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionX>::default())
@@ -117,6 +125,7 @@ impl Plugin for StagePlugin {
             .add_plugins(StageUiPlugin)
             .add_systems(
                 Update,
+                // Primary stage tick, only when gameplay is active and running.
                 (
                     update_stage,
                     (
@@ -187,6 +196,7 @@ impl Plugin for StagePlugin {
             )
             .add_systems(
                 Update,
+                // Overlay/UI rendering keeps pace whenever the stage plugin is active.
                 (
                     // Cleared screen
                     render_cleared_screen,
@@ -207,6 +217,7 @@ impl Plugin for StagePlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// High-level lifecycle for a stage run (used to gate systems).
 pub enum StageProgressState {
     #[default]
     Initial,
@@ -218,6 +229,7 @@ pub enum StageProgressState {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Whether the stage plugin should be ticking its Update schedule.
 pub enum StagePluginUpdateState {
     #[default]
     Inactive,
