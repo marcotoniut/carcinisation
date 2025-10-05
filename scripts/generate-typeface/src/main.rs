@@ -29,7 +29,7 @@ fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> R
 
     let mut y = 0;
 
-    for (_, c) in characters.iter().enumerate() {
+    for c in characters.iter() {
         let glyph = font.glyph(*c).scaled(scale);
         let h_metrics = glyph.h_metrics();
 

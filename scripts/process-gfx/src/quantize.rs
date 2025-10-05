@@ -2,7 +2,7 @@ use image::*;
 use palette::color_difference::EuclideanDistance;
 use palette::*;
 
-fn find_closest_color(palette: &Vec<Srgb>, color: Srgb) -> usize {
+fn find_closest_color(palette: &[Srgb], color: Srgb) -> usize {
     let mut closest_color_index = 0;
     let mut closest_color_distance = f32::MAX;
 
@@ -32,11 +32,6 @@ pub fn reduce_colors(
         })
         .collect::<Vec<Srgb>>();
 
-    let mut pick_palette = palette.clone();
-    if invert {
-        pick_palette.reverse();
-    }
-
     let (width, height) = img.dimensions();
     let mut output_image: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
@@ -46,7 +41,12 @@ pub fn reduce_colors(
             let input_srgb_color = input_srgba_color.without_alpha();
 
             let closest_color_index = find_closest_color(&palette, input_srgb_color);
-            let closest_color = pick_palette[closest_color_index].with_alpha(1.0);
+            let adjusted_index = if invert {
+                palette.len() - 1 - closest_color_index
+            } else {
+                closest_color_index
+            };
+            let closest_color = palette[adjusted_index].with_alpha(1.0);
 
             let output_pixel: Rgba<u8> = image::Rgba(closest_color.into_format().into());
 
@@ -54,5 +54,5 @@ pub fn reduce_colors(
         }
     }
 
-    return output_image;
+    output_image
 }

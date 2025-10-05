@@ -18,7 +18,7 @@ fn rescale_image(
     let divider: f32 = width as f32 / target_width as f32;
     let new_height = (height as f32 / divider) as u32;
 
-    return imageops::resize(img, target_width, new_height, imageops::FilterType::Nearest);
+    imageops::resize(img, target_width, new_height, imageops::FilterType::Nearest)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -37,30 +37,19 @@ struct Config {
 }
 
 fn main() {
-    let mut data_str = "".to_string();
-
-    if cfg!(windows) {
+    let data_str = if cfg!(windows) {
         println!("this is windows");
         let mut root = std::env::current_dir().unwrap();
         root.push(RESOURCES_GFX_PATH);
-        println!("{}", root.as_path().to_str().unwrap().to_string());
+        println!("{}", root.display());
 
-        let win_path = format!(
-            "{}{}",
-            root.as_path().to_str().unwrap().to_string(),
-            "data.toml"
-        );
-        println!("WINDOWS PATH: {}", win_path);
+        let win_path = root.join("data.toml");
+        println!("WINDOWS PATH: {}", win_path.display());
 
-        data_str = fs::read_to_string(format!(
-            "{}{}",
-            root.as_path().to_str().unwrap().to_string(),
-            "data.toml"
-        ))
-        .unwrap();
+        fs::read_to_string(&win_path).unwrap()
     } else {
-        data_str = fs::read_to_string(format!("{}{}", RESOURCES_GFX_PATH, "data.toml")).unwrap();
-    }
+        fs::read_to_string(format!("{RESOURCES_GFX_PATH}data.toml")).unwrap()
+    };
 
     let data: Config = toml::from_str(&data_str).unwrap();
 
@@ -84,7 +73,7 @@ fn main() {
             "{} {}",
             image
                 .width
-                .map_or_else(|| "original".to_string(), |w| format!("{}w", w.to_string())),
+                .map_or_else(|| "original".to_owned(), |w| format!("{w}w")),
             if image.invert_colors { "invert" } else { "" }
         );
         println!();
