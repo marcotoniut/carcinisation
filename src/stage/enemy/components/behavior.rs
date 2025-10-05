@@ -97,13 +97,15 @@ impl EnemyCurrentBehavior {
             EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
             EnemyStep::Circle(CircleAroundEnemyStep {
                 radius, direction, ..
-            }) => BehaviorBundle::Circle(CircleAround {
-                center: current_position.0,
-                // TODO hardcoded values should be coming from the enemy type
-                radius: radius.unwrap_or(12.),
-                direction: direction.clone(),
-                time_offset: time_offset.as_secs_f32(),
-            }),
+            }) => {
+                BehaviorBundle::Circle(CircleAround {
+                    center: current_position.0,
+                    // TODO hardcoded values should be coming from the enemy type
+                    radius: radius.unwrap_or(12.),
+                    direction: direction.clone(),
+                    time_offset: time_offset.as_secs_f32(),
+                })
+            }
             EnemyStep::Jump(JumpEnemyStep {
                 attacking,
                 coordinates,

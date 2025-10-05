@@ -117,9 +117,6 @@ impl CrosshairInfo {
             }
         }
 
-        return CrosshairInfo {
-            sprite: sprite,
-            crosshair: crosshair,
-        };
+        return CrosshairInfo { sprite, crosshair };
     }
 }
