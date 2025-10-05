@@ -6,6 +6,7 @@ use bevy::{prelude::*, utils::HashMap};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
+    convert::TryInto,
     iter::Step,
     ops::{Add, Sub},
 };
@@ -70,18 +71,27 @@ impl Sub<i8> for Depth {
 }
 
 impl Step for Depth {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        Some(((*end as i8 - *start as i8).abs()) as usize)
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
+        if start <= end {
+            let steps = (*end as i8 - *start as i8) as usize;
+            (steps, Some(steps))
+        } else {
+            (0, None)
+        }
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        let end = start as i8 + count as i8;
-        Depth::try_from(end).ok()
+        let offset: i16 = count.try_into().ok()?;
+        let target = i16::from(start as i8) + offset;
+        let target = i8::try_from(target).ok()?;
+        Depth::try_from(target).ok()
     }
 
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        let end = start as i8 - count as i8;
-        Depth::try_from(end).ok()
+        let offset: i16 = count.try_into().ok()?;
+        let target = i16::from(start as i8) - offset;
+        let target = i8::try_from(target).ok()?;
+        Depth::try_from(target).ok()
     }
 }
 

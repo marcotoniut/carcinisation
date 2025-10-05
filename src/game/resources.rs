@@ -3,7 +3,7 @@ use crate::{cutscene::data::CutsceneData, stage::data::StageData};
 use super::data::GameStep;
 use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
-use std::iter::Step;
+use std::{convert::TryInto, iter::Step};
 use strum_macros::EnumIter;
 
 #[derive(Resource, Debug, Default, Clone, Copy)]
@@ -42,18 +42,27 @@ pub enum Difficulty {
 }
 
 impl Step for Difficulty {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        Some(((*end as i8 - *start as i8).abs()) as usize)
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
+        if start <= end {
+            let steps = (*end as i8 - *start as i8) as usize;
+            (steps, Some(steps))
+        } else {
+            (0, None)
+        }
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        let end = start as i8 + count as i8;
-        Difficulty::try_from(end).ok()
+        let offset: i16 = count.try_into().ok()?;
+        let target = i16::from(start as i8) + offset;
+        let target = i8::try_from(target).ok()?;
+        Difficulty::try_from(target).ok()
     }
 
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        let end = start as i8 - count as i8;
-        Difficulty::try_from(end).ok()
+        let offset: i16 = count.try_into().ok()?;
+        let target = i16::from(start as i8) - offset;
+        let target = i8::try_from(target).ok()?;
+        Difficulty::try_from(target).ok()
     }
 }
 
