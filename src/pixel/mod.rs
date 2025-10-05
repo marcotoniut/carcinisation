@@ -1,3 +1,5 @@
+//! Integrates `seldom_pixel` helpers for rectangle construction and updates.
+
 pub mod components;
 mod systems;
 
@@ -6,6 +8,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxLayer;
 use std::marker::PhantomData;
 
+/// Wraps pixel-specific systems for constructing/updating rectangle gizmos.
 pub struct PixelPlugin<L: PxLayer> {
     _phantom_l: PhantomData<L>,
 }

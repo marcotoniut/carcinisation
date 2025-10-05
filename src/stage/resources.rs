@@ -1,3 +1,5 @@
+//! Stage-scoped resources for tracking time, progress, and spawn timers.
+
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -8,6 +10,7 @@ use crate::core::time::*;
 use super::data::StageSpawn;
 
 #[derive(Resource, Default, Debug, Clone, Copy, Reflect)]
+/// Accumulates stage delta/elapsed time for time-based systems.
 pub struct StageTime {
     pub delta: Duration,
     pub elapsed: Duration,
@@ -33,11 +36,13 @@ impl Ticker for StageTime {
 }
 
 #[derive(Clone, Debug, Default, Resource)]
+/// Stores the active stage step index.
 pub struct StageProgress {
     pub index: usize,
 }
 
 #[derive(Resource)]
+/// Wrapper timer used to pace scripted stage actions.
 pub struct StageActionTimer {
     pub timer: Timer,
 }
@@ -51,6 +56,7 @@ impl Default for StageActionTimer {
 }
 
 #[derive(new, Component, Default)]
+/// Component that sequences stage spawns and tracks elapsed times.
 pub struct StageStepSpawner {
     #[new(default)]
     pub elapsed: Duration,

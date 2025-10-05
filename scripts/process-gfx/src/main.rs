@@ -1,3 +1,5 @@
+//! Converts source graphics into game-ready textures with palette reduction.
+
 extern crate image;
 
 mod paths;
@@ -10,6 +12,7 @@ use std::{fs, path::Path};
 
 use crate::quantize::reduce_colors;
 
+/// Rescales an RGBA image to a target width while preserving aspect ratio.
 fn rescale_image(
     target_width: u32,
     img: &ImageBuffer<Rgba<u8>, Vec<u8>>,
@@ -36,6 +39,7 @@ struct Config {
     images: Vec<Image>,
 }
 
+/// Loads the processing manifest and emits palette-reduced textures.
 fn main() {
     let data_str = if cfg!(windows) {
         println!("this is windows");

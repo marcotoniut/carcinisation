@@ -1,7 +1,10 @@
+//! Palette-aware colour quantisation helpers shared by the asset pipeline.
+
 use image::*;
 use palette::color_difference::EuclideanDistance;
 use palette::*;
 
+/// Returns the index of the palette entry closest to `color` in RGB space.
 fn find_closest_color(palette: &[Srgb], color: Srgb) -> usize {
     let mut closest_color_index = 0;
     let mut closest_color_distance = f32::MAX;
@@ -18,6 +21,7 @@ fn find_closest_color(palette: &[Srgb], color: Srgb) -> usize {
     closest_color_index
 }
 
+/// Maps every opaque pixel in `img` onto the supplied palette, optionally reversing it.
 pub fn reduce_colors(
     palette_image: &ImageBuffer<Rgba<u8>, Vec<u8>>,
     invert: bool,

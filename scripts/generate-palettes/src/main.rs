@@ -1,3 +1,5 @@
+//! Generates the core palette textures and filter assets used by the game.
+
 use std::fs;
 
 use image::{ImageBuffer, Rgb};
@@ -5,6 +7,7 @@ use image::{ImageBuffer, Rgb};
 const PALETTES_PATH: &str = "../../assets/palette/";
 const FILTER_PATH: &str = "../../assets/filter/";
 
+/// Builds per-palette PNGs plus convenience filter textures.
 fn main() {
     let palettes: Vec<(&str, [Rgb<u8>; 4])> = vec![
         (
@@ -78,6 +81,8 @@ fn main() {
             ImageBuffer::new(palette.len() as u32, 1);
 
         if *key == "base" {
+            // The base palette also drives editor filters, so build per-color swatches
+            // and an inverted gradient for shader uniforms.
             fs::create_dir_all(FILTER_PATH).expect("could not create directory");
             for (i, color) in palette.iter().enumerate() {
                 let mut color_image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(4, 1);

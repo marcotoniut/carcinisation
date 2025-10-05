@@ -1,3 +1,5 @@
+//! Score tracking plugin and systems.
+
 pub mod components;
 mod systems;
 
@@ -5,6 +7,7 @@ use bevy::prelude::*;
 
 use self::{components::*, systems::*};
 
+/// Maintains run score and high-score tables.
 pub struct ScorePlugin;
 
 impl Plugin for ScorePlugin {

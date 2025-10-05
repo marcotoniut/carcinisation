@@ -1,8 +1,11 @@
+//! Pixel rectangle component definitions.
+
 use crate::components::GBColor;
 use bevy::prelude::*;
 use seldom_pixel::prelude::*;
 
 #[derive(Component, Default)]
+/// Describes a rectangular pixel region to render using ``seldom_pixel``.
 pub struct PxRectangle<L: PxLayer> {
     pub canvas: PxCanvas,
     pub color: GBColor,
@@ -13,6 +16,7 @@ pub struct PxRectangle<L: PxLayer> {
 }
 
 impl<L: PxLayer> PxRectangle<L> {
+    /// Produces the endpoints used to draw a horizontal row of the rectangle.
     pub fn row_line_vec(&self, position: Vec2, row: &PxRectangleRow) -> Vec<IVec2> {
         let x = position.x as i32;
         let y = (position.y + row.0 as f32) as i32;
@@ -70,4 +74,5 @@ impl<L: PxLayer> PxRectangle<L> {
 }
 
 #[derive(Component, Copy, Clone, Debug)]
+/// Component tagging child entities for each rectangle row.
 pub struct PxRectangleRow(pub u32);

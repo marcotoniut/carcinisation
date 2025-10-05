@@ -1,3 +1,5 @@
+//! Enemy entity definitions, behaviours, and species-specific logic.
+
 pub mod bundles;
 pub mod components;
 pub mod data;
@@ -13,12 +15,14 @@ use self::{
 };
 use bevy::prelude::*;
 
+/// Registers shared enemy behaviour systems and species handlers.
 pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<EnemyPluginUpdateState>().add_systems(
             Update,
+            // Behaviour/animation updates only run while the enemy subsystem is active.
             (
                 check_no_behavior,
                 on_enemy_depth_changed,
@@ -48,6 +52,7 @@ impl Plugin for EnemyPlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Stage-level flag controlling when enemy systems execute.
 pub enum EnemyPluginUpdateState {
     #[default]
     Inactive,

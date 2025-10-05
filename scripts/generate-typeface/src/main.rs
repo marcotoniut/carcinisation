@@ -1,3 +1,5 @@
+//! Rasterises the Pixeboy typeface into a bitmap atlas for the HUD.
+
 extern crate image;
 extern crate rusttype;
 
@@ -6,6 +8,7 @@ use rusttype::{point, Font, Scale};
 
 const RESOURCES_PATH: &str = "../../resources/";
 
+/// Renders each glyph to a vertically stacked bitmap strip.
 fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> RgbaImage {
     let font_data = std::fs::read(font_path).unwrap();
     let font = Font::try_from_vec(font_data).unwrap();
@@ -61,6 +64,7 @@ fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> R
     image
 }
 
+/// Writes the HUD typeface atlas to `resources/gfx/typeface`.
 fn main() {
     let target_height = 10;
     let binding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?"

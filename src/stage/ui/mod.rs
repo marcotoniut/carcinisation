@@ -1,3 +1,5 @@
+//! Stage-specific UI overlays: HUD, cleared/death/game-over screens, and state gating.
+
 pub mod cleared_screen;
 pub mod components;
 pub mod death_screen;
@@ -18,6 +20,7 @@ use self::{
 };
 use bevy::prelude::*;
 
+/// Registers all stage UI sub-plugins and manages their active state.
 pub struct StageUiPlugin;
 
 impl Plugin for StageUiPlugin {
@@ -33,6 +36,7 @@ impl Plugin for StageUiPlugin {
             .add_systems(OnEnter(StageUiPluginUpdateState::Inactive), on_inactive)
             .add_systems(
                 Update,
+                // HUD score updates when UI is active.
                 update_score_text.run_if(in_state(StageUiPluginUpdateState::Active)),
             );
         // .add_plugins(PauseScreenPlugin);
@@ -40,6 +44,7 @@ impl Plugin for StageUiPlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Stage UI enable/disable flag.
 pub enum StageUiPluginUpdateState {
     #[default]
     Inactive,

@@ -1,3 +1,5 @@
+//! Game progression plugin: orchestrates stages, cutscenes, and score handling.
+
 pub mod components;
 pub mod data;
 pub mod events;
@@ -12,6 +14,7 @@ use bevy::prelude::*;
 use resources::{CutsceneAssetHandle, StageAssetHandle};
 use systems::debug::debug_on_game_over;
 
+/// Registers the high-level game state machine and supporting systems.
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
@@ -26,6 +29,7 @@ impl Plugin for GamePlugin {
             .observe(on_game_startup)
             .add_systems(
                 Update,
+                // Core progression loop: wait for assets, advance steps, react to stage events.
                 ((
                     check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),
                     check_stage_data_loaded.run_if(resource_exists::<StageAssetHandle>),
@@ -45,6 +49,7 @@ impl Plugin for GamePlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Coarse game states used to drive menus/cutscenes/stage logic.
 pub enum GameProgressState {
     #[default]
     Loading,
@@ -54,6 +59,7 @@ pub enum GameProgressState {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Toggle for enabling/disabling the game progression plugin.
 pub enum GamePluginUpdateState {
     #[default]
     Inactive,

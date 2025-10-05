@@ -1,3 +1,5 @@
+//! Startup/shutdown handling for cutscenes.
+
 use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
@@ -14,6 +16,7 @@ use bevy::prelude::*;
 
 const DEBUG_MODULE: &str = "Cutscene";
 
+/// @trigger Boots a cutscene, loading data and enabling systems.
 pub fn on_cutscene_startup(
     trigger: Trigger<CutsceneStartupTrigger>,
     mut commands: Commands,
@@ -31,6 +34,7 @@ pub fn on_cutscene_startup(
     commands.spawn((Cinematic, Name::new("Cutscene")));
 }
 
+/// @trigger Cleans up cutscene entities and disables the plugin.
 pub fn on_cutscene_shutdown(
     _trigger: Trigger<CutsceneShutdownTrigger>,
     mut commands: Commands,

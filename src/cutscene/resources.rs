@@ -1,8 +1,11 @@
+//! Cutscene timing and progression resources shared by systems.
+
 use crate::core::time::*;
 use bevy::prelude::*;
 use std::time::Duration;
 
 #[derive(Resource, Default, Debug, Clone, Copy)]
+/// Tracks delta/elapsed time for cutscene playback.
 pub struct CutsceneTime {
     pub delta: Duration,
     pub elapsed: Duration,
@@ -28,6 +31,7 @@ impl Ticker for CutsceneTime {
 }
 
 #[derive(Resource, Default, Clone, Copy)]
+/// Index into the current cutscene act list.
 pub struct CutsceneProgress {
     pub index: usize,
 }

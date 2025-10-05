@@ -1,8 +1,11 @@
+//! Systems updating score resources.
+
 use bevy::prelude::*;
 
 use super::components::*;
 use crate::game::events::GameOverTrigger;
 
+/// @system Inserts the final run score into the high-score list.
 pub fn on_game_over_update_high_scores(
     mut reader: EventReader<GameOverTrigger>,
     mut high_scores: ResMut<HighScores>,
@@ -17,6 +20,7 @@ pub fn on_game_over_update_high_scores(
     }
 }
 
+/// @system Logs updated high scores in debug builds.
 pub fn debug_high_scores_updated(high_scores: Res<HighScores>) {
     if high_scores.is_changed() {
         info!("High scores updated!");

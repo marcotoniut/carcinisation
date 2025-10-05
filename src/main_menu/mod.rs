@@ -1,3 +1,5 @@
+//! Main menu state machine, events, and UI spawning.
+
 pub mod components;
 pub mod events;
 pub mod input;
@@ -15,6 +17,7 @@ use self::{
 };
 use bevy::prelude::*;
 
+/// Registers menu resources, screens, and interaction systems.
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
@@ -35,11 +38,13 @@ impl Plugin for MainMenuPlugin {
             // )
             .add_systems(
                 Update,
+                // Lazily spawns required screens while active.
                 (spawn_game_difficulty_screen, spawn_press_start_screen)
                     .run_if(in_state(MainMenuPluginUpdateState::Active)),
             )
             .add_systems(
                 PostUpdate,
+                // Handle input according to the active menu screen.
                 (
                     (check_press_start_input)
                         .run_if(resource_exists_and_equals(MainMenuScreen::PressStart)),
@@ -54,6 +59,7 @@ impl Plugin for MainMenuPlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Controls when menu systems should run.
 pub enum MainMenuPluginUpdateState {
     #[default]
     Inactive,
@@ -61,6 +67,7 @@ pub enum MainMenuPluginUpdateState {
 }
 
 #[derive(Resource, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Tracks which menu screen is currently visible.
 pub enum MainMenuScreen {
     #[default]
     PressStart,

@@ -1,3 +1,5 @@
+//! Systems for constructing/updating pixel rectangles rendered via `seldom_pixel`.
+
 use crate::components::GBColor;
 
 use super::components::*;
@@ -8,6 +10,7 @@ use seldom_pixel::{
     prelude::{PxAssets, PxFilter, PxFilterLayers, PxLayer, PxLine, PxLineBundle, PxSubPosition},
 };
 
+/// Spawns a `PxLineBundle` for each row of the rectangle.
 pub fn spawn_rectangle_rows<L: PxLayer>(
     parent: &mut ChildBuilder<'_>,
     rectangle: &PxRectangle<L>,
@@ -29,6 +32,7 @@ pub fn spawn_rectangle_rows<L: PxLayer>(
     }
 }
 
+/// @system Initialises the pixel rectangle and its child row entities on add.
 pub fn construct_rectangle<L: PxLayer>(
     mut commands: Commands,
     mut filters: PxAssets<PxFilter>,
@@ -45,6 +49,7 @@ pub fn construct_rectangle<L: PxLayer>(
     }
 }
 
+/// @system Respawns rectangle rows if the colour changes.
 pub fn update_rectangle_color<L: PxLayer>(
     mut commands: Commands,
     mut filters: PxAssets<PxFilter>,
@@ -63,6 +68,7 @@ pub fn update_rectangle_color<L: PxLayer>(
     }
 }
 
+/// @system Updates child line endpoints when the rectangle moves.
 pub fn update_rectangle_position<L: PxLayer>(
     mut parents_query: Query<(Entity, &PxRectangle<L>, Ref<PxSubPosition>, Ref<Children>)>,
     mut children_query: Query<(&Parent, &PxRectangleRow, &mut PxLine)>,

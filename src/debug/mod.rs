@@ -1,3 +1,5 @@
+//! Debug drawing utilities and plugin wiring.
+
 pub mod plugin;
 mod systems;
 pub mod types;
@@ -5,6 +7,7 @@ pub mod types;
 use self::{systems::*, types::register_types};
 use bevy::prelude::*;
 
+/// Registers debug drawing systems and type introspection helpers.
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
@@ -18,6 +21,7 @@ impl Plugin for DebugPlugin {
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+/// Enables optional debug drawing systems.
 pub enum DebugPluginUpdateState {
     Inactive,
     #[default]

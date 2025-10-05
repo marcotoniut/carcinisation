@@ -1,3 +1,5 @@
+//! Application entrypoint: wires Bevy, shared plugins, and platform defaults.
+
 #![feature(step_trait)]
 
 mod assets;
@@ -48,6 +50,7 @@ use systems::{
     *,
 };
 
+/// Bootstraps the Bevy `App` with game plugins, resources, and editor tooling.
 fn main() {
     let title: String = "CARCINISATION".to_string();
     let focused: bool = false;
@@ -55,6 +58,7 @@ fn main() {
     let mut app = App::new();
     #[cfg(debug_assertions)]
     {
+        // Debug builds keep the window resizable and enable in-engine debugging tools.
         app.add_plugins((
             DefaultPlugins.set(WindowPlugin {
                 primary_window: Some(Window {
@@ -73,6 +77,7 @@ fn main() {
     }
     #[cfg(not(debug_assertions))]
     {
+        // Release builds run fullscreen-friendly and skip editor diagnostics.
         app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title,
@@ -85,16 +90,19 @@ fn main() {
         }));
     }
     app
+        // Core resources initialise difficulty and audio defaults before systems run.
         // TEMP
         // .insert_resource(GlobalVolume::new(0.3))
         .init_resource::<DifficultySelected>()
         .init_resource::<VolumeSettings>()
         // Setup
+        // Input, timing, and pixel pipeline plugins come before game-specific plugins.
         .add_plugins(InputManagerPlugin::<GBInput>::default())
         .add_plugins(FramepacePlugin)
         .add_plugins(PixelPlugin::<Layer>::default())
         .add_systems(Startup, (spawn_camera, set_framespace, init_gb_input))
         // Graphics and Game
+        // Seed render state and register the core gameplay plugin stack.
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
         .add_plugins(PxPlugin::<Layer>::new(
@@ -112,6 +120,7 @@ fn main() {
         .add_systems(
             Update,
             (
+                // Core camera and positioning updates run every frame.
                 move_camera,
                 update_position_x,
                 update_position_y,
@@ -121,6 +130,7 @@ fn main() {
             ),
         )
         // Cleanup
+        // Despawn entities marked for removal after systems finish.
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
         .run();
 }

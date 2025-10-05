@@ -1,3 +1,5 @@
+//! Input mapping for navigating the main menu.
+
 use crate::input::GBInput;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
@@ -5,6 +7,7 @@ use leafwing_input_manager::Actionlike;
 use leafwing_input_manager::{action_state::ActionState, input_map::InputMap};
 
 #[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
+/// Menu actions handled by interaction systems.
 pub enum MainMenuScreenInput {
     Up,
     Down,
@@ -13,6 +16,7 @@ pub enum MainMenuScreenInput {
     Cancel,
 }
 
+/// @system Registers menu input bindings using the shared GB schema.
 pub fn init_input(mut commands: Commands) {
     let ms: Vec<(MainMenuScreenInput, KeyCode)> = vec![
         (MainMenuScreenInput::Select, GBInput::A.into()),

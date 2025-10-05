@@ -1,3 +1,5 @@
+//! Systems handling menu inputs and transitions between screens.
+
 use crate::{
     game::{events::GameStartupTrigger, resources::Difficulty},
     input::GBInput,
@@ -7,6 +9,7 @@ use crate::{
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
+/// @system Starts the game immediately from the press-start screen.
 pub fn check_press_start_input(mut commands: Commands, gb_input: Res<ActionState<GBInput>>) {
     if gb_input.just_pressed(&GBInput::Start)
         || gb_input.just_pressed(&GBInput::A)
@@ -17,6 +20,7 @@ pub fn check_press_start_input(mut commands: Commands, gb_input: Res<ActionState
     }
 }
 
+/// @system Confirms selection from the main menu screen.
 pub fn check_main_select_select_option_input(
     mut commands: Commands,
     gb_input: Res<ActionState<GBInput>>,
@@ -27,6 +31,7 @@ pub fn check_main_select_select_option_input(
     }
 }
 
+/// @system Cycles through difficulty options based on directional input.
 pub fn game_difficulty_select_change(
     mut selection: ResMut<DifficultySelection>,
     gb_input: Res<ActionState<GBInput>>,
@@ -48,6 +53,7 @@ pub fn game_difficulty_select_change(
     }
 }
 
+/// @system Applies the currently highlighted difficulty when confirmed.
 pub fn game_difficulty_select_option(
     selection_state: Res<DifficultySelection>,
     mut selected_state: ResMut<DifficultySelected>,

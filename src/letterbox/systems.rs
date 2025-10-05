@@ -1,3 +1,5 @@
+//! Systems managing the lifecycle and movement of letterbox bars.
+
 use super::components::*;
 use super::events::LetterboxMoveTrigger;
 use super::resources::LetterboxTime;
@@ -18,6 +20,7 @@ use seldom_pixel::prelude::*;
 
 const DEBUG_MODULE: &str = "Letterbox";
 
+/// @system Spawns the top/bottom letterbox entities when entering the active state.
 pub fn on_letterbox_startup(mut commands: Commands) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
@@ -55,6 +58,7 @@ pub fn on_letterbox_startup(mut commands: Commands) {
     ));
 }
 
+/// @system Cleans up letterbox entities when leaving the active state.
 pub fn on_letterbox_shutdown(
     mut commands: Commands,
     entity_query: Query<Entity, With<LetterboxEntity>>,
@@ -65,6 +69,7 @@ pub fn on_letterbox_shutdown(
     mark_for_despawn_by_query(&mut commands, &entity_query);
 }
 
+/// @trigger Applies movement instructions to letterbox entities.
 pub fn on_move(
     trigger: Trigger<LetterboxMoveTrigger>,
     mut commands: Commands,
@@ -82,6 +87,7 @@ pub fn on_move(
     }
 }
 
+/// Inserts linear movement towards `target`, preserving direction.
 pub fn insert_linear_movement(
     commands: &mut Commands,
     (entity, position): (Entity, &PxSubPosition),
