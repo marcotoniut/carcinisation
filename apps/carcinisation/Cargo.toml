@@ -1,0 +1,24 @@
+[package]
+name = "carcinisation"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+assert_assets_path = { workspace = true }
+bevy = { workspace = true }
+bevy_common_assets = { workspace = true }
+bevy_editor_pls = { workspace = true }
+bevy_framepace = { workspace = true }
+colored = { workspace = true }
+derive-new = { workspace = true }
+derive_more = { workspace = true }
+lazy_static = { workspace = true }
+leafwing-input-manager = { workspace = true }
+num_enum = { workspace = true }
+rand = { workspace = true }
+seldom_pixel = { workspace = true }
+serde = { workspace = true }
+serde_with = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+wasm-bindgen = { workspace = true }
