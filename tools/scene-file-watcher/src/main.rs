@@ -3,6 +3,7 @@ use colored::*;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ron::de::from_str;
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
@@ -10,6 +11,26 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const DEBOUNCE_DURATION: Duration = Duration::from_secs(1);
+
+fn find_assets_root() -> PathBuf {
+    let mut dir = env::var("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| env::current_dir().expect("unable to determine current dir"));
+
+    loop {
+        let candidate = dir.join("assets");
+        if candidate.exists() {
+            return candidate;
+        }
+
+        if !dir.pop() {
+            panic!(
+                "Unable to locate an `assets` directory relative to `{}`",
+                env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| dir.display().to_string())
+            );
+        }
+    }
+}
 
 fn main() -> notify::Result<()> {
     let (tx, rx) = channel();
@@ -23,7 +44,8 @@ fn main() -> notify::Result<()> {
     )?;
 
     // Define the path to watch.
-    let path_to_watch = Path::new("../../assets/");
+    let assets_root = find_assets_root();
+    let path_to_watch: &Path = assets_root.as_ref();
     watcher.watch(path_to_watch, RecursiveMode::Recursive)?;
 
     println!("Watching {:?} for changes...", path_to_watch);

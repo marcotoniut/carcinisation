@@ -30,10 +30,7 @@ pub fn setup_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
         0.0,
     );
 
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_translation(camera_translation),
-        ..Default::default()
-    });
+    commands.spawn((Camera2d, Transform::from_translation(camera_translation)));
 }
 
 pub fn check_cutscene_data_loaded(
@@ -149,16 +146,18 @@ pub fn on_unload_scene(
 
 pub fn animate_sprite(
     time: Res<Time>,
-    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
+    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut Sprite)>,
 ) {
-    for (indices, mut timer, mut atlas) in &mut query {
+    for (indices, mut timer, mut sprite) in &mut query {
         timer.tick(time.delta());
         if timer.just_finished() {
-            atlas.index = if atlas.index == indices.last {
-                indices.first
-            } else {
-                atlas.index + 1
-            };
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = if atlas.index == indices.last {
+                    indices.first
+                } else {
+                    atlas.index + 1
+                };
+            }
         }
     }
 }
