@@ -12,7 +12,9 @@ fn resolve_assets_root() -> PathBuf {
         .get_or_init(|| {
             let mut dir = std::env::var("CARGO_MANIFEST_DIR")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| std::env::current_dir().expect("unable to determine current dir"));
+                .unwrap_or_else(|_| {
+                    std::env::current_dir().expect("unable to determine current dir")
+                });
 
             loop {
                 let candidate = dir.join("assets");

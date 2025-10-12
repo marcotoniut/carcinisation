@@ -44,11 +44,11 @@ pub fn spawn_path(
         Name::new("Camera Position"),
         SceneItem,
         ShapeBundle {
-            spatial: SpatialBundle::from_transform(Transform {
+            path: GeometryBuilder::build_as(&camera_shape),
+            transform: Transform {
                 translation: camera_position.extend(CAMERA_POSITION_Z),
                 ..default()
-            }),
-            path: GeometryBuilder::build_as(&camera_shape),
+            },
             ..default()
         },
         Stroke::color(Color::WHITE),
@@ -83,12 +83,12 @@ pub fn spawn_path(
                     Name::new(format!("Elapsed Path Movement Arrow {}", index)),
                     SceneItem,
                     ShapeBundle {
-                        spatial: SpatialBundle::from_transform(Transform {
+                        path: GeometryBuilder::build_as(&arrow_shape),
+                        transform: Transform {
                             translation: (current_position + h_screen_resolution).extend(PATH_Z),
                             rotation: Quat::from_rotation_z(angle),
                             ..default()
-                        }),
-                        path: GeometryBuilder::build_as(&arrow_shape),
+                        },
                         ..default()
                     },
                     Fill::color(Color::CYAN),
@@ -115,7 +115,7 @@ pub fn spawn_path(
         SceneItem,
         ShapeBundle {
             path: path_builder.build(),
-            spatial: SpatialBundle::from_transform(Transform::from_xyz(0.0, 0.0, PATH_Z)),
+            transform: Transform::from_xyz(0.0, 0.0, PATH_Z),
             ..default()
         },
         Stroke::new(Color::CYAN, 1.0),
@@ -130,44 +130,42 @@ pub fn spawn_stage(
     texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
 ) {
     if stage_controls_ui.background_is_visible() {
-        let texture = asset_server.load(&stage_data.background_path);
+        let mut sprite = Sprite::from_image(asset_server.load(stage_data.background_path.clone()));
+        sprite.anchor = Anchor::BottomLeft;
 
         commands.spawn((
             Name::new("SG Background"),
             SceneItem,
-            SpriteBundle {
-                texture,
-                transform: Transform::from_xyz(0.0, 0.0, BACKGROUND_Z),
-                sprite: Sprite {
-                    anchor: Anchor::BottomLeft,
-                    ..default()
-                },
-                ..default()
-            },
+            sprite,
+            Transform::from_xyz(0.0, 0.0, BACKGROUND_Z),
         ));
     }
 
     if stage_controls_ui.skybox_is_visible() {
-        let texture = asset_server.load(&stage_data.skybox.path);
-        let texture_atlas_layout =
-            TextureAtlasLayout::from_grid(SCREEN_RESOLUTION, 1, 2, None, None);
-        let layout = texture_atlas_layouts.add(texture_atlas_layout);
+        let layout_handle = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+            SCREEN_RESOLUTION,
+            1,
+            2,
+            None,
+            None,
+        ));
+
+        let mut sprite = Sprite::from_atlas_image(
+            asset_server.load(stage_data.skybox.path.clone()),
+            TextureAtlas {
+                layout: layout_handle.clone(),
+                index: 0,
+            },
+        );
+        sprite.anchor = Anchor::BottomLeft;
 
         let camera_position =
             stage_data.calculate_camera_position(stage_controls_ui.ElapsedDuration);
         commands.spawn((
             Name::new("SG Skybox"),
             SceneItem,
-            SpriteBundle {
-                sprite: Sprite {
-                    anchor: Anchor::BottomLeft,
-                    ..default()
-                },
-                texture,
-                transform: Transform::from_translation(camera_position.extend(SKYBOX_Z)),
-                ..default()
-            },
-            TextureAtlas { layout, index: 0 },
+            sprite,
+            Transform::from_translation(camera_position.extend(SKYBOX_Z)),
             AnimationIndices {
                 first: 0,
                 last: stage_data.skybox.frames.saturating_sub(1),
@@ -175,12 +173,6 @@ pub fn spawn_stage(
             AnimationTimer(Timer::from_seconds(2.0, TimerMode::Repeating)),
         ));
     }
-
-    let label_style = TextStyle {
-        font: asset_server.load(FONT_PATH),
-        font_size: 12.0,
-        color: Color::WHITE,
-    };
 
     for (index, spawn) in stage_data
         .spawns
@@ -190,25 +182,22 @@ pub fn spawn_stage(
     {
         if spawn.get_elapsed() <= stage_controls_ui.ElapsedDuration {
             let thumbnail = spawn.get_thumbnail();
+            let (image_path, rect) = thumbnail;
+            let mut sprite = Sprite::from_image(asset_server.load(image_path));
+            sprite.anchor = Anchor::BottomCenter;
+            sprite.rect = rect;
+
             commands.spawn((
                 spawn.get_editor_name_component(index),
                 StageSpawnLabel,
                 Draggable,
                 SceneItem,
-                SpriteBundle {
-                    texture: asset_server.load(&thumbnail.0),
-                    transform: Transform::from_translation(
-                        spawn
-                            .get_coordinates()
-                            .extend(spawn.get_depth_editor_z_index()),
-                    ),
-                    sprite: Sprite {
-                        anchor: Anchor::BottomCenter,
-                        rect: thumbnail.1,
-                        ..default()
-                    },
-                    ..default()
-                },
+                sprite,
+                Transform::from_translation(
+                    spawn
+                        .get_coordinates()
+                        .extend(spawn.get_depth_editor_z_index()),
+                ),
             ));
         }
     }
@@ -227,24 +216,18 @@ pub fn spawn_stage(
                         && stage_controls_ui.depth_is_visible(spawn.get_depth())
                     {
                         let v = current_position + *spawn.get_coordinates();
-                        let thumbnail = spawn.get_thumbnail();
+                        let (image_path, rect) = spawn.get_thumbnail();
+                        let mut sprite = Sprite::from_image(asset_server.load(image_path));
+                        sprite.anchor = Anchor::BottomCenter;
+                        sprite.rect = rect;
+
                         commands.spawn((
                             spawn.get_editor_name_component(index),
                             StageSpawnLabel,
                             Draggable,
                             SceneItem,
-                            SpriteBundle {
-                                texture: asset_server.load(&thumbnail.0),
-                                transform: Transform::from_translation(
-                                    v.extend(spawn.get_depth_editor_z_index()),
-                                ),
-                                sprite: Sprite {
-                                    anchor: Anchor::BottomCenter,
-                                    rect: thumbnail.1,
-                                    ..default()
-                                },
-                                ..default()
-                            },
+                            sprite,
+                            Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
                         ));
                     }
                 }
@@ -264,24 +247,18 @@ pub fn spawn_stage(
                         && stage_controls_ui.depth_is_visible(spawn.get_depth())
                     {
                         let v = current_position + *spawn.get_coordinates();
-                        let thumbnail = spawn.get_thumbnail();
+                        let (image_path, rect) = spawn.get_thumbnail();
+                        let mut sprite = Sprite::from_image(asset_server.load(image_path));
+                        sprite.anchor = Anchor::BottomCenter;
+                        sprite.rect = rect;
+
                         commands.spawn((
                             spawn.get_editor_name_component(index),
                             StageSpawnLabel,
                             Draggable,
                             SceneItem,
-                            SpriteBundle {
-                                texture: asset_server.load(&thumbnail.0),
-                                transform: Transform::from_translation(
-                                    v.extend(spawn.get_depth_editor_z_index()),
-                                ),
-                                sprite: Sprite {
-                                    anchor: Anchor::BottomCenter,
-                                    rect: thumbnail.1,
-                                    ..default()
-                                },
-                                ..default()
-                            },
+                            sprite,
+                            Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
                         ));
                     }
                 }
@@ -289,37 +266,28 @@ pub fn spawn_stage(
         }
     }
 
+    let info_text = format!(
+        "Stage: {}\nMusic: {}\nStart Coordinates: {}\nSteps: {}\nStatic Spawns: {}\nDynamic Spawns: {}",
+        stage_data.name,
+        stage_data.music_path,
+        stage_data.start_coordinates.unwrap_or(Vec2::ZERO),
+        stage_data.steps.len(),
+        stage_data.spawns.len(),
+        stage_data.dynamic_spawn_count(),
+    );
+
     commands.spawn((
         Name::new("SG Info"),
         SceneItem,
-        Text2dBundle {
-            text: Text::from_sections([
-                TextSection::new("Stage: ", label_style.clone()),
-                TextSection::new(&stage_data.name, label_style.clone()),
-                TextSection::new("\nMusic: ", label_style.clone()),
-                TextSection::new(&stage_data.music_path, label_style.clone()),
-                TextSection::new("\nStart Coordinates: ", label_style.clone()),
-                TextSection::new(
-                    &stage_data
-                        .start_coordinates
-                        .unwrap_or(Vec2::ZERO)
-                        .to_string(),
-                    label_style.clone(),
-                ),
-                TextSection::new("\nSteps: ", label_style.clone()),
-                TextSection::new(&stage_data.steps.len().to_string(), label_style.clone()),
-                TextSection::new("\nStatic Spawns: ", label_style.clone()),
-                TextSection::new(&stage_data.spawns.len().to_string(), label_style.clone()),
-                TextSection::new("\nDynamic Spawns: ", label_style.clone()),
-                TextSection::new(
-                    &stage_data.dynamic_spawn_count().to_string(),
-                    label_style.clone(),
-                ),
-            ]),
-            transform: Transform::from_xyz(0.0, -15.0, 0.0),
-            text_anchor: Anchor::TopLeft,
+        Text2d::new(info_text),
+        TextFont {
+            font: asset_server.load(FONT_PATH),
+            font_size: 12.0,
             ..default()
         },
+        TextColor(Color::WHITE),
+        Transform::from_xyz(0.0, -15.0, 0.0),
+        Anchor::TopLeft,
     ));
 
     if stage_controls_ui.path_is_visible() {

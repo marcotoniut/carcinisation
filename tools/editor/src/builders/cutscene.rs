@@ -23,10 +23,11 @@ pub fn spawn_cutscene(
     // let mut camera_transform = camera_query.single_mut();
     // camera_transform.translation.x = ACT_OFFSET * data.steps.len() as f32 / 2.0;
 
-    let h1_text_style = TextStyle {
-        font: asset_server.load(FONT_PATH),
+    let font_handle = asset_server.load(FONT_PATH);
+    let text_font = TextFont {
+        font: font_handle.clone().into(),
         font_size: 16.0,
-        color: Color::WHITE,
+        ..default()
     };
     // let h2_text_style = TextStyle {
     //     font: asset_server.load(FONT_PATH),
@@ -49,29 +50,23 @@ pub fn spawn_cutscene(
             SpatialBundle::from_transform(Transform::from_translation(act_position)),
         ));
         entity_commands.with_children(|p0| {
-            p0.spawn(Text2dBundle {
-                text: Text::from_section(
-                    format!("Act {} ({}s)", act_index, act.elapse.as_secs_f32()),
-                    h1_text_style.clone(),
-                ),
-                transform: Transform::from_xyz(0.0, SCREEN_RESOLUTION.y as f32 / 2.0 + 25.0, 0.0),
-                ..default()
-            });
+            p0.spawn((
+                Text2d::new(format!("Act {} ({}s)", act_index, act.elapse.as_secs_f32())),
+                text_font.clone(),
+                TextColor(Color::WHITE),
+                Transform::from_xyz(0.0, SCREEN_RESOLUTION.y as f32 / 2.0 + 25.0, 0.0),
+            ));
 
             if let Some(spawn_images) = &act.spawn_images_o {
                 for (image_index, image_spawn) in spawn_images.spawns.iter().enumerate() {
-                    let transform = Transform::from_xyz(0.0, 180.0 * image_index as f32, 0.0);
-
-                    let texture = asset_server.load(&image_spawn.image_path);
+                    let mut sprite =
+                        Sprite::from_image(asset_server.load(image_spawn.image_path.clone()));
 
                     p0.spawn((
                         Name::new(format!("Act {} : Image {}", act_index, image_index)),
                         CutsceneImage,
-                        SpriteBundle {
-                            texture,
-                            transform,
-                            ..default()
-                        },
+                        sprite,
+                        Transform::from_xyz(0.0, 180.0 * image_index as f32, 0.0),
                     ));
                 }
             }
@@ -89,28 +84,11 @@ pub fn spawn_cutscene(
                 p0.spawn((
                     LetterboxLabel,
                     Name::new("Letterbox Header"),
-                    NodeBundle {
-                        style: Style {
-                            row_gap: Val::Px(10.0),
-                            ..default()
-                        },
-                        transform: Transform::from_xyz(
-                            0.0,
-                            SCREEN_RESOLUTION.y as f32 / 2.0 + 10.0,
-                            0.0,
-                        ),
-                        ..default()
-                    },
-                ))
-                .with_children(|p1| {
-                    p1.spawn(Text2dBundle {
-                        text: Text::from_section(
-                            format!("Letterbox {}", instruction),
-                            h1_text_style.clone(),
-                        ),
-                        ..default()
-                    });
-                });
+                    Text2d::new(format!("Letterbox {}", instruction)),
+                    text_font.clone(),
+                    TextColor(Color::WHITE),
+                    Transform::from_xyz(0.0, SCREEN_RESOLUTION.y as f32 / 2.0 + 10.0, 0.0),
+                ));
             }
 
             if let Some(previous_entity) = previous_entity_o {
@@ -132,6 +110,7 @@ pub fn spawn_cutscene(
                     SceneItem,
                     ShapeBundle {
                         path: GeometryBuilder::build_as(&shape),
+                        transform: Transform::default(),
                         ..default()
                     },
                     Stroke::new(Color::WHITE, 2.0),
