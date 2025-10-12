@@ -24,7 +24,7 @@ mod transitions;
 #[macro_use]
 extern crate lazy_static;
 
-use bevy::prelude::*;
+use bevy::{asset::AssetPlugin, prelude::*};
 use bevy_framepace::*;
 use bevy_utils::despawn_entities;
 use components::{DespawnMark, VolumeSettings};
@@ -58,16 +58,21 @@ fn main() {
     {
         // Debug builds keep the window resizable and enable in-engine debugging tools.
         app.add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title,
-                    focused,
-                    resizable: true,
-                    resolution: VIEWPORT_RESOLUTION.into(),
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title,
+                        focused,
+                        resizable: true,
+                        resolution: VIEWPORT_RESOLUTION.into(),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    file_path: "../../assets".into(),
                     ..default()
                 }),
-                ..default()
-            }),
             bevy_editor_pls::EditorPlugin::new(),
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
             DebugPlugin,
@@ -76,16 +81,23 @@ fn main() {
     #[cfg(not(debug_assertions))]
     {
         // Release builds run fullscreen-friendly and skip editor diagnostics.
-        app.add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title,
-                focused,
-                resizable: false,
-                resolution: VIEWPORT_RESOLUTION.into(),
-                ..default()
-            }),
-            ..default()
-        }));
+        app.add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title,
+                        focused,
+                        resizable: false,
+                        resolution: VIEWPORT_RESOLUTION.into(),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(AssetPlugin {
+                    file_path: "../../assets".into(),
+                    ..default()
+                }),
+        );
     }
     app
         // Core resources initialise difficulty and audio defaults before systems run.

@@ -8,6 +8,5 @@ proc-macro = true
 
 [dependencies]
 syn = "1.0"
-cached = "0.46.0"
 quote = "1.0"
 proc-macro2 = "1.0"

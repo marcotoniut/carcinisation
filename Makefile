@@ -39,26 +39,26 @@ dev-wasm:
 # =============================================================================
 .PHONY: launch-editor
 launch-editor:
-	cd tools/editor && RUST_BACKTRACE=full cargo run
+	RUST_BACKTRACE=full cargo run -p editor
 
 .PHONY: watch-scene-files
 watch-scene-files:
-	cd tools/scene-file-watcher && RUST_BACKTRACE=full cargo run
+	RUST_BACKTRACE=full cargo run -p scene-file-watcher
 
 # =============================================================================
 # Asset generation
 # =============================================================================
 .PHONY: generate-palettes
 generate-palettes:
-	cd scripts/generate-palettes && cargo run
+	cargo run -p generate-palettes
 
 .PHONY: generate-typeface
 generate-typeface:
-	cd scripts/generate-typeface && cargo run
+	cargo run -p generate-typeface
 
 .PHONY: process-gfx
 process-gfx:
-	cd scripts/process-gfx && cargo run
+	cargo run -p process-gfx
 
 # =============================================================================
 # Web targets
