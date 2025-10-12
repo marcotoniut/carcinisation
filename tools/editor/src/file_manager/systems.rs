@@ -18,72 +18,69 @@ use crate::constants::{ASSETS_PATH, FONT_PATH};
 use crate::resources::{CutsceneAssetHandle, StageAssetHandle};
 use crate::ui::styles::*;
 
-pub fn setup_ui(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    // selected_file_text: Res<SelectedFileText>,
-) {
-    let button_style = Style {
-        justify_content: JustifyContent::Center,
-        align_items: AlignItems::Center,
-        padding: UiRect::axes(Val::Px(15.0), Val::Px(7.0)),
-        ..default()
-    };
-
-    let h1_text_style = TextStyle {
-        font: asset_server.load(FONT_PATH),
-        font_size: 16.0,
-        color: COLOR_SELECT_FILE,
-    };
+pub fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let font_handle = asset_server.load(FONT_PATH);
 
     commands
-        .spawn(NodeBundle {
-            style: Style {
+        .spawn((
+            Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Start,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(10.0),
+                padding: UiRect::axes(Val::Px(10.0), Val::Px(10.0)),
                 ..default()
             },
-            background_color: Color::NONE.into(),
-            ..default()
-        })
-        .with_children(|p0| {
-            p0.spawn((
-                SelectFileButton,
-                ButtonBundle {
-                    style: button_style.clone(),
-                    background_color: COLOR_NORMAL.into(),
-                    ..default()
-                },
-            ))
-            .with_children(|p1| {
-                p1.spawn((
-                    TextBundle {
-                        text: Text::from_section("Select File", h1_text_style.clone()),
+            BackgroundColor(Color::NONE),
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn((
+                    SelectFileButton,
+                    Button,
+                    Node {
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        padding: UiRect::axes(Val::Px(15.0), Val::Px(7.0)),
                         ..default()
                     },
+                    BackgroundColor(COLOR_NORMAL),
+                ))
+                .with_child((
+                    Text::new("Select File"),
+                    TextFont {
+                        font: font_handle.clone().into(),
+                        font_size: 16.0,
+                        ..default()
+                    },
+                    TextColor(COLOR_SELECT_FILE.into()),
                     Label,
                 ));
-            });
 
-            p0.spawn((
-                SaveButton,
-                ButtonBundle {
-                    style: button_style.clone(),
-                    background_color: COLOR_NORMAL.into(),
-                    ..default()
-                },
-            ))
-            .with_children(|p1| {
-                p1.spawn((
-                    TextBundle {
-                        text: Text::from_section("Save", h1_text_style.clone()),
+            parent
+                .spawn((
+                    SaveButton,
+                    Button,
+                    Node {
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        padding: UiRect::axes(Val::Px(15.0), Val::Px(7.0)),
                         ..default()
                     },
+                    BackgroundColor(COLOR_NORMAL),
+                ))
+                .with_child((
+                    Text::new("Save"),
+                    TextFont {
+                        font: font_handle.into(),
+                        font_size: 16.0,
+                        ..default()
+                    },
+                    TextColor(COLOR_SELECT_FILE.into()),
                     Label,
                 ));
-            });
         });
 }
 

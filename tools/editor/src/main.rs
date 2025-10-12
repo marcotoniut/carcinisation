@@ -59,7 +59,7 @@ fn main() {
         .add_plugins(FileManagerPlugin)
         .add_plugins(ShapePlugin)
         .add_event::<UnloadSceneTrigger>()
-        .observe(on_unload_scene)
+        .add_observer(on_unload_scene)
         .add_systems(Startup, (setup_camera))
         // .add_systems(Startup, setup_elapsed_ui)
         .add_systems(
