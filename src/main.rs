@@ -1,7 +1,5 @@
 //! Application entrypoint: wires Bevy, shared plugins, and platform defaults.
 
-#![feature(step_trait)]
-
 mod assets;
 mod bevy_utils;
 mod components;
@@ -107,7 +105,7 @@ fn main() {
         .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
         .add_plugins(PxPlugin::<Layer>::new(
             SCREEN_RESOLUTION,
-            "palette/base.png".into(),
+            "palette/base.png",
         ))
         // .add_plugins(TransitionVenetianPlugin)
         .add_plugins(CutscenePlugin)

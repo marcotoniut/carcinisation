@@ -1,3 +1,4 @@
+use crate::pixel::PxAssets;
 use crate::stage::{
     components::{
         damage::{DamageFlicker, InvertFilter},
@@ -8,7 +9,7 @@ use crate::stage::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAssets, PxFilter};
+use seldom_pixel::prelude::PxFilter;
 use std::time::Duration;
 
 pub const DAMAGE_FLICKER_COUNT: u8 = 4;
@@ -65,7 +66,7 @@ pub fn add_invert_filter(
             damage_flicker.phase_start = stage_time.elapsed;
             commands.entity(entity).insert((
                 InvertFilter,
-                filters.load(assert_assets_path!("filter/invert.png")),
+                PxFilter(filters.load(assert_assets_path!("filter/invert.px_filter.png"))),
             ));
         }
     }
@@ -82,7 +83,7 @@ pub fn remove_invert_filter(
             let mut entity_commands = commands.entity(entity);
             entity_commands
                 .remove::<InvertFilter>()
-                .remove::<Handle<PxFilter>>();
+                .remove::<PxFilter>();
             if damage_flicker.count > 0 {
                 damage_flicker.count -= 1;
                 damage_flicker.phase_start = stage_time.elapsed;

@@ -1,3 +1,4 @@
+use crate::pixel::PxAssets;
 use crate::{
     debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
@@ -9,7 +10,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::*;
+use seldom_pixel::prelude::PxSprite;
 
 const DEBUG_MODULE: &str = "Player";
 

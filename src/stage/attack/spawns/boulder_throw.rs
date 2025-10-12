@@ -1,3 +1,4 @@
+use crate::pixel::PxAssets;
 use crate::{
     plugins::movement::linear::components::{
         LinearAcceleration, LinearMovementBundle, LinearSpeed, TargetingPositionX,
@@ -25,10 +26,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAssets, PxSubPosition},
-    sprite::PxSprite,
-};
+use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 #[derive(Bundle)]
 pub struct BoulderThrowDefaultBundle {

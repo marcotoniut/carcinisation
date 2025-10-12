@@ -1,3 +1,4 @@
+use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::stage::{
     components::{
         interactive::{Collider, ColliderData, Dead},
@@ -34,10 +35,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 pub fn check_step_spawn(
     mut commands: Commands,
@@ -103,13 +101,15 @@ pub fn spawn_pickup(
     let position = PxSubPosition::from(offset + *coordinates);
     match pickup_type {
         PickupType::BigHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
+            let sprite = assets_sprite.load(assert_assets_path!(
+                "sprites/pickups/health_4.px_sprite.png"
+            ));
             commands
                 .spawn((
                     spawn.get_name(),
                     Hittable,
                     PxSpriteBundle::<Layer> {
-                        sprite,
+                        sprite: sprite.into(),
                         anchor: PxAnchor::Center,
                         layer: spawn.depth.to_layer(),
                         ..default()
@@ -123,13 +123,15 @@ pub fn spawn_pickup(
                 .id()
         }
         PickupType::SmallHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_6.png"));
+            let sprite = assets_sprite.load(assert_assets_path!(
+                "sprites/pickups/health_6.px_sprite.png"
+            ));
             commands
                 .spawn((
                     spawn.get_name(),
                     Hittable,
                     PxSpriteBundle::<Layer> {
-                        sprite,
+                        sprite: sprite.into(),
                         anchor: PxAnchor::BottomCenter,
                         layer: spawn.depth.to_layer(),
                         ..default()
@@ -245,17 +247,19 @@ pub fn spawn_object(
     spawn: &ObjectSpawn,
 ) -> Entity {
     let sprite = assets_sprite.load(match spawn.object_type {
-        ObjectType::BenchBig => assert_assets_path!("sprites/objects/bench_big.png"),
-        ObjectType::BenchSmall => assert_assets_path!("sprites/objects/bench_small.png"),
-        ObjectType::Fibertree => assert_assets_path!("sprites/objects/fiber_tree.png"),
-        ObjectType::RugparkSign => assert_assets_path!("sprites/objects/rugpark_sign.png"),
+        ObjectType::BenchBig => assert_assets_path!("sprites/objects/bench_big.px_sprite.png"),
+        ObjectType::BenchSmall => assert_assets_path!("sprites/objects/bench_small.px_sprite.png"),
+        ObjectType::Fibertree => assert_assets_path!("sprites/objects/fiber_tree.px_sprite.png"),
+        ObjectType::RugparkSign => {
+            assert_assets_path!("sprites/objects/rugpark_sign.px_sprite.png")
+        }
     });
     commands
         .spawn((
             spawn.get_name(),
             Object,
             PxSpriteBundle::<Layer> {
-                sprite,
+                sprite: sprite.into(),
                 anchor: PxAnchor::BottomCenter,
                 layer: spawn.depth.to_layer(),
                 ..default()

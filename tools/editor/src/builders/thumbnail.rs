@@ -96,25 +96,29 @@ pub fn get_destructible_thumbnail(
     depth: Depth,
 ) -> (String, Option<Rect>) {
     match destructible_type {
-        DestructibleType::Crystal => ("sprites/objects/crystal_base_5.png".into(), None),
-        DestructibleType::Lamp => ("sprites/objects/lamp_base_3.png".into(), None),
-        DestructibleType::Mushroom => ("sprites/objects/mushroom_base_4.png".into(), None),
-        DestructibleType::Trashcan => ("sprites/objects/trashcan_base_6.png".into(), None),
+        DestructibleType::Crystal => ("sprites/objects/crystal_base_5.px_sprite.png".into(), None),
+        DestructibleType::Lamp => ("sprites/objects/lamp_base_3.px_sprite.png".into(), None),
+        DestructibleType::Mushroom => {
+            ("sprites/objects/mushroom_base_4.px_sprite.png".into(), None)
+        }
+        DestructibleType::Trashcan => {
+            ("sprites/objects/trashcan_base_6.px_sprite.png".into(), None)
+        }
     }
 }
 
 pub fn get_object_thumbnail(object_type: ObjectType, depth: Depth) -> (String, Option<Rect>) {
     match object_type {
-        ObjectType::BenchBig => ("sprites/objects/bench_big.png".into(), None),
-        ObjectType::BenchSmall => ("sprites/objects/bench_small.png".into(), None),
-        ObjectType::Fibertree => ("sprites/objects/fiber_tree.png".into(), None),
-        ObjectType::RugparkSign => ("sprites/objects/rugpark_sign.png".into(), None),
+        ObjectType::BenchBig => ("sprites/objects/bench_big.px_sprite.png".into(), None),
+        ObjectType::BenchSmall => ("sprites/objects/bench_small.px_sprite.png".into(), None),
+        ObjectType::Fibertree => ("sprites/objects/fiber_tree.px_sprite.png".into(), None),
+        ObjectType::RugparkSign => ("sprites/objects/rugpark_sign.px_sprite.png".into(), None),
     }
 }
 
 pub fn get_pickup_thumbnail(pickup_type: PickupType, depth: Depth) -> (String, Option<Rect>) {
     match pickup_type {
-        PickupType::BigHealthpack => ("sprites/pickups/health_6.png".into(), None),
-        PickupType::SmallHealthpack => ("sprites/pickups/health_6.png".into(), None),
+        PickupType::BigHealthpack => ("sprites/pickups/health_6.px_sprite.png".into(), None),
+        PickupType::SmallHealthpack => ("sprites/pickups/health_6.px_sprite.png".into(), None),
     }
 }

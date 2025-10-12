@@ -2,12 +2,13 @@ use super::{
     components::{make_animation_bundle, Destructible, DestructibleState, DestructibleType},
     data::destructibles::DESTRUCTIBLE_ANIMATIONS,
 };
+use crate::pixel::PxAssets;
 use crate::stage::components::{
     interactive::{Dead, Flickerer, Hittable},
     placement::Depth,
 };
 use bevy::prelude::*;
-use seldom_pixel::{prelude::*, sprite::PxSprite};
+use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 pub fn check_dead_destructible(
     mut commands: Commands,

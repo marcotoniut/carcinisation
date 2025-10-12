@@ -1,5 +1,7 @@
 //! Integrates `seldom_pixel` helpers for rectangle construction and updates.
 
+pub mod assets;
+pub mod bundle;
 pub mod components;
 mod systems;
 
@@ -7,6 +9,9 @@ use self::systems::*;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxLayer;
 use std::marker::PhantomData;
+
+pub use assets::{PxAsset, PxAssets, PxFilterData, PxSpriteData};
+pub use bundle::{PxAnimationBundle, PxLineBundle, PxSpriteBundle, PxTextBundle};
 
 /// Wraps pixel-specific systems for constructing/updating rectangle gizmos.
 pub struct PixelPlugin<L: PxLayer> {

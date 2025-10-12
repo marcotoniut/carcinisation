@@ -1,6 +1,7 @@
 pub mod pause_menu;
 
 use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
+use crate::pixel::{PxAssets, PxLineBundle, PxSpriteBundle, PxTextBundle};
 use crate::{
     game::{score::components::Score, GameProgressState},
     globals::{
@@ -10,12 +11,8 @@ use crate::{
     layer::Layer,
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{
-        PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle,
-        PxTypeface,
-    },
-    sprite::PxSprite,
+use seldom_pixel::prelude::{
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxSprite, PxText, PxTypeface,
 };
 
 pub fn pause_menu_renderer(
@@ -66,7 +63,7 @@ pub fn spawn_pause_menu_bundle(
                         ]
                         .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
-                        filter: filters.load("filter/color3.png"),
+                        filter: PxFilter(filters.load("filter/color3.px_filter.png")),
                         ..default()
                     },
                     UIBackground {},
@@ -85,8 +82,10 @@ pub fn spawn_pause_menu_bundle(
                             90 + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
-                        text: "Paused".into(),
-                        typeface: typeface.clone(),
+                        text: PxText {
+                            value: "Paused".to_string(),
+                            typeface: typeface.clone(),
+                        },
                         ..default()
                     },
                     InfoText,
@@ -105,8 +104,10 @@ pub fn spawn_pause_menu_bundle(
                             60 + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
-                        text: "Score:".into(),
-                        typeface: typeface.clone(),
+                        text: PxText {
+                            value: "Score:".to_string(),
+                            typeface: typeface.clone(),
+                        },
                         ..default()
                     },
                     InfoText,
@@ -125,8 +126,10 @@ pub fn spawn_pause_menu_bundle(
                             50 + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
-                        text: score_text.clone().into(),
-                        typeface: typeface.clone(),
+                        text: PxText {
+                            value: score_text.clone(),
+                            typeface: typeface.clone(),
+                        },
                         ..default()
                     },
                     ScoreText,

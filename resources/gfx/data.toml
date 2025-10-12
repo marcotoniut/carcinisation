@@ -1,18 +1,18 @@
 [[images]]
-path = "sprites/melee_slash.png"
+path = "sprites/melee_slash.px_sprite.png"
 
 [[images]]
-path = "sprites/bullet_particles.png"
+path = "sprites/bullet_particles.px_sprite.png"
 
 [[images]]
-path = "sprites/crosshairs/squiggly.png"
+path = "sprites/crosshairs/squiggly.px_sprite.png"
 
 [[images]]
-path = "sprites/crosshairs/gun_sight.png"
+path = "sprites/crosshairs/gun_sight.px_sprite.png"
 
 [[images]]
-path = "sprites/crosshairs/gun_sight.png"
-target_path = "sprites/crosshairs/gun_sight_inverted.png"
+path = "sprites/crosshairs/gun_sight.px_sprite.png"
+target_path = "sprites/crosshairs/gun_sight_inverted.px_sprite.png"
 invert_colors = true
 
 [[images]]
@@ -40,300 +40,300 @@ path = "backgrounds/spaceship/skybox.png"
 [[images]]
 # TEMP
 path = "cinematics/intro/planet.png"
-target_path = "ui/main_menu/background.png"
+target_path = "ui/main_menu/background.px_sprite.png"
 
 [[images]]
-path = "typeface/typeface.png"
+path = "typeface/typeface.px_typeface.png"
 
 [[images]]
 name = "pixeboy"
-path = "typeface/pixeboy.png"
+path = "typeface/pixeboy.px_typeface.png"
 
 [[images]]
-path = "typeface/pixeboy.png"
-target_path = "typeface/pixeboy-inverted.png"
+path = "typeface/pixeboy.px_typeface.png"
+target_path = "typeface/pixeboy-inverted.px_typeface.png"
 invert_colors = true
 
 [[images]]
-path = "typeface/animated_typeface.png"
+path = "typeface/animated_typeface.px_typeface.png"
 
 # Enemies
 # width = 2
 [[images]]
-path = "sprites/enemies/mosquito_death_6.png"
-target_path = "sprites/enemies/mosquito_death_8.png"
+path = "sprites/enemies/mosquito_death_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_death_8.px_sprite.png"
 width = 6
 [[images]]
-path = "sprites/enemies/mosquito_death_6.png"
-target_path = "sprites/enemies/mosquito_death_7.png"
+path = "sprites/enemies/mosquito_death_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_death_7.px_sprite.png"
 width = 10
 [[images]]
-path = "sprites/enemies/mosquito_death_6.png"
+path = "sprites/enemies/mosquito_death_6.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_death_5.png"
+path = "sprites/enemies/mosquito_death_5.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_death_4.png"
+path = "sprites/enemies/mosquito_death_4.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_death_4.png"
-target_path = "sprites/enemies/mosquito_death_3.png"
+path = "sprites/enemies/mosquito_death_4.px_sprite.png"
+target_path = "sprites/enemies/mosquito_death_3.px_sprite.png"
 width = 50
 
 [[images]]
-path = "sprites/enemies/mosquito_fly_6.png"
-target_path = "sprites/enemies/mosquito_fly_8.png"
+path = "sprites/enemies/mosquito_fly_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_fly_8.px_sprite.png"
 width = 6
 [[images]]
-path = "sprites/enemies/mosquito_fly_6.png"
-target_path = "sprites/enemies/mosquito_fly_7.png"
+path = "sprites/enemies/mosquito_fly_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_fly_7.px_sprite.png"
 width = 10
 [[images]]
-path = "sprites/enemies/mosquito_fly_6.png"
+path = "sprites/enemies/mosquito_fly_6.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_fly_5.png"
+path = "sprites/enemies/mosquito_fly_5.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_fly_4.png"
+path = "sprites/enemies/mosquito_fly_4.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_fly_4.png"
-target_path = "sprites/enemies/mosquito_fly_3.png"
+path = "sprites/enemies/mosquito_fly_4.px_sprite.png"
+target_path = "sprites/enemies/mosquito_fly_3.px_sprite.png"
 width = 50
 
 [[images]]
-path = "sprites/enemies/mosquito_idle_6.png"
-target_path = "sprites/enemies/mosquito_idle_8.png"
+path = "sprites/enemies/mosquito_idle_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_idle_8.px_sprite.png"
 width = 6
 [[images]]
-path = "sprites/enemies/mosquito_idle_6.png"
-target_path = "sprites/enemies/mosquito_idle_7.png"
+path = "sprites/enemies/mosquito_idle_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_idle_7.px_sprite.png"
 width = 10
 [[images]]
-path = "sprites/enemies/mosquito_idle_6.png"
+path = "sprites/enemies/mosquito_idle_6.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_idle_5.png"
+path = "sprites/enemies/mosquito_idle_5.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_idle_4.png"
+path = "sprites/enemies/mosquito_idle_4.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_idle_4.png"
-target_path = "sprites/enemies/mosquito_idle_3.png"
+path = "sprites/enemies/mosquito_idle_4.px_sprite.png"
+target_path = "sprites/enemies/mosquito_idle_3.px_sprite.png"
 width = 50
 
 # TODO Is this necessary?
 [[images]]
-path = "sprites/enemies/mosquito_melee_6.png"
-target_path = "sprites/enemies/mosquito_melee_8.png"
+path = "sprites/enemies/mosquito_melee_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_melee_8.px_sprite.png"
 width = 6
 [[images]]
-path = "sprites/enemies/mosquito_melee_6.png"
-target_path = "sprites/enemies/mosquito_melee_7.png"
+path = "sprites/enemies/mosquito_melee_6.px_sprite.png"
+target_path = "sprites/enemies/mosquito_melee_7.px_sprite.png"
 width = 10
 [[images]]
-path = "sprites/enemies/mosquito_melee_6.png"
+path = "sprites/enemies/mosquito_melee_6.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_melee_5.png"
+path = "sprites/enemies/mosquito_melee_5.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_melee_4.png"
+path = "sprites/enemies/mosquito_melee_4.px_sprite.png"
 [[images]]
-path = "sprites/enemies/mosquito_melee_4.png"
-target_path = "sprites/enemies/mosquito_melee_3.png"
+path = "sprites/enemies/mosquito_melee_4.px_sprite.png"
+target_path = "sprites/enemies/mosquito_melee_3.px_sprite.png"
 width = 50
 
 # [[images]]
-# path = "sprites/enemies/mosquito_hydra_idle.png"
+# path = "sprites/enemies/mosquito_hydra_idle.px_sprite.png"
 # [[images]]
-# path = "sprites/enemies/mosquito_hydra_shooting.png"
+# path = "sprites/enemies/mosquito_hydra_shooting.px_sprite.png"
 # [[images]]
-# path = "sprites/enemies/mosquito_head_shot.png"
+# path = "sprites/enemies/mosquito_head_shot.px_sprite.png"
 
 [[images]]
-path = "sprites/enemies/spider_idle_7.png"
+path = "sprites/enemies/spider_idle_7.px_sprite.png"
 [[images]]
-path = "sprites/enemies/spider_death_7.png"
+path = "sprites/enemies/spider_death_7.px_sprite.png"
 [[images]]
-path = "sprites/enemies/spider_boss_attack.png"
+path = "sprites/enemies/spider_boss_attack.px_sprite.png"
 [[images]]
-path = "sprites/enemies/spider_boss_death.png"
+path = "sprites/enemies/spider_boss_death.px_sprite.png"
 [[images]]
-path = "sprites/enemies/spider_boss.png"
+path = "sprites/enemies/spider_boss.px_sprite.png"
 [[images]]
-path = "sprites/enemies/spider_boss_web.png"
+path = "sprites/enemies/spider_boss_web.px_sprite.png"
 [[images]]
-path = "sprites/enemies/spider_boss_web_attack.png"
+path = "sprites/enemies/spider_boss_web_attack.px_sprite.png"
 [[images]]
-path = "sprites/enemies/worm.png"
+path = "sprites/enemies/worm.px_sprite.png"
 [[images]]
-path = "sprites/enemies/worm_death.png"
+path = "sprites/enemies/worm_death.px_sprite.png"
 
 [[images]]
-path = "sprites/enemies/tardigrade_death_64x64.png"
-target_path = "sprites/enemies/tardigrade_death_8.png"
+path = "sprites/enemies/tardigrade_death_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_death_8.px_sprite.png"
 width = 24
 [[images]]
-path = "sprites/enemies/tardigrade_death_64x64.png"
-target_path = "sprites/enemies/tardigrade_death_7.png"
+path = "sprites/enemies/tardigrade_death_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_death_7.px_sprite.png"
 width = 42
 [[images]]
-path = "sprites/enemies/tardigrade_death_64x64.png"
-target_path = "sprites/enemies/tardigrade_death_6.png"
+path = "sprites/enemies/tardigrade_death_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_death_6.px_sprite.png"
 
 [[images]]
-path = "sprites/enemies/tardigrade_idle_64x64.png"
-target_path = "sprites/enemies/tardigrade_idle_8.png"
+path = "sprites/enemies/tardigrade_idle_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_idle_8.px_sprite.png"
 width = 24
 [[images]]
-path = "sprites/enemies/tardigrade_idle_64x64.png"
-target_path = "sprites/enemies/tardigrade_idle_7.png"
+path = "sprites/enemies/tardigrade_idle_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_idle_7.px_sprite.png"
 width = 42
 [[images]]
-path = "sprites/enemies/tardigrade_idle_64x64.png"
-target_path = "sprites/enemies/tardigrade_idle_6.png"
+path = "sprites/enemies/tardigrade_idle_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_idle_6.px_sprite.png"
 
 [[images]]
-path = "sprites/enemies/tardigrade_attack_64x64.png"
-target_path = "sprites/enemies/tardigrade_attack_8.png"
+path = "sprites/enemies/tardigrade_attack_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_attack_8.px_sprite.png"
 width = 24
 [[images]]
-path = "sprites/enemies/tardigrade_attack_64x64.png"
-target_path = "sprites/enemies/tardigrade_attack_7.png"
+path = "sprites/enemies/tardigrade_attack_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_attack_7.px_sprite.png"
 width = 42
 [[images]]
-path = "sprites/enemies/tardigrade_attack_64x64.png"
-target_path = "sprites/enemies/tardigrade_attack_6.png"
+path = "sprites/enemies/tardigrade_attack_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_attack_6.px_sprite.png"
 
 [[images]]
-path = "sprites/enemies/tardigrade_sucking_64x64.png"
-target_path = "sprites/enemies/tardigrade_sucking_8.png"
+path = "sprites/enemies/tardigrade_sucking_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_sucking_8.px_sprite.png"
 width = 24
 [[images]]
-path = "sprites/enemies/tardigrade_sucking_64x64.png"
-target_path = "sprites/enemies/tardigrade_sucking_7.png"
+path = "sprites/enemies/tardigrade_sucking_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_sucking_7.px_sprite.png"
 width = 42
 [[images]]
-path = "sprites/enemies/tardigrade_sucking_64x64.png"
-target_path = "sprites/enemies/tardigrade_sucking_6.png"
+path = "sprites/enemies/tardigrade_sucking_64x64.px_sprite.png"
+target_path = "sprites/enemies/tardigrade_sucking_6.px_sprite.png"
 
 # Objects
 [[images]]
-path = "sprites/objects/bench_big.png"
+path = "sprites/objects/bench_big.px_sprite.png"
 [[images]]
-path = "sprites/objects/bench_small.png"
+path = "sprites/objects/bench_small.px_sprite.png"
 [[images]]
-path = "sprites/objects/fiber_tree.png"
+path = "sprites/objects/fiber_tree.px_sprite.png"
 [[images]]
-path = "sprites/objects/rugpark_sign.png"
+path = "sprites/objects/rugpark_sign.px_sprite.png"
 
 # Destructibles
 [[images]]
-path = "sprites/objects/lamp_broken_3.png"
+path = "sprites/objects/lamp_broken_3.px_sprite.png"
 [[images]]
-path = "sprites/objects/lamp_base_3.png"
+path = "sprites/objects/lamp_base_3.px_sprite.png"
 [[images]]
-path = "sprites/objects/trashcan_base_6.png"
+path = "sprites/objects/trashcan_base_6.px_sprite.png"
 [[images]]
-path = "sprites/objects/trashcan_base_4.png"
+path = "sprites/objects/trashcan_base_4.px_sprite.png"
 [[images]]
-path = "sprites/objects/trashcan_broken_6.png"
+path = "sprites/objects/trashcan_broken_6.px_sprite.png"
 [[images]]
-path = "sprites/objects/trashcan_broken_4.png"
+path = "sprites/objects/trashcan_broken_4.px_sprite.png"
 [[images]]
-path = "sprites/objects/crystal_base_5.png"
+path = "sprites/objects/crystal_base_5.px_sprite.png"
 [[images]]
-path = "sprites/objects/crystal_broken_5.png"
+path = "sprites/objects/crystal_broken_5.px_sprite.png"
 [[images]]
-path = "sprites/objects/mushroom_base_4.png"
+path = "sprites/objects/mushroom_base_4.px_sprite.png"
 [[images]]
-path = "sprites/objects/mushroom_broken_4.png"
+path = "sprites/objects/mushroom_broken_4.px_sprite.png"
 
 # Pickups
 [[images]]
-path = "sprites/pickups/ammo_9x8.png"
-target_path = "sprites/pickups/ammo_6.png"
+path = "sprites/pickups/ammo_9x8.px_sprite.png"
+target_path = "sprites/pickups/ammo_6.px_sprite.png"
 [[images]]
-path = "sprites/pickups/ammo_13x12.png"
-target_path = "sprites/pickups/ammo_4.png"
+path = "sprites/pickups/ammo_13x12.px_sprite.png"
+target_path = "sprites/pickups/ammo_4.px_sprite.png"
 [[images]]
-path = "sprites/pickups/bomb_9x9.png"
-target_path = "sprites/pickups/bomb_6.png"
+path = "sprites/pickups/bomb_9x9.px_sprite.png"
+target_path = "sprites/pickups/bomb_6.px_sprite.png"
 [[images]]
-path = "sprites/pickups/bomb_13x11.png"
-target_path = "sprites/pickups/bomb_4.png"
+path = "sprites/pickups/bomb_13x11.px_sprite.png"
+target_path = "sprites/pickups/bomb_4.px_sprite.png"
 [[images]]
-path = "sprites/pickups/health_9x7.png"
-target_path = "sprites/pickups/health_6.png"
+path = "sprites/pickups/health_9x7.px_sprite.png"
+target_path = "sprites/pickups/health_6.px_sprite.png"
 [[images]]
-path = "sprites/pickups/health_14x10.png"
-target_path = "sprites/pickups/health_4.png"
+path = "sprites/pickups/health_14x10.px_sprite.png"
+target_path = "sprites/pickups/health_4.px_sprite.png"
 
 # Attacks
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_8.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_8.px_sprite.png"
 width = 2
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_7.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_7.px_sprite.png"
 width = 4
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_6.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_6.px_sprite.png"
 width = 6
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_5.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_5.px_sprite.png"
 width = 10
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_4.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_4.px_sprite.png"
 width = 15
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_3.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_3.px_sprite.png"
 width = 21
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_2.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_2.px_sprite.png"
 width = 28
 [[images]]
-path = "sprites/attacks/bloodball_45x45.png"
-target_path = "sprites/attacks/blood_attack_hovering_1.png"
+path = "sprites/attacks/bloodball_45x45.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hovering_1.px_sprite.png"
 width = 36
 [[images]]
-path = "sprites/attacks/bloodsplat.png"
-target_path = "sprites/attacks/blood_attack_hit_0.png"
+path = "sprites/attacks/bloodsplat.px_sprite.png"
+target_path = "sprites/attacks/blood_attack_hit_0.px_sprite.png"
 
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_8.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_8.px_sprite.png"
 width = 2
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_7.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_7.px_sprite.png"
 width = 5
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_6.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_6.px_sprite.png"
 width = 9
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_5.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_5.px_sprite.png"
 width = 14
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_4.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_4.px_sprite.png"
 width = 20
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_3.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_3.px_sprite.png"
 width = 28
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_2.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_2.px_sprite.png"
 width = 36
 [[images]]
-path = "sprites/attacks/boulder_56x56.png"
-target_path = "sprites/attacks/boulder_attack_hovering_1.png"
+path = "sprites/attacks/boulder_56x56.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hovering_1.px_sprite.png"
 width = 46
 [[images]]
-path = "sprites/attacks/boulder_rubble_62x62.png"
-target_path = "sprites/attacks/boulder_attack_hit_0.png"
+path = "sprites/attacks/boulder_rubble_62x62.px_sprite.png"
+target_path = "sprites/attacks/boulder_attack_hit_0.px_sprite.png"
 
 # Cinematics
 [[images]]

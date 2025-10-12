@@ -40,6 +40,7 @@ pub fn on_letterbox_startup(mut commands: Commands) {
             layer: Layer::CutsceneLayer(CutsceneLayer::Letterbox),
             anchor: PxAnchor::BottomLeft,
         },
+        Visibility::Visible,
     ));
 
     commands.spawn((
@@ -55,6 +56,7 @@ pub fn on_letterbox_startup(mut commands: Commands) {
             layer: Layer::CutsceneLayer(CutsceneLayer::Letterbox),
             anchor: PxAnchor::TopLeft,
         },
+        Visibility::Visible,
     ));
 }
 

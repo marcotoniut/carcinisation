@@ -9,13 +9,14 @@ use crate::{
     layer::Layer,
     main_menu::{events::ChangeMainMenuScreenTrigger, MainMenuScreen},
     pixel::components::PxRectangle,
+    pixel::{
+        bundle::{PxSpriteBundle, PxTextBundle},
+        PxAssets,
+    },
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxCanvas, PxSubPosition, PxTextBundle, PxTypeface},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition, PxText, PxTypeface};
 use strum::IntoEnumIterator;
 
 pub fn on_change_main_menu_screen(
@@ -39,16 +40,16 @@ pub fn on_change_main_menu_screen(
     *screen = e.0.clone();
 }
 
-pub fn spawn_main_menu(mut commands: Commands, mut assets_sprite: PxAssets<PxSprite>) {
-    let entity = commands.spawn(MainMenu).id();
+pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let entity = commands.spawn((MainMenu, Visibility::Visible)).id();
 
     let mut entity_commands = commands.entity(entity);
     entity_commands.with_children(|p0| {
         let background_sprite =
-            assets_sprite.load(assert_assets_path!("ui/main_menu/background.png"));
+            asset_server.load(assert_assets_path!("ui/main_menu/background.px_sprite.png"));
         p0.spawn((
             PxSpriteBundle::<Layer> {
-                sprite: background_sprite,
+                sprite: PxSprite(background_sprite),
                 anchor: PxAnchor::BottomLeft,
                 layer: Layer::Hud,
                 ..default()
@@ -60,11 +61,12 @@ pub fn spawn_main_menu(mut commands: Commands, mut assets_sprite: PxAssets<PxSpr
 
 pub fn spawn_press_start_screen(
     mut commands: Commands,
-    mut typefaces: PxAssets<PxTypeface>,
+    mut assets_typeface: PxAssets<PxTypeface>,
     screen: Res<MainMenuScreen>,
 ) {
     if screen.is_changed() && *screen.as_ref() == MainMenuScreen::PressStart {
-        let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+        let typeface =
+            assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
 
         commands.spawn((
             MainMenuEntity,
@@ -75,8 +77,10 @@ pub fn spawn_press_start_screen(
                 // TODO Menu layers
                 layer: Layer::Hud,
                 rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
-                text: "Press Start".into(),
-                typeface: typeface.clone(),
+                text: PxText {
+                    value: "Press Start".to_string(),
+                    typeface: typeface.clone(),
+                },
                 ..default()
             },
             Name::new("Text<PressStart>"),
@@ -87,12 +91,13 @@ pub fn spawn_press_start_screen(
 /// @system Builds the difficulty selection UI when that screen activates.
 pub fn spawn_game_difficulty_screen(
     mut commands: Commands,
-    mut typefaces: PxAssets<PxTypeface>,
+    mut assets_typeface: PxAssets<PxTypeface>,
     screen: Res<MainMenuScreen>,
 ) {
     if screen.is_changed() && *screen.as_ref() == MainMenuScreen::DifficultySelect {
         let color = GBColor::White;
-        let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+        let typeface =
+            assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
 
         commands.spawn((
             MainMenuEntity,
@@ -109,6 +114,7 @@ pub fn spawn_game_difficulty_screen(
                 height: SCREEN_RESOLUTION.y - 50,
                 layer: Layer::Hud,
             },
+            Visibility::Visible,
         ));
 
         for d in Difficulty::iter() {
@@ -132,8 +138,10 @@ pub fn spawn_game_difficulty_screen(
                     // TODO Menu layers
                     layer: Layer::Hud,
                     rect: IRect::new(0, 0, SCREEN_RESOLUTION.x as i32, 60).into(),
-                    text: name.into(),
-                    typeface: typeface.clone(),
+                    text: PxText {
+                        value: name.to_string(),
+                        typeface: typeface.clone(),
+                    },
                     ..default()
                 },
                 Name::new(format!("Text<{}>", name)),

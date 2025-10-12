@@ -1,4 +1,5 @@
 use super::entity::{EnemyTardigrade, EnemyTardigradeAnimation};
+use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -21,10 +22,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 use std::time::Duration;
 
 pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
@@ -77,7 +75,7 @@ pub fn despawn_dead_tardigrade(
                 Name::new("Dead - Tardigrade"),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
-                    sprite: texture,
+                    sprite: texture.into(),
                     layer: depth.to_layer(),
                     anchor: PxAnchor::Center,
                     ..default()

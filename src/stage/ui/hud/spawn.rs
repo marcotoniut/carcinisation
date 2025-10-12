@@ -1,4 +1,5 @@
 use super::components::{HealthText, Hud, UIBackground};
+use crate::pixel::{PxAssets, PxLineBundle, PxSpriteBundle, PxTextBundle};
 use crate::{
     globals::*,
     layer::Layer,
@@ -6,12 +7,8 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{
-        PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxSubPosition,
-        PxTextBundle, PxTypeface,
-    },
-    sprite::{PxSprite, PxSpriteBundle},
+use seldom_pixel::prelude::{
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxSprite, PxSubPosition, PxText, PxTypeface,
 };
 
 const LAYOUT_Y: i32 = 2;
@@ -38,7 +35,7 @@ pub fn spawn_hud(
                         canvas: PxCanvas::Camera,
                         line: [(0, i).into(), (SCREEN_RESOLUTION.x as i32, i).into()].into(),
                         layers: PxFilterLayers::single_over(Layer::HudBackground),
-                        filter: filters.load("filter/color3.png"),
+                        filter: PxFilter(filters.load("filter/color3.px_filter.png")),
                         ..default()
                     },
                     UIBackground,
@@ -52,8 +49,9 @@ pub fn spawn_hud(
                         anchor: PxAnchor::BottomLeft,
                         canvas: PxCanvas::Camera,
                         layer: Layer::Hud,
-                        sprite: assets_sprite
-                            .load(assert_assets_path!("sprites/pickups/health_6.png")),
+                        sprite: PxSprite(assets_sprite.load(assert_assets_path!(
+                            "sprites/pickups/health_6.px_sprite.png"
+                        ))),
                         ..default()
                     },
                     PxSubPosition::from(Vec2::new(6.0, LAYOUT_Y as f32)),
@@ -71,8 +69,10 @@ pub fn spawn_hud(
                             LAYOUT_Y + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
-                        text: "0".into(),
-                        typeface: typeface.clone(),
+                        text: PxText {
+                            value: "0".to_string(),
+                            typeface: typeface.clone(),
+                        },
                         ..default()
                     },
                     HealthText,
@@ -93,8 +93,10 @@ pub fn spawn_hud(
                             LAYOUT_Y + (FONT_SIZE + 2) as i32,
                         )
                         .into(),
-                        text: "0".into(),
-                        typeface: typeface.clone(),
+                        text: PxText {
+                            value: "0".to_string(),
+                            typeface: typeface.clone(),
+                        },
                         ..default()
                     },
                     ScoreText,

@@ -25,6 +25,7 @@ use super::{
     StageProgressState,
 };
 use crate::components::VolumeSettings;
+use crate::pixel::PxAssets;
 use crate::{
     components::{DespawnMark, Music},
     game::{
@@ -42,10 +43,7 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
 use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::{
-    prelude::{PxAssets, PxSubPosition},
-    sprite::PxSprite,
-};
+use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 /// @system Toggles the game state between running and paused on `Start`.
 pub fn toggle_game(
@@ -77,7 +75,7 @@ pub fn spawn_current_stage_bundle(
     stage_data: Res<StageData>,
 ) {
     commands
-        .spawn((Stage, Name::new("Stage")))
+        .spawn((Stage, Name::new("Stage"), Visibility::Visible))
         .with_children(|p0| {
             p0.spawn(BackgroundBundle::new(
                 assets_sprite.load(stage_data.background_path.clone()),
@@ -175,14 +173,14 @@ pub fn on_stage_cleared(
     mark_for_despawn_by_query(&mut commands, &object_query);
     mark_for_despawn_by_query(&mut commands, &player_query);
 
-    let music_bundle = make_music_bundle(
+    let (player, settings, system_bundle, music_tag) = make_music_bundle(
         &asset_server,
         &volume_settings,
         assert_assets_path!("audio/music/intro.ogg").to_string(),
         PlaybackMode::Despawn,
     );
 
-    commands.spawn((music_bundle, StageEntity));
+    commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
     next_state.set(StageProgressState::Cleared);
 }
@@ -225,13 +223,13 @@ pub fn on_death(
     mark_for_despawn_by_query(&mut commands, &object_query);
     mark_for_despawn_by_query(&mut commands, &player_query);
 
-    let music_bundle = make_music_bundle(
+    let (player, settings, system_bundle, music_tag) = make_music_bundle(
         &asset_server,
         &volume_settings,
         assert_assets_path!("audio/music/game_over.ogg").to_string(),
         PlaybackMode::Despawn,
     );
-    commands.spawn((music_bundle, StageEntity));
+    commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
     if 0 == lives.0 {
         game_over_event_writer.send(GameOverTrigger { score: score.value });

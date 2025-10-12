@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { features = ["wayland"], version = "0.14.0" }
-bevy_common_assets = { features = ["ron"], version = "0.11.0" }
-bevy_editor_pls = { git = "https://github.com/zhaop/bevy_editor_pls.git", branch = "bevy-0.14" }
+bevy = { features = ["wayland"], version = "0.15" }
+bevy_common_assets = { features = ["ron"], version = "0.12" }
+bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls.git", rev = "1d640f0ff62be4a021393757b05ea77089384b0e" }
 carcinisation = { path = "../../" }
 colored = "2.1.0"
 derive-new = "0.6.0"

@@ -23,9 +23,9 @@ impl Plugin for TransitionVenetianPlugin {
         app.init_state::<TransitionVenetianPluginUpdateState>()
             .init_resource::<TransitionUpdateTimer>()
             .add_event::<TransitionVenetianStartupEvent>()
-            .observe(on_transition_startup)
+            .add_observer(on_transition_startup)
             .add_event::<TransitionVenetianShutdownEvent>()
-            .observe(on_transition_shutdown)
+            .add_observer(on_transition_shutdown)
             .add_systems(
                 Update,
                 (

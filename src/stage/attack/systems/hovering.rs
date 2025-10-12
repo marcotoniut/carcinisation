@@ -1,4 +1,5 @@
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
+use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
     layer::Layer,
@@ -15,11 +16,11 @@ use crate::{
     },
 };
 use assert_assets_path::assert_assets_path;
-use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
+use bevy::{
+    audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
+    prelude::*,
 };
+use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
@@ -43,21 +44,19 @@ pub fn hovering_damage_on_reached(
     volume_settings: Res<VolumeSettings>,
 ) {
     for (entity, attack, damage, position, depth) in &mut depth_query.iter() {
-        let sound_effect = asset_server.load(assert_assets_path!("audio/sfx/enemy_melee.ogg"));
+        let sound_effect: Handle<AudioSource> =
+            asset_server.load(assert_assets_path!("audio/sfx/enemy_melee.ogg"));
 
         for entity in &mut player_query.iter_mut() {
             damage_event_writer.send(DamageEvent::new(entity, damage.0));
         }
 
         commands.spawn((
-            AudioBundle {
-                source: sound_effect,
-                settings: PlaybackSettings {
-                    mode: PlaybackMode::Despawn,
-                    volume: volume_settings.sfx.clone(),
-                    ..default()
-                },
-                ..default()
+            AudioPlayer(sound_effect),
+            PlaybackSettings {
+                mode: PlaybackMode::Despawn,
+                volume: volume_settings.sfx.clone(),
+                ..Default::default()
             },
             AudioSystemBundle {
                 system_type: AudioSystemType::SFX,
@@ -71,8 +70,10 @@ pub fn hovering_damage_on_reached(
                 Name::new(format!("Attack - {} - hit", attack.get_name())),
                 PxSubPosition::from(position.0),
                 PxSpriteBundle::<Layer> {
-                    sprite: assets_sprite
-                        .load_animated(animation.sprite_path.clone(), animation.frames),
+                    sprite: PxSprite(
+                        assets_sprite
+                            .load_animated(animation.sprite_path.clone(), animation.frames),
+                    ),
                     layer: depth.to_layer(),
                     anchor: PxAnchor::Center,
                     ..default()

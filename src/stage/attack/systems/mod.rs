@@ -4,6 +4,7 @@ pub mod player;
 use super::components::{
     bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyHoveringAttackType,
 };
+use crate::pixel::PxAssets;
 use crate::{
     components::DespawnMark,
     plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
@@ -18,7 +19,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
+use seldom_pixel::prelude::PxSprite;
 
 // TODO remove in favor of damage taken?
 pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health), Without<Dead>>) {

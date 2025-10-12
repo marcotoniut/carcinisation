@@ -1,9 +1,11 @@
-use crate::{data::AnimationData, layer::Layer, stage::components::placement::Depth};
-use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAnimationBundle, PxAssets},
-    sprite::{PxSprite, PxSpriteBundle},
+use crate::{
+    data::AnimationData,
+    layer::Layer,
+    pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle},
+    stage::components::placement::Depth,
 };
+use bevy::prelude::*;
+use seldom_pixel::prelude::{PxAnchor, PxSprite};
 
 /**
  * TODO
@@ -20,7 +22,7 @@ pub fn make_enemy_animation_bundle(
 
     (
         PxSpriteBundle::<Layer> {
-            sprite: texture,
+            sprite: texture.into(),
             layer: depth.to_layer(),
             anchor: PxAnchor::Center,
             ..default()
