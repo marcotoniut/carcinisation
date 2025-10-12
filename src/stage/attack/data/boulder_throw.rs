@@ -13,7 +13,6 @@ use crate::{
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
-use std::ops::RangeInclusive;
 
 pub const BOULDER_THROW_ATTACK_DEPTH_SPEED: f32 = -1.6;
 pub const BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION: f32 = -55.;
@@ -28,7 +27,16 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
-pub const BOULDER_THROW_DEPTH_RANGE: RangeInclusive<Depth> = Depth::One..=Depth::Eight;
+const BOULDER_THROW_DEPTHS: [Depth; 8] = [
+    Depth::One,
+    Depth::Two,
+    Depth::Three,
+    Depth::Four,
+    Depth::Five,
+    Depth::Six,
+    Depth::Seven,
+    Depth::Eight,
+];
 const HIT_DEPTH: Depth = PLAYER_DEPTH;
 
 lazy_static! {
@@ -37,7 +45,7 @@ lazy_static! {
         let hovering_speed = 300;
 
         let mut hovering = HashMap::new();
-        for i in BOULDER_THROW_DEPTH_RANGE {
+        for &i in BOULDER_THROW_DEPTHS.iter() {
             hovering.insert(
                 i,
                 AnimationData {

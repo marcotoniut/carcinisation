@@ -5,11 +5,7 @@ use crate::{
 use bevy::{prelude::*, utils::HashMap};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use std::{
-    convert::TryInto,
-    iter::Step,
-    ops::{Add, Sub},
-};
+use std::ops::{Add, Sub};
 use strum_macros::EnumIter;
 
 #[derive(
@@ -67,31 +63,6 @@ impl Sub<i8> for Depth {
             .min(Depth::MAX.to_i8())
             .max(Depth::MIN.to_i8());
         Depth::try_from(value).unwrap_or(Depth::MIN)
-    }
-}
-
-impl Step for Depth {
-    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
-        if start <= end {
-            let steps = (*end as i8 - *start as i8) as usize;
-            (steps, Some(steps))
-        } else {
-            (0, None)
-        }
-    }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        let offset: i16 = count.try_into().ok()?;
-        let target = i16::from(start as i8) + offset;
-        let target = i8::try_from(target).ok()?;
-        Depth::try_from(target).ok()
-    }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        let offset: i16 = count.try_into().ok()?;
-        let target = i16::from(start as i8) - offset;
-        let target = i8::try_from(target).ok()?;
-        Depth::try_from(target).ok()
     }
 }
 

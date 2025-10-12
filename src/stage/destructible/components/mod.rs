@@ -1,13 +1,11 @@
 use super::data::destructibles::DestructibleAnimationData;
+use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
 use crate::{
     layer::Layer,
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnimationBundle, PxAssets},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::PxSprite;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -43,7 +41,7 @@ pub fn make_animation_bundle(
                 .load_animated(animation_data.sprite_path.clone(), animation_data.frames);
             (
                 PxSpriteBundle::<Layer> {
-                    sprite,
+                    sprite: sprite.into(),
                     layer: depth.to_layer(),
                     anchor: animation_data.anchor,
                     ..default()

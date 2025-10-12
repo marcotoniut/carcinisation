@@ -1,11 +1,12 @@
 use super::{components::*, crosshair::CrosshairSettings, CrosshairInfo};
+use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
     globals::*,
     layer::Layer,
     stage::components::{interactive::Health, StageEntity},
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::*;
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
 
 pub fn make_player_bundle(
     asset_server: &mut PxAssets<PxSprite>,
@@ -26,7 +27,7 @@ pub fn make_player_bundle(
         Health(PLAYER_MAX_HEALTH),
         PxSpriteBundle::<Layer> {
             canvas: PxCanvas::Camera,
-            sprite,
+            sprite: sprite.into(),
             layer: Layer::Front,
             anchor: PxAnchor::Center,
             ..default()

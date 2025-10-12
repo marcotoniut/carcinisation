@@ -2,8 +2,9 @@ use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
-use std::{collections::HashMap, ops::RangeInclusive};
+use std::ops::RangeInclusive;
 
 pub struct MosquitoAnimations {
     pub death: HashMap<Depth, AnimationData>,
@@ -25,6 +26,15 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
+const MOSQUITO_DEPTHS: &[Depth] = &[
+    Depth::Three,
+    Depth::Four,
+    Depth::Five,
+    Depth::Six,
+    Depth::Seven,
+    Depth::Eight,
+];
+
 pub const MOSQUITO_DEPTH_RANGE: RangeInclusive<Depth> = Depth::Three..=Depth::Eight;
 
 lazy_static! {
@@ -42,7 +52,7 @@ lazy_static! {
         let melee_attack_speed = 130;
 
         let mut death = HashMap::new();
-        for i in MOSQUITO_DEPTH_RANGE {
+        for &i in MOSQUITO_DEPTHS {
             death.insert(
                 i,
                 AnimationData {
@@ -62,7 +72,7 @@ lazy_static! {
         }
 
         let mut fly = HashMap::new();
-        for i in MOSQUITO_DEPTH_RANGE {
+        for &i in MOSQUITO_DEPTHS {
             fly.insert(
                 i,
                 AnimationData {
@@ -81,7 +91,7 @@ lazy_static! {
         }
 
         let mut idle = HashMap::new();
-        for i in MOSQUITO_DEPTH_RANGE {
+        for &i in MOSQUITO_DEPTHS {
             idle.insert(
                 i,
                 AnimationData {
@@ -100,7 +110,7 @@ lazy_static! {
         }
 
         let mut melee_attack = HashMap::new();
-        for i in MOSQUITO_DEPTH_RANGE {
+        for &i in MOSQUITO_DEPTHS {
             melee_attack.insert(
                 i,
                 AnimationData {

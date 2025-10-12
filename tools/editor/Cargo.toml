@@ -8,10 +8,10 @@ opt-level = 0
 
 [dependencies]
 assert_assets_path = { path = "../../assert_assets_path" }
-bevy = { features = ["dynamic_linking", "wayland"], version = "0.14.0" }
-bevy_common_assets = { features = ["ron"], version = "0.11.0" }
-bevy-inspector-egui = "0.25"
-bevy_prototype_lyon = "0.12.0"
+bevy = { features = ["dynamic_linking", "wayland"], version = "0.15" }
+bevy_common_assets = { features = ["ron"], version = "0.12" }
+bevy-inspector-egui = "0.28.1"
+bevy_prototype_lyon = "0.13"
 carcinisation = { path = "../../" }
 derive-new = "0.6.0"
 derive_more = "0.99.18"
@@ -22,7 +22,3 @@ ron = "0.8.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_with = "3.8.1"
 strum = "0.26.2"
-
-# For now it is recomendended to use the following patches of the libraries we are using
-[patch.crates-io]
-bevy-inspector-egui = { git = "https://github.com/naomijub/bevy-inspector-egui.git" }

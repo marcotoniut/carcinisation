@@ -10,6 +10,7 @@ use self::{
     systems::check_press_continue_input,
 };
 use super::StageUiPluginUpdateState;
+use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     components::{GBColor, PxSpriteColorLoader},
     game::{resources::Lives, score::components::Score},
@@ -22,9 +23,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
-use seldom_pixel::prelude::{
-    PxAnchor, PxAssets, PxCanvas, PxFilter, PxFilterLayers, PxLineBundle, PxTextBundle, PxTypeface,
-};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxText, PxTypeface};
 
 pub const HALF_SCREEN_SIZE: i32 = 70;
 
@@ -55,7 +54,7 @@ pub fn render_death_screen(
                             ]
                             .into(),
                             layers: PxFilterLayers::single_over(Layer::UIBackground),
-                            filter: assets_filter.load_color(GBColor::White),
+                            filter: PxFilter(assets_filter.load_color(GBColor::White)),
                             ..default()
                         },
                         UIBackground {},
@@ -74,8 +73,10 @@ pub fn render_death_screen(
                                 90 + (FONT_SIZE + 2) as i32,
                             )
                             .into(),
-                            text: lives_text.clone().into(),
-                            typeface: typeface.clone(),
+                            text: PxText {
+                                value: lives_text.clone(),
+                                typeface: typeface.clone(),
+                            },
                             ..default()
                         },
                         InfoText,
@@ -94,8 +95,10 @@ pub fn render_death_screen(
                                 60 + (FONT_SIZE + 2) as i32,
                             )
                             .into(),
-                            text: "Score:".into(),
-                            typeface: typeface.clone(),
+                            text: PxText {
+                                value: "Score:".to_string(),
+                                typeface: typeface.clone(),
+                            },
                             ..default()
                         },
                         InfoText,
@@ -114,8 +117,10 @@ pub fn render_death_screen(
                                 50 + (FONT_SIZE + 2) as i32,
                             )
                             .into(),
-                            text: score_text.clone().into(),
-                            typeface: typeface.clone(),
+                            text: PxText {
+                                value: score_text.clone(),
+                                typeface: typeface.clone(),
+                            },
                             ..default()
                         },
                         CurrentScoreText,

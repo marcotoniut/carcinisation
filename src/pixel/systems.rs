@@ -3,12 +3,9 @@
 use crate::components::GBColor;
 
 use super::components::*;
+use crate::pixel::{PxAsset, PxAssets, PxFilterData, PxLineBundle};
 use bevy::{prelude::*, utils::HashMap};
-use seldom_pixel::{
-    asset::PxAsset,
-    filter::PxFilterData,
-    prelude::{PxAssets, PxFilter, PxFilterLayers, PxLayer, PxLine, PxLineBundle, PxSubPosition},
-};
+use seldom_pixel::prelude::{PxFilter, PxFilterLayers, PxLayer, PxLine, PxSubPosition};
 
 /// Spawns a `PxLineBundle` for each row of the rectangle.
 pub fn spawn_rectangle_rows<L: PxLayer>(
@@ -24,7 +21,7 @@ pub fn spawn_rectangle_rows<L: PxLayer>(
                 canvas: rectangle.canvas,
                 // TODO this calculations are a bit pointless now
                 line: rectangle.row_line_vec(Vec2::ZERO, &row).into(),
-                filter: filter.clone(),
+                filter: PxFilter(filter.clone()),
                 layers: PxFilterLayers::single_over(rectangle.layer.clone()),
                 ..default()
             },

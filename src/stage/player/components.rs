@@ -1,13 +1,15 @@
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
+use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
 use crate::{layer::Layer, stage::components::placement::Depth};
 use assert_assets_path::assert_assets_path;
-use bevy::{audio::PlaybackMode, prelude::*, utils::HashSet};
-use seldom_pixel::{
-    prelude::{
-        PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
-        PxCanvas, PxSubPosition,
-    },
-    sprite::{PxSprite, PxSpriteBundle},
+use bevy::{
+    audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
+    prelude::*,
+    utils::HashSet,
+};
+use seldom_pixel::prelude::{
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
+    PxAnimationFrameTransition, PxCanvas, PxSprite, PxSubPosition,
 };
 
 #[derive(Component)]
@@ -52,40 +54,38 @@ impl PlayerAttack {
             UnhittableList,
             Name,
         ),
-        (AudioSourceBundle, AudioSystemBundle),
+        (AudioPlayer, PlaybackSettings, AudioSystemBundle),
     ) {
         let position = PxSubPosition::from(self.position);
         let name = Name::new("PlayerAttack");
 
         // TODO sprite
-        let (sprite_bundle, animation_bundle, audio_source_bundle, audio_system_bundle) =
+        let (sprite_bundle, animation_bundle, audio_player, playback_settings, audio_system_bundle) =
             match self.weapon {
                 Weapon::Pincer => {
                     let melee_slash_sound =
                         asset_server.load(assert_assets_path!("audio/sfx/player_melee.ogg"));
                     let sprite = assets_sprite
-                        .load_animated(assert_assets_path!("sprites/melee_slash.png"), 9);
+                        .load_animated(assert_assets_path!("sprites/melee_slash.px_sprite.png"), 9);
                     (
                         PxSpriteBundle::<Layer> {
-                            sprite,
+                            sprite: sprite.into(),
                             anchor: PxAnchor::Center,
                             canvas: PxCanvas::Camera,
                             layer: Layer::Attack,
                             ..default()
                         },
-                        PxAnimationBundle {
-                            duration: PxAnimationDuration::millis_per_animation(500),
-                            on_finish: PxAnimationFinishBehavior::Despawn,
-                            ..default()
-                        },
-                        AudioBundle {
-                            source: melee_slash_sound,
-                            settings: PlaybackSettings {
-                                mode: PlaybackMode::Despawn,
-                                volume: volume_settings.sfx.clone(),
-                                ..default()
-                            },
-                            ..default()
+                        PxAnimationBundle::from_parts(
+                            PxAnimationDirection::default(),
+                            PxAnimationDuration::millis_per_animation(500),
+                            PxAnimationFinishBehavior::Despawn,
+                            PxAnimationFrameTransition::default(),
+                        ),
+                        AudioPlayer(melee_slash_sound),
+                        PlaybackSettings {
+                            mode: PlaybackMode::Despawn,
+                            volume: volume_settings.sfx.clone(),
+                            ..Default::default()
                         },
                         AudioSystemBundle {
                             system_type: AudioSystemType::SFX,
@@ -95,29 +95,29 @@ impl PlayerAttack {
                 Weapon::Gun => {
                     let shoot_sound =
                         asset_server.load(assert_assets_path!("audio/sfx/player_shot.ogg"));
-                    let sprite = assets_sprite
-                        .load_animated(assert_assets_path!("sprites/bullet_particles.png"), 4);
+                    let sprite = assets_sprite.load_animated(
+                        assert_assets_path!("sprites/bullet_particles.px_sprite.png"),
+                        4,
+                    );
                     (
                         PxSpriteBundle::<Layer> {
-                            sprite,
+                            sprite: sprite.into(),
                             anchor: PxAnchor::Center,
                             canvas: PxCanvas::Camera,
                             layer: Layer::Attack,
                             ..default()
                         },
-                        PxAnimationBundle {
-                            duration: PxAnimationDuration::millis_per_animation(80),
-                            on_finish: PxAnimationFinishBehavior::Despawn,
-                            ..default()
-                        },
-                        AudioBundle {
-                            source: shoot_sound,
-                            settings: PlaybackSettings {
-                                mode: PlaybackMode::Despawn,
-                                volume: volume_settings.sfx.clone(),
-                                ..default()
-                            },
-                            ..default()
+                        PxAnimationBundle::from_parts(
+                            PxAnimationDirection::default(),
+                            PxAnimationDuration::millis_per_animation(80),
+                            PxAnimationFinishBehavior::Despawn,
+                            PxAnimationFrameTransition::default(),
+                        ),
+                        AudioPlayer(shoot_sound),
+                        PlaybackSettings {
+                            mode: PlaybackMode::Despawn,
+                            volume: volume_settings.sfx.clone(),
+                            ..Default::default()
                         },
                         AudioSystemBundle {
                             system_type: AudioSystemType::SFX,
@@ -135,7 +135,7 @@ impl PlayerAttack {
                 UnhittableList(HashSet::default()),
                 name,
             ),
-            (audio_source_bundle, audio_system_bundle),
+            (audio_player, playback_settings, audio_system_bundle),
         )
     }
 }

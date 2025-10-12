@@ -13,7 +13,6 @@ use crate::{
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
-use std::ops::RangeInclusive;
 
 pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = -2.;
 pub const BLOOD_SHOT_ATTACK_LINE_SPEED: f32 = 25.;
@@ -28,7 +27,16 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
-pub const BLOOD_SHOT_DEPTH_RANGE: RangeInclusive<Depth> = Depth::One..=Depth::Eight;
+const BLOOD_SHOT_DEPTHS: [Depth; 8] = [
+    Depth::One,
+    Depth::Two,
+    Depth::Three,
+    Depth::Four,
+    Depth::Five,
+    Depth::Six,
+    Depth::Seven,
+    Depth::Eight,
+];
 const HIT_DEPTH: Depth = PLAYER_DEPTH;
 
 lazy_static! {
@@ -41,7 +49,7 @@ lazy_static! {
 
         let mut hovering = HashMap::new();
 
-        for i in BLOOD_SHOT_DEPTH_RANGE {
+        for &i in BLOOD_SHOT_DEPTHS.iter() {
             hovering.insert(
                 i,
                 AnimationData {

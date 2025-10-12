@@ -5,13 +5,14 @@ use super::components::*;
 use super::resources::AttackTimer;
 use crate::core::time::DeltaTime;
 use crate::input::GBInput;
+use crate::pixel::PxAssets;
 use crate::{
     components::{DespawnMark, VolumeSettings},
     globals::{mark_for_despawn_by_query, HUD_HEIGHT, SCREEN_RESOLUTION},
 };
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::prelude::*;
+use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 use std::time::Duration;
 
 pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {

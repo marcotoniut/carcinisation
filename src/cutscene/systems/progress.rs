@@ -1,4 +1,5 @@
 use crate::components::VolumeSettings;
+use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
 use crate::{
     components::{Cleared, CutsceneElapsedStarted, Music, Tag},
     cutscene::{
@@ -12,13 +13,13 @@ use crate::{
     letterbox::events::LetterboxMoveTrigger,
     systems::spawn::make_music_bundle,
 };
-use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::{
-    prelude::{
-        PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAnimationFinishBehavior, PxAssets,
-        PxSubPosition,
-    },
-    sprite::{PxSprite, PxSpriteBundle},
+use bevy::{
+    audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
+    prelude::*,
+};
+use seldom_pixel::prelude::{
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
+    PxAnimationFrameTransition, PxSprite, PxSubPosition,
 };
 
 /// @system Applies the next cutscene act when none is currently active.
@@ -112,18 +113,17 @@ pub fn process_cutscene_animations_spawn(
                 CutsceneEntity,
                 CutsceneGraphic,
                 PxSpriteBundle::<Layer> {
-                    sprite,
+                    sprite: sprite.into(),
                     anchor: PxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
                     ..default()
                 },
-                PxAnimationBundle {
-                    duration: PxAnimationDuration::millis_per_animation(
-                        spawn.duration.as_millis() as u64
-                    ),
-                    on_finish: PxAnimationFinishBehavior::Loop,
-                    ..default()
-                },
+                PxAnimationBundle::from_parts(
+                    PxAnimationDirection::default(),
+                    PxAnimationDuration::millis_per_animation(spawn.duration.as_millis() as u64),
+                    PxAnimationFinishBehavior::Loop,
+                    PxAnimationFrameTransition::default(),
+                ),
                 PxSubPosition::from(spawn.coordinates),
             ));
 
@@ -154,7 +154,7 @@ pub fn process_cutscene_images_spawn(
                 CutsceneEntity,
                 CutsceneGraphic,
                 PxSpriteBundle::<Layer> {
-                    sprite,
+                    sprite: sprite.into(),
                     anchor: PxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
                     ..default()
@@ -182,14 +182,21 @@ pub fn process_cutscene_music_spawn(
     for (entity, spawn) in query.iter() {
         mark_for_despawn_by_query(&mut commands, &music_query);
 
-        let music_bundle = make_music_bundle(
+        let (player, settings, system_bundle, music_tag) = make_music_bundle(
             &asset_server,
             &volume_settings,
             spawn.music_path.to_string(),
             PlaybackMode::Loop,
         );
 
-        commands.spawn((CutsceneEntity, music_bundle, Name::new("Cutscene music")));
+        commands.spawn((
+            CutsceneEntity,
+            player,
+            settings,
+            system_bundle,
+            music_tag,
+            Name::new("Cutscene music"),
+        ));
         commands.entity(entity).remove::<CutsceneMusicSpawn>();
     }
 }

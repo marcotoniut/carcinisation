@@ -1,9 +1,16 @@
 //! Convenience Bevy bundles for background and skybox entities in the stage.
 
 use super::data::SkyboxData;
-use crate::layer::Layer;
+use crate::{
+    layer::Layer,
+    pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle},
+};
 use bevy::prelude::*;
-use seldom_pixel::{asset::*, prelude::*};
+use seldom_pixel::prelude::{
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
+    PxAnimationFrameTransition, PxCanvas, PxSprite, PxSubPosition,
+};
+use seldom_pixel::sprite::PxSpriteAsset;
 
 #[derive(Bundle)]
 /// Pixel background sprite anchored to the bottom-left of the world.
@@ -15,12 +22,12 @@ pub struct BackgroundBundle {
 
 impl BackgroundBundle {
     /// Creates a background sprite bundle using the provided pixel sprite handle.
-    pub fn new(sprite: Handle<PxSprite>) -> Self {
+    pub fn new(sprite: Handle<PxSpriteAsset>) -> Self {
         Self {
             name: Name::new("Background"),
             position: Vec2::ZERO.into(),
             sprite: PxSpriteBundle::<Layer> {
-                sprite,
+                sprite: sprite.into(),
                 anchor: PxAnchor::BottomLeft,
                 layer: Layer::Background,
                 ..default()
@@ -44,15 +51,16 @@ impl SkyboxBundle {
         let sprite = assets_sprite.load_animated(skybox_data.path, skybox_data.frames);
 
         Self {
-            animation: PxAnimationBundle {
-                duration: PxAnimationDuration::millis_per_animation(2000),
-                on_finish: PxAnimationFinishBehavior::Loop,
-                ..default()
-            },
+            animation: PxAnimationBundle::from_parts(
+                PxAnimationDirection::default(),
+                PxAnimationDuration::millis_per_animation(2000),
+                PxAnimationFinishBehavior::Loop,
+                PxAnimationFrameTransition::default(),
+            ),
             name: Name::new("Skybox"),
             position: Vec2::ZERO.into(),
             sprite: PxSpriteBundle::<Layer> {
-                sprite,
+                sprite: sprite.into(),
                 anchor: PxAnchor::BottomLeft,
                 canvas: PxCanvas::Camera,
                 layer: Layer::Skybox,

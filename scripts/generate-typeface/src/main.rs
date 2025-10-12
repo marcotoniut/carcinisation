@@ -80,6 +80,12 @@ fn main() {
     );
 
     image
-        .save(format!("{}{}", RESOURCES_PATH, "gfx/typeface/pixeboy.png").as_str())
+        .save(
+            format!(
+                "{}{}",
+                RESOURCES_PATH, "gfx/typeface/pixeboy.px_typeface.png"
+            )
+            .as_str(),
+        )
         .unwrap();
 }

@@ -1,12 +1,13 @@
 use super::EnemyHoveringAttackType;
+use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
 use crate::{
     layer::Layer,
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAnimationBundle, PxAnimationDuration, PxAssets},
-    sprite::{PxSprite, PxSpriteBundle},
+use seldom_pixel::prelude::{
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
+    PxAnimationFrameTransition, PxSprite,
 };
 
 pub fn make_hovering_attack_animation_bundle(
@@ -20,17 +21,17 @@ pub fn make_hovering_attack_animation_bundle(
     let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
     (
         PxSpriteBundle::<Layer> {
-            sprite: texture,
+            sprite: texture.into(),
             layer: (depth - 1).to_layer(),
             anchor: PxAnchor::Center,
             ..default()
         },
-        PxAnimationBundle {
-            duration: PxAnimationDuration::millis_per_animation(animation.speed),
-            on_finish: animation.finish_behavior,
-            direction: animation.direction,
-            ..default()
-        },
+        PxAnimationBundle::from_parts(
+            animation.direction,
+            PxAnimationDuration::millis_per_animation(animation.speed),
+            animation.finish_behavior,
+            animation.frame_transition,
+        ),
         animation.collider_data.clone(),
     )
 }

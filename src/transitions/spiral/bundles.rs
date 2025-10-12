@@ -1,15 +1,15 @@
+use crate::{
+    globals::SCREEN_RESOLUTION,
+    layer::Layer,
+    pixel::{PxAssets, PxLineBundle},
+};
 use bevy::prelude::*;
-use seldom_pixel::{asset::*, filter::*, prelude::*};
-
-use crate::{globals::SCREEN_RESOLUTION, layer::Layer};
+use seldom_pixel::prelude::{PxCanvas, PxFilter, PxFilterLayers, PxLayer};
 
 use super::{components::TransitionVenetianRow, resources::*};
 
-pub fn make_transition_venetian_row(
-    filter: Handle<PxAsset<PxFilterData>>,
-    row: u32,
-) -> (PxLineBundle<Layer>, TransitionVenetianRow, Name) {
-    (
+pub fn spawn_transition_venetian_row(commands: &mut Commands, filter: PxFilter, row: u32) {
+    commands.spawn((
         PxLineBundle::<Layer> {
             canvas: PxCanvas::Camera,
             line: [
@@ -19,11 +19,11 @@ pub fn make_transition_venetian_row(
             .into(),
             layers: PxFilterLayers::single_over(Layer::Transition),
             filter,
-            ..default()
+            ..Default::default()
         },
         TransitionVenetianRow { row },
         Name::new("TransitionSpiralLine"),
-    )
+    ));
 }
 
 pub fn update_transition(
@@ -36,7 +36,7 @@ pub fn update_transition(
     let n = 6;
 
     if timer.timer.finished() {
-        let filter = filters.load("filter/color2.png");
+        let filter = PxFilter(filters.load("filter/color2.px_filter.png"));
         let step_closing = SCREEN_RESOLUTION.y;
         let step_buffer = step_closing + (0.35 * SCREEN_RESOLUTION.y as f32) as u32;
         let step_opening = step_buffer + (SCREEN_RESOLUTION.y as f32) as u32;
@@ -46,7 +46,7 @@ pub fn update_transition(
             let rows_to_generate = remaining_rows.min(n);
             for i in 0..rows_to_generate {
                 let row = step_closing - counter.value - i;
-                commands.spawn(make_transition_venetian_row(filter.clone(), row));
+                spawn_transition_venetian_row(&mut commands, filter.clone(), row);
             }
         } else if counter.value < step_buffer {
         } else if counter.value < step_opening {
@@ -78,7 +78,7 @@ pub fn progress(
     // let n = 6;
 
     // if timer.timer.finished() {
-    //     let filter = filters.load("filter/color2.png");
+    //     let filter = filters.load("filter/color2.px_filter.png");
     //     let step_closing = SCREEN_RESOLUTION.y;
     //     let step_buffer = step_closing + (0.35 * SCREEN_RESOLUTION.y as f32) as u32;
     //     let step_opening = step_buffer + (SCREEN_RESOLUTION.y as f32) as u32;
@@ -88,7 +88,7 @@ pub fn progress(
     //         let rows_to_generate = remaining_rows.min(n);
     //         for i in 0..rows_to_generate {
     //             let row = step_closing - counter.value - i;
-    //             commands.spawn(make_transition_venetian_row(filter.clone(), row));
+    //             spawn_transition_venetian_row(&mut commands, filter.clone(), row);
     //         }
     //     } else if counter.value < step_buffer {
     //     } else if counter.value < step_opening {

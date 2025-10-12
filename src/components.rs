@@ -2,10 +2,7 @@ use std::time::Duration;
 
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::Volume, prelude::*};
-use seldom_pixel::{
-    asset::{PxAsset, PxAssets},
-    filter::{PxFilter, PxFilterData},
-};
+use seldom_pixel::filter::PxFilterAsset;
 
 #[derive(Component)]
 pub enum AudioSystemType {
@@ -31,16 +28,16 @@ impl GBColor {
     pub fn get_filter_path(&self) -> &'static str {
         match self {
             GBColor::Black => {
-                assert_assets_path!("filter/color0.png")
+                assert_assets_path!("filter/color0.px_filter.png")
             }
             GBColor::DarkGray => {
-                assert_assets_path!("filter/color1.png")
+                assert_assets_path!("filter/color1.px_filter.png")
             }
             GBColor::LightGray => {
-                assert_assets_path!("filter/color2.png")
+                assert_assets_path!("filter/color2.px_filter.png")
             }
             GBColor::White => {
-                assert_assets_path!("filter/color3.png")
+                assert_assets_path!("filter/color3.px_filter.png")
             }
         }
     }
@@ -48,11 +45,11 @@ impl GBColor {
 
 pub trait PxSpriteColorLoader {
     /// Runs `f` on `self`
-    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter>;
+    fn load_color(&self, color: GBColor) -> Handle<PxFilterAsset>;
 }
 
-impl PxSpriteColorLoader for PxAssets<'_, '_, PxAsset<PxFilterData>> {
-    fn load_color(&mut self, color: GBColor) -> Handle<PxFilter> {
+impl PxSpriteColorLoader for AssetServer {
+    fn load_color(&self, color: GBColor) -> Handle<PxFilterAsset> {
         self.load(color.get_filter_path())
     }
 }

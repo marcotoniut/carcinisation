@@ -18,9 +18,10 @@ use self::{
     },
 };
 use super::resources::StageTime;
+use crate::pixel::{PxAsset, PxAssets, PxSpriteData};
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{prelude::PxAssets, sprite::PxSprite};
+use seldom_pixel::prelude::PxSprite;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Player movement systems run before confinement to ensure corrected positions.
@@ -39,11 +40,11 @@ impl Plugin for PlayerPlugin {
             .init_state::<PlayerPluginUpdateState>()
             .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
             .add_event::<CameraShakeTrigger>()
-            .observe(on_camera_shake)
+            .add_observer(on_camera_shake)
             .add_event::<PlayerStartupTrigger>()
-            .observe(on_player_startup)
+            .add_observer(on_player_startup)
             .add_event::<PlayerShutdownTrigger>()
-            .observe(on_player_shutdown)
+            .add_observer(on_player_shutdown)
             .add_systems(
                 Update,
                 // Player logic only runs when the plugin is active.
@@ -70,16 +71,14 @@ pub enum PlayerPluginUpdateState {
 
 /// Convenience holder for the chosen crosshair sprite and metadata.
 pub struct CrosshairInfo {
-    pub sprite: Handle<seldom_pixel::asset::PxAsset<seldom_pixel::sprite::PxSpriteData>>,
+    pub sprite: Handle<PxAsset<PxSpriteData>>,
     pub crosshair: Crosshair,
 }
 
 impl CrosshairInfo {
     /** REVIEW if these are needed */
     /// Returns the underlying sprite handle (consumes the wrapper).
-    pub fn get_sprite(
-        crosshair: CrosshairInfo,
-    ) -> Handle<seldom_pixel::asset::PxAsset<seldom_pixel::sprite::PxSpriteData>> {
+    pub fn get_sprite(crosshair: CrosshairInfo) -> Handle<PxAsset<PxSpriteData>> {
         crosshair.sprite
     }
 
@@ -99,20 +98,24 @@ impl CrosshairInfo {
 
         match crosshair_settings.0 {
             2 => {
-                sprite = asset_server.load(assert_assets_path!("sprites/crosshairs/squiggly.png"));
+                sprite = asset_server.load(assert_assets_path!(
+                    "sprites/crosshairs/squiggly.px_sprite.png"
+                ));
                 crosshair = Crosshair {
                     name: "squiggly".to_string(),
                 };
             }
             1 => {
-                sprite = asset_server.load(assert_assets_path!("sprites/crosshairs/gun_sight.png"));
+                sprite = asset_server.load(assert_assets_path!(
+                    "sprites/crosshairs/gun_sight.px_sprite.png"
+                ));
                 crosshair = Crosshair {
                     name: "negative".to_string(),
                 };
             }
             0 => {
                 sprite = asset_server.load(assert_assets_path!(
-                    "sprites/crosshairs/gun_sight_inverted.png"
+                    "sprites/crosshairs/gun_sight_inverted.px_sprite.png"
                 ));
                 crosshair = Crosshair {
                     name: "default".to_string(),
@@ -120,7 +123,7 @@ impl CrosshairInfo {
             }
             _ => {
                 sprite = asset_server.load(assert_assets_path!(
-                    "sprites/crosshairs/gun_sight_inverted.png"
+                    "sprites/crosshairs/gun_sight_inverted.px_sprite.png"
                 ));
                 crosshair = Crosshair {
                     name: "default".to_string(),

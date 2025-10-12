@@ -1,14 +1,17 @@
 pub mod destructibles;
 
 use super::components::DestructibleType;
-use crate::stage::{
-    components::{interactive::ColliderData, placement::Depth},
-    data::ContainerSpawn,
+use crate::{
+    pixel::PxAnimationBundle,
+    stage::{
+        components::{interactive::ColliderData, placement::Depth},
+        data::ContainerSpawn,
+    },
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxAnimationBundle, PxAnimationDirection, PxAnimationDuration,
-    PxAnimationFinishBehavior,
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
+    PxAnimationFrameTransition,
 };
 use serde::{Deserialize, Serialize};
 
@@ -164,12 +167,12 @@ pub struct AnimationData {
 
 impl AnimationData {
     pub fn make_animation_bundle(&self) -> PxAnimationBundle {
-        PxAnimationBundle {
-            duration: PxAnimationDuration::millis_per_animation(self.speed),
-            on_finish: self.finish_behavior,
-            direction: self.direction,
-            ..default()
-        }
+        PxAnimationBundle::from_parts(
+            self.direction,
+            PxAnimationDuration::millis_per_animation(self.speed),
+            self.finish_behavior,
+            PxAnimationFrameTransition::default(),
+        )
     }
 }
 

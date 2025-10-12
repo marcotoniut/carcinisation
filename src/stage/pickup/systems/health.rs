@@ -1,3 +1,4 @@
+use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -18,10 +19,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::{
-    prelude::{PxAnchor, PxAssets, PxCanvas, PxSubPosition},
-    sprite::{PxSprite, PxSpriteBundle},
-};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
 
 // TODO could be generalised
 #[derive(Bundle)]
@@ -116,12 +114,14 @@ pub fn pickup_health(
             score.add(recovery.score_deduction());
 
             let current = position.0 - camera_pos.0;
-            let sprite = assets_sprite.load(assert_assets_path!("sprites/pickups/health_4.png"));
+            let sprite = assets_sprite.load(assert_assets_path!(
+                "sprites/pickups/health_4.px_sprite.png"
+            ));
 
             commands.spawn(PickupFeedbackBundle {
                 position: current.into(),
                 sprite: PxSpriteBundle::<Layer> {
-                    sprite,
+                    sprite: sprite.into(),
                     // TODO the position should be stuck to the floor beneah the dropper
                     anchor: PxAnchor::Center,
                     canvas: PxCanvas::Camera,

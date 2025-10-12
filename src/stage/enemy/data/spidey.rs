@@ -2,8 +2,8 @@ use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
-use std::{collections::HashMap, ops::RangeInclusive};
 
 pub struct SpideyAnimations {
     pub death: HashMap<Depth, AnimationData>,
@@ -21,7 +21,14 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
     format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
 }
 
-pub const SPIDEY_DEPTH_RANGE: RangeInclusive<Depth> = Depth::Two..=Depth::Seven;
+const SPIDEY_DEPTHS: &[Depth] = &[
+    Depth::Two,
+    Depth::Three,
+    Depth::Four,
+    Depth::Five,
+    Depth::Six,
+    Depth::Seven,
+];
 
 lazy_static! {
     pub static ref MOSQUITO_ANIMATIONS: SpideyAnimations = {
@@ -32,7 +39,7 @@ lazy_static! {
         let death_speed = 780;
 
         let mut death = HashMap::new();
-        for i in SPIDEY_DEPTH_RANGE {
+        for &i in SPIDEY_DEPTHS {
             death.insert(
                 i,
                 AnimationData {
@@ -52,7 +59,7 @@ lazy_static! {
         }
 
         let mut idle = HashMap::new();
-        for i in SPIDEY_DEPTH_RANGE {
+        for &i in SPIDEY_DEPTHS {
             idle.insert(
                 i,
                 AnimationData {

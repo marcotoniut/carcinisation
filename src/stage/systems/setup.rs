@@ -1,5 +1,6 @@
 use super::spawn::*;
 use crate::components::VolumeSettings;
+use crate::pixel::PxAssets;
 use crate::{
     stage::{
         bundles::{BackgroundBundle, SkyboxBundle},
@@ -13,10 +14,7 @@ use crate::{
     systems::spawn::make_music_bundle,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::{
-    prelude::{PxAssets, PxFilter, PxTypeface},
-    sprite::PxSprite,
-};
+use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
 
 pub fn on_stage_startup(
     trigger: Trigger<StageStartupTrigger>,
@@ -61,7 +59,7 @@ pub fn on_stage_startup(
     }
 
     commands
-        .spawn((Stage, Name::new("Stage")))
+        .spawn((Stage, Name::new("Stage"), Visibility::Visible))
         .with_children(|p0| {
             p0.spawn(BackgroundBundle::new(
                 assets_sprite.load(data.background_path.clone()),
@@ -72,14 +70,14 @@ pub fn on_stage_startup(
     // DEBUG
 
     // TODO turn this into a spawn, like in cutscene, or make it a StageSpawn
-    let music_bundle = make_music_bundle(
+    let (player, settings, system_bundle, music_tag) = make_music_bundle(
         &asset_server,
         &volume_settings,
         data.music_path.clone(),
         PlaybackMode::Loop,
     );
 
-    commands.spawn((music_bundle, StageEntity));
+    commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
     commands.trigger(PlayerStartupTrigger);
 }
