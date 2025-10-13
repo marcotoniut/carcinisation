@@ -3,15 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev:editor": "pnpm --filter carcinisation-editor-v2 dev",
     "build:editor": "pnpm --filter carcinisation-editor-v2 build",
+    "dev:editor": "pnpm --filter carcinisation-editor-v2 dev",
+    "format": "biome format",
+    "format:check": "biome check",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
     "mcp:playwright": "pnpm exec mcp-server-playwright --headless"
   },
   "devDependencies": {
-    "@playwright/mcp": "0.0.43"
+    "@biomejs/biome": "2.2.5",
+    "@playwright/mcp": "0.0.44"
   },
-  "workspaces": [
-    "tools/editor-v2"
-  ],
-  "packageManager": "pnpm@10.19.0"
+  "packageManager": "pnpm@10.19.0",
+  "workspaces": ["tools/editor-v2"]
 }
