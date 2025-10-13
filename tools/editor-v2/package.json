@@ -1,0 +1,27 @@
+{
+  "name": "carcinisation-editor-v2",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "4.1.12",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@types/wicg-file-system-access": "2023.10.7",
+    "@vitejs/plugin-react": "5.1.0",
+    "typescript": "^5.9.3",
+    "vite": "7.1.12",
+    "vitest": "4.0.3"
+  }
+}
