@@ -45,6 +45,18 @@ launch-editor:
 watch-scene-files:
 	RUST_BACKTRACE=full cargo run -p scene-file-watcher
 
+.PHONY: dev-editor-v2
+dev-editor-v2:
+	cd tools/editor-v2 && pnpm dev
+
+.PHONY: build-editor-v2
+build-editor-v2:
+	cd tools/editor-v2 && pnpm build
+
+.PHONY: ci-editor-v2
+ci-editor-v2:
+	cd tools/editor-v2 && pnpm lint && pnpm test
+
 # =============================================================================
 # Asset generation
 # =============================================================================
@@ -144,6 +156,9 @@ help:
 	@echo ""
 	@echo "🛠 Tools & Assets:"
 	@echo "  launch-editor      - Open the in-house Bevy editor"
+	@echo "  dev-editor-v2      - Start the web-based editor v2 (sidecar + dev server)"
+	@echo "  build-editor-v2    - Build editor-v2 for production"
+	@echo "  ci-editor-v2       - Run editor-v2 CI checks (types, lint, tests)"
 	@echo "  watch-scene-files  - Run the scene watcher utility"
 	@echo "  generate-palettes  - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
