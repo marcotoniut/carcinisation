@@ -9,11 +9,7 @@
       "request": "launch",
       "name": "Debug executable 'carcinisation'",
       "cargo": {
-        "args": [
-          "build",
-          "--bin=carcinisation",
-          "--package=carcinisation",
-        ],
+        "args": ["build", "--bin=carcinisation", "--package=carcinisation"],
         "filter": {
           "name": "carcinisation",
           "kind": "bin"
@@ -53,11 +49,7 @@
       "request": "launch",
       "name": "Run editor",
       "cargo": {
-        "args": [
-          "build",
-          "--bin=editor",
-          "--package=editor",
-        ],
+        "args": ["build", "--bin=editor", "--package=editor"],
         "filter": {
           "name": "editor",
           "kind": "bin"
@@ -69,9 +61,7 @@
         "CARGO_MANIFEST_DIR": "${workspaceFolder}/tools/editor",
         "DYLD_LIBRARY_PATH": "${workspaceFolder}/target/debug/deps:${env:HOME}/.rustup/toolchains/nightly-aarch64-apple-darwin/lib"
       },
-      "sourceLanguages": [
-        "rust"
-      ]
+      "sourceLanguages": ["rust"]
     },
     {
       "type": "lldb",
@@ -120,11 +110,7 @@
       "request": "launch",
       "name": "Process Graphics",
       "cargo": {
-        "args": [
-          "build",
-          "--bin=process-gfx",
-          "--package=process-gfx"
-        ],
+        "args": ["build", "--bin=process-gfx", "--package=process-gfx"],
         "filter": {
           "name": "process-gfx",
           "kind": "bin"

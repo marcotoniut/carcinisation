@@ -9,10 +9,5 @@
     "editor.defaultFormatter": "dprint.dprint"
   },
   "makefile.configureOnOpen": false,
-  "cSpell.words": [
-    "carcinisation",
-    "clippy",
-    "cutscene",
-    "despawn"
-  ]
+  "cSpell.words": ["carcinisation", "clippy", "cutscene", "despawn"]
 }
