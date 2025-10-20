@@ -1,0 +1,115 @@
+{
+  // Browser MCP Server - Playwright web automation
+  "name": "Browser (Playwright)",
+  "version": "0.0.1",
+  "enabled": true,
+  "transport": "stdio",
+  "command": "pnpm",
+  "args": ["mcp:playwright"],
+  "env": {
+    "PLAYWRIGHT_HEADLESS": "1"
+  },
+
+  // Note: Tool schemas are provided by @playwright/mcp package
+  // This config documents expected behavior for reference
+  "tools": [
+    {
+      "name": "browser_navigate",
+      "description": "Navigate to a URL",
+      "preconditions": ["Browser page must be initialized"],
+      "inputs": {
+        "url": { "type": "string", "required": true, "description": "URL to navigate to" }
+      },
+      "errors": [
+        { "code": "NAVIGATION_TIMEOUT", "message": "Page load timeout", "retryable": true },
+        { "code": "INVALID_URL", "message": "Invalid URL format", "retryable": false }
+      ],
+      "idempotent": true,
+      "timeout": 30000,
+      "retry": { "enabled": true, "maxAttempts": 2, "backoffMs": [1000, 2000] }
+    },
+    {
+      "name": "browser_snapshot",
+      "description": "Capture accessibility snapshot of current page",
+      "preconditions": ["Browser page must be loaded"],
+      "idempotent": true,
+      "timeout": 10000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "browser_click",
+      "description": "Click element on page",
+      "preconditions": ["Browser page must be loaded", "Selector must exist"],
+      "inputs": {
+        "selector": { "type": "string", "required": true, "description": "CSS selector or text" }
+      },
+      "errors": [
+        { "code": "SELECTOR_NOT_FOUND", "message": "Element not found", "retryable": false },
+        { "code": "ELEMENT_NOT_CLICKABLE", "message": "Element obscured or disabled", "retryable": false }
+      ],
+      "idempotent": false,
+      "timeout": 10000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "browser_type",
+      "description": "Type text into element",
+      "preconditions": ["Browser page must be loaded", "Selector must exist and be editable"],
+      "inputs": {
+        "selector": { "type": "string", "required": true, "description": "CSS selector" },
+        "text": { "type": "string", "required": true, "description": "Text to type" }
+      },
+      "errors": [
+        { "code": "SELECTOR_NOT_FOUND", "message": "Element not found", "retryable": false },
+        { "code": "ELEMENT_NOT_EDITABLE", "message": "Element not an input/textarea", "retryable": false }
+      ],
+      "idempotent": false,
+      "timeout": 10000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "browser_evaluate",
+      "description": "Evaluate JavaScript in page context",
+      "preconditions": ["Browser page must be loaded"],
+      "inputs": {
+        "expression": { "type": "string", "required": true, "description": "JavaScript expression" }
+      },
+      "errors": [
+        { "code": "EVAL_ERROR", "message": "JavaScript error", "retryable": false }
+      ],
+      "idempotent": "depends_on_expression",
+      "timeout": 10000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "browser_take_screenshot",
+      "description": "Take screenshot of current page",
+      "preconditions": ["Browser page must be loaded"],
+      "idempotent": true,
+      "timeout": 10000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "browser_wait_for",
+      "description": "Wait for element or text to appear",
+      "preconditions": ["Browser page must be loaded"],
+      "inputs": {
+        "selector_or_text": { "type": "string", "required": true, "description": "CSS selector or text to wait for" }
+      },
+      "errors": [
+        { "code": "WAIT_TIMEOUT", "message": "Element/text did not appear", "retryable": false }
+      ],
+      "idempotent": true,
+      "timeout": 30000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "browser_close",
+      "description": "Close browser page",
+      "preconditions": [],
+      "idempotent": true,
+      "timeout": 5000,
+      "retry": { "enabled": false }
+    }
+  ]
+}

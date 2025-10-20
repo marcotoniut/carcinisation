@@ -1,0 +1,56 @@
+{
+  // Bevy MCP Server - Bevy-specific code analysis
+  "name": "Bevy MCP",
+  "version": "0.0.1",
+  "enabled": true,
+  "transport": "stdio",
+  "command": "bash",
+  "args": [
+    "-lc",
+    "exec \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/mcp/bevy/run.sh\""
+  ],
+  "env": {
+    "TOOLKIT_ROOT": "/app",
+    "CARCINISATION_ROOT": "/app"
+  },
+
+  "tools": [
+    {
+      "name": "bevy_version",
+      "description": "Return the Bevy dependency line(s) from Cargo.toml",
+      "preconditions": [
+        "Cargo.toml must exist in repo root",
+        "ripgrep (rg) must be installed"
+      ],
+      "inputs": {},
+      "outputs": {
+        "version": { "type": "string", "description": "Bevy version line or '(not found)'" }
+      },
+      "errors": [
+        { "code": "RG_MISSING", "message": "ripgrep not installed", "retryable": false },
+        { "code": "CARGO_MISSING", "message": "Cargo.toml not found", "retryable": false }
+      ],
+      "idempotent": true,
+      "timeout": 10000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "find_bevy_system_like_fns",
+      "description": "Functions that look like Bevy systems (Query/Res/Commands/EventReader/EventWriter)",
+      "preconditions": [
+        "ripgrep (rg) must be installed with --pcre2 support",
+        "src/, tools/, or scripts/ directories must exist"
+      ],
+      "inputs": {},
+      "outputs": {
+        "matches": { "type": "string", "description": "File:line matches (one per line)" }
+      },
+      "errors": [
+        { "code": "RG_MISSING", "message": "ripgrep not installed or missing --pcre2", "retryable": false }
+      ],
+      "idempotent": true,
+      "timeout": 30000,
+      "retry": { "enabled": false }
+    }
+  ]
+}

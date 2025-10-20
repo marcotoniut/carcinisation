@@ -1,0 +1,62 @@
+{
+  // Toolkit Base MCP Server - Generic repository utilities
+  "name": "Toolkit Base MCP",
+  "version": "0.0.1",
+  "enabled": true,
+  "transport": "stdio",
+  "command": "bash",
+  "args": [
+    "-lc",
+    "exec \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/mcp/base/run.sh\""
+  ],
+  "env": {
+    "TOOLKIT_ROOT": "/app",
+    "CARCINISATION_ROOT": "/app"
+  },
+
+  // Tool Metadata (from server.py)
+  "tools": [
+    {
+      "name": "run_shell",
+      "description": "Execute a read-only shell command (stderr preserved)",
+      "preconditions": [
+        "Docker or venv must be running",
+        "Command must be safe (read-only intent)"
+      ],
+      "inputs": {
+        "command": { "type": "string", "required": true, "description": "Shell command to execute" },
+        "cwd": { "type": "string", "required": false, "default": ".", "description": "Working directory, relative to repo root" }
+      },
+      "outputs": {
+        "stdout": { "type": "string" },
+        "stderr": { "type": "string" },
+        "returncode": { "type": "string", "description": "Exit code (0 = success)" }
+      },
+      "errors": [
+        { "code": "PATH_ESCAPE", "message": "Path escapes repository root", "retryable": false },
+        { "code": "NONZERO_EXIT", "message": "Command failed", "retryable": true }
+      ],
+      "idempotent": "depends_on_command",
+      "timeout": 120000,
+      "retry": {
+        "enabled": true,
+        "maxAttempts": 2,
+        "backoff": "exponential",
+        "backoffMs": [1000, 2000]
+      }
+    },
+    {
+      "name": "env_info",
+      "description": "Return server environment info",
+      "preconditions": [],
+      "inputs": {},
+      "outputs": {
+        "root": { "type": "string", "description": "Repository root path" }
+      },
+      "errors": [],
+      "idempotent": true,
+      "timeout": 5000,
+      "retry": { "enabled": false }
+    }
+  ]
+}

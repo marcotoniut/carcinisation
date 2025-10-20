@@ -1,0 +1,158 @@
+{
+  // Rust Docs MCP Server - Rust documentation analysis and generation
+  "name": "Rust Docs MCP",
+  "version": "0.0.1",
+  "enabled": true,
+  "transport": "stdio",
+  "command": "bash",
+  "args": [
+    "-lc",
+    "exec \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/mcp/rust-docs/run.sh\""
+  ],
+  "env": {
+    "TOOLKIT_ROOT": "/app",
+    "CARCINISATION_ROOT": "/app",
+    "ALLOW_WRITE": "0"
+  },
+
+  "tools": [
+    {
+      "name": "list_rust_files",
+      "description": "List Rust files under src/, tools/, scripts/ (excluding target/generated)",
+      "preconditions": ["ripgrep (rg) must be installed"],
+      "inputs": {},
+      "outputs": {
+        "files": { "type": "array", "items": { "type": "string" }, "description": "List of .rs file paths" }
+      },
+      "errors": [
+        { "code": "RG_MISSING", "message": "ripgrep not installed", "retryable": false }
+      ],
+      "idempotent": true,
+      "timeout": 30000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "find_module_doc_gaps",
+      "description": "Files likely missing a top-of-file module doc (//! or /*!)",
+      "preconditions": ["ripgrep (rg) must be installed with --pcre2 support"],
+      "inputs": {},
+      "outputs": {
+        "files": { "type": "array", "items": { "type": "string" }, "description": "Files missing module docs" }
+      },
+      "errors": [
+        { "code": "RG_MISSING", "message": "ripgrep not installed", "retryable": false }
+      ],
+      "idempotent": true,
+      "timeout": 30000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "find_public_item_doc_gaps",
+      "description": "Public items missing leading /// rustdoc (heuristic)",
+      "preconditions": ["ripgrep (rg) must be installed with --pcre2 support"],
+      "inputs": {},
+      "outputs": {
+        "matches": { "type": "string", "description": "File:line matches for public items without docs" }
+      },
+      "errors": [
+        { "code": "RG_MISSING", "message": "ripgrep not installed", "retryable": false }
+      ],
+      "idempotent": true,
+      "timeout": 30000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "cargo_doc",
+      "description": "Generate local API docs (target/doc/index.html)",
+      "preconditions": [
+        "cargo must be installed",
+        "Cargo.toml must exist",
+        "Workspace must compile"
+      ],
+      "inputs": {
+        "all_features": { "type": "boolean", "required": false, "default": true, "description": "Include --all-features flag" },
+        "no_deps": { "type": "boolean", "required": false, "default": false, "description": "Include --no-deps flag" }
+      },
+      "outputs": {
+        "result": { "type": "string", "description": "stdout + stderr + docs path" }
+      },
+      "errors": [
+        { "code": "CARGO_MISSING", "message": "cargo not installed", "retryable": false },
+        { "code": "BUILD_FAILED", "message": "Compilation failed", "retryable": false },
+        { "code": "TIMEOUT", "message": "cargo doc exceeded timeout", "retryable": true }
+      ],
+      "idempotent": true,
+      "timeout": 300000,
+      "retry": {
+        "enabled": true,
+        "maxAttempts": 2,
+        "backoff": "exponential",
+        "backoffMs": [5000, 10000]
+      }
+    },
+    {
+      "name": "docs_index_path",
+      "description": "Return docs index path if it exists",
+      "preconditions": [],
+      "inputs": {},
+      "outputs": {
+        "path": { "type": "string", "description": "Path to target/doc/index.html or 'not found'" }
+      },
+      "errors": [],
+      "idempotent": true,
+      "timeout": 5000,
+      "retry": { "enabled": false }
+    },
+    {
+      "name": "make",
+      "description": "Run a Make target (check, lint, test, build-web, release-wasm)",
+      "preconditions": [
+        "make must be installed",
+        "Makefile must exist in repo root"
+      ],
+      "inputs": {
+        "target": { "type": "string", "required": true, "description": "Make target to run" },
+        "env": { "type": "string", "required": false, "description": "Space-separated KEY=VAL pairs" }
+      },
+      "outputs": {
+        "result": { "type": "string", "description": "stdout + stderr" }
+      },
+      "errors": [
+        { "code": "MAKE_MISSING", "message": "make not installed", "retryable": false },
+        { "code": "MAKEFILE_MISSING", "message": "Makefile not found", "retryable": false },
+        { "code": "TARGET_FAILED", "message": "Make target exited non-zero", "retryable": true }
+      ],
+      "idempotent": "depends_on_target",
+      "timeout": 600000,
+      "retry": {
+        "enabled": true,
+        "maxAttempts": 2,
+        "backoff": "exponential",
+        "backoffMs": [2000, 4000]
+      }
+    },
+    {
+      "name": "insert_module_header",
+      "description": "Insert module-level documentation at the top of a Rust file",
+      "preconditions": [
+        "ALLOW_WRITE=1 environment variable must be set",
+        "File must exist and be UTF-8 encoded"
+      ],
+      "inputs": {
+        "filepath": { "type": "string", "required": true, "description": "Path to the Rust file (relative to repo root)" },
+        "header": { "type": "string", "required": true, "description": "Module documentation header (should start with //! or /*!)" }
+      },
+      "outputs": {
+        "result": { "type": "string", "description": "Success/error message" }
+      },
+      "errors": [
+        { "code": "WRITE_DISABLED", "message": "Write operations disabled; set ALLOW_WRITE=1", "retryable": false },
+        { "code": "FILE_NOT_FOUND", "message": "File not found", "retryable": false },
+        { "code": "ENCODING_ERROR", "message": "File not UTF-8 encoded", "retryable": false }
+      ],
+      "idempotent": false,
+      "timeout": 10000,
+      "retry": { "enabled": false }
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  // LLM Agent Configuration (Normalized)
+  // Consolidates .continue/agents/dev.yaml and reviewer.yaml
+  "schema": "v1",
+  "version": "1.0.0",
+
+  // Agent Profiles
+  "agents": {
+    "dev": {
+      "name": "Carcinisation Dev",
+      "description": "Development agent with full MCP tool access",
+      "models": {
+        "chat": "qwen3-coder:30b",
+        "apply": "qwen3-coder:30b",
+        "edit": "qwen2.5-coder:14b",
+        "autocomplete": "codellama:7b-code",
+        "rerank": "qwen3-coder:30b",
+        "embed": "nomic-embed-text:latest"
+      },
+      "systemPromptFile": "prompts/system.min.md",
+      "policyFile": "docs/llm/policy.min.md",
+      "rules": [
+        // Consolidated rules (migration pending)
+        ".continue/rules/000-project-overview.md",
+        ".continue/rules/010-build-run.md",
+        ".continue/rules/015-rust-deps.md",
+        ".continue/rules/020-bevy-upgrade-playbook.md",
+        ".continue/rules/030-testing-and-ci.md",
+        ".continue/rules/099-apply-guardrails.md"
+      ],
+      "tools": {
+        "mcpServers": ["base", "bevy", "rust-docs", "scribe", "playwright"],
+        "continueBuiltins": ["file_glob_search", "grep_search", "read_file", "edit_file"]
+      }
+    },
+
+    "reviewer": {
+      "name": "Carcinisation Reviewer",
+      "description": "Code review agent (auditing focus, limited tools)",
+      "models": {
+        "chat": "qwen3-coder:30b",
+        "apply": "qwen2.5-coder:14b",
+        "edit": "qwen2.5-coder:14b",
+        "rerank": "qwen3-coder:30b",
+        "embed": "nomic-embed-text:latest"
+      },
+      "systemPromptFile": "prompts/system.min.md",
+      "policyFile": "docs/llm/policy.min.md",
+      "rules": [
+        ".continue/rules/000-project-overview.md",
+        ".continue/rules/015-rust-deps.md",
+        ".continue/rules/099-apply-guardrails.md"
+      ],
+      "tools": {
+        "mcpServers": ["base", "rust-docs"],
+        "continueBuiltins": ["file_glob_search", "grep_search", "read_file"]
+      }
+    }
+  },
+
+  // Shared Configuration (DRY)
+  "shared": {
+    // Actions available to all agents (deduplicated from .continue/config.yaml)
+    "actions": [
+      // Game loop
+      { "name": "Run (native)", "shell": "make run" },
+      { "name": "Dev (autoreload)", "shell": "make dev" },
+      { "name": "Dev (WASM)", "shell": "make dev-wasm" },
+
+      // Web / WASM
+      { "name": "Install Web Deps", "shell": "make install-web-deps" },
+      { "name": "Build Web", "shell": "make build-web" },
+      { "name": "Release WASM", "shell": "make release-wasm" },
+
+      // Tools & Assets
+      { "name": "Launch Editor", "shell": "make launch-editor" },
+      { "name": "Watch Scene Files", "shell": "make watch-scene-files" },
+      { "name": "Generate Palettes", "shell": "make generate-palettes" },
+      { "name": "Generate Typeface", "shell": "make generate-typeface" },
+      { "name": "Process GFX", "shell": "make process-gfx" },
+
+      // Quality gates
+      { "name": "Check (workspace)", "shell": "make check" },
+      { "name": "Lint (clippy -D warnings)", "shell": "make lint" },
+      { "name": "Fmt (rustfmt)", "shell": "make fmt" },
+      { "name": "Build (debug)", "shell": "make build" },
+      { "name": "Build (release)", "shell": "make build-release" },
+      { "name": "Fix (rustfix)", "shell": "make fix" },
+
+      // Tests
+      { "name": "Test (workspace)", "shell": "make test" },
+      { "name": "Test Watch", "shell": "make test-watch" },
+      { "name": "Test Single (set TEST=...)", "shell": "make test-single TEST=\"${TEST:-systems::example::tests::case}\"" },
+
+      // Utilities
+      { "name": "Toolchain: Rust + Targets", "shell": "rustup show && rustup target list --installed" },
+      { "name": "Toolchain: wasm-opt", "shell": "command -v wasm-opt >/dev/null && wasm-opt --version || echo \"wasm-opt missing\"" },
+      { "name": "Find TODOs", "shell": "rg -n \"TODO|FIXME\" src" },
+      { "name": "Show Git Diff", "shell": "git --no-pager diff" }
+    ],
+
+    "docs": [
+      { "name": "Bevy Docs", "startUrl": "https://docs.rs/bevy/latest/bevy/" },
+      { "name": "Bevy Repo", "startUrl": "https://github.com/bevyengine/bevy" },
+      { "name": "Bevy Replicon Repo", "startUrl": "https://github.com/simgine/bevy_replicon" },
+      { "name": "Bevy Replicon Docs", "startUrl": "https://docs.rs/bevy_replicon/latest/bevy_replicon/" }
+    ]
+  }
+}

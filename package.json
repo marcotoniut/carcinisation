@@ -6,7 +6,9 @@
   "scripts": {
     "dev:editor": "pnpm --filter carcinisation-editor-v2 dev",
     "build:editor": "pnpm --filter carcinisation-editor-v2 build",
-    "mcp:playwright": "pnpm exec mcp-server-playwright --headless"
+    "mcp:playwright": "pnpm exec mcp-server-playwright --headless",
+    "llm:lint": "node scripts/lint-prompts.js --audit",
+    "test:llm": "echo '=== LLM Contract Tests (spec-only) ===' && cat tests/llm/contracts.spec.md | head -50 && echo '\n... (see tests/llm/contracts.spec.md for full spec)'"
   },
   "devDependencies": {
     "@playwright/mcp": "0.0.43"

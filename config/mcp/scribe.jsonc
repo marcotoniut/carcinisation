@@ -1,0 +1,109 @@
+{
+  // Scribe MCP Server - AI-assisted documentation and writing
+  "name": "Scribe (Docs & Commits)",
+  "version": "0.0.1",
+  "enabled": true,
+  "transport": "stdio",
+  "command": "bash",
+  "args": [
+    "-lc",
+    "exec \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/mcp/scribe/run.sh\""
+  ],
+  "env": {
+    "SCRIBE_MODEL": "llama3.1:8b-instruct-q8_0",
+    "OLLAMA_HOST": "http://host.docker.internal:11434"
+  },
+
+  "tools": [
+    {
+      "name": "draft_commit",
+      "description": "Generate a commit message from a unified diff",
+      "preconditions": [
+        "Ollama must be running and accessible at OLLAMA_HOST",
+        "SCRIBE_MODEL must be pulled in Ollama"
+      ],
+      "inputs": {
+        "diff": { "type": "string", "required": true, "description": "Unified diff (git diff output)" },
+        "style": { "type": "string", "required": false, "default": "conventional", "description": "Commit message style (conventional, semantic, etc.)" }
+      },
+      "outputs": {
+        "subject": { "type": "string", "description": "Commit subject line (≤72 chars)" },
+        "body": { "type": "string", "description": "Commit body (why/how)" },
+        "raw": { "type": "string", "description": "Raw LLM output" }
+      },
+      "errors": [
+        { "code": "OLLAMA_CONNECTION", "message": "Failed to connect to Ollama", "retryable": true },
+        { "code": "OLLAMA_TIMEOUT", "message": "Ollama request timed out (60s)", "retryable": true },
+        { "code": "JSON_PARSE", "message": "Failed to parse LLM JSON response", "retryable": false }
+      ],
+      "idempotent": false,
+      "timeout": 60000,
+      "retry": {
+        "enabled": true,
+        "maxAttempts": 2,
+        "backoff": "exponential",
+        "backoffMs": [2000, 4000]
+      }
+    },
+    {
+      "name": "draft_pr",
+      "description": "Generate a PR title and body with structured sections",
+      "preconditions": [
+        "Ollama must be running and accessible at OLLAMA_HOST",
+        "SCRIBE_MODEL must be pulled in Ollama"
+      ],
+      "inputs": {
+        "context": { "type": "string", "required": true, "description": "PR context (diffs, issue links, rationale)" },
+        "style": { "type": "string", "required": false, "default": "concise", "description": "PR style (concise, detailed, etc.)" }
+      },
+      "outputs": {
+        "title": { "type": "string", "description": "PR title" },
+        "body": { "type": "string", "description": "PR body (Markdown with sections)" },
+        "raw": { "type": "string", "description": "Raw LLM output" }
+      },
+      "errors": [
+        { "code": "OLLAMA_CONNECTION", "message": "Failed to connect to Ollama", "retryable": true },
+        { "code": "OLLAMA_TIMEOUT", "message": "Ollama request timed out (60s)", "retryable": true },
+        { "code": "JSON_PARSE", "message": "Failed to parse LLM JSON response", "retryable": false }
+      ],
+      "idempotent": false,
+      "timeout": 60000,
+      "retry": {
+        "enabled": true,
+        "maxAttempts": 2,
+        "backoff": "exponential",
+        "backoffMs": [2000, 4000]
+      }
+    },
+    {
+      "name": "summarize",
+      "description": "Summarize text with a one-line TLDR and 5 bullet points",
+      "preconditions": [
+        "Ollama must be running and accessible at OLLAMA_HOST",
+        "SCRIBE_MODEL must be pulled in Ollama"
+      ],
+      "inputs": {
+        "text": { "type": "string", "required": true, "description": "Text to summarize" },
+        "goal": { "type": "string", "required": false, "default": "developer summary", "description": "Summary goal/audience" }
+      },
+      "outputs": {
+        "tldr": { "type": "string", "description": "One-line summary" },
+        "bullets": { "type": "array", "items": { "type": "string" }, "description": "5 bullet points" },
+        "raw": { "type": "string", "description": "Raw LLM output" }
+      },
+      "errors": [
+        { "code": "OLLAMA_CONNECTION", "message": "Failed to connect to Ollama", "retryable": true },
+        { "code": "OLLAMA_TIMEOUT", "message": "Ollama request timed out (60s)", "retryable": true },
+        { "code": "JSON_PARSE", "message": "Failed to parse LLM JSON response", "retryable": false }
+      ],
+      "idempotent": false,
+      "timeout": 60000,
+      "retry": {
+        "enabled": true,
+        "maxAttempts": 2,
+        "backoff": "exponential",
+        "backoffMs": [2000, 4000]
+      }
+    }
+  ]
+}
