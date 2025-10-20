@@ -3,9 +3,9 @@ version: 1.0.0
 schema: v1
 
 models:
-  - name: Qwen3 Coder 30B
+  - name: Qwen2.5 Coder 32B
     provider: ollama
-    model: qwen3-coder:30b
+    model: qwen2.5-coder:32b
     roles:
       - chat
       - apply
@@ -27,7 +27,7 @@ models:
       - embed
 
 tabAutocompleteModel: CodeLlama 7B Code
-rerankerModel: Qwen3 Coder 30B
+rerankerModel: Qwen2.5 Coder 32B
 
 systemMessage: |
   Assisting on "Carcinisation" (Bevy 0.15 → 0.17).
