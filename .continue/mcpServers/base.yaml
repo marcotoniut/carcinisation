@@ -1,0 +1,13 @@
+name: Toolkit Base MCP
+version: 0.0.1
+schema: v1
+
+mcpServers:
+  - name: Toolkit Base MCP
+    command: bash
+    args:
+      - -lc
+      - exec "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/mcp/base/run.sh"
+    env:
+      TOOLKIT_ROOT: /app
+      CARCINISATION_ROOT: /app

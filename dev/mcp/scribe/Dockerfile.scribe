@@ -1,0 +1,36 @@
+FROM python:3.13-slim
+
+# Tools for calling Ollama (curl to hit the API)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Runtime env
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8 \
+    SCRIBE_MODEL=llama3.1:8b-instruct-q8_0 \
+    OLLAMA_HOST=http://host.docker.internal:11434
+
+WORKDIR /app
+
+# Copy only the Scribe folder
+COPY dev/mcp/scribe /app/dev/mcp/scribe
+
+# Install the official MCP SDK
+RUN pip install --no-cache-dir "mcp==1.16.0"
+
+# Optional sanity check at build time
+RUN python - <<'PY'
+import mcp, sys
+try:
+    from mcp.server.fastmcp import FastMCP
+    print("✅ mcp SDK OK, FastMCP available, version:", getattr(mcp, "__version__", "unknown"))
+except Exception as e:
+    print("❌ mcp import failed:", e, file=sys.stderr)
+    raise
+PY
+
+# Run the server over stdio; keep stdout clean for JSON-RPC
+ENTRYPOINT ["python", "-u", "-X", "utf8", "dev/mcp/scribe/server.py"]

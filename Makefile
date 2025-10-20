@@ -142,6 +142,39 @@ test-single:
 	cargo test --workspace --all-features $(TEST) -- --nocapture
 
 # =============================================================================
+# AI / MCP Servers
+# =============================================================================
+.PHONY: build-mcp-base build-mcp-bevy build-mcp-rust-docs build-mcp-scribe build-mcp-server build-mcp-all
+build-mcp-base:
+	docker build -f ./dev/mcp/base/Dockerfile -t carcinisation-mcp-base .
+
+build-mcp-bevy:
+	docker build -f ./dev/mcp/bevy/Dockerfile -t carcinisation-mcp-bevy .
+
+build-mcp-rust-docs:
+	docker build -f ./dev/mcp/rust-docs/Dockerfile -t carcinisation-mcp-rust-docs .
+
+build-mcp-scribe:
+	docker build -f ./dev/mcp/scribe/Dockerfile.scribe -t carcinisation-mcp-scribe .
+
+build-mcp-server: build-mcp-base
+
+build-mcp-all: build-mcp-base build-mcp-bevy build-mcp-rust-docs build-mcp-scribe
+
+.PHONY: run-mcp-base run-mcp-bevy run-mcp-rust-docs run-mcp-scribe
+run-mcp-base:
+	./dev/mcp/base/run.sh
+
+run-mcp-bevy:
+	./dev/mcp/bevy/run.sh
+
+run-mcp-rust-docs:
+	./dev/mcp/rust-docs/run.sh
+
+run-mcp-scribe:
+	./dev/mcp/scribe/run.sh
+
+# =============================================================================
 # Documentation
 # =============================================================================
 .PHONY: help

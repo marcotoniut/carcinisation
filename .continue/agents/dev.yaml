@@ -1,0 +1,51 @@
+name: Carcinisation Dev
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Qwen3 Coder 30B
+    provider: ollama
+    model: qwen3-coder:30b
+    roles:
+      - chat
+      - apply
+      - rerank
+  - name: Qwen2.5 Coder 14B
+    provider: ollama
+    model: qwen2.5-coder:14b
+    roles:
+      - edit
+  - name: CodeLlama 7B Code
+    provider: ollama
+    model: codellama:7b-code
+    roles:
+      - autocomplete
+  - name: Nomic Embed
+    provider: ollama
+    model: nomic-embed-text:latest
+    roles:
+      - embed
+
+tabAutocompleteModel: CodeLlama 7B Code
+rerankerModel: Qwen3 Coder 30B
+
+systemMessage: |
+  Assisting on "Carcinisation" (Bevy 0.15 → 0.17).
+  Follow .continue/rules. Use Makefile actions. Minimal diffs; compile → behavior → style.
+
+  **MCP:** Base (shell), Bevy (analysis), Rust Docs (doc/make), Scribe (commit/PR), Browser (web)
+  **Paths:** Relative only (`src/main.rs`), NEVER absolute (`/src/main.rs`)
+  **Discovery:** glob/grep → read → analyze (MCP) → propose
+  **Priority:** Browser MCP for web; Base MCP for sandboxed shell; built-ins for quick ops
+
+tools:
+  - server: Toolkit Base MCP
+    select: all
+  - server: Bevy MCP
+    select: all
+  - server: Rust Docs MCP
+    select: all
+  - server: Scribe (Docs & Commits)
+    select: all
+  - server: Browser (Playwright)
+    select: all

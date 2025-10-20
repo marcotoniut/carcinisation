@@ -1,0 +1,13 @@
+name: Bevy MCP
+version: 0.0.1
+schema: v1
+
+mcpServers:
+  - name: Bevy MCP
+    command: bash
+    args:
+      - -lc
+      - exec "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/mcp/bevy/run.sh"
+    env:
+      TOOLKIT_ROOT: /app
+      CARCINISATION_ROOT: /app

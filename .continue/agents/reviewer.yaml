@@ -1,0 +1,39 @@
+name: Carcinisation Reviewer
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Qwen3 Coder 30B
+    provider: ollama
+    model: qwen3-coder:30b
+    roles:
+      - chat
+      - rerank
+  - name: Qwen2.5 Coder 14B
+    provider: ollama
+    model: qwen2.5-coder:14b
+    roles:
+      - edit
+      - apply
+  - name: Nomic Embed
+    provider: ollama
+    model: nomic-embed-text:latest
+    roles:
+      - embed
+
+tabAutocompleteModel: CodeLlama 7B Code
+rerankerModel: Qwen3 Coder 30B
+
+systemMessage: |
+  Auditing diffs for Carcinisation. Focus on correctness, regressions, tests. Reference .continue/rules.
+
+  **MCP:** Base (shell), Rust Docs (doc/make)
+  **Paths:** Relative only (`src/main.rs`)
+  **Flags:** Risky changes, missing tests, targeted follow-up
+
+tools:
+  - server: Toolkit Base MCP
+    select: all
+  - server: Rust Docs MCP
+    select: all
+  # Note: Bevy MCP not needed for reviews
