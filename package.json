@@ -1,0 +1,17 @@
+{
+  "name": "carcinisation",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:editor": "pnpm --filter carcinisation-editor-v2 dev",
+    "build:editor": "pnpm --filter carcinisation-editor-v2 build",
+    "mcp:playwright": "pnpm exec mcp-server-playwright --headless"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "0.0.43"
+  },
+  "workspaces": [
+    "tools/editor-v2"
+  ]
+}

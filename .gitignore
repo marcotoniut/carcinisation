@@ -1,3 +1,38 @@
 .DS_Store
 
+# Rust
 /target
+
+# Python
+dev/mcp/.venv/
+
+# Node.js / pnpm / npm
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+
+# Temporary files
+*.tmp
+.cache/
+*.local
