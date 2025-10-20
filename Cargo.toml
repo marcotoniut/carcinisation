@@ -16,6 +16,8 @@ version = "0.2.0"
 
 [workspace.dependencies]
 assert_assets_path = { path = "tools/assert_assets_path" }
+# dynamic_linking cannot be used for webassembly, not required for macOS
+# bevy = { version = "0.12", features = ["dynamic_linking"] } # required for Windows builds
 bevy = { version = "0.15", features = ["dynamic_linking", "wayland"] }
 bevy_common_assets = { version = "0.12", features = ["ron"] }
 bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls.git", rev = "1d640f0ff62be4a021393757b05ea77089384b0e" }
