@@ -1,0 +1,11 @@
+name: Playwright MCP
+version: 0.0.1
+schema: v1
+
+mcpServers:
+  - name: Browser (Playwright)
+    command: pnpm
+    args:
+      - "mcp:playwright"
+    env:
+      PLAYWRIGHT_HEADLESS: "1"

@@ -1,0 +1,55 @@
+name: Carcinisation Reviewer
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Qwen3 Coder 30B
+    provider: ollama
+    model: qwen3-coder:30b
+    roles:
+      - chat
+      - rerank
+  - name: Qwen2.5 Coder 14B
+    provider: ollama
+    model: qwen2.5-coder:14b
+    roles:
+      - edit
+      - apply
+  - name: Nomic Embed
+    provider: ollama
+    model: nomic-embed-text:latest
+    roles:
+      - embed
+
+tabAutocompleteModel: CodeLlama 7B Code
+rerankerModel: Qwen3 Coder 30B
+
+systemMessage: |
+  You are auditing diffs for Carcinisation. Focus on correctness, regressions,
+  and missing tests. Reference .continue/rules for repo-specific expectations.
+  Flag risky changes and suggest targeted follow-up.
+
+  ## Available MCP Tools
+
+  ### Base MCP (Sandboxed shell utilities)
+  - run_shell(command, cwd=".") → execute read-only commands inside the repo container
+  - env_info() → report the MCP server root
+
+  ### Rust Docs MCP (Documentation analysis)
+  - list_rust_files() → find all .rs files
+  - find_module_doc_gaps() → files missing //! module docs
+  - find_public_item_doc_gaps() → public items missing /// docs
+  - cargo_doc(all_features, no_deps) → generate API docs
+  - make(target, env) → run Make targets
+
+  ## Rules
+
+  ⚠️  Built-in Continue tools are available for quick file inspections; use the Base MCP when you specifically need its sandboxed shell or environment info.
+  ⚠️  All paths MUST be relative to repo root (e.g., "src/main.rs").
+
+tools:
+  - server: Toolkit Base MCP
+    select: all
+  - server: Rust Docs MCP
+    select: all
+  # Note: Bevy MCP not needed for reviews

@@ -1,0 +1,10 @@
+name: Scribe MCP
+version: 0.0.1
+schema: v1
+
+mcpServers:
+  - name: Scribe (Docs & Commits)
+    command: bash
+    args:
+      - -lc
+      - exec "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/dev/mcp/scribe/run.sh"

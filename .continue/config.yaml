@@ -1,0 +1,116 @@
+name: Carcinisation (Workspace)
+version: 1.0.0
+schema: v1
+
+# Use your local models (inherits from global if names match)
+models:
+  - name: Llama 3.1 8B (Tools)
+    provider: ollama
+    model: llama3.1:8b
+    roles:
+      - chat
+      - apply
+
+  - name: Qwen2.5 Coder 14B
+    provider: ollama
+    model: qwen2.5-coder:14b
+    roles:
+      - edit
+
+  - name: CodeLlama 7B Code
+    provider: ollama
+    model: codellama:7b-code
+    roles:
+      - autocomplete
+
+  - name: Qwen3 Coder 30B
+    provider: ollama
+    model: qwen3-coder:30b
+    roles:
+      - rerank
+
+  - name: Nomic Embed
+    provider: ollama
+    model: nomic-embed-text:latest
+    roles:
+      - embed
+
+# Models: inherit your global ones by name (no change needed)
+tabAutocompleteModel: CodeLlama 7B Code
+
+rerankerModel: Qwen3 Coder 30B
+
+actions:
+  # 🎮 Game loop
+  - name: Run (native)
+    shell: make run
+  - name: Dev (autoreload)
+    shell: make dev
+  - name: Dev (WASM)
+    shell: make dev-wasm
+
+  # 🌐 Web / WASM
+  - name: Install Web Deps
+    shell: make install-web-deps
+  - name: Build Web
+    shell: make build-web
+  - name: Release WASM
+    shell: make release-wasm
+
+  # 🛠 Tools & Assets
+  - name: Launch Editor
+    shell: make launch-editor
+  - name: Watch Scene Files
+    shell: make watch-scene-files
+  - name: Generate Palettes
+    shell: make generate-palettes
+  - name: Generate Typeface
+    shell: make generate-typeface
+  - name: Process GFX
+    shell: make process-gfx
+
+  # ✅ Quality gates
+  - name: Check (workspace)
+    shell: make check
+  - name: Lint (clippy -D warnings)
+    shell: make lint
+  - name: Fmt (rustfmt)
+    shell: make fmt
+  - name: Build (debug)
+    shell: make build
+  - name: Build (release)
+    shell: make build-release
+  - name: Fix (rustfix)
+    shell: make fix
+
+  # 🧪 Tests
+  - name: Test (workspace)
+    shell: make test
+  - name: Test Watch
+    shell: make test-watch
+  - name: Test Single (set TEST=...)
+    shell: 'make test-single TEST="${TEST:-systems::example::tests::case}"'
+
+  # 🔎 Utilities
+  - name: Toolchain: Rust + Targets
+    shell: rustup show && rustup target list --installed
+  - name: Toolchain: wasm-opt
+    shell: 'command -v wasm-opt >/dev/null && wasm-opt --version || echo "wasm-opt missing"'
+  - name: Find TODOs
+    shell: rg -n "TODO|FIXME" src
+  - name: Show Git Diff
+    shell: git --no-pager diff
+
+docs:
+  - name: Bevy Docs
+    faviconUrl: ""
+    startUrl: https://docs.rs/bevy/latest/bevy/
+  - name: Bevy Repo
+    faviconUrl: ""
+    startUrl: https://github.com/bevyengine/bevy
+  - name: Bevy Replicon Repo
+    faviconUrl: ""
+    startUrl: https://github.com/simgine/bevy_replicon
+  - name: Bevy Replicon Docs
+    faviconUrl: ""
+    startUrl: https://docs.rs/bevy_replicon/latest/bevy_replicon/

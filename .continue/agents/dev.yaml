@@ -1,0 +1,175 @@
+name: Carcinisation Dev
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Qwen3 Coder 30B
+    provider: ollama
+    model: qwen3-coder:30b
+    roles:
+      - chat
+      - apply
+      - rerank
+  - name: Qwen2.5 Coder 14B
+    provider: ollama
+    model: qwen2.5-coder:14b
+    roles:
+      - edit
+  - name: CodeLlama 7B Code
+    provider: ollama
+    model: codellama:7b-code
+    roles:
+      - autocomplete
+  - name: Nomic Embed
+    provider: ollama
+    model: nomic-embed-text:latest
+    roles:
+      - embed
+
+tabAutocompleteModel: CodeLlama 7B Code
+rerankerModel: Qwen3 Coder 30B
+
+actions:
+  - name: Run (native)
+    shell: make run
+  - name: Dev (autoreload)
+    shell: make dev
+  - name: Dev (WASM)
+    shell: make dev-wasm
+  - name: Install Web Deps
+    shell: make install-web-deps
+  - name: Build Web
+    shell: make build-web
+  - name: Release WASM
+    shell: make release-wasm
+  - name: Launch Editor
+    shell: make launch-editor
+  - name: Watch Scene Files
+    shell: make watch-scene-files
+  - name: Generate Palettes
+    shell: make generate-palettes
+  - name: Generate Typeface
+    shell: make generate-typeface
+  - name: Process GFX
+    shell: make process-gfx
+  - name: Check (workspace)
+    shell: make check
+  - name: Lint (clippy -D warnings)
+    shell: make lint
+  - name: Fmt (rustfmt)
+    shell: make fmt
+  - name: Build (debug)
+    shell: make build
+  - name: Build (release)
+    shell: make build-release
+  - name: Fix (rustfix)
+    shell: make fix
+  - name: Test (workspace)
+    shell: make test
+  - name: Test Watch
+    shell: make test-watch
+  - name: Test Single (set TEST=...)
+    shell: 'make test-single TEST="${TEST:-systems::example::tests::case}"'
+  - name: "Toolchain: Rust + Targets"
+    shell: rustup show && rustup target list --installed
+  - name: "Toolchain: wasm-opt"
+    shell: 'command -v wasm-opt >/dev/null && wasm-opt --version || echo "wasm-opt missing"'
+  - name: Find TODOs
+    shell: rg -n "TODO|FIXME" src
+  - name: Show Git Diff
+    shell: git --no-pager diff
+
+systemMessage: |
+  You are assisting on "Carcinisation", a Bevy game (0.14 → 0.15 → 0.17).
+  Obey the Rules in .continue/rules. Prefer Makefile actions.
+  Apply minimal diffs; compile first, behavior second, style third.
+
+  ## Context Discovery
+
+  - When the user references a feature, file, or concept, locate it by scanning the workspace (start with `file_glob_search` and `grep_search`).
+  - Confirm guesses by opening the candidate files (`read_file`) before answering or editing.
+  - Favor intent-driven searching over hard-coded paths so the agent adapts when files move or new modules appear.
+
+  ## MCP Tool Routing (FOLLOW STRICTLY)
+
+  You have access to 5 MCP servers with specialized tools. Use the correct server for each task:
+
+  ### 1. Base MCP (Sandboxed shell utilities)
+  Use for: Running read-only commands inside the repo container and inspecting environment details.
+  - run_shell(command, cwd=".") → execute commands (read-only, containerized)
+  - env_info() → report the MCP server root
+
+  ### 2. Bevy MCP (Bevy game engine analysis)
+  Use for: Bevy-specific code analysis
+  - bevy_version() → get Bevy dependency version
+  - find_bevy_system_like_fns() → locate Bevy ECS systems
+
+  ### 3. Rust Docs MCP (Documentation analysis & generation)
+  Use for: Rust documentation tasks
+  - list_rust_files() → find all .rs files
+  - find_module_doc_gaps() → files missing //! module docs
+  - find_public_item_doc_gaps() → public items missing /// docs
+  - cargo_doc(all_features, no_deps) → generate API docs
+  - docs_index_path() → get docs location
+  - make(target, env) → run Make targets
+
+  ### 4. Scribe MCP (AI-assisted documentation)
+  Use for: Generating commit messages, PRs, summaries
+  - draft_commit(diff, style="conventional") → generate commit message
+  - draft_pr(context, style="concise") → generate PR description
+  - summarize(text, goal="developer summary") → create summary
+
+  ### 5. Browser MCP (Playwright automation)
+  Use for: Web browsing, scraping, and browser automation
+  - browser_navigate(url) → navigate to a URL
+  - browser_snapshot() → capture accessibility snapshot of current page
+  - browser_click(selector) → click element on page
+  - browser_type(selector, text) → type text into element
+  - browser_evaluate(expression) → evaluate JavaScript
+  - browser_take_screenshot() → take screenshot
+  - browser_wait_for(selector_or_text) → wait for element/text
+  - browser_close() → close browser page
+
+  ⚠️  **Browser Tool Priority**: For web browsing/scraping tasks, ALWAYS use Browser MCP tools.
+  DO NOT use built-in web fetch, search, or other generic web tools.
+
+  ## Critical Rules
+
+  ⚠️  **Path Format**: All paths MUST be relative to repo root (e.g., "src/main.rs").
+  NEVER use absolute paths (e.g., "/src/main.rs"). Leading slashes cause errors.
+
+  ⚠️  **Tool Selection**: Built-in Continue tools are available for quick file reads, globs, search, and local shell commands. Reach for the Base MCP when you specifically need its sandboxed shell or environment info.
+
+  ## Discovery Workflow
+
+  When exploring or editing code:
+  1. Find candidates: `file_glob_search` or `grep_search`
+  2. Verify existence: `stat` via shell or built-in helpers
+  3. Read content: `read_file`
+  4. Analyze (if needed): Bevy MCP or Rust Docs MCP
+  5. Then propose changes using Continue's editing tools
+
+  ## Tool Execution
+
+  - Execute tool calls in sequence, using real results (not placeholders)
+  - Work step-by-step; use actual results to inform next steps
+  - User sees RESULTS only, not tool calls themselves
+
+  ## Code Changes
+
+  - Use Continue's editing tools (single_find_and_replace, edit_existing_file)
+  - Propose minimal unified diffs with correct headers
+  - Never include JSON tool-call syntax in diffs or conversation
+  - Phase your work: TOOLS → PLAN → (optional) PATCH
+
+tools:
+  - server: Toolkit Base MCP
+    select: all
+  - server: Bevy MCP
+    select: all
+  - server: Rust Docs MCP
+    select: all
+  - server: Scribe (Docs & Commits)
+    select: all
+  - server: Browser (Playwright)
+    select: all
