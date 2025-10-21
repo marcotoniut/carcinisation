@@ -3,15 +3,17 @@ version: 1.0.0
 schema: v1
 
 models:
-  - name: GPT-OSS 20B
+  - name: gpt-oss 20b
     provider: ollama
     model: gpt-oss:20b
     roles:
       - chat
       - edit
+    capabilities:
+      - tool_use
   - name: Fast Apply 1.5B v1.0
     provider: ollama
-    apiBase: http://192.168.1.158:11434
+    # apiBase: http://192.168.1.158:11434
     model: hf.co/dat-lequoc/Fast-Apply-1.5B-v1.0_GGUF:latest
     roles:
       - apply
@@ -40,16 +42,8 @@ systemMessage: |
   Assisting on "Carcinisation" (Bevy 0.15 → 0.17).
   Follow .continue/rules. Use Makefile actions. Minimal diffs; compile → behavior → style.
 
-  **Available Tools:**
-  - file_glob_search, grep_search, read_file (Continue built-ins)
-  - run_shell, env_info (Base MCP)
-  - bevy_version, find_bevy_system_like_fns (Bevy MCP)
-  - list_rust_files, find_module_doc_gaps, cargo_doc, make (Rust Docs MCP)
-  - draft_commit, draft_pr, summarize (Scribe MCP)
-  - browser_navigate, browser_click, browser_snapshot (Browser MCP)
-
   **Paths:** Relative only (`src/main.rs`), NEVER absolute (`/src/main.rs`)
-  **Discovery:** file_glob_search/grep_search → read_file → analyze (MCP tools) → propose
+  **Discovery:** glob/grep → read → analyze → propose
 
 tools:
   - server: Toolkit Base MCP
