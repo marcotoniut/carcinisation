@@ -9,11 +9,15 @@ models:
     roles:
       - chat
       - edit
+  - name: Fast Apply 15B
+    provider: ollama
+    model: mdpauley/fast-apply-15b-v10
+    roles:
+      - apply
   - name: Qwen2.5 Coder 14B
     provider: ollama
     model: qwen2.5-coder:14b
     roles:
-      - apply
       - rerank
   - name: CodeLlama 7B Code
     provider: ollama
