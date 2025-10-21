@@ -8,5 +8,9 @@
   "[jsonc]": {
     "editor.defaultFormatter": "dprint.dprint"
   },
-  "makefile.configureOnOpen": false
+  "makefile.configureOnOpen": false,
+  "cSpell.words": [
+    "carcinisation",
+    "clippy"
+  ]
 }
