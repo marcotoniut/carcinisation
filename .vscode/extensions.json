@@ -1,10 +1,12 @@
 {
   "recommendations": [
-    "stxr.iconfont-preview",
-    "vadimcn.vscode-lldb",
+    "a5huynh.vscode-ron",
+    "fill-labs.dependi",
+    "gruntfuggly.todo-tree",
     "rust-lang.rust-analyzer",
     "shardulm94.trailing-spaces",
+    "stxr.iconfont-preview",
     "tamasfe.even-better-toml",
-    "a5huynh.vscode-ron"
+    "vadimcn.vscode-lldb",
   ]
 }
