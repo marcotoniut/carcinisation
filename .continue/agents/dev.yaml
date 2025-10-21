@@ -3,13 +3,17 @@ version: 1.0.0
 schema: v1
 
 models:
+  - name: GPT-OSS 20B
+    provider: ollama
+    model: gpt-oss:20b
+    roles:
+      - chat
+      - edit
   - name: Qwen2.5 Coder 14B
     provider: ollama
     model: qwen2.5-coder:14b
     roles:
-      - chat
       - apply
-      - edit
       - rerank
   - name: CodeLlama 7B Code
     provider: ollama
