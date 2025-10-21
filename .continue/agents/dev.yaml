@@ -9,11 +9,14 @@ models:
     roles:
       - chat
       - edit
-  - name: Fast Apply 15B
+  - name: Fast Apply 1.5B v1.0
     provider: ollama
-    model: mdpauley/fast-apply-15b-v10
+    apiBase: http://192.168.1.158:11434
+    model: hf.co/dat-lequoc/Fast-Apply-1.5B-v1.0_GGUF:latest
     roles:
       - apply
+    defaultCompletionOptions:
+      contextLength: 32768
   - name: Qwen2.5 Coder 14B
     provider: ollama
     model: qwen2.5-coder:14b
@@ -37,10 +40,16 @@ systemMessage: |
   Assisting on "Carcinisation" (Bevy 0.15 → 0.17).
   Follow .continue/rules. Use Makefile actions. Minimal diffs; compile → behavior → style.
 
-  **MCP:** Base (shell), Bevy (analysis), Rust Docs (doc/make), Scribe (commit/PR), Browser (web)
+  **Available Tools:**
+  - file_glob_search, grep_search, read_file (Continue built-ins)
+  - run_shell, env_info (Base MCP)
+  - bevy_version, find_bevy_system_like_fns (Bevy MCP)
+  - list_rust_files, find_module_doc_gaps, cargo_doc, make (Rust Docs MCP)
+  - draft_commit, draft_pr, summarize (Scribe MCP)
+  - browser_navigate, browser_click, browser_snapshot (Browser MCP)
+
   **Paths:** Relative only (`src/main.rs`), NEVER absolute (`/src/main.rs`)
-  **Discovery:** glob/grep → read → analyze (MCP) → propose
-  **Priority:** Browser MCP for web; Base MCP for sandboxed shell; built-ins for quick ops
+  **Discovery:** file_glob_search/grep_search → read_file → analyze (MCP tools) → propose
 
 tools:
   - server: Toolkit Base MCP
