@@ -2,7 +2,6 @@
   "name": "carcinisation",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev:editor": "pnpm --filter carcinisation-editor-v2 dev",
     "build:editor": "pnpm --filter carcinisation-editor-v2 build",
@@ -13,5 +12,6 @@
   },
   "workspaces": [
     "tools/editor-v2"
-  ]
+  ],
+  "packageManager": "pnpm@10.19.0"
 }
