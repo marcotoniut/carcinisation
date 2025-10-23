@@ -11,8 +11,8 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
+use std::collections::HashMap;
 
 pub const BOULDER_THROW_ATTACK_DEPTH_SPEED: f32 = -1.6;
 pub const BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION: f32 = -55.;

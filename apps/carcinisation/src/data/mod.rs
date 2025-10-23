@@ -3,8 +3,7 @@
 use crate::{pixel::PxAnimationBundle, stage::components::interactive::ColliderData};
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxAnimationFrameTransition,
+    PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxFrameTransition,
 };
 
 /// Serialized animation metadata used by stage/enemy bundles.
@@ -12,7 +11,7 @@ pub struct AnimationData {
     pub collider_data: ColliderData,
     pub direction: PxAnimationDirection,
     pub finish_behavior: PxAnimationFinishBehavior,
-    pub frame_transition: PxAnimationFrameTransition,
+    pub frame_transition: PxFrameTransition,
     pub frames: usize,
     pub speed: u64,
     pub sprite_path: String,
@@ -36,7 +35,7 @@ impl Default for AnimationData {
             collider_data: ColliderData::new(),
             direction: PxAnimationDirection::Foreward,
             finish_behavior: PxAnimationFinishBehavior::Mark,
-            frame_transition: PxAnimationFrameTransition::None,
+            frame_transition: PxFrameTransition::None,
             frames: 0,
             speed: 0,
             sprite_path: "".into(),

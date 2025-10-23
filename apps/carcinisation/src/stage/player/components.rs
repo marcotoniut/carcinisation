@@ -5,12 +5,12 @@ use assert_assets_path::assert_assets_path;
 use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
-    utils::HashSet,
 };
 use seldom_pixel::prelude::{
-    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxAnimationFrameTransition, PxCanvas, PxSprite, PxSubPosition,
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxCanvas,
+    PxFrameTransition, PxSprite, PxSubPosition,
 };
+use std::collections::HashSet;
 
 #[derive(Component)]
 pub struct Player;
@@ -79,7 +79,7 @@ impl PlayerAttack {
                             PxAnimationDirection::default(),
                             PxAnimationDuration::millis_per_animation(500),
                             PxAnimationFinishBehavior::Despawn,
-                            PxAnimationFrameTransition::default(),
+                            PxFrameTransition::default(),
                         ),
                         AudioPlayer(melee_slash_sound),
                         PlaybackSettings {
@@ -111,7 +111,7 @@ impl PlayerAttack {
                             PxAnimationDirection::default(),
                             PxAnimationDuration::millis_per_animation(80),
                             PxAnimationFinishBehavior::Despawn,
-                            PxAnimationFrameTransition::default(),
+                            PxFrameTransition::default(),
                         ),
                         AudioPlayer(shoot_sound),
                         PlaybackSettings {

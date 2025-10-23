@@ -95,9 +95,9 @@ pub struct VolumeSettings {
 impl Default for VolumeSettings {
     fn default() -> Self {
         Self {
-            master: Volume::new(0.8),
-            music: Volume::new(0.06),
-            sfx: Volume::new(0.08),
+            master: Volume::Linear(0.8),
+            music: Volume::Linear(0.06),
+            sfx: Volume::Linear(0.08),
         }
     }
 }

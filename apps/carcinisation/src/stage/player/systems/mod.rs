@@ -8,7 +8,7 @@ use crate::input::GBInput;
 use crate::pixel::PxAssets;
 use crate::{
     components::{DespawnMark, VolumeSettings},
-    globals::{mark_for_despawn_by_query, HUD_HEIGHT, SCREEN_RESOLUTION},
+    globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
 };
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
@@ -16,7 +16,7 @@ use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 use std::time::Duration;
 
 pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {
-    if let Ok(mut position) = player_query.get_single_mut() {
+    if let Ok(mut position) = player_query.single_mut() {
         let half_player_size = PLAYER_SIZE / 2.0;
         let x_min = 0.0 + half_player_size;
         let x_max = (SCREEN_RESOLUTION.x - 1) as f32 - half_player_size;
@@ -75,7 +75,7 @@ pub fn detect_player_attack(
     volume_settings: Res<VolumeSettings>,
 ) {
     if player_attack_query.iter().next().is_none() {
-        if let Ok(position) = player_query.get_single() {
+        if let Ok(position) = player_query.single() {
             let attack = if gb_input.just_pressed(&GBInput::A) {
                 Some((Weapon::Pincer, 0.6))
             } else if gb_input.just_pressed(&GBInput::B) {
@@ -112,9 +112,9 @@ pub fn check_attack_timer(
     mut commands: Commands,
     timer: ResMut<AttackTimer>,
     player_attack_query: Query<(Entity, &PlayerAttack)>, // event to attack?
-                                                         // mut event_writer: EventWriter<StageActionTrigger>,
+                                                         // mut event_writer: MessageWriter<StageActionTrigger>,
 ) {
-    if timer.timer.finished() {
+    if timer.timer.is_finished() {
         for (entity, _) in &mut player_attack_query.iter() {
             commands.entity(entity).insert(DespawnMark);
         }

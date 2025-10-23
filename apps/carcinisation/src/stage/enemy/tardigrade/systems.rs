@@ -12,10 +12,8 @@ use crate::{
             placement::{Depth, InView},
         },
         enemy::{
-            bundles::make_enemy_animation_bundle,
-            components::{behavior::EnemyCurrentBehavior, *},
-            data::tardigrade::TARDIGRADE_ANIMATIONS,
-            tardigrade::entity::EnemyTardigradeAttacking,
+            bundles::make_enemy_animation_bundle, components::behavior::EnemyCurrentBehavior,
+            data::tardigrade::TARDIGRADE_ANIMATIONS, tardigrade::entity::EnemyTardigradeAttacking,
         },
         resources::StageTime,
     },
@@ -58,7 +56,7 @@ pub fn assign_tardigrade_animation(
 
 pub fn despawn_dead_tardigrade(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
     query: Query<(Entity, &EnemyTardigrade, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
@@ -104,7 +102,7 @@ pub fn check_idle_tardigrade(
         With<InView>,
     >,
 ) {
-    let camera_pos = camera_query.get_single().unwrap();
+    let camera_pos = camera_query.single().unwrap();
     for (entity, enemy, attacking, position, depth) in &mut query.iter() {
         if attacking.attack == true {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {

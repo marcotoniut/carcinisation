@@ -15,7 +15,7 @@ use bevy::prelude::*;
 const DEBUG_MODULE: &str = "MainMenu";
 
 pub fn on_main_menu_startup(
-    _trigger: Trigger<MainMenuStartupEvent>,
+    _trigger: On<MainMenuStartupEvent>,
     mut next_state: ResMut<NextState<MainMenuPluginUpdateState>>,
 ) {
     #[cfg(debug_assertions)]
@@ -26,7 +26,7 @@ pub fn on_main_menu_startup(
 
 /// @trigger Cleans up main menu entities and disables the plugin.
 pub fn on_main_menu_shutdown(
-    _trigger: Trigger<MainMenuShutdownEvent>,
+    _trigger: On<MainMenuShutdownEvent>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<MainMenuPluginUpdateState>>,
     main_menu_query: Query<Entity, With<MainMenu>>,

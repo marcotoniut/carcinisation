@@ -20,7 +20,7 @@ impl Plugin for LetterboxPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LetterboxTime>()
             .init_state::<LetterboxPluginUpdateState>()
-            .add_event::<LetterboxMoveTrigger>()
+            .add_message::<LetterboxMoveTrigger>()
             .add_systems(
                 OnEnter(LetterboxPluginUpdateState::Active),
                 on_letterbox_startup,

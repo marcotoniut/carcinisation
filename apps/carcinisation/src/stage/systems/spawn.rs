@@ -63,7 +63,7 @@ pub fn check_step_spawn(
 }
 
 pub fn on_stage_spawn(
-    trigger: Trigger<StageSpawnTrigger>,
+    trigger: On<StageSpawnTrigger>,
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
@@ -73,14 +73,14 @@ pub fn on_stage_spawn(
             spawn_destructible(&mut commands, &mut assets_sprite, x);
         }
         StageSpawn::Enemy(x) => {
-            let camera_pos = camera_query.get_single().unwrap();
+            let camera_pos = camera_query.single().unwrap();
             spawn_enemy(&mut commands, camera_pos.0, x);
         }
         StageSpawn::Object(x) => {
             spawn_object(&mut commands, &mut assets_sprite, x);
         }
         StageSpawn::Pickup(x) => {
-            let camera_pos = camera_query.get_single().unwrap();
+            let camera_pos = camera_query.single().unwrap();
             spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.0, x);
         }
     }

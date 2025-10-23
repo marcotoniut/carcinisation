@@ -98,7 +98,7 @@ pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time
 
 /// @system Emits `NextStepEvent` when the action timer elapses.
 pub fn check_stage_step_timer(timer: Res<StageActionTimer>, mut commands: Commands) {
-    if timer.timer.finished() {
+    if timer.timer.is_finished() {
         commands.trigger(NextStepEvent);
     }
 }
@@ -130,7 +130,7 @@ pub fn update_stage(
             }
         }
         StageProgressState::Clear => {
-            if let Ok(entity) = stage_query.get_single() {
+            if let Ok(entity) = stage_query.single() {
                 commands.entity(entity).insert(DespawnMark);
 
                 // TODO
@@ -156,7 +156,7 @@ pub fn check_staged_cleared(
 
 /// @trigger Handles cleanup and celebration when the stage is cleared.
 pub fn on_stage_cleared(
-    trigger: Trigger<StageClearedTrigger>,
+    trigger: On<StageClearedTrigger>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageProgressState>>,
     destructible_query: Query<Entity, With<Destructible>>,
@@ -192,7 +192,7 @@ pub fn check_stage_death(
     mut score: ResMut<Score>,
     player_query: Query<&Player, Added<Dead>>,
 ) {
-    if let Ok(_) = player_query.get_single() {
+    if let Ok(_) = player_query.single() {
         score.add(-DEATH_SCORE_PENALTY);
         lives.0 = lives.0.saturating_sub(1);
         commands.trigger(StageDeathEvent);
@@ -201,10 +201,10 @@ pub fn check_stage_death(
 
 /// @trigger Responds to `StageDeathEvent`, transitioning to Game Over or restarting.
 pub fn on_death(
-    _trigger: Trigger<StageDeathEvent>,
+    _trigger: On<StageDeathEvent>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageProgressState>>,
-    mut game_over_event_writer: EventWriter<GameOverTrigger>,
+    mut game_over_event_writer: MessageWriter<GameOverTrigger>,
     lives: Res<Lives>,
     score: Res<Score>,
     attack_query: Query<Entity, With<EnemyAttack>>,
@@ -232,7 +232,7 @@ pub fn on_death(
     commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
     if 0 == lives.0 {
-        game_over_event_writer.send(GameOverTrigger { score: score.value });
+        game_over_event_writer.write(GameOverTrigger { score: score.value });
         next_state.set(StageProgressState::GameOver);
     } else {
         next_state.set(StageProgressState::Death);
@@ -247,7 +247,7 @@ pub fn read_step_trigger(
     data: Res<StageData>,
     time: Res<StageTime>,
 ) {
-    if let Ok(entity) = query.get_single() {
+    if let Ok(entity) = query.single() {
         if let Some(action) = data.steps.get(progress.index) {
             progress.index += 1;
 
@@ -277,10 +277,10 @@ pub fn read_step_trigger(
 
 /// @system Prepares cinematic steps (placeholder for future cutscene integration).
 pub fn initialise_cinematic_step(
-    mut next_state: ResMut<NextState<GameProgressState>>,
+    next_state: ResMut<NextState<GameProgressState>>,
     query: Query<(Entity, &CinematicStageStep), (With<Stage>, Added<CinematicStageStep>)>,
 ) {
-    if let Ok((_, _)) = query.get_single() {
+    if let Ok((_, _)) = query.single() {
         // next_state.set(GameState::Cutscene);
     }
 }
@@ -299,9 +299,9 @@ pub fn initialise_movement_step(
             spawns,
             floor_depths,
         },
-    )) = query.get_single()
+    )) = query.single()
     {
-        if let Ok((camera_entity, position)) = camera_query.get_single() {
+        if let Ok((camera_entity, position)) = camera_query.single() {
             let direction = *coordinates - position.0;
             let speed = direction.normalize_or_zero() * base_speed.clone() * GAME_BASE_SPEED;
 
@@ -343,7 +343,7 @@ pub fn initialise_stop_step(
             floor_depths,
             ..
         },
-    )) = query.get_single()
+    )) = query.single()
     {
         commands
             .entity(entity)
@@ -367,7 +367,7 @@ pub fn check_movement_step_reached(
         With<CameraPos>,
     >,
 ) {
-    if let Ok((camera_entity, reach_check)) = camera_query.get_single() {
+    if let Ok((camera_entity, reach_check)) = camera_query.single() {
         if reach_check.reached() {
             for _ in step_query.iter() {
                 let mut entity_commands = commands.entity(camera_entity);
@@ -405,7 +405,7 @@ pub fn check_stop_step_finished_by_duration(
 
 /// @system Placeholder hook for updating cinematic steps each frame.
 pub fn update_cinematic_step(
-    mut commands: Commands,
+    commands: Commands,
     query: Query<(Entity, &CinematicStageStep), With<Stage>>,
 ) {
     for (entity, _) in query.iter() {}
@@ -413,7 +413,7 @@ pub fn update_cinematic_step(
 
 /// @trigger Removes cinematic step markers after `NextStepEvent` fires.
 pub fn on_next_step_cleanup_cinematic_step(
-    trigger: Trigger<NextStepEvent>,
+    trigger: On<NextStepEvent>,
     mut commands: Commands,
     query: Query<(Entity, &CinematicStageStep), With<Stage>>,
 ) {
@@ -427,7 +427,7 @@ pub fn on_next_step_cleanup_cinematic_step(
 
 /// @trigger Cleans up movement step components once the stage advances.
 pub fn on_next_step_cleanup_movement_step(
-    trigger: Trigger<NextStepEvent>,
+    trigger: On<NextStepEvent>,
     mut commands: Commands,
     query: Query<(Entity, &MovementStageStep), With<Stage>>,
 ) {
@@ -442,7 +442,7 @@ pub fn on_next_step_cleanup_movement_step(
 
 /// @trigger Cleans up stop step components once the stage advances.
 pub fn on_next_step_cleanup_stop_step(
-    trigger: Trigger<NextStepEvent>,
+    trigger: On<NextStepEvent>,
     mut commands: Commands,
     query: Query<(Entity, &StopStageStep), With<Stage>>,
 ) {

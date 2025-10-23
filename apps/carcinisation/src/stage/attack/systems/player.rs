@@ -6,7 +6,7 @@ use crate::{
     stage::{
         attack::components::*,
         components::{
-            interactive::{Collider, ColliderData, ColliderShape, Hittable},
+            interactive::{ColliderData, Hittable},
             placement::Depth,
         },
         events::DamageEvent,
@@ -25,13 +25,13 @@ const CRITICAL_THRESHOLD: f32 = 0.5;
  */
 pub fn check_got_hit(
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
-    mut event_writer: EventWriter<DamageEvent>,
+    mut event_writer: MessageWriter<DamageEvent>,
     mut attack_query: Query<(&PlayerAttack, &mut UnhittableList)>,
     // mut attack_query: Query<(&PlayerAttack, &mut UnhittableList, Option<&Reach>)>,
     mut hittable_query: Query<(Entity, &PxSubPosition, &ColliderData, &Depth), With<Hittable>>,
     mut score: ResMut<Score>,
 ) {
-    let camera_pos = camera_query.get_single().unwrap();
+    let camera_pos = camera_query.single().unwrap();
     for (attack, mut hit_list) in attack_query.iter_mut() {
         for (entity, position, collider_data, depth) in hittable_query.iter_mut() {
             if hit_list.0.contains(&entity) == false {
@@ -43,7 +43,7 @@ pub fn check_got_hit(
                         if let Some(collider) =
                             collider_data.point_collides(position.0, attack_position)
                         {
-                            event_writer.send(DamageEvent::new(
+                            event_writer.write(DamageEvent::new(
                                 entity,
                                 (ATTACK_PINCER_DAMAGE as f32 / collider.defense) as u32,
                             ));
@@ -64,7 +64,7 @@ pub fn check_got_hit(
                         if let Some(collider) =
                             collider_data.point_collides(position.0, attack_position)
                         {
-                            event_writer.send(DamageEvent::new(
+                            event_writer.write(DamageEvent::new(
                                 entity,
                                 (ATTACK_GUN_DAMAGE as f32 / collider.defense) as u32,
                             ));

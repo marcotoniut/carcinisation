@@ -12,7 +12,7 @@ use crate::{
 use bevy::prelude::*;
 
 pub fn on_transition_startup(
-    trigger: Trigger<TransitionVenetianStartupEvent>,
+    trigger: On<TransitionVenetianStartupEvent>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
 ) {
@@ -25,7 +25,7 @@ pub fn on_transition_startup(
 }
 
 pub fn on_transition_shutdown(
-    trigger: Trigger<TransitionVenetianShutdownEvent>,
+    trigger: On<TransitionVenetianShutdownEvent>,
     mut commands: Commands,
     transition_query: Query<Entity, With<TransitionVenetian>>,
 ) {

@@ -24,8 +24,8 @@ use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut damage_event_writer: EventWriter<DamageEvent>,
+    assets_sprite: PxAssets<PxSprite>,
+    mut damage_event_writer: MessageWriter<DamageEvent>,
     mut player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
     depth_query: Query<
@@ -48,7 +48,7 @@ pub fn hovering_damage_on_reached(
             asset_server.load(assert_assets_path!("audio/sfx/enemy_melee.ogg"));
 
         for entity in &mut player_query.iter_mut() {
-            damage_event_writer.send(DamageEvent::new(entity, damage.0));
+            damage_event_writer.write(DamageEvent::new(entity, damage.0));
         }
 
         commands.spawn((

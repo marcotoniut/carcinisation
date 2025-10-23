@@ -8,7 +8,8 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxSprite, PxSubPosition, PxText, PxTypeface,
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxSprite, PxSubPosition, PxText,
+    PxTypeface,
 };
 
 const LAYOUT_Y: i32 = 2;
@@ -59,19 +60,17 @@ pub fn spawn_hud(
                 ));
                 parent.spawn((
                     PxTextBundle::<Layer> {
-                        alignment: PxAnchor::BottomRight,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Hud,
-                        rect: IRect::new(
-                            HUD_HEALTH_ML,
-                            LAYOUT_Y,
+                        position: PxPosition::from(IVec2::new(
                             HUD_HEALTH_ML + HUD_HEALTH_W,
                             LAYOUT_Y + (FONT_SIZE + 2) as i32,
-                        )
-                        .into(),
+                        )),
+                        anchor: PxAnchor::BottomRight,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::Hud,
                         text: PxText {
                             value: "0".to_string(),
                             typeface: typeface.clone(),
+                            ..Default::default()
                         },
                         ..default()
                     },
@@ -83,19 +82,17 @@ pub fn spawn_hud(
             p0.spawn((Name::new("Score"),)).with_children(|parent| {
                 parent.spawn((
                     PxTextBundle::<Layer> {
-                        alignment: PxAnchor::BottomRight,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::Hud,
-                        rect: IRect::new(
-                            SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR - HUD_SCORE_W,
-                            LAYOUT_Y,
+                        position: PxPosition::from(IVec2::new(
                             SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
                             LAYOUT_Y + (FONT_SIZE + 2) as i32,
-                        )
-                        .into(),
+                        )),
+                        anchor: PxAnchor::BottomRight,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::Hud,
                         text: PxText {
                             value: "0".to_string(),
                             typeface: typeface.clone(),
+                            ..Default::default()
                         },
                         ..default()
                     },

@@ -4,14 +4,14 @@ use bevy::prelude::*;
 
 use super::MainMenuScreen;
 
-#[derive(Event)]
+#[derive(Event, Message)]
 /// Fired to initialise the main menu scene.
 pub struct MainMenuStartupEvent;
 
-#[derive(Event)]
+#[derive(Event, Message)]
 /// Fired to tear down the main menu scene.
 pub struct MainMenuShutdownEvent;
 
-#[derive(Event)]
+#[derive(Event, Message)]
 /// Switches to a different menu screen.
 pub struct ChangeMainMenuScreenTrigger(pub MainMenuScreen);

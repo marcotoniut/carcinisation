@@ -15,7 +15,7 @@ pub fn check_in_view(
     mut query: Query<(Entity, &PxSubPosition), Without<InView>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
-    if let Ok(camera_pos) = camera_query.get_single() {
+    if let Ok(camera_pos) = camera_query.single() {
         for (entity, position) in query.iter_mut() {
             if is_inside_area(
                 position.0,
@@ -37,7 +37,7 @@ pub fn check_outside_view(
     mut query: Query<(Entity, &PxSubPosition), With<InView>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
-    if let Ok(camera_pos) = camera_query.get_single() {
+    if let Ok(camera_pos) = camera_query.single() {
         for (entity, position) in query.iter_mut() {
             if !is_inside_area(
                 position.0,
@@ -56,7 +56,7 @@ pub fn update_camera_pos_x(
         (With<CameraPos>, Without<CameraShake>),
     >,
 ) {
-    if let Ok((pos, mut camera_pos)) = query.get_single_mut() {
+    if let Ok((pos, mut camera_pos)) = query.single_mut() {
         camera_pos.0.x = pos.0;
     }
 }
@@ -67,7 +67,7 @@ pub fn update_camera_pos_y(
         (With<CameraPos>, Without<CameraShake>),
     >,
 ) {
-    if let Ok((pos, mut camera_pos)) = query.get_single_mut() {
+    if let Ok((pos, mut camera_pos)) = query.single_mut() {
         camera_pos.0.y = pos.0;
     }
 }

@@ -7,8 +7,8 @@ use crate::{
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxAnimationFrameTransition, PxCanvas, PxSprite, PxSubPosition,
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxCanvas,
+    PxFrameTransition, PxSprite, PxSubPosition,
 };
 use seldom_pixel::sprite::PxSpriteAsset;
 
@@ -55,7 +55,7 @@ impl SkyboxBundle {
                 PxAnimationDirection::default(),
                 PxAnimationDuration::millis_per_animation(2000),
                 PxAnimationFinishBehavior::Loop,
-                PxAnimationFrameTransition::default(),
+                PxFrameTransition::default(),
             ),
             name: Name::new("Skybox"),
             position: Vec2::ZERO.into(),
