@@ -3,13 +3,12 @@ use bevy::{
     asset::{AssetPath, AssetServer},
     ecs::system::SystemParam,
     prelude::{Handle, Res},
-    utils::HashMap,
 };
 use seldom_pixel::{
     filter::{PxFilter, PxFilterAsset},
     prelude::{PxSprite, PxSpriteAsset, PxTypeface},
 };
-use std::{fs, marker::PhantomData, path::PathBuf};
+use std::{collections::HashMap, fs, marker::PhantomData, path::PathBuf};
 
 pub type PxAsset<T> = T;
 pub type PxSpriteData = PxSpriteAsset;

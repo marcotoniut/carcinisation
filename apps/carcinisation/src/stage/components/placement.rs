@@ -2,10 +2,13 @@ use crate::{
     layer::{Layer, MidDepth, PreBackgroundDepth},
     plugins::movement::structs::MovementVec2Position,
 };
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Sub};
+use std::{
+    collections::HashMap,
+    ops::{Add, Sub},
+};
 use strum_macros::EnumIter;
 
 #[derive(

@@ -3,11 +3,15 @@ name = "carcinisation"
 version = "0.2.0"
 edition = "2021"
 
+[features]
+default = []
+wasm = ["wasm-bindgen"]
+
 [dependencies]
 assert_assets_path = { workspace = true }
 bevy = { workspace = true }
 bevy_common_assets = { workspace = true }
-bevy_editor_pls = { workspace = true }
+bevy-inspector-egui = { workspace = true }
 bevy_framepace = { workspace = true }
 colored = { workspace = true }
 derive-new = { workspace = true }
@@ -21,4 +25,4 @@ serde = { workspace = true }
 serde_with = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-wasm-bindgen = { workspace = true }
+wasm-bindgen = { version = "0.2.92", optional = true }

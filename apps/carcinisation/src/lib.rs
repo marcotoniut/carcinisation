@@ -22,12 +22,13 @@ mod transitions;
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 pub use crate::cutscene::data::CutsceneData;
 
 pub mod asset_meta {
-    use bevy::utils::HashMap;
+    use std::collections::HashMap;
 
     pub fn ensure_sprite_meta(path: &str, frames: usize) {
         crate::pixel::assets::ensure_sprite_meta(path, frames);
@@ -38,5 +39,6 @@ pub mod asset_meta {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 extern "C" {}

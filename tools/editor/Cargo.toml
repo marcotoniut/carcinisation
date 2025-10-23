@@ -7,8 +7,8 @@ edition = "2021"
 assert_assets_path = { workspace = true }
 bevy = { workspace = true }
 bevy_common_assets = { workspace = true }
-bevy-inspector-egui = "0.28.1"
-bevy_prototype_lyon = "0.13"
+bevy-inspector-egui = { workspace = true }
+bevy_prototype_lyon = "0.15"
 carcinisation = { path = "../../apps/carcinisation" }
 derive-new = { workspace = true }
 derive_more = { workspace = true }

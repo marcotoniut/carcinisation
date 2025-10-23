@@ -22,10 +22,10 @@ impl Plugin for GamePlugin {
         app.add_plugins(ScorePlugin)
             .init_state::<GamePluginUpdateState>()
             .init_state::<GameProgressState>()
-            .add_event::<GameOverTrigger>()
+            .add_message::<GameOverTrigger>()
             .add_observer(on_game_over)
             .add_observer(on_trigger_write_event::<GameOverTrigger>)
-            .add_event::<GameStartupTrigger>()
+            .add_message::<GameStartupTrigger>()
             .add_observer(on_game_startup)
             .add_systems(
                 Update,

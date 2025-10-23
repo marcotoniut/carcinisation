@@ -39,11 +39,11 @@ impl Plugin for PlayerPlugin {
         app.init_resource::<AttackTimer>()
             .init_state::<PlayerPluginUpdateState>()
             .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
-            .add_event::<CameraShakeTrigger>()
+            .add_message::<CameraShakeTrigger>()
             .add_observer(on_camera_shake)
-            .add_event::<PlayerStartupTrigger>()
+            .add_message::<PlayerStartupTrigger>()
             .add_observer(on_player_startup)
-            .add_event::<PlayerShutdownTrigger>()
+            .add_message::<PlayerShutdownTrigger>()
             .add_observer(on_player_shutdown)
             .add_systems(
                 Update,

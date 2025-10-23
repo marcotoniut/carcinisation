@@ -7,7 +7,7 @@ use crate::game::events::GameOverTrigger;
 
 /// @system Inserts the final run score into the high-score list.
 pub fn on_game_over_update_high_scores(
-    mut reader: EventReader<GameOverTrigger>,
+    mut reader: MessageReader<GameOverTrigger>,
     mut high_scores: ResMut<HighScores>,
 ) {
     for game_over in reader.read() {

@@ -21,7 +21,7 @@ lazy_static! {
 
 pub fn on_damage(
     mut commands: Commands,
-    mut event_reader: EventReader<DamageEvent>,
+    mut event_reader: MessageReader<DamageEvent>,
     mut query: Query<&mut Health, Without<Dead>>,
 ) {
     for e in event_reader.read() {
@@ -40,12 +40,12 @@ pub fn on_damage(
 pub fn check_damage_flicker_taken(
     mut commands: Commands,
     stage_time: Res<StageTime>,
-    mut reader: EventReader<DamageEvent>,
+    mut reader: MessageReader<DamageEvent>,
     // TODO Destructibles and Attacks
     query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
 ) {
     for e in reader.read() {
-        if let (_) = query.get(e.entity) {
+        if let _ = query.get(e.entity) {
             commands.entity(e.entity).insert(DamageFlicker {
                 phase_start: stage_time.elapsed + DAMAGE_REGULAR_DURATION.clone(),
                 count: DAMAGE_FLICKER_COUNT,
@@ -58,7 +58,7 @@ pub fn add_invert_filter(
     mut commands: Commands,
     stage_time: Res<StageTime>,
     mut query: Query<(Entity, &mut DamageFlicker), Without<InvertFilter>>,
-    mut filters: PxAssets<PxFilter>,
+    filters: PxAssets<PxFilter>,
 ) {
     let regular_duration = DAMAGE_REGULAR_DURATION.clone();
     for (entity, mut damage_flicker) in &mut query.iter_mut() {

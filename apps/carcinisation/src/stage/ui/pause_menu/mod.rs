@@ -1,18 +1,18 @@
 pub mod pause_menu;
 
 use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
-use crate::pixel::{PxAssets, PxLineBundle, PxSpriteBundle, PxTextBundle};
+use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     game::{score::components::Score, GameProgressState},
     globals::{
-        mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
+        mark_for_despawn_by_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
         TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxSprite, PxText, PxTypeface,
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxSprite, PxText, PxTypeface,
 };
 
 pub fn pause_menu_renderer(
@@ -25,7 +25,7 @@ pub fn pause_menu_renderer(
     state: Res<State<GameProgressState>>,
 ) {
     if state.get().to_owned() == GameProgressState::Paused {
-        if let Ok(entity) = query.get_single() {
+        if let Ok(entity) = query.single() {
             //do nothing
         } else {
             spawn_pause_menu_bundle(
@@ -70,21 +70,18 @@ pub fn spawn_pause_menu_bundle(
                     Name::new("UIBackground"),
                 ));
 
+                let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
+
                 p0.spawn((
                     PxTextBundle::<Layer> {
-                        alignment: PxAnchor::BottomCenter,
+                        position: PxPosition::from(IVec2::new(center_x, 90)),
+                        anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
-                        rect: IRect::new(
-                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                            90,
-                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                            90 + (FONT_SIZE + 2) as i32,
-                        )
-                        .into(),
                         text: PxText {
                             value: "Paused".to_string(),
                             typeface: typeface.clone(),
+                            ..Default::default()
                         },
                         ..default()
                     },
@@ -94,19 +91,14 @@ pub fn spawn_pause_menu_bundle(
 
                 p0.spawn((
                     PxTextBundle::<Layer> {
-                        alignment: PxAnchor::BottomCenter,
+                        position: PxPosition::from(IVec2::new(center_x, 60)),
+                        anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
-                        rect: IRect::new(
-                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                            60,
-                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                            60 + (FONT_SIZE + 2) as i32,
-                        )
-                        .into(),
                         text: PxText {
                             value: "Score:".to_string(),
                             typeface: typeface.clone(),
+                            ..Default::default()
                         },
                         ..default()
                     },
@@ -116,19 +108,14 @@ pub fn spawn_pause_menu_bundle(
 
                 p0.spawn((
                     PxTextBundle::<Layer> {
-                        alignment: PxAnchor::BottomCenter,
+                        position: PxPosition::from(IVec2::new(center_x, 50)),
+                        anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
-                        rect: IRect::new(
-                            (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                            50,
-                            (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                            50 + (FONT_SIZE + 2) as i32,
-                        )
-                        .into(),
                         text: PxText {
                             value: score_text.clone(),
                             typeface: typeface.clone(),
+                            ..Default::default()
                         },
                         ..default()
                     },

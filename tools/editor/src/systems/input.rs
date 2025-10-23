@@ -23,7 +23,7 @@ pub fn on_alt_mouse_motion(
         for event in mouse_motion_events.read() {
             let delta = event.delta;
 
-            if let Ok(mut ortho_projection) = orthographic_camera_query.get_single_mut() {
+            if let Ok(mut ortho_projection) = orthographic_camera_query.single_mut() {
                 ortho_projection.scale -= delta.y * ZOOM_SENSITIVITY;
                 ortho_projection.scale = ortho_projection.scale.clamp(ZOOM_MIN, ZOOM_MAX);
             }

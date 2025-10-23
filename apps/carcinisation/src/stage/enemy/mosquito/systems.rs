@@ -13,7 +13,7 @@ use crate::{
         },
         enemy::{
             bundles::*,
-            components::{behavior::EnemyCurrentBehavior, *},
+            components::behavior::EnemyCurrentBehavior,
             data::{
                 mosquito::MOSQUITO_ANIMATIONS,
                 steps::{EnemyStep, JumpEnemyStep},
@@ -135,7 +135,7 @@ pub fn assign_mosquito_animation(
 
 pub fn despawn_dead_mosquitoes(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
     query: Query<(Entity, &EnemyMosquito, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
@@ -170,14 +170,14 @@ pub fn check_idle_mosquito(
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     // TODO
-    // event_writer: EventWriter<BloodAttackEvent>,
+    // event_writer: MessageWriter<BloodAttackEvent>,
     stage_time: Res<StageTime>,
     query: Query<
         (Entity, &mut EnemyMosquitoAttacking, &PxSubPosition, &Depth),
         (With<InView>, With<EnemyMosquito>),
     >,
 ) {
-    let camera_pos = camera_query.get_single().unwrap();
+    let camera_pos = camera_query.single().unwrap();
     for (entity, attacking, position, depth) in &mut query.iter() {
         if attacking.attack.is_none() {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {

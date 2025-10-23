@@ -8,7 +8,7 @@ use crate::{
         events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
         CutscenePluginUpdateState,
     },
-    debug::plugin::{debug_print_shutdown, debug_print_startup},
+    debug::plugin::debug_print_startup,
     game::{
         components::steps::*, data::*, events::GameStartupTrigger, resources::*, GameOverTrigger,
         GamePluginUpdateState,
@@ -26,7 +26,7 @@ const DEBUG_MODULE: &str = "Game";
 
 /// @trigger Initialises game resources and enables the progression plugin.
 pub fn on_game_startup(
-    _trigger: Trigger<GameStartupTrigger>,
+    _trigger: On<GameStartupTrigger>,
     mut next_state: ResMut<NextState<GamePluginUpdateState>>,
     mut commands: Commands,
 ) {
@@ -40,7 +40,7 @@ pub fn on_game_startup(
 }
 
 // pub fn on_game_shutdown(
-//     _trigger: Trigger<GameShutdownTrigger>,
+//     _trigger: On<GameShutdownTrigger>,
 //     mut next_state: ResMut<NextState<GamePluginUpdateState>>,
 // ) {
 //     #[cfg(debug_assertions)]
@@ -50,11 +50,11 @@ pub fn on_game_startup(
 // }
 
 /// @trigger Placeholder hook for future game-over cleanup.
-pub fn on_game_over(_trigger: Trigger<GameOverTrigger>) {}
+pub fn on_game_over(_trigger: On<GameOverTrigger>) {}
 
 /// @trigger Advances progress when a stage reports it has been cleared.
 pub fn on_stage_cleared(
-    mut event_reader: EventReader<StageClearedTrigger>,
+    mut event_reader: MessageReader<StageClearedTrigger>,
     mut commands: Commands,
     mut next_update_state: ResMut<NextState<StagePluginUpdateState>>,
     mut progress: ResMut<GameProgress>,
@@ -68,7 +68,7 @@ pub fn on_stage_cleared(
 
 /// @trigger Advances progress when a cutscene finishes.
 pub fn on_cutscene_shutdown(
-    mut event_reader: EventReader<CutsceneShutdownTrigger>,
+    mut event_reader: MessageReader<CutsceneShutdownTrigger>,
     mut commands: Commands,
     mut next_update_state: ResMut<NextState<CutscenePluginUpdateState>>,
     mut progress: ResMut<GameProgress>,
@@ -87,8 +87,8 @@ pub fn progress(
     game_progress: Res<GameProgress>,
     game_data: Res<GameData>,
     mut commands: Commands,
-    // mut cutscene_startup_event_writer: EventWriter<CutsceneStartupEvent>,
-    mut stage_startup_event_writer: EventWriter<StageStartupTrigger>,
+    // mut cutscene_startup_event_writer: MessageWriter<CutsceneStartupEvent>,
+    mut stage_startup_event_writer: MessageWriter<StageStartupTrigger>,
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
         if let Some(data) = game_data.steps.get(game_progress.index) {
@@ -101,7 +101,7 @@ pub fn progress(
                     is_checkpoint,
                 }) => {
                     commands.trigger(CutsceneStartupTrigger { data: data.clone() });
-                    // cutscene_startup_event_writer.send();
+                    // cutscene_startup_event_writer.write();
                 }
                 GameStep::CutsceneAsset(CinematicAssetGameStep { src, is_checkpoint }) => {
                     commands.insert_resource(CutsceneAssetHandle {
@@ -109,7 +109,7 @@ pub fn progress(
                     });
                 }
                 GameStep::Stage(StageGameStep { data }) => {
-                    stage_startup_event_writer.send(StageStartupTrigger { data: data.clone() });
+                    stage_startup_event_writer.write(StageStartupTrigger { data: data.clone() });
                 }
                 GameStep::StageAsset(StageAssetGameStep(src)) => {
                     commands.insert_resource(StageAssetHandle {

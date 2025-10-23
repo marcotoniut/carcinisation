@@ -22,7 +22,7 @@ use seldom_pixel::prelude::PxAnimationFinished;
 // ) {
 //     let gb_input = gb_input_query.single();
 //     if gb_input.just_pressed(&GBInput::DExit) {
-//         exit.send(AppExit);
+//         exit.write(AppExit);
 //     }
 // }
 

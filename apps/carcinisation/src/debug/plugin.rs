@@ -1,6 +1,5 @@
 //! Convenience helpers for consistent debug logging.
 
-use bevy::prelude::*;
 use colored::*;
 
 /// Logs a startup message for the given module (debug builds only).

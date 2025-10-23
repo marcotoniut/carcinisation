@@ -73,7 +73,7 @@ pub fn on_letterbox_shutdown(
 
 /// @trigger Applies movement instructions to letterbox entities.
 pub fn on_move(
-    trigger: Trigger<LetterboxMoveTrigger>,
+    trigger: On<LetterboxMoveTrigger>,
     mut commands: Commands,
     top_query: Query<(Entity, &PxSubPosition), With<LetterboxTop>>,
     bottom_query: Query<(Entity, &PxSubPosition), With<LetterboxBottom>>,

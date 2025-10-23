@@ -17,7 +17,7 @@ use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
 
 pub fn on_stage_startup(
-    trigger: Trigger<StageStartupTrigger>,
+    trigger: On<StageStartupTrigger>,
     mut commands: Commands,
     mut filters: PxAssets<PxFilter>,
     mut assets_sprite: PxAssets<PxSprite>,

@@ -2,7 +2,6 @@ pub mod behavior;
 
 use crate::plugins::movement::structs::MovementDirection;
 use bevy::prelude::*;
-use std::time::Duration;
 
 #[derive(Component, Debug, Default)]
 pub struct Enemy;

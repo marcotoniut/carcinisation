@@ -4,18 +4,18 @@ mod systems;
 use self::systems::*;
 use super::structs::Magnitude;
 use crate::core::time::DeltaTime;
-use bevy::prelude::*;
+use bevy::{ecs::component::Mutable, prelude::*};
 use std::marker::PhantomData;
 
 pub struct LinearMovementPlugin<
     T: DeltaTime + 'static + Resource,
-    P: Magnitude + 'static + Component,
+    P: Magnitude + 'static + Component<Mutability = Mutable>,
 > {
     _phantom_t: PhantomData<T>,
     _phantom_p: PhantomData<P>,
 }
 
-impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Default
+impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component<Mutability = Mutable>> Default
     for LinearMovementPlugin<T, P>
 {
     fn default() -> Self {
@@ -26,7 +26,7 @@ impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Default
     }
 }
 
-impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Plugin
+impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component<Mutability = Mutable>> Plugin
     for LinearMovementPlugin<T, P>
 {
     fn build(&self, app: &mut App) {
@@ -40,8 +40,8 @@ impl<T: DeltaTime + 'static + Resource, P: Magnitude + Component> Plugin
 
 pub struct LinearMovement2DPlugin<
     T: DeltaTime + 'static + Resource,
-    X: Magnitude + 'static + Component,
-    Y: Magnitude + 'static + Component,
+    X: Magnitude + 'static + Component<Mutability = Mutable>,
+    Y: Magnitude + 'static + Component<Mutability = Mutable>,
 > {
     _phantom_t: PhantomData<T>,
     _phantom_x: PhantomData<X>,
@@ -50,8 +50,8 @@ pub struct LinearMovement2DPlugin<
 
 impl<
         T: DeltaTime + 'static + Resource,
-        X: Magnitude + Component,
-        Y: Magnitude + 'static + Component,
+        X: Magnitude + Component<Mutability = Mutable>,
+        Y: Magnitude + 'static + Component<Mutability = Mutable>,
     > Default for LinearMovement2DPlugin<T, X, Y>
 {
     fn default() -> Self {
@@ -63,8 +63,11 @@ impl<
     }
 }
 
-impl<T: DeltaTime + 'static + Resource, X: Magnitude + Component, Y: Magnitude + Component> Plugin
-    for LinearMovement2DPlugin<T, X, Y>
+impl<
+        T: DeltaTime + 'static + Resource,
+        X: Magnitude + Component<Mutability = Mutable>,
+        Y: Magnitude + Component<Mutability = Mutable>,
+    > Plugin for LinearMovement2DPlugin<T, X, Y>
 {
     fn build(&self, app: &mut App) {
         app.add_systems(

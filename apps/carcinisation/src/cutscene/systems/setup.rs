@@ -18,7 +18,7 @@ const DEBUG_MODULE: &str = "Cutscene";
 
 /// @trigger Boots a cutscene, loading data and enabling systems.
 pub fn on_cutscene_startup(
-    trigger: Trigger<CutsceneStartupTrigger>,
+    trigger: On<CutsceneStartupTrigger>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
 ) {
@@ -36,7 +36,7 @@ pub fn on_cutscene_startup(
 
 /// @trigger Cleans up cutscene entities and disables the plugin.
 pub fn on_cutscene_shutdown(
-    _trigger: Trigger<CutsceneShutdownTrigger>,
+    _trigger: On<CutsceneShutdownTrigger>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
     cinematic_query: Query<Entity, With<Cinematic>>,

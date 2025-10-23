@@ -11,7 +11,7 @@ use bevy::prelude::*;
  * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose
  */
 pub fn on_enemy_depth_changed(
-    mut reader: EventReader<DepthChangedEvent>,
+    mut reader: MessageReader<DepthChangedEvent>,
     mut commands: Commands,
     query: Query<(Entity, &Enemy)>,
 ) {

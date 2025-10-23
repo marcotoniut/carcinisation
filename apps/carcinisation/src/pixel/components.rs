@@ -18,58 +18,31 @@ pub struct PxRectangle<L: PxLayer> {
 impl<L: PxLayer> PxRectangle<L> {
     /// Produces the endpoints used to draw a horizontal row of the rectangle.
     pub fn row_line_vec(&self, position: Vec2, row: &PxRectangleRow) -> Vec<IVec2> {
-        let x = position.x as i32;
-        let y = (position.y + row.0 as f32) as i32;
-        let height = self.height as i32;
+        let base_x = position.x as i32;
+        let base_y = position.y as i32;
         let width = self.width as i32;
-        let half_height = height / 2;
-        let half_width = width / 2;
+        let height = self.height as i32;
 
-        match self.anchor {
-            PxAnchor::BottomCenter => {
-                vec![IVec2::new(x - half_width, y), IVec2::new(x + half_width, y)]
-            }
-            PxAnchor::BottomLeft => {
-                vec![IVec2::new(x, y), IVec2::new(x + width, y)]
-            }
-            PxAnchor::BottomRight => {
-                vec![IVec2::new(x - width, y), IVec2::new(x, y)]
-            }
-            PxAnchor::Center => {
-                vec![
-                    IVec2::new(x - half_width, y - half_height),
-                    IVec2::new(x + half_width, y + half_height),
-                ]
-            }
-            PxAnchor::CenterLeft => {
-                vec![
-                    IVec2::new(x, y - half_height),
-                    IVec2::new(x + width, y + half_height),
-                ]
-            }
-            PxAnchor::CenterRight => {
-                vec![
-                    IVec2::new(x - width, y - half_height),
-                    IVec2::new(x, y + half_height),
-                ]
-            }
-            PxAnchor::TopCenter => {
-                vec![
-                    IVec2::new(x - half_width, y - height),
-                    IVec2::new(x + half_width, y - height),
-                ]
-            }
-            PxAnchor::TopLeft => {
-                vec![IVec2::new(x, y - height), IVec2::new(x + width, y - height)]
-            }
-            PxAnchor::TopRight => {
-                vec![IVec2::new(x - width, y - height), IVec2::new(x, y - height)]
-            }
-            PxAnchor::Custom(v) => {
-                // TODO implement
-                vec![]
-            }
-        }
+        let anchor_offset_x = match self.anchor {
+            PxAnchor::BottomLeft | PxAnchor::CenterLeft | PxAnchor::TopLeft => 0,
+            PxAnchor::BottomCenter | PxAnchor::Center | PxAnchor::TopCenter => width / 2,
+            PxAnchor::BottomRight | PxAnchor::CenterRight | PxAnchor::TopRight => width,
+            PxAnchor::Custom(v) => (v.x * width as f32) as i32,
+        };
+
+        let anchor_offset_y = match self.anchor {
+            PxAnchor::BottomLeft | PxAnchor::BottomCenter | PxAnchor::BottomRight => 0,
+            PxAnchor::CenterLeft | PxAnchor::Center | PxAnchor::CenterRight => height / 2,
+            PxAnchor::TopLeft | PxAnchor::TopCenter | PxAnchor::TopRight => height,
+            PxAnchor::Custom(v) => (v.y * height as f32) as i32,
+        };
+
+        let start_x = base_x - anchor_offset_x;
+        let start_y = base_y - anchor_offset_y;
+        let row_y = start_y + row.0 as i32;
+        let end_x = start_x + width;
+
+        vec![IVec2::new(start_x, row_y), IVec2::new(end_x, row_y)]
     }
 }
 

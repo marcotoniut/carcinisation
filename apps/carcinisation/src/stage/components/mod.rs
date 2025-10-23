@@ -7,11 +7,11 @@ pub mod placement;
 use self::placement::Depth;
 use super::data::{ContainerSpawn, StageSpawn};
 use crate::cutscene::data::CutsceneAnimationsSpawn;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 #[derive(Component, Debug, Default)]
 /// Marker for entities that belong to the current stage run.

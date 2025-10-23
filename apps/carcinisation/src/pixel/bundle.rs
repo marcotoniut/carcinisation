@@ -6,12 +6,12 @@ use crate::components::GBColor;
 use crate::layer::Layer;
 use bevy::{
     ecs::system::EntityCommands,
-    prelude::{AssetServer, BuildChildren, Bundle, ChildBuild, Component, Visibility},
+    prelude::{AssetServer, Bundle, Component, Visibility},
 };
 use seldom_pixel::prelude::{
     PxAnchor, PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxAnimationFrameTransition, PxCanvas, PxFilter, PxFilterLayers, PxLayer, PxLine, PxPosition,
-    PxRect, PxSprite, PxText,
+    PxCanvas, PxFilter, PxFilterLayers, PxFrame, PxFrameTransition, PxLayer, PxLine, PxPosition,
+    PxSprite, PxText,
 };
 
 /// Equivalent of the legacy `PxSpriteBundle`, rebuilt on top of the 0.8 component set.
@@ -29,8 +29,8 @@ pub struct PxSpriteBundle<L: Component + PxLayer + Default + Clone> {
 #[derive(Bundle, Default)]
 pub struct PxTextBundle<L: Component + PxLayer + Default + Clone> {
     pub text: PxText,
-    pub rect: PxRect,
-    pub alignment: PxAnchor,
+    pub position: PxPosition,
+    pub anchor: PxAnchor,
     pub layer: L,
     pub canvas: PxCanvas,
     pub visibility: Visibility,
@@ -47,9 +47,10 @@ pub struct PxLineBundle<L: Component + PxLayer + Default + Clone> {
 }
 
 /// Minimal shim around `PxAnimation` to preserve the old bundle name.
-#[derive(Bundle, Default, Clone, Debug)]
+#[derive(Bundle, Default, Clone)]
 pub struct PxAnimationBundle {
     pub animation: PxAnimation,
+    pub frame: PxFrame,
 }
 
 impl PxAnimationBundle {
@@ -57,14 +58,17 @@ impl PxAnimationBundle {
         direction: PxAnimationDirection,
         duration: PxAnimationDuration,
         on_finish: PxAnimationFinishBehavior,
-        frame_transition: PxAnimationFrameTransition,
+        frame_transition: PxFrameTransition,
     ) -> Self {
         Self {
             animation: PxAnimation {
                 direction,
                 duration,
                 on_finish,
-                frame_transition,
+                ..Default::default()
+            },
+            frame: PxFrame {
+                transition: frame_transition,
                 ..Default::default()
             },
         }

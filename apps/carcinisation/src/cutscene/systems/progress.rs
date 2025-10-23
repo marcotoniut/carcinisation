@@ -13,13 +13,10 @@ use crate::{
     letterbox::events::LetterboxMoveTrigger,
     systems::spawn::make_music_bundle,
 };
-use bevy::{
-    audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
-    prelude::*,
-};
+use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::prelude::{
-    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxAnimationFrameTransition, PxSprite, PxSubPosition,
+    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxCanvas,
+    PxFrameTransition, PxSprite, PxSubPosition,
 };
 
 /// @system Applies the next cutscene act when none is currently active.
@@ -103,9 +100,27 @@ pub fn process_cutscene_animations_spawn(
         (Entity, &CutsceneAnimationsSpawn),
         (With<Cinematic>, Added<CutsceneAnimationsSpawn>),
     >,
-    mut assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: PxAssets<PxSprite>,
+    existing_graphics: Query<(Entity, &Layer), With<CutsceneGraphic>>,
 ) {
     for (entity, spawns) in query.iter() {
+        if spawns.spawns.iter().any(|spawn| {
+            matches!(
+                spawn.layer,
+                Layer::CutsceneLayer(CutsceneLayer::Background(_))
+            )
+        }) {
+            let mut to_despawn = Vec::new();
+            for (existing, layer) in existing_graphics.iter() {
+                if matches!(layer, Layer::CutsceneLayer(CutsceneLayer::Background(_))) {
+                    to_despawn.push(existing);
+                }
+            }
+            for id in to_despawn {
+                commands.entity(id).despawn();
+            }
+        }
+
         for spawn in spawns.spawns.iter() {
             let sprite = assets_sprite.load_animated(spawn.image_path.clone(), spawn.frame_count);
 
@@ -116,13 +131,14 @@ pub fn process_cutscene_animations_spawn(
                     sprite: sprite.into(),
                     anchor: PxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
+                    canvas: PxCanvas::Camera,
                     ..default()
                 },
                 PxAnimationBundle::from_parts(
                     PxAnimationDirection::default(),
                     PxAnimationDuration::millis_per_animation(spawn.duration.as_millis() as u64),
                     PxAnimationFinishBehavior::Loop,
-                    PxAnimationFrameTransition::default(),
+                    PxFrameTransition::default(),
                 ),
                 PxSubPosition::from(spawn.coordinates),
             ));
@@ -144,9 +160,27 @@ pub fn process_cutscene_animations_spawn(
 pub fn process_cutscene_images_spawn(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneImagesSpawn), (With<Cinematic>, Added<CutsceneImagesSpawn>)>,
-    mut assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: PxAssets<PxSprite>,
+    existing_graphics: Query<(Entity, &Layer), With<CutsceneGraphic>>,
 ) {
     for (entity, spawns) in query.iter() {
+        if spawns.spawns.iter().any(|spawn| {
+            matches!(
+                spawn.layer,
+                Layer::CutsceneLayer(CutsceneLayer::Background(_))
+            )
+        }) {
+            let mut to_despawn = Vec::new();
+            for (existing, layer) in existing_graphics.iter() {
+                if matches!(layer, Layer::CutsceneLayer(CutsceneLayer::Background(_))) {
+                    to_despawn.push(existing);
+                }
+            }
+            for id in to_despawn {
+                commands.entity(id).despawn();
+            }
+        }
+
         for spawn in spawns.spawns.iter() {
             let sprite = assets_sprite.load(spawn.image_path.clone());
 
@@ -157,6 +191,7 @@ pub fn process_cutscene_images_spawn(
                     sprite: sprite.into(),
                     anchor: PxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
+                    canvas: PxCanvas::Camera,
                     ..default()
                 },
                 PxSubPosition::from(spawn.coordinates),

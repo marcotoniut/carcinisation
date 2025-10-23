@@ -27,11 +27,11 @@ pub fn camera_shake<T: DeltaTime + Resource>(
 }
 
 pub fn on_camera_shake(
-    _trigger: Trigger<CameraShakeTrigger>,
+    _trigger: On<CameraShakeTrigger>,
     mut commands: Commands,
     camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
 ) {
-    if let Ok((entity, position)) = camera_query.get_single() {
+    if let Ok((entity, position)) = camera_query.single() {
         commands.entity(entity).insert(CameraShake {
             timer: Timer::from_seconds(0.05, TimerMode::Once),
             intensity: 3.0,

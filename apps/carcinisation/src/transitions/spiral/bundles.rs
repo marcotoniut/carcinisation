@@ -4,7 +4,7 @@ use crate::{
     pixel::{PxAssets, PxLineBundle},
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxCanvas, PxFilter, PxFilterLayers, PxLayer};
+use seldom_pixel::prelude::{PxCanvas, PxFilter, PxFilterLayers};
 
 use super::{components::TransitionVenetianRow, resources::*};
 
@@ -30,12 +30,12 @@ pub fn update_transition(
     mut commands: Commands,
     timer: Res<TransitionUpdateTimer>,
     mut counter: ResMut<TransitionCounter>,
-    mut filters: PxAssets<PxFilter>,
+    filters: PxAssets<PxFilter>,
     transition_line_query: Query<(Entity, &TransitionVenetianRow)>,
 ) {
     let n = 6;
 
-    if timer.timer.finished() {
+    if timer.timer.is_finished() {
         let filter = PxFilter(filters.load("filter/color2.px_filter.png"));
         let step_closing = SCREEN_RESOLUTION.y;
         let step_buffer = step_closing + (0.35 * SCREEN_RESOLUTION.y as f32) as u32;
@@ -70,14 +70,14 @@ pub fn update_transition(
 }
 
 pub fn progress(
-    mut commands: Commands,
+    commands: Commands,
     time: Res<TransitionVenetianTime>,
     // mut counter: ResMut<TransitionCounter>,
-    mut filters: PxAssets<PxFilter>,
+    filters: PxAssets<PxFilter>,
 ) {
     // let n = 6;
 
-    // if timer.timer.finished() {
+    // if timer.timer.is_finished() {
     //     let filter = filters.load("filter/color2.px_filter.png");
     //     let step_closing = SCREEN_RESOLUTION.y;
     //     let step_buffer = step_closing + (0.35 * SCREEN_RESOLUTION.y as f32) as u32;

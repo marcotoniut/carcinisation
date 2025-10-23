@@ -22,9 +22,9 @@ impl Plugin for TransitionVenetianPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<TransitionVenetianPluginUpdateState>()
             .init_resource::<TransitionUpdateTimer>()
-            .add_event::<TransitionVenetianStartupEvent>()
+            .add_message::<TransitionVenetianStartupEvent>()
             .add_observer(on_transition_startup)
-            .add_event::<TransitionVenetianShutdownEvent>()
+            .add_message::<TransitionVenetianShutdownEvent>()
             .add_observer(on_transition_shutdown)
             .add_systems(
                 Update,

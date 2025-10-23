@@ -15,7 +15,7 @@ use seldom_pixel::prelude::PxSprite;
 const DEBUG_MODULE: &str = "Player";
 
 pub fn on_player_startup(
-    _trigger: Trigger<PlayerStartupTrigger>,
+    _trigger: On<PlayerStartupTrigger>,
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     crosshair_settings: Res<CrosshairSettings>,
@@ -27,7 +27,7 @@ pub fn on_player_startup(
 }
 
 pub fn on_player_shutdown(
-    _trigger: Trigger<PlayerShutdownTrigger>,
+    _trigger: On<PlayerShutdownTrigger>,
     mut commands: Commands,
     query: Query<Entity, With<Player>>,
 ) {

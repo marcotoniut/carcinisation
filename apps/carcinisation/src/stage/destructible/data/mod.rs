@@ -11,7 +11,7 @@ use crate::{
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
     PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxAnimationFrameTransition,
+    PxFrameTransition,
 };
 use serde::{Deserialize, Serialize};
 
@@ -171,7 +171,7 @@ impl AnimationData {
             self.direction,
             PxAnimationDuration::millis_per_animation(self.speed),
             self.finish_behavior,
-            PxAnimationFrameTransition::default(),
+            PxFrameTransition::default(),
         )
     }
 }

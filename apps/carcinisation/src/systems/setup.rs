@@ -11,7 +11,7 @@ pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {
 }
 
 pub fn spawn_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
     commands.spawn((PxSubPosition::default(), CameraPos));
 }
 

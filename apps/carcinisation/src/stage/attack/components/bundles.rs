@@ -5,10 +5,7 @@ use crate::{
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{
-    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxAnimationFrameTransition, PxSprite,
-};
+use seldom_pixel::prelude::{PxAnchor, PxAnimationDuration, PxSprite};
 
 pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,

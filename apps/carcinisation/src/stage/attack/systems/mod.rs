@@ -52,7 +52,7 @@ pub fn miss_on_reached(
 pub fn on_enemy_attack_depth_changed(
     mut commands: Commands,
     // TODO do I need an EventReader for this? Can't I just use a query that checks for Changed<Depth>?
-    mut event_reader: EventReader<DepthChangedEvent>,
+    mut event_reader: MessageReader<DepthChangedEvent>,
     mut assets_sprite: PxAssets<PxSprite>,
     query: Query<(Entity, &EnemyHoveringAttackType)>,
 ) {

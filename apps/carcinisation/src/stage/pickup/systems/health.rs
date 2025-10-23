@@ -103,10 +103,10 @@ pub fn pickup_health(
     query: Query<(Entity, &HealthRecovery, &PxSubPosition), Added<Dead>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     mut player_query: Query<&mut Health, With<Player>>,
-    mut assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: PxAssets<PxSprite>,
 ) {
-    let camera_pos = camera_query.get_single().unwrap();
-    if let Ok(mut health) = player_query.get_single_mut() {
+    let camera_pos = camera_query.single().unwrap();
+    if let Ok(mut health) = player_query.single_mut() {
         for (entity, recovery, position) in query.iter() {
             commands.entity(entity).insert(DespawnMark);
 

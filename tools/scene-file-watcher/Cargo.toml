@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = { workspace = true, features = ["wayland"] }
 bevy_common_assets = { workspace = true }
-bevy_editor_pls = { workspace = true }
+bevy-inspector-egui = { workspace = true }
 carcinisation = { path = "../../apps/carcinisation" }
 colored = { workspace = true }
 derive-new = { workspace = true }
