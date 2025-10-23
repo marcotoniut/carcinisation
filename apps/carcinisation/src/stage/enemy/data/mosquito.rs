@@ -2,8 +2,8 @@ use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
+use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
 pub struct MosquitoAnimations {

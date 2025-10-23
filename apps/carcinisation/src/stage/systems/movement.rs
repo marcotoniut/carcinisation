@@ -20,19 +20,19 @@ pub fn update_depth(
         ),
         Without<LinearTargetReached<StageTime, TargetingPositionZ>>,
     >,
-    mut event_writer: EventWriter<DepthChangedEvent>,
+    mut event_writer: MessageWriter<DepthChangedEvent>,
 ) {
     for (entity, mut depth, position, speed) in &mut query.iter_mut() {
         if speed.value > 0.0 {
             if position.0 >= (depth.to_f32() + 0.5) {
                 *depth = *depth + 1;
                 // REVIEW should this use DepthChanged, or Added<LinearTargetReached> (LinearTargetReached<StageTime, ZAxisPosition>)
-                event_writer.send(DepthChangedEvent::new(entity, depth.clone()));
+                event_writer.write(DepthChangedEvent::new(entity, depth.clone()));
             }
         } else {
             if position.0 <= (depth.to_f32() - 0.5) {
                 *depth = *depth - 1;
-                event_writer.send(DepthChangedEvent::new(entity, depth.clone()));
+                event_writer.write(DepthChangedEvent::new(entity, depth.clone()));
             }
         }
     }

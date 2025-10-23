@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::component::Mutable, prelude::*};
 
 use crate::{
     core::time::DeltaTime,
@@ -7,7 +7,7 @@ use crate::{
 
 use super::components::{extra::LinearMovement2DReachCheck, *};
 
-pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
+pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component<Mutability = Mutable>>(
     mut query: Query<
         (
             &mut P,
@@ -18,7 +18,7 @@ pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
     >,
     delta_time: Res<T>,
 ) {
-    for (mut position, mut speed, acceleration_o) in &mut query.iter_mut() {
+    for (mut position, mut speed, acceleration_o) in query.iter_mut() {
         if let Some(acceleration) = acceleration_o {
             speed.add(acceleration.value * delta_time.delta().as_secs_f32());
         }
@@ -29,18 +29,24 @@ pub fn update<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
 /**
  * What to do if there's already a bundle? Should I simply clean it up on added?
  */
-pub fn on_position_added<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
+pub fn on_position_added<
+    T: DeltaTime + 'static + Resource,
+    P: Magnitude + Component<Mutability = Mutable>,
+>(
     mut commands: Commands,
-    mut query: Query<Entity, Added<LinearTargetPosition<T, P>>>,
+    query: Query<Entity, Added<LinearTargetPosition<T, P>>>,
 ) {
-    for entity in &mut query.iter_mut() {
+    for entity in query.iter() {
         commands
             .entity(entity)
             .remove::<LinearTargetReached<T, P>>();
     }
 }
 
-pub fn check_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
+pub fn check_reached<
+    T: DeltaTime + 'static + Resource,
+    P: Magnitude + Component<Mutability = Mutable>,
+>(
     mut commands: Commands,
     mut query: Query<
         (
@@ -52,7 +58,7 @@ pub fn check_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component
         Without<LinearTargetReached<T, P>>,
     >,
 ) {
-    for (entity, mut position, direction, target) in &mut query.iter_mut() {
+    for (entity, mut position, direction, target) in query.iter_mut() {
         let x = position.get();
         if (direction.value == MovementDirection::Negative && x <= target.value)
             || (direction.value == MovementDirection::Positive && x >= target.value)
@@ -66,11 +72,14 @@ pub fn check_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component
 }
 
 // TODO check if this is prone to race conditions when systems that update data based on P execute in between this and update
-pub fn on_reached<T: DeltaTime + 'static + Resource, P: Magnitude + Component>(
+pub fn on_reached<
+    T: DeltaTime + 'static + Resource,
+    P: Magnitude + Component<Mutability = Mutable>,
+>(
     mut commands: Commands,
-    mut query: Query<Entity, Added<LinearTargetReached<T, P>>>,
+    query: Query<Entity, Added<LinearTargetReached<T, P>>>,
 ) {
-    for entity in &mut query.iter_mut() {
+    for entity in query.iter() {
         commands
             .entity(entity)
             .remove::<LinearPositionRemovalBundle<T, P>>()

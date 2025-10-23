@@ -18,15 +18,16 @@ pub fn move_camera(
     time: Res<Time>,
     mut camera: ResMut<PxCamera>,
 ) {
-    let mut camera_pos = camera_pos_query.single_mut();
-    **camera_pos += IVec2::new(
-        gb_input.pressed(&GBInput::DRight) as i32 - gb_input.pressed(&GBInput::DLeft) as i32,
-        gb_input.pressed(&GBInput::DUp) as i32 - gb_input.pressed(&GBInput::DDown) as i32,
-    )
-    .as_vec2()
-    .normalize_or_zero()
-        * time.delta().as_secs_f32()
-        * CAMERA_MOVEMENT_SPEED;
+    if let Ok(mut camera_pos) = camera_pos_query.single_mut() {
+        **camera_pos += IVec2::new(
+            gb_input.pressed(&GBInput::DRight) as i32 - gb_input.pressed(&GBInput::DLeft) as i32,
+            gb_input.pressed(&GBInput::DUp) as i32 - gb_input.pressed(&GBInput::DDown) as i32,
+        )
+        .as_vec2()
+        .normalize_or_zero()
+            * time.delta().as_secs_f32()
+            * CAMERA_MOVEMENT_SPEED;
 
-    **camera = camera_pos.round().as_ivec2();
+        **camera = camera_pos.round().as_ivec2();
+    }
 }

@@ -24,8 +24,16 @@ mod transitions;
 #[macro_use]
 extern crate lazy_static;
 
+use bevy::window::WindowResolution;
 use bevy::{asset::AssetPlugin, prelude::*};
 use bevy_framepace::*;
+#[cfg(debug_assertions)]
+use bevy_inspector_egui::bevy_egui::EguiPlugin;
+#[cfg(debug_assertions)]
+use bevy_inspector_egui::{
+    bevy_egui::{egui, EguiContext, EguiPrimaryContextPass, PrimaryEguiContext},
+    bevy_inspector, DefaultInspectorConfigPlugin,
+};
 use bevy_utils::despawn_entities;
 use components::{DespawnMark, VolumeSettings};
 use cutscene::CutscenePlugin;
@@ -64,7 +72,10 @@ fn main() {
                         title,
                         focused,
                         resizable: true,
-                        resolution: VIEWPORT_RESOLUTION.into(),
+                        resolution: WindowResolution::new(
+                            VIEWPORT_RESOLUTION.x as u32,
+                            VIEWPORT_RESOLUTION.y as u32,
+                        ),
                         ..default()
                     }),
                     ..default()
@@ -73,7 +84,8 @@ fn main() {
                     file_path: "../../assets".into(),
                     ..default()
                 }),
-            bevy_editor_pls::EditorPlugin::new(),
+            EguiPlugin::default(),
+            DebugInspectorOverlayPlugin,
             bevy::diagnostic::LogDiagnosticsPlugin::default(),
             DebugPlugin,
         ));
@@ -88,7 +100,10 @@ fn main() {
                         title,
                         focused,
                         resizable: false,
-                        resolution: VIEWPORT_RESOLUTION.into(),
+                        resolution: WindowResolution::new(
+                            VIEWPORT_RESOLUTION.x as u32,
+                            VIEWPORT_RESOLUTION.y as u32,
+                        ),
                         ..default()
                     }),
                     ..default()
@@ -102,7 +117,7 @@ fn main() {
     app
         // Core resources initialise difficulty and audio defaults before systems run.
         // TEMP
-        // .insert_resource(GlobalVolume::new(0.3))
+        // .insert_resource(GlobalVolume::Linear(0.3))
         .init_resource::<DifficultySelected>()
         .init_resource::<VolumeSettings>()
         // Setup
@@ -143,4 +158,109 @@ fn main() {
         // Despawn entities marked for removal after systems finish.
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>)
         .run();
+}
+
+#[cfg(debug_assertions)]
+const INSPECTOR_EDGE_PADDING: f32 = 12.0;
+#[cfg(debug_assertions)]
+const INSPECTOR_TOGGLE_HEIGHT: f32 = 36.0;
+#[cfg(debug_assertions)]
+const INSPECTOR_DEFAULT_SIZE: egui::Vec2 = egui::Vec2::new(360.0, 440.0);
+
+#[cfg(debug_assertions)]
+#[derive(Resource, Default)]
+struct InspectorUiState {
+    open: bool,
+}
+
+#[cfg(debug_assertions)]
+struct DebugInspectorOverlayPlugin;
+
+#[cfg(debug_assertions)]
+impl Plugin for DebugInspectorOverlayPlugin {
+    fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<DefaultInspectorConfigPlugin>() {
+            app.add_plugins(DefaultInspectorConfigPlugin);
+        }
+
+        app.init_resource::<InspectorUiState>();
+
+        app.add_systems(
+            EguiPrimaryContextPass,
+            inspector_overlay_world_ui.into_configs(),
+        );
+    }
+}
+
+#[cfg(debug_assertions)]
+fn inspector_overlay_world_ui(world: &mut World) {
+    let toggled_via_key = world
+        .get_resource::<ButtonInput<KeyCode>>()
+        .map(|keys| keys.just_pressed(KeyCode::F12))
+        .unwrap_or(false);
+
+    let mut open = {
+        let mut state = world.resource_mut::<InspectorUiState>();
+        if toggled_via_key {
+            state.open = !state.open;
+        }
+        state.open
+    };
+
+    let Ok(egui_context) = world
+        .query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>()
+        .single(world)
+    else {
+        return;
+    };
+
+    let mut egui_context = egui_context.clone();
+    let ctx = egui_context.get_mut();
+
+    egui::Area::new(egui::Id::new("world_inspector_toggle"))
+        .anchor(
+            egui::Align2::RIGHT_TOP,
+            egui::Vec2::new(-INSPECTOR_EDGE_PADDING, INSPECTOR_EDGE_PADDING),
+        )
+        .order(egui::Order::Foreground)
+        .interactable(true)
+        .movable(false)
+        .show(ctx, |ui| {
+            let label = if open {
+                "Hide Inspector"
+            } else {
+                "Show Inspector"
+            };
+            if ui.button(label).clicked() {
+                open = !open;
+            }
+        });
+
+    if !open {
+        let mut state = world.resource_mut::<InspectorUiState>();
+        state.open = open;
+        return;
+    }
+
+    egui::Window::new("World Inspector")
+        .anchor(
+            egui::Align2::RIGHT_TOP,
+            egui::Vec2::new(
+                -INSPECTOR_EDGE_PADDING,
+                INSPECTOR_EDGE_PADDING + INSPECTOR_TOGGLE_HEIGHT,
+            ),
+        )
+        .default_width(INSPECTOR_DEFAULT_SIZE.x)
+        .default_height(INSPECTOR_DEFAULT_SIZE.y)
+        .resizable(true)
+        .open(&mut open)
+        .show(ctx, |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
+                bevy_inspector::ui_for_world(world, ui);
+                ui.allocate_space(ui.available_size());
+            });
+        });
+
+    let mut state = world.resource_mut::<InspectorUiState>();
+    state.open = open;
 }

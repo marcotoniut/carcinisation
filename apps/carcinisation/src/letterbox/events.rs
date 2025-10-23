@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::components::{LETTERBOX_HEIGHT, LETTERBOX_INSTANT_SPEED, LETTERBOX_NORMAL_SPEED};
 
-#[derive(new, Clone, Debug, Deserialize, Event, Serialize)]
+#[derive(new, Clone, Debug, Deserialize, Event, Message, Serialize)]
 /// Motion command that drives letterbox movement.
 pub struct LetterboxMoveTrigger {
     pub speed: f32,

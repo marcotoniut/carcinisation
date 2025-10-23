@@ -12,25 +12,26 @@ use self::{
 use super::StageUiPluginUpdateState;
 use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
-    components::{GBColor, PxSpriteColorLoader},
+    components::GBColor,
     game::score::components::Score,
     globals::{
-        mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
-        TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
     stage::StageProgressState,
 };
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
-use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxText, PxTypeface};
+use seldom_pixel::prelude::{
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxText, PxTypeface,
+};
 
 pub const HALF_SCREEN_SIZE: i32 = 70;
 
 pub fn render_game_over_screen(
     mut commands: Commands,
-    mut assets_typeface: PxAssets<PxTypeface>,
-    mut assets_filter: PxAssets<PxFilter>,
+    assets_typeface: PxAssets<PxTypeface>,
+    assets_filter: PxAssets<PxFilter>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
 ) {
@@ -59,21 +60,18 @@ pub fn render_game_over_screen(
                         Name::new("UIBackground"),
                     ));
 
+                    let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
+
                     p0.spawn((
                         PxTextBundle::<Layer> {
-                            alignment: PxAnchor::BottomCenter,
+                            position: PxPosition::from(IVec2::new(center_x, 90)),
+                            anchor: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
                             layer: Layer::UI,
-                            rect: IRect::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE,
-                                90,
-                                (SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE,
-                                90 + (FONT_SIZE + 2) as i32,
-                            )
-                            .into(),
                             text: PxText {
                                 value: "Game  Over".to_string(),
                                 typeface: typeface.clone(),
+                                ..Default::default()
                             },
                             ..default()
                         },
@@ -83,19 +81,14 @@ pub fn render_game_over_screen(
 
                     p0.spawn((
                         PxTextBundle::<Layer> {
-                            alignment: PxAnchor::BottomCenter,
+                            position: PxPosition::from(IVec2::new(center_x, 60)),
+                            anchor: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
                             layer: Layer::UI,
-                            rect: IRect::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                                60,
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                60 + (FONT_SIZE + 2) as i32,
-                            )
-                            .into(),
                             text: PxText {
                                 value: "Score:".to_string(),
                                 typeface: typeface.clone(),
+                                ..Default::default()
                             },
                             ..default()
                         },
@@ -105,19 +98,14 @@ pub fn render_game_over_screen(
 
                     p0.spawn((
                         PxTextBundle::<Layer> {
-                            alignment: PxAnchor::BottomCenter,
+                            position: PxPosition::from(IVec2::new(center_x, 50)),
+                            anchor: PxAnchor::BottomCenter,
                             canvas: PxCanvas::Camera,
                             layer: Layer::UI,
-                            rect: IRect::new(
-                                (SCREEN_RESOLUTION.x / 2) as i32 - 40,
-                                50,
-                                (SCREEN_RESOLUTION.x / 2) as i32 + 40,
-                                50 + (FONT_SIZE + 2) as i32,
-                            )
-                            .into(),
                             text: PxText {
                                 value: score_text.clone(),
                                 typeface: typeface.clone(),
+                                ..Default::default()
                             },
                             ..default()
                         },
@@ -140,9 +128,14 @@ pub fn despawn_game_over_screen(
 }
 
 pub fn game_over_screen_plugin(app: &mut App) {
-    app.add_event::<GameOverScreenShutdownEvent>()
+    app.add_message::<GameOverScreenShutdownEvent>()
         .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
         .add_systems(Startup, init_input)
+        .add_systems(
+            Update,
+            (render_game_over_screen, despawn_game_over_screen)
+                .run_if(in_state(StageUiPluginUpdateState::Active)),
+        )
         .add_systems(
             PostUpdate,
             check_press_continue_input.run_if(in_state(StageUiPluginUpdateState::Active)),

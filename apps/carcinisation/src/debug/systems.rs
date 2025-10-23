@@ -63,7 +63,7 @@ pub fn draw_colliders(
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     query: Query<(&ColliderData, &PxSubPosition)>,
 ) {
-    let camera_pos = camera_query.get_single().unwrap();
+    let camera_pos = camera_query.single().unwrap();
 
     for (data, position) in query.iter() {
         let absolute_position = position.0 - camera_pos.0;

@@ -10,7 +10,7 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxLayer;
 use std::marker::PhantomData;
 
-pub use assets::{PxAsset, PxAssets, PxFilterData, PxSpriteData};
+pub use assets::{PxAsset, PxAssets, PxSpriteData};
 pub use bundle::{PxAnimationBundle, PxLineBundle, PxSpriteBundle, PxTextBundle};
 
 /// Wraps pixel-specific systems for constructing/updating rectangle gizmos.

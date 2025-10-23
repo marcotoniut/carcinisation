@@ -1,16 +1,19 @@
 use super::components::*;
 use crate::{core::time::DeltaTime, plugins::movement::structs::MovementVec2Position};
-use bevy::prelude::*;
+use bevy::{ecs::component::Mutable, prelude::*};
 
 /** TODO generalise current position via a generic LinearPosition trait */
-pub fn update<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Component>(
+pub fn update<
+    T: DeltaTime + 'static + Resource,
+    P: MovementVec2Position + Component<Mutability = Mutable>,
+>(
     mut movement_query: Query<
         (&mut P, &PursueSpeed<T, P>, &PursueTargetPosition<T, P>),
         Without<PursueTargetReached<T, P>>,
     >,
     delta_time: Res<T>,
 ) {
-    for (mut position, speed, target) in &mut movement_query.iter_mut() {
+    for (mut position, speed, target) in movement_query.iter_mut() {
         let direction = target.value - position.get();
         let direction = direction.normalize_or_zero();
         let direction = direction * speed.value * delta_time.delta().as_secs_f32();
@@ -24,9 +27,9 @@ pub fn update<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Compo
  */
 pub fn on_position_added<T: DeltaTime + 'static + Resource, P: MovementVec2Position + Component>(
     mut commands: Commands,
-    mut movement_query: Query<Entity, Added<PursueTargetPosition<T, P>>>,
+    movement_query: Query<Entity, Added<PursueTargetPosition<T, P>>>,
 ) {
-    for entity in &mut movement_query.iter_mut() {
+    for entity in movement_query.iter() {
         commands
             .entity(entity)
             .remove::<PursueTargetXReached<T, P>>()
@@ -42,7 +45,7 @@ pub fn check_x_reached<T: DeltaTime + 'static + Resource, P: MovementVec2Positio
         Without<PursueTargetXReached<T, P>>,
     >,
 ) {
-    for (entity, position, speed, target) in &mut movement_query.iter_mut() {
+    for (entity, position, speed, target) in movement_query.iter_mut() {
         let vec = position.get();
         if (speed.value.x < 0. && vec.x <= target.value.x)
             || (speed.value.x > 0. && vec.x >= target.value.x)
@@ -61,7 +64,7 @@ pub fn check_y_reached<T: DeltaTime + 'static + Resource, P: MovementVec2Positio
         Without<PursueTargetYReached<T, P>>,
     >,
 ) {
-    for (entity, position, speed, target) in &mut movement_query.iter_mut() {
+    for (entity, position, speed, target) in movement_query.iter_mut() {
         let vec = position.get();
         if (speed.value.y < 0. && vec.y <= target.value.y)
             || (speed.value.y > 0. && vec.y >= target.value.y)
@@ -76,7 +79,7 @@ pub fn check_y_reached<T: DeltaTime + 'static + Resource, P: MovementVec2Positio
 // TODO, could be using the other checks at the same time to avoid a next frame "Reached" status
 pub fn check_reached<T: DeltaTime + 'static + Resource, P: MovementVec2Position>(
     mut commands: Commands,
-    mut movement_query: Query<
+    movement_query: Query<
         Entity,
         (
             With<PursueTargetXReached<T, P>>,
@@ -85,7 +88,7 @@ pub fn check_reached<T: DeltaTime + 'static + Resource, P: MovementVec2Position>
         ),
     >,
 ) {
-    for entity in &mut movement_query.iter_mut() {
+    for entity in movement_query.iter() {
         {
             commands
                 .entity(entity)
