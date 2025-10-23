@@ -17,7 +17,7 @@ fn main() {
                 ..default()
             }),
             InputManagerPlugin::<Action>::default(),
-            StateMachinePlugin,
+            StateMachinePlugin::default(),
             PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
@@ -43,10 +43,7 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn((
         PxSprite(idle.clone()),
         PxPosition(IVec2::splat(8)),
-        InputManagerBundle {
-            input_map: InputMap::default().with(Action::Cast, KeyCode::Space),
-            ..default()
-        },
+        InputMap::default().with(Action::Cast, KeyCode::Space),
         StateMachine::default()
             .trans::<Idle, _>(just_pressed(Action::Cast), Cast)
             .on_enter::<Cast>(move |entity| {

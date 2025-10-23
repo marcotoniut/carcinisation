@@ -1,11 +1,11 @@
 use bevy_derive::{Deref, DerefMut};
 use bevy_math::{ivec2, uvec2};
 use bevy_platform::collections::HashSet;
-use bevy_render::{sync_world::RenderEntity, Extract, RenderApp};
+use bevy_render::{Extract, RenderApp, sync_world::RenderEntity};
 use line_drawing::Bresenham;
 
 use crate::{
-    animation::{draw_frame, Frames},
+    animation::{Frames, draw_frame},
     filter::DefaultPxFilterLayers,
     image::PxImageSliceMut,
     position::{PxLayer, Spatial},

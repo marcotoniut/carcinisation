@@ -85,9 +85,8 @@ fn change_filter(
                 1 => PxFilterLayers::single_over(Layer::Middle(0)),
                 // Filters the Back and Front layers specifically
                 2 => PxFilterLayers::Many(vec![Layer::Back, Layer::Front]),
-                // Filters every layer matched by this `Fn`
-                // Use `.into()` to convert a `Fn(&Layer) -> bool` to a `PxFilterLayers::Select`
-                3 => (|layer: &Layer| matches!(layer, Layer::Middle(layer) if *layer >= 0)).into(),
+                // Filters all Middle(n) layers where n >= 0 (using layer ordering)
+                3 => PxFilterLayers::Range(Layer::Middle(0)..=Layer::Middle(i32::MAX)),
                 _ => unreachable!(),
             },
         ));

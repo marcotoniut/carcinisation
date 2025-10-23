@@ -306,7 +306,7 @@ fn update_animations<A: AnimatedAssetComponent>(
                     }
                     #[cfg(feature = "state")]
                     PxAnimationFinishBehavior::Done => {
-                        commands.entity(entity).insert(Done::Success);
+                        cmd.entity(id).insert(Done::Success);
                     }
                     PxAnimationFinishBehavior::Loop => (),
                 }

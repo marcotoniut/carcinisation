@@ -214,6 +214,7 @@ pub enum PxFilterLayers<L: PxLayer> {
         /// is rendered, including the background color.
         clip: bool,
     },
+    /// Filter applies to a range of layers. Uses layer ordering for enum variants with data.
     Range(RangeInclusive<L>),
     /// Filter applies to a set list of layers
     Many(Vec<L>),
