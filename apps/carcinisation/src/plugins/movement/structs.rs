@@ -2,6 +2,11 @@ use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "derive-ts")]
+use ts_rs::TS;
+
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Reflect, Serialize)]
 pub enum MovementDirection {
     Negative,

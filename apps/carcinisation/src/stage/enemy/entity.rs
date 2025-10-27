@@ -1,6 +1,11 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "derive-ts")]
+use ts_rs::TS;
+
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]
 pub enum EnemyType {
     #[default]

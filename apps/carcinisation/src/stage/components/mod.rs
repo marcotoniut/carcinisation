@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 use std::{collections::HashMap, time::Duration};
 
+#[cfg(feature = "derive-ts")]
+use ts_rs::TS;
+
 #[derive(Component, Debug, Default)]
 /// Marker for entities that belong to the current stage run.
 pub struct StageEntity;
@@ -68,6 +71,8 @@ impl StageElapse {
 /// Helper component recording the start time of a stage elapse.
 pub struct StageElapsedStarted(pub Duration);
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Scripted cinematic step triggered during stage progression.
 pub enum CinematicStageStep {
@@ -78,10 +83,13 @@ fn default_base_speed() -> f32 {
     1.0
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(new, Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Movement segment describing coordinates, base speed, and spawns for the step.
 pub struct MovementStageStep {
     #[new(default)]
+    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
     #[new(value = "1.")]
     #[serde(default = "default_base_speed")]
@@ -91,6 +99,7 @@ pub struct MovementStageStep {
     pub spawns: Vec<StageSpawn>,
     #[new(default)]
     #[serde(default)]
+    #[cfg_attr(feature = "derive-ts", ts(type = "Record<Depth, number> | null"))]
     pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,
@@ -130,12 +139,15 @@ impl MovementStageStep {
 }
 
 #[serde_as]
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(new, Component, Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Stop segment that keeps the stage static until conditions are met.
 pub struct StopStageStep {
     #[new(default)]
     #[serde_as(as = "Option<DurationSecondsWithFrac>")]
     #[serde(default)]
+    #[cfg_attr(feature = "derive-ts", ts(type = "number | null"))]
     pub max_duration: Option<Duration>,
     #[new(value = "true")]
     #[serde(default)]
@@ -148,6 +160,7 @@ pub struct StopStageStep {
     pub spawns: Vec<StageSpawn>,
     #[new(default)]
     #[serde(default)]
+    #[cfg_attr(feature = "derive-ts", ts(type = "Record<Depth, number> | null"))]
     pub floor_depths: Option<HashMap<Depth, f32>>,
     // TODO
     // pub is_checkpoint: bool,

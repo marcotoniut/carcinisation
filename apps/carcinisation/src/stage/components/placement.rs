@@ -11,6 +11,11 @@ use std::{
 };
 use strum_macros::EnumIter;
 
+#[cfg(feature = "derive-ts")]
+use ts_rs::TS;
+
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(
     Component,
     Debug,
