@@ -16,7 +16,9 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxPosition, PxSprite, PxSubPosition, PxText, PxTypeface};
+use seldom_pixel::prelude::{
+    PxAnchor, PxCanvas, PxPosition, PxSprite, PxSubPosition, PxText, PxTypeface,
+};
 use strum::IntoEnumIterator;
 
 pub fn on_change_main_menu_screen(
@@ -137,10 +139,7 @@ pub fn spawn_game_difficulty_screen(
                 MainMenuEntity,
                 DifficultySelectScreenEntity,
                 PxTextBundle::<Layer> {
-                    position: PxPosition::from(IVec2::new(
-                        (SCREEN_RESOLUTION.x / 2) as i32,
-                        y,
-                    )),
+                    position: PxPosition::from(IVec2::new((SCREEN_RESOLUTION.x / 2) as i32, y)),
                     anchor: PxAnchor::Center,
                     canvas: PxCanvas::Camera,
                     // TODO Menu layers

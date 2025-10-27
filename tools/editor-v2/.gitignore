@@ -38,5 +38,5 @@ coverage/
 *.tmp
 .cache/
 
-# Generated types
-src/types/generated.d.ts
+# Generated files
+generated/

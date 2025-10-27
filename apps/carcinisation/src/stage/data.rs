@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 use std::{collections::VecDeque, time::Duration};
 
+#[cfg(feature = "derive-ts")]
+use ts_rs::TS;
+
 lazy_static! {
     /// Convenience spawn position centred on the gameplay viewport.
     pub static ref DEFAULT_COORDINATES: Vec2 = SCREEN_RESOLUTION_F32_H.clone();
@@ -26,6 +29,8 @@ pub trait Contains {
     fn drops(&mut self, value: ContainerSpawn);
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Metadata required to load an animated skybox.
 pub struct SkyboxData {
@@ -34,6 +39,8 @@ pub struct SkyboxData {
 }
 
 // deriving Default for simplicity's sake in defining the stage data
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Static props that can populate the stage background.
 pub enum ObjectType {
@@ -43,6 +50,8 @@ pub enum ObjectType {
     RugparkSign,
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Pickup categories available for drop spawns.
 pub enum PickupType {
@@ -54,6 +63,8 @@ pub enum PickupType {
     // Shield,
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 /// Container that either spawns a pickup or an enemy payload.
 pub enum ContainerSpawn {
@@ -63,13 +74,17 @@ pub enum ContainerSpawn {
 
 // TODO move pickup data under its own module?
 #[serde_as]
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Runtime spawn instruction for a pickup entity.
 pub struct PickupSpawn {
     pub pickup_type: PickupType,
+    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
     #[serde(default)]
     #[serde_as(as = "DurationSecondsWithFrac")]
+    #[cfg_attr(feature = "derive-ts", ts(type = "number"))]
     pub elapsed: Duration,
     pub depth: Depth,
 }
@@ -110,6 +125,8 @@ impl PickupSpawn {
 }
 
 // TODO move pickup data under its own module?
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Template describing which pickup type should drop.
 pub struct PickupDropSpawn {
@@ -128,10 +145,13 @@ impl PickupDropSpawn {
     }
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 /// Static prop placement within the stage map.
 pub struct ObjectSpawn {
     pub object_type: ObjectType,
+    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
     pub depth: Depth,
 }
@@ -187,22 +207,29 @@ impl ObjectSpawn {
 }
 
 #[serde_as]
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
 pub struct EnemySpawn {
     pub enemy_type: EnemyType,
     #[serde(default)]
     #[serde_as(as = "DurationSecondsWithFrac")]
+    #[cfg_attr(feature = "derive-ts", ts(type = "number"))]
     pub elapsed: Duration,
     #[reflect(ignore)]
     #[serde(default)]
     pub contains: Option<Box<ContainerSpawn>>,
+    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
     pub speed: f32,
     #[serde(default)]
+    #[cfg_attr(feature = "derive-ts", ts(type = "Array<EnemyStep>"))]
     pub steps: VecDeque<EnemyStep>,
     pub depth: Depth,
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
 pub struct EnemyDropSpawn {
     pub enemy_type: EnemyType,
@@ -211,6 +238,7 @@ pub struct EnemyDropSpawn {
     pub contains: Option<Box<ContainerSpawn>>,
     pub speed: f32,
     #[serde(default)]
+    #[cfg_attr(feature = "derive-ts", ts(type = "Array<EnemyStep>"))]
     pub steps: VecDeque<EnemyStep>,
 }
 
@@ -353,6 +381,8 @@ impl EnemySpawn {
     }
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum StageSpawn {
     Object(ObjectSpawn),
@@ -406,6 +436,8 @@ pub enum StageActionResumeCondition {
     KillBoss,
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum StageStep {
     Cinematic(CinematicStageStep),
@@ -413,12 +445,15 @@ pub enum StageStep {
     Stop(StopStageStep),
 }
 
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Asset, Clone, Debug, Deserialize, Reflect, Resource, Serialize)]
 pub struct StageData {
     pub name: String,
     pub background_path: String,
     pub music_path: String,
     pub skybox: SkyboxData,
+    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number] | null"))]
     pub start_coordinates: Option<Vec2>,
     pub spawns: Vec<StageSpawn>,
     pub steps: Vec<StageStep>,

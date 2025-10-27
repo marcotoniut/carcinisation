@@ -32,6 +32,10 @@ rand = "0.8.5"
 seldom_pixel = { git = "https://github.com/marcotoniut/seldom_pixel", branch = "main", default-features = true, features = ["line"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_with = "3.8.1"
+serde_json = "1.0"
+ron = "0.11.0"
+anyhow = "1.0"
+ts-rs = "9.0"
 strum = "0.26.2"
 strum_macros = "0.26.4"
 

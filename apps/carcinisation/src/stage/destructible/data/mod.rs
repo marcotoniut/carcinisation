@@ -15,11 +15,17 @@ use seldom_pixel::prelude::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "derive-ts")]
+use ts_rs::TS;
+
+#[cfg_attr(feature = "derive-ts", derive(TS))]
+#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct DestructibleSpawn {
     #[reflect(ignore)]
     #[serde(default)]
     pub contains: Option<Box<ContainerSpawn>>,
+    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
     pub depth: Depth,
     pub destructible_type: DestructibleType,

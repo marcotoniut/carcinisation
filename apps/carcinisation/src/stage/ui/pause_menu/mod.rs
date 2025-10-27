@@ -5,8 +5,7 @@ use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     game::{score::components::Score, GameProgressState},
     globals::{
-        mark_for_despawn_by_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS,
-        TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
 };

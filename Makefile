@@ -58,6 +58,37 @@ ci-editor-v2:
 	cd tools/editor-v2 && pnpm lint && pnpm test
 
 # =============================================================================
+# Type generation for editor-v2
+# =============================================================================
+.PHONY: gen-types
+gen-types:
+	@echo "Generating TypeScript types from Rust..."
+	cargo run -p carcinisation --bin gen_types --features derive-ts
+
+.PHONY: gen-zod
+gen-zod:
+	@echo "Generating Zod schemas from TypeScript..."
+	cd tools/editor-v2 && pnpm ts-to-zod
+
+.PHONY: build-ron-bridge
+build-ron-bridge:
+	@echo "Building RON bridge binary..."
+	cargo build -p carcinisation --bin ron_bridge
+
+.PHONY: gen-editor-types
+gen-editor-types: gen-types gen-zod
+	@echo "✓ All editor type generation complete"
+
+.PHONY: watch-types
+watch-types:
+	@echo "🔄 Starting type watcher..."
+	@cargo watch -q --ignore "bindings/*" --ignore "target/*" --ignore "*.ts" \
+		-w apps/carcinisation/src \
+		--env QUIET=1 \
+		--env RUSTFLAGS=-Awarnings \
+		-x "run -p carcinisation --bin gen_types --features derive-ts"
+
+# =============================================================================
 # Asset generation
 # =============================================================================
 .PHONY: generate-palettes
@@ -156,10 +187,12 @@ help:
 	@echo ""
 	@echo "🛠 Tools & Assets:"
 	@echo "  launch-editor      - Open the in-house Bevy editor"
-	@echo "  dev-editor-v2      - Start the web-based editor v2 (sidecar + dev server)"
-	@echo "  build-editor-v2    - Build editor-v2 for production"
+	@echo "  dev-editor-v2      - Start the web-based editor v2 (auto-generates types first)"
+	@echo "  build-editor-v2    - Build editor-v2 for production (auto-generates types first)"
 	@echo "  ci-editor-v2       - Run editor-v2 CI checks (types, lint, tests)"
 	@echo "  watch-scene-files  - Run the scene watcher utility"
+	@echo "  gen-types          - Generate TypeScript types from Rust (run automatically by editor-v2)"
+	@echo "  watch-types        - Auto-regenerate TypeScript types on Rust file changes"
 	@echo "  generate-palettes  - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
 	@echo "  process-gfx        - Process art assets for the game"
