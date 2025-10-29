@@ -3,11 +3,11 @@
 //! Pipeline: Rust → TypeScript (ts-rs) → Zod schemas (ts-to-zod)
 //!
 //! Output:
-//!   - TypeScript types: tools/editor-v2/generated/types/*.ts
-//!   - Zod schemas: tools/editor-v2/generated/schemas/*.zod.ts
+//!   - TypeScript types: tools/stage-editor/generated/types/*.ts
+//!   - Zod schemas: tools/stage-editor/generated/schemas/*.zod.ts
 //!
 //! Usage:
-//!   make dev-editor-v2    - Vite + cargo watch in parallel (recommended)
+//!   make dev-stage-editor    - Vite + cargo watch in parallel (recommended)
 //!   make gen-types        - Generate once
 //!   make watch-types      - Auto-regenerate on Rust changes
 //!
@@ -194,13 +194,13 @@ fn run() -> anyhow::Result<()> {
 
     // Get output directories from env or use defaults
     let ts_out_str =
-        env::var("TS_OUT").unwrap_or_else(|_| "tools/editor-v2/generated/types".to_string());
+        env::var("TS_OUT").unwrap_or_else(|_| "tools/stage-editor/generated/types".to_string());
     let zod_out_str =
-        env::var("ZOD_OUT").unwrap_or_else(|_| "tools/editor-v2/generated/schemas".to_string());
+        env::var("ZOD_OUT").unwrap_or_else(|_| "tools/stage-editor/generated/schemas".to_string());
 
     let output_dir = PathBuf::from(&ts_out_str);
     let zod_out = PathBuf::from(&zod_out_str);
-    let editor_dir = PathBuf::from("tools/editor-v2");
+    let editor_dir = PathBuf::from("tools/stage-editor");
 
     fs::create_dir_all(&output_dir)
         .context("failed to create output directory for generated types")?;
