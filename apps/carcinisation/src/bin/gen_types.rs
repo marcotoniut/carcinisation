@@ -1,7 +1,21 @@
-//! Generate TypeScript type definitions using ts-rs
-//! Output: tools/editor-v2/src/types/generated/
+//! Generate TypeScript type definitions and Zod schemas from Rust types.
 //!
-//! Run with: cargo run --bin gen_types --features derive-ts
+//! Pipeline: Rust → TypeScript (ts-rs) → Zod schemas (ts-to-zod)
+//!
+//! Output:
+//!   - TypeScript types: tools/editor-v2/generated/types/*.ts
+//!   - Zod schemas: tools/editor-v2/generated/schemas/*.zod.ts
+//!
+//! Usage:
+//!   make dev-editor-v2    - Vite + cargo watch in parallel (recommended)
+//!   make gen-types        - Generate once
+//!   make watch-types      - Auto-regenerate on Rust changes
+//!
+//! Environment variables:
+//!   QUIET=1      - Concise output (for watch mode)
+//!   SKIP_ZOD=1   - Skip Zod generation
+//!   TS_OUT=path  - TypeScript output directory
+//!   ZOD_OUT=path - Zod output directory
 
 #[cfg(not(feature = "derive-ts"))]
 fn main() {
@@ -44,9 +58,12 @@ fn run() -> anyhow::Result<()> {
         collections::HashSet,
         env, fs,
         path::{Path, PathBuf},
+        process::Command,
         time::Instant,
     };
     use ts_rs::TS;
+
+    const BANNER: &str = "// ⚠️ Auto-generated. Do not edit. Source of truth: Rust types.\n\n";
 
     #[derive(Clone, Copy)]
     enum ExportStatus {
@@ -68,9 +85,12 @@ fn run() -> anyhow::Result<()> {
                 .with_context(|| format!("failed to prepare {}", parent.display()))?;
         }
 
-        let new_contents = T::export_to_string()
-            .map_err(|error| anyhow!(error))
-            .with_context(|| format!("failed to render {type_name}"))?;
+        let mut new_contents = BANNER.to_string();
+        new_contents.push_str(
+            &T::export_to_string()
+                .map_err(|error| anyhow!(error))
+                .with_context(|| format!("failed to render {type_name}"))?,
+        );
 
         let status = if target_path.exists() {
             let existing = fs::read_to_string(&target_path)
@@ -125,15 +145,67 @@ fn run() -> anyhow::Result<()> {
         Ok(removed)
     }
 
+    /// Generate Zod schemas from TypeScript types using ts-to-zod.
+    ///
+    /// Runs Node.js script that:
+    /// - Iterates generated/types/*.ts files
+    /// - Generates corresponding *.zod.ts files via ts-to-zod
+    /// - Adds banner comments and creates barrel file
+    ///
+    /// Note: ts-to-zod has limitations with complex discriminated unions.
+    /// Some types may fail - hand-write schemas in src/schemas/manual/ as needed.
+    fn generate_zod_schemas(editor_dir: &Path, quiet: bool) -> anyhow::Result<()> {
+        println!("⚡ Generating zod schema from types...");
+
+        // Script path relative to editor directory
+        let script_path = editor_dir.join("scripts/generate-zod-schemas.ts");
+
+        if !script_path.exists() {
+            return Err(anyhow!("Script not found: {}", script_path.display()));
+        }
+
+        // Execute TypeScript script via tsx (using pnpm to ensure tsx is available)
+        // Pass relative path since we set current_dir to editor_dir
+        let output = Command::new("pnpm")
+            .arg("exec")
+            .arg("tsx")
+            .arg("scripts/generate-zod-schemas.ts")
+            .current_dir(editor_dir)
+            .output()
+            .context("failed to run generate-zod-schemas.ts")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            return Err(anyhow!("Zod schema generation failed:\n{stderr}\n{stdout}"));
+        }
+
+        if !quiet {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            print!("{}", stdout);
+        }
+
+        Ok(())
+    }
+
     let quiet = env::var("QUIET").is_ok();
+    let skip_zod = env::var("SKIP_ZOD").is_ok();
     let start_time = Instant::now();
-    let output_dir = PathBuf::from("tools/editor-v2/generated/types");
+
+    // Get output directories from env or use defaults
+    let ts_out_str =
+        env::var("TS_OUT").unwrap_or_else(|_| "tools/editor-v2/generated/types".to_string());
+    let zod_out_str =
+        env::var("ZOD_OUT").unwrap_or_else(|_| "tools/editor-v2/generated/schemas".to_string());
+
+    let output_dir = PathBuf::from(&ts_out_str);
+    let zod_out = PathBuf::from(&zod_out_str);
+    let editor_dir = PathBuf::from("tools/editor-v2");
+
     fs::create_dir_all(&output_dir)
         .context("failed to create output directory for generated types")?;
 
-    if !quiet {
-        println!("⚡ Generating editor types from Rust...");
-    }
+    println!("⚡ Generating editor types from Rust...");
 
     let mut created = 0usize;
     let mut updated = 0usize;
@@ -206,24 +278,39 @@ fn run() -> anyhow::Result<()> {
     let elapsed = start_time.elapsed().as_secs_f32();
     let total = created + updated + unchanged;
 
-    if quiet {
-        // Concise output for watch mode
-        if created + updated + removed > 0 {
-            println!(
-                "⚡ Generated {total} types (+{created} ~{updated} -{removed}) in {elapsed:.2}s"
-            );
-        } else {
-            println!("✅ {total} types unchanged ({elapsed:.2}s)");
+    let summary = format!(
+        "✅ Successfully generated {total} editor TypeScript definitions \
+         (created {created}, updated {updated}, unchanged {unchanged}, removed {removed}) \
+         in {elapsed:.2}s"
+    );
+
+    // Generate Zod schemas if not skipped
+    if !skip_zod {
+        match generate_zod_schemas(&editor_dir, quiet) {
+            Ok(()) => {
+                if !quiet {
+                    println!(
+                        "✅ Successfully generated Zod schemas in {}",
+                        zod_out.display()
+                    );
+                }
+            }
+            Err(error) => {
+                if quiet {
+                    eprintln!("⚠️ Zod schema generation failed: {error}");
+                } else {
+                    eprintln!("❌ Failed to generate Zod schemas: {error}");
+                    return Err(error);
+                }
+            }
         }
-    } else {
-        // Verbose output for manual runs
+    }
+
+    println!("{summary}");
+    if !quiet {
         println!(
-            "✅ Successfully generated {total} editor TypeScript definitions \
-             (created {created}, updated {updated}, unchanged {unchanged}, removed {removed}) \
-             in {elapsed:.2}s"
-        );
-        println!(
-            "Generated files available in tools/editor-v2/generated/types ({} total)",
+            "Generated files available in {} ({} total)",
+            output_dir.display(),
             total
         );
     }
