@@ -2,6 +2,12 @@
   "name": "carcinisation",
   "private": true,
   "version": "0.1.0",
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.2",
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "@playwright/mcp": "^0.0.44",
+    "tsx": "^4.20.6"
+  },
   "scripts": {
     "build:editor": "pnpm --filter stage-editor build",
     "dev:editor": "pnpm --filter stage-editor dev",
@@ -9,12 +15,9 @@
     "format:check": "biome check",
     "lint": "biome check",
     "lint:fix": "biome check --write",
+    "mcp:discover": "pnpm --filter carcinisation-scripts mcp:discover",
     "mcp:playwright": "pnpm exec mcp-server-playwright --headless"
   },
-  "devDependencies": {
-    "@biomejs/biome": "^2.3.2",
-    "@playwright/mcp": "0.0.44"
-  },
   "packageManager": "pnpm@10.19.0",
-  "workspaces": ["tools/stage-editor"]
+  "workspaces": ["scripts", "tools/stage-editor"]
 }

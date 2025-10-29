@@ -32,24 +32,24 @@ Agents may swap roles as needed, request reviews from their counterpart, and lea
 
 ## Collaboration Flow
 
-1. **Confirm scope**  
+1. **Confirm scope**
    Review the task and align it with `README.md`, `DEVELOPMENT.md`, and `CONTRIBUTING.md`. Call out assumptions about game code, editor tooling, or assets up front.
-2. **Select the initial driver**  
-   - Systems code, asset pipeline updates, or guarded make targets → Codex usually leads.  
-   - Narrative planning, multi-file documentation, or design exploration → Claude usually leads.  
-   The non-driver reviews conclusions or diffs before completion.
-3. **Share context**  
+2. **Select the initial driver**
+   - Systems code, asset pipeline updates, or guarded make targets → Codex usually leads.
+   - Narrative planning, multi-file documentation, or design exploration → Claude usually leads.
+     The non-driver reviews conclusions or diffs before completion.
+3. **Share context**
    During hand-offs, summarise: touched paths, pending validation (e.g., `make watch-scene-files` for RON assets), open questions, and key trade-offs.
-4. **Verify before hand-off**  
-   Run or reason through the standard checks:  
+4. **Verify before hand-off**
+   Run or reason through the standard checks:
    ```bash
    make fmt
    make lint
    make test
    pnpm lint
-   ```  
+   ```
    Add specialised commands when relevant (`make watch-scene-files`, `make launch-editor`, wasm build targets). If execution is blocked, document what remains unverified and why.
-5. **Escalate when unsure**  
+5. **Escalate when unsure**
    Pause when work clashes with guardrails (Bevy version, system docs, asset layout) or when architectural decisions need maintainer confirmation.
 
 ⸻
@@ -73,6 +73,33 @@ Before marking work complete:
 - Development workflows & make targets – `DEVELOPMENT.md`
 - Contribution guardrails – `CONTRIBUTING.md`
 - Claude planning & documentation playbook – `CLAUDE.md`
+
+⸻
+
+## MCP Tool Discovery
+
+To discover available MCP servers and their capabilities programmatically:
+
+```bash
+pnpm mcp:discover
+```
+
+This script reads `.mcp.json` and lists all configured MCP servers, their capabilities, and configuration details.
+
+### Playwright MCP
+
+Two Playwright MCP servers are configured:
+
+- `playwright` (headless) – Default for automated testing, no visible browser
+- `playwright-headed` (visible) – For debugging when you need to see browser interactions
+
+**Test server**: Run `pnpm dev:test` to start the application on port 4747 for testing.
+
+**Tool naming**: In Claude Code, tools are prefixed as `mcp__<server>__<capability>`. For example: `mcp__playwright__browser_navigate` or `mcp__playwright-headed__browser_snapshot`.
+
+**Configuration**: Both servers use 1920×1080 viewport with 10s/30s action/navigation timeouts. Screenshots and traces save to `.playwright-mcp/` (gitignored).
+
+For full server options, run `pnpm exec mcp-server-playwright --help`.
 
 ⸻
 
