@@ -32,6 +32,7 @@ yarn-error.log*
 
 # Testing
 coverage/
+.playwright-mcp/
 
 # Temporary files
 *.tmp

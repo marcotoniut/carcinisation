@@ -5,8 +5,10 @@
  * Returns typed StageData or validation errors
  */
 
-import { ZodError, ZodIssue } from 'zod'
-import { StageDataSchema, type StageData } from '../../generated/schemas/stage'
+import type { ZodIssue } from "zod"
+import { ZodError } from "zod"
+import type { StageData } from "../../generated/schemas/stage"
+import { StageDataSchema } from "../../generated/schemas/stage"
 
 export interface ValidationSuccess<T> {
   success: true
@@ -57,8 +59,8 @@ export function validateStageData(data: unknown): ValidationResult<StageData> {
 function formatZodErrors(issues: ZodIssue[]): string {
   return issues
     .map((issue) => {
-      const path = issue.path.join('.')
+      const path = issue.path.join(".")
       return `${path}: ${issue.message}`
     })
-    .join('; ')
+    .join("; ")
 }
