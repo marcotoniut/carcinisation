@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 /**
  * Generate Zod schemas from TypeScript types using ts-to-zod.
  *
@@ -9,19 +10,27 @@
  * Exits success if at least one schema generates successfully.
  */
 
-import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync, existsSync } from 'node:fs'
-import { join, basename, dirname, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
+import { execSync } from "node:child_process"
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
+import { basename, dirname, join, relative } from "node:path"
+import { fileURLToPath } from "node:url"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const editorRoot = join(__dirname, '..')
+const editorRoot = join(__dirname, "..")
 
-const TYPES_DIR = join(editorRoot, 'generated/types')
-const SCHEMAS_DIR = join(editorRoot, 'generated/schemas')
-const BANNER = '// ⚠️ Auto-generated. Do not edit. Source of truth: Rust types.\n\n'
-const QUIET = process.env.QUIET === '1'
+const TYPES_DIR = join(editorRoot, "generated/types")
+const SCHEMAS_DIR = join(editorRoot, "generated/schemas")
+const BANNER =
+  "// ⚠️ Auto-generated. Do not edit. Source of truth: Rust types.\n\n"
+const QUIET = process.env.QUIET === "1"
 
 // Clean and create schemas directory
 if (existsSync(SCHEMAS_DIR)) {
@@ -30,12 +39,12 @@ if (existsSync(SCHEMAS_DIR)) {
 mkdirSync(SCHEMAS_DIR, { recursive: true })
 
 if (!QUIET) {
-  console.log('⚡ Generating Zod schemas from TypeScript types...')
+  console.log("⚡ Generating Zod schemas from TypeScript types...")
 }
 
 // Get all TypeScript files
 const typeFiles = readdirSync(TYPES_DIR)
-  .filter((f) => f.endsWith('.ts'))
+  .filter((f) => f.endsWith(".ts"))
   .sort()
 
 let generated = 0
@@ -43,7 +52,7 @@ let failed = 0
 
 // Generate Zod schema for each type file
 for (const file of typeFiles) {
-  const baseName = basename(file, '.ts')
+  const baseName = basename(file, ".ts")
   const inputPath = join(TYPES_DIR, file)
   const outputPath = join(SCHEMAS_DIR, `${baseName}.zod.ts`)
 
@@ -53,16 +62,19 @@ for (const file of typeFiles) {
 
   try {
     // Run ts-to-zod for this file with relative paths and cwd set to editorRoot
-    execSync(`npx ts-to-zod "${relativeInput}" "${relativeOutput}" --keepComments`, {
-      cwd: editorRoot,
-      stdio: 'pipe', // Suppress output
-    })
+    execSync(
+      `npx ts-to-zod "${relativeInput}" "${relativeOutput}" --keepComments`,
+      {
+        cwd: editorRoot,
+        stdio: "pipe", // Suppress output
+      },
+    )
 
     // Read the generated file and add banner
-    let content = readFileSync(outputPath, 'utf-8')
+    let content = readFileSync(outputPath, "utf-8")
 
     // Add banner if not present
-    if (!content.startsWith('// ⚠️')) {
+    if (!content.startsWith("// ⚠️")) {
       content = BANNER + content
     }
 
@@ -81,13 +93,13 @@ for (const file of typeFiles) {
 // Generate barrel file (index.ts)
 const exports = typeFiles
   .map((f) => {
-    const baseName = basename(f, '.ts')
+    const baseName = basename(f, ".ts")
     return `export * from './${baseName}.zod'`
   })
-  .join('\n')
+  .join("\n")
 
 const barrelContent = `${BANNER}${exports}\n`
-writeFileSync(join(SCHEMAS_DIR, 'index.ts'), barrelContent)
+writeFileSync(join(SCHEMAS_DIR, "index.ts"), barrelContent)
 
 // Report results
 if (generated === 0) {
@@ -95,17 +107,27 @@ if (generated === 0) {
   process.exit(1)
 } else if (failed > 0) {
   if (QUIET) {
-    console.log(`⚠️  ${generated}/${typeFiles.length} Zod schemas (${failed} failed)`)
+    console.log(
+      `⚠️  ${generated}/${typeFiles.length} Zod schemas (${failed} failed)`,
+    )
   } else {
-    console.log(`⚠️  Generated ${generated}/${typeFiles.length} Zod schemas (${failed} failures)`)
-    console.log(`  Generated barrel file: index.ts (${typeFiles.length} exports)`)
-    console.log(`  Note: Some types are too complex for ts-to-zod. Consider hand-writing schemas for failed types.`)
+    console.log(
+      `⚠️  Generated ${generated}/${typeFiles.length} Zod schemas (${failed} failures)`,
+    )
+    console.log(
+      `  Generated barrel file: index.ts (${typeFiles.length} exports)`,
+    )
+    console.log(
+      `  Note: Some types are too complex for ts-to-zod. Consider hand-writing schemas for failed types.`,
+    )
   }
 } else {
   if (QUIET) {
     console.log(`✅ ${generated} Zod schemas`)
   } else {
     console.log(`✅ Generated ${generated} Zod schemas`)
-    console.log(`  Generated barrel file: index.ts (${typeFiles.length} exports)`)
+    console.log(
+      `  Generated barrel file: index.ts (${typeFiles.length} exports)`,
+    )
   }
 }
