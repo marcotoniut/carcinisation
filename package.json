@@ -16,5 +16,5 @@
     "@playwright/mcp": "0.0.44"
   },
   "packageManager": "pnpm@10.19.0",
-  "workspaces": ["tools/editor-v2"]
+  "workspaces": ["tools/stage-editor"]
 }

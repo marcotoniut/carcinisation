@@ -9,7 +9,7 @@ Before opening a pull request:
 1. `pnpm lint`, `pnpm test`, and `pnpm build` succeed locally. Apply Biome fixes with `pnpm lint:fix` or `pnpm format` when needed.
 2. Update or add documentation and comments affected by your change (component docs, contributor guidance, etc.).
 3. Avoid introducing new `TODO` comments—file an issue instead if follow-up work is needed.
-4. Smoke test the editor in `pnpm dev` (or `make dev-editor-v2`) when you touch load/save flows, viewport rendering, or other interactive features.
+4. Smoke test the editor in `pnpm dev` (or `make dev-stage-editor`) when you touch load/save flows, viewport rendering, or other interactive features.
 
 ## Local Quality Checks
 
@@ -51,7 +51,7 @@ Runs `tsc` followed by the Vite production build. This catches type errors that 
 pnpm lint && pnpm test && pnpm build
 ```
 
-`make ci-editor-v2` runs the same checks from the repository root.
+`make ci-stage-editor` runs the same checks from the repository root.
 
 ## Workflow
 

@@ -25,7 +25,7 @@ export function Toolbar() {
   return (
     <div className="toolbar">
       <div className="toolbar-section">
-        <h1 className="toolbar-title">Carcinisation Editor v2</h1>
+        <h1 className="toolbar-title">Carcinisation Stage Editor</h1>
         {fileName && (
           <span className="toolbar-filename">
             {fileName}

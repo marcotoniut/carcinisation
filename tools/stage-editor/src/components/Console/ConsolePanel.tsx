@@ -6,7 +6,7 @@ export function ConsolePanel() {
       <div className="panel-header">Console</div>
       <div className="console-content">
         <p className="console-message console-message-info">
-          Editor v2 ready. Load a .ron file to begin.
+          Stage Editor ready. Load a .ron file to begin.
         </p>
       </div>
     </div>

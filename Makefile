@@ -45,20 +45,20 @@ launch-editor:
 watch-scene-files:
 	RUST_BACKTRACE=full cargo run -p scene-file-watcher
 
-.PHONY: dev-editor-v2
-dev-editor-v2:
+.PHONY: dev-stage-editor
+dev-stage-editor:
 	pnpm --filter stage-editor dev
 
-.PHONY: build-editor-v2
-build-editor-v2:
+.PHONY: build-stage-editor
+build-stage-editor:
 	pnpm --filter stage-editor build
 
-.PHONY: ci-editor-v2
-ci-editor-v2:
+.PHONY: ci-stage-editor
+ci-stage-editor:
 	pnpm --filter stage-editor lint && pnpm --filter stage-editor test
 
 # =============================================================================
-# Type generation for editor-v2
+# Type generation for stage-editor
 # =============================================================================
 .PHONY: gen-types
 gen-types:
@@ -180,11 +180,11 @@ help:
 	@echo ""
 	@echo "🛠 Tools & Assets:"
 	@echo "  launch-editor      - Open the in-house Bevy editor"
-	@echo "  dev-editor-v2      - Start the web-based editor v2 (auto-generates types first)"
-	@echo "  build-editor-v2    - Build editor-v2 for production (auto-generates types first)"
-	@echo "  ci-editor-v2       - Run editor-v2 CI checks (types, lint, tests)"
+	@echo "  dev-stage-editor      - Start the web-based Stage Editor (auto-generates types first)"
+	@echo "  build-stage-editor    - Build stage-editor for production (auto-generates types first)"
+	@echo "  ci-stage-editor       - Run stage-editor CI checks (types, lint, tests)"
 	@echo "  watch-scene-files  - Run the scene watcher utility"
-	@echo "  gen-types          - Generate TypeScript types and Zod schemas from Rust (run automatically by editor-v2)"
+	@echo "  gen-types          - Generate TypeScript types and Zod schemas from Rust (run automatically by stage-editor)"
 	@echo "  watch-types        - Auto-regenerate TypeScript types on Rust file changes"
 	@echo "  generate-palettes  - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
