@@ -7,9 +7,7 @@ A simple browser-based map editor for Carcinisation. Load, edit, and save `.ron`
 ```bash
 cd tools/editor-v2
 pnpm install
-# Generate TypeScript bindings so src/types/generated.d.ts exists
-# (see CONTRIBUTING for the up-to-date generator command)
-pnpm dev
+pnpm dev  # Runs Vite + cargo watch in parallel (generates types on startup and Rust changes)
 ```
 
 Opens at http://localhost:5173
@@ -107,6 +105,17 @@ The editor is designed to run alongside the existing Bevy editor (`tools/editor`
 2. Hot reload updates instantly
 3. Run `pnpm lint:fix` to format
 4. Test by loading an actual .ron file from `assets/stages/` or open another `.ron` file from disk
+
+## Type Generation
+
+TypeScript types and Zod schemas are auto-generated from Rust types:
+
+- `generated/types/*.ts` - TypeScript definitions (via ts-rs)
+- `generated/schemas/*.zod.ts` - Zod validation schemas (via ts-to-zod)
+- Auto-regenerates when running `pnpm dev` (via cargo watch)
+- Manual regeneration: `make gen-types` from repo root
+
+Note: Complex discriminated unions fail ts-to-zod - hand-write these in `src/schemas/manual/` as needed.
 
 ## Documentation
 

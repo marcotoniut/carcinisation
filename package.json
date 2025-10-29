@@ -3,8 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "build:editor": "pnpm --filter carcinisation-editor-v2 build",
-    "dev:editor": "pnpm --filter carcinisation-editor-v2 dev",
+    "build:editor": "pnpm --filter stage-editor build",
+    "dev:editor": "pnpm --filter stage-editor dev",
     "format": "biome format",
     "format:check": "biome check",
     "lint": "biome check",
