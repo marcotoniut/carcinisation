@@ -18,6 +18,11 @@ dist/
 dist-ssr/
 bindings/
 
+# testing
+/coverage
+.playwright-mcp/
+/manual-tests
+
 # Logs
 *.log
 npm-debug.log*
