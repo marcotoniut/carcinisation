@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": [
+        "exec",
+        "mcp-server-playwright",
+        "--headless",
+        "--viewport-size=1920x1080",
+        "--timeout-action=10000",
+        "--timeout-navigation=30000"
+      ],
+      "env": {}
+    },
+    "playwright-headed": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": [
+        "exec",
+        "mcp-server-playwright",
+        "--viewport-size=1920x1080",
+        "--timeout-action=10000",
+        "--timeout-navigation=30000"
+      ],
+      "env": {}
+    }
+  }
+}
