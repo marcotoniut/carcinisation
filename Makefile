@@ -47,36 +47,31 @@ watch-scene-files:
 
 .PHONY: dev-editor-v2
 dev-editor-v2:
-	cd tools/editor-v2 && pnpm dev
+	pnpm --filter stage-editor dev
 
 .PHONY: build-editor-v2
 build-editor-v2:
-	cd tools/editor-v2 && pnpm build
+	pnpm --filter stage-editor build
 
 .PHONY: ci-editor-v2
 ci-editor-v2:
-	cd tools/editor-v2 && pnpm lint && pnpm test
+	pnpm --filter stage-editor lint && pnpm --filter stage-editor test
 
 # =============================================================================
 # Type generation for editor-v2
 # =============================================================================
 .PHONY: gen-types
 gen-types:
-	@echo "Generating TypeScript types from Rust..."
+	@echo "Generating TypeScript types and Zod schemas from Rust..."
 	cargo run -p carcinisation --bin gen_types --features derive-ts
 
 .PHONY: gen-zod
 gen-zod:
-	@echo "Generating Zod schemas from TypeScript..."
-	cd tools/editor-v2 && pnpm ts-to-zod
-
-.PHONY: build-ron-bridge
-build-ron-bridge:
-	@echo "Building RON bridge binary..."
-	cargo build -p carcinisation --bin ron_bridge
+	@echo "⚠️  gen-zod is deprecated: Zod schemas are now generated automatically by gen-types"
+	@echo "   Run 'make gen-types' instead"
 
 .PHONY: gen-editor-types
-gen-editor-types: gen-types gen-zod
+gen-editor-types: gen-types
 	@echo "✓ All editor type generation complete"
 
 .PHONY: watch-types
@@ -84,9 +79,7 @@ watch-types:
 	@echo "🔄 Starting type watcher..."
 	@cargo watch -q --ignore "bindings/*" --ignore "target/*" --ignore "*.ts" \
 		-w apps/carcinisation/src \
-		--env QUIET=1 \
-		--env RUSTFLAGS=-Awarnings \
-		-x "run -p carcinisation --bin gen_types --features derive-ts"
+		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings cargo run -p carcinisation --bin gen_types --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
 
 # =============================================================================
 # Asset generation
@@ -191,7 +184,7 @@ help:
 	@echo "  build-editor-v2    - Build editor-v2 for production (auto-generates types first)"
 	@echo "  ci-editor-v2       - Run editor-v2 CI checks (types, lint, tests)"
 	@echo "  watch-scene-files  - Run the scene watcher utility"
-	@echo "  gen-types          - Generate TypeScript types from Rust (run automatically by editor-v2)"
+	@echo "  gen-types          - Generate TypeScript types and Zod schemas from Rust (run automatically by editor-v2)"
 	@echo "  watch-types        - Auto-regenerate TypeScript types on Rust file changes"
 	@echo "  generate-palettes  - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
