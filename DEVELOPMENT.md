@@ -2,6 +2,15 @@
 
 Commands and workflows for building and testing Carcinisation.
 
+## Toolchain Setup
+
+Install the pinned Node.js, pnpm, and Lefthook versions via [`proto`](https://moonrepo.dev/docs/proto):
+
+```bash
+proto install
+lefthook install    # skip in CI
+```
+
 ## Quick Start
 
 ```bash

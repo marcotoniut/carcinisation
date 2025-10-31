@@ -1,2 +1,6 @@
 node = "25.0.0"
 pnpm = "10.19.0"
+lefthook = "2.0.2"
+
+[plugins.tools]
+lefthook = "https://raw.githubusercontent.com/ageha734/proto-plugins/refs/heads/master/toml/lefthook.toml"
