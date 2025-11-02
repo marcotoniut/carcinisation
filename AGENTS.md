@@ -64,6 +64,7 @@ Before marking work complete:
 - ✅ Major gameplay, editor, and UI flows behave as expected; document manual test coverage.
 - ✅ Documentation, comments, and `/// @system` annotations reflect runtime behaviour.
 - ✅ Any skipped validations or sandbox blockers are clearly noted for maintainers.
+- ✅ When working on a web app and the work targets a specific use case, functional element, or visual change, exercise it via the Playwright MCP to confirm the behaviour in a real browser context.
 
 ⸻
 
