@@ -12,6 +12,7 @@ use crate::{
     layer::Layer,
     letterbox::events::LetterboxMoveTrigger,
     systems::spawn::make_music_bundle,
+    transitions::trigger_transition,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::prelude::{
@@ -60,6 +61,9 @@ pub fn read_step_trigger(
             }
             if let Some(x) = &act.spawn_images_o {
                 entity_commands.insert(x.clone());
+            }
+            if let Some(x) = &act.transition_o {
+                trigger_transition(&mut commands, &x.request);
             }
             if act.await_input {
                 // TODO

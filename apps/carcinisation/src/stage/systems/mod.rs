@@ -39,6 +39,7 @@ use crate::{
         TargetingPositionX, TargetingPositionY,
     },
     systems::{camera::CameraPos, spawn::make_music_bundle},
+    transitions::trigger_transition,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
@@ -156,7 +157,7 @@ pub fn check_staged_cleared(
 
 /// @trigger Handles cleanup and celebration when the stage is cleared.
 pub fn on_stage_cleared(
-    trigger: On<StageClearedTrigger>,
+    _trigger: On<StageClearedTrigger>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageProgressState>>,
     destructible_query: Query<Entity, With<Destructible>>,
@@ -166,7 +167,12 @@ pub fn on_stage_cleared(
     player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
+    stage_data: Res<StageData>,
 ) {
+    if let Some(request) = &stage_data.on_end_transition_o {
+        trigger_transition(&mut commands, request);
+    }
+
     mark_for_despawn_by_query(&mut commands, &destructible_query);
     mark_for_despawn_by_query(&mut commands, &enemy_query);
     mark_for_despawn_by_query(&mut commands, &music_query);

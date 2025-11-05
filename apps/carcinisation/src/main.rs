@@ -55,6 +55,7 @@ use systems::{
     setup::{init_gb_input, set_framespace, spawn_camera},
     *,
 };
+use transitions::spiral::TransitionVenetianPlugin;
 
 /// Bootstraps the Bevy `App` with game plugins, resources, and editor tooling.
 fn main() {
@@ -134,7 +135,7 @@ fn main() {
             SCREEN_RESOLUTION,
             "palette/base.png",
         ))
-        // .add_plugins(TransitionVenetianPlugin)
+        .add_plugins(TransitionVenetianPlugin)
         .add_plugins(CutscenePlugin)
         .add_plugins(LetterboxPlugin)
         .add_plugins(MainMenuPlugin)

@@ -5,7 +5,10 @@ use super::{
     destructible::data::DestructibleSpawn,
     enemy::{data::steps::EnemyStep, entity::EnemyType},
 };
-use crate::globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H};
+use crate::{
+    globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H},
+    transitions::data::TransitionRequest,
+};
 use bevy::{asset::Asset, prelude::*, reflect::Reflect};
 use derive_more::From;
 use derive_new::new;
@@ -457,4 +460,8 @@ pub struct StageData {
     pub start_coordinates: Option<Vec2>,
     pub spawns: Vec<StageSpawn>,
     pub steps: Vec<StageStep>,
+    #[serde(default)]
+    pub on_start_transition_o: Option<TransitionRequest>,
+    #[serde(default)]
+    pub on_end_transition_o: Option<TransitionRequest>,
 }

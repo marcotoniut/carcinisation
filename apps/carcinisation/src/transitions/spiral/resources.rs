@@ -15,6 +15,15 @@ pub struct TransitionVenetianTime {
     pub elapsed: Duration,
 }
 
+impl Default for TransitionVenetianTime {
+    fn default() -> Self {
+        Self {
+            delta: Duration::ZERO,
+            elapsed: Duration::ZERO,
+        }
+    }
+}
+
 impl DeltaTime for TransitionVenetianTime {
     fn delta(&self) -> Duration {
         self.delta
@@ -42,6 +51,7 @@ pub struct TransitionUpdateTimer {
 #[derive(Resource, Default)]
 pub struct TransitionCounter {
     pub value: u32,
+    pub finished: bool,
 }
 
 impl Default for TransitionUpdateTimer {

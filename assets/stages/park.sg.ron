@@ -538,4 +538,6 @@ StageData(
             floor_depths: None,
         ),
     ],
+    on_start_transition_o: None,
+    on_end_transition_o: None,
 )

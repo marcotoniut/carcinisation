@@ -25,6 +25,8 @@ lazy_static! {
         start_coordinates: Some(Vec2::new(0.0, 0.0)),
         spawns: make_spawns(),
         steps: make_steps(),
+        on_start_transition_o: None,
+        on_end_transition_o: None,
     }
     .into();
 }
