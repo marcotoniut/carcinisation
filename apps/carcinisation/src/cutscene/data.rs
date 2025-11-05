@@ -8,6 +8,7 @@ use crate::{
         LinearMovementBundle, TargetingPositionX, TargetingPositionY,
     },
     stage::data::GAME_BASE_SPEED,
+    transitions::data::TransitionRequest,
 };
 use bevy::prelude::*;
 use derive_new::new;
@@ -226,7 +227,9 @@ pub struct CutsceneSpriteSpawn {
 }
 
 #[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
-pub struct CutsceneTransition;
+pub struct CutsceneTransition {
+    pub request: TransitionRequest,
+}
 
 #[derive(new, Asset, Clone, Debug, Deserialize, Reflect, Resource, Serialize)]
 pub struct CutsceneData {

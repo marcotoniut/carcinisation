@@ -1,7 +1,7 @@
 use super::spawn::*;
-use crate::components::VolumeSettings;
-use crate::pixel::PxAssets;
 use crate::{
+    components::VolumeSettings,
+    pixel::PxAssets,
     stage::{
         bundles::{BackgroundBundle, SkyboxBundle},
         components::{Stage, StageEntity},
@@ -12,6 +12,7 @@ use crate::{
         StagePluginUpdateState,
     },
     systems::spawn::make_music_bundle,
+    transitions::trigger_transition,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
@@ -30,6 +31,10 @@ pub fn on_stage_startup(
     next_state.set(StagePluginUpdateState::Active);
 
     commands.insert_resource::<StageData>(data.clone());
+
+    if let Some(request) = &data.on_start_transition_o {
+        trigger_transition(&mut commands, request);
+    }
 
     for spawn in &data.spawns {
         spawn_hud(

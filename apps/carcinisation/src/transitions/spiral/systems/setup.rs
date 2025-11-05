@@ -1,33 +1,71 @@
 use crate::{
-    globals::mark_for_despawn_by_query,
+    globals::{mark_for_despawn_by_query, SCREEN_RESOLUTION},
+    pixel::PxAssets,
     transitions::{
-        data::TransitionVenetianData,
+        data::{TransitionVenetianData, TransitionVenetianDataState},
         spiral::{
+            bundles::spawn_transition_venetian_row,
             components::TransitionVenetian,
             events::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
+            resources::{TransitionCounter, TransitionUpdateTimer},
             TransitionVenetianPluginUpdateState,
         },
     },
 };
 use bevy::prelude::*;
+use seldom_pixel::prelude::PxFilter;
 
+#[allow(dead_code)]
 pub fn on_transition_startup(
     trigger: On<TransitionVenetianStartupEvent>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
+    mut timer: ResMut<TransitionUpdateTimer>,
+    filters: PxAssets<PxFilter>,
+    existing: Query<Entity, With<TransitionVenetian>>,
 ) {
     next_state.set(TransitionVenetianPluginUpdateState::Active);
 
-    let data = trigger.event().data.as_ref().clone();
-    commands.insert_resource::<TransitionVenetianData>(data);
+    timer.timer.reset();
 
-    commands.spawn((TransitionVenetian, Name::new("Transition - Venetian")));
+    mark_for_despawn_by_query(&mut commands, &existing);
+
+    let data = trigger.event().data.as_ref().clone();
+    let mut counter = TransitionCounter::default();
+
+    if matches!(data.state, TransitionVenetianDataState::Opening) {
+        counter.value = screen_height_with_buffer(&data);
+
+        let filter = PxFilter(filters.load("filter/color2.px_filter.png"));
+        for row in 0..=SCREEN_RESOLUTION.y {
+            spawn_transition_venetian_row(&mut commands, filter.clone(), row);
+        }
+    }
+
+    commands.insert_resource::<TransitionVenetianData>(data);
+    commands.insert_resource(counter);
+
+    commands.spawn((
+        TransitionVenetian,
+        Name::new("Transition - Venetian"),
+        Visibility::Visible,
+        InheritedVisibility::VISIBLE,
+    ));
 }
 
+#[allow(dead_code)]
 pub fn on_transition_shutdown(
     _trigger: On<TransitionVenetianShutdownEvent>,
     mut commands: Commands,
+    mut next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
     transition_query: Query<Entity, With<TransitionVenetian>>,
 ) {
     mark_for_despawn_by_query(&mut commands, &transition_query);
+    next_state.set(TransitionVenetianPluginUpdateState::Inactive);
+    commands.remove_resource::<TransitionVenetianData>();
+    commands.remove_resource::<TransitionCounter>();
+}
+
+fn screen_height_with_buffer(data: &TransitionVenetianData) -> u32 {
+    SCREEN_RESOLUTION.y + data.buffer_rows
 }

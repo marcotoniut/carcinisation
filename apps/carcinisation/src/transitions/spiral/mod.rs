@@ -5,7 +5,7 @@ pub mod resources;
 mod systems;
 
 use self::{
-    bundles::{progress, update_transition},
+    bundles::{check_transition_finished, update_transition},
     events::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
     resources::{TransitionUpdateTimer, TransitionVenetianTime},
     systems::{
@@ -21,6 +21,7 @@ pub struct TransitionVenetianPlugin;
 impl Plugin for TransitionVenetianPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<TransitionVenetianPluginUpdateState>()
+            .init_resource::<TransitionVenetianTime>()
             .init_resource::<TransitionUpdateTimer>()
             .add_message::<TransitionVenetianStartupEvent>()
             .add_observer(on_transition_startup)
@@ -31,9 +32,10 @@ impl Plugin for TransitionVenetianPlugin {
                 (
                     tick_timer,
                     update_transition,
-                    progress,
+                    check_transition_finished,
                     tick_time::<TransitionVenetianTime>,
                 )
+                    .chain()
                     .run_if(in_state(TransitionVenetianPluginUpdateState::Active)),
             );
     }
