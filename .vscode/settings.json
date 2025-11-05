@@ -6,15 +6,7 @@
   ],
   "rust-analyzer.procMacro.enable": true,
   "[jsonc]": {
-    "editor.defaultFormatter": "dprint.dprint"
+    "editor.defaultFormatter": "biomejs.biome"
   },
-  "makefile.configureOnOpen": false,
-  "cSpell.words": [
-    "behaviour",
-    "carcinisation",
-    "clippy",
-    "cutscene",
-    "despawn",
-    "modelcontextprotocol"
-  ]
+  "makefile.configureOnOpen": false
 }
