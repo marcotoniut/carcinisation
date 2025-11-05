@@ -1,0 +1,98 @@
+{
+  "version": "0.2",
+  "language": "en-GB",
+  "import": ["@cspell/dict-en-gb/cspell-ext.json"],
+  "useGitignore": true,
+  "ignorePaths": [
+    ".git",
+    ".playwright-mcp",
+    ".svelte-kit",
+    ".vscode",
+    "assets/vendor",
+    "bindings",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "out",
+    "public",
+    "static",
+    "target",
+    "tools/**/build",
+    "tools/**/dist",
+    "web-deploy",
+    "Cargo.lock",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.tsbuildinfo"
+  ],
+  "allowCompoundWords": false,
+  "enableFiletypes": [
+    "c",
+    "css",
+    "html",
+    "javascript",
+    "javascriptreact",
+    "json",
+    "jsonc",
+    "markdown",
+    "md",
+    "mdx",
+    "makefile",
+    "rust",
+    "shellscript",
+    "scss",
+    "svelte",
+    "toml",
+    "ts",
+    "tsx",
+    "typescript",
+    "typescriptreact",
+    "yaml",
+    "yml",
+    "ron"
+  ],
+  "languageSettings": [
+    {
+      "languageId": ["markdown", "mdx"],
+      "dictionaries": ["en-gb"],
+      "locale": "en-GB",
+      "caseSensitive": false
+    },
+    {
+      "languageId": [
+        "svelte",
+        "typescript",
+        "typescriptreact",
+        "javascript",
+        "javascriptreact",
+        "json",
+        "jsonc",
+        "yaml",
+        "yml",
+        "html",
+        "css",
+        "scss"
+      ],
+      "dictionaries": ["en-gb"],
+      "locale": "en-GB"
+    },
+    {
+      "languageId": ["rust", "ron", "toml", "makefile", "shellscript"],
+      "dictionaries": ["en-gb"],
+      "locale": "en-GB"
+    }
+  ],
+  "words": [
+    "behaviour",
+    "carcinisation",
+    "clippy",
+    "codegen",
+    "cutscene",
+    "despawn",
+    "modelcontextprotocol",
+    "msvc",
+    "rustflags",
+    "Vite"
+  ]
+}
