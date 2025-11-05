@@ -25,7 +25,7 @@ pub fn on_transition_startup(
 }
 
 pub fn on_transition_shutdown(
-    trigger: On<TransitionVenetianShutdownEvent>,
+    _trigger: On<TransitionVenetianShutdownEvent>,
     mut commands: Commands,
     transition_query: Query<Entity, With<TransitionVenetian>>,
 ) {

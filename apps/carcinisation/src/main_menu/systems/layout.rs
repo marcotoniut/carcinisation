@@ -43,7 +43,9 @@ pub fn on_change_main_menu_screen(
 }
 
 pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let entity = commands.spawn((MainMenu, Visibility::Visible)).id();
+    let entity = commands
+        .spawn((MainMenu, Visibility::Visible, InheritedVisibility::VISIBLE))
+        .id();
 
     let mut entity_commands = commands.entity(entity);
     entity_commands.with_children(|p0| {
