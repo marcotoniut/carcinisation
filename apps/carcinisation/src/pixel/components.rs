@@ -20,8 +20,8 @@ impl<L: PxLayer> PxRectangle<L> {
     pub fn row_line_vec(&self, position: Vec2, row: &PxRectangleRow) -> Vec<IVec2> {
         let base_x = position.x as i32;
         let base_y = position.y as i32;
-        let width = self.width as i32;
-        let height = self.height as i32;
+        let width = i32::try_from(self.width).unwrap_or(i32::MAX);
+        let height = i32::try_from(self.height).unwrap_or(i32::MAX);
 
         let anchor_offset_x = match self.anchor {
             PxAnchor::BottomLeft | PxAnchor::CenterLeft | PxAnchor::TopLeft => 0,
@@ -37,10 +37,11 @@ impl<L: PxLayer> PxRectangle<L> {
             PxAnchor::Custom(v) => (v.y * height as f32) as i32,
         };
 
-        let start_x = base_x - anchor_offset_x;
-        let start_y = base_y - anchor_offset_y;
-        let row_y = start_y + row.0 as i32;
-        let end_x = start_x + width;
+        let start_x = base_x.saturating_sub(anchor_offset_x);
+        let start_y = base_y.saturating_sub(anchor_offset_y);
+        let row_delta = i32::try_from(row.0).unwrap_or(i32::MAX);
+        let row_y = start_y.saturating_add(row_delta);
+        let end_x = start_x.saturating_add(width);
 
         vec![IVec2::new(start_x, row_y), IVec2::new(end_x, row_y)]
     }
