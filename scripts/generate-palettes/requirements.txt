@@ -1,0 +1,2 @@
+# Pillow powers scripts/generate-palettes/run.py, which builds the palette/filter textures.
+Pillow==10.4.0

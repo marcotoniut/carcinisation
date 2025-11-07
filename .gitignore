@@ -5,6 +5,11 @@
 
 # Python
 dev/mcp/.venv/
+.venv/
+**/.venv/
+venv/
+.deps_installed
+scripts/generate-palettes/.palettes_stamp
 
 # Node.js / pnpm / npm
 node_modules/

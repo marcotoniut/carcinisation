@@ -7,6 +7,9 @@
     "shardulm94.trailing-spaces",
     "stxr.iconfont-preview",
     "tamasfe.even-better-toml",
-    "vadimcn.vscode-lldb"
+    "vadimcn.vscode-lldb",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff"
   ]
 }
