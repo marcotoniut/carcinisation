@@ -19,6 +19,12 @@ RUN_WASM_FEATURE_FLAGS := $(if $(STRIPPED_WASM_FEATURES),--features $(STRIPPED_W
 CARGO_RUN_CMD := run --bin $(RUN_BIN) --package $(RUN_PACKAGE) $(RUN_FEATURE_FLAGS) $(RUN_ARG_FLAGS)
 CARGO_WASM_RUN_CMD := run --target wasm32-unknown-unknown --bin $(RUN_BIN) --package $(RUN_PACKAGE) $(RUN_WASM_FEATURE_FLAGS) $(RUN_ARG_FLAGS)
 
+PYTHON_VENV := .venv
+PYTHON_BIN := $(PYTHON_VENV)/bin/python
+ifeq ($(OS),Windows_NT)
+	PYTHON_BIN := $(PYTHON_VENV)/Scripts/python.exe
+endif
+
 # =============================================================================
 # Game launchers
 # =============================================================================
@@ -84,9 +90,28 @@ watch-types:
 # =============================================================================
 # Asset generation
 # =============================================================================
-.PHONY: generate-palettes
-generate-palettes:
-	cargo run -p generate-palettes
+.PHONY: py-setup
+py-setup:
+	@test -d $(PYTHON_VENV) || proto run python -- -m venv $(PYTHON_VENV)
+	$(PYTHON_BIN) -m pip install --upgrade pip
+	$(PYTHON_BIN) -m pip install -r scripts/generate-palettes/requirements.txt
+
+PALETTE_DEPS := scripts/generate-palettes/.deps_installed
+PALETTE_STAMP := scripts/generate-palettes/.palettes_stamp
+PALETTE_SOURCES := scripts/generate-palettes/run.py scripts/generate-palettes/palettes.json
+
+$(PALETTE_DEPS): scripts/generate-palettes/requirements.txt
+	@echo "📦 Installing palette generator dependencies via proto..."
+	proto run python -- -m pip install --upgrade pip >/dev/null
+	proto run python -- -m pip install -r scripts/generate-palettes/requirements.txt
+	@touch $(PALETTE_DEPS)
+
+$(PALETTE_STAMP): $(PALETTE_DEPS) $(PALETTE_SOURCES)
+	@echo "🎨 Building palette textures..."
+	proto run python -- scripts/generate-palettes/run.py
+	@touch $(PALETTE_STAMP)
+
+generate-palettes: $(PALETTE_STAMP)
 
 .PHONY: generate-typeface
 generate-typeface:
@@ -139,6 +164,12 @@ fmt:
 lint:
 	cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+.PHONY: lint-fix
+lint-fix:
+	cargo fmt --all
+	proto run ruff -- check --fix
+	pnpm lint:fix
+
 .PHONY: clippy
 clippy:
 	@echo "⚠️  Use 'make lint' instead (runs workspace-wide clippy)"
@@ -186,7 +217,7 @@ help:
 	@echo "  watch-scene-files  - Run the scene watcher utility"
 	@echo "  gen-types          - Generate TypeScript types and Zod schemas from Rust (run automatically by stage-editor)"
 	@echo "  watch-types        - Auto-regenerate TypeScript types on Rust file changes"
-	@echo "  generate-palettes  - Regenerate color palette assets"
+	@echo "  palettes           - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
 	@echo "  process-gfx        - Process art assets for the game"
 	@echo ""

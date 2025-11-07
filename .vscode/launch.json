@@ -66,27 +66,6 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Generate Palettes",
-      "cargo": {
-        "args": [
-          "build",
-          "--bin=generate-palettes",
-          "--package=generate-palettes"
-        ],
-        "filter": {
-          "name": "generate-palettes",
-          "kind": "bin"
-        }
-      },
-      "args": [],
-      "cwd": "${workspaceFolder}/scripts/generate-palettes",
-      "env": {
-        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
-      }
-    },
-    {
-      "type": "lldb",
-      "request": "launch",
       "name": "Generate Typeface",
       "cargo": {
         "args": [

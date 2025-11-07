@@ -4,7 +4,7 @@ Commands and workflows for building and testing Carcinisation.
 
 ## Toolchain Setup
 
-Install the pinned Node.js, pnpm, and Lefthook versions via [`proto`](https://moonrepo.dev/docs/proto):
+Install the pinned Node.js, pnpm, Lefthook, Python, and Ruff versions via [`proto`](https://moonrepo.dev/docs/proto):
 
 ```bash
 proto install
@@ -34,21 +34,21 @@ If `cargo watch` is missing, install it with `cargo install cargo-watch` before 
 Use `make help` to see the full catalog. Common targets:
 
 ```bash
-make dev             # cargo watch -x run with dynamic linking enabled
-make run             # cargo run with RUST_BACKTRACE=full
-make dev-wasm        # cargo run --target wasm32-unknown-unknown
-make launch-editor   # Open the Bevy-based scene editor
+make dev               # cargo watch -x run with dynamic linking enabled
+make run               # cargo run with RUST_BACKTRACE=full
+make dev-wasm          # cargo run --target wasm32-unknown-unknown
+make launch-editor     # Open the Bevy-based scene editor
 make watch-scene-files # Watch assets/ for RON parsing errors
-make generate-palettes # Rebuild palette assets
+make generate-palettes # Rebuild palette/filter assets via Python + Pillow
 make generate-typeface # Rebuild font/typeface assets
-make process-gfx     # Run graphics processing scripts
-make install-web-deps # Install wasm toolchain dependencies
-make build-web       # Produce release wasm build + bindings via make-web.sh
-make release-wasm    # Release wasm binary + wasm-opt pass
-make fmt             # cargo fmt --all
-make lint            # cargo clippy with -D warnings
-make test            # cargo test --workspace --all-features
-make test-watch      # Re-run tests on change via cargo-watch
+make process-gfx       # Run graphics processing scripts
+make install-web-deps  # Install wasm toolchain dependencies
+make build-web         # Produce release wasm build + bindings via make-web.sh
+make release-wasm      # Release wasm binary + wasm-opt pass
+make fmt               # cargo fmt --all
+make lint              # cargo clippy with -D warnings
+make test              # cargo test --workspace --all-features
+make test-watch        # Re-run tests on change via cargo-watch
 ```
 
 Override feature flags or runtime arguments when you call make:
@@ -79,11 +79,11 @@ Run `make launch-editor` to open the standalone editor in `tools/editor`. It loa
 
 ### Asset Generators
 
-- `make generate-palettes` rebuilds color palettes under `assets/palette/`.
+- `make generate-palettes` rebuilds color palettes (and their `filter/*.px_filter.png` helpers)
 - `make generate-typeface` recreates bitmap typefaces in `assets/typeface/`.
 - `make process-gfx` runs the graphics processing pipeline for sprites and UI assets.
 
-These scripts expect the Rust toolchain; install dependencies where each README indicates.
+Palette generation is now pure Python, so it no longer triggers a Rust rebuild or requires the Rust workspace to compile.
 
 ## Web Builds
 

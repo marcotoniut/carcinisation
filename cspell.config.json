@@ -88,10 +88,13 @@
     "carcinisation",
     "clippy",
     "codegen",
+    "color",
     "cutscene",
     "despawn",
     "modelcontextprotocol",
     "msvc",
+    "pixeboy",
+    "putpixel",
     "rustflags",
     "Vite"
   ]

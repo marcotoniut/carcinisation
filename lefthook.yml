@@ -5,6 +5,8 @@ pre-commit:
       run: cargo fmt --all -- --check
     biome-lint:
       run: pnpm lint
+    ruff-check:
+      run: proto run ruff -- check
 
 pre-push:
   commands:

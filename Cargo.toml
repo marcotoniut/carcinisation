@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "apps/carcinisation",
-    "scripts/generate-palettes",
     "scripts/generate-typeface",
     "scripts/process-gfx",
     "tools/assert_assets_path",

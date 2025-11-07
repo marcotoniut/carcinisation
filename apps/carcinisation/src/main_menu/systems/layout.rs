@@ -76,11 +76,8 @@ pub fn spawn_press_start_screen(
             MainMenuEntity,
             PressStartScreenEntity,
             PxTextBundle::<Layer> {
-                position: PxPosition::from(IVec2::new(
-                    (SCREEN_RESOLUTION.x / 2) as i32,
-                    (SCREEN_RESOLUTION.y / 2) as i32,
-                )),
-                anchor: PxAnchor::Center,
+                position: PxPosition::from(IVec2::new((SCREEN_RESOLUTION.x / 2) as i32, 10)),
+                anchor: PxAnchor::BottomCenter,
                 canvas: PxCanvas::Camera,
                 // TODO Menu layers
                 layer: Layer::Hud,
