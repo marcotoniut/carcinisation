@@ -1,22 +1,28 @@
 .timeline {
-  margin: 0 var(--spacing-md) var(--spacing-md) var(--spacing-md);
-  height: 120px;
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .timeline-content {
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
 }
 
 .timeline-controls {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
 }
 
 .timeline-controls label {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
   font-size: 12px;
   font-weight: 500;
 }
@@ -24,10 +30,4 @@
 .timeline-slider {
   width: 100%;
   cursor: pointer;
-}
-
-.timeline-value {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--color-accent);
 }
