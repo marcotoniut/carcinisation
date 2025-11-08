@@ -1,4 +1,5 @@
 //! Systems for constructing/updating pixel rectangles rendered via `seldom_pixel`.
+#![allow(clippy::type_complexity)]
 
 use crate::components::GBColor;
 

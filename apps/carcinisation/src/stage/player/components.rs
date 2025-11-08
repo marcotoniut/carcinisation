@@ -84,7 +84,7 @@ impl PlayerAttack {
                         AudioPlayer(melee_slash_sound),
                         PlaybackSettings {
                             mode: PlaybackMode::Despawn,
-                            volume: volume_settings.sfx.clone(),
+                            volume: volume_settings.sfx,
                             ..Default::default()
                         },
                         AudioSystemBundle {
@@ -116,7 +116,7 @@ impl PlayerAttack {
                         AudioPlayer(shoot_sound),
                         PlaybackSettings {
                             mode: PlaybackMode::Despawn,
-                            volume: volume_settings.sfx.clone(),
+                            volume: volume_settings.sfx,
                             ..Default::default()
                         },
                         AudioSystemBundle {

@@ -1,5 +1,3 @@
-pub mod state;
-
 use super::components::ScoreText;
 use crate::game::score::components::Score;
 use bevy::prelude::*;

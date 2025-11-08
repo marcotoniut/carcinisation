@@ -14,36 +14,28 @@ use self::{
     },
 };
 use crate::core::time::tick_time;
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
+#[derive(Activable)]
 pub struct TransitionVenetianPlugin;
 
 impl Plugin for TransitionVenetianPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<TransitionVenetianPluginUpdateState>()
-            .init_resource::<TransitionVenetianTime>()
+        app.init_resource::<TransitionVenetianTime>()
             .init_resource::<TransitionUpdateTimer>()
             .add_message::<TransitionVenetianStartupEvent>()
             .add_observer(on_transition_startup)
             .add_message::<TransitionVenetianShutdownEvent>()
             .add_observer(on_transition_shutdown)
-            .add_systems(
-                Update,
+            .add_active_systems::<TransitionVenetianPlugin, _>(
                 (
                     tick_timer,
                     update_transition,
                     check_transition_finished,
                     tick_time::<TransitionVenetianTime>,
                 )
-                    .chain()
-                    .run_if(in_state(TransitionVenetianPluginUpdateState::Active)),
+                    .chain(),
             );
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum TransitionVenetianPluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }

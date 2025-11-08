@@ -5,7 +5,6 @@ pub mod damage;
 pub mod movement;
 pub mod setup;
 pub mod spawn;
-pub mod state;
 
 use super::{
     attack::components::EnemyAttack,
@@ -53,7 +52,7 @@ pub fn toggle_game(
     mut next_state: ResMut<NextState<GameProgressState>>,
 ) {
     if gb_input.just_pressed(&GBInput::Start) {
-        if state.get().to_owned() == GameProgressState::Running {
+        if *state.get() == GameProgressState::Running {
             #[cfg(debug_assertions)]
             info!("Game Paused.");
 
@@ -156,6 +155,7 @@ pub fn check_staged_cleared(
 }
 
 /// @trigger Handles cleanup and celebration when the stage is cleared.
+#[allow(clippy::too_many_arguments)]
 pub fn on_stage_cleared(
     _trigger: On<StageClearedTrigger>,
     mut commands: Commands,
@@ -198,7 +198,7 @@ pub fn check_stage_death(
     mut score: ResMut<Score>,
     player_query: Query<&Player, Added<Dead>>,
 ) {
-    if let Ok(_) = player_query.single() {
+    if player_query.single().is_ok() {
         score.add(-DEATH_SCORE_PENALTY);
         lives.0 = lives.0.saturating_sub(1);
         commands.trigger(StageDeathEvent);
@@ -206,6 +206,7 @@ pub fn check_stage_death(
 }
 
 /// @trigger Responds to `StageDeathEvent`, transitioning to Game Over or restarting.
+#[allow(clippy::too_many_arguments)]
 pub fn on_death(
     _trigger: On<StageDeathEvent>,
     mut commands: Commands,
@@ -283,10 +284,10 @@ pub fn read_step_trigger(
 
 /// @system Prepares cinematic steps (placeholder for future cutscene integration).
 pub fn initialise_cinematic_step(
-    next_state: ResMut<NextState<GameProgressState>>,
+    _next_state: ResMut<NextState<GameProgressState>>,
     query: Query<(Entity, &CinematicStageStep), (With<Stage>, Added<CinematicStageStep>)>,
 ) {
-    if let Ok((_, _)) = query.single() {
+    if query.single().is_ok() {
         // next_state.set(GameState::Cutscene);
     }
 }
@@ -309,7 +310,7 @@ pub fn initialise_movement_step(
     {
         if let Ok((camera_entity, position)) = camera_query.single() {
             let direction = *coordinates - position.0;
-            let speed = direction.normalize_or_zero() * base_speed.clone() * GAME_BASE_SPEED;
+            let speed = direction.normalize_or_zero() * *base_speed * GAME_BASE_SPEED;
 
             commands
                 .entity(camera_entity)
@@ -356,7 +357,7 @@ pub fn initialise_stop_step(
             .insert(StageStepSpawner::new(spawns.clone()));
 
         if let Some(floor_depths) = floor_depths {
-            spawn_floor_depths(&mut commands, &floor_depths);
+            spawn_floor_depths(&mut commands, floor_depths);
         }
     }
 }
@@ -411,15 +412,15 @@ pub fn check_stop_step_finished_by_duration(
 
 /// @system Placeholder hook for updating cinematic steps each frame.
 pub fn update_cinematic_step(
-    commands: Commands,
+    _commands: Commands,
     query: Query<(Entity, &CinematicStageStep), With<Stage>>,
 ) {
-    for (entity, _) in query.iter() {}
+    for (_entity, _) in query.iter() {}
 }
 
 /// @trigger Removes cinematic step markers after `NextStepEvent` fires.
 pub fn on_next_step_cleanup_cinematic_step(
-    trigger: On<NextStepEvent>,
+    _trigger: On<NextStepEvent>,
     mut commands: Commands,
     query: Query<(Entity, &CinematicStageStep), With<Stage>>,
 ) {
@@ -433,7 +434,7 @@ pub fn on_next_step_cleanup_cinematic_step(
 
 /// @trigger Cleans up movement step components once the stage advances.
 pub fn on_next_step_cleanup_movement_step(
-    trigger: On<NextStepEvent>,
+    _trigger: On<NextStepEvent>,
     mut commands: Commands,
     query: Query<(Entity, &MovementStageStep), With<Stage>>,
 ) {
@@ -448,7 +449,7 @@ pub fn on_next_step_cleanup_movement_step(
 
 /// @trigger Cleans up stop step components once the stage advances.
 pub fn on_next_step_cleanup_stop_step(
-    trigger: On<NextStepEvent>,
+    _trigger: On<NextStepEvent>,
     mut commands: Commands,
     query: Query<(Entity, &StopStageStep), With<Stage>>,
 ) {

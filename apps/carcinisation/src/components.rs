@@ -4,6 +4,7 @@ use assert_assets_path::assert_assets_path;
 use bevy::{audio::Volume, prelude::*};
 use seldom_pixel::filter::PxFilterAsset;
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Component)]
 pub enum AudioSystemType {
     SFX,

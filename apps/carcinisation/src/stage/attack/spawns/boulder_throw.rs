@@ -20,7 +20,6 @@ use crate::{
             interactive::{Flickerer, Health, Hittable},
             placement::Depth,
         },
-        enemy::tardigrade::entity::EnemyTardigradeAttacking,
         player::components::PLAYER_DEPTH,
         resources::StageTime,
     },
@@ -107,7 +106,7 @@ impl BoulderThrowMovementBundle {
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    stage_time: &Res<StageTime>,
+    _stage_time: &Res<StageTime>,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,
@@ -120,18 +119,10 @@ pub fn spawn_boulder_throw_attack(
         );
 
     let (sprite, animation, collider_data) =
-        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
-
-    let mut attacking = EnemyTardigradeAttacking {
-        attack: true,
-        last_attack_started: stage_time.elapsed,
-    };
-
-    attacking.attack = attacking.attack.clone();
-    attacking.last_attack_started = attacking.last_attack_started.clone();
+        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, *depth);
 
     let mut entity_commands = commands.spawn(BoulderThrowBundle {
-        depth: depth.clone(),
+        depth: *depth,
         inflicts_damage: InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
         position: PxSubPosition(current_pos),
         movement: BoulderThrowMovementBundle::new(depth, current_pos, target_pos),

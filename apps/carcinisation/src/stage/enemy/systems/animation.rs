@@ -16,7 +16,7 @@ pub fn on_enemy_depth_changed(
     query: Query<(Entity, &Enemy)>,
 ) {
     for e in reader.read() {
-        if let Ok(_) = query.get(e.entity) {
+        if query.get(e.entity).is_ok() {
             commands
                 .entity(e.entity)
                 .remove::<EnemyMosquitoAnimation>()

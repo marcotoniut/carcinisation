@@ -59,7 +59,7 @@ fn main() -> notify::Result<()> {
                 let last_processed = Arc::clone(&last_processed);
                 handle_result(event, last_processed)
             }
-            Err(e) => println!("{} {}", "Watch error:".red(), format!("{:?}", e)),
+            Err(e) => println!("{} {:?}", "Watch error:".red(), e),
         }
     }
 }
@@ -71,7 +71,7 @@ fn handle_result(
 ) {
     match event {
         Ok(event) => handle_event(event, last_processed),
-        Err(e) => println!("{} {}", "Watch error:".red(), format!("{:?}", e)),
+        Err(e) => println!("{} {:?}", "Watch error:".red(), e),
     }
 }
 
@@ -80,7 +80,7 @@ fn handle_event(event: Event, last_processed: Arc<Mutex<HashMap<PathBuf, Instant
     let mut last_processed = last_processed.lock().unwrap();
 
     for path in event.paths {
-        if path.extension().map_or(false, |ext| ext == "ron") {
+        if path.extension().is_some_and(|ext| ext == "ron") {
             let now = Instant::now();
             if let Some(&last_time) = last_processed.get(&path) {
                 if now.duration_since(last_time) < DEBOUNCE_DURATION {
@@ -94,18 +94,14 @@ fn handle_event(event: Event, last_processed: Arc<Mutex<HashMap<PathBuf, Instant
             let data = fs::read_to_string(&path);
             match data {
                 Ok(content) => match from_str::<CutsceneData>(&content) {
-                    Ok(_) => println!("{} {}", "SUCCESSFULLY".green().bold(), "parsed RON file."),
+                    Ok(_) => println!("{} parsed RON file.", "SUCCESSFULLY".green().bold()),
                     Err(err) => {
-                        println!("{} {}", "FAILED".red().bold(), "to parse RON:");
-                        println!("{}", format!("{:?}", err));
+                        println!("{} to parse RON:", "FAILED".red().bold());
+                        println!("{:?}", err);
                     }
                 },
                 Err(err) => {
-                    println!(
-                        "{} {}",
-                        "FAILED".red().bold(),
-                        format!("to read file: {:?}", err)
-                    )
+                    println!("{} to read file: {:?}", "FAILED".red().bold(), err)
                 }
             }
         }

@@ -33,13 +33,11 @@ pub fn assign_tardigrade_animation(
     >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
-    for (entity, current_behavior, position, depth) in &mut query.iter() {
-        let step = current_behavior.behavior.clone();
-
+    for (entity, _current_behavior, position, depth) in &mut query.iter() {
         let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(depth).map(|animation| {
             (
                 EnemyTardigradeAnimation::Idle,
-                make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
             )
         });
 
@@ -103,8 +101,8 @@ pub fn check_idle_tardigrade(
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();
-    for (entity, enemy, attacking, position, depth) in &mut query.iter() {
-        if attacking.attack == true {
+    for (entity, _enemy, attacking, position, depth) in &mut query.iter() {
+        if attacking.attack {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
                 < stage_time.elapsed + Duration::from_secs_f32(ENEMY_TARDIGRADE_ATTACK_SPEED)
@@ -124,7 +122,7 @@ pub fn check_idle_tardigrade(
                     &mut commands,
                     &mut assets_sprite,
                     &stage_time,
-                    SCREEN_RESOLUTION_F32_H.clone() + camera_pos.0,
+                    *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                     position.0,
                     depth,
                 );

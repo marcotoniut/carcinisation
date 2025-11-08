@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
 use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
@@ -55,7 +57,7 @@ pub fn hovering_damage_on_reached(
             AudioPlayer(sound_effect),
             PlaybackSettings {
                 mode: PlaybackMode::Despawn,
-                volume: volume_settings.sfx.clone(),
+                volume: volume_settings.sfx,
                 ..Default::default()
             },
             AudioSystemBundle {

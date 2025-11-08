@@ -1,3 +1,5 @@
+#![allow(clippy::wrong_self_convention)]
+
 use crate::{
     layer::{Layer, MidDepth, PreBackgroundDepth},
     plugins::movement::structs::MovementVec2Position,
@@ -133,6 +135,6 @@ impl MovementVec2Position for RailPosition {
 
 pub fn spawn_floor_depths(commands: &mut Commands, floor_depths: &HashMap<Depth, f32>) {
     for (depth, y) in floor_depths.iter() {
-        commands.spawn((Floor(*y), depth.clone()));
+        commands.spawn((Floor(*y), *depth));
     }
 }

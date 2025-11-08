@@ -45,9 +45,9 @@ pub fn check_damage_flicker_taken(
     query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
 ) {
     for e in reader.read() {
-        if let _ = query.get(e.entity) {
+        if query.get(e.entity).is_ok() {
             commands.entity(e.entity).insert(DamageFlicker {
-                phase_start: stage_time.elapsed + DAMAGE_REGULAR_DURATION.clone(),
+                phase_start: stage_time.elapsed + *DAMAGE_REGULAR_DURATION,
                 count: DAMAGE_FLICKER_COUNT,
             });
         }
@@ -60,7 +60,7 @@ pub fn add_invert_filter(
     mut query: Query<(Entity, &mut DamageFlicker), Without<InvertFilter>>,
     filters: PxAssets<PxFilter>,
 ) {
-    let regular_duration = DAMAGE_REGULAR_DURATION.clone();
+    let regular_duration = *DAMAGE_REGULAR_DURATION;
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
         if stage_time.elapsed < damage_flicker.phase_start + regular_duration {
             damage_flicker.phase_start = stage_time.elapsed;
@@ -77,7 +77,7 @@ pub fn remove_invert_filter(
     stage_time: Res<StageTime>,
     mut query: Query<(Entity, &mut DamageFlicker), With<InvertFilter>>,
 ) {
-    let invert_duration = DAMAGE_INVERT_DURATION.clone();
+    let invert_duration = *DAMAGE_INVERT_DURATION;
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
         if stage_time.elapsed < damage_flicker.phase_start + invert_duration {
             let mut entity_commands = commands.entity(entity);

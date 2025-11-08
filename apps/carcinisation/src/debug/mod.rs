@@ -5,27 +5,18 @@ mod systems;
 pub mod types;
 
 use self::{systems::*, types::register_types};
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
 /// Registers debug drawing systems and type introspection helpers.
+#[derive(Activable)]
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         register_types(app);
-        app.init_state::<DebugPluginUpdateState>().add_systems(
-            Update,
-            (draw_floor_lines, draw_colliders).run_if(in_state(DebugPluginUpdateState::Active)),
-        );
+        app.add_active_systems::<DebugPlugin, _>((draw_floor_lines, draw_colliders));
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Enables optional debug drawing systems.
-pub enum DebugPluginUpdateState {
-    Inactive,
-    #[default]
-    Active,
 }
 
 pub trait DebugColor {

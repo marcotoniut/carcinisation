@@ -30,7 +30,6 @@ pub fn tick_time<T: Ticker + Resource>(mut time: ResMut<T>, app_time: Res<Time>)
     time.tick(app_time.delta());
 }
 #[cfg(debug_assertions)]
-
 /// @system Ticks a `Ticker` resource, respecting optional debug multipliers.
 pub fn tick_time<T: Ticker + Resource>(
     mut time: ResMut<T>,

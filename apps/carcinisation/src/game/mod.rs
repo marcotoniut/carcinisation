@@ -8,6 +8,7 @@ pub mod score;
 mod systems;
 
 use crate::core::event::on_trigger_write_event;
+use activable::{Activable, ActivableAppExt};
 
 use self::{events::*, resources::GameProgress, score::ScorePlugin, systems::setup::*};
 use bevy::prelude::*;
@@ -15,20 +16,19 @@ use resources::{CutsceneAssetHandle, StageAssetHandle};
 use systems::debug::debug_on_game_over;
 
 /// Registers the high-level game state machine and supporting systems.
+#[derive(Activable)]
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ScorePlugin)
-            .init_state::<GamePluginUpdateState>()
             .init_state::<GameProgressState>()
             .add_message::<GameOverTrigger>()
             .add_observer(on_game_over)
             .add_observer(on_trigger_write_event::<GameOverTrigger>)
             .add_message::<GameStartupTrigger>()
             .add_observer(on_game_startup)
-            .add_systems(
-                Update,
+            .add_active_systems::<GamePlugin, _>(
                 // Core progression loop: wait for assets, advance steps, react to stage events.
                 ((
                     check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),
@@ -37,8 +37,7 @@ impl Plugin for GamePlugin {
                     on_stage_cleared,
                     on_cutscene_shutdown,
                 )
-                    .run_if(resource_exists::<GameProgress>),)
-                    .run_if(in_state(GamePluginUpdateState::Active)),
+                    .run_if(resource_exists::<GameProgress>),),
             );
 
         #[cfg(debug_assertions)]
@@ -56,12 +55,4 @@ pub enum GameProgressState {
     Running,
     Paused,
     Cutscene,
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Toggle for enabling/disabling the game progression plugin.
-pub enum GamePluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }

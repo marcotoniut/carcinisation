@@ -6,7 +6,6 @@ use carcinisation::{
 };
 
 use bevy::prelude::*;
-use derive_new::new;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Reflect, Resource)]

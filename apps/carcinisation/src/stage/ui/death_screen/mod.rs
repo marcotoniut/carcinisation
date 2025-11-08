@@ -9,7 +9,7 @@ use self::{
     input::{init_input, DeathScreenInput},
     systems::check_press_continue_input,
 };
-use super::StageUiPluginUpdateState;
+use super::StageUiPlugin;
 use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     components::GBColor,
@@ -20,6 +20,7 @@ use crate::{
     layer::Layer,
     stage::StageProgressState,
 };
+use activable::ActiveState;
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 use seldom_pixel::prelude::{
@@ -45,7 +46,7 @@ pub fn render_death_screen(
         commands
             .spawn((DeathScreen, Name::new("Death Screen")))
             .with_children(|p0| {
-                for i in 25..(115 as i32) {
+                for i in 25..115 {
                     p0.spawn((
                         PxLineBundle::<Layer> {
                             canvas: PxCanvas::Camera,
@@ -136,10 +137,10 @@ pub fn death_screen_plugin(app: &mut App) {
         .add_systems(
             Update,
             (render_death_screen, despawn_death_screen)
-                .run_if(in_state(StageUiPluginUpdateState::Active)),
+                .run_if(in_state(ActiveState::<StageUiPlugin>::active())),
         )
         .add_systems(
             PostUpdate,
-            check_press_continue_input.run_if(in_state(StageUiPluginUpdateState::Active)),
+            check_press_continue_input.run_if(in_state(ActiveState::<StageUiPlugin>::active())),
         );
 }

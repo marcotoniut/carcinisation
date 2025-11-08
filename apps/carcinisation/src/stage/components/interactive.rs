@@ -40,7 +40,7 @@ impl Collider {
     }
 
     pub fn new_scaled(self, scale: f32) -> Self {
-        let mut new = self.clone();
+        let mut new = self;
         match new.shape {
             ColliderShape::Box(ref mut size) => {
                 size.x *= scale;
@@ -104,6 +104,12 @@ impl ColliderData {
             x.shape
                 .point_collides(collider_position + x.offset, circle_position)
         })
+    }
+}
+
+impl Default for ColliderData {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -2,10 +2,11 @@
 resolver = "2"
 members = [
     "apps/carcinisation",
+    "crates/activable-macros",
+    "crates/activable",
     "scripts/generate-typeface",
     "scripts/process-gfx",
     "tools/assert_assets_path",
-    "tools/editor",
     "tools/scene-file-watcher",
 ]
 
@@ -23,6 +24,8 @@ bevy = { version = "0.17", features = [
     "std",
     "async_executor",
 ] }
+bevy_state = "0.17.2"
+bevy_ecs = "0.17.2"
 bevy_common_assets = { version = "0.14", features = ["ron"] }
 bevy-inspector-egui = "0.35.0"
 bevy_framepace = "0.20"
@@ -57,7 +60,3 @@ opt-level = "z"
 
 [workspace.lints.rust]
 warnings = "deny"
-
-[workspace.lints.rustdoc]
-missing_docs = "warn"
-broken_intra_doc_links = "warn"

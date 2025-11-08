@@ -9,15 +9,16 @@ use self::{
     systems::player::*,
     systems::{hovering::*, *},
 };
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
 /// Schedules attack-related systems and gating state.
+#[derive(Activable)]
 pub struct AttackPlugin;
 
 impl Plugin for AttackPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<AttackPluginUpdateState>().add_systems(
-            Update,
+        app.add_active_systems::<AttackPlugin, _>(
             // Only advance attack behaviour when the plugin is explicitly active.
             (
                 (check_got_hit, check_health_at_0).chain(),
@@ -25,16 +26,7 @@ impl Plugin for AttackPlugin {
                 on_enemy_attack_depth_changed,
                 miss_on_reached,
                 hovering_damage_on_reached,
-            )
-                .run_if(in_state(AttackPluginUpdateState::Active)),
+            ),
         );
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Controls when attack systems tick (mirrors the stage lifecycle).
-pub enum AttackPluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }

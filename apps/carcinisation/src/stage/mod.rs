@@ -28,7 +28,6 @@ use self::{
         movement::*,
         setup::on_stage_startup,
         spawn::{check_dead_drop, check_step_spawn, on_stage_spawn},
-        state::{on_active, on_inactive},
         *,
     },
     ui::{
@@ -54,6 +53,7 @@ use crate::{
     },
     systems::{check_despawn_after_delay, delay_despawn},
 };
+use activable::{activate_system, deactivate_system, Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use data::StageData;
@@ -69,6 +69,7 @@ pub struct LoadingSystemSet;
 pub struct BuildingSystemSet;
 
 /// Registers all stage-related plugins, assets, events, and frame drives.
+#[derive(Activable)]
 pub struct StagePlugin;
 
 /**
@@ -83,7 +84,6 @@ impl Plugin for StagePlugin {
 
         app.add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
             // Core stage state/resources that every sub-system relies on.
-            .init_state::<StagePluginUpdateState>()
             .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()
             .init_resource::<StageTime>()
@@ -105,8 +105,20 @@ impl Plugin for StagePlugin {
             .add_observer(on_stage_cleared)
             .add_observer(on_trigger_write_event::<StageClearedTrigger>)
             // TODO .add_observer(on_startup_from_checkpoint))
-            .add_systems(OnEnter(StagePluginUpdateState::Active), on_active)
-            .add_systems(OnEnter(StagePluginUpdateState::Inactive), on_inactive)
+            .on_active::<StagePlugin, _>((
+                activate_system::<AttackPlugin>,
+                activate_system::<DestructiblePlugin>,
+                activate_system::<EnemyPlugin>,
+                activate_system::<PlayerPlugin>,
+                activate_system::<StageUiPlugin>,
+            ))
+            .on_inactive::<StagePlugin, _>((
+                deactivate_system::<AttackPlugin>,
+                deactivate_system::<DestructiblePlugin>,
+                deactivate_system::<EnemyPlugin>,
+                deactivate_system::<PlayerPlugin>,
+                deactivate_system::<StageUiPlugin>,
+            ))
             // Shared movement helpers (linear/pursue) reused by multiple enemy types.
             .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
@@ -123,8 +135,7 @@ impl Plugin for StagePlugin {
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(StageUiPlugin)
-            .add_systems(
-                Update,
+            .add_active_systems::<StagePlugin, _>(
                 // Primary stage tick, only when gameplay is active and running.
                 (
                     update_stage,
@@ -192,10 +203,9 @@ impl Plugin for StagePlugin {
                     )
                         .run_if(in_state(StageProgressState::Running)),
                 )
-                    .run_if(in_state(StagePluginUpdateState::Active)),
+                    .run_if(in_state(StageProgressState::Running)),
             )
-            .add_systems(
-                Update,
+            .add_active_systems::<StagePlugin, _>(
                 // Overlay/UI rendering keeps pace whenever the stage plugin is active.
                 (
                     // Cleared screen
@@ -210,8 +220,7 @@ impl Plugin for StagePlugin {
                     // Pause menu
                     pause_menu_renderer,
                     toggle_game,
-                )
-                    .run_if(in_state(StagePluginUpdateState::Active)),
+                ),
             );
     }
 }
@@ -226,12 +235,4 @@ pub enum StageProgressState {
     Cleared,
     Death,
     GameOver,
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Whether the stage plugin should be ticking its Update schedule.
-pub enum StagePluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }

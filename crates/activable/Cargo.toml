@@ -1,0 +1,13 @@
+[package]
+name = "activable"
+edition = "2021"
+version.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+bevy_ecs = { workspace = true }
+bevy_state = { workspace = true }
+activable-macros = { path = "../activable-macros" }
+
+[lints]
+workspace = true

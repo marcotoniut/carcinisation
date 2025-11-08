@@ -24,12 +24,14 @@ use crate::{
         LinearMovementPlugin,
     },
 };
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use data::CutsceneData;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
 /// Registers cutscene resources, input mapping, and playback systems.
+#[derive(Activable)]
 pub struct CutscenePlugin;
 
 impl Plugin for CutscenePlugin {
@@ -38,17 +40,14 @@ impl Plugin for CutscenePlugin {
             .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionX>::default())
             .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionY>::default())
-            .init_state::<CutscenePluginUpdateState>()
             .init_resource::<CutsceneTime>()
             .add_message::<CutsceneStartupTrigger>()
             .add_observer(on_cutscene_startup)
             .add_message::<CutsceneShutdownTrigger>()
             .add_observer(on_cutscene_shutdown)
             .add_observer(on_trigger_write_event::<CutsceneShutdownTrigger>)
-            // .add_systems(OnEnter(CutscenePluginUpdateState::Active), spawn_cutscene)
             .add_systems(Startup, init_input)
-            .add_systems(
-                Update,
+            .add_active_systems::<CutscenePlugin, _>(
                 // Core playback loop: reads steps, spawns assets, ticks timers.
                 (
                     (
@@ -64,20 +63,8 @@ impl Plugin for CutscenePlugin {
                         .chain(),
                     // render_cutscene,
                     tick_time::<CutsceneTime>,
-                )
-                    .run_if(in_state(CutscenePluginUpdateState::Active)),
+                ),
             )
-            .add_systems(
-                PostUpdate,
-                (check_press_start_input).run_if(in_state(CutscenePluginUpdateState::Active)),
-            );
+            .add_active_systems_in::<CutscenePlugin, _>(PostUpdate, check_press_start_input);
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Toggle for enabling/disabling cutscene playback systems.
-pub enum CutscenePluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }

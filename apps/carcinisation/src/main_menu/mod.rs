@@ -1,13 +1,11 @@
 //! Main menu state machine, events, and UI spawning.
 
 pub mod components;
-pub mod events;
 pub mod input;
 pub mod resources;
 mod systems;
 
 use self::{
-    events::{MainMenuShutdownEvent, MainMenuStartupEvent},
     resources::DifficultySelection,
     systems::{
         interactions::*,
@@ -15,21 +13,19 @@ use self::{
         setup::{on_main_menu_shutdown, on_main_menu_startup},
     },
 };
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
 /// Registers menu resources, screens, and interaction systems.
+#[derive(Activable)]
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<MainMenuPluginUpdateState>()
-            .insert_state(MainMenuScreen::default())
+        app.insert_state(MainMenuScreen::default())
             .init_resource::<DifficultySelection>()
-            .add_message::<MainMenuStartupEvent>()
-            .add_observer(on_main_menu_startup)
-            .add_message::<MainMenuShutdownEvent>()
-            .add_observer(on_main_menu_shutdown)
-            .add_systems(OnEnter(MainMenuPluginUpdateState::Active), spawn_main_menu)
+            .on_active::<MainMenuPlugin, _>((spawn_main_menu, on_main_menu_startup))
+            .on_inactive::<MainMenuPlugin, _>(on_main_menu_shutdown)
             .add_systems(
                 OnEnter(MainMenuScreen::PressStart),
                 enter_press_start_screen,
@@ -43,8 +39,7 @@ impl Plugin for MainMenuPlugin {
                 OnExit(MainMenuScreen::DifficultySelect),
                 exit_game_difficulty_screen,
             )
-            .add_systems(
-                Update,
+            .add_active_systems::<MainMenuPlugin, _>(
                 // Handle input according to the active menu screen.
                 (
                     (check_press_start_input).run_if(in_state(MainMenuScreen::PressStart)),
@@ -56,18 +51,9 @@ impl Plugin for MainMenuPlugin {
                         update_difficulty_selection_indicator,
                     )
                         .run_if(in_state(MainMenuScreen::DifficultySelect)),
-                )
-                    .run_if(in_state(MainMenuPluginUpdateState::Active)),
+                ),
             );
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Controls when menu systems should run.
-pub enum MainMenuPluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }
 
 #[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]

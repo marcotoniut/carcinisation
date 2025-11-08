@@ -8,10 +8,11 @@ use crate::{
             components::TransitionVenetian,
             events::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
             resources::{TransitionCounter, TransitionUpdateTimer},
-            TransitionVenetianPluginUpdateState,
+            TransitionVenetianPlugin,
         },
     },
 };
+use activable::{activate, deactivate};
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxFilter;
 
@@ -19,12 +20,11 @@ use seldom_pixel::prelude::PxFilter;
 pub fn on_transition_startup(
     trigger: On<TransitionVenetianStartupEvent>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
     mut timer: ResMut<TransitionUpdateTimer>,
     filters: PxAssets<PxFilter>,
     existing: Query<Entity, With<TransitionVenetian>>,
 ) {
-    next_state.set(TransitionVenetianPluginUpdateState::Active);
+    activate::<TransitionVenetianPlugin>(&mut commands);
 
     timer.timer.reset();
 
@@ -57,11 +57,10 @@ pub fn on_transition_startup(
 pub fn on_transition_shutdown(
     _trigger: On<TransitionVenetianShutdownEvent>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<TransitionVenetianPluginUpdateState>>,
     transition_query: Query<Entity, With<TransitionVenetian>>,
 ) {
     mark_for_despawn_by_query(&mut commands, &transition_query);
-    next_state.set(TransitionVenetianPluginUpdateState::Inactive);
+    deactivate::<TransitionVenetianPlugin>(&mut commands);
     commands.remove_resource::<TransitionVenetianData>();
     commands.remove_resource::<TransitionCounter>();
 }

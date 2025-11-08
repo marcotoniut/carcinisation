@@ -4,11 +4,7 @@ use crate::constants::EditorColor;
 use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
-use bevy_prototype_lyon::draw::{Fill, Stroke};
-use bevy_prototype_lyon::entity::ShapeBundle;
-use bevy_prototype_lyon::geometry::GeometryBuilder;
-use bevy_prototype_lyon::path::PathBuilder;
-use bevy_prototype_lyon::shapes::Polygon;
+use bevy_prototype_lyon::{prelude::*, shapes};
 use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::stage::data::{StageData, StageStep};
 
@@ -30,7 +26,7 @@ pub fn spawn_path(
     let h_screen_resolution = screen_resolution / 2.0;
 
     let camera_position = stage_data.calculate_camera_position(stage_controls_ui.ElapsedDuration);
-    let camera_shape = Polygon {
+    let camera_shape = shapes::Polygon {
         points: vec![
             Vec2::ZERO,
             Vec2::new(screen_resolution.x, 0.0),
@@ -43,19 +39,17 @@ pub fn spawn_path(
     commands.spawn((
         Name::new("Camera Position"),
         SceneItem,
-        ShapeBundle {
-            path: GeometryBuilder::build_as(&camera_shape),
-            transform: Transform {
-                translation: camera_position.extend(CAMERA_POSITION_Z),
-                ..default()
-            },
+        ShapeBuilder::with(&camera_shape)
+            .stroke((Color::WHITE, 1.0))
+            .build(),
+        Transform {
+            translation: camera_position.extend(CAMERA_POSITION_Z),
             ..default()
         },
-        Stroke::color(Color::WHITE),
     ));
 
-    let mut path_builder = PathBuilder::new();
-    path_builder.move_to(stage_data.start_coordinates.unwrap_or(Vec2::ZERO) + h_screen_resolution);
+    let mut path = ShapePath::new()
+        .move_to(stage_data.start_coordinates.unwrap_or(Vec2::ZERO) + h_screen_resolution);
 
     let mut current_position = stage_data.start_coordinates.unwrap_or(Vec2::ZERO);
     let mut current_elapsed: Duration = Duration::ZERO;
@@ -66,12 +60,12 @@ pub fn spawn_path(
                 // TODO
             }
             StageStep::Movement(s) => {
-                path_builder.line_to(s.coordinates + h_screen_resolution);
+                path = path.line_to(s.coordinates + h_screen_resolution);
 
                 let direction = (current_position - s.coordinates).normalize_or_zero();
                 let angle = direction.y.atan2(direction.x);
 
-                let arrow_shape = Polygon {
+                let arrow_shape = shapes::Polygon {
                     points: vec![
                         Vec2::new(0.0, 0.0),
                         Vec2::new(6.0, -3.0),
@@ -82,16 +76,13 @@ pub fn spawn_path(
                 commands.spawn((
                     Name::new(format!("Elapsed Path Movement Arrow {}", index)),
                     SceneItem,
-                    ShapeBundle {
-                        path: GeometryBuilder::build_as(&arrow_shape),
-                        transform: Transform {
-                            translation: (current_position + h_screen_resolution).extend(PATH_Z),
-                            rotation: Quat::from_rotation_z(angle),
-                            ..default()
-                        },
+                    ShapeBuilder::with(&arrow_shape).fill(Color::CYAN).build(),
+                    Transform {
+                        translation: (current_position + h_screen_resolution).extend(PATH_Z),
+                        rotation: Quat::from_rotation_z(angle),
                         ..default()
                     },
-                    Fill::color(Color::CYAN),
+                    GlobalTransform::default(),
                 ));
 
                 let distance = s.coordinates.distance(current_position);
@@ -113,12 +104,9 @@ pub fn spawn_path(
     commands.spawn((
         Name::new("Elapsed Path"),
         SceneItem,
-        ShapeBundle {
-            path: path_builder.build(),
-            transform: Transform::from_xyz(0.0, 0.0, PATH_Z),
-            ..default()
-        },
-        Stroke::new(Color::CYAN, 1.0),
+        ShapeBuilder::with(&path).stroke((Color::CYAN, 1.0)).build(),
+        Transform::from_xyz(0.0, 0.0, PATH_Z),
+        GlobalTransform::default(),
     ));
 }
 
@@ -130,14 +118,14 @@ pub fn spawn_stage(
     texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
 ) {
     if stage_controls_ui.background_is_visible() {
-        let mut sprite = Sprite::from_image(asset_server.load(stage_data.background_path.clone()));
-        sprite.anchor = Anchor::BottomLeft;
+        let sprite = Sprite::from_image(asset_server.load(stage_data.background_path.clone()));
 
         commands.spawn((
             Name::new("SG Background"),
             SceneItem,
             sprite,
             Transform::from_xyz(0.0, 0.0, BACKGROUND_Z),
+            Anchor::BOTTOM_LEFT,
         ));
     }
 
@@ -150,14 +138,13 @@ pub fn spawn_stage(
             None,
         ));
 
-        let mut sprite = Sprite::from_atlas_image(
+        let sprite = Sprite::from_atlas_image(
             asset_server.load(stage_data.skybox.path.clone()),
             TextureAtlas {
                 layout: layout_handle.clone(),
                 index: 0,
             },
         );
-        sprite.anchor = Anchor::BottomLeft;
 
         let camera_position =
             stage_data.calculate_camera_position(stage_controls_ui.ElapsedDuration);
@@ -171,6 +158,7 @@ pub fn spawn_stage(
                 last: stage_data.skybox.frames.saturating_sub(1),
             },
             AnimationTimer(Timer::from_seconds(2.0, TimerMode::Repeating)),
+            Anchor::BOTTOM_LEFT,
         ));
     }
 
@@ -181,10 +169,8 @@ pub fn spawn_stage(
         .enumerate()
     {
         if spawn.get_elapsed() <= stage_controls_ui.ElapsedDuration {
-            let thumbnail = spawn.get_thumbnail();
-            let (image_path, rect) = thumbnail;
+            let (image_path, rect) = spawn.get_thumbnail();
             let mut sprite = Sprite::from_image(asset_server.load(image_path));
-            sprite.anchor = Anchor::BottomCenter;
             sprite.rect = rect;
 
             commands.spawn((
@@ -198,6 +184,7 @@ pub fn spawn_stage(
                         .get_coordinates()
                         .extend(spawn.get_depth_editor_z_index()),
                 ),
+                Anchor::BOTTOM_CENTER,
             ));
         }
     }
@@ -218,7 +205,6 @@ pub fn spawn_stage(
                         let v = current_position + *spawn.get_coordinates();
                         let (image_path, rect) = spawn.get_thumbnail();
                         let mut sprite = Sprite::from_image(asset_server.load(image_path));
-                        sprite.anchor = Anchor::BottomCenter;
                         sprite.rect = rect;
 
                         commands.spawn((
@@ -228,6 +214,7 @@ pub fn spawn_stage(
                             SceneItem,
                             sprite,
                             Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
+                            Anchor::BOTTOM_CENTER,
                         ));
                     }
                 }
@@ -249,7 +236,6 @@ pub fn spawn_stage(
                         let v = current_position + *spawn.get_coordinates();
                         let (image_path, rect) = spawn.get_thumbnail();
                         let mut sprite = Sprite::from_image(asset_server.load(image_path));
-                        sprite.anchor = Anchor::BottomCenter;
                         sprite.rect = rect;
 
                         commands.spawn((
@@ -259,6 +245,7 @@ pub fn spawn_stage(
                             SceneItem,
                             sprite,
                             Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
+                            Anchor::BOTTOM_CENTER,
                         ));
                     }
                 }
@@ -287,7 +274,7 @@ pub fn spawn_stage(
         },
         TextColor(Color::WHITE),
         Transform::from_xyz(0.0, -15.0, 0.0),
-        Anchor::TopLeft,
+        Anchor::TOP_LEFT,
     ));
 
     if stage_controls_ui.path_is_visible() {

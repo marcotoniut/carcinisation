@@ -5,15 +5,16 @@ pub mod spawn;
 
 use crate::components::{AudioSystemType, VolumeSettings};
 use crate::game::events::GameStartupTrigger;
-use crate::main_menu::events::MainMenuStartupEvent;
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
     core::time::ElapsedTime,
+    main_menu::MainMenuPlugin,
 };
+use activable::activate;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxAnimationFinished;
 
-/**
+/*
  * DEBUG
  */
 // pub fn input_exit_game(
@@ -67,7 +68,7 @@ pub fn update_music_volume(
 ) {
     for (mut music_source_settings, audio_system_type) in source_settings.iter_mut() {
         if matches!(audio_system_type, AudioSystemType::SFX) {
-            music_source_settings.volume = volume_settings.music.clone();
+            music_source_settings.volume = volume_settings.music;
         }
     }
 }
@@ -77,7 +78,7 @@ pub fn update_sfx_volume(
     volume_settings: Res<VolumeSettings>,
 ) {
     for mut sfx_source_settings in &mut source_settings {
-        sfx_source_settings.volume = volume_settings.sfx.clone();
+        sfx_source_settings.volume = volume_settings.sfx;
     }
 }
 
@@ -115,5 +116,5 @@ pub fn debug_trigger_game_startup(mut commands: Commands) {
 }
 
 pub fn on_post_startup(mut commands: Commands) {
-    commands.trigger(MainMenuStartupEvent);
+    activate::<MainMenuPlugin>(&mut commands);
 }

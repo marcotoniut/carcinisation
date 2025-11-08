@@ -5,10 +5,7 @@ use crate::{
     game::score::components::Score,
     stage::{
         attack::components::*,
-        components::{
-            interactive::{ColliderData, Hittable},
-            placement::Depth,
-        },
+        components::interactive::{ColliderData, Hittable},
         events::DamageEvent,
         player::components::{
             PlayerAttack, UnhittableList, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
@@ -28,13 +25,13 @@ pub fn check_got_hit(
     mut event_writer: MessageWriter<DamageEvent>,
     mut attack_query: Query<(&PlayerAttack, &mut UnhittableList)>,
     // mut attack_query: Query<(&PlayerAttack, &mut UnhittableList, Option<&Reach>)>,
-    mut hittable_query: Query<(Entity, &PxSubPosition, &ColliderData, &Depth), With<Hittable>>,
+    mut hittable_query: Query<(Entity, &PxSubPosition, &ColliderData), With<Hittable>>,
     mut score: ResMut<Score>,
 ) {
     let camera_pos = camera_query.single().unwrap();
     for (attack, mut hit_list) in attack_query.iter_mut() {
-        for (entity, position, collider_data, depth) in hittable_query.iter_mut() {
-            if hit_list.0.contains(&entity) == false {
+        for (entity, position, collider_data) in hittable_query.iter_mut() {
+            if !hit_list.0.contains(&entity) {
                 hit_list.0.insert(entity);
 
                 let attack_position = camera_pos.0 + attack.position;

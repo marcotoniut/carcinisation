@@ -103,5 +103,5 @@ pub fn spawn_hud(
         })
         .id();
 
-    return entity;
+    entity
 }
