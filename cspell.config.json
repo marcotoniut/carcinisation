@@ -91,11 +91,13 @@
     "color",
     "cutscene",
     "despawn",
+    "Framepace",
     "modelcontextprotocol",
     "msvc",
     "pixeboy",
     "putpixel",
     "rustflags",
+    "Skybox",
     "Vite"
   ]
 }

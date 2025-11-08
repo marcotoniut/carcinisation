@@ -6,7 +6,7 @@ use crate::{
     main_menu::{
         components::{MainMenu, MainMenuEntity},
         events::{MainMenuShutdownEvent, MainMenuStartupEvent},
-        MainMenuPluginUpdateState,
+        MainMenuPluginUpdateState, MainMenuScreen,
     },
 };
 use bevy::prelude::*;
@@ -16,26 +16,30 @@ const DEBUG_MODULE: &str = "MainMenu";
 
 pub fn on_main_menu_startup(
     _trigger: On<MainMenuStartupEvent>,
-    mut next_state: ResMut<NextState<MainMenuPluginUpdateState>>,
+    mut plugin_state: ResMut<NextState<MainMenuPluginUpdateState>>,
+    mut screen_state: ResMut<NextState<MainMenuScreen>>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
-    next_state.set(MainMenuPluginUpdateState::Active);
+    plugin_state.set(MainMenuPluginUpdateState::Active);
+    screen_state.set(MainMenuScreen::PressStart);
 }
 
 /// @trigger Cleans up main menu entities and disables the plugin.
 pub fn on_main_menu_shutdown(
     _trigger: On<MainMenuShutdownEvent>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<MainMenuPluginUpdateState>>,
+    mut plugin_state: ResMut<NextState<MainMenuPluginUpdateState>>,
+    mut screen_state: ResMut<NextState<MainMenuScreen>>,
     main_menu_query: Query<Entity, With<MainMenu>>,
     main_menu_entity_query: Query<Entity, With<MainMenuEntity>>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_shutdown(DEBUG_MODULE);
 
-    next_state.set(MainMenuPluginUpdateState::Inactive);
+    plugin_state.set(MainMenuPluginUpdateState::Inactive);
+    screen_state.set(MainMenuScreen::Disabled);
 
     mark_for_despawn_by_query(&mut commands, &main_menu_query);
     mark_for_despawn_by_query(&mut commands, &main_menu_entity_query);

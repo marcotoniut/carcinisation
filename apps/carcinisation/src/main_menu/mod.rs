@@ -7,7 +7,7 @@ pub mod resources;
 mod systems;
 
 use self::{
-    events::{ChangeMainMenuScreenTrigger, MainMenuShutdownEvent, MainMenuStartupEvent},
+    events::{MainMenuShutdownEvent, MainMenuStartupEvent},
     resources::DifficultySelection,
     systems::{
         interactions::*,
@@ -23,35 +23,39 @@ pub struct MainMenuPlugin;
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<MainMenuPluginUpdateState>()
-            .init_resource::<MainMenuScreen>()
+            .insert_state(MainMenuScreen::default())
             .init_resource::<DifficultySelection>()
-            .add_message::<ChangeMainMenuScreenTrigger>()
-            .add_observer(on_change_main_menu_screen)
             .add_message::<MainMenuStartupEvent>()
             .add_observer(on_main_menu_startup)
             .add_message::<MainMenuShutdownEvent>()
             .add_observer(on_main_menu_shutdown)
             .add_systems(OnEnter(MainMenuPluginUpdateState::Active), spawn_main_menu)
-            // .add_systems(
-            //     OnExit(MainMenuPluginUpdateState::Inactive),
-            //     despawn_main_menu,
-            // )
             .add_systems(
-                Update,
-                // Lazily spawns required screens while active.
-                (spawn_game_difficulty_screen, spawn_press_start_screen)
-                    .run_if(in_state(MainMenuPluginUpdateState::Active)),
+                OnEnter(MainMenuScreen::PressStart),
+                enter_press_start_screen,
+            )
+            .add_systems(OnExit(MainMenuScreen::PressStart), exit_press_start_screen)
+            .add_systems(
+                OnEnter(MainMenuScreen::DifficultySelect),
+                enter_game_difficulty_screen,
             )
             .add_systems(
-                PostUpdate,
+                OnExit(MainMenuScreen::DifficultySelect),
+                exit_game_difficulty_screen,
+            )
+            .add_systems(
+                Update,
                 // Handle input according to the active menu screen.
                 (
-                    (check_press_start_input)
-                        .run_if(resource_exists_and_equals(MainMenuScreen::PressStart)),
+                    (check_press_start_input).run_if(in_state(MainMenuScreen::PressStart)),
                     (check_main_select_select_option_input)
-                        .run_if(resource_exists_and_equals(MainMenuScreen::MainMenuSelect)),
-                    (game_difficulty_select_change, game_difficulty_select_option)
-                        .run_if(resource_exists_and_equals(MainMenuScreen::DifficultySelect)),
+                        .run_if(in_state(MainMenuScreen::MainMenuSelect)),
+                    (
+                        game_difficulty_select_change,
+                        game_difficulty_select_option,
+                        update_difficulty_selection_indicator,
+                    )
+                        .run_if(in_state(MainMenuScreen::DifficultySelect)),
                 )
                     .run_if(in_state(MainMenuPluginUpdateState::Active)),
             );
@@ -66,10 +70,11 @@ pub enum MainMenuPluginUpdateState {
     Active,
 }
 
-#[derive(Resource, Debug, Clone, Eq, PartialEq, Hash, Default)]
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
 /// Tracks which menu screen is currently visible.
 pub enum MainMenuScreen {
     #[default]
+    Disabled,
     PressStart,
     MainMenuSelect,
     // TODO can this be nested under MainSelect?

@@ -25,3 +25,7 @@ pub struct PressStartScreenEntity;
 #[derive(Component)]
 /// Entity for the difficulty selection screen.
 pub struct DifficultySelectScreenEntity;
+
+#[derive(Component)]
+/// Arrow indicator that points at the currently selected difficulty.
+pub struct DifficultySelectionIndicator;
