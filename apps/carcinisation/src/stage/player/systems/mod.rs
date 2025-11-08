@@ -64,6 +64,7 @@ pub fn player_movement<T: DeltaTime + Resource>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn detect_player_attack(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
@@ -87,7 +88,7 @@ pub fn detect_player_attack(
             if let Some((weapon, duration)) = attack {
                 timer.timer.set_duration(Duration::from_secs_f64(duration));
                 let player_attack = PlayerAttack {
-                    position: position.0.clone(),
+                    position: position.0,
                     weapon,
                 };
 

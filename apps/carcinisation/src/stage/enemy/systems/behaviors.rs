@@ -18,7 +18,7 @@ pub fn check_no_behavior(
     stage_time: Res<StageTime>,
 ) {
     for (entity, mut behaviors, position, speed, depth) in query.iter_mut() {
-        let behavior = behaviors.next();
+        let behavior = behaviors.next_step();
 
         let duration_o = behavior.get_duration_o();
 

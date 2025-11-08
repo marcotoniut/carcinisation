@@ -222,7 +222,7 @@ pub fn poll_selected_file(
 }
 
 pub fn on_write_recent_file_path(
-    _trigger: Trigger<WriteRecentFilePathEvent>,
+    _trigger: On<WriteRecentFilePathEvent>,
     scene_path: Res<ScenePath>,
 ) {
     let path = scene_path.0.clone();

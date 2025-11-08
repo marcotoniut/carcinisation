@@ -6,34 +6,31 @@ use crate::{
     cutscene::{
         data::CutsceneData,
         events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
-        CutscenePluginUpdateState,
+        CutscenePlugin,
     },
     debug::plugin::debug_print_startup,
     game::{
         components::steps::*, data::*, events::GameStartupTrigger, resources::*, GameOverTrigger,
-        GamePluginUpdateState,
+        GamePlugin,
     },
     progression::game::GAME_DATA,
     stage::{
         data::StageData,
         events::{StageClearedTrigger, StageStartupTrigger},
-        StagePluginUpdateState,
+        StagePlugin,
     },
 };
+use activable::{activate, deactivate};
 use bevy::prelude::*;
 
 const DEBUG_MODULE: &str = "Game";
 
 /// @trigger Initialises game resources and enables the progression plugin.
-pub fn on_game_startup(
-    _trigger: On<GameStartupTrigger>,
-    mut next_state: ResMut<NextState<GamePluginUpdateState>>,
-    mut commands: Commands,
-) {
+pub fn on_game_startup(_trigger: On<GameStartupTrigger>, mut commands: Commands) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
-    next_state.set(GamePluginUpdateState::Active);
+    activate::<GamePlugin>(&mut commands);
     commands.insert_resource::<GameProgress>(GameProgress { index: 0 });
     commands.insert_resource::<GameData>(GAME_DATA.clone());
     commands.insert_resource(Lives(STARTING_LIVES));
@@ -56,12 +53,11 @@ pub fn on_game_over(_trigger: On<GameOverTrigger>) {}
 pub fn on_stage_cleared(
     mut event_reader: MessageReader<StageClearedTrigger>,
     mut commands: Commands,
-    mut next_update_state: ResMut<NextState<StagePluginUpdateState>>,
     mut progress: ResMut<GameProgress>,
 ) {
     for _ in event_reader.read() {
         progress.index += 1;
-        next_update_state.set(StagePluginUpdateState::Inactive);
+        deactivate::<StagePlugin>(&mut commands);
         commands.remove_resource::<StageData>();
     }
 }
@@ -70,13 +66,12 @@ pub fn on_stage_cleared(
 pub fn on_cutscene_shutdown(
     mut event_reader: MessageReader<CutsceneShutdownTrigger>,
     mut commands: Commands,
-    mut next_update_state: ResMut<NextState<CutscenePluginUpdateState>>,
     mut progress: ResMut<GameProgress>,
 ) {
     for _ in event_reader.read() {
         progress.index += 1;
         // TODO should this be handled inside of the plugin instead?
-        next_update_state.set(CutscenePluginUpdateState::Inactive);
+        deactivate::<CutscenePlugin>(&mut commands);
         commands.remove_resource::<CutsceneData>();
     }
 }
@@ -96,14 +91,11 @@ pub fn progress(
                 GameStep::Credits(CreditsGameStep {}) => {
                     // TODO
                 }
-                GameStep::Cutscene(CutsceneGameStep {
-                    data,
-                    is_checkpoint,
-                }) => {
+                GameStep::Cutscene(CutsceneGameStep { data, .. }) => {
                     commands.trigger(CutsceneStartupTrigger { data: data.clone() });
                     // cutscene_startup_event_writer.write();
                 }
-                GameStep::CutsceneAsset(CinematicAssetGameStep { src, is_checkpoint }) => {
+                GameStep::CutsceneAsset(CinematicAssetGameStep { src, .. }) => {
                     commands.insert_resource(CutsceneAssetHandle {
                         handle: asset_server.load::<CutsceneData>(src),
                     });

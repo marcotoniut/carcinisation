@@ -19,6 +19,7 @@ use self::{
 };
 use super::resources::StageTime;
 use crate::pixel::{PxAsset, PxAssets, PxSpriteData};
+use activable::{Activable, ActivableAppExt};
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSprite;
@@ -32,12 +33,12 @@ pub struct MovementSystemSet;
 pub struct ConfinementSystemSet;
 
 /// Plugin that schedules player input, attack timers, and camera effects.
+#[derive(Activable)]
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AttackTimer>()
-            .init_state::<PlayerPluginUpdateState>()
             .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
             .add_message::<CameraShakeTrigger>()
             .add_observer(on_camera_shake)
@@ -45,8 +46,7 @@ impl Plugin for PlayerPlugin {
             .add_observer(on_player_startup)
             .add_message::<PlayerShutdownTrigger>()
             .add_observer(on_player_shutdown)
-            .add_systems(
-                Update,
+            .add_active_systems::<PlayerPlugin, _>(
                 // Player logic only runs when the plugin is active.
                 (
                     tick_attack_timer::<StageTime>,
@@ -55,18 +55,9 @@ impl Plugin for PlayerPlugin {
                     camera_shake::<StageTime>,
                     player_movement::<StageTime>.in_set(MovementSystemSet),
                     confine_player_movement.in_set(ConfinementSystemSet),
-                )
-                    .run_if(in_state(PlayerPluginUpdateState::Active)),
+                ),
             );
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Stage-level toggle that enables/disables player systems.
-pub enum PlayerPluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }
 
 /// Convenience holder for the chosen crosshair sprite and metadata.

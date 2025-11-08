@@ -27,13 +27,11 @@ pub fn update_depth(
             if position.0 >= (depth.to_f32() + 0.5) {
                 *depth = *depth + 1;
                 // REVIEW should this use DepthChanged, or Added<LinearTargetReached> (LinearTargetReached<StageTime, ZAxisPosition>)
-                event_writer.write(DepthChangedEvent::new(entity, depth.clone()));
+                event_writer.write(DepthChangedEvent::new(entity, *depth));
             }
-        } else {
-            if position.0 <= (depth.to_f32() - 0.5) {
-                *depth = *depth - 1;
-                event_writer.write(DepthChangedEvent::new(entity, depth.clone()));
-            }
+        } else if position.0 <= (depth.to_f32() - 0.5) {
+            *depth = *depth - 1;
+            event_writer.write(DepthChangedEvent::new(entity, *depth));
         }
     }
 }

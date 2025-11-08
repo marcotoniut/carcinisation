@@ -3,9 +3,10 @@
 use crate::{
     game::{events::GameStartupTrigger, resources::Difficulty},
     input::GBInput,
-    main_menu::{events::MainMenuShutdownEvent, resources::DifficultySelection, MainMenuScreen},
+    main_menu::{resources::DifficultySelection, MainMenuPlugin, MainMenuScreen},
     resources::DifficultySelected,
 };
+use activable::deactivate;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
@@ -64,6 +65,6 @@ pub fn game_difficulty_select_option(
     if gb_input.just_pressed(&GBInput::Start) || gb_input.just_pressed(&GBInput::A) {
         selected_state.0 = selection_state.0;
         commands.trigger(GameStartupTrigger);
-        commands.trigger(MainMenuShutdownEvent);
+        deactivate::<MainMenuPlugin>(&mut commands);
     }
 }

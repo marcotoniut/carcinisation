@@ -115,7 +115,7 @@ pub fn spawn_pickup(
                         ..default()
                     },
                     position,
-                    spawn.depth.clone(),
+                    spawn.depth,
                     Health(1),
                     ColliderData::from_one(Collider::new_box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
@@ -137,7 +137,7 @@ pub fn spawn_pickup(
                         ..default()
                     },
                     position,
-                    spawn.depth.clone(),
+                    spawn.depth,
                     Health(1),
                     ColliderData::from_one(Collider::new_box(Vec2::new(7., 5.))),
                     HealthRecovery(30),
@@ -168,7 +168,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
 
             let entity = commands
                 .spawn(MosquitoBundle {
-                    depth: depth.clone(),
+                    depth: *depth,
                     speed: Speed(*speed),
                     behaviors,
                     position: PxSubPosition::from(position),
@@ -196,7 +196,7 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
 
             commands
                 .spawn(TardigradeBundle {
-                    depth: depth.clone(),
+                    depth: *depth,
                     speed: Speed(*speed),
                     behaviors,
                     position: PxSubPosition::from(position),
@@ -231,11 +231,11 @@ pub fn spawn_destructible(
             Flickerer,
             Hittable,
             spawn.get_name(),
-            spawn.depth.clone(),
+            spawn.depth,
             Health(spawn.health),
             spawn.destructible_type.clone(),
             animation_bundle,
-            PxSubPosition::from(spawn.coordinates.clone()),
+            PxSubPosition::from(spawn.coordinates),
             StageEntity,
         ))
         .id()
@@ -264,7 +264,7 @@ pub fn spawn_object(
                 layer: spawn.depth.to_layer(),
                 ..default()
             },
-            PxSubPosition::from(spawn.coordinates.clone()),
+            PxSubPosition::from(spawn.coordinates),
             StageEntity,
         ))
         .id()
@@ -282,12 +282,12 @@ pub fn check_dead_drop(
                 &mut commands,
                 &mut assets_sprite,
                 Vec2::ZERO,
-                &spawn.from_spawn(position.0, depth.clone()),
+                &spawn.from_spawn(position.0, *depth),
             ),
             ContainerSpawn::Enemy(spawn) => spawn_enemy(
                 &mut commands,
                 Vec2::ZERO,
-                &spawn.from_spawn(position.0, depth.clone()),
+                &spawn.from_spawn(position.0, *depth),
             ),
         };
 

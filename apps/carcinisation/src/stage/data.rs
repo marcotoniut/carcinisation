@@ -1,3 +1,5 @@
+#![allow(clippy::wrong_self_convention)]
+
 //! Serialized stage definitions: spawns, pickups, objects, and scripted steps.
 
 use super::{
@@ -21,7 +23,7 @@ use ts_rs::TS;
 
 lazy_static! {
     /// Convenience spawn position centred on the gameplay viewport.
-    pub static ref DEFAULT_COORDINATES: Vec2 = SCREEN_RESOLUTION_F32_H.clone();
+    pub static ref DEFAULT_COORDINATES: Vec2 = *SCREEN_RESOLUTION_F32_H;
 }
 
 pub const GAME_BASE_SPEED: f32 = 15.0;
@@ -248,7 +250,7 @@ pub struct EnemyDropSpawn {
 impl EnemyDropSpawn {
     pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> EnemySpawn {
         EnemySpawn {
-            enemy_type: self.enemy_type.clone(),
+            enemy_type: self.enemy_type,
             coordinates,
             depth,
             speed: self.speed,

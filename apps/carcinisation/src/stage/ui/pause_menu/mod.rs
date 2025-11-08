@@ -1,6 +1,6 @@
-pub mod pause_menu;
+pub mod components;
 
-use self::pause_menu::{InfoText, PauseMenu, ScoreText, UIBackground};
+use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     game::{score::components::Score, GameProgressState},
@@ -23,8 +23,8 @@ pub fn pause_menu_renderer(
     query: Query<Entity, With<PauseMenu>>,
     state: Res<State<GameProgressState>>,
 ) {
-    if state.get().to_owned() == GameProgressState::Paused {
-        if let Ok(entity) = query.single() {
+    if *state.get() == GameProgressState::Paused {
+        if let Ok(_entity) = query.single() {
             //do nothing
         } else {
             spawn_pause_menu_bundle(
@@ -43,7 +43,7 @@ pub fn pause_menu_renderer(
 pub fn spawn_pause_menu_bundle(
     commands: &mut Commands,
     typefaces: &mut PxAssets<PxTypeface>,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    _assets_sprite: &mut PxAssets<PxSprite>,
     filters: &mut PxAssets<PxFilter>,
     score: Res<Score>,
 ) -> Entity {
@@ -52,13 +52,13 @@ pub fn spawn_pause_menu_bundle(
     let entity = commands
         .spawn((PauseMenu {}, Name::new("PauseMenu")))
         .with_children(|p0| {
-            for i in 40..(100 as i32) {
+            for i in 40..100 {
                 p0.spawn((
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
                         line: [
                             ((SCREEN_RESOLUTION.x / 2) as i32 - 40, i).into(),
-                            ((SCREEN_RESOLUTION.x / 2) as i32 + 40 as i32, i).into(),
+                            ((SCREEN_RESOLUTION.x / 2) as i32 + 40, i).into(),
                         ]
                         .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
@@ -124,5 +124,5 @@ pub fn spawn_pause_menu_bundle(
             }
         })
         .id();
-    return entity;
+    entity
 }

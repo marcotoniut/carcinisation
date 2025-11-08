@@ -44,7 +44,7 @@ pub fn assign_mosquito_animation(
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
     for (entity, behavior, position, attacking, depth) in &mut query.iter() {
-        let step = behavior.behavior.clone();
+        let step = behavior.behavior;
 
         let bundle_o = if let Some(attack) = &attacking.attack {
             match attack {
@@ -53,7 +53,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
                         )
                     })
                 }
@@ -62,7 +62,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
                         )
                     })
                 }
@@ -74,7 +74,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Attack,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
                         )
                     })
                 }
@@ -83,7 +83,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
                         )
                     })
                 }
@@ -92,7 +92,7 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Idle,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
                         )
                     })
                 }
@@ -101,21 +101,16 @@ pub fn assign_mosquito_animation(
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
                         )
                     })
                 }
-                EnemyStep::Jump(JumpEnemyStep {
-                    coordinates,
-                    attacking,
-                    speed,
-                    ..
-                }) => {
+                EnemyStep::Jump(JumpEnemyStep { .. }) => {
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (
                             EnemyMosquitoAnimation::Fly,
-                            make_enemy_animation_bundle(&mut assets_sprite, &animation, depth),
+                            make_enemy_animation_bundle(&mut assets_sprite, animation, depth),
                         )
                     })
                 }
@@ -199,7 +194,7 @@ pub fn check_idle_mosquito(
                     &mut commands,
                     &mut assets_sprite,
                     &stage_time,
-                    SCREEN_RESOLUTION_F32_H.clone() + camera_pos.0,
+                    *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                     position.0,
                     depth,
                 );

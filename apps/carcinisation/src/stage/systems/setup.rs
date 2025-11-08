@@ -9,11 +9,12 @@ use crate::{
         events::StageStartupTrigger,
         player::events::PlayerStartupTrigger,
         ui::hud::spawn::spawn_hud,
-        StagePluginUpdateState,
+        StagePlugin,
     },
     systems::spawn::make_music_bundle,
     transitions::trigger_transition,
 };
+use activable::activate;
 use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
 
@@ -23,12 +24,11 @@ pub fn on_stage_startup(
     mut filters: PxAssets<PxFilter>,
     mut assets_sprite: PxAssets<PxSprite>,
     mut typefaces: PxAssets<PxTypeface>,
-    mut next_state: ResMut<NextState<StagePluginUpdateState>>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {
     let data = trigger.event().data.as_ref();
-    next_state.set(StagePluginUpdateState::Active);
+    activate::<StagePlugin>(&mut commands);
 
     commands.insert_resource::<StageData>(data.clone());
 

@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use bevy::{ecs::component::Mutable, prelude::*};
 
 use crate::{

@@ -1,32 +1,29 @@
 //! Startup/shutdown handling for cutscenes.
 
+use crate::cutscene::CutscenePlugin;
 use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
         data::CutsceneData,
         events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
         resources::CutsceneProgress,
-        CutscenePluginUpdateState,
     },
     debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
     letterbox::events::LetterboxMoveTrigger,
 };
+use activable::{activate, deactivate};
 use bevy::prelude::*;
 
 const DEBUG_MODULE: &str = "Cutscene";
 
 /// @trigger Boots a cutscene, loading data and enabling systems.
-pub fn on_cutscene_startup(
-    trigger: On<CutsceneStartupTrigger>,
-    mut commands: Commands,
-    mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
-) {
+pub fn on_cutscene_startup(trigger: On<CutsceneStartupTrigger>, mut commands: Commands) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
     let e = trigger.event();
-    next_state.set(CutscenePluginUpdateState::Active);
+    activate::<CutscenePlugin>(&mut commands);
 
     commands.insert_resource::<CutsceneData>(e.data.as_ref().clone());
     commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });
@@ -38,14 +35,13 @@ pub fn on_cutscene_startup(
 pub fn on_cutscene_shutdown(
     _trigger: On<CutsceneShutdownTrigger>,
     mut commands: Commands,
-    mut next_state: ResMut<NextState<CutscenePluginUpdateState>>,
     cinematic_query: Query<Entity, With<Cinematic>>,
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_shutdown(DEBUG_MODULE);
 
-    next_state.set(CutscenePluginUpdateState::Inactive);
+    deactivate::<CutscenePlugin>(&mut commands);
     commands.trigger(LetterboxMoveTrigger::hide());
 
     mark_for_despawn_by_query(&mut commands, &cutscene_entity_query);

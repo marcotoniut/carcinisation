@@ -130,7 +130,7 @@ fn run() -> anyhow::Result<()> {
                     continue;
                 }
 
-                if path.extension().map_or(true, |ext| ext != "ts") {
+                if path.extension().is_none_or(|ext| ext != "ts") {
                     continue;
                 }
 

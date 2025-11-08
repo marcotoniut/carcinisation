@@ -15,7 +15,7 @@ pub fn make_music_bundle(
         AudioPlayer::new(source),
         PlaybackSettings {
             mode,
-            volume: volume_settings.music.clone(),
+            volume: volume_settings.music,
             ..Default::default()
         },
         AudioSystemBundle {

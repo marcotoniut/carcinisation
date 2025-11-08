@@ -14,7 +14,7 @@ pub struct FileManagerPlugin;
 impl Plugin for FileManagerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ScenePath>()
-            .add_event::<WriteRecentFilePathEvent>()
+            .add_message::<WriteRecentFilePathEvent>()
             .add_observer(on_write_recent_file_path)
             .add_systems(Startup, (setup_ui, load_recent_file))
             .add_systems(

@@ -1,4 +1,5 @@
 //! Application entrypoint: wires Bevy, shared plugins, and platform defaults.
+#![allow(dead_code, clippy::type_complexity)]
 
 mod assets;
 mod bevy_utils;

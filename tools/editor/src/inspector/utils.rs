@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use bevy::{
-    core::Name,
     math::{Rect, Vec2},
+    prelude::Name,
 };
 use carcinisation::stage::{
     data::{EnemySpawn, ObjectSpawn, PickupSpawn, StageData, StageSpawn, StageStep},

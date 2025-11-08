@@ -20,7 +20,6 @@ use crate::{
             interactive::{Health, Hittable},
             placement::Depth,
         },
-        enemy::mosquito::entity::{EnemyMosquitoAttack, EnemyMosquitoAttacking},
         player::components::PLAYER_DEPTH,
         resources::StageTime,
     },
@@ -91,7 +90,7 @@ pub struct BloodShotBundle {
 pub fn spawn_blood_shot_attack(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    stage_time: &Res<StageTime>,
+    _stage_time: &Res<StageTime>,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,
@@ -105,21 +104,13 @@ pub fn spawn_blood_shot_attack(
         );
 
     let (sprite, animation, collider_data) =
-        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, depth.clone());
-
-    let mut attacking = EnemyMosquitoAttacking {
-        attack: Some(EnemyMosquitoAttack::Ranged),
-        last_attack_started: stage_time.elapsed,
-    };
-
-    attacking.attack = attacking.attack.clone();
-    attacking.last_attack_started = attacking.last_attack_started.clone();
+        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, *depth);
 
     let mut entity_commands = commands.spawn(BloodShotBundle {
         enemy_attack_origin_position: EnemyAttackOriginPosition(current_pos),
-        enemy_attack_origin_depth: EnemyAttackOriginDepth(depth.clone()),
+        enemy_attack_origin_depth: EnemyAttackOriginDepth(*depth),
         enemy_hovering_attack_type: EnemyHoveringAttackType::BloodShot,
-        depth: depth.clone(),
+        depth: *depth,
         inflicts_damage: InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
         position: PxSubPosition(current_pos),
         movement: BloodShotMovementBundle::new(depth, current_pos, target_pos),

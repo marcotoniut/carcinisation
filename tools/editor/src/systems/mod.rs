@@ -133,7 +133,7 @@ pub fn on_scene_change(
 }
 
 pub fn on_unload_scene(
-    trigger: Trigger<UnloadSceneTrigger>,
+    trigger: On<UnloadSceneTrigger>,
     mut commands: Commands,
     scene_item_query: Query<Entity, With<SceneItem>>,
     mut scene_path: ResMut<ScenePath>,

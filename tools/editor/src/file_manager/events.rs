@@ -1,4 +1,4 @@
 use bevy::prelude::*;
 
-#[derive(Event)]
+#[derive(Event, Message)]
 pub struct WriteRecentFilePathEvent;

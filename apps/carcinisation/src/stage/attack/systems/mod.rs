@@ -64,7 +64,7 @@ pub fn on_enemy_attack_depth_changed(
                         make_hovering_attack_animation_bundle(
                             &mut assets_sprite,
                             attack_type,
-                            event.depth.clone(),
+                            event.depth,
                         );
 
                     // TODO could probably unify the use of this with the ones under spawns

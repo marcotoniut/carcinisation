@@ -12,9 +12,9 @@ const ZOOM_MIN: f32 = 0.25;
 const ZOOM_MAX: f32 = 3.0;
 
 pub fn on_alt_mouse_motion(
-    mut mouse_motion_events: EventReader<MouseMotion>,
+    mut mouse_motion_events: MessageReader<MouseMotion>,
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
-    mut orthographic_camera_query: Query<&mut OrthographicProjection>,
+    mut camera_query: Query<&mut Transform, With<Camera>>,
 ) {
     let alt_pressed =
         keyboard_buttons.pressed(KeyCode::AltLeft) || keyboard_buttons.pressed(KeyCode::AltRight);
@@ -23,17 +23,20 @@ pub fn on_alt_mouse_motion(
         for event in mouse_motion_events.read() {
             let delta = event.delta;
 
-            if let Ok(mut ortho_projection) = orthographic_camera_query.single_mut() {
-                ortho_projection.scale -= delta.y * ZOOM_SENSITIVITY;
-                ortho_projection.scale = ortho_projection.scale.clamp(ZOOM_MIN, ZOOM_MAX);
+            if let Ok(mut transform) = camera_query.single_mut() {
+                let delta_scale = Vec3::splat(-delta.y * ZOOM_SENSITIVITY);
+                transform.scale += delta_scale;
+                transform.scale = transform
+                    .scale
+                    .clamp(Vec3::splat(ZOOM_MIN), Vec3::splat(ZOOM_MAX));
             }
         }
     }
 }
 
 pub fn on_ctrl_mouse_motion(
-    mut mouse_motion_events: EventReader<MouseMotion>,
-    mut cursor_moved_events: EventReader<CursorMoved>,
+    mut mouse_motion_events: MessageReader<MouseMotion>,
+    mut cursor_moved_events: MessageReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
     mut selected_query: Query<
@@ -51,27 +54,27 @@ pub fn on_ctrl_mouse_motion(
         for event in mouse_motion_events.read() {
             let delta = event.delta;
 
-            let mut camera_transform = camera_query.single_mut();
+            if let Ok(mut camera_transform) = camera_query.single_mut() {
+                camera_transform.translation.x -= delta.x * CAMERA_MOVE_SENSITIVITY;
+                camera_transform.translation.y += delta.y * CAMERA_MOVE_SENSITIVITY;
 
-            camera_transform.translation.x -= delta.x * CAMERA_MOVE_SENSITIVITY;
-            camera_transform.translation.y += delta.y * CAMERA_MOVE_SENSITIVITY;
-
-            camera_transform.translation.x = camera_transform
-                .translation
-                .x
-                .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
-            camera_transform.translation.y = camera_transform
-                .translation
-                .y
-                .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
+                camera_transform.translation.x = camera_transform
+                    .translation
+                    .x
+                    .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
+                camera_transform.translation.y = camera_transform
+                    .translation
+                    .y
+                    .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
+            }
         }
     }
 
     if mouse_buttons.pressed(MouseButton::Right) {
-        let window = window_query.single_mut();
+        let window = window_query.single().expect("Primary window missing");
         let window_size: Vec2 = Vec2::new(window.width(), window.height());
 
-        if let Ok(camera_transform) = camera_query.get_single() {
+        if let Ok(camera_transform) = camera_query.single() {
             for event in cursor_moved_events.read() {
                 let cursor_position = event.position;
 
@@ -104,12 +107,12 @@ pub fn on_mouse_press(
             commands.entity(entity).remove::<SelectedItem>();
         }
 
-        let window = window_query.single_mut();
+        let window = window_query.single().expect("Primary window missing");
         if let Some(cursor_position) = window.cursor_position() {
             let window_size = Vec2::new(window.width() as f32, window.height() as f32);
             let ndc = (cursor_position / window_size) * 2.0 - Vec2::ONE;
 
-            if let Ok(camera_transform) = camera_query.get_single() {
+            if let Ok(camera_transform) = camera_query.single() {
                 let camera_matrix = camera_transform.compute_matrix();
                 let world_position = camera_matrix * ndc.extend(-1.0).extend(1.0);
                 let world_position = Vec3::new(world_position.x, world_position.y, 0.0);
@@ -145,7 +148,7 @@ pub fn on_mouse_release(mut commands: Commands, selected_query: Query<Entity, Wi
 }
 
 pub fn on_mouse_wheel(
-    mut mouse_wheel_events: EventReader<MouseWheel>,
+    mut mouse_wheel_events: MessageReader<MouseWheel>,
     buttons: Res<ButtonInput<MouseButton>>,
     mut query: Query<&mut Transform, With<Camera>>,
 ) {

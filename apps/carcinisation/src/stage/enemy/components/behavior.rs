@@ -102,16 +102,11 @@ impl EnemyCurrentBehavior {
                     center: current_position.0,
                     // TODO hardcoded values should be coming from the enemy type
                     radius: radius.unwrap_or(12.),
-                    direction: direction.clone(),
+                    direction,
                     time_offset: time_offset.as_secs_f32(),
                 })
             }
-            EnemyStep::Jump(JumpEnemyStep {
-                attacking,
-                coordinates,
-                depth_movement,
-                speed,
-            }) => BehaviorBundle::Jump(()),
+            EnemyStep::Jump(JumpEnemyStep { .. }) => BehaviorBundle::Jump(()),
         }
     }
 }
@@ -120,8 +115,8 @@ impl EnemyCurrentBehavior {
 pub struct EnemyBehaviors(pub VecDeque<EnemyStep>);
 
 impl EnemyBehaviors {
-    pub fn next(&mut self) -> EnemyStep {
-        self.0.pop_front().unwrap_or(EnemyStep::default())
+    pub fn next_step(&mut self) -> EnemyStep {
+        self.0.pop_front().unwrap_or_default()
     }
 }
 

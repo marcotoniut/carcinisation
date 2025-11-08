@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use super::components::*;
 use crate::{core::time::DeltaTime, plugins::movement::structs::MovementVec2Position};
 use bevy::{ecs::component::Mutable, prelude::*};

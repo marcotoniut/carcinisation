@@ -5,29 +5,23 @@ use crate::{
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
-pub fn update_position_x(
-    mut query: Query<
-        (&TargetingPositionX, &mut PxSubPosition),
-        (
-            Without<LinearUpdateDisabled>,
-            Without<LinearTargetReached<StageTime, TargetingPositionX>>,
-        ),
-    >,
-) {
+type AxisQuery<'w, 's, T> = Query<
+    'w,
+    's,
+    (&'static T, &'static mut PxSubPosition),
+    (
+        Without<LinearUpdateDisabled>,
+        Without<LinearTargetReached<StageTime, T>>,
+    ),
+>;
+
+pub fn update_position_x(mut query: AxisQuery<'_, '_, TargetingPositionX>) {
     for (progress, mut position) in &mut query.iter_mut() {
         position.0.x = progress.0;
     }
 }
 
-pub fn update_position_y(
-    mut query: Query<
-        (&TargetingPositionY, &mut PxSubPosition),
-        (
-            Without<LinearUpdateDisabled>,
-            Without<LinearTargetReached<StageTime, TargetingPositionY>>,
-        ),
-    >,
-) {
+pub fn update_position_y(mut query: AxisQuery<'_, '_, TargetingPositionY>) {
     for (progress, mut position) in &mut query.iter_mut() {
         position.0.y = progress.0;
     }

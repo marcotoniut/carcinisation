@@ -84,20 +84,26 @@
     }
   ],
   "words": [
+    "activable",
     "behaviour",
     "carcinisation",
     "clippy",
     "codegen",
     "color",
+    "colored",
     "cutscene",
     "despawn",
     "Framepace",
+    "leafwing",
     "modelcontextprotocol",
     "msvc",
     "pixeboy",
     "putpixel",
+    "rustdoc",
     "rustflags",
+    "serde",
     "Skybox",
-    "Vite"
+    "Vite",
+    "webassembly"
   ]
 }

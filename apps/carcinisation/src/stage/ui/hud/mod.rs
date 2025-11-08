@@ -3,21 +3,13 @@ pub mod spawn;
 mod systems;
 
 use self::systems::update::*;
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
+#[derive(Activable)]
 pub struct HudPlugin;
 
 impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<HudPluginUpdateState>().add_systems(
-            Update,
-            (update_health_text).run_if(in_state(HudPluginUpdateState::Active)),
-        );
+        app.add_active_systems::<HudPlugin, _>(update_health_text);
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-pub enum HudPluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }

@@ -11,6 +11,8 @@ derive-ts = ["ts-rs"]
 [dependencies]
 assert_assets_path = { workspace = true }
 bevy = { workspace = true }
+bevy_state = { workspace = true }
+bevy_ecs = { workspace = true }
 bevy_common_assets = { workspace = true }
 bevy-inspector-egui = { workspace = true }
 bevy_framepace = { workspace = true }
@@ -28,6 +30,8 @@ serde_json = { workspace = true }
 ron = { workspace = true }
 ts-rs = { workspace = true, optional = true }
 anyhow = { workspace = true }
+activable-macros = { path = "../../crates/activable-macros" }
+activable = { path = "../../crates/activable" }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 wasm-bindgen = { version = "0.2.92", optional = true }

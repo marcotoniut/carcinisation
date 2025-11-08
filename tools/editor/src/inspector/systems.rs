@@ -9,7 +9,7 @@ use crate::components::{SceneData, ScenePath};
 pub fn inspector_ui(world: &mut World) {
     let Ok((egui_context, window)) = world
         .query_filtered::<(&mut EguiContext, &Window), With<PrimaryWindow>>()
-        .get_single(world)
+        .single(world)
     else {
         return;
     };

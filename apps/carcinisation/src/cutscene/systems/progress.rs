@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use crate::components::VolumeSettings;
 use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
 use crate::{
@@ -152,7 +154,7 @@ pub fn process_cutscene_animations_spawn(
             }
 
             if let Some(target_movement) = &spawn.target_movement_o {
-                entity_commands.insert(target_movement.make_bundles(spawn.coordinates.clone()));
+                entity_commands.insert(target_movement.make_bundles(spawn.coordinates));
             }
         }
 
@@ -246,7 +248,7 @@ pub fn process_cutscene_music_despawn(
     query: Query<(Entity, &CutsceneMusicDespawn), (With<Cinematic>, Added<CutsceneMusicDespawn>)>,
     music_query: Query<Entity, With<Music>>,
 ) {
-    for (entity, despawn) in query.iter() {
+    for (entity, _despawn) in query.iter() {
         mark_for_despawn_by_query(&mut commands, &music_query);
         commands.entity(entity).remove::<CutsceneMusicDespawn>();
     }

@@ -8,7 +8,7 @@ assert_assets_path = { workspace = true }
 bevy = { workspace = true }
 bevy_common_assets = { workspace = true }
 bevy-inspector-egui = { workspace = true }
-bevy_prototype_lyon = "0.15"
+bevy_prototype_lyon = { version = "0.15", optional = true }
 carcinisation = { path = "../../apps/carcinisation" }
 derive-new = { workspace = true }
 derive_more = { workspace = true }
@@ -19,3 +19,7 @@ ron = "0.8.1"
 serde = { workspace = true }
 serde_with = { workspace = true }
 strum = { workspace = true }
+
+[features]
+default = []
+full_editor = ["bevy_prototype_lyon"]

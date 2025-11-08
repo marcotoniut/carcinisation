@@ -1,8 +1,5 @@
 use bevy::prelude::*;
-use bevy_prototype_lyon::draw::Stroke;
-use bevy_prototype_lyon::entity::ShapeBundle;
-use bevy_prototype_lyon::geometry::GeometryBuilder;
-use bevy_prototype_lyon::path::PathBuilder;
+use bevy_prototype_lyon::prelude::*;
 use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::CutsceneData;
 
@@ -47,7 +44,8 @@ pub fn spawn_cutscene(
             CutsceneActNode { act_index },
             Draggable,
             SceneItem,
-            SpatialBundle::from_transform(Transform::from_translation(act_position)),
+            Transform::from_translation(act_position),
+            GlobalTransform::default(),
         ));
         entity_commands.with_children(|p0| {
             p0.spawn((
@@ -92,10 +90,7 @@ pub fn spawn_cutscene(
             }
 
             if let Some(previous_entity) = previous_entity_o {
-                let path_builder = PathBuilder::new();
-                let shape = path_builder.build();
-
-                let current_entity = p0.parent_entity();
+                let current_entity = p0.target_entity();
 
                 connection_bundles.push((
                     Name::new(format!(
@@ -105,15 +100,9 @@ pub fn spawn_cutscene(
                     )),
                     CutsceneActConnection {
                         origin: previous_entity,
-                        target: p0.parent_entity(),
+                        target: current_entity,
                     },
                     SceneItem,
-                    ShapeBundle {
-                        path: GeometryBuilder::build_as(&shape),
-                        transform: Transform::default(),
-                        ..default()
-                    },
-                    Stroke::new(Color::WHITE, 2.0),
                 ));
             }
         });
@@ -121,7 +110,17 @@ pub fn spawn_cutscene(
         previous_entity_o = Some(entity_commands.id());
     }
 
-    for bundle in connection_bundles {
-        commands.spawn(bundle);
+    for (name, connection, scene_item) in connection_bundles {
+        let placeholder_path = ShapePath::new();
+        commands.spawn((
+            name,
+            connection,
+            scene_item,
+            ShapeBuilder::with(&placeholder_path)
+                .stroke((Color::WHITE, 2.0))
+                .build(),
+            Transform::default(),
+            GlobalTransform::default(),
+        ));
     }
 }

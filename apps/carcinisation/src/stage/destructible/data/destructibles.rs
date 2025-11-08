@@ -146,7 +146,6 @@ lazy_static! {
                                 Collider::new_box(Vec2::new(18., 24.))
                                     .with_offset(Vec2::new(-2.0, 16.0)),
                             ),
-                            _ => ColliderData::new(),
                         },
                         ..default()
                     },

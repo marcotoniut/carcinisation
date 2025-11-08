@@ -9,18 +9,14 @@ pub mod pause_menu;
 mod systems;
 
 use self::{
-    cleared_screen::cleared_screen_plugin,
-    death_screen::death_screen_plugin,
-    game_over_screen::game_over_screen_plugin,
-    hud::HudPlugin,
-    systems::{
-        state::{on_active, on_inactive},
-        update_score_text,
-    },
+    cleared_screen::cleared_screen_plugin, death_screen::death_screen_plugin,
+    game_over_screen::game_over_screen_plugin, hud::HudPlugin, systems::update_score_text,
 };
+use activable::{activate_system, deactivate_system, Activable, ActivableAppExt};
 use bevy::prelude::*;
 
 /// Registers all stage UI sub-plugins and manages their active state.
+#[derive(Activable)]
 pub struct StageUiPlugin;
 
 impl Plugin for StageUiPlugin {
@@ -31,22 +27,12 @@ impl Plugin for StageUiPlugin {
                 death_screen_plugin,
                 game_over_screen_plugin,
             ))
-            .init_state::<StageUiPluginUpdateState>()
-            .add_systems(OnEnter(StageUiPluginUpdateState::Active), on_active)
-            .add_systems(OnEnter(StageUiPluginUpdateState::Inactive), on_inactive)
-            .add_systems(
-                Update,
+            .on_active::<StageUiPlugin, _>(activate_system::<HudPlugin>)
+            .on_inactive::<StageUiPlugin, _>(deactivate_system::<HudPlugin>)
+            .add_active_systems::<StageUiPlugin, _>(
                 // HUD score updates when UI is active.
-                update_score_text.run_if(in_state(StageUiPluginUpdateState::Active)),
+                update_score_text,
             );
         // .add_plugins(PauseScreenPlugin);
     }
-}
-
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Stage UI enable/disable flag.
-pub enum StageUiPluginUpdateState {
-    #[default]
-    Inactive,
-    Active,
 }
