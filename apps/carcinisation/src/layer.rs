@@ -6,44 +6,65 @@ use crate::cutscene::data::CutsceneLayer;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize)]
 pub enum MidDepth {
+    /// Furthest mid-plane (distant buildings, scenery silhouettes).
     Six,
+    /// Slow parallax plane 2.
     Five,
+    /// Slow parallax plane 3.
     Four,
+    /// Mid-range props/sprites behind the player.
     Three,
+    /// Foreground props that should still sit behind the player.
     Two,
+    /// Slightly in front of the player (e.g. large enemies).
     One,
+    /// Closest mid-depth plane before gameplay sprites.
     Zero,
 }
 
 #[derive(Debug, Deserialize, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize)]
 pub enum PreBackgroundDepth {
+    /// Far-away sky gradient or static wallpaper.
     Nine,
+    /// Secondary skyboxes or slow clouds.
     Eight,
+    /// Mountains/horizon elements still behind the main background.
     Seven,
 }
 
 #[derive(Deserialize, Reflect, Serialize)]
 #[px_layer]
+/// Rendering layers for seldom_pixel content. Entries later in the enum render on
+/// top of earlier ones, so tiers are grouped roughly as:
 pub enum Layer {
+    /// Static sky gradients or far parallax art.
     Skybox,
 
+    /// Granular parallax planes that sit behind the main background.
     PreBackgroundDepth(PreBackgroundDepth),
+    /// Primary stage background (tiles, scrolling vistas).
     Background,
+    /// Multiple depth slices for stage props (see `MidDepth`).
     MidDepth(MidDepth),
 
+    /// Projectiles/effects that must sit above props but below the player sprite.
     Attack,
+    /// Default gameplay plane (player + most enemies).
     #[default]
     Front,
+    /// Backdrop strip for in-stage HUD widgets.
     HudBackground,
+    /// HUD elements (text, crosshair) rendered during gameplay.
     Hud,
+    /// Collectible items that should hover above HUD but below menus.
     Pickups,
+    /// Menu/card backgrounds.
     UIBackground,
+    /// Menu text/icons that must sit above everything else.
     UI,
+    /// Mirrors the RON-defined layering for cutscenes (see `CutsceneLayer` docs for detail).
     CutsceneLayer(CutsceneLayer),
-    // CutsceneBackground,
-    // Cutscene(u8),
-    // Letterbox,
-    // CutsceneText,
+    /// Full-screen transitions (wipes/fades) that cover everything.
     Transition,
 }
 

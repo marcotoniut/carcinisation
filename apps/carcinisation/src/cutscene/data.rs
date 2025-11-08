@@ -20,13 +20,21 @@ use std::time::Duration;
 use ts_rs::TS;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Eq, Ord, Reflect, Serialize)]
+/// Layer stack used while rendering cinematic sequences (the later variants render on top).
 pub enum CutsceneLayer {
+    /// Parallax sky/props furthest from the camera (multiple slots for effects).
     Background(u8),
+    /// Hero/enemy sprites and props that sit behind the letterbox/frame.
     Middle(u8),
+    /// Black bars and frame dressing.
     Letterbox,
+    /// Particles/effects above the letterbox but below UI text.
     Foreground(u8),
+    /// Panel container for dialogue.
     Textbox,
+    /// Primary dialogue text.
     Text,
+    /// Captions/emphasis sitting above the main dialogue.
     Overtext(u8),
 }
 
