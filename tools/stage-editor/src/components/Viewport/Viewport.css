@@ -8,4 +8,17 @@
   flex: 1;
   background: #0a0a0a;
   cursor: crosshair;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.viewport-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 14px;
 }
