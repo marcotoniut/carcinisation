@@ -1,11 +1,10 @@
 import { Application, Assets, Container, Graphics, Sprite } from "pixi.js"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useEditorStore } from "../../state/store"
 import "./Viewport.css"
 
-const VIEWPORT_WIDTH = 800
-const VIEWPORT_HEIGHT = 600
 const GRID_SIZE = 32
+const GRID_EXTENT = 5000 // Grid spans -5000 to +5000 in both directions
 const GRID_COLOR = 0x333333
 const GRID_ALPHA = 0.3
 
@@ -16,10 +15,39 @@ export function Viewport() {
   const cameraRef = useRef<Container | null>(null)
   const backgroundRef = useRef<Sprite | null>(null)
   const skyboxRef = useRef<Sprite | null>(null)
+  const [viewportSize, setViewportSize] = useState({ width: 800, height: 600 })
+  // Camera position represents the world coordinates at the viewport center
   const [cameraPos, setCameraPos] = useState({ x: 0, y: 0 })
   const [cameraScale, setCameraScale] = useState(1)
   const [isPanning, setIsPanning] = useState(false)
   const lastPanPos = useRef({ x: 0, y: 0 })
+  const pinchRef = useRef<{ initialDist: number; initialScale: number } | null>(
+    null,
+  )
+  const cameraStateRef = useRef({
+    pos: { x: 0, y: 0 },
+    scale: 1,
+  })
+
+  // Track viewport size dynamically
+  useEffect(() => {
+    const container = canvasRef.current
+    if (!container) return
+
+    const updateSize = () => {
+      const rect = container.getBoundingClientRect()
+      setViewportSize({ width: rect.width, height: rect.height })
+    }
+
+    updateSize()
+
+    const resizeObserver = new ResizeObserver(updateSize)
+    resizeObserver.observe(container)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
 
   // Initialize PixiJS application
   useEffect(() => {
@@ -28,14 +56,28 @@ export function Viewport() {
     const app = new Application()
     appRef.current = app
 
-    app
+    let destroyed = false
+    let unmounted = false
+
+    const destroyApp = () => {
+      if (destroyed) return
+      destroyed = true
+      app.ticker?.stop()
+      app.destroy(true, { children: true, texture: true })
+    }
+
+    const initPromise = app
       .init({
-        width: VIEWPORT_WIDTH,
-        height: VIEWPORT_HEIGHT,
         backgroundColor: 0x1a1a1a,
         antialias: true,
+        resizeTo: canvasRef.current,
       })
-      .then(() => {
+      .then(async () => {
+        if (unmounted) {
+          destroyApp()
+          return
+        }
+
         if (canvasRef.current && app.canvas) {
           canvasRef.current.appendChild(app.canvas)
 
@@ -45,7 +87,7 @@ export function Viewport() {
           app.stage.addChild(camera)
           camera.sortableChildren = true
 
-          // Draw grid
+          // Draw large static grid centred at origin
           const grid = new Graphics()
           grid.setStrokeStyle({
             width: 1,
@@ -53,19 +95,20 @@ export function Viewport() {
             alpha: GRID_ALPHA,
           })
 
-          // Vertical lines
-          for (let x = 0; x <= VIEWPORT_WIDTH; x += GRID_SIZE) {
-            grid.moveTo(x, 0)
-            grid.lineTo(x, VIEWPORT_HEIGHT)
+          // Vertical lines from -GRID_EXTENT to +GRID_EXTENT
+          for (let x = -GRID_EXTENT; x <= GRID_EXTENT; x += GRID_SIZE) {
+            grid.moveTo(x, -GRID_EXTENT)
+            grid.lineTo(x, GRID_EXTENT)
           }
 
-          // Horizontal lines
-          for (let y = 0; y <= VIEWPORT_HEIGHT; y += GRID_SIZE) {
-            grid.moveTo(0, y)
-            grid.lineTo(VIEWPORT_WIDTH, y)
+          // Horizontal lines from -GRID_EXTENT to +GRID_EXTENT
+          for (let y = -GRID_EXTENT; y <= GRID_EXTENT; y += GRID_SIZE) {
+            grid.moveTo(-GRID_EXTENT, y)
+            grid.lineTo(GRID_EXTENT, y)
           }
 
           grid.stroke()
+          grid.zIndex = -1000 // Behind everything
 
           camera.addChild(grid)
 
@@ -80,60 +123,133 @@ export function Viewport() {
             }
           }
 
-          if (parsedData.background_path) {
-            loadTexture(parsedData.background_path).then((backgroundSprite) => {
-              if (!backgroundSprite) return
-              backgroundSprite.position.set(0, 0)
-              backgroundSprite.zIndex = -100
-              camera.addChildAt(backgroundSprite, 0)
-              backgroundRef.current = backgroundSprite
-            })
-          }
+          const textureTasks = [
+            parsedData.background_path && {
+              path: parsedData.background_path,
+              zIndex: -100,
+              ref: backgroundRef,
+            },
+            parsedData.skybox?.path && {
+              path: parsedData.skybox.path,
+              zIndex: -90,
+              ref: skyboxRef,
+            },
+          ].filter(Boolean) as {
+            path: string
+            zIndex: number
+            ref: typeof backgroundRef
+          }[]
 
-          if (parsedData.skybox?.path) {
-            loadTexture(parsedData.skybox.path).then((skyboxSprite) => {
-              if (!skyboxSprite) return
-              skyboxSprite.position.set(0, 0)
-              skyboxSprite.zIndex = -90
-              camera.addChildAt(skyboxSprite, 0)
-              skyboxRef.current = skyboxSprite
-            })
-          }
+          await Promise.all(
+            textureTasks.map(async ({ path, zIndex, ref }) => {
+              const sprite = await loadTexture(path)
+              if (!sprite) return
+              sprite.position.set(0, 0)
+              sprite.zIndex = zIndex
+              camera.addChildAt(sprite, 0)
+              ref.current = sprite
+            }),
+          )
         }
+      })
+      .catch((error) => {
+        console.error("Failed to initialize Pixi application", error)
       })
 
     return () => {
-      app.destroy(true, { children: true, texture: true })
+      unmounted = true
+      cameraRef.current = null
+      backgroundRef.current = null
+      skyboxRef.current = null
+      if (appRef.current === app) {
+        appRef.current = null
+      }
+
+      if (app.renderer) {
+        destroyApp()
+      } else {
+        // keep the initialization promise alive so we can handle its rejection above
+        void initPromise
+      }
     }
   }, [parsedData])
 
   // Update camera position and scale
+  // Camera position is in world coordinates (center of viewport)
+  // Container position is where world (0,0) appears on screen
   useEffect(() => {
     if (cameraRef.current) {
-      cameraRef.current.x = cameraPos.x
-      cameraRef.current.y = cameraPos.y
+      const centerX = viewportSize.width / 2
+      const centerY = viewportSize.height / 2
+      // Container position = viewport_center - camera_world * scale
+      cameraRef.current.position.set(
+        centerX - cameraPos.x * cameraScale,
+        centerY - cameraPos.y * cameraScale,
+      )
       cameraRef.current.scale.set(cameraScale, cameraScale)
     }
-  }, [cameraPos, cameraScale])
+  }, [cameraPos, cameraScale, viewportSize])
 
   // Handle mouse wheel zoom with native event listener (to prevent passive listener warning)
+  const commitCameraState = useCallback(
+    (nextPos: { x: number; y: number }, nextScale: number) => {
+      cameraStateRef.current = { pos: nextPos, scale: nextScale }
+      setCameraPos(nextPos)
+      setCameraScale(nextScale)
+    },
+    [],
+  )
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
+    const clampScale = (scale: number) => Math.max(0.1, Math.min(5, scale))
+
+    const updateZoom = (
+      scaleFactor: number,
+      clientX: number,
+      clientY: number,
+    ) => {
+      if (!canvas) return
+
+      const rect = canvas.getBoundingClientRect()
+      const mouseX = clientX - rect.left
+      const mouseY = clientY - rect.top
+
+      const centerX = viewportSize.width / 2
+      const centerY = viewportSize.height / 2
+
+      const prevScale = cameraStateRef.current.scale
+      const prevPos = cameraStateRef.current.pos
+      const newScale = clampScale(prevScale * scaleFactor)
+
+      // Calculate offset from viewport center
+      const offsetX = mouseX - centerX
+      const offsetY = mouseY - centerY
+
+      // New camera position keeps the world point under mouse fixed
+      // camera_new = camera_old + offset * (1/scale_old - 1/scale_new)
+      const nextX = prevPos.x + offsetX * (1 / prevScale - 1 / newScale)
+      const nextY = prevPos.y + offsetY * (1 / prevScale - 1 / newScale)
+      const nextPos = { x: nextX, y: nextY }
+
+      commitCameraState(nextPos, newScale)
+    }
+
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault()
       const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1
-      setCameraScale((prevScale) =>
-        Math.max(0.1, Math.min(5, prevScale * zoomFactor)),
-      )
+      updateZoom(zoomFactor, event.clientX, event.clientY)
     }
 
-    canvas.addEventListener("wheel", handleWheel, { passive: false })
+    canvas.addEventListener("wheel", handleWheel, {
+      passive: false,
+    })
     return () => {
       canvas.removeEventListener("wheel", handleWheel)
     }
-  }, [])
+  }, [commitCameraState, viewportSize])
 
   // Handle panning
   const handlePointerDown = (event: React.PointerEvent) => {
@@ -147,16 +263,58 @@ export function Viewport() {
     if (isPanning) {
       const dx = event.clientX - lastPanPos.current.x
       const dy = event.clientY - lastPanPos.current.y
-      setCameraPos((prev) => ({
-        x: prev.x + dx,
-        y: prev.y + dy,
-      }))
+      const scale = cameraStateRef.current.scale
+      // Panning moves camera in opposite direction of mouse movement
+      const nextPos = {
+        x: cameraStateRef.current.pos.x - dx / scale,
+        y: cameraStateRef.current.pos.y - dy / scale,
+      }
+      commitCameraState(nextPos, scale)
       lastPanPos.current = { x: event.clientX, y: event.clientY }
     }
   }
 
   const handlePointerUp = () => {
     setIsPanning(false)
+    pinchRef.current = null
+  }
+
+  const calculateDistance = (touches: React.TouchList) => {
+    if (touches.length < 2) return 0
+    const [a, b] = [touches[0], touches[1]]
+    const dx = a.clientX - b.clientX
+    const dy = a.clientY - b.clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    if (event.touches.length === 2) {
+      pinchRef.current = {
+        initialDist: calculateDistance(event.touches),
+        initialScale: cameraScale,
+      }
+    }
+  }
+
+  const handleTouchMove = (event: React.TouchEvent) => {
+    if (pinchRef.current && event.touches.length === 2) {
+      const dist = calculateDistance(event.touches)
+      if (pinchRef.current.initialDist > 0 && dist > 0) {
+        const scaleFactor = dist / pinchRef.current.initialDist
+        const nextScale = Math.max(
+          0.1,
+          Math.min(5, pinchRef.current?.initialScale * scaleFactor),
+        )
+        commitCameraState(cameraStateRef.current.pos, nextScale)
+      }
+      event.preventDefault()
+    }
+  }
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    if (event.touches.length < 2) {
+      pinchRef.current = null
+    }
   }
 
   if (!parsedData) {
@@ -182,6 +340,9 @@ export function Viewport() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
     </div>
   )

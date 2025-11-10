@@ -12,6 +12,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  touch-action: none;
 }
 
 .viewport-placeholder {
