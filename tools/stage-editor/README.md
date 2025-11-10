@@ -110,8 +110,8 @@ The editor is designed to run alongside the existing Bevy editor (`tools/editor`
 
 TypeScript types and Zod schemas are auto-generated from Rust types:
 
-- `generated/types/*.ts` - TypeScript definitions (via ts-rs)
-- `generated/schemas/*.zod.ts` - Zod validation schemas (via ts-to-zod)
+- `src/types/generated/*.ts` - TypeScript definitions (via serde reflection + serde_generate)
+- `src/types/schemas/*.zod.ts` - Zod validation schemas (via ts-to-zod)
 - Auto-regenerates when running `pnpm dev` (via cargo watch)
 - Manual regeneration: `make gen-types` from repo root
 

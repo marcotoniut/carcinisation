@@ -3,22 +3,42 @@ import { openRonFile, saveRonFile } from "../../utils/fileSystem"
 import "./Toolbar.css"
 
 export function Toolbar() {
-  const { fileName, fileContent, isDirty, loadFile, markClean } =
-    useEditorStore()
+  const {
+    fileName,
+    isDirty,
+    fileHandle,
+    loadFile,
+    saveToRon,
+    markSaved,
+    parsedData,
+  } = useEditorStore()
 
   const handleLoad = async () => {
     const file = await openRonFile()
     if (file) {
-      loadFile(file.name, file.content)
+      try {
+        await loadFile(file.name, file.content, file.handle)
+      } catch {
+        // error logged to console panel via store
+      }
     }
   }
 
   const handleSave = async () => {
-    if (!fileName || !fileContent) return
+    if (!fileName) return
 
-    const success = await saveRonFile(fileContent, fileName)
-    if (success) {
-      markClean()
+    try {
+      const ronText = await saveToRon()
+      const saved = await saveRonFile(
+        ronText,
+        fileName,
+        fileHandle || undefined,
+      )
+      if (saved) {
+        markSaved(ronText)
+      }
+    } catch (error) {
+      console.error("Failed to save RON:", error)
     }
   }
 
@@ -40,7 +60,7 @@ export function Toolbar() {
         <button
           type="button"
           onClick={handleSave}
-          disabled={!fileContent || !isDirty}
+          disabled={!fileName || !parsedData}
         >
           Save
         </button>

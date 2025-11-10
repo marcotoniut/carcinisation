@@ -1,18 +1,20 @@
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
+import ronMiddleware from "./dev/vite.ron-middleware"
 
 const resolveFromRoot = (relativePath: string) =>
   decodeURIComponent(new URL(relativePath, import.meta.url).pathname)
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react({
       babel: {
         plugins: [["babel-plugin-react-compiler", {}]],
       },
     }),
-  ],
+    command === "serve" ? ronMiddleware() : undefined,
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": resolveFromRoot("./src"),
@@ -37,4 +39,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

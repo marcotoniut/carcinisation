@@ -39,4 +39,4 @@ coverage/
 .cache/
 
 # Generated files
-generated/
+src/types/generated/
