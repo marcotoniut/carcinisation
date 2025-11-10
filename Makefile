@@ -68,13 +68,13 @@ ci-stage-editor:
 # =============================================================================
 .PHONY: gen-types
 gen-types:
-	@echo "Generating TypeScript types and Zod schemas from Rust..."
+	@echo "Generating TypeScript types from Rust..."
 	cargo run -p carcinisation --bin gen_types --features derive-ts
 
 .PHONY: gen-zod
 gen-zod:
-	@echo "⚠️  gen-zod is deprecated: Zod schemas are now generated automatically by gen-types"
-	@echo "   Run 'make gen-types' instead"
+	@echo "⚠️  gen-zod is deprecated and removed. Zod validation was removed from the pipeline."
+	@echo "   TypeScript types are generated via 'make gen-types'"
 
 .PHONY: gen-editor-types
 gen-editor-types: gen-types
@@ -215,7 +215,7 @@ help:
 	@echo "  build-stage-editor    - Build stage-editor for production (auto-generates types first)"
 	@echo "  ci-stage-editor       - Run stage-editor CI checks (types, lint, tests)"
 	@echo "  watch-scene-files  - Run the scene watcher utility"
-	@echo "  gen-types          - Generate TypeScript types and Zod schemas from Rust (run automatically by stage-editor)"
+	@echo "  gen-types          - Generate TypeScript types from Rust (run automatically by stage-editor)"
 	@echo "  watch-types        - Auto-regenerate TypeScript types on Rust file changes"
 	@echo "  palettes           - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"

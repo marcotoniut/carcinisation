@@ -3,8 +3,8 @@
 /**
  * Generate Zod schemas from TypeScript types using ts-to-zod.
  *
- * Input: generated/types/*.ts
- * Output: generated/schemas/*.zod.ts + index.ts barrel file
+ * Input: src/types/generated/*.ts
+ * Output: src/types/schemas/*.zod.ts + index.ts barrel file
  *
  * Note: ts-to-zod fails on complex discriminated unions.
  * Exits success if at least one schema generates successfully.
@@ -26,8 +26,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const editorRoot = join(__dirname, "..")
 
-const TYPES_DIR = join(editorRoot, "generated/types")
-const SCHEMAS_DIR = join(editorRoot, "generated/schemas")
+const TYPES_DIR = join(editorRoot, "src/types/generated")
+const SCHEMAS_DIR = join(editorRoot, "src/types/schemas")
 const BANNER =
   "// ⚠️ Auto-generated. Do not edit. Source of truth: Rust types.\n\n"
 const QUIET = process.env.QUIET === "1"
@@ -79,7 +79,12 @@ for (const file of typeFiles) {
     }
 
     // Fix imports to use relative paths from schemas dir
-    content = content.replace(/from ['"]\.\.\/types\//g, "from '../types/")
+    content = content
+      .replace(/from ['"]\.\.\/types\//g, "from '../generated/types/")
+      .replace(
+        /from ['"]\.\.\/\.\.\/generated\/types\//g,
+        "from '../generated/types/",
+      )
 
     writeFileSync(outputPath, content)
     generated++
@@ -90,8 +95,13 @@ for (const file of typeFiles) {
   }
 }
 
-// Generate barrel file (index.ts)
+// Generate barrel file (index.ts) - only export successfully generated schemas
 const exports = typeFiles
+  .filter((f) => {
+    const baseName = basename(f, ".ts")
+    const schemaPath = join(SCHEMAS_DIR, `${baseName}.zod.ts`)
+    return existsSync(schemaPath)
+  })
   .map((f) => {
     const baseName = basename(f, ".ts")
     return `export * from './${baseName}.zod'`

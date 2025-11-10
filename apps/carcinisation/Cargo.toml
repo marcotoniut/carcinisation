@@ -28,6 +28,8 @@ serde = { workspace = true }
 serde_with = { workspace = true }
 serde_json = { workspace = true }
 ron = { workspace = true }
+serde-reflection = "0.4"
+serde-generate = "0.26"
 ts-rs = { workspace = true, optional = true }
 anyhow = { workspace = true }
 activable-macros = { path = "../../crates/activable-macros" }
@@ -39,3 +41,7 @@ wasm-bindgen = { version = "0.2.92", optional = true }
 [[bin]]
 name = "gen_types"
 path = "src/bin/gen_types.rs"
+
+[[bin]]
+name = "ron_bridge"
+path = "src/bin/ron_bridge.rs"

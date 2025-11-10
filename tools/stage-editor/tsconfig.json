@@ -25,7 +25,6 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/types/*": ["./src/types/*"],
-      "@/generated/*": ["./generated/*"],
       "@/components/*": ["./src/components/*"],
       "@/api/*": ["./src/api/*"],
       "@/state/*": ["./src/state/*"],
@@ -33,6 +32,6 @@
       "@/utils/*": ["./src/utils/*"]
     }
   },
-  "include": ["src", "generated"],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
