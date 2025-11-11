@@ -44,6 +44,9 @@ yarn-error.log*
 coverage/
 .playwright-mcp/
 
+# Local development data
+/local
+
 # Temporary files
 *.tmp
 .cache/

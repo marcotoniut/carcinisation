@@ -9,7 +9,12 @@
         "--headless",
         "--viewport-size=1920x1080",
         "--timeout-action=10000",
-        "--timeout-navigation=30000"
+        "--timeout-navigation=30000",
+        "--shared-browser-context",
+        "--user-data-dir=./local/mcp/user-data",
+        "--storage-state=./local/mcp/storage-state.json",
+        "--output-dir=./local/mcp/output",
+        "--save-session"
       ],
       "env": {}
     },
@@ -21,7 +26,12 @@
         "mcp-server-playwright",
         "--viewport-size=1920x1080",
         "--timeout-action=10000",
-        "--timeout-navigation=30000"
+        "--timeout-navigation=30000",
+        "--shared-browser-context",
+        "--user-data-dir=./local/mcp/user-data-headed",
+        "--storage-state=./local/mcp/storage-state-headed.json",
+        "--output-dir=./local/mcp/output-headed",
+        "--save-session"
       ],
       "env": {}
     }
