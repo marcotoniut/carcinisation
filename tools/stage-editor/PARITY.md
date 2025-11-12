@@ -6,7 +6,7 @@ A browser-based stage editor for Carcinisation, designed to run alongside the ex
 
 ## Project Overview
 
-**Current State**: Foundation complete with full file I/O and type generation. Ready for visual rendering phase.
+**Current State**: Foundation and core rendering complete. PixiJS viewport with background/skybox rendering, pan/zoom controls, and camera viewport visualization.
 
 **Architecture**:
 - **Stack**: Vite + React 19 + TypeScript + Zustand
@@ -47,8 +47,8 @@ A browser-based stage editor for Carcinisation, designed to run alongside the ex
 ### UI Scaffold (100%)
 
 - [x] **Toolbar** - Load/Save buttons (fully functional)
-- [x] **Viewport** - Canvas placeholder for rendering
-- [x] **Timeline** - Screen position slider component
+- [x] **Viewport** - PixiJS canvas with rendering and camera controls
+- [x] **Timeline** - Functional timeline slider with state management
 - [x] **Scenes Panel** - Scaffold for scene/step navigation
 - [x] **Palette Panel** - Scaffold for entity library
 - [x] **Hierarchy Panel** - Scaffold for entity tree view
@@ -59,16 +59,17 @@ A browser-based stage editor for Carcinisation, designed to run alongside the ex
 
 ## 🚧 In Progress / TODO
 
-### Phase 2: Visual Rendering (P0) - 0%
+### Phase 2: Visual Rendering (P0) - 75%
 
-- [ ] **Canvas library** - Install PixiJS or Konva.js
-- [ ] **Background rendering** - Draw stage background image
+- [x] **Canvas library** - PixiJS v8 integrated with auto-resizing canvas
+- [x] **Background rendering** - Stage background image with label overlay
+- [x] **Skybox rendering** - Skybox positioned left of background with label
+- [x] **Grid overlay** - Infinite grid (10,000×10,000 units) with 32px cells
+- [x] **Camera controls** - Pan (mouse drag) and zoom-to-cursor (mouse wheel)
+- [x] **Camera viewport** - Green rectangle (160×144) showing GameBoy screen area
 - [ ] **Spawn rendering** - Draw entities (Objects, Destructibles, Enemies, Pickups)
-- [ ] **Grid overlay** - Coordinate system and grid lines
-- [ ] **Camera controls** - Pan (drag) and zoom (mouse wheel)
 - [ ] **Layer system** - Depth-based layering (Nine → Zero)
 - [ ] **Layer visibility** - Toggle depth layers on/off
-- [ ] **Asset loading** - Fetch sprites from game assets
 
 ### Phase 3: Interactive Editing (P0) - 0%
 
@@ -81,22 +82,23 @@ A browser-based stage editor for Carcinisation, designed to run alongside the ex
 - [ ] **Real-time updates** - Reflect changes immediately in viewport
 - [ ] **Coordinate snapping** - Optional grid snapping
 
-### Phase 4: Timeline (P1) - 0%
+### Phase 4: Timeline (P1) - 20%
 
-- [ ] **Elapsed time integration** - Wire up timeline slider
+- [x] **Timeline slider** - Functional slider with time display and state management
+- [ ] **Elapsed time integration** - Update camera position based on timeline
 - [ ] **Spawn visibility** - Show/hide based on elapsed time
 - [ ] **Timeline markers** - Visual spawn events
 - [ ] **Per-step timeline** - Separate timeline for each stage step
 - [ ] **Scrubbing preview** - Preview spawns as slider moves
 
-### Phase 5: UX Enhancements (P1) - 0%
+### Phase 5: UX Enhancements (P1) - 50%
 
 - [ ] **Undo/redo** - Command pattern with history stack
 - [ ] **Keyboard shortcuts** - Ctrl+S (save), Ctrl+Z (undo), Delete, etc.
-- [ ] **Recent files** - Track recently opened files
+- [x] **Recent files** - localStorage persistence for last opened file
 - [ ] **Validation** - Check data integrity before save
-- [ ] **Error handling** - User-friendly error messages
-- [ ] **Dirty tracking** - Visual indicator for unsaved changes
+- [x] **Error handling** - Toast notifications for success/error/info messages
+- [x] **Dirty tracking** - State tracking for unsaved changes
 
 ### Phase 6: Advanced Features (P2) - 0%
 
@@ -125,19 +127,22 @@ Comparison with the existing Bevy/Rust editor (`tools/editor`):
 | StageData types            | ✅           | ✅ ts-rs      | **Complete** |
 | Type validation            | ✅ Rust      | ✅ Basic      | **Complete** |
 | **Visual Rendering**       |
-| Viewport canvas            | ✅ Bevy      | ⏳ PixiJS     | TODO         |
-| Draw background            | ✅           | ⏳            | TODO         |
+| Viewport canvas            | ✅ Bevy      | ✅ PixiJS     | **Complete** |
+| Draw background            | ✅           | ✅ + label    | **Complete** |
+| Draw skybox                | ✅           | ✅ + label    | **Complete** |
+| Camera viewport overlay    | ⏳           | ✅ 160×144    | **Complete** |
 | Draw spawns                | ✅           | ⏳            | TODO         |
 | Layer visibility toggles   | ✅           | ⏳            | TODO         |
-| Grid overlay               | ⏳           | ⏳            | TODO         |
-| Pan & zoom controls        | ✅ Alt+drag  | ⏳ Drag+wheel | TODO         |
+| Grid overlay               | ⏳           | ✅ Infinite   | **Complete** |
+| Pan & zoom controls        | ✅ Alt+drag  | ✅ Drag+wheel | **Complete** |
 | **Editing**                |
 | Select entities            | ✅           | ⏳            | TODO         |
 | Move entities              | ✅ Inspector | ⏳ Drag       | TODO         |
 | Edit properties            | ✅ Inspector | ⏳ Forms      | TODO         |
 | Add/delete entities        | ⏳           | ⏳            | TODO         |
 | **Timeline**               |
-| Elapsed time slider        | ✅           | ⏳            | TODO         |
+| Timeline slider            | ✅           | ✅ + display  | **Complete** |
+| Elapsed time integration   | ✅           | ⏳            | TODO         |
 | Spawn visualization        | ⚠️ Basic     | ⏳            | TODO         |
 | Per-step timeline          | ⏳           | ⏳            | TODO         |
 | **UI Panels**              |
@@ -147,6 +152,9 @@ Comparison with the existing Bevy/Rust editor (`tools/editor`):
 | Inspector panel            | ✅           | ✅ Scaffold   | Partial      |
 | Console panel              | ⏳           | ✅ Working    | **Complete** |
 | **UX Features**            |
+| Toast notifications        | ⏳           | ✅ Radix UI   | **Complete** |
+| localStorage persistence   | ⏳           | ✅ Zustand    | **Complete** |
+| Dirty tracking             | ⏳           | ✅ State      | **Complete** |
 | Undo/redo                  | ⏳           | ⏳            | TODO         |
 | Transform gizmos           | ⏳           | ⏳            | TODO         |
 | Multi-select               | ⏳           | ⏳            | TODO         |
@@ -165,12 +173,12 @@ Comparison with the existing Bevy/Rust editor (`tools/editor`):
 | **Type System**              | 4/4       | 4     | 100%    |
 | **File Operations**          | 7/7       | 7     | 100%    |
 | **UI Scaffold**              | 8/8       | 8     | 100%    |
-| **Phase 2: Rendering**       | 0/8       | 8     | 0%      |
+| **Phase 2: Rendering**       | 6/9       | 9     | 67%     |
 | **Phase 3: Editing**         | 0/8       | 8     | 0%      |
-| **Phase 4: Timeline**        | 0/5       | 5     | 0%      |
-| **Phase 5: UX**              | 0/6       | 6     | 0%      |
+| **Phase 4: Timeline**        | 1/6       | 6     | 17%     |
+| **Phase 5: UX**              | 3/6       | 6     | 50%     |
 | **Phase 6: Polish**          | 0/6       | 6     | 0%      |
-| **Overall Progress**         | **25/58** | **58**| **43%** |
+| **Overall Progress**         | **35/60** | **60**| **58%** |
 
 ---
 
@@ -209,8 +217,16 @@ Then:
 - Display console messages
 - Save StageData → RON with proper formatting
 - File handle preservation (Chrome/Edge re-saves to same file)
+- **PixiJS viewport** with auto-resizing canvas
+- **Background and skybox rendering** with labeled overlays (skybox left of background)
+- **Infinite grid** (10,000×10,000 units, 32px cells)
+- **Pan controls** (mouse drag) and **zoom-to-cursor** (mouse wheel)
+- **Camera viewport overlay** (green 160×144 rectangle at start coordinates)
+- **Timeline slider** with time display and state management
+- **Toast notifications** for success/error/info messages
+- **localStorage persistence** for auto-restore on page refresh
 
-**Next milestone**: Render entities visually in the viewport canvas using PixiJS or Konva.js
+**Next milestone**: Render spawns (Objects, Destructibles, Enemies, Pickups) on the viewport with depth-based layering.
 
 ---
 
