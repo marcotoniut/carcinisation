@@ -1,3 +1,4 @@
+import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import ronMiddleware from "./dev/vite.ron-middleware"
@@ -13,6 +14,7 @@ export default defineConfig(({ command }) => ({
         plugins: [["babel-plugin-react-compiler", {}]],
       },
     }),
+    vanillaExtractPlugin(),
     command === "serve" ? ronMiddleware() : undefined,
   ].filter(Boolean),
   resolve: {
@@ -24,6 +26,7 @@ export default defineConfig(({ command }) => ({
       "@/state": resolveFromRoot("./src/state"),
       "@/hooks": resolveFromRoot("./src/hooks"),
       "@/utils": resolveFromRoot("./src/utils"),
+      "@/theme": resolveFromRoot("./src/theme"),
     },
   },
   server: {

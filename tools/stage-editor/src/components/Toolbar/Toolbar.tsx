@@ -1,7 +1,7 @@
 import { useEditorStore } from "../../state/store"
 import { openRonFile, saveRonFile } from "../../utils/fileSystem"
 import { showToast } from "../Toast/Toast"
-import "./Toolbar.css"
+import * as styles from "./Toolbar.css"
 
 export function Toolbar() {
   const {
@@ -47,17 +47,17 @@ export function Toolbar() {
   }
 
   return (
-    <div className="toolbar">
-      <div className="toolbar-section">
-        <h1 className="toolbar-title">Carcinisation Stage Editor</h1>
+    <div className={styles.toolbar}>
+      <div className={styles.toolbarSection}>
+        <h1 className={styles.toolbarTitle}>Carcinisation Stage Editor</h1>
         {fileName && (
-          <span className="toolbar-filename">
+          <span className={styles.toolbarFilename}>
             {fileName}
-            {isDirty && <span className="toolbar-dirty"> *</span>}
+            {isDirty && <span className={styles.toolbarDirty}> *</span>}
           </span>
         )}
       </div>
-      <div className="toolbar-section">
+      <div className={styles.toolbarSection}>
         <button type="button" onClick={handleLoad}>
           Load
         </button>
@@ -69,7 +69,7 @@ export function Toolbar() {
           Save
         </button>
       </div>
-      <div className="toolbar-section">
+      <div className={styles.toolbarSection}>
         <button type="button" disabled>
           Undo
         </button>

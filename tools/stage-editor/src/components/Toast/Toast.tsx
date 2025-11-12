@@ -1,6 +1,6 @@
 import * as ToastPrimitive from "@radix-ui/react-toast"
 import { useEffect, useState } from "react"
-import "./Toast.css"
+import * as styles from "./Toast.css"
 
 export type ToastType = "success" | "error" | "info"
 
@@ -58,31 +58,43 @@ export function ToastProvider({ children }: ToastProviderProps) {
   return (
     <ToastPrimitive.Provider swipeDirection="right">
       {children}
-      {toasts.map((toast) => (
-        <ToastPrimitive.Root
-          key={toast.id}
-          className={`toast toast-${toast.type}`}
-          duration={toast.type === "error" ? 5000 : 3000}
-          onOpenChange={(open) => {
-            if (!open) removeToast(toast.id)
-          }}
-        >
-          <div className="toast-content">
-            <ToastPrimitive.Title className="toast-title">
-              {toast.title}
-            </ToastPrimitive.Title>
-            {toast.description && (
-              <ToastPrimitive.Description className="toast-description">
-                {toast.description}
-              </ToastPrimitive.Description>
-            )}
-          </div>
-          <ToastPrimitive.Close className="toast-close" aria-label="Close">
-            ×
-          </ToastPrimitive.Close>
-        </ToastPrimitive.Root>
-      ))}
-      <ToastPrimitive.Viewport className="toast-viewport" />
+      {toasts.map((toast) => {
+        const toastTypeClass =
+          toast.type === "error"
+            ? styles.toastError
+            : toast.type === "success"
+              ? styles.toastSuccess
+              : styles.toastInfo
+
+        return (
+          <ToastPrimitive.Root
+            key={toast.id}
+            className={`${styles.toast} ${toastTypeClass}`}
+            duration={toast.type === "error" ? 5000 : 3000}
+            onOpenChange={(open) => {
+              if (!open) removeToast(toast.id)
+            }}
+          >
+            <div className={styles.toastContent}>
+              <ToastPrimitive.Title className={styles.toastTitle}>
+                {toast.title}
+              </ToastPrimitive.Title>
+              {toast.description && (
+                <ToastPrimitive.Description className={styles.toastDescription}>
+                  {toast.description}
+                </ToastPrimitive.Description>
+              )}
+            </div>
+            <ToastPrimitive.Close
+              className={styles.toastClose}
+              aria-label="Close"
+            >
+              ×
+            </ToastPrimitive.Close>
+          </ToastPrimitive.Root>
+        )
+      })}
+      <ToastPrimitive.Viewport className={styles.toastViewport} />
     </ToastPrimitive.Provider>
   )
 }
