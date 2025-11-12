@@ -65,14 +65,18 @@ export function getStepMarkers(stageData: StageData | null): StepMarker[] {
       index: i,
     })
 
-    const prevStep = i > 0 ? stageData.steps[i - 1] : null
-    const currentPos =
-      i === 0
-        ? startCoords
-        : prevStep && "Movement" in prevStep
-          ? (prevStep as { Movement: { coordinates: [number, number] } })
-              .Movement.coordinates
-          : startCoords
+    // Find the current position by looking back through all previous steps
+    // to find the last Movement step
+    let currentPos: [number, number] = startCoords
+    for (let j = i - 1; j >= 0; j--) {
+      const prevStep = stageData.steps[j]
+      if ("Movement" in prevStep) {
+        currentPos = (
+          prevStep as { Movement: { coordinates: [number, number] } }
+        ).Movement.coordinates
+        break
+      }
+    }
 
     const nextPos =
       "Movement" in step
@@ -103,11 +107,11 @@ export function getCameraPosition(
   time: number,
   markers: StepMarker[],
 ): CameraPosition {
-  if (!stageData || markers.length === 0) {
-    return { x: 0, y: 0 }
-  }
+  const startCoords = stageData?.start_coordinates ?? [0, 0]
 
-  const startCoords = stageData.start_coordinates ?? [0, 0]
+  if (!stageData || markers.length === 0) {
+    return { x: startCoords[0], y: startCoords[1] }
+  }
 
   // Find which step we're in
   let currentStepIndex = 0
@@ -123,14 +127,16 @@ export function getCameraPosition(
   const stepStartTime = marker.time
   const elapsedInStep = time - stepStartTime
 
-  // Calculate starting position for this step
+  // Find the starting position for this step by looking back through all
+  // previous steps to find the last Movement step
   let stepStartPos: [number, number] = startCoords
-  if (marker.index > 0) {
-    const prevStep = stageData.steps[marker.index - 1]
+  for (let i = marker.index - 1; i >= 0; i--) {
+    const prevStep = stageData.steps[i]
     if ("Movement" in prevStep) {
       stepStartPos = (
         prevStep as { Movement: { coordinates: [number, number] } }
       ).Movement.coordinates
+      break
     }
   }
 

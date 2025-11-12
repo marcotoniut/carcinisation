@@ -2,7 +2,7 @@ import { Application, Assets, Container, Graphics, Sprite, Text } from "pixi.js"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useEditorStore } from "../../state/store"
 import { getCameraPosition, getStepMarkers } from "../../utils/stageTimeline"
-import "./Viewport.css"
+import * as styles from "./Viewport.css"
 
 const GRID_SIZE = 32
 const GRID_EXTENT = 5000 // Grid spans -5000 to +5000 in both directions
@@ -130,13 +130,15 @@ export function Viewport() {
             }
           }
 
-          // Load background at world origin (0, 0)
+          // Load background with left edge at x=0, vertically centered
           if (parsedData.background_path) {
             const backgroundSprite = await loadTexture(
               parsedData.background_path,
             )
             if (backgroundSprite) {
-              backgroundSprite.position.set(0, 0)
+              // Position: left edge at x=0, vertically centered
+              const bgHeight = backgroundSprite.height
+              backgroundSprite.position.set(0, -bgHeight / 2)
               backgroundSprite.zIndex = -100
               camera.addChild(backgroundSprite)
               backgroundRef.current = backgroundSprite
@@ -150,7 +152,7 @@ export function Viewport() {
                   fontFamily: "monospace",
                 },
               })
-              bgLabel.position.set(0, -20)
+              bgLabel.position.set(0, -bgHeight / 2 - 20)
               bgLabel.zIndex = 100
               camera.addChild(bgLabel)
             }
@@ -160,9 +162,11 @@ export function Viewport() {
           if (parsedData.skybox?.path) {
             const skyboxSprite = await loadTexture(parsedData.skybox.path)
             if (skyboxSprite && backgroundRef.current) {
-              const bgWidth = backgroundRef.current.width
-              const skyboxOffset = 10 // Gap between skybox and background
-              skyboxSprite.position.set(-bgWidth - skyboxOffset, 0)
+              const skyboxWidth = skyboxSprite.width
+              const skyboxHeight = skyboxSprite.height
+              const gap = 10 // Small gap between skybox and background
+              // Position skybox with a small gap to the left of the background
+              skyboxSprite.position.set(-skyboxWidth - gap, -skyboxHeight / 2)
               skyboxSprite.zIndex = -90
               camera.addChild(skyboxSprite)
               skyboxRef.current = skyboxSprite
@@ -176,16 +180,25 @@ export function Viewport() {
                   fontFamily: "monospace",
                 },
               })
-              skyboxLabel.position.set(-bgWidth - skyboxOffset, -20)
+              skyboxLabel.position.set(
+                -skyboxWidth - gap,
+                -skyboxHeight / 2 - 20,
+              )
               skyboxLabel.zIndex = 100
               camera.addChild(skyboxLabel)
             }
           }
 
           // Create camera viewport rectangle (GameBoy screen size: 160x144)
+          // Draw centered around (0, 0) so when positioned, it's centered at camera position
           const cameraViewport = new Graphics()
           cameraViewport.setStrokeStyle({ width: 2, color: 0x00ff00 })
-          cameraViewport.rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+          cameraViewport.rect(
+            -SCREEN_WIDTH / 2,
+            -SCREEN_HEIGHT / 2,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+          )
           cameraViewport.stroke()
           cameraViewport.zIndex = 200
           camera.addChild(cameraViewport)
@@ -372,9 +385,9 @@ export function Viewport() {
 
   if (!parsedData) {
     return (
-      <div className="viewport panel">
+      <div className={`${styles.viewport} panel`}>
         <div className="panel-header">Viewport</div>
-        <div className="viewport-placeholder">
+        <div className={styles.viewportPlaceholder}>
           <p>Load a stage file to begin editing</p>
         </div>
       </div>
@@ -382,12 +395,12 @@ export function Viewport() {
   }
 
   return (
-    <div className="viewport panel">
+    <div className={`${styles.viewport} panel`}>
       <div className="panel-header">
         Viewport - {parsedData.name} (Zoom: {Math.round(cameraScale * 100)}%)
       </div>
       <div
-        className="viewport-canvas"
+        className={styles.viewportCanvas}
         ref={canvasRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

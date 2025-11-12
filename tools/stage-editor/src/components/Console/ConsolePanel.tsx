@@ -1,5 +1,5 @@
 import { useEditorStore } from "../../state/store"
-import "./ConsolePanel.css"
+import * as styles from "./ConsolePanel.css"
 
 export function ConsolePanel() {
   const { consoleMessage, parseError } = useEditorStore()
@@ -9,13 +9,15 @@ export function ConsolePanel() {
     "Stage Editor ready. Load a .ron file to begin."
   const variant = parseError ? "error" : "info"
 
+  const messageClassName = `${styles.consoleMessage} ${
+    variant === "error" ? styles.consoleMessageError : styles.consoleMessageInfo
+  }`
+
   return (
-    <div className="console panel">
+    <div className={`${styles.console} panel`}>
       <div className="panel-header">Console</div>
-      <div className="console-content">
-        <p className={`console-message console-message-${variant}`}>
-          {message}
-        </p>
+      <div className={styles.consoleContent}>
+        <p className={messageClassName}>{message}</p>
       </div>
     </div>
   )

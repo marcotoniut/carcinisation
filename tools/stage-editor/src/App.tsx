@@ -7,23 +7,24 @@ import { Timeline } from "./components/Timeline/Timeline"
 import { ToastProvider } from "./components/Toast/Toast"
 import { Toolbar } from "./components/Toolbar/Toolbar"
 import { Viewport } from "./components/Viewport/Viewport"
-import "./styles/App.css"
+import * as styles from "./styles/App.css"
+import "@/theme/global.css"
 
 function App() {
   return (
     <ToastProvider>
-      <div className="editor-root">
+      <div className={styles.editorRoot}>
         <Toolbar />
-        <div className="editor-main">
-          <div className="editor-left-sidebar">
+        <div className={styles.editorMain}>
+          <div className={styles.editorLeftSidebar}>
             <ScenesPanel />
             <PalettePanel />
           </div>
-          <div className="editor-center">
+          <div className={styles.editorCenter}>
             <Viewport />
             <Timeline />
           </div>
-          <div className="editor-right-sidebar">
+          <div className={styles.editorRightSidebar}>
             <HierarchyPanel />
             <InspectorPanel />
           </div>

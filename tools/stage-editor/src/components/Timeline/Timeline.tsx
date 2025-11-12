@@ -1,7 +1,8 @@
+import * as Tooltip from "@radix-ui/react-tooltip"
 import { useMemo } from "react"
 import { useEditorStore } from "../../state/store"
 import { getStepMarkers, getTotalDuration } from "../../utils/stageTimeline"
-import "./Timeline.css"
+import * as styles from "./Timeline.css"
 
 export function Timeline() {
   const { parsedData, timelinePosition, setTimelinePosition } = useEditorStore()
@@ -68,44 +69,74 @@ export function Timeline() {
   }
 
   return (
-    <div className="timeline panel">
-      <div className="timeline-content">
-        <div className="timeline-controls">
-          <label htmlFor="timeline-slider">
-            <header className="timeline-header">
-              <span>Timeline</span>
-              <span>{timelinePosition.toFixed(1)}s</span>
-            </header>
-            <div className="timeline-slider-container">
-              <input
-                id="timeline-slider"
-                type="range"
-                min="0"
-                max={maxDuration || 100}
-                step="0.1"
-                value={timelinePosition}
-                onChange={handleSliderChange}
-                className="timeline-slider"
-              />
-              <div className="timeline-markers">
-                {stepMarkers.map((marker) => {
-                  if (marker.type !== "Stop") return null
-                  const percentage =
-                    maxDuration > 0 ? (marker.time / maxDuration) * 100 : 0
-                  return (
-                    <div
-                      key={`stop-${marker.index}-${marker.time}`}
-                      className="timeline-marker timeline-marker-stop"
-                      style={{ left: `${percentage}%` }}
-                      title={getStopTooltip(marker)}
-                    />
-                  )
-                })}
+    <Tooltip.Provider>
+      <div className={`${styles.timeline} panel`}>
+        <div className={styles.timelineContent}>
+          <div className={styles.timelineControls}>
+            <label htmlFor="timeline-slider" className={styles.timelineLabel}>
+              <header className={styles.timelineHeader}>
+                <span>Timeline</span>
+                <span>{timelinePosition.toFixed(1)}s</span>
+              </header>
+              <div className={styles.timelineSliderContainer}>
+                <input
+                  id="timeline-slider"
+                  type="range"
+                  min="0"
+                  max={maxDuration || 100}
+                  step="0.1"
+                  value={timelinePosition}
+                  onChange={handleSliderChange}
+                  className={styles.timelineSlider}
+                />
+                <div className={styles.timelineMarkers}>
+                  {stepMarkers.map((marker) => {
+                    if (marker.type !== "Stop") return null
+                    const percentage =
+                      maxDuration > 0 ? (marker.time / maxDuration) * 100 : 0
+                    const tooltip = getStopTooltip(marker)
+                    const isPassed = timelinePosition >= marker.time
+                    const markerClassName = `${styles.timelineMarker} ${styles.timelineMarkerStop} ${
+                      isPassed ? styles.timelineMarkerPassed : ""
+                    }`
+
+                    return (
+                      <Tooltip.Root key={`stop-${marker.index}-${marker.time}`}>
+                        <Tooltip.Trigger asChild>
+                          <div
+                            className={markerClassName}
+                            style={{ left: `${percentage}%` }}
+                          />
+                        </Tooltip.Trigger>
+                        <Tooltip.Portal>
+                          <Tooltip.Content
+                            side="top"
+                            style={{
+                              backgroundColor: "rgba(0, 0, 0, 0.9)",
+                              color: "white",
+                              padding: "8px 12px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              whiteSpace: "pre-line",
+                              maxWidth: "300px",
+                              zIndex: 9999,
+                            }}
+                          >
+                            {tooltip}
+                            <Tooltip.Arrow
+                              style={{ fill: "rgba(0, 0, 0, 0.9)" }}
+                            />
+                          </Tooltip.Content>
+                        </Tooltip.Portal>
+                      </Tooltip.Root>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          </label>
+            </label>
+          </div>
         </div>
       </div>
-    </div>
+    </Tooltip.Provider>
   )
 }
