@@ -1,5 +1,6 @@
 import { useEditorStore } from "../../state/store"
 import { openRonFile, saveRonFile } from "../../utils/fileSystem"
+import { showToast } from "../Toast/Toast"
 import "./Toolbar.css"
 
 export function Toolbar() {
@@ -36,9 +37,12 @@ export function Toolbar() {
       )
       if (saved) {
         markSaved(ronText)
+      } else {
+        showToast("Save cancelled", "File save was cancelled", "info")
       }
     } catch (error) {
       console.error("Failed to save RON:", error)
+      // Toast already shown by store, just log
     }
   }
 

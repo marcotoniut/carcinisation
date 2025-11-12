@@ -4,30 +4,33 @@ import { InspectorPanel } from "./components/Inspector/InspectorPanel"
 import { PalettePanel } from "./components/Palette/PalettePanel"
 import { ScenesPanel } from "./components/Scenes/ScenesPanel"
 import { Timeline } from "./components/Timeline/Timeline"
+import { ToastProvider } from "./components/Toast/Toast"
 import { Toolbar } from "./components/Toolbar/Toolbar"
 import { Viewport } from "./components/Viewport/Viewport"
 import "./styles/App.css"
 
 function App() {
   return (
-    <div className="editor-root">
-      <Toolbar />
-      <div className="editor-main">
-        <div className="editor-left-sidebar">
-          <ScenesPanel />
-          <PalettePanel />
+    <ToastProvider>
+      <div className="editor-root">
+        <Toolbar />
+        <div className="editor-main">
+          <div className="editor-left-sidebar">
+            <ScenesPanel />
+            <PalettePanel />
+          </div>
+          <div className="editor-center">
+            <Viewport />
+            <Timeline />
+          </div>
+          <div className="editor-right-sidebar">
+            <HierarchyPanel />
+            <InspectorPanel />
+          </div>
         </div>
-        <div className="editor-center">
-          <Viewport />
-          <Timeline />
-        </div>
-        <div className="editor-right-sidebar">
-          <HierarchyPanel />
-          <InspectorPanel />
-        </div>
+        <ConsolePanel />
       </div>
-      <ConsolePanel />
-    </div>
+    </ToastProvider>
   )
 }
 
