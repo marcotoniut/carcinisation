@@ -1,20 +1,24 @@
-import { Application, Assets, Container, Graphics, Sprite } from "pixi.js"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Application, Assets, Container, Graphics, Sprite, Text } from "pixi.js"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useEditorStore } from "../../state/store"
+import { getCameraPosition, getStepMarkers } from "../../utils/stageTimeline"
 import "./Viewport.css"
 
 const GRID_SIZE = 32
 const GRID_EXTENT = 5000 // Grid spans -5000 to +5000 in both directions
 const GRID_COLOR = 0x333333
 const GRID_ALPHA = 0.3
+const SCREEN_WIDTH = 160 // GameBoy screen width
+const SCREEN_HEIGHT = 144 // GameBoy screen height
 
 export function Viewport() {
-  const { parsedData } = useEditorStore()
+  const { parsedData, timelinePosition } = useEditorStore()
   const canvasRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
   const cameraRef = useRef<Container | null>(null)
   const backgroundRef = useRef<Sprite | null>(null)
   const skyboxRef = useRef<Sprite | null>(null)
+  const cameraViewportRef = useRef<Graphics | null>(null)
   const [viewportSize, setViewportSize] = useState({ width: 800, height: 600 })
   // Camera position represents the world coordinates at the viewport center
   const [cameraPos, setCameraPos] = useState({ x: 0, y: 0 })
@@ -28,6 +32,9 @@ export function Viewport() {
     pos: { x: 0, y: 0 },
     scale: 1,
   })
+
+  // Calculate step markers from stage data
+  const stepMarkers = useMemo(() => getStepMarkers(parsedData), [parsedData])
 
   // Track viewport size dynamically
   useEffect(() => {
@@ -123,33 +130,66 @@ export function Viewport() {
             }
           }
 
-          const textureTasks = [
-            parsedData.background_path && {
-              path: parsedData.background_path,
-              zIndex: -100,
-              ref: backgroundRef,
-            },
-            parsedData.skybox?.path && {
-              path: parsedData.skybox.path,
-              zIndex: -90,
-              ref: skyboxRef,
-            },
-          ].filter(Boolean) as {
-            path: string
-            zIndex: number
-            ref: typeof backgroundRef
-          }[]
+          // Load background at world origin (0, 0)
+          if (parsedData.background_path) {
+            const backgroundSprite = await loadTexture(
+              parsedData.background_path,
+            )
+            if (backgroundSprite) {
+              backgroundSprite.position.set(0, 0)
+              backgroundSprite.zIndex = -100
+              camera.addChild(backgroundSprite)
+              backgroundRef.current = backgroundSprite
 
-          await Promise.all(
-            textureTasks.map(async ({ path, zIndex, ref }) => {
-              const sprite = await loadTexture(path)
-              if (!sprite) return
-              sprite.position.set(0, 0)
-              sprite.zIndex = zIndex
-              camera.addChildAt(sprite, 0)
-              ref.current = sprite
-            }),
-          )
+              // Add "Background" label above the background
+              const bgLabel = new Text({
+                text: "Background",
+                style: {
+                  fontSize: 16,
+                  fill: 0xffffff,
+                  fontFamily: "monospace",
+                },
+              })
+              bgLabel.position.set(0, -20)
+              bgLabel.zIndex = 100
+              camera.addChild(bgLabel)
+            }
+          }
+
+          // Load skybox to the LEFT of the background
+          if (parsedData.skybox?.path) {
+            const skyboxSprite = await loadTexture(parsedData.skybox.path)
+            if (skyboxSprite && backgroundRef.current) {
+              const bgWidth = backgroundRef.current.width
+              const skyboxOffset = 10 // Gap between skybox and background
+              skyboxSprite.position.set(-bgWidth - skyboxOffset, 0)
+              skyboxSprite.zIndex = -90
+              camera.addChild(skyboxSprite)
+              skyboxRef.current = skyboxSprite
+
+              // Add "Skybox" label above the skybox
+              const skyboxLabel = new Text({
+                text: "Skybox",
+                style: {
+                  fontSize: 16,
+                  fill: 0xffffff,
+                  fontFamily: "monospace",
+                },
+              })
+              skyboxLabel.position.set(-bgWidth - skyboxOffset, -20)
+              skyboxLabel.zIndex = 100
+              camera.addChild(skyboxLabel)
+            }
+          }
+
+          // Create camera viewport rectangle (GameBoy screen size: 160x144)
+          const cameraViewport = new Graphics()
+          cameraViewport.setStrokeStyle({ width: 2, color: 0x00ff00 })
+          cameraViewport.rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+          cameraViewport.stroke()
+          cameraViewport.zIndex = 200
+          camera.addChild(cameraViewport)
+          cameraViewportRef.current = cameraViewport
         }
       })
       .catch((error) => {
@@ -161,6 +201,7 @@ export function Viewport() {
       cameraRef.current = null
       backgroundRef.current = null
       skyboxRef.current = null
+      cameraViewportRef.current = null
       if (appRef.current === app) {
         appRef.current = null
       }
@@ -173,6 +214,18 @@ export function Viewport() {
       }
     }
   }, [parsedData])
+
+  // Update camera viewport position based on timeline
+  useEffect(() => {
+    if (cameraViewportRef.current && parsedData) {
+      const cameraPos = getCameraPosition(
+        parsedData,
+        timelinePosition,
+        stepMarkers,
+      )
+      cameraViewportRef.current.position.set(cameraPos.x, cameraPos.y)
+    }
+  }, [parsedData, timelinePosition, stepMarkers])
 
   // Update camera position and scale
   // Camera position is in world coordinates (center of viewport)
