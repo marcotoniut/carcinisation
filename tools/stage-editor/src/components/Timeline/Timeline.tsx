@@ -1,3 +1,4 @@
+import * as Slider from "@radix-ui/react-slider"
 import * as Tooltip from "@radix-ui/react-tooltip"
 import { useMemo } from "react"
 import { useEditorStore } from "../../state/store"
@@ -50,22 +51,22 @@ export function Timeline() {
     return parts.join("\n")
   }
 
-  const handleSliderChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseFloat(event.target.value)
+  const handleSliderChange = (value: number[]) => {
+    const newValue = value[0]
 
     // Snap to nearest Stop marker when within 0.5s
     const snapThreshold = 0.5
     for (const marker of stepMarkers) {
       if (
         marker.type === "Stop" &&
-        Math.abs(value - marker.time) < snapThreshold
+        Math.abs(newValue - marker.time) < snapThreshold
       ) {
         setTimelinePosition(marker.time)
         return
       }
     }
 
-    setTimelinePosition(value)
+    setTimelinePosition(newValue)
   }
 
   return (
@@ -73,67 +74,74 @@ export function Timeline() {
       <div className={`${styles.timeline} panel`}>
         <div className={styles.timelineContent}>
           <div className={styles.timelineControls}>
-            <label htmlFor="timeline-slider" className={styles.timelineLabel}>
+            <div className={styles.timelineLabel}>
               <header className={styles.timelineHeader}>
                 <span>Timeline</span>
                 <span>{timelinePosition.toFixed(1)}s</span>
               </header>
               <div className={styles.timelineSliderContainer}>
-                <input
-                  id="timeline-slider"
-                  type="range"
-                  min="0"
+                <Slider.Root
+                  className={styles.sliderRoot}
+                  min={0}
                   max={maxDuration || 100}
-                  step="0.1"
-                  value={timelinePosition}
-                  onChange={handleSliderChange}
-                  className={styles.timelineSlider}
-                />
-                <div className={styles.timelineMarkers}>
-                  {stepMarkers.map((marker) => {
-                    if (marker.type !== "Stop") return null
-                    const percentage =
-                      maxDuration > 0 ? (marker.time / maxDuration) * 100 : 0
-                    const tooltip = getStopTooltip(marker)
-                    const isPassed = timelinePosition >= marker.time
-                    const markerClassName = `${styles.timelineMarker} ${styles.timelineMarkerStop} ${
-                      isPassed ? styles.timelineMarkerPassed : ""
-                    }`
+                  step={0.1}
+                  value={[timelinePosition]}
+                  onValueChange={handleSliderChange}
+                  aria-label="Timeline position"
+                >
+                  <Slider.Track className={styles.sliderTrack}>
+                    <Slider.Range className={styles.sliderRange} />
+                    {stepMarkers.map((marker) => {
+                      if (marker.type !== "Stop") return null
+                      const percentage =
+                        maxDuration > 0 ? (marker.time / maxDuration) * 100 : 0
+                      const tooltip = getStopTooltip(marker)
+                      const isPassed = timelinePosition >= marker.time
+                      const markerClassName = `${styles.timelineMarker} ${styles.timelineMarkerStop} ${
+                        isPassed ? styles.timelineMarkerPassed : ""
+                      }`
 
-                    return (
-                      <Tooltip.Root key={`stop-${marker.index}-${marker.time}`}>
-                        <Tooltip.Trigger asChild>
-                          <div
-                            className={markerClassName}
-                            style={{ left: `${percentage}%` }}
-                          />
-                        </Tooltip.Trigger>
-                        <Tooltip.Portal>
-                          <Tooltip.Content
-                            side="top"
-                            style={{
-                              backgroundColor: "rgba(0, 0, 0, 0.9)",
-                              color: "white",
-                              padding: "8px 12px",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              whiteSpace: "pre-line",
-                              maxWidth: "300px",
-                              zIndex: 9999,
-                            }}
-                          >
-                            {tooltip}
-                            <Tooltip.Arrow
-                              style={{ fill: "rgba(0, 0, 0, 0.9)" }}
+                      return (
+                        <Tooltip.Root
+                          key={`stop-${marker.index}-${marker.time}`}
+                        >
+                          <Tooltip.Trigger asChild>
+                            <button
+                              type="button"
+                              className={markerClassName}
+                              style={{ left: `${percentage}%` }}
+                              onClick={() => setTimelinePosition(marker.time)}
                             />
-                          </Tooltip.Content>
-                        </Tooltip.Portal>
-                      </Tooltip.Root>
-                    )
-                  })}
-                </div>
+                          </Tooltip.Trigger>
+                          <Tooltip.Portal>
+                            <Tooltip.Content
+                              side="top"
+                              style={{
+                                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                                color: "white",
+                                padding: "8px 12px",
+                                borderRadius: "4px",
+                                fontSize: "12px",
+                                whiteSpace: "pre-line",
+                                maxWidth: "300px",
+                                zIndex: 9999,
+                              }}
+                            >
+                              {tooltip}
+                              <Tooltip.Arrow
+                                style={{ fill: "rgba(0, 0, 0, 0.9)" }}
+                              />
+                            </Tooltip.Content>
+                          </Tooltip.Portal>
+                        </Tooltip.Root>
+                      )
+                    })}
+                  </Slider.Track>
+                  <Slider.Thumb className={styles.sliderThumb} />
+                </Slider.Root>
+                {/* <div className={styles.timelineMarkers}></div> */}
               </div>
-            </label>
+            </div>
           </div>
         </div>
       </div>

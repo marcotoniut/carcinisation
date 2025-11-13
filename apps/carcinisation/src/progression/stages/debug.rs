@@ -22,7 +22,7 @@ lazy_static! {
             path: assert_assets_path!("backgrounds/rugpark/skybox.png").to_string(),
             frames: 2,
         },
-        start_coordinates: Some(Vec2::new(0.0, 0.0)),
+        start_coordinates: Vec2::new(0.0, 0.0),
         spawns: make_spawns(),
         steps: make_steps(),
         on_start_transition_o: None,

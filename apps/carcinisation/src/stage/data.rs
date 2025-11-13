@@ -458,8 +458,8 @@ pub struct StageData {
     pub background_path: String,
     pub music_path: String,
     pub skybox: SkyboxData,
-    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number] | null"))]
-    pub start_coordinates: Option<Vec2>,
+    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
+    pub start_coordinates: Vec2,
     pub spawns: Vec<StageSpawn>,
     pub steps: Vec<StageStep>,
     #[serde(default)]

@@ -53,8 +53,6 @@ export function getStepMarkers(stageData: StageData | null): StepMarker[] {
 
   const markers: StepMarker[] = []
   let cumulativeTime = 0
-  const startCoords = stageData.start_coordinates ?? [0, 0]
-
   for (let i = 0; i < stageData.steps.length; i++) {
     const step = stageData.steps[i]
 
@@ -67,22 +65,16 @@ export function getStepMarkers(stageData: StageData | null): StepMarker[] {
 
     // Find the current position by looking back through all previous steps
     // to find the last Movement step
-    let currentPos: [number, number] = startCoords
+    let currentPos = stageData.start_coordinates
     for (let j = i - 1; j >= 0; j--) {
       const prevStep = stageData.steps[j]
       if ("Movement" in prevStep) {
-        currentPos = (
-          prevStep as { Movement: { coordinates: [number, number] } }
-        ).Movement.coordinates
+        currentPos = prevStep.Movement.coordinates
         break
       }
     }
 
-    const nextPos =
-      "Movement" in step
-        ? (step as { Movement: { coordinates: [number, number] } }).Movement
-            .coordinates
-        : currentPos
+    const nextPos = "Movement" in step ? step.Movement.coordinates : currentPos
 
     const duration = getStepDuration(step, currentPos, nextPos)
     cumulativeTime += duration

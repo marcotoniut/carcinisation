@@ -83,7 +83,7 @@ gen-editor-types: gen-types
 .PHONY: watch-types
 watch-types:
 	@echo "🔄 Starting type watcher..."
-	@cargo watch -q --ignore "bindings/*" --ignore "target/*" --ignore "*.ts" \
+	@cargo watch -q --ignore "target/*" --ignore "*.ts" \
 		-w apps/carcinisation/src \
 		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings cargo run -p carcinisation --bin gen_types --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
 

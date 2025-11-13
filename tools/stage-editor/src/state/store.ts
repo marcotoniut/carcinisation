@@ -13,6 +13,7 @@ interface EditorState {
   consoleMessage: string | null
   isDirty: boolean
   timelinePosition: number // Current time in seconds
+  debugMode: boolean
 
   loadFile: (
     name: string,
@@ -24,6 +25,7 @@ interface EditorState {
   markSaved: (content: string) => void
   saveToRon: () => Promise<string>
   setTimelinePosition: (position: number) => void
+  toggleDebugMode: () => void
 }
 
 export const useEditorStore = create<EditorState>()(
@@ -37,6 +39,7 @@ export const useEditorStore = create<EditorState>()(
       consoleMessage: "Stage Editor ready. Load a .ron file to begin.",
       isDirty: false,
       timelinePosition: 0,
+      debugMode: true,
 
       loadFile: async (name, content, handle) => {
         try {
@@ -125,6 +128,8 @@ export const useEditorStore = create<EditorState>()(
       },
 
       setTimelinePosition: (position) => set({ timelinePosition: position }),
+
+      toggleDebugMode: () => set((state) => ({ debugMode: !state.debugMode })),
     }),
     {
       name: "stage-editor-storage",

@@ -18,7 +18,7 @@ pub trait StageDataUtils {
 
 impl StageDataUtils for StageData {
     fn calculate_camera_position(&self, elapsed: Duration) -> Vec2 {
-        let mut current_position = self.start_coordinates.unwrap_or(Vec2::ZERO);
+        let mut current_position = self.start_coordinates;
         let mut current_elapsed: Duration = Duration::ZERO;
 
         for step in &self.steps {

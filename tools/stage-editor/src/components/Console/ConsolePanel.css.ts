@@ -2,7 +2,9 @@ import { style } from "@vanilla-extract/css"
 import { tokens } from "@/theme/tokens.css"
 
 export const console = style({
-  height: "150px",
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
 })
 
 export const consoleContent = style({
@@ -10,7 +12,7 @@ export const consoleContent = style({
   fontFamily: "monospace",
   fontSize: "12px",
   overflowY: "auto",
-  maxHeight: "100px",
+  flex: 1,
 })
 
 export const consoleMessage = style({

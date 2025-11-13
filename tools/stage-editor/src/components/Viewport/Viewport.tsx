@@ -4,21 +4,33 @@ import { useEditorStore } from "../../state/store"
 import { getCameraPosition, getStepMarkers } from "../../utils/stageTimeline"
 import * as styles from "./Viewport.css"
 
-const GRID_SIZE = 32
+const AXIS_COLOR = 0xbbbbbb
+
+const LABEL_TEXT_COLOR = 0xffffff
+const LABEL_TEXT_SIZE = 16
+const LABEL_GAP = -5
+
+const CAMERA_COLOR = 0x00ff00
+
+const GRID_SIZE = 36
 const GRID_EXTENT = 5000 // Grid spans -5000 to +5000 in both directions
 const GRID_COLOR = 0x333333
 const GRID_ALPHA = 0.3
-const SCREEN_WIDTH = 160 // GameBoy screen width
-const SCREEN_HEIGHT = 144 // GameBoy screen height
+const GAME_BOY_SCREEN_WIDTH = 160
+const GAME_BOY_SCREEN_HEIGHT = 144
+
+/// Small gap between skybox and background
+const SKYBOX_TO_BACKGROUND_GAP = 20
 
 export function Viewport() {
-  const { parsedData, timelinePosition } = useEditorStore()
+  const { parsedData, timelinePosition, debugMode } = useEditorStore()
   const canvasRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
   const cameraRef = useRef<Container | null>(null)
   const backgroundRef = useRef<Sprite | null>(null)
   const skyboxRef = useRef<Sprite | null>(null)
   const cameraViewportRef = useRef<Graphics | null>(null)
+  const debugGraphicsRef = useRef<Container | null>(null)
   const [viewportSize, setViewportSize] = useState({ width: 800, height: 600 })
   // Camera position represents the world coordinates at the viewport center
   const [cameraPos, setCameraPos] = useState({ x: 0, y: 0 })
@@ -136,9 +148,7 @@ export function Viewport() {
               parsedData.background_path,
             )
             if (backgroundSprite) {
-              // Position: left edge at x=0, vertically centered
-              const bgHeight = backgroundSprite.height
-              backgroundSprite.position.set(0, -bgHeight / 2)
+              backgroundSprite.position.set(0, 0)
               backgroundSprite.zIndex = -100
               camera.addChild(backgroundSprite)
               backgroundRef.current = backgroundSprite
@@ -147,13 +157,14 @@ export function Viewport() {
               const bgLabel = new Text({
                 text: "Background",
                 style: {
-                  fontSize: 16,
-                  fill: 0xffffff,
+                  fontSize: LABEL_TEXT_SIZE,
+                  fill: LABEL_TEXT_COLOR,
                   fontFamily: "monospace",
                 },
+                position: { x: 0, y: LABEL_GAP },
+                anchor: { x: 0, y: 1 },
+                zIndex: 100,
               })
-              bgLabel.position.set(0, -bgHeight / 2 - 20)
-              bgLabel.zIndex = 100
               camera.addChild(bgLabel)
             }
           }
@@ -163,10 +174,11 @@ export function Viewport() {
             const skyboxSprite = await loadTexture(parsedData.skybox.path)
             if (skyboxSprite && backgroundRef.current) {
               const skyboxWidth = skyboxSprite.width
-              const skyboxHeight = skyboxSprite.height
-              const gap = 10 // Small gap between skybox and background
               // Position skybox with a small gap to the left of the background
-              skyboxSprite.position.set(-skyboxWidth - gap, -skyboxHeight / 2)
+              skyboxSprite.position.set(
+                -skyboxWidth - SKYBOX_TO_BACKGROUND_GAP,
+                0,
+              )
               skyboxSprite.zIndex = -90
               camera.addChild(skyboxSprite)
               skyboxRef.current = skyboxSprite
@@ -175,16 +187,17 @@ export function Viewport() {
               const skyboxLabel = new Text({
                 text: "Skybox",
                 style: {
-                  fontSize: 16,
-                  fill: 0xffffff,
+                  fontSize: LABEL_TEXT_SIZE,
+                  fill: LABEL_TEXT_COLOR,
                   fontFamily: "monospace",
                 },
+                position: {
+                  x: -skyboxWidth - SKYBOX_TO_BACKGROUND_GAP,
+                  y: LABEL_GAP,
+                },
+                anchor: { x: 0, y: 1 },
+                zIndex: 100,
               })
-              skyboxLabel.position.set(
-                -skyboxWidth - gap,
-                -skyboxHeight / 2 - 20,
-              )
-              skyboxLabel.zIndex = 100
               camera.addChild(skyboxLabel)
             }
           }
@@ -192,17 +205,63 @@ export function Viewport() {
           // Create camera viewport rectangle (GameBoy screen size: 160x144)
           // Draw centered around (0, 0) so when positioned, it's centered at camera position
           const cameraViewport = new Graphics()
-          cameraViewport.setStrokeStyle({ width: 2, color: 0x00ff00 })
+          cameraViewport.setStrokeStyle({ width: 1, color: CAMERA_COLOR })
           cameraViewport.rect(
-            -SCREEN_WIDTH / 2,
-            -SCREEN_HEIGHT / 2,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT,
+            -GAME_BOY_SCREEN_WIDTH / 2,
+            -GAME_BOY_SCREEN_HEIGHT / 2,
+            GAME_BOY_SCREEN_WIDTH,
+            GAME_BOY_SCREEN_HEIGHT,
           )
           cameraViewport.stroke()
           cameraViewport.zIndex = 200
           camera.addChild(cameraViewport)
           cameraViewportRef.current = cameraViewport
+
+          // Create debug graphics container
+          const debugContainer = new Container()
+          debugContainer.zIndex = 300
+          debugContainer.visible = true // Visible by default (debugMode is true)
+          camera.addChild(debugContainer)
+          debugGraphicsRef.current = debugContainer
+
+          // Draw X-axis arrow (pointing right, positive direction)
+          const xAxis = new Graphics()
+          xAxis.setStrokeStyle({ width: 1, color: AXIS_COLOR })
+          xAxis.moveTo(0, 0)
+          xAxis.lineTo(50, 0)
+          // Arrow head
+          xAxis.moveTo(50, 0)
+          xAxis.lineTo(45, -3)
+          xAxis.moveTo(50, 0)
+          xAxis.lineTo(45, 3)
+          xAxis.stroke()
+          debugContainer.addChild(xAxis)
+
+          // Draw Y-axis arrow (pointing down, positive direction)
+          const yAxis = new Graphics()
+          yAxis.setStrokeStyle({ width: 1, color: AXIS_COLOR })
+          yAxis.moveTo(0, 0)
+          yAxis.lineTo(0, 50)
+          // Arrow head
+          yAxis.moveTo(0, 50)
+          yAxis.lineTo(-3, 45)
+          yAxis.moveTo(0, 50)
+          yAxis.lineTo(3, 45)
+          yAxis.stroke()
+          debugContainer.addChild(yAxis)
+
+          // Add origin label
+          const originLabel = new Text({
+            text: "0:0",
+            style: {
+              fontSize: 10,
+              fill: AXIS_COLOR,
+              fontFamily: "monospace",
+            },
+            position: { x: 1, y: 1 },
+            anchor: { x: 0, y: 0 },
+          })
+          debugContainer.addChild(originLabel)
         }
       })
       .catch((error) => {
@@ -215,6 +274,7 @@ export function Viewport() {
       backgroundRef.current = null
       skyboxRef.current = null
       cameraViewportRef.current = null
+      debugGraphicsRef.current = null
       if (appRef.current === app) {
         appRef.current = null
       }
@@ -239,6 +299,13 @@ export function Viewport() {
       cameraViewportRef.current.position.set(cameraPos.x, cameraPos.y)
     }
   }, [parsedData, timelinePosition, stepMarkers])
+
+  // Toggle debug graphics visibility
+  useEffect(() => {
+    if (debugGraphicsRef.current) {
+      debugGraphicsRef.current.visible = debugMode
+    }
+  }, [debugMode])
 
   // Update camera position and scale
   // Camera position is in world coordinates (center of viewport)
