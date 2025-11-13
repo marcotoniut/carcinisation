@@ -1,12 +1,18 @@
 //! Generate TypeScript definitions from the runtime data model.
-//! This binary copies ts-rs generated types to the stage editor.
+//! This binary drives ts-rs exports directly into the stage editor.
 
 use anyhow::{Context, Result};
 use std::{
     env, fs,
+    io::{self, Write},
     path::{Path, PathBuf},
     time::Instant,
 };
+
+#[cfg(feature = "derive-ts")]
+use carcinisation::stage::data::StageData;
+#[cfg(feature = "derive-ts")]
+use ts_rs::TS;
 
 fn main() {
     if let Err(error) = run() {
@@ -22,55 +28,51 @@ fn run() -> Result<()> {
         env::var("TS_OUT").unwrap_or_else(|_| "tools/stage-editor/src/types/generated".into()),
     );
 
+    if ts_out.exists() {
+        fs::remove_dir_all(&ts_out).context("failed to clear TS output directory")?;
+    }
     fs::create_dir_all(&ts_out).context("failed to create TS output directory")?;
 
     let start = Instant::now();
-    println!("⚡ Generating TypeScript from Rust types (ts-rs)…");
 
-    // ts-rs exports are generated at compile time via the derive-ts feature
-    // Types are exported to the crate-level bindings directory
-    let bindings_dir = PathBuf::from("apps/carcinisation/bindings");
-    if !bindings_dir.exists() {
-        anyhow::bail!(
-            "ts-rs bindings directory not found. Make sure types are built with --features derive-ts"
-        );
-    }
+    // Always print start message so grep can detect it
+    println!("⚡ Generating TypeScript from Rust types (ts-rs)...");
 
-    // Copy generated types to the target directory
-    copy_dir_recursive(&bindings_dir, &ts_out).context("failed to copy TypeScript bindings")?;
-
-    // Post-process to fix missing imports from inline type annotations
-    fix_missing_imports(&ts_out)?;
+    export_types(&ts_out)?;
 
     if !quiet {
-        println!(
-            "✅ TS generated to {} in {:.2}s",
-            ts_out.display(),
-            start.elapsed().as_secs_f32()
-        );
+        print!("  Fixing imports");
+        io::stdout().flush().ok();
     }
+
+    // Post-process to fix missing imports from inline type annotations
+    fix_missing_imports(&ts_out, quiet)?;
+
+    if !quiet {
+        println!(" ✓");
+    }
+
+    // Always print success message so grep can detect it
+    println!(
+        "✅ TS generated to {} in {:.2}s",
+        ts_out.display(),
+        start.elapsed().as_secs_f32()
+    );
 
     Ok(())
 }
 
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let file_type = entry.file_type()?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-
-        if file_type.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
-            fs::copy(&src_path, &dst_path)?;
-        }
-    }
-    Ok(())
+#[cfg(feature = "derive-ts")]
+fn export_types(ts_out: &Path) -> Result<()> {
+    StageData::export_all_to(ts_out).context("failed to export TypeScript bindings via ts-rs")
 }
 
-fn fix_missing_imports(ts_dir: &Path) -> Result<()> {
+#[cfg(not(feature = "derive-ts"))]
+fn export_types(_: &Path) -> Result<()> {
+    anyhow::bail!("derive-ts feature required to export TypeScript types")
+}
+
+fn fix_missing_imports(ts_dir: &Path, quiet: bool) -> Result<()> {
     // Map of files that need import fixes: filename -> (type_ref, type_name)
     let fixes: &[(&str, &[(&str, &str)])] = &[
         ("EnemyDropSpawn.ts", &[("EnemyStep", "EnemyStep")]),
@@ -82,7 +84,7 @@ fn fix_missing_imports(ts_dir: &Path) -> Result<()> {
         ("StopStageStep.ts", &[("Depth", "Depth")]),
     ];
 
-    for (filename, imports) in fixes {
+    for (idx, (filename, imports)) in fixes.iter().enumerate() {
         let file_path = ts_dir.join(filename);
         if !file_path.exists() {
             continue;
@@ -125,6 +127,14 @@ fn fix_missing_imports(ts_dir: &Path) -> Result<()> {
 
         let fixed_content = new_lines.join("\n") + "\n";
         fs::write(&file_path, fixed_content)?;
+
+        if !quiet {
+            let dots_count = (idx % 3) + 1;
+            let dots = ".".repeat(dots_count);
+            let spaces = " ".repeat(3 - dots_count);
+            print!("\r  Fixing imports{}{}", dots, spaces);
+            io::stdout().flush().ok();
+        }
     }
 
     Ok(())

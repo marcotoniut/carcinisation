@@ -41,10 +41,51 @@ export const timelineSliderContainer = style({
   alignItems: "center",
 })
 
-export const timelineSlider = style({
+export const sliderRoot = style({
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  userSelect: "none",
+  touchAction: "none",
   width: "100%",
+  height: "20px",
+})
+
+export const sliderTrack = style({
+  backgroundColor: tokens.color.border,
+  position: "relative",
+  flexGrow: 1,
+  borderRadius: "9999px",
+  height: "4px",
+  overflow: "visible",
+})
+
+export const sliderRange = style({
+  position: "absolute",
+  backgroundColor: tokens.color.primary,
+  borderRadius: "9999px",
+  height: "100%",
+})
+
+export const sliderThumb = style({
+  display: "block",
+  width: "16px",
+  height: "16px",
+  backgroundColor: tokens.color.primary,
+  boxShadow: tokens.shadow.sm,
+  borderRadius: "50%",
   cursor: "pointer",
-  margin: 0,
+  transition: `all ${tokens.motion.fast}`,
+
+  ":hover": {
+    backgroundColor: tokens.color.accent,
+    transform: "scale(1.2)",
+  },
+
+  ":focus": {
+    outline: "none",
+    boxShadow: tokens.shadow.md,
+  },
 })
 
 export const timelineMarkers = style({
@@ -70,6 +111,9 @@ export const timelineMarker = style({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  border: "none",
+  padding: 0,
+  background: "transparent",
 
   ":hover": {
     transform: "translateX(-50%) translateY(-50%) scale(1.2)",

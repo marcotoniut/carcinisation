@@ -32,3 +32,9 @@ export const toolbarFilename = style({
 export const toolbarDirty = style({
   color: tokens.color.warning,
 })
+
+export const toolbarButtonActive = style({
+  backgroundColor: tokens.color.primary,
+  color: tokens.color.bg,
+  fontWeight: tokens.font.weight.semibold,
+})

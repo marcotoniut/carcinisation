@@ -48,10 +48,9 @@ pub fn spawn_path(
         },
     ));
 
-    let mut path = ShapePath::new()
-        .move_to(stage_data.start_coordinates.unwrap_or(Vec2::ZERO) + h_screen_resolution);
+    let mut path = ShapePath::new().move_to(stage_data.start_coordinates + h_screen_resolution);
 
-    let mut current_position = stage_data.start_coordinates.unwrap_or(Vec2::ZERO);
+    let mut current_position = stage_data.start_coordinates;
     let mut current_elapsed: Duration = Duration::ZERO;
 
     for (index, step) in stage_data.steps.iter().enumerate() {
@@ -189,7 +188,7 @@ pub fn spawn_stage(
         }
     }
 
-    let mut current_position = stage_data.start_coordinates.unwrap_or(Vec2::ZERO);
+    let mut current_position = stage_data.start_coordinates;
     let mut current_elapsed: Duration = Duration::ZERO;
     for (index, step) in stage_data.steps.iter().enumerate() {
         match step {
@@ -257,7 +256,7 @@ pub fn spawn_stage(
         "Stage: {}\nMusic: {}\nStart Coordinates: {}\nSteps: {}\nStatic Spawns: {}\nDynamic Spawns: {}",
         stage_data.name,
         stage_data.music_path,
-        stage_data.start_coordinates.unwrap_or(Vec2::ZERO),
+        stage_data.start_coordinates,
         stage_data.steps.len(),
         stage_data.spawns.len(),
         stage_data.dynamic_spawn_count(),

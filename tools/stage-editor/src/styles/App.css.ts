@@ -13,12 +13,6 @@ export const editorMain = style({
   overflow: "hidden",
 })
 
-export const editorLeftSidebar = style({
-  display: "flex",
-  flexDirection: "column",
-  width: "280px",
-})
-
 export const editorCenter = style({
   display: "flex",
   flexDirection: "column",
@@ -30,5 +24,13 @@ export const editorCenter = style({
 export const editorRightSidebar = style({
   display: "flex",
   flexDirection: "column",
-  width: "280px",
+  minWidth: 0,
+  flexShrink: 0,
+})
+
+export const editorBottom = style({
+  display: "flex",
+  borderTop: "1px solid var(--color-border)",
+  flexShrink: 0,
+  overflow: "hidden",
 })

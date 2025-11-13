@@ -251,10 +251,8 @@ No forced migration. Developers can use whichever editor suits their workflow.
 
 ```
 Rust types (stage/data.rs)
-  ↓ [cargo build --features derive-ts]
-ts-rs generates types → apps/carcinisation/bindings/
-  ↓ [gen_types.rs]
-Copy to → tools/stage-editor/src/types/generated/
+  ↓ [gen_types.rs --features derive-ts]
+ts-rs exports to → tools/stage-editor/src/types/generated/
   ↓ [import fix pass]
 ✅ 32 TypeScript types ready
 ```
