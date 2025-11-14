@@ -5,7 +5,6 @@ edition = "2021"
 
 [features]
 default = []
-wasm = ["wasm-bindgen"]
 derive-ts = ["ts-rs"]
 
 [dependencies]
@@ -36,7 +35,9 @@ activable-macros = { path = "../../crates/activable-macros" }
 activable = { path = "../../crates/activable" }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-wasm-bindgen = { version = "0.2.92", optional = true }
+[target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
+wasm-bindgen = "0.2.92"
+getrandom = { version = "0.2", features = ["js"] }
 
 [[bin]]
 name = "gen_types"

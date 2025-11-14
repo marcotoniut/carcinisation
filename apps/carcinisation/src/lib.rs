@@ -24,7 +24,7 @@ mod transitions;
 #[macro_use]
 extern crate lazy_static;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::*;
 
 pub use crate::cutscene::data::CutsceneData;
@@ -41,6 +41,6 @@ pub mod asset_meta {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 #[wasm_bindgen]
 extern "C" {}

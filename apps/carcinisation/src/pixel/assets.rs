@@ -8,7 +8,9 @@ use seldom_pixel::{
     filter::{PxFilter, PxFilterAsset},
     prelude::{PxSprite, PxSpriteAsset, PxTypeface},
 };
-use std::{collections::HashMap, fs, marker::PhantomData, path::PathBuf};
+#[cfg(not(target_family = "wasm"))]
+use std::fs;
+use std::{collections::HashMap, marker::PhantomData, path::PathBuf};
 
 pub type PxAsset<T> = T;
 pub type PxSpriteData = PxSpriteAsset;
@@ -86,6 +88,7 @@ fn asset_meta_path(path: &str) -> PathBuf {
     PathBuf::from("assets").join(format!("{path}.meta"))
 }
 
+#[cfg(not(target_family = "wasm"))]
 fn write_meta_file(path: &PathBuf, contents: &str) {
     #[cfg(debug_assertions)]
     {
@@ -116,6 +119,9 @@ fn write_meta_file(path: &PathBuf, contents: &str) {
         }
     }
 }
+
+#[cfg(target_family = "wasm")]
+fn write_meta_file(_path: &PathBuf, _contents: &str) {}
 
 fn sprite_meta_contents(frames: usize) -> String {
     format!(
