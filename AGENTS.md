@@ -54,6 +54,14 @@ Agents may swap roles as needed, request reviews from their counterpart, and lea
 
 ⸻
 
+## Process cleanup
+
+- Stop background services, dev servers, watchers, or other processes that agents start for development or verification once the task is complete. Use helpers like `KillShell` for `pnpm dev:agents`, `make watch-scene-files`, or equivalent tooling so leftover work does not lock ports or consume CPU.
+- Only leave a process running when the maintainer or user explicitly asks for it; record the reason in the task notes.
+- Manual tests can be rerun by the user when ready, so do not keep your own servers, watchers, or helper scripts lingering after you hand off the work.
+
+⸻
+
 ## Quality Checks
 
 Before marking work complete:
