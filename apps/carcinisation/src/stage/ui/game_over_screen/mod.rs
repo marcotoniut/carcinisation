@@ -7,7 +7,7 @@ use self::{
     components::*,
     events::GameOverScreenShutdownEvent,
     input::{init_input, GameOverScreenInput},
-    systems::check_press_continue_input,
+    systems::{check_press_continue_input, handle_game_over_screen_continue},
 };
 use super::StageUiPlugin;
 use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
@@ -139,6 +139,8 @@ pub fn game_over_screen_plugin(app: &mut App) {
         )
         .add_systems(
             PostUpdate,
-            check_press_continue_input.run_if(in_state(ActiveState::<StageUiPlugin>::active())),
+            (check_press_continue_input, handle_game_over_screen_continue)
+                .chain()
+                .run_if(in_state(ActiveState::<StageUiPlugin>::active())),
         );
 }

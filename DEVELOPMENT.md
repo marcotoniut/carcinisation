@@ -36,7 +36,7 @@ bevy lint --workspace --all-targets --all-features
 ## Quick Start
 
 ```bash
-# Rebuild and rerun automatically on code changes (requires cargo-watch, wraps `bevy run`)
+# Rebuild and rerun automatically when game source or asset files change via `cargo watch --no-restart` + `bevy run` (requires cargo-watch; the watcher remains alive even if a run crashes, so fix the error before the next change triggers a rerun)
 make dev
 
 # Run once with the default feature set via `bevy run --bin carcinisation`
@@ -56,7 +56,7 @@ If `cargo watch` is missing, install it with `cargo install cargo-watch` before 
 Use `make help` to see the full catalog. Common targets:
 
 ```bash
-make dev               # cargo-watch + bevy run with the dynamic_linking feature enabled
+make dev               # cargo-watch --no-restart watching `apps/carcinisation/src` and `assets`, reruns only on those changes while keeping the watcher alive even after crashes
 make run               # bevy run --bin carcinisation (RUST_BACKTRACE=full)
 make dev-wasm          # bevy run --bin carcinisation --package carcinisation web
 make launch-editor     # Open the Bevy-based scene editor
@@ -85,7 +85,7 @@ make run ARGS="--help"
 
 ## Hot Reloading & Iteration
 
-- **Code**: `make dev` recompiles and relaunches whenever source files change. The dynamic linking feature keeps rebuild times low in debug.
+- **Code + Assets**: `make dev` uses `cargo watch --no-restart` to rerun when files under `apps/carcinisation/src` or `assets/` change. The watcher stays alive even if a build or the game crashes, so you resolve errors before the next save retriggers a run.
 - **Assets**: Bevy reloads assets in `assets/` automatically while the game is running. The scene watcher (`make watch-scene-files`) prints parser errors for `.ron` files so you spot mistakes early.
 - **Stages & Cutscenes**: Stage data lives under `assets/stages/*.sg.ron`; cutscenes live under `assets/cinematics/*.cs.ron`. Keep Bevy running in `make dev` and run the watcher to validate edits live.
 

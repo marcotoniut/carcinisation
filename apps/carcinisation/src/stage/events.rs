@@ -10,7 +10,7 @@ use super::{
     data::{StageData, StageSpawn},
 };
 
-#[derive(Message)]
+#[derive(Event, Message)]
 /// Requests a full stage reset.
 pub struct StageRestart;
 

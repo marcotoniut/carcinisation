@@ -13,7 +13,7 @@ Carcinisation is a Bevy 0.17 workspace for a pixel-art action game and its suppo
 ## Quick Start
 
 ```bash
-# rebuilds and reruns the game via `bevy run` whenever sources change (requires cargo-watch)
+# rebuilds and reruns the game via `bevy run` whenever game source or assets change (requires cargo-watch; the watcher stays alive even if a run crashes so you can fix the error before the next change)
 make dev
 
 # run once without file watching

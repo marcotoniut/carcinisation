@@ -22,8 +22,8 @@ pub fn make_steps() -> Vec<GameStep> {
             is_checkpoint: true,
         }
         .into(),
-        StageAssetGameStep(assert_assets_path!("stages/tester.sg.ron").to_string()).into(),
-        // StageAssetGameStep(assert_assets_path!("stages/park.sg.ron").to_string()).into(),
+        // StageAssetGameStep(assert_assets_path!("stages/tester.sg.ron").to_string()).into(),
+        StageAssetGameStep(assert_assets_path!("stages/park.sg.ron").to_string()).into(),
         // StageAssetGameStep(assert_assets_path!("stages/spaceship.sg.ron").to_string()).into(),
         // StageAssetGameStep(assert_assets_path!("stages/asteroid.sg.ron").to_string()).into(),
     ]

@@ -124,10 +124,16 @@ fn main() {
         .init_resource::<VolumeSettings>()
         // Setup
         // Input, timing, and pixel pipeline plugins come before game-specific plugins.
-        .add_plugins(InputManagerPlugin::<GBInput>::default())
-        .add_plugins(FramepacePlugin)
-        .add_plugins(PixelPlugin::<Layer>::default())
-        .add_systems(Startup, (spawn_camera, set_framespace, init_gb_input))
+        .add_plugins(InputManagerPlugin::<GBInput>::default());
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        app.add_plugins(FramepacePlugin)
+            .add_systems(Startup, set_framespace);
+    }
+
+    app.add_plugins(PixelPlugin::<Layer>::default())
+        .add_systems(Startup, (spawn_camera, init_gb_input))
         // Graphics and Game
         // Seed render state and register the core gameplay plugin stack.
         .insert_resource(ClearColor(Color::BLACK))

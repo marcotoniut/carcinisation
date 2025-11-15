@@ -47,6 +47,18 @@ pub struct StageActionTimer {
     pub timer: Timer,
 }
 
+impl StageActionTimer {
+    pub fn start(&mut self, duration: Duration) {
+        self.timer.set_duration(duration);
+        self.timer.reset();
+        self.timer.unpause();
+    }
+
+    pub fn stop(&mut self) {
+        self.timer.pause();
+    }
+}
+
 impl Default for StageActionTimer {
     fn default() -> Self {
         let mut timer = Timer::from_seconds(0., TimerMode::Once);

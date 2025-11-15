@@ -36,7 +36,14 @@ run:
 
 .PHONY: dev
 dev:
-	RUST_BACKTRACE=full cargo watch -s "$(BEVY_RUN_CMD)"
+	# Watch only the main game source and assets so cargo-watch reruns when either changes.
+	RUST_BACKTRACE=full cargo watch \
+		--no-restart \
+		-w apps/carcinisation/src \
+		-w assets \
+		-i target \
+		-i .git \
+		-s "bash -lc 'set -o pipefail; $(BEVY_RUN_CMD)'"
 
 .PHONY: dev-wasm
 dev-wasm:
@@ -209,7 +216,7 @@ help:
 	@echo ""
 	@echo "🎮 Game Loop:"
 	@echo "  run                - Launch the main binary via 'bevy run' (override RUN_BIN/RUN_PACKAGE/ARGS as needed)"
-	@echo "  dev                - Auto-restart the game on changes via cargo-watch + 'bevy run'"
+	@echo "  dev                - Rebuild and rerun only when game source or assets change via cargo-watch --no-restart + 'bevy run' (watcher stays alive even if a run crashes)"
 	@echo "  dev-wasm           - Run the wasm target via 'bevy run ... web'"
 	@echo ""
 	@echo "🛠 Tools & Assets:"

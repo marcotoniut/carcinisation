@@ -29,3 +29,7 @@ pub struct DifficultySelectScreenEntity;
 #[derive(Component)]
 /// Arrow indicator that points at the currently selected difficulty.
 pub struct DifficultySelectionIndicator;
+
+#[derive(Component)]
+/// Marks the music player associated with the main menu.
+pub struct MainMenuMusic;
