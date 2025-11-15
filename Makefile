@@ -6,18 +6,20 @@ RUN_PACKAGE ?= carcinisation
 ARGS ?=
 FEATURES ?= bevy/dynamic_linking
 WASM_FEATURES ?=
+BEVY ?= bevy
 
 # Strip helper vars to avoid accidental extra whitespace
 STRIPPED_ARGS := $(strip $(ARGS))
 STRIPPED_FEATURES := $(strip $(FEATURES))
 STRIPPED_WASM_FEATURES := $(strip $(WASM_FEATURES))
 
+RUN_TARGET_FLAGS := --bin $(RUN_BIN) --package $(RUN_PACKAGE)
 RUN_ARG_FLAGS := $(if $(STRIPPED_ARGS),-- $(STRIPPED_ARGS),)
 RUN_FEATURE_FLAGS := $(if $(STRIPPED_FEATURES),--features $(STRIPPED_FEATURES),)
 RUN_WASM_FEATURE_FLAGS := $(if $(STRIPPED_WASM_FEATURES),--features $(STRIPPED_WASM_FEATURES),)
 
-CARGO_RUN_CMD := run --bin $(RUN_BIN) --package $(RUN_PACKAGE) $(RUN_FEATURE_FLAGS) $(RUN_ARG_FLAGS)
-CARGO_WASM_RUN_CMD := run --target wasm32-unknown-unknown --bin $(RUN_BIN) --package $(RUN_PACKAGE) $(RUN_WASM_FEATURE_FLAGS) $(RUN_ARG_FLAGS)
+BEVY_RUN_CMD := $(BEVY) run $(RUN_TARGET_FLAGS) $(RUN_FEATURE_FLAGS) $(RUN_ARG_FLAGS)
+BEVY_WEB_RUN_CMD := $(BEVY) run $(RUN_TARGET_FLAGS) $(RUN_WASM_FEATURE_FLAGS) web $(RUN_ARG_FLAGS)
 
 PYTHON_VENV := .venv
 PYTHON_BIN := $(PYTHON_VENV)/bin/python
@@ -30,26 +32,26 @@ endif
 # =============================================================================
 .PHONY: run
 run:
-	RUST_BACKTRACE=full cargo $(CARGO_RUN_CMD)
+	RUST_BACKTRACE=full $(BEVY_RUN_CMD)
 
 .PHONY: dev
 dev:
-	RUST_BACKTRACE=full cargo watch -x "$(CARGO_RUN_CMD)"
+	RUST_BACKTRACE=full cargo watch -s "$(BEVY_RUN_CMD)"
 
 .PHONY: dev-wasm
 dev-wasm:
-	RUST_BACKTRACE=full cargo $(CARGO_WASM_RUN_CMD)
+	RUST_BACKTRACE=full $(BEVY_WEB_RUN_CMD)
 
 # =============================================================================
 # Tooling launchers
 # =============================================================================
 .PHONY: launch-editor
 launch-editor:
-	RUST_BACKTRACE=full cargo run -p editor
+	RUST_BACKTRACE=full $(BEVY) run --package editor
 
 .PHONY: watch-scene-files
 watch-scene-files:
-	RUST_BACKTRACE=full cargo run -p scene-file-watcher
+	RUST_BACKTRACE=full $(BEVY) run --package scene-file-watcher
 
 .PHONY: dev-stage-editor
 dev-stage-editor:
@@ -69,7 +71,7 @@ ci-stage-editor:
 .PHONY: gen-types
 gen-types:
 	@echo "Generating TypeScript types from Rust..."
-	cargo run -p carcinisation --bin gen_types --features derive-ts
+	$(BEVY) run --package carcinisation --bin gen_types --features derive-ts
 
 .PHONY: gen-zod
 gen-zod:
@@ -85,7 +87,7 @@ watch-types:
 	@echo "🔄 Starting type watcher..."
 	@cargo watch -q --ignore "target/*" --ignore "*.ts" \
 		-w apps/carcinisation/src \
-		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings cargo run -p carcinisation --bin gen_types --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
+		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings $(BEVY) run --package carcinisation --bin gen_types --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
 
 # =============================================================================
 # Asset generation
@@ -115,11 +117,11 @@ generate-palettes: $(PALETTE_STAMP)
 
 .PHONY: generate-typeface
 generate-typeface:
-	cargo run -p generate-typeface
+	$(BEVY) run --package generate-typeface
 
 .PHONY: process-gfx
 process-gfx:
-	cargo run -p process-gfx
+	$(BEVY) run --package process-gfx
 
 # =============================================================================
 # Web targets
@@ -134,7 +136,7 @@ build-web:
 
 .PHONY: release-wasm
 release-wasm:
-	cargo build --release --target wasm32-unknown-unknown
+	$(BEVY) build $(RUN_TARGET_FLAGS) --release --target wasm32-unknown-unknown
 	wasm-opt -O -ol 100 -s 100 -o target/wasm32-unknown-unknown/release/carcinisation.opt.wasm target/wasm32-unknown-unknown/release/carcinisation.wasm
 
 # =============================================================================
@@ -146,11 +148,11 @@ check:
 
 .PHONY: build
 build:
-	cargo build
+	$(BEVY) build --workspace
 
 .PHONY: build-release
 build-release:
-	cargo build --release
+	$(BEVY) build --workspace --release
 
 .PHONY: clean
 clean:
@@ -162,13 +164,14 @@ fmt:
 
 .PHONY: lint
 lint:
-	cargo clippy --workspace --all-targets --all-features -- -D warnings
+	$(BEVY) lint --workspace --all-targets --all-features
 
 .PHONY: lint-fix
 lint-fix:
 	cargo fmt --all
 	proto run ruff -- check --fix
 	pnpm lint:fix
+	$(BEVY) lint --workspace --all-targets --all-features --fix
 
 .PHONY: clippy
 clippy:
@@ -205,12 +208,12 @@ help:
 	@echo "================================"
 	@echo ""
 	@echo "🎮 Game Loop:"
-	@echo "  run                - Launch the main binary (override RUN_BIN/RUN_PACKAGE/ARGS as needed)"
-	@echo "  dev                - Auto-restart the game on changes via cargo-watch"
-	@echo "  dev-wasm           - Run targeting wasm32-unknown-unknown (requires wasm-runner tooling)"
+	@echo "  run                - Launch the main binary via 'bevy run' (override RUN_BIN/RUN_PACKAGE/ARGS as needed)"
+	@echo "  dev                - Auto-restart the game on changes via cargo-watch + 'bevy run'"
+	@echo "  dev-wasm           - Run the wasm target via 'bevy run ... web'"
 	@echo ""
 	@echo "🛠 Tools & Assets:"
-	@echo "  launch-editor      - Open the in-house Bevy editor"
+	@echo "  launch-editor      - Open the in-house Bevy editor binary"
 	@echo "  dev-stage-editor      - Start the web-based Stage Editor (auto-generates types first)"
 	@echo "  build-stage-editor    - Build stage-editor for production (auto-generates types first)"
 	@echo "  ci-stage-editor       - Run stage-editor CI checks (types, lint, tests)"
@@ -228,10 +231,10 @@ help:
 	@echo ""
 	@echo "✅ Quality Gates:"
 	@echo "  check              - cargo check across the workspace with all features"
-	@echo "  build              - Compile debug binaries"
-	@echo "  build-release      - Compile optimized binaries"
+	@echo "  build              - Compile debug binaries via 'bevy build --workspace'"
+	@echo "  build-release      - Compile optimized binaries via 'bevy build --workspace --release'"
 	@echo "  fmt                - Format Rust sources"
-	@echo "  lint               - Run clippy with warnings as errors"
+	@echo "  lint               - Run 'bevy lint' workspace-wide"
 	@echo "  fix                - Apply rustfix suggestions (lib/tests only)"
 	@echo ""
 	@echo "🧪 Testing:"

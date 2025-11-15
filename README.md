@@ -6,17 +6,24 @@ Carcinisation is a Bevy 0.17 workspace for a pixel-art action game and its suppo
 
 - [Rust toolchain](https://www.rust-lang.org/tools/install) with `cargo` on your `PATH`.
 - [`cargo-watch`](https://crates.io/crates/cargo-watch) for hot-reload workflows (`cargo install cargo-watch`).
+- [Bevy CLI](https://thebevyflock.github.io/bevy_cli) for `bevy run`, `bevy lint`, and browser builds. Install it with `cargo install bevy_cli --locked` and verify with `bevy --version`.
 - [`proto`](https://moonrepo.dev/docs/proto) to provision the pinned Node.js, pnpm, Python, and Ruff versions (`proto install`).
 - [`pnpm`](https://pnpm.io/installation) for Biome linting and web tooling (installed via `proto install` above).
 
 ## Quick Start
 
 ```bash
-# rebuilds and reruns the game whenever sources change (requires cargo-watch)
+# rebuilds and reruns the game via `bevy run` whenever sources change (requires cargo-watch)
 make dev
 
 # run once without file watching
 make run
+
+# run the web target explicitly (same command make dev-wasm wraps)
+bevy run --bin carcinisation --package carcinisation web
+
+# lint everything Bevy knows about
+bevy lint --workspace --all-targets --all-features
 ```
 
 Run `make help` to discover additional targets for testing, asset generation, and web builds. Full command descriptions live in `DEVELOPMENT.md`.
