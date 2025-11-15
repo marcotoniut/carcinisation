@@ -11,6 +11,8 @@ export interface CameraPosition {
   y: number
 }
 
+const DEFAULT_STOP_DURATION = 999999
+
 /**
  * Calculate the duration of a single step
  */
@@ -21,11 +23,10 @@ function getStepDuration(
 ): number {
   if ("Stop" in step) {
     // Stop steps have a max_duration (or infinite if null)
-    return step.Stop.max_duration ?? 999999
+    return step.Stop.max_duration ?? DEFAULT_STOP_DURATION
   }
 
   if ("Movement" in step) {
-    // Movement steps: calculate time based on distance and speed
     const movement = step.Movement
     if (!endPos) return 0
 
@@ -37,7 +38,7 @@ function getStepDuration(
 
   if ("Cinematic" in step) {
     // Cinematics: for now, use a fixed duration (can be enhanced later)
-    return 5 // Default 5 seconds for cinematics
+    return 5
   }
 
   return 0
@@ -53,8 +54,14 @@ export function getStepMarkers(stageData: StageData | null): StepMarker[] {
 
   const markers: StepMarker[] = []
   let cumulativeTime = 0
+  let currentPos: [number, number] = [
+    stageData.start_coordinates[0],
+    stageData.start_coordinates[1],
+  ]
+
   for (let i = 0; i < stageData.steps.length; i++) {
     const step = stageData.steps[i]
+    const nextPos = "Movement" in step ? step.Movement.coordinates : currentPos
 
     markers.push({
       time: cumulativeTime,
@@ -63,21 +70,12 @@ export function getStepMarkers(stageData: StageData | null): StepMarker[] {
       index: i,
     })
 
-    // Find the current position by looking back through all previous steps
-    // to find the last Movement step
-    let currentPos = stageData.start_coordinates
-    for (let j = i - 1; j >= 0; j--) {
-      const prevStep = stageData.steps[j]
-      if ("Movement" in prevStep) {
-        currentPos = prevStep.Movement.coordinates
-        break
-      }
-    }
-
-    const nextPos = "Movement" in step ? step.Movement.coordinates : currentPos
-
     const duration = getStepDuration(step, currentPos, nextPos)
     cumulativeTime += duration
+
+    if ("Movement" in step) {
+      currentPos = step.Movement.coordinates
+    }
   }
 
   return markers
@@ -105,69 +103,40 @@ export function getCameraPosition(
     return { x: startCoords[0], y: startCoords[1] }
   }
 
-  // Find which step we're in
-  let currentStepIndex = 0
-  for (let i = markers.length - 1; i >= 0; i--) {
-    if (time >= markers[i].time) {
-      currentStepIndex = i
-      break
-    }
-  }
+  let currentPos: [number, number] = [startCoords[0], startCoords[1]]
+  let elapsed = 0
 
-  const marker = markers[currentStepIndex]
-  const step = stageData.steps[marker.index]
-  const stepStartTime = marker.time
-  const elapsedInStep = time - stepStartTime
+  for (let i = 0; i < stageData.steps.length; i++) {
+    const step = stageData.steps[i]
+    const nextPos = "Movement" in step ? step.Movement.coordinates : currentPos
+    const duration = getStepDuration(step, currentPos, nextPos)
+    const stepEnd = elapsed + duration
 
-  // Find the starting position for this step by looking back through all
-  // previous steps to find the last Movement step
-  let stepStartPos: [number, number] = startCoords
-  for (let i = marker.index - 1; i >= 0; i--) {
-    const prevStep = stageData.steps[i]
-    if ("Movement" in prevStep) {
-      stepStartPos = (
-        prevStep as { Movement: { coordinates: [number, number] } }
-      ).Movement.coordinates
-      break
-    }
-  }
+    if (time < stepEnd) {
+      if ("Movement" in step) {
+        if (duration === 0) {
+          return { x: nextPos[0], y: nextPos[1] }
+        }
 
-  // Calculate position based on step type
-  if ("Stop" in step) {
-    // Camera stays at the same position
-    return { x: stepStartPos[0], y: stepStartPos[1] }
-  }
+        const dx = nextPos[0] - currentPos[0]
+        const dy = nextPos[1] - currentPos[1]
+        const progress = Math.min(1, Math.max(0, (time - elapsed) / duration))
 
-  if ("Movement" in step) {
-    const movement = (
-      step as {
-        Movement: { coordinates: [number, number]; base_speed: number }
+        return {
+          x: currentPos[0] + dx * progress,
+          y: currentPos[1] + dy * progress,
+        }
       }
-    ).Movement
-    const targetPos = movement.coordinates
 
-    // Calculate how far we've moved in this step
-    const dx = targetPos[0] - stepStartPos[0]
-    const dy = targetPos[1] - stepStartPos[1]
-    const distance = Math.sqrt(dx * dx + dy * dy)
-
-    if (distance === 0) {
-      return { x: stepStartPos[0], y: stepStartPos[1] }
+      return { x: currentPos[0], y: currentPos[1] }
     }
 
-    const travelTime = distance / movement.base_speed
-    const progress = Math.min(1, elapsedInStep / travelTime)
-
-    return {
-      x: stepStartPos[0] + dx * progress,
-      y: stepStartPos[1] + dy * progress,
+    if ("Movement" in step) {
+      currentPos = step.Movement.coordinates
     }
+
+    elapsed = stepEnd
   }
 
-  if ("Cinematic" in step) {
-    // For cinematics, camera stays at the previous position
-    return { x: stepStartPos[0], y: stepStartPos[1] }
-  }
-
-  return { x: stepStartPos[0], y: stepStartPos[1] }
+  return { x: currentPos[0], y: currentPos[1] }
 }

@@ -22,8 +22,23 @@ const GAME_BOY_SCREEN_HEIGHT = 144
 /// Small gap between skybox and background
 const SKYBOX_TO_BACKGROUND_GAP = 20
 
+type WorldPoint = { x: number; y: number }
+type ScreenPoint = { x: number; y: number }
+
+// Factory so we can adjust origin offsets/scaling later.
+const makeWorldToScreen = (originYOffset = 0) => {
+  return (world: WorldPoint): ScreenPoint => ({
+    x: world.x,
+    // World is Y-up while Pixi is Y-down; invert and offset so y=0 aligns with
+    // the stage origin (background bottom-left).
+    y: originYOffset - world.y,
+  })
+}
+
 export function Viewport() {
-  const { parsedData, timelinePosition, debugMode } = useEditorStore()
+  const parsedData = useEditorStore((state) => state.parsedData)
+  const timelinePosition = useEditorStore((state) => state.timelinePosition)
+  const debugMode = useEditorStore((state) => state.debugMode)
   const canvasRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
   const cameraRef = useRef<Container | null>(null)
@@ -31,22 +46,75 @@ export function Viewport() {
   const skyboxRef = useRef<Sprite | null>(null)
   const cameraViewportRef = useRef<Graphics | null>(null)
   const debugGraphicsRef = useRef<Container | null>(null)
+  const [worldOriginYOffset, setWorldOriginYOffset] = useState(0)
   const [viewportSize, setViewportSize] = useState({ width: 800, height: 600 })
   // Camera position represents the world coordinates at the viewport center
-  const [cameraPos, setCameraPos] = useState({ x: 0, y: 0 })
+  const [cameraPos, setCameraPos] = useState<WorldPoint>({ x: 0, y: 0 })
   const [cameraScale, setCameraScale] = useState(1)
   const [isPanning, setIsPanning] = useState(false)
   const lastPanPos = useRef({ x: 0, y: 0 })
   const pinchRef = useRef<{ initialDist: number; initialScale: number } | null>(
     null,
   )
-  const cameraStateRef = useRef({
+  const cameraStateRef = useRef<{
+    pos: WorldPoint
+    scale: number
+  }>({
     pos: { x: 0, y: 0 },
     scale: 1,
   })
+  const [viewportReady, setViewportReady] = useState(false)
+
+  const worldToScreen = useMemo(
+    () => makeWorldToScreen(worldOriginYOffset),
+    [worldOriginYOffset],
+  )
+
+  const screenToWorld = useCallback(
+    (screen: ScreenPoint, camera: WorldPoint, scale: number): WorldPoint => {
+      const centerX = viewportSize.width / 2
+      const centerY = viewportSize.height / 2
+      const cameraScreen = worldToScreen(camera)
+      const worldScreenX = (screen.x - centerX + cameraScreen.x * scale) / scale
+      const worldScreenY = (screen.y - centerY + cameraScreen.y * scale) / scale
+
+      return {
+        x: worldScreenX,
+        y: worldOriginYOffset - worldScreenY,
+      }
+    },
+    [
+      viewportSize.width,
+      viewportSize.height,
+      worldOriginYOffset,
+      worldToScreen,
+    ],
+  )
 
   // Calculate step markers from stage data
   const stepMarkers = useMemo(() => getStepMarkers(parsedData), [parsedData])
+
+  const positionCameraViewport = useCallback(
+    (targetTimelinePosition: number) => {
+      if (!cameraViewportRef.current || !parsedData) {
+        return
+      }
+      const cameraWorld = getCameraPosition(
+        parsedData,
+        targetTimelinePosition,
+        stepMarkers,
+      )
+      const cameraScreen = worldToScreen(cameraWorld)
+      cameraViewportRef.current.position.set(cameraScreen.x, cameraScreen.y)
+    },
+    [parsedData, stepMarkers, worldToScreen],
+  )
+
+  useEffect(() => {
+    if (viewportReady) {
+      positionCameraViewport(timelinePosition)
+    }
+  }, [viewportReady, positionCameraViewport, timelinePosition])
 
   // Track viewport size dynamically
   useEffect(() => {
@@ -70,6 +138,8 @@ export function Viewport() {
 
   // Initialize PixiJS application
   useEffect(() => {
+    setViewportReady(false)
+    setWorldOriginYOffset(0)
     if (!canvasRef.current || !parsedData) return
 
     const app = new Application()
@@ -105,6 +175,7 @@ export function Viewport() {
           cameraRef.current = camera
           app.stage.addChild(camera)
           camera.sortableChildren = true
+          let stageOriginYOffset = 0
 
           // Draw large static grid centred at origin
           const grid = new Graphics()
@@ -142,6 +213,10 @@ export function Viewport() {
             }
           }
 
+          // NOTE: All stage/timeline positions (RON/world coordinates) should be
+          // converted via worldToScreen(...) before assigning to Pixi objects.
+          // World is Y-up; Pixi is Y-down.
+
           // Load background with left edge at x=0, vertically centered
           if (parsedData.background_path) {
             const backgroundSprite = await loadTexture(
@@ -151,6 +226,10 @@ export function Viewport() {
               backgroundSprite.position.set(0, 0)
               backgroundSprite.zIndex = -100
               camera.addChild(backgroundSprite)
+              stageOriginYOffset = backgroundSprite.height
+              if (!unmounted) {
+                setWorldOriginYOffset(stageOriginYOffset)
+              }
               backgroundRef.current = backgroundSprite
 
               // Add "Background" label above the background
@@ -203,12 +282,12 @@ export function Viewport() {
           }
 
           // Create camera viewport rectangle (GameBoy screen size: 160x144)
-          // Draw centered around (0, 0) so when positioned, it's centered at camera position
+          // Anchor at bottom-left so world origin maps to camera's corner
           const cameraViewport = new Graphics()
           cameraViewport.setStrokeStyle({ width: 1, color: CAMERA_COLOR })
           cameraViewport.rect(
-            -GAME_BOY_SCREEN_WIDTH / 2,
-            -GAME_BOY_SCREEN_HEIGHT / 2,
+            0,
+            -GAME_BOY_SCREEN_HEIGHT,
             GAME_BOY_SCREEN_WIDTH,
             GAME_BOY_SCREEN_HEIGHT,
           )
@@ -216,6 +295,9 @@ export function Viewport() {
           cameraViewport.zIndex = 200
           camera.addChild(cameraViewport)
           cameraViewportRef.current = cameraViewport
+          if (!unmounted) {
+            setViewportReady(true)
+          }
 
           // Create debug graphics container
           const debugContainer = new Container()
@@ -223,34 +305,45 @@ export function Viewport() {
           debugContainer.visible = true // Visible by default (debugMode is true)
           camera.addChild(debugContainer)
           debugGraphicsRef.current = debugContainer
+          const stageWorldToScreen = makeWorldToScreen(stageOriginYOffset)
 
           // Draw X-axis arrow (pointing right, positive direction)
           const xAxis = new Graphics()
           xAxis.setStrokeStyle({ width: 1, color: AXIS_COLOR })
-          xAxis.moveTo(0, 0)
-          xAxis.lineTo(50, 0)
+          const originScreen = stageWorldToScreen({ x: 0, y: 0 })
+          const xAxisTip = stageWorldToScreen({ x: 50, y: 0 })
+          xAxis.moveTo(originScreen.x, originScreen.y)
+          xAxis.lineTo(xAxisTip.x, xAxisTip.y)
           // Arrow head
-          xAxis.moveTo(50, 0)
-          xAxis.lineTo(45, -3)
-          xAxis.moveTo(50, 0)
-          xAxis.lineTo(45, 3)
+          const xArrowTop = stageWorldToScreen({ x: 45, y: 3 })
+          const xArrowBottom = stageWorldToScreen({ x: 45, y: -3 })
+          xAxis.moveTo(xAxisTip.x, xAxisTip.y)
+          xAxis.lineTo(xArrowTop.x, xArrowTop.y)
+          xAxis.moveTo(xAxisTip.x, xAxisTip.y)
+          xAxis.lineTo(xArrowBottom.x, xArrowBottom.y)
           xAxis.stroke()
           debugContainer.addChild(xAxis)
 
-          // Draw Y-axis arrow (pointing down, positive direction)
+          // Draw Y-axis arrow (pointing up, positive direction)
           const yAxis = new Graphics()
           yAxis.setStrokeStyle({ width: 1, color: AXIS_COLOR })
-          yAxis.moveTo(0, 0)
-          yAxis.lineTo(0, 50)
+          const yAxisTip = stageWorldToScreen({ x: 0, y: 50 })
+          yAxis.moveTo(originScreen.x, originScreen.y)
+          yAxis.lineTo(yAxisTip.x, yAxisTip.y)
           // Arrow head
-          yAxis.moveTo(0, 50)
-          yAxis.lineTo(-3, 45)
-          yAxis.moveTo(0, 50)
-          yAxis.lineTo(3, 45)
+          const yArrowLeft = stageWorldToScreen({ x: -3, y: 45 })
+          const yArrowRight = stageWorldToScreen({ x: 3, y: 45 })
+          yAxis.moveTo(yAxisTip.x, yAxisTip.y)
+          yAxis.lineTo(yArrowLeft.x, yArrowLeft.y)
+          yAxis.moveTo(yAxisTip.x, yAxisTip.y)
+          yAxis.lineTo(yArrowRight.x, yArrowRight.y)
           yAxis.stroke()
           debugContainer.addChild(yAxis)
 
+          // Axes reflect world-space orientation via stageWorldToScreen.
+
           // Add origin label
+          const originLabelPos = stageWorldToScreen({ x: 1, y: 1 })
           const originLabel = new Text({
             text: "0:0",
             style: {
@@ -258,7 +351,7 @@ export function Viewport() {
               fill: AXIS_COLOR,
               fontFamily: "monospace",
             },
-            position: { x: 1, y: 1 },
+            position: originLabelPos,
             anchor: { x: 0, y: 0 },
           })
           debugContainer.addChild(originLabel)
@@ -288,18 +381,6 @@ export function Viewport() {
     }
   }, [parsedData])
 
-  // Update camera viewport position based on timeline
-  useEffect(() => {
-    if (cameraViewportRef.current && parsedData) {
-      const cameraPos = getCameraPosition(
-        parsedData,
-        timelinePosition,
-        stepMarkers,
-      )
-      cameraViewportRef.current.position.set(cameraPos.x, cameraPos.y)
-    }
-  }, [parsedData, timelinePosition, stepMarkers])
-
   // Toggle debug graphics visibility
   useEffect(() => {
     if (debugGraphicsRef.current) {
@@ -314,18 +395,19 @@ export function Viewport() {
     if (cameraRef.current) {
       const centerX = viewportSize.width / 2
       const centerY = viewportSize.height / 2
-      // Container position = viewport_center - camera_world * scale
+      // Container position = viewport_center - camera_screen * scale
+      const cameraScreen = worldToScreen(cameraPos)
       cameraRef.current.position.set(
-        centerX - cameraPos.x * cameraScale,
-        centerY - cameraPos.y * cameraScale,
+        centerX - cameraScreen.x * cameraScale,
+        centerY - cameraScreen.y * cameraScale,
       )
       cameraRef.current.scale.set(cameraScale, cameraScale)
     }
-  }, [cameraPos, cameraScale, viewportSize])
+  }, [cameraPos, cameraScale, viewportSize, worldToScreen])
 
   // Handle mouse wheel zoom with native event listener (to prevent passive listener warning)
   const commitCameraState = useCallback(
-    (nextPos: { x: number; y: number }, nextScale: number) => {
+    (nextPos: WorldPoint, nextScale: number) => {
       cameraStateRef.current = { pos: nextPos, scale: nextScale }
       setCameraPos(nextPos)
       setCameraScale(nextScale)
@@ -350,22 +432,22 @@ export function Viewport() {
       const mouseX = clientX - rect.left
       const mouseY = clientY - rect.top
 
-      const centerX = viewportSize.width / 2
-      const centerY = viewportSize.height / 2
-
       const prevScale = cameraStateRef.current.scale
       const prevPos = cameraStateRef.current.pos
       const newScale = clampScale(prevScale * scaleFactor)
 
-      // Calculate offset from viewport center
-      const offsetX = mouseX - centerX
-      const offsetY = mouseY - centerY
-
-      // New camera position keeps the world point under mouse fixed
-      // camera_new = camera_old + offset * (1/scale_old - 1/scale_new)
-      const nextX = prevPos.x + offsetX * (1 / prevScale - 1 / newScale)
-      const nextY = prevPos.y + offsetY * (1 / prevScale - 1 / newScale)
-      const nextPos = { x: nextX, y: nextY }
+      const pointerWorld = screenToWorld(
+        { x: mouseX, y: mouseY },
+        prevPos,
+        prevScale,
+      )
+      const scaleRatio = prevScale / newScale
+      const deltaX = prevPos.x - pointerWorld.x
+      const deltaY = prevPos.y - pointerWorld.y
+      const nextPos = {
+        x: pointerWorld.x + deltaX * scaleRatio,
+        y: pointerWorld.y + deltaY * scaleRatio,
+      }
 
       commitCameraState(nextPos, newScale)
     }
@@ -382,7 +464,7 @@ export function Viewport() {
     return () => {
       canvas.removeEventListener("wheel", handleWheel)
     }
-  }, [commitCameraState, viewportSize])
+  }, [commitCameraState, screenToWorld])
 
   // Handle panning
   const handlePointerDown = (event: React.PointerEvent) => {
@@ -394,16 +476,27 @@ export function Viewport() {
 
   const handlePointerMove = (event: React.PointerEvent) => {
     if (isPanning) {
-      const dx = event.clientX - lastPanPos.current.x
-      const dy = event.clientY - lastPanPos.current.y
+      const currentScreen = { x: event.clientX, y: event.clientY }
+      const prevScreen = lastPanPos.current
       const scale = cameraStateRef.current.scale
-      // Panning moves camera in opposite direction of mouse movement
+      // Keep the pointer anchored by translating the camera by the world
+      // delta between the previous and current screen positions.
+      const prevWorld = screenToWorld(
+        prevScreen,
+        cameraStateRef.current.pos,
+        scale,
+      )
+      const currentWorld = screenToWorld(
+        currentScreen,
+        cameraStateRef.current.pos,
+        scale,
+      )
       const nextPos = {
-        x: cameraStateRef.current.pos.x - dx / scale,
-        y: cameraStateRef.current.pos.y - dy / scale,
+        x: cameraStateRef.current.pos.x + (prevWorld.x - currentWorld.x),
+        y: cameraStateRef.current.pos.y + (prevWorld.y - currentWorld.y),
       }
       commitCameraState(nextPos, scale)
-      lastPanPos.current = { x: event.clientX, y: event.clientY }
+      lastPanPos.current = currentScreen
     }
   }
 
