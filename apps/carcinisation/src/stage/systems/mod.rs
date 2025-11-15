@@ -49,8 +49,13 @@ use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 pub fn toggle_game(
     gb_input: Res<ActionState<GBInput>>,
     state: Res<State<GameProgressState>>,
+    stage_state: Res<State<StageProgressState>>,
     mut next_state: ResMut<NextState<GameProgressState>>,
 ) {
+    if *stage_state.get() == StageProgressState::GameOver {
+        return;
+    }
+
     if gb_input.just_pressed(&GBInput::Start) {
         if *state.get() == GameProgressState::Running {
             #[cfg(debug_assertions)]
@@ -75,7 +80,12 @@ pub fn spawn_current_stage_bundle(
     stage_data: Res<StageData>,
 ) {
     commands
-        .spawn((Stage, Name::new("Stage"), Visibility::Visible))
+        .spawn((
+            Stage,
+            Name::new("Stage"),
+            Visibility::Visible,
+            InheritedVisibility::VISIBLE,
+        ))
         .with_children(|p0| {
             p0.spawn(BackgroundBundle::new(
                 assets_sprite.load(stage_data.background_path.clone()),
@@ -93,14 +103,18 @@ pub fn spawn_current_stage_bundle(
 // TODO should be using StageTime instead of Time
 /// @system Advances the stage action timer every frame.
 pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
+    if timer.timer.is_paused() {
+        return;
+    }
     timer.timer.tick(time.delta());
 }
 
 /// @system Emits `NextStepEvent` when the action timer elapses.
 pub fn check_stage_step_timer(timer: Res<StageActionTimer>, mut commands: Commands) {
-    if timer.timer.is_finished() {
-        commands.trigger(NextStepEvent);
+    if timer.timer.is_paused() || !timer.timer.is_finished() {
+        return;
     }
+    commands.trigger(NextStepEvent);
 }
 
 /// @system Evaluates the current stage progress and transitions between states.

@@ -10,6 +10,7 @@ pub mod events;
 pub mod pickup;
 pub mod player;
 pub mod resources;
+pub mod restart;
 mod systems;
 pub mod ui;
 
@@ -22,6 +23,7 @@ use self::{
     pickup::systems::health::pickup_health,
     player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress, StageTime},
+    restart::StageRestartPlugin,
     systems::{
         camera::*,
         damage::*,
@@ -134,6 +136,7 @@ impl Plugin for StagePlugin {
             .add_plugins(DestructiblePlugin)
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
+            .add_plugins(StageRestartPlugin)
             .add_plugins(StageUiPlugin)
             .add_active_systems::<StagePlugin, _>(
                 // Primary stage tick, only when gameplay is active and running.
@@ -202,8 +205,7 @@ impl Plugin for StagePlugin {
                             .chain(),
                     )
                         .run_if(in_state(StageProgressState::Running)),
-                )
-                    .run_if(in_state(StageProgressState::Running)),
+                ),
             )
             .add_active_systems::<StagePlugin, _>(
                 // Overlay/UI rendering keeps pace whenever the stage plugin is active.

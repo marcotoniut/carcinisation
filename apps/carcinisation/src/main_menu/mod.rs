@@ -10,7 +10,10 @@ use self::{
     systems::{
         interactions::*,
         layout::*,
-        setup::{on_main_menu_shutdown, on_main_menu_startup},
+        setup::{
+            cleanup_main_menu_music, on_main_menu_shutdown, on_main_menu_startup,
+            spawn_main_menu_music,
+        },
     },
 };
 use activable::{Activable, ActivableAppExt};
@@ -24,8 +27,12 @@ impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.insert_state(MainMenuScreen::default())
             .init_resource::<DifficultySelection>()
-            .on_active::<MainMenuPlugin, _>((spawn_main_menu, on_main_menu_startup))
-            .on_inactive::<MainMenuPlugin, _>(on_main_menu_shutdown)
+            .on_active::<MainMenuPlugin, _>((
+                spawn_main_menu,
+                on_main_menu_startup,
+                spawn_main_menu_music,
+            ))
+            .on_inactive::<MainMenuPlugin, _>((on_main_menu_shutdown, cleanup_main_menu_music))
             .add_systems(
                 OnEnter(MainMenuScreen::PressStart),
                 enter_press_start_screen,
