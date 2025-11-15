@@ -62,11 +62,11 @@ use seldom_pixel::prelude::PxSubPosition;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Systems that load stage data and assets before play begins.
-pub struct LoadingSystemSet;
+pub struct LoadingSystems;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Systems that build out level entities once resources are available.
-pub struct BuildingSystemSet;
+pub struct BuildingSystems;
 
 /// Registers all stage-related plugins, assets, events, and frame drives.
 #[derive(Activable)]

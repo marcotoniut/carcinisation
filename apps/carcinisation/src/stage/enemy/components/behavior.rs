@@ -24,7 +24,7 @@ pub struct EnemyCurrentBehavior {
 
 #[derive(Component, Clone, Debug)]
 pub enum BehaviorBundle {
-    Idle(()),
+    Idle,
     LinearMovement(
         (
             LinearMovement,
@@ -33,8 +33,8 @@ pub enum BehaviorBundle {
             Option<LinearMovementBundle<StageTime, TargetingPositionZ>>,
         ),
     ),
-    Jump(()),
-    Attack(()),
+    Jump,
+    Attack,
     Circle(CircleAround),
 }
 
@@ -47,7 +47,7 @@ impl EnemyCurrentBehavior {
         depth: Depth,
     ) -> BehaviorBundle {
         match self.behavior {
-            EnemyStep::Idle { .. } => BehaviorBundle::Idle(()),
+            EnemyStep::Idle { .. } => BehaviorBundle::Idle,
             EnemyStep::LinearMovement(LinearMovementEnemyStep {
                 depth_movement_o,
                 direction,
@@ -94,7 +94,7 @@ impl EnemyCurrentBehavior {
                     }),
                 ))
             }
-            EnemyStep::Attack { .. } => BehaviorBundle::Attack(()),
+            EnemyStep::Attack { .. } => BehaviorBundle::Attack,
             EnemyStep::Circle(CircleAroundEnemyStep {
                 radius, direction, ..
             }) => {
@@ -106,7 +106,7 @@ impl EnemyCurrentBehavior {
                     time_offset: time_offset.as_secs_f32(),
                 })
             }
-            EnemyStep::Jump(JumpEnemyStep { .. }) => BehaviorBundle::Jump(()),
+            EnemyStep::Jump(JumpEnemyStep { .. }) => BehaviorBundle::Jump,
         }
     }
 }
