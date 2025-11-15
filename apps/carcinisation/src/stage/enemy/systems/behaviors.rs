@@ -29,9 +29,7 @@ pub fn check_no_behavior(
 
         let bundles = current_behavior.get_bundles(stage_time.elapsed, position, speed.0, *depth);
         match bundles {
-            BehaviorBundle::Idle(bundles) => {
-                commands.entity(entity).insert(bundles);
-            }
+            BehaviorBundle::Idle => {}
             BehaviorBundle::LinearMovement((
                 linear_movement,
                 linear_movement_bundle_x,
@@ -48,24 +46,12 @@ pub fn check_no_behavior(
                     entity_commands.insert(linear_movement_bundle_z);
                 }
             }
-            BehaviorBundle::Attack(bundles) => {
-                commands.entity(entity).insert(bundles);
-            }
+            BehaviorBundle::Attack => {}
             BehaviorBundle::Circle(bundles) => {
                 commands.entity(entity).insert(bundles);
             }
-            BehaviorBundle::Jump(bundles) => {
-                commands.entity(entity).insert(bundles);
-                // let mut entity_commands = commands.entity(entity).insert((
-                //     linear_movement,
-                //     linear_movement_bundle_x,
-                //     linear_movement_bundle_y,
-                // ));
-                // if let Some(linear_movement_bundle_z) = linear_movement_bundle_z_o {
-                //     entity_commands.insert(linear_movement_bundle_z)
-                // } else {
-                //     entity_commands
-                // }
+            BehaviorBundle::Jump => {
+                // Jump currently does not add additional components.
             }
         };
 

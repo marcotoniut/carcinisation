@@ -26,11 +26,11 @@ use seldom_pixel::prelude::PxSprite;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Player movement systems run before confinement to ensure corrected positions.
-pub struct MovementSystemSet;
+pub struct MovementSystems;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Ensures players stay within the stage bounds after movement systems run.
-pub struct ConfinementSystemSet;
+pub struct ConfinementSystems;
 
 /// Plugin that schedules player input, attack timers, and camera effects.
 #[derive(Activable)]
@@ -39,7 +39,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AttackTimer>()
-            .configure_sets(Update, MovementSystemSet.before(ConfinementSystemSet))
+            .configure_sets(Update, MovementSystems.before(ConfinementSystems))
             .add_message::<CameraShakeTrigger>()
             .add_observer(on_camera_shake)
             .add_message::<PlayerStartupTrigger>()
@@ -53,8 +53,8 @@ impl Plugin for PlayerPlugin {
                     check_attack_timer,
                     detect_player_attack,
                     camera_shake::<StageTime>,
-                    player_movement::<StageTime>.in_set(MovementSystemSet),
-                    confine_player_movement.in_set(ConfinementSystemSet),
+                    player_movement::<StageTime>.in_set(MovementSystems),
+                    confine_player_movement.in_set(ConfinementSystems),
                 ),
             );
     }
