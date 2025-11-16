@@ -6,7 +6,7 @@ use crate::components::GBColor;
 use crate::layer::Layer;
 use bevy::{
     ecs::system::EntityCommands,
-    prelude::{AssetServer, Bundle, Component, Visibility},
+    prelude::{AssetServer, Bundle, Component, InheritedVisibility, Visibility},
 };
 use seldom_pixel::prelude::{
     PxAnchor, PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
@@ -97,6 +97,7 @@ pub fn insert_rectangle(
             width,
             ..Default::default()
         })
+        .insert((Visibility::Visible, InheritedVisibility::VISIBLE))
         .with_children(|p0| {
             for row in 0..height {
                 let i = row as i32;

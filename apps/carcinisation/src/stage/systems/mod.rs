@@ -42,7 +42,7 @@ use crate::{
     transitions::trigger_transition,
 };
 use assert_assets_path::assert_assets_path;
-use bevy::{audio::PlaybackMode, prelude::*};
+use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
@@ -497,5 +497,25 @@ pub fn on_next_step_cleanup_stop_step(
             .remove::<StopStageStep>()
             .remove::<StageStepSpawner>()
             .remove::<CurrentStageStep>();
+    }
+}
+#[cfg(debug_assertions)]
+/// @system Logs parent chains where `InheritedVisibility` is missing to guard against `[B0004]`.
+pub fn debug_visibility_hierarchy(
+    children: Query<(Entity, &ChildOf, Option<&Name>), With<InheritedVisibility>>,
+    parents: Query<(Option<&InheritedVisibility>, Option<&Name>)>,
+) {
+    for (entity, parent, child_name) in &children {
+        if let Ok((opt_vis, parent_name)) = parents.get(parent.0) {
+            if opt_vis.is_none() {
+                info!(
+                    "B0004 candidate: child {:?} ({:?}), parent {:?} ({:?})",
+                    entity,
+                    child_name.map(|n| n.as_str()),
+                    parent.0,
+                    parent_name.map(|n| n.as_str())
+                );
+            }
+        }
     }
 }

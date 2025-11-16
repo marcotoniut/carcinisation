@@ -57,7 +57,12 @@ pub fn spawn_hud(
                 ));
             }
 
-            p0.spawn((Name::new("Health"),)).with_children(|parent| {
+            p0.spawn((
+                Name::new("Health"),
+                Visibility::Visible,
+                InheritedVisibility::VISIBLE,
+            ))
+            .with_children(|parent| {
                 parent.spawn((
                     PxSpriteBundle::<Layer> {
                         anchor: PxAnchor::BottomLeft,
@@ -94,7 +99,12 @@ pub fn spawn_hud(
                 ));
             });
 
-            p0.spawn((Name::new("Score"),)).with_children(|parent| {
+            p0.spawn((
+                Name::new("Score"),
+                Visibility::Visible,
+                InheritedVisibility::VISIBLE,
+            ))
+            .with_children(|parent| {
                 parent.spawn((
                     PxTextBundle::<Layer> {
                         position: PxPosition::from(IVec2::new(
