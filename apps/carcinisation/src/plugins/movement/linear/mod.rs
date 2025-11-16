@@ -6,6 +6,12 @@ use super::structs::Magnitude;
 use bevy::{ecs::component::Mutable, prelude::*};
 use std::marker::PhantomData;
 
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct LinearMovementSystems;
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct LinearMovementCleanupSystems;
+
 pub struct LinearMovementPlugin<
     D: Default + Send + Sync + 'static,
     P: Magnitude + 'static + Component<Mutability = Mutable>,
@@ -33,11 +39,30 @@ where
     P: Magnitude + Component<Mutability = Mutable>,
 {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, on_position_added::<D, P>)
-            .add_systems(
-                Update,
-                ((on_reached::<D, P>, update::<D, P>, check_reached::<D, P>).chain(),),
-            );
+        app.configure_sets(FixedUpdate, LinearMovementSystems);
+        app.configure_sets(PostUpdate, LinearMovementCleanupSystems);
+        app.add_systems(
+            FixedUpdate,
+            (
+                on_position_added::<D, P>,
+                (
+                    update::<D, P>,
+                    check_reached::<D, P>,
+                    propagate_child_reached_to_parent::<D, P>,
+                )
+                    .chain(),
+                aggregate_movement_children_to_parent::<D, P>,
+            )
+                .chain()
+                .in_set(LinearMovementSystems),
+        );
+        // Cleanup runs exclusively to avoid deferred-command races.
+        app.add_systems(
+            FixedUpdate,
+            on_reached_cleanup::<D, P>
+                .in_set(LinearMovementCleanupSystems)
+                .after(LinearMovementSystems),
+        );
     }
 }
 
@@ -74,8 +99,9 @@ where
 {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
-            (check_2d_x_reached::<D, X, Y>, check_2d_y_reached::<D, X, Y>),
+            FixedUpdate,
+            (check_2d_x_reached::<D, X, Y>, check_2d_y_reached::<D, X, Y>)
+                .after(LinearMovementSystems),
         );
     }
 }

@@ -34,7 +34,7 @@ where
 {
     fn build(&self, app: &mut App) {
         app.add_systems(
-            Update,
+            FixedUpdate,
             (
                 update::<D, P>,
                 check_x_reached::<D, P>,

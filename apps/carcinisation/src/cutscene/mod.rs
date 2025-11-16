@@ -18,7 +18,7 @@ use self::{
     },
 };
 use crate::{
-    core::{event::on_trigger_write_event, time::tick_time_domain},
+    core::{event::on_trigger_write_event, time::tick_time},
     plugins::movement::linear::{
         components::{TargetingPositionX, TargetingPositionY},
         LinearMovementPlugin,
@@ -47,8 +47,8 @@ impl Plugin for CutscenePlugin {
             .add_observer(on_cutscene_shutdown)
             .add_observer(on_trigger_write_event::<CutsceneShutdownTrigger>)
             .add_systems(Startup, init_input)
-            .add_active_systems::<CutscenePlugin, _>(
-                // Core playback loop: reads steps, spawns assets, ticks timers.
+            .add_active_systems_in::<CutscenePlugin, _>(
+                FixedUpdate,
                 (
                     (
                         read_step_trigger,
@@ -61,8 +61,7 @@ impl Plugin for CutscenePlugin {
                         ),
                     )
                         .chain(),
-                    // render_cutscene,
-                    tick_time_domain::<CutsceneTimeDomain>,
+                    tick_time::<Fixed, CutsceneTimeDomain>,
                 ),
             )
             .add_active_systems_in::<CutscenePlugin, _>(PostUpdate, check_press_start_input);

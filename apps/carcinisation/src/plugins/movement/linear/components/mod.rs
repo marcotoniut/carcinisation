@@ -1,7 +1,7 @@
 pub mod extra;
 
 use crate::plugins::movement::structs::{Constructor, Magnitude, MovementDirection};
-use bevy::prelude::*;
+use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use derive_more::From;
 use derive_new::new;
 use std::marker::PhantomData;
@@ -172,6 +172,73 @@ impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
             speed: LinearSpeed::<D, P>::new(speed),
             target_position: LinearTargetPosition::<D, P>::new(target_position),
             acceleration: LinearAcceleration::<D, P>::new(acceleration),
+        }
+    }
+}
+
+/// Marker component indicating this entity is a movement child that affects its parent's position.
+/// Movement children express movement intent and are aggregated by the parent.
+#[derive(Component, Debug, Clone, Copy, Reflect)]
+pub struct MovementChild;
+
+/// Bundle for spawning a movement child entity.
+/// Movement children own the linear movement components and affect the parent entity's position.
+#[derive(Bundle, Clone, Debug)]
+pub struct MovementChildBundle<
+    D: Send + Sync + 'static,
+    P: Constructor<f32> + Component + Magnitude,
+> {
+    pub child_of: ChildOf,
+    pub movement_child: MovementChild,
+    pub linear_movement: LinearMovementBundle<D, P>,
+}
+
+impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
+    MovementChildBundle<D, P>
+{
+    pub fn new(parent: Entity, current_position: f32, target_position: f32, speed: f32) -> Self {
+        Self {
+            child_of: ChildOf(parent),
+            movement_child: MovementChild,
+            linear_movement: LinearMovementBundle::<D, P>::new(
+                current_position,
+                target_position,
+                speed,
+            ),
+        }
+    }
+}
+
+/// Bundle for spawning an accelerated movement child entity.
+#[derive(Bundle, Clone, Debug)]
+pub struct MovementChildAcceleratedBundle<
+    D: Send + Sync + 'static,
+    P: Constructor<f32> + Component + Magnitude,
+> {
+    pub child_of: ChildOf,
+    pub movement_child: MovementChild,
+    pub linear_movement: LinearMovementAcceleratedBundle<D, P>,
+}
+
+impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
+    MovementChildAcceleratedBundle<D, P>
+{
+    pub fn new(
+        parent: Entity,
+        current_position: f32,
+        target_position: f32,
+        speed: f32,
+        acceleration: f32,
+    ) -> Self {
+        Self {
+            child_of: ChildOf(parent),
+            movement_child: MovementChild,
+            linear_movement: LinearMovementAcceleratedBundle::<D, P>::new(
+                current_position,
+                target_position,
+                speed,
+                acceleration,
+            ),
         }
     }
 }

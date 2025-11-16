@@ -1,8 +1,11 @@
 use crate::pixel::PxAssets;
 use crate::{
-    plugins::movement::linear::components::{
-        LinearAcceleration, LinearMovementBundle, LinearSpeed, TargetingPositionX,
-        TargetingPositionY, TargetingPositionZ,
+    plugins::movement::{
+        linear::components::{
+            MovementChildAcceleratedBundle, MovementChildBundle, TargetingPositionX,
+            TargetingPositionY, TargetingPositionZ,
+        },
+        structs::{Constructor, Magnitude},
     },
     stage::{
         attack::{
@@ -27,6 +30,26 @@ use crate::{
 use bevy::prelude::*;
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
+fn spawn_boulder_throw_movement_child<P>(
+    commands: &mut Commands,
+    bundle: MovementChildBundle<StageTimeDomain, P>,
+    label: &'static str,
+) where
+    P: Constructor<f32> + Component + Magnitude,
+{
+    commands.spawn((bundle, BoulderThrowMovement, Name::new(label)));
+}
+
+fn spawn_boulder_throw_movement_child_accelerated<P>(
+    commands: &mut Commands,
+    bundle: MovementChildAcceleratedBundle<StageTimeDomain, P>,
+    label: &'static str,
+) where
+    P: Constructor<f32> + Component + Magnitude,
+{
+    commands.spawn((bundle, BoulderThrowMovement, Name::new(label)));
+}
+
 #[derive(Bundle)]
 pub struct BoulderThrowDefaultBundle {
     pub enemy_attack: EnemyAttack,
@@ -50,57 +73,19 @@ impl Default for BoulderThrowDefaultBundle {
     }
 }
 
-#[derive(Bundle)]
-pub struct BoulderThrowMovementBundle {
-    // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting
-    pub targeting_position_x: TargetingPositionX,
-    pub linear_speed_x: LinearSpeed<StageTimeDomain, TargetingPositionX>,
-    pub targeting_position_y: TargetingPositionY,
-    pub linear_speed_y: LinearSpeed<StageTimeDomain, TargetingPositionY>,
-    pub linear_acceleration_y: LinearAcceleration<StageTimeDomain, TargetingPositionY>,
-    pub linear_movement_z: LinearMovementBundle<StageTimeDomain, TargetingPositionZ>,
-}
+/// Marker component for boulder throw movement children.
+#[derive(Component, Clone, Debug)]
+pub struct BoulderThrowMovement;
 
 #[derive(Bundle)]
 pub struct BoulderThrowBundle {
     pub depth: Depth,
     pub inflicts_damage: InflictsDamage,
     pub position: PxSubPosition,
-    pub movement: BoulderThrowMovementBundle,
+    pub targeting_position_x: TargetingPositionX,
+    pub targeting_position_y: TargetingPositionY,
+    pub targeting_position_z: TargetingPositionZ,
     pub default: BoulderThrowDefaultBundle,
-}
-
-impl BoulderThrowMovementBundle {
-    pub fn new(depth: &Depth, current_pos: Vec2, target_pos: Vec2) -> Self {
-        let depth_f32 = depth.to_f32();
-        let target_depth = PLAYER_DEPTH;
-
-        let speed_z = BOULDER_THROW_ATTACK_DEPTH_SPEED;
-        let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
-
-        let d = target_pos - current_pos;
-
-        let speed_x = d.x / t;
-
-        // TODO: remember that boulder throws in outter space wouldn't have as much gravity, if any
-        let value = d.y - 0.5 * BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION * t.powi(2);
-        let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
-
-        Self {
-            targeting_position_x: current_pos.x.into(),
-            linear_speed_x: LinearSpeed::<StageTimeDomain, TargetingPositionX>::new(speed_x),
-            targeting_position_y: current_pos.y.into(),
-            linear_speed_y: LinearSpeed::<StageTimeDomain, TargetingPositionY>::new(speed_y),
-            linear_acceleration_y: LinearAcceleration::<StageTimeDomain, TargetingPositionY>::new(
-                BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
-            ),
-            linear_movement_z: LinearMovementBundle::<StageTimeDomain, TargetingPositionZ>::new(
-                depth_f32,
-                target_depth.to_f32(),
-                BOULDER_THROW_ATTACK_DEPTH_SPEED,
-            ),
-        }
-    }
 }
 
 pub fn spawn_boulder_throw_attack(
@@ -121,11 +106,27 @@ pub fn spawn_boulder_throw_attack(
     let (sprite, animation, collider_data) =
         make_hovering_attack_animation_bundle(assets_sprite, &attack_type, *depth);
 
+    let depth_f32 = depth.to_f32();
+    let target_depth = PLAYER_DEPTH;
+
+    let speed_z = BOULDER_THROW_ATTACK_DEPTH_SPEED;
+    let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
+
+    let d = target_pos - current_pos;
+
+    let speed_x = d.x / t;
+
+    // TODO: remember that boulder throws in outer space wouldn't have as much gravity, if any
+    let value = d.y - 0.5 * BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION * t.powi(2);
+    let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
+
     let mut entity_commands = commands.spawn(BoulderThrowBundle {
         depth: *depth,
         inflicts_damage: InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
         position: PxSubPosition(current_pos),
-        movement: BoulderThrowMovementBundle::new(depth, current_pos, target_pos),
+        targeting_position_x: current_pos.x.into(),
+        targeting_position_y: current_pos.y.into(),
+        targeting_position_z: depth_f32.into(),
         default: default(),
     });
     entity_commands.insert((sprite, animation));
@@ -133,4 +134,43 @@ pub fn spawn_boulder_throw_attack(
     if !collider_data.0.is_empty() {
         entity_commands.insert(collider_data);
     }
+
+    let boulder_entity = entity_commands.id();
+
+    // Spawn movement children for X (constant speed)
+    spawn_boulder_throw_movement_child(
+        commands,
+        MovementChildBundle::<StageTimeDomain, TargetingPositionX>::new(
+            boulder_entity,
+            current_pos.x,
+            target_pos.x,
+            speed_x,
+        ),
+        "Boulder Throw Movement X",
+    );
+
+    // Spawn movement children for Y (accelerated - gravity)
+    spawn_boulder_throw_movement_child_accelerated(
+        commands,
+        MovementChildAcceleratedBundle::<StageTimeDomain, TargetingPositionY>::new(
+            boulder_entity,
+            current_pos.y,
+            target_pos.y,
+            speed_y,
+            BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
+        ),
+        "Boulder Throw Movement Y",
+    );
+
+    // Spawn movement children for Z (constant speed toward player depth)
+    spawn_boulder_throw_movement_child(
+        commands,
+        MovementChildBundle::<StageTimeDomain, TargetingPositionZ>::new(
+            boulder_entity,
+            depth_f32,
+            target_depth.to_f32(),
+            BOULDER_THROW_ATTACK_DEPTH_SPEED,
+        ),
+        "Boulder Throw Movement Z",
+    );
 }

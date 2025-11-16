@@ -4,8 +4,7 @@ use crate::{
     game::score::components::Score,
     layer::Layer,
     plugins::movement::linear::components::{
-        LinearAcceleration, LinearDirection, LinearSpeed, LinearTargetPosition,
-        LinearTargetReached, TargetingPositionX, TargetingPositionY,
+        LinearTargetReached, MovementChildAcceleratedBundle, TargetingPositionX, TargetingPositionY,
     },
     stage::{
         components::interactive::{Dead, Health},
@@ -18,56 +17,53 @@ use crate::{
     systems::camera::CameraPos,
 };
 use assert_assets_path::assert_assets_path;
-use bevy::prelude::*;
+use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
 
-// TODO could be generalised
+/// Marker component for pickup feedback movement children.
+#[derive(Component, Clone, Debug)]
+pub struct PickupFeedbackMovement;
+
 #[derive(Bundle)]
-pub struct PickupFeedbackMovementBundle {
-    pub targeting_position_x: TargetingPositionX,
-    pub targeting_position_y: TargetingPositionY,
-    pub linear_speed_x: LinearSpeed<StageTimeDomain, TargetingPositionX>,
-    pub linear_speed_y: LinearSpeed<StageTimeDomain, TargetingPositionY>,
-    pub linear_acceleration_y: LinearAcceleration<StageTimeDomain, TargetingPositionY>,
-    pub linear_direction_x: LinearDirection<StageTimeDomain, TargetingPositionX>,
-    pub linear_direction_y: LinearDirection<StageTimeDomain, TargetingPositionY>,
-    pub linear_target_position_x: LinearTargetPosition<StageTimeDomain, TargetingPositionX>,
-    pub linear_target_position_y: LinearTargetPosition<StageTimeDomain, TargetingPositionY>,
+struct PickupFeedbackMovementXBundle {
+    movement_child: MovementChildAcceleratedBundle<StageTimeDomain, TargetingPositionX>,
+    pickup_feedback_movement: PickupFeedbackMovement,
+    name: Name,
 }
 
-impl PickupFeedbackMovementBundle {
-    pub fn new(current: Vec2) -> Self {
-        let t = PICKUP_FEEDBACK_TIME;
-
-        let target = Vec2::new(12., 8.);
-        let d = target - current;
-
-        let speed_x = d.x / t;
-        let speed_y = PICKUP_FEEDBACK_INITIAL_SPEED_Y;
-        let adjusted_d_y = d.y - speed_y * t;
-        let acceleration_y = 2. * adjusted_d_y / (t * t);
-        // let acceleration_y = 0.1;
-
-        let direction_delta = target - current;
-
+impl PickupFeedbackMovementXBundle {
+    fn new(parent: Entity, current: f32, target: f32, speed: f32) -> Self {
         Self {
-            targeting_position_x: current.x.into(),
-            targeting_position_y: current.y.into(),
-            linear_speed_x: LinearSpeed::<StageTimeDomain, TargetingPositionX>::new(speed_x),
-            linear_speed_y: LinearSpeed::<StageTimeDomain, TargetingPositionY>::new(speed_y),
-            linear_acceleration_y: LinearAcceleration::<StageTimeDomain, TargetingPositionY>::new(
-                acceleration_y,
-            ),
-            linear_direction_x: LinearDirection::<StageTimeDomain, TargetingPositionX>::from_delta(
-                direction_delta.x,
-            ),
-            linear_direction_y: LinearDirection::<StageTimeDomain, TargetingPositionY>::from_delta(
-                direction_delta.y,
-            ),
-            linear_target_position_x:
-                LinearTargetPosition::<StageTimeDomain, TargetingPositionX>::new(target.x),
-            linear_target_position_y:
-                LinearTargetPosition::<StageTimeDomain, TargetingPositionY>::new(target.y),
+            movement_child:
+                MovementChildAcceleratedBundle::<StageTimeDomain, TargetingPositionX>::new(
+                    parent, current, target, speed, 0.0,
+                ),
+            pickup_feedback_movement: PickupFeedbackMovement,
+            name: Name::new("Pickup Feedback Movement X"),
+        }
+    }
+}
+
+#[derive(Bundle)]
+struct PickupFeedbackMovementYBundle {
+    movement_child: MovementChildAcceleratedBundle<StageTimeDomain, TargetingPositionY>,
+    pickup_feedback_movement: PickupFeedbackMovement,
+    name: Name,
+}
+
+impl PickupFeedbackMovementYBundle {
+    fn new(parent: Entity, current: f32, target: f32, speed: f32, acceleration: f32) -> Self {
+        Self {
+            movement_child:
+                MovementChildAcceleratedBundle::<StageTimeDomain, TargetingPositionY>::new(
+                    parent,
+                    current,
+                    target,
+                    speed,
+                    acceleration,
+                ),
+            pickup_feedback_movement: PickupFeedbackMovement,
+            name: Name::new("Pickup Feedback Movement Y"),
         }
     }
 }
@@ -91,7 +87,8 @@ impl Default for PickupFeedbackDefaultBundle {
 pub struct PickupFeedbackBundle {
     position: PxSubPosition,
     sprite: PxSpriteBundle<Layer>,
-    movement: PickupFeedbackMovementBundle,
+    targeting_position_x: TargetingPositionX,
+    targeting_position_y: TargetingPositionY,
     default: PickupFeedbackDefaultBundle,
 }
 
@@ -116,24 +113,66 @@ pub fn pickup_health(
                 "sprites/pickups/health_4.px_sprite.png"
             ));
 
-            commands.spawn(PickupFeedbackBundle {
-                position: current.into(),
-                sprite: PxSpriteBundle::<Layer> {
-                    sprite: sprite.into(),
-                    // TODO the position should be stuck to the floor beneah the dropper
-                    anchor: PxAnchor::Center,
-                    canvas: PxCanvas::Camera,
-                    layer: Layer::Pickups,
-                    ..default()
-                },
-                movement: PickupFeedbackMovementBundle::new(current),
-                default: default(),
-            });
+            let t = PICKUP_FEEDBACK_TIME;
+            let target = Vec2::new(12., 8.);
+            let d = target - current;
+
+            let speed_x = d.x / t;
+            let speed_y = PICKUP_FEEDBACK_INITIAL_SPEED_Y;
+            let adjusted_d_y = d.y - speed_y * t;
+            let acceleration_y = 2. * adjusted_d_y / (t * t);
+
+            let feedback_entity = commands
+                .spawn(PickupFeedbackBundle {
+                    position: current.into(),
+                    sprite: PxSpriteBundle::<Layer> {
+                        sprite: sprite.into(),
+                        // TODO the position should be stuck to the floor beneath the dropper
+                        anchor: PxAnchor::Center,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::Pickups,
+                        ..default()
+                    },
+                    targeting_position_x: current.x.into(),
+                    targeting_position_y: current.y.into(),
+                    default: default(),
+                })
+                .id();
+
+            // Spawn movement children for X (constant speed) and Y (accelerated)
+            commands.spawn(PickupFeedbackMovementXBundle::new(
+                feedback_entity,
+                current.x,
+                target.x,
+                speed_x,
+            ));
+
+            commands.spawn(PickupFeedbackMovementYBundle::new(
+                feedback_entity,
+                current.y,
+                target.y,
+                speed_y,
+                acceleration_y,
+            ));
         }
     }
 }
 
-pub type PickupDespawnFilter = (
-    With<PickupFeedback>,
-    Added<LinearTargetReached<StageTimeDomain, TargetingPositionY>>,
-);
+/// @system Marks pickup feedback for despawn when its Y-axis movement child reaches the target.
+pub fn mark_pickup_feedback_for_despawn(
+    mut commands: Commands,
+    mut parent_query: Query<Entity, With<PickupFeedback>>,
+    child_query: Query<
+        &ChildOf,
+        (
+            With<PickupFeedbackMovement>,
+            Added<LinearTargetReached<StageTimeDomain, TargetingPositionY>>,
+        ),
+    >,
+) {
+    for child_of in child_query.iter() {
+        if let Ok(parent_entity) = parent_query.get_mut(child_of.0) {
+            commands.entity(parent_entity).insert(DespawnMark);
+        }
+    }
+}
