@@ -75,9 +75,12 @@ ci-stage-editor:
 # =============================================================================
 # Type generation for stage-editor
 # =============================================================================
+TS_OUT := tools/stage-editor/src/types/generated
+TS_RS_EXPORT_DIR := $(TS_OUT)
 .PHONY: gen-types
 gen-types:
 	@echo "Generating TypeScript types from Rust..."
+	TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) TS_OUT=$(TS_OUT) \
 	$(BEVY) run --package carcinisation --bin gen_types --features derive-ts
 
 .PHONY: gen-zod
@@ -94,7 +97,11 @@ watch-types:
 	@echo "🔄 Starting type watcher..."
 	@cargo watch -q --ignore "target/*" --ignore "*.ts" \
 		-w apps/carcinisation/src \
-		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings $(BEVY) run --package carcinisation --bin gen_types --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
+		--env QUIET=1 \
+		--env RUSTFLAGS=-Awarnings \
+		--env TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) \
+		--env TS_OUT=$(TS_OUT) \
+		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) TS_OUT=$(TS_OUT) $(BEVY) run --package carcinisation --bin gen_types --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
 
 # =============================================================================
 # Asset generation

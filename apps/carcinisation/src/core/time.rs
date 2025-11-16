@@ -13,23 +13,21 @@ pub struct TimeMultiplier<D: Send + Sync + 'static> {
 }
 
 #[cfg(not(debug_assertions))]
-/// @system Advances a `Time<D>` domain using Bevy's global time delta (release builds).
-pub fn tick_time_domain<D: Send + Sync + Default + 'static>(
-    mut time: ResMut<Time<D>>,
-    app_time: Res<Time>,
+/// @system Advances a `Time<T>` domain using the delta of a source `Time<S>` (release builds).
+pub fn tick_time<S: Send + Sync + Default + 'static, T: Send + Sync + Default + 'static>(
+    mut target: ResMut<Time<T>>,
+    source: Res<Time<S>>,
 ) {
-    time.advance_by(app_time.delta());
+    target.advance_by(source.delta());
 }
 
 #[cfg(debug_assertions)]
-/// @system Advances a `Time<D>` domain, respecting optional debug multipliers.
-pub fn tick_time_domain<D: Send + Sync + Default + 'static>(
-    mut time: ResMut<Time<D>>,
-    app_time: Res<Time>,
-    time_multiplier: Option<Res<TimeMultiplier<D>>>,
+/// @system Advances a `Time<T>` domain using the delta of a source `Time<S>`, respecting optional multipliers (debug builds).
+pub fn tick_time<S: Send + Sync + Default + 'static, T: Send + Sync + Default + 'static>(
+    mut target: ResMut<Time<T>>,
+    source: Res<Time<S>>,
+    time_multiplier: Option<Res<TimeMultiplier<T>>>,
 ) {
-    let delta = app_time
-        .delta()
-        .mul_f32(time_multiplier.map(|x| x.value).unwrap_or(1.0));
-    time.advance_by(delta);
+    let multiplier = time_multiplier.map(|x| x.value).unwrap_or(1.0);
+    target.advance_by(source.delta().mul_f32(multiplier));
 }

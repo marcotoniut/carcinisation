@@ -13,7 +13,7 @@ use self::{
         tick_timer,
     },
 };
-use crate::core::time::tick_time_domain;
+use crate::core::time::tick_time;
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
@@ -28,12 +28,13 @@ impl Plugin for TransitionVenetianPlugin {
             .add_observer(on_transition_startup)
             .add_message::<TransitionVenetianShutdownEvent>()
             .add_observer(on_transition_shutdown)
-            .add_active_systems::<TransitionVenetianPlugin, _>(
+            .add_active_systems_in::<TransitionVenetianPlugin, _>(
+                FixedUpdate,
                 (
                     tick_timer,
                     update_transition,
                     check_transition_finished,
-                    tick_time_domain::<TransitionVenetianTimeDomain>,
+                    tick_time::<Fixed, TransitionVenetianTimeDomain>,
                 )
                     .chain(),
             );

@@ -53,7 +53,7 @@ use stage::{player::crosshair::CrosshairSettings, StagePlugin};
 use systems::{
     camera::move_camera,
     movement::{update_position_x, update_position_y},
-    setup::{init_gb_input, set_framespace, spawn_camera},
+    setup::{init_gb_input, set_fixed_timestep, set_framespace, spawn_camera},
     *,
 };
 use transitions::spiral::TransitionVenetianPlugin;
@@ -129,7 +129,7 @@ fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     {
         app.add_plugins(FramepacePlugin)
-            .add_systems(Startup, set_framespace);
+            .add_systems(Startup, (set_framespace, set_fixed_timestep));
     }
 
     app.add_plugins(PixelPlugin::<Layer>::default())

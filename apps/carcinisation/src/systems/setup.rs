@@ -1,13 +1,18 @@
 use crate::input::GBInput;
 
 use super::camera::CameraPos;
-use bevy::prelude::*;
+use bevy::{prelude::*, time::Fixed};
 use bevy_framepace::Limiter;
 use leafwing_input_manager::prelude::{ActionState, InputMap};
 use seldom_pixel::prelude::PxSubPosition;
 
 pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {
     settings.limiter = Limiter::from_framerate(59.727500569606);
+}
+
+/// Align the fixed timestep with the target framerate so fixed-schedule systems move at expected speed.
+pub fn set_fixed_timestep(mut fixed_time: ResMut<Time<Fixed>>) {
+    fixed_time.set_timestep_hz(59.727500569606);
 }
 
 pub fn spawn_camera(mut commands: Commands) {

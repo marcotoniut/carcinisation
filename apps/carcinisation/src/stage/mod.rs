@@ -20,7 +20,7 @@ use self::{
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
     events::*,
-    pickup::systems::health::pickup_health,
+    pickup::systems::health::{mark_pickup_feedback_for_despawn, pickup_health},
     player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
@@ -42,11 +42,10 @@ use self::{
 };
 use crate::{
     core::{event::on_trigger_write_event, time::TimeMultiplier},
-    globals::mark_for_despawn_by_query_system,
     plugins::movement::{
         linear::{
             components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
-            LinearMovement2DPlugin, LinearMovementPlugin,
+            LinearMovement2DPlugin, LinearMovementPlugin, LinearMovementSystems,
         },
         pursue::PursueMovementPlugin,
     },
@@ -56,7 +55,6 @@ use activable::{activate_system, deactivate_system, Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use data::StageData;
-use pickup::systems::health::PickupDespawnFilter;
 use seldom_pixel::prelude::PxSubPosition;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -123,10 +121,6 @@ impl Plugin for StagePlugin {
                 deactivate_system::<PlayerPlugin>,
                 deactivate_system::<StageUiPlugin>,
             ))
-            .add_active_systems_in::<StagePlugin, _>(
-                PreUpdate,
-                (tick_stage_time,).run_if(in_state(StageProgressState::Running)),
-            )
             // Shared movement helpers (linear/pursue) reused by multiple enemy types.
             .add_plugins(PursueMovementPlugin::<StageTimeDomain, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTimeDomain, PxSubPosition>::default())
@@ -144,6 +138,31 @@ impl Plugin for StagePlugin {
             .add_plugins(PlayerPlugin)
             .add_plugins(StageRestartPlugin)
             .add_plugins(StageUiPlugin)
+            .add_active_systems_in::<StagePlugin, _>(
+                FixedUpdate,
+                (
+                    (
+                        tick_stage_time.before(LinearMovementSystems),
+                        tick_stage_step_timer,
+                        delay_despawn::<StageTimeDomain>,
+                        check_despawn_after_delay::<StageTimeDomain>,
+                    ),
+                    (
+                        update_depth,
+                        circle_around,
+                        (
+                            (
+                                check_linear_movement_x_finished,
+                                check_linear_movement_y_finished,
+                            ),
+                            check_linear_movement_finished,
+                        )
+                            .chain(),
+                    )
+                        .after(LinearMovementSystems),
+                )
+                    .run_if(in_state(StageProgressState::Running)),
+            )
             .add_active_systems::<StagePlugin, _>(
                 // Primary stage tick, only when gameplay is active and running.
                 (
@@ -159,34 +178,15 @@ impl Plugin for StagePlugin {
                         (
                             // Pickup
                             pickup_health,
-                            mark_for_despawn_by_query_system::<PickupDespawnFilter>,
+                            mark_pickup_feedback_for_despawn,
                         ),
                         (
                             // Stage
-                            tick_stage_step_timer,
                             read_step_trigger,
                             check_stage_step_timer,
                             check_staged_cleared,
                             check_step_spawn,
                             check_stage_death,
-                        ),
-                        (
-                            // Effects
-                            delay_despawn::<StageTimeDomain>,
-                            check_despawn_after_delay::<StageTimeDomain>,
-                        ),
-                        (
-                            // Movement
-                            update_depth,
-                            circle_around,
-                            (
-                                (
-                                    check_linear_movement_x_finished,
-                                    check_linear_movement_y_finished,
-                                ),
-                                check_linear_movement_finished,
-                            )
-                                .chain(),
                         ),
                         (
                             // Damage

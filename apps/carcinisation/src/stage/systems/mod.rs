@@ -35,14 +35,14 @@ use crate::{
     globals::{mark_for_despawn_by_query, DEBUG_STAGESTEP},
     input::GBInput,
     plugins::movement::linear::components::{
-        extra::LinearMovement2DReachCheck, LinearMovementBundle, LinearPositionRemovalBundle,
-        TargetingPositionX, TargetingPositionY,
+        extra::LinearMovement2DReachCheck, MovementChildBundle, TargetingPositionX,
+        TargetingPositionY,
     },
     systems::{camera::CameraPos, spawn::make_music_bundle},
     transitions::trigger_transition,
 };
 use assert_assets_path::assert_assets_path;
-use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
+use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*, time::Fixed};
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
@@ -74,7 +74,7 @@ pub fn toggle_game(
 
 /// @system Advances the stage-local time domain while gameplay is running.
 pub fn tick_stage_time(
-    real_time: Res<Time>,
+    fixed_time: Res<Time<Fixed>>,
     state: Res<State<StageProgressState>>,
     mult: Option<Res<TimeMultiplier<StageTimeDomain>>>,
     mut stage_time: ResMut<Time<StageTimeDomain>>,
@@ -83,7 +83,7 @@ pub fn tick_stage_time(
         return;
     }
 
-    let base_dt = real_time.delta();
+    let base_dt = fixed_time.delta();
     let scaled_dt = mult.map(|m| base_dt.mul_f32(m.value)).unwrap_or(base_dt);
 
     stage_time.advance_by(scaled_dt);
@@ -326,7 +326,12 @@ pub fn initialise_cinematic_step(
     }
 }
 
+/// Marker component for movement children spawned for camera movement steps.
+#[derive(Component, Clone, Debug)]
+pub struct CameraStepMovement;
+
 /// @system Sets up camera movement and spawns tied to a movement step.
+/// Spawns movement children to drive the camera, and attaches a reach check component.
 pub fn initialise_movement_step(
     mut commands: Commands,
     query: Query<(Entity, &MovementStageStep), (With<Stage>, Added<MovementStageStep>)>,
@@ -346,22 +351,32 @@ pub fn initialise_movement_step(
             let direction = *coordinates - position.0;
             let speed = direction.normalize_or_zero() * *base_speed * GAME_BASE_SPEED;
 
+            // Spawn movement children for the camera
+            commands.spawn((
+                MovementChildBundle::<StageTimeDomain, TargetingPositionX>::new(
+                    camera_entity,
+                    position.x,
+                    coordinates.x,
+                    speed.x,
+                ),
+                CameraStepMovement,
+                Name::new("Camera Movement X"),
+            ));
+
+            commands.spawn((
+                MovementChildBundle::<StageTimeDomain, TargetingPositionY>::new(
+                    camera_entity,
+                    position.y,
+                    coordinates.y,
+                    speed.y,
+                ),
+                CameraStepMovement,
+                Name::new("Camera Movement Y"),
+            ));
+
+            // Add reach check to camera
             commands
                 .entity(camera_entity)
-                .insert(
-                    LinearMovementBundle::<StageTimeDomain, TargetingPositionX>::new(
-                        position.x,
-                        coordinates.x,
-                        speed.x,
-                    ),
-                )
-                .insert(
-                    LinearMovementBundle::<StageTimeDomain, TargetingPositionY>::new(
-                        position.y,
-                        coordinates.y,
-                        speed.y,
-                    ),
-                )
                 .insert(LinearMovement2DReachCheck::<
                     StageTimeDomain,
                     TargetingPositionX,
@@ -421,10 +436,6 @@ pub fn check_movement_step_reached(
                     TargetingPositionX,
                     TargetingPositionY,
                 >>();
-                entity_commands
-                    .remove::<LinearPositionRemovalBundle<StageTimeDomain, TargetingPositionX>>();
-                entity_commands
-                    .remove::<LinearPositionRemovalBundle<StageTimeDomain, TargetingPositionY>>();
                 commands.trigger(NextStepEvent);
             }
         }

@@ -10,7 +10,7 @@ use crate::{
     },
     debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
-    letterbox::events::LetterboxMoveTrigger,
+    letterbox::{components::LetterboxEntity, events::LetterboxMoveTrigger},
 };
 use activable::{activate, deactivate};
 use bevy::prelude::*;
@@ -37,6 +37,7 @@ pub fn on_cutscene_shutdown(
     mut commands: Commands,
     cinematic_query: Query<Entity, With<Cinematic>>,
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
+    letterbox_query: Query<Entity, With<LetterboxEntity>>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_shutdown(DEBUG_MODULE);
@@ -46,4 +47,5 @@ pub fn on_cutscene_shutdown(
 
     mark_for_despawn_by_query(&mut commands, &cutscene_entity_query);
     mark_for_despawn_by_query(&mut commands, &cinematic_query);
+    mark_for_despawn_by_query(&mut commands, &letterbox_query);
 }

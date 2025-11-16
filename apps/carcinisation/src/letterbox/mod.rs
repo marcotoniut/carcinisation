@@ -6,13 +6,13 @@ pub mod resources;
 mod systems;
 
 use crate::{
-    core::time::tick_time_domain,
+    core::time::tick_time,
     plugins::movement::linear::{components::TargetingPositionY, LinearMovementPlugin},
 };
 use activable::{activate_system, Activable, ActivableAppExt};
 
 use self::{events::LetterboxMoveTrigger, resources::LetterboxTimeDomain, systems::*};
-use bevy::prelude::*;
+use bevy::{prelude::*, time::Fixed};
 
 /// Manages letterbox entities, movement triggers, and timing.
 #[derive(Activable)]
@@ -29,9 +29,10 @@ impl Plugin for LetterboxPlugin {
                 TargetingPositionY,
             >::default())
             .add_observer(on_move)
-            .add_active_systems::<LetterboxPlugin, _>(
+            .add_active_systems_in::<LetterboxPlugin, _>(
+                FixedUpdate,
                 // Keep letterbox movement timers in sync when active.
-                tick_time_domain::<LetterboxTimeDomain>,
+                tick_time::<Fixed, LetterboxTimeDomain>,
             )
             .add_systems(Startup, activate_system::<LetterboxPlugin>);
     }
