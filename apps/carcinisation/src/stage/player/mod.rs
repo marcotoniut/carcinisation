@@ -17,7 +17,6 @@ use self::{
         *,
     },
 };
-use super::resources::StageTime;
 use crate::pixel::{PxAsset, PxAssets, PxSpriteData};
 use activable::{Activable, ActivableAppExt};
 use assert_assets_path::assert_assets_path;
@@ -49,11 +48,11 @@ impl Plugin for PlayerPlugin {
             .add_active_systems::<PlayerPlugin, _>(
                 // Player logic only runs when the plugin is active.
                 (
-                    tick_attack_timer::<StageTime>,
+                    tick_attack_timer,
                     check_attack_timer,
                     detect_player_attack,
-                    camera_shake::<StageTime>,
-                    player_movement::<StageTime>.in_set(MovementSystems),
+                    camera_shake,
+                    player_movement.in_set(MovementSystems),
                     confine_player_movement.in_set(ConfinementSystems),
                 ),
             );

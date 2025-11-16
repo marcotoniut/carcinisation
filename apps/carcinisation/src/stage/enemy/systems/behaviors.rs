@@ -4,7 +4,7 @@ use crate::stage::{
         behavior::{BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior},
         CircleAround, Enemy,
     },
-    resources::StageTime,
+    resources::StageTimeDomain,
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
@@ -15,7 +15,7 @@ pub fn check_no_behavior(
         (Entity, &mut EnemyBehaviors, &PxSubPosition, &Speed, &Depth),
         (With<Enemy>, Without<EnemyCurrentBehavior>),
     >,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
 ) {
     for (entity, mut behaviors, position, speed, depth) in query.iter_mut() {
         let behavior = behaviors.next_step();
@@ -23,11 +23,11 @@ pub fn check_no_behavior(
         let duration_o = behavior.get_duration_o();
 
         let current_behavior = EnemyCurrentBehavior {
-            started: stage_time.elapsed,
+            started: stage_time.elapsed(),
             behavior,
         };
 
-        let bundles = current_behavior.get_bundles(stage_time.elapsed, position, speed.0, *depth);
+        let bundles = current_behavior.get_bundles(stage_time.elapsed(), position, speed.0, *depth);
         match bundles {
             BehaviorBundle::Idle => {}
             BehaviorBundle::LinearMovement((
@@ -69,10 +69,10 @@ pub fn check_no_behavior(
 pub fn tick_enemy_behavior_timer(
     mut commands: Commands,
     mut query: Query<&mut EnemyBehaviorTimer>,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
 ) {
     for mut behavior in query.iter_mut() {
-        behavior.timer.tick(stage_time.delta);
+        behavior.timer.tick(stage_time.delta());
         if behavior.timer.just_finished() {
             commands
                 .entity(behavior.entity)

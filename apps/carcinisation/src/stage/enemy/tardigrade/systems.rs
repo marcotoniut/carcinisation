@@ -15,7 +15,7 @@ use crate::{
             bundles::make_enemy_animation_bundle, components::behavior::EnemyCurrentBehavior,
             data::tardigrade::TARDIGRADE_ANIMATIONS, tardigrade::entity::EnemyTardigradeAttacking,
         },
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
     systems::camera::CameraPos,
 };
@@ -88,7 +88,7 @@ pub fn check_idle_tardigrade(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
     query: Query<
         (
             Entity,
@@ -105,7 +105,7 @@ pub fn check_idle_tardigrade(
         if attacking.attack {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
-                < stage_time.elapsed + Duration::from_secs_f32(ENEMY_TARDIGRADE_ATTACK_SPEED)
+                < stage_time.elapsed() + Duration::from_secs_f32(ENEMY_TARDIGRADE_ATTACK_SPEED)
             {
                 #[cfg(debug_assertions)]
                 info!("Tardigrade {:?} is attacking", entity);
@@ -115,7 +115,7 @@ pub fn check_idle_tardigrade(
                     .remove::<EnemyTardigradeAnimation>()
                     .insert(EnemyTardigradeAttacking {
                         attack: true,
-                        last_attack_started: stage_time.elapsed,
+                        last_attack_started: stage_time.elapsed(),
                     });
 
                 spawn_boulder_throw_attack(

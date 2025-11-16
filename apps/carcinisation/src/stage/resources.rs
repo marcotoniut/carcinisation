@@ -5,35 +5,11 @@ use std::time::Duration;
 use bevy::prelude::*;
 use derive_new::new;
 
-use crate::core::time::*;
-
 use super::data::StageSpawn;
 
-#[derive(Resource, Default, Debug, Clone, Copy, Reflect)]
-/// Accumulates stage delta/elapsed time for time-based systems.
-pub struct StageTime {
-    pub delta: Duration,
-    pub elapsed: Duration,
-}
-
-impl DeltaTime for StageTime {
-    fn delta(&self) -> Duration {
-        self.delta
-    }
-}
-
-impl ElapsedTime for StageTime {
-    fn elapsed(&self) -> Duration {
-        self.elapsed
-    }
-}
-
-impl Ticker for StageTime {
-    fn tick(&mut self, delta: Duration) {
-        self.delta = delta;
-        self.elapsed += delta;
-    }
-}
+#[derive(Resource, Default, Clone, Copy, Debug)]
+/// Marker used to scope Bevy's `Time` to the active stage.
+pub struct StageTimeDomain;
 
 #[derive(Clone, Debug, Default, Resource)]
 /// Stores the active stage step index.

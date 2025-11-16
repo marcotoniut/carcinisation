@@ -8,7 +8,7 @@ use crate::{
     plugins::movement::linear::components::{
         LinearMovementBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
     },
-    stage::{data::GAME_BASE_SPEED, resources::StageTime},
+    stage::{data::GAME_BASE_SPEED, resources::StageTimeDomain},
 };
 use bevy::prelude::*;
 use derive_new::new;
@@ -28,9 +28,9 @@ pub enum BehaviorBundle {
     LinearMovement(
         (
             LinearMovement,
-            LinearMovementBundle<StageTime, TargetingPositionX>,
-            LinearMovementBundle<StageTime, TargetingPositionY>,
-            Option<LinearMovementBundle<StageTime, TargetingPositionZ>>,
+            LinearMovementBundle<StageTimeDomain, TargetingPositionX>,
+            LinearMovementBundle<StageTimeDomain, TargetingPositionY>,
+            Option<LinearMovementBundle<StageTimeDomain, TargetingPositionZ>>,
         ),
     ),
     Jump,
@@ -66,12 +66,12 @@ impl EnemyCurrentBehavior {
                         reached_x: false,
                         reached_y: false,
                     },
-                    LinearMovementBundle::<StageTime, TargetingPositionX>::new(
+                    LinearMovementBundle::<StageTimeDomain, TargetingPositionX>::new(
                         current_position.0.x,
                         target_position.x,
                         velocity.x,
                     ),
-                    LinearMovementBundle::<StageTime, TargetingPositionY>::new(
+                    LinearMovementBundle::<StageTimeDomain, TargetingPositionY>::new(
                         current_position.0.y,
                         target_position.y,
                         velocity.y,
@@ -85,7 +85,7 @@ impl EnemyCurrentBehavior {
                         let t = (target_position - current_position.0).length() / velocity.length();
                         let x = target_depth - depth.to_f32();
 
-                        LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
+                        LinearMovementBundle::<StageTimeDomain, TargetingPositionZ>::new(
                             depth.to_f32(),
                             target_depth,
                             // REVIEW extra multiplier

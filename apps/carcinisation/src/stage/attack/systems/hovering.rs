@@ -14,7 +14,7 @@ use crate::{
         },
         events::DamageEvent,
         player::{components::Player, events::CameraShakeTrigger},
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
 };
 use assert_assets_path::assert_assets_path;
@@ -39,7 +39,7 @@ pub fn hovering_damage_on_reached(
             &Depth,
         ),
         (
-            Added<LinearTargetReached<StageTime, TargetingPositionZ>>,
+            Added<LinearTargetReached<StageTimeDomain, TargetingPositionZ>>,
             With<InView>,
         ),
     >,

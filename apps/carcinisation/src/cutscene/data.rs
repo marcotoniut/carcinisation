@@ -1,6 +1,6 @@
 //! Serialized cutscene definitions: layers, steps, images, animations, music.
 
-use super::resources::CutsceneTime;
+use super::resources::CutsceneTimeDomain;
 use crate::{
     layer::Layer,
     letterbox::events::LetterboxMove,
@@ -62,19 +62,19 @@ impl TargetMovement {
         self,
         coordinates: Vec2,
     ) -> (
-        LinearMovementBundle<CutsceneTime, TargetingPositionX>,
-        LinearMovementBundle<CutsceneTime, TargetingPositionY>,
+        LinearMovementBundle<CutsceneTimeDomain, TargetingPositionX>,
+        LinearMovementBundle<CutsceneTimeDomain, TargetingPositionY>,
     ) {
         let normalised_direction = (self.position - coordinates).normalize_or_zero();
         let velocity = normalised_direction * self.speed * GAME_BASE_SPEED;
 
         (
-            LinearMovementBundle::<CutsceneTime, TargetingPositionX>::new(
+            LinearMovementBundle::<CutsceneTimeDomain, TargetingPositionX>::new(
                 coordinates.x,
                 self.position.x,
                 velocity.x,
             ),
-            LinearMovementBundle::<CutsceneTime, TargetingPositionY>::new(
+            LinearMovementBundle::<CutsceneTimeDomain, TargetingPositionY>::new(
                 coordinates.y,
                 self.position.y,
                 velocity.y,

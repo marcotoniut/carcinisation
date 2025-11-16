@@ -1,6 +1,6 @@
 use crate::{
     plugins::movement::linear::components::*,
-    stage::{components::placement::LinearUpdateDisabled, resources::StageTime},
+    stage::{components::placement::LinearUpdateDisabled, resources::StageTimeDomain},
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
@@ -11,7 +11,7 @@ type AxisQuery<'w, 's, T> = Query<
     (&'static T, &'static mut PxSubPosition),
     (
         Without<LinearUpdateDisabled>,
-        Without<LinearTargetReached<StageTime, T>>,
+        Without<LinearTargetReached<StageTimeDomain, T>>,
     ),
 >;
 

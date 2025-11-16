@@ -7,7 +7,6 @@ use crate::components::{AudioSystemType, VolumeSettings};
 use crate::game::events::GameStartupTrigger;
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
-    core::time::ElapsedTime,
     main_menu::MainMenuPlugin,
 };
 use activable::activate;
@@ -82,13 +81,13 @@ pub fn update_sfx_volume(
     }
 }
 
-pub fn delay_despawn<T: ElapsedTime + Resource>(
+pub fn delay_despawn<D: Default + Send + Sync + 'static>(
     mut commands: Commands,
     mut query: Query<
         (Entity, &DelayedDespawnOnPxAnimationFinished),
         (With<PxAnimationFinished>, Without<DespawnAfterDelay>),
     >,
-    time: Res<T>,
+    time: Res<Time<D>>,
 ) {
     for (entity, delayed) in &mut query.iter_mut() {
         let elapsed = time.elapsed();
@@ -99,10 +98,10 @@ pub fn delay_despawn<T: ElapsedTime + Resource>(
     }
 }
 
-pub fn check_despawn_after_delay<T: ElapsedTime + Resource>(
+pub fn check_despawn_after_delay<D: Default + Send + Sync + 'static>(
     mut commands: Commands,
     mut query: Query<(Entity, &DespawnAfterDelay)>,
-    time: Res<T>,
+    time: Res<Time<D>>,
 ) {
     for (entity, despawn_after_delay) in &mut query.iter_mut() {
         if despawn_after_delay.elapsed + despawn_after_delay.duration <= time.elapsed() {

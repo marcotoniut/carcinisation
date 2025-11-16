@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use activable::activate;
 use bevy::prelude::*;
@@ -14,7 +14,7 @@ use crate::{
         enemy::components::Enemy,
         events::{StageRestart, StageStartupTrigger},
         player::components::Player,
-        resources::{StageActionTimer, StageProgress, StageTime},
+        resources::{StageActionTimer, StageProgress, StageTimeDomain},
         StagePlugin, StageProgressState,
     },
 };
@@ -31,7 +31,7 @@ pub fn handle_stage_restart(
     player_query: Query<Entity, With<Player>>,
     mut stage_progress: ResMut<StageProgress>,
     mut stage_state: ResMut<NextState<StageProgressState>>,
-    mut stage_time: ResMut<StageTime>,
+    mut stage_time: ResMut<Time<StageTimeDomain>>,
     mut stage_action_timer: ResMut<StageActionTimer>,
     mut restart_reader: MessageReader<StageRestart>,
     mut startup_writer: MessageWriter<StageStartupTrigger>,
@@ -40,8 +40,7 @@ pub fn handle_stage_restart(
         // Reset progression/resources before rebuilding.
         stage_progress.index = 0;
         stage_state.set(StageProgressState::Initial);
-        stage_time.elapsed = Duration::ZERO;
-        stage_time.delta = Duration::ZERO;
+        *stage_time = Time::default();
         stage_action_timer.timer.reset();
         stage_action_timer.stop();
 

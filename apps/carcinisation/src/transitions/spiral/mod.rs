@@ -7,13 +7,13 @@ mod systems;
 use self::{
     bundles::{check_transition_finished, update_transition},
     events::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
-    resources::{TransitionUpdateTimer, TransitionVenetianTime},
+    resources::{TransitionUpdateTimer, TransitionVenetianTimeDomain},
     systems::{
         setup::{on_transition_shutdown, on_transition_startup},
         tick_timer,
     },
 };
-use crate::core::time::tick_time;
+use crate::core::time::tick_time_domain;
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
@@ -22,7 +22,7 @@ pub struct TransitionVenetianPlugin;
 
 impl Plugin for TransitionVenetianPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TransitionVenetianTime>()
+        app.init_resource::<Time<TransitionVenetianTimeDomain>>()
             .init_resource::<TransitionUpdateTimer>()
             .add_message::<TransitionVenetianStartupEvent>()
             .add_observer(on_transition_startup)
@@ -33,7 +33,7 @@ impl Plugin for TransitionVenetianPlugin {
                     tick_timer,
                     update_transition,
                     check_transition_finished,
-                    tick_time::<TransitionVenetianTime>,
+                    tick_time_domain::<TransitionVenetianTimeDomain>,
                 )
                     .chain(),
             );

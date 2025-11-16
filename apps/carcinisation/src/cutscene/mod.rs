@@ -10,7 +10,7 @@ mod systems;
 use self::{
     events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
     input::{init_input, CutsceneInput},
-    resources::CutsceneTime,
+    resources::CutsceneTimeDomain,
     systems::{
         interactions::check_press_start_input,
         progress::*,
@@ -18,7 +18,7 @@ use self::{
     },
 };
 use crate::{
-    core::{event::on_trigger_write_event, time::tick_time},
+    core::{event::on_trigger_write_event, time::tick_time_domain},
     plugins::movement::linear::{
         components::{TargetingPositionX, TargetingPositionY},
         LinearMovementPlugin,
@@ -38,9 +38,9 @@ impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
             .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
-            .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionX>::default())
-            .add_plugins(LinearMovementPlugin::<CutsceneTime, TargetingPositionY>::default())
-            .init_resource::<CutsceneTime>()
+            .add_plugins(LinearMovementPlugin::<CutsceneTimeDomain, TargetingPositionX>::default())
+            .add_plugins(LinearMovementPlugin::<CutsceneTimeDomain, TargetingPositionY>::default())
+            .init_resource::<Time<CutsceneTimeDomain>>()
             .add_message::<CutsceneStartupTrigger>()
             .add_observer(on_cutscene_startup)
             .add_message::<CutsceneShutdownTrigger>()
@@ -62,7 +62,7 @@ impl Plugin for CutscenePlugin {
                     )
                         .chain(),
                     // render_cutscene,
-                    tick_time::<CutsceneTime>,
+                    tick_time_domain::<CutsceneTimeDomain>,
                 ),
             )
             .add_active_systems_in::<CutscenePlugin, _>(PostUpdate, check_press_start_input);

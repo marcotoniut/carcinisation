@@ -5,7 +5,7 @@ use crate::stage::{
         interactive::{Dead, Flickerer, Health},
     },
     events::DamageEvent,
-    resources::StageTime,
+    resources::StageTimeDomain,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
@@ -39,7 +39,7 @@ pub fn on_damage(
  */
 pub fn check_damage_flicker_taken(
     mut commands: Commands,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
     mut reader: MessageReader<DamageEvent>,
     // TODO Destructibles and Attacks
     query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
@@ -47,7 +47,7 @@ pub fn check_damage_flicker_taken(
     for e in reader.read() {
         if query.get(e.entity).is_ok() {
             commands.entity(e.entity).insert(DamageFlicker {
-                phase_start: stage_time.elapsed + *DAMAGE_REGULAR_DURATION,
+                phase_start: stage_time.elapsed() + *DAMAGE_REGULAR_DURATION,
                 count: DAMAGE_FLICKER_COUNT,
             });
         }
@@ -56,14 +56,14 @@ pub fn check_damage_flicker_taken(
 
 pub fn add_invert_filter(
     mut commands: Commands,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
     mut query: Query<(Entity, &mut DamageFlicker), Without<InvertFilter>>,
     filters: PxAssets<PxFilter>,
 ) {
     let regular_duration = *DAMAGE_REGULAR_DURATION;
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
-        if stage_time.elapsed < damage_flicker.phase_start + regular_duration {
-            damage_flicker.phase_start = stage_time.elapsed;
+        if stage_time.elapsed() < damage_flicker.phase_start + regular_duration {
+            damage_flicker.phase_start = stage_time.elapsed();
             commands.entity(entity).insert((
                 InvertFilter,
                 PxFilter(filters.load(assert_assets_path!("filter/invert.px_filter.png"))),
@@ -74,19 +74,19 @@ pub fn add_invert_filter(
 
 pub fn remove_invert_filter(
     mut commands: Commands,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
     mut query: Query<(Entity, &mut DamageFlicker), With<InvertFilter>>,
 ) {
     let invert_duration = *DAMAGE_INVERT_DURATION;
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
-        if stage_time.elapsed < damage_flicker.phase_start + invert_duration {
+        if stage_time.elapsed() < damage_flicker.phase_start + invert_duration {
             let mut entity_commands = commands.entity(entity);
             entity_commands
                 .remove::<InvertFilter>()
                 .remove::<PxFilter>();
             if damage_flicker.count > 0 {
                 damage_flicker.count -= 1;
-                damage_flicker.phase_start = stage_time.elapsed;
+                damage_flicker.phase_start = stage_time.elapsed();
             } else {
                 entity_commands.remove::<DamageFlicker>();
             }

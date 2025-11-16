@@ -16,7 +16,7 @@ use crate::stage::{
         tardigrade::entity::{TardigradeBundle, ENEMY_TARDIGRADE_RADIUS},
     },
     player::components::{PlayerAttack, UnhittableList},
-    resources::{StageStepSpawner, StageTime},
+    resources::{StageStepSpawner, StageTimeDomain},
 };
 use crate::{
     layer::Layer,
@@ -40,10 +40,10 @@ use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 pub fn check_step_spawn(
     mut commands: Commands,
     mut stage_step_spawner_query: Query<&mut StageStepSpawner>,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
 ) {
     for mut stage_step_spawner in &mut stage_step_spawner_query.iter_mut() {
-        let mut elapsed = stage_step_spawner.elapsed + stage_time.delta;
+        let mut elapsed = stage_step_spawner.elapsed + stage_time.delta();
 
         stage_step_spawner.spawns.retain_mut(|spawn| {
             let spawn_elapsed = spawn.get_elapsed();
