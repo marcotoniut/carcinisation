@@ -4,7 +4,7 @@ use crate::{
         components::placement::Depth,
         enemy::components::{behavior::EnemyCurrentBehavior, CircleAround, LinearMovement},
         events::DepthChangedEvent,
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
 };
 use bevy::prelude::*;
@@ -16,9 +16,9 @@ pub fn update_depth(
             Entity,
             &mut Depth,
             &TargetingPositionZ,
-            &LinearSpeed<StageTime, TargetingPositionZ>,
+            &LinearSpeed<StageTimeDomain, TargetingPositionZ>,
         ),
-        Without<LinearTargetReached<StageTime, TargetingPositionZ>>,
+        Without<LinearTargetReached<StageTimeDomain, TargetingPositionZ>>,
     >,
     mut event_writer: MessageWriter<DepthChangedEvent>,
 ) {
@@ -26,7 +26,7 @@ pub fn update_depth(
         if speed.value > 0.0 {
             if position.0 >= (depth.to_f32() + 0.5) {
                 *depth = *depth + 1;
-                // REVIEW should this use DepthChanged, or Added<LinearTargetReached> (LinearTargetReached<StageTime, ZAxisPosition>)
+                // REVIEW should this use DepthChanged, or Added<LinearTargetReached> (stage time ZAxisPosition)
                 event_writer.write(DepthChangedEvent::new(entity, *depth));
             }
         } else if position.0 <= (depth.to_f32() - 0.5) {
@@ -36,7 +36,10 @@ pub fn update_depth(
     }
 }
 
-pub fn circle_around(time: Res<Time>, mut query: Query<(&CircleAround, &mut PxSubPosition)>) {
+pub fn circle_around(
+    time: Res<Time<StageTimeDomain>>,
+    mut query: Query<(&CircleAround, &mut PxSubPosition)>,
+) {
     for (circle_around, mut position) in query.iter_mut() {
         let elapsed_seconds = time.elapsed().as_secs_f32();
         let angle = match circle_around.direction {
@@ -54,7 +57,7 @@ pub fn check_linear_movement_x_finished(
         &mut LinearMovement,
         (
             With<EnemyCurrentBehavior>,
-            Added<LinearTargetReached<StageTime, TargetingPositionX>>,
+            Added<LinearTargetReached<StageTimeDomain, TargetingPositionX>>,
         ),
     >,
 ) {
@@ -68,7 +71,7 @@ pub fn check_linear_movement_y_finished(
         &mut LinearMovement,
         (
             With<EnemyCurrentBehavior>,
-            Added<LinearTargetReached<StageTime, TargetingPositionY>>,
+            Added<LinearTargetReached<StageTimeDomain, TargetingPositionY>>,
         ),
     >,
 ) {

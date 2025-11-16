@@ -21,7 +21,7 @@ use crate::{
             placement::Depth,
         },
         player::components::PLAYER_DEPTH,
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
 };
 use bevy::prelude::*;
@@ -50,10 +50,10 @@ impl Default for BloodShotDefaultBundle {
 pub struct BloodShotMovementBundle {
     // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting
     targeting_position_x: TargetingPositionX,
-    linear_speed_x: LinearSpeed<StageTime, TargetingPositionX>,
+    linear_speed_x: LinearSpeed<StageTimeDomain, TargetingPositionX>,
     targeting_position_y: TargetingPositionY,
-    linear_speed_y: LinearSpeed<StageTime, TargetingPositionY>,
-    linear_movement_z: LinearMovementBundle<StageTime, TargetingPositionZ>,
+    linear_speed_y: LinearSpeed<StageTimeDomain, TargetingPositionY>,
+    linear_movement_z: LinearMovementBundle<StageTimeDomain, TargetingPositionZ>,
 }
 
 impl BloodShotMovementBundle {
@@ -63,10 +63,10 @@ impl BloodShotMovementBundle {
 
         Self {
             targeting_position_x: current_pos.x.into(),
-            linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed.x),
+            linear_speed_x: LinearSpeed::<StageTimeDomain, TargetingPositionX>::new(speed.x),
             targeting_position_y: current_pos.y.into(),
-            linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed.y),
-            linear_movement_z: LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
+            linear_speed_y: LinearSpeed::<StageTimeDomain, TargetingPositionY>::new(speed.y),
+            linear_movement_z: LinearMovementBundle::<StageTimeDomain, TargetingPositionZ>::new(
                 depth.to_f32(),
                 PLAYER_DEPTH.to_f32(),
                 BLOOD_SHOT_ATTACK_DEPTH_SPEED,
@@ -90,7 +90,7 @@ pub struct BloodShotBundle {
 pub fn spawn_blood_shot_attack(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    _stage_time: &Res<StageTime>,
+    _stage_time: &Res<Time<StageTimeDomain>>,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,

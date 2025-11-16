@@ -21,7 +21,7 @@ use crate::{
             placement::Depth,
         },
         player::components::PLAYER_DEPTH,
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
 };
 use bevy::prelude::*;
@@ -54,11 +54,11 @@ impl Default for BoulderThrowDefaultBundle {
 pub struct BoulderThrowMovementBundle {
     // TODO shouldn't be using "TargetingPosition" for this, since it isn't really targeting
     pub targeting_position_x: TargetingPositionX,
-    pub linear_speed_x: LinearSpeed<StageTime, TargetingPositionX>,
+    pub linear_speed_x: LinearSpeed<StageTimeDomain, TargetingPositionX>,
     pub targeting_position_y: TargetingPositionY,
-    pub linear_speed_y: LinearSpeed<StageTime, TargetingPositionY>,
-    pub linear_acceleration_y: LinearAcceleration<StageTime, TargetingPositionY>,
-    pub linear_movement_z: LinearMovementBundle<StageTime, TargetingPositionZ>,
+    pub linear_speed_y: LinearSpeed<StageTimeDomain, TargetingPositionY>,
+    pub linear_acceleration_y: LinearAcceleration<StageTimeDomain, TargetingPositionY>,
+    pub linear_movement_z: LinearMovementBundle<StageTimeDomain, TargetingPositionZ>,
 }
 
 #[derive(Bundle)]
@@ -88,13 +88,13 @@ impl BoulderThrowMovementBundle {
 
         Self {
             targeting_position_x: current_pos.x.into(),
-            linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
+            linear_speed_x: LinearSpeed::<StageTimeDomain, TargetingPositionX>::new(speed_x),
             targeting_position_y: current_pos.y.into(),
-            linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
-            linear_acceleration_y: LinearAcceleration::<StageTime, TargetingPositionY>::new(
+            linear_speed_y: LinearSpeed::<StageTimeDomain, TargetingPositionY>::new(speed_y),
+            linear_acceleration_y: LinearAcceleration::<StageTimeDomain, TargetingPositionY>::new(
                 BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
             ),
-            linear_movement_z: LinearMovementBundle::<StageTime, TargetingPositionZ>::new(
+            linear_movement_z: LinearMovementBundle::<StageTimeDomain, TargetingPositionZ>::new(
                 depth_f32,
                 target_depth.to_f32(),
                 BOULDER_THROW_ATTACK_DEPTH_SPEED,
@@ -106,7 +106,7 @@ impl BoulderThrowMovementBundle {
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    _stage_time: &Res<StageTime>,
+    _stage_time: &Res<Time<StageTimeDomain>>,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,

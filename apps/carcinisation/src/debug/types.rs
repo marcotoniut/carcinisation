@@ -32,7 +32,6 @@ use crate::{
         },
         pickup::components::HealthRecovery,
         player::components::{CameraShake, PlayerAttack},
-        resources::StageTime,
     },
 };
 
@@ -67,7 +66,6 @@ pub fn register_types(app: &mut App) {
         .register_type::<PlayerAttack>()
         .register_type::<RailPosition>()
         .register_type::<Speed>()
-        .register_type::<StageTime>()
         .register_type::<StageElapsedStarted>()
         .register_type::<TargetingPositionX>()
         .register_type::<TargetingPositionY>()

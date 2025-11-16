@@ -9,14 +9,13 @@ use crate::{
     stage::{
         data::StageData,
         events::StageRestart,
-        resources::{StageActionTimer, StageProgress, StageTime},
+        resources::{StageActionTimer, StageProgress, StageTimeDomain},
         StagePlugin, StageProgressState,
     },
 };
 use activable::{activate, deactivate};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
-use std::time::Duration;
 
 pub fn check_press_continue_input(
     mut screen_shutdown_event_writer: MessageWriter<GameOverScreenShutdownEvent>,
@@ -34,7 +33,7 @@ pub fn handle_game_over_screen_continue(
     mut stage_progress: ResMut<StageProgress>,
     mut game_progress: ResMut<GameProgress>,
     mut lives: ResMut<Lives>,
-    mut stage_time: ResMut<StageTime>,
+    mut stage_time: ResMut<Time<StageTimeDomain>>,
     mut stage_action_timer: ResMut<StageActionTimer>,
     mut stage_restart_writer: MessageWriter<StageRestart>,
 ) {
@@ -42,8 +41,7 @@ pub fn handle_game_over_screen_continue(
         stage_progress.index = 0;
 
         if lives.0 > 0 {
-            stage_time.elapsed = Duration::ZERO;
-            stage_time.delta = Duration::ZERO;
+            *stage_time = Time::default();
             stage_action_timer.timer.reset();
             stage_action_timer.stop();
             stage_state.set(StageProgressState::Initial);

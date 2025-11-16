@@ -15,7 +15,7 @@ use crate::{
         },
         events::DepthChangedEvent,
         player::components::PLAYER_DEPTH,
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
 };
 use bevy::prelude::*;
@@ -35,7 +35,7 @@ pub fn miss_on_reached(
     query: Query<
         Entity,
         (
-            Added<LinearTargetReached<StageTime, TargetingPositionZ>>,
+            Added<LinearTargetReached<StageTimeDomain, TargetingPositionZ>>,
             With<EnemyAttack>,
             Without<InView>,
         ),

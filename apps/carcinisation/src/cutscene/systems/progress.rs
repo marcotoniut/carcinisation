@@ -8,7 +8,7 @@ use crate::{
         components::{Cinematic, CutsceneEntity, CutsceneGraphic},
         data::*,
         events::CutsceneShutdownTrigger,
-        resources::{CutsceneProgress, CutsceneTime},
+        resources::{CutsceneProgress, CutsceneTimeDomain},
     },
     globals::mark_for_despawn_by_query,
     layer::Layer,
@@ -35,7 +35,7 @@ pub fn read_step_trigger(
         ),
     >,
     data: Res<CutsceneData>,
-    time: Res<CutsceneTime>,
+    time: Res<Time<CutsceneTimeDomain>>,
 ) {
     for entity in query.iter() {
         if let Some(act) = data.steps.get(progress.index) {
@@ -49,7 +49,7 @@ pub fn read_step_trigger(
 
             entity_commands.insert((
                 CutsceneElapse::new(act.elapse),
-                CutsceneElapsedStarted(time.elapsed),
+                CutsceneElapsedStarted(time.elapsed()),
             ));
 
             if let Some(x) = &act.music_despawn_o {
@@ -83,10 +83,10 @@ pub fn check_cutscene_elapsed(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneElapsedStarted, &CutsceneElapse), With<Cinematic>>,
     cutscene_query: Query<Entity, With<CutsceneGraphic>>,
-    time: Res<CutsceneTime>,
+    time: Res<Time<CutsceneTimeDomain>>,
 ) {
     for (entity, started, elapse) in query.iter() {
-        if started.0 + elapse.duration < time.elapsed {
+        if started.0 + elapse.duration < time.elapsed() {
             commands
                 .entity(entity)
                 .remove::<CutsceneElapse>()

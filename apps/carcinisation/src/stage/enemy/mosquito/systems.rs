@@ -19,7 +19,7 @@ use crate::{
                 steps::{EnemyStep, JumpEnemyStep},
             },
         },
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
     systems::camera::CameraPos,
 };
@@ -166,7 +166,7 @@ pub fn check_idle_mosquito(
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     // TODO
     // event_writer: MessageWriter<BloodAttackEvent>,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
     query: Query<
         (Entity, &mut EnemyMosquitoAttacking, &PxSubPosition, &Depth),
         (With<InView>, With<EnemyMosquito>),
@@ -177,7 +177,7 @@ pub fn check_idle_mosquito(
         if attacking.attack.is_none() {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
-                < stage_time.elapsed + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
+                < stage_time.elapsed() + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
             {
                 #[cfg(debug_assertions)]
                 info!("Mosquito {:?} is attacking", entity);
@@ -187,7 +187,7 @@ pub fn check_idle_mosquito(
                     .remove::<EnemyMosquitoAnimation>()
                     .insert(EnemyMosquitoAttacking {
                         attack: Some(EnemyMosquitoAttack::Ranged),
-                        last_attack_started: stage_time.elapsed,
+                        last_attack_started: stage_time.elapsed(),
                     });
 
                 spawn_blood_shot_attack(

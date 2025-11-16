@@ -20,10 +20,11 @@ use super::{
     enemy::components::Enemy,
     events::{NextStepEvent, StageClearedTrigger, StageDeathEvent},
     player::components::Player,
-    resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTime},
+    resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain},
     StageProgressState,
 };
 use crate::components::VolumeSettings;
+use crate::core::time::TimeMultiplier;
 use crate::pixel::PxAssets;
 use crate::{
     components::{DespawnMark, Music},
@@ -71,6 +72,23 @@ pub fn toggle_game(
     }
 }
 
+/// @system Advances the stage-local time domain while gameplay is running.
+pub fn tick_stage_time(
+    real_time: Res<Time>,
+    state: Res<State<StageProgressState>>,
+    mult: Option<Res<TimeMultiplier<StageTimeDomain>>>,
+    mut stage_time: ResMut<Time<StageTimeDomain>>,
+) {
+    if state.get() != &StageProgressState::Running {
+        return;
+    }
+
+    let base_dt = real_time.delta();
+    let scaled_dt = mult.map(|m| base_dt.mul_f32(m.value)).unwrap_or(base_dt);
+
+    stage_time.advance_by(scaled_dt);
+}
+
 // REVIEW
 /// @system Spawns the core stage bundle and kicks off gameplay.
 pub fn spawn_current_stage_bundle(
@@ -99,10 +117,12 @@ pub fn spawn_current_stage_bundle(
     state.set(GameProgressState::Running);
 }
 
-// TODO combine the two and use just_finished and StageTime
-// TODO should be using StageTime instead of Time
+// TODO combine the two and use just_finished
 /// @system Advances the stage action timer every frame.
-pub fn tick_stage_step_timer(mut timer: ResMut<StageActionTimer>, time: Res<Time>) {
+pub fn tick_stage_step_timer(
+    mut timer: ResMut<StageActionTimer>,
+    time: Res<Time<StageTimeDomain>>,
+) {
     if timer.timer.is_paused() {
         return;
     }
@@ -266,7 +286,7 @@ pub fn read_step_trigger(
     mut progress: ResMut<StageProgress>,
     query: Query<Entity, (With<Stage>, Without<CurrentStageStep>)>,
     data: Res<StageData>,
-    time: Res<StageTime>,
+    time: Res<Time<StageTimeDomain>>,
 ) {
     if let Ok(entity) = query.single() {
         if let Some(action) = data.steps.get(progress.index) {
@@ -275,10 +295,10 @@ pub fn read_step_trigger(
             let mut entity_commands = commands.entity(entity);
             entity_commands.insert((
                 CurrentStageStep {
-                    started: time.elapsed,
+                    started: time.elapsed(),
                 },
                 // StageElapse::new(action.elapse),
-                StageElapsedStarted(time.elapsed),
+                StageElapsedStarted(time.elapsed()),
             ));
 
             match action {
@@ -328,18 +348,22 @@ pub fn initialise_movement_step(
 
             commands
                 .entity(camera_entity)
-                .insert(LinearMovementBundle::<StageTime, TargetingPositionX>::new(
-                    position.x,
-                    coordinates.x,
-                    speed.x,
-                ))
-                .insert(LinearMovementBundle::<StageTime, TargetingPositionY>::new(
-                    position.y,
-                    coordinates.y,
-                    speed.y,
-                ))
+                .insert(
+                    LinearMovementBundle::<StageTimeDomain, TargetingPositionX>::new(
+                        position.x,
+                        coordinates.x,
+                        speed.x,
+                    ),
+                )
+                .insert(
+                    LinearMovementBundle::<StageTimeDomain, TargetingPositionY>::new(
+                        position.y,
+                        coordinates.y,
+                        speed.y,
+                    ),
+                )
                 .insert(LinearMovement2DReachCheck::<
-                    StageTime,
+                    StageTimeDomain,
                     TargetingPositionX,
                     TargetingPositionY,
                 >::new())
@@ -383,7 +407,7 @@ pub fn check_movement_step_reached(
     camera_query: Query<
         (
             Entity,
-            &LinearMovement2DReachCheck<StageTime, TargetingPositionX, TargetingPositionY>,
+            &LinearMovement2DReachCheck<StageTimeDomain, TargetingPositionX, TargetingPositionY>,
         ),
         With<CameraPos>,
     >,
@@ -393,14 +417,14 @@ pub fn check_movement_step_reached(
             for _ in step_query.iter() {
                 let mut entity_commands = commands.entity(camera_entity);
                 entity_commands.remove::<LinearMovement2DReachCheck<
-                    StageTime,
+                    StageTimeDomain,
                     TargetingPositionX,
                     TargetingPositionY,
                 >>();
                 entity_commands
-                    .remove::<LinearPositionRemovalBundle<StageTime, TargetingPositionX>>();
+                    .remove::<LinearPositionRemovalBundle<StageTimeDomain, TargetingPositionX>>();
                 entity_commands
-                    .remove::<LinearPositionRemovalBundle<StageTime, TargetingPositionY>>();
+                    .remove::<LinearPositionRemovalBundle<StageTimeDomain, TargetingPositionY>>();
                 commands.trigger(NextStepEvent);
             }
         }
@@ -411,12 +435,12 @@ pub fn check_movement_step_reached(
 pub fn check_stop_step_finished_by_duration(
     mut commands: Commands,
     query: Query<(&StopStageStep, &CurrentStageStep), With<Stage>>,
-    stage_time: Res<StageTime>,
+    stage_time: Res<Time<StageTimeDomain>>,
 ) {
     for (step, current_step) in query.iter() {
         if step
             .max_duration
-            .map(|max_duration| current_step.started + max_duration <= stage_time.elapsed)
+            .map(|max_duration| current_step.started + max_duration <= stage_time.elapsed())
             .unwrap_or(false)
         {
             commands.trigger(NextStepEvent);

@@ -3,9 +3,9 @@ pub mod events;
 
 use super::components::*;
 use super::resources::AttackTimer;
-use crate::core::time::DeltaTime;
 use crate::input::GBInput;
 use crate::pixel::PxAssets;
+use crate::stage::resources::StageTimeDomain;
 use crate::{
     components::{DespawnMark, VolumeSettings},
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
@@ -41,11 +41,11 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
     }
 }
 
-pub fn player_movement<T: DeltaTime + Resource>(
+pub fn player_movement(
     gb_input: Res<ActionState<GBInput>>,
     // TODO should this system refer to a Cursor component instead?
     mut query: Query<&mut PxSubPosition, With<Player>>,
-    time: Res<T>,
+    time: Res<Time<StageTimeDomain>>,
 ) {
     for mut position in &mut query {
         // TODO review what's more expensive, querying or input subroutine, although, most of the times
@@ -105,7 +105,7 @@ pub fn detect_player_attack(
     }
 }
 
-pub fn tick_attack_timer<T: DeltaTime + Resource>(mut timer: ResMut<AttackTimer>, time: Res<T>) {
+pub fn tick_attack_timer(mut timer: ResMut<AttackTimer>, time: Res<Time<StageTimeDomain>>) {
     timer.timer.tick(time.delta());
 }
 

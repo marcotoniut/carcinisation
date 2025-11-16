@@ -2,7 +2,7 @@
 
 use super::components::*;
 use super::events::LetterboxMoveTrigger;
-use super::resources::LetterboxTime;
+use super::resources::LetterboxTimeDomain;
 use crate::components::GBColor;
 use crate::debug::plugin::debug_print_shutdown;
 use crate::debug::plugin::debug_print_startup;
@@ -100,10 +100,9 @@ pub fn insert_linear_movement(
     commands
         .entity(entity)
         // TODO review why this was removed
-        // .remove::<LinearPositionRemovalBundle<LetterboxTime, TargetingPositionY>>()
-        .insert(
-            LinearMovementBundle::<LetterboxTime, TargetingPositionY>::new(
-                position.y, target, speed,
-            ),
-        );
+        // .remove::<LinearPositionRemovalBundle<LetterboxTimeDomain, TargetingPositionY>>()
+        .insert(LinearMovementBundle::<
+            LetterboxTimeDomain,
+            TargetingPositionY,
+        >::new(position.y, target, speed));
 }

@@ -13,7 +13,7 @@ use crate::{
             HealthRecovery, PickupFeedback, PICKUP_FEEDBACK_INITIAL_SPEED_Y, PICKUP_FEEDBACK_TIME,
         },
         player::components::{Player, PLAYER_MAX_HEALTH},
-        resources::StageTime,
+        resources::StageTimeDomain,
     },
     systems::camera::CameraPos,
 };
@@ -26,13 +26,13 @@ use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
 pub struct PickupFeedbackMovementBundle {
     pub targeting_position_x: TargetingPositionX,
     pub targeting_position_y: TargetingPositionY,
-    pub linear_speed_x: LinearSpeed<StageTime, TargetingPositionX>,
-    pub linear_speed_y: LinearSpeed<StageTime, TargetingPositionY>,
-    pub linear_acceleration_y: LinearAcceleration<StageTime, TargetingPositionY>,
-    pub linear_direction_x: LinearDirection<StageTime, TargetingPositionX>,
-    pub linear_direction_y: LinearDirection<StageTime, TargetingPositionY>,
-    pub linear_target_position_x: LinearTargetPosition<StageTime, TargetingPositionX>,
-    pub linear_target_position_y: LinearTargetPosition<StageTime, TargetingPositionY>,
+    pub linear_speed_x: LinearSpeed<StageTimeDomain, TargetingPositionX>,
+    pub linear_speed_y: LinearSpeed<StageTimeDomain, TargetingPositionY>,
+    pub linear_acceleration_y: LinearAcceleration<StageTimeDomain, TargetingPositionY>,
+    pub linear_direction_x: LinearDirection<StageTimeDomain, TargetingPositionX>,
+    pub linear_direction_y: LinearDirection<StageTimeDomain, TargetingPositionY>,
+    pub linear_target_position_x: LinearTargetPosition<StageTimeDomain, TargetingPositionX>,
+    pub linear_target_position_y: LinearTargetPosition<StageTimeDomain, TargetingPositionY>,
 }
 
 impl PickupFeedbackMovementBundle {
@@ -53,23 +53,21 @@ impl PickupFeedbackMovementBundle {
         Self {
             targeting_position_x: current.x.into(),
             targeting_position_y: current.y.into(),
-            linear_speed_x: LinearSpeed::<StageTime, TargetingPositionX>::new(speed_x),
-            linear_speed_y: LinearSpeed::<StageTime, TargetingPositionY>::new(speed_y),
-            linear_acceleration_y: LinearAcceleration::<StageTime, TargetingPositionY>::new(
+            linear_speed_x: LinearSpeed::<StageTimeDomain, TargetingPositionX>::new(speed_x),
+            linear_speed_y: LinearSpeed::<StageTimeDomain, TargetingPositionY>::new(speed_y),
+            linear_acceleration_y: LinearAcceleration::<StageTimeDomain, TargetingPositionY>::new(
                 acceleration_y,
             ),
-            linear_direction_x: LinearDirection::<StageTime, TargetingPositionX>::from_delta(
+            linear_direction_x: LinearDirection::<StageTimeDomain, TargetingPositionX>::from_delta(
                 direction_delta.x,
             ),
-            linear_direction_y: LinearDirection::<StageTime, TargetingPositionY>::from_delta(
+            linear_direction_y: LinearDirection::<StageTimeDomain, TargetingPositionY>::from_delta(
                 direction_delta.y,
             ),
-            linear_target_position_x: LinearTargetPosition::<StageTime, TargetingPositionX>::new(
-                target.x,
-            ),
-            linear_target_position_y: LinearTargetPosition::<StageTime, TargetingPositionY>::new(
-                target.y,
-            ),
+            linear_target_position_x:
+                LinearTargetPosition::<StageTimeDomain, TargetingPositionX>::new(target.x),
+            linear_target_position_y:
+                LinearTargetPosition::<StageTimeDomain, TargetingPositionY>::new(target.y),
         }
     }
 }
@@ -137,5 +135,5 @@ pub fn pickup_health(
 
 pub type PickupDespawnFilter = (
     With<PickupFeedback>,
-    Added<LinearTargetReached<StageTime, TargetingPositionY>>,
+    Added<LinearTargetReached<StageTimeDomain, TargetingPositionY>>,
 );

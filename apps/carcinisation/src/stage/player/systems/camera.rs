@@ -1,15 +1,17 @@
 use crate::{
-    core::time::DeltaTime,
-    stage::player::{components::CameraShake, events::CameraShakeTrigger},
+    stage::{
+        player::{components::CameraShake, events::CameraShakeTrigger},
+        resources::StageTimeDomain,
+    },
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
-pub fn camera_shake<T: DeltaTime + Resource>(
+pub fn camera_shake(
     mut commands: Commands,
     mut query: Query<(Entity, &mut CameraShake, &mut PxSubPosition)>,
-    time: Res<T>,
+    time: Res<Time<StageTimeDomain>>,
 ) {
     for (entity, mut shake, mut position) in query.iter_mut() {
         if shake.shaking {

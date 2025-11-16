@@ -22,7 +22,7 @@ use self::{
     events::*,
     pickup::systems::health::pickup_health,
     player::PlayerPlugin,
-    resources::{StageActionTimer, StageProgress, StageTime},
+    resources::{StageActionTimer, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
     systems::{
         camera::*,
@@ -41,10 +41,7 @@ use self::{
     },
 };
 use crate::{
-    core::{
-        event::on_trigger_write_event,
-        time::{tick_time, TimeMultiplier},
-    },
+    core::{event::on_trigger_write_event, time::TimeMultiplier},
     globals::mark_for_despawn_by_query_system,
     plugins::movement::{
         linear::{
@@ -82,13 +79,13 @@ pub struct StagePlugin;
 impl Plugin for StagePlugin {
     fn build(&self, app: &mut App) {
         #[cfg(debug_assertions)]
-        app.insert_resource(TimeMultiplier::<StageTime>::new(1.));
+        app.insert_resource(TimeMultiplier::<StageTimeDomain>::new(1.));
 
         app.add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
             // Core stage state/resources that every sub-system relies on.
             .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()
-            .init_resource::<StageTime>()
+            .init_resource::<Time<StageTimeDomain>>()
             .init_resource::<StageProgress>()
             // Event streams for the combat/progression loop.
             .add_message::<DamageEvent>()
@@ -121,14 +118,18 @@ impl Plugin for StagePlugin {
                 deactivate_system::<PlayerPlugin>,
                 deactivate_system::<StageUiPlugin>,
             ))
+            .add_active_systems_in::<StagePlugin, _>(
+                PreUpdate,
+                (tick_stage_time,).run_if(in_state(StageProgressState::Running)),
+            )
             // Shared movement helpers (linear/pursue) reused by multiple enemy types.
-            .add_plugins(PursueMovementPlugin::<StageTime, RailPosition>::default())
-            .add_plugins(PursueMovementPlugin::<StageTime, PxSubPosition>::default())
-            .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionX>::default())
-            .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionY>::default())
-            .add_plugins(LinearMovementPlugin::<StageTime, TargetingPositionZ>::default())
+            .add_plugins(PursueMovementPlugin::<StageTimeDomain, RailPosition>::default())
+            .add_plugins(PursueMovementPlugin::<StageTimeDomain, PxSubPosition>::default())
+            .add_plugins(LinearMovementPlugin::<StageTimeDomain, TargetingPositionX>::default())
+            .add_plugins(LinearMovementPlugin::<StageTimeDomain, TargetingPositionY>::default())
+            .add_plugins(LinearMovementPlugin::<StageTimeDomain, TargetingPositionZ>::default())
             .add_plugins(LinearMovement2DPlugin::<
-                StageTime,
+                StageTimeDomain,
                 TargetingPositionX,
                 TargetingPositionY,
             >::default())
@@ -157,7 +158,6 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Stage
-                            tick_time::<StageTime>,
                             tick_stage_step_timer,
                             read_step_trigger,
                             check_stage_step_timer,
@@ -167,8 +167,8 @@ impl Plugin for StagePlugin {
                         ),
                         (
                             // Effects
-                            delay_despawn::<StageTime>,
-                            check_despawn_after_delay::<StageTime>,
+                            delay_despawn::<StageTimeDomain>,
+                            check_despawn_after_delay::<StageTimeDomain>,
                         ),
                         (
                             // Movement
