@@ -81,7 +81,12 @@ impl Plugin for StagePlugin {
         #[cfg(debug_assertions)]
         app.insert_resource(TimeMultiplier::<StageTimeDomain>::new(1.));
 
-        app.add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]))
+        let app = app.add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]));
+
+        #[cfg(debug_assertions)]
+        app.add_systems(Update, debug_visibility_hierarchy);
+
+        app
             // Core stage state/resources that every sub-system relies on.
             .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()

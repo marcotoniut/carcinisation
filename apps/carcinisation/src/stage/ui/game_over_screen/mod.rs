@@ -42,7 +42,12 @@ pub fn render_game_over_screen(
         let score_text = score.value.to_string();
 
         commands
-            .spawn((GameOverScreen, Name::new("GameOver Screen")))
+            .spawn((
+                GameOverScreen,
+                Visibility::Visible,
+                InheritedVisibility::VISIBLE,
+                Name::new("GameOver Screen"),
+            ))
             .with_children(|p0| {
                 for i in 25..115 {
                     p0.spawn((

@@ -19,6 +19,7 @@ use crate::{
     },
 };
 
+#[allow(clippy::too_many_arguments)]
 pub fn handle_stage_restart(
     mut commands: Commands,
     stage_data: Res<StageData>,

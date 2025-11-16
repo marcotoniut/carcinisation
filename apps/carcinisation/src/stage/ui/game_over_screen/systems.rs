@@ -26,6 +26,7 @@ pub fn check_press_continue_input(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn handle_game_over_screen_continue(
     mut event_reader: MessageReader<GameOverScreenShutdownEvent>,
     mut commands: Commands,
