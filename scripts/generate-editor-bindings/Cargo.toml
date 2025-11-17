@@ -1,0 +1,12 @@
+[package]
+name = "generate-editor-bindings"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+derive-ts = []
+
+[dependencies]
+anyhow = "1.0"
+carcinisation = { path = "../../apps/carcinisation", features = ["derive-ts"] }
+ts-rs = "11.1.0"

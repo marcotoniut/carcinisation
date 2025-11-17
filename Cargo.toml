@@ -8,6 +8,7 @@ members = [
     "crates/cween",
     "scripts/generate-typeface",
     "scripts/process-gfx",
+    "scripts/generate-editor-bindings",
     "tools/assert_assets_path",
     "tools/scene-file-watcher",
 ]

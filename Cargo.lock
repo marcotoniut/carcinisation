@@ -2931,6 +2931,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "generate-editor-bindings"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "carcinisation",
+ "ts-rs",
+]
+
+[[package]]
 name = "generate-typeface"
 version = "0.1.0"
 dependencies = [
