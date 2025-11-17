@@ -2,6 +2,7 @@
 name = "activable_macros"
 edition = "2021"
 version.workspace = true
+description = "Procedural macro for deriving Activable trait"
 
 [lib]
 proc-macro = true
