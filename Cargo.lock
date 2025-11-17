@@ -83,14 +83,14 @@ dependencies = [
 name = "activable"
 version = "0.2.0"
 dependencies = [
- "activable-macros",
+ "activable_macros",
  "bevy",
  "bevy_ecs",
  "bevy_state",
 ]
 
 [[package]]
-name = "activable-macros"
+name = "activable_macros"
 version = "0.2.0"
 dependencies = [
  "proc-macro2",
@@ -1905,7 +1905,7 @@ name = "carcinisation"
 version = "0.2.0"
 dependencies = [
  "activable",
- "activable-macros",
+ "activable_macros",
  "anyhow",
  "assert_assets_path",
  "bevy",

@@ -1,5 +1,5 @@
 [package]
-name = "activable-macros"
+name = "activable_macros"
 edition = "2021"
 version.workspace = true
 
