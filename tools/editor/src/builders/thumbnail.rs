@@ -119,6 +119,6 @@ pub fn get_object_thumbnail(object_type: ObjectType, depth: Depth) -> (String, O
 pub fn get_pickup_thumbnail(pickup_type: PickupType, depth: Depth) -> (String, Option<Rect>) {
     match pickup_type {
         PickupType::BigHealthpack => ("sprites/pickups/health_6.px_sprite.png".into(), None),
-        PickupType::SmallHealthpack => ("sprites/pickups/health_6.px_sprite.png".into(), None),
+        PickupType::SmallHealthpack => ("sprites/pickups/health_4.px_sprite.png".into(), None),
     }
 }

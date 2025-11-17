@@ -11,6 +11,7 @@ pub mod pickup;
 pub mod player;
 pub mod resources;
 pub mod restart;
+pub mod sprite_names;
 mod systems;
 pub mod ui;
 
