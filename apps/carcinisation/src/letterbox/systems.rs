@@ -7,14 +7,12 @@ use crate::components::GBColor;
 use crate::debug::plugin::debug_print_shutdown;
 use crate::debug::plugin::debug_print_startup;
 use crate::globals::mark_for_despawn_by_query;
-use crate::plugins::movement::linear::components::LinearMovementBundle;
-// use crate::plugins::movement::linear::components::LinearPositionRemovalBundle;
-use crate::plugins::movement::linear::components::TargetingPositionY;
 use crate::{
     cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, layer::Layer,
     pixel::components::PxRectangle,
 };
 use bevy::prelude::*;
+use cween::linear::components::{LinearMovementBundle, TargetingPositionY};
 use seldom_pixel::prelude::PxSubPosition;
 use seldom_pixel::prelude::*;
 

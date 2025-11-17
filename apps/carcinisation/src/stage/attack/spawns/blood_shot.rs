@@ -1,32 +1,30 @@
 use crate::pixel::PxAssets;
-use crate::{
-    plugins::movement::{
-        linear::components::{
-            MovementChildBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-        },
-        structs::{Constructor, Magnitude},
-    },
-    stage::{
-        attack::{
-            components::{
-                bundles::make_hovering_attack_animation_bundle, EnemyAttack,
-                EnemyAttackOriginDepth, EnemyAttackOriginPosition, EnemyHoveringAttackType,
-            },
-            data::blood_shot::{
-                BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED,
-                BLOOD_SHOT_ATTACK_LINE_SPEED, BLOOD_SHOT_ATTACK_RANDOMNESS,
-            },
-        },
+use crate::stage::{
+    attack::{
         components::{
-            damage::InflictsDamage,
-            interactive::{Health, Hittable},
-            placement::Depth,
+            bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyAttackOriginDepth,
+            EnemyAttackOriginPosition, EnemyHoveringAttackType,
         },
-        player::components::PLAYER_DEPTH,
-        resources::StageTimeDomain,
+        data::blood_shot::{
+            BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED, BLOOD_SHOT_ATTACK_LINE_SPEED,
+            BLOOD_SHOT_ATTACK_RANDOMNESS,
+        },
     },
+    components::{
+        damage::InflictsDamage,
+        interactive::{Health, Hittable},
+        placement::Depth,
+    },
+    player::components::PLAYER_DEPTH,
+    resources::StageTimeDomain,
 };
 use bevy::prelude::*;
+use cween::{
+    linear::components::{
+        MovementChildBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
+    },
+    structs::{Constructor, Magnitude},
+};
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 fn spawn_blood_shot_movement_child<P>(

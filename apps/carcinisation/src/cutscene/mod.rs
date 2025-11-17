@@ -17,16 +17,14 @@ use self::{
         setup::{on_cutscene_shutdown, on_cutscene_startup},
     },
 };
-use crate::{
-    core::{event::on_trigger_write_event, time::tick_time},
-    plugins::movement::linear::{
-        components::{TargetingPositionX, TargetingPositionY},
-        LinearMovementPlugin,
-    },
-};
+use crate::core::{event::on_trigger_write_event, time::tick_time};
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
+use cween::linear::{
+    components::{TargetingPositionX, TargetingPositionY},
+    LinearMovementPlugin,
+};
 use data::CutsceneData;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 

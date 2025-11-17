@@ -1,16 +1,14 @@
-use crate::{
-    plugins::movement::{linear::components::*, structs::MovementDirection},
-    stage::{
-        components::placement::Depth,
-        enemy::components::{
-            behavior::{EnemyCurrentBehavior, EnemyStepMovement},
-            CircleAround, LinearMovement,
-        },
-        events::DepthChangedEvent,
-        resources::StageTimeDomain,
+use crate::stage::{
+    components::placement::Depth,
+    enemy::components::{
+        behavior::{EnemyCurrentBehavior, EnemyStepMovement},
+        CircleAround, LinearMovement,
     },
+    events::DepthChangedEvent,
+    resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
+use cween::{linear::components::*, structs::MovementDirection};
 use seldom_pixel::prelude::PxSubPosition;
 
 pub fn update_depth(

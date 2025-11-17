@@ -1,10 +1,10 @@
 use crate::{
     globals::{is_inside_area, HUD_HEIGHT, SCREEN_RESOLUTION},
-    plugins::movement::linear::components::{TargetingPositionX, TargetingPositionY},
     stage::{components::placement::InView, player::components::CameraShake},
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
+use cween::linear::components::{TargetingPositionX, TargetingPositionY};
 use seldom_pixel::prelude::PxSubPosition;
 
 const IN_VIEW_OFFSET: u32 = 5;

@@ -42,18 +42,18 @@ use self::{
 };
 use crate::{
     core::{event::on_trigger_write_event, time::TimeMultiplier},
-    plugins::movement::{
-        linear::{
-            components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
-            LinearMovement2DPlugin, LinearMovementPlugin, LinearMovementSystems,
-        },
-        pursue::PursueMovementPlugin,
-    },
     systems::{check_despawn_after_delay, delay_despawn},
 };
 use activable::{activate_system, deactivate_system, Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
+use cween::{
+    linear::{
+        components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
+        LinearMovement2DPlugin, LinearMovementPlugin, LinearMovementSystems,
+    },
+    pursue::PursueMovementPlugin,
+};
 use data::StageData;
 use seldom_pixel::prelude::PxSubPosition;
 

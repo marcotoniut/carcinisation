@@ -5,11 +5,9 @@ pub mod events;
 pub mod resources;
 mod systems;
 
-use crate::{
-    core::time::tick_time,
-    plugins::movement::linear::{components::TargetingPositionY, LinearMovementPlugin},
-};
+use crate::core::time::tick_time;
 use activable::{activate_system, Activable, ActivableAppExt};
+use cween::linear::{components::TargetingPositionY, LinearMovementPlugin};
 
 use self::{events::LetterboxMoveTrigger, resources::LetterboxTimeDomain, systems::*};
 use bevy::{prelude::*, time::Fixed};

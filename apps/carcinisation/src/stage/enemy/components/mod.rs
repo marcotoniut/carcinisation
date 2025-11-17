@@ -1,7 +1,7 @@
 pub mod behavior;
 
-use crate::plugins::movement::structs::MovementDirection;
 use bevy::prelude::*;
+use cween::structs::MovementDirection;
 
 #[derive(Component, Debug, Default)]
 pub struct Enemy;

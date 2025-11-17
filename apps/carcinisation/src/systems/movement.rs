@@ -1,5 +1,5 @@
-use crate::plugins::movement::linear::components::*;
 use bevy::prelude::*;
+use cween::linear::components::*;
 use seldom_pixel::prelude::PxSubPosition;
 
 /// @system Syncs TargetingPositionX to PxSubPosition.x

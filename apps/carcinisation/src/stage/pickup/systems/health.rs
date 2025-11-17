@@ -3,9 +3,6 @@ use crate::{
     components::DespawnMark,
     game::score::components::Score,
     layer::Layer,
-    plugins::movement::linear::components::{
-        LinearTargetReached, MovementChildAcceleratedBundle, TargetingPositionX, TargetingPositionY,
-    },
     stage::{
         components::interactive::{Dead, Health},
         pickup::components::{
@@ -18,6 +15,9 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
+use cween::linear::components::{
+    LinearTargetReached, MovementChildAcceleratedBundle, TargetingPositionX, TargetingPositionY,
+};
 use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
 
 /// Marker component for pickup feedback movement children.
