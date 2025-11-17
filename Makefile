@@ -81,7 +81,7 @@ TS_RS_EXPORT_DIR := $(TS_OUT)
 gen-types:
 	@echo "Generating TypeScript types from Rust..."
 	TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) TS_OUT=$(TS_OUT) \
-	$(BEVY) run --package carcinisation --bin gen_types --features derive-ts
+	$(BEVY) run --package generate-editor-bindings --features derive-ts
 
 .PHONY: gen-zod
 gen-zod:
@@ -101,7 +101,7 @@ watch-types:
 		--env RUSTFLAGS=-Awarnings \
 		--env TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) \
 		--env TS_OUT=$(TS_OUT) \
-		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) TS_OUT=$(TS_OUT) $(BEVY) run --package carcinisation --bin gen_types --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
+		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) TS_OUT=$(TS_OUT) $(BEVY) run --package generate-editor-bindings --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
 
 # =============================================================================
 # Asset generation
