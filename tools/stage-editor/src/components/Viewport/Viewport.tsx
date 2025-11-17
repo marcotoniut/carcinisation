@@ -1,8 +1,25 @@
-import { Application, Assets, Container, Graphics, Sprite, Text } from "pixi.js"
+import type { FederatedPointerEvent } from "pixi.js"
+import {
+  Application,
+  Assets,
+  Container,
+  Graphics,
+  Point,
+  Sprite,
+  Text,
+} from "pixi.js"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { SpawnId } from "../../state/store"
 import { useEditorStore } from "../../state/store"
+import { getCachedTexture } from "../../utils/pixiCache"
+import type { SpawnSpriteData } from "../../utils/renderSpawns"
+import { renderSpawns, updateSpawnOpacity } from "../../utils/renderSpawns"
+import { isSpriteAlphaHit } from "../../utils/spriteAlphaHit"
 import { getCameraPosition, getStepMarkers } from "../../utils/stageTimeline"
+import { calculateDistance, distanceSquaredPoints } from "./math"
 import * as styles from "./Viewport.css"
+import type { ScreenPoint, WorldPoint } from "./world"
+import { makeWorldToScreen } from "./world"
 
 const AXIS_COLOR = 0xbbbbbb
 
@@ -22,23 +39,13 @@ const GAME_BOY_SCREEN_HEIGHT = 144
 /// Small gap between skybox and background
 const SKYBOX_TO_BACKGROUND_GAP = 20
 
-type WorldPoint = { x: number; y: number }
-type ScreenPoint = { x: number; y: number }
-
-// Factory so we can adjust origin offsets/scaling later.
-const makeWorldToScreen = (originYOffset = 0) => {
-  return (world: WorldPoint): ScreenPoint => ({
-    x: world.x,
-    // World is Y-up while Pixi is Y-down; invert and offset so y=0 aligns with
-    // the stage origin (background bottom-left).
-    y: originYOffset - world.y,
-  })
-}
-
 export function Viewport() {
   const parsedData = useEditorStore((state) => state.parsedData)
   const timelinePosition = useEditorStore((state) => state.timelinePosition)
   const debugMode = useEditorStore((state) => state.debugMode)
+  const entityAnimations = useEditorStore((state) => state.entityAnimations)
+  const selectSpawn = useEditorStore((state) => state.selectSpawn)
+  const selectedSpawn = useEditorStore((state) => state.selectedSpawn)
   const canvasRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
   const cameraRef = useRef<Container | null>(null)
@@ -46,12 +53,19 @@ export function Viewport() {
   const skyboxRef = useRef<Sprite | null>(null)
   const cameraViewportRef = useRef<Graphics | null>(null)
   const debugGraphicsRef = useRef<Container | null>(null)
+  const spawnContainerRef = useRef<Container | null>(null)
+  const selectionRectRef = useRef<Graphics | null>(null)
+  const spawnSpritesRef = useRef<SpawnSpriteData[]>([])
+  const spriteLookupRef = useRef<Map<string, Sprite>>(new Map())
+  const pendingSelectSpawnRef = useRef<SpawnId | null>(null)
+  const pointerDownPosRef = useRef<Point | null>(null)
+  const pointerIsDownRef = useRef(false)
   const [worldOriginYOffset, setWorldOriginYOffset] = useState(0)
   const [viewportSize, setViewportSize] = useState({ width: 800, height: 600 })
   // Camera position represents the world coordinates at the viewport center
   const [cameraPos, setCameraPos] = useState<WorldPoint>({ x: 0, y: 0 })
   const [cameraScale, setCameraScale] = useState(1)
-  const [isPanning, setIsPanning] = useState(false)
+  const [_isPanning, setIsPanning] = useState(false)
   const lastPanPos = useRef({ x: 0, y: 0 })
   const pinchRef = useRef<{ initialDist: number; initialScale: number } | null>(
     null,
@@ -64,11 +78,53 @@ export function Viewport() {
     scale: 1,
   })
   const [viewportReady, setViewportReady] = useState(false)
+  const isPanningRef = useRef(false)
 
   const worldToScreen = useMemo(
     () => makeWorldToScreen(worldOriginYOffset),
     [worldOriginYOffset],
   )
+
+  const makeSpawnKey = useCallback(
+    (spawnId: SpawnId) => `${spawnId.type}:${spawnId.index}`,
+    [],
+  )
+
+  const updateSelectionRect = useCallback(() => {
+    const rect = selectionRectRef.current
+    if (!rect) return
+
+    if (!selectedSpawn) {
+      rect.clear()
+      rect.visible = false
+      return
+    }
+
+    const sprite = spriteLookupRef.current.get(makeSpawnKey(selectedSpawn))
+    if (!sprite) {
+      rect.clear()
+      rect.visible = false
+      return
+    }
+
+    const width = sprite.width
+    const height = sprite.height
+    const anchorX = sprite.anchor?.x ?? 0
+    const anchorY = sprite.anchor?.y ?? 0
+    const x = sprite.x - width * anchorX
+    const y = sprite.y - height * anchorY
+
+    rect.clear()
+    rect.setStrokeStyle({ width: 1, color: 0x3399ff, alpha: 1 })
+    rect.rect(x, y, width, height)
+    rect.stroke()
+    rect.visible = true
+    rect.zIndex = (sprite.zIndex ?? 0) + 1
+  }, [makeSpawnKey, selectedSpawn])
+
+  useEffect(() => {
+    updateSelectionRect()
+  }, [updateSelectionRect])
 
   const screenToWorld = useCallback(
     (screen: ScreenPoint, camera: WorldPoint, scale: number): WorldPoint => {
@@ -152,7 +208,28 @@ export function Viewport() {
       if (destroyed) return
       destroyed = true
       app.ticker?.stop()
-      app.destroy(true, { children: true, texture: true })
+      // Manually destroy display objects without touching shared Assets-managed textures.
+      const destroyDisplayObject = (
+        obj: Container | Graphics | Sprite | null,
+      ) => {
+        if (!obj) return
+        if (typeof obj.destroy === "function") {
+          obj.destroy({ children: true, texture: false })
+        }
+      }
+      destroyDisplayObject(cameraRef.current)
+      destroyDisplayObject(debugGraphicsRef.current)
+      destroyDisplayObject(spawnContainerRef.current)
+      destroyDisplayObject(selectionRectRef.current)
+      destroyDisplayObject(backgroundRef.current)
+      destroyDisplayObject(skyboxRef.current)
+      cameraRef.current = null
+      spawnContainerRef.current = null
+      selectionRectRef.current = null
+      backgroundRef.current = null
+      skyboxRef.current = null
+      // Finally destroy the app without touching textures/base textures.
+      app.destroy(true, { children: false })
     }
 
     const initPromise = app
@@ -169,6 +246,7 @@ export function Viewport() {
 
         if (canvasRef.current && app.canvas) {
           canvasRef.current.appendChild(app.canvas)
+          app.canvas.style.imageRendering = "pixelated"
 
           // Create camera container
           const camera = new Container()
@@ -204,6 +282,8 @@ export function Viewport() {
 
           const loadTexture = async (path: string) => {
             const resolvedPath = path.startsWith("/") ? path : `/${path}`
+            const cached = getCachedTexture(resolvedPath)
+            if (cached) return new Sprite(cached)
             try {
               const texture = await Assets.load(resolvedPath)
               return new Sprite(texture)
@@ -355,6 +435,59 @@ export function Viewport() {
             anchor: { x: 0, y: 0 },
           })
           debugContainer.addChild(originLabel)
+
+          // Create spawn container for all entity sprites
+          const spawnContainer = new Container()
+          spawnContainer.zIndex = 50 // Between background (-100) and camera viewport (200)
+          spawnContainer.sortableChildren = true
+          // Use Pixi v8 event mode for hit testing; default cursor is fine.
+          // eslint-disable-next-line pixi/no-unsafe-event-mode
+          spawnContainer.eventMode = "static"
+          camera.addChild(spawnContainer)
+          spawnContainerRef.current = spawnContainer
+
+          // Render all spawns
+          const spawnSprites = await renderSpawns(
+            parsedData,
+            stageWorldToScreen,
+            entityAnimations,
+          )
+          spawnSpritesRef.current = spawnSprites
+          const spriteLookup = new Map<string, Sprite>()
+          spriteLookupRef.current = spriteLookup
+
+          // Add sprites to container and set up click handlers
+          for (const { sprite, spawnId } of spawnSprites) {
+            spawnContainer.addChild(sprite)
+
+            const spawnKey = makeSpawnKey(spawnId)
+            spriteLookup.set(spawnKey, sprite)
+
+            // Pixi hit-testing should use alpha channel
+            // eslint-disable-next-line pixi/no-unsafe-event-mode
+            sprite.eventMode = "static"
+            sprite.interactive = true
+
+            // Click selection with alpha hit test; ignore if the user panned.
+            sprite.on("pointertap", (event: FederatedPointerEvent) => {
+              if (isPanningRef.current) return
+              if (!isSpriteAlphaHit(sprite, event.global)) return
+              selectSpawn(spawnId)
+              updateSelectionRect()
+            })
+          }
+
+          // Selection rectangle overlay
+          const selectionRect = new Graphics()
+          selectionRect.zIndex = 1000
+          selectionRect.visible = false
+          selectionRectRef.current = selectionRect
+          spawnContainer.addChild(selectionRect)
+
+          // Update initial opacity based on the current timeline position
+          const currentTimeline = useEditorStore.getState().timelinePosition
+          updateSpawnOpacity(spawnSprites, currentTimeline)
+          updateSelectionRect()
         }
       })
       .catch((error) => {
@@ -368,6 +501,10 @@ export function Viewport() {
       skyboxRef.current = null
       cameraViewportRef.current = null
       debugGraphicsRef.current = null
+      spawnContainerRef.current = null
+      selectionRectRef.current = null
+      spawnSpritesRef.current = []
+      spriteLookupRef.current = new Map()
       if (appRef.current === app) {
         appRef.current = null
       }
@@ -379,7 +516,13 @@ export function Viewport() {
         void initPromise
       }
     }
-  }, [parsedData])
+  }, [
+    parsedData,
+    entityAnimations,
+    makeSpawnKey,
+    selectSpawn,
+    updateSelectionRect,
+  ])
 
   // Toggle debug graphics visibility
   useEffect(() => {
@@ -387,6 +530,13 @@ export function Viewport() {
       debugGraphicsRef.current.visible = debugMode
     }
   }, [debugMode])
+
+  // Update spawn opacity based on timeline position
+  useEffect(() => {
+    if (spawnSpritesRef.current.length > 0) {
+      updateSpawnOpacity(spawnSpritesRef.current, timelinePosition)
+    }
+  }, [timelinePosition])
 
   // Update camera position and scale
   // Camera position is in world coordinates (center of viewport)
@@ -442,11 +592,13 @@ export function Viewport() {
         prevScale,
       )
       const scaleRatio = prevScale / newScale
-      const deltaX = prevPos.x - pointerWorld.x
-      const deltaY = prevPos.y - pointerWorld.y
-      const nextPos = {
-        x: pointerWorld.x + deltaX * scaleRatio,
-        y: pointerWorld.y + deltaY * scaleRatio,
+      const delta = new Point(
+        prevPos.x - pointerWorld.x,
+        prevPos.y - pointerWorld.y,
+      )
+      const nextPos: WorldPoint = {
+        x: pointerWorld.x + delta.x * scaleRatio,
+        y: pointerWorld.y + delta.y * scaleRatio,
       }
 
       commitCameraState(nextPos, newScale)
@@ -468,32 +620,56 @@ export function Viewport() {
 
   // Handle panning
   const handlePointerDown = (event: React.PointerEvent) => {
-    if (event.button === 0 || event.button === 1) {
-      setIsPanning(true)
-      lastPanPos.current = { x: event.clientX, y: event.clientY }
-    }
+    pointerIsDownRef.current = true
+    pointerDownPosRef.current = new Point(event.clientX, event.clientY)
+    pendingSelectSpawnRef.current = null
+    isPanningRef.current = false
+    lastPanPos.current = { x: event.clientX, y: event.clientY }
   }
 
   const handlePointerMove = (event: React.PointerEvent) => {
-    if (isPanning) {
-      const currentScreen = { x: event.clientX, y: event.clientY }
-      const prevScreen = lastPanPos.current
+    if (
+      pointerIsDownRef.current &&
+      !isPanningRef.current &&
+      event.buttons === 1 &&
+      pointerDownPosRef.current
+    ) {
+      const dragFrom = pointerDownPosRef.current
+      const dragTo = new Point(event.clientX, event.clientY)
+      const distanceSq = distanceSquaredPoints(dragTo, dragFrom)
+      const dragThresholdSq = 9 // 3px threshold
+      if (distanceSq > dragThresholdSq) {
+        // Start panning
+        isPanningRef.current = true
+        setIsPanning(true)
+        lastPanPos.current = { x: event.clientX, y: event.clientY }
+        pendingSelectSpawnRef.current = null
+      }
+    }
+
+    if (isPanningRef.current) {
+      const currentScreen = new Point(event.clientX, event.clientY)
+      const prevScreen = new Point(lastPanPos.current.x, lastPanPos.current.y)
       const scale = cameraStateRef.current.scale
       // Keep the pointer anchored by translating the camera by the world
       // delta between the previous and current screen positions.
       const prevWorld = screenToWorld(
-        prevScreen,
+        { x: prevScreen.x, y: prevScreen.y },
         cameraStateRef.current.pos,
         scale,
       )
       const currentWorld = screenToWorld(
-        currentScreen,
+        { x: currentScreen.x, y: currentScreen.y },
         cameraStateRef.current.pos,
         scale,
       )
-      const nextPos = {
-        x: cameraStateRef.current.pos.x + (prevWorld.x - currentWorld.x),
-        y: cameraStateRef.current.pos.y + (prevWorld.y - currentWorld.y),
+      const delta = new Point(
+        prevWorld.x - currentWorld.x,
+        prevWorld.y - currentWorld.y,
+      )
+      const nextPos: WorldPoint = {
+        x: cameraStateRef.current.pos.x + delta.x,
+        y: cameraStateRef.current.pos.y + delta.y,
       }
       commitCameraState(nextPos, scale)
       lastPanPos.current = currentScreen
@@ -501,16 +677,13 @@ export function Viewport() {
   }
 
   const handlePointerUp = () => {
+    const _wasPanning = isPanningRef.current
     setIsPanning(false)
+    isPanningRef.current = false
     pinchRef.current = null
-  }
-
-  const calculateDistance = (touches: React.TouchList) => {
-    if (touches.length < 2) return 0
-    const [a, b] = [touches[0], touches[1]]
-    const dx = a.clientX - b.clientX
-    const dy = a.clientY - b.clientY
-    return Math.sqrt(dx * dx + dy * dy)
+    pointerIsDownRef.current = false
+    pointerDownPosRef.current = null
+    pendingSelectSpawnRef.current = null
   }
 
   const handleTouchStart = (event: React.TouchEvent) => {

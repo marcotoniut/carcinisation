@@ -55,6 +55,18 @@ pub enum ObjectType {
     RugparkSign,
 }
 
+impl ObjectType {
+    /// Returns the sprite base name for this object type
+    pub fn sprite_base_name(&self) -> &'static str {
+        match self {
+            ObjectType::BenchBig => "bench_big",
+            ObjectType::BenchSmall => "bench_small",
+            ObjectType::Fibertree => "fiber_tree",
+            ObjectType::RugparkSign => "rugpark_sign",
+        }
+    }
+}
+
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
@@ -66,6 +78,16 @@ pub enum PickupType {
     // Weapon,
     // Ammo,
     // Shield,
+}
+
+impl PickupType {
+    /// Returns the sprite base name for this pickup type
+    pub fn sprite_base_name(&self) -> &'static str {
+        match self {
+            PickupType::SmallHealthpack => "health_4",
+            PickupType::BigHealthpack => "health_6",
+        }
+    }
 }
 
 #[cfg_attr(feature = "derive-ts", derive(TS))]

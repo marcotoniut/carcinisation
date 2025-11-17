@@ -26,14 +26,14 @@ function getStepDuration(
     return step.Stop.max_duration ?? DEFAULT_STOP_DURATION
   }
 
-  if ("Movement" in step) {
-    const movement = step.Movement
+  if ("Tween" in step) {
+    const tween = step.Tween
     if (!endPos) return 0
 
     const dx = endPos[0] - startPos[0]
     const dy = endPos[1] - startPos[1]
     const distance = Math.sqrt(dx * dx + dy * dy)
-    return distance / movement.base_speed
+    return distance / tween.base_speed
   }
 
   if ("Cinematic" in step) {
@@ -61,20 +61,20 @@ export function getStepMarkers(stageData: StageData | null): StepMarker[] {
 
   for (let i = 0; i < stageData.steps.length; i++) {
     const step = stageData.steps[i]
-    const nextPos = "Movement" in step ? step.Movement.coordinates : currentPos
+    const nextPos = "Tween" in step ? step.Tween.coordinates : currentPos
 
     markers.push({
       time: cumulativeTime,
       type:
-        "Stop" in step ? "Stop" : "Movement" in step ? "Movement" : "Cinematic",
+        "Stop" in step ? "Stop" : "Tween" in step ? "Movement" : "Cinematic",
       index: i,
     })
 
     const duration = getStepDuration(step, currentPos, nextPos)
     cumulativeTime += duration
 
-    if ("Movement" in step) {
-      currentPos = step.Movement.coordinates
+    if ("Tween" in step) {
+      currentPos = step.Tween.coordinates
     }
   }
 
@@ -108,12 +108,12 @@ export function getCameraPosition(
 
   for (let i = 0; i < stageData.steps.length; i++) {
     const step = stageData.steps[i]
-    const nextPos = "Movement" in step ? step.Movement.coordinates : currentPos
+    const nextPos = "Tween" in step ? step.Tween.coordinates : currentPos
     const duration = getStepDuration(step, currentPos, nextPos)
     const stepEnd = elapsed + duration
 
     if (time < stepEnd) {
-      if ("Movement" in step) {
+      if ("Tween" in step) {
         if (duration === 0) {
           return { x: nextPos[0], y: nextPos[1] }
         }
@@ -131,8 +131,8 @@ export function getCameraPosition(
       return { x: currentPos[0], y: currentPos[1] }
     }
 
-    if ("Movement" in step) {
-      currentPos = step.Movement.coordinates
+    if ("Tween" in step) {
+      currentPos = step.Tween.coordinates
     }
 
     elapsed = stepEnd

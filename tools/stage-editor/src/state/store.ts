@@ -4,6 +4,16 @@ import type { StageData } from "@/types/generated/StageData"
 import { showToast } from "../components/Toast/Toast"
 import { parseStageFile } from "../utils/parseStageFile"
 
+export type SpawnId = {
+  type: "enemy" | "object" | "pickup" | "destructible"
+  index: number
+}
+
+export type EntityAnimationState = {
+  spawnId: SpawnId
+  currentAnimation: string
+}
+
 interface EditorState {
   fileName: string | null
   fileContent: string | null
@@ -14,6 +24,8 @@ interface EditorState {
   isDirty: boolean
   timelinePosition: number // Current time in seconds
   debugMode: boolean
+  selectedSpawn: SpawnId | null
+  entityAnimations: Map<string, string> // Map of "type:index" to animation name
 
   loadFile: (
     name: string,
@@ -26,6 +38,9 @@ interface EditorState {
   saveToRon: () => Promise<string>
   setTimelinePosition: (position: number) => void
   toggleDebugMode: () => void
+  selectSpawn: (spawnId: SpawnId | null) => void
+  setEntityAnimation: (spawnId: SpawnId, animation: string) => void
+  getEntityAnimation: (spawnId: SpawnId) => string | undefined
 }
 
 export const useEditorStore = create<EditorState>()(
@@ -40,6 +55,8 @@ export const useEditorStore = create<EditorState>()(
       isDirty: false,
       timelinePosition: 0,
       debugMode: true,
+      selectedSpawn: null,
+      entityAnimations: new Map(),
 
       loadFile: async (name, content, handle) => {
         try {
@@ -130,6 +147,21 @@ export const useEditorStore = create<EditorState>()(
       setTimelinePosition: (position) => set({ timelinePosition: position }),
 
       toggleDebugMode: () => set((state) => ({ debugMode: !state.debugMode })),
+
+      selectSpawn: (spawnId) => set({ selectedSpawn: spawnId }),
+
+      setEntityAnimation: (spawnId, animation) =>
+        set((state) => {
+          const key = `${spawnId.type}:${spawnId.index}`
+          const newAnimations = new Map(state.entityAnimations)
+          newAnimations.set(key, animation)
+          return { entityAnimations: newAnimations }
+        }),
+
+      getEntityAnimation: (spawnId) => {
+        const key = `${spawnId.type}:${spawnId.index}`
+        return get().entityAnimations.get(key)
+      },
     }),
     {
       name: "stage-editor-storage",

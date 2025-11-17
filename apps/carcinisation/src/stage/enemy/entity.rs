@@ -25,4 +25,16 @@ impl EnemyType {
     pub fn show_type(&self) -> String {
         format!("Enemy<{:?}>", self)
     }
+
+    /// Returns the sprite base name for this enemy type
+    pub fn sprite_base_name(&self) -> &'static str {
+        match self {
+            EnemyType::Mosquito => "mosquito",
+            EnemyType::Spidey => "spidey",
+            EnemyType::Tardigrade => "tardigrade",
+            EnemyType::Marauder => "marauder",
+            EnemyType::Spidomonsta => "spidomonsta",
+            EnemyType::Kyle => "kyle",
+        }
+    }
 }

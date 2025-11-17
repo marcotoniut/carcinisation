@@ -102,7 +102,7 @@ pub fn spawn_pickup(
     match pickup_type {
         PickupType::BigHealthpack => {
             let sprite = assets_sprite.load(assert_assets_path!(
-                "sprites/pickups/health_4.px_sprite.png"
+                "sprites/pickups/health_6.px_sprite.png"
             ));
             commands
                 .spawn((
@@ -124,7 +124,7 @@ pub fn spawn_pickup(
         }
         PickupType::SmallHealthpack => {
             let sprite = assets_sprite.load(assert_assets_path!(
-                "sprites/pickups/health_6.px_sprite.png"
+                "sprites/pickups/health_4.px_sprite.png"
             ));
             commands
                 .spawn((
