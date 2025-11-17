@@ -30,12 +30,12 @@ pub fn check_no_behavior(
         let bundles = current_behavior.get_bundles(stage_time.elapsed(), position, speed.0, *depth);
         match bundles {
             BehaviorBundle::Idle => {}
-            BehaviorBundle::LinearMovement(linear_movement) => {
-                // Insert the LinearMovement marker on the enemy
+            BehaviorBundle::LinearTween(linear_movement) => {
+                // Insert the LinearTween marker on the enemy
                 commands.entity(entity).insert(linear_movement);
 
-                // Spawn movement children to actually drive the movement
-                current_behavior.spawn_movement_children(
+                // Spawn tween children to actually drive the movement
+                current_behavior.spawn_tween_children(
                     &mut commands,
                     entity,
                     position,

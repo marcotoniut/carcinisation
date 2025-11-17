@@ -86,8 +86,8 @@ fn default_base_speed() -> f32 {
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(new, Component, Clone, Debug, Deserialize, Reflect, Serialize)]
-/// Movement segment describing coordinates, base speed, and spawns for the step.
-pub struct MovementStageStep {
+/// Tween segment describing coordinates, base speed, and spawns for the step.
+pub struct TweenStageStep {
     #[new(default)]
     #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
@@ -107,7 +107,7 @@ pub struct MovementStageStep {
     // pub music_track: Option<String>,
 }
 
-impl MovementStageStep {
+impl TweenStageStep {
     /// Appends extra spawns to the step definition.
     pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
         self.spawns.extend(new_spawns);
@@ -119,7 +119,7 @@ impl MovementStageStep {
         Self::new().with_coordinates(Vec2::new(x, y))
     }
 
-    /// Overrides the base movement speed used for the segment.
+    /// Overrides the base tween speed used for the segment.
     pub fn with_base_speed(mut self, value: f32) -> Self {
         self.base_speed = value;
         self

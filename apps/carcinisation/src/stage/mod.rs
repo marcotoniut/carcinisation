@@ -49,8 +49,8 @@ use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use cween::{
     linear::{
-        components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ},
-        LinearMovement2DPlugin, LinearMovementPlugin, LinearMovementSystems,
+        components::{TargetingValueX, TargetingValueY, TargetingValueZ},
+        LinearTween2DPlugin, LinearTweenPlugin, LinearTweenSystems,
     },
     pursue::PursueMovementPlugin,
 };
@@ -124,13 +124,13 @@ impl Plugin for StagePlugin {
             // Shared movement helpers (linear/pursue) reused by multiple enemy types.
             .add_plugins(PursueMovementPlugin::<StageTimeDomain, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTimeDomain, PxSubPosition>::default())
-            .add_plugins(LinearMovementPlugin::<StageTimeDomain, TargetingPositionX>::default())
-            .add_plugins(LinearMovementPlugin::<StageTimeDomain, TargetingPositionY>::default())
-            .add_plugins(LinearMovementPlugin::<StageTimeDomain, TargetingPositionZ>::default())
-            .add_plugins(LinearMovement2DPlugin::<
+            .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueX>::default())
+            .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueY>::default())
+            .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueZ>::default())
+            .add_plugins(LinearTween2DPlugin::<
                 StageTimeDomain,
-                TargetingPositionX,
-                TargetingPositionY,
+                TargetingValueX,
+                TargetingValueY,
             >::default())
             .add_plugins(AttackPlugin)
             .add_plugins(DestructiblePlugin)
@@ -142,7 +142,7 @@ impl Plugin for StagePlugin {
                 FixedUpdate,
                 (
                     (
-                        tick_stage_time.before(LinearMovementSystems),
+                        tick_stage_time.before(LinearTweenSystems),
                         tick_stage_step_timer,
                         delay_despawn::<StageTimeDomain>,
                         check_despawn_after_delay::<StageTimeDomain>,
@@ -151,15 +151,12 @@ impl Plugin for StagePlugin {
                         update_depth,
                         circle_around,
                         (
-                            (
-                                check_linear_movement_x_finished,
-                                check_linear_movement_y_finished,
-                            ),
-                            check_linear_movement_finished,
+                            (check_linear_tween_x_finished, check_linear_tween_y_finished),
+                            check_linear_tween_finished,
                         )
                             .chain(),
                     )
-                        .after(LinearMovementSystems),
+                        .after(LinearTweenSystems),
                 )
                     .run_if(in_state(StageProgressState::Running)),
             )

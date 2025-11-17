@@ -8,16 +8,16 @@ use ts_rs::TS;
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Reflect, Serialize)]
-pub enum MovementDirection {
+pub enum TweenDirection {
     Negative,
     Positive,
 }
 
-impl MovementDirection {
-    pub fn opposite(&self) -> MovementDirection {
+impl TweenDirection {
+    pub fn opposite(&self) -> TweenDirection {
         match self {
-            MovementDirection::Negative => MovementDirection::Positive,
-            MovementDirection::Positive => MovementDirection::Negative,
+            TweenDirection::Negative => TweenDirection::Positive,
+            TweenDirection::Positive => TweenDirection::Negative,
         }
     }
 }

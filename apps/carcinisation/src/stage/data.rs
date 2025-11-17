@@ -3,7 +3,7 @@
 //! Serialized stage definitions: spawns, pickups, objects, and scripted steps.
 
 use super::{
-    components::{placement::Depth, CinematicStageStep, MovementStageStep, StopStageStep},
+    components::{placement::Depth, CinematicStageStep, StopStageStep, TweenStageStep},
     destructible::data::DestructibleSpawn,
     enemy::{data::steps::EnemyStep, entity::EnemyType},
 };
@@ -446,7 +446,7 @@ pub enum StageActionResumeCondition {
 #[derive(Clone, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum StageStep {
     Cinematic(CinematicStageStep),
-    Movement(MovementStageStep),
+    Tween(TweenStageStep),
     Stop(StopStageStep),
 }
 

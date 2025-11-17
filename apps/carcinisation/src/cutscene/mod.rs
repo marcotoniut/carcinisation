@@ -22,8 +22,8 @@ use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use cween::linear::{
-    components::{TargetingPositionX, TargetingPositionY},
-    LinearMovementPlugin,
+    components::{TargetingValueX, TargetingValueY},
+    LinearTweenPlugin,
 };
 use data::CutsceneData;
 use leafwing_input_manager::plugin::InputManagerPlugin;
@@ -36,8 +36,8 @@ impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
             .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
-            .add_plugins(LinearMovementPlugin::<CutsceneTimeDomain, TargetingPositionX>::default())
-            .add_plugins(LinearMovementPlugin::<CutsceneTimeDomain, TargetingPositionY>::default())
+            .add_plugins(LinearTweenPlugin::<CutsceneTimeDomain, TargetingValueX>::default())
+            .add_plugins(LinearTweenPlugin::<CutsceneTimeDomain, TargetingValueY>::default())
             .init_resource::<Time<CutsceneTimeDomain>>()
             .add_message::<CutsceneStartupTrigger>()
             .add_observer(on_cutscene_startup)

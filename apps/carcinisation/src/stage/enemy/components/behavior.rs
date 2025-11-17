@@ -1,13 +1,13 @@
-use super::{CircleAround, LinearMovement};
+use super::{CircleAround, LinearTween};
 use crate::stage::components::placement::Depth;
 use crate::stage::enemy::data::mosquito::MOSQUITO_DEPTH_RANGE;
 use crate::stage::enemy::data::steps::{
-    CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearMovementEnemyStep,
+    CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearTweenEnemyStep,
 };
 use crate::stage::{data::GAME_BASE_SPEED, resources::StageTimeDomain};
 use bevy::prelude::*;
 use cween::linear::components::{
-    MovementChildBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
+    TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle,
 };
 use derive_new::new;
 use seldom_pixel::prelude::PxSubPosition;
@@ -20,16 +20,16 @@ pub struct EnemyCurrentBehavior {
     pub behavior: EnemyStep,
 }
 
-/// Marker component for movement children spawned for enemy linear movement steps.
+/// Marker component for tween children spawned for enemy linear tween steps.
 #[derive(Component, Clone, Debug)]
-pub struct EnemyStepMovement;
+pub struct EnemyStepTweenChild;
 
 #[derive(Component, Clone, Debug)]
 pub enum BehaviorBundle {
     Idle,
-    /// LinearMovement now returns just the LinearMovement marker component.
+    /// LinearTween now returns just the LinearTween marker component.
     /// Movement children are spawned separately via Commands.
-    LinearMovement(LinearMovement),
+    LinearTween(LinearTween),
     Jump,
     Attack,
     Circle(CircleAround),
@@ -45,11 +45,11 @@ impl EnemyCurrentBehavior {
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle,
-            EnemyStep::LinearMovement(LinearMovementEnemyStep {
+            EnemyStep::LinearTween(LinearTweenEnemyStep {
                 direction,
                 trayectory,
                 ..
-            }) => BehaviorBundle::LinearMovement(LinearMovement {
+            }) => BehaviorBundle::LinearTween(LinearTween {
                 direction,
                 trayectory,
                 reached_x: false,
@@ -69,9 +69,9 @@ impl EnemyCurrentBehavior {
         }
     }
 
-    /// Spawns movement child entities for linear movement behaviors.
+    /// Spawns tween child entities for linear tween behaviors.
     /// Returns a vector of child entity IDs.
-    pub fn spawn_movement_children(
+    pub fn spawn_tween_children(
         &self,
         commands: &mut Commands,
         enemy_entity: Entity,
@@ -81,7 +81,7 @@ impl EnemyCurrentBehavior {
     ) -> Vec<Entity> {
         let mut children = Vec::new();
 
-        if let EnemyStep::LinearMovement(LinearMovementEnemyStep {
+        if let EnemyStep::LinearTween(LinearTweenEnemyStep {
             depth_movement_o,
             direction,
             trayectory,
@@ -93,37 +93,37 @@ impl EnemyCurrentBehavior {
             let velocity = normalised_direction * (speed + adapted_speed) * GAME_BASE_SPEED;
             let target_position = current_position.0 + normalised_direction * trayectory;
 
-            // Spawn X-axis movement child
+            // Spawn X-axis tween child
             let child_x = commands
                 .spawn((
-                    MovementChildBundle::<StageTimeDomain, TargetingPositionX>::new(
+                    TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
                         enemy_entity,
                         current_position.0.x,
                         target_position.x,
                         velocity.x,
                     ),
-                    EnemyStepMovement,
-                    Name::new("Enemy Movement X"),
+                    EnemyStepTweenChild,
+                    Name::new("Enemy Tween X"),
                 ))
                 .id();
             children.push(child_x);
 
-            // Spawn Y-axis movement child
+            // Spawn Y-axis tween child
             let child_y = commands
                 .spawn((
-                    MovementChildBundle::<StageTimeDomain, TargetingPositionY>::new(
+                    TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
                         enemy_entity,
                         current_position.0.y,
                         target_position.y,
                         velocity.y,
                     ),
-                    EnemyStepMovement,
-                    Name::new("Enemy Movement Y"),
+                    EnemyStepTweenChild,
+                    Name::new("Enemy Tween Y"),
                 ))
                 .id();
             children.push(child_y);
 
-            // Spawn Z-axis movement child if depth movement specified
+            // Spawn Z-axis tween child if depth movement specified
             if let Some(depth_movement) = depth_movement_o {
                 let target_depth = depth + depth_movement;
                 let target_depth = target_depth
@@ -135,14 +135,14 @@ impl EnemyCurrentBehavior {
 
                 let child_z = commands
                     .spawn((
-                        MovementChildBundle::<StageTimeDomain, TargetingPositionZ>::new(
+                        TweenChildBundle::<StageTimeDomain, TargetingValueZ>::new(
                             enemy_entity,
                             depth.to_f32(),
                             target_depth,
                             x / t,
                         ),
-                        EnemyStepMovement,
-                        Name::new("Enemy Movement Z"),
+                        EnemyStepTweenChild,
+                        Name::new("Enemy Tween Z"),
                     ))
                     .id();
                 children.push(child_z);

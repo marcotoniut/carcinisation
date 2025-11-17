@@ -23,7 +23,7 @@ impl StageDataUtils for StageData {
 
         for step in &self.steps {
             match step {
-                StageStep::Movement(s) => {
+                StageStep::Tween(s) => {
                     let distance = s.coordinates.distance(current_position);
                     let time_to_move = Duration::from_secs_f32(distance / s.base_speed);
 
@@ -56,7 +56,7 @@ impl StageDataUtils for StageData {
             .iter()
             .map(|x| match x {
                 StageStep::Cinematic(_) => 0,
-                StageStep::Movement(s) => s.spawns.len(),
+                StageStep::Tween(s) => s.spawns.len(),
                 StageStep::Stop(x) => x.spawns.len(),
             })
             .sum::<usize>()

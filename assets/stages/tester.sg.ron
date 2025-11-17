@@ -60,7 +60,7 @@ StageData(
                     coordinates: Vec2(60.0, 100.0),
                     speed: 2.0,
                     steps: [
-                        LinearMovement(
+                        LinearTween(
                             depth_movement_o: -1,
                             direction: Vec2(-1.0, -0.2),
                             trayectory: 30.0,
@@ -68,12 +68,12 @@ StageData(
                         Idle(
                             duration: 3.0,
                         ),
-                        LinearMovement(
+                        LinearTween(
                             depth_movement_o: 1,
                             direction: Vec2(1.0, -0.5),
                             trayectory: 50.0,
                         ),
-                        LinearMovement(
+                        LinearTween(
                             depth_movement_o: None,
                             direction: Vec2(1.0, 1.0),
                             trayectory: 0.0,

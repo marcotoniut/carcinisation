@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::stage::components::placement::Depth;
-use crate::stage::components::{MovementStageStep, StopStageStep};
+use crate::stage::components::{StopStageStep, TweenStageStep};
 use crate::stage::data::*;
 use crate::stage::destructible::data::{DestructibleSpawn, LampDepth, TrashcanDepth};
 use crate::stage::enemy::data::steps::EnemyStep;
@@ -65,7 +65,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
 
 pub fn make_steps() -> Vec<StageStep> {
     vec![
-        MovementStageStep::base(0.0, 0.0).into(),
+        TweenStageStep::base(0.0, 0.0).into(),
         // StageStep::Cinematic {
         //     cinematic: INTRO_ANIMATIC_0.clone(),
         // },
@@ -145,7 +145,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .into(),
             ])
             .into(),
-        MovementStageStep::base(100.0, 0.0)
+        TweenStageStep::base(100.0, 0.0)
             .add_spawns(vec![
                 EnemySpawn::mosquito_variant_approacher()
                     .with_coordinates(Vec2::new(140.0, 130.0))

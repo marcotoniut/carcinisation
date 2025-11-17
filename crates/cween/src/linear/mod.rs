@@ -7,12 +7,12 @@ use bevy::{ecs::component::Mutable, prelude::*};
 use std::marker::PhantomData;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-pub struct LinearMovementSystems;
+pub struct LinearTweenSystems;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-pub struct LinearMovementCleanupSystems;
+pub struct LinearTweenCleanupSystems;
 
-pub struct LinearMovementPlugin<
+pub struct LinearTweenPlugin<
     D: Default + Send + Sync + 'static,
     P: Magnitude + 'static + Component<Mutability = Mutable>,
 > {
@@ -20,7 +20,7 @@ pub struct LinearMovementPlugin<
     _phantom_p: PhantomData<P>,
 }
 
-impl<D, P> Default for LinearMovementPlugin<D, P>
+impl<D, P> Default for LinearTweenPlugin<D, P>
 where
     D: Default + Send + Sync + 'static,
     P: Magnitude + Component<Mutability = Mutable>,
@@ -33,40 +33,40 @@ where
     }
 }
 
-impl<D, P> Plugin for LinearMovementPlugin<D, P>
+impl<D, P> Plugin for LinearTweenPlugin<D, P>
 where
     D: Default + Send + Sync + 'static,
     P: Magnitude + Component<Mutability = Mutable>,
 {
     fn build(&self, app: &mut App) {
-        app.configure_sets(FixedUpdate, LinearMovementSystems);
-        app.configure_sets(PostUpdate, LinearMovementCleanupSystems);
+        app.configure_sets(FixedUpdate, LinearTweenSystems);
+        app.configure_sets(PostUpdate, LinearTweenCleanupSystems);
         app.add_systems(
             FixedUpdate,
             (
-                on_position_added::<D, P>,
+                on_value_added::<D, P>,
                 (
                     update::<D, P>,
-                    check_reached::<D, P>,
+                    check_value_reached::<D, P>,
                     propagate_child_reached_to_parent::<D, P>,
                 )
                     .chain(),
-                aggregate_movement_children_to_parent::<D, P>,
+                aggregate_tween_children_to_parent::<D, P>,
             )
                 .chain()
-                .in_set(LinearMovementSystems),
+                .in_set(LinearTweenSystems),
         );
         // Cleanup runs exclusively to avoid deferred-command races.
         app.add_systems(
             FixedUpdate,
             on_reached_cleanup::<D, P>
-                .in_set(LinearMovementCleanupSystems)
-                .after(LinearMovementSystems),
+                .in_set(LinearTweenCleanupSystems)
+                .after(LinearTweenSystems),
         );
     }
 }
 
-pub struct LinearMovement2DPlugin<
+pub struct LinearTween2DPlugin<
     D: Default + Send + Sync + 'static,
     X: Magnitude + 'static + Component<Mutability = Mutable>,
     Y: Magnitude + 'static + Component<Mutability = Mutable>,
@@ -76,7 +76,7 @@ pub struct LinearMovement2DPlugin<
     _phantom_y: PhantomData<Y>,
 }
 
-impl<D, X, Y> Default for LinearMovement2DPlugin<D, X, Y>
+impl<D, X, Y> Default for LinearTween2DPlugin<D, X, Y>
 where
     D: Default + Send + Sync + 'static,
     X: Magnitude + Component<Mutability = Mutable>,
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<D, X, Y> Plugin for LinearMovement2DPlugin<D, X, Y>
+impl<D, X, Y> Plugin for LinearTween2DPlugin<D, X, Y>
 where
     D: Default + Send + Sync + 'static,
     X: Magnitude + Component<Mutability = Mutable>,
@@ -101,7 +101,7 @@ where
         app.add_systems(
             FixedUpdate,
             (check_2d_x_reached::<D, X, Y>, check_2d_y_reached::<D, X, Y>)
-                .after(LinearMovementSystems),
+                .after(LinearTweenSystems),
         );
     }
 }

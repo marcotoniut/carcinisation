@@ -1,19 +1,19 @@
 pub mod extra;
 
-use crate::structs::{Constructor, Magnitude, MovementDirection};
+use crate::structs::{Constructor, Magnitude, TweenDirection};
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use derive_more::From;
 use derive_new::new;
 use std::marker::PhantomData;
 
 #[derive(new, Clone, Component, Debug, From, Reflect)]
-pub struct TargetingPositionX(pub f32);
+pub struct TargetingValueX(pub f32);
 
 #[derive(new, Clone, Component, Debug, From, Reflect)]
-pub struct TargetingPositionY(pub f32);
+pub struct TargetingValueY(pub f32);
 
 #[derive(new, Clone, Component, Debug, From, Reflect)]
-pub struct TargetingPositionZ(pub f32);
+pub struct TargetingValueZ(pub f32);
 
 macro_rules! impl_magnitude {
     ($type:ty) => {
@@ -39,31 +39,31 @@ macro_rules! impl_magnitude {
     };
 }
 
-impl_magnitude!(TargetingPositionX);
-impl_magnitude!(TargetingPositionY);
-impl_magnitude!(TargetingPositionZ);
+impl_magnitude!(TargetingValueX);
+impl_magnitude!(TargetingValueY);
+impl_magnitude!(TargetingValueZ);
 
 #[derive(new, Component, Debug, Clone)]
-pub struct LinearDirection<D: Send + Sync + 'static, P> {
+pub struct LinearTweenDirection<D: Send + Sync + 'static, P> {
     #[new(default)]
     _marker_time: PhantomData<D>,
     #[new(default)]
     _marker_position: PhantomData<P>,
-    pub value: MovementDirection,
+    pub value: TweenDirection,
 }
 
-impl<D: Send + Sync + 'static, P> LinearDirection<D, P> {
+impl<D: Send + Sync + 'static, P> LinearTweenDirection<D, P> {
     pub fn from_delta(value: f32) -> Self {
         Self::new(if value > 0.0 {
-            MovementDirection::Positive
+            TweenDirection::Positive
         } else {
-            MovementDirection::Negative
+            TweenDirection::Negative
         })
     }
 }
 
 #[derive(new, Clone, Component, Debug)]
-pub struct LinearTargetPosition<D: Send + Sync + 'static, P> {
+pub struct LinearTargetValue<D: Send + Sync + 'static, P> {
     #[new(default)]
     _marker_time: PhantomData<D>,
     #[new(default)]
@@ -118,7 +118,7 @@ impl<D: Send + Sync + 'static, P: Magnitude> Magnitude for LinearAcceleration<D,
 }
 
 #[derive(new, Component, Debug, Clone)]
-pub struct LinearTargetReached<D: Send + Sync + 'static, P: Magnitude> {
+pub struct LinearValueReached<D: Send + Sync + 'static, P: Magnitude> {
     #[new(default)]
     _marker_position: PhantomData<P>,
     #[new(default)]
@@ -126,116 +126,105 @@ pub struct LinearTargetReached<D: Send + Sync + 'static, P: Magnitude> {
 }
 
 #[derive(Bundle, Clone, Debug)]
-pub struct LinearMovementBundle<
-    D: Send + Sync + 'static,
-    P: Constructor<f32> + Component + Magnitude,
-> {
-    pub direction: LinearDirection<D, P>,
-    pub position: P,
+pub struct LinearTweenBundle<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
+{
+    pub direction: LinearTweenDirection<D, P>,
+    pub value: P,
     pub speed: LinearSpeed<D, P>,
-    pub target_position: LinearTargetPosition<D, P>,
-    // TODO check if Option<LinearTargetReached> = None will auto-remove
+    pub target_value: LinearTargetValue<D, P>,
+    // TODO check if Option<LinearValueReached> = None will auto-remove
 }
 
 impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
-    LinearMovementBundle<D, P>
+    LinearTweenBundle<D, P>
 {
-    pub fn new(current_position: f32, target_position: f32, speed: f32) -> Self {
+    pub fn new(current_value: f32, target_value: f32, speed: f32) -> Self {
         Self {
-            direction: LinearDirection::<D, P>::from_delta(target_position - current_position),
-            position: P::new(current_position),
+            direction: LinearTweenDirection::<D, P>::from_delta(target_value - current_value),
+            value: P::new(current_value),
             speed: LinearSpeed::<D, P>::new(speed),
-            target_position: LinearTargetPosition::<D, P>::new(target_position),
+            target_value: LinearTargetValue::<D, P>::new(target_value),
         }
     }
 }
 
 #[derive(Bundle, Clone, Debug)]
-pub struct LinearMovementAcceleratedBundle<
+pub struct LinearTweenAcceleratedBundle<
     D: Send + Sync + 'static,
     P: Constructor<f32> + Component + Magnitude,
 > {
     pub acceleration: LinearAcceleration<D, P>,
-    pub direction: LinearDirection<D, P>,
-    pub position: P,
+    pub direction: LinearTweenDirection<D, P>,
+    pub value: P,
     pub speed: LinearSpeed<D, P>,
-    pub target_position: LinearTargetPosition<D, P>,
+    pub target_value: LinearTargetValue<D, P>,
 }
 
 impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
-    LinearMovementAcceleratedBundle<D, P>
+    LinearTweenAcceleratedBundle<D, P>
 {
-    pub fn new(current_position: f32, target_position: f32, speed: f32, acceleration: f32) -> Self {
+    pub fn new(current_value: f32, target_value: f32, speed: f32, acceleration: f32) -> Self {
         Self {
-            direction: LinearDirection::<D, P>::from_delta(target_position - current_position),
-            position: P::new(current_position),
+            direction: LinearTweenDirection::<D, P>::from_delta(target_value - current_value),
+            value: P::new(current_value),
             speed: LinearSpeed::<D, P>::new(speed),
-            target_position: LinearTargetPosition::<D, P>::new(target_position),
+            target_value: LinearTargetValue::<D, P>::new(target_value),
             acceleration: LinearAcceleration::<D, P>::new(acceleration),
         }
     }
 }
 
-/// Marker component indicating this entity is a movement child that affects its parent's position.
-/// Movement children express movement intent and are aggregated by the parent.
+/// Marker component indicating this entity is a tween child that affects its parent's value.
+/// Tween children express tween intent and are aggregated by the parent.
 #[derive(Component, Debug, Clone, Copy, Reflect)]
-pub struct MovementChild;
+pub struct TweenChild;
 
-/// Bundle for spawning a movement child entity.
-/// Movement children own the linear movement components and affect the parent entity's position.
+/// Bundle for spawning a tween child entity.
+/// Tween children own the linear tween components and affect the parent entity's value.
 #[derive(Bundle, Clone, Debug)]
-pub struct MovementChildBundle<
-    D: Send + Sync + 'static,
-    P: Constructor<f32> + Component + Magnitude,
-> {
+pub struct TweenChildBundle<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude> {
     pub child_of: ChildOf,
-    pub movement_child: MovementChild,
-    pub linear_movement: LinearMovementBundle<D, P>,
+    pub tween_child: TweenChild,
+    pub linear_tween: LinearTweenBundle<D, P>,
 }
 
-impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
-    MovementChildBundle<D, P>
-{
-    pub fn new(parent: Entity, current_position: f32, target_position: f32, speed: f32) -> Self {
+impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude> TweenChildBundle<D, P> {
+    pub fn new(parent: Entity, current_value: f32, target_value: f32, speed: f32) -> Self {
         Self {
             child_of: ChildOf(parent),
-            movement_child: MovementChild,
-            linear_movement: LinearMovementBundle::<D, P>::new(
-                current_position,
-                target_position,
-                speed,
-            ),
+            tween_child: TweenChild,
+            linear_tween: LinearTweenBundle::<D, P>::new(current_value, target_value, speed),
         }
     }
 }
 
-/// Bundle for spawning an accelerated movement child entity.
+/// Bundle for spawning an accelerated tween child entity.
 #[derive(Bundle, Clone, Debug)]
-pub struct MovementChildAcceleratedBundle<
+pub struct TweenChildAcceleratedBundle<
     D: Send + Sync + 'static,
     P: Constructor<f32> + Component + Magnitude,
 > {
     pub child_of: ChildOf,
-    pub movement_child: MovementChild,
-    pub linear_movement: LinearMovementAcceleratedBundle<D, P>,
+    pub tween_child: TweenChild,
+    pub linear_tween: LinearTweenAcceleratedBundle<D, P>,
 }
 
 impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
-    MovementChildAcceleratedBundle<D, P>
+    TweenChildAcceleratedBundle<D, P>
 {
     pub fn new(
         parent: Entity,
-        current_position: f32,
-        target_position: f32,
+        current_value: f32,
+        target_value: f32,
         speed: f32,
         acceleration: f32,
     ) -> Self {
         Self {
             child_of: ChildOf(parent),
-            movement_child: MovementChild,
-            linear_movement: LinearMovementAcceleratedBundle::<D, P>::new(
-                current_position,
-                target_position,
+            tween_child: TweenChild,
+            linear_tween: LinearTweenAcceleratedBundle::<D, P>::new(
+                current_value,
+                target_value,
                 speed,
                 acceleration,
             ),
@@ -244,11 +233,11 @@ impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
 }
 
 #[derive(Bundle)]
-pub struct LinearPositionRemovalBundle<D: Send + Sync + 'static, P: Component + Magnitude> {
-    pub position: P,
+pub struct LinearValueRemovalBundle<D: Send + Sync + 'static, P: Component + Magnitude> {
+    pub value: P,
     pub acceleration: LinearAcceleration<D, P>,
-    pub direction: LinearDirection<D, P>,
+    pub direction: LinearTweenDirection<D, P>,
     pub speed: LinearSpeed<D, P>,
-    pub target_position: LinearTargetPosition<D, P>,
-    pub target_reached: LinearTargetReached<D, P>,
+    pub target_value: LinearTargetValue<D, P>,
+    pub target_reached: LinearValueReached<D, P>,
 }

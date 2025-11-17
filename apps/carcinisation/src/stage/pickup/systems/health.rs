@@ -16,54 +16,52 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use cween::linear::components::{
-    LinearTargetReached, MovementChildAcceleratedBundle, TargetingPositionX, TargetingPositionY,
+    LinearValueReached, TargetingValueX, TargetingValueY, TweenChildAcceleratedBundle,
 };
 use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
 
-/// Marker component for pickup feedback movement children.
+/// Marker component for pickup feedback tween children.
 #[derive(Component, Clone, Debug)]
-pub struct PickupFeedbackMovement;
+pub struct PickupFeedbackTween;
 
 #[derive(Bundle)]
-struct PickupFeedbackMovementXBundle {
-    movement_child: MovementChildAcceleratedBundle<StageTimeDomain, TargetingPositionX>,
-    pickup_feedback_movement: PickupFeedbackMovement,
+struct PickupFeedbackTweenXBundle {
+    tween_child: TweenChildAcceleratedBundle<StageTimeDomain, TargetingValueX>,
+    pickup_feedback_tween: PickupFeedbackTween,
     name: Name,
 }
 
-impl PickupFeedbackMovementXBundle {
+impl PickupFeedbackTweenXBundle {
     fn new(parent: Entity, current: f32, target: f32, speed: f32) -> Self {
         Self {
-            movement_child:
-                MovementChildAcceleratedBundle::<StageTimeDomain, TargetingPositionX>::new(
-                    parent, current, target, speed, 0.0,
-                ),
-            pickup_feedback_movement: PickupFeedbackMovement,
-            name: Name::new("Pickup Feedback Movement X"),
+            tween_child: TweenChildAcceleratedBundle::<StageTimeDomain, TargetingValueX>::new(
+                parent, current, target, speed, 0.0,
+            ),
+            pickup_feedback_tween: PickupFeedbackTween,
+            name: Name::new("Pickup Feedback Tween X"),
         }
     }
 }
 
 #[derive(Bundle)]
-struct PickupFeedbackMovementYBundle {
-    movement_child: MovementChildAcceleratedBundle<StageTimeDomain, TargetingPositionY>,
-    pickup_feedback_movement: PickupFeedbackMovement,
+struct PickupFeedbackTweenYBundle {
+    tween_child: TweenChildAcceleratedBundle<StageTimeDomain, TargetingValueY>,
+    pickup_feedback_tween: PickupFeedbackTween,
     name: Name,
 }
 
-impl PickupFeedbackMovementYBundle {
+impl PickupFeedbackTweenYBundle {
     fn new(parent: Entity, current: f32, target: f32, speed: f32, acceleration: f32) -> Self {
         Self {
-            movement_child:
-                MovementChildAcceleratedBundle::<StageTimeDomain, TargetingPositionY>::new(
-                    parent,
-                    current,
-                    target,
-                    speed,
-                    acceleration,
-                ),
-            pickup_feedback_movement: PickupFeedbackMovement,
-            name: Name::new("Pickup Feedback Movement Y"),
+            tween_child: TweenChildAcceleratedBundle::<StageTimeDomain, TargetingValueY>::new(
+                parent,
+                current,
+                target,
+                speed,
+                acceleration,
+            ),
+            pickup_feedback_tween: PickupFeedbackTween,
+            name: Name::new("Pickup Feedback Tween Y"),
         }
     }
 }
@@ -87,8 +85,8 @@ impl Default for PickupFeedbackDefaultBundle {
 pub struct PickupFeedbackBundle {
     position: PxSubPosition,
     sprite: PxSpriteBundle<Layer>,
-    targeting_position_x: TargetingPositionX,
-    targeting_position_y: TargetingPositionY,
+    targeting_value_x: TargetingValueX,
+    targeting_value_y: TargetingValueY,
     default: PickupFeedbackDefaultBundle,
 }
 
@@ -133,21 +131,21 @@ pub fn pickup_health(
                         layer: Layer::Pickups,
                         ..default()
                     },
-                    targeting_position_x: current.x.into(),
-                    targeting_position_y: current.y.into(),
+                    targeting_value_x: current.x.into(),
+                    targeting_value_y: current.y.into(),
                     default: default(),
                 })
                 .id();
 
-            // Spawn movement children for X (constant speed) and Y (accelerated)
-            commands.spawn(PickupFeedbackMovementXBundle::new(
+            // Spawn tween children for X (constant speed) and Y (accelerated)
+            commands.spawn(PickupFeedbackTweenXBundle::new(
                 feedback_entity,
                 current.x,
                 target.x,
                 speed_x,
             ));
 
-            commands.spawn(PickupFeedbackMovementYBundle::new(
+            commands.spawn(PickupFeedbackTweenYBundle::new(
                 feedback_entity,
                 current.y,
                 target.y,
@@ -158,15 +156,15 @@ pub fn pickup_health(
     }
 }
 
-/// @system Marks pickup feedback for despawn when its Y-axis movement child reaches the target.
+/// @system Marks pickup feedback for despawn when its Y-axis tween child reaches the target.
 pub fn mark_pickup_feedback_for_despawn(
     mut commands: Commands,
     mut parent_query: Query<Entity, With<PickupFeedback>>,
     child_query: Query<
         &ChildOf,
         (
-            With<PickupFeedbackMovement>,
-            Added<LinearTargetReached<StageTimeDomain, TargetingPositionY>>,
+            With<PickupFeedbackTween>,
+            Added<LinearValueReached<StageTimeDomain, TargetingValueY>>,
         ),
     >,
 ) {

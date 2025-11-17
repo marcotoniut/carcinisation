@@ -3,7 +3,7 @@ use derive_new::new;
 use std::marker::PhantomData;
 
 #[derive(new, Component, Clone, Debug, Reflect)]
-pub struct LinearMovement2DReachCheck<D: Send + Sync + 'static, X, Y> {
+pub struct LinearTween2DReachCheck<D: Send + Sync + 'static, X, Y> {
     #[new(default)]
     phantom_t: PhantomData<D>,
     #[new(default)]
@@ -14,7 +14,7 @@ pub struct LinearMovement2DReachCheck<D: Send + Sync + 'static, X, Y> {
     pub reached: (bool, bool),
 }
 
-impl<D: Send + Sync + 'static, X, Y> LinearMovement2DReachCheck<D, X, Y> {
+impl<D: Send + Sync + 'static, X, Y> LinearTween2DReachCheck<D, X, Y> {
     pub fn reached(&self) -> bool {
         self.reached.0 && self.reached.1
     }

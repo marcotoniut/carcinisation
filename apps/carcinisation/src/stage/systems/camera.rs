@@ -4,7 +4,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use cween::linear::components::{TargetingPositionX, TargetingPositionY};
+use cween::linear::components::{TargetingValueX, TargetingValueY};
 use seldom_pixel::prelude::PxSubPosition;
 
 const IN_VIEW_OFFSET: u32 = 5;
@@ -52,7 +52,7 @@ pub fn check_outside_view(
 
 pub fn update_camera_pos_x(
     mut query: Query<
-        (&TargetingPositionX, &mut PxSubPosition),
+        (&TargetingValueX, &mut PxSubPosition),
         (With<CameraPos>, Without<CameraShake>),
     >,
 ) {
@@ -63,7 +63,7 @@ pub fn update_camera_pos_x(
 
 pub fn update_camera_pos_y(
     mut query: Query<
-        (&TargetingPositionY, &mut PxSubPosition),
+        (&TargetingValueY, &mut PxSubPosition),
         (With<CameraPos>, Without<CameraShake>),
     >,
 ) {

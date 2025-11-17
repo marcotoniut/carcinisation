@@ -30,7 +30,7 @@ StageData(
                     Attack(
                         duration: 3.0,
                     ),
-                    LinearMovement(
+                    LinearTween(
                         depth_movement_o: None,
                         direction: Vec2(0.5, -1.0),
                         trayectory: 0.0,
@@ -68,7 +68,7 @@ StageData(
         ),
     ],
     steps: [
-        Movement(
+        Tween(
             coordinates: Vec2(0.0, 577.0),
             base_speed: 8.0,
             spawns: [],
@@ -81,7 +81,7 @@ StageData(
             spawns: [],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(50.0, 577.0),
             base_speed: 10.0,
             spawns: [
@@ -122,25 +122,25 @@ StageData(
             ],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(34.0, 577.0),
             base_speed: 8.0,
             spawns: [],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(90.0, 577.0),
             base_speed: 4.0,
             spawns: [],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(0.0, 577.0),
             base_speed: 2.0,
             spawns: [],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(50.0, 577.0),
             base_speed: 1.0,
             spawns: [

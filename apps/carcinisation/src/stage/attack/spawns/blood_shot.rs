@@ -20,21 +20,19 @@ use crate::stage::{
 };
 use bevy::prelude::*;
 use cween::{
-    linear::components::{
-        MovementChildBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-    },
+    linear::components::{TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle},
     structs::{Constructor, Magnitude},
 };
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
-fn spawn_blood_shot_movement_child<P>(
+fn spawn_blood_shot_tween_child<P>(
     commands: &mut Commands,
-    bundle: MovementChildBundle<StageTimeDomain, P>,
+    bundle: TweenChildBundle<StageTimeDomain, P>,
     axis_name: &'static str,
 ) where
     P: Constructor<f32> + Component + Magnitude,
 {
-    commands.spawn((bundle, BloodShotMovement, Name::new(axis_name)));
+    commands.spawn((bundle, BloodShotTween, Name::new(axis_name)));
 }
 
 #[derive(Bundle)]
@@ -56,9 +54,9 @@ impl Default for BloodShotDefaultBundle {
     }
 }
 
-/// Marker component for blood shot movement children.
+/// Marker component for blood shot tween children.
 #[derive(Component, Clone, Debug)]
-pub struct BloodShotMovement;
+pub struct BloodShotTween;
 
 #[derive(Bundle)]
 pub struct BloodShotBundle {
@@ -68,9 +66,9 @@ pub struct BloodShotBundle {
     pub depth: Depth,
     pub inflicts_damage: InflictsDamage,
     pub position: PxSubPosition,
-    pub targeting_position_x: TargetingPositionX,
-    pub targeting_position_y: TargetingPositionY,
-    pub targeting_position_z: TargetingPositionZ,
+    pub targeting_value_x: TargetingValueX,
+    pub targeting_value_y: TargetingValueY,
+    pub targeting_value_z: TargetingValueZ,
     pub default: BloodShotDefaultBundle,
 }
 
@@ -103,9 +101,9 @@ pub fn spawn_blood_shot_attack(
         depth: *depth,
         inflicts_damage: InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
         position: PxSubPosition(current_pos),
-        targeting_position_x: current_pos.x.into(),
-        targeting_position_y: current_pos.y.into(),
-        targeting_position_z: depth.to_f32().into(),
+        targeting_value_x: current_pos.x.into(),
+        targeting_value_y: current_pos.y.into(),
+        targeting_value_z: depth.to_f32().into(),
         default: default(),
     });
 
@@ -121,39 +119,39 @@ pub fn spawn_blood_shot_attack(
     // Use a very large target position to approximate infinite travel
     let far_target = current_pos + direction.normalize_or_zero() * 1000.0;
 
-    // Spawn movement children for X
-    spawn_blood_shot_movement_child(
+    // Spawn tween children for X
+    spawn_blood_shot_tween_child(
         commands,
-        MovementChildBundle::<StageTimeDomain, TargetingPositionX>::new(
+        TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
             blood_shot_entity,
             current_pos.x,
             far_target.x,
             speed.x,
         ),
-        "Blood Shot Movement X",
+        "Blood Shot Tween X",
     );
 
-    // Spawn movement children for Y
-    spawn_blood_shot_movement_child(
+    // Spawn tween children for Y
+    spawn_blood_shot_tween_child(
         commands,
-        MovementChildBundle::<StageTimeDomain, TargetingPositionY>::new(
+        TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
             blood_shot_entity,
             current_pos.y,
             far_target.y,
             speed.y,
         ),
-        "Blood Shot Movement Y",
+        "Blood Shot Tween Y",
     );
 
-    // Spawn movement children for Z (toward player depth)
-    spawn_blood_shot_movement_child(
+    // Spawn tween children for Z (toward player depth)
+    spawn_blood_shot_tween_child(
         commands,
-        MovementChildBundle::<StageTimeDomain, TargetingPositionZ>::new(
+        TweenChildBundle::<StageTimeDomain, TargetingValueZ>::new(
             blood_shot_entity,
             depth.to_f32(),
             PLAYER_DEPTH.to_f32(),
             BLOOD_SHOT_ATTACK_DEPTH_SPEED,
         ),
-        "Blood Shot Movement Z",
+        "Blood Shot Tween Z",
     );
 }

@@ -1,24 +1,24 @@
 use crate::stage::{
     components::placement::Depth,
     enemy::components::{
-        behavior::{EnemyCurrentBehavior, EnemyStepMovement},
-        CircleAround, LinearMovement,
+        behavior::{EnemyCurrentBehavior, EnemyStepTweenChild},
+        CircleAround, LinearTween,
     },
     events::DepthChangedEvent,
     resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
-use cween::{linear::components::*, structs::MovementDirection};
+use cween::{linear::components::*, structs::TweenDirection};
 use seldom_pixel::prelude::PxSubPosition;
 
 pub fn update_depth(
     mut query: Query<
-        (Entity, &mut Depth, &TargetingPositionZ),
+        (Entity, &mut Depth, &TargetingValueZ),
         (
-            Without<LinearTargetReached<StageTimeDomain, TargetingPositionZ>>,
+            Without<LinearValueReached<StageTimeDomain, TargetingValueZ>>,
             Or<(
-                Added<TargetingPositionZ>,
-                Changed<TargetingPositionZ>,
+                Added<TargetingValueZ>,
+                Changed<TargetingValueZ>,
                 Changed<Depth>,
             )>,
         ),
@@ -51,8 +51,8 @@ pub fn circle_around(
     for (circle_around, mut position) in query.iter_mut() {
         let elapsed_seconds = time.elapsed().as_secs_f32();
         let angle = match circle_around.direction {
-            MovementDirection::Positive => elapsed_seconds + circle_around.time_offset,
-            MovementDirection::Negative => -elapsed_seconds + circle_around.time_offset,
+            TweenDirection::Positive => elapsed_seconds + circle_around.time_offset,
+            TweenDirection::Negative => -elapsed_seconds + circle_around.time_offset,
         };
         let x = circle_around.center.x + circle_around.radius * angle.cos();
         let y = circle_around.center.y + circle_around.radius * angle.sin();
@@ -60,15 +60,15 @@ pub fn circle_around(
     }
 }
 
-/// @system Detects when enemy X-axis movement children reach their target.
-/// Updates the parent enemy's LinearMovement.reached_x flag.
-pub fn check_linear_movement_x_finished(
-    mut parent_query: Query<&mut LinearMovement, With<EnemyCurrentBehavior>>,
+/// @system Detects when enemy X-axis tween children reach their target.
+/// Updates the parent enemy's LinearTween.reached_x flag.
+pub fn check_linear_tween_x_finished(
+    mut parent_query: Query<&mut LinearTween, With<EnemyCurrentBehavior>>,
     child_query: Query<
         &ChildOf,
         (
-            With<EnemyStepMovement>,
-            Added<LinearTargetReached<StageTimeDomain, TargetingPositionX>>,
+            With<EnemyStepTweenChild>,
+            Added<LinearValueReached<StageTimeDomain, TargetingValueX>>,
         ),
     >,
 ) {
@@ -79,15 +79,15 @@ pub fn check_linear_movement_x_finished(
     }
 }
 
-/// @system Detects when enemy Y-axis movement children reach their target.
-/// Updates the parent enemy's LinearMovement.reached_y flag.
-pub fn check_linear_movement_y_finished(
-    mut parent_query: Query<&mut LinearMovement, With<EnemyCurrentBehavior>>,
+/// @system Detects when enemy Y-axis tween children reach their target.
+/// Updates the parent enemy's LinearTween.reached_y flag.
+pub fn check_linear_tween_y_finished(
+    mut parent_query: Query<&mut LinearTween, With<EnemyCurrentBehavior>>,
     child_query: Query<
         &ChildOf,
         (
-            With<EnemyStepMovement>,
-            Added<LinearTargetReached<StageTimeDomain, TargetingPositionY>>,
+            With<EnemyStepTweenChild>,
+            Added<LinearValueReached<StageTimeDomain, TargetingValueY>>,
         ),
     >,
 ) {
@@ -98,17 +98,17 @@ pub fn check_linear_movement_y_finished(
     }
 }
 
-// TODO this should not be tied to the stage movement
-pub fn check_linear_movement_finished(
+// TODO this should not be tied to the stage tween
+pub fn check_linear_tween_finished(
     mut commands: Commands,
-    mut query: Query<(Entity, &LinearMovement), (With<EnemyCurrentBehavior>,)>,
+    mut query: Query<(Entity, &LinearTween), (With<EnemyCurrentBehavior>,)>,
 ) {
     for (entity, linear_movement) in query.iter_mut() {
         if linear_movement.reached_x && linear_movement.reached_y {
             commands
                 .entity(entity)
                 .remove::<EnemyCurrentBehavior>()
-                .remove::<LinearMovement>();
+                .remove::<LinearTween>();
         }
     }
 }

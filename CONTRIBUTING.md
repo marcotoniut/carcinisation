@@ -51,7 +51,7 @@ Thank you for helping us evolve Carcinisation. This guide gathers the guardrails
   ❌ Added some animation stuff and fixed a few things.
   ```
 
-- **Bodies** – Explain *why* the change matters. The diff already shows *what* changed.
+- **Bodies** – Explain _why_ the change matters. The diff already shows _what_ changed.
 
   ```
   ✅ gate cutscene input behind active state
@@ -79,15 +79,15 @@ Thank you for helping us evolve Carcinisation. This guide gathers the guardrails
 #[test]
 fn updates_pixel_position_from_targeting_components() {
     use bevy::prelude::*;
-    use crate::plugins::movement::linear::components::TargetingPositionX;
-    use crate::systems::movement::update_position_x;
+    use cween::linear::components::TargetingValueX;
     use seldom_pixel::prelude::PxSubPosition;
+    use crate::systems::movement::update_position_x;
 
     let mut app = App::new();
     app.add_systems(Update, update_position_x);
 
     let entity = app.world_mut().spawn((
-        TargetingPositionX(42.0),
+        TargetingValueX(42.0),
         PxSubPosition(Vec2::ZERO),
     )).id();
 
