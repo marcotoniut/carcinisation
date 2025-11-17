@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "apps/carcinisation",
-    "crates/activable-macros",
+    "crates/activable_macros",
     "crates/activable",
     "crates/carcinisation_core",
     "crates/cween",

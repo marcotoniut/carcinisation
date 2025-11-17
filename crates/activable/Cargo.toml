@@ -7,7 +7,7 @@ version.workspace = true
 bevy = { workspace = true }
 bevy_ecs = { workspace = true }
 bevy_state = { workspace = true }
-activable-macros = { path = "../activable-macros" }
+activable_macros = { path = "../activable_macros" }
 
 [lints]
 workspace = true
