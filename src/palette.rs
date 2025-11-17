@@ -78,7 +78,9 @@ struct LoadingAssetPaletteHandle(Handle<Palette>);
 impl Palette {
     /// Create a palette from an [`Image`]
     pub fn new(image: &Image) -> Result<Palette> {
-        let image = image.convert(TextureFormat::Rgba8UnormSrgb).unwrap();
+        let image = image
+            .convert(TextureFormat::Rgba8UnormSrgb)
+            .ok_or("could not convert palette image to `Rgba8UnormSrgb`")?;
         let data = image.data.ok_or("image is uninitialized")?;
 
         if data.get(3) != Some(&0) {
@@ -104,6 +106,10 @@ impl Palette {
                     }
                 },
             );
+
+        if colors.len() > 256 {
+            return Err("palette contains more than 255 colors".into());
+        }
 
         Ok(Palette {
             size: UVec2::new(

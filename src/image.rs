@@ -138,7 +138,13 @@ impl PxImage {
     }
 
     pub(crate) fn trim_right(&mut self) {
-        while (0..self.height()).all(|row| self.image[self.width * (row + 1) - 1] == 0) {
+        if self.width == 0 || self.image.is_empty() {
+            return;
+        }
+
+        while self.width > 1
+            && (0..self.height()).all(|row| self.image[self.width * (row + 1) - 1] == 0)
+        {
             for row in (0..self.height()).rev() {
                 self.image.remove(row * self.width + self.width - 1);
             }
@@ -200,26 +206,24 @@ impl<'a> PxImageSliceMut<'a> {
 
     /// First `usize` is the index in the slice. Second `usize` is the index in the image.
     pub(crate) fn for_each_mut(&mut self, f: impl Fn(usize, usize, &mut u8)) {
-        let row_min = self.slice.min.x.clamp(0, self.width as i32) as usize;
-        let row_max = self.slice.max.x.clamp(0, self.width as i32) as usize;
+        let x_min = self.slice.min.x.clamp(0, self.width as i32) as usize;
+        let x_max = self.slice.max.x.clamp(0, self.width as i32) as usize;
         let max_y = self.image.len() as i32;
+        let y_min = self.slice.min.y.clamp(0, max_y) as usize;
+        let y_max = self.slice.max.y.clamp(0, max_y) as usize;
 
-        self.image.iter_mut().enumerate().collect::<Vec<_>>()
-            [self.slice.min.y.clamp(0, max_y) as usize..self.slice.max.y.clamp(0, max_y) as usize]
-            .iter_mut()
-            .for_each(|(i, row)| {
-                row.iter_mut().enumerate().collect::<Vec<_>>()[row_min..row_max]
-                    .iter_mut()
-                    .for_each(|(j, pixel)| {
-                        f(
-                            ((*i as i32 - self.slice.min.y) * (self.slice.max.x - self.slice.min.x)
-                                + (*j as i32 - self.slice.min.x))
-                                as usize,
-                            *i * self.width + *j,
-                            pixel,
-                        );
-                    });
-            });
+        let slice_width = (self.slice.max.x - self.slice.min.x).max(0) as usize;
+
+        for (row_index, row) in self.image[y_min..y_max].iter_mut().enumerate() {
+            let y = y_min + row_index;
+            for x in x_min..x_max {
+                let slice_index = ((y as i32 - self.slice.min.y) * slice_width as i32
+                    + (x as i32 - self.slice.min.x)) as usize;
+                let image_index = y * self.width + x;
+                let pixel = &mut row[x];
+                f(slice_index, image_index, pixel);
+            }
+        }
     }
 
     pub(crate) fn contains_pixel(&self, position: IVec2) -> bool {

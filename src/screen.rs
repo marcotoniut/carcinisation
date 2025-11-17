@@ -220,7 +220,7 @@ fn init_screen(
 
     screen.palette = screen_palette;
 
-    *initialized = false;
+    *initialized = true;
 }
 
 #[cfg(feature = "headed")]
