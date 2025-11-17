@@ -1,5 +1,5 @@
-use crate::plugins::movement::structs::MovementDirection;
 use bevy::prelude::*;
+use cween::structs::MovementDirection;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 

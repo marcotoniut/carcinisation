@@ -1,14 +1,12 @@
 //! Registers frequently-inspected types for the Bevy editor/debug tooling.
 
 use bevy::prelude::*;
+use cween::linear::components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ};
 
 use crate::{
     components::GBColor,
     cutscene::data::CutsceneAnimationsSpawn,
     layer::Layer,
-    plugins::movement::linear::components::{
-        TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-    },
     stage::{
         attack::components::{EnemyAttackOriginDepth, EnemyAttackOriginPosition},
         components::{

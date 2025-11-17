@@ -34,15 +34,14 @@ use crate::{
     },
     globals::{mark_for_despawn_by_query, DEBUG_STAGESTEP},
     input::GBInput,
-    plugins::movement::linear::components::{
-        extra::LinearMovement2DReachCheck, MovementChildBundle, TargetingPositionX,
-        TargetingPositionY,
-    },
     systems::{camera::CameraPos, spawn::make_music_bundle},
     transitions::trigger_transition,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*, time::Fixed};
+use cween::linear::components::{
+    extra::LinearMovement2DReachCheck, MovementChildBundle, TargetingPositionX, TargetingPositionY,
+};
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 

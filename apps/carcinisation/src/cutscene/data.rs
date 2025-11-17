@@ -2,15 +2,11 @@
 
 use super::resources::CutsceneTimeDomain;
 use crate::{
-    layer::Layer,
-    letterbox::events::LetterboxMove,
-    plugins::movement::linear::components::{
-        LinearMovementBundle, TargetingPositionX, TargetingPositionY,
-    },
-    stage::data::GAME_BASE_SPEED,
+    layer::Layer, letterbox::events::LetterboxMove, stage::data::GAME_BASE_SPEED,
     transitions::data::TransitionRequest,
 };
 use bevy::prelude::*;
+use cween::linear::components::{LinearMovementBundle, TargetingPositionX, TargetingPositionY};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};

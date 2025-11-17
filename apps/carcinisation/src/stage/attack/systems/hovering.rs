@@ -5,7 +5,6 @@ use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
     layer::Layer,
-    plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
     stage::{
         attack::components::EnemyHoveringAttackType,
         components::{
@@ -22,6 +21,7 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
+use cween::linear::components::{LinearTargetReached, TargetingPositionZ};
 use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 pub fn hovering_damage_on_reached(

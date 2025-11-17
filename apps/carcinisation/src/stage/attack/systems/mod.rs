@@ -7,7 +7,6 @@ use super::components::{
 use crate::pixel::PxAssets;
 use crate::{
     components::DespawnMark,
-    plugins::movement::linear::components::{LinearTargetReached, TargetingPositionZ},
     stage::{
         components::{
             interactive::{Dead, Health},
@@ -19,6 +18,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
+use cween::linear::components::{LinearTargetReached, TargetingPositionZ};
 use seldom_pixel::prelude::PxSprite;
 
 // TODO remove in favor of damage taken?

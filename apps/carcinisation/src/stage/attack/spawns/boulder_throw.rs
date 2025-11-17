@@ -1,33 +1,30 @@
 use crate::pixel::PxAssets;
-use crate::{
-    plugins::movement::{
-        linear::components::{
-            MovementChildAcceleratedBundle, MovementChildBundle, TargetingPositionX,
-            TargetingPositionY, TargetingPositionZ,
-        },
-        structs::{Constructor, Magnitude},
-    },
-    stage::{
-        attack::{
-            components::{
-                bundles::make_hovering_attack_animation_bundle, EnemyAttack,
-                EnemyHoveringAttackType,
-            },
-            data::boulder_throw::{
-                BOULDER_THROW_ATTACK_DAMAGE, BOULDER_THROW_ATTACK_DEPTH_SPEED,
-                BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION, BOULDER_THROW_ATTACK_RANDOMNESS,
-            },
-        },
+use crate::stage::{
+    attack::{
         components::{
-            damage::InflictsDamage,
-            interactive::{Flickerer, Health, Hittable},
-            placement::Depth,
+            bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyHoveringAttackType,
         },
-        player::components::PLAYER_DEPTH,
-        resources::StageTimeDomain,
+        data::boulder_throw::{
+            BOULDER_THROW_ATTACK_DAMAGE, BOULDER_THROW_ATTACK_DEPTH_SPEED,
+            BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION, BOULDER_THROW_ATTACK_RANDOMNESS,
+        },
     },
+    components::{
+        damage::InflictsDamage,
+        interactive::{Flickerer, Health, Hittable},
+        placement::Depth,
+    },
+    player::components::PLAYER_DEPTH,
+    resources::StageTimeDomain,
 };
 use bevy::prelude::*;
+use cween::{
+    linear::components::{
+        MovementChildAcceleratedBundle, MovementChildBundle, TargetingPositionX,
+        TargetingPositionY, TargetingPositionZ,
+    },
+    structs::{Constructor, Magnitude},
+};
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 fn spawn_boulder_throw_movement_child<P>(

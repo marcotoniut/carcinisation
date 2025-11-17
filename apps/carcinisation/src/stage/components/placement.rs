@@ -1,10 +1,8 @@
 #![allow(clippy::wrong_self_convention)]
 
-use crate::{
-    layer::{Layer, MidDepth, PreBackgroundDepth},
-    plugins::movement::structs::MovementVec2Position,
-};
+use crate::layer::{Layer, MidDepth, PreBackgroundDepth};
 use bevy::prelude::*;
+use cween::structs::MovementVec2Position;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{

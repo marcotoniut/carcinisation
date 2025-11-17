@@ -4,13 +4,11 @@ use crate::stage::enemy::data::mosquito::MOSQUITO_DEPTH_RANGE;
 use crate::stage::enemy::data::steps::{
     CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearMovementEnemyStep,
 };
-use crate::{
-    plugins::movement::linear::components::{
-        MovementChildBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
-    },
-    stage::{data::GAME_BASE_SPEED, resources::StageTimeDomain},
-};
+use crate::stage::{data::GAME_BASE_SPEED, resources::StageTimeDomain};
 use bevy::prelude::*;
+use cween::linear::components::{
+    MovementChildBundle, TargetingPositionX, TargetingPositionY, TargetingPositionZ,
+};
 use derive_new::new;
 use seldom_pixel::prelude::PxSubPosition;
 use std::collections::VecDeque;

@@ -21,7 +21,6 @@ mod layer;
 mod letterbox;
 mod main_menu;
 mod pixel;
-mod plugins;
 mod progression;
 mod resources;
 mod stage;
