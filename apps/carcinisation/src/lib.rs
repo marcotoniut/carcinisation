@@ -1,9 +1,15 @@
 #![allow(dead_code, clippy::type_complexity)] // Library target exists to expose data types for tooling; gameplay modules stay unused here.
 
 mod assets;
-pub mod bevy_utils;
-mod components;
-mod core;
+pub mod bevy_utils {
+    pub use carcinisation_core::bevy_utils::*;
+}
+pub mod components {
+    pub use carcinisation_core::components::*;
+}
+pub mod core {
+    pub use carcinisation_core::core::*;
+}
 pub mod cutscene;
 mod data;
 pub mod debug;

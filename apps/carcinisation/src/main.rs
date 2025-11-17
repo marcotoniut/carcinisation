@@ -2,9 +2,15 @@
 #![allow(dead_code, clippy::type_complexity)]
 
 mod assets;
-mod bevy_utils;
-mod components;
-mod core;
+pub mod bevy_utils {
+    pub use carcinisation_core::bevy_utils::*;
+}
+pub mod components {
+    pub use carcinisation_core::components::*;
+}
+pub mod core {
+    pub use carcinisation_core::core::*;
+}
 mod cutscene;
 mod data;
 mod debug;
@@ -35,8 +41,8 @@ use bevy_inspector_egui::{
     bevy_egui::{egui, EguiContext, EguiPrimaryContextPass, PrimaryEguiContext},
     bevy_inspector, DefaultInspectorConfigPlugin,
 };
-use bevy_utils::despawn_entities;
-use components::{DespawnMark, VolumeSettings};
+use carcinisation_core::bevy_utils::despawn_entities;
+use carcinisation_core::components::{DespawnMark, VolumeSettings};
 use cutscene::CutscenePlugin;
 use debug::DebugPlugin;
 use game::GamePlugin;
