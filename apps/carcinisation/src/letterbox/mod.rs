@@ -7,7 +7,7 @@ mod systems;
 
 use crate::core::time::tick_time;
 use activable::{activate_system, Activable, ActivableAppExt};
-use cween::linear::{components::TargetingPositionY, LinearMovementPlugin};
+use cween::linear::{components::TargetingValueY, LinearTweenPlugin};
 
 use self::{events::LetterboxMoveTrigger, resources::LetterboxTimeDomain, systems::*};
 use bevy::{prelude::*, time::Fixed};
@@ -22,10 +22,7 @@ impl Plugin for LetterboxPlugin {
             .add_message::<LetterboxMoveTrigger>()
             .on_active::<LetterboxPlugin, _>(on_letterbox_startup)
             .on_inactive::<LetterboxPlugin, _>(on_letterbox_shutdown)
-            .add_plugins(LinearMovementPlugin::<
-                LetterboxTimeDomain,
-                TargetingPositionY,
-            >::default())
+            .add_plugins(LinearTweenPlugin::<LetterboxTimeDomain, TargetingValueY>::default())
             .add_observer(on_move)
             .add_active_systems_in::<LetterboxPlugin, _>(
                 FixedUpdate,

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use cween::structs::MovementDirection;
+use cween::structs::TweenDirection;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
@@ -31,7 +31,7 @@ impl AttackEnemyStep {
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct CircleAroundEnemyStep {
     pub depth_movement_o: Option<i8>,
-    pub direction: MovementDirection,
+    pub direction: TweenDirection,
     pub duration: Option<f32>,
     pub radius: Option<f32>,
 }
@@ -41,7 +41,7 @@ impl CircleAroundEnemyStep {
     pub fn base() -> Self {
         Self {
             depth_movement_o: None,
-            direction: MovementDirection::Negative,
+            direction: TweenDirection::Negative,
             duration: Some(EnemyStep::max_duration()),
             radius: Some(12.),
         }
@@ -62,7 +62,7 @@ impl CircleAroundEnemyStep {
         self
     }
 
-    pub fn with_direction(mut self, value: MovementDirection) -> Self {
+    pub fn with_direction(mut self, value: TweenDirection) -> Self {
         self.direction = value;
         self
     }
@@ -107,7 +107,7 @@ impl Default for IdleEnemyStep {
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
-pub struct LinearMovementEnemyStep {
+pub struct LinearTweenEnemyStep {
     pub depth_movement_o: Option<i8>,
     #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub direction: Vec2,
@@ -115,7 +115,7 @@ pub struct LinearMovementEnemyStep {
     pub trayectory: f32,
 }
 
-impl LinearMovementEnemyStep {
+impl LinearTweenEnemyStep {
     pub fn base() -> Self {
         Self {
             direction: Vec2::new(-1., 0.),
@@ -180,7 +180,7 @@ pub enum EnemyStep {
     Attack(AttackEnemyStep),
     Circle(CircleAroundEnemyStep),
     Idle(IdleEnemyStep),
-    LinearMovement(LinearMovementEnemyStep),
+    LinearTween(LinearTweenEnemyStep),
     Jump(JumpEnemyStep),
 }
 
@@ -204,7 +204,7 @@ impl EnemyStep {
             EnemyStep::Attack(AttackEnemyStep { duration, .. }) => Some(*duration),
             EnemyStep::Circle(CircleAroundEnemyStep { duration, .. }) => *duration,
             EnemyStep::Idle(IdleEnemyStep { duration, .. }) => Some(*duration),
-            EnemyStep::LinearMovement { .. } => None,
+            EnemyStep::LinearTween { .. } => None,
             EnemyStep::Jump { .. } => None,
         }
     }
@@ -225,7 +225,7 @@ impl EnemyStep {
         JumpEnemyStep::base()
     }
 
-    pub fn linear_movement_base() -> LinearMovementEnemyStep {
-        LinearMovementEnemyStep::base()
+    pub fn linear_movement_base() -> LinearTweenEnemyStep {
+        LinearTweenEnemyStep::base()
     }
 }

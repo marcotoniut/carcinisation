@@ -21,7 +21,7 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
-use cween::linear::components::{LinearTargetReached, TargetingPositionZ};
+use cween::linear::components::{LinearValueReached, TargetingValueZ};
 use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 pub fn hovering_damage_on_reached(
@@ -39,7 +39,7 @@ pub fn hovering_damage_on_reached(
             &Depth,
         ),
         (
-            Added<LinearTargetReached<StageTimeDomain, TargetingPositionZ>>,
+            Added<LinearValueReached<StageTimeDomain, TargetingValueZ>>,
             With<InView>,
         ),
     >,

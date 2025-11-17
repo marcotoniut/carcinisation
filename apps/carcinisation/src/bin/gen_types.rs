@@ -80,7 +80,7 @@ fn fix_missing_imports(ts_dir: &Path, quiet: bool) -> Result<()> {
             "EnemySpawn.ts",
             &[("EnemyStep", "EnemyStep"), ("Depth", "Depth")],
         ),
-        ("MovementStageStep.ts", &[("Depth", "Depth")]),
+        ("TweenStageStep.ts", &[("Depth", "Depth")]),
         ("StopStageStep.ts", &[("Depth", "Depth")]),
     ];
 

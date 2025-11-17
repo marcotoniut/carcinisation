@@ -12,8 +12,8 @@ use super::{
     components::{
         interactive::{Dead, Object},
         placement::spawn_floor_depths,
-        CinematicStageStep, CurrentStageStep, MovementStageStep, Stage, StageElapsedStarted,
-        StageEntity, StopStageStep,
+        CinematicStageStep, CurrentStageStep, Stage, StageElapsedStarted, StageEntity,
+        StopStageStep, TweenStageStep,
     },
     data::*,
     destructible::components::Destructible,
@@ -40,7 +40,7 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*, time::Fixed};
 use cween::linear::components::{
-    extra::LinearMovement2DReachCheck, MovementChildBundle, TargetingPositionX, TargetingPositionY,
+    extra::LinearTween2DReachCheck, TargetingValueX, TargetingValueY, TweenChildBundle,
 };
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
@@ -153,7 +153,7 @@ pub fn update_stage(
             if let Some(action) = stage_data.steps.get(stage_progress.index) {
                 if DEBUG_STAGESTEP {
                     let curr_action = match action {
-                        StageStep::Movement { .. } => "movement".to_string(),
+                        StageStep::Tween { .. } => "tween".to_string(),
                         StageStep::Stop { .. } => "stop".to_string(),
                         StageStep::Cinematic { .. } => "cinematic".to_string(),
                     };
@@ -304,7 +304,7 @@ pub fn read_step_trigger(
                 StageStep::Cinematic(step) => {
                     entity_commands.insert(step.clone());
                 }
-                StageStep::Movement(step) => {
+                StageStep::Tween(step) => {
                     entity_commands.insert(step.clone());
                 }
                 StageStep::Stop(step) => {
@@ -325,20 +325,20 @@ pub fn initialise_cinematic_step(
     }
 }
 
-/// Marker component for movement children spawned for camera movement steps.
+/// Marker component for tween children spawned for camera tween steps.
 #[derive(Component, Clone, Debug)]
-pub struct CameraStepMovement;
+pub struct CameraStepTween;
 
 /// @system Sets up camera movement and spawns tied to a movement step.
 /// Spawns movement children to drive the camera, and attaches a reach check component.
 pub fn initialise_movement_step(
     mut commands: Commands,
-    query: Query<(Entity, &MovementStageStep), (With<Stage>, Added<MovementStageStep>)>,
+    query: Query<(Entity, &TweenStageStep), (With<Stage>, Added<TweenStageStep>)>,
     camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
 ) {
     if let Ok((
         _,
-        MovementStageStep {
+        TweenStageStep {
             coordinates,
             base_speed,
             spawns,
@@ -352,34 +352,34 @@ pub fn initialise_movement_step(
 
             // Spawn movement children for the camera
             commands.spawn((
-                MovementChildBundle::<StageTimeDomain, TargetingPositionX>::new(
+                TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
                     camera_entity,
                     position.x,
                     coordinates.x,
                     speed.x,
                 ),
-                CameraStepMovement,
+                CameraStepTween,
                 Name::new("Camera Movement X"),
             ));
 
             commands.spawn((
-                MovementChildBundle::<StageTimeDomain, TargetingPositionY>::new(
+                TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
                     camera_entity,
                     position.y,
                     coordinates.y,
                     speed.y,
                 ),
-                CameraStepMovement,
+                CameraStepTween,
                 Name::new("Camera Movement Y"),
             ));
 
             // Add reach check to camera
             commands
                 .entity(camera_entity)
-                .insert(LinearMovement2DReachCheck::<
+                .insert(LinearTween2DReachCheck::<
                     StageTimeDomain,
-                    TargetingPositionX,
-                    TargetingPositionY,
+                    TargetingValueX,
+                    TargetingValueY,
                 >::new())
                 .insert(StageStepSpawner::new(spawns.clone()));
 
@@ -417,11 +417,11 @@ pub fn initialise_stop_step(
 /// @system Advances once the camera finishes its scripted movement.
 pub fn check_movement_step_reached(
     mut commands: Commands,
-    step_query: Query<Entity, With<MovementStageStep>>,
+    step_query: Query<Entity, With<TweenStageStep>>,
     camera_query: Query<
         (
             Entity,
-            &LinearMovement2DReachCheck<StageTimeDomain, TargetingPositionX, TargetingPositionY>,
+            &LinearTween2DReachCheck<StageTimeDomain, TargetingValueX, TargetingValueY>,
         ),
         With<CameraPos>,
     >,
@@ -430,10 +430,10 @@ pub fn check_movement_step_reached(
         if reach_check.reached() {
             for _ in step_query.iter() {
                 let mut entity_commands = commands.entity(camera_entity);
-                entity_commands.remove::<LinearMovement2DReachCheck<
+                entity_commands.remove::<LinearTween2DReachCheck<
                     StageTimeDomain,
-                    TargetingPositionX,
-                    TargetingPositionY,
+                    TargetingValueX,
+                    TargetingValueY,
                 >>();
                 commands.trigger(NextStepEvent);
             }
@@ -484,12 +484,12 @@ pub fn on_next_step_cleanup_cinematic_step(
 pub fn on_next_step_cleanup_movement_step(
     _trigger: On<NextStepEvent>,
     mut commands: Commands,
-    query: Query<(Entity, &MovementStageStep), With<Stage>>,
+    query: Query<(Entity, &TweenStageStep), With<Stage>>,
 ) {
     for (entity, _) in query.iter() {
         commands
             .entity(entity)
-            .remove::<MovementStageStep>()
+            .remove::<TweenStageStep>()
             .remove::<StageStepSpawner>()
             .remove::<CurrentStageStep>();
     }

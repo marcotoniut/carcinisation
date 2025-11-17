@@ -20,31 +20,31 @@ use crate::stage::{
 use bevy::prelude::*;
 use cween::{
     linear::components::{
-        MovementChildAcceleratedBundle, MovementChildBundle, TargetingPositionX,
-        TargetingPositionY, TargetingPositionZ,
+        TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
+        TweenChildBundle,
     },
     structs::{Constructor, Magnitude},
 };
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
-fn spawn_boulder_throw_movement_child<P>(
+fn spawn_boulder_throw_tween_child<P>(
     commands: &mut Commands,
-    bundle: MovementChildBundle<StageTimeDomain, P>,
+    bundle: TweenChildBundle<StageTimeDomain, P>,
     label: &'static str,
 ) where
     P: Constructor<f32> + Component + Magnitude,
 {
-    commands.spawn((bundle, BoulderThrowMovement, Name::new(label)));
+    commands.spawn((bundle, BoulderThrowTween, Name::new(label)));
 }
 
-fn spawn_boulder_throw_movement_child_accelerated<P>(
+fn spawn_boulder_throw_tween_child_accelerated<P>(
     commands: &mut Commands,
-    bundle: MovementChildAcceleratedBundle<StageTimeDomain, P>,
+    bundle: TweenChildAcceleratedBundle<StageTimeDomain, P>,
     label: &'static str,
 ) where
     P: Constructor<f32> + Component + Magnitude,
 {
-    commands.spawn((bundle, BoulderThrowMovement, Name::new(label)));
+    commands.spawn((bundle, BoulderThrowTween, Name::new(label)));
 }
 
 #[derive(Bundle)]
@@ -70,18 +70,18 @@ impl Default for BoulderThrowDefaultBundle {
     }
 }
 
-/// Marker component for boulder throw movement children.
+/// Marker component for boulder throw tween children.
 #[derive(Component, Clone, Debug)]
-pub struct BoulderThrowMovement;
+pub struct BoulderThrowTween;
 
 #[derive(Bundle)]
 pub struct BoulderThrowBundle {
     pub depth: Depth,
     pub inflicts_damage: InflictsDamage,
     pub position: PxSubPosition,
-    pub targeting_position_x: TargetingPositionX,
-    pub targeting_position_y: TargetingPositionY,
-    pub targeting_position_z: TargetingPositionZ,
+    pub targeting_value_x: TargetingValueX,
+    pub targeting_value_y: TargetingValueY,
+    pub targeting_value_z: TargetingValueZ,
     pub default: BoulderThrowDefaultBundle,
 }
 
@@ -121,9 +121,9 @@ pub fn spawn_boulder_throw_attack(
         depth: *depth,
         inflicts_damage: InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
         position: PxSubPosition(current_pos),
-        targeting_position_x: current_pos.x.into(),
-        targeting_position_y: current_pos.y.into(),
-        targeting_position_z: depth_f32.into(),
+        targeting_value_x: current_pos.x.into(),
+        targeting_value_y: current_pos.y.into(),
+        targeting_value_z: depth_f32.into(),
         default: default(),
     });
     entity_commands.insert((sprite, animation));
@@ -134,40 +134,40 @@ pub fn spawn_boulder_throw_attack(
 
     let boulder_entity = entity_commands.id();
 
-    // Spawn movement children for X (constant speed)
-    spawn_boulder_throw_movement_child(
+    // Spawn tween children for X (constant speed)
+    spawn_boulder_throw_tween_child(
         commands,
-        MovementChildBundle::<StageTimeDomain, TargetingPositionX>::new(
+        TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
             boulder_entity,
             current_pos.x,
             target_pos.x,
             speed_x,
         ),
-        "Boulder Throw Movement X",
+        "Boulder Throw Tween X",
     );
 
-    // Spawn movement children for Y (accelerated - gravity)
-    spawn_boulder_throw_movement_child_accelerated(
+    // Spawn tween children for Y (accelerated - gravity)
+    spawn_boulder_throw_tween_child_accelerated(
         commands,
-        MovementChildAcceleratedBundle::<StageTimeDomain, TargetingPositionY>::new(
+        TweenChildAcceleratedBundle::<StageTimeDomain, TargetingValueY>::new(
             boulder_entity,
             current_pos.y,
             target_pos.y,
             speed_y,
             BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
         ),
-        "Boulder Throw Movement Y",
+        "Boulder Throw Tween Y",
     );
 
-    // Spawn movement children for Z (constant speed toward player depth)
-    spawn_boulder_throw_movement_child(
+    // Spawn tween children for Z (constant speed toward player depth)
+    spawn_boulder_throw_tween_child(
         commands,
-        MovementChildBundle::<StageTimeDomain, TargetingPositionZ>::new(
+        TweenChildBundle::<StageTimeDomain, TargetingValueZ>::new(
             boulder_entity,
             depth_f32,
             target_depth.to_f32(),
             BOULDER_THROW_ATTACK_DEPTH_SPEED,
         ),
-        "Boulder Throw Movement Z",
+        "Boulder Throw Tween Z",
     );
 }

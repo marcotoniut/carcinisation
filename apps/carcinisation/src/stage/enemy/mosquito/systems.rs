@@ -96,7 +96,7 @@ pub fn assign_mosquito_animation(
                         )
                     })
                 }
-                EnemyStep::LinearMovement { .. } => {
+                EnemyStep::LinearTween { .. } => {
                     let animation_o = MOSQUITO_ANIMATIONS.fly.get(depth);
                     animation_o.map(|animation| {
                         (

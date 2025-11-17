@@ -6,7 +6,7 @@ use crate::{
     transitions::data::TransitionRequest,
 };
 use bevy::prelude::*;
-use cween::linear::components::{LinearMovementBundle, TargetingPositionX, TargetingPositionY};
+use cween::linear::components::{LinearTweenBundle, TargetingValueX, TargetingValueY};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
@@ -58,19 +58,19 @@ impl TargetMovement {
         self,
         coordinates: Vec2,
     ) -> (
-        LinearMovementBundle<CutsceneTimeDomain, TargetingPositionX>,
-        LinearMovementBundle<CutsceneTimeDomain, TargetingPositionY>,
+        LinearTweenBundle<CutsceneTimeDomain, TargetingValueX>,
+        LinearTweenBundle<CutsceneTimeDomain, TargetingValueY>,
     ) {
         let normalised_direction = (self.position - coordinates).normalize_or_zero();
         let velocity = normalised_direction * self.speed * GAME_BASE_SPEED;
 
         (
-            LinearMovementBundle::<CutsceneTimeDomain, TargetingPositionX>::new(
+            LinearTweenBundle::<CutsceneTimeDomain, TargetingValueX>::new(
                 coordinates.x,
                 self.position.x,
                 velocity.x,
             ),
-            LinearMovementBundle::<CutsceneTimeDomain, TargetingPositionY>::new(
+            LinearTweenBundle::<CutsceneTimeDomain, TargetingValueY>::new(
                 coordinates.y,
                 self.position.y,
                 velocity.y,

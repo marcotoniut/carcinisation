@@ -58,7 +58,7 @@ pub fn spawn_path(
             StageStep::Cinematic(s) => {
                 // TODO
             }
-            StageStep::Movement(s) => {
+            StageStep::Tween(s) => {
                 path = path.line_to(s.coordinates + h_screen_resolution);
 
                 let direction = (current_position - s.coordinates).normalize_or_zero();
@@ -73,7 +73,7 @@ pub fn spawn_path(
                     closed: true,
                 };
                 commands.spawn((
-                    Name::new(format!("Elapsed Path Movement Arrow {}", index)),
+                    Name::new(format!("Elapsed Path Tween Arrow {}", index)),
                     SceneItem,
                     ShapeBuilder::with(&arrow_shape).fill(Color::CYAN).build(),
                     Transform {
@@ -195,7 +195,7 @@ pub fn spawn_stage(
             StageStep::Cinematic(s) => {
                 // TODO
             }
-            StageStep::Movement(s) => {
+            StageStep::Tween(s) => {
                 for spawn in s.spawns.iter() {
                     current_elapsed += spawn.get_elapsed();
                     if current_elapsed <= stage_controls_ui.ElapsedDuration

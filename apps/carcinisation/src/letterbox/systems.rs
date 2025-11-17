@@ -12,7 +12,7 @@ use crate::{
     pixel::components::PxRectangle,
 };
 use bevy::prelude::*;
-use cween::linear::components::{LinearMovementBundle, TargetingPositionY};
+use cween::linear::components::{LinearTweenBundle, TargetingValueY};
 use seldom_pixel::prelude::PxSubPosition;
 use seldom_pixel::prelude::*;
 
@@ -98,9 +98,10 @@ pub fn insert_linear_movement(
     commands
         .entity(entity)
         // TODO review why this was removed
-        // .remove::<LinearPositionRemovalBundle<LetterboxTimeDomain, TargetingPositionY>>()
-        .insert(LinearMovementBundle::<
-            LetterboxTimeDomain,
-            TargetingPositionY,
-        >::new(position.y, target, speed));
+        // .remove::<LinearValueRemovalBundle<LetterboxTimeDomain, TargetingValueY>>()
+        .insert(
+            LinearTweenBundle::<LetterboxTimeDomain, TargetingValueY>::new(
+                position.y, target, speed,
+            ),
+        );
 }

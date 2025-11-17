@@ -18,7 +18,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use cween::linear::components::{LinearTargetReached, TargetingPositionZ};
+use cween::linear::components::{LinearValueReached, TargetingValueZ};
 use seldom_pixel::prelude::PxSprite;
 
 // TODO remove in favor of damage taken?
@@ -35,7 +35,7 @@ pub fn miss_on_reached(
     query: Query<
         Entity,
         (
-            Added<LinearTargetReached<StageTimeDomain, TargetingPositionZ>>,
+            Added<LinearValueReached<StageTimeDomain, TargetingValueZ>>,
             With<EnemyAttack>,
             Without<InView>,
         ),

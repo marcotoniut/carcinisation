@@ -47,7 +47,7 @@ StageData(
                 contains: None,
                 speed: 2.0,
                 steps: [
-                    LinearMovement(
+                    LinearTween(
                         depth_movement_o: -1,
                         direction: Vec2(-1.0, 0.0),
                         trayectory: 0.0,
@@ -55,12 +55,12 @@ StageData(
                     Idle(
                         duration: 4.0,
                     ),
-                    LinearMovement(
+                    LinearTween(
                         depth_movement_o: None,
                         direction: Vec2(1.0, 0.0),
                         trayectory: 0.0,
                     ),
-                    LinearMovement(
+                    LinearTween(
                         depth_movement_o: 1,
                         direction: Vec2(-1.0, 0.0),
                         trayectory: 0.0,
@@ -89,7 +89,7 @@ StageData(
         ),
     ],
     steps: [
-        Movement(
+        Tween(
             coordinates: Vec2(5.0, 0.0),
             base_speed: 1.0,
             spawns: [
@@ -189,7 +189,7 @@ StageData(
             ],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(220.0, 0.0),
             base_speed: 1.0,
             spawns: [
@@ -252,7 +252,7 @@ StageData(
             spawns: [],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(280.0, 0.0),
             base_speed: 1.0,
             spawns: [
@@ -313,7 +313,7 @@ StageData(
             ],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(513.0, 0.0),
             base_speed: 1.0,
             spawns: [
@@ -464,7 +464,7 @@ StageData(
             spawns: [],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(800.0, 155.0),
             base_speed: 1.0,
             spawns: [
@@ -505,7 +505,7 @@ StageData(
             spawns: [],
             floor_depths: None,
         ),
-        Movement(
+        Tween(
             coordinates: Vec2(930.0, 155.0),
             base_speed: 1.0,
             spawns: [

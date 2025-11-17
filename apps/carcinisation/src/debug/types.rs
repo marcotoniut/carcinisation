@@ -1,7 +1,7 @@
 //! Registers frequently-inspected types for the Bevy editor/debug tooling.
 
 use bevy::prelude::*;
-use cween::linear::components::{TargetingPositionX, TargetingPositionY, TargetingPositionZ};
+use cween::linear::components::{TargetingValueX, TargetingValueY, TargetingValueZ};
 
 use crate::{
     components::GBColor,
@@ -60,12 +60,12 @@ pub fn register_types(app: &mut App) {
         .register_type::<InflictsDamage>()
         .register_type::<GBColor>()
         .register_type::<Layer>()
-        .register_type::<LinearMovement>()
+        .register_type::<LinearTween>()
         .register_type::<PlayerAttack>()
         .register_type::<RailPosition>()
         .register_type::<Speed>()
         .register_type::<StageElapsedStarted>()
-        .register_type::<TargetingPositionX>()
-        .register_type::<TargetingPositionY>()
-        .register_type::<TargetingPositionZ>();
+        .register_type::<TargetingValueX>()
+        .register_type::<TargetingValueY>()
+        .register_type::<TargetingValueZ>();
 }
