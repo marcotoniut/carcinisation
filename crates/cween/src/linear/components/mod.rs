@@ -1,6 +1,6 @@
 pub mod extra;
 
-use crate::plugins::movement::structs::{Constructor, Magnitude, MovementDirection};
+use crate::structs::{Constructor, Magnitude, MovementDirection};
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use derive_more::From;
 use derive_new::new;

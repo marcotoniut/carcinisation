@@ -1,4 +1,4 @@
-use crate::plugins::movement::structs::MovementVec2Position;
+use crate::structs::MovementVec2Position;
 use bevy::prelude::*;
 use derive_new::new;
 use std::marker::PhantomData;

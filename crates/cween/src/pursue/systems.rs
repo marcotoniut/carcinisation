@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use super::components::*;
-use crate::plugins::movement::structs::MovementVec2Position;
+use crate::structs::MovementVec2Position;
 use bevy::{ecs::component::Mutable, prelude::*};
 
 /** TODO generalise current position via a generic LinearPosition trait */

@@ -1914,7 +1914,9 @@ dependencies = [
  "bevy_ecs",
  "bevy_framepace",
  "bevy_state",
+ "carcinisation_core",
  "colored",
+ "cween",
  "derive-new",
  "derive_more",
  "getrandom 0.2.16",
@@ -1933,6 +1935,17 @@ dependencies = [
  "strum_macros",
  "ts-rs",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "carcinisation_core"
+version = "0.2.0"
+dependencies = [
+ "assert_assets_path",
+ "bevy",
+ "derive-new",
+ "lazy_static",
+ "seldom_pixel",
 ]
 
 [[package]]
@@ -2326,6 +2339,20 @@ name = "cursor-icon"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
+
+[[package]]
+name = "cween"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "carcinisation_core",
+ "derive-new",
+ "derive_more",
+ "lazy_static",
+ "seldom_pixel",
+ "serde",
+ "ts-rs",
+]
 
 [[package]]
 name = "darling"

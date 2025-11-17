@@ -5,7 +5,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::plugins::movement::structs::{Magnitude, MovementDirection};
+use crate::structs::{Magnitude, MovementDirection};
 
 use super::components::{extra::LinearMovement2DReachCheck, *};
 
@@ -109,7 +109,8 @@ where
     D: Default + Send + Sync + 'static,
     P: Magnitude + Component<Mutability = Mutable>,
 {
-    use crate::{components::DespawnMark, plugins::movement::linear::components::MovementChild};
+    use crate::linear::components::MovementChild;
+    use carcinisation_core::components::DespawnMark;
 
     let mut query = world
         .query_filtered::<(Entity, Option<&MovementChild>), Added<LinearTargetReached<D, P>>>();
