@@ -2,11 +2,13 @@
 name = "generate-editor-bindings"
 version = "0.1.0"
 edition = "2021"
+description = "Exports TypeScript bindings from StageData for the stage editor"
 
 [features]
 derive-ts = []
 
 [dependencies]
-anyhow = "1.0"
 carcinisation = { path = "../../apps/carcinisation", features = ["derive-ts"] }
+
+anyhow = "1.0"
 ts-rs = "11.1.0"

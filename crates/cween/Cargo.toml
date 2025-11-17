@@ -2,16 +2,19 @@
 name = "cween"
 version = "0.2.0"
 edition = "2021"
-
-[dependencies]
-bevy = { workspace = true }
-carcinisation_core = { path = "../carcinisation_core" }
-derive-new = { workspace = true }
-lazy_static = { workspace = true }
-seldom_pixel = { workspace = true, features = ["line"] }
-derive_more = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-ts-rs = { workspace = true, optional = true }
+description = "Tweening system for animating stage entities on fixed-step time domains"
 
 [features]
 derive-ts = ["ts-rs"]
+
+[dependencies]
+carcinisation_core = { path = "../carcinisation_core" }
+
+bevy = { workspace = true }
+seldom_pixel = { workspace = true, features = ["line"] }
+
+derive-new = { workspace = true }
+derive_more = { workspace = true }
+lazy_static = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+ts-rs = { workspace = true, optional = true }

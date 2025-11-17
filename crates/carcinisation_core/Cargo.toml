@@ -2,10 +2,12 @@
 name = "carcinisation_core"
 version = "0.2.0"
 edition = "2021"
+description = "Shared utilities for runtime, UI, and editor"
 
 [dependencies]
-assert_assets_path = { workspace = true }
 bevy = { workspace = true }
+seldom_pixel = { workspace = true, features = ["line"] }
+
+assert_assets_path = { workspace = true }
 derive-new = { workspace = true }
 lazy_static = { workspace = true }
-seldom_pixel = { workspace = true, features = ["line"] }

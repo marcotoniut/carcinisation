@@ -2,6 +2,7 @@
 name = "carcinisation"
 version = "0.2.0"
 edition = "2021"
+description = "Main Bevy executable for stage-based pixel shooter"
 default-run = "carcinisation"
 
 [features]
@@ -9,35 +10,42 @@ default = []
 derive-ts = ["ts-rs", "cween/derive-ts"]
 
 [dependencies]
-assert_assets_path = { workspace = true }
+# Workspace crates
+activable = { path = "../../crates/activable" }
+activable_macros = { path = "../../crates/activable_macros" }
+carcinisation_core = { path = "../../crates/carcinisation_core" }
+cween = { path = "../../crates/cween" }
+
+# Bevy ecosystem
 bevy = { workspace = true }
-bevy_state = { workspace = true }
-bevy_ecs = { workspace = true }
-bevy_common_assets = { workspace = true }
 bevy-inspector-egui = { workspace = true }
+bevy_common_assets = { workspace = true }
+bevy_ecs = { workspace = true }
 bevy_framepace = { workspace = true }
+bevy_state = { workspace = true }
+leafwing-input-manager = { workspace = true }
+seldom_pixel = { workspace = true }
+
+# Serialization
+ron = { workspace = true }
+serde = { workspace = true }
+serde-generate = "0.26"
+serde-reflection = "0.4"
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+ts-rs = { workspace = true, optional = true }
+
+# Utilities
+anyhow = { workspace = true }
+assert_assets_path = { workspace = true }
 colored = { workspace = true }
 derive-new = { workspace = true }
 derive_more = { workspace = true }
 lazy_static = { workspace = true }
-leafwing-input-manager = { workspace = true }
 num_enum = { workspace = true }
 rand = { workspace = true }
-seldom_pixel = { workspace = true }
-serde = { workspace = true }
-serde_with = { workspace = true }
-serde_json = { workspace = true }
-ron = { workspace = true }
-serde-reflection = "0.4"
-serde-generate = "0.26"
-ts-rs = { workspace = true, optional = true }
-anyhow = { workspace = true }
-activable_macros = { path = "../../crates/activable_macros" }
-activable = { path = "../../crates/activable" }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-carcinisation_core = { path = "../../crates/carcinisation_core" }
-cween = { path = "../../crates/cween" }
 [target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
 wasm-bindgen = "0.2.92"
 getrandom = { version = "0.2", features = ["js"] }

@@ -2,12 +2,13 @@
 name = "activable"
 edition = "2021"
 version.workspace = true
+description = "Bevy state machine for gating plugin behavior via Activable marker and ActiveState resource"
 
 [dependencies]
+activable_macros = { path = "../activable_macros" }
 bevy = { workspace = true }
 bevy_ecs = { workspace = true }
 bevy_state = { workspace = true }
-activable_macros = { path = "../activable_macros" }
 
 [lints]
 workspace = true
