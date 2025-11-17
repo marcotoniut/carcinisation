@@ -55,30 +55,81 @@ impl Frames for (&PxLine, &PxFilterAsset) {
         _: impl Fn(u8) -> u8,
     ) {
         let (line, PxFilterAsset(filter)) = self;
-        let mut poses = HashSet::new();
+        let slice_offset = image.offset();
+        let image_width = image.image_width() as i32;
+        let image_height = image.image_height() as i32;
 
-        for (start, end) in line.iter().zip(line.iter().skip(1)) {
-            let start = *start + offset;
-            let end = *end + offset;
+        if invert {
+            let mut line_points = Vec::new();
 
-            for pos in Bresenham::new(start.into(), end.into()) {
-                poses.insert(IVec2::from(pos));
+            for (segment_index, (start, end)) in line.iter().zip(line.iter().skip(1)).enumerate() {
+                let start = *start + offset;
+                let end = *end + offset;
+
+                for (step, pos) in Bresenham::new(start.into(), end.into()).enumerate() {
+                    if segment_index > 0 && step == 0 {
+                        continue;
+                    }
+
+                    line_points.push(IVec2::from(pos));
+                }
             }
-        }
 
-        let offset = image.offset();
+            let mut originals = Vec::with_capacity(line_points.len());
 
-        for x in 0..image.image_width() as i32 {
-            for y in 0..image.image_height() as i32 {
-                let pos = ivec2(x, y);
+            for world_pos in &line_points {
+                let pos = *world_pos + slice_offset;
 
-                if poses.contains(&(pos - offset)) != invert {
+                if pos.x < 0 || pos.y < 0 || pos.x >= image_width || pos.y >= image_height {
+                    continue;
+                }
+
+                let pixel = *image.image_pixel_mut(pos);
+                originals.push((pos, pixel));
+            }
+
+            for y in 0..image_height {
+                for x in 0..image_width {
+                    let pos = ivec2(x, y);
                     let pixel = image.image_pixel_mut(pos);
                     *pixel = filter.pixel(ivec2(
                         *pixel as i32,
                         frame(uvec2(x as u32, y as u32)) as i32,
                     ));
                 }
+            }
+
+            for (pos, pixel) in originals {
+                *image.image_pixel_mut(pos) = pixel;
+            }
+        } else {
+            let mut poses = HashSet::new();
+
+            for (segment_index, (start, end)) in line.iter().zip(line.iter().skip(1)).enumerate() {
+                let start = *start + offset;
+                let end = *end + offset;
+
+                for (step, pos) in Bresenham::new(start.into(), end.into()).enumerate() {
+                    if segment_index > 0 && step == 0 {
+                        continue;
+                    }
+
+                    poses.insert(IVec2::from(pos));
+                }
+            }
+
+            for world_pos in poses {
+                let pos = world_pos + slice_offset;
+
+                if pos.x < 0 || pos.y < 0 || pos.x >= image_width || pos.y >= image_height {
+                    continue;
+                }
+
+                let pixel = image.image_pixel_mut(pos);
+                *pixel = filter.pixel(ivec2(
+                    *pixel as i32,
+                    frame(uvec2(pos.x as u32, pos.y as u32)) as i32,
+                ));
             }
         }
     }
@@ -150,4 +201,73 @@ pub(crate) fn draw_line(
         frame,
         [],
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{camera::PxCamera, filter::PxFilterAsset, image::PxImage};
+
+    fn filter_asset() -> PxFilterAsset {
+        PxFilterAsset(PxImage::new(vec![0, 2, 0, 0], 4))
+    }
+
+    fn pixels(image: &PxImage) -> Vec<u8> {
+        let size = image.size();
+        let mut out = Vec::with_capacity((size.x * size.y) as usize);
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                out.push(image.pixel(IVec2::new(x, y)));
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn line_draws_only_line_pixels() {
+        let mut image = PxImage::new(vec![1; 25], 5);
+        let mut slice = image.slice_all_mut();
+        let filter = filter_asset();
+        let line = PxLine(vec![IVec2::new(1, 1), IVec2::new(3, 1)]);
+
+        draw_line(
+            &line,
+            &filter,
+            false,
+            &mut slice,
+            PxCanvas::Camera,
+            None,
+            PxCamera::default(),
+        );
+
+        let expected = vec![
+            1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ];
+
+        assert_eq!(pixels(&image), expected);
+    }
+
+    #[test]
+    fn line_invert_draws_outside_only() {
+        let mut image = PxImage::new(vec![1; 25], 5);
+        let mut slice = image.slice_all_mut();
+        let filter = filter_asset();
+        let line = PxLine(vec![IVec2::new(1, 1), IVec2::new(3, 1)]);
+
+        draw_line(
+            &line,
+            &filter,
+            true,
+            &mut slice,
+            PxCanvas::Camera,
+            None,
+            PxCamera::default(),
+        );
+
+        let expected = vec![
+            2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        ];
+
+        assert_eq!(pixels(&image), expected);
+    }
 }

@@ -42,10 +42,19 @@ impl Frames for (PxRect, &PxFilterAsset) {
     ) {
         let (_, PxFilterAsset(filter)) = self;
 
-        for x in 0..image.image_width() as i32 {
-            for y in 0..image.image_height() as i32 {
-                let pos = ivec2(x, y);
-                if image.contains_pixel(pos) != invert {
+        if invert {
+            let image_width = image.image_width() as i32;
+            let image_height = image.image_height() as i32;
+            let rect_min = image.offset();
+            let rect_max = rect_min + IVec2::new(image.width() as i32, image.height() as i32);
+            let x_min = rect_min.x.clamp(0, image_width);
+            let x_max = rect_max.x.clamp(0, image_width);
+            let y_min = rect_min.y.clamp(0, image_height);
+            let y_max = rect_max.y.clamp(0, image_height);
+
+            for y in 0..y_min {
+                for x in 0..image_width {
+                    let pos = ivec2(x, y);
                     let pixel = image.image_pixel_mut(pos);
                     *pixel = filter_fn(filter.pixel(ivec2(
                         *pixel as i32,
@@ -53,7 +62,100 @@ impl Frames for (PxRect, &PxFilterAsset) {
                     )));
                 }
             }
+
+            for y in y_max..image_height {
+                for x in 0..image_width {
+                    let pos = ivec2(x, y);
+                    let pixel = image.image_pixel_mut(pos);
+                    *pixel = filter_fn(filter.pixel(ivec2(
+                        *pixel as i32,
+                        frame(uvec2(x as u32, y as u32)) as i32,
+                    )));
+                }
+            }
+
+            for y in y_min..y_max {
+                for x in 0..x_min {
+                    let pos = ivec2(x, y);
+                    let pixel = image.image_pixel_mut(pos);
+                    *pixel = filter_fn(filter.pixel(ivec2(
+                        *pixel as i32,
+                        frame(uvec2(x as u32, y as u32)) as i32,
+                    )));
+                }
+
+                for x in x_max..image_width {
+                    let pos = ivec2(x, y);
+                    let pixel = image.image_pixel_mut(pos);
+                    *pixel = filter_fn(filter.pixel(ivec2(
+                        *pixel as i32,
+                        frame(uvec2(x as u32, y as u32)) as i32,
+                    )));
+                }
+            }
+        } else {
+            let image_width = image.image_width();
+            image.for_each_mut(|_, image_index, pixel| {
+                let x = (image_index % image_width) as u32;
+                let y = (image_index / image_width) as u32;
+                *pixel = filter_fn(filter.pixel(ivec2(*pixel as i32, frame(uvec2(x, y)) as i32)));
+            });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{animation::draw_frame, filter::PxFilterAsset, image::PxImage};
+
+    fn filter_asset() -> PxFilterAsset {
+        PxFilterAsset(PxImage::new(vec![0, 2, 0, 0], 4))
+    }
+
+    fn pixels(image: &PxImage) -> Vec<u8> {
+        let size = image.size();
+        let mut out = Vec::with_capacity((size.x * size.y) as usize);
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                out.push(image.pixel(IVec2::new(x, y)));
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn rect_draws_inside_only() {
+        let mut image = PxImage::new(vec![1; 16], 4);
+        let mut slice = image.slice_all_mut();
+        let mut rect_slice = slice.slice_mut(IRect {
+            min: ivec2(1, 1),
+            max: ivec2(3, 3),
+        });
+        let rect = PxRect(UVec2::new(2, 2));
+        let filter = filter_asset();
+
+        draw_frame(&(rect, &filter), false, &mut rect_slice, None, []);
+
+        let expected = vec![1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1, 1, 1];
+        assert_eq!(pixels(&image), expected);
+    }
+
+    #[test]
+    fn rect_invert_draws_outside_only() {
+        let mut image = PxImage::new(vec![1; 16], 4);
+        let mut slice = image.slice_all_mut();
+        let mut rect_slice = slice.slice_mut(IRect {
+            min: ivec2(1, 1),
+            max: ivec2(3, 3),
+        });
+        let rect = PxRect(UVec2::new(2, 2));
+        let filter = filter_asset();
+
+        draw_frame(&(rect, &filter), true, &mut rect_slice, None, []);
+
+        let expected = vec![2, 2, 2, 2, 2, 1, 1, 2, 2, 1, 1, 2, 2, 2, 2, 2];
+        assert_eq!(pixels(&image), expected);
     }
 }
 
