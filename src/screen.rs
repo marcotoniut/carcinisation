@@ -2,7 +2,7 @@
 
 // TODO Split out a module
 
-use std::{collections::BTreeMap, iter::empty, marker::PhantomData};
+use std::{collections::BTreeMap, iter::empty, marker::PhantomData, sync::RwLock};
 
 use bevy_asset::uuid_handle;
 #[cfg(feature = "headed")]
@@ -22,8 +22,9 @@ use bevy_render::{
         BindGroupEntries, BindGroupLayout, BindGroupLayoutEntries, CachedRenderPipelineId,
         ColorTargetState, ColorWrites, DynamicUniformBuffer, Extent3d, FragmentState,
         PipelineCache, RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor,
-        ShaderStages, ShaderType, TexelCopyBufferLayout, TextureDimension, TextureFormat,
-        TextureSampleType, TextureViewDescriptor, TextureViewDimension, VertexState,
+        ShaderStages, ShaderType, TexelCopyBufferLayout, Texture, TextureDescriptor,
+        TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureViewDescriptor,
+        TextureViewDimension, VertexState,
         binding_types::{texture_2d, uniform_buffer},
     },
     renderer::{RenderContext, RenderDevice, RenderQueue},
@@ -102,7 +103,9 @@ impl<L: PxLayer> Plugin for Plug<L> {
 
     fn finish(&self, _app: &mut App) {
         #[cfg(feature = "headed")]
-        _app.sub_app_mut(RenderApp).init_resource::<PxPipeline>();
+        _app.sub_app_mut(RenderApp)
+            .init_resource::<PxPipeline>()
+            .init_resource::<PxRenderBuffer>();
     }
 }
 
@@ -324,6 +327,85 @@ impl FromWorld for PxPipeline {
 }
 
 #[cfg(feature = "headed")]
+#[derive(Resource)]
+struct PxRenderBuffer {
+    inner: RwLock<PxRenderBufferInner>,
+}
+
+#[cfg(feature = "headed")]
+struct PxRenderBufferInner {
+    size: UVec2,
+    image: Option<Image>,
+    texture: Option<Texture>,
+}
+
+#[cfg(feature = "headed")]
+impl Default for PxRenderBuffer {
+    fn default() -> Self {
+        Self {
+            inner: RwLock::new(PxRenderBufferInner {
+                size: UVec2::ZERO,
+                image: None,
+                texture: None,
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "headed")]
+impl PxRenderBuffer {
+    fn ensure_size(&self, device: &RenderDevice, size: UVec2) {
+        let mut inner = self.inner.write().unwrap();
+        if size == inner.size && inner.image.is_some() && inner.texture.is_some() {
+            return;
+        }
+
+        inner.size = size;
+
+        let descriptor = TextureDescriptor {
+            label: Some("px_present_texture"),
+            size: Extent3d {
+                width: size.x,
+                height: size.y,
+                depth_or_array_layers: 1,
+            },
+            dimension: TextureDimension::D2,
+            format: TextureFormat::R8Uint,
+            sample_count: 1,
+            mip_level_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            view_formats: &[],
+        };
+
+        inner.texture = Some(device.create_texture(&descriptor));
+        inner.image = Some(Image::new_fill(
+            descriptor.size,
+            descriptor.dimension,
+            &[0],
+            descriptor.format,
+            default(),
+        ));
+    }
+
+    fn clear(&self) {
+        let mut inner = self.inner.write().unwrap();
+        if let Some(image) = inner.image.as_mut() {
+            if let Some(data) = image.data.as_mut() {
+                data.fill(0);
+            }
+        }
+    }
+
+    fn read_inner(&self) -> std::sync::RwLockReadGuard<'_, PxRenderBufferInner> {
+        self.inner.read().unwrap()
+    }
+
+    fn write_inner(&self) -> std::sync::RwLockWriteGuard<'_, PxRenderBufferInner> {
+        self.inner.write().unwrap()
+    }
+}
+
+#[cfg(feature = "headed")]
 #[derive(RenderLabel, Hash, Eq, PartialEq, Clone, Debug)]
 struct PxRender;
 
@@ -381,17 +463,10 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         let &camera = world.resource::<PxCamera>();
         let screen = world.resource::<Screen>();
 
-        let mut image = Image::new_fill(
-            Extent3d {
-                width: screen.computed_size.x,
-                height: screen.computed_size.y,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            &[0],
-            TextureFormat::R8Uint,
-            default(),
-        );
+        let device = world.resource::<RenderDevice>();
+        let render_buffer = world.resource::<PxRenderBuffer>();
+        render_buffer.ensure_size(device, screen.computed_size);
+        render_buffer.clear();
 
         #[cfg(feature = "line")]
         let mut layer_contents = BTreeMap::<
@@ -700,367 +775,373 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         let typefaces = world.resource::<RenderAssets<PxTypeface>>();
         let filters = world.resource::<RenderAssets<PxFilterAsset>>();
 
-        let mut layer_image = PxImage::empty_from_image(&image);
-        let mut image_slice = PxImageSliceMut::from_image_mut(&mut image).unwrap();
-
-        #[allow(unused_variables)]
-        for (
-            _,
-            (
-                maps,
-                // image_to_sprites,
-                sprites,
-                texts,
-                clip_rects,
-                clip_lines,
-                clip_filters,
-                over_rects,
-                over_lines,
-                over_filters,
-            ),
-        ) in layer_contents.into_iter()
         {
-            layer_image.clear();
-            let mut layer_slice = layer_image.slice_all_mut();
+            let mut inner = render_buffer.write_inner();
+            let image = inner.image.as_mut().unwrap();
+            let mut layer_image = PxImage::empty_from_image(image);
+            let mut image_slice = PxImageSliceMut::from_image_mut(image).unwrap();
 
-            for (map, position, canvas, frame, map_filter) in maps {
-                let Some(tileset) = tilesets.get(&map.tileset) else {
-                    continue;
-                };
+            #[allow(unused_variables)]
+            for (
+                _,
+                (
+                    maps,
+                    // image_to_sprites,
+                    sprites,
+                    texts,
+                    clip_rects,
+                    clip_lines,
+                    clip_filters,
+                    over_rects,
+                    over_lines,
+                    over_filters,
+                ),
+            ) in layer_contents.into_iter()
+            {
+                layer_image.clear();
+                let mut layer_slice = layer_image.slice_all_mut();
 
-                let map_filter = map_filter.and_then(|map_filter| filters.get(&**map_filter));
-                let size = map.tiles.size();
+                for (map, position, canvas, frame, map_filter) in maps {
+                    let Some(tileset) = tilesets.get(&map.tileset) else {
+                        continue;
+                    };
 
-                for x in 0..size.x {
-                    for y in 0..size.y {
-                        let pos = UVec2::new(x, y);
+                    let map_filter = map_filter.and_then(|map_filter| filters.get(&**map_filter));
+                    let size = map.tiles.size();
 
-                        let Some(tile) = map.tiles.get(pos) else {
-                            continue;
-                        };
+                    for x in 0..size.x {
+                        for y in 0..size.y {
+                            let pos = UVec2::new(x, y);
 
-                        let Ok((&PxTile { texture }, tile_filter)) =
-                            self.tiles.get_manual(world, tile)
-                        else {
-                            continue;
-                        };
+                            let Some(tile) = map.tiles.get(pos) else {
+                                continue;
+                            };
 
-                        let Some(tile) = tileset.tileset.get(texture as usize) else {
-                            error!(
-                                "tile texture index out of bounds: the len is {}, but the index is {texture}",
-                                tileset.tileset.len()
+                            let Ok((&PxTile { texture }, tile_filter)) =
+                                self.tiles.get_manual(world, tile)
+                            else {
+                                continue;
+                            };
+
+                            let Some(tile) = tileset.tileset.get(texture as usize) else {
+                                error!(
+                                    "tile texture index out of bounds: the len is {}, but the index is {texture}",
+                                    tileset.tileset.len()
+                                );
+                                continue;
+                            };
+
+                            draw_spatial(
+                                tile,
+                                (),
+                                &mut layer_slice,
+                                (*position + pos.as_ivec2() * tileset.tile_size().as_ivec2())
+                                    .into(),
+                                PxAnchor::BottomLeft,
+                                canvas,
+                                frame.copied(),
+                                [
+                                    tile_filter.and_then(|tile_filter| filters.get(&**tile_filter)),
+                                    map_filter,
+                                ]
+                                .into_iter()
+                                .flatten(),
+                                camera,
                             );
-                            continue;
-                        };
-
-                        draw_spatial(
-                            tile,
-                            (),
-                            &mut layer_slice,
-                            (*position + pos.as_ivec2() * tileset.tile_size().as_ivec2()).into(),
-                            PxAnchor::BottomLeft,
-                            canvas,
-                            frame.copied(),
-                            [
-                                tile_filter.and_then(|tile_filter| filters.get(&**tile_filter)),
-                                map_filter,
-                            ]
-                            .into_iter()
-                            .flatten(),
-                            camera,
-                        );
-                    }
-                }
-            }
-
-            // I was trying to make `ImageToSprite` work without 1-frame lag, but this
-            // fundamentally needs GPU readback or something bc you can't just get image data
-            // from a `GpuImage`. I think those represent images that're actually on the GPU. So
-            // here's where I left off with that. I don't need `ImageToSprite` at the moment, so
-            // this will be left incomplete until I need it, if I ever do.
-
-            // // TODO Use more helpers
-            // // TODO Feature gate
-            // // TODO Immediate function version
-            // for (image, position, anchor, canvas, filter) in image_to_sprites {
-            //     // let palette = screen.palette
-            //     //     .colors
-            //     //     .iter()
-            //     //     .map(|&color| Oklaba::from(Srgba::from_u8_array_no_alpha(color)).to_vec3())
-            //     //     .collect::<Vec<Vec3>>();
-
-            //     let palette_tree = ImmutableKdTree::from(
-            //         &screen
-            //             .palette
-            //             .iter()
-            //             .map(|&color| color.into())
-            //             .collect::<Vec<[f32; 3]>>()[..],
-            //     );
-
-            //     let dither = &image.dither;
-            //     let Some(image) = images.get(&image.image) else {
-            //         continue;
-            //     };
-
-            //     // TODO https://github.com/bevyengine/bevy/blob/v0.14.1/examples/app/headless_renderer.rs
-            //     let size = image.size;
-            //     let data = PxImage::empty(size);
-
-            //     let mut sprite = PxSprite {
-            //         frame_size: data.area(),
-            //         data,
-            //     };
-
-            //     let mut pixels = image
-            //         .data
-            //         .chunks_exact(4)
-            //         .zip(sprite.data.iter_mut())
-            //         .enumerate()
-            //         .collect::<Vec<_>>();
-
-            //     pixels.par_chunk_map_mut(ComputeTaskPool::get(), 20, |_, pixels| {
-            //         use DitherAlgorithm::*;
-            //         use ThresholdMap::*;
-
-            //         match *dither {
-            //             None => dither_slice::<ClosestAlg, 1>(
-            //                 pixels,
-            //                 0.,
-            //                 size,
-            //                 &screen.palette_tree,
-            //                 &screen.palette,
-            //             ),
-            //             Some(Dither {
-            //                 algorithm: Ordered,
-            //                 threshold,
-            //                 threshold_map: X2_2,
-            //             }) => dither_slice::<OrderedAlg, 4>(
-            //                 pixels,
-            //                 threshold,
-            //                 size,
-            //                 &screen.palette_tree,
-            //                 &screen.palette,
-            //             ),
-            //             Some(Dither {
-            //                 algorithm: Ordered,
-            //                 threshold,
-            //                 threshold_map: X4_4,
-            //             }) => dither_slice::<OrderedAlg, 16>(
-            //                 pixels,
-            //                 threshold,
-            //                 size,
-            //                 &screen.palette_tree,
-            //                 &screen.palette,
-            //             ),
-            //             Some(Dither {
-            //                 algorithm: Ordered,
-            //                 threshold,
-            //                 threshold_map: X8_8,
-            //             }) => dither_slice::<OrderedAlg, 64>(
-            //                 pixels,
-            //                 threshold,
-            //                 size,
-            //                 &screen.palette_tree,
-            //                 &screen.palette,
-            //             ),
-            //             Some(Dither {
-            //                 algorithm: Pattern,
-            //                 threshold,
-            //                 threshold_map: X2_2,
-            //             }) => dither_slice::<PatternAlg, 4>(
-            //                 pixels,
-            //                 threshold,
-            //                 size,
-            //                 &screen.palette_tree,
-            //                 &screen.palette,
-            //             ),
-            //             Some(Dither {
-            //                 algorithm: Pattern,
-            //                 threshold,
-            //                 threshold_map: X4_4,
-            //             }) => dither_slice::<PatternAlg, 16>(
-            //                 pixels,
-            //                 threshold,
-            //                 size,
-            //                 &screen.palette_tree,
-            //                 &screen.palette,
-            //             ),
-            //             Some(Dither {
-            //                 algorithm: Pattern,
-            //                 threshold,
-            //                 threshold_map: X8_8,
-            //             }) => dither_slice::<PatternAlg, 64>(
-            //                 pixels,
-            //                 threshold,
-            //                 size,
-            //                 &screen.palette_tree,
-            //                 &screen.palette,
-            //             ),
-            //         }
-            //     });
-
-            //     draw_spatial(
-            //         &sprite,
-            //         (),
-            //         &mut layer_image,
-            //         *position,
-            //         *anchor,
-            //         *canvas,
-            //         None,
-            //         filter.and_then(|filter| filters.get(filter)),
-            //         camera,
-            //     );
-            // }
-
-            for (sprite, position, anchor, canvas, frame, filter) in sprites {
-                let Some(sprite) = sprite_assets.get(&**sprite) else {
-                    continue;
-                };
-
-                draw_spatial(
-                    sprite,
-                    (),
-                    &mut layer_slice,
-                    position,
-                    anchor,
-                    canvas,
-                    frame.copied(),
-                    filter.and_then(|filter| filters.get(&**filter)),
-                    camera,
-                );
-            }
-
-            for (text, pos, alignment, canvas, frame, filter) in texts {
-                let Some(typeface) = typefaces.get(&text.typeface) else {
-                    continue;
-                };
-
-                let line_break_count = text.line_breaks.len() as u32;
-                let mut size = uvec2(
-                    0,
-                    (line_break_count + 1) * typeface.height + line_break_count,
-                );
-                let mut x = 0;
-                let mut y = 0;
-                let mut chars = Vec::new();
-                let mut line_break_index = 0;
-
-                for (index, char) in text.value.chars().enumerate() {
-                    if let Some(char) = typeface.characters.get(&char) {
-                        if x != 0 {
-                            x += 1;
                         }
-
-                        chars.push((x, y, char));
-                        x += char.data.size().x;
-
-                        if x > size.x {
-                            size.x = x;
-                        }
-                    } else if let Some(separator) = typeface.separators.get(&char) {
-                        x += separator.width;
-                    } else {
-                        error!(r#"character "{char}" in text isn't in typeface"#);
-                    }
-
-                    if text.line_breaks.get(line_break_index).copied() == Some(index as u32) {
-                        line_break_index += 1;
-                        y += typeface.height + 1;
-                        x = 0;
                     }
                 }
 
-                let top_left = *pos - alignment.pos(size).as_ivec2() + ivec2(0, size.y as i32 - 1);
+                // I was trying to make `ImageToSprite` work without 1-frame lag, but this
+                // fundamentally needs GPU readback or something bc you can't just get image data
+                // from a `GpuImage`. I think those represent images that're actually on the GPU. So
+                // here's where I left off with that. I don't need `ImageToSprite` at the moment, so
+                // this will be left incomplete until I need it, if I ever do.
 
-                for (x, y, char) in chars {
+                // // TODO Use more helpers
+                // // TODO Feature gate
+                // // TODO Immediate function version
+                // for (image, position, anchor, canvas, filter) in image_to_sprites {
+                //     // let palette = screen.palette
+                //     //     .colors
+                //     //     .iter()
+                //     //     .map(|&color| Oklaba::from(Srgba::from_u8_array_no_alpha(color)).to_vec3())
+                //     //     .collect::<Vec<Vec3>>();
+
+                //     let palette_tree = ImmutableKdTree::from(
+                //         &screen
+                //             .palette
+                //             .iter()
+                //             .map(|&color| color.into())
+                //             .collect::<Vec<[f32; 3]>>()[..],
+                //     );
+
+                //     let dither = &image.dither;
+                //     let Some(image) = images.get(&image.image) else {
+                //         continue;
+                //     };
+
+                //     // TODO https://github.com/bevyengine/bevy/blob/v0.14.1/examples/app/headless_renderer.rs
+                //     let size = image.size;
+                //     let data = PxImage::empty(size);
+
+                //     let mut sprite = PxSprite {
+                //         frame_size: data.area(),
+                //         data,
+                //     };
+
+                //     let mut pixels = image
+                //         .data
+                //         .chunks_exact(4)
+                //         .zip(sprite.data.iter_mut())
+                //         .enumerate()
+                //         .collect::<Vec<_>>();
+
+                //     pixels.par_chunk_map_mut(ComputeTaskPool::get(), 20, |_, pixels| {
+                //         use DitherAlgorithm::*;
+                //         use ThresholdMap::*;
+
+                //         match *dither {
+                //             None => dither_slice::<ClosestAlg, 1>(
+                //                 pixels,
+                //                 0.,
+                //                 size,
+                //                 &screen.palette_tree,
+                //                 &screen.palette,
+                //             ),
+                //             Some(Dither {
+                //                 algorithm: Ordered,
+                //                 threshold,
+                //                 threshold_map: X2_2,
+                //             }) => dither_slice::<OrderedAlg, 4>(
+                //                 pixels,
+                //                 threshold,
+                //                 size,
+                //                 &screen.palette_tree,
+                //                 &screen.palette,
+                //             ),
+                //             Some(Dither {
+                //                 algorithm: Ordered,
+                //                 threshold,
+                //                 threshold_map: X4_4,
+                //             }) => dither_slice::<OrderedAlg, 16>(
+                //                 pixels,
+                //                 threshold,
+                //                 size,
+                //                 &screen.palette_tree,
+                //                 &screen.palette,
+                //             ),
+                //             Some(Dither {
+                //                 algorithm: Ordered,
+                //                 threshold,
+                //                 threshold_map: X8_8,
+                //             }) => dither_slice::<OrderedAlg, 64>(
+                //                 pixels,
+                //                 threshold,
+                //                 size,
+                //                 &screen.palette_tree,
+                //                 &screen.palette,
+                //             ),
+                //             Some(Dither {
+                //                 algorithm: Pattern,
+                //                 threshold,
+                //                 threshold_map: X2_2,
+                //             }) => dither_slice::<PatternAlg, 4>(
+                //                 pixels,
+                //                 threshold,
+                //                 size,
+                //                 &screen.palette_tree,
+                //                 &screen.palette,
+                //             ),
+                //             Some(Dither {
+                //                 algorithm: Pattern,
+                //                 threshold,
+                //                 threshold_map: X4_4,
+                //             }) => dither_slice::<PatternAlg, 16>(
+                //                 pixels,
+                //                 threshold,
+                //                 size,
+                //                 &screen.palette_tree,
+                //                 &screen.palette,
+                //             ),
+                //             Some(Dither {
+                //                 algorithm: Pattern,
+                //                 threshold,
+                //                 threshold_map: X8_8,
+                //             }) => dither_slice::<PatternAlg, 64>(
+                //                 pixels,
+                //                 threshold,
+                //                 size,
+                //                 &screen.palette_tree,
+                //                 &screen.palette,
+                //             ),
+                //         }
+                //     });
+
+                //     draw_spatial(
+                //         &sprite,
+                //         (),
+                //         &mut layer_image,
+                //         *position,
+                //         *anchor,
+                //         *canvas,
+                //         None,
+                //         filter.and_then(|filter| filters.get(filter)),
+                //         camera,
+                //     );
+                // }
+
+                for (sprite, position, anchor, canvas, frame, filter) in sprites {
+                    let Some(sprite) = sprite_assets.get(&**sprite) else {
+                        continue;
+                    };
+
                     draw_spatial(
-                        char,
+                        sprite,
                         (),
                         &mut layer_slice,
-                        PxPosition(top_left + ivec2(x as i32, -(y as i32))),
-                        PxAnchor::TopLeft,
+                        position,
+                        anchor,
                         canvas,
                         frame.copied(),
                         filter.and_then(|filter| filters.get(&**filter)),
                         camera,
                     );
                 }
-            }
 
-            for (rect, filter, pos, anchor, canvas, frame, invert) in clip_rects {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_spatial(
-                        &(rect, filter),
-                        invert,
-                        &mut layer_slice,
-                        pos,
-                        anchor,
-                        canvas,
-                        frame.copied(),
-                        empty(),
-                        camera,
+                for (text, pos, alignment, canvas, frame, filter) in texts {
+                    let Some(typeface) = typefaces.get(&text.typeface) else {
+                        continue;
+                    };
+
+                    let line_break_count = text.line_breaks.len() as u32;
+                    let mut size = uvec2(
+                        0,
+                        (line_break_count + 1) * typeface.height + line_break_count,
                     );
+                    let mut x = 0;
+                    let mut y = 0;
+                    let mut chars = Vec::new();
+                    let mut line_break_index = 0;
+
+                    for (index, char) in text.value.chars().enumerate() {
+                        if let Some(char) = typeface.characters.get(&char) {
+                            if x != 0 {
+                                x += 1;
+                            }
+
+                            chars.push((x, y, char));
+                            x += char.data.size().x;
+
+                            if x > size.x {
+                                size.x = x;
+                            }
+                        } else if let Some(separator) = typeface.separators.get(&char) {
+                            x += separator.width;
+                        } else {
+                            error!(r#"character "{char}" in text isn't in typeface"#);
+                        }
+
+                        if text.line_breaks.get(line_break_index).copied() == Some(index as u32) {
+                            line_break_index += 1;
+                            y += typeface.height + 1;
+                            x = 0;
+                        }
+                    }
+
+                    let top_left =
+                        *pos - alignment.pos(size).as_ivec2() + ivec2(0, size.y as i32 - 1);
+
+                    for (x, y, char) in chars {
+                        draw_spatial(
+                            char,
+                            (),
+                            &mut layer_slice,
+                            PxPosition(top_left + ivec2(x as i32, -(y as i32))),
+                            PxAnchor::TopLeft,
+                            canvas,
+                            frame.copied(),
+                            filter.and_then(|filter| filters.get(&**filter)),
+                            camera,
+                        );
+                    }
                 }
-            }
 
-            // This is where I draw the line! /j
-            #[cfg(feature = "line")]
-            for (line, filter, canvas, frame, invert) in clip_lines {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_line(
-                        line,
-                        filter,
-                        invert,
-                        &mut layer_slice,
-                        canvas,
-                        frame.copied(),
-                        camera,
-                    );
+                for (rect, filter, pos, anchor, canvas, frame, invert) in clip_rects {
+                    if let Some(filter) = filters.get(&**filter) {
+                        draw_spatial(
+                            &(rect, filter),
+                            invert,
+                            &mut layer_slice,
+                            pos,
+                            anchor,
+                            canvas,
+                            frame.copied(),
+                            empty(),
+                            camera,
+                        );
+                    }
                 }
-            }
 
-            for (filter, frame) in clip_filters {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_filter(filter, frame.copied(), &mut layer_slice);
+                // This is where I draw the line! /j
+                #[cfg(feature = "line")]
+                for (line, filter, canvas, frame, invert) in clip_lines {
+                    if let Some(filter) = filters.get(&**filter) {
+                        draw_line(
+                            line,
+                            filter,
+                            invert,
+                            &mut layer_slice,
+                            canvas,
+                            frame.copied(),
+                            camera,
+                        );
+                    }
                 }
-            }
 
-            image_slice.draw(&layer_image);
-
-            for (rect, filter, pos, anchor, canvas, frame, invert) in over_rects {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_spatial(
-                        &(rect, filter),
-                        invert,
-                        &mut image_slice,
-                        pos,
-                        anchor,
-                        canvas,
-                        frame.copied(),
-                        empty(),
-                        camera,
-                    );
+                for (filter, frame) in clip_filters {
+                    if let Some(filter) = filters.get(&**filter) {
+                        draw_filter(filter, frame.copied(), &mut layer_slice);
+                    }
                 }
-            }
 
-            #[cfg(feature = "line")]
-            for (line, filter, canvas, frame, invert) in over_lines {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_line(
-                        line,
-                        filter,
-                        invert,
-                        &mut image_slice,
-                        canvas,
-                        frame.copied(),
-                        camera,
-                    );
+                image_slice.draw(&layer_image);
+
+                for (rect, filter, pos, anchor, canvas, frame, invert) in over_rects {
+                    if let Some(filter) = filters.get(&**filter) {
+                        draw_spatial(
+                            &(rect, filter),
+                            invert,
+                            &mut image_slice,
+                            pos,
+                            anchor,
+                            canvas,
+                            frame.copied(),
+                            empty(),
+                            camera,
+                        );
+                    }
                 }
-            }
 
-            for (filter, frame) in over_filters {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_filter(filter, frame.copied(), &mut image_slice);
+                #[cfg(feature = "line")]
+                for (line, filter, canvas, frame, invert) in over_lines {
+                    if let Some(filter) = filters.get(&**filter) {
+                        draw_line(
+                            line,
+                            filter,
+                            invert,
+                            &mut image_slice,
+                            canvas,
+                            frame.copied(),
+                            camera,
+                        );
+                    }
+                }
+
+                for (filter, frame) in over_filters {
+                    if let Some(filter) = filters.get(&**filter) {
+                        draw_filter(filter, frame.copied(), &mut image_slice);
+                    }
                 }
             }
         }
@@ -1078,16 +1159,19 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 CursorState::Left => left_click,
                 CursorState::Right => right_click,
             })
-            && let mut image = PxImageSliceMut::from_image_mut(&mut image).unwrap()
-            && let Some(pixel) = image.get_pixel_mut(IVec2::new(
-                cursor_pos.x as i32,
-                image.height() as i32 - 1 - cursor_pos.y as i32,
-            ))
         {
-            if let Some(new_pixel) = filter.get_pixel(IVec2::new(*pixel as i32, 0)) {
-                *pixel = new_pixel;
-            } else {
-                error!("`PxCursor` filter is the wrong size");
+            let mut inner = render_buffer.write_inner();
+            let image = inner.image.as_mut().unwrap();
+            let mut cursor_image = PxImageSliceMut::from_image_mut(image).unwrap();
+            if let Some(pixel) = cursor_image.get_pixel_mut(IVec2::new(
+                cursor_pos.x as i32,
+                cursor_image.height() as i32 - 1 - cursor_pos.y as i32,
+            )) {
+                if let Some(new_pixel) = filter.get_pixel(IVec2::new(*pixel as i32, 0)) {
+                    *pixel = new_pixel;
+                } else {
+                    error!("`PxCursor` filter is the wrong size");
+                }
             }
         }
 
@@ -1095,11 +1179,12 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             return Ok(());
         };
 
-        let texture = render_context
-            .render_device()
-            .create_texture(&image.texture_descriptor);
+        let inner = render_buffer.read_inner();
+        let texture = inner.texture.as_ref().unwrap();
+        let image = inner.image.as_ref().unwrap();
+        let image_descriptor = image.texture_descriptor.clone();
 
-        let Ok(pixel_size) = image.texture_descriptor.format.pixel_size() else {
+        let Ok(pixel_size) = image_descriptor.format.pixel_size() else {
             return Ok(());
         };
 
@@ -1111,12 +1196,12 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 bytes_per_row: Some(image.width() * pixel_size as u32),
                 rows_per_image: None,
             },
-            image.texture_descriptor.size,
+            image_descriptor.size,
         );
 
         let texture_view = texture.create_view(&TextureViewDescriptor {
             label: Some("px_texture_view"),
-            format: Some(image.texture_descriptor.format),
+            format: Some(image_descriptor.format),
             dimension: Some(TextureViewDimension::D2),
             ..default()
         });

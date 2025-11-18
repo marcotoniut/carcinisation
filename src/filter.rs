@@ -34,7 +34,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
     ));
 
     // R-A workaround
-    Assets::insert(
+    let _ = Assets::insert(
         &mut app
             .init_asset::<PxFilterAsset>()
             .init_asset_loader::<PxFilterLoader>()
