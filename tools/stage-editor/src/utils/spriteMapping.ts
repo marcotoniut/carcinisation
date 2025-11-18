@@ -49,7 +49,6 @@ export function getDestructibleSpritePath(
   destructibleType: DestructibleType,
   animation = "base",
 ): string {
-  const _baseName = DESTRUCTIBLE_SPRITE_NAMES[destructibleType]
   // Default to the first candidate variant; loaders may try others.
   return getDestructibleSpritePaths(destructibleType, animation)[0]
 }

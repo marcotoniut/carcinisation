@@ -41,6 +41,7 @@ export type SpawnSpriteData = {
   sprite: Sprite
   spawnId: SpawnId
   elapsed: number // When this spawn appears in seconds
+  order: number
 }
 
 async function loadTexture(pathOrPaths: string | string[]): Promise<Sprite> {
@@ -107,6 +108,7 @@ export async function renderSpawns(
         sprite,
         spawnId,
         elapsed: enemy.elapsed,
+        order: spawnSprites.length,
       })
     } else if ("Object" in spawn) {
       const object = spawn.Object
@@ -128,6 +130,7 @@ export async function renderSpawns(
         sprite,
         spawnId,
         elapsed: 0, // Objects have no spawn time
+        order: spawnSprites.length,
       })
     } else if ("Pickup" in spawn) {
       const pickup = spawn.Pickup
@@ -149,6 +152,7 @@ export async function renderSpawns(
         sprite,
         spawnId,
         elapsed: pickup.elapsed,
+        order: spawnSprites.length,
       })
     } else if ("Destructible" in spawn) {
       const destructible = spawn.Destructible
@@ -178,6 +182,7 @@ export async function renderSpawns(
         sprite,
         spawnId,
         elapsed: 0, // Destructibles have no spawn time
+        order: spawnSprites.length,
       })
     }
   }

@@ -1,13 +1,6 @@
 import type { FederatedPointerEvent } from "pixi.js"
-import {
-  Application,
-  Assets,
-  Container,
-  Graphics,
-  Point,
-  Sprite,
-  Text,
-} from "pixi.js"
+import { Application, Assets, Container, Graphics, Sprite, Text } from "pixi.js"
+import { Viewport as PixiViewport } from "pixi-viewport"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SpawnId } from "../../state/store"
 import { useEditorStore } from "../../state/store"
@@ -16,9 +9,7 @@ import type { SpawnSpriteData } from "../../utils/renderSpawns"
 import { renderSpawns, updateSpawnOpacity } from "../../utils/renderSpawns"
 import { isSpriteAlphaHit } from "../../utils/spriteAlphaHit"
 import { getCameraPosition, getStepMarkers } from "../../utils/stageTimeline"
-import { calculateDistance, distanceSquaredPoints } from "./math"
 import * as styles from "./Viewport.css"
-import type { ScreenPoint, WorldPoint } from "./world"
 import { makeWorldToScreen } from "./world"
 
 const AXIS_COLOR = 0xbbbbbb
@@ -49,6 +40,7 @@ export function Viewport() {
   const canvasRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<Application | null>(null)
   const cameraRef = useRef<Container | null>(null)
+  const viewportRef = useRef<PixiViewport | null>(null)
   const backgroundRef = useRef<Sprite | null>(null)
   const skyboxRef = useRef<Sprite | null>(null)
   const cameraViewportRef = useRef<Graphics | null>(null)
@@ -57,28 +49,9 @@ export function Viewport() {
   const selectionRectRef = useRef<Graphics | null>(null)
   const spawnSpritesRef = useRef<SpawnSpriteData[]>([])
   const spriteLookupRef = useRef<Map<string, Sprite>>(new Map())
-  const pendingSelectSpawnRef = useRef<SpawnId | null>(null)
-  const pointerDownPosRef = useRef<Point | null>(null)
-  const pointerIsDownRef = useRef(false)
   const [worldOriginYOffset, setWorldOriginYOffset] = useState(0)
   const [viewportSize, setViewportSize] = useState({ width: 800, height: 600 })
-  // Camera position represents the world coordinates at the viewport center
-  const [cameraPos, setCameraPos] = useState<WorldPoint>({ x: 0, y: 0 })
-  const [cameraScale, setCameraScale] = useState(1)
-  const [_isPanning, setIsPanning] = useState(false)
-  const lastPanPos = useRef({ x: 0, y: 0 })
-  const pinchRef = useRef<{ initialDist: number; initialScale: number } | null>(
-    null,
-  )
-  const cameraStateRef = useRef<{
-    pos: WorldPoint
-    scale: number
-  }>({
-    pos: { x: 0, y: 0 },
-    scale: 1,
-  })
   const [viewportReady, setViewportReady] = useState(false)
-  const isPanningRef = useRef(false)
 
   const worldToScreen = useMemo(
     () => makeWorldToScreen(worldOriginYOffset),
@@ -126,27 +99,6 @@ export function Viewport() {
     updateSelectionRect()
   }, [updateSelectionRect])
 
-  const screenToWorld = useCallback(
-    (screen: ScreenPoint, camera: WorldPoint, scale: number): WorldPoint => {
-      const centerX = viewportSize.width / 2
-      const centerY = viewportSize.height / 2
-      const cameraScreen = worldToScreen(camera)
-      const worldScreenX = (screen.x - centerX + cameraScreen.x * scale) / scale
-      const worldScreenY = (screen.y - centerY + cameraScreen.y * scale) / scale
-
-      return {
-        x: worldScreenX,
-        y: worldOriginYOffset - worldScreenY,
-      }
-    },
-    [
-      viewportSize.width,
-      viewportSize.height,
-      worldOriginYOffset,
-      worldToScreen,
-    ],
-  )
-
   // Calculate step markers from stage data
   const stepMarkers = useMemo(() => getStepMarkers(parsedData), [parsedData])
 
@@ -192,6 +144,14 @@ export function Viewport() {
     }
   }, [])
 
+  // Keep pixi-viewport in sync with container size
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (viewport) {
+      viewport.resize(viewportSize.width, viewportSize.height)
+    }
+  }, [viewportSize])
+
   // Initialize PixiJS application
   useEffect(() => {
     setViewportReady(false)
@@ -217,6 +177,7 @@ export function Viewport() {
           obj.destroy({ children: true, texture: false })
         }
       }
+      destroyDisplayObject(viewportRef.current)
       destroyDisplayObject(cameraRef.current)
       destroyDisplayObject(debugGraphicsRef.current)
       destroyDisplayObject(spawnContainerRef.current)
@@ -248,11 +209,26 @@ export function Viewport() {
           canvasRef.current.appendChild(app.canvas)
           app.canvas.style.imageRendering = "pixelated"
 
-          // Create camera container
+          const viewport = new PixiViewport({
+            screenWidth: canvasRef.current.clientWidth,
+            screenHeight: canvasRef.current.clientHeight,
+            worldWidth: GRID_EXTENT * 2,
+            worldHeight: GRID_EXTENT * 2,
+            events: app.renderer.events,
+          })
+          viewport.drag().pinch().wheel().clampZoom({
+            minScale: 0.2,
+            maxScale: 5,
+          })
+          viewport.sortableChildren = true
+          viewportRef.current = viewport
+          app.stage.addChild(viewport)
+
+          // Create camera container inside the viewport
           const camera = new Container()
           cameraRef.current = camera
-          app.stage.addChild(camera)
           camera.sortableChildren = true
+          viewport.addChild(camera)
           let stageOriginYOffset = 0
 
           // Draw large static grid centred at origin
@@ -470,7 +446,6 @@ export function Viewport() {
 
             // Click selection with alpha hit test; ignore if the user panned.
             sprite.on("pointertap", (event: FederatedPointerEvent) => {
-              if (isPanningRef.current) return
               if (!isSpriteAlphaHit(sprite, event.global)) return
               selectSpawn(spawnId)
               updateSelectionRect()
@@ -488,6 +463,8 @@ export function Viewport() {
           const currentTimeline = useEditorStore.getState().timelinePosition
           updateSpawnOpacity(spawnSprites, currentTimeline)
           updateSelectionRect()
+
+          setViewportReady(true)
         }
       })
       .catch((error) => {
@@ -503,6 +480,7 @@ export function Viewport() {
       debugGraphicsRef.current = null
       spawnContainerRef.current = null
       selectionRectRef.current = null
+      viewportRef.current = null
       spawnSpritesRef.current = []
       spriteLookupRef.current = new Map()
       if (appRef.current === app) {
@@ -538,183 +516,9 @@ export function Viewport() {
     }
   }, [timelinePosition])
 
-  // Update camera position and scale
-  // Camera position is in world coordinates (center of viewport)
-  // Container position is where world (0,0) appears on screen
-  useEffect(() => {
-    if (cameraRef.current) {
-      const centerX = viewportSize.width / 2
-      const centerY = viewportSize.height / 2
-      // Container position = viewport_center - camera_screen * scale
-      const cameraScreen = worldToScreen(cameraPos)
-      cameraRef.current.position.set(
-        centerX - cameraScreen.x * cameraScale,
-        centerY - cameraScreen.y * cameraScale,
-      )
-      cameraRef.current.scale.set(cameraScale, cameraScale)
-    }
-  }, [cameraPos, cameraScale, viewportSize, worldToScreen])
+  // pixi-viewport manages camera transforms internally
 
-  // Handle mouse wheel zoom with native event listener (to prevent passive listener warning)
-  const commitCameraState = useCallback(
-    (nextPos: WorldPoint, nextScale: number) => {
-      cameraStateRef.current = { pos: nextPos, scale: nextScale }
-      setCameraPos(nextPos)
-      setCameraScale(nextScale)
-    },
-    [],
-  )
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const clampScale = (scale: number) => Math.max(0.1, Math.min(5, scale))
-
-    const updateZoom = (
-      scaleFactor: number,
-      clientX: number,
-      clientY: number,
-    ) => {
-      if (!canvas) return
-
-      const rect = canvas.getBoundingClientRect()
-      const mouseX = clientX - rect.left
-      const mouseY = clientY - rect.top
-
-      const prevScale = cameraStateRef.current.scale
-      const prevPos = cameraStateRef.current.pos
-      const newScale = clampScale(prevScale * scaleFactor)
-
-      const pointerWorld = screenToWorld(
-        { x: mouseX, y: mouseY },
-        prevPos,
-        prevScale,
-      )
-      const scaleRatio = prevScale / newScale
-      const delta = new Point(
-        prevPos.x - pointerWorld.x,
-        prevPos.y - pointerWorld.y,
-      )
-      const nextPos: WorldPoint = {
-        x: pointerWorld.x + delta.x * scaleRatio,
-        y: pointerWorld.y + delta.y * scaleRatio,
-      }
-
-      commitCameraState(nextPos, newScale)
-    }
-
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault()
-      const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1
-      updateZoom(zoomFactor, event.clientX, event.clientY)
-    }
-
-    canvas.addEventListener("wheel", handleWheel, {
-      passive: false,
-    })
-    return () => {
-      canvas.removeEventListener("wheel", handleWheel)
-    }
-  }, [commitCameraState, screenToWorld])
-
-  // Handle panning
-  const handlePointerDown = (event: React.PointerEvent) => {
-    pointerIsDownRef.current = true
-    pointerDownPosRef.current = new Point(event.clientX, event.clientY)
-    pendingSelectSpawnRef.current = null
-    isPanningRef.current = false
-    lastPanPos.current = { x: event.clientX, y: event.clientY }
-  }
-
-  const handlePointerMove = (event: React.PointerEvent) => {
-    if (
-      pointerIsDownRef.current &&
-      !isPanningRef.current &&
-      event.buttons === 1 &&
-      pointerDownPosRef.current
-    ) {
-      const dragFrom = pointerDownPosRef.current
-      const dragTo = new Point(event.clientX, event.clientY)
-      const distanceSq = distanceSquaredPoints(dragTo, dragFrom)
-      const dragThresholdSq = 9 // 3px threshold
-      if (distanceSq > dragThresholdSq) {
-        // Start panning
-        isPanningRef.current = true
-        setIsPanning(true)
-        lastPanPos.current = { x: event.clientX, y: event.clientY }
-        pendingSelectSpawnRef.current = null
-      }
-    }
-
-    if (isPanningRef.current) {
-      const currentScreen = new Point(event.clientX, event.clientY)
-      const prevScreen = new Point(lastPanPos.current.x, lastPanPos.current.y)
-      const scale = cameraStateRef.current.scale
-      // Keep the pointer anchored by translating the camera by the world
-      // delta between the previous and current screen positions.
-      const prevWorld = screenToWorld(
-        { x: prevScreen.x, y: prevScreen.y },
-        cameraStateRef.current.pos,
-        scale,
-      )
-      const currentWorld = screenToWorld(
-        { x: currentScreen.x, y: currentScreen.y },
-        cameraStateRef.current.pos,
-        scale,
-      )
-      const delta = new Point(
-        prevWorld.x - currentWorld.x,
-        prevWorld.y - currentWorld.y,
-      )
-      const nextPos: WorldPoint = {
-        x: cameraStateRef.current.pos.x + delta.x,
-        y: cameraStateRef.current.pos.y + delta.y,
-      }
-      commitCameraState(nextPos, scale)
-      lastPanPos.current = currentScreen
-    }
-  }
-
-  const handlePointerUp = () => {
-    const _wasPanning = isPanningRef.current
-    setIsPanning(false)
-    isPanningRef.current = false
-    pinchRef.current = null
-    pointerIsDownRef.current = false
-    pointerDownPosRef.current = null
-    pendingSelectSpawnRef.current = null
-  }
-
-  const handleTouchStart = (event: React.TouchEvent) => {
-    if (event.touches.length === 2) {
-      pinchRef.current = {
-        initialDist: calculateDistance(event.touches),
-        initialScale: cameraScale,
-      }
-    }
-  }
-
-  const handleTouchMove = (event: React.TouchEvent) => {
-    if (pinchRef.current && event.touches.length === 2) {
-      const dist = calculateDistance(event.touches)
-      if (pinchRef.current.initialDist > 0 && dist > 0) {
-        const scaleFactor = dist / pinchRef.current.initialDist
-        const nextScale = Math.max(
-          0.1,
-          Math.min(5, pinchRef.current?.initialScale * scaleFactor),
-        )
-        commitCameraState(cameraStateRef.current.pos, nextScale)
-      }
-      event.preventDefault()
-    }
-  }
-
-  const handleTouchEnd = (event: React.TouchEvent) => {
-    if (event.touches.length < 2) {
-      pinchRef.current = null
-    }
-  }
+  // Pixi-viewport handles panning and zoom; no React pointer/touch handlers needed.
 
   if (!parsedData) {
     return (
@@ -730,19 +534,11 @@ export function Viewport() {
   return (
     <div className={`${styles.viewport} panel`}>
       <div className="panel-header">
-        Viewport - {parsedData.name} (Zoom: {Math.round(cameraScale * 100)}%)
+        Viewport - {parsedData.name}
+        {viewportRef.current &&
+          ` (Zoom: ${Math.round((viewportRef.current.scale.x ?? 1) * 100)}%)`}
       </div>
-      <div
-        className={styles.viewportCanvas}
-        ref={canvasRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      />
+      <div className={styles.viewportCanvas} ref={canvasRef} />
     </div>
   )
 }
