@@ -84,7 +84,7 @@ pub fn check_value_reached<D, P>(
 }
 
 /// @system Propagates a tween child's reach to its parent for compatibility with parent-centric
-/// systems that listen for Added<LinearValueReached>.
+/// systems that listen for `Added<LinearValueReached>`.
 pub fn propagate_child_reached_to_parent<D, P>(
     mut commands: Commands,
     query: Query<&ChildOf, (With<TweenChild>, Added<LinearValueReached<D, P>>)>,
