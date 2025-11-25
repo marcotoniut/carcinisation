@@ -34,9 +34,31 @@ endif
 run:
 	RUST_BACKTRACE=full $(BEVY_RUN_CMD)
 
+.PHONY: debug-binary
+debug-binary:
+	# Run the pre-built debug binary with proper DYLD_LIBRARY_PATH (macOS dynamic linking)
+	# This script is the canonical way to run target/debug/carcinisation outside cargo/bevy.
+	# Useful for IDE debuggers, manual testing, or when you want to avoid cargo's overhead.
+	@scripts/debug-carcinisation.sh
+
+.PHONY: build-and-run
+build-and-run:
+	# Build once, then run via the wrapper script (faster than cargo run for repeated runs)
+	@echo "Building carcinisation..."
+	@cargo build --bin carcinisation --package carcinisation --features bevy/dynamic_linking
+	@echo "Running via debug wrapper..."
+	@scripts/debug-carcinisation.sh
+
 .PHONY: dev
 dev:
-	# Watch only the main game source and assets so cargo-watch reruns when either changes.
+	# Watch game source and assets, rebuild and rerun automatically via bacon.
+	# Uses bacon's 'run' job which matches the behavior of 'make run'.
+	# On macOS with bevy/dynamic_linking, DYLD_LIBRARY_PATH is handled by cargo run.
+	RUST_BACKTRACE=full bacon run
+
+.PHONY: dev-legacy
+dev-legacy:
+	# Legacy cargo-watch based dev loop (kept for reference, prefer 'make dev')
 	RUST_BACKTRACE=full cargo watch \
 		--no-restart \
 		-w apps/carcinisation/src \
@@ -94,14 +116,9 @@ gen-editor-types: gen-types
 
 .PHONY: watch-types
 watch-types:
-	@echo "🔄 Starting type watcher..."
-	@cargo watch -q --ignore "target/*" --ignore "*.ts" \
-		-w apps/carcinisation/src \
-		--env QUIET=1 \
-		--env RUSTFLAGS=-Awarnings \
-		--env TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) \
-		--env TS_OUT=$(TS_OUT) \
-		-s "bash -lc 'set -o pipefail; (printf \"🌀 Type watcher triggered\n\"; QUIET=1 RUSTFLAGS=-Awarnings TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) TS_OUT=$(TS_OUT) $(BEVY) run --package generate-editor-bindings --features derive-ts) 2>&1 | python3 -u -c \"import re, sys; keep = re.compile(r'^(🌀|⚡|✅|❌|⚠️)'); err = re.compile(r'\\berror\\b', re.IGNORECASE); [sys.stdout.write(line) for line in sys.stdin if keep.match(line) or err.search(line)]\"'"
+	@echo "🔄 Starting type watcher via bacon..."
+	# Use bacon's gen-types job for cleaner, faster watching
+	bacon gen-types
 
 # =============================================================================
 # Asset generation
@@ -205,7 +222,8 @@ test:
 
 .PHONY: test-watch
 test-watch:
-	cargo watch -x "test --workspace"
+	# Continuously run tests via bacon (replaces cargo-watch)
+	bacon test
 
 .PHONY: test-single
 test-single:
@@ -223,7 +241,9 @@ help:
 	@echo ""
 	@echo "🎮 Game Loop:"
 	@echo "  run                - Launch the main binary via 'bevy run' (override RUN_BIN/RUN_PACKAGE/ARGS as needed)"
-	@echo "  dev                - Rebuild and rerun only when game source or assets change via cargo-watch --no-restart + 'bevy run' (watcher stays alive even if a run crashes)"
+	@echo "  dev                - Watch and rebuild via bacon (replaces cargo-watch, faster and more reliable)"
+	@echo "  debug-binary       - Run pre-built target/debug/carcinisation with proper DYLD_LIBRARY_PATH (for IDEs/debuggers)"
+	@echo "  build-and-run      - Build once, then run via wrapper script (faster for repeated manual runs)"
 	@echo "  dev-wasm           - Run the wasm target via 'bevy run ... web'"
 	@echo ""
 	@echo "🛠 Tools & Assets:"
@@ -253,7 +273,10 @@ help:
 	@echo ""
 	@echo "🧪 Testing:"
 	@echo "  test               - Run the full workspace test suite"
-	@echo "  test-watch         - Re-run tests on change via cargo-watch"
+	@echo "  test-watch         - Re-run tests on change via bacon (replaces cargo-watch)"
 	@echo "  test-single        - Run a single test (TEST=path::to::test)"
+	@echo ""
+	@echo "Note: This project uses bacon instead of cargo-watch for all watch workflows."
+	@echo "      Install with: cargo install bacon --locked"
 	@echo ""
 	@echo "Env vars: RUN_BIN=$(RUN_BIN) RUN_PACKAGE=$(RUN_PACKAGE) FEATURES=$(FEATURES) WASM_FEATURES=$(WASM_FEATURES) ARGS=$(ARGS)"

@@ -417,7 +417,6 @@ export function Viewport() {
           spawnContainer.zIndex = 50 // Between background (-100) and camera viewport (200)
           spawnContainer.sortableChildren = true
           // Use Pixi v8 event mode for hit testing; default cursor is fine.
-          // eslint-disable-next-line pixi/no-unsafe-event-mode
           spawnContainer.eventMode = "static"
           camera.addChild(spawnContainer)
           spawnContainerRef.current = spawnContainer
@@ -440,7 +439,6 @@ export function Viewport() {
             spriteLookup.set(spawnKey, sprite)
 
             // Pixi hit-testing should use alpha channel
-            // eslint-disable-next-line pixi/no-unsafe-event-mode
             sprite.eventMode = "static"
             sprite.interactive = true
 
