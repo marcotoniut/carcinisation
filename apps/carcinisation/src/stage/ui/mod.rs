@@ -33,6 +33,5 @@ impl Plugin for StageUiPlugin {
                 // HUD score updates when UI is active.
                 update_score_text,
             );
-        // .add_plugins(PauseScreenPlugin);
     }
 }

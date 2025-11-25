@@ -29,8 +29,7 @@ pub fn spawn_hud(
     filters: &mut PxAssets<PxFilter>,
 ) -> Entity {
     let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
-
-    let entity = commands
+    commands
         .spawn((
             Hud,
             Name::new("Hud"),
@@ -61,9 +60,7 @@ pub fn spawn_hud(
                 Name::new("Health"),
                 Visibility::Visible,
                 InheritedVisibility::VISIBLE,
-            ))
-            .with_children(|parent| {
-                parent.spawn((
+                children![
                     PxSpriteBundle::<Layer> {
                         anchor: PxAnchor::BottomLeft,
                         canvas: PxCanvas::Camera,
@@ -75,8 +72,6 @@ pub fn spawn_hud(
                     },
                     PxSubPosition::from(Vec2::new(HUD_HEALTH_ICON_X, hud_layout_y as f32)),
                     Name::new("HealthIcon"),
-                ));
-                parent.spawn((
                     PxTextBundle::<Layer> {
                         position: PxPosition::from(IVec2::new(
                             HUD_HEALTH_ICON_X as i32
@@ -96,16 +91,14 @@ pub fn spawn_hud(
                     },
                     HealthText,
                     Name::new("HealthText"),
-                ));
-            });
+                ],
+            ));
 
             p0.spawn((
                 Name::new("Score"),
                 Visibility::Visible,
                 InheritedVisibility::VISIBLE,
-            ))
-            .with_children(|parent| {
-                parent.spawn((
+                children![
                     PxTextBundle::<Layer> {
                         position: PxPosition::from(IVec2::new(
                             SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
@@ -123,10 +116,8 @@ pub fn spawn_hud(
                     },
                     ScoreText,
                     Name::new("ScoreText"),
-                ));
-            });
+                ],
+            ));
         })
-        .id();
-
-    entity
+        .id()
 }

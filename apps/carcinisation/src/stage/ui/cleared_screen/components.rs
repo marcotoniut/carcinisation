@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub struct ClearedScreen {}
+pub struct ClearedScreen;
 
 #[derive(Component)]
 ///current score

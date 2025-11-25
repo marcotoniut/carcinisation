@@ -6,7 +6,7 @@ use ts_rs::TS;
 
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
-#[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Reflect, Serialize)]
 pub enum EnemyType {
     #[default]
     Mosquito,

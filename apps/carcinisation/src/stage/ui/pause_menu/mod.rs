@@ -11,7 +11,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxSprite, PxText, PxTypeface,
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxText, PxTypeface,
 };
 
 pub fn pause_menu_renderer(
@@ -50,7 +50,7 @@ pub fn spawn_pause_menu_bundle(
     let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
     let score_text = score.value.to_string();
     let entity = commands
-        .spawn((PauseMenu {}, Name::new("PauseMenu")))
+        .spawn((PauseMenu, Name::new("PauseMenu")))
         .with_children(|p0| {
             for i in 40..100 {
                 p0.spawn((
@@ -68,60 +68,60 @@ pub fn spawn_pause_menu_bundle(
                     UIBackground {},
                     Name::new("UIBackground"),
                 ));
-
-                let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
-
-                p0.spawn((
-                    PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(center_x, 90)),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::UI,
-                        text: PxText {
-                            value: "Paused".to_string(),
-                            typeface: typeface.clone(),
-                            ..Default::default()
-                        },
-                        ..default()
-                    },
-                    InfoText,
-                    Name::new("InfoText_Pause"),
-                ));
-
-                p0.spawn((
-                    PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(center_x, 60)),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::UI,
-                        text: PxText {
-                            value: "Score:".to_string(),
-                            typeface: typeface.clone(),
-                            ..Default::default()
-                        },
-                        ..default()
-                    },
-                    InfoText,
-                    Name::new("InfoText_Score"),
-                ));
-
-                p0.spawn((
-                    PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(center_x, 50)),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
-                        layer: Layer::UI,
-                        text: PxText {
-                            value: score_text.clone(),
-                            typeface: typeface.clone(),
-                            ..Default::default()
-                        },
-                        ..default()
-                    },
-                    ScoreText,
-                    Name::new("ScoreText"),
-                ));
             }
+
+            let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
+
+            p0.spawn((
+                PxTextBundle::<Layer> {
+                    position: PxPosition::from(IVec2::new(center_x, 90)),
+                    anchor: PxAnchor::BottomCenter,
+                    canvas: PxCanvas::Camera,
+                    layer: Layer::UI,
+                    text: PxText {
+                        value: "Paused".to_string(),
+                        typeface: typeface.clone(),
+                        ..Default::default()
+                    },
+                    ..default()
+                },
+                InfoText,
+                Name::new("InfoText_Pause"),
+            ));
+
+            p0.spawn((
+                PxTextBundle::<Layer> {
+                    position: PxPosition::from(IVec2::new(center_x, 60)),
+                    anchor: PxAnchor::BottomCenter,
+                    canvas: PxCanvas::Camera,
+                    layer: Layer::UI,
+                    text: PxText {
+                        value: "Score:".to_string(),
+                        typeface: typeface.clone(),
+                        ..Default::default()
+                    },
+                    ..default()
+                },
+                InfoText,
+                Name::new("InfoText_Score"),
+            ));
+
+            p0.spawn((
+                PxTextBundle::<Layer> {
+                    position: PxPosition::from(IVec2::new(center_x, 50)),
+                    anchor: PxAnchor::BottomCenter,
+                    canvas: PxCanvas::Camera,
+                    layer: Layer::UI,
+                    text: PxText {
+                        value: score_text.clone(),
+                        typeface: typeface.clone(),
+                        ..Default::default()
+                    },
+                    ..default()
+                },
+                ScoreText,
+                Name::new("ScoreText"),
+            ));
         })
         .id();
     entity
