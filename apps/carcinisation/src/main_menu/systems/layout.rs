@@ -3,14 +3,14 @@ use crate::{
     components::GBColor,
     game::resources::Difficulty,
     globals::{
-        mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
-        TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, FONT_SIZE, HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION,
+        SCREEN_RESOLUTION_F32, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
     main_menu::{resources::DifficultySelection, MainMenuScreen},
-    pixel::components::PxRectangle,
     pixel::{
         bundle::{PxSpriteBundle, PxTextBundle},
+        components::PxRectangle,
         PxAssets,
     },
 };
@@ -49,7 +49,7 @@ pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: PxAsset
         MainMenuEntity,
         PressStartScreenEntity,
         PxTextBundle::<Layer> {
-            position: PxPosition::from(IVec2::new((SCREEN_RESOLUTION.x / 2) as i32, 10)),
+            position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 10)),
             anchor: PxAnchor::BottomCenter,
             canvas: PxCanvas::Camera,
             layer: Layer::UI,
@@ -109,7 +109,7 @@ pub fn enter_game_difficulty_screen(
             MainMenuEntity,
             DifficultySelectScreenEntity,
             PxTextBundle::<Layer> {
-                position: PxPosition::from(IVec2::new((SCREEN_RESOLUTION.x / 2) as i32, y)),
+                position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, y)),
                 anchor: PxAnchor::Center,
                 canvas: PxCanvas::Camera,
                 layer: Layer::UI,
@@ -184,6 +184,6 @@ fn difficulty_option_y(index: usize) -> i32 {
 
 fn difficulty_arrow_position(index: usize) -> IVec2 {
     let option_y = difficulty_option_y(index);
-    let arrow_x = (SCREEN_RESOLUTION.x / 2) as i32 - 30;
+    let arrow_x = HALF_SCREEN_RESOLUTION.x - 30;
     IVec2::new(arrow_x, option_y)
 }

@@ -10,7 +10,6 @@ use self::{
     systems::{check_press_continue_input, handle_game_over_screen_continue},
 };
 use super::StageUiPlugin;
-use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     components::GBColor,
     game::score::components::Score,
@@ -19,6 +18,10 @@ use crate::{
     },
     layer::Layer,
     stage::StageProgressState,
+};
+use crate::{
+    globals::HALF_SCREEN_RESOLUTION,
+    pixel::{PxAssets, PxLineBundle, PxTextBundle},
 };
 use activable::ActiveState;
 use bevy::prelude::*;
@@ -54,8 +57,8 @@ pub fn render_game_over_screen(
                         PxLineBundle::<Layer> {
                             canvas: PxCanvas::Camera,
                             line: [
-                                ((SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE, i).into(),
-                                ((SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE, i).into(),
+                                (HALF_SCREEN_RESOLUTION.x - HALF_SCREEN_SIZE, i).into(),
+                                (HALF_SCREEN_RESOLUTION.x + HALF_SCREEN_SIZE, i).into(),
                             ]
                             .into(),
                             layers: PxFilterLayers::single_over(Layer::UIBackground),
@@ -65,60 +68,58 @@ pub fn render_game_over_screen(
                         UIBackground {},
                         Name::new("UIBackground"),
                     ));
-
-                    let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 90)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: "Game  Over".to_string(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        InfoText,
-                        Name::new("InfoText_Stage_GameOver"),
-                    ));
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 60)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: "Score:".to_string(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        InfoText,
-                        Name::new("InfoText_Score"),
-                    ));
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 50)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: score_text.clone(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        FinalScoreText,
-                        Name::new("FinalScoreText"),
-                    ));
                 }
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 90)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: "Game  Over".to_string(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    InfoText,
+                    Name::new("InfoText_Stage_GameOver"),
+                ));
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 60)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: "Score:".to_string(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    InfoText,
+                    Name::new("InfoText_Score"),
+                ));
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 50)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: score_text.clone(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    FinalScoreText,
+                    Name::new("FinalScoreText"),
+                ));
             });
     }
 }
