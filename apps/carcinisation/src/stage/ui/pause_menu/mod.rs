@@ -1,17 +1,16 @@
 pub mod components;
 
 use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
+use crate::globals::HALF_SCREEN_RESOLUTION;
 use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     game::{score::components::Score, GameProgressState},
-    globals::{
-        mark_for_despawn_by_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
-    },
+    globals::{mark_for_despawn_by_query, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
     layer::Layer,
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxText, PxTypeface,
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxSprite, PxText, PxTypeface,
 };
 
 pub fn pause_menu_renderer(
@@ -57,8 +56,8 @@ pub fn spawn_pause_menu_bundle(
                     PxLineBundle::<Layer> {
                         canvas: PxCanvas::Camera,
                         line: [
-                            ((SCREEN_RESOLUTION.x / 2) as i32 - 40, i).into(),
-                            ((SCREEN_RESOLUTION.x / 2) as i32 + 40, i).into(),
+                            (HALF_SCREEN_RESOLUTION.x - 40, i).into(),
+                            (HALF_SCREEN_RESOLUTION.x + 40, i).into(),
                         ]
                         .into(),
                         layers: PxFilterLayers::single_over(Layer::UIBackground),
@@ -70,11 +69,9 @@ pub fn spawn_pause_menu_bundle(
                 ));
             }
 
-            let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
-
             p0.spawn((
                 PxTextBundle::<Layer> {
-                    position: PxPosition::from(IVec2::new(center_x, 90)),
+                    position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 90)),
                     anchor: PxAnchor::BottomCenter,
                     canvas: PxCanvas::Camera,
                     layer: Layer::UI,
@@ -91,7 +88,7 @@ pub fn spawn_pause_menu_bundle(
 
             p0.spawn((
                 PxTextBundle::<Layer> {
-                    position: PxPosition::from(IVec2::new(center_x, 60)),
+                    position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 60)),
                     anchor: PxAnchor::BottomCenter,
                     canvas: PxCanvas::Camera,
                     layer: Layer::UI,
@@ -108,7 +105,7 @@ pub fn spawn_pause_menu_bundle(
 
             p0.spawn((
                 PxTextBundle::<Layer> {
-                    position: PxPosition::from(IVec2::new(center_x, 50)),
+                    position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 50)),
                     anchor: PxAnchor::BottomCenter,
                     canvas: PxCanvas::Camera,
                     layer: Layer::UI,

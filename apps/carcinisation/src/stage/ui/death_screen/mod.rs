@@ -10,7 +10,6 @@ use self::{
     systems::check_press_continue_input,
 };
 use super::StageUiPlugin;
-use crate::pixel::{PxAssets, PxLineBundle, PxTextBundle};
 use crate::{
     components::GBColor,
     game::{resources::Lives, score::components::Score},
@@ -19,6 +18,10 @@ use crate::{
     },
     layer::Layer,
     stage::StageProgressState,
+};
+use crate::{
+    globals::HALF_SCREEN_RESOLUTION,
+    pixel::{PxAssets, PxLineBundle, PxTextBundle},
 };
 use activable::ActiveState;
 use bevy::prelude::*;
@@ -51,24 +54,22 @@ pub fn render_death_screen(
                         PxLineBundle::<Layer> {
                             canvas: PxCanvas::Camera,
                             line: [
-                                ((SCREEN_RESOLUTION.x / 2) as i32 - HALF_SCREEN_SIZE, i).into(),
-                                ((SCREEN_RESOLUTION.x / 2) as i32 + HALF_SCREEN_SIZE, i).into(),
+                                (HALF_SCREEN_RESOLUTION.x - HALF_SCREEN_SIZE, i).into(),
+                                (HALF_SCREEN_RESOLUTION.x + HALF_SCREEN_SIZE, i).into(),
                             ]
                             .into(),
                             layers: PxFilterLayers::single_over(Layer::UIBackground),
                             filter: PxFilter(assets_filter.load_color(GBColor::White)),
                             ..default()
                         },
-                        UIBackground {},
+                        UIBackground,
                         Name::new("UIBackground"),
                     ));
                 }
 
-                let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
-
                 p0.spawn((
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(center_x, 90)),
+                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 90)),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
@@ -85,7 +86,7 @@ pub fn render_death_screen(
 
                 p0.spawn((
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(center_x, 60)),
+                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 60)),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
@@ -102,7 +103,7 @@ pub fn render_death_screen(
 
                 p0.spawn((
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(center_x, 50)),
+                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 50)),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
