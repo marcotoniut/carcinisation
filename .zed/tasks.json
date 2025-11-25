@@ -1,0 +1,67 @@
+[
+  {
+    "label": "bacon: run game",
+    "command": "bacon run",
+    "tags": ["bacon", "dev", "watch"]
+  },
+  {
+    "label": "bacon: test",
+    "command": "bacon test",
+    "tags": ["bacon", "test", "watch"]
+  },
+  {
+    "label": "bacon: check",
+    "command": "bacon check",
+    "tags": ["bacon", "check", "watch"]
+  },
+  {
+    "label": "bacon: clippy",
+    "command": "bacon clippy",
+    "tags": ["bacon", "lint", "watch"]
+  },
+  {
+    "label": "bacon: gen types",
+    "command": "bacon gen-types",
+    "tags": ["bacon", "types", "watch"]
+  },
+  {
+    "label": "bacon: watch scenes",
+    "command": "bacon watch-scenes",
+    "tags": ["bacon", "assets", "watch"]
+  },
+  {
+    "label": "build carcinisation",
+    "command": "cargo build --bin=carcinisation --package=carcinisation --features=bevy/dynamic_linking",
+    "tags": ["build"]
+  },
+  {
+    "label": "run carcinisation",
+    "command": "./scripts/debug-carcinisation.sh",
+    "tags": ["run"]
+  },
+  {
+    "label": "build carcinisation tests",
+    "command": "cargo test --no-run --bin=carcinisation --package=carcinisation",
+    "tags": ["test"]
+  },
+  {
+    "label": "build editor",
+    "command": "cargo build --bin=editor --package=editor",
+    "tags": ["build"]
+  },
+  {
+    "label": "build generate typeface",
+    "command": "cargo build --bin=generate-typeface --package=generate-typeface",
+    "tags": ["build"]
+  },
+  {
+    "label": "build process graphics",
+    "command": "cargo build --bin=process-gfx --package=process-gfx",
+    "tags": ["build"]
+  },
+  {
+    "label": "run stage editor",
+    "command": "pnpm --filter stage-editor dev",
+    "tags": ["stage-editor", "dev"]
+  }
+]

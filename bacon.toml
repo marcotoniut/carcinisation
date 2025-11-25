@@ -1,0 +1,114 @@
+# Bacon configuration for Carcinisation
+# bacon is used instead of cargo-watch for faster, more reliable file watching
+# See: https://dystroy.org/bacon/
+
+# Default job (runs when you just type `bacon`)
+default_job = "check"
+
+[jobs.check]
+command = [
+    "cargo", "check",
+    "--workspace",
+    "--all-targets",
+    "--all-features",
+]
+need_stdout = false
+
+[jobs.clippy]
+command = [
+    "cargo", "clippy",
+    "--workspace",
+    "--all-targets",
+    "--all-features",
+]
+need_stdout = false
+
+[jobs.test]
+command = [
+    "cargo", "test",
+    "--workspace",
+    "--all-features",
+]
+need_stdout = true
+
+[jobs.test-all]
+command = [
+    "cargo", "test",
+    "--workspace",
+    "--all-features",
+    "--",
+    "--include-ignored",
+]
+need_stdout = true
+
+# Run the game using cargo
+# This matches the Makefile's run target behavior
+[jobs.run]
+command = [
+    "cargo", "run",
+    "--bin", "carcinisation",
+    "--package", "carcinisation",
+]
+need_stdout = true
+allow_warnings = true
+env.RUST_BACKTRACE = "full"
+# Watch game source and assets only (like make dev)
+watch = ["apps/carcinisation/src", "assets"]
+# Don't restart on file changes - let the process crash and restart clean
+on_change_strategy = "kill_then_restart"
+
+# Build the debug binary
+[jobs.build]
+command = [
+    "cargo", "build",
+    "--bin", "carcinisation",
+    "--package", "carcinisation",
+]
+need_stdout = false
+
+# Build release
+[jobs.build-release]
+command = [
+    "cargo", "build",
+    "--workspace",
+    "--release",
+]
+need_stdout = false
+
+# Watch scene files for RON parsing errors
+# This is useful when editing assets
+[jobs.watch-scenes]
+command = [
+    "cargo", "run",
+    "--package", "scene-file-watcher",
+]
+need_stdout = true
+allow_warnings = true
+env.RUST_BACKTRACE = "full"
+watch = ["assets"]
+
+# Generate TypeScript types from Rust
+[jobs.gen-types]
+command = [
+    "cargo", "run",
+    "--package", "generate-editor-bindings",
+    "--features", "derive-ts",
+]
+need_stdout = true
+env.TS_RS_EXPORT_DIR = "tools/stage-editor/src/types/generated"
+env.TS_OUT = "tools/stage-editor/src/types/generated"
+env.QUIET = "1"
+env.RUSTFLAGS = "-Awarnings"
+watch = ["apps/carcinisation/src"]
+on_change_strategy = "kill_then_restart"
+
+# Run all workspace lints (using bevy CLI pattern)
+# Note: This actually uses cargo clippy since bacon doesn't know about bevy CLI
+[jobs.lint]
+command = [
+    "cargo", "clippy",
+    "--workspace",
+    "--all-targets",
+    "--all-features",
+]
+need_stdout = false

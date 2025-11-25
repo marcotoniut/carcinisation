@@ -19,8 +19,7 @@ version = "0.2.0"
 
 [workspace.dependencies]
 assert_assets_path = { path = "tools/assert_assets_path" }
-# dynamic_linking cannot be used for webassembly, not required for macOS
-# bevy = { version = "0.12", features = ["dynamic_linking"] } # required for Windows builds
+# Dynamic linking speeds up host builds; wasm targets ignore this feature.
 bevy = { version = "0.17", features = [
     "dynamic_linking",
     "wayland",

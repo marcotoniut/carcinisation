@@ -36,11 +36,14 @@ bevy lint --workspace --all-targets --all-features
 ## Quick Start
 
 ```bash
-# Rebuild and rerun automatically when game source or asset files change via `cargo watch --no-restart` + `bevy run` (requires cargo-watch; the watcher remains alive even if a run crashes, so fix the error before the next change triggers a rerun)
+# Watch and rebuild automatically via bacon (faster and more reliable than cargo-watch)
 make dev
 
 # Run once with the default feature set via `bevy run --bin carcinisation`
 make run
+
+# Run pre-built debug binary directly (useful for IDE debuggers)
+make debug-binary
 
 # Launch the scene editor utility
 make launch-editor
@@ -49,15 +52,21 @@ make launch-editor
 make watch-scene-files
 ```
 
-If `cargo watch` is missing, install it with `cargo install cargo-watch` before running `make dev` or `make test-watch`.
+This project uses [bacon](https://dystroy.org/bacon/) instead of cargo-watch for all watch workflows. Install it with:
+
+```bash
+cargo install bacon --locked
+```
 
 ## Make Targets Overview
 
 Use `make help` to see the full catalog. Common targets:
 
 ```bash
-make dev               # cargo-watch --no-restart watching `apps/carcinisation/src` and `assets`, reruns only on those changes while keeping the watcher alive even after crashes
+make dev               # Watch and rebuild via bacon (watches apps/carcinisation/src and assets)
 make run               # bevy run --bin carcinisation (RUST_BACKTRACE=full)
+make debug-binary      # Run pre-built target/debug/carcinisation with proper DYLD_LIBRARY_PATH
+make build-and-run     # Build once, then run via wrapper script (faster for repeated runs)
 make dev-wasm          # bevy run --bin carcinisation --package carcinisation web
 make launch-editor     # Open the Bevy-based scene editor
 make watch-scene-files # Watch assets/ for RON parsing errors
@@ -70,7 +79,7 @@ make release-wasm      # Release wasm binary + wasm-opt pass
 make fmt               # cargo fmt --all
 make lint              # bevy lint --workspace --all-targets --all-features
 make test              # cargo test --workspace --all-features
-make test-watch        # Re-run tests on change via cargo-watch
+make test-watch        # Re-run tests on change via bacon
 ```
 
 Override feature flags or runtime arguments when you call make:
@@ -85,9 +94,24 @@ make run ARGS="--help"
 
 ## Hot Reloading & Iteration
 
-- **Code + Assets**: `make dev` uses `cargo watch --no-restart` to rerun when files under `apps/carcinisation/src` or `assets/` change. The watcher stays alive even if a build or the game crashes, so you resolve errors before the next save retriggers a run.
+- **Code + Assets**: `make dev` uses `bacon` to watch and rerun when files under `apps/carcinisation/src` or `assets/` change. Bacon is faster and more reliable than cargo-watch, with better error reporting.
 - **Assets**: Bevy reloads assets in `assets/` automatically while the game is running. The scene watcher (`make watch-scene-files`) prints parser errors for `.ron` files so you spot mistakes early.
 - **Stages & Cutscenes**: Stage data lives under `assets/stages/*.sg.ron`; cutscenes live under `assets/cinematics/*.cs.ron`. Keep Bevy running in `make dev` and run the watcher to validate edits live.
+
+### Dynamic Linking on macOS
+
+The project uses Bevy's `dynamic_linking` feature for faster compile times. On macOS, the dynamic linker (`dyld`) needs help finding the shared libraries:
+
+- Rust's standard library dylibs (from `rustc --print target-libdir`)
+- Bevy's dylibs (from `target/debug/deps`)
+
+**When to use the wrapper script:**
+
+- **IDE debuggers (Zed, VS Code)**: Use `scripts/debug-carcinisation.sh` or `make debug-binary`.
+- **Manual testing**: Use `make build-and-run` to build once and reuse the binary without paying cargo's startup overhead.
+- **Via bacon/cargo**: `make dev` and `make run` handle `DYLD_LIBRARY_PATH` automatically, so no extra steps.
+
+The wrapper script (`scripts/debug-carcinisation.sh`) is the canonical way to run the debug binary outside of cargo/bevy. It’s referenced by `.zed/debug.json` so Zed users get correct env vars without hardcoding the platform dynamic-loader path.
 
 ## Tooling
 
@@ -159,8 +183,9 @@ Refer to `CONTRIBUTING.md` for testing philosophy and expectations when you add 
 
 ## Troubleshooting
 
-- **`cargo watch` not found**: `cargo install cargo-watch`.
+- **`bacon` not found**: `cargo install bacon --locked`. This project uses bacon instead of cargo-watch.
 - **`bevy` CLI not found**: Install it via `cargo install bevy_cli --locked` and make sure `$CARGO_HOME/bin` is on your `PATH`.
+- **dyld errors on macOS**: Use `make debug-binary` (or `scripts/debug-carcinisation.sh`) so `DYLD_LIBRARY_PATH` includes Rust + Bevy dylibs.
 - **Asset parse errors**: Run `make watch-scene-files` to see the failing path and RON error context.
 - **Wasm build failures**: Ensure `wasm-bindgen-cli`, `wasm-opt`, and the `wasm32-unknown-unknown` target are installed (`make install-web-deps`).
 - **Stale artifacts after pulling**: `cargo clean && cargo build` resets the workspace.
