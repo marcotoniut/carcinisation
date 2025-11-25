@@ -16,7 +16,7 @@ use ts_rs::TS;
 /// Sprite base name mapping for enemies
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct EnemySpriteName {
     pub enemy_type: EnemyType,
     pub base_name: String,
@@ -60,6 +60,7 @@ pub struct SpriteNameRegistry {
     pub destructibles: Vec<DestructibleSpriteName>,
 }
 
+/// TODO should probably be a trait of the enemy itself.
 impl SpriteNameRegistry {
     /// Creates the complete registry with all sprite base names
     pub fn new() -> Self {

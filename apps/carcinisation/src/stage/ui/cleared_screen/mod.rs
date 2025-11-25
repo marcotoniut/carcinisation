@@ -40,7 +40,7 @@ pub fn render_cleared_screen(
         let score_text = score.value.to_string();
 
         commands
-            .spawn((ClearedScreen {}, Name::new("Screen Cleared")))
+            .spawn((ClearedScreen, Name::new("Screen Cleared")))
             .with_children(|p0| {
                 for i in 25..115 {
                     p0.spawn((
@@ -58,60 +58,60 @@ pub fn render_cleared_screen(
                         UIBackground {},
                         Name::new("UIBackground"),
                     ));
-
-                    let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 90)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: "Stage  Cleared".to_string(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        InfoText,
-                        Name::new("InfoText_Stage_Cleared"),
-                    ));
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 60)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: "Score:".to_string(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        InfoText,
-                        Name::new("InfoText_Score"),
-                    ));
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 50)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: score_text.clone(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        ScoreText,
-                        Name::new("ScoreText"),
-                    ));
                 }
+
+                let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(center_x, 90)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: "Stage  Cleared".to_string(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    InfoText,
+                    Name::new("InfoText_Stage_Cleared"),
+                ));
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(center_x, 60)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: "Score:".to_string(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    InfoText,
+                    Name::new("InfoText_Score"),
+                ));
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(center_x, 50)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: score_text.clone(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    ScoreText,
+                    Name::new("ScoreText"),
+                ));
             });
     }
 }

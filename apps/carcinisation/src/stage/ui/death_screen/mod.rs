@@ -62,60 +62,60 @@ pub fn render_death_screen(
                         UIBackground {},
                         Name::new("UIBackground"),
                     ));
-
-                    let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 90)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: lives_text.clone(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        InfoText,
-                        Name::new("InfoText_Stage_Lives"),
-                    ));
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 60)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: "Score:".to_string(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        InfoText,
-                        Name::new("InfoText_Score"),
-                    ));
-
-                    p0.spawn((
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(center_x, 50)),
-                            anchor: PxAnchor::BottomCenter,
-                            canvas: PxCanvas::Camera,
-                            layer: Layer::UI,
-                            text: PxText {
-                                value: score_text.clone(),
-                                typeface: typeface.clone(),
-                                ..Default::default()
-                            },
-                            ..default()
-                        },
-                        CurrentScoreText,
-                        Name::new("FinalScoreText"),
-                    ));
                 }
+
+                let center_x = (SCREEN_RESOLUTION.x / 2) as i32;
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(center_x, 90)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: lives_text.clone(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    InfoText,
+                    Name::new("InfoText_Stage_Lives"),
+                ));
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(center_x, 60)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: "Score:".to_string(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    InfoText,
+                    Name::new("InfoText_Score"),
+                ));
+
+                p0.spawn((
+                    PxTextBundle::<Layer> {
+                        position: PxPosition::from(IVec2::new(center_x, 50)),
+                        anchor: PxAnchor::BottomCenter,
+                        canvas: PxCanvas::Camera,
+                        layer: Layer::UI,
+                        text: PxText {
+                            value: score_text.clone(),
+                            typeface: typeface.clone(),
+                            ..Default::default()
+                        },
+                        ..default()
+                    },
+                    CurrentScoreText,
+                    Name::new("FinalScoreText"),
+                ));
             });
     }
 }

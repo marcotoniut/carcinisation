@@ -11,6 +11,9 @@
  * Usage: pnpm mcp:discover
  */
 
+// TODO move this script to its own folder
+// No point in doing shared scripts
+
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
