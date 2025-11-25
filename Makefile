@@ -82,6 +82,14 @@ launch-editor:
 watch-scene-files:
 	RUST_BACKTRACE=full $(BEVY) run --package scene-file-watcher
 
+.PHONY: docs
+docs:
+	@scripts/generate-docs.sh
+
+.PHONY: docs-serve
+docs-serve:
+	@scripts/generate-docs.sh --serve
+
 .PHONY: dev-stage-editor
 dev-stage-editor:
 	pnpm --filter stage-editor dev
@@ -254,6 +262,7 @@ help:
 	@echo "  watch-scene-files  - Run the scene watcher utility"
 	@echo "  gen-types          - Generate TypeScript types from Rust (run automatically by stage-editor)"
 	@echo "  watch-types        - Auto-regenerate TypeScript types on Rust file changes"
+	@echo "  docs               - Build local API docs (scripts/generate-docs.sh)"
 	@echo "  palettes           - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
 	@echo "  process-gfx        - Process art assets for the game"

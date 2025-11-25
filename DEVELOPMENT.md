@@ -98,6 +98,18 @@ make run ARGS="--help"
 - **Assets**: Bevy reloads assets in `assets/` automatically while the game is running. The scene watcher (`make watch-scene-files`) prints parser errors for `.ron` files so you spot mistakes early.
 - **Stages & Cutscenes**: Stage data lives under `assets/stages/*.sg.ron`; cutscenes live under `assets/cinematics/*.cs.ron`. Keep Bevy running in `make dev` and run the watcher to validate edits live.
 
+### Local Documentation
+
+- API docs for every crate in the workspace (and their dependencies) are generated via `scripts/generate-docs.sh`. The output lives under `target/doc` (already gitignored). Optional flags:
+
+  ```bash
+  scripts/generate-docs.sh           # build docs
+  DOCS_OFFLINE=1 scripts/generate-docs.sh  # reuse cached deps, no network
+  scripts/generate-docs.sh --serve   # build then serve at http://localhost:7878
+  ```
+
+- For the standard Rust documentation run `rustup doc`.
+
 ### Dynamic Linking on macOS
 
 The project uses Bevy's `dynamic_linking` feature for faster compile times. On macOS, the dynamic linker (`dyld`) needs help finding the shared libraries:

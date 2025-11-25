@@ -1,10 +1,10 @@
-//! Derive macro for [`activable::Activable`].
+//! Derive macro for `activable::Activable`.
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-/// Implements [`activable::Activable`] and adds inherent helpers:
+/// Implements `activable::Activable` and adds inherent helpers:
 /// - `T::activate_system()`
 /// - `T::deactivate_system()`
 #[proc_macro_derive(Activable)]
