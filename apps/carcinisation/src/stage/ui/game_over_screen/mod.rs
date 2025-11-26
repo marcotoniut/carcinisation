@@ -14,28 +14,27 @@ use crate::{
     components::GBColor,
     game::score::components::Score,
     globals::{
-        mark_for_despawn_by_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, SCREEN_RESOLUTION_F32_H, TYPEFACE_CHARACTERS,
+        TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
+    pixel::components::PxRectangle,
     stage::StageProgressState,
 };
 use crate::{
-    globals::HALF_SCREEN_RESOLUTION,
-    pixel::{PxAssets, PxLineBundle, PxTextBundle},
+    globals::SCREEN_RESOLUTION_H,
+    pixel::{PxAssets, PxTextBundle},
 };
-use activable::ActiveState;
+use activable::ActivableAppExt;
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
-use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxText, PxTypeface,
-};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxPosition, PxSubPosition, PxText, PxTypeface};
 
 pub const HALF_SCREEN_SIZE: i32 = 70;
 
 pub fn render_game_over_screen(
     mut commands: Commands,
     assets_typeface: PxAssets<PxTypeface>,
-    assets_filter: PxAssets<PxFilter>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
 ) {
@@ -44,40 +43,33 @@ pub fn render_game_over_screen(
             assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
         let score_text = score.value.to_string();
 
-        commands
-            .spawn((
-                GameOverScreen,
-                Visibility::Visible,
-                InheritedVisibility::VISIBLE,
-                Name::new("GameOver Screen"),
-            ))
-            .with_children(|p0| {
-                for i in 25..115 {
-                    p0.spawn((
-                        PxLineBundle::<Layer> {
-                            canvas: PxCanvas::Camera,
-                            line: [
-                                (HALF_SCREEN_RESOLUTION.x - HALF_SCREEN_SIZE, i).into(),
-                                (HALF_SCREEN_RESOLUTION.x + HALF_SCREEN_SIZE, i).into(),
-                            ]
-                            .into(),
-                            layers: PxFilterLayers::single_over(Layer::UIBackground),
-                            filter: PxFilter(assets_filter.load_color(GBColor::White)),
-                            ..default()
-                        },
-                        UIBackground {},
-                        Name::new("UIBackground"),
-                    ));
-                }
-
-                p0.spawn((
+        commands.spawn((
+            GameOverScreen,
+            InheritedVisibility::VISIBLE,
+            Name::new("GameOver Screen"),
+            Visibility::Visible,
+            children![
+                (
+                    PxSubPosition(*SCREEN_RESOLUTION_F32_H),
+                    Name::new("UIBackground"),
+                    UIBackground,
+                    PxRectangle {
+                        anchor: PxAnchor::Center,
+                        canvas: PxCanvas::Camera,
+                        color: GBColor::White,
+                        height: 90,
+                        layer: Layer::UIBackground,
+                        width: 120,
+                    }
+                ),
+                (
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 90)),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
+                        position: PxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 90)),
                         text: PxText {
-                            value: "Game  Over".to_string(),
+                            value: "Game Over".to_string(),
                             typeface: typeface.clone(),
                             ..Default::default()
                         },
@@ -85,14 +77,13 @@ pub fn render_game_over_screen(
                     },
                     InfoText,
                     Name::new("InfoText_Stage_GameOver"),
-                ));
-
-                p0.spawn((
+                ),
+                (
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 60)),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
+                        position: PxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 60)),
                         text: PxText {
                             value: "Score:".to_string(),
                             typeface: typeface.clone(),
@@ -102,14 +93,13 @@ pub fn render_game_over_screen(
                     },
                     InfoText,
                     Name::new("InfoText_Score"),
-                ));
-
-                p0.spawn((
+                ),
+                (
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 50)),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
+                        position: PxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 50)),
                         text: PxText {
                             value: score_text.clone(),
                             typeface: typeface.clone(),
@@ -119,8 +109,9 @@ pub fn render_game_over_screen(
                     },
                     FinalScoreText,
                     Name::new("FinalScoreText"),
-                ));
-            });
+                )
+            ],
+        ));
     }
 }
 
@@ -138,15 +129,9 @@ pub fn game_over_screen_plugin(app: &mut App) {
     app.add_message::<GameOverScreenShutdownEvent>()
         .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
         .add_systems(Startup, init_input)
-        .add_systems(
-            Update,
-            (render_game_over_screen, despawn_game_over_screen)
-                .run_if(in_state(ActiveState::<StageUiPlugin>::active())),
-        )
-        .add_systems(
+        .add_active_systems::<StageUiPlugin, _>((render_game_over_screen, despawn_game_over_screen))
+        .add_active_systems_in::<StageUiPlugin, _>(
             PostUpdate,
-            (check_press_continue_input, handle_game_over_screen_continue)
-                .chain()
-                .run_if(in_state(ActiveState::<StageUiPlugin>::active())),
+            (check_press_continue_input, handle_game_over_screen_continue).chain(),
         );
 }

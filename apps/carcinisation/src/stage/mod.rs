@@ -158,75 +158,67 @@ impl Plugin for StagePlugin {
                             .chain(),
                     )
                         .after(LinearTweenSystems),
-                )
-                    .run_if(in_state(StageProgressState::Running)),
+                ),
             )
-            .add_active_systems::<StagePlugin, _>(
-                // Primary stage tick, only when gameplay is active and running.
+            .add_active_systems::<StagePlugin, _>((
+                update_stage,
                 (
-                    update_stage,
+                    (
+                        // Camera
+                        check_in_view,
+                        check_outside_view,
+                        update_camera_pos_x,
+                        update_camera_pos_y,
+                    ),
+                    (
+                        // Pickup
+                        pickup_health,
+                        mark_pickup_feedback_for_despawn,
+                    ),
+                    (
+                        // Stage
+                        read_step_trigger,
+                        check_stage_step_timer,
+                        check_staged_cleared,
+                        check_step_spawn,
+                        check_stage_death,
+                    ),
+                    (
+                        // Damage
+                        (on_damage, check_damage_flicker_taken).chain(),
+                        add_invert_filter,
+                        remove_invert_filter,
+                        check_dead_drop,
+                    ),
                     (
                         (
-                            // Camera
-                            check_in_view,
-                            check_outside_view,
-                            update_camera_pos_x,
-                            update_camera_pos_y,
+                            initialise_cinematic_step,
+                            initialise_movement_step,
+                            initialise_stop_step,
                         ),
                         (
-                            // Pickup
-                            pickup_health,
-                            mark_pickup_feedback_for_despawn,
+                            update_cinematic_step,
+                            check_stop_step_finished_by_duration,
+                            check_movement_step_reached,
                         ),
-                        (
-                            // Stage
-                            read_step_trigger,
-                            check_stage_step_timer,
-                            check_staged_cleared,
-                            check_step_spawn,
-                            check_stage_death,
-                        ),
-                        (
-                            // Damage
-                            (on_damage, check_damage_flicker_taken).chain(),
-                            add_invert_filter,
-                            remove_invert_filter,
-                            check_dead_drop,
-                        ),
-                        (
-                            (
-                                initialise_cinematic_step,
-                                initialise_movement_step,
-                                initialise_stop_step,
-                            ),
-                            (
-                                update_cinematic_step,
-                                check_stop_step_finished_by_duration,
-                                check_movement_step_reached,
-                            ),
-                        )
-                            .chain(),
                     )
-                        .run_if(in_state(StageProgressState::Running)),
+                        .chain(),
                 ),
-            )
-            .add_active_systems::<StagePlugin, _>(
-                // Overlay/UI rendering keeps pace whenever the stage plugin is active.
-                (
-                    // Cleared screen
-                    render_cleared_screen,
-                    despawn_cleared_screen,
-                    // Death screen
-                    render_death_screen,
-                    despawn_death_screen,
-                    // Game Over screen
-                    render_game_over_screen,
-                    despawn_game_over_screen,
-                    // Pause menu
-                    pause_menu_renderer,
-                    toggle_game,
-                ),
-            );
+            ))
+            .add_active_systems::<StagePlugin, _>((
+                // Cleared screen
+                render_cleared_screen,
+                despawn_cleared_screen,
+                // Death screen
+                render_death_screen,
+                despawn_death_screen,
+                // Game Over screen
+                render_game_over_screen,
+                despawn_game_over_screen,
+                // Pause menu
+                pause_menu_renderer,
+                toggle_game,
+            ));
     }
 }
 

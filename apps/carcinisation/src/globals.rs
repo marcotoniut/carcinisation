@@ -28,7 +28,7 @@ pub const FONT_SIZE: u32 = 10;
 
 lazy_static! {
     // TODO is there some way to assert IVec2 at static time?
-    pub static ref HALF_SCREEN_RESOLUTION: IVec2 = (SCREEN_RESOLUTION / 2).as_ivec2();
+    pub static ref SCREEN_RESOLUTION_H: IVec2 = (SCREEN_RESOLUTION / 2).as_ivec2();
 }
 
 lazy_static! {

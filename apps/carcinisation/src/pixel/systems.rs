@@ -49,6 +49,7 @@ pub fn update_rectangle_color<L: PxLayer>(
             let filter = filters.load(color.get_filter_path());
             commands
                 .entity(parent_entity)
+                // TODO Could I instead change the color of the lines?
                 .despawn_children()
                 .with_children(|parent| {
                     for row in 0..rectangle.height {
@@ -72,6 +73,7 @@ pub fn update_rectangle_color<L: PxLayer>(
 /// @system Updates child line endpoints when the rectangle moves.
 pub fn update_rectangle_position<L: PxLayer>(
     mut parents_query: Query<(Entity, &PxRectangle<L>, Ref<PxSubPosition>, Ref<Children>)>,
+    // TODO this feels like it could be optimised with the new semantics
     mut children_query: Query<(&ChildOf, &PxRectangleRow, &mut PxLine)>,
 ) {
     let mut map: HashMap<Entity, (&PxRectangle<L>, Ref<PxSubPosition>, Ref<Children>)> =

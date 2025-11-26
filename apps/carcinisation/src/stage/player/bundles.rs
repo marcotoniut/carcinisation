@@ -33,7 +33,7 @@ pub fn make_player_bundle(
             ..default()
         },
         PxSubPosition::from(Vec2::new(
-            HALF_SCREEN_RESOLUTION.x as f32,
+            SCREEN_RESOLUTION_H.x as f32,
             (HUD_HEIGHT as f32) + (SCREEN_RESOLUTION.y / 2) as f32,
         )),
         StageEntity,

@@ -29,9 +29,6 @@ impl Plugin for StageUiPlugin {
             ))
             .on_active::<StageUiPlugin, _>(activate_system::<HudPlugin>)
             .on_inactive::<StageUiPlugin, _>(deactivate_system::<HudPlugin>)
-            .add_active_systems::<StageUiPlugin, _>(
-                // HUD score updates when UI is active.
-                update_score_text,
-            );
+            .add_active_systems::<StageUiPlugin, _>(update_score_text);
     }
 }
