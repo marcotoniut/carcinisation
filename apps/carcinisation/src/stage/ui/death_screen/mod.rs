@@ -1,12 +1,12 @@
 pub mod components;
-pub mod events;
 pub mod input;
+pub mod messages;
 mod systems;
 
 use self::{
     components::*,
-    events::DeathScreenRestartEvent,
     input::{init_input, DeathScreenInput},
+    messages::DeathScreenRestartMessage,
     systems::check_press_continue_input,
 };
 use super::StageUiPlugin;
@@ -126,7 +126,7 @@ pub struct DeathScreenPlugin;
 
 impl Plugin for DeathScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<DeathScreenRestartEvent>()
+        app.add_message::<DeathScreenRestartMessage>()
             .add_plugins(InputManagerPlugin::<DeathScreenInput>::default())
             .add_systems(Startup, init_input)
             .add_active_systems::<StageUiPlugin, _>((render_death_screen, despawn_death_screen))

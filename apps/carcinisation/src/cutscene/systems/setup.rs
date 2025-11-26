@@ -5,12 +5,12 @@ use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
         data::CutsceneData,
-        events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
+        messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
         resources::CutsceneProgress,
     },
     debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
-    letterbox::{components::LetterboxEntity, events::LetterboxMoveTrigger},
+    letterbox::{components::LetterboxEntity, messages::LetterboxMoveEvent},
 };
 use activable::{activate, deactivate};
 use bevy::prelude::*;
@@ -18,7 +18,7 @@ use bevy::prelude::*;
 const DEBUG_MODULE: &str = "Cutscene";
 
 /// @trigger Boots a cutscene, loading data and enabling systems.
-pub fn on_cutscene_startup(trigger: On<CutsceneStartupTrigger>, mut commands: Commands) {
+pub fn on_cutscene_startup(trigger: On<CutsceneStartupEvent>, mut commands: Commands) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
@@ -33,7 +33,7 @@ pub fn on_cutscene_startup(trigger: On<CutsceneStartupTrigger>, mut commands: Co
 
 /// @trigger Cleans up cutscene entities and disables the plugin.
 pub fn on_cutscene_shutdown(
-    _trigger: On<CutsceneShutdownTrigger>,
+    _trigger: On<CutsceneShutdownEvent>,
     mut commands: Commands,
     cinematic_query: Query<Entity, With<Cinematic>>,
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
@@ -43,7 +43,7 @@ pub fn on_cutscene_shutdown(
     debug_print_shutdown(DEBUG_MODULE);
 
     deactivate::<CutscenePlugin>(&mut commands);
-    commands.trigger(LetterboxMoveTrigger::hide());
+    commands.trigger(LetterboxMoveEvent::hide());
 
     mark_for_despawn_by_query(&mut commands, &cutscene_entity_query);
     mark_for_despawn_by_query(&mut commands, &cinematic_query);

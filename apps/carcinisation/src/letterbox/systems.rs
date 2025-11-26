@@ -1,7 +1,7 @@
 //! Systems managing the lifecycle and movement of letterbox bars.
 
 use super::components::*;
-use super::events::LetterboxMoveTrigger;
+use super::messages::LetterboxMoveEvent;
 use super::resources::LetterboxTimeDomain;
 use crate::components::GBColor;
 use crate::debug::plugin::debug_print_shutdown;
@@ -72,7 +72,7 @@ pub fn on_letterbox_shutdown(
 
 /// @trigger Applies movement instructions to letterbox entities.
 pub fn on_move(
-    trigger: On<LetterboxMoveTrigger>,
+    trigger: On<LetterboxMoveEvent>,
     mut commands: Commands,
     top_query: Query<(Entity, &PxSubPosition), With<LetterboxTop>>,
     bottom_query: Query<(Entity, &PxSubPosition), With<LetterboxBottom>>,

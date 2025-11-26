@@ -4,11 +4,11 @@ use bevy::prelude::*;
 
 #[derive(Clone, Event, Message)]
 /// Raised when the player loses all lives or triggers game over.
-pub struct GameOverTrigger {
+pub struct GameOverEvent {
     /// TODO review score
     pub score: u32,
 }
 
 #[derive(Event, Message)]
 /// Starts the gameplay loop.
-pub struct GameStartupTrigger;
+pub struct GameStartupEvent;

@@ -4,7 +4,7 @@ use crate::stage::{
         behavior::{EnemyCurrentBehavior, EnemyStepTweenChild},
         CircleAround, LinearTween,
     },
-    events::DepthChangedEvent,
+    messages::DepthChangedMessage,
     resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
@@ -23,7 +23,7 @@ pub fn update_depth(
             )>,
         ),
     >,
-    mut event_writer: MessageWriter<DepthChangedEvent>,
+    mut event_writer: MessageWriter<DepthChangedMessage>,
 ) {
     for (entity, mut depth, position) in &mut query.iter_mut() {
         let mut depth_f32 = depth.to_f32();
@@ -32,14 +32,14 @@ pub fn update_depth(
         while position.0 >= (depth_f32 + 0.5) {
             *depth = *depth + 1;
             depth_f32 = depth.to_f32();
-            event_writer.write(DepthChangedEvent::new(entity, *depth));
+            event_writer.write(DepthChangedMessage::new(entity, *depth));
         }
 
         // Handle moving shallower
         while position.0 <= (depth_f32 - 0.5) {
             *depth = *depth - 1;
             depth_f32 = depth.to_f32();
-            event_writer.write(DepthChangedEvent::new(entity, *depth));
+            event_writer.write(DepthChangedMessage::new(entity, *depth));
         }
     }
 }

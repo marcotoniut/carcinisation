@@ -6,7 +6,7 @@ use crate::{
         spiral::{
             bundles::spawn_transition_venetian_row,
             components::TransitionVenetian,
-            events::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
+            messages::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
             resources::{TransitionCounter, TransitionUpdateTimer},
             TransitionVenetianPlugin,
         },

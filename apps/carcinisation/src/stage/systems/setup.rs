@@ -6,8 +6,8 @@ use crate::{
         bundles::{BackgroundBundle, SkyboxBundle},
         components::{Stage, StageEntity},
         data::{StageData, StageSpawn},
-        events::StageStartupTrigger,
-        player::events::PlayerStartupTrigger,
+        messages::StageStartupEvent,
+        player::messages::PlayerStartupEvent,
         ui::hud::spawn::spawn_hud,
         StagePlugin,
     },
@@ -19,7 +19,7 @@ use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::prelude::{PxSprite, PxTypeface};
 
 pub fn on_stage_startup(
-    trigger: On<StageStartupTrigger>,
+    trigger: On<StageStartupEvent>,
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     mut typefaces: PxAssets<PxTypeface>,
@@ -78,5 +78,5 @@ pub fn on_stage_startup(
 
     commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
-    commands.trigger(PlayerStartupTrigger);
+    commands.trigger(PlayerStartupEvent);
 }

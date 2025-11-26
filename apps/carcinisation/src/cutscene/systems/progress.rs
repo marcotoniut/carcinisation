@@ -7,12 +7,12 @@ use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity, CutsceneGraphic},
         data::*,
-        events::CutsceneShutdownTrigger,
+        messages::CutsceneShutdownEvent,
         resources::{CutsceneProgress, CutsceneTimeDomain},
     },
     globals::mark_for_despawn_by_query,
     layer::Layer,
-    letterbox::events::LetterboxMoveTrigger,
+    letterbox::messages::LetterboxMoveEvent,
     systems::spawn::make_music_bundle,
     transitions::trigger_transition,
 };
@@ -42,7 +42,7 @@ pub fn read_step_trigger(
             progress.index += 1;
 
             if let Some(x) = &act.letterbox_move_o {
-                commands.trigger(LetterboxMoveTrigger::from(x.clone()));
+                commands.trigger(LetterboxMoveEvent::from(x.clone()));
             }
 
             let mut entity_commands = commands.entity(entity);
@@ -73,7 +73,7 @@ pub fn read_step_trigger(
         } else {
             let mut entity_commands = commands.entity(entity);
             entity_commands.insert(Cleared);
-            commands.trigger(CutsceneShutdownTrigger);
+            commands.trigger(CutsceneShutdownEvent);
         }
     }
 }

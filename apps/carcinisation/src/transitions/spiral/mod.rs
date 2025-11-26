@@ -1,12 +1,12 @@
 pub mod bundles;
 pub mod components;
-pub mod events;
+pub mod messages;
 pub mod resources;
 mod systems;
 
 use self::{
     bundles::{check_transition_finished, update_transition},
-    events::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
+    messages::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
     resources::{TransitionUpdateTimer, TransitionVenetianTimeDomain},
     systems::{
         setup::{on_transition_shutdown, on_transition_startup},

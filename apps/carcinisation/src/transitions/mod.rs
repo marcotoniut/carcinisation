@@ -7,7 +7,7 @@ use bevy::prelude::Commands;
 
 use self::{
     data::{TransitionRequest, TransitionVenetianData, TransitionVenetianDataState},
-    spiral::events::TransitionVenetianStartupEvent,
+    spiral::messages::TransitionVenetianStartupEvent,
 };
 
 /// Triggers the configured transition effect.

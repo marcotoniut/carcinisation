@@ -3,17 +3,17 @@
 pub mod bundles;
 pub mod components;
 pub mod crosshair;
-pub mod events;
+pub mod messages;
 pub mod resources;
 mod systems;
 
 use self::{
     crosshair::{Crosshair, CrosshairSettings},
-    events::*,
+    messages::*,
     resources::AttackTimer,
     systems::{
         camera::{camera_shake, on_camera_shake},
-        events::*,
+        messages::*,
         *,
     },
 };
@@ -39,11 +39,11 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AttackTimer>()
             .configure_sets(Update, MovementSystems.before(ConfinementSystems))
-            .add_message::<CameraShakeTrigger>()
+            .add_message::<CameraShakeEvent>()
             .add_observer(on_camera_shake)
-            .add_message::<PlayerStartupTrigger>()
+            .add_message::<PlayerStartupEvent>()
             .add_observer(on_player_startup)
-            .add_message::<PlayerShutdownTrigger>()
+            .add_message::<PlayerShutdownEvent>()
             .add_observer(on_player_shutdown)
             .add_active_systems::<PlayerPlugin, _>(
                 // Player logic only runs when the plugin is active.

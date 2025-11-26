@@ -12,7 +12,7 @@ use crate::{
         data::StageData,
         destructible::components::Destructible,
         enemy::components::Enemy,
-        events::{StageRestart, StageStartupTrigger},
+        messages::{StageRestart, StageStartupEvent},
         player::components::Player,
         resources::{StageActionTimer, StageProgress, StageTimeDomain},
         StagePlugin, StageProgressState,
@@ -35,7 +35,7 @@ pub fn handle_stage_restart(
     mut stage_time: ResMut<Time<StageTimeDomain>>,
     mut stage_action_timer: ResMut<StageActionTimer>,
     mut restart_reader: MessageReader<StageRestart>,
-    mut startup_writer: MessageWriter<StageStartupTrigger>,
+    mut startup_writer: MessageWriter<StageStartupEvent>,
 ) {
     for _ in restart_reader.read() {
         // Reset progression/resources before rebuilding.
@@ -57,7 +57,7 @@ pub fn handle_stage_restart(
         activate::<StagePlugin>(&mut commands);
 
         let data = stage_data.clone();
-        startup_writer.write(StageStartupTrigger {
+        startup_writer.write(StageStartupEvent {
             data: Arc::new(data),
         });
     }

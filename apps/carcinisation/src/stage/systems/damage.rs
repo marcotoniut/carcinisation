@@ -4,7 +4,7 @@ use crate::stage::{
         damage::{DamageFlicker, InvertFilter},
         interactive::{Dead, Flickerer, Health},
     },
-    events::DamageEvent,
+    messages::DamageMessage,
     resources::StageTimeDomain,
 };
 use assert_assets_path::assert_assets_path;
@@ -21,7 +21,7 @@ lazy_static! {
 
 pub fn on_damage(
     mut commands: Commands,
-    mut event_reader: MessageReader<DamageEvent>,
+    mut event_reader: MessageReader<DamageMessage>,
     mut query: Query<&mut Health, Without<Dead>>,
 ) {
     for e in event_reader.read() {
@@ -40,7 +40,7 @@ pub fn on_damage(
 pub fn check_damage_flicker_taken(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
-    mut reader: MessageReader<DamageEvent>,
+    mut reader: MessageReader<DamageMessage>,
     // TODO Destructibles and Attacks
     query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
 ) {

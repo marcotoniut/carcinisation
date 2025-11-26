@@ -3,10 +3,12 @@ pub mod movement;
 pub mod setup;
 pub mod spawn;
 
-use crate::components::{AudioSystemType, VolumeSettings};
-use crate::game::events::GameStartupTrigger;
 use crate::{
-    components::{DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark},
+    components::{
+        AudioSystemType, DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark,
+        VolumeSettings,
+    },
+    game::messages::GameStartupEvent,
     main_menu::MainMenuPlugin,
 };
 use activable::activate;
@@ -111,7 +113,7 @@ pub fn check_despawn_after_delay<D: Default + Send + Sync + 'static>(
 }
 
 pub fn debug_trigger_game_startup(mut commands: Commands) {
-    commands.trigger(GameStartupTrigger);
+    commands.trigger(GameStartupEvent);
 }
 
 pub fn on_post_startup(mut commands: Commands) {

@@ -28,7 +28,7 @@ use crate::{
         data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
         destructible::{components::Destructible, data::DestructibleSpawn},
         enemy::components::{behavior::EnemyBehaviors, Enemy},
-        events::StageSpawnTrigger,
+        messages::StageSpawnEvent,
         pickup::components::HealthRecovery,
     },
     systems::camera::CameraPos,
@@ -49,7 +49,7 @@ pub fn check_step_spawn(
             let spawn_elapsed = spawn.get_elapsed();
             if spawn_elapsed <= elapsed {
                 elapsed -= spawn_elapsed;
-                commands.trigger(StageSpawnTrigger {
+                commands.trigger(StageSpawnEvent {
                     spawn: spawn.clone(),
                 });
                 false
@@ -63,7 +63,7 @@ pub fn check_step_spawn(
 }
 
 pub fn on_stage_spawn(
-    trigger: On<StageSpawnTrigger>,
+    trigger: On<StageSpawnEvent>,
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
