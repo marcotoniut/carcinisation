@@ -50,3 +50,7 @@ coverage/
 *.tmp
 .cache/
 *.local
+
+# App config
+*.config.ron
+apps/carcinisation/single-stage.config.ron

@@ -26,14 +26,26 @@ use bevy::prelude::*;
 const DEBUG_MODULE: &str = "Game";
 
 /// @trigger Initialises game resources and enables the progression plugin.
-pub fn on_game_startup(_trigger: On<GameStartupTrigger>, mut commands: Commands) {
+pub fn on_game_startup(
+    _trigger: On<GameStartupTrigger>,
+    mut commands: Commands,
+    existing_progress: Option<Res<GameProgress>>,
+    existing_game_data: Option<Res<GameData>>,
+    existing_lives: Option<Res<Lives>>,
+) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
     activate::<GamePlugin>(&mut commands);
-    commands.insert_resource::<GameProgress>(GameProgress { index: 0 });
-    commands.insert_resource::<GameData>(GAME_DATA.clone());
-    commands.insert_resource(Lives(STARTING_LIVES));
+    if existing_progress.is_none() {
+        commands.insert_resource::<GameProgress>(GameProgress { index: 0 });
+    }
+    if existing_game_data.is_none() {
+        commands.insert_resource::<GameData>(GAME_DATA.clone());
+    }
+    if existing_lives.is_none() {
+        commands.insert_resource(Lives(STARTING_LIVES));
+    }
 }
 
 // pub fn on_game_shutdown(
@@ -64,11 +76,14 @@ pub fn on_stage_cleared(
 
 /// @trigger Advances progress when a cutscene finishes.
 pub fn on_cutscene_shutdown(
-    mut event_reader: MessageReader<CutsceneShutdownTrigger>,
+    event_reader: Option<MessageReader<CutsceneShutdownTrigger>>,
     mut commands: Commands,
     mut progress: ResMut<GameProgress>,
 ) {
-    for _ in event_reader.read() {
+    let Some(mut reader) = event_reader else {
+        return;
+    };
+    for _ in reader.read() {
         progress.index += 1;
         // TODO should this be handled inside of the plugin instead?
         deactivate::<CutscenePlugin>(&mut commands);

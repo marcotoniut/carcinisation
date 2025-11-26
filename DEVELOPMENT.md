@@ -45,6 +45,9 @@ make run
 # Run pre-built debug binary directly (useful for IDE debuggers)
 make debug-binary
 
+# Skip menus/cutscenes and boot directly into a configured stage
+make dev-stage
+
 # Launch the scene editor utility
 make launch-editor
 
@@ -97,6 +100,7 @@ make run ARGS="--help"
 - **Code + Assets**: `make dev` uses `bacon` to watch and rerun when files under `apps/carcinisation/src` or `assets/` change. Bacon is faster and more reliable than cargo-watch, with better error reporting.
 - **Assets**: Bevy reloads assets in `assets/` automatically while the game is running. The scene watcher (`make watch-scene-files`) prints parser errors for `.ron` files so you spot mistakes early.
 - **Stages & Cutscenes**: Stage data lives under `assets/stages/*.sg.ron`; cutscenes live under `assets/cinematics/*.cs.ron`. Keep Bevy running in `make dev` and run the watcher to validate edits live.
+- **Single-stage debug flow**: `make dev-stage` copies `apps/carcinisation/single-stage.config.default.ron` to `apps/carcinisation/single-stage.config.ron` (if needed), then launches the dedicated `single_stage` binary. Edit that file to point at any `.sg.ron` you want to boot directly, skipping menus and cutscenes entirely.
 
 ### Local Documentation
 

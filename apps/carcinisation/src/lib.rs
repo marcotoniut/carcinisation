@@ -10,10 +10,11 @@ pub mod components {
 pub mod core {
     pub use carcinisation_core::core::*;
 }
+pub mod app;
 pub mod cutscene;
 mod data;
 pub mod debug;
-mod game;
+pub mod game;
 pub mod globals;
 mod input;
 mod layer;
