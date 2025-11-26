@@ -3,8 +3,8 @@ use crate::{
     components::GBColor,
     game::resources::Difficulty,
     globals::{
-        mark_for_despawn_by_query, FONT_SIZE, HALF_SCREEN_RESOLUTION, SCREEN_RESOLUTION,
-        SCREEN_RESOLUTION_F32, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
+        SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
     main_menu::{resources::DifficultySelection, MainMenuScreen},
@@ -49,7 +49,7 @@ pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: PxAsset
         MainMenuEntity,
         PressStartScreenEntity,
         PxTextBundle::<Layer> {
-            position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 10)),
+            position: PxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 10)),
             anchor: PxAnchor::BottomCenter,
             canvas: PxCanvas::Camera,
             layer: Layer::UI,
@@ -83,19 +83,17 @@ pub fn enter_game_difficulty_screen(
     commands.spawn((
         MainMenuEntity,
         DifficultySelectScreenEntity,
-        PxSubPosition(Vec2::new(
-            SCREEN_RESOLUTION_F32.x / 2.,
-            SCREEN_RESOLUTION_F32.y / 2.,
-        )),
+        Visibility::Visible,
+        // TODO should not be using PxSubposition here
+        PxSubPosition(*SCREEN_RESOLUTION_F32_H),
         PxRectangle {
             anchor: PxAnchor::Center,
             canvas: PxCanvas::Camera,
             color,
-            width: SCREEN_RESOLUTION.x - 50,
             height: SCREEN_RESOLUTION.y - 50,
             layer: Layer::UIBackground,
+            width: SCREEN_RESOLUTION.x - 50,
         },
-        Visibility::Visible,
     ));
 
     for (index, d) in Difficulty::iter().enumerate() {
@@ -109,7 +107,7 @@ pub fn enter_game_difficulty_screen(
             MainMenuEntity,
             DifficultySelectScreenEntity,
             PxTextBundle::<Layer> {
-                position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, y)),
+                position: PxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, y)),
                 anchor: PxAnchor::Center,
                 canvas: PxCanvas::Camera,
                 layer: Layer::UI,
@@ -184,6 +182,6 @@ fn difficulty_option_y(index: usize) -> i32 {
 
 fn difficulty_arrow_position(index: usize) -> IVec2 {
     let option_y = difficulty_option_y(index);
-    let arrow_x = HALF_SCREEN_RESOLUTION.x - 30;
+    let arrow_x = SCREEN_RESOLUTION_H.x - 30;
     IVec2::new(arrow_x, option_y)
 }

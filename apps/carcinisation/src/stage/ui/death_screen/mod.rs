@@ -14,28 +14,25 @@ use crate::{
     components::GBColor,
     game::{resources::Lives, score::components::Score},
     globals::{
-        mark_for_despawn_by_query, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query, SCREEN_RESOLUTION_F32_H, TYPEFACE_CHARACTERS,
+        TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
+    pixel::components::PxRectangle,
     stage::StageProgressState,
 };
 use crate::{
-    globals::HALF_SCREEN_RESOLUTION,
-    pixel::{PxAssets, PxLineBundle, PxTextBundle},
+    globals::SCREEN_RESOLUTION_H,
+    pixel::{PxAssets, PxTextBundle},
 };
-use activable::ActiveState;
+use activable::ActivableAppExt;
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
-use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxText, PxTypeface,
-};
-
-pub const HALF_SCREEN_SIZE: i32 = 70;
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSubPosition, PxText, PxTypeface};
 
 pub fn render_death_screen(
     mut commands: Commands,
     assets_typeface: PxAssets<PxTypeface>,
-    assets_filter: PxAssets<PxFilter>,
     lives: Res<Lives>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
@@ -43,38 +40,32 @@ pub fn render_death_screen(
     if stage_state.is_changed() && *stage_state.get() == StageProgressState::Death {
         let typeface =
             assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
-        let lives_text = "Lives ".to_string() + &lives.0.to_string();
-        let score_text = score.value.to_string();
 
-        commands
-            .spawn((DeathScreen, Name::new("Death Screen")))
-            .with_children(|p0| {
-                for i in 25..115 {
-                    p0.spawn((
-                        PxLineBundle::<Layer> {
-                            canvas: PxCanvas::Camera,
-                            line: [
-                                (HALF_SCREEN_RESOLUTION.x - HALF_SCREEN_SIZE, i).into(),
-                                (HALF_SCREEN_RESOLUTION.x + HALF_SCREEN_SIZE, i).into(),
-                            ]
-                            .into(),
-                            layers: PxFilterLayers::single_over(Layer::UIBackground),
-                            filter: PxFilter(assets_filter.load_color(GBColor::White)),
-                            ..default()
-                        },
-                        UIBackground,
-                        Name::new("UIBackground"),
-                    ));
-                }
-
-                p0.spawn((
+        commands.spawn((
+            DeathScreen,
+            Name::new("Death Screen"),
+            children![
+                (
+                    PxSubPosition(*SCREEN_RESOLUTION_F32_H),
+                    PxRectangle {
+                        anchor: PxAnchor::Center,
+                        canvas: PxCanvas::Camera,
+                        color: GBColor::White,
+                        height: 90,
+                        layer: Layer::UIBackground,
+                        width: 120,
+                    },
+                    UIBackground,
+                ),
+                (
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 90)),
+                        position: IVec2::new(SCREEN_RESOLUTION_H.x, 90).into(),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         text: PxText {
-                            value: lives_text.clone(),
+                            // TODO use template
+                            value: "Lives ".to_string() + &lives.0.to_string(),
                             typeface: typeface.clone(),
                             ..Default::default()
                         },
@@ -82,16 +73,15 @@ pub fn render_death_screen(
                     },
                     InfoText,
                     Name::new("InfoText_Stage_Lives"),
-                ));
-
-                p0.spawn((
+                ),
+                (
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 60)),
+                        position: IVec2::new(SCREEN_RESOLUTION_H.x, 60).into(),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         text: PxText {
-                            value: "Score:".to_string(),
+                            value: "Score:".into(),
                             typeface: typeface.clone(),
                             ..Default::default()
                         },
@@ -99,16 +89,15 @@ pub fn render_death_screen(
                     },
                     InfoText,
                     Name::new("InfoText_Score"),
-                ));
-
-                p0.spawn((
+                ),
+                (
                     PxTextBundle::<Layer> {
-                        position: PxPosition::from(IVec2::new(HALF_SCREEN_RESOLUTION.x, 50)),
+                        position: IVec2::new(SCREEN_RESOLUTION_H.x, 50).into(),
                         anchor: PxAnchor::BottomCenter,
                         canvas: PxCanvas::Camera,
                         layer: Layer::UI,
                         text: PxText {
-                            value: score_text.clone(),
+                            value: score.value.to_string(),
                             typeface: typeface.clone(),
                             ..Default::default()
                         },
@@ -116,8 +105,9 @@ pub fn render_death_screen(
                     },
                     CurrentScoreText,
                     Name::new("FinalScoreText"),
-                ));
-            });
+                )
+            ],
+        ));
     }
 }
 
@@ -135,13 +125,6 @@ pub fn death_screen_plugin(app: &mut App) {
     app.add_message::<DeathScreenRestartEvent>()
         .add_plugins(InputManagerPlugin::<DeathScreenInput>::default())
         .add_systems(Startup, init_input)
-        .add_systems(
-            Update,
-            (render_death_screen, despawn_death_screen)
-                .run_if(in_state(ActiveState::<StageUiPlugin>::active())),
-        )
-        .add_systems(
-            PostUpdate,
-            check_press_continue_input.run_if(in_state(ActiveState::<StageUiPlugin>::active())),
-        );
+        .add_active_systems::<StageUiPlugin, _>((render_death_screen, despawn_death_screen))
+        .add_active_systems_in::<StageUiPlugin, _>(PostUpdate, check_press_continue_input);
 }

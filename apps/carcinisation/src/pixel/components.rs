@@ -6,12 +6,13 @@ use seldom_pixel::prelude::*;
 
 #[derive(Component, Default)]
 /// Describes a rectangular pixel region to render using ``seldom_pixel``.
+// Should probably be a bundle? PxRectangle should be the component?
 pub struct PxRectangle<L: PxLayer> {
+    pub anchor: PxAnchor,
     pub canvas: PxCanvas,
     pub color: GBColor,
-    pub anchor: PxAnchor,
-    pub layer: L,
     pub height: u32,
+    pub layer: L,
     pub width: u32,
 }
 

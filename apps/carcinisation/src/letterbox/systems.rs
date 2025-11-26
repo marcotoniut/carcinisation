@@ -7,6 +7,7 @@ use crate::components::GBColor;
 use crate::debug::plugin::debug_print_shutdown;
 use crate::debug::plugin::debug_print_startup;
 use crate::globals::mark_for_despawn_by_query;
+use crate::globals::SCREEN_RESOLUTION_F32;
 use crate::{
     cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, layer::Layer,
     pixel::components::PxRectangle,
@@ -26,33 +27,33 @@ pub fn on_letterbox_startup(mut commands: Commands) {
     let color = GBColor::Black;
 
     commands.spawn((
-        Name::new("LetterboxTop".to_string()),
+        Name::new("LetterboxTop"),
         LetterboxEntity,
         LetterboxTop,
-        PxSubPosition(Vec2::new(0., SCREEN_RESOLUTION.y as f32)),
+        PxSubPosition(Vec2::new(0., SCREEN_RESOLUTION_F32.y)),
         PxRectangle {
+            anchor: PxAnchor::BottomLeft,
             canvas: PxCanvas::Camera,
             color,
-            width: SCREEN_RESOLUTION.x,
             height: SCREEN_RESOLUTION.y,
             layer: Layer::CutsceneLayer(CutsceneLayer::Letterbox),
-            anchor: PxAnchor::BottomLeft,
+            width: SCREEN_RESOLUTION.x,
         },
         Visibility::Visible,
     ));
 
     commands.spawn((
-        Name::new("LetterboxBottom".to_string()),
+        Name::new("LetterboxBottom"),
         LetterboxEntity,
         LetterboxBottom,
         PxSubPosition(Vec2::ZERO),
         PxRectangle {
+            anchor: PxAnchor::TopLeft,
             canvas: PxCanvas::Camera,
             color,
-            width: SCREEN_RESOLUTION.x,
             height: SCREEN_RESOLUTION.y,
             layer: Layer::CutsceneLayer(CutsceneLayer::Letterbox),
-            anchor: PxAnchor::TopLeft,
+            width: SCREEN_RESOLUTION.x,
         },
         Visibility::Visible,
     ));
@@ -78,7 +79,7 @@ pub fn on_move(
 ) {
     let e = trigger.event();
     for xs in top_query.iter() {
-        let target = SCREEN_RESOLUTION.y as f32 - e.target;
+        let target = SCREEN_RESOLUTION_F32.y - e.target;
         insert_linear_movement(&mut commands, xs, target, e.speed);
     }
 

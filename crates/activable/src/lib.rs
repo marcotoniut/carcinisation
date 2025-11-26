@@ -195,12 +195,13 @@ impl<P: Activable> bevy::ecs::system::Command for DeactivateCommand<P> {
     }
 }
 
-/// @system Activates the plugin type `P`.
+/// @system System wrapper that queues activation of `P`. No-ops if its state is unregistered.
+// TODO create nested_plugin to automatically add, activate and deactivate ?
 pub fn activate_system<P: Activable>(mut commands: Commands) {
     activate::<P>(&mut commands);
 }
 
-/// @system Deactivates the plugin type `P`.
+/// @system System wrapper that queues deactivation of `P`. No-ops if its state is unregistered.
 pub fn deactivate_system<P: Activable>(mut commands: Commands) {
     deactivate::<P>(&mut commands);
 }
