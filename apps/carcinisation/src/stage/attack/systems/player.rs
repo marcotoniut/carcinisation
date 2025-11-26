@@ -6,7 +6,7 @@ use crate::{
     stage::{
         attack::components::*,
         components::interactive::{ColliderData, Hittable},
-        events::DamageEvent,
+        messages::DamageMessage,
         player::components::{
             PlayerAttack, UnhittableList, Weapon, ATTACK_GUN_DAMAGE, ATTACK_PINCER_DAMAGE,
         },
@@ -22,7 +22,7 @@ const CRITICAL_THRESHOLD: f32 = 0.5;
  */
 pub fn check_got_hit(
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
-    mut event_writer: MessageWriter<DamageEvent>,
+    mut event_writer: MessageWriter<DamageMessage>,
     mut attack_query: Query<(&PlayerAttack, &mut UnhittableList)>,
     // mut attack_query: Query<(&PlayerAttack, &mut UnhittableList, Option<&Reach>)>,
     mut hittable_query: Query<(Entity, &PxSubPosition, &ColliderData), With<Hittable>>,
@@ -40,7 +40,7 @@ pub fn check_got_hit(
                         if let Some(collider) =
                             collider_data.point_collides(position.0, attack_position)
                         {
-                            event_writer.write(DamageEvent::new(
+                            event_writer.write(DamageMessage::new(
                                 entity,
                                 (ATTACK_PINCER_DAMAGE as f32 / collider.defense) as u32,
                             ));
@@ -61,7 +61,7 @@ pub fn check_got_hit(
                         if let Some(collider) =
                             collider_data.point_collides(position.0, attack_position)
                         {
-                            event_writer.write(DamageEvent::new(
+                            event_writer.write(DamageMessage::new(
                                 entity,
                                 (ATTACK_GUN_DAMAGE as f32 / collider.defense) as u32,
                             ));

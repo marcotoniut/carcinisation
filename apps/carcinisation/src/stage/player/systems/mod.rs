@@ -1,5 +1,5 @@
 pub mod camera;
-pub mod events;
+pub mod messages;
 
 use super::components::*;
 use super::resources::AttackTimer;

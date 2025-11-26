@@ -2,7 +2,7 @@
 
 pub mod components;
 pub mod data;
-pub mod events;
+pub mod messages;
 pub mod resources;
 pub mod score;
 mod systems;
@@ -10,7 +10,7 @@ mod systems;
 use crate::core::event::on_trigger_write_event;
 use activable::{Activable, ActivableAppExt};
 
-use self::{events::*, resources::GameProgress, score::ScorePlugin, systems::setup::*};
+use self::{messages::*, resources::GameProgress, score::ScorePlugin, systems::setup::*};
 use bevy::prelude::*;
 use resources::{CutsceneAssetHandle, StageAssetHandle};
 use systems::debug::debug_on_game_over;
@@ -23,10 +23,10 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ScorePlugin)
             .init_state::<GameProgressState>()
-            .add_message::<GameOverTrigger>()
+            .add_message::<GameOverEvent>()
             .add_observer(on_game_over)
-            .add_observer(on_trigger_write_event::<GameOverTrigger>)
-            .add_message::<GameStartupTrigger>()
+            .add_observer(on_trigger_write_event::<GameOverEvent>)
+            .add_message::<GameStartupEvent>()
             .add_observer(on_game_startup)
             .add_active_systems::<GamePlugin, _>(
                 // Core progression loop: wait for assets, advance steps, react to stage events.

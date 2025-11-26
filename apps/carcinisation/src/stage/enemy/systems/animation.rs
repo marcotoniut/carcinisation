@@ -3,7 +3,7 @@ use crate::stage::{
         components::Enemy, mosquito::entity::EnemyMosquitoAnimation,
         tardigrade::entity::EnemyTardigradeAnimation,
     },
-    events::DepthChangedEvent,
+    messages::DepthChangedMessage,
 };
 use bevy::prelude::*;
 
@@ -11,7 +11,7 @@ use bevy::prelude::*;
  * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose
  */
 pub fn on_enemy_depth_changed(
-    mut reader: MessageReader<DepthChangedEvent>,
+    mut reader: MessageReader<DepthChangedMessage>,
     mut commands: Commands,
     query: Query<(Entity, &Enemy)>,
 ) {

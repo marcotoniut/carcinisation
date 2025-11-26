@@ -6,7 +6,7 @@ pub mod components;
 pub mod data;
 pub mod destructible;
 pub mod enemy;
-pub mod events;
+pub mod messages;
 pub mod pickup;
 pub mod player;
 pub mod resources;
@@ -20,7 +20,7 @@ use self::{
     components::placement::RailPosition,
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
-    events::*,
+    messages::*,
     pickup::systems::health::{mark_pickup_feedback_for_despawn, pickup_health},
     player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress, StageTimeDomain},
@@ -91,22 +91,22 @@ impl Plugin for StagePlugin {
             .init_resource::<StageActionTimer>()
             .init_resource::<Time<StageTimeDomain>>()
             .init_resource::<StageProgress>()
-            // Event streams for the combat/progression loop.
-            .add_message::<DamageEvent>()
-            .add_message::<DepthChangedEvent>()
+            // Message streams for the combat/progression loop.
+            .add_message::<DamageMessage>()
+            .add_message::<DepthChangedMessage>()
             .add_message::<StageDeathEvent>()
             .add_observer(on_death)
             .add_message::<NextStepEvent>()
             .add_observer(on_next_step_cleanup_movement_step)
             .add_observer(on_next_step_cleanup_cinematic_step)
             .add_observer(on_next_step_cleanup_stop_step)
-            .add_message::<StageStartupTrigger>()
+            .add_message::<StageStartupEvent>()
             .add_observer(on_stage_startup)
-            .add_message::<StageSpawnTrigger>()
+            .add_message::<StageSpawnEvent>()
             .add_observer(on_stage_spawn)
-            .add_message::<StageClearedTrigger>()
+            .add_message::<StageClearedEvent>()
             .add_observer(on_stage_cleared)
-            .add_observer(on_trigger_write_event::<StageClearedTrigger>)
+            .add_observer(on_trigger_write_event::<StageClearedEvent>)
             // TODO .add_observer(on_startup_from_checkpoint))
             .on_active::<StagePlugin, _>((
                 activate_system::<AttackPlugin>,
@@ -138,7 +138,6 @@ impl Plugin for StagePlugin {
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(StageRestartPlugin)
-            .add_plugins(StageUiPlugin)
             .add_active_systems_in::<StagePlugin, _>(
                 FixedUpdate,
                 (

@@ -5,10 +5,10 @@ use bevy::prelude::*;
 use carcinisation::{
     app::{build_app, AppLaunchOptions, StartFlow},
     game::{
-        events::GameStartupTrigger,
+        messages::GameStartupEvent,
         resources::{GameData, GameProgress},
     },
-    stage::{data::StageData, events::StageStartupTrigger},
+    stage::{data::StageData, messages::StageStartupEvent},
 };
 use clap::Parser;
 use serde::Deserialize;
@@ -124,11 +124,11 @@ fn install_single_stage_data(mut commands: Commands, loaded: Res<LoadedSingleSta
 }
 
 fn trigger_game_startup(mut commands: Commands) {
-    commands.trigger(GameStartupTrigger);
+    commands.trigger(GameStartupEvent);
 }
 
 fn trigger_stage_startup(loaded: Res<LoadedSingleStage>, mut commands: Commands) {
-    commands.trigger(StageStartupTrigger {
+    commands.trigger(StageStartupEvent {
         data: loaded.stage_data.clone(),
     });
 }

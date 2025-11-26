@@ -1,12 +1,12 @@
 pub mod components;
-pub mod events;
 pub mod input;
+pub mod messages;
 mod systems;
 
 use self::{
     components::*,
-    events::ClearScreenShutdownEvent,
     input::{init_input, ClearScreenInput},
+    messages::ClearScreenShutdownMessage,
     systems::check_press_continue_input,
 };
 use super::{components::ScoreText, StageUiPlugin};
@@ -125,7 +125,7 @@ pub struct ClearedScreenPlugin;
 
 impl Plugin for ClearedScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<ClearScreenShutdownEvent>()
+        app.add_message::<ClearScreenShutdownMessage>()
             .add_plugins(InputManagerPlugin::<ClearScreenInput>::default())
             .add_systems(Startup, init_input)
             .add_active_systems::<StageUiPlugin, _>((render_cleared_screen, despawn_cleared_screen))

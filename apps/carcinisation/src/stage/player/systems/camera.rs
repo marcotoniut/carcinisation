@@ -1,6 +1,6 @@
 use crate::{
     stage::{
-        player::{components::CameraShake, events::CameraShakeTrigger},
+        player::{components::CameraShake, messages::CameraShakeEvent},
         resources::StageTimeDomain,
     },
     systems::camera::CameraPos,
@@ -29,7 +29,7 @@ pub fn camera_shake(
 }
 
 pub fn on_camera_shake(
-    _trigger: On<CameraShakeTrigger>,
+    _trigger: On<CameraShakeEvent>,
     mut commands: Commands,
     camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
 ) {

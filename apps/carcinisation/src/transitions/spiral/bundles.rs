@@ -9,7 +9,7 @@ use seldom_pixel::prelude::{PxCanvas, PxFilter, PxFilterLayers};
 
 use super::{
     components::{TransitionVenetian, TransitionVenetianRow},
-    events::TransitionVenetianShutdownEvent,
+    messages::TransitionVenetianShutdownEvent,
     resources::{TransitionCounter, TransitionUpdateTimer},
 };
 

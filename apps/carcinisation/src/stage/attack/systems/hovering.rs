@@ -11,8 +11,8 @@ use crate::{
             damage::InflictsDamage,
             placement::{Depth, InView},
         },
-        events::DamageEvent,
-        player::{components::Player, events::CameraShakeTrigger},
+        messages::DamageMessage,
+        player::{components::Player, messages::CameraShakeEvent},
         resources::StageTimeDomain,
     },
 };
@@ -27,7 +27,7 @@ use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
     assets_sprite: PxAssets<PxSprite>,
-    mut damage_event_writer: MessageWriter<DamageEvent>,
+    mut damage_event_writer: MessageWriter<DamageMessage>,
     mut player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
     depth_query: Query<
@@ -50,7 +50,7 @@ pub fn hovering_damage_on_reached(
             asset_server.load(assert_assets_path!("audio/sfx/enemy_melee.ogg"));
 
         for entity in &mut player_query.iter_mut() {
-            damage_event_writer.write(DamageEvent::new(entity, damage.0));
+            damage_event_writer.write(DamageMessage::new(entity, damage.0));
         }
 
         commands.spawn((
@@ -88,6 +88,6 @@ pub fn hovering_damage_on_reached(
         commands.entity(entity).insert(DespawnMark);
 
         // TODO CameraShake on damage event read instead?
-        commands.trigger(CameraShakeTrigger);
+        commands.trigger(CameraShakeEvent);
     }
 }

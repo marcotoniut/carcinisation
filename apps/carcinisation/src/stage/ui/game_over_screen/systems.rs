@@ -1,4 +1,4 @@
-use super::{events::GameOverScreenShutdownEvent, input::GameOverScreenInput};
+use super::{input::GameOverScreenInput, messages::GameOverScreenShutdownMessage};
 use crate::{
     game::{
         data::STARTING_LIVES,
@@ -8,7 +8,7 @@ use crate::{
     main_menu::MainMenuPlugin,
     stage::{
         data::StageData,
-        events::StageRestart,
+        messages::StageRestart,
         resources::{StageActionTimer, StageProgress, StageTimeDomain},
         StagePlugin, StageProgressState,
     },
@@ -18,17 +18,17 @@ use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 pub fn check_press_continue_input(
-    mut screen_shutdown_event_writer: MessageWriter<GameOverScreenShutdownEvent>,
+    mut screen_shutdown_event_writer: MessageWriter<GameOverScreenShutdownMessage>,
     input: Res<ActionState<GameOverScreenInput>>,
 ) {
     if input.just_pressed(&GameOverScreenInput::BackToMenu) {
-        screen_shutdown_event_writer.write(GameOverScreenShutdownEvent);
+        screen_shutdown_event_writer.write(GameOverScreenShutdownMessage);
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn handle_game_over_screen_continue(
-    mut event_reader: MessageReader<GameOverScreenShutdownEvent>,
+    mut event_reader: MessageReader<GameOverScreenShutdownMessage>,
     mut commands: Commands,
     mut stage_state: ResMut<NextState<StageProgressState>>,
     mut stage_progress: ResMut<StageProgress>,

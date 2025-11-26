@@ -18,7 +18,7 @@ use super::{
     data::*,
     destructible::components::Destructible,
     enemy::components::Enemy,
-    events::{NextStepEvent, StageClearedTrigger, StageDeathEvent},
+    messages::{NextStepEvent, StageClearedEvent, StageDeathEvent},
     player::components::Player,
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain},
     StageProgressState,
@@ -29,7 +29,7 @@ use crate::pixel::PxAssets;
 use crate::{
     components::{DespawnMark, Music},
     game::{
-        data::DEATH_SCORE_PENALTY, events::GameOverTrigger, resources::Lives,
+        data::DEATH_SCORE_PENALTY, messages::GameOverEvent, resources::Lives,
         score::components::Score, GameProgressState,
     },
     globals::{mark_for_despawn_by_query, DEBUG_STAGESTEP},
@@ -176,21 +176,21 @@ pub fn update_stage(
     }
 }
 
-/// @system Triggers `StageClearedTrigger` once all steps are complete.
+/// @system Triggers `StageClearedEvent` once all steps are complete.
 pub fn check_staged_cleared(
     mut commands: Commands,
     stage_progress: Res<StageProgress>,
     stage_data: Res<StageData>,
 ) {
     if stage_progress.index >= stage_data.steps.len() {
-        commands.trigger(StageClearedTrigger);
+        commands.trigger(StageClearedEvent);
     }
 }
 
 /// @trigger Handles cleanup and celebration when the stage is cleared.
 #[allow(clippy::too_many_arguments)]
 pub fn on_stage_cleared(
-    _trigger: On<StageClearedTrigger>,
+    _trigger: On<StageClearedEvent>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageProgressState>>,
     destructible_query: Query<Entity, With<Destructible>>,
@@ -244,7 +244,7 @@ pub fn on_death(
     _trigger: On<StageDeathEvent>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<StageProgressState>>,
-    mut game_over_event_writer: MessageWriter<GameOverTrigger>,
+    mut game_over_event_writer: MessageWriter<GameOverEvent>,
     lives: Res<Lives>,
     score: Res<Score>,
     attack_query: Query<Entity, With<EnemyAttack>>,
@@ -272,7 +272,7 @@ pub fn on_death(
     commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
     if 0 == lives.0 {
-        game_over_event_writer.write(GameOverTrigger { score: score.value });
+        game_over_event_writer.write(GameOverEvent { score: score.value });
         next_state.set(StageProgressState::GameOver);
     } else {
         next_state.set(StageProgressState::Death);

@@ -3,11 +3,11 @@
 use bevy::prelude::*;
 
 use super::components::*;
-use crate::game::events::GameOverTrigger;
+use crate::game::messages::GameOverEvent;
 
 /// @system Inserts the final run score into the high-score list.
 pub fn on_game_over_update_high_scores(
-    mut reader: MessageReader<GameOverTrigger>,
+    mut reader: MessageReader<GameOverEvent>,
     mut high_scores: ResMut<HighScores>,
 ) {
     for game_over in reader.read() {

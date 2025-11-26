@@ -5,18 +5,21 @@ use std::sync::Arc;
 use crate::{
     cutscene::{
         data::CutsceneData,
-        events::{CutsceneShutdownTrigger, CutsceneStartupTrigger},
+        messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
         CutscenePlugin,
     },
     debug::plugin::debug_print_startup,
     game::{
-        components::steps::*, data::*, events::GameStartupTrigger, resources::*, GameOverTrigger,
+        components::steps::*,
+        data::*,
+        messages::{GameOverEvent, GameStartupEvent},
+        resources::*,
         GamePlugin,
     },
     progression::game::GAME_DATA,
     stage::{
         data::StageData,
-        events::{StageClearedTrigger, StageStartupTrigger},
+        messages::{StageClearedEvent, StageStartupEvent},
         StagePlugin,
     },
 };
@@ -27,7 +30,7 @@ const DEBUG_MODULE: &str = "Game";
 
 /// @trigger Initialises game resources and enables the progression plugin.
 pub fn on_game_startup(
-    _trigger: On<GameStartupTrigger>,
+    _trigger: On<GameStartupEvent>,
     mut commands: Commands,
     existing_progress: Option<Res<GameProgress>>,
     existing_game_data: Option<Res<GameData>>,
@@ -59,11 +62,11 @@ pub fn on_game_startup(
 // }
 
 /// @trigger Placeholder hook for future game-over cleanup.
-pub fn on_game_over(_trigger: On<GameOverTrigger>) {}
+pub fn on_game_over(_trigger: On<GameOverEvent>) {}
 
 /// @trigger Advances progress when a stage reports it has been cleared.
 pub fn on_stage_cleared(
-    mut event_reader: MessageReader<StageClearedTrigger>,
+    mut event_reader: MessageReader<StageClearedEvent>,
     mut commands: Commands,
     mut progress: ResMut<GameProgress>,
 ) {
@@ -76,7 +79,7 @@ pub fn on_stage_cleared(
 
 /// @trigger Advances progress when a cutscene finishes.
 pub fn on_cutscene_shutdown(
-    event_reader: Option<MessageReader<CutsceneShutdownTrigger>>,
+    event_reader: Option<MessageReader<CutsceneShutdownEvent>>,
     mut commands: Commands,
     mut progress: ResMut<GameProgress>,
 ) {
@@ -98,7 +101,7 @@ pub fn progress(
     game_data: Res<GameData>,
     mut commands: Commands,
     // mut cutscene_startup_event_writer: MessageWriter<CutsceneStartupEvent>,
-    mut stage_startup_event_writer: MessageWriter<StageStartupTrigger>,
+    mut stage_startup_event_writer: MessageWriter<StageStartupEvent>,
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
         if let Some(data) = game_data.steps.get(game_progress.index) {
@@ -107,7 +110,7 @@ pub fn progress(
                     // TODO
                 }
                 GameStep::Cutscene(CutsceneGameStep { data, .. }) => {
-                    commands.trigger(CutsceneStartupTrigger { data: data.clone() });
+                    commands.trigger(CutsceneStartupEvent { data: data.clone() });
                     // cutscene_startup_event_writer.write();
                 }
                 GameStep::CutsceneAsset(CinematicAssetGameStep { src, .. }) => {
@@ -116,7 +119,7 @@ pub fn progress(
                     });
                 }
                 GameStep::Stage(StageGameStep { data }) => {
-                    stage_startup_event_writer.write(StageStartupTrigger { data: data.clone() });
+                    stage_startup_event_writer.write(StageStartupEvent { data: data.clone() });
                 }
                 GameStep::StageAsset(StageAssetGameStep(src)) => {
                     commands.insert_resource(StageAssetHandle {
@@ -141,7 +144,7 @@ pub fn check_cutscene_data_loaded(
         #[cfg(debug_assertions)]
         println!("Cutscene data loaded: {:?}", data);
         commands.remove_resource::<CutsceneAssetHandle>();
-        commands.trigger(CutsceneStartupTrigger {
+        commands.trigger(CutsceneStartupEvent {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
             data: Arc::new(data.clone()),
         });
@@ -161,7 +164,7 @@ pub fn check_stage_data_loaded(
         #[cfg(debug_assertions)]
         println!("Stage data loaded: {:?}", data);
         commands.remove_resource::<StageAssetHandle>();
-        commands.trigger(StageStartupTrigger {
+        commands.trigger(StageStartupEvent {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
             data: Arc::new(data.clone()),
         });

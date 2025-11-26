@@ -1,12 +1,12 @@
 pub mod components;
-pub mod events;
 pub mod input;
+pub mod messages;
 mod systems;
 
 use self::{
     components::*,
-    events::GameOverScreenShutdownEvent,
     input::{init_input, GameOverScreenInput},
+    messages::GameOverScreenShutdownMessage,
     systems::{check_press_continue_input, handle_game_over_screen_continue},
 };
 use crate::{
@@ -129,7 +129,7 @@ pub struct GameOverScreenPlugin;
 
 impl Plugin for GameOverScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<GameOverScreenShutdownEvent>()
+        app.add_message::<GameOverScreenShutdownMessage>()
             .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
             .add_systems(Startup, init_input)
             .add_active_systems::<GameOverScreenPlugin, _>((

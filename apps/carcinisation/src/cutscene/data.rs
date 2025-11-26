@@ -2,7 +2,7 @@
 
 use super::resources::CutsceneTimeDomain;
 use crate::{
-    layer::Layer, letterbox::events::LetterboxMove, stage::data::GAME_BASE_SPEED,
+    layer::Layer, letterbox::messages::LetterboxMove, stage::data::GAME_BASE_SPEED,
     transitions::data::TransitionRequest,
 };
 use bevy::prelude::*;
