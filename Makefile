@@ -56,6 +56,14 @@ dev:
 	# On macOS with bevy/dynamic_linking, DYLD_LIBRARY_PATH is handled by cargo run.
 	RUST_BACKTRACE=full bacon run
 
+.PHONY: dev-stage
+dev-stage:
+	@if [ ! -f apps/carcinisation/single-stage.config.ron ]; then \
+		echo "single-stage.config.ron missing; copying defaults..."; \
+		cp apps/carcinisation/single-stage.config.default.ron apps/carcinisation/single-stage.config.ron; \
+	fi
+	RUST_BACKTRACE=full bacon single-stage
+
 .PHONY: dev-legacy
 dev-legacy:
 	# Legacy cargo-watch based dev loop (kept for reference, prefer 'make dev')

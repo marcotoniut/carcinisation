@@ -1,0 +1,4 @@
+//! Local single-stage debug config. Copy to `single-stage.config.ron` under this directory to customise.
+SingleStageConfig(
+    stage_path: "assets/stages/park.sg.ron",
+)

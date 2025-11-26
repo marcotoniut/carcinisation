@@ -38,6 +38,7 @@ ts-rs = { workspace = true, optional = true }
 # Utilities
 anyhow = { workspace = true }
 assert_assets_path = { workspace = true }
+clap = { version = "4.5", features = ["derive"] }
 colored = { workspace = true }
 derive-new = { workspace = true }
 derive_more = { workspace = true }
@@ -53,3 +54,7 @@ getrandom = { version = "0.2", features = ["js"] }
 [[bin]]
 name = "ron_bridge"
 path = "src/bin/ron_bridge.rs"
+
+[[bin]]
+name = "single_stage"
+path = "src/bin/single_stage.rs"

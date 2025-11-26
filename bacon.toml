@@ -57,6 +57,21 @@ watch = ["apps/carcinisation/src", "assets"]
 # Don't restart on file changes - let the process crash and restart clean
 on_change_strategy = "kill_then_restart"
 
+[jobs.single-stage]
+command = [
+    "cargo", "run",
+    "--bin", "single_stage",
+    "--package", "carcinisation",
+    "--features", "bevy/dynamic_linking",
+    "--",
+    "--stage-config", "apps/carcinisation/single-stage.config.ron",
+]
+need_stdout = true
+allow_warnings = true
+env.RUST_BACKTRACE = "full"
+watch = ["apps/carcinisation/src", "assets", "apps/carcinisation/single-stage.config.ron"]
+on_change_strategy = "kill_then_restart"
+
 # Build the debug binary
 [jobs.build]
 command = [
