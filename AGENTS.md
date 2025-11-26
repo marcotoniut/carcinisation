@@ -117,8 +117,10 @@ For full server options, run `pnpm exec mcp-server-playwright --help`.
 ## Communication Norms
 
 - Be explicit about assumptions, uncertainties, and required follow-ups.
+- Ask clarifying questions whenever requirements feel fuzzy or multiple architectural routes are plausible.
 - Reference files with relative links and line numbers, e.g. `apps/carcinisation/src/stage/data.rs:417`.
 - Keep hand-offs concise but complete, highlighting validation status and remaining work.
 - Suggest concrete next steps instead of vague impressions; wait for maintainer approval before expanding scope.
 - Preserve previous decisions unless new information or maintainer guidance requires change.
 - Maintain a factual, concise tone—avoid filler, anthropomorphism, or ungrounded speculation.
+- When documenting code or decisions, prefer terse language-specific doc comments (JSDoc `/** */`, Rust `///`, Python docstrings) and avoid verbose prose—the repo should stay mostly self-documenting.
