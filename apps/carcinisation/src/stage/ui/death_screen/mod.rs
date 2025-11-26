@@ -25,7 +25,7 @@ use crate::{
     globals::SCREEN_RESOLUTION_H,
     pixel::{PxAssets, PxTextBundle},
 };
-use activable::ActivableAppExt;
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSubPosition, PxText, PxTypeface};
@@ -121,10 +121,15 @@ pub fn despawn_death_screen(
     }
 }
 
-pub fn death_screen_plugin(app: &mut App) {
-    app.add_message::<DeathScreenRestartEvent>()
-        .add_plugins(InputManagerPlugin::<DeathScreenInput>::default())
-        .add_systems(Startup, init_input)
-        .add_active_systems::<StageUiPlugin, _>((render_death_screen, despawn_death_screen))
-        .add_active_systems_in::<StageUiPlugin, _>(PostUpdate, check_press_continue_input);
+#[derive(Activable)]
+pub struct DeathScreenPlugin;
+
+impl Plugin for DeathScreenPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_message::<DeathScreenRestartEvent>()
+            .add_plugins(InputManagerPlugin::<DeathScreenInput>::default())
+            .add_systems(Startup, init_input)
+            .add_active_systems::<StageUiPlugin, _>((render_death_screen, despawn_death_screen))
+            .add_active_systems_in::<StageUiPlugin, _>(PostUpdate, check_press_continue_input);
+    }
 }

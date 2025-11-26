@@ -9,7 +9,6 @@ use self::{
     input::{init_input, GameOverScreenInput},
     systems::{check_press_continue_input, handle_game_over_screen_continue},
 };
-use super::StageUiPlugin;
 use crate::{
     components::GBColor,
     game::score::components::Score,
@@ -25,7 +24,7 @@ use crate::{
     globals::SCREEN_RESOLUTION_H,
     pixel::{PxAssets, PxTextBundle},
 };
-use activable::ActivableAppExt;
+use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
 use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxPosition, PxSubPosition, PxText, PxTypeface};
@@ -125,13 +124,21 @@ pub fn despawn_game_over_screen(
     }
 }
 
-pub fn game_over_screen_plugin(app: &mut App) {
-    app.add_message::<GameOverScreenShutdownEvent>()
-        .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
-        .add_systems(Startup, init_input)
-        .add_active_systems::<StageUiPlugin, _>((render_game_over_screen, despawn_game_over_screen))
-        .add_active_systems_in::<StageUiPlugin, _>(
-            PostUpdate,
-            (check_press_continue_input, handle_game_over_screen_continue).chain(),
-        );
+#[derive(Activable)]
+pub struct GameOverScreenPlugin;
+
+impl Plugin for GameOverScreenPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_message::<GameOverScreenShutdownEvent>()
+            .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
+            .add_systems(Startup, init_input)
+            .add_active_systems::<GameOverScreenPlugin, _>((
+                render_game_over_screen,
+                despawn_game_over_screen,
+            ))
+            .add_active_systems_in::<GameOverScreenPlugin, _>(
+                PostUpdate,
+                (check_press_continue_input, handle_game_over_screen_continue).chain(),
+            );
+    }
 }
