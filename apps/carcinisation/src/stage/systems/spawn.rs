@@ -233,7 +233,7 @@ pub fn spawn_destructible(
             spawn.get_name(),
             spawn.depth,
             Health(spawn.health),
-            spawn.destructible_type.clone(),
+            spawn.destructible_type,
             animation_bundle,
             PxSubPosition::from(spawn.coordinates),
             StageEntity,
