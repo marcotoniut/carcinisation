@@ -5,12 +5,15 @@ members = [
     "crates/activable_macros",
     "crates/activable",
     "crates/carcinisation_core",
+    "crates/carcinisation_shared",
     "crates/cween",
     "scripts/generate-typeface",
     "scripts/process-gfx",
     "scripts/generate-editor-bindings",
     "tools/assert_assets_path",
     "tools/scene-file-watcher",
+    "crates/attack_data",
+    "xtask",
 ]
 
 [workspace.package]
@@ -36,6 +39,7 @@ derive-new = "0.7.0"
 derive_more = "2.0.1"
 lazy_static = "1.4.0"
 leafwing-input-manager = "0.19.0"
+log = "0.4"
 num_enum = "0.7.2"
 rand = "0.9.2"
 seldom_pixel = { git = "https://github.com/marcotoniut/seldom_pixel", branch = "main", default-features = true, features = [

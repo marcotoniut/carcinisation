@@ -5,10 +5,7 @@ use crate::stage::{
             bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyAttackOriginDepth,
             EnemyAttackOriginPosition, EnemyHoveringAttackType,
         },
-        data::blood_shot::{
-            BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED, BLOOD_SHOT_ATTACK_LINE_SPEED,
-            BLOOD_SHOT_ATTACK_RANDOMNESS,
-        },
+        data::blood_shoot_embed::BloodShootTuning,
     },
     components::{
         damage::InflictsDamage,
@@ -81,25 +78,26 @@ pub fn spawn_blood_shot_attack(
     depth: &Depth,
 ) {
     let attack_type = EnemyHoveringAttackType::BloodShot;
+    let tuning = BloodShootTuning::config();
     // TODO should this account for player speed/direction?
     let target_pos = target_pos
         + Vec2::new(
-            (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
-            (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
+            (1. - rand::random::<f32>()) * tuning.randomness,
+            (1. - rand::random::<f32>()) * tuning.randomness,
         );
 
     let (sprite, animation, collider_data) =
         make_hovering_attack_animation_bundle(assets_sprite, &attack_type, *depth);
 
     let direction = target_pos - current_pos;
-    let speed = direction.normalize_or_zero() * BLOOD_SHOT_ATTACK_LINE_SPEED;
+    let speed = direction.normalize_or_zero() * tuning.line_speed;
 
     let mut entity_commands = commands.spawn(BloodShotBundle {
         enemy_attack_origin_position: EnemyAttackOriginPosition(current_pos),
         enemy_attack_origin_depth: EnemyAttackOriginDepth(*depth),
         enemy_hovering_attack_type: EnemyHoveringAttackType::BloodShot,
         depth: *depth,
-        inflicts_damage: InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
+        inflicts_damage: InflictsDamage(tuning.damage),
         position: PxSubPosition(current_pos),
         targeting_value_x: current_pos.x.into(),
         targeting_value_y: current_pos.y.into(),
@@ -150,7 +148,7 @@ pub fn spawn_blood_shot_attack(
             blood_shot_entity,
             depth.to_f32(),
             PLAYER_DEPTH.to_f32(),
-            BLOOD_SHOT_ATTACK_DEPTH_SPEED,
+            tuning.depth_speed,
         ),
         "Blood Shot Tween Z",
     );

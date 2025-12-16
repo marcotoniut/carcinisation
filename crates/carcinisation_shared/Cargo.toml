@@ -1,0 +1,22 @@
+[package]
+name = "carcinisation_shared"
+version = "0.2.0"
+edition = "2021"
+description = "Shared utilities for runtime, UI, and editor"
+
+[features]
+derive-ts = ["ts-rs"]
+
+[dependencies]
+bevy = { workspace = true }
+seldom_pixel = { workspace = true, features = ["line"] }
+cween = { path = "../cween" }
+
+assert_assets_path = { workspace = true }
+derive-new = { workspace = true }
+lazy_static = { workspace = true }
+serde = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+num_enum = { workspace = true }
+ts-rs = { workspace = true, optional = true }

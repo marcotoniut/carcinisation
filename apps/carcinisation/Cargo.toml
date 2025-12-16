@@ -8,11 +8,13 @@ default-run = "carcinisation"
 [features]
 default = []
 derive-ts = ["ts-rs", "cween/derive-ts"]
+attack_hot_reload = ["attack_data/attack_hot_reload"]
 
 [dependencies]
 # Workspace crates
 activable = { path = "../../crates/activable" }
 activable_macros = { path = "../../crates/activable_macros" }
+attack_data = { path = "../../crates/attack_data" }
 carcinisation_core = { path = "../../crates/carcinisation_core" }
 cween = { path = "../../crates/cween" }
 

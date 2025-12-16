@@ -1,7 +1,7 @@
 pub mod bundles;
 
 use super::data::{
-    blood_shot::BLOOD_ATTACK_ANIMATIONS, boulder_throw::BOULDER_ATTACK_ANIMATIONS,
+    blood_shoot_embed::BloodShootTuning, boulder_throw::BOULDER_ATTACK_ANIMATIONS,
     HoveringAttackAnimations,
 };
 use crate::stage::components::placement::Depth;
@@ -15,7 +15,7 @@ pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
 #[derive(Component, Default)]
 pub struct EnemyAttack;
 
-#[derive(Component, Debug, Reflect)]
+#[derive(Clone, Component, Copy, Debug, Reflect, Eq, Hash, PartialEq)]
 pub enum EnemyHoveringAttackType {
     BloodShot,
     BoulderThrow,
@@ -39,7 +39,7 @@ impl EnemyHoveringAttackType {
 
     pub fn get_animations(&self) -> &'static HoveringAttackAnimations {
         match self {
-            EnemyHoveringAttackType::BloodShot => &BLOOD_ATTACK_ANIMATIONS,
+            EnemyHoveringAttackType::BloodShot => &BloodShootTuning::config().animations,
             EnemyHoveringAttackType::BoulderThrow => &BOULDER_ATTACK_ANIMATIONS,
         }
     }

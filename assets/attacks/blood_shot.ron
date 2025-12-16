@@ -1,0 +1,35 @@
+({
+    "attack-id": "blood_shot",
+    "depth-speed": 16.0,
+    "line-speed": 120.0,
+    "damage": 1,
+    "randomness": 0.1,
+    "sprite-prefix": "crab_generic",
+    "hovering-fragment": "projectile",
+    "hovering": (
+        frames: 1,
+        speed: 1,
+        finish_behavior: Loop,
+    ),
+    "hit-fragment": "projectile_hit",
+    "hit": (
+        frames: 3,
+        speed: 80,
+        finish_behavior: Despawn,
+    ),
+    "hit-depth": "Same",
+    "depths": [
+        (
+            depth: "Behind",
+            collider_radius: 6.0,
+        ),
+        (
+            depth: "Same",
+            collider_radius: 6.0,
+        ),
+        (
+            depth: "InFront",
+            collider_radius: 6.0,
+        ),
+    ],
+})
