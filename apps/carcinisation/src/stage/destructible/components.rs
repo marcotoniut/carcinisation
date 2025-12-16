@@ -17,7 +17,7 @@ pub struct Destructible;
 
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
-#[derive(Clone, Component, Debug, Deserialize, Reflect, Serialize)]
+#[derive(Clone, Component, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Reflect, Serialize)]
 pub enum DestructibleType {
     Lamp,
     Trashcan,

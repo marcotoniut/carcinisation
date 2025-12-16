@@ -46,7 +46,7 @@ pub struct SkyboxData {
 // deriving Default for simplicity's sake in defining the stage data
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
-#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Reflect, Serialize)]
 /// Static props that can populate the stage background.
 pub enum ObjectType {
     BenchBig,
@@ -69,7 +69,7 @@ impl ObjectType {
 
 #[cfg_attr(feature = "derive-ts", derive(TS))]
 #[cfg_attr(feature = "derive-ts", ts(export))]
-#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Reflect, Serialize)]
 /// Pickup categories available for drop spawns.
 pub enum PickupType {
     SmallHealthpack,
@@ -164,7 +164,7 @@ impl PickupDropSpawn {
     /// Creates a concrete spawn from this template at the provided location/depth.
     pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> PickupSpawn {
         PickupSpawn {
-            pickup_type: self.pickup_type.clone(),
+            pickup_type: self.pickup_type,
             coordinates,
             depth,
             elapsed: Duration::ZERO,
