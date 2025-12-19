@@ -31,6 +31,9 @@ pub struct CutsceneImageLabel;
 pub struct Draggable;
 
 #[derive(Component, Debug, Reflect)]
+pub struct EditorCamera;
+
+#[derive(Component, Debug, Reflect)]
 pub struct LetterboxLabel;
 
 #[derive(Component, Debug, Reflect)]

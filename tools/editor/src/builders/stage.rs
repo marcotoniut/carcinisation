@@ -2,6 +2,9 @@ use std::time::Duration;
 
 use crate::constants::EditorColor;
 use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
+use crate::timeline::{
+    cinematic_duration, stop_duration, tween_travel_duration, StageTimelineConfig,
+};
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy_prototype_lyon::{prelude::*, shapes};
@@ -25,7 +28,7 @@ pub fn spawn_path(
     let screen_resolution = SCREEN_RESOLUTION.as_vec2();
     let h_screen_resolution = screen_resolution / 2.0;
 
-    let camera_position = stage_data.calculate_camera_position(stage_controls_ui.ElapsedDuration);
+    let camera_position = stage_data.calculate_camera_position(stage_controls_ui.elapsed_duration);
     let camera_shape = shapes::Polygon {
         points: vec![
             Vec2::ZERO,
@@ -52,11 +55,12 @@ pub fn spawn_path(
 
     let mut current_position = stage_data.start_coordinates;
     let mut current_elapsed: Duration = Duration::ZERO;
+    let timeline_config = StageTimelineConfig::SLIDER;
 
     for (index, step) in stage_data.steps.iter().enumerate() {
         match step {
             StageStep::Cinematic(s) => {
-                // TODO
+                current_elapsed += cinematic_duration(s, timeline_config);
             }
             StageStep::Tween(s) => {
                 path = path.line_to(s.coordinates + h_screen_resolution);
@@ -84,13 +88,12 @@ pub fn spawn_path(
                     GlobalTransform::default(),
                 ));
 
-                let distance = s.coordinates.distance(current_position);
-                let time_to_move = distance / s.base_speed;
+                let time_to_move = tween_travel_duration(current_position, s);
                 current_position = s.coordinates;
-                current_elapsed += Duration::from_secs_f32(time_to_move);
+                current_elapsed += time_to_move;
             }
             StageStep::Stop(s) => {
-                current_elapsed += s.max_duration.unwrap_or(Duration::ZERO);
+                current_elapsed += stop_duration(s, timeline_config);
 
                 // TODO elapsed?
                 for spawn in s.spawns.iter() {
@@ -146,7 +149,7 @@ pub fn spawn_stage(
         );
 
         let camera_position =
-            stage_data.calculate_camera_position(stage_controls_ui.ElapsedDuration);
+            stage_data.calculate_camera_position(stage_controls_ui.elapsed_duration);
         commands.spawn((
             Name::new("SG Skybox"),
             SceneItem,
@@ -167,87 +170,87 @@ pub fn spawn_stage(
         .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
         .enumerate()
     {
-        if spawn.get_elapsed() <= stage_controls_ui.ElapsedDuration {
-            let (image_path, rect) = spawn.get_thumbnail();
-            let mut sprite = Sprite::from_image(asset_server.load(image_path));
-            sprite.rect = rect;
+        let (image_path, rect) = spawn.get_thumbnail();
+        let mut sprite = Sprite::from_image(asset_server.load(image_path));
+        sprite.rect = rect;
 
-            commands.spawn((
-                spawn.get_editor_name_component(index),
-                StageSpawnLabel,
-                Draggable,
-                SceneItem,
-                sprite,
-                Transform::from_translation(
-                    spawn
-                        .get_coordinates()
-                        .extend(spawn.get_depth_editor_z_index()),
-                ),
-                Anchor::BOTTOM_CENTER,
-            ));
-        }
+        commands.spawn((
+            spawn.get_editor_name_component(index),
+            StageSpawnLabel,
+            Draggable,
+            SceneItem,
+            sprite,
+            Transform::from_translation(
+                spawn
+                    .get_coordinates()
+                    .extend(spawn.get_depth_editor_z_index()),
+            ),
+            Anchor::BOTTOM_CENTER,
+        ));
     }
 
     let mut current_position = stage_data.start_coordinates;
     let mut current_elapsed: Duration = Duration::ZERO;
+    let timeline_config = StageTimelineConfig::SLIDER;
     for (index, step) in stage_data.steps.iter().enumerate() {
         match step {
             StageStep::Cinematic(s) => {
-                // TODO
+                current_elapsed += cinematic_duration(s, timeline_config);
             }
             StageStep::Tween(s) => {
-                for spawn in s.spawns.iter() {
-                    current_elapsed += spawn.get_elapsed();
-                    if current_elapsed <= stage_controls_ui.ElapsedDuration
-                        && stage_controls_ui.depth_is_visible(spawn.get_depth())
-                    {
-                        let v = current_position + *spawn.get_coordinates();
-                        let (image_path, rect) = spawn.get_thumbnail();
-                        let mut sprite = Sprite::from_image(asset_server.load(image_path));
-                        sprite.rect = rect;
+                let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
+                if step_started {
+                    for spawn in s.spawns.iter() {
+                        if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
+                            let v = current_position + *spawn.get_coordinates();
+                            let (image_path, rect) = spawn.get_thumbnail();
+                            let mut sprite = Sprite::from_image(asset_server.load(image_path));
+                            sprite.rect = rect;
 
-                        commands.spawn((
-                            spawn.get_editor_name_component(index),
-                            StageSpawnLabel,
-                            Draggable,
-                            SceneItem,
-                            sprite,
-                            Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
-                            Anchor::BOTTOM_CENTER,
-                        ));
+                            commands.spawn((
+                                spawn.get_editor_name_component(index),
+                                StageSpawnLabel,
+                                Draggable,
+                                SceneItem,
+                                sprite,
+                                Transform::from_translation(
+                                    v.extend(spawn.get_depth_editor_z_index()),
+                                ),
+                                Anchor::BOTTOM_CENTER,
+                            ));
+                        }
                     }
                 }
 
-                let distance = s.coordinates.distance(current_position);
-                let time_to_move = distance / s.base_speed;
+                let time_to_move = tween_travel_duration(current_position, s);
                 current_position = s.coordinates;
-                current_elapsed += Duration::from_secs_f32(time_to_move);
+                current_elapsed += time_to_move;
             }
             StageStep::Stop(s) => {
-                current_elapsed += s.max_duration.unwrap_or(Duration::ZERO);
+                let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
+                if step_started {
+                    for spawn in s.spawns.iter() {
+                        if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
+                            let v = current_position + *spawn.get_coordinates();
+                            let (image_path, rect) = spawn.get_thumbnail();
+                            let mut sprite = Sprite::from_image(asset_server.load(image_path));
+                            sprite.rect = rect;
 
-                // TODO elapsed?
-                for spawn in s.spawns.iter() {
-                    current_elapsed += spawn.get_elapsed();
-                    if current_elapsed <= stage_controls_ui.ElapsedDuration
-                        && stage_controls_ui.depth_is_visible(spawn.get_depth())
-                    {
-                        let v = current_position + *spawn.get_coordinates();
-                        let (image_path, rect) = spawn.get_thumbnail();
-                        let mut sprite = Sprite::from_image(asset_server.load(image_path));
-                        sprite.rect = rect;
-
-                        commands.spawn((
-                            spawn.get_editor_name_component(index),
-                            StageSpawnLabel,
-                            Draggable,
-                            SceneItem,
-                            sprite,
-                            Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
-                            Anchor::BOTTOM_CENTER,
-                        ));
+                            commands.spawn((
+                                spawn.get_editor_name_component(index),
+                                StageSpawnLabel,
+                                Draggable,
+                                SceneItem,
+                                sprite,
+                                Transform::from_translation(
+                                    v.extend(spawn.get_depth_editor_z_index()),
+                                ),
+                                Anchor::BOTTOM_CENTER,
+                            ));
+                        }
                     }
                 }
+                current_elapsed += stop_duration(s, timeline_config);
             }
         }
     }

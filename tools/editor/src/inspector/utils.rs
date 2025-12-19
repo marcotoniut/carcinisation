@@ -10,6 +10,9 @@ use carcinisation::stage::{
 };
 
 use crate::builders::thumbnail::*;
+use crate::timeline::{
+    cinematic_duration, stop_duration, tween_travel_duration, StageTimelineConfig,
+};
 
 pub trait StageDataUtils {
     fn calculate_camera_position(&self, elapsed: Duration) -> Vec2;
@@ -20,12 +23,12 @@ impl StageDataUtils for StageData {
     fn calculate_camera_position(&self, elapsed: Duration) -> Vec2 {
         let mut current_position = self.start_coordinates;
         let mut current_elapsed: Duration = Duration::ZERO;
+        let config = StageTimelineConfig::SLIDER;
 
         for step in &self.steps {
             match step {
                 StageStep::Tween(s) => {
-                    let distance = s.coordinates.distance(current_position);
-                    let time_to_move = Duration::from_secs_f32(distance / s.base_speed);
+                    let time_to_move = tween_travel_duration(current_position, s);
 
                     if current_elapsed + time_to_move > elapsed {
                         let t =
@@ -37,14 +40,18 @@ impl StageDataUtils for StageData {
                     current_elapsed += time_to_move;
                 }
                 StageStep::Stop(s) => {
-                    current_elapsed += s.max_duration.unwrap_or(Duration::ZERO);
-
-                    if current_elapsed > elapsed {
+                    let duration = stop_duration(s, config);
+                    if current_elapsed + duration > elapsed {
                         return current_position;
                     }
+                    current_elapsed += duration;
                 }
-                StageStep::Cinematic(_) => {
-                    // Handle Cinematic step if necessary
+                StageStep::Cinematic(s) => {
+                    let duration = cinematic_duration(s, config);
+                    if current_elapsed + duration > elapsed {
+                        return current_position;
+                    }
+                    current_elapsed += duration;
                 }
             }
         }
@@ -94,15 +101,15 @@ impl StageSpawnUtils for StageSpawn {
         match self {
             StageSpawn::Destructible(DestructibleSpawn {
                 destructible_type, ..
-            }) => get_destructible_thumbnail(destructible_type, self.get_depth()),
+            }) => get_destructible_thumbnail(*destructible_type, self.get_depth()),
             StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => {
-                get_enemy_thumbnail(enemy_type, self.get_depth())
+                get_enemy_thumbnail(*enemy_type, self.get_depth())
             }
             StageSpawn::Object(ObjectSpawn { object_type, .. }) => {
-                get_object_thumbnail(object_type, self.get_depth())
+                get_object_thumbnail(*object_type, self.get_depth())
             }
             StageSpawn::Pickup(PickupSpawn { pickup_type, .. }) => {
-                get_pickup_thumbnail(pickup_type, self.get_depth())
+                get_pickup_thumbnail(*pickup_type, self.get_depth())
             }
         }
     }

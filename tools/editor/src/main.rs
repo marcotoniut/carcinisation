@@ -15,6 +15,8 @@ mod resources;
 #[cfg(feature = "full_editor")]
 mod systems;
 #[cfg(feature = "full_editor")]
+mod timeline;
+#[cfg(feature = "full_editor")]
 mod ui;
 
 #[cfg(feature = "full_editor")]
@@ -26,7 +28,7 @@ use bevy::window::Window;
 #[cfg(feature = "full_editor")]
 use bevy_common_assets::ron::RonAssetPlugin;
 #[cfg(feature = "full_editor")]
-use bevy_inspector_egui::bevy_egui::EguiPlugin;
+use bevy_inspector_egui::bevy_egui::{EguiPlugin, EguiPrimaryContextPass};
 #[cfg(feature = "full_editor")]
 use bevy_prototype_lyon::plugin::ShapePlugin;
 #[cfg(feature = "full_editor")]
@@ -34,9 +36,8 @@ use carcinisation::{cutscene::data::CutsceneData, stage::data::StageData};
 #[cfg(feature = "full_editor")]
 use components::SceneData;
 #[cfg(feature = "full_editor")]
-use constants::ASSETS_PATH;
+use constants::assets_root;
 #[cfg(feature = "full_editor")]
-use events::UnloadSceneTrigger;
 #[cfg(feature = "full_editor")]
 use file_manager::FileManagerPlugin;
 #[cfg(feature = "full_editor")]
@@ -50,7 +51,7 @@ use systems::{
     input::{
         on_alt_mouse_motion, on_ctrl_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel,
     },
-    on_scene_change, on_unload_scene, setup_camera,
+    maximize_window, on_scene_change, on_unload_scene, setup_camera,
 };
 #[cfg(feature = "full_editor")]
 use ui::systems::update_ui;
@@ -64,7 +65,8 @@ fn main() {
         .add_plugins(
             DefaultPlugins
                 .set(AssetPlugin {
-                    file_path: ASSETS_PATH.into(),
+                    file_path: assets_root().to_string_lossy().to_string(),
+                    meta_check: bevy::asset::AssetMetaCheck::Never,
                     ..default()
                 })
                 .set(WindowPlugin {
@@ -83,9 +85,8 @@ fn main() {
         .add_plugins(EguiPlugin::default())
         .add_plugins(FileManagerPlugin)
         .add_plugins(ShapePlugin)
-        .add_event::<UnloadSceneTrigger>()
         .add_observer(on_unload_scene)
-        .add_systems(Startup, setup_camera)
+        .add_systems(Startup, (maximize_window, setup_camera))
         .add_systems(
             PreUpdate,
             on_scene_change.run_if(resource_exists::<SceneData>),
@@ -109,7 +110,7 @@ fn main() {
                 on_mouse_wheel,
             ),
         )
-        .add_systems(Update, update_ui)
+        .add_systems(EguiPrimaryContextPass, update_ui)
         .add_systems(Update, animate_sprite)
         .run();
 }

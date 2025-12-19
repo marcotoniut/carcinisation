@@ -45,6 +45,7 @@ coverage/
 
 # Local development data
 /local
+tools/editor/recent_file_path.txt
 
 # Temporary files
 *.tmp
