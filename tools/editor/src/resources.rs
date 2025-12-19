@@ -22,72 +22,73 @@ pub struct StageAssetHandle {
 
 #[derive(Debug, Reflect, Resource, Deserialize, Serialize)]
 #[reflect(Resource)]
+#[serde(rename_all = "PascalCase")]
 pub struct StageControlsUI {
-    pub ElapsedDuration: Duration,
+    pub elapsed_duration: Duration,
 
-    pub ElapsedPath: bool,
+    pub elapsed_path: bool,
 
-    pub Skybox: bool,
-    pub Background: bool,
+    pub skybox: bool,
+    pub background: bool,
 
-    pub Nine: bool,
-    pub Eight: bool,
-    pub Seven: bool,
-    pub Six: bool,
-    pub Five: bool,
-    pub Four: bool,
-    pub Three: bool,
-    pub Two: bool,
-    pub One: bool,
-    pub Zero: bool,
+    pub nine: bool,
+    pub eight: bool,
+    pub seven: bool,
+    pub six: bool,
+    pub five: bool,
+    pub four: bool,
+    pub three: bool,
+    pub two: bool,
+    pub one: bool,
+    pub zero: bool,
 }
 
 impl Default for StageControlsUI {
     fn default() -> Self {
         StageControlsUI {
-            ElapsedPath: true,
-            ElapsedDuration: Duration::from_secs(999),
-            Skybox: true,
-            Background: true,
-            Nine: true,
-            Eight: true,
-            Seven: true,
-            Six: true,
-            Five: true,
-            Four: true,
-            Three: true,
-            Two: true,
-            One: true,
-            Zero: true,
+            elapsed_path: true,
+            elapsed_duration: Duration::from_secs(999),
+            skybox: true,
+            background: true,
+            nine: true,
+            eight: true,
+            seven: true,
+            six: true,
+            five: true,
+            four: true,
+            three: true,
+            two: true,
+            one: true,
+            zero: true,
         }
     }
 }
 
 impl StageControlsUI {
     pub fn path_is_visible(&self) -> bool {
-        self.ElapsedPath
+        self.elapsed_path
     }
 
     pub fn background_is_visible(&self) -> bool {
-        self.Background
+        self.background
     }
 
     pub fn skybox_is_visible(&self) -> bool {
-        self.Skybox
+        self.skybox
     }
 
     pub fn depth_is_visible(&self, depth: Depth) -> bool {
         match depth {
-            Depth::Nine => self.Nine,
-            Depth::Eight => self.Eight,
-            Depth::Seven => self.Seven,
-            Depth::Six => self.Six,
-            Depth::Five => self.Five,
-            Depth::Four => self.Four,
-            Depth::Three => self.Three,
-            Depth::Two => self.Two,
-            Depth::One => self.One,
-            Depth::Zero => self.Zero,
+            Depth::Nine => self.nine,
+            Depth::Eight => self.eight,
+            Depth::Seven => self.seven,
+            Depth::Six => self.six,
+            Depth::Five => self.five,
+            Depth::Four => self.four,
+            Depth::Three => self.three,
+            Depth::Two => self.two,
+            Depth::One => self.one,
+            Depth::Zero => self.zero,
         }
     }
 }

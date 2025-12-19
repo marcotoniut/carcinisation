@@ -84,7 +84,7 @@ dev-wasm:
 # =============================================================================
 .PHONY: launch-editor
 launch-editor:
-	RUST_BACKTRACE=full $(BEVY) run --package editor
+	RUST_BACKTRACE=full $(BEVY) run --package editor --features full_editor
 
 .PHONY: watch-scene-files
 watch-scene-files:

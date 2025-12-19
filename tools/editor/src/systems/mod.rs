@@ -9,7 +9,7 @@ use bevy::{
 };
 use carcinisation::{stage::data::StageData, CutsceneData};
 
-use crate::components::{AnimationIndices, AnimationTimer};
+use crate::components::{AnimationIndices, AnimationTimer, EditorCamera};
 use crate::file_manager::events::WriteRecentFilePathEvent;
 use crate::resources::StageControlsUI;
 use crate::{
@@ -20,7 +20,7 @@ use crate::{
 };
 
 pub fn setup_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
-    let Ok(window) = window_query.get_single() else {
+    let Ok(window) = window_query.single() else {
         return;
     };
 
@@ -30,7 +30,17 @@ pub fn setup_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
         0.0,
     );
 
-    commands.spawn((Camera2d, Transform::from_translation(camera_translation)));
+    commands.spawn((
+        Camera2d,
+        EditorCamera,
+        Transform::from_translation(camera_translation),
+    ));
+}
+
+pub fn maximize_window(mut window_query: Query<&mut Window, With<PrimaryWindow>>) {
+    if let Ok(mut window) = window_query.single_mut() {
+        window.set_maximized(true);
+    }
 }
 
 pub fn check_cutscene_data_loaded(
@@ -113,7 +123,7 @@ pub fn on_scene_change(
 ) {
     if loaded_scene.is_changed() || layer_shown_ui.is_changed() {
         for entity in scene_item_query.iter() {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
         }
         match loaded_scene.clone() {
             SceneData::Cutscene(data) => {
@@ -133,14 +143,14 @@ pub fn on_scene_change(
 }
 
 pub fn on_unload_scene(
-    trigger: On<UnloadSceneTrigger>,
+    _trigger: On<UnloadSceneTrigger>,
     mut commands: Commands,
     scene_item_query: Query<Entity, With<SceneItem>>,
     mut scene_path: ResMut<ScenePath>,
 ) {
     for entity in scene_item_query.iter() {
         *scene_path = ScenePath("".to_string());
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }
 

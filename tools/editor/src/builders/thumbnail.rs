@@ -10,7 +10,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
     match enemy_type {
         EnemyType::Mosquito => {
             let loc = "sprites/enemies/mosquito_idle_";
-            let ext = ".png";
+            let ext = ".px_sprite.png";
             match depth {
                 Depth::Three => (
                     format!("{}3{}", loc, ext),
@@ -41,7 +41,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
         }
         EnemyType::Spidey => {
             let loc = "sprites/enemies/spider_idle_";
-            let ext = ".png";
+            let ext = ".px_sprite.png";
             match depth {
                 Depth::Two => (
                     format!("{}2{}", loc, ext),
@@ -56,7 +56,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
         }
         EnemyType::Tardigrade => {
             let loc = "sprites/enemies/tardigrade_idle_";
-            let ext = ".png";
+            let ext = ".px_sprite.png";
             match depth {
                 Depth::Six => (
                     format!("{}6{}", loc, ext),
@@ -75,25 +75,25 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
         }
         EnemyType::Marauder => {
             let loc = "sprites/enemies/marauder_idle_";
-            let ext = ".png";
-            panic!("Invalid depth");
+            let ext = ".px_sprite.png";
+            panic!("{}{} Invalid depth {}", loc, ext, depth.to_i8());
         }
         EnemyType::Spidomonsta => {
             let loc = "sprites/enemies/spidomonsta_idle_";
-            let ext = ".png";
-            panic!("Invalid depth");
+            let ext = ".px_sprite.png";
+            panic!("{}{} Invalid depth {}", loc, ext, depth.to_i8());
         }
         EnemyType::Kyle => {
             let loc = "sprites/enemies/kyle_idle_";
-            let ext = ".png";
-            panic!("Invalid depth");
+            let ext = ".px_sprite.png";
+            panic!("{}{} Invalid depth {}", loc, ext, depth.to_i8());
         }
     }
 }
 
 pub fn get_destructible_thumbnail(
     destructible_type: DestructibleType,
-    depth: Depth,
+    _depth: Depth,
 ) -> (String, Option<Rect>) {
     match destructible_type {
         DestructibleType::Crystal => ("sprites/objects/crystal_base_5.px_sprite.png".into(), None),
@@ -107,7 +107,7 @@ pub fn get_destructible_thumbnail(
     }
 }
 
-pub fn get_object_thumbnail(object_type: ObjectType, depth: Depth) -> (String, Option<Rect>) {
+pub fn get_object_thumbnail(object_type: ObjectType, _depth: Depth) -> (String, Option<Rect>) {
     match object_type {
         ObjectType::BenchBig => ("sprites/objects/bench_big.px_sprite.png".into(), None),
         ObjectType::BenchSmall => ("sprites/objects/bench_small.px_sprite.png".into(), None),
@@ -116,7 +116,7 @@ pub fn get_object_thumbnail(object_type: ObjectType, depth: Depth) -> (String, O
     }
 }
 
-pub fn get_pickup_thumbnail(pickup_type: PickupType, depth: Depth) -> (String, Option<Rect>) {
+pub fn get_pickup_thumbnail(pickup_type: PickupType, _depth: Depth) -> (String, Option<Rect>) {
     match pickup_type {
         PickupType::BigHealthpack => ("sprites/pickups/health_6.px_sprite.png".into(), None),
         PickupType::SmallHealthpack => ("sprites/pickups/health_4.px_sprite.png".into(), None),

@@ -9,6 +9,7 @@ members = [
     "scripts/generate-typeface",
     "scripts/process-gfx",
     "scripts/generate-editor-bindings",
+    "tools/editor",
     "tools/assert_assets_path",
     "tools/scene-file-watcher",
 ]

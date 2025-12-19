@@ -1,23 +1,36 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{
-    bevy_egui::EguiContext,
+    bevy_egui::{EguiContext, PrimaryEguiContext},
     egui::{self, epaint::Shadow, Align2},
 };
 
 use crate::components::{SceneData, ScenePath};
+use crate::file_manager::actions::{request_file_picker, save_scene};
 
 pub fn inspector_ui(world: &mut World) {
-    let Ok((egui_context, window)) = world
-        .query_filtered::<(&mut EguiContext, &Window), With<PrimaryWindow>>()
-        .single(world)
-    else {
-        return;
+    let window_height = {
+        let Ok(window) = world
+            .query_filtered::<&Window, With<PrimaryWindow>>()
+            .single(world)
+        else {
+            return;
+        };
+        window.height()
     };
-    let mut egui_context = egui_context.clone();
-
-    let window_height = window.height();
+    let mut egui_context = {
+        let Ok(egui_context) = world
+            .query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>()
+            .single(world)
+        else {
+            return;
+        };
+        egui_context.clone()
+    };
 
     let ctx = egui_context.get_mut();
+    let scene_path = world.resource::<ScenePath>().0.clone();
+    let scene_data = world.get_resource::<SceneData>().cloned();
+    let has_stage = matches!(scene_data, Some(SceneData::Stage(_)));
 
     let window = egui::Window::new("World");
     window
@@ -46,7 +59,7 @@ pub fn inspector_ui(world: &mut World) {
 
     egui::Window::new("Path")
         .title_bar(false)
-        .anchor(egui::Align2::LEFT_TOP, [0.0, 35.0])
+        .anchor(egui::Align2::LEFT_TOP, [0.0, 0.0])
         .collapsible(false)
         .resizable(false)
         .movable(false)
@@ -54,15 +67,46 @@ pub fn inspector_ui(world: &mut World) {
             ctx.set_style(egui::Style {
                 visuals: egui::Visuals {
                     window_shadow: Shadow {
-                        offset: egui::Vec2::new(0.0, 0.0),
+                        offset: [0, 0],
                         ..default()
                     },
                     ..egui::Visuals::dark()
                 },
                 ..default()
             });
-            egui::ScrollArea::horizontal().show(ui, |ui| {
-                bevy_inspector_egui::bevy_inspector::ui_for_resource::<ScenePath>(world, ui);
+            ui.horizontal(|ui| {
+                let button_height = ui.spacing().interact_size.y;
+                let save_width = 46.0;
+                let select_width = 92.0;
+                let button_total = save_width + select_width + ui.spacing().item_spacing.x * 2.0;
+                let path_width = (ui.available_width() - button_total).max(140.0);
+
+                ui.add_sized(
+                    [path_width, button_height],
+                    egui::Label::new(scene_path.clone()),
+                );
+
+                let save_text = egui::RichText::new("Save").size(12.0);
+                let select_text = egui::RichText::new("Select file").size(12.0);
+
+                if ui
+                    .add_enabled(
+                        has_stage,
+                        egui::Button::new(save_text).min_size(egui::vec2(save_width, 0.0)),
+                    )
+                    .clicked()
+                {
+                    if let Some(scene_data) = scene_data.as_ref() {
+                        save_scene(world, &scene_path, scene_data);
+                    }
+                }
+
+                if ui
+                    .add(egui::Button::new(select_text).min_size(egui::vec2(select_width, 0.0)))
+                    .clicked()
+                {
+                    request_file_picker(world);
+                }
             });
         });
 }

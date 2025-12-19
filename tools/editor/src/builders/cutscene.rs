@@ -7,7 +7,7 @@ use crate::components::{
     CutsceneActConnection, CutsceneActNode, CutsceneImage, Draggable, LetterboxLabel, SceneItem,
 };
 use crate::constants::FONT_PATH;
-use carcinisation::letterbox::events::LetterboxMove;
+use carcinisation::letterbox::messages::LetterboxMove;
 
 const ACT_OFFSET: f32 = 250.0;
 
@@ -57,7 +57,7 @@ pub fn spawn_cutscene(
 
             if let Some(spawn_images) = &act.spawn_images_o {
                 for (image_index, image_spawn) in spawn_images.spawns.iter().enumerate() {
-                    let mut sprite =
+                    let sprite =
                         Sprite::from_image(asset_server.load(image_spawn.image_path.clone()));
 
                     p0.spawn((
