@@ -426,19 +426,17 @@ pub fn check_movement_step_reached(
         With<CameraPos>,
     >,
 ) {
-    if let Ok((camera_entity, reach_check)) = camera_query.single() {
-        if reach_check.reached() {
-            for _ in step_query.iter() {
-                let mut entity_commands = commands.entity(camera_entity);
-                entity_commands.remove::<LinearTween2DReachCheck<
-                    StageTimeDomain,
-                    TargetingValueX,
-                    TargetingValueY,
-                >>();
-                commands.trigger(NextStepEvent);
-            }
-        }
+    let Ok((camera_entity, reach_check)) = camera_query.single() else {
+        return;
+    };
+    if !reach_check.reached() || step_query.is_empty() {
+        return;
     }
+
+    let mut entity_commands = commands.entity(camera_entity);
+    entity_commands
+        .remove::<LinearTween2DReachCheck<StageTimeDomain, TargetingValueX, TargetingValueY>>();
+    commands.trigger(NextStepEvent);
 }
 
 /// @system Advances stop steps once their optional duration expires.

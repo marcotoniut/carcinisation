@@ -37,44 +37,46 @@ pub fn read_step_trigger(
     data: Res<CutsceneData>,
     time: Res<Time<CutsceneTimeDomain>>,
 ) {
-    for entity in query.iter() {
-        if let Some(act) = data.steps.get(progress.index) {
-            progress.index += 1;
+    let Ok(entity) = query.single() else {
+        return;
+    };
 
-            if let Some(x) = &act.letterbox_move_o {
-                commands.trigger(LetterboxMoveEvent::from(x.clone()));
-            }
+    if let Some(act) = data.steps.get(progress.index) {
+        progress.index += 1;
 
-            let mut entity_commands = commands.entity(entity);
-
-            entity_commands.insert((
-                CutsceneElapse::new(act.elapse),
-                CutsceneElapsedStarted(time.elapsed()),
-            ));
-
-            if let Some(x) = &act.music_despawn_o {
-                entity_commands.insert(x.clone());
-            }
-            if let Some(x) = &act.music_spawn_o {
-                entity_commands.insert(x.clone());
-            }
-            if let Some(x) = &act.spawn_animations_o {
-                entity_commands.insert(x.clone());
-            }
-            if let Some(x) = &act.spawn_images_o {
-                entity_commands.insert(x.clone());
-            }
-            if let Some(x) = &act.transition_o {
-                trigger_transition(&mut commands, &x.request);
-            }
-            if act.await_input {
-                // TODO
-            }
-        } else {
-            let mut entity_commands = commands.entity(entity);
-            entity_commands.insert(Cleared);
-            commands.trigger(CutsceneShutdownEvent);
+        if let Some(x) = &act.letterbox_move_o {
+            commands.trigger(LetterboxMoveEvent::from(x.clone()));
         }
+
+        let mut entity_commands = commands.entity(entity);
+
+        entity_commands.insert((
+            CutsceneElapse::new(act.elapse),
+            CutsceneElapsedStarted(time.elapsed()),
+        ));
+
+        if let Some(x) = &act.music_despawn_o {
+            entity_commands.insert(x.clone());
+        }
+        if let Some(x) = &act.music_spawn_o {
+            entity_commands.insert(x.clone());
+        }
+        if let Some(x) = &act.spawn_animations_o {
+            entity_commands.insert(x.clone());
+        }
+        if let Some(x) = &act.spawn_images_o {
+            entity_commands.insert(x.clone());
+        }
+        if let Some(x) = &act.transition_o {
+            trigger_transition(&mut commands, &x.request);
+        }
+        if act.await_input {
+            // TODO
+        }
+    } else {
+        let mut entity_commands = commands.entity(entity);
+        entity_commands.insert(Cleared);
+        commands.trigger(CutsceneShutdownEvent);
     }
 }
 
@@ -116,14 +118,10 @@ pub fn process_cutscene_animations_spawn(
                 Layer::CutsceneLayer(CutsceneLayer::Background(_))
             )
         }) {
-            let mut to_despawn = Vec::new();
             for (existing, layer) in existing_graphics.iter() {
                 if matches!(layer, Layer::CutsceneLayer(CutsceneLayer::Background(_))) {
-                    to_despawn.push(existing);
+                    commands.entity(existing).despawn();
                 }
-            }
-            for id in to_despawn {
-                commands.entity(id).despawn();
             }
         }
 
@@ -176,14 +174,10 @@ pub fn process_cutscene_images_spawn(
                 Layer::CutsceneLayer(CutsceneLayer::Background(_))
             )
         }) {
-            let mut to_despawn = Vec::new();
             for (existing, layer) in existing_graphics.iter() {
                 if matches!(layer, Layer::CutsceneLayer(CutsceneLayer::Background(_))) {
-                    to_despawn.push(existing);
+                    commands.entity(existing).despawn();
                 }
-            }
-            for id in to_despawn {
-                commands.entity(id).despawn();
             }
         }
 
