@@ -11,8 +11,6 @@
     "tsx": "^4.20.6"
   },
   "scripts": {
-    "build:editor": "pnpm --filter stage-editor build",
-    "dev:editor": "pnpm --filter stage-editor dev",
     "format": "biome format",
     "format:check": "biome check",
     "lint": "biome check",
@@ -21,5 +19,5 @@
     "mcp:playwright": "pnpm exec mcp-server-playwright --headless"
   },
   "packageManager": "pnpm@10.19.0",
-  "workspaces": ["scripts", "tools/stage-editor"]
+  "workspaces": ["scripts"]
 }

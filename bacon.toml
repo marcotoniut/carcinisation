@@ -102,21 +102,6 @@ allow_warnings = true
 env.RUST_BACKTRACE = "full"
 watch = ["assets"]
 
-# Generate TypeScript types from Rust
-[jobs.gen-types]
-command = [
-    "cargo", "run",
-    "--package", "generate-editor-bindings",
-    "--features", "derive-ts",
-]
-need_stdout = true
-env.TS_RS_EXPORT_DIR = "tools/stage-editor/src/types/generated"
-env.TS_OUT = "tools/stage-editor/src/types/generated"
-env.QUIET = "1"
-env.RUSTFLAGS = "-Awarnings"
-watch = ["apps/carcinisation/src"]
-on_change_strategy = "kill_then_restart"
-
 # Run all workspace lints (using bevy CLI pattern)
 # Note: This actually uses cargo clippy since bacon doesn't know about bevy CLI
 [jobs.lint]

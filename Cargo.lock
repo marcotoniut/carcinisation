@@ -2110,7 +2110,6 @@ dependencies = [
  "serde_with",
  "strum",
  "strum_macros",
- "ts-rs",
  "wasm-bindgen",
 ]
 
@@ -2593,7 +2592,6 @@ dependencies = [
  "lazy_static",
  "seldom_pixel",
  "serde",
- "ts-rs",
 ]
 
 [[package]]
@@ -3274,15 +3272,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54614a3312934d066701a80f20f15fa3b56d67ac7722b39eea5b4c9dd1d66c94"
 dependencies = [
  "thread_local",
-]
-
-[[package]]
-name = "generate-editor-bindings"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "carcinisation",
- "ts-rs",
 ]
 
 [[package]]
@@ -6678,28 +6667,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "ts-rs"
-version = "11.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4994acea2522cd2b3b85c1d9529a55991e3ad5e25cdcd3de9d505972c4379424"
-dependencies = [
- "thiserror 2.0.17",
- "ts-rs-macros",
-]
-
-[[package]]
-name = "ts-rs-macros"
-version = "11.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee6ff59666c9cbaec3533964505d39154dc4e0a56151fdea30a09ed0301f62e2"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.108",
- "termcolor",
 ]
 
 [[package]]
