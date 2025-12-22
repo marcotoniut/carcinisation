@@ -179,6 +179,48 @@ impl AnimatedAssetComponent for PxSprite {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{animation::draw_spatial, camera::PxCamera, image::PxImage};
+
+    fn pixels(image: &PxImage) -> Vec<u8> {
+        let size = image.size();
+        let mut out = Vec::with_capacity((size.x * size.y) as usize);
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                out.push(image.pixel(IVec2::new(x, y)));
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn sprite_draws_nonzero_pixels() {
+        let sprite = PxSpriteAsset {
+            data: PxImage::new(vec![0, 2, 3, 0], 2),
+            frame_size: 4,
+        };
+        let mut image = PxImage::new(vec![1; 4], 2);
+        let mut slice = image.slice_all_mut();
+
+        draw_spatial(
+            &sprite,
+            (),
+            &mut slice,
+            PxPosition(IVec2::ZERO),
+            PxAnchor::BottomLeft,
+            PxCanvas::Camera,
+            None,
+            [],
+            PxCamera::default(),
+        );
+
+        let expected = vec![1, 2, 3, 1];
+        assert_eq!(pixels(&image), expected);
+    }
+}
+
 // /// Size of threshold map to use for dithering. The image is tiled with dithering according to this
 // /// map, so smaller sizes will have more visible repetition and worse color approximation, but
 // /// larger sizes are much, much slower with pattern dithering.

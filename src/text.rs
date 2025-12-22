@@ -219,6 +219,104 @@ impl AnimatedAssetComponent for PxText {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{animation::draw_spatial, camera::PxCamera, image::PxImage, sprite::PxSpriteAsset};
+
+    fn pixels(image: &PxImage) -> Vec<u8> {
+        let size = image.size();
+        let mut out = Vec::with_capacity((size.x * size.y) as usize);
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                out.push(image.pixel(IVec2::new(x, y)));
+            }
+        }
+        out
+    }
+
+    fn draw_text(
+        image: &mut PxImage,
+        text: &str,
+        typeface: &PxTypeface,
+        pos: PxPosition,
+        alignment: PxAnchor,
+    ) {
+        let mut slice = image.slice_all_mut();
+        let line_break_count = 0_u32;
+        let mut size = uvec2(
+            0,
+            (line_break_count + 1) * typeface.height + line_break_count,
+        );
+        let mut x = 0;
+        let y = 0;
+        let mut chars = Vec::new();
+
+        for char in text.chars() {
+            if let Some(char) = typeface.characters.get(&char) {
+                if x != 0 {
+                    x += 1;
+                }
+
+                chars.push((x, y, char));
+                x += char.data.size().x;
+
+                if x > size.x {
+                    size.x = x;
+                }
+            } else if let Some(separator) = typeface.separators.get(&char) {
+                x += separator.width;
+            }
+        }
+
+        let top_left = *pos - alignment.pos(size).as_ivec2() + ivec2(0, size.y as i32 - 1);
+
+        for (x, y, char) in chars {
+            draw_spatial(
+                char,
+                (),
+                &mut slice,
+                PxPosition(top_left + ivec2(x as i32, -(y as i32))),
+                PxAnchor::TopLeft,
+                PxCanvas::Camera,
+                None,
+                [],
+                PxCamera::default(),
+            );
+        }
+    }
+
+    #[test]
+    fn text_draws_characters_with_spacing() {
+        let mut characters = HashMap::new();
+        characters.insert(
+            'A',
+            PxSpriteAsset {
+                data: PxImage::new(vec![2], 1),
+                frame_size: 1,
+            },
+        );
+        let typeface = PxTypeface {
+            height: 1,
+            characters,
+            separators: HashMap::new(),
+            max_frame_count: 1,
+        };
+
+        let mut image = PxImage::new(vec![1; 12], 4);
+        draw_text(
+            &mut image,
+            "AA",
+            &typeface,
+            PxPosition(IVec2::new(0, 1)),
+            PxAnchor::BottomLeft,
+        );
+
+        let expected = vec![1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1];
+        assert_eq!(pixels(&image), expected);
+    }
+}
+
 pub(crate) type TextComponents<L> = (
     &'static PxText,
     &'static PxPosition,

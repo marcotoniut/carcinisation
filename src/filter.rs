@@ -296,6 +296,35 @@ pub(crate) type FilterComponents<L> = (
     Option<&'static PxFrame>,
 );
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{animation::draw_frame, image::PxImage};
+
+    fn pixels(image: &PxImage) -> Vec<u8> {
+        let size = image.size();
+        let mut out = Vec::with_capacity((size.x * size.y) as usize);
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                out.push(image.pixel(IVec2::new(x, y)));
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn filter_maps_palette_indices() {
+        let filter = PxFilterAsset(PxImage::new(vec![0, 2, 3, 1], 4));
+        let mut image = PxImage::new(vec![1, 2, 1, 2], 2);
+        let mut slice = image.slice_all_mut();
+
+        draw_frame(&filter, (), &mut slice, None, []);
+
+        let expected = vec![2, 3, 2, 3];
+        assert_eq!(pixels(&image), expected);
+    }
+}
+
 #[cfg(feature = "headed")]
 fn extract_filters<L: PxLayer>(
     filters: Extract<

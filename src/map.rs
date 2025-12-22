@@ -238,6 +238,79 @@ impl Default for PxTiles {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{animation::draw_spatial, camera::PxCamera, image::PxImage, sprite::PxSpriteAsset};
+    use bevy_ecs::entity::Entity;
+    use bevy_platform::collections::HashMap;
+
+    fn pixels(image: &PxImage) -> Vec<u8> {
+        let size = image.size();
+        let mut out = Vec::with_capacity((size.x * size.y) as usize);
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                out.push(image.pixel(IVec2::new(x, y)));
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn map_draws_tiles_in_order() {
+        let tileset = PxTileset {
+            tileset: vec![
+                PxSpriteAsset {
+                    data: PxImage::new(vec![2], 1),
+                    frame_size: 1,
+                },
+                PxSpriteAsset {
+                    data: PxImage::new(vec![3], 1),
+                    frame_size: 1,
+                },
+            ],
+            tile_size: UVec2::ONE,
+            max_frame_count: 1,
+        };
+
+        let mut tiles = PxTiles::new(UVec2::new(2, 1));
+        let tile_a = Entity::from_raw_u32(1).unwrap();
+        let tile_b = Entity::from_raw_u32(2).unwrap();
+        tiles.set(Some(tile_a), UVec2::new(0, 0));
+        tiles.set(Some(tile_b), UVec2::new(1, 0));
+
+        let mut tile_components = HashMap::new();
+        tile_components.insert(tile_a, PxTile { texture: 0 });
+        tile_components.insert(tile_b, PxTile { texture: 1 });
+
+        let mut image = PxImage::new(vec![1; 2], 2);
+        let mut slice = image.slice_all_mut();
+
+        for x in 0..2 {
+            let pos = UVec2::new(x, 0);
+            let Some(tile_entity) = tiles.get(pos) else {
+                continue;
+            };
+            let tile = tile_components.get(&tile_entity).unwrap();
+            let tile_asset = &tileset.tileset[tile.texture as usize];
+            draw_spatial(
+                tile_asset,
+                (),
+                &mut slice,
+                PxPosition(pos.as_ivec2()),
+                PxAnchor::BottomLeft,
+                PxCanvas::Camera,
+                None,
+                [],
+                PxCamera::default(),
+            );
+        }
+
+        let expected = vec![2, 3];
+        assert_eq!(pixels(&image), expected);
+    }
+}
+
 impl<'a> Spatial for (&'a PxTiles, &'a PxTileset) {
     fn frame_size(&self) -> UVec2 {
         let (tiles, tileset) = self;
