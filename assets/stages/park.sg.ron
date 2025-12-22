@@ -1,6 +1,7 @@
-#![enable(implicit_some)]
 #![enable(unwrap_newtypes)]
+#![enable(implicit_some)]
 #![enable(unwrap_variant_newtypes)]
+#![enable(explicit_struct_names)]
 StageData(
     name: "Park",
     background_path: "backgrounds/rugpark/background.png",
@@ -117,7 +118,7 @@ StageData(
                     contains: Pickup(
                         pickup_type: BigHealthpack,
                     ),
-                    coordinates: Vec2(120.0, 100.0),
+                    coordinates: Vec2(147.76953, 61.999985),
                     speed: 2.0,
                     steps: [],
                     depth: Five,
@@ -136,9 +137,9 @@ StageData(
             ],
             floor_depths: {
                 Six: 70.0,
-                Three: 0.0,
-                Four: 30.0,
                 Five: 50.0,
+                Four: 30.0,
+                Three: 0.0,
             },
         ),
         Stop(
@@ -422,7 +423,7 @@ StageData(
                     contains: Pickup(
                         pickup_type: BigHealthpack,
                     ),
-                    coordinates: Vec2(120.0, 160.0),
+                    coordinates: Vec2(151.70313, 174.57423),
                     speed: 2.0,
                     steps: [],
                     depth: Five,
@@ -431,7 +432,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 7.4,
                     contains: None,
-                    coordinates: Vec2(140.0, 160.0),
+                    coordinates: Vec2(258.15625, 137.01947),
                     speed: 2.0,
                     steps: [],
                     depth: Five,

@@ -16,5 +16,6 @@ pub fn register_types(app: &mut App) {
         .register_type::<LetterboxLabel>()
         .register_type::<SelectedItem>()
         .register_type::<StageAssetHandle>()
-        .register_type::<StageControlsUI>();
+        .register_type::<StageControlsUI>()
+        .register_type::<StageSpawnRef>();
 }

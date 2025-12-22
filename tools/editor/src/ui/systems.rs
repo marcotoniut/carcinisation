@@ -84,12 +84,20 @@ pub fn update_ui(world: &mut World) {
                 let mut edited = false;
 
                 ui.horizontal(|ui| {
-                    let track_width = (ui.available_width()
-                        - value_width
-                        - step_width
-                        - ui.spacing().item_spacing.x * 2.0)
-                        .max(0.0);
+                    ui.add_sized([step_width, button_height], egui::Label::new(step_text));
 
+                    let value_response = ui.add_sized(
+                        [value_width, button_height],
+                        egui::DragValue::new(&mut edited_secs)
+                            .range(0.0..=total_secs)
+                            .speed(0.1)
+                            .max_decimals(3),
+                    );
+                    if value_response.changed() {
+                        edited = true;
+                    }
+
+                    let track_width = ui.available_width().max(0.0);
                     let (rect, response) = ui.allocate_exact_size(
                         egui::vec2(track_width, button_height),
                         egui::Sense::click_and_drag(),
@@ -132,18 +140,6 @@ pub fn update_ui(world: &mut World) {
                             t = new_t;
                         }
                     }
-
-                    let value_response = ui.add_sized(
-                        [value_width, button_height],
-                        egui::DragValue::new(&mut edited_secs)
-                            .range(0.0..=total_secs)
-                            .speed(0.1)
-                            .max_decimals(3),
-                    );
-                    if value_response.changed() {
-                        edited = true;
-                    }
-                    ui.add_sized([step_width, button_height], egui::Label::new(step_text));
                 });
 
                 if edited {

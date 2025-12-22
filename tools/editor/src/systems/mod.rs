@@ -2,7 +2,7 @@ pub mod cutscene;
 pub mod input;
 
 use bevy::asset::LoadState;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PrimaryWindow, WindowCloseRequested};
 use bevy::{
     asset::{AssetServer, Assets},
     prelude::*,
@@ -74,7 +74,7 @@ pub fn check_cutscene_data_loaded(
             }
             LoadState::Failed(e) => {
                 commands.remove_resource::<CutsceneAssetHandle>();
-                println!("Cutscene data failed to load: {}", e.to_string());
+                println!("Cutscene data failed to load: {}", e);
             }
         }
     }
@@ -109,7 +109,7 @@ pub fn check_stage_data_loaded(
             }
             LoadState::Failed(e) => {
                 commands.remove_resource::<StageAssetHandle>();
-                println!("Stage data failed to load {}", e.to_string());
+                println!("Stage data failed to load {}", e);
             }
         }
     }
@@ -174,5 +174,15 @@ pub fn animate_sprite(
                 };
             }
         }
+    }
+}
+
+/// @system Exits the app on close requests without despawning the window entity.
+pub fn exit_on_window_close_request(
+    mut close_requests: MessageReader<WindowCloseRequested>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if close_requests.read().next().is_some() {
+        exit.write(AppExit::Success);
     }
 }

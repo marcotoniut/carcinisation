@@ -100,7 +100,14 @@ pub fn stop_duration(step: &StopStageStep, config: StageTimelineConfig) -> Durat
     }
     match step.max_duration {
         Some(duration) => duration,
-        None => Duration::ZERO,
+        None => {
+            if config.collapse_infinite_stops {
+                Duration::ZERO
+            } else {
+                // Infinite stops have no finite duration; keep zero until a UI policy exists.
+                Duration::ZERO
+            }
+        }
     }
 }
 

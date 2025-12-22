@@ -49,6 +49,10 @@ pub struct LetterboxLabel;
 #[derive(Component, Debug, Reflect)]
 pub struct SelectedItem;
 
+/// Marker for the selection outline entity.
+#[derive(Component, Debug, Reflect)]
+pub struct SelectionOutline;
+
 /// Loaded scene data (stage or cutscene) for inspector/editor systems.
 #[derive(Clone, Debug, Reflect, Resource)]
 pub enum SceneData {
@@ -59,6 +63,19 @@ pub enum SceneData {
 /// Marker for entities spawned from the active scene.
 #[derive(Component, Debug, Reflect)]
 pub struct SceneItem;
+
+/// Maps an editor entity to a stage spawn entry for in-place edits.
+#[derive(Component, Copy, Clone, Debug, Reflect)]
+pub enum StageSpawnRef {
+    Static {
+        index: usize,
+    },
+    Step {
+        step_index: usize,
+        spawn_index: usize,
+        step_origin: Vec2,
+    },
+}
 
 /// Current scene file path (absolute) for persistence and UI.
 #[derive(Component, Debug, Default, Reflect, Resource)]
