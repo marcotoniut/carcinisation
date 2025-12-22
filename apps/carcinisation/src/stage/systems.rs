@@ -350,6 +350,11 @@ pub fn initialise_movement_step(
             let direction = *coordinates - position.0;
             let speed = direction.normalize_or_zero() * *base_speed * GAME_BASE_SPEED;
 
+            commands.entity(camera_entity).insert((
+                TargetingValueX::new(position.0.x),
+                TargetingValueY::new(position.0.y),
+            ));
+
             // Spawn movement children for the camera
             commands.spawn((
                 TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
