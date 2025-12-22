@@ -14,8 +14,11 @@ use crate::timeline::{
     cinematic_duration, stop_duration, tween_travel_duration, StageTimelineConfig,
 };
 
+/// Editor helpers derived from stage data.
 pub trait StageDataUtils {
+    /// Returns the camera position at a given elapsed time.
     fn calculate_camera_position(&self, elapsed: Duration) -> Vec2;
+    /// Counts dynamic spawns across stage steps.
     fn dynamic_spawn_count(&self) -> usize;
 }
 
@@ -70,9 +73,13 @@ impl StageDataUtils for StageData {
     }
 }
 
+/// Editor helpers for stage spawn visualization.
 pub trait StageSpawnUtils {
+    /// Returns a display name including depth and index.
     fn get_editor_name_component(&self, index: usize) -> Name;
+    /// Returns a z-index for layering in the editor view.
     fn get_depth_editor_z_index(&self) -> f32;
+    /// Returns the thumbnail sprite and optional texture rect.
     fn get_thumbnail(&self) -> (String, Option<Rect>);
 }
 

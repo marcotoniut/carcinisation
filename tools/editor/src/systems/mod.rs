@@ -19,6 +19,7 @@ use crate::{
     resources::{CutsceneAssetHandle, StageAssetHandle},
 };
 
+/// @system Spawns the editor camera centered on the primary window.
 pub fn setup_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
     let Ok(window) = window_query.single() else {
         return;
@@ -37,12 +38,14 @@ pub fn setup_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
     ));
 }
 
+/// @system Maximizes the primary window on startup.
 pub fn maximize_window(mut window_query: Query<&mut Window, With<PrimaryWindow>>) {
     if let Ok(mut window) = window_query.single_mut() {
         window.set_maximized(true);
     }
 }
 
+/// @system Loads cutscene data once the asset server finishes loading the selected file.
 pub fn check_cutscene_data_loaded(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -58,7 +61,6 @@ pub fn check_cutscene_data_loaded(
                     println!("Cutscene data loaded: {:?}", data);
                     commands.remove_resource::<CutsceneAssetHandle>();
                     commands.insert_resource(SceneData::Cutscene(data.clone()));
-                    commands.insert_resource(ScenePath(cutscene_asset_handle.path.clone()));
                     commands.trigger(WriteRecentFilePathEvent);
                 } else {
                     println!("Cutscene data error");
@@ -78,6 +80,7 @@ pub fn check_cutscene_data_loaded(
     }
 }
 
+/// @system Loads stage data once the asset server finishes loading the selected file.
 pub fn check_stage_data_loaded(
     asset_server: Res<AssetServer>,
     stage_asset_handle: Res<StageAssetHandle>,
@@ -93,7 +96,6 @@ pub fn check_stage_data_loaded(
                     println!("Stage data loaded: {:?}", data);
                     commands.remove_resource::<StageAssetHandle>();
                     commands.insert_resource(SceneData::Stage(data.clone()));
-                    commands.insert_resource(ScenePath(stage_asset_handle.path.clone()));
                     commands.trigger(WriteRecentFilePathEvent);
                 } else {
                     println!("Stage data error");
@@ -113,6 +115,7 @@ pub fn check_stage_data_loaded(
     }
 }
 
+/// @system Rebuilds editor entities when the scene or visibility toggles change.
 pub fn on_scene_change(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -142,18 +145,20 @@ pub fn on_scene_change(
     }
 }
 
+/// @system Clears the current scene entities and resets the scene path.
 pub fn on_unload_scene(
     _trigger: On<UnloadSceneTrigger>,
     mut commands: Commands,
     scene_item_query: Query<Entity, With<SceneItem>>,
     mut scene_path: ResMut<ScenePath>,
 ) {
+    *scene_path = ScenePath(String::new());
     for entity in scene_item_query.iter() {
-        *scene_path = ScenePath("".to_string());
         commands.entity(entity).despawn();
     }
 }
 
+/// @system Advances sprite atlas frames when their animation timer ticks.
 pub fn animate_sprite(
     time: Res<Time>,
     mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut Sprite)>,

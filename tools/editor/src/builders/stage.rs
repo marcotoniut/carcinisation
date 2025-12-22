@@ -20,6 +20,7 @@ const BACKGROUND_Z: f32 = -10.0;
 const CAMERA_POSITION_Z: f32 = 9.9;
 const PATH_Z: f32 = 10.0;
 
+/// Spawns the elapsed camera path overlay for the stage.
 pub fn spawn_path(
     commands: &mut Commands,
     stage_data: &StageData,
@@ -112,6 +113,7 @@ pub fn spawn_path(
     ));
 }
 
+/// Spawns stage background/skybox, spawns, and optional path overlay.
 pub fn spawn_stage(
     mut commands: &mut Commands,
     asset_server: &Res<AssetServer>,

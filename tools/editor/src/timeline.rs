@@ -5,6 +5,7 @@ use carcinisation::cutscene::data::CutsceneAnimationsSpawn;
 use carcinisation::stage::components::{CinematicStageStep, StopStageStep, TweenStageStep};
 use carcinisation::stage::data::{StageData, StageStep};
 
+/// Configures how stage steps contribute to timeline durations.
 #[derive(Clone, Copy, Debug)]
 pub struct StageTimelineConfig {
     pub include_spawn_delays: bool,
@@ -22,12 +23,14 @@ impl StageTimelineConfig {
     };
 }
 
+/// Timeline step with precomputed duration.
 #[derive(Clone, Debug)]
 pub struct StageTimelineStep {
     pub index: usize,
     pub duration: Duration,
 }
 
+/// Aggregated timeline of stage steps used by the editor UI.
 #[derive(Clone, Debug)]
 pub struct StageTimeline {
     pub steps: Vec<StageTimelineStep>,
@@ -35,6 +38,7 @@ pub struct StageTimeline {
 }
 
 impl StageTimeline {
+    /// Builds a timeline using the provided config.
     pub fn from_stage(stage_data: &StageData, config: StageTimelineConfig) -> Self {
         let mut steps = Vec::with_capacity(stage_data.steps.len());
         let mut total = Duration::ZERO;
@@ -49,6 +53,7 @@ impl StageTimeline {
         Self { steps, total }
     }
 
+    /// Clamps elapsed time to the timeline duration.
     pub fn clamp_elapsed(&self, elapsed: Duration) -> Duration {
         if elapsed > self.total {
             self.total
@@ -57,6 +62,7 @@ impl StageTimeline {
         }
     }
 
+    /// Returns the step index at the given elapsed time.
     pub fn step_index_at(&self, elapsed: Duration) -> usize {
         if self.steps.is_empty() {
             return 0;
@@ -80,28 +86,25 @@ impl StageTimeline {
     }
 }
 
+/// Duration of a tween step based on distance and base speed.
 pub fn tween_travel_duration(current_position: Vec2, step: &TweenStageStep) -> Duration {
     let distance = step.coordinates.distance(current_position);
     let base_speed = step.base_speed.max(0.0001);
     Duration::from_secs_f32(distance / base_speed)
 }
 
+/// Duration of a stop step based on its configured maximum duration.
 pub fn stop_duration(step: &StopStageStep, config: StageTimelineConfig) -> Duration {
     if !config.include_stop_durations {
         return Duration::ZERO;
     }
     match step.max_duration {
         Some(duration) => duration,
-        None => {
-            if config.collapse_infinite_stops {
-                Duration::ZERO
-            } else {
-                Duration::ZERO
-            }
-        }
+        None => Duration::ZERO,
     }
 }
 
+/// Duration of a cinematic step derived from cutscene spawn durations.
 pub fn cinematic_duration(step: &CinematicStageStep, config: StageTimelineConfig) -> Duration {
     if !config.include_cinematic_durations {
         return Duration::ZERO;
@@ -113,6 +116,7 @@ pub fn cinematic_duration(step: &CinematicStageStep, config: StageTimelineConfig
     }
 }
 
+/// Computes the duration of a step and advances the current position when needed.
 fn step_duration(
     step: &StageStep,
     current_position: &mut Vec2,

@@ -9,6 +9,7 @@ use crate::resources::StageControlsUI;
 use crate::timeline::{StageTimeline, StageTimelineConfig};
 use std::time::Duration;
 
+/// @system Builds the editor UI: stage timeline slider and stage control toggles.
 pub fn update_ui(world: &mut World) {
     let window_width = {
         let Ok(window) = world

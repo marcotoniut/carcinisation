@@ -10,6 +10,7 @@ use systems::*;
 
 use crate::components::ScenePath;
 
+/// Handles recent-file persistence and scene file selection.
 pub struct FileManagerPlugin;
 
 impl Plugin for FileManagerPlugin {
