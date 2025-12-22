@@ -38,7 +38,6 @@ use components::SceneData;
 #[cfg(feature = "full_editor")]
 use constants::assets_root;
 #[cfg(feature = "full_editor")]
-#[cfg(feature = "full_editor")]
 use file_manager::FileManagerPlugin;
 #[cfg(feature = "full_editor")]
 use inspector::InspectorPlugin;

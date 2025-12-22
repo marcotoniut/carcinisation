@@ -7,6 +7,7 @@ use bevy_inspector_egui::{
 use crate::components::{SceneData, ScenePath};
 use crate::file_manager::actions::{request_file_picker, save_scene};
 
+/// @system Renders inspector windows (world, scene, and file path controls).
 pub fn inspector_ui(world: &mut World) {
     let window_height = {
         let Ok(window) = world

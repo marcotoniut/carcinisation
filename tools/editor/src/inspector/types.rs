@@ -5,6 +5,7 @@ use crate::{
     resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI},
 };
 
+/// Registers editor-specific types with the inspector.
 pub fn register_types(app: &mut App) {
     app.register_type::<CutsceneActNode>()
         .register_type::<CutsceneImage>()

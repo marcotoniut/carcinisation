@@ -8,18 +8,21 @@ use carcinisation::{
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// Active cutscene asset handle and source path.
 #[derive(Debug, Reflect, Resource)]
 pub struct CutsceneAssetHandle {
     pub handle: Handle<CutsceneData>,
     pub path: String,
 }
 
+/// Active stage asset handle and source path.
 #[derive(Debug, Reflect, Resource)]
 pub struct StageAssetHandle {
     pub handle: Handle<StageData>,
     pub path: String,
 }
 
+/// UI state for editor stage controls and layer visibility.
 #[derive(Debug, Reflect, Resource, Deserialize, Serialize)]
 #[reflect(Resource)]
 #[serde(rename_all = "PascalCase")]
@@ -65,18 +68,22 @@ impl Default for StageControlsUI {
 }
 
 impl StageControlsUI {
+    /// Whether the elapsed camera path overlay is visible.
     pub fn path_is_visible(&self) -> bool {
         self.elapsed_path
     }
 
+    /// Whether the stage background is visible.
     pub fn background_is_visible(&self) -> bool {
         self.background
     }
 
+    /// Whether the stage skybox is visible.
     pub fn skybox_is_visible(&self) -> bool {
         self.skybox
     }
 
+    /// Whether entities at the requested depth should be rendered.
     pub fn depth_is_visible(&self, depth: Depth) -> bool {
         match depth {
             Depth::Nine => self.nine,

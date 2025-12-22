@@ -11,26 +11,18 @@ use carcinisation::letterbox::messages::LetterboxMove;
 
 const ACT_OFFSET: f32 = 250.0;
 
+/// Spawns cutscene nodes and visual connections for the editor.
 pub fn spawn_cutscene(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
-    data: &CutsceneData, // assuming CutsceneData is the type of data in LoadedScene::Cutscene
-                         // camera_query: &mut Query<&mut Transform, With<Camera>>,
+    data: &CutsceneData,
 ) {
-    // let mut camera_transform = camera_query.single_mut();
-    // camera_transform.translation.x = ACT_OFFSET * data.steps.len() as f32 / 2.0;
-
     let font_handle = asset_server.load(FONT_PATH);
     let text_font = TextFont {
         font: font_handle.clone().into(),
         font_size: 16.0,
         ..default()
     };
-    // let h2_text_style = TextStyle {
-    //     font: asset_server.load(FONT_PATH),
-    //     font_size: 14.0,
-    //     color: Color::WHITE,
-    // };
 
     let mut previous_entity_o: Option<Entity> = None;
 

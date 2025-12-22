@@ -18,6 +18,7 @@ impl EditorColor for Color {
     const CYAN: Self = Color::srgb(0.0, 1.0, 1.0);
 }
 
+/// Returns the absolute assets root for editor file picking.
 pub fn assets_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(ASSETS_PATH)
 }

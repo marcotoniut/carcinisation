@@ -12,6 +12,7 @@ const ZOOM_SENSITIVITY: f32 = 0.003;
 const WHEEL_ZOOM_SENSITIVITY: f32 = 0.0015;
 const WHEEL_ANCHOR_TIMEOUT: Duration = Duration::from_millis(200);
 
+/// @system Alt + mouse motion zooms the camera around the cursor.
 pub fn on_alt_mouse_motion(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
@@ -42,6 +43,7 @@ pub fn on_alt_mouse_motion(
     }
 }
 
+/// @system Ctrl-drag pans the camera when nothing is selected; right-click drags selected entities.
 pub fn on_ctrl_mouse_motion(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -54,7 +56,6 @@ pub fn on_ctrl_mouse_motion(
     window_query: Query<Entity, With<PrimaryWindow>>,
     mut last_cursor: Local<Option<Vec2>>,
 ) {
-    // Check if the Ctrl key and left mouse button are both pressed
     let ctrl_pressed = keyboard_buttons.pressed(KeyCode::ControlLeft)
         || keyboard_buttons.pressed(KeyCode::ControlRight);
 
@@ -107,6 +108,7 @@ pub fn on_ctrl_mouse_motion(
     }
 }
 
+/// @system Left click selects the top-most draggable entity under the cursor.
 pub fn on_mouse_press(
     buttons: Res<ButtonInput<MouseButton>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -158,12 +160,14 @@ pub fn on_mouse_press(
     }
 }
 
+/// @system Clears selection on mouse release.
 pub fn on_mouse_release(mut commands: Commands, selected_query: Query<Entity, With<SelectedItem>>) {
     for entity in selected_query.iter() {
         commands.entity(entity).remove::<SelectedItem>();
     }
 }
 
+/// @system Mouse wheel zooms around a stable cursor anchor for short bursts.
 pub fn on_mouse_wheel(
     mut mouse_wheel_events: MessageReader<MouseWheel>,
     window_query: Query<&Window, With<PrimaryWindow>>,
@@ -206,12 +210,14 @@ pub fn on_mouse_wheel(
     }
 }
 
+/// Converts a screen position to world coordinates using the editor camera.
 fn screen_to_world(camera: &Camera, transform: &Transform, cursor_position: Vec2) -> Option<Vec2> {
     camera
         .viewport_to_world_2d(&GlobalTransform::from(*transform), cursor_position)
         .ok()
 }
 
+/// Applies a uniform zoom delta with clamp and returns whether it changed.
 fn apply_zoom(transform: &mut Transform, delta: f32) -> bool {
     if delta.abs() < f32::EPSILON {
         return false;
@@ -225,6 +231,7 @@ fn apply_zoom(transform: &mut Transform, delta: f32) -> bool {
     true
 }
 
+/// Zooms toward a cursor position by offsetting camera translation after scaling.
 fn apply_zoom_at_cursor(
     camera: &Camera,
     transform: &mut Transform,

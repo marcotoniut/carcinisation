@@ -14,6 +14,7 @@ use crate::components::ScenePath;
 use crate::constants::assets_root;
 use crate::resources::{CutsceneAssetHandle, StageAssetHandle};
 
+/// @system Loads the last used scene path from disk and triggers an async selection task.
 pub fn load_recent_file(mut commands: Commands) {
     let thread_pool = AsyncComputeTaskPool::get();
     let task = thread_pool.spawn(async move {
@@ -34,6 +35,7 @@ pub fn load_recent_file(mut commands: Commands) {
     commands.spawn(SelectedFile(task));
 }
 
+/// Converts an absolute path to an asset-server relative path.
 fn asset_relative_path(path: &Path) -> Option<String> {
     let assets_root = assets_root();
     let assets_root = assets_root.canonicalize().unwrap_or(assets_root);
@@ -42,6 +44,7 @@ fn asset_relative_path(path: &Path) -> Option<String> {
     Some(relative.to_string_lossy().replace('\\', "/"))
 }
 
+/// @system Polls file picker tasks and loads the selected scene asset.
 pub fn poll_selected_file(
     mut commands: Commands,
     mut selected_files: Query<(Entity, &mut SelectedFile)>,
@@ -83,6 +86,7 @@ pub fn poll_selected_file(
     }
 }
 
+/// @system Persists the current scene path to the recent-file tracker.
 pub fn on_write_recent_file_path(
     _trigger: On<WriteRecentFilePathEvent>,
     scene_path: Res<ScenePath>,

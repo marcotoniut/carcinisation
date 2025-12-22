@@ -6,6 +6,7 @@ use self::systems::inspector_ui;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPrimaryContextPass;
 
+/// Registers inspector types and renders inspector UI windows.
 pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
