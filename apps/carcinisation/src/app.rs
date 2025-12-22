@@ -1,6 +1,6 @@
 //! Shared Bevy bootstrap for the main game binaries.
 
-use bevy::window::WindowResolution;
+use bevy::window::{WindowCloseRequested, WindowResolution};
 use bevy::{asset::AssetPlugin, prelude::*};
 use bevy_framepace::*;
 #[cfg(debug_assertions)]
@@ -84,6 +84,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                         ),
                         ..default()
                     }),
+                    close_when_requested: false,
                     ..default()
                 })
                 .set(AssetPlugin {
@@ -111,6 +112,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                         ),
                         ..default()
                     }),
+                    close_when_requested: false,
                     ..default()
                 })
                 .set(AssetPlugin {
@@ -150,9 +152,20 @@ pub fn build_app(options: AppLaunchOptions) -> App {
     app.add_plugins(StagePlugin)
         .add_plugins(GamePlugin)
         .add_systems(Update, (move_camera, update_position_x, update_position_y))
+        .add_systems(Update, exit_on_window_close_request)
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>);
 
     app
+}
+
+/// @system Exits the app when the user requests the window to close.
+fn exit_on_window_close_request(
+    mut close_requests: MessageReader<WindowCloseRequested>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if close_requests.read().next().is_some() {
+        exit.write(AppExit::Success);
+    }
 }
 
 #[cfg(debug_assertions)]

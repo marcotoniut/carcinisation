@@ -48,7 +48,8 @@ use systems::{
     animate_sprite, check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
     input::{
-        on_alt_mouse_motion, on_ctrl_mouse_motion, on_mouse_press, on_mouse_release, on_mouse_wheel,
+        on_alt_mouse_motion, on_ctrl_mouse_motion, on_mouse_drag, on_mouse_press, on_mouse_release,
+        on_mouse_wheel,
     },
     maximize_window, on_scene_change, on_unload_scene, setup_camera,
 };
@@ -60,6 +61,7 @@ fn main() {
     let title: String = "SCENE EDITOR".to_string();
 
     App::new()
+        .init_resource::<systems::input::DragState>()
         .init_resource::<StageControlsUI>()
         .add_plugins(
             DefaultPlugins
@@ -74,6 +76,7 @@ fn main() {
                         resizable: true,
                         ..default()
                     }),
+                    close_when_requested: false,
                     ..default()
                 }),
         )
@@ -105,11 +108,13 @@ fn main() {
                 on_alt_mouse_motion,
                 on_ctrl_mouse_motion,
                 on_mouse_press,
+                on_mouse_drag,
                 on_mouse_release,
                 on_mouse_wheel,
             ),
         )
         .add_systems(EguiPrimaryContextPass, update_ui)
+        .add_systems(Update, systems::exit_on_window_close_request)
         .add_systems(Update, animate_sprite)
         .run();
 }

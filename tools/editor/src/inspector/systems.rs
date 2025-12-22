@@ -4,7 +4,7 @@ use bevy_inspector_egui::{
     egui::{self, epaint::Shadow, Align2},
 };
 
-use crate::components::{SceneData, ScenePath};
+use crate::components::{SceneData, ScenePath, SelectedItem};
 use crate::file_manager::actions::{request_file_picker, save_scene};
 
 /// @system Renders inspector windows (world, scene, and file path controls).
@@ -31,6 +31,10 @@ pub fn inspector_ui(world: &mut World) {
     let ctx = egui_context.get_mut();
     let scene_path = world.resource::<ScenePath>().0.clone();
     let scene_data = world.get_resource::<SceneData>().cloned();
+    let selected_entity = world
+        .query_filtered::<Entity, With<SelectedItem>>()
+        .iter(world)
+        .next();
     let has_stage = matches!(scene_data, Some(SceneData::Stage(_)));
 
     let window = egui::Window::new("World");
@@ -54,7 +58,12 @@ pub fn inspector_ui(world: &mut World) {
         .resizable([true, false])
         .show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
-                bevy_inspector_egui::bevy_inspector::ui_for_resource::<SceneData>(world, ui);
+                if let Some(entity) = selected_entity {
+                    ui.heading("Selection");
+                    bevy_inspector_egui::bevy_inspector::ui_for_entity(world, entity, ui);
+                } else {
+                    bevy_inspector_egui::bevy_inspector::ui_for_resource::<SceneData>(world, ui);
+                }
             });
         });
 

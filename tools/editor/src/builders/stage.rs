@@ -11,7 +11,9 @@ use bevy_prototype_lyon::{prelude::*, shapes};
 use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::stage::data::{StageData, StageStep};
 
-use crate::components::{AnimationIndices, AnimationTimer, Draggable, SceneItem, StageSpawnLabel};
+use crate::components::{
+    AnimationIndices, AnimationTimer, Draggable, SceneItem, StageSpawnLabel, StageSpawnRef,
+};
 use crate::constants::FONT_PATH;
 use crate::resources::StageControlsUI;
 
@@ -115,7 +117,7 @@ pub fn spawn_path(
 
 /// Spawns stage background/skybox, spawns, and optional path overlay.
 pub fn spawn_stage(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     stage_controls_ui: &Res<StageControlsUI>,
     stage_data: &StageData,
@@ -179,6 +181,7 @@ pub fn spawn_stage(
         commands.spawn((
             spawn.get_editor_name_component(index),
             StageSpawnLabel,
+            StageSpawnRef::Static { index },
             Draggable,
             SceneItem,
             sprite,
@@ -202,7 +205,7 @@ pub fn spawn_stage(
             StageStep::Tween(s) => {
                 let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
                 if step_started {
-                    for spawn in s.spawns.iter() {
+                    for (spawn_index, spawn) in s.spawns.iter().enumerate() {
                         if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
                             let v = current_position + *spawn.get_coordinates();
                             let (image_path, rect) = spawn.get_thumbnail();
@@ -212,6 +215,11 @@ pub fn spawn_stage(
                             commands.spawn((
                                 spawn.get_editor_name_component(index),
                                 StageSpawnLabel,
+                                StageSpawnRef::Step {
+                                    step_index: index,
+                                    spawn_index,
+                                    step_origin: current_position,
+                                },
                                 Draggable,
                                 SceneItem,
                                 sprite,
@@ -231,7 +239,7 @@ pub fn spawn_stage(
             StageStep::Stop(s) => {
                 let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
                 if step_started {
-                    for spawn in s.spawns.iter() {
+                    for (spawn_index, spawn) in s.spawns.iter().enumerate() {
                         if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
                             let v = current_position + *spawn.get_coordinates();
                             let (image_path, rect) = spawn.get_thumbnail();
@@ -241,6 +249,11 @@ pub fn spawn_stage(
                             commands.spawn((
                                 spawn.get_editor_name_component(index),
                                 StageSpawnLabel,
+                                StageSpawnRef::Step {
+                                    step_index: index,
+                                    spawn_index,
+                                    step_origin: current_position,
+                                },
                                 Draggable,
                                 SceneItem,
                                 sprite,
@@ -282,6 +295,6 @@ pub fn spawn_stage(
     ));
 
     if stage_controls_ui.path_is_visible() {
-        spawn_path(&mut commands, &stage_data, &stage_controls_ui);
+        spawn_path(commands, stage_data, stage_controls_ui);
     }
 }

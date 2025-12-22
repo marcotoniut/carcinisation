@@ -3,6 +3,8 @@ pre-commit:
   commands:
     rustfmt-check:
       run: cargo fmt --all -- --check
+    cargo-clippy:
+      run: cargo clippy
     biome-lint:
       run: pnpm lint
     ruff-check:
