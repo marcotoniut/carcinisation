@@ -35,9 +35,9 @@ pub fn on_stage_startup(
         trigger_transition(&mut commands, request);
     }
 
-    for spawn in &data.spawns {
-        spawn_hud(&mut commands, &mut typefaces, &mut assets_sprite);
+    spawn_hud(&mut commands, &mut typefaces, &mut assets_sprite);
 
+    for spawn in &data.spawns {
         #[cfg(debug_assertions)]
         info!("Spawning {:?}", spawn.show_type());
 
