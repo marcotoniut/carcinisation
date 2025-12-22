@@ -1,7 +1,6 @@
 //! Sprite base name mappings for all spawnable entities.
 //!
 //! This module provides the single source of truth for sprite file naming conventions.
-//! The mappings are exported to TypeScript via ts-rs for consistent sprite loading.
 
 use super::{
     data::{ObjectType, PickupType},
@@ -10,12 +9,7 @@ use super::{
 };
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "derive-ts")]
-use ts_rs::TS;
-
 /// Sprite base name mapping for enemies
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct EnemySpriteName {
     pub enemy_type: EnemyType,
@@ -23,8 +17,6 @@ pub struct EnemySpriteName {
 }
 
 /// Sprite base name mapping for objects
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ObjectSpriteName {
     pub object_type: ObjectType,
@@ -32,8 +24,6 @@ pub struct ObjectSpriteName {
 }
 
 /// Sprite base name mapping for pickups
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PickupSpriteName {
     pub pickup_type: PickupType,
@@ -41,8 +31,6 @@ pub struct PickupSpriteName {
 }
 
 /// Sprite base name mapping for destructibles
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DestructibleSpriteName {
     pub destructible_type: DestructibleType,
@@ -50,8 +38,6 @@ pub struct DestructibleSpriteName {
 }
 
 /// Complete sprite name registry exported to TypeScript
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SpriteNameRegistry {
     pub enemies: Vec<EnemySpriteName>,

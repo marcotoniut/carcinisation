@@ -9,14 +9,9 @@ use seldom_pixel::prelude::PxSprite;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[cfg(feature = "derive-ts")]
-use ts_rs::TS;
-
 #[derive(Component)]
 pub struct Destructible;
 
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Component, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Reflect, Serialize)]
 pub enum DestructibleType {
     Lamp,

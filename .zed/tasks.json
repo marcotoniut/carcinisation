@@ -20,11 +20,6 @@
     "tags": ["bacon", "lint", "watch"]
   },
   {
-    "label": "bacon: gen types",
-    "command": "bacon gen-types",
-    "tags": ["bacon", "types", "watch"]
-  },
-  {
     "label": "bacon: watch scenes",
     "command": "bacon watch-scenes",
     "tags": ["bacon", "assets", "watch"]
@@ -58,10 +53,5 @@
     "label": "build process graphics",
     "command": "cargo build --bin=process-gfx --package=process-gfx",
     "tags": ["build"]
-  },
-  {
-    "label": "run stage editor",
-    "command": "pnpm --filter stage-editor dev",
-    "tags": ["stage-editor", "dev"]
   }
 ]

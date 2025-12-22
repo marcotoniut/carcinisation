@@ -4,9 +4,6 @@ version = "0.2.0"
 edition = "2021"
 description = "Tweening system for animating stage entities on fixed-step time domains"
 
-[features]
-derive-ts = ["ts-rs"]
-
 [dependencies]
 carcinisation_core = { path = "../carcinisation_core" }
 
@@ -17,4 +14,3 @@ derive-new = { workspace = true }
 derive_more = { workspace = true }
 lazy_static = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-ts-rs = { workspace = true, optional = true }

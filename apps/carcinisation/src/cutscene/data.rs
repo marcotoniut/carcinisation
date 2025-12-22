@@ -12,9 +12,6 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DurationSecondsWithFrac};
 use std::time::Duration;
 
-#[cfg(feature = "derive-ts")]
-use ts_rs::TS;
-
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Eq, Ord, Reflect, Serialize)]
 /// Layer stack used while rendering cinematic sequences (the later variants render on top).
 pub enum CutsceneLayer {
@@ -41,11 +38,8 @@ impl Default for CutsceneLayer {
 }
 
 #[serde_as]
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]
 pub struct TargetMovement {
-    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub position: Vec2,
     #[serde(default)]
     pub speed: f32,
@@ -80,20 +74,15 @@ impl TargetMovement {
 }
 
 #[serde_as]
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(new, Clone, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAnimationSpawn {
     pub image_path: String,
     pub frame_count: usize,
     #[serde_as(as = "DurationSecondsWithFrac")]
-    #[cfg_attr(feature = "derive-ts", ts(type = "number"))]
     pub duration: Duration,
-    #[cfg_attr(feature = "derive-ts", ts(type = "any"))]
     pub layer: Layer,
     #[new(default)]
     #[serde(default)]
-    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
     #[new(default)]
     #[serde(default)]
@@ -103,8 +92,6 @@ pub struct CutsceneAnimationSpawn {
     pub target_movement_o: Option<TargetMovement>,
 }
 
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(new, Clone, Component, Debug, Deserialize, Reflect, Serialize)]
 pub struct CutsceneAnimationsSpawn {
     #[new(default)]

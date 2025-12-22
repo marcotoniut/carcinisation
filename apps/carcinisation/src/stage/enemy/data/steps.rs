@@ -3,11 +3,6 @@ use cween::structs::TweenDirection;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "derive-ts")]
-use ts_rs::TS;
-
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct AttackEnemyStep {
     pub duration: f32,
@@ -26,8 +21,6 @@ impl AttackEnemyStep {
     }
 }
 
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct CircleAroundEnemyStep {
     pub depth_movement_o: Option<i8>,
@@ -78,8 +71,6 @@ impl CircleAroundEnemyStep {
     }
 }
 
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct IdleEnemyStep {
     pub duration: f32,
@@ -104,12 +95,9 @@ impl Default for IdleEnemyStep {
     }
 }
 
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct LinearTweenEnemyStep {
     pub depth_movement_o: Option<i8>,
-    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub direction: Vec2,
     #[serde(default)]
     pub trayectory: f32,
@@ -150,12 +138,9 @@ impl LinearTweenEnemyStep {
     }
 }
 
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, Reflect, Serialize)]
 pub struct JumpEnemyStep {
     pub attacking: bool,
-    #[cfg_attr(feature = "derive-ts", ts(type = "[number, number]"))]
     pub coordinates: Vec2,
     pub depth_movement: Option<i8>,
     pub speed: f32,
@@ -173,8 +158,6 @@ impl JumpEnemyStep {
 }
 
 // Should rename to EnemyBehavior?
-#[cfg_attr(feature = "derive-ts", derive(TS))]
-#[cfg_attr(feature = "derive-ts", ts(export))]
 #[derive(Clone, Copy, Debug, Deserialize, From, Reflect, Serialize)]
 pub enum EnemyStep {
     Attack(AttackEnemyStep),

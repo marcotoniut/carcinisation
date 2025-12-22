@@ -98,44 +98,6 @@ docs:
 docs-serve:
 	@scripts/generate-docs.sh --serve
 
-.PHONY: dev-stage-editor
-dev-stage-editor:
-	pnpm --filter stage-editor dev
-
-.PHONY: build-stage-editor
-build-stage-editor:
-	pnpm --filter stage-editor build
-
-.PHONY: ci-stage-editor
-ci-stage-editor:
-	pnpm --filter stage-editor lint && pnpm --filter stage-editor test
-
-# =============================================================================
-# Type generation for stage-editor
-# =============================================================================
-TS_OUT := tools/stage-editor/src/types/generated
-TS_RS_EXPORT_DIR := $(TS_OUT)
-.PHONY: gen-types
-gen-types:
-	@echo "Generating TypeScript types from Rust..."
-	TS_RS_EXPORT_DIR=$(TS_RS_EXPORT_DIR) TS_OUT=$(TS_OUT) \
-	$(BEVY) run --package generate-editor-bindings --features derive-ts
-
-.PHONY: gen-zod
-gen-zod:
-	@echo "⚠️  gen-zod is deprecated and removed. Zod validation was removed from the pipeline."
-	@echo "   TypeScript types are generated via 'make gen-types'"
-
-.PHONY: gen-editor-types
-gen-editor-types: gen-types
-	@echo "✓ All editor type generation complete"
-
-.PHONY: watch-types
-watch-types:
-	@echo "🔄 Starting type watcher via bacon..."
-	# Use bacon's gen-types job for cleaner, faster watching
-	bacon gen-types
-
 # =============================================================================
 # Asset generation
 # =============================================================================
@@ -264,12 +226,7 @@ help:
 	@echo ""
 	@echo "🛠 Tools & Assets:"
 	@echo "  launch-editor      - Open the in-house Bevy editor binary"
-	@echo "  dev-stage-editor      - Start the web-based Stage Editor (auto-generates types first)"
-	@echo "  build-stage-editor    - Build stage-editor for production (auto-generates types first)"
-	@echo "  ci-stage-editor       - Run stage-editor CI checks (types, lint, tests)"
 	@echo "  watch-scene-files  - Run the scene watcher utility"
-	@echo "  gen-types          - Generate TypeScript types from Rust (run automatically by stage-editor)"
-	@echo "  watch-types        - Auto-regenerate TypeScript types on Rust file changes"
 	@echo "  docs               - Build local API docs (scripts/generate-docs.sh)"
 	@echo "  palettes           - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
