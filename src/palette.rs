@@ -3,18 +3,13 @@
 //! Asset loading uses a single global palette; runtime palette swaps only affect rendering.
 //! This keeps assets palette-indexed but couples loaders to a shared, immutable palette.
 
-use std::{
-    error::Error,
-    path::PathBuf,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::{error::Error, path::PathBuf};
 
 use bevy_asset::{AssetLoader, LoadContext, io::Reader};
 use bevy_derive::{Deref, DerefMut};
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
 use bevy_platform::collections::HashMap;
 use bevy_render::render_resource::TextureFormat;
-use event_listener::Event;
 
 use crate::prelude::*;
 
@@ -22,11 +17,7 @@ pub(crate) fn plug(palette_path: PathBuf) -> impl Fn(&mut App) {
     move |app| {
         app.init_asset::<Palette>()
             .init_asset_loader::<PaletteLoader>()
-            .add_systems(Startup, init_palette(palette_path.clone()))
-            .add_systems(
-                PreUpdate,
-                load_asset_palette.run_if(resource_exists::<LoadingAssetPaletteHandle>),
-            );
+            .add_systems(Startup, init_palette(palette_path.clone()));
     }
 }
 
@@ -74,9 +65,6 @@ pub struct Palette {
 /// to load assets.
 #[derive(Resource, Deref, DerefMut)]
 pub struct PaletteHandle(pub Handle<Palette>);
-
-#[derive(Resource, Deref)]
-struct LoadingAssetPaletteHandle(Handle<Palette>);
 
 impl Palette {
     /// Create a palette from an [`Image`]
@@ -133,58 +121,6 @@ impl Palette {
 fn init_palette(path: PathBuf) -> impl Fn(Commands, Res<AssetServer>) {
     move |mut commands, assets| {
         let palette = assets.load(path.clone());
-        commands.insert_resource(PaletteHandle(palette.clone()));
-        commands.insert_resource(LoadingAssetPaletteHandle(palette));
+        commands.insert_resource(PaletteHandle(palette));
     }
-}
-
-/// # Safety
-///
-/// Must not be read before `ASSET_PALETTE_INITIALIZED` is set. Must not be mutated after
-/// `ASSET_PALETTE_INITIALIZED` is set.
-static mut ASSET_PALETTE: Option<Palette> = None;
-/// Must not be unset after it has been set
-static ASSET_PALETTE_INITIALIZED: AtomicBool = AtomicBool::new(false);
-/// Notifies after `ASSET_PALETTE_INITIALIZED` is set
-static ASSET_PALETTE_JUST_INITIALIZED: Event = Event::new();
-
-#[expect(static_mut_refs)]
-pub(crate) async fn asset_palette() -> &'static Palette {
-    if ASSET_PALETTE_INITIALIZED.load(Ordering::SeqCst) {
-        // SAFETY: Checked above
-        return unsafe { ASSET_PALETTE.as_ref() }.unwrap();
-    }
-
-    let just_initialized = ASSET_PALETTE_JUST_INITIALIZED.listen();
-
-    if ASSET_PALETTE_INITIALIZED.load(Ordering::SeqCst) {
-        // SAFETY: Checked above
-        return unsafe { ASSET_PALETTE.as_ref() }.unwrap();
-    }
-
-    just_initialized.await;
-    // SAFETY: `just_initialized` finished waiting, so `ASSET_PALETTE_INITIALIZED` is set
-    unsafe { ASSET_PALETTE.as_ref() }.unwrap()
-}
-
-fn load_asset_palette(
-    palette: Res<LoadingAssetPaletteHandle>,
-    palettes: Res<Assets<Palette>>,
-    mut cmd: Commands,
-) {
-    let Some(palette) = palettes.get(&**palette) else {
-        return;
-    };
-
-    if ASSET_PALETTE_INITIALIZED.load(Ordering::SeqCst) {
-        panic!("Tried to set the asset palette after it was initialized");
-    }
-
-    let palette = Some(palette.clone());
-    // SAFETY: Checked above
-    unsafe { ASSET_PALETTE = palette };
-    ASSET_PALETTE_INITIALIZED.store(true, Ordering::SeqCst);
-    ASSET_PALETTE_JUST_INITIALIZED.notify(usize::MAX);
-
-    cmd.remove_resource::<LoadingAssetPaletteHandle>();
 }

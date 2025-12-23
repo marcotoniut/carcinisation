@@ -77,17 +77,19 @@ impl<L: PxLayer> Plugin for PxPlugin<L> {
                 screen::Plug::<L>::new(self.screen_size),
             ),
             (
-                filter::plug::<L>,
                 #[cfg(feature = "line")]
                 line::plug::<L>,
-                map::plug::<L>,
                 rect::plug::<L>,
-                sprite::plug::<L>,
-                text::plug::<L>,
                 ui::plug::<L>,
                 #[cfg(feature = "particle")]
                 (RngPlugin::default(), particle::plug::<L>),
             ),
         ));
+
+        let palette_path = self.palette_path.clone();
+        filter::plug::<L>(app, palette_path.clone());
+        map::plug::<L>(app, palette_path.clone());
+        sprite::plug::<L>(app, palette_path.clone());
+        text::plug::<L>(app, palette_path);
     }
 }

@@ -1,4 +1,4 @@
-use std::{error::Error, mem::replace};
+use std::{error::Error, mem::replace, path::PathBuf};
 
 use bevy_asset::{AssetLoader, LoadContext, io::Reader};
 use bevy_ecs::entity::EntityHashMap;
@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     animation::{AnimatedAssetComponent, PxAnimation},
     image::PxImage,
-    palette::asset_palette,
+    palette::Palette,
     position::{DefaultLayer, PxLayer, Spatial},
     prelude::*,
     sprite::PxSpriteAsset,
 };
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
         RenderAssetPlugin::<PxTileset>::default(),
@@ -29,7 +29,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
         SyncComponentPlugin::<PxTile>::default(),
     ));
     app.init_asset::<PxTileset>()
-        .init_asset_loader::<PxTilesetLoader>();
+        .register_asset_loader(PxTilesetLoader::new(palette_path));
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, (extract_maps::<L>, extract_tiles));
@@ -50,8 +50,15 @@ impl Default for PxTilesetLoaderSettings {
     }
 }
 
-#[derive(Default)]
-struct PxTilesetLoader;
+struct PxTilesetLoader {
+    palette_path: PathBuf,
+}
+
+impl PxTilesetLoader {
+    fn new(palette_path: PathBuf) -> Self {
+        Self { palette_path }
+    }
+}
 
 impl AssetLoader for PxTilesetLoader {
     type Asset = PxTileset;
@@ -67,7 +74,13 @@ impl AssetLoader for PxTilesetLoader {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, &settings.image_loader_settings, load_context)
             .await?;
-        let palette = asset_palette().await;
+        let palette = load_context
+            .loader()
+            .immediate()
+            .load::<Palette>(self.palette_path.clone())
+            .await
+            .map_err(|err| err.to_string())?;
+        let palette = palette.get();
         let indices = PxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
         let tile_size = settings.tile_size;
         let tile_area = tile_size.x * tile_size.y;

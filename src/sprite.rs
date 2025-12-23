@@ -1,6 +1,6 @@
 //! Sprites
 
-use std::error::Error;
+use std::{error::Error, path::PathBuf};
 
 use bevy_asset::{AssetLoader, LoadContext, io::Reader};
 use bevy_derive::{Deref, DerefMut};
@@ -18,12 +18,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     animation::{AnimatedAssetComponent, Frames},
     image::{PxImage, PxImageSliceMut},
-    palette::asset_palette,
+    palette::Palette,
     position::{DefaultLayer, PxLayer, Spatial},
     prelude::*,
 };
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
         RenderAssetPlugin::<PxSpriteAsset>::default(),
@@ -31,7 +31,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
     ));
 
     app.init_asset::<PxSpriteAsset>()
-        .init_asset_loader::<PxSpriteLoader>();
+        .register_asset_loader(PxSpriteLoader::new(palette_path));
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp).add_systems(
@@ -58,8 +58,15 @@ impl Default for PxSpriteLoaderSettings {
     }
 }
 
-#[derive(Default)]
-struct PxSpriteLoader;
+struct PxSpriteLoader {
+    palette_path: PathBuf,
+}
+
+impl PxSpriteLoader {
+    fn new(palette_path: PathBuf) -> Self {
+        Self { palette_path }
+    }
+}
 
 impl AssetLoader for PxSpriteLoader {
     type Asset = PxSpriteAsset;
@@ -75,8 +82,14 @@ impl AssetLoader for PxSpriteLoader {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, &settings.image_loader_settings, load_context)
             .await?;
-        let palette = asset_palette().await;
-        let data = PxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
+        let palette = load_context
+            .loader()
+            .immediate()
+            .load::<Palette>(self.palette_path.clone())
+            .await
+            .map_err(|err| err.to_string())?;
+        let data =
+            PxImage::palette_indices(palette.get(), &image).map_err(|err| err.to_string())?;
 
         Ok(PxSpriteAsset {
             frame_size: data.area() / settings.frame_count,

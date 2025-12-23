@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, path::PathBuf};
 
 use bevy_asset::{AssetLoader, LoadContext, io::Reader};
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
@@ -13,11 +13,11 @@ use bevy_render::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    animation::AnimatedAssetComponent, image::PxImage, palette::asset_palette,
-    position::DefaultLayer, position::PxLayer, prelude::*,
+    animation::AnimatedAssetComponent, image::PxImage, palette::Palette, position::DefaultLayer,
+    position::PxLayer, prelude::*,
 };
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
         RenderAssetPlugin::<PxTypeface>::default(),
@@ -25,7 +25,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
     ));
 
     app.init_asset::<PxTypeface>()
-        .init_asset_loader::<PxTypefaceLoader>();
+        .register_asset_loader(PxTypefaceLoader::new(palette_path));
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)
@@ -53,8 +53,15 @@ impl Default for PxTypefaceLoaderSettings {
     }
 }
 
-#[derive(Default)]
-struct PxTypefaceLoader;
+struct PxTypefaceLoader {
+    palette_path: PathBuf,
+}
+
+impl PxTypefaceLoader {
+    fn new(palette_path: PathBuf) -> Self {
+        Self { palette_path }
+    }
+}
 
 impl AssetLoader for PxTypefaceLoader {
     type Asset = PxTypeface;
@@ -70,7 +77,13 @@ impl AssetLoader for PxTypefaceLoader {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, &settings.image_loader_settings, load_context)
             .await?;
-        let palette = asset_palette().await;
+        let palette = load_context
+            .loader()
+            .immediate()
+            .load::<Palette>(self.palette_path.clone())
+            .await
+            .map_err(|err| err.to_string())?;
+        let palette = palette.get();
         let indices = PxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
         let height = indices.height();
         let character_count = settings.characters.chars().count();

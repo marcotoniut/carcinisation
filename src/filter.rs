@@ -1,6 +1,6 @@
 //! Filtering
 
-use std::{error::Error, ops::RangeInclusive};
+use std::{error::Error, ops::RangeInclusive, path::PathBuf};
 
 use bevy_asset::{AssetLoader, LoadContext, io::Reader, uuid_handle};
 use bevy_derive::{Deref, DerefMut};
@@ -18,7 +18,7 @@ use bevy_render::{
 use crate::{
     animation::{AnimatedAssetComponent, Frames, draw_frame},
     image::{PxImage, PxImageSliceMut},
-    palette::asset_palette,
+    palette::Palette,
     position::PxLayer,
     prelude::*,
 };
@@ -27,21 +27,20 @@ use crate::{
 pub const TRANSPARENT_FILTER: Handle<PxFilterAsset> =
     uuid_handle!("798C57A4-A83C-5DD6-8FA6-1426E31A84CA");
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
         RenderAssetPlugin::<PxFilterAsset>::default(),
         SyncComponentPlugin::<PxFilterLayers<L>>::default(),
     ));
 
+    app.init_asset::<PxFilterAsset>()
+        .register_asset_loader(PxFilterLoader::new(palette_path));
+    app.insert_resource(InsertDefaultPxFilterLayers::new::<L>());
+
     // R-A workaround
     let _ = Assets::insert(
-        &mut app
-            .init_asset::<PxFilterAsset>()
-            .init_asset_loader::<PxFilterLoader>()
-            .insert_resource(InsertDefaultPxFilterLayers::new::<L>())
-            .world_mut()
-            .resource_mut::<Assets<PxFilterAsset>>(),
+        &mut app.world_mut().resource_mut::<Assets<PxFilterAsset>>(),
         TRANSPARENT_FILTER.id(),
         PxFilterAsset(PxImage::empty(uvec2(16, 16))),
     );
@@ -52,8 +51,15 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
         .add_systems(ExtractSchedule, extract_filters::<L>);
 }
 
-#[derive(Default)]
-struct PxFilterLoader;
+struct PxFilterLoader {
+    palette_path: PathBuf,
+}
+
+impl PxFilterLoader {
+    fn new(palette_path: PathBuf) -> Self {
+        Self { palette_path }
+    }
+}
 
 impl AssetLoader for PxFilterLoader {
     type Asset = PxFilterAsset;
@@ -69,7 +75,13 @@ impl AssetLoader for PxFilterLoader {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, settings, load_context)
             .await?;
-        let palette = asset_palette().await;
+        let palette = load_context
+            .loader()
+            .immediate()
+            .load::<Palette>(self.palette_path.clone())
+            .await
+            .map_err(|err| err.to_string())?;
+        let palette = palette.get();
         let indices = PxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
 
         let mut filter = Vec::with_capacity(indices.area());
@@ -201,7 +213,8 @@ impl AnimatedAssetComponent for PxFilter {
     }
 }
 
-/// Determines which layers a filter appies to
+/// Determines which layers a filter appies to. Range and Many filters always clip to entity
+/// pixels; use `Single` with `clip: false` to filter the composed layer instead.
 #[derive(Component, Clone)]
 #[require(PxFilter)]
 #[cfg_attr(feature = "headed", require(Visibility))]
@@ -216,8 +229,9 @@ pub enum PxFilterLayers<L: PxLayer> {
         clip: bool,
     },
     /// Filter applies to a range of layers. Uses layer ordering for enum variants with data.
+    /// Always clips to entity pixels.
     Range(RangeInclusive<L>),
-    /// Filter applies to a set list of layers
+    /// Filter applies to a set list of layers. Always clips to entity pixels.
     Many(Vec<L>),
 }
 
@@ -242,6 +256,16 @@ impl<L: PxLayer> PxFilterLayers<L> {
     /// Creates a [`PxFilterLayers::Single`] with the given layer, with clip disabled
     pub fn single_over(layer: L) -> Self {
         Self::Single { layer, clip: false }
+    }
+
+    /// Creates a [`PxFilterLayers::Range`] that clips to entity pixels.
+    pub fn range_clip(range: RangeInclusive<L>) -> Self {
+        Self::Range(range)
+    }
+
+    /// Creates a [`PxFilterLayers::Many`] that clips to entity pixels.
+    pub fn many_clip(layers: impl Into<Vec<L>>) -> Self {
+        Self::Many(layers.into())
     }
 }
 
