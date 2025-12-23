@@ -26,6 +26,7 @@ fn pick<L: PxLayer>(
     px_camera: Res<PxCamera>,
     cameras: Query<(&Camera, Entity)>,
 ) {
+    // Note: picking is rectangle-based only; no per-pixel mask is consulted yet.
     let Some(cursor) = **cursor else {
         return;
     };

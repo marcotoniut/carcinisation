@@ -91,7 +91,7 @@ impl PxImage {
     }
 
     #[expect(unused)]
-    pub(crate) fn slice_mut(&mut self, slice: IRect) -> PxImageSliceMut {
+    pub(crate) fn slice_mut(&mut self, slice: IRect) -> PxImageSliceMut<'_> {
         PxImageSliceMut {
             slice,
             image: self.image.chunks_exact_mut(self.width).collect(),
@@ -99,7 +99,7 @@ impl PxImage {
         }
     }
 
-    pub(crate) fn slice_all_mut(&mut self) -> PxImageSliceMut {
+    pub(crate) fn slice_all_mut(&mut self) -> PxImageSliceMut<'_> {
         PxImageSliceMut {
             slice: IRect {
                 min: IVec2::splat(0),
@@ -206,6 +206,7 @@ impl<'a> PxImageSliceMut<'a> {
 
     /// First `usize` is the index in the slice. Second `usize` is the index in the image.
     pub(crate) fn for_each_mut(&mut self, f: impl Fn(usize, usize, &mut u8)) {
+        // Slice coordinates are in image space; `slice` tracks absolute bounds.
         let x_min = self.slice.min.x.clamp(0, self.width as i32) as usize;
         let x_max = self.slice.max.x.clamp(0, self.width as i32) as usize;
         let max_y = self.image.len() as i32;
@@ -275,7 +276,7 @@ impl<'a> PxImageSliceMut<'a> {
         self.slice.min
     }
 
-    pub(crate) fn slice_mut(&mut self, slice: IRect) -> PxImageSliceMut {
+    pub(crate) fn slice_mut(&mut self, slice: IRect) -> PxImageSliceMut<'_> {
         PxImageSliceMut {
             image: self.image.iter_mut().map(|row| &mut **row).collect(),
             width: self.width,

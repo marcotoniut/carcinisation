@@ -1,4 +1,7 @@
 //! Color palettes
+//!
+//! Asset loading uses a single global palette; runtime palette swaps only affect rendering.
+//! This keeps assets palette-indexed but couples loaders to a shared, immutable palette.
 
 use std::{
     error::Error,

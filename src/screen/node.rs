@@ -1,0 +1,412 @@
+use std::collections::BTreeMap;
+
+use bevy_ecs::query::QueryState;
+use bevy_image::TextureFormatPixelInfo;
+#[cfg(feature = "headed")]
+use bevy_render::{
+    render_graph::{NodeRunError, RenderGraphContext, ViewNode},
+    render_resource::{
+        BindGroupEntries, PipelineCache, RenderPassColorAttachment, RenderPassDescriptor,
+        TexelCopyBufferLayout, TextureViewDescriptor, TextureViewDimension,
+    },
+    renderer::{RenderContext, RenderDevice, RenderQueue},
+    view::ViewTarget,
+};
+
+#[cfg(feature = "line")]
+use crate::line::LineComponents;
+use crate::{
+    filter::FilterComponents,
+    map::{MapComponents, TileComponents},
+    position::PxLayer,
+    prelude::*,
+    rect::RectComponents,
+    sprite::SpriteComponents,
+    text::TextComponents,
+};
+
+use super::{
+    Screen,
+    draw::{self, LayerContentsMap},
+    pipeline::{PxPipeline, PxRenderBuffer, PxUniformBuffer},
+};
+
+pub(crate) struct PxRenderNode<L: PxLayer> {
+    maps: QueryState<MapComponents<L>>,
+    tiles: QueryState<TileComponents>,
+    // image_to_sprites: QueryState<ImageToSpriteComponents<L>>,
+    sprites: QueryState<SpriteComponents<L>>,
+    texts: QueryState<TextComponents<L>>,
+    rects: QueryState<RectComponents<L>>,
+    #[cfg(feature = "line")]
+    lines: QueryState<LineComponents<L>>,
+    filters: QueryState<FilterComponents<L>, Without<PxCanvas>>,
+}
+
+impl<L: PxLayer> FromWorld for PxRenderNode<L> {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            maps: world.query(),
+            tiles: world.query(),
+            // image_to_sprites: world.query(),
+            sprites: world.query(),
+            texts: world.query(),
+            rects: world.query(),
+            #[cfg(feature = "line")]
+            lines: world.query(),
+            filters: world.query_filtered(),
+        }
+    }
+}
+
+#[cfg(feature = "headed")]
+impl<L: PxLayer> ViewNode for PxRenderNode<L> {
+    type ViewQuery = &'static ViewTarget;
+
+    fn update(&mut self, world: &mut World) {
+        self.maps.update_archetypes(world);
+        self.tiles.update_archetypes(world);
+        // self.image_to_sprites.update_archetypes(world);
+        self.sprites.update_archetypes(world);
+        self.texts.update_archetypes(world);
+        self.rects.update_archetypes(world);
+        #[cfg(feature = "line")]
+        self.lines.update_archetypes(world);
+        self.filters.update_archetypes(world);
+    }
+
+    fn run<'w>(
+        &self,
+        _: &mut RenderGraphContext,
+        render_context: &mut RenderContext<'w>,
+        target: &ViewTarget,
+        world: &'w World,
+    ) -> Result<(), NodeRunError> {
+        // Compose each layer into a CPU buffer, then blit to the GPU texture once per frame.
+        let &camera = world.resource::<PxCamera>();
+        let screen = world.resource::<Screen>();
+
+        let device = world.resource::<RenderDevice>();
+        let render_buffer = world.resource::<PxRenderBuffer>();
+        render_buffer.ensure_size(device, screen.computed_size);
+        render_buffer.clear();
+
+        let mut layer_contents: LayerContentsMap<'w, L> = BTreeMap::default();
+
+        for (map, &pos, layer, &canvas, animation, filter) in self.maps.iter_manual(world) {
+            let map = (map, pos, canvas, animation, filter);
+
+            if let Some((maps, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+                maps.push(map);
+            } else {
+                BTreeMap::insert(
+                    &mut layer_contents,
+                    layer.clone(),
+                    (
+                        vec![map],
+                        Vec::new(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                    ),
+                );
+            }
+        }
+
+        for (sprite, &position, &anchor, layer, &canvas, animation, filter) in
+            self.sprites.iter_manual(world)
+        {
+            let sprite = (sprite, position, anchor, canvas, animation, filter);
+
+            if let Some((_, sprites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+                sprites.push(sprite);
+            } else {
+                BTreeMap::insert(
+                    &mut layer_contents,
+                    layer.clone(),
+                    (
+                        Vec::new(),
+                        vec![sprite],
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                    ),
+                );
+            }
+        }
+
+        for (text, &pos, &alignment, layer, &canvas, animation, filter) in
+            self.texts.iter_manual(world)
+        {
+            let text = (text, pos, alignment, canvas, animation, filter);
+
+            if let Some((_, _, texts, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+                texts.push(text);
+            } else {
+                BTreeMap::insert(
+                    &mut layer_contents,
+                    layer.clone(),
+                    (
+                        Vec::new(),
+                        Vec::new(),
+                        vec![text],
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                    ),
+                );
+            }
+        }
+
+        for (&rect, filter, layers, &pos, &anchor, &canvas, animation, invert) in
+            self.rects.iter_manual(world)
+        {
+            for (layer, clip) in match layers {
+                PxFilterLayers::Single { layer, clip } => vec![(layer.clone(), *clip)],
+                // TODO Need to do this after all layers have been extracted
+                PxFilterLayers::Range(range) => layer_contents
+                    .keys()
+                    .filter(|layer| range.contains(layer))
+                    .map(|layer| (layer.clone(), true))
+                    .collect(),
+                PxFilterLayers::Many(layers) => {
+                    layers.iter().map(|layer| (layer.clone(), true)).collect()
+                }
+            }
+            .into_iter()
+            {
+                let rect = (rect, filter, pos, anchor, canvas, animation, invert);
+
+                if let Some((_, _, _, clip_rects, _, _, over_rects, _, _)) =
+                    layer_contents.get_mut(&layer)
+                {
+                    if clip { clip_rects } else { over_rects }.push(rect);
+                } else {
+                    let rects = vec![rect];
+
+                    BTreeMap::insert(
+                        &mut layer_contents,
+                        layer,
+                        if clip {
+                            (
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                rects,
+                                default(),
+                                Vec::new(),
+                                Vec::new(),
+                                default(),
+                                Vec::new(),
+                            )
+                        } else {
+                            (
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                default(),
+                                Vec::new(),
+                                rects,
+                                default(),
+                                Vec::new(),
+                            )
+                        },
+                    );
+                }
+            }
+        }
+
+        #[cfg(feature = "line")]
+        for (line, filter, layers, &canvas, animation, invert) in self.lines.iter_manual(world) {
+            let line = (line, filter, canvas, animation, invert);
+
+            for (layer, clip) in match layers {
+                PxFilterLayers::Single { layer, clip } => vec![(layer.clone(), *clip)],
+                PxFilterLayers::Range(range) => layer_contents
+                    .keys()
+                    .filter(|layer| range.contains(layer))
+                    .map(|layer| (layer.clone(), true))
+                    .collect(),
+                PxFilterLayers::Many(layers) => {
+                    layers.iter().map(|layer| (layer.clone(), true)).collect()
+                }
+            }
+            .into_iter()
+            {
+                if let Some((_, _, _, _, clip_lines, _, _, over_lines, _)) =
+                    layer_contents.get_mut(&layer)
+                {
+                    if clip { clip_lines } else { over_lines }.push(line);
+                } else {
+                    let lines = vec![line];
+
+                    BTreeMap::insert(
+                        &mut layer_contents,
+                        layer,
+                        if clip {
+                            (
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                lines,
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                            )
+                        } else {
+                            (
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                lines,
+                                Vec::new(),
+                            )
+                        },
+                    );
+                }
+            }
+        }
+
+        for (filter, layers, animation) in self.filters.iter_manual(world) {
+            let filter = (filter, animation);
+
+            for (layer, clip) in match layers {
+                PxFilterLayers::Single { layer, clip } => vec![(layer.clone(), *clip)],
+                PxFilterLayers::Range(range) => layer_contents
+                    .keys()
+                    .filter(|layer| range.contains(layer))
+                    .map(|layer| (layer.clone(), true))
+                    .collect(),
+                PxFilterLayers::Many(layers) => {
+                    layers.iter().map(|layer| (layer.clone(), true)).collect()
+                }
+            }
+            .into_iter()
+            {
+                if let Some((_, _, _, _, _, clip_filters, _, _, over_filters)) =
+                    layer_contents.get_mut(&layer)
+                {
+                    if clip { clip_filters } else { over_filters }.push(filter);
+                } else {
+                    let filters = vec![filter];
+
+                    BTreeMap::insert(
+                        &mut layer_contents,
+                        layer,
+                        if clip {
+                            (
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                default(),
+                                filters,
+                                Vec::new(),
+                                default(),
+                                Vec::new(),
+                            )
+                        } else {
+                            (
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                Vec::new(),
+                                default(),
+                                Vec::new(),
+                                Vec::new(),
+                                default(),
+                                filters,
+                            )
+                        },
+                    );
+                }
+            }
+        }
+
+        draw::draw_layers(world, render_buffer, camera, layer_contents, &self.tiles);
+
+        let Some(uniform_binding) = world.resource::<PxUniformBuffer>().binding() else {
+            return Ok(());
+        };
+
+        let inner = render_buffer.read_inner();
+        let texture = inner.texture.as_ref().unwrap();
+        let image = inner.image.as_ref().unwrap();
+        let image_descriptor = image.texture_descriptor.clone();
+
+        let Ok(pixel_size) = image_descriptor.format.pixel_size() else {
+            return Ok(());
+        };
+
+        world.resource::<RenderQueue>().write_texture(
+            texture.as_image_copy(),
+            image.data.as_ref().unwrap(),
+            TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(image.width() * pixel_size as u32),
+                rows_per_image: None,
+            },
+            image_descriptor.size,
+        );
+
+        let texture_view = texture.create_view(&TextureViewDescriptor {
+            label: Some("px_texture_view"),
+            format: Some(image_descriptor.format),
+            dimension: Some(TextureViewDimension::D2),
+            ..default()
+        });
+
+        let px_pipeline = world.resource::<PxPipeline>();
+        let Some(pipeline) = world
+            .resource::<PipelineCache>()
+            .get_render_pipeline(px_pipeline.id)
+        else {
+            return Ok(());
+        };
+
+        let post_process = target.post_process_write();
+
+        let bind_group = render_context.render_device().create_bind_group(
+            "px_bind_group",
+            &px_pipeline.layout,
+            &BindGroupEntries::sequential((&texture_view, uniform_binding.clone())),
+        );
+
+        let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
+            label: Some("px_pass"),
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: post_process.destination,
+                depth_slice: None,
+                resolve_target: None,
+                ops: default(),
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        render_pass.set_render_pipeline(pipeline);
+        render_pass.set_bind_group(0, &bind_group, &[]);
+        render_pass.draw(0..6, 0..1);
+
+        Ok(())
+    }
+}

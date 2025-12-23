@@ -23,6 +23,7 @@ use crate::{
     prelude::*,
 };
 
+/// A built-in filter asset that leaves pixels unchanged.
 pub const TRANSPARENT_FILTER: Handle<PxFilterAsset> =
     uuid_handle!("798C57A4-A83C-5DD6-8FA6-1426E31A84CA");
 
@@ -263,13 +264,10 @@ fn insert_default_px_filter_layers(mut world: DeferredWorld, ctx: HookContext) {
         let insert_default_px_filter_layers = world
             .remove_resource::<InsertDefaultPxFilterLayers>()
             .unwrap();
-        if let Ok(mut entity) = world.get_entity_mut(ctx.entity) {
-            if let Some(default) = entity.get::<DefaultPxFilterLayers>() {
-                insert_default_px_filter_layers(
-                    default.clip,
-                    entity.remove::<DefaultPxFilterLayers>(),
-                );
-            }
+        if let Ok(mut entity) = world.get_entity_mut(ctx.entity)
+            && let Some(default) = entity.get::<DefaultPxFilterLayers>()
+        {
+            insert_default_px_filter_layers(default.clip, entity.remove::<DefaultPxFilterLayers>());
         }
         world.insert_resource(insert_default_px_filter_layers);
     })
@@ -287,6 +285,7 @@ impl Default for DefaultPxFilterLayers {
     }
 }
 
+/// Marks that a filter should apply outside a shape rather than inside it.
 #[derive(Component, Default)]
 pub struct PxInvertMask;
 

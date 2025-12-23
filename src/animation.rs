@@ -1,4 +1,8 @@
 //! Animation
+//!
+//! This module defines frame selection and animation timing, but drawables still
+//! consume a concrete `PxFrame` (selector + transition). Future refactors may
+//! move frame production into a separate, composable system.
 
 use std::time::Duration;
 
@@ -20,9 +24,12 @@ pub(crate) fn plug(app: &mut App) {
     );
 }
 
+/// Selects a frame by absolute index or normalized progress.
 #[derive(Clone, Copy)]
 pub enum PxFrameSelector {
+    /// Direct frame index (may be fractional for transitions).
     Index(f32),
+    /// Normalized progress from 0.0 to 1.0.
     Normalized(f32),
 }
 
@@ -42,9 +49,12 @@ pub enum PxFrameTransition {
     Dither,
 }
 
+/// Per-entity frame selection and transition settings.
 #[derive(Component, Default, Clone, Copy)]
 pub struct PxFrame {
+    /// Frame selection mode.
     pub selector: PxFrameSelector,
+    /// Frame interpolation mode.
     pub transition: PxFrameTransition,
 }
 
@@ -237,6 +247,8 @@ pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
     filters: impl IntoIterator<Item = &'a PxFilterAsset>,
     camera: PxCamera,
 ) {
+    // Coordinate convention: image space has origin at top-left.
+    // World/camera positions are bottom-left, so Y is flipped here.
     let size = spatial.frame_size();
     let position = *position - anchor.pos(size).as_ivec2();
     let position = match canvas {
