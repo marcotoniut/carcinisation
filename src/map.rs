@@ -254,7 +254,7 @@ impl Default for PxTiles {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{animation::draw_spatial, camera::PxCamera, image::PxImage, sprite::PxSpriteAsset};
+    use crate::{camera::PxCamera, frame::draw_spatial, image::PxImage, sprite::PxSpriteAsset};
     use bevy_ecs::entity::Entity;
     use bevy_platform::collections::HashMap;
 

@@ -26,7 +26,8 @@ use bevy_render::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    animation::{AnimatedAssetComponent, Frames},
+    animation::AnimatedAssetComponent,
+    frame::Frames,
     image::{PxImage, PxImageSliceMut},
     palette::Palette,
     position::{DefaultLayer, PxLayer, Spatial},
@@ -272,7 +273,7 @@ impl AnimatedAssetComponent for PxSprite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{animation::draw_spatial, camera::PxCamera, image::PxImage};
+    use crate::{camera::PxCamera, frame::draw_spatial, image::PxImage};
 
     fn pixels(image: &PxImage) -> Vec<u8> {
         let size = image.size();

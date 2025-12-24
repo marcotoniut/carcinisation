@@ -28,17 +28,20 @@ pub(crate) use seldom_state::prelude::*;
 
 pub(crate) const OK: Result = Ok(());
 
+pub use crate::frame::{PxFrame, PxFrameControl, PxFrameSelector, PxFrameTransition, PxFrameView};
 #[cfg(feature = "line")]
 pub use crate::line::PxLine;
 #[cfg(feature = "particle")]
 pub use crate::particle::{PxEmitter, PxEmitterFrequency, PxEmitterSimulation, PxParticleLifetime};
+#[cfg(feature = "headed")]
+pub use crate::picking::PxPixelPick;
 #[cfg(feature = "gpu_palette")]
 pub use crate::sprite::PxGpuSprite;
 pub use crate::{
     PxPlugin,
     animation::{
         PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-        PxAnimationFinished, PxFrame, PxFrameSelector, PxFrameTransition,
+        PxAnimationFinished, PxAnimationPlugin,
     },
     camera::{PxCamera, PxCanvas},
     cursor::{PxCursor, PxCursorPosition},

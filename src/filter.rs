@@ -16,7 +16,8 @@ use bevy_render::{
 };
 
 use crate::{
-    animation::{AnimatedAssetComponent, Frames, draw_frame},
+    animation::AnimatedAssetComponent,
+    frame::{Frames, draw_frame},
     image::{PxImage, PxImageSliceMut},
     palette::Palette,
     position::PxLayer,
@@ -322,7 +323,7 @@ pub(crate) type FilterComponents<L> = (
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{animation::draw_frame, image::PxImage};
+    use crate::{frame::draw_frame, image::PxImage};
 
     fn pixels(image: &PxImage) -> Vec<u8> {
         let size = image.size();

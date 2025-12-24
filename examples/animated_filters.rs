@@ -14,6 +14,7 @@ fn main() {
                 ..default()
             }),
             PxPlugin::<Layer>::new(UVec2::new(51, 35), "palette/palette_1.palette.png"),
+            PxAnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)

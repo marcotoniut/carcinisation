@@ -5,8 +5,8 @@ use bevy_render::{Extract, RenderApp, sync_world::RenderEntity};
 use line_drawing::Bresenham;
 
 use crate::{
-    animation::{Frames, draw_frame},
     filter::DefaultPxFilterLayers,
+    frame::{Frames, draw_frame},
     image::PxImageSliceMut,
     position::{PxLayer, Spatial},
     prelude::*,

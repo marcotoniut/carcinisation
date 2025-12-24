@@ -24,7 +24,7 @@ use bevy_render::{
 use bytemuck::{Pod, Zeroable};
 
 use crate::{
-    animation::PxFrame,
+    frame::PxFrameView,
     prelude::*,
     sprite::{PxGpuSprite, PxSpriteAsset, PxSpriteGpu, SpriteComponents},
 };
@@ -195,7 +195,7 @@ struct SpriteItem {
     position: PxPosition,
     anchor: PxAnchor,
     canvas: PxCanvas,
-    frame: Option<PxFrame>,
+    frame: Option<PxFrameView>,
 }
 
 struct SpriteDraw<'a> {
@@ -464,7 +464,7 @@ fn layer_index_for<L: PxLayer>(layers: &[L], layer: &L) -> Option<u32> {
     u32::try_from((index + 1) * 2).ok()
 }
 
-fn frame_index(frame: Option<PxFrame>, frame_count: usize) -> usize {
+fn frame_index(frame: Option<PxFrameView>, frame_count: usize) -> usize {
     if frame_count == 0 {
         return 0;
     }
@@ -518,7 +518,7 @@ mod tests {
         ];
         let mut out = String::from("frame_count=4\n");
         for (label, selector) in cases {
-            let frame = PxFrame {
+            let frame = PxFrameView {
                 selector,
                 transition: PxFrameTransition::None,
             };

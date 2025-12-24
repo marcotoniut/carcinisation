@@ -235,7 +235,7 @@ impl AnimatedAssetComponent for PxText {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{animation::draw_spatial, camera::PxCamera, image::PxImage, sprite::PxSpriteAsset};
+    use crate::{camera::PxCamera, frame::draw_spatial, image::PxImage, sprite::PxSpriteAsset};
 
     fn pixels(image: &PxImage) -> Vec<u8> {
         let size = image.size();

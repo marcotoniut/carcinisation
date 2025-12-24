@@ -10,9 +10,9 @@ use bytemuck::cast_slice_mut;
 #[cfg(feature = "line")]
 use crate::line::draw_line;
 use crate::{
-    animation::draw_spatial,
     cursor::{CursorState, PxCursorPosition},
     filter::{PxFilterAsset, draw_filter},
+    frame::draw_spatial,
     image::{PxImage, PxImageSliceMut},
     map::{PxTile, PxTileset},
     prelude::*,

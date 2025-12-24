@@ -4,7 +4,7 @@ use bevy_math::{ivec2, uvec2};
 use bevy_render::{Extract, RenderApp, sync_world::RenderEntity};
 
 use crate::{
-    animation::Frames, filter::DefaultPxFilterLayers, image::PxImageSliceMut, position::Spatial,
+    filter::DefaultPxFilterLayers, frame::Frames, image::PxImageSliceMut, position::Spatial,
     prelude::*,
 };
 
@@ -107,7 +107,7 @@ impl Frames for (PxRect, &PxFilterAsset) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{animation::draw_frame, filter::PxFilterAsset, image::PxImage};
+    use crate::{filter::PxFilterAsset, frame::draw_frame, image::PxImage};
 
     fn filter_asset() -> PxFilterAsset {
         PxFilterAsset(PxImage::new(vec![0, 2, 0, 0], 4))

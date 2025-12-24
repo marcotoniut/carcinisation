@@ -16,6 +16,7 @@ pub mod blink;
 mod camera;
 pub mod cursor;
 pub mod filter;
+pub mod frame;
 mod image;
 #[cfg(feature = "line")]
 mod line;
@@ -42,6 +43,8 @@ use prelude::*;
 
 /// Add to your [`App`] to enable `carapace`. The type parameter is your custom layer type
 /// used for z-ordering. You can make one using [`px_layer`].
+///
+/// Add [`animation::PxAnimationPlugin`] if you want the built-in animation systems.
 #[derive(Debug)]
 pub struct PxPlugin<L: PxLayer> {
     screen_size: ScreenSize,
@@ -66,10 +69,10 @@ impl<L: PxLayer> Plugin for PxPlugin<L> {
     fn build(&self, app: &mut App) {
         app.add_plugins((
             (
-                animation::plug,
                 blink::plug,
                 camera::plug,
                 cursor::plug,
+                frame::plug,
                 palette::plug(self.palette_path.clone()),
                 #[cfg(feature = "headed")]
                 picking::plug::<L>,
