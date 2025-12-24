@@ -5,10 +5,14 @@
 //! This is the single compositing path for sprites, text, tilemaps, rects, lines, and filters.
 
 mod draw;
+#[cfg(feature = "gpu_palette")]
+mod gpu_sprite;
 mod node;
 mod pipeline;
 
 use std::marker::PhantomData;
+#[cfg(feature = "gpu_palette")]
+use std::sync::RwLock;
 
 use bevy_asset::uuid_handle;
 #[cfg(feature = "headed")]
@@ -23,17 +27,42 @@ use bevy_render::{
 #[cfg(feature = "headed")]
 use bevy_window::{PrimaryWindow, WindowResized};
 
+#[cfg(feature = "gpu_palette")]
+use crate::filter::PxFilter;
+
 use crate::{
     palette::{Palette, PaletteHandle},
     position::PxLayer,
     prelude::*,
 };
 
+#[cfg(feature = "gpu_palette")]
+use gpu_sprite::{PxGpuSpriteBuffer, PxGpuSpriteNode, PxGpuSpritePipeline};
 use node::PxRenderNode;
 use pipeline::{PxPipeline, PxRenderBuffer, PxUniformBuffer, prepare_uniform};
 
 #[cfg(feature = "headed")]
 const SCREEN_SHADER_HANDLE: Handle<Shader> = uuid_handle!("48CE4F2C-8B78-5954-08A8-461F62E10E84");
+#[cfg(feature = "gpu_palette")]
+const GPU_SPRITE_SHADER_HANDLE: Handle<Shader> =
+    uuid_handle!("1845F452-7396-4858-A665-9FC8B796AF31");
+
+#[cfg(feature = "gpu_palette")]
+#[derive(Resource, Default)]
+pub(crate) struct PxLayerOrder<L: PxLayer> {
+    inner: RwLock<Vec<L>>,
+}
+
+#[cfg(feature = "gpu_palette")]
+impl<L: PxLayer> PxLayerOrder<L> {
+    pub(crate) fn set(&self, layers: Vec<L>) {
+        *self.inner.write().unwrap() = layers;
+    }
+
+    pub(crate) fn read(&self) -> std::sync::RwLockReadGuard<'_, Vec<L>> {
+        self.inner.read().unwrap()
+    }
+}
 
 pub(crate) struct Plug<L: PxLayer> {
     size: ScreenSize,
@@ -60,28 +89,55 @@ impl<L: PxLayer> Plugin for Plug<L> {
 
         // R-A workaround
         #[cfg(feature = "headed")]
-        let _ = Assets::insert(
-            &mut app
-                .add_systems(PostUpdate, resize_screen)
-                .world_mut()
-                .resource_mut::<Assets<Shader>>(),
-            SCREEN_SHADER_HANDLE.id(),
-            Shader::from_wgsl(include_str!("screen.wgsl"), "screen.wgsl"),
-        );
+        {
+            app.add_systems(PostUpdate, resize_screen);
+            let mut shaders = app.world_mut().resource_mut::<Assets<Shader>>();
+            let _ = Assets::insert(
+                &mut shaders,
+                SCREEN_SHADER_HANDLE.id(),
+                Shader::from_wgsl(include_str!("screen.wgsl"), "screen.wgsl"),
+            );
+            #[cfg(feature = "gpu_palette")]
+            let _ = Assets::insert(
+                &mut shaders,
+                GPU_SPRITE_SHADER_HANDLE.id(),
+                Shader::from_wgsl(include_str!("gpu_sprite.wgsl"), "gpu_sprite.wgsl"),
+            );
+        }
 
         #[cfg(feature = "headed")]
-        app.sub_app_mut(RenderApp)
-            .add_render_graph_node::<ViewNodeRunner<PxRenderNode<L>>>(Core2d, PxRender)
-            .add_render_graph_edges(
+        {
+            let render_app = app.sub_app_mut(RenderApp);
+            render_app.add_render_graph_node::<ViewNodeRunner<PxRenderNode<L>>>(Core2d, PxRender);
+            #[cfg(feature = "gpu_palette")]
+            render_app.add_render_graph_node::<ViewNodeRunner<PxGpuSpriteNode<L>>>(
+                Core2d,
+                PxGpuSpriteRender,
+            );
+            #[cfg(feature = "gpu_palette")]
+            render_app.add_render_graph_edges(
+                Core2d,
+                (
+                    Node2d::Tonemapping,
+                    PxRender,
+                    PxGpuSpriteRender,
+                    Node2d::EndMainPassPostProcessing,
+                ),
+            );
+            #[cfg(not(feature = "gpu_palette"))]
+            render_app.add_render_graph_edges(
                 Core2d,
                 (
                     Node2d::Tonemapping,
                     PxRender,
                     Node2d::EndMainPassPostProcessing,
                 ),
-            )
-            .init_resource::<PxUniformBuffer>()
-            .add_systems(Render, prepare_uniform.in_set(RenderSystems::Prepare));
+            );
+
+            render_app
+                .init_resource::<PxUniformBuffer>()
+                .add_systems(Render, prepare_uniform.in_set(RenderSystems::Prepare));
+        }
     }
 
     fn finish(&self, _app: &mut App) {
@@ -89,6 +145,11 @@ impl<L: PxLayer> Plugin for Plug<L> {
         _app.sub_app_mut(RenderApp)
             .init_resource::<PxPipeline>()
             .init_resource::<PxRenderBuffer>();
+        #[cfg(feature = "gpu_palette")]
+        _app.sub_app_mut(RenderApp)
+            .init_resource::<PxGpuSpritePipeline>()
+            .init_resource::<PxGpuSpriteBuffer>()
+            .init_resource::<PxLayerOrder<L>>();
     }
 }
 
@@ -141,6 +202,18 @@ impl Screen {
     /// Computed size of the screen
     pub fn size(&self) -> UVec2 {
         self.computed_size
+    }
+}
+
+#[cfg(feature = "gpu_palette")]
+pub(crate) fn gpu_sprite_supported(frame: Option<PxFrame>, filter: Option<&PxFilter>) -> bool {
+    if filter.is_some() {
+        return false;
+    }
+
+    match frame {
+        Some(frame) => !matches!(frame.transition, PxFrameTransition::Dither),
+        None => true,
     }
 }
 
@@ -222,6 +295,10 @@ fn resize_screen(mut window_resized: MessageReader<WindowResized>, mut screen: R
 #[cfg(feature = "headed")]
 #[derive(RenderLabel, Hash, Eq, PartialEq, Clone, Debug)]
 struct PxRender;
+
+#[cfg(feature = "gpu_palette")]
+#[derive(RenderLabel, Hash, Eq, PartialEq, Clone, Debug)]
+struct PxGpuSpriteRender;
 
 fn update_screen_palette(
     mut waiting_for_load: Local<bool>,

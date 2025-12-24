@@ -1,5 +1,9 @@
 use std::collections::BTreeMap;
+#[cfg(feature = "gpu_palette")]
+use std::collections::BTreeSet;
 
+#[cfg(feature = "gpu_palette")]
+use bevy_ecs::query::Has;
 use bevy_ecs::query::QueryState;
 use bevy_image::TextureFormatPixelInfo;
 #[cfg(feature = "headed")]
@@ -15,6 +19,8 @@ use bevy_render::{
 
 #[cfg(feature = "line")]
 use crate::line::LineComponents;
+#[cfg(feature = "gpu_palette")]
+use crate::sprite::PxGpuSprite;
 use crate::{
     filter::FilterComponents,
     map::{MapComponents, TileComponents},
@@ -25,6 +31,10 @@ use crate::{
     text::TextComponents,
 };
 
+#[cfg(feature = "gpu_palette")]
+use super::PxLayerOrder;
+#[cfg(feature = "gpu_palette")]
+use super::gpu_sprite_supported;
 use super::{
     Screen,
     draw::{self, LayerContentsMap},
@@ -35,6 +45,9 @@ pub(crate) struct PxRenderNode<L: PxLayer> {
     maps: QueryState<MapComponents<L>>,
     tiles: QueryState<TileComponents>,
     // image_to_sprites: QueryState<ImageToSpriteComponents<L>>,
+    #[cfg(feature = "gpu_palette")]
+    sprites: QueryState<(SpriteComponents<L>, Has<PxGpuSprite>)>,
+    #[cfg(not(feature = "gpu_palette"))]
     sprites: QueryState<SpriteComponents<L>>,
     texts: QueryState<TextComponents<L>>,
     rects: QueryState<RectComponents<L>>,
@@ -49,6 +62,9 @@ impl<L: PxLayer> FromWorld for PxRenderNode<L> {
             maps: world.query(),
             tiles: world.query(),
             // image_to_sprites: world.query(),
+            #[cfg(feature = "gpu_palette")]
+            sprites: world.query(),
+            #[cfg(not(feature = "gpu_palette"))]
             sprites: world.query(),
             texts: world.query(),
             rects: world.query(),
@@ -92,9 +108,15 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         render_buffer.clear();
 
         let mut layer_contents: LayerContentsMap<'w, L> = BTreeMap::default();
+        #[cfg(feature = "gpu_palette")]
+        let mut layer_set: BTreeSet<L> = BTreeSet::new();
 
         for (map, &pos, layer, &canvas, animation, filter) in self.maps.iter_manual(world) {
             let map = (map, pos, canvas, animation, filter);
+            #[cfg(feature = "gpu_palette")]
+            {
+                layer_set.insert(layer.clone());
+            }
 
             if let Some((maps, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
                 maps.push(map);
@@ -117,6 +139,40 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             }
         }
 
+        #[cfg(feature = "gpu_palette")]
+        for ((sprite, &position, &anchor, layer, &canvas, animation, filter), has_gpu) in
+            self.sprites.iter_manual(world)
+        {
+            layer_set.insert(layer.clone());
+            let gpu_eligible = has_gpu && gpu_sprite_supported(animation.copied(), filter);
+            if gpu_eligible {
+                continue;
+            }
+
+            let sprite = (sprite, position, anchor, canvas, animation, filter);
+
+            if let Some((_, sprites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+                sprites.push(sprite);
+            } else {
+                BTreeMap::insert(
+                    &mut layer_contents,
+                    layer.clone(),
+                    (
+                        Vec::new(),
+                        vec![sprite],
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                    ),
+                );
+            }
+        }
+
+        #[cfg(not(feature = "gpu_palette"))]
         for (sprite, &position, &anchor, layer, &canvas, animation, filter) in
             self.sprites.iter_manual(world)
         {
@@ -147,6 +203,10 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             self.texts.iter_manual(world)
         {
             let text = (text, pos, alignment, canvas, animation, filter);
+            #[cfg(feature = "gpu_palette")]
+            {
+                layer_set.insert(layer.clone());
+            }
 
             if let Some((_, _, texts, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
                 texts.push(text);
@@ -187,6 +247,10 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             .into_iter()
             {
                 let rect = (rect, filter, pos, anchor, canvas, animation, invert);
+                #[cfg(feature = "gpu_palette")]
+                {
+                    layer_set.insert(layer.clone());
+                }
 
                 if let Some((_, _, _, clip_rects, _, _, over_rects, _, _)) =
                     layer_contents.get_mut(&layer)
@@ -245,6 +309,10 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             }
             .into_iter()
             {
+                #[cfg(feature = "gpu_palette")]
+                {
+                    layer_set.insert(layer.clone());
+                }
                 if let Some((_, _, _, _, clip_lines, _, _, over_lines, _)) =
                     layer_contents.get_mut(&layer)
                 {
@@ -301,6 +369,10 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             }
             .into_iter()
             {
+                #[cfg(feature = "gpu_palette")]
+                {
+                    layer_set.insert(layer.clone());
+                }
                 if let Some((_, _, _, _, _, clip_filters, _, _, over_filters)) =
                     layer_contents.get_mut(&layer)
                 {
@@ -341,6 +413,21 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             }
         }
 
+        #[cfg(feature = "gpu_palette")]
+        let layer_order: Vec<L> = layer_set.into_iter().collect();
+        #[cfg(feature = "gpu_palette")]
+        world.resource::<PxLayerOrder<L>>().set(layer_order.clone());
+
+        #[cfg(feature = "gpu_palette")]
+        draw::draw_layers(
+            world,
+            render_buffer,
+            camera,
+            layer_contents,
+            &self.tiles,
+            &layer_order,
+        );
+        #[cfg(not(feature = "gpu_palette"))]
         draw::draw_layers(world, render_buffer, camera, layer_contents, &self.tiles);
 
         let Some(uniform_binding) = world.resource::<PxUniformBuffer>().binding() else {
@@ -366,6 +453,26 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             },
             image_descriptor.size,
         );
+
+        #[cfg(feature = "gpu_palette")]
+        if let Some(depth_image) = inner.depth_image.as_ref()
+            && let Some(depth_data) = depth_image.data.as_ref()
+            && let Some(depth_texture) = inner.depth_texture.as_ref()
+        {
+            let depth_descriptor = depth_image.texture_descriptor.clone();
+            if let Ok(depth_pixel_size) = depth_descriptor.format.pixel_size() {
+                world.resource::<RenderQueue>().write_texture(
+                    depth_texture.as_image_copy(),
+                    depth_data,
+                    TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(depth_image.width() * depth_pixel_size as u32),
+                        rows_per_image: None,
+                    },
+                    depth_descriptor.size,
+                );
+            }
+        }
 
         let texture_view = texture.create_view(&TextureViewDescriptor {
             label: Some("px_texture_view"),

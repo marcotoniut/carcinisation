@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use bevy_ecs::{query::QueryState, world::World};
 #[cfg(feature = "headed")]
 use bevy_render::render_asset::RenderAssets;
+#[cfg(feature = "gpu_palette")]
+use bytemuck::cast_slice_mut;
 
 #[cfg(feature = "line")]
 use crate::line::draw_line;
@@ -18,7 +20,8 @@ use crate::{
     text::PxTypeface,
 };
 
-use super::pipeline::PxRenderBuffer;
+#[cfg(feature = "headed")]
+use super::pipeline::{PxRenderBuffer, PxRenderBufferInner};
 use crate::map::TileComponents;
 
 pub(crate) type MapEntry<'a> = (
@@ -103,6 +106,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
     camera: PxCamera,
     layer_contents: LayerContentsMap<'w, L>,
     tiles: &QueryState<TileComponents>,
+    #[cfg(feature = "gpu_palette")] layer_order: &[L],
 ) {
     let tilesets = world.resource::<RenderAssets<PxTileset>>();
     let sprite_assets = world.resource::<RenderAssets<PxSpriteAsset>>();
@@ -111,13 +115,29 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
 
     {
         let mut inner = render_buffer.write_inner();
-        let image = inner.image.as_mut().unwrap();
+        let PxRenderBufferInner {
+            image,
+            #[cfg(feature = "gpu_palette")]
+            depth_image,
+            ..
+        } = &mut *inner;
+        let image = image.as_mut().unwrap();
+        #[cfg(feature = "gpu_palette")]
+        let mut depth_data = depth_image
+            .as_mut()
+            .and_then(|depth| depth.data.as_mut())
+            .map(|data| cast_slice_mut::<u8, u16>(data.as_mut_slice()));
+        #[cfg(feature = "gpu_palette")]
+        let (image_width, image_height, image_height_i32) = {
+            let height = image.height() as usize;
+            (image.width() as usize, height, height as i32)
+        };
         let mut layer_image = PxImage::empty_from_image(image);
         let mut image_slice = PxImageSliceMut::from_image_mut(image).unwrap();
 
         #[allow(unused_variables)]
         for (
-            _,
+            layer,
             (
                 maps,
                 sprites,
@@ -131,6 +151,10 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
             ),
         ) in layer_contents.into_iter()
         {
+            #[cfg(feature = "gpu_palette")]
+            let base_depth = layer_index_for(layer_order, &layer);
+            #[cfg(feature = "gpu_palette")]
+            let over_depth = base_depth.map(|depth| depth.saturating_add(1));
             layer_image.clear();
             let mut layer_slice = layer_image.slice_all_mut();
 
@@ -296,6 +320,10 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
             }
 
             image_slice.draw(&layer_image);
+            #[cfg(feature = "gpu_palette")]
+            if let (Some(depth), Some(base_depth)) = (depth_data.as_mut(), base_depth) {
+                update_depth_from_layer(depth, layer_image.data(), base_depth);
+            }
 
             for (rect, filter, pos, anchor, canvas, frame, invert) in over_rects {
                 if let Some(filter) = filters.get(&**filter) {
@@ -310,6 +338,12 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         std::iter::empty(),
                         camera,
                     );
+                }
+                #[cfg(feature = "gpu_palette")]
+                if let (Some(depth), Some(over_depth)) = (depth_data.as_mut(), over_depth) {
+                    let bounds =
+                        spatial_bounds(rect.0, pos, anchor, canvas, camera, image_height_i32);
+                    update_depth_rect(depth, image_width, image_height, bounds, invert, over_depth);
                 }
             }
 
@@ -326,11 +360,28 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         camera,
                     );
                 }
+                #[cfg(all(feature = "gpu_palette", feature = "line"))]
+                if let (Some(depth), Some(over_depth)) = (depth_data.as_mut(), over_depth) {
+                    update_depth_line(
+                        depth,
+                        image_width,
+                        image_height,
+                        line,
+                        canvas,
+                        camera,
+                        invert,
+                        over_depth,
+                    );
+                }
             }
 
             for (filter, frame) in over_filters {
                 if let Some(filter) = filters.get(&**filter) {
                     draw_filter(filter, frame.copied(), &mut image_slice);
+                }
+                #[cfg(feature = "gpu_palette")]
+                if let (Some(depth), Some(over_depth)) = (depth_data.as_mut(), over_depth) {
+                    depth.fill(over_depth);
                 }
             }
         }
@@ -351,17 +402,241 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
         })
     {
         let mut inner = render_buffer.write_inner();
-        let image = inner.image.as_mut().unwrap();
+        let PxRenderBufferInner {
+            image,
+            #[cfg(feature = "gpu_palette")]
+            depth_image,
+            ..
+        } = &mut *inner;
+        let image = image.as_mut().unwrap();
         let mut cursor_image = PxImageSliceMut::from_image_mut(image).unwrap();
-        if let Some(pixel) = cursor_image.get_pixel_mut(IVec2::new(
+        let cursor_pos = IVec2::new(
             cursor_pos.x as i32,
             cursor_image.height() as i32 - 1 - cursor_pos.y as i32,
-        )) {
+        );
+        if let Some(pixel) = cursor_image.get_pixel_mut(cursor_pos) {
             if let Some(new_pixel) = filter.get_pixel(IVec2::new(*pixel as i32, 0)) {
                 *pixel = new_pixel;
             } else {
                 error!("`PxCursor` filter is the wrong size");
             }
         }
+        #[cfg(feature = "gpu_palette")]
+        if let Some(depth) = depth_image.as_mut().and_then(|depth| depth.data.as_mut()) {
+            let width = cursor_image.image_width() as usize;
+            if cursor_pos.x >= 0 && cursor_pos.y >= 0 {
+                let x = cursor_pos.x as usize;
+                let y = cursor_pos.y as usize;
+                if x < width && y < cursor_image.image_height() as usize {
+                    let depth = cast_slice_mut::<u8, u16>(depth);
+                    depth[y * width + x] = u16::MAX;
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "gpu_palette")]
+fn layer_index_for<L: PxLayer>(layers: &[L], layer: &L) -> Option<u16> {
+    let index = layers.binary_search(layer).ok()?;
+    let base = (index + 1).checked_mul(2)?;
+    u16::try_from(base).ok()
+}
+
+#[cfg(feature = "gpu_palette")]
+fn update_depth_from_layer(depth: &mut [u16], layer_data: &[u8], depth_value: u16) {
+    for (index, value) in layer_data.iter().enumerate() {
+        if *value != 0 {
+            depth[index] = depth_value;
+        }
+    }
+}
+
+#[cfg(feature = "gpu_palette")]
+fn spatial_bounds(
+    size: UVec2,
+    position: PxPosition,
+    anchor: PxAnchor,
+    canvas: PxCanvas,
+    camera: PxCamera,
+    image_height: i32,
+) -> IRect {
+    let position = *position - anchor.pos(size).as_ivec2();
+    let position = match canvas {
+        PxCanvas::World => position - *camera,
+        PxCanvas::Camera => position,
+    };
+    let position = IVec2::new(position.x, image_height - position.y);
+    let size = size.as_ivec2();
+
+    IRect {
+        min: position - IVec2::new(0, size.y),
+        max: position + IVec2::new(size.x, 0),
+    }
+}
+
+#[cfg(feature = "gpu_palette")]
+fn update_depth_rect(
+    depth: &mut [u16],
+    width: usize,
+    height: usize,
+    rect: IRect,
+    invert: bool,
+    depth_value: u16,
+) {
+    let x_min = rect.min.x.clamp(0, width as i32) as usize;
+    let x_max = rect.max.x.clamp(0, width as i32) as usize;
+    let y_min = rect.min.y.clamp(0, height as i32) as usize;
+    let y_max = rect.max.y.clamp(0, height as i32) as usize;
+
+    if invert {
+        for y in 0..height {
+            for x in 0..width {
+                let inside = x >= x_min && x < x_max && y >= y_min && y < y_max;
+                if !inside {
+                    depth[y * width + x] = depth_value;
+                }
+            }
+        }
+    } else {
+        for y in y_min..y_max {
+            for x in x_min..x_max {
+                depth[y * width + x] = depth_value;
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "gpu_palette", feature = "line"))]
+fn update_depth_line(
+    depth: &mut [u16],
+    width: usize,
+    height: usize,
+    line: &PxLine,
+    canvas: PxCanvas,
+    camera: PxCamera,
+    invert: bool,
+    depth_value: u16,
+) {
+    use bevy_platform::collections::HashSet;
+    use line_drawing::Bresenham;
+
+    let offset = match canvas {
+        PxCanvas::World => -*camera,
+        PxCanvas::Camera => IVec2::ZERO,
+    };
+
+    let mut poses = HashSet::new();
+    for (segment_index, (start, end)) in line.iter().zip(line.iter().skip(1)).enumerate() {
+        let start = *start + offset;
+        let end = *end + offset;
+
+        for (step, pos) in Bresenham::new(start.into(), end.into()).enumerate() {
+            if segment_index > 0 && step == 0 {
+                continue;
+            }
+            poses.insert(IVec2::from(pos));
+        }
+    }
+
+    if invert {
+        for y in 0..height as i32 {
+            for x in 0..width as i32 {
+                if !poses.contains(&IVec2::new(x, y)) {
+                    depth[y as usize * width + x as usize] = depth_value;
+                }
+            }
+        }
+    } else {
+        for pos in poses {
+            if pos.x >= 0 && pos.y >= 0 && (pos.x as usize) < width && (pos.y as usize) < height {
+                depth[pos.y as usize * width + pos.x as usize] = depth_value;
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "gpu_palette"))]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+
+    fn depth_to_string(depth: &[u16], width: usize, height: usize) -> String {
+        let mut out = String::new();
+        for y in 0..height {
+            for x in 0..width {
+                if x > 0 {
+                    out.push(' ');
+                }
+                out.push_str(&depth[y * width + x].to_string());
+            }
+            if y + 1 < height {
+                out.push('\n');
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn depth_updates_snapshot() {
+        let width = 4;
+        let height = 4;
+        let mut depth = vec![0u16; width * height];
+        let layer_image = vec![0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0];
+
+        update_depth_from_layer(&mut depth, &layer_image, 2);
+        let mut out = String::new();
+        out.push_str("after_layer_image:\n");
+        out.push_str(&depth_to_string(&depth, width, height));
+        out.push('\n');
+
+        update_depth_rect(
+            &mut depth,
+            width,
+            height,
+            IRect {
+                min: IVec2::new(0, 0),
+                max: IVec2::new(4, 1),
+            },
+            false,
+            3,
+        );
+        out.push_str("after_over_rect:\n");
+        out.push_str(&depth_to_string(&depth, width, height));
+        out.push('\n');
+
+        update_depth_rect(
+            &mut depth,
+            width,
+            height,
+            IRect {
+                min: IVec2::new(2, 2),
+                max: IVec2::new(4, 4),
+            },
+            true,
+            4,
+        );
+        out.push_str("after_invert_rect:\n");
+        out.push_str(&depth_to_string(&depth, width, height));
+
+        assert_snapshot!(
+            "depth_updates",
+            out,
+            @r###"after_layer_image:
+0 0 0 0
+0 2 2 0
+0 2 2 0
+0 0 0 0
+after_over_rect:
+3 3 3 3
+0 2 2 0
+0 2 2 0
+0 0 0 0
+after_invert_rect:
+4 4 4 4
+4 4 4 4
+4 4 2 0
+4 4 0 0"###
+        );
     }
 }

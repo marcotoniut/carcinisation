@@ -85,6 +85,10 @@ impl PxImage {
         self.image.len()
     }
 
+    pub(crate) fn data(&self) -> &[u8] {
+        &self.image
+    }
+
     #[expect(unused)]
     pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut u8> {
         self.image.iter_mut()

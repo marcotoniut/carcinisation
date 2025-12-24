@@ -20,6 +20,7 @@ headed = [
     "bevy_input_focus",
 ]
 default = ["headed"]
+gpu_palette = ["headed"]
 line = ["line_drawing"]
 nav = ["seldom_map_nav"]
 particle = ["bevy_turborand"]
@@ -32,6 +33,7 @@ serde = "1.0"
 line_drawing = { version = "1.0", optional = true }
 bevy_utils = { version = "0.17.1", default-features = false }
 bevy_math = { version = "0.17.1", default-features = false }
+bevy_mesh = { version = "0.17.1", default-features = false }
 bevy_transform = { version = "0.17.1", default-features = false }
 bevy_color = { version = "0.17.1", default-features = false }
 bevy_platform = { version = "0.17.1", default-features = false }
@@ -51,6 +53,7 @@ bevy_shader = { version = "0.17.1", default-features = false, optional = true }
 bevy_core_pipeline = { version = "0.17.1", default-features = false, optional = true }
 bevy_picking = { version = "0.17.1", default-features = false, optional = true }
 bevy_input_focus = { version = "0.17.1", default-features = false, optional = true }
+bytemuck = { version = "1.16.0", features = ["derive"] }
 bevy_turborand = { version = "0.12.0", optional = true }
 seldom_map_nav = { version = "0.10.0", optional = true }
 carapace_macros = { version = "0.3.0-dev", path = "macros" }
@@ -60,11 +63,16 @@ seldom_state = { version = "0.15.0", optional = true }
 bevy = "0.17.1"
 leafwing-input-manager = "0.18.0"
 rand = "0.8.5"
+insta = "1.39.0"
 seldom_state = { version = "0.15.0", features = ["leafwing_input"] }
 
 [[example]]
 name = "line"
 required-features = ["line"]
+
+[[example]]
+name = "gpu_palette"
+required-features = ["gpu_palette"]
 
 [[example]]
 name = "particles"

@@ -118,6 +118,10 @@ pub(crate) struct PxRenderBufferInner {
     pub(crate) size: UVec2,
     pub(crate) image: Option<Image>,
     pub(crate) texture: Option<Texture>,
+    #[cfg(feature = "gpu_palette")]
+    pub(crate) depth_image: Option<Image>,
+    #[cfg(feature = "gpu_palette")]
+    pub(crate) depth_texture: Option<Texture>,
 }
 
 #[cfg(feature = "headed")]
@@ -128,6 +132,10 @@ impl Default for PxRenderBuffer {
                 size: UVec2::ZERO,
                 image: None,
                 texture: None,
+                #[cfg(feature = "gpu_palette")]
+                depth_image: None,
+                #[cfg(feature = "gpu_palette")]
+                depth_texture: None,
             }),
         }
     }
@@ -166,12 +174,40 @@ impl PxRenderBuffer {
             descriptor.format,
             default(),
         ));
+
+        #[cfg(feature = "gpu_palette")]
+        {
+            let depth_descriptor = TextureDescriptor {
+                label: Some("px_present_depth_texture"),
+                size: descriptor.size,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::R16Uint,
+                sample_count: 1,
+                mip_level_count: 1,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[],
+            };
+            inner.depth_texture = Some(device.create_texture(&depth_descriptor));
+            inner.depth_image = Some(Image::new_fill(
+                depth_descriptor.size,
+                depth_descriptor.dimension,
+                &[0, 0],
+                depth_descriptor.format,
+                default(),
+            ));
+        }
     }
 
     pub(crate) fn clear(&self) {
         let mut inner = self.inner.write().unwrap();
         if let Some(image) = inner.image.as_mut()
             && let Some(data) = image.data.as_mut()
+        {
+            data.fill(0);
+        }
+        #[cfg(feature = "gpu_palette")]
+        if let Some(depth) = inner.depth_image.as_mut()
+            && let Some(data) = depth.data.as_mut()
         {
             data.fill(0);
         }

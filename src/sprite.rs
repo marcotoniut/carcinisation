@@ -2,8 +2,10 @@
 
 use std::{error::Error, path::PathBuf};
 
-use bevy_asset::{AssetLoader, LoadContext, io::Reader};
+use bevy_asset::{AssetId, AssetLoader, LoadContext, io::Reader};
 use bevy_derive::{Deref, DerefMut};
+#[cfg(feature = "gpu_palette")]
+use bevy_ecs::system::lifetimeless::SRes;
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
 use bevy_math::{ivec2, uvec2};
 #[cfg(feature = "headed")]
@@ -12,6 +14,14 @@ use bevy_render::{
     render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin},
     sync_component::SyncComponentPlugin,
     sync_world::RenderEntity,
+};
+#[cfg(feature = "gpu_palette")]
+use bevy_render::{
+    render_resource::{
+        Extent3d, TexelCopyBufferLayout, Texture, TextureDescriptor, TextureDimension,
+        TextureFormat, TextureUsages,
+    },
+    renderer::{RenderDevice, RenderQueue},
 };
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +38,12 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     app.add_plugins((
         RenderAssetPlugin::<PxSpriteAsset>::default(),
         SyncComponentPlugin::<PxSprite>::default(),
+    ));
+
+    #[cfg(all(feature = "headed", feature = "gpu_palette"))]
+    app.add_plugins((
+        RenderAssetPlugin::<PxSpriteGpu>::default(),
+        SyncComponentPlugin::<PxGpuSprite>::default(),
     ));
 
     app.init_asset::<PxSpriteAsset>()
@@ -111,6 +127,61 @@ pub struct PxSpriteAsset {
     pub(crate) frame_size: usize,
 }
 
+#[cfg(feature = "gpu_palette")]
+#[derive(Clone)]
+pub(crate) struct PxSpriteGpu {
+    pub(crate) size: UVec2,
+    pub(crate) frame_size: usize,
+    pub(crate) texture: Texture,
+}
+
+#[cfg(feature = "gpu_palette")]
+impl RenderAsset for PxSpriteGpu {
+    type SourceAsset = PxSpriteAsset;
+    type Param = (SRes<RenderDevice>, SRes<RenderQueue>);
+
+    fn prepare_asset(
+        source_asset: Self::SourceAsset,
+        _: AssetId<Self::SourceAsset>,
+        (device, queue): &mut bevy_ecs::system::SystemParamItem<Self::Param>,
+        _: Option<&Self>,
+    ) -> Result<Self, PrepareAssetError<Self::SourceAsset>> {
+        let size = source_asset.data.size();
+        let descriptor = TextureDescriptor {
+            label: Some("px_sprite_texture"),
+            size: Extent3d {
+                width: size.x,
+                height: size.y,
+                depth_or_array_layers: 1,
+            },
+            dimension: TextureDimension::D2,
+            format: TextureFormat::R8Uint,
+            sample_count: 1,
+            mip_level_count: 1,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            view_formats: &[],
+        };
+
+        let texture = device.create_texture(&descriptor);
+        queue.write_texture(
+            texture.as_image_copy(),
+            source_asset.data.data(),
+            TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(size.x),
+                rows_per_image: None,
+            },
+            descriptor.size,
+        );
+
+        Ok(Self {
+            size,
+            frame_size: source_asset.frame_size,
+            texture,
+        })
+    }
+}
+
 #[cfg(feature = "headed")]
 impl RenderAsset for PxSpriteAsset {
     type SourceAsset = Self;
@@ -179,6 +250,12 @@ impl From<Handle<PxSpriteAsset>> for PxSprite {
         Self(value)
     }
 }
+
+/// Marker to render a sprite via the experimental GPU palette path.
+#[cfg(feature = "gpu_palette")]
+#[derive(Component, Default, Clone, Copy, Debug)]
+#[require(PxSprite)]
+pub struct PxGpuSprite;
 
 impl AnimatedAssetComponent for PxSprite {
     type Asset = PxSpriteAsset;

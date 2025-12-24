@@ -32,6 +32,8 @@ pub(crate) const OK: Result = Ok(());
 pub use crate::line::PxLine;
 #[cfg(feature = "particle")]
 pub use crate::particle::{PxEmitter, PxEmitterFrequency, PxEmitterSimulation, PxParticleLifetime};
+#[cfg(feature = "gpu_palette")]
+pub use crate::sprite::PxGpuSprite;
 pub use crate::{
     PxPlugin,
     animation::{
