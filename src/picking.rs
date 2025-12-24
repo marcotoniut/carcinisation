@@ -4,7 +4,7 @@ use bevy_picking::backend::prelude::*;
 
 use crate::{
     cursor::PxCursorPosition,
-    frame::{Frames, PxFrameControl, PxFrameView, animate},
+    frame::{Frames, PxFrameControl, PxFrameView, animate, resolve_frame_binding},
     math::RectExt,
     position::Spatial,
     prelude::*,
@@ -60,10 +60,10 @@ fn spatial_rect(
     }
 }
 
-fn sprite_pixel_visible(
+fn sprite_pixel_visible<'a>(
     sprite: &PxSpriteAsset,
     frame: Option<PxFrameView>,
-    filter: Option<&PxFilterAsset>,
+    filters: impl IntoIterator<Item = &'a PxFilterAsset>,
     local_pos: UVec2,
 ) -> bool {
     let size = sprite.frame_size();
@@ -85,24 +85,19 @@ fn sprite_pixel_visible(
     };
 
     let pixel_y = frame_index as i32 * size.y as i32 + local_pos.y as i32;
-    let pixel = sprite.data.pixel(IVec2::new(local_pos.x as i32, pixel_y));
-
-    if let Some(filter) = filter {
-        let filter_frame_count = filter.frame_count();
-        if filter_frame_count == 0 {
-            return false;
-        }
-        let filter_index = match frame {
-            Some(frame) => animate(frame, filter_frame_count)(local_pos),
-            None => 0,
-        };
-        return filter
-            .0
-            .pixel(IVec2::new(pixel as i32, filter_index as i32))
-            != 0;
+    let mut pixel = sprite.data.pixel(IVec2::new(local_pos.x as i32, pixel_y));
+    if pixel == 0 {
+        return false;
     }
 
-    pixel != 0
+    for filter in filters {
+        pixel = filter.as_fn()(pixel);
+        if pixel == 0 {
+            return false;
+        }
+    }
+
+    true
 }
 
 // TODO Pick other entities in a generic way
@@ -122,6 +117,21 @@ fn pick<L: PxLayer>(
     sprites: Query<
         (
             &PxSprite,
+            &PxPosition,
+            &PxAnchor,
+            &L,
+            &PxCanvas,
+            Option<&PxFrameView>,
+            Option<&PxFrameControl>,
+            Option<&PxFilter>,
+            &InheritedVisibility,
+            Entity,
+        ),
+        With<PxPixelPick>,
+    >,
+    composites: Query<
+        (
+            &PxCompositeSprite,
             &PxPosition,
             &PxAnchor,
             &L,
@@ -239,7 +249,7 @@ fn pick<L: PxLayer>(
 
             let local_pos = UVec2::new(local_x, local_y);
             let filter = filter.and_then(|filter| filters.get(&**filter));
-            if !sprite_pixel_visible(sprite, frame, filter, local_pos) {
+            if !sprite_pixel_visible(sprite, frame, filter.into_iter(), local_pos) {
                 continue;
             }
 
@@ -252,6 +262,107 @@ fn pick<L: PxLayer>(
                     normal: None,
                 },
             ));
+        }
+
+        for (
+            composite,
+            &pos,
+            &anchor,
+            layer,
+            &canvas,
+            frame_view,
+            frame_control,
+            filter,
+            visibility,
+            id,
+        ) in &composites
+        {
+            if !visibility.get() {
+                continue;
+            }
+
+            let metrics = if composite.size.x == 0 || composite.size.y == 0 {
+                composite.metrics_with(|handle| {
+                    let sprite = sprite_assets.get(handle)?;
+                    Some(crate::sprite::PxCompositePartMetrics {
+                        size: sprite.frame_size(),
+                        frame_count: sprite.frame_count(),
+                    })
+                })
+            } else {
+                Some(crate::sprite::PxCompositeMetrics {
+                    size: composite.size,
+                    origin: composite.origin,
+                    frame_count: composite.frame_count,
+                })
+            };
+            let Some(metrics) = metrics else {
+                continue;
+            };
+
+            let rect = spatial_rect(metrics.size, pos, anchor, canvas, cam_pos);
+            if !rect.contains_exclusive(cursor) {
+                continue;
+            }
+
+            let depth = layer_depth(&mut layer_depths, layer);
+            let frame = frame_view
+                .copied()
+                .or_else(|| frame_control.copied().map(PxFrameView::from));
+            let master_count = metrics.frame_count;
+            let local = cursor - rect.min;
+            let entity_filter = filter.and_then(|filter| filters.get(&**filter));
+
+            let mut hit = false;
+            for part in &composite.parts {
+                let Some(sprite) = sprite_assets.get(&part.sprite) else {
+                    continue;
+                };
+
+                let part_size = sprite.frame_size().as_ivec2();
+                if part_size.x == 0 || part_size.y == 0 {
+                    continue;
+                }
+
+                let part_origin = part.offset - metrics.origin;
+                let part_local = local - part_origin;
+                if part_local.x < 0
+                    || part_local.y < 0
+                    || part_local.x >= part_size.x
+                    || part_local.y >= part_size.y
+                {
+                    continue;
+                }
+
+                let part_frame =
+                    resolve_frame_binding(frame, master_count, sprite.frame_count(), &part.frame);
+                let local_x = part_local.x as u32;
+                let local_y = part_local.y as u32;
+                let local_y = part_size.y as u32 - 1 - local_y;
+                let local_pos = UVec2::new(local_x, local_y);
+                let part_filter = part.filter.as_ref().and_then(|filter| filters.get(filter));
+                if sprite_pixel_visible(
+                    sprite,
+                    part_frame,
+                    [part_filter, entity_filter].into_iter().flatten(),
+                    local_pos,
+                ) {
+                    hit = true;
+                    break;
+                }
+            }
+
+            if hit {
+                picks.push((
+                    id,
+                    HitData {
+                        camera: camera_id,
+                        depth,
+                        position: None,
+                        normal: None,
+                    },
+                ));
+            }
         }
 
         hits.write(PointerHits {
@@ -279,8 +390,8 @@ mod tests {
             transition: PxFrameTransition::Dither,
         };
 
-        let hit_a = sprite_pixel_visible(&sprite, Some(frame), None, UVec2::new(0, 0));
-        let hit_b = sprite_pixel_visible(&sprite, Some(frame), None, UVec2::new(1, 0));
+        let hit_a = sprite_pixel_visible(&sprite, Some(frame), [], UVec2::new(0, 0));
+        let hit_b = sprite_pixel_visible(&sprite, Some(frame), [], UVec2::new(1, 0));
 
         assert!(hit_a);
         assert!(!hit_b);

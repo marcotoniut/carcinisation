@@ -2,7 +2,7 @@
 
 use std::{error::Error, path::PathBuf};
 
-use bevy_asset::{AssetId, AssetLoader, LoadContext, io::Reader};
+use bevy_asset::{AssetEvent, AssetId, AssetLoader, LoadContext, io::Reader};
 use bevy_derive::{Deref, DerefMut};
 #[cfg(feature = "gpu_palette")]
 use bevy_ecs::system::lifetimeless::SRes;
@@ -27,11 +27,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     animation::AnimatedAssetComponent,
-    frame::Frames,
+    filter::PxFilterAsset,
+    frame::{Frames, PxFrameBinding, PxFrameCount},
     image::{PxImage, PxImageSliceMut},
     palette::Palette,
     position::{DefaultLayer, PxLayer, Spatial},
     prelude::*,
+    set::PxSet,
 };
 
 pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
@@ -39,22 +41,35 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     app.add_plugins((
         RenderAssetPlugin::<PxSpriteAsset>::default(),
         SyncComponentPlugin::<PxSprite>::default(),
+        SyncComponentPlugin::<PxCompositeSprite>::default(),
     ));
 
     #[cfg(all(feature = "headed", feature = "gpu_palette"))]
     app.add_plugins((
         RenderAssetPlugin::<PxSpriteGpu>::default(),
         SyncComponentPlugin::<PxGpuSprite>::default(),
+        SyncComponentPlugin::<PxGpuComposite>::default(),
     ));
 
     app.init_asset::<PxSpriteAsset>()
         .register_asset_loader(PxSpriteLoader::new(palette_path));
+
+    app.add_systems(
+        PostUpdate,
+        (
+            update_composite_metrics_on_change,
+            update_composite_metrics_on_assets,
+            sync_composite_frame_count_on_animation_added,
+        )
+            .before(PxSet::FinishAnimations),
+    );
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp).add_systems(
         ExtractSchedule,
         (
             extract_sprites::<L>,
+            extract_composite_sprites::<L>,
             // extract_image_to_sprites::<L>
         ),
     );
@@ -252,11 +267,148 @@ impl From<Handle<PxSpriteAsset>> for PxSprite {
     }
 }
 
+/// A sprite composed of multiple sprite parts.
+#[derive(Component, Default, Clone, Debug)]
+#[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
+#[cfg_attr(feature = "headed", require(Visibility))]
+pub struct PxCompositeSprite {
+    /// Parts that make up the composite sprite.
+    pub parts: Vec<PxCompositePart>,
+    /// Cached composite size (computed from parts).
+    pub size: UVec2,
+    /// Cached origin shift when parts have negative offsets.
+    pub origin: IVec2,
+    /// Cached frame count for the master animation.
+    pub frame_count: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PxCompositeMetrics {
+    pub size: UVec2,
+    pub origin: IVec2,
+    pub frame_count: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PxCompositePartMetrics {
+    pub size: UVec2,
+    pub frame_count: usize,
+}
+
+impl PxCompositeSprite {
+    /// Create a composite sprite from parts.
+    pub fn new(parts: Vec<PxCompositePart>) -> Self {
+        Self {
+            parts,
+            size: UVec2::ZERO,
+            origin: IVec2::ZERO,
+            frame_count: 0,
+        }
+    }
+
+    /// Recompute cached size/origin/frame count from current parts.
+    pub(crate) fn metrics_with<F>(&self, mut get: F) -> Option<PxCompositeMetrics>
+    where
+        F: FnMut(&Handle<PxSpriteAsset>) -> Option<PxCompositePartMetrics>,
+    {
+        let mut any = false;
+        let mut min = IVec2::ZERO;
+        let mut max = IVec2::ZERO;
+        let mut frame_count = 0usize;
+
+        for part in &self.parts {
+            let Some(metrics) = get(&part.sprite) else {
+                continue;
+            };
+
+            let size = metrics.size.as_ivec2();
+            let part_min = part.offset;
+            let part_max = part.offset + size;
+
+            if !any {
+                min = part_min;
+                max = part_max;
+                any = true;
+            } else {
+                min = min.min(part_min);
+                max = max.max(part_max);
+            }
+
+            frame_count = frame_count.max(metrics.frame_count);
+        }
+
+        if !any {
+            return None;
+        }
+
+        let size = max - min;
+        Some(PxCompositeMetrics {
+            origin: min,
+            size: UVec2::new(size.x.max(0) as u32, size.y.max(0) as u32),
+            frame_count,
+        })
+    }
+
+    /// Recompute cached size/origin/frame count from current parts.
+    pub fn recompute_metrics(&mut self, sprites: &Assets<PxSpriteAsset>) {
+        let metrics = self.metrics_with(|handle| {
+            let sprite = sprites.get(handle)?;
+            Some(PxCompositePartMetrics {
+                size: sprite.frame_size(),
+                frame_count: sprite.frame_count(),
+            })
+        });
+        match metrics {
+            Some(metrics) => {
+                self.size = metrics.size;
+                self.origin = metrics.origin;
+                self.frame_count = metrics.frame_count;
+            }
+            None => {
+                self.size = UVec2::ZERO;
+                self.origin = IVec2::ZERO;
+                self.frame_count = 0;
+            }
+        }
+    }
+}
+
+/// A single part of a composite sprite.
+#[derive(Clone, Debug)]
+pub struct PxCompositePart {
+    /// Sprite asset used for this part.
+    pub sprite: Handle<PxSpriteAsset>,
+    /// Offset from the composite's bottom-left (before anchor).
+    pub offset: IVec2,
+    /// Frame binding to the composite's master frame.
+    pub frame: PxFrameBinding,
+    /// Optional filter applied before the composite's filter.
+    pub filter: Option<Handle<PxFilterAsset>>,
+}
+
+impl PxCompositePart {
+    /// Create a composite part with default binding and zero offset.
+    pub fn new(sprite: Handle<PxSpriteAsset>) -> Self {
+        Self {
+            sprite,
+            offset: IVec2::ZERO,
+            frame: PxFrameBinding::default(),
+            filter: None,
+        }
+    }
+}
+
 /// Marker to render a sprite via the experimental GPU palette path.
 #[cfg(feature = "gpu_palette")]
 #[derive(Component, Default, Clone, Copy, Debug)]
 #[require(PxSprite)]
 pub struct PxGpuSprite;
+
+/// Marker to render a composite sprite via the experimental GPU palette path.
+#[cfg(feature = "gpu_palette")]
+#[derive(Component, Default, Clone, Copy, Debug)]
+#[require(PxCompositeSprite)]
+pub struct PxGpuComposite;
 
 impl AnimatedAssetComponent for PxSprite {
     type Asset = PxSpriteAsset;
@@ -270,10 +422,68 @@ impl AnimatedAssetComponent for PxSprite {
     }
 }
 
+impl Spatial for PxCompositeSprite {
+    fn frame_size(&self) -> UVec2 {
+        self.size
+    }
+}
+
+fn sync_composite_metrics(
+    composite: &mut PxCompositeSprite,
+    sprites: &Assets<PxSpriteAsset>,
+    mut count: Option<Mut<PxFrameCount>>,
+) {
+    composite.recompute_metrics(sprites);
+    if let Some(count) = count.as_mut() {
+        count.0 = composite.frame_count;
+    }
+}
+
+fn update_composite_metrics_on_change(
+    sprites: Res<Assets<PxSpriteAsset>>,
+    mut composites: Query<
+        (&mut PxCompositeSprite, Option<&mut PxFrameCount>),
+        Changed<PxCompositeSprite>,
+    >,
+) {
+    for (mut composite, count) in &mut composites {
+        sync_composite_metrics(&mut composite, &sprites, count);
+    }
+}
+
+fn update_composite_metrics_on_assets(
+    sprites: Res<Assets<PxSpriteAsset>>,
+    mut events: MessageReader<AssetEvent<PxSpriteAsset>>,
+    mut composites: Query<(&mut PxCompositeSprite, Option<&mut PxFrameCount>)>,
+) {
+    if events.read().next().is_none() {
+        return;
+    }
+
+    for (mut composite, count) in &mut composites {
+        sync_composite_metrics(&mut composite, &sprites, count);
+    }
+}
+
+fn sync_composite_frame_count_on_animation_added(
+    sprites: Res<Assets<PxSpriteAsset>>,
+    mut composites: Query<(&mut PxCompositeSprite, &mut PxFrameCount), Added<PxAnimation>>,
+) {
+    for (mut composite, count) in &mut composites {
+        sync_composite_metrics(&mut composite, &sprites, Some(count));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{camera::PxCamera, frame::draw_spatial, image::PxImage};
+    use crate::{
+        camera::PxCamera,
+        frame::{PxFrameSelector, PxFrameView, draw_spatial, resolve_frame_binding},
+        image::PxImage,
+    };
+    use bevy_asset::Assets;
+    use insta::assert_snapshot;
 
     fn pixels(image: &PxImage) -> Vec<u8> {
         let size = image.size();
@@ -284,6 +494,56 @@ mod tests {
             }
         }
         out
+    }
+
+    fn image_grid(image: &PxImage) -> String {
+        let size = image.size();
+        let mut out = String::new();
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                let value = image.pixel(IVec2::new(x, y));
+                if x > 0 {
+                    out.push(' ');
+                }
+                out.push_str(&format!("{value:02}"));
+            }
+            if y + 1 < size.y as i32 {
+                out.push('\n');
+            }
+        }
+        out
+    }
+
+    fn draw_composite(
+        image: &mut PxImage,
+        composite: &PxCompositeSprite,
+        master: Option<PxFrameView>,
+        sprites: &Assets<PxSpriteAsset>,
+    ) {
+        let mut slice = image.slice_all_mut();
+        let base_pos = IVec2::ZERO - PxAnchor::BottomLeft.pos(composite.size).as_ivec2();
+
+        for part in &composite.parts {
+            let sprite = sprites.get(&part.sprite).unwrap();
+            let part_frame = resolve_frame_binding(
+                master,
+                composite.frame_count,
+                sprite.frame_count(),
+                &part.frame,
+            );
+            let part_pos = base_pos + (part.offset - composite.origin);
+            draw_spatial(
+                sprite,
+                (),
+                &mut slice,
+                part_pos.into(),
+                PxAnchor::BottomLeft,
+                PxCanvas::Camera,
+                part_frame,
+                [],
+                PxCamera::default(),
+            );
+        }
     }
 
     #[test]
@@ -309,6 +569,109 @@ mod tests {
 
         let expected = vec![1, 2, 3, 1];
         assert_eq!(pixels(&image), expected);
+    }
+
+    #[test]
+    fn composite_sprite_snapshot() {
+        let mut sprites = Assets::default();
+        let sprite_a = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4], 2),
+            frame_size: 4,
+        });
+        let sprite_b = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![5, 6, 7, 8], 2),
+            frame_size: 4,
+        });
+
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart {
+                sprite: sprite_a,
+                offset: IVec2::ZERO,
+                frame: PxFrameBinding::default(),
+                filter: None,
+            },
+            PxCompositePart {
+                sprite: sprite_b,
+                offset: IVec2::new(2, 0),
+                frame: PxFrameBinding::default(),
+                filter: None,
+            },
+        ]);
+        composite.recompute_metrics(&sprites);
+
+        let mut image = PxImage::new(vec![0; 8], 4);
+        draw_composite(&mut image, &composite, None, &sprites);
+
+        assert_snapshot!(
+            image_grid(&image),
+            @r###"
+01 02 05 06
+03 04 07 08
+"###
+        );
+    }
+
+    #[test]
+    fn composite_animation_snapshot() {
+        let mut sprites = Assets::default();
+        let sprite_a = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4, 9, 10, 11, 12], 2),
+            frame_size: 4,
+        });
+        let sprite_b = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![5, 6, 7, 8, 13, 14, 15, 16], 2),
+            frame_size: 4,
+        });
+
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart {
+                sprite: sprite_a,
+                offset: IVec2::ZERO,
+                frame: PxFrameBinding::default(),
+                filter: None,
+            },
+            PxCompositePart {
+                sprite: sprite_b,
+                offset: IVec2::new(2, 0),
+                frame: PxFrameBinding::Offset(1),
+                filter: None,
+            },
+        ]);
+        composite.recompute_metrics(&sprites);
+
+        let mut image_frame_0 = PxImage::new(vec![0; 8], 4);
+        draw_composite(
+            &mut image_frame_0,
+            &composite,
+            Some(PxFrameView::from(PxFrameSelector::Index(0.))),
+            &sprites,
+        );
+
+        let mut image_frame_1 = PxImage::new(vec![0; 8], 4);
+        draw_composite(
+            &mut image_frame_1,
+            &composite,
+            Some(PxFrameView::from(PxFrameSelector::Index(1.))),
+            &sprites,
+        );
+
+        let snapshot = format!(
+            "frame 0\n{}\n\nframe 1\n{}",
+            image_grid(&image_frame_0),
+            image_grid(&image_frame_1)
+        );
+        assert_snapshot!(
+            snapshot,
+            @r###"
+frame 0
+01 02 13 14
+03 04 15 16
+
+frame 1
+09 10 05 06
+11 12 07 08
+"###
+        );
     }
 }
 
@@ -543,10 +906,57 @@ pub(crate) type SpriteComponents<L> = (
     Option<&'static PxFilter>,
 );
 
+pub(crate) type CompositeSpriteComponents<L> = (
+    &'static PxCompositeSprite,
+    &'static PxPosition,
+    &'static PxAnchor,
+    &'static L,
+    &'static PxCanvas,
+    Option<&'static PxFrame>,
+    Option<&'static PxFilter>,
+);
+
 #[cfg(feature = "headed")]
 fn extract_sprites<L: PxLayer>(
     // TODO Maybe calculate `ViewVisibility`
     sprites: Extract<Query<(SpriteComponents<L>, &InheritedVisibility, RenderEntity)>>,
+    mut cmd: Commands,
+) {
+    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {
+        let mut entity = cmd.entity(id);
+
+        if !visibility.get() {
+            // TODO Need to a better way to prevent entities from rendering
+            entity.remove::<L>();
+            continue;
+        }
+
+        entity.insert((sprite.clone(), position, anchor, layer.clone(), canvas));
+
+        if let Some(frame) = frame {
+            entity.insert(*frame);
+        } else {
+            entity.remove::<PxFrame>();
+        }
+
+        if let Some(filter) = filter {
+            entity.insert(filter.clone());
+        } else {
+            entity.remove::<PxFilter>();
+        }
+    }
+}
+
+#[cfg(feature = "headed")]
+fn extract_composite_sprites<L: PxLayer>(
+    // TODO Maybe calculate `ViewVisibility`
+    sprites: Extract<
+        Query<(
+            CompositeSpriteComponents<L>,
+            &InheritedVisibility,
+            RenderEntity,
+        )>,
+    >,
     mut cmd: Commands,
 ) {
     for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {

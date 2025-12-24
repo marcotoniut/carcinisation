@@ -24,13 +24,16 @@ use bevy_render::{
 use bytemuck::{Pod, Zeroable};
 
 use crate::{
-    frame::PxFrameView,
+    frame::{PxFrameView, resolve_frame_binding},
     prelude::*,
-    sprite::{PxGpuSprite, PxSpriteAsset, PxSpriteGpu, SpriteComponents},
+    sprite::{
+        CompositeSpriteComponents, PxGpuComposite, PxGpuSprite, PxSpriteAsset, PxSpriteGpu,
+        SpriteComponents,
+    },
 };
 
 use super::{
-    GPU_SPRITE_SHADER_HANDLE, PxLayerOrder, Screen, gpu_sprite_supported,
+    GPU_SPRITE_SHADER_HANDLE, PxLayerOrder, Screen, gpu_composite_supported, gpu_sprite_supported,
     pipeline::{PxRenderBuffer, PxUniform, PxUniformBuffer},
 };
 
@@ -72,12 +75,14 @@ impl SpriteVertex {
 
 pub(crate) struct PxGpuSpriteNode<L: PxLayer> {
     sprites: QueryState<SpriteComponents<L>, With<PxGpuSprite>>,
+    composites: QueryState<CompositeSpriteComponents<L>, With<PxGpuComposite>>,
 }
 
 impl<L: PxLayer> FromWorld for PxGpuSpriteNode<L> {
     fn from_world(world: &mut World) -> Self {
         Self {
             sprites: world.query_filtered(),
+            composites: world.query_filtered(),
         }
     }
 }
@@ -209,6 +214,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
 
     fn update(&mut self, world: &mut World) {
         self.sprites.update_archetypes(world);
+        self.composites.update_archetypes(world);
     }
 
     fn run<'w>(
@@ -265,6 +271,64 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                     canvas,
                     frame: frame.copied(),
                 });
+        }
+
+        for (composite, &position, &anchor, layer, &canvas, frame, filter) in
+            self.composites.iter_manual(world)
+        {
+            if !gpu_composite_supported(composite, frame.copied(), filter) {
+                continue;
+            }
+
+            let metrics = if composite.size.x == 0 || composite.size.y == 0 {
+                composite.metrics_with(|handle| {
+                    let sprite = sprite_assets.get(handle)?;
+                    let part_count = frame_count(sprite);
+                    let part_size = match frame_height(sprite) {
+                        Some(height) => UVec2::new(sprite.size.x, height),
+                        None => return None,
+                    };
+                    Some(crate::sprite::PxCompositePartMetrics {
+                        size: part_size,
+                        frame_count: part_count,
+                    })
+                })
+            } else {
+                Some(crate::sprite::PxCompositeMetrics {
+                    size: composite.size,
+                    origin: composite.origin,
+                    frame_count: composite.frame_count,
+                })
+            };
+            let Some(metrics) = metrics else {
+                continue;
+            };
+
+            let base_pos = *position - anchor.pos(metrics.size).as_ivec2();
+            let master = frame.copied();
+            let master_count = metrics.frame_count;
+
+            for part in &composite.parts {
+                let Some(sprite_gpu) = sprite_assets.get(&part.sprite) else {
+                    continue;
+                };
+
+                let part_count = frame_count(sprite_gpu);
+                let part_frame =
+                    resolve_frame_binding(master, master_count, part_count, &part.frame);
+                let part_pos = base_pos + (part.offset - metrics.origin);
+
+                sprites_by_layer
+                    .entry(layer.clone())
+                    .or_default()
+                    .push(SpriteItem {
+                        sprite: part.sprite.clone(),
+                        position: PxPosition(part_pos),
+                        anchor: PxAnchor::BottomLeft,
+                        canvas,
+                        frame: part_frame,
+                    });
+            }
         }
 
         if sprites_by_layer.is_empty() {

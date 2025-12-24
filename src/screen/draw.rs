@@ -12,11 +12,12 @@ use crate::line::draw_line;
 use crate::{
     cursor::{CursorState, PxCursorPosition},
     filter::{PxFilterAsset, draw_filter},
-    frame::draw_spatial,
+    frame::{Frames, draw_spatial, resolve_frame_binding},
     image::{PxImage, PxImageSliceMut},
     map::{PxTile, PxTileset},
+    position::Spatial,
     prelude::*,
-    sprite::PxSpriteAsset,
+    sprite::{PxCompositeSprite, PxSpriteAsset},
     text::PxTypeface,
 };
 
@@ -34,6 +35,15 @@ pub(crate) type MapEntry<'a> = (
 
 pub(crate) type SpriteEntry<'a> = (
     &'a PxSprite,
+    PxPosition,
+    PxAnchor,
+    PxCanvas,
+    Option<&'a PxFrame>,
+    Option<&'a PxFilter>,
+);
+
+pub(crate) type CompositeSpriteEntry<'a> = (
+    &'a PxCompositeSprite,
     PxPosition,
     PxAnchor,
     PxCanvas,
@@ -75,6 +85,7 @@ pub(crate) type FilterEntry<'a> = (&'a PxFilter, Option<&'a PxFrame>);
 pub(crate) type LayerContents<'a> = (
     Vec<MapEntry<'a>>,
     Vec<SpriteEntry<'a>>,
+    Vec<CompositeSpriteEntry<'a>>,
     Vec<TextEntry<'a>>,
     Vec<RectEntry<'a>>,
     Vec<LineEntry<'a>>,
@@ -88,6 +99,7 @@ pub(crate) type LayerContents<'a> = (
 pub(crate) type LayerContents<'a> = (
     Vec<MapEntry<'a>>,
     Vec<SpriteEntry<'a>>,
+    Vec<CompositeSpriteEntry<'a>>,
     Vec<TextEntry<'a>>,
     Vec<RectEntry<'a>>,
     (),
@@ -141,6 +153,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
             (
                 maps,
                 sprites,
+                composites,
                 texts,
                 clip_rects,
                 clip_lines,
@@ -223,6 +236,59 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     filter.and_then(|filter| filters.get(&**filter)),
                     camera,
                 );
+            }
+
+            for (composite, position, anchor, canvas, frame, filter) in composites {
+                let metrics = if composite.size.x == 0 || composite.size.y == 0 {
+                    composite.metrics_with(|handle| {
+                        let sprite = sprite_assets.get(handle)?;
+                        Some(crate::sprite::PxCompositePartMetrics {
+                            size: sprite.frame_size(),
+                            frame_count: sprite.frame_count(),
+                        })
+                    })
+                } else {
+                    Some(crate::sprite::PxCompositeMetrics {
+                        size: composite.size,
+                        origin: composite.origin,
+                        frame_count: composite.frame_count,
+                    })
+                };
+                let Some(metrics) = metrics else {
+                    continue;
+                };
+
+                let base_pos = *position - anchor.pos(metrics.size).as_ivec2();
+                let master = frame.copied();
+                let master_count = metrics.frame_count;
+
+                for part in &composite.parts {
+                    let Some(sprite) = sprite_assets.get(&part.sprite) else {
+                        continue;
+                    };
+
+                    let part_frame = resolve_frame_binding(
+                        master,
+                        master_count,
+                        sprite.frame_count(),
+                        &part.frame,
+                    );
+                    let part_pos = base_pos + (part.offset - metrics.origin);
+                    let part_filter = part.filter.as_ref().and_then(|handle| filters.get(handle));
+                    let entity_filter = filter.and_then(|filter| filters.get(&**filter));
+
+                    draw_spatial(
+                        sprite,
+                        (),
+                        &mut layer_slice,
+                        part_pos.into(),
+                        PxAnchor::BottomLeft,
+                        canvas,
+                        part_frame,
+                        [part_filter, entity_filter].into_iter().flatten(),
+                        camera,
+                    );
+                }
             }
 
             for (text, pos, alignment, canvas, frame, filter) in texts {

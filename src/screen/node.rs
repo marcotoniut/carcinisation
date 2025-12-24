@@ -20,21 +20,19 @@ use bevy_render::{
 #[cfg(feature = "line")]
 use crate::line::LineComponents;
 #[cfg(feature = "gpu_palette")]
-use crate::sprite::PxGpuSprite;
+use crate::sprite::{PxGpuComposite, PxGpuSprite};
 use crate::{
     filter::FilterComponents,
     map::{MapComponents, TileComponents},
     position::PxLayer,
     prelude::*,
     rect::RectComponents,
-    sprite::SpriteComponents,
+    sprite::{CompositeSpriteComponents, SpriteComponents},
     text::TextComponents,
 };
 
 #[cfg(feature = "gpu_palette")]
-use super::PxLayerOrder;
-#[cfg(feature = "gpu_palette")]
-use super::gpu_sprite_supported;
+use super::{PxLayerOrder, gpu_composite_supported, gpu_sprite_supported};
 use super::{
     Screen,
     draw::{self, LayerContentsMap},
@@ -49,6 +47,10 @@ pub(crate) struct PxRenderNode<L: PxLayer> {
     sprites: QueryState<(SpriteComponents<L>, Has<PxGpuSprite>)>,
     #[cfg(not(feature = "gpu_palette"))]
     sprites: QueryState<SpriteComponents<L>>,
+    #[cfg(feature = "gpu_palette")]
+    composites: QueryState<(CompositeSpriteComponents<L>, Has<PxGpuComposite>)>,
+    #[cfg(not(feature = "gpu_palette"))]
+    composites: QueryState<CompositeSpriteComponents<L>>,
     texts: QueryState<TextComponents<L>>,
     rects: QueryState<RectComponents<L>>,
     #[cfg(feature = "line")]
@@ -66,6 +68,10 @@ impl<L: PxLayer> FromWorld for PxRenderNode<L> {
             sprites: world.query(),
             #[cfg(not(feature = "gpu_palette"))]
             sprites: world.query(),
+            #[cfg(feature = "gpu_palette")]
+            composites: world.query(),
+            #[cfg(not(feature = "gpu_palette"))]
+            composites: world.query(),
             texts: world.query(),
             rects: world.query(),
             #[cfg(feature = "line")]
@@ -84,6 +90,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         self.tiles.update_archetypes(world);
         // self.image_to_sprites.update_archetypes(world);
         self.sprites.update_archetypes(world);
+        self.composites.update_archetypes(world);
         self.texts.update_archetypes(world);
         self.rects.update_archetypes(world);
         #[cfg(feature = "line")]
@@ -118,7 +125,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 layer_set.insert(layer.clone());
             }
 
-            if let Some((maps, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+            if let Some((maps, _, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
                 maps.push(map);
             } else {
                 BTreeMap::insert(
@@ -130,8 +137,9 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                         Vec::new(),
                         Vec::new(),
                         default(),
+                        default(),
                         Vec::new(),
-                        Vec::new(),
+                        default(),
                         default(),
                         Vec::new(),
                     ),
@@ -151,7 +159,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
 
             let sprite = (sprite, position, anchor, canvas, animation, filter);
 
-            if let Some((_, sprites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+            if let Some((_, sprites, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
                 sprites.push(sprite);
             } else {
                 BTreeMap::insert(
@@ -163,8 +171,9 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                         Vec::new(),
                         Vec::new(),
                         default(),
+                        default(),
                         Vec::new(),
-                        Vec::new(),
+                        default(),
                         default(),
                         Vec::new(),
                     ),
@@ -178,7 +187,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         {
             let sprite = (sprite, position, anchor, canvas, animation, filter);
 
-            if let Some((_, sprites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+            if let Some((_, sprites, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
                 sprites.push(sprite);
             } else {
                 BTreeMap::insert(
@@ -187,6 +196,70 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                     (
                         Vec::new(),
                         vec![sprite],
+                        Vec::new(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                    ),
+                );
+            }
+        }
+
+        #[cfg(feature = "gpu_palette")]
+        for ((composite, &position, &anchor, layer, &canvas, animation, filter), has_gpu) in
+            self.composites.iter_manual(world)
+        {
+            layer_set.insert(layer.clone());
+            let gpu_eligible =
+                has_gpu && gpu_composite_supported(composite, animation.copied(), filter);
+            if gpu_eligible {
+                continue;
+            }
+
+            let composite = (composite, position, anchor, canvas, animation, filter);
+
+            if let Some((_, _, composites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+                composites.push(composite);
+            } else {
+                BTreeMap::insert(
+                    &mut layer_contents,
+                    layer.clone(),
+                    (
+                        Vec::new(),
+                        Vec::new(),
+                        vec![composite],
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                        Vec::new(),
+                        default(),
+                        Vec::new(),
+                    ),
+                );
+            }
+        }
+
+        #[cfg(not(feature = "gpu_palette"))]
+        for (composite, &position, &anchor, layer, &canvas, animation, filter) in
+            self.composites.iter_manual(world)
+        {
+            let composite = (composite, position, anchor, canvas, animation, filter);
+
+            if let Some((_, _, composites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+                composites.push(composite);
+            } else {
+                BTreeMap::insert(
+                    &mut layer_contents,
+                    layer.clone(),
+                    (
+                        Vec::new(),
+                        Vec::new(),
+                        vec![composite],
                         Vec::new(),
                         Vec::new(),
                         default(),
@@ -208,13 +281,14 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 layer_set.insert(layer.clone());
             }
 
-            if let Some((_, _, texts, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
+            if let Some((_, _, _, texts, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
                 texts.push(text);
             } else {
                 BTreeMap::insert(
                     &mut layer_contents,
                     layer.clone(),
                     (
+                        Vec::new(),
                         Vec::new(),
                         Vec::new(),
                         vec![text],
@@ -252,7 +326,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                     layer_set.insert(layer.clone());
                 }
 
-                if let Some((_, _, _, clip_rects, _, _, over_rects, _, _)) =
+                if let Some((_, _, _, _, clip_rects, _, _, over_rects, _, _)) =
                     layer_contents.get_mut(&layer)
                 {
                     if clip { clip_rects } else { over_rects }.push(rect);
@@ -267,6 +341,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                                 Vec::new(),
                                 Vec::new(),
                                 Vec::new(),
+                                Vec::new(),
                                 rects,
                                 default(),
                                 Vec::new(),
@@ -276,6 +351,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                             )
                         } else {
                             (
+                                Vec::new(),
                                 Vec::new(),
                                 Vec::new(),
                                 Vec::new(),
@@ -313,7 +389,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 {
                     layer_set.insert(layer.clone());
                 }
-                if let Some((_, _, _, _, clip_lines, _, _, over_lines, _)) =
+                if let Some((_, _, _, _, _, clip_lines, _, _, over_lines, _)) =
                     layer_contents.get_mut(&layer)
                 {
                     if clip { clip_lines } else { over_lines }.push(line);
@@ -329,6 +405,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                                 Vec::new(),
                                 Vec::new(),
                                 Vec::new(),
+                                Vec::new(),
                                 lines,
                                 Vec::new(),
                                 Vec::new(),
@@ -337,6 +414,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                             )
                         } else {
                             (
+                                Vec::new(),
                                 Vec::new(),
                                 Vec::new(),
                                 Vec::new(),
@@ -373,7 +451,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 {
                     layer_set.insert(layer.clone());
                 }
-                if let Some((_, _, _, _, _, clip_filters, _, _, over_filters)) =
+                if let Some((_, _, _, _, _, _, clip_filters, _, _, over_filters)) =
                     layer_contents.get_mut(&layer)
                 {
                     if clip { clip_filters } else { over_filters }.push(filter);
@@ -390,6 +468,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                                 Vec::new(),
                                 Vec::new(),
                                 default(),
+                                default(),
                                 filters,
                                 Vec::new(),
                                 default(),
@@ -401,6 +480,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                                 Vec::new(),
                                 Vec::new(),
                                 Vec::new(),
+                                default(),
                                 default(),
                                 Vec::new(),
                                 Vec::new(),

@@ -38,6 +38,20 @@ pub enum PxFrameTransition {
     Dither,
 }
 
+/// Maps a master frame selection to a part-specific frame selection.
+#[derive(Clone, Debug, Default)]
+pub enum PxFrameBinding {
+    /// Use the master's normalized progress.
+    #[default]
+    Inherit,
+    /// Map master frame indices to explicit part frame indices.
+    Map(Vec<usize>),
+    /// Offset the master frame index by the given amount.
+    Offset(i32),
+    /// Scale the master's normalized progress.
+    Scale(f32),
+}
+
 /// Per-entity frame view consumed by drawables.
 #[derive(Component, Default, Clone, Copy)]
 pub struct PxFrameView {
@@ -46,6 +60,10 @@ pub struct PxFrameView {
     /// Frame interpolation mode.
     pub transition: PxFrameTransition,
 }
+
+/// Cached frame count for the entity's active frame source.
+#[derive(Component, Default, Clone, Copy, Debug)]
+pub struct PxFrameCount(pub usize);
 
 /// Backwards-compatible alias for the frame view.
 pub type PxFrame = PxFrameView;
@@ -166,6 +184,82 @@ pub(crate) fn animate(frame: PxFrameView, frame_count: usize) -> impl Fn(UVec2) 
     move |pos| {
         (index + ((0b1000_0000_0000_0000 >> (pos.x % 4 + pos.y % 4 * 4)) & dithering != 0) as usize)
             % frame_count
+    }
+}
+
+fn frame_index_f32(frame: PxFrameView, frame_count: usize) -> f32 {
+    match frame.selector {
+        PxFrameSelector::Normalized(progress) => {
+            if frame_count <= 1 {
+                0.
+            } else {
+                progress.clamp(0., 1.) * (frame_count - 1) as f32
+            }
+        }
+        PxFrameSelector::Index(index) => index.max(0.),
+    }
+}
+
+fn frame_index(frame: PxFrameView, frame_count: usize) -> usize {
+    frame_index_f32(frame, frame_count).floor() as usize
+}
+
+fn frame_progress(frame: PxFrameView, frame_count: usize) -> f32 {
+    match frame.selector {
+        PxFrameSelector::Normalized(progress) => progress.clamp(0., 1.),
+        PxFrameSelector::Index(index) => {
+            if frame_count <= 1 {
+                0.
+            } else {
+                (index.max(0.) / (frame_count - 1) as f32).clamp(0., 1.)
+            }
+        }
+    }
+}
+
+pub(crate) fn resolve_frame_binding(
+    master: Option<PxFrameView>,
+    master_count: usize,
+    part_count: usize,
+    binding: &PxFrameBinding,
+) -> Option<PxFrameView> {
+    let master = master?;
+    if part_count == 0 {
+        return None;
+    }
+
+    match binding {
+        PxFrameBinding::Inherit => Some(PxFrameView {
+            selector: PxFrameSelector::Normalized(frame_progress(master, master_count)),
+            transition: master.transition,
+        }),
+        PxFrameBinding::Map(map) => {
+            if map.is_empty() {
+                return None;
+            }
+            let index = frame_index(master, map.len());
+            let mapped = map.get(index).copied().unwrap_or(0) as f32;
+            Some(PxFrameView {
+                selector: PxFrameSelector::Index(mapped),
+                transition: master.transition,
+            })
+        }
+        PxFrameBinding::Offset(offset) => {
+            let index = frame_index(master, master_count) as i32 + offset;
+            let index = index.rem_euclid(part_count as i32) as f32;
+            Some(PxFrameView {
+                selector: PxFrameSelector::Index(index),
+                transition: master.transition,
+            })
+        }
+        PxFrameBinding::Scale(scale) => {
+            let progress = frame_progress(master, master_count) * *scale;
+            let progress = progress - progress.floor();
+            Some(PxFrameView {
+                selector: PxFrameSelector::Normalized(progress),
+                transition: master.transition,
+            })
+        }
     }
 }
 

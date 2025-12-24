@@ -84,6 +84,11 @@ carapace = "*"
 
 Then add `PxPlugin` to your app. Check out the examples for further usage.
 
+### GPU palette path (experimental)
+
+Enable the `gpu_palette` feature and add `PxGpuSprite` or `PxGpuComposite` to entities you want
+rendered via the GPU palette pass. Filters and dithering are not supported on this path yet.
+
 ## Compatibility
 
 | Bevy | `seldom_state` | `seldom_map_nav` | `seldom_interop` | `bevy_ecs_tilemap` | `carapace` |

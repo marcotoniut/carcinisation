@@ -217,6 +217,19 @@ pub(crate) fn gpu_sprite_supported(frame: Option<PxFrame>, filter: Option<&PxFil
     }
 }
 
+#[cfg(feature = "gpu_palette")]
+pub(crate) fn gpu_composite_supported(
+    composite: &PxCompositeSprite,
+    frame: Option<PxFrame>,
+    filter: Option<&PxFilter>,
+) -> bool {
+    if !gpu_sprite_supported(frame, filter) {
+        return false;
+    }
+
+    composite.parts.iter().all(|part| part.filter.is_none())
+}
+
 pub(crate) fn screen_scale(screen_size: UVec2, window_size: Vec2) -> Vec2 {
     let aspect = screen_size.y as f32 / screen_size.x as f32;
 

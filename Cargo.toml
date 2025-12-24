@@ -75,6 +75,10 @@ name = "gpu_palette"
 required-features = ["gpu_palette"]
 
 [[example]]
+name = "composite_gpu"
+required-features = ["gpu_palette"]
+
+[[example]]
 name = "particles"
 required-features = ["particle"]
 

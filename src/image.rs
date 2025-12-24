@@ -85,6 +85,7 @@ impl PxImage {
         self.image.len()
     }
 
+    #[cfg(feature = "gpu_palette")]
     pub(crate) fn data(&self) -> &[u8] {
         &self.image
     }

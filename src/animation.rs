@@ -6,7 +6,11 @@ use std::time::Duration;
 
 use bevy_platform::time::Instant;
 
-pub use crate::frame::{PxFrame, PxFrameControl, PxFrameSelector, PxFrameTransition, PxFrameView};
+pub use crate::frame::{
+    PxFrame, PxFrameControl, PxFrameCount, PxFrameSelector, PxFrameTransition, PxFrameView,
+};
+use bevy_asset::AssetEvent;
+
 use crate::{prelude::*, set::PxSet};
 
 /// Optional plugin that installs the default animation systems.
@@ -23,11 +27,17 @@ pub(crate) fn plug(app: &mut App) {
     app.add_systems(
         PostUpdate,
         (
-            update_animations::<PxSprite>,
-            update_animations::<PxFilter>,
-            update_animations::<PxText>,
-            update_animations::<PxMap>,
+            sync_frame_counts_on_component_change::<PxSprite>,
+            sync_frame_counts_on_component_change::<PxFilter>,
+            sync_frame_counts_on_component_change::<PxText>,
+            sync_frame_counts_on_component_change::<PxMap>,
+            sync_frame_counts_on_asset_event::<PxSprite>,
+            sync_frame_counts_on_asset_event::<PxFilter>,
+            sync_frame_counts_on_asset_event::<PxText>,
+            sync_frame_counts_on_asset_event::<PxMap>,
+            update_animations,
         )
+            .chain()
             .in_set(PxSet::FinishAnimations),
     );
 }
@@ -88,7 +98,7 @@ pub enum PxAnimationFinishBehavior {
 
 /// Animates an entity. Works on sprites, filters, text, tilemaps, rectangles, and lines.
 #[derive(Component, Clone, Copy, Debug)]
-#[require(PxFrameView, PxFrameControl)]
+#[require(PxFrameView, PxFrameControl, PxFrameCount)]
 pub struct PxAnimation {
     /// A [`PxAnimationDirection`].
     pub direction: PxAnimationDirection,
@@ -123,63 +133,96 @@ pub(crate) trait AnimatedAssetComponent: Component {
     fn max_frame_count(asset: &Self::Asset) -> usize;
 }
 
-fn update_animations<A: AnimatedAssetComponent>(
+fn update_animations(
     mut cmd: Commands,
-    assets: Res<Assets<A::Asset>>,
     time: Res<Time<Real>>,
     mut animations: Query<(
         Entity,
         &mut PxFrameControl,
         &PxAnimation,
         Has<PxAnimationFinished>,
-        &A,
+        &PxFrameCount,
     )>,
 ) {
-    for (id, mut control, animation, finished, a) in &mut animations {
-        if let Some(asset) = assets.get(a.handle()) {
-            let elapsed = time.last_update().unwrap_or_else(|| time.startup()) - animation.start;
-            let max_frame_count = A::max_frame_count(asset);
-            let lifetime = match animation.duration {
-                PxAnimationDuration::PerAnimation(duration) => duration,
-                PxAnimationDuration::PerFrame(duration) => duration * max_frame_count as u32,
-            };
+    for (id, mut control, animation, finished, frame_count) in &mut animations {
+        let max_frame_count = frame_count.0;
+        if max_frame_count == 0 {
+            continue;
+        }
 
-            let ratio = elapsed.div_duration_f32(lifetime);
-            let ratio = match animation.on_finish {
-                PxAnimationFinishBehavior::Despawn | PxAnimationFinishBehavior::Mark => {
-                    ratio.min(1.)
+        let elapsed = time.last_update().unwrap_or_else(|| time.startup()) - animation.start;
+        let lifetime = match animation.duration {
+            PxAnimationDuration::PerAnimation(duration) => duration,
+            PxAnimationDuration::PerFrame(duration) => duration * max_frame_count as u32,
+        };
+
+        let ratio = elapsed.div_duration_f32(lifetime);
+        let ratio = match animation.on_finish {
+            PxAnimationFinishBehavior::Despawn | PxAnimationFinishBehavior::Mark => ratio.min(1.),
+            #[cfg(feature = "state")]
+            PxAnimationFinishBehavior::Done => ratio.min(1.),
+            PxAnimationFinishBehavior::Loop => ratio.fract(),
+        };
+        let ratio = match animation.direction {
+            PxAnimationDirection::Foreward => ratio,
+            PxAnimationDirection::Backward => 1. + -ratio,
+        };
+
+        match control.selector {
+            PxFrameSelector::Index(ref mut index) => *index = max_frame_count as f32 * ratio,
+            PxFrameSelector::Normalized(ref mut normalized) => *normalized = ratio,
+        }
+
+        if elapsed >= lifetime {
+            match animation.on_finish {
+                PxAnimationFinishBehavior::Despawn => {
+                    cmd.entity(id).despawn();
+                }
+                PxAnimationFinishBehavior::Mark => {
+                    if !finished {
+                        cmd.entity(id).insert(PxAnimationFinished);
+                    }
                 }
                 #[cfg(feature = "state")]
-                PxAnimationFinishBehavior::Done => ratio.min(1.),
-                PxAnimationFinishBehavior::Loop => ratio.fract(),
-            };
-            let ratio = match animation.direction {
-                PxAnimationDirection::Foreward => ratio,
-                PxAnimationDirection::Backward => 1. + -ratio,
-            };
-
-            match control.selector {
-                PxFrameSelector::Index(ref mut index) => *index = max_frame_count as f32 * ratio,
-                PxFrameSelector::Normalized(ref mut normalized) => *normalized = ratio,
-            }
-
-            if elapsed >= lifetime {
-                match animation.on_finish {
-                    PxAnimationFinishBehavior::Despawn => {
-                        cmd.entity(id).despawn();
-                    }
-                    PxAnimationFinishBehavior::Mark => {
-                        if !finished {
-                            cmd.entity(id).insert(PxAnimationFinished);
-                        }
-                    }
-                    #[cfg(feature = "state")]
-                    PxAnimationFinishBehavior::Done => {
-                        cmd.entity(id).insert(Done::Success);
-                    }
-                    PxAnimationFinishBehavior::Loop => (),
+                PxAnimationFinishBehavior::Done => {
+                    cmd.entity(id).insert(Done::Success);
                 }
+                PxAnimationFinishBehavior::Loop => (),
             }
         }
+    }
+}
+
+fn sync_frame_counts_on_component_change<A: AnimatedAssetComponent>(
+    assets: Res<Assets<A::Asset>>,
+    mut query: Query<
+        (&A, &mut PxFrameCount),
+        (With<PxAnimation>, Or<(Changed<A>, Added<PxAnimation>)>),
+    >,
+) {
+    for (component, mut count) in &mut query {
+        let Some(asset) = assets.get(component.handle()) else {
+            count.0 = 0;
+            continue;
+        };
+        count.0 = A::max_frame_count(asset);
+    }
+}
+
+fn sync_frame_counts_on_asset_event<A: AnimatedAssetComponent>(
+    assets: Res<Assets<A::Asset>>,
+    mut events: MessageReader<AssetEvent<A::Asset>>,
+    mut query: Query<(&A, &mut PxFrameCount), With<PxAnimation>>,
+) {
+    if events.read().next().is_none() {
+        return;
+    }
+
+    for (component, mut count) in &mut query {
+        let Some(asset) = assets.get(component.handle()) else {
+            count.0 = 0;
+            continue;
+        };
+        count.0 = A::max_frame_count(asset);
     }
 }

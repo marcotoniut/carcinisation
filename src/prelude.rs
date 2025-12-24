@@ -28,7 +28,10 @@ pub(crate) use seldom_state::prelude::*;
 
 pub(crate) const OK: Result = Ok(());
 
-pub use crate::frame::{PxFrame, PxFrameControl, PxFrameSelector, PxFrameTransition, PxFrameView};
+pub use crate::frame::{
+    PxFrame, PxFrameBinding, PxFrameControl, PxFrameCount, PxFrameSelector, PxFrameTransition,
+    PxFrameView,
+};
 #[cfg(feature = "line")]
 pub use crate::line::PxLine;
 #[cfg(feature = "particle")]
@@ -36,7 +39,7 @@ pub use crate::particle::{PxEmitter, PxEmitterFrequency, PxEmitterSimulation, Px
 #[cfg(feature = "headed")]
 pub use crate::picking::PxPixelPick;
 #[cfg(feature = "gpu_palette")]
-pub use crate::sprite::PxGpuSprite;
+pub use crate::sprite::{PxGpuComposite, PxGpuSprite};
 pub use crate::{
     PxPlugin,
     animation::{
@@ -51,7 +54,7 @@ pub use crate::{
     position::{PxAnchor, PxLayer, PxPosition, PxSubPosition, PxVelocity},
     rect::PxRect,
     screen::ScreenSize,
-    sprite::{PxSprite, PxSpriteAsset},
+    sprite::{PxCompositePart, PxCompositeSprite, PxSprite, PxSpriteAsset},
     text::{PxText, PxTypeface},
     ui::{
         PxCaret, PxGrid, PxGridRow, PxGridRows, PxKeyField, PxKeyFieldUpdate, PxMargin, PxMinSize,
