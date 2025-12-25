@@ -13,12 +13,47 @@ pub enum ColliderShape {
 
 impl ColliderShape {
     pub fn point_collides(&self, collider_position: Vec2, point_position: Vec2) -> bool {
-        let distance = collider_position.distance(point_position);
         match &self {
-            ColliderShape::Box(size) => distance < size.x && distance < size.y,
-            ColliderShape::Circle(radius) => distance <= *radius,
+            ColliderShape::Box(size) => {
+                let delta = (point_position - collider_position).abs();
+                delta.x <= size.x && delta.y <= size.y
+            }
+            ColliderShape::Circle(radius) => {
+                collider_position.distance_squared(point_position) <= *radius * *radius
+            }
         }
     }
+
+    pub fn overlaps(
+        &self,
+        self_position: Vec2,
+        other: &ColliderShape,
+        other_position: Vec2,
+    ) -> bool {
+        match (self, other) {
+            (ColliderShape::Circle(a), ColliderShape::Circle(b)) => {
+                let radius = a + b;
+                self_position.distance_squared(other_position) <= radius * radius
+            }
+            (ColliderShape::Box(a), ColliderShape::Box(b)) => {
+                let delta = (self_position - other_position).abs();
+                delta.x <= a.x + b.x && delta.y <= a.y + b.y
+            }
+            (ColliderShape::Box(half), ColliderShape::Circle(radius)) => {
+                box_overlaps_circle(*half, self_position, *radius, other_position)
+            }
+            (ColliderShape::Circle(radius), ColliderShape::Box(half)) => {
+                box_overlaps_circle(*half, other_position, *radius, self_position)
+            }
+        }
+    }
+}
+
+fn box_overlaps_circle(half: Vec2, box_center: Vec2, radius: f32, circle_center: Vec2) -> bool {
+    let min = box_center - half;
+    let max = box_center + half;
+    let closest = circle_center.clamp(min, max);
+    circle_center.distance_squared(closest) <= radius * radius
 }
 
 #[derive(new, Clone, Copy, Debug, From, Reflect)]
@@ -110,6 +145,38 @@ impl ColliderData {
 impl Default for ColliderData {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn box_overlaps_box() {
+        let box_a = ColliderShape::Box(Vec2::new(2.0, 1.5));
+        let box_b = ColliderShape::Box(Vec2::new(1.0, 1.0));
+
+        assert!(box_a.overlaps(Vec2::ZERO, &box_b, Vec2::new(2.5, 0.0)));
+        assert!(!box_a.overlaps(Vec2::ZERO, &box_b, Vec2::new(4.1, 0.0)));
+    }
+
+    #[test]
+    fn circle_overlaps_circle() {
+        let circle_a = ColliderShape::Circle(1.5);
+        let circle_b = ColliderShape::Circle(1.0);
+
+        assert!(circle_a.overlaps(Vec2::ZERO, &circle_b, Vec2::new(2.4, 0.0)));
+        assert!(!circle_a.overlaps(Vec2::ZERO, &circle_b, Vec2::new(2.6, 0.0)));
+    }
+
+    #[test]
+    fn box_overlaps_circle() {
+        let box_a = ColliderShape::Box(Vec2::new(1.0, 1.0));
+        let circle_b = ColliderShape::Circle(0.8);
+
+        assert!(box_a.overlaps(Vec2::ZERO, &circle_b, Vec2::new(1.6, 0.0)));
+        assert!(!box_a.overlaps(Vec2::ZERO, &circle_b, Vec2::new(2.2, 0.0)));
     }
 }
 
