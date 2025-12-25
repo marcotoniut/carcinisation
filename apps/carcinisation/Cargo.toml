@@ -13,6 +13,7 @@ default = []
 activable = { path = "../../crates/activable" }
 activable_macros = { path = "../../crates/activable_macros" }
 carcinisation_core = { path = "../../crates/carcinisation_core" }
+carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 cween = { path = "../../crates/cween" }
 
 # Bevy ecosystem
