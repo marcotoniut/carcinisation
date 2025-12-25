@@ -10,8 +10,8 @@ use bevy::{
 };
 use seldom_pixel::prelude::{
     PxAnchor, PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxCanvas, PxFilter, PxFilterLayers, PxFrame, PxFrameTransition, PxLayer, PxLine, PxPosition,
-    PxSprite, PxText,
+    PxCanvas, PxFilter, PxFilterLayers, PxFrame, PxFrameControl, PxFrameTransition, PxLayer,
+    PxLine, PxPosition, PxSprite, PxText,
 };
 
 /// Equivalent of the legacy `PxSpriteBundle`, rebuilt on top of the 0.8 component set.
@@ -51,6 +51,7 @@ pub struct PxLineBundle<L: Component + PxLayer + Default + Clone> {
 pub struct PxAnimationBundle {
     pub animation: PxAnimation,
     pub frame: PxFrame,
+    pub frame_control: PxFrameControl,
 }
 
 impl PxAnimationBundle {
@@ -71,6 +72,7 @@ impl PxAnimationBundle {
                 transition: frame_transition,
                 ..Default::default()
             },
+            frame_control: PxFrameControl::default(),
         }
     }
 
