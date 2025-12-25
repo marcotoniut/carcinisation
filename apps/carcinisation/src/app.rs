@@ -34,6 +34,7 @@ use crate::{
     transitions::spiral::TransitionVenetianPlugin,
 };
 use leafwing_input_manager::prelude::InputManagerPlugin;
+use seldom_pixel::animation::PxAnimationPlugin;
 use seldom_pixel::prelude::*;
 
 /// Controls whether the full start/menu stack should run.
@@ -140,6 +141,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
             SCREEN_RESOLUTION,
             "palette/base.png",
         ))
+        .add_plugins(PxAnimationPlugin)
         .add_plugins(TransitionVenetianPlugin)
         .add_plugins(LetterboxPlugin);
 
