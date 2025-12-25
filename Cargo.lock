@@ -2090,6 +2090,7 @@ dependencies = [
  "bevy_ecs",
  "bevy_framepace",
  "bevy_state",
+ "carcinisation_collision",
  "carcinisation_core",
  "clap",
  "colored",
@@ -2111,6 +2112,16 @@ dependencies = [
  "strum",
  "strum_macros",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "carcinisation_collision"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "derive-new",
+ "derive_more",
+ "seldom_pixel",
 ]
 
 [[package]]

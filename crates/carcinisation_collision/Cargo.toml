@@ -1,0 +1,14 @@
+[package]
+name = "carcinisation_collision"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = []
+pixel-mask = ["seldom_pixel"]
+
+[dependencies]
+bevy = { workspace = true }
+derive-new = { workspace = true }
+derive_more = { workspace = true }
+seldom_pixel = { workspace = true, optional = true }
