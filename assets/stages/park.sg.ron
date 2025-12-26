@@ -136,10 +136,10 @@ StageData(
                 ),
             ],
             floor_depths: {
-                Six: 70.0,
-                Five: 50.0,
-                Four: 30.0,
                 Three: 0.0,
+                Five: 50.0,
+                Six: 70.0,
+                Four: 30.0,
             },
         ),
         Stop(
@@ -288,7 +288,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 6.1,
                     contains: None,
-                    coordinates: Vec2(120.0, 60.0),
+                    coordinates: Vec2(176.99023, 106.019516),
                     speed: 5.0,
                     steps: [],
                     depth: Five,
@@ -297,7 +297,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 7.4,
                     contains: None,
-                    coordinates: Vec2(80.0, 80.0),
+                    coordinates: Vec2(175.16211, 36.201157),
                     speed: 5.0,
                     steps: [],
                     depth: Five,
@@ -405,7 +405,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 6.1,
                     contains: None,
-                    coordinates: Vec2(440.0, 190.0),
+                    coordinates: Vec2(610.0, 254.12108),
                     speed: 5.0,
                     steps: [
                         Circle(
@@ -443,7 +443,7 @@ StageData(
                     contains: Pickup(
                         pickup_type: BigHealthpack,
                     ),
-                    coordinates: Vec2(520.0, 210.0),
+                    coordinates: Vec2(734.93945, 257.5625),
                     speed: 5.0,
                     steps: [
                         Circle(
@@ -514,7 +514,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 8.4,
                     contains: None,
-                    coordinates: Vec2(60.0, 80.0),
+                    coordinates: Vec2(169.33398, 38.201187),
                     speed: 5.0,
                     steps: [],
                     depth: Five,
@@ -523,7 +523,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 6.1,
                     contains: None,
-                    coordinates: Vec2(100.0, 60.0),
+                    coordinates: Vec2(237.72461, 96.181656),
                     speed: 2.0,
                     steps: [],
                     depth: Five,

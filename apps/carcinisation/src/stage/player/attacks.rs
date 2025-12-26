@@ -7,8 +7,10 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, Debug, Reflect, PartialEq, Eq, Hash)]
 pub enum AttackId {
     Pincer,
-    Gun,
+    Pistol,
+    MachineGun,
     Bomb,
+    BombExplosion,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -26,7 +28,7 @@ impl AttackButton {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AttackCategory {
     Melee,
     Ranged,
@@ -34,6 +36,7 @@ pub enum AttackCategory {
 
 #[derive(Clone, Copy, Debug)]
 pub enum AttackCollisionMode {
+    None,
     Point,
     SpriteMask,
 }
@@ -81,10 +84,13 @@ pub struct AttackDefinition {
     pub damage: u32,
     pub duration_secs: f32,
     pub collision: AttackCollisionMode,
+    pub spawn_on_expire: Option<AttackId>,
+    pub detonates_on_hit: bool,
     pub input_policy: AttackInputPolicy,
     pub hit_policy: AttackHitPolicy,
+    pub aim_spread: f32,
     pub sprite: AttackSpriteDefinition,
-    pub sfx_path: &'static str,
+    pub sfx_path: Option<&'static str>,
     pub effects: AttackEffects,
 }
 
@@ -113,11 +119,14 @@ impl Default for AttackDefinitions {
                 damage: 70,
                 duration_secs: 0.6,
                 collision: AttackCollisionMode::SpriteMask,
+                spawn_on_expire: None,
+                detonates_on_hit: false,
                 input_policy: AttackInputPolicy::Release,
                 hit_policy: AttackHitPolicy::Repeat {
                     cooldown_secs: 0.18,
                     repeat_damage: 35,
                 },
+                aim_spread: 0.0,
                 sprite: AttackSpriteDefinition {
                     sprite_path: assert_assets_path!("sprites/melee_slash.px_sprite.png"),
                     frames: 9,
@@ -128,23 +137,26 @@ impl Default for AttackDefinitions {
                     canvas: PxCanvas::Camera,
                     layer: Layer::Attack,
                 },
-                sfx_path: assert_assets_path!("audio/sfx/player_melee.ogg"),
+                sfx_path: Some(assert_assets_path!("audio/sfx/player_melee.ogg")),
                 effects: AttackEffects {
                     screen_shake: false,
                 },
             },
         );
         defs.insert(
-            AttackId::Gun,
+            AttackId::Pistol,
             AttackDefinition {
-                id: AttackId::Gun,
-                name: "Gun",
+                id: AttackId::Pistol,
+                name: "Pistol",
                 category: AttackCategory::Ranged,
                 damage: 30,
-                duration_secs: 0.08,
+                duration_secs: 0.06,
                 collision: AttackCollisionMode::Point,
+                spawn_on_expire: None,
+                detonates_on_hit: false,
                 input_policy: AttackInputPolicy::Release,
                 hit_policy: AttackHitPolicy::Single,
+                aim_spread: 0.0,
                 sprite: AttackSpriteDefinition {
                     sprite_path: assert_assets_path!("sprites/bullet_particles.px_sprite.png"),
                     frames: 4,
@@ -155,7 +167,40 @@ impl Default for AttackDefinitions {
                     canvas: PxCanvas::Camera,
                     layer: Layer::Attack,
                 },
-                sfx_path: assert_assets_path!("audio/sfx/player_shot.ogg"),
+                sfx_path: Some(assert_assets_path!("audio/sfx/player_shot.ogg")),
+                effects: AttackEffects {
+                    screen_shake: false,
+                },
+            },
+        );
+        defs.insert(
+            AttackId::MachineGun,
+            AttackDefinition {
+                id: AttackId::MachineGun,
+                name: "Machine Gun",
+                category: AttackCategory::Ranged,
+                damage: 20,
+                duration_secs: 0.06,
+                collision: AttackCollisionMode::Point,
+                spawn_on_expire: None,
+                detonates_on_hit: false,
+                input_policy: AttackInputPolicy::Hold {
+                    warmup_secs: 0.18,
+                    interval_secs: 0.08,
+                },
+                hit_policy: AttackHitPolicy::Single,
+                aim_spread: 2.0,
+                sprite: AttackSpriteDefinition {
+                    sprite_path: assert_assets_path!("sprites/bullet_particles.px_sprite.png"),
+                    frames: 4,
+                    speed_ms: 80,
+                    finish_behavior: PxAnimationFinishBehavior::Despawn,
+                    frame_transition: PxFrameTransition::None,
+                    anchor: PxAnchor::Center,
+                    canvas: PxCanvas::Camera,
+                    layer: Layer::Attack,
+                },
+                sfx_path: Some(assert_assets_path!("audio/sfx/player_shot.ogg")),
                 effects: AttackEffects {
                     screen_shake: false,
                 },
@@ -167,26 +212,61 @@ impl Default for AttackDefinitions {
                 id: AttackId::Bomb,
                 name: "Bomb",
                 category: AttackCategory::Ranged,
-                damage: 60,
+                damage: 0,
                 duration_secs: 0.9,
                 collision: AttackCollisionMode::SpriteMask,
+                spawn_on_expire: Some(AttackId::BombExplosion),
+                detonates_on_hit: true,
+                input_policy: AttackInputPolicy::Release,
+                hit_policy: AttackHitPolicy::Single,
+                aim_spread: 0.0,
+                sprite: AttackSpriteDefinition {
+                    sprite_path: assert_assets_path!("sprites/pickups/bomb_6.px_sprite.png"),
+                    frames: 1,
+                    speed_ms: 200,
+                    finish_behavior: PxAnimationFinishBehavior::Loop,
+                    frame_transition: PxFrameTransition::None,
+                    anchor: PxAnchor::Center,
+                    canvas: PxCanvas::World,
+                    layer: Layer::Attack,
+                },
+                sfx_path: None,
+                effects: AttackEffects { screen_shake: true },
+            },
+        );
+        defs.insert(
+            AttackId::BombExplosion,
+            AttackDefinition {
+                id: AttackId::BombExplosion,
+                name: "Bomb Explosion",
+                category: AttackCategory::Ranged,
+                damage: 60,
+                duration_secs: 0.5,
+                collision: AttackCollisionMode::SpriteMask,
+                spawn_on_expire: None,
+                detonates_on_hit: false,
                 input_policy: AttackInputPolicy::Release,
                 hit_policy: AttackHitPolicy::Repeat {
                     cooldown_secs: 0.25,
                     repeat_damage: 25,
                 },
+                aim_spread: 0.0,
                 sprite: AttackSpriteDefinition {
-                    sprite_path: assert_assets_path!("sprites/pickups/bomb_6.px_sprite.png"),
-                    frames: 1,
-                    speed_ms: 200,
+                    sprite_path: assert_assets_path!(
+                        "sprites/attacks/blood_attack_hovering_1.px_sprite.png"
+                    ),
+                    frames: 4,
+                    speed_ms: 500,
                     finish_behavior: PxAnimationFinishBehavior::Despawn,
                     frame_transition: PxFrameTransition::None,
                     anchor: PxAnchor::Center,
-                    canvas: PxCanvas::Camera,
+                    canvas: PxCanvas::World,
                     layer: Layer::Attack,
                 },
-                sfx_path: assert_assets_path!("audio/sfx/bomb_explode.ogg"),
-                effects: AttackEffects { screen_shake: true },
+                sfx_path: Some(assert_assets_path!("audio/sfx/bomb_explode.ogg")),
+                effects: AttackEffects {
+                    screen_shake: false,
+                },
             },
         );
         Self { defs }
@@ -243,7 +323,7 @@ impl Default for AttackLoadout {
     fn default() -> Self {
         Self {
             a: AttackCycle::new(vec![AttackId::Pincer, AttackId::Bomb]),
-            b: AttackCycle::new(vec![AttackId::Gun]),
+            b: AttackCycle::new(vec![AttackId::Pistol]),
         }
     }
 }
@@ -252,16 +332,20 @@ impl Default for AttackLoadout {
 pub struct AttackInputState {
     pub active_button: Option<AttackButton>,
     pub pressed_at: f32,
+    pub pressed_world_position: Option<Vec2>,
     pub last_hold_fire_at: Option<f32>,
     pub hold_fired: bool,
+    pub cycled: bool,
 }
 
 impl AttackInputState {
-    pub fn arm(&mut self, button: AttackButton, now: f32) {
+    pub fn arm(&mut self, button: AttackButton, now: f32, world_position: Option<Vec2>) {
         self.active_button = Some(button);
         self.pressed_at = now;
+        self.pressed_world_position = world_position;
         self.last_hold_fire_at = None;
         self.hold_fired = false;
+        self.cycled = false;
     }
 
     pub fn clear(&mut self) {
@@ -269,11 +353,17 @@ impl AttackInputState {
         self.last_hold_fire_at = None;
         self.hold_fired = false;
         self.pressed_at = 0.0;
+        self.pressed_world_position = None;
+        self.cycled = false;
     }
 
     pub fn mark_hold_fired(&mut self, now: f32) {
         self.hold_fired = true;
         self.last_hold_fire_at = Some(now);
+    }
+
+    pub fn mark_cycled(&mut self) {
+        self.cycled = true;
     }
 }
 
@@ -359,4 +449,47 @@ impl AttackHitTracker {
 #[derive(Component, Default, Debug)]
 pub struct AttackEffectState {
     pub screen_shake_triggered: bool,
+    pub follow_up_spawned: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attack_cycle_wraps() {
+        let mut cycle = AttackCycle::new(vec![AttackId::Pincer, AttackId::Bomb]);
+
+        assert_eq!(cycle.current(), AttackId::Pincer);
+        assert_eq!(cycle.cycle(), AttackId::Bomb);
+        assert_eq!(cycle.cycle(), AttackId::Pincer);
+    }
+
+    #[test]
+    fn hit_tracker_single_hits_once() {
+        let mut tracker = AttackHitTracker::default();
+        let target = Entity::from_bits(1);
+
+        assert!(tracker.can_hit(target, AttackHitPolicy::Single));
+        tracker.register_hit(target, AttackHitPolicy::Single);
+        assert!(!tracker.can_hit(target, AttackHitPolicy::Single));
+    }
+
+    #[test]
+    fn hit_tracker_repeat_respects_cooldown() {
+        let mut tracker = AttackHitTracker::default();
+        let target = Entity::from_bits(2);
+        let policy = AttackHitPolicy::Repeat {
+            cooldown_secs: 0.5,
+            repeat_damage: 1,
+        };
+
+        assert!(tracker.can_hit(target, policy));
+        tracker.register_hit(target, policy);
+        assert!(!tracker.can_hit(target, policy));
+        tracker.tick(0.49);
+        assert!(!tracker.can_hit(target, policy));
+        tracker.tick(0.02);
+        assert!(tracker.can_hit(target, policy));
+    }
 }

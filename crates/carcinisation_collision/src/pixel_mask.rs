@@ -5,6 +5,7 @@ use seldom_pixel::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
 // Ordered 4x4 dithering threshold map used by PxFrameTransition::Dither.
+// Converts fractional frame progress into a stable per-pixel mask for collisions.
 const DITHERING: [u16; 16] = [
     0b0000_0000_0000_0000,
     0b1000_0000_0000_0000,
