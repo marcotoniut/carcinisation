@@ -6,10 +6,13 @@ use crate::{
     stage::{
         components::interactive::{Dead, Health},
         pickup::components::{
-            HealthRecovery, PickupFeedback, PICKUP_FEEDBACK_INITIAL_SPEED_Y, PICKUP_FEEDBACK_TIME,
+            HealthRecovery, PickupFeedback, PickupFeedbackGlitter, PICKUP_FEEDBACK_GLITTER_TIME,
+            PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS, PICKUP_FEEDBACK_INITIAL_SPEED_Y,
+            PICKUP_FEEDBACK_TIME, PICKUP_HUD_GLITTER_TIME,
         },
         player::components::{Player, PLAYER_MAX_HEALTH},
         resources::StageTimeDomain,
+        ui::hud::components::{HealthIcon, HealthText},
     },
     systems::camera::CameraPos,
 };
@@ -18,7 +21,8 @@ use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use cween::linear::components::{
     LinearValueReached, TargetingValueX, TargetingValueY, TweenChildAcceleratedBundle,
 };
-use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
+use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxFilter, PxSprite, PxSubPosition};
+use std::time::Duration;
 
 /// Marker component for pickup feedback tween children.
 #[derive(Component, Clone, Debug)]
@@ -96,9 +100,14 @@ pub fn pickup_health(
     query: Query<(Entity, &HealthRecovery, &PxSubPosition), Added<Dead>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     mut player_query: Query<&mut Health, With<Player>>,
+    hud_icon_query: Query<(Entity, Option<&PxFilter>), With<HealthIcon>>,
+    hud_text_query: Query<(Entity, Option<&PxFilter>), With<HealthText>>,
+    stage_time: Res<Time<StageTimeDomain>>,
     assets_sprite: PxAssets<PxSprite>,
+    filters: PxAssets<PxFilter>,
 ) {
     let camera_pos = camera_query.single().unwrap();
+    let glitter_filter = PxFilter(filters.load(assert_assets_path!("filter/color3.px_filter.png")));
     if let Ok(mut health) = player_query.single_mut() {
         for (entity, recovery, position) in query.iter() {
             commands.entity(entity).insert(DespawnMark);
@@ -120,6 +129,18 @@ pub fn pickup_health(
             let adjusted_d_y = d.y - speed_y * t;
             let acceleration_y = 2. * adjusted_d_y / (t * t);
 
+            let now = stage_time.elapsed();
+            let glitter_time = (PICKUP_FEEDBACK_TIME - PICKUP_FEEDBACK_GLITTER_TIME).max(0.0);
+            let glitter_start = now + Duration::from_secs_f32(glitter_time);
+            let glitter_end = now + Duration::from_secs_f32(PICKUP_FEEDBACK_TIME);
+            let glitter = PickupFeedbackGlitter::new(
+                glitter_start,
+                glitter_end,
+                Duration::from_secs_f32(PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS),
+                glitter_filter.clone(),
+                None,
+            );
+
             let feedback_entity = commands
                 .spawn(PickupFeedbackBundle {
                     position: current.into(),
@@ -128,14 +149,27 @@ pub fn pickup_health(
                         // TODO the position should be stuck to the floor beneath the dropper
                         anchor: PxAnchor::Center,
                         canvas: PxCanvas::Camera,
-                        layer: Layer::Pickups,
+                        layer: Layer::HudUnderlay,
                         ..default()
                     },
                     targeting_value_x: current.x.into(),
                     targeting_value_y: current.y.into(),
                     default: default(),
                 })
+                .insert(glitter)
                 .id();
+
+            let hud_glitter_start = now;
+            let hud_glitter_end = now + Duration::from_secs_f32(PICKUP_HUD_GLITTER_TIME);
+            for (entity, current_filter) in hud_icon_query.iter().chain(hud_text_query.iter()) {
+                commands.entity(entity).insert(PickupFeedbackGlitter::new(
+                    hud_glitter_start,
+                    hud_glitter_end,
+                    Duration::from_secs_f32(PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS),
+                    glitter_filter.clone(),
+                    current_filter.cloned(),
+                ));
+            }
 
             // Spawn tween children for X (constant speed) and Y (accelerated)
             commands.spawn(PickupFeedbackTweenXBundle::new(
@@ -171,6 +205,46 @@ pub fn mark_pickup_feedback_for_despawn(
     for child_of in child_query.iter() {
         if let Ok(parent_entity) = parent_query.get_mut(child_of.0) {
             commands.entity(parent_entity).insert(DespawnMark);
+        }
+    }
+}
+
+/// @system Applies a glitter filter as pickup feedback reaches its destination.
+pub fn update_pickup_feedback_glitter(
+    mut commands: Commands,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut query: Query<(Entity, &mut PickupFeedbackGlitter)>,
+) {
+    let now = stage_time.elapsed();
+    for (entity, mut glitter) in query.iter_mut() {
+        if now < glitter.start_at {
+            continue;
+        }
+        if now >= glitter.end_at {
+            let mut entity_commands = commands.entity(entity);
+            if glitter.filter_on {
+                if let Some(original_filter) = glitter.original_filter.clone() {
+                    entity_commands.insert(original_filter);
+                } else {
+                    entity_commands.remove::<PxFilter>();
+                }
+            }
+            entity_commands.remove::<PickupFeedbackGlitter>();
+            continue;
+        }
+        if now >= glitter.next_toggle_at {
+            glitter.next_toggle_at = now + glitter.toggle_interval;
+            let mut entity_commands = commands.entity(entity);
+            if glitter.filter_on {
+                if let Some(original_filter) = glitter.original_filter.clone() {
+                    entity_commands.insert(original_filter);
+                } else {
+                    entity_commands.remove::<PxFilter>();
+                }
+            } else {
+                entity_commands.insert(glitter.glitter_filter.clone());
+            }
+            glitter.filter_on = !glitter.filter_on;
         }
     }
 }

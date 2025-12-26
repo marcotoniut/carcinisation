@@ -52,6 +52,8 @@ pub enum Layer {
     /// Default gameplay plane (player + most enemies).
     #[default]
     Front,
+    /// HUD-bound effects that should sit behind the HUD background.
+    HudUnderlay,
     /// Backdrop strip for in-stage HUD widgets.
     HudBackground,
     /// HUD elements (text, crosshair) rendered during gameplay.

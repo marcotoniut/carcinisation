@@ -21,7 +21,9 @@ use self::{
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
     messages::*,
-    pickup::systems::health::{mark_pickup_feedback_for_despawn, pickup_health},
+    pickup::systems::health::{
+        mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
+    },
     player::PlayerPlugin,
     resources::{StageActionTimer, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
@@ -179,6 +181,7 @@ impl Plugin for StagePlugin {
                     (
                         // Pickup
                         pickup_health,
+                        update_pickup_feedback_glitter,
                         mark_pickup_feedback_for_despawn,
                     ),
                     (

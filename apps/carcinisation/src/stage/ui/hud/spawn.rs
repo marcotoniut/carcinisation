@@ -1,4 +1,4 @@
-use super::components::{HealthText, Hud, UIBackground};
+use super::components::{HealthIcon, HealthText, Hud, UIBackground};
 use crate::pixel::components::PxRectangle;
 use crate::pixel::{PxAssets, PxSpriteBundle, PxTextBundle};
 use crate::{
@@ -67,6 +67,7 @@ pub fn spawn_hud(
                                 ..default()
                             },
                             PxSubPosition::from(Vec2::new(HUD_HEALTH_ICON_X, LAYOUT_Y as f32)),
+                            HealthIcon,
                             Name::new("HealthIcon")
                         ),
                         (
