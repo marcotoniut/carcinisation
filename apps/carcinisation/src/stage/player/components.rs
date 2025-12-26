@@ -48,7 +48,7 @@ impl PlayerAttack {
             AttackLifetime,
             Name,
         ),
-        (AudioPlayer, PlaybackSettings, AudioSystemBundle),
+        Option<(AudioPlayer, PlaybackSettings, AudioSystemBundle)>,
     ) {
         let position = PxSubPosition::from(self.position);
         let name = Name::new(format!("PlayerAttack<{}>", definition.name));
@@ -68,15 +68,18 @@ impl PlayerAttack {
             definition.sprite.finish_behavior,
             definition.sprite.frame_transition,
         );
-        let audio_player = AudioPlayer(asset_server.load(definition.sfx_path));
-        let playback_settings = PlaybackSettings {
-            mode: PlaybackMode::Despawn,
-            volume: volume_settings.sfx,
-            ..Default::default()
-        };
-        let audio_system_bundle = AudioSystemBundle {
-            system_type: AudioSystemType::SFX,
-        };
+        let sound_bundle = definition.sfx_path.map(|sfx_path| {
+            let audio_player = AudioPlayer(asset_server.load(sfx_path));
+            let playback_settings = PlaybackSettings {
+                mode: PlaybackMode::Despawn,
+                volume: volume_settings.sfx,
+                ..Default::default()
+            };
+            let audio_system_bundle = AudioSystemBundle {
+                system_type: AudioSystemType::SFX,
+            };
+            (audio_player, playback_settings, audio_system_bundle)
+        });
 
         (
             (
@@ -89,7 +92,7 @@ impl PlayerAttack {
                 AttackLifetime::new(definition.duration_secs),
                 name,
             ),
-            (audio_player, playback_settings, audio_system_bundle),
+            sound_bundle,
         )
     }
 }
