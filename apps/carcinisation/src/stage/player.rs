@@ -1,16 +1,16 @@
 //! Player stage systems: movement, attacks, camera shake, and crosshair assets.
 
+pub mod attacks;
 pub mod bundles;
 pub mod components;
 pub mod crosshair;
 pub mod messages;
-pub mod resources;
 mod systems;
 
 use self::{
+    attacks::{AttackDefinitions, AttackInputState, AttackLoadout},
     crosshair::{Crosshair, CrosshairSettings},
     messages::*,
-    resources::AttackTimer,
     systems::{
         camera::{camera_shake, on_camera_shake},
         messages::*,
@@ -37,7 +37,9 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<AttackTimer>()
+        app.init_resource::<AttackDefinitions>()
+            .init_resource::<AttackInputState>()
+            .init_resource::<AttackLoadout>()
             .configure_sets(Update, MovementSystems.before(ConfinementSystems))
             .add_message::<CameraShakeEvent>()
             .add_observer(on_camera_shake)
@@ -48,8 +50,8 @@ impl Plugin for PlayerPlugin {
             .add_active_systems::<PlayerPlugin, _>(
                 // Player logic only runs when the plugin is active.
                 (
-                    tick_attack_timer,
-                    check_attack_timer,
+                    tick_attack_lifetimes,
+                    despawn_expired_attacks,
                     detect_player_attack,
                     camera_shake,
                     player_movement.in_set(MovementSystems),
