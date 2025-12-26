@@ -24,10 +24,10 @@ use super::{
     StageProgressState,
 };
 use crate::components::VolumeSettings;
-use crate::core::time::TimeMultiplier;
 use crate::pixel::PxAssets;
 use crate::{
     components::{DespawnMark, Music},
+    core::time::TimeShouldRun,
     game::{
         data::DEATH_SCORE_PENALTY, messages::GameOverEvent, resources::Lives,
         score::components::Score, GameProgressState,
@@ -38,7 +38,7 @@ use crate::{
     transitions::trigger_transition,
 };
 use assert_assets_path::assert_assets_path;
-use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*, time::Fixed};
+use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
 use cween::linear::components::{
     extra::LinearTween2DReachCheck, TargetingValueX, TargetingValueY, TweenChildBundle,
 };
@@ -49,13 +49,8 @@ use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 pub fn toggle_game(
     gb_input: Res<ActionState<GBInput>>,
     state: Res<State<GameProgressState>>,
-    stage_state: Res<State<StageProgressState>>,
     mut next_state: ResMut<NextState<GameProgressState>>,
 ) {
-    if *stage_state.get() == StageProgressState::GameOver {
-        return;
-    }
-
     if gb_input.just_pressed(&GBInput::Start) {
         if *state.get() == GameProgressState::Running {
             #[cfg(debug_assertions)]
@@ -71,21 +66,17 @@ pub fn toggle_game(
     }
 }
 
-/// @system Advances the stage-local time domain while gameplay is running.
-pub fn tick_stage_time(
-    fixed_time: Res<Time<Fixed>>,
-    state: Res<State<StageProgressState>>,
-    mult: Option<Res<TimeMultiplier<StageTimeDomain>>>,
-    mut stage_time: ResMut<Time<StageTimeDomain>>,
+/// @system Updates whether the stage-local time domain should advance.
+pub fn update_stage_time_should_run(
+    stage_state: Res<State<StageProgressState>>,
+    game_state: Res<State<GameProgressState>>,
+    mut should_run: ResMut<TimeShouldRun<StageTimeDomain>>,
 ) {
-    if state.get() != &StageProgressState::Running {
-        return;
-    }
-
-    let base_dt = fixed_time.delta();
-    let scaled_dt = mult.map(|m| base_dt.mul_f32(m.value)).unwrap_or(base_dt);
-
-    stage_time.advance_by(scaled_dt);
+    should_run.value = *stage_state.get() == StageProgressState::Running
+        && matches!(
+            *game_state.get(),
+            GameProgressState::Running | GameProgressState::Cutscene
+        );
 }
 
 // REVIEW
@@ -184,6 +175,63 @@ pub fn check_staged_cleared(
 ) {
     if stage_progress.index >= stage_data.steps.len() {
         commands.trigger(StageClearedEvent);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::ecs::system::SystemState;
+
+    fn run_gate(stage: StageProgressState, game: GameProgressState) -> bool {
+        let mut world = World::new();
+        world.insert_resource(State::new(stage));
+        world.insert_resource(State::new(game));
+        world.insert_resource(TimeShouldRun::<StageTimeDomain>::default());
+
+        let mut system_state: SystemState<(
+            Res<State<StageProgressState>>,
+            Res<State<GameProgressState>>,
+            ResMut<TimeShouldRun<StageTimeDomain>>,
+        )> = SystemState::new(&mut world);
+
+        let (stage_state, game_state, should_run) = system_state.get_mut(&mut world);
+        update_stage_time_should_run(stage_state, game_state, should_run);
+        system_state.apply(&mut world);
+
+        world.resource::<TimeShouldRun<StageTimeDomain>>().value
+    }
+
+    #[test]
+    fn stage_time_runs_while_running() {
+        assert!(run_gate(
+            StageProgressState::Running,
+            GameProgressState::Running
+        ));
+    }
+
+    #[test]
+    fn stage_time_stops_while_paused() {
+        assert!(!run_gate(
+            StageProgressState::Running,
+            GameProgressState::Paused
+        ));
+    }
+
+    #[test]
+    fn stage_time_runs_during_cutscene() {
+        assert!(run_gate(
+            StageProgressState::Running,
+            GameProgressState::Cutscene
+        ));
+    }
+
+    #[test]
+    fn stage_time_stops_outside_running_stage() {
+        assert!(!run_gate(
+            StageProgressState::Death,
+            GameProgressState::Running
+        ));
     }
 }
 

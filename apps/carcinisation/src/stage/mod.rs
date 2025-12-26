@@ -41,8 +41,13 @@ use self::{
         StageUiPlugin,
     },
 };
+#[cfg(debug_assertions)]
+use crate::core::time::TimeMultiplier;
 use crate::{
-    core::{event::on_trigger_write_event, time::TimeMultiplier},
+    core::{
+        event::on_trigger_write_event,
+        time::{tick_time, TimeShouldRun},
+    },
     systems::{check_despawn_after_delay, delay_despawn},
 };
 use activable::{activate_system, deactivate_system, Activable, ActivableAppExt};
@@ -90,6 +95,7 @@ impl Plugin for StagePlugin {
             .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()
             .init_resource::<Time<StageTimeDomain>>()
+            .init_resource::<TimeShouldRun<StageTimeDomain>>()
             .init_resource::<StageProgress>()
             // Message streams for the combat/progression loop.
             .add_message::<DamageMessage>()
@@ -142,7 +148,7 @@ impl Plugin for StagePlugin {
                 FixedUpdate,
                 (
                     (
-                        tick_stage_time.before(LinearTweenSystems),
+                        tick_time::<Fixed, StageTimeDomain>.before(LinearTweenSystems),
                         tick_stage_step_timer,
                         delay_despawn::<StageTimeDomain>,
                         check_despawn_after_delay::<StageTimeDomain>,
@@ -161,6 +167,7 @@ impl Plugin for StagePlugin {
             )
             .add_active_systems::<StagePlugin, _>((
                 update_stage,
+                update_stage_time_should_run.after(update_stage),
                 (
                     (
                         // Camera
@@ -216,7 +223,7 @@ impl Plugin for StagePlugin {
                 despawn_game_over_screen,
                 // Pause menu
                 pause_menu_renderer,
-                toggle_game,
+                toggle_game.run_if(in_state(StageProgressState::Running)),
             ));
     }
 }
