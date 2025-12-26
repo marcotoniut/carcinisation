@@ -17,7 +17,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use assert_assets_path::assert_assets_path;
-use bevy::{ecs::hierarchy::ChildOf, prelude::*};
+use bevy::prelude::*;
 use cween::linear::components::{
     LinearValueReached, TargetingValueX, TargetingValueY, TweenChildAcceleratedBundle,
 };
@@ -193,19 +193,16 @@ pub fn pickup_health(
 /// @system Marks pickup feedback for despawn when its Y-axis tween child reaches the target.
 pub fn mark_pickup_feedback_for_despawn(
     mut commands: Commands,
-    mut parent_query: Query<Entity, With<PickupFeedback>>,
-    child_query: Query<
-        &ChildOf,
+    query: Query<
+        Entity,
         (
-            With<PickupFeedbackTween>,
+            With<PickupFeedback>,
             Added<LinearValueReached<StageTimeDomain, TargetingValueY>>,
         ),
     >,
 ) {
-    for child_of in child_query.iter() {
-        if let Ok(parent_entity) = parent_query.get_mut(child_of.0) {
-            commands.entity(parent_entity).insert(DespawnMark);
-        }
+    for entity in query.iter() {
+        commands.entity(entity).insert(DespawnMark);
     }
 }
 

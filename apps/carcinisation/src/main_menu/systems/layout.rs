@@ -9,15 +9,15 @@ use crate::{
     layer::Layer,
     main_menu::{resources::DifficultySelection, MainMenuScreen},
     pixel::{
-        bundle::{PxSpriteBundle, PxTextBundle},
-        components::PxRectangle,
+        bundle::{PxRectBundle, PxSpriteBundle, PxTextBundle},
         PxAssets,
     },
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxPosition, PxSprite, PxSubPosition, PxText, PxTypeface,
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
+    PxText, PxTypeface,
 };
 use strum::IntoEnumIterator;
 
@@ -75,6 +75,7 @@ pub fn exit_press_start_screen(
 pub fn enter_game_difficulty_screen(
     mut commands: Commands,
     assets_typeface: PxAssets<PxTypeface>,
+    filters: PxAssets<PxFilter>,
     selection: Res<DifficultySelection>,
 ) {
     let color = GBColor::White;
@@ -83,16 +84,20 @@ pub fn enter_game_difficulty_screen(
     commands.spawn((
         MainMenuEntity,
         DifficultySelectScreenEntity,
-        Visibility::Visible,
         // TODO should not be using PxSubposition here
         PxSubPosition(*SCREEN_RESOLUTION_F32_H),
-        PxRectangle {
+        PxRectBundle::<Layer> {
             anchor: PxAnchor::Center,
             canvas: PxCanvas::Camera,
-            color,
-            height: SCREEN_RESOLUTION.y - 50,
-            layer: Layer::UIBackground,
-            width: SCREEN_RESOLUTION.x - 50,
+            filter: PxFilter(filters.load_color(color)),
+            layers: PxFilterLayers::single_over(Layer::UIBackground),
+            position: PxPosition::from(*SCREEN_RESOLUTION_H),
+            // TODO use more memory by making this rect into a global?
+            rect: PxRect(UVec2::new(
+                SCREEN_RESOLUTION.x - 50,
+                SCREEN_RESOLUTION.y - 50,
+            )),
+            visibility: Visibility::Visible,
         },
     ));
 
