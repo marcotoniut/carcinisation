@@ -132,7 +132,7 @@ pub fn detect_player_attack(
             let held_for = now - input_state.pressed_at;
             let can_fire = input_state
                 .last_hold_fire_at
-                .map_or(true, |last| now - last >= interval_secs);
+                .is_none_or(|last| now - last >= interval_secs);
             if held_for >= warmup_secs && can_fire {
                 if let Ok(position) = player_query.single() {
                     spawn_attack(position.0);

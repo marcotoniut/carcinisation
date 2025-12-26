@@ -1,6 +1,7 @@
 use super::spawn::*;
 use crate::{
     components::VolumeSettings,
+    game::GameProgressState,
     pixel::PxAssets,
     stage::{
         bundles::{BackgroundBundle, SkyboxBundle},
@@ -21,6 +22,7 @@ use seldom_pixel::prelude::{PxSprite, PxTypeface};
 pub fn on_stage_startup(
     trigger: On<StageStartupEvent>,
     mut commands: Commands,
+    mut next_game_state: ResMut<NextState<GameProgressState>>,
     mut assets_sprite: PxAssets<PxSprite>,
     mut typefaces: PxAssets<PxTypeface>,
     asset_server: Res<AssetServer>,
@@ -78,5 +80,6 @@ pub fn on_stage_startup(
 
     commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
+    next_game_state.set(GameProgressState::Running);
     commands.trigger(PlayerStartupEvent);
 }

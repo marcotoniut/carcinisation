@@ -316,7 +316,7 @@ impl AttackHitTracker {
             AttackHitPolicy::Repeat { .. } => self
                 .records
                 .get(&entity)
-                .map_or(true, |record| record.cooldown <= 0.0),
+                .is_none_or(|record| record.cooldown <= 0.0),
         }
     }
 
