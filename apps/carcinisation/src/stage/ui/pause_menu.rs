@@ -2,8 +2,7 @@ pub mod components;
 
 use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::globals::{SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H};
-use crate::pixel::components::PxRectangle;
-use crate::pixel::{PxAssets, PxTextBundle};
+use crate::pixel::{PxAssets, PxRectBundle, PxTextBundle};
 use crate::{
     game::{score::components::Score, GameProgressState},
     globals::{mark_for_despawn_by_query, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
@@ -11,13 +10,17 @@ use crate::{
 };
 use bevy::prelude::*;
 use carcinisation_core::components::GBColor;
-use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition, PxText, PxTypeface};
+use seldom_pixel::prelude::{
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
+    PxText, PxTypeface,
+};
 
 // TODO if state is changed (split unpause from pause?)
 pub fn pause_menu_renderer(
     mut commands: Commands,
     mut typefaces: PxAssets<PxTypeface>,
     mut assets_sprite: PxAssets<PxSprite>,
+    filters: PxAssets<PxFilter>,
     score: Res<Score>,
     query: Query<Entity, With<PauseMenu>>,
     state: Res<State<GameProgressState>>,
@@ -26,7 +29,13 @@ pub fn pause_menu_renderer(
         if let Ok(_entity) = query.single() {
             //do nothing
         } else {
-            spawn_pause_menu_bundle(&mut commands, &mut typefaces, &mut assets_sprite, score);
+            spawn_pause_menu_bundle(
+                &mut commands,
+                &mut typefaces,
+                &mut assets_sprite,
+                &filters,
+                score,
+            );
         }
     } else {
         mark_for_despawn_by_query(&mut commands, &query);
@@ -37,6 +46,7 @@ pub fn spawn_pause_menu_bundle(
     commands: &mut Commands,
     typefaces: &mut PxAssets<PxTypeface>,
     _assets_sprite: &mut PxAssets<PxSprite>,
+    filters: &PxAssets<PxFilter>,
     score: Res<Score>,
 ) -> Entity {
     let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
@@ -48,15 +58,14 @@ pub fn spawn_pause_menu_bundle(
             children![
                 (
                     PxSubPosition(*SCREEN_RESOLUTION_F32_H),
-                    PxRectangle {
+                    PxRectBundle::<Layer> {
                         anchor: PxAnchor::Center,
                         canvas: PxCanvas::Camera,
-                        color: GBColor::White,
-                        // Was this done for a reason?
-                        // filter: PxFilter(filters.load("filter/color3.px_filter.png")),
-                        height: 60,
-                        layer: Layer::UIBackground,
-                        width: 80,
+                        filter: PxFilter(filters.load_color(GBColor::White)),
+                        layers: PxFilterLayers::single_over(Layer::UIBackground),
+                        position: PxPosition::from(*SCREEN_RESOLUTION_H),
+                        rect: PxRect(UVec2::new(80, 60)),
+                        visibility: Visibility::Visible,
                     },
                     UIBackground,
                 ),

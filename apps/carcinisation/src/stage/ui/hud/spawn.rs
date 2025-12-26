@@ -1,6 +1,5 @@
 use super::components::{HealthIcon, HealthText, Hud, UIBackground};
-use crate::pixel::components::PxRectangle;
-use crate::pixel::{PxAssets, PxSpriteBundle, PxTextBundle};
+use crate::pixel::{PxAssets, PxRectBundle, PxSpriteBundle, PxTextBundle};
 use crate::{
     globals::*,
     layer::Layer,
@@ -10,7 +9,8 @@ use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carcinisation_core::components::GBColor;
 use seldom_pixel::prelude::{
-    PxAnchor, PxCanvas, PxPosition, PxSprite, PxSubPosition, PxText, PxTypeface,
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
+    PxText, PxTypeface,
 };
 
 pub(super) const LAYOUT_Y: i32 = 3;
@@ -26,6 +26,7 @@ pub fn spawn_hud(
     commands: &mut Commands,
     typefaces: &mut PxAssets<PxTypeface>,
     assets_sprite: &mut PxAssets<PxSprite>,
+    filters: &mut PxAssets<PxFilter>,
 ) -> Entity {
     let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
     commands
@@ -37,14 +38,14 @@ pub fn spawn_hud(
             InheritedVisibility::VISIBLE,
             children![
                 (
-                    PxSubPosition(Vec2::new(0., SCREEN_RESOLUTION.y as f32)),
-                    PxRectangle {
-                        anchor: PxAnchor::TopLeft,
+                    PxRectBundle::<Layer> {
+                        anchor: PxAnchor::BottomLeft,
                         canvas: PxCanvas::Camera,
-                        color: GBColor::White,
-                        height: HUD_HEIGHT,
-                        layer: Layer::HudBackground,
-                        width: SCREEN_RESOLUTION.x,
+                        filter: PxFilter(filters.load_color(GBColor::White)),
+                        layers: PxFilterLayers::single_over(Layer::HudBackground),
+                        position: IVec2::ZERO.into(),
+                        rect: PxRect(UVec2::new(SCREEN_RESOLUTION.x, HUD_HEIGHT)),
+                        visibility: Visibility::Visible,
                     },
                     // TODO Technically not a UiBackground
                     UIBackground,

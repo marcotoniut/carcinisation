@@ -17,23 +17,26 @@ use crate::{
         TYPEFACE_INVERTED_PATH,
     },
     layer::Layer,
-    pixel::components::PxRectangle,
     stage::StageProgressState,
 };
 use crate::{
     globals::SCREEN_RESOLUTION_H,
-    pixel::{PxAssets, PxTextBundle},
+    pixel::{PxAssets, PxRectBundle, PxTextBundle},
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
-use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxPosition, PxSubPosition, PxText, PxTypeface};
+use seldom_pixel::prelude::{
+    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSubPosition, PxText,
+    PxTypeface,
+};
 
 pub const HALF_SCREEN_SIZE: i32 = 70;
 
 pub fn render_game_over_screen(
     mut commands: Commands,
     assets_typeface: PxAssets<PxTypeface>,
+    filters: PxAssets<PxFilter>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
 ) {
@@ -52,14 +55,15 @@ pub fn render_game_over_screen(
                     PxSubPosition(*SCREEN_RESOLUTION_F32_H),
                     Name::new("UIBackground"),
                     UIBackground,
-                    PxRectangle {
+                    PxRectBundle::<Layer> {
+                        rect: PxRect(UVec2::new(120, 90)),
+                        position: PxPosition::from(*SCREEN_RESOLUTION_H),
                         anchor: PxAnchor::Center,
                         canvas: PxCanvas::Camera,
-                        color: GBColor::White,
-                        height: 90,
-                        layer: Layer::UIBackground,
-                        width: 120,
-                    }
+                        layers: PxFilterLayers::single_over(Layer::UIBackground),
+                        filter: PxFilter(filters.load_color(GBColor::White)),
+                        visibility: Visibility::Visible,
+                    },
                 ),
                 (
                     PxTextBundle::<Layer> {

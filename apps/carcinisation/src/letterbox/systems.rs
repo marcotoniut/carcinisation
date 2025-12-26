@@ -9,18 +9,19 @@ use crate::debug::plugin::debug_print_startup;
 use crate::globals::mark_for_despawn_by_query;
 use crate::globals::SCREEN_RESOLUTION_F32;
 use crate::{
-    cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, layer::Layer,
-    pixel::components::PxRectangle,
+    cutscene::data::CutsceneLayer,
+    globals::SCREEN_RESOLUTION,
+    layer::Layer,
+    pixel::{PxAssets, PxRectBundle},
 };
 use bevy::prelude::*;
 use cween::linear::components::{LinearTweenBundle, TargetingValueY};
-use seldom_pixel::prelude::PxSubPosition;
 use seldom_pixel::prelude::*;
 
 const DEBUG_MODULE: &str = "Letterbox";
 
 /// @system Spawns the top/bottom letterbox entities when entering the active state.
-pub fn on_letterbox_startup(mut commands: Commands) {
+pub fn on_letterbox_startup(mut commands: Commands, filters: PxAssets<PxFilter>) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
@@ -31,15 +32,15 @@ pub fn on_letterbox_startup(mut commands: Commands) {
         LetterboxEntity,
         LetterboxTop,
         PxSubPosition(Vec2::new(0., SCREEN_RESOLUTION_F32.y)),
-        PxRectangle {
+        PxRectBundle::<Layer> {
             anchor: PxAnchor::BottomLeft,
             canvas: PxCanvas::Camera,
-            color,
-            height: SCREEN_RESOLUTION.y,
-            layer: Layer::CutsceneLayer(CutsceneLayer::Letterbox),
-            width: SCREEN_RESOLUTION.x,
+            filter: PxFilter(filters.load_color(color)),
+            layers: PxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
+            position: PxPosition::from(IVec2::new(0, SCREEN_RESOLUTION.y as i32)),
+            rect: PxRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
+            visibility: Visibility::Visible,
         },
-        Visibility::Visible,
     ));
 
     commands.spawn((
@@ -47,15 +48,15 @@ pub fn on_letterbox_startup(mut commands: Commands) {
         LetterboxEntity,
         LetterboxBottom,
         PxSubPosition(Vec2::ZERO),
-        PxRectangle {
+        PxRectBundle::<Layer> {
             anchor: PxAnchor::TopLeft,
             canvas: PxCanvas::Camera,
-            color,
-            height: SCREEN_RESOLUTION.y,
-            layer: Layer::CutsceneLayer(CutsceneLayer::Letterbox),
-            width: SCREEN_RESOLUTION.x,
+            filter: PxFilter(filters.load_color(color)),
+            layers: PxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
+            position: PxPosition::from(IVec2::new(0, 0)),
+            rect: PxRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
+            visibility: Visibility::Visible,
         },
-        Visibility::Visible,
     ));
 }
 

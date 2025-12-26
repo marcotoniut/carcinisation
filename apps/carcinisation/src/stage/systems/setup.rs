@@ -17,13 +17,14 @@ use crate::{
 };
 use activable::activate;
 use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::prelude::{PxSprite, PxTypeface};
+use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
 
 pub fn on_stage_startup(
     trigger: On<StageStartupEvent>,
     mut commands: Commands,
     mut next_game_state: ResMut<NextState<GameProgressState>>,
     mut assets_sprite: PxAssets<PxSprite>,
+    mut filters: PxAssets<PxFilter>,
     mut typefaces: PxAssets<PxTypeface>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
@@ -37,7 +38,12 @@ pub fn on_stage_startup(
         trigger_transition(&mut commands, request);
     }
 
-    spawn_hud(&mut commands, &mut typefaces, &mut assets_sprite);
+    spawn_hud(
+        &mut commands,
+        &mut typefaces,
+        &mut assets_sprite,
+        &mut filters,
+    );
 
     for spawn in &data.spawns {
         #[cfg(debug_assertions)]
