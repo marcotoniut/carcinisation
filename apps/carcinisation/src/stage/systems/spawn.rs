@@ -15,7 +15,7 @@ use crate::stage::{
         mosquito::entity::{MosquitoBundle, ENEMY_MOSQUITO_RADIUS},
         tardigrade::entity::{TardigradeBundle, ENEMY_TARDIGRADE_RADIUS},
     },
-    player::components::{PlayerAttack, UnhittableList},
+    player::{attacks::AttackHitTracker, components::PlayerAttack},
     resources::{StageStepSpawner, StageTimeDomain},
 };
 use crate::{
@@ -273,7 +273,7 @@ pub fn spawn_object(
 pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
-    mut attack_query: Query<&mut UnhittableList, With<PlayerAttack>>,
+    mut attack_query: Query<&mut AttackHitTracker, With<PlayerAttack>>,
     query: Query<(&SpawnDrop, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
     for (spawn_drop, position, depth) in &mut query.iter() {
@@ -291,10 +291,8 @@ pub fn check_dead_drop(
             ),
         };
 
-        for mut unhittable_list in &mut attack_query.iter_mut() {
-            if unhittable_list.0.contains(&spawn_drop.entity) {
-                unhittable_list.0.insert(entity);
-            }
+        for mut hit_tracker in &mut attack_query.iter_mut() {
+            hit_tracker.inherit_hit(spawn_drop.entity, entity);
         }
     }
 }
