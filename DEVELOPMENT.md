@@ -163,6 +163,8 @@ Palette generation is now pure Python, so it no longer triggers a Rust rebuild o
    make fmt && make lint && make test
    ```
 
+   Agents can also run `pnpm check:agent --all` to execute the standard checks with captured logs under `reports/agent/`.
+
 4. Open a pull request following `CONTRIBUTING.md`.
 
 ## Debugging Tips

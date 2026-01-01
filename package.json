@@ -11,6 +11,7 @@
     "tsx": "^4.20.6"
   },
   "scripts": {
+    "check:agent": "pnpm exec tsx scripts/agent/check.ts",
     "format": "biome format",
     "format:check": "biome check",
     "lint": "biome check",
