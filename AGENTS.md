@@ -48,6 +48,7 @@ Agents may swap roles as needed, request reviews from their counterpart, and lea
    make test
    pnpm lint
    ```
+   For a single runner that captures logs and focus snippets, use `pnpm check:agent --all` and open `reports/agent/*.focus.txt` first when a check fails.
    Add specialised commands when relevant (`make watch-scene-files`, `make launch-editor`, wasm build targets). If execution is blocked, document what remains unverified and why.
 5. **Escalate when unsure**
    Pause when work clashes with guardrails (Bevy version, system docs, asset layout) or when architectural decisions need maintainer confirmation.
@@ -70,6 +71,7 @@ Before marking work complete:
 
 - ✅ `make fmt`, `make lint`, and `make test` succeed with no ignored warnings.
 - ✅ `pnpm lint` passes for web/editor code; include `pnpm typecheck` if TypeScript types are touched.
+- ✅ `pnpm check:agent --all` can be used to bundle the standard checks and write focus logs under `reports/agent/`.
 - ✅ Wasm builds or asset scripts run when the change affects them (`make build-web`, `make watch-scene-files`, palette/typeface generators).
 - ✅ Major gameplay, editor, and UI flows behave as expected; document manual test coverage.
 - ✅ Documentation, comments, and `/// @system` annotations reflect runtime behaviour.

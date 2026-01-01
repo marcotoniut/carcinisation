@@ -13,6 +13,7 @@ Thank you for helping us evolve Carcinisation. This guide gathers the guardrails
 
 - Confirm your environment matches the prerequisites in `README.md`.
 - Run each quality gate once to verify your setup: `pnpm lint`, `make fmt`, `make lint`, `make test`.
+- Optional (agents): `pnpm check:agent --all` runs the standard checks and writes focus logs under `reports/agent/`.
 - Review the relevant sections of `DEVELOPMENT.md` for the make targets or scripts your work will touch.
 
 ## Project Guardrails
