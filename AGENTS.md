@@ -1,125 +1,113 @@
-# AI Agent Handbook
+# Agent Coordination Protocol
 
-This repository supports a small team of AI assistants collaborating on Carcinisation’s runtime, tooling, and documentation.
-Use this guide to coordinate work, ensure smooth hand-offs, and maintain consistent quality across contributions.
+This file is the shared operating contract for local agents in this repository.
+Agent prompts should stay short and role-specific. Coordination rules live here.
 
-⸻
+## Mandatory Startup
 
-## Purpose
+Before doing any work:
 
-- Define how agents collaborate effectively within the Carcinisation workspace.
-- Clarify shared responsibilities, strengths, and blind spots.
-- Prevent duplicate effort, conflicting edits, or divergent reasoning.
-- Establish a shared process for verification, asset handling, and hand-offs.
+1. Read this file.
+2. Read `README.md`, `DEVELOPMENT.md`, and `CONTRIBUTING.md`.
+3. Discover versions, tools, workflows, and constraints from repository files. Do not assume them.
 
-⸻
+## Role Boundaries
 
-## Primary Roles
+Use explicit ownership per task to avoid overlap.
 
-Both agents can work on code, documentation, tooling, or planning. Each brings complementary strengths that align with the guardrails in `CONTRIBUTING.md`.
+- Runtime agent: gameplay systems, ECS logic, plugin wiring, runtime behavior.
+- Pipeline agent: build/web packaging, asset generation, scripts, tooling integration.
+- Reviewer agent: correctness, risk, tests, maintainability, boundary enforcement.
+- Design agent: mechanics, system mapping, phased delivery plans.
 
-- **Codex (GPT-5)** – Execution-focused. Excels at precise implementation, structured edits, adherence to `make` workflows, and logical verification.  
-  Strengths: accuracy, code quality, predictable delivery, tool-driven validation.  
-  Weaknesses: less flexible tone, can lean on literal interpretations without explicit context.
+If a task crosses boundaries, split it into stages and assign one owner per stage.
 
-- **Claude** – Concept-driven. Excels at synthesis, planning across files, and polishing documentation using `CLAUDE.md` guidance.  
-  Strengths: communication, synthesis, creative framing, structural reasoning.  
-  Weaknesses: less deterministic syntax, can drift from strict formatting without prompts.
+## Single Driver Rule
 
-Agents may swap roles as needed, request reviews from their counterpart, and lean on the other’s strengths when uncertain.
+Only one agent edits code at a time.
 
-⸻
+- Driver agent: the only agent that writes files for the current stage.
+- Support agents: read, analyze, and review only.
+- Handoff is required before another agent becomes driver.
 
-## Collaboration Flow
+## Fast Execution Pattern
 
-1. **Confirm scope**
-   Review the task and align it with `README.md`, `DEVELOPMENT.md`, and `CONTRIBUTING.md`. Call out assumptions about game code, editor tooling, or assets up front.
-2. **Select the initial driver**
-   - Systems code, asset pipeline updates, or guarded make targets → Codex usually leads.
-   - Narrative planning, multi-file documentation, or design exploration → Claude usually leads.
-     The non-driver reviews conclusions or diffs before completion.
-3. **Share context**
-   During hand-offs, summarise: touched paths, pending validation (e.g., `make watch-scene-files` for RON assets), open questions, and key trade-offs.
-4. **Verify before hand-off**
-   Run or reason through the standard checks:
-   ```bash
-   make fmt
-   make lint
-   make test
-   pnpm lint
-   ```
-   For a single runner that captures logs and focus snippets, use `pnpm check:agent --all` and open `reports/agent/*.focus.txt` first when a check fails.
-   Add specialised commands when relevant (`make watch-scene-files`, `make launch-editor`, wasm build targets). If execution is blocked, document what remains unverified and why.
-5. **Escalate when unsure**
-   Pause when work clashes with guardrails (Bevy version, system docs, asset layout) or when architectural decisions need maintainer confirmation.
+For each stage:
 
-⸻
+1. Scope: define goal, owner, and touched surfaces.
+2. Implement: keep diffs narrow and avoid unrelated refactors.
+3. Validate: run repository-standard checks relevant to touched surfaces.
+4. Handoff: provide the required handoff block.
+5. Review: reviewer agent decides whether stage is ready.
 
-## Process cleanup
+Keep stages small enough for focused review and safe rollback.
 
-- Stop background services, dev servers, watchers, or other processes that agents start for development or verification once the task is complete. Use helpers like `KillShell` for `make watch-scene-files` or equivalent tooling so leftover work does not lock ports or consume CPU.
-- Only leave a process running when the maintainer or user explicitly asks for it; record the reason in the task notes.
-- Manual tests can be rerun by the user when ready, so do not keep your own servers, watchers, or helper scripts lingering after you hand off the work.
-- When removing entities during systems, prefer marking with `DespawnMark`/`mark_for_despawn*` and let shared cleanup run. Avoid direct despawns or component stripping mid-frame unless explicitly required.
-- After code changes, run and fix `make fmt`, `make lint`, and `make test` (or note why not).
+## Required Handoff Block
 
-⸻
+Every agent handoff must include:
 
-## Quality Checks
+- Scope touched
+- Files changed
+- Validation run
+- Validation not run (with reason)
+- Risks and edge cases
+- Next expected owner
 
-Before marking work complete:
+No handoff is complete without this block.
 
-- ✅ `make fmt`, `make lint`, and `make test` succeed with no ignored warnings.
-- ✅ `pnpm lint` passes for web/editor code; include `pnpm typecheck` if TypeScript types are touched.
-- ✅ `pnpm check:agent --all` can be used to bundle the standard checks and write focus logs under `reports/agent/`.
-- ✅ Wasm builds or asset scripts run when the change affects them (`make build-web`, `make watch-scene-files`, palette/typeface generators).
-- ✅ Major gameplay, editor, and UI flows behave as expected; document manual test coverage.
-- ✅ Documentation, comments, and `/// @system` annotations reflect runtime behaviour.
-- ✅ Any skipped validations or sandbox blockers are clearly noted for maintainers.
-- ✅ When working on a web app and the work targets a specific use case, functional element, or visual change, exercise it via the Playwright MCP to confirm the behaviour in a real browser context.
+## Review Gate
 
-⸻
+Reviewer output must be structured as:
 
-## Document Map
+- Must fix
+- Should fix
+- Nice to have
+- Approval status: Approved or Not approved
 
-- Project overview – `README.md`
-- Development workflows & make targets – `DEVELOPMENT.md`
-- Contribution guardrails – `CONTRIBUTING.md`
+Findings must be concrete and actionable, with file references.
 
-⸻
+## Validation Policy
 
-## MCP Tool Discovery
+Run baseline checks plus surface-specific checks from project docs.
 
-To discover available MCP servers and their capabilities programmatically:
+Before marking work complete (for code changes), `make fmt`, `make lint`, and `make test` must succeed with no ignored warnings.
 
-```bash
-pnpm mcp:discover
-```
+Then run additional checks relevant to changed surfaces, as documented in repository docs:
 
-This script reads `.mcp.json` and lists all configured MCP servers, their capabilities, and configuration details.
+- Runtime behavior changes: run relevant runtime validation and document manual verification.
+- Web/editor/tooling changes: run relevant web/tool checks for those paths.
+- Asset/format/pipeline changes: run the corresponding generation and validation flows.
+- User-visible web behavior changes: validate the changed flow with Playwright MCP.
 
-### Playwright MCP
+If checks are blocked, state exactly what is blocked and why.
 
-Two Playwright MCP servers are configured:
+## Process Hygiene
 
-- `playwright` (headless) – Default for automated testing, no visible browser
-- `playwright-headed` (visible) – For debugging when you need to see browser interactions
+- Stop watchers, dev servers, and helper processes you started before handoff.
+- Do not leave background processes running unless explicitly requested.
+- Keep logs concise and focused on actionable failures.
 
-**Tool naming**: In Claude Code, tools are prefixed as `mcp__<server>__<capability>`. For example: `mcp__playwright__browser_navigate` or `mcp__playwright-headed__browser_snapshot`.
+## Escalation Rules
 
-**Configuration**: Both servers use 1920×1080 viewport with 10s/30s action/navigation timeouts. Screenshots and traces save to `.playwright-mcp/` (gitignored).
+Escalate instead of guessing when:
 
-For full server options, run `pnpm exec mcp-server-playwright --help`.
+- Architecture or scheduling changes are ambiguous.
+- Runtime/tooling boundaries are unclear.
+- A format or pipeline contract may break compatibility.
+- Validation cannot be completed with current access.
 
-⸻
+When escalating, provide options with trade-offs and a recommendation.
 
-## Communication Norms
+## Communication Rules
 
-- Be explicit about assumptions, uncertainties, and required follow-ups.
-- Ask clarifying questions whenever requirements feel fuzzy or multiple architectural routes are plausible.
-- Reference files with relative links and line numbers, e.g. `apps/carcinisation/src/stage/data.rs:417`.
-- Keep hand-offs concise but complete, highlighting validation status and remaining work.
-- Suggest concrete next steps instead of vague impressions; wait for maintainer approval before expanding scope.
-- Preserve previous decisions unless new information or maintainer guidance requires change.
-- Maintain a factual, concise tone—avoid filler, anthropomorphism, or ungrounded speculation.
-- When documenting code or decisions, prefer terse language-specific doc comments (JSDoc `/** */`, Rust `///`, Python docstrings) and avoid verbose prose—the repo should stay mostly self-documenting.
+- Be direct, factual, and concise.
+- State assumptions explicitly.
+- Ask clarifying questions when requirements are ambiguous or multiple valid approaches would change behavior, architecture, or scope.
+- Preserve prior decisions unless new evidence requires change.
+- Use precise file references with line numbers when possible.
+
+## Failure Policy
+
+- Prefer explicit failure over silent fallback when required coordination inputs are missing.
+- Do not mask missing core files or broken startup assumptions with defensive no-op guards.
+- Treat startup hook failures as actionable setup issues and resolve them before proceeding.
