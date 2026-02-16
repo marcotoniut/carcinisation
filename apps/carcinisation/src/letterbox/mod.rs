@@ -6,8 +6,8 @@ pub mod resources;
 mod systems;
 
 use crate::core::time::tick_time;
-use activable::{activate_system, Activable, ActivableAppExt};
-use cween::linear::{components::TargetingValueY, LinearTweenPlugin};
+use activable::{Activable, ActivableAppExt, activate_system};
+use cween::linear::{LinearTweenPlugin, components::TargetingValueY};
 
 use self::{messages::LetterboxMoveEvent, resources::LetterboxTimeDomain, systems::*};
 use bevy::{prelude::*, time::Fixed};

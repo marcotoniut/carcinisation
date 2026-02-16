@@ -7,13 +7,14 @@ pub mod setup;
 pub mod spawn;
 
 use super::{
+    StageProgressState,
     attack::components::EnemyAttack,
     bundles::*,
     components::{
-        interactive::{Dead, Object},
-        placement::spawn_floor_depths,
         CinematicStageStep, CurrentStageStep, Stage, StageElapsedStarted, StageEntity,
         StopStageStep, TweenStageStep,
+        interactive::{Dead, Object},
+        placement::spawn_floor_depths,
     },
     data::*,
     destructible::components::Destructible,
@@ -21,7 +22,6 @@ use super::{
     messages::{NextStepEvent, StageClearedEvent, StageDeathEvent},
     player::components::Player,
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain},
-    StageProgressState,
 };
 use crate::components::VolumeSettings;
 use crate::pixel::PxAssets;
@@ -29,10 +29,10 @@ use crate::{
     components::{DespawnMark, Music},
     core::time::TimeShouldRun,
     game::{
-        data::DEATH_SCORE_PENALTY, messages::GameOverEvent, resources::Lives,
-        score::components::Score, GameProgressState,
+        GameProgressState, data::DEATH_SCORE_PENALTY, messages::GameOverEvent, resources::Lives,
+        score::components::Score,
     },
-    globals::{mark_for_despawn_by_query, DEBUG_STAGESTEP},
+    globals::{DEBUG_STAGESTEP, mark_for_despawn_by_query},
     input::GBInput,
     systems::{camera::CameraPos, spawn::make_music_bundle},
     transitions::trigger_transition,
@@ -40,7 +40,7 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
 use cween::linear::components::{
-    extra::LinearTween2DReachCheck, TargetingValueX, TargetingValueY, TweenChildBundle,
+    TargetingValueX, TargetingValueY, TweenChildBundle, extra::LinearTween2DReachCheck,
 };
 use leafwing_input_manager::prelude::ActionState;
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};

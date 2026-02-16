@@ -65,6 +65,7 @@ pub enum Layer {
     /// Menu text/icons that must sit above everything else.
     UI,
     /// Mirrors the RON-defined layering for cutscenes (see `CutsceneLayer` docs for detail).
+    #[allow(clippy::enum_variant_names)]
     CutsceneLayer(CutsceneLayer),
     /// Full-screen transitions (wipes/fades) that cover everything.
     Transition,

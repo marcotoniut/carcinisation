@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::CutsceneData;
+use carcinisation::globals::SCREEN_RESOLUTION;
 
 use crate::components::{
     CutsceneActConnection, CutsceneActNode, CutsceneImage, Draggable, LetterboxLabel, SceneItem,
@@ -32,7 +32,7 @@ pub fn spawn_cutscene(
         let act_position = Vec3::new(ACT_OFFSET * act_index as f32, 0.0, 0.0);
 
         let mut entity_commands = commands.spawn((
-            Name::new(format!("Act {}", act_index)),
+            Name::new(format!("Act {act_index}")),
             CutsceneActNode { act_index },
             Draggable,
             SceneItem,
@@ -53,7 +53,7 @@ pub fn spawn_cutscene(
                         Sprite::from_image(asset_server.load(image_spawn.image_path.clone()));
 
                     p0.spawn((
-                        Name::new(format!("Act {} : Image {}", act_index, image_index)),
+                        Name::new(format!("Act {act_index} : Image {image_index}")),
                         CutsceneImage,
                         sprite,
                         Transform::from_xyz(0.0, 180.0 * image_index as f32, 0.0),
@@ -67,14 +67,14 @@ pub fn spawn_cutscene(
                     LetterboxMove::Hide => "Hide".to_string(),
                     LetterboxMove::Show => "Show".to_string(),
                     LetterboxMove::Close => "Close".to_string(),
-                    LetterboxMove::To(x) => format!("To {}", x),
-                    LetterboxMove::ToAt(x, y) => format!("ToAt {} {}", x, y),
+                    LetterboxMove::To(x) => format!("To {x}"),
+                    LetterboxMove::ToAt(x, y) => format!("ToAt {x} {y}"),
                 };
 
                 p0.spawn((
                     LetterboxLabel,
                     Name::new("Letterbox Header"),
-                    Text2d::new(format!("Letterbox {}", instruction)),
+                    Text2d::new(format!("Letterbox {instruction}")),
                     text_font.clone(),
                     TextColor(Color::WHITE),
                     Transform::from_xyz(0.0, SCREEN_RESOLUTION.y as f32 / 2.0 + 10.0, 0.0),

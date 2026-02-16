@@ -1,8 +1,8 @@
 pub mod bundles;
 
 use super::data::{
-    blood_shot::BLOOD_ATTACK_ANIMATIONS, boulder_throw::BOULDER_ATTACK_ANIMATIONS,
-    HoveringAttackAnimations,
+    HoveringAttackAnimations, blood_shot::BLOOD_ATTACK_ANIMATIONS,
+    boulder_throw::BOULDER_ATTACK_ANIMATIONS,
 };
 use crate::stage::components::placement::Depth;
 use bevy::prelude::*;

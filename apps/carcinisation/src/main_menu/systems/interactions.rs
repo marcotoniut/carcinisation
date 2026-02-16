@@ -3,7 +3,7 @@
 use crate::{
     game::{messages::GameStartupEvent, resources::Difficulty},
     input::GBInput,
-    main_menu::{resources::DifficultySelection, MainMenuPlugin, MainMenuScreen},
+    main_menu::{MainMenuPlugin, MainMenuScreen, resources::DifficultySelection},
     resources::DifficultySelected,
 };
 use activable::deactivate;

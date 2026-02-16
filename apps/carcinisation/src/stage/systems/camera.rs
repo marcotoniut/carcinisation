@@ -1,5 +1,5 @@
 use crate::{
-    globals::{is_inside_area, HUD_HEIGHT, SCREEN_RESOLUTION},
+    globals::{HUD_HEIGHT, SCREEN_RESOLUTION, is_inside_area},
     stage::{components::placement::InView, player::components::CameraShake},
     systems::camera::CameraPos,
 };

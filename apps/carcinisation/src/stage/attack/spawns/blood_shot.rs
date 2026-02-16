@@ -2,8 +2,8 @@ use crate::pixel::PxAssets;
 use crate::stage::{
     attack::{
         components::{
-            bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyAttackOriginDepth,
-            EnemyAttackOriginPosition, EnemyHoveringAttackType,
+            EnemyAttack, EnemyAttackOriginDepth, EnemyAttackOriginPosition,
+            EnemyHoveringAttackType, bundles::make_hovering_attack_animation_bundle,
         },
         data::blood_shot::{
             BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED, BLOOD_SHOT_ATTACK_LINE_SPEED,

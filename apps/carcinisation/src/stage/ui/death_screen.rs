@@ -5,7 +5,7 @@ mod systems;
 
 use self::{
     components::*,
-    input::{init_input, DeathScreenInput},
+    input::{DeathScreenInput, init_input},
     messages::DeathScreenRestartMessage,
     systems::check_press_continue_input,
 };
@@ -14,8 +14,8 @@ use crate::{
     components::GBColor,
     game::{resources::Lives, score::components::Score},
     globals::{
-        mark_for_despawn_by_query, SCREEN_RESOLUTION_F32_H, TYPEFACE_CHARACTERS,
-        TYPEFACE_INVERTED_PATH,
+        SCREEN_RESOLUTION_F32_H, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query,
     },
     layer::Layer,
     stage::StageProgressState,

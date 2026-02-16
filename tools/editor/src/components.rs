@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use carcinisation::{stage::data::StageData, CutsceneData};
+use carcinisation::{CutsceneData, stage::data::StageData};
 
 /// Sprite atlas animation indices for cycling frames.
 #[derive(Component)]

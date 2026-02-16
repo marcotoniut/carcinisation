@@ -1,9 +1,9 @@
-use super::{components::*, crosshair::CrosshairSettings, CrosshairInfo};
+use super::{CrosshairInfo, components::*, crosshair::CrosshairSettings};
 use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
     globals::*,
     layer::Layer,
-    stage::components::{interactive::Health, StageEntity},
+    stage::components::{StageEntity, interactive::Health},
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};

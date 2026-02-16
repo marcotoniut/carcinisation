@@ -4,23 +4,23 @@ use std::sync::Arc;
 
 use crate::{
     cutscene::{
+        CutscenePlugin,
         data::CutsceneData,
         messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
-        CutscenePlugin,
     },
     debug::plugin::debug_print_startup,
     game::{
+        GamePlugin,
         components::steps::*,
         data::*,
         messages::{GameOverEvent, GameStartupEvent},
         resources::*,
-        GamePlugin,
     },
     progression::game::GAME_DATA,
     stage::{
+        StagePlugin,
         data::StageData,
         messages::{StageClearedEvent, StageStartupEvent},
-        StagePlugin,
     },
 };
 use activable::{activate, deactivate};
@@ -142,7 +142,7 @@ pub fn check_cutscene_data_loaded(
 ) {
     if let Some(data) = data_assets.get(&asset_handle.handle) {
         #[cfg(debug_assertions)]
-        println!("Cutscene data loaded: {:?}", data);
+        println!("Cutscene data loaded: {data:?}");
         commands.remove_resource::<CutsceneAssetHandle>();
         commands.trigger(CutsceneStartupEvent {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
@@ -162,7 +162,7 @@ pub fn check_stage_data_loaded(
 ) {
     if let Some(data) = data_assets.get(&asset_handle.handle) {
         #[cfg(debug_assertions)]
-        println!("Stage data loaded: {:?}", data);
+        println!("Stage data loaded: {data:?}");
         commands.remove_resource::<StageAssetHandle>();
         commands.trigger(StageStartupEvent {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?

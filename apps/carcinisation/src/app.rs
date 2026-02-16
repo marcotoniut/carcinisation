@@ -7,8 +7,9 @@ use bevy_framepace::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 #[cfg(debug_assertions)]
 use bevy_inspector_egui::{
-    bevy_egui::{egui, EguiContext, EguiPrimaryContextPass, PrimaryEguiContext},
-    bevy_inspector, DefaultInspectorConfigPlugin,
+    DefaultInspectorConfigPlugin,
+    bevy_egui::{EguiContext, EguiPrimaryContextPass, PrimaryEguiContext, egui},
+    bevy_inspector,
 };
 use carcinisation_core::bevy_utils::despawn_entities;
 use carcinisation_core::components::{DespawnMark, VolumeSettings};
@@ -24,7 +25,7 @@ use crate::{
     main_menu::MainMenuPlugin,
     pixel::PixelPlugin,
     resources::DifficultySelected,
-    stage::{player::crosshair::CrosshairSettings, StagePlugin},
+    stage::{StagePlugin, player::crosshair::CrosshairSettings},
     systems::{
         camera::move_camera,
         movement::{update_position_x, update_position_y},

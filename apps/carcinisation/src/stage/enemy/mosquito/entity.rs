@@ -5,12 +5,12 @@ use std::time::Duration;
 
 use crate::stage::{
     components::{
+        StageEntity,
         interactive::{ColliderData, Flickerer, Health, Hittable},
         placement::{Depth, Speed},
-        StageEntity,
     },
     enemy::{
-        components::{behavior::EnemyBehaviors, Enemy},
+        components::{Enemy, behavior::EnemyBehaviors},
         data::steps::EnemyStep,
         entity::EnemyType,
     },

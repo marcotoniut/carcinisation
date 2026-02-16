@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use cween::linear::components::{LinearTweenBundle, TargetingValueX, TargetingValueY};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DurationSecondsWithFrac};
+use serde_with::{DurationSecondsWithFrac, serde_as};
 use std::time::Duration;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Eq, Ord, Reflect, Serialize)]

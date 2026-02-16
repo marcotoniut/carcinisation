@@ -12,7 +12,7 @@ use self::{
     cleared_screen::ClearedScreenPlugin, death_screen::DeathScreenPlugin,
     game_over_screen::GameOverScreenPlugin, hud::HudPlugin, systems::update_score_text,
 };
-use activable::{activate_system, deactivate_system, Activable, ActivableAppExt};
+use activable::{Activable, ActivableAppExt, activate_system, deactivate_system};
 use bevy::prelude::*;
 
 /// Registers all stage UI sub-plugins and manages their active state.

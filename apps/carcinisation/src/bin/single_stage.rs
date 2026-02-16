@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf, process::ExitCode, sync::Arc};
 use anyhow::{Context, Result};
 use bevy::prelude::*;
 use carcinisation::{
-    app::{build_app, AppLaunchOptions, StartFlow},
+    app::{AppLaunchOptions, StartFlow, build_app},
     game::{
         messages::GameStartupEvent,
         resources::{GameData, GameProgress},

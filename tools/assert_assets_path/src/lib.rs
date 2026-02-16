@@ -3,7 +3,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 use std::{path::PathBuf, sync::OnceLock};
-use syn::{parse_macro_input, LitStr};
+use syn::{LitStr, parse_macro_input};
 
 fn resolve_assets_root() -> PathBuf {
     static ASSETS_ROOT: OnceLock<PathBuf> = OnceLock::new();
@@ -47,7 +47,7 @@ pub fn assert_assets_path(input: TokenStream) -> TokenStream {
     let path_str = path_lit.value();
 
     if !check_assets_path_exists(&path_str) {
-        panic!("File does not exist: {}", path_str);
+        panic!("File does not exist: {path_str}");
     }
 
     let expanded = quote! {

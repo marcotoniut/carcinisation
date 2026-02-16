@@ -48,7 +48,7 @@ fn main() -> notify::Result<()> {
     let path_to_watch: &Path = assets_root.as_ref();
     watcher.watch(path_to_watch, RecursiveMode::Recursive)?;
 
-    println!("Watching {:?} for changes...", path_to_watch);
+    println!("Watching {path_to_watch:?} for changes...");
 
     let last_processed: Arc<Mutex<HashMap<PathBuf, Instant>>> =
         Arc::new(Mutex::new(HashMap::new()));
@@ -97,7 +97,7 @@ fn handle_event(event: Event, last_processed: Arc<Mutex<HashMap<PathBuf, Instant
                     Ok(_) => println!("{} parsed RON file.", "SUCCESSFULLY".green().bold()),
                     Err(err) => {
                         println!("{} to parse RON:", "FAILED".red().bold());
-                        println!("{:?}", err);
+                        println!("{err:?}");
                     }
                 },
                 Err(err) => {

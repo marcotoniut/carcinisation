@@ -3,7 +3,7 @@
 //! Serialized stage definitions: spawns, pickups, objects, and scripted steps.
 
 use super::{
-    components::{placement::Depth, CinematicStageStep, StopStageStep, TweenStageStep},
+    components::{CinematicStageStep, StopStageStep, TweenStageStep, placement::Depth},
     destructible::data::DestructibleSpawn,
     enemy::{data::steps::EnemyStep, entity::EnemyType},
 };
@@ -15,7 +15,7 @@ use bevy::{asset::Asset, prelude::*, reflect::Reflect};
 use derive_more::From;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DurationSecondsWithFrac};
+use serde_with::{DurationSecondsWithFrac, serde_as};
 use std::{collections::VecDeque, time::Duration};
 
 lazy_static! {
@@ -327,9 +327,9 @@ impl EnemySpawn {
         }
     }
     pub fn mosquito_variant_circle() -> Self {
-        Self::mosquito_base().with_steps_vec(vec![EnemyStep::circle_around_base()
-            .with_radius(12.)
-            .into()])
+        Self::mosquito_base().with_steps_vec(vec![
+            EnemyStep::circle_around_base().with_radius(12.).into(),
+        ])
     }
     pub fn mosquito_variant_approacher() -> Self {
         Self::mosquito_base()

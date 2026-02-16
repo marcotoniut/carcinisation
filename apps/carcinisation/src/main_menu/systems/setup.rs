@@ -5,8 +5,8 @@ use crate::{
     debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
     main_menu::{
-        components::{MainMenu, MainMenuEntity, MainMenuMusic},
         MainMenuPlugin, MainMenuScreen,
+        components::{MainMenu, MainMenuEntity, MainMenuMusic},
     },
     systems::spawn::make_music_bundle,
 };

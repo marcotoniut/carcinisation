@@ -7,7 +7,7 @@ use bevy::{
     asset::{AssetServer, Assets},
     prelude::*,
 };
-use carcinisation::{stage::data::StageData, CutsceneData};
+use carcinisation::{CutsceneData, stage::data::StageData};
 
 use crate::components::{AnimationIndices, AnimationTimer, EditorCamera};
 use crate::file_manager::events::WriteRecentFilePathEvent;
@@ -58,7 +58,7 @@ pub fn check_cutscene_data_loaded(
             LoadState::Loaded => {
                 if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
                     *scene_path = ScenePath(cutscene_asset_handle.path.to_string());
-                    println!("Cutscene data loaded: {:?}", data);
+                    println!("Cutscene data loaded: {data:?}");
                     commands.remove_resource::<CutsceneAssetHandle>();
                     commands.insert_resource(SceneData::Cutscene(data.clone()));
                     commands.trigger(WriteRecentFilePathEvent);
@@ -74,7 +74,7 @@ pub fn check_cutscene_data_loaded(
             }
             LoadState::Failed(e) => {
                 commands.remove_resource::<CutsceneAssetHandle>();
-                println!("Cutscene data failed to load: {}", e);
+                println!("Cutscene data failed to load: {e}");
             }
         }
     }
@@ -93,7 +93,7 @@ pub fn check_stage_data_loaded(
             LoadState::Loaded => {
                 if let Some(data) = stage_data_assets.get(&stage_asset_handle.handle) {
                     *scene_path = ScenePath(stage_asset_handle.path.to_string());
-                    println!("Stage data loaded: {:?}", data);
+                    println!("Stage data loaded: {data:?}");
                     commands.remove_resource::<StageAssetHandle>();
                     commands.insert_resource(SceneData::Stage(data.clone()));
                     commands.trigger(WriteRecentFilePathEvent);
@@ -109,7 +109,7 @@ pub fn check_stage_data_loaded(
             }
             LoadState::Failed(e) => {
                 commands.remove_resource::<StageAssetHandle>();
-                println!("Stage data failed to load {}", e);
+                println!("Stage data failed to load {e}");
             }
         }
     }

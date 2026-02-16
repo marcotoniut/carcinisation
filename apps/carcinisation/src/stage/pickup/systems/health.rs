@@ -6,11 +6,11 @@ use crate::{
     stage::{
         components::interactive::{Dead, Health},
         pickup::components::{
-            HealthRecovery, PickupFeedback, PickupFeedbackGlitter, PICKUP_FEEDBACK_GLITTER_TIME,
-            PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS, PICKUP_FEEDBACK_INITIAL_SPEED_Y,
-            PICKUP_FEEDBACK_TIME, PICKUP_HUD_GLITTER_TIME,
+            HealthRecovery, PICKUP_FEEDBACK_GLITTER_TIME, PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS,
+            PICKUP_FEEDBACK_INITIAL_SPEED_Y, PICKUP_FEEDBACK_TIME, PICKUP_HUD_GLITTER_TIME,
+            PickupFeedback, PickupFeedbackGlitter,
         },
-        player::components::{Player, PLAYER_MAX_HEALTH},
+        player::components::{PLAYER_MAX_HEALTH, Player},
         resources::StageTimeDomain,
         ui::hud::components::{HealthIcon, HealthText},
     },
@@ -94,6 +94,7 @@ pub struct PickupFeedbackBundle {
     default: PickupFeedbackDefaultBundle,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn pickup_health(
     mut commands: Commands,
     mut score: ResMut<Score>,

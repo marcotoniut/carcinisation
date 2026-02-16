@@ -1,8 +1,8 @@
 use crate::stage::{
     components::placement::{Depth, Speed},
     enemy::components::{
-        behavior::{BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior},
         CircleAround, Enemy,
+        behavior::{BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior},
     },
     resources::StageTimeDomain,
 };

@@ -11,7 +11,7 @@ use carcinisation::stage::{
 
 use crate::builders::thumbnail::*;
 use crate::timeline::{
-    cinematic_duration, stop_duration, tween_travel_duration, StageTimelineConfig,
+    StageTimelineConfig, cinematic_duration, stop_duration, tween_travel_duration,
 };
 
 /// Editor helpers derived from stage data.

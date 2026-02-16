@@ -18,7 +18,7 @@ impl EnemyType {
     }
 
     pub fn show_type(&self) -> String {
-        format!("Enemy<{:?}>", self)
+        format!("Enemy<{self:?}>")
     }
 
     /// Returns the sprite base name for this enemy type

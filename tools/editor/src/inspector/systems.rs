@@ -1,7 +1,7 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{
     bevy_egui::{EguiContext, PrimaryEguiContext},
-    egui::{self, epaint::Shadow, Align2},
+    egui::{self, Align2, epaint::Shadow},
 };
 
 use crate::components::{SceneData, ScenePath, SelectedItem};

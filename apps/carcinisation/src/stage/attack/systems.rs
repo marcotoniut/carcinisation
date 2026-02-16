@@ -2,7 +2,7 @@ pub mod hovering;
 pub mod player;
 
 use super::components::{
-    bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyHoveringAttackType,
+    EnemyAttack, EnemyHoveringAttackType, bundles::make_hovering_attack_animation_bundle,
 };
 use crate::pixel::PxAssets;
 use crate::{

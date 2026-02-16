@@ -158,8 +158,7 @@ mod tests {
             assert_eq!(
                 enemy.sprite_base_name(),
                 enemy_map.get(&enemy).copied().unwrap(),
-                "Enemy base name mismatch for {:?}",
-                enemy
+                "Enemy base name mismatch for {enemy:?}"
             );
         }
 
@@ -177,8 +176,7 @@ mod tests {
             assert_eq!(
                 object.sprite_base_name(),
                 object_map.get(&object).copied().unwrap(),
-                "Object base name mismatch for {:?}",
-                object
+                "Object base name mismatch for {object:?}"
             );
         }
 
@@ -191,8 +189,7 @@ mod tests {
             assert_eq!(
                 pickup.sprite_base_name(),
                 pickup_map.get(&pickup).copied().unwrap(),
-                "Pickup base name mismatch for {:?}",
-                pickup
+                "Pickup base name mismatch for {pickup:?}"
             );
         }
 
@@ -210,8 +207,7 @@ mod tests {
             assert_eq!(
                 expected_base,
                 destructible_map.get(&destructible).copied().unwrap(),
-                "Destructible base name mismatch for {:?}",
-                destructible
+                "Destructible base name mismatch for {destructible:?}"
             );
         }
     }
