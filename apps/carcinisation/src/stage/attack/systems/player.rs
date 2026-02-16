@@ -1,7 +1,7 @@
 use bevy::asset::AssetEvent;
 use bevy::prelude::*;
 use carcinisation_collision::pixel_mask::{
-    mask_contains_point, pixel_overlap, sprite_data, sprite_rect, PixelCollisionCache,
+    PixelCollisionCache, mask_contains_point, pixel_overlap, sprite_data, sprite_rect,
 };
 use seldom_pixel::prelude::*;
 
@@ -37,6 +37,7 @@ const MELEE_DEPTH_MAX: crate::stage::components::placement::Depth =
 /**
  * Could split between box and circle collider
  */
+#[allow(clippy::too_many_arguments)]
 pub fn check_got_hit(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

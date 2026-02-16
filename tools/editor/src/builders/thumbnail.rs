@@ -13,27 +13,27 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
             let ext = ".px_sprite.png";
             match depth {
                 Depth::Three => (
-                    format!("{}3{}", loc, ext),
+                    format!("{loc}3{ext}"),
                     URect::new(0, 0, 49, 49).as_rect().into(),
                 ),
                 Depth::Four => (
-                    format!("{}4{}", loc, ext),
+                    format!("{loc}4{ext}"),
                     URect::new(0, 0, 35, 35).as_rect().into(),
                 ),
                 Depth::Five => (
-                    format!("{}5{}", loc, ext),
+                    format!("{loc}5{ext}"),
                     URect::new(0, 0, 23, 23).as_rect().into(),
                 ),
                 Depth::Six => (
-                    format!("{}6{}", loc, ext),
+                    format!("{loc}6{ext}"),
                     URect::new(0, 0, 15, 15).as_rect().into(),
                 ),
                 Depth::Seven => (
-                    format!("{}7{}", loc, ext),
+                    format!("{loc}7{ext}"),
                     URect::new(0, 0, 9, 9).as_rect().into(),
                 ),
                 Depth::Eight => (
-                    format!("{}8{}", loc, ext),
+                    format!("{loc}8{ext}"),
                     URect::new(0, 0, 5, 5).as_rect().into(),
                 ),
                 _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
@@ -44,11 +44,11 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
             let ext = ".px_sprite.png";
             match depth {
                 Depth::Two => (
-                    format!("{}2{}", loc, ext),
+                    format!("{loc}2{ext}"),
                     URect::new(0, 0, 49, 49).as_rect().into(),
                 ),
                 Depth::Seven => (
-                    format!("{}7{}", loc, ext),
+                    format!("{loc}7{ext}"),
                     URect::new(0, 0, 35, 35).as_rect().into(),
                 ),
                 _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
@@ -59,15 +59,15 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
             let ext = ".px_sprite.png";
             match depth {
                 Depth::Six => (
-                    format!("{}6{}", loc, ext),
+                    format!("{loc}6{ext}"),
                     URect::new(0, 0, 63, 63).as_rect().into(),
                 ),
                 Depth::Seven => (
-                    format!("{}7{}", loc, ext),
+                    format!("{loc}7{ext}"),
                     URect::new(0, 0, 42, 42).as_rect().into(),
                 ),
                 Depth::Eight => (
-                    format!("{}8{}", loc, ext),
+                    format!("{loc}8{ext}"),
                     URect::new(0, 0, 23, 23).as_rect().into(),
                 ),
                 _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),

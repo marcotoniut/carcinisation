@@ -5,17 +5,17 @@ mod systems;
 
 use self::{
     components::*,
-    input::{init_input, ClearScreenInput},
+    input::{ClearScreenInput, init_input},
     messages::ClearScreenShutdownMessage,
     systems::check_press_continue_input,
 };
-use super::{components::ScoreText, StageUiPlugin};
+use super::{StageUiPlugin, components::ScoreText};
 use crate::{
     components::GBColor,
     game::score::components::Score,
     globals::{
-        mark_for_despawn_by_query, SCREEN_RESOLUTION_F32_H, TYPEFACE_CHARACTERS,
-        TYPEFACE_INVERTED_PATH,
+        SCREEN_RESOLUTION_F32_H, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query,
     },
     layer::Layer,
     stage::StageProgressState,

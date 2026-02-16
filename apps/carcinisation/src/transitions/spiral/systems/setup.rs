@@ -1,14 +1,14 @@
 use crate::{
-    globals::{mark_for_despawn_by_query, SCREEN_RESOLUTION},
+    globals::{SCREEN_RESOLUTION, mark_for_despawn_by_query},
     pixel::PxAssets,
     transitions::{
         data::{TransitionVenetianData, TransitionVenetianDataState},
         spiral::{
+            TransitionVenetianPlugin,
             bundles::spawn_transition_venetian_row,
             components::TransitionVenetian,
             messages::{TransitionVenetianShutdownEvent, TransitionVenetianStartupEvent},
             resources::{TransitionCounter, TransitionUpdateTimer},
-            TransitionVenetianPlugin,
         },
     },
 };

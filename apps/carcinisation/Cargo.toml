@@ -1,7 +1,7 @@
 [package]
 name = "carcinisation"
-version = "0.2.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "Main Bevy executable for stage-based pixel shooter"
 default-run = "carcinisation"
 

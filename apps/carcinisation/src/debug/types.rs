@@ -10,10 +10,10 @@ use crate::{
     stage::{
         attack::components::{EnemyAttackOriginDepth, EnemyAttackOriginPosition},
         components::{
+            CurrentStageStep, StageElapsedStarted,
             damage::{DamageFlicker, InflictsDamage},
             interactive::{ColliderData, Health},
             placement::{Depth, Floor, RailPosition, Speed},
-            CurrentStageStep, StageElapsedStarted,
         },
         enemy::{
             components::{

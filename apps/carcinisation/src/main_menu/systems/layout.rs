@@ -3,14 +3,15 @@ use crate::{
     components::GBColor,
     game::resources::Difficulty,
     globals::{
-        mark_for_despawn_by_query, FONT_SIZE, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32,
-        SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        FONT_SIZE, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32, SCREEN_RESOLUTION_F32_H,
+        SCREEN_RESOLUTION_H, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
+        mark_for_despawn_by_query,
     },
     layer::Layer,
-    main_menu::{resources::DifficultySelection, MainMenuScreen},
+    main_menu::{MainMenuScreen, resources::DifficultySelection},
     pixel::{
-        bundle::{PxRectBundle, PxSpriteBundle, PxTextBundle},
         PxAssets,
+        bundle::{PxRectBundle, PxSpriteBundle, PxTextBundle},
     },
 };
 use assert_assets_path::assert_assets_path;
@@ -123,7 +124,7 @@ pub fn enter_game_difficulty_screen(
                 },
                 ..default()
             },
-            Name::new(format!("Text<{}>", name)),
+            Name::new(format!("Text<{name}>")),
         ));
     }
 

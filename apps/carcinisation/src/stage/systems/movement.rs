@@ -1,8 +1,8 @@
 use crate::stage::{
     components::placement::Depth,
     enemy::components::{
-        behavior::{EnemyCurrentBehavior, EnemyStepTweenChild},
         CircleAround, LinearTween,
+        behavior::{EnemyCurrentBehavior, EnemyStepTweenChild},
     },
     messages::DepthChangedMessage,
     resources::StageTimeDomain,

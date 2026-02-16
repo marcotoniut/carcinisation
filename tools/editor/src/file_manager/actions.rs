@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
 use rfd::FileDialog;
 use ron::extensions::Extensions;
-use ron::ser::{to_string_pretty, PrettyConfig};
+use ron::ser::{PrettyConfig, to_string_pretty};
 use serde::Serialize;
 use std::fs::File;
 use std::io::Write;
@@ -45,15 +45,15 @@ fn save_ron<T: Serialize + Send + 'static>(data: T, path: String) {
                 Ok(ron_string) => match File::create(&path) {
                     Ok(mut file) => {
                         if let Err(error) = file.write_all(ron_string.as_bytes()) {
-                            eprintln!("Failed to write scene data to {}: {:?}", path, error);
+                            eprintln!("Failed to write scene data to {path}: {error:?}");
                         }
                     }
                     Err(error) => {
-                        eprintln!("Failed to create scene file at {}: {:?}", path, error);
+                        eprintln!("Failed to create scene file at {path}: {error:?}");
                     }
                 },
                 Err(error) => {
-                    eprintln!("Failed to serialize scene data to RON: {:?}", error);
+                    eprintln!("Failed to serialize scene data to RON: {error:?}");
                 }
             }
         })

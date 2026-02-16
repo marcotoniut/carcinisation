@@ -7,6 +7,7 @@ use crate::{
     components::Music,
     globals::mark_for_despawn_by_query,
     stage::{
+        StagePlugin, StageProgressState,
         components::interactive::Object,
         components::{Stage, StageEntity},
         data::StageData,
@@ -15,7 +16,6 @@ use crate::{
         messages::{StageRestart, StageStartupEvent},
         player::components::Player,
         resources::{StageActionTimer, StageProgress, StageTimeDomain},
-        StagePlugin, StageProgressState,
     },
 };
 

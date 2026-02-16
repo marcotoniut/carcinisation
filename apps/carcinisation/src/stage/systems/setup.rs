@@ -4,13 +4,13 @@ use crate::{
     game::GameProgressState,
     pixel::PxAssets,
     stage::{
+        StagePlugin,
         bundles::{BackgroundBundle, SkyboxBundle},
         components::{Stage, StageEntity},
         data::{StageData, StageSpawn},
         messages::StageStartupEvent,
         player::messages::PlayerStartupEvent,
         ui::hud::spawn::spawn_hud,
-        StagePlugin,
     },
     systems::spawn::make_music_bundle,
     transitions::trigger_transition,
@@ -19,6 +19,7 @@ use activable::activate;
 use bevy::{audio::PlaybackMode, prelude::*};
 use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
 
+#[allow(clippy::too_many_arguments)]
 pub fn on_stage_startup(
     trigger: On<StageStartupEvent>,
     mut commands: Commands,

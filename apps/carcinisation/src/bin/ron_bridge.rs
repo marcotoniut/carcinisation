@@ -1,5 +1,5 @@
 use carcinisation::stage::data::StageData;
-use ron::ser::{to_string_pretty, PrettyConfig};
+use ron::ser::{PrettyConfig, to_string_pretty};
 use serde::Deserialize;
 use serde_json::{from_str as json_from_str, to_string as json_to_string};
 use std::io::{self, Read};
@@ -70,8 +70,7 @@ fn json_to_ron(json_text: &str) -> Result<String, Box<dyn std::error::Error>> {
 
     // Add RON feature flags at the top
     let ron_with_flags = format!(
-        "#![enable(implicit_some)]\n#![enable(unwrap_newtypes)]\n#![enable(unwrap_variant_newtypes)]\n{}",
-        ron_body
+        "#![enable(implicit_some)]\n#![enable(unwrap_newtypes)]\n#![enable(unwrap_variant_newtypes)]\n{ron_body}"
     );
 
     Ok(ron_with_flags)

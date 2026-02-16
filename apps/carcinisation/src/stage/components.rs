@@ -10,7 +10,7 @@ use crate::cutscene::data::CutsceneAnimationsSpawn;
 use bevy::prelude::*;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DurationSecondsWithFrac};
+use serde_with::{DurationSecondsWithFrac, serde_as};
 use std::{collections::HashMap, time::Duration};
 
 #[derive(Component, Debug, Default)]

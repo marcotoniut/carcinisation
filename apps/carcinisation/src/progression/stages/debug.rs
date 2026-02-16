@@ -165,11 +165,13 @@ pub fn make_steps() -> Vec<StageStep> {
             .into(),
         StopStageStep::new()
             .with_max_duration(15.)
-            .add_spawns(vec![EnemySpawn::mosquito_base()
-                .with_coordinates(Vec2::new(130.0, 70.0))
-                .with_elapsed_f32(35.)
-                .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
-                .into()])
+            .add_spawns(vec![
+                EnemySpawn::mosquito_base()
+                    .with_coordinates(Vec2::new(130.0, 70.0))
+                    .with_elapsed_f32(35.)
+                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
+                    .into(),
+            ])
             .into(),
         StopStageStep::new().with_max_duration(100.).into(),
     ]

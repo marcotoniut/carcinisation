@@ -2,7 +2,7 @@ use crate::pixel::PxAssets;
 use crate::stage::{
     attack::{
         components::{
-            bundles::make_hovering_attack_animation_bundle, EnemyAttack, EnemyHoveringAttackType,
+            EnemyAttack, EnemyHoveringAttackType, bundles::make_hovering_attack_animation_bundle,
         },
         data::boulder_throw::{
             BOULDER_THROW_ATTACK_DAMAGE, BOULDER_THROW_ATTACK_DEPTH_SPEED,

@@ -1,16 +1,16 @@
 use super::{input::GameOverScreenInput, messages::GameOverScreenShutdownMessage};
 use crate::{
     game::{
+        GamePlugin,
         data::STARTING_LIVES,
         resources::{GameProgress, Lives},
-        GamePlugin,
     },
     main_menu::MainMenuPlugin,
     stage::{
+        StagePlugin, StageProgressState,
         data::StageData,
         messages::StageRestart,
         resources::{StageActionTimer, StageProgress, StageTimeDomain},
-        StagePlugin, StageProgressState,
     },
 };
 use activable::{activate, deactivate};

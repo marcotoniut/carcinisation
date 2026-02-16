@@ -72,7 +72,7 @@ fn main() {
             fs::create_dir_all(parent_dir).expect("could not create directory");
         }
 
-        println!("processing {}", asset_path);
+        println!("processing {asset_path}");
         println!(
             "{} {}",
             image

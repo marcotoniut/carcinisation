@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
-use carcinisation::stage::data::StageData;
 use carcinisation::CutsceneData;
+use carcinisation::stage::data::StageData;
 use futures_lite::future;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -23,7 +23,7 @@ pub fn load_recent_file(mut commands: Commands) {
             let mut path = String::new();
             if file.read_to_string(&mut path).is_ok() && !path.trim().is_empty() {
                 let path_buf = PathBuf::from(path.trim());
-                println!("Loading recent file: {:?}", path_buf);
+                println!("Loading recent file: {path_buf:?}");
                 Some(path_buf)
             } else {
                 None
@@ -53,7 +53,7 @@ pub fn poll_selected_file(
     for (entity, mut selected_file) in selected_files.iter_mut() {
         if let Some(result) = future::block_on(future::poll_once(&mut selected_file.0)) {
             if let Some(path) = result {
-                println!("Selected file: {:?}", path);
+                println!("Selected file: {path:?}");
                 let file_path = path.to_string_lossy().to_string();
                 let asset_path = asset_relative_path(&path);
 
@@ -65,7 +65,7 @@ pub fn poll_selected_file(
                             path: file_path,
                         });
                     } else {
-                        eprintln!("Selected file is outside the assets root: {:?}", file_path);
+                        eprintln!("Selected file is outside the assets root: {file_path:?}");
                     }
                 } else if file_path.ends_with(".sg.ron") {
                     if let Some(asset_path) = asset_path {
@@ -75,10 +75,10 @@ pub fn poll_selected_file(
                             path: file_path,
                         });
                     } else {
-                        eprintln!("Selected file is outside the assets root: {:?}", file_path);
+                        eprintln!("Selected file is outside the assets root: {file_path:?}");
                     }
                 } else {
-                    eprintln!("Unsupported file type: {:?}", file_path);
+                    eprintln!("Unsupported file type: {file_path:?}");
                 };
             }
             commands.entity(entity).remove::<SelectedFile>();
@@ -96,14 +96,14 @@ pub fn on_write_recent_file_path(
         .spawn(async move {
             match File::create(recent_file_path()) {
                 Ok(mut file) => {
-                    println!("{}", path);
-                    if let Err(e) = writeln!(file, "{}", path) {
-                        eprintln!("Failed to write to recent file path: {:?}", e);
+                    println!("{path}");
+                    if let Err(e) = writeln!(file, "{path}") {
+                        eprintln!("Failed to write to recent file path: {e:?}");
                     }
                     let _ = file.flush();
                 }
                 Err(e) => {
-                    eprintln!("Failed to create recent file path: {:?}", e);
+                    eprintln!("Failed to create recent file path: {e:?}");
                 }
             }
         })

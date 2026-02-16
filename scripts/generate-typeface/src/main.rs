@@ -4,7 +4,7 @@ extern crate image;
 extern crate rusttype;
 
 use image::{Rgba, RgbaImage};
-use rusttype::{point, Font, Scale};
+use rusttype::{Font, Scale, point};
 
 const RESOURCES_PATH: &str = "../../resources/";
 

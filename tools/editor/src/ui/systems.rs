@@ -76,7 +76,7 @@ pub fn update_ui(world: &mut World) {
             .min_width(slider_width)
             .max_width(slider_width)
             .show(ctx, |ui| {
-                let step_text = format!("Step {}", step_index);
+                let step_text = format!("Step {step_index}");
                 let button_height = ui.spacing().interact_size.y;
                 let value_width = 64.0;
                 let step_width = 72.0;

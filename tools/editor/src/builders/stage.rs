@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::constants::EditorColor;
 use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
 use crate::timeline::{
-    cinematic_duration, stop_duration, tween_travel_duration, StageTimelineConfig,
+    StageTimelineConfig, cinematic_duration, stop_duration, tween_travel_duration,
 };
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
@@ -80,7 +80,7 @@ pub fn spawn_path(
                     closed: true,
                 };
                 commands.spawn((
-                    Name::new(format!("Elapsed Path Tween Arrow {}", index)),
+                    Name::new(format!("Elapsed Path Tween Arrow {index}")),
                     SceneItem,
                     ShapeBuilder::with(&arrow_shape).fill(Color::CYAN).build(),
                     Transform {

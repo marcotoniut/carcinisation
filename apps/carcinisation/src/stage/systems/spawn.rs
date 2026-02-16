@@ -1,19 +1,19 @@
 use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::stage::{
     components::{
+        SpawnDrop, StageEntity,
         interactive::{Collider, ColliderData, Dead},
         placement::Depth,
-        SpawnDrop, StageEntity,
     },
     data::ContainerSpawn,
     destructible::{
-        components::{make_animation_bundle, DestructibleState},
+        components::{DestructibleState, make_animation_bundle},
         data::destructibles::DESTRUCTIBLE_ANIMATIONS,
     },
     enemy::{
         entity::EnemyType,
-        mosquito::entity::{MosquitoBundle, ENEMY_MOSQUITO_RADIUS},
-        tardigrade::entity::{TardigradeBundle, ENEMY_TARDIGRADE_RADIUS},
+        mosquito::entity::{ENEMY_MOSQUITO_RADIUS, MosquitoBundle},
+        tardigrade::entity::{ENEMY_TARDIGRADE_RADIUS, TardigradeBundle},
     },
     player::{attacks::AttackHitTracker, components::PlayerAttack},
     resources::{StageStepSpawner, StageTimeDomain},
@@ -27,7 +27,7 @@ use crate::{
         },
         data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
         destructible::{components::Destructible, data::DestructibleSpawn},
-        enemy::components::{behavior::EnemyBehaviors, Enemy},
+        enemy::components::{Enemy, behavior::EnemyBehaviors},
         messages::StageSpawnEvent,
         pickup::components::HealthRecovery,
     },

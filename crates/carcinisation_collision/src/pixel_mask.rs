@@ -55,14 +55,14 @@ impl SpritePixelData {
         };
         let frame_size = sprite_struct
             .field("frame_size")
-            .and_then(|value| value.try_downcast_ref::<usize>().map(|value| *value))?;
+            .and_then(|value| value.try_downcast_ref::<usize>().copied())?;
         let data = sprite_struct.field("data")?;
         let ReflectRef::Struct(image_struct) = data.reflect_ref() else {
             return None;
         };
         let width = image_struct
             .field("width")
-            .and_then(|value| value.try_downcast_ref::<usize>().map(|value| *value))?;
+            .and_then(|value| value.try_downcast_ref::<usize>().copied())?;
         let pixels = image_struct
             .field("image")
             .and_then(|value| value.try_downcast_ref::<Vec<u8>>())?;
@@ -81,7 +81,7 @@ impl SpritePixelData {
             return None;
         }
 
-        let segments_per_row = (width + 63) / 64;
+        let segments_per_row = width.div_ceil(64);
         let mut row_masks = vec![0u64; frame_count * height * segments_per_row];
         for frame in 0..frame_count {
             for row in 0..height {
@@ -487,7 +487,7 @@ mod tests {
             let index = (frame * height as usize + flipped_y) * width as usize + *x as usize;
             pixels[index] = 1;
         }
-        let segments_per_row = ((width + 63) / 64) as usize;
+        let segments_per_row = width.div_ceil(64) as usize;
         let mut row_masks = vec![0u64; frames * height as usize * segments_per_row];
         for frame in 0..frames {
             for row in 0..height {

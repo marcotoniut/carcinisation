@@ -36,11 +36,11 @@ use self::{
         *,
     },
     ui::{
+        StageUiPlugin,
         cleared_screen::{despawn_cleared_screen, render_cleared_screen},
         death_screen::{despawn_death_screen, render_death_screen},
         game_over_screen::{despawn_game_over_screen, render_game_over_screen},
         pause_menu::pause_menu_renderer,
-        StageUiPlugin,
     },
 };
 #[cfg(debug_assertions)]
@@ -48,17 +48,17 @@ use crate::core::time::TimeMultiplier;
 use crate::{
     core::{
         event::on_trigger_write_event,
-        time::{tick_time, TimeShouldRun},
+        time::{TimeShouldRun, tick_time},
     },
     systems::{check_despawn_after_delay, delay_despawn},
 };
-use activable::{activate_system, deactivate_system, Activable, ActivableAppExt};
+use activable::{Activable, ActivableAppExt, activate_system, deactivate_system};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use cween::{
     linear::{
-        components::{TargetingValueX, TargetingValueY, TargetingValueZ},
         LinearTween2DPlugin, LinearTweenPlugin, LinearTweenSystems,
+        components::{TargetingValueX, TargetingValueY, TargetingValueZ},
     },
     pursue::PursueMovementPlugin,
 };

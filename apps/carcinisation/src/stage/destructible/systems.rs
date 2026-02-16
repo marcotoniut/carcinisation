@@ -1,5 +1,5 @@
 use super::{
-    components::{make_animation_bundle, Destructible, DestructibleState, DestructibleType},
+    components::{Destructible, DestructibleState, DestructibleType, make_animation_bundle},
     data::destructibles::DESTRUCTIBLE_ANIMATIONS,
 };
 use crate::pixel::PxAssets;

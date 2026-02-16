@@ -6,8 +6,8 @@ use super::resources::LetterboxTimeDomain;
 use crate::components::GBColor;
 use crate::debug::plugin::debug_print_shutdown;
 use crate::debug::plugin::debug_print_startup;
-use crate::globals::mark_for_despawn_by_query;
 use crate::globals::SCREEN_RESOLUTION_F32;
+use crate::globals::mark_for_despawn_by_query;
 use crate::{
     cutscene::data::CutsceneLayer,
     globals::SCREEN_RESOLUTION,

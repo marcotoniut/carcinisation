@@ -4,8 +4,8 @@ use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::globals::{SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H};
 use crate::pixel::{PxAssets, PxRectBundle, PxTextBundle};
 use crate::{
-    game::{score::components::Score, GameProgressState},
-    globals::{mark_for_despawn_by_query, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
+    game::{GameProgressState, score::components::Score},
+    globals::{TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH, mark_for_despawn_by_query},
     layer::Layer,
 };
 use bevy::prelude::*;

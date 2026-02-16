@@ -80,13 +80,14 @@ mod tests {
             ..Default::default()
         });
 
+        #[allow(clippy::type_complexity)]
         let mut system_state: SystemState<(
             ResMut<Time<TestDomain>>,
             Res<Time<Fixed>>,
             Option<Res<TimeShouldRun<TestDomain>>>,
             Option<Res<TimeMultiplier<TestDomain>>>,
         )> = SystemState::new(&mut world);
-        let (mut target, source, should_run, multiplier) = system_state.get_mut(&mut world);
+        let (target, source, should_run, multiplier) = system_state.get_mut(&mut world);
         tick_time::<Fixed, TestDomain>(target, source, should_run, multiplier);
         system_state.apply(&mut world);
 
@@ -106,13 +107,14 @@ mod tests {
             ..Default::default()
         });
 
+        #[allow(clippy::type_complexity)]
         let mut system_state: SystemState<(
             ResMut<Time<TestDomain>>,
             Res<Time<Fixed>>,
             Option<Res<TimeShouldRun<TestDomain>>>,
             Option<Res<TimeMultiplier<TestDomain>>>,
         )> = SystemState::new(&mut world);
-        let (mut target, source, should_run, multiplier) = system_state.get_mut(&mut world);
+        let (target, source, should_run, multiplier) = system_state.get_mut(&mut world);
         tick_time::<Fixed, TestDomain>(target, source, should_run, multiplier);
         system_state.apply(&mut world);
 

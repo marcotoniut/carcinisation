@@ -8,7 +8,7 @@ pub mod resources;
 mod systems;
 
 use self::{
-    input::{init_input, CutsceneInput},
+    input::{CutsceneInput, init_input},
     messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
     resources::CutsceneTimeDomain,
     systems::{
@@ -22,8 +22,8 @@ use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use cween::linear::{
-    components::{TargetingValueX, TargetingValueY},
     LinearTweenPlugin,
+    components::{TargetingValueX, TargetingValueY},
 };
 use data::CutsceneData;
 use leafwing_input_manager::plugin::InputManagerPlugin;
