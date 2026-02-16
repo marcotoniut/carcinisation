@@ -1,3 +1,5 @@
+//! Sprite/typeface asset loading helpers and metadata writers for `seldom_pixel`.
+
 use crate::components::GBColor;
 use bevy::{
     asset::{AssetPath, AssetServer},

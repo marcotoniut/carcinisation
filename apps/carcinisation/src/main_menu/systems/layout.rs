@@ -22,6 +22,7 @@ use seldom_pixel::prelude::{
 };
 use strum::IntoEnumIterator;
 
+/// @system Spawns the main menu background entity.
 pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     let entity = commands
         .spawn((MainMenu, Visibility::Visible, InheritedVisibility::VISIBLE))
@@ -43,6 +44,7 @@ pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
+/// @system Spawns the "Press Start" text when entering that screen state.
 pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: PxAssets<PxTypeface>) {
     let typeface = assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
 
@@ -65,6 +67,7 @@ pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: PxAsset
     ));
 }
 
+/// @system Despawns press-start screen entities.
 pub fn exit_press_start_screen(
     mut commands: Commands,
     press_start_query: Query<Entity, With<PressStartScreenEntity>>,
@@ -72,7 +75,7 @@ pub fn exit_press_start_screen(
     mark_for_despawn_by_query(&mut commands, &press_start_query);
 }
 
-/// Builds the difficulty selection UI when that screen activates.
+/// @system Builds the difficulty selection UI when that screen activates.
 pub fn enter_game_difficulty_screen(
     mut commands: Commands,
     assets_typeface: PxAssets<PxTypeface>,
@@ -150,6 +153,7 @@ pub fn enter_game_difficulty_screen(
     }
 }
 
+/// @system Despawns difficulty-select screen entities.
 pub fn exit_game_difficulty_screen(
     mut commands: Commands,
     difficulty_select_query: Query<Entity, With<DifficultySelectScreenEntity>>,
@@ -157,7 +161,7 @@ pub fn exit_game_difficulty_screen(
     mark_for_despawn_by_query(&mut commands, &difficulty_select_query);
 }
 
-/// Moves the arrow indicator when the selected difficulty changes.
+/// @system Moves the arrow indicator when the selected difficulty changes.
 pub fn update_difficulty_selection_indicator(
     selection: Res<DifficultySelection>,
     screen: Res<State<MainMenuScreen>>,

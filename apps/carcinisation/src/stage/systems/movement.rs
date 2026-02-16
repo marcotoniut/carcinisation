@@ -11,6 +11,7 @@ use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use cween::{linear::components::*, structs::TweenDirection};
 use seldom_pixel::prelude::PxSubPosition;
 
+/// @system Recalculates entity depth from the Z tween value and emits `DepthChangedMessage`.
 pub fn update_depth(
     mut query: Query<
         (Entity, &mut Depth, &TargetingValueZ),
@@ -44,6 +45,7 @@ pub fn update_depth(
     }
 }
 
+/// @system Orbits entities around a centre point using elapsed time.
 pub fn circle_around(
     time: Res<Time<StageTimeDomain>>,
     mut query: Query<(&CircleAround, &mut PxSubPosition)>,
@@ -98,6 +100,7 @@ pub fn check_linear_tween_y_finished(
     }
 }
 
+/// @system Removes `EnemyCurrentBehavior` once both X and Y tweens are done.
 // TODO this should not be tied to the stage tween
 pub fn check_linear_tween_finished(
     mut commands: Commands,

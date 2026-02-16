@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+/** Runs lint, test, and format checks in parallel, writing logs and focus files to `reports/agent/`. */
+
 import path from "node:path"
 import {
   createFocusFile,

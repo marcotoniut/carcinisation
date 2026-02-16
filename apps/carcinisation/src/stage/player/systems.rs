@@ -33,6 +33,7 @@ const BOMB_THROW_END_DEPTH: Depth = Depth::Six;
 #[derive(Component, Clone, Debug)]
 pub struct BombThrowTween;
 
+/// @system Clamps the player position to the visible screen bounds.
 pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {
     if let Ok(mut position) = player_query.single_mut() {
         let half_player_size = PLAYER_SIZE / 2.0;
@@ -59,6 +60,7 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
     }
 }
 
+/// @system Moves the player according to directional input.
 pub fn player_movement(
     gb_input: Res<ActionState<GBInput>>,
     // TODO should this system refer to a Cursor component instead?
@@ -82,6 +84,7 @@ pub fn player_movement(
     }
 }
 
+/// @system Reads attack inputs (press/hold/release) and spawns player attacks.
 #[allow(clippy::too_many_arguments)]
 pub fn detect_player_attack(
     mut commands: Commands,
@@ -257,6 +260,7 @@ pub fn detect_player_attack(
     }
 }
 
+/// @system Advances attack lifetime timers each frame.
 pub fn tick_attack_lifetimes(
     mut query: Query<&mut AttackLifetime, With<PlayerAttack>>,
     time: Res<Time<StageTimeDomain>>,
@@ -266,6 +270,7 @@ pub fn tick_attack_lifetimes(
     }
 }
 
+/// @system Despawns attacks whose lifetime has expired, triggering follow-up effects.
 pub fn despawn_expired_attacks(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

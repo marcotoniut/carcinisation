@@ -9,6 +9,7 @@ use crate::stage::{
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
+/// @system Assigns the next behavior step to enemies with no active behavior.
 pub fn check_no_behavior(
     mut commands: Commands,
     mut query: Query<
@@ -63,6 +64,7 @@ pub fn check_no_behavior(
     }
 }
 
+/// @system Ticks behavior timers and clears the current behavior when time expires.
 pub fn tick_enemy_behavior_timer(
     mut commands: Commands,
     mut query: Query<&mut EnemyBehaviorTimer>,
@@ -78,9 +80,8 @@ pub fn tick_enemy_behavior_timer(
     }
 }
 
-/**
- * could this be made into a generic?
- */
+/// @system Removes `CircleAround` when the owning behavior ends.
+// TODO could this be made into a generic?
 pub fn tied_components_enemy_current_behavior_circle_around(
     mut commands: Commands,
     query: Query<Entity, (With<CircleAround>, Without<EnemyCurrentBehavior>)>,

@@ -363,7 +363,7 @@ pub fn read_step_trigger(
     }
 }
 
-/// @system Prepares cinematic steps (placeholder for future cutscene integration).
+/// @system Prepares cinematic steps (stub — cutscene integration pending).
 pub fn initialise_cinematic_step(
     _next_state: ResMut<NextState<GameProgressState>>,
     query: Query<(Entity, &CinematicStageStep), (With<Stage>, Added<CinematicStageStep>)>,
@@ -509,7 +509,7 @@ pub fn check_stop_step_finished_by_duration(
     }
 }
 
-/// @system Placeholder hook for updating cinematic steps each frame.
+/// @system Updates cinematic steps each frame (stub — not yet wired).
 pub fn update_cinematic_step(
     _commands: Commands,
     query: Query<(Entity, &CinematicStageStep), With<Stage>>,

@@ -10,6 +10,7 @@ use crate::stage::components::{
 use bevy::prelude::*;
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
+/// @system Replaces a destroyed destructible's sprite with its broken animation.
 pub fn check_dead_destructible(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

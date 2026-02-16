@@ -34,9 +34,8 @@ const MELEE_DEPTH_MIN: crate::stage::components::placement::Depth =
 const MELEE_DEPTH_MAX: crate::stage::components::placement::Depth =
     crate::stage::components::placement::Depth::Three;
 
-/**
- * Could split between box and circle collider
- */
+/// @system Checks player attacks against hittable entities using pixel-mask and collider tests.
+// TODO could split between box and circle collider
 #[allow(clippy::too_many_arguments)]
 pub fn check_got_hit(
     mut commands: Commands,

@@ -10,6 +10,7 @@ use seldom_pixel::prelude::PxSubPosition;
 const IN_VIEW_OFFSET: u32 = 5;
 const IN_VIEW_OFFSET_BOTTOM: u32 = HUD_HEIGHT + IN_VIEW_OFFSET;
 
+/// @system Adds `InView` to entities that enter the visible screen area.
 pub fn check_in_view(
     mut commands: Commands,
     mut query: Query<(Entity, &PxSubPosition), Without<InView>>,
@@ -32,6 +33,7 @@ pub fn check_in_view(
     }
 }
 
+/// @system Removes `InView` from entities that leave the visible screen area.
 pub fn check_outside_view(
     mut commands: Commands,
     mut query: Query<(Entity, &PxSubPosition), With<InView>>,
@@ -50,6 +52,7 @@ pub fn check_outside_view(
     }
 }
 
+/// @system Writes the tween X value into the camera sub-position.
 pub fn update_camera_pos_x(
     mut query: Query<
         (&TargetingValueX, &mut PxSubPosition),
@@ -61,6 +64,7 @@ pub fn update_camera_pos_x(
     }
 }
 
+/// @system Writes the tween Y value into the camera sub-position.
 pub fn update_camera_pos_y(
     mut query: Query<
         (&TargetingValueY, &mut PxSubPosition),

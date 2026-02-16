@@ -1,4 +1,5 @@
-#![allow(dead_code, clippy::type_complexity)] // Library target exists to expose data types for tooling; gameplay modules stay unused here.
+//! Carcinisation game library — exposes data types and plugins for the runtime, editor, and tooling.
+#![allow(dead_code, clippy::type_complexity)]
 
 mod assets;
 pub mod bevy_utils {

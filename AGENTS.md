@@ -57,7 +57,7 @@ Agents may swap roles as needed, request reviews from their counterpart, and lea
 
 ## Process cleanup
 
-- Stop background services, dev servers, watchers, or other processes that agents start for development or verification once the task is complete. Use helpers like `KillShell` for `pnpm dev:agents`, `make watch-scene-files`, or equivalent tooling so leftover work does not lock ports or consume CPU.
+- Stop background services, dev servers, watchers, or other processes that agents start for development or verification once the task is complete. Use helpers like `KillShell` for `make watch-scene-files` or equivalent tooling so leftover work does not lock ports or consume CPU.
 - Only leave a process running when the maintainer or user explicitly asks for it; record the reason in the task notes.
 - Manual tests can be rerun by the user when ready, so do not keep your own servers, watchers, or helper scripts lingering after you hand off the work.
 - When removing entities during systems, prefer marking with `DespawnMark`/`mark_for_despawn*` and let shared cleanup run. Avoid direct despawns or component stripping mid-frame unless explicitly required.
@@ -85,7 +85,6 @@ Before marking work complete:
 - Project overview – `README.md`
 - Development workflows & make targets – `DEVELOPMENT.md`
 - Contribution guardrails – `CONTRIBUTING.md`
-- Claude planning & documentation playbook – `CLAUDE.md`
 
 ⸻
 
@@ -105,8 +104,6 @@ Two Playwright MCP servers are configured:
 
 - `playwright` (headless) – Default for automated testing, no visible browser
 - `playwright-headed` (visible) – For debugging when you need to see browser interactions
-
-**Test server**: Run `pnpm dev:test` to start the application on port 4747 for testing.
 
 **Tool naming**: In Claude Code, tools are prefixed as `mcp__<server>__<capability>`. For example: `mcp__playwright__browser_navigate` or `mcp__playwright-headed__browser_snapshot`.
 

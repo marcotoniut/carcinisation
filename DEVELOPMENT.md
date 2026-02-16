@@ -175,9 +175,9 @@ Palette generation is now pure Python, so it no longer triggers a Rust rebuild o
   RUST_LOG=debug make run
   ```
 
-- **Editor overlay**: In debug builds (`make run` / `bevy run --bin carcinisation`), the game injects `bevy_editor_pls`. Use its default shortcut (`Ctrl+Shift+P`) to toggle the inspector overlay.
+- **Editor overlay**: In debug builds (`make run` / `bevy run --bin carcinisation`), the game injects `bevy-inspector-egui`. The inspector overlay is available through the EGUI context when running in debug mode.
 - **Diagnostics**: The debug plugin draws helper overlays when its state is active. Check `src/debug` for details and extend as needed.
-- **Frame pacing**: `FramepacePlugin` is enabled by default; adjust settings in `systems::setup::set_framespace` if you need different frame caps.
+- **Frame pacing**: `FramepacePlugin` is enabled by default; adjust settings in `apps/carcinisation/src/systems/setup.rs` (`set_framespace`) if you need different frame caps.
 
 ## Testing
 
@@ -185,7 +185,7 @@ Even though the game currently has limited automated coverage, keep the suite gr
 
 ```bash
 make test          # workspace tests with all features
-test-single TEST=path::to::case  # focus on a particular test
+make test-single TEST=path::to::case  # focus on a particular test
 make test-watch    # rerun tests automatically as you edit
 ```
 
@@ -210,10 +210,10 @@ Refer to `CONTRIBUTING.md` for testing philosophy and expectations when you add 
 
 ## Helpful Paths
 
-- Game entry point: `src/main.rs`
-- Shared systems: `src/systems/`
-- Stage logic: `src/stage/`
-- Cutscene logic: `src/cutscene/`
+- Game entry point: `apps/carcinisation/src/main.rs`
+- Shared systems: `apps/carcinisation/src/systems/`
+- Stage logic: `apps/carcinisation/src/stage/`
+- Cutscene logic: `apps/carcinisation/src/cutscene/`
 - Asset directory: `assets/`
 
 Pair this guide with `CONTRIBUTING.md` to align on reviews and quality expectations.

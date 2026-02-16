@@ -42,6 +42,7 @@ interface Tool {
 
 const QUERY_TIMEOUT = 5000 // 5 second timeout for server queries
 
+/** Connects to an MCP server over stdio and returns its advertised tools. */
 async function queryServerTools(
   _name: string,
   server: McpServer,
@@ -95,6 +96,7 @@ async function queryServerTools(
   }
 }
 
+/** Formats a tool's name and parameters into a concise call signature string. */
 function formatToolSignature(tool: Tool): string {
   const params = tool.inputSchema?.properties || {}
   const required = tool.inputSchema?.required || []
@@ -110,6 +112,7 @@ function formatToolSignature(tool: Tool): string {
   return `${tool.name}(${paramList})`
 }
 
+/** Reads `.mcp.json`, queries each configured server, and prints discovered tools. */
 async function discoverMcpServers() {
   const mcpConfigPath = join(process.cwd(), "../.mcp.json")
 

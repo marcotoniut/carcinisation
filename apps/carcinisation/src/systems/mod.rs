@@ -63,6 +63,7 @@ use seldom_pixel::prelude::PxAnimationFinished;
 //     }
 // }
 
+/// @system Syncs music source volumes with the global volume settings.
 pub fn update_music_volume(
     mut source_settings: Query<(&mut PlaybackSettings, &AudioSystemType)>,
     volume_settings: Res<VolumeSettings>,
@@ -74,6 +75,7 @@ pub fn update_music_volume(
     }
 }
 
+/// @system Syncs SFX source volumes with the global volume settings.
 pub fn update_sfx_volume(
     mut source_settings: Query<&mut PlaybackSettings>,
     volume_settings: Res<VolumeSettings>,
@@ -83,6 +85,7 @@ pub fn update_sfx_volume(
     }
 }
 
+/// @system Attaches a `DespawnAfterDelay` once a pixel animation finishes.
 pub fn delay_despawn<D: Default + Send + Sync + 'static>(
     mut commands: Commands,
     mut query: Query<
@@ -100,6 +103,7 @@ pub fn delay_despawn<D: Default + Send + Sync + 'static>(
     }
 }
 
+/// @system Marks entities for despawn once their delay timer expires.
 pub fn check_despawn_after_delay<D: Default + Send + Sync + 'static>(
     mut commands: Commands,
     mut query: Query<(Entity, &DespawnAfterDelay)>,
@@ -112,10 +116,12 @@ pub fn check_despawn_after_delay<D: Default + Send + Sync + 'static>(
     }
 }
 
+/// @system DEBUG — fires `GameStartupEvent` immediately.
 pub fn debug_trigger_game_startup(mut commands: Commands) {
     commands.trigger(GameStartupEvent);
 }
 
+/// @system Activates the main-menu plugin after initial startup.
 pub fn on_post_startup(mut commands: Commands) {
     activate::<MainMenuPlugin>(&mut commands);
 }

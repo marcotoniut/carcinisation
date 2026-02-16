@@ -46,7 +46,6 @@ pub struct SpriteNameRegistry {
     pub destructibles: Vec<DestructibleSpriteName>,
 }
 
-/// TODO should probably be a trait of the enemy itself.
 impl SpriteNameRegistry {
     /// Creates the complete registry with all sprite base names
     pub fn new() -> Self {

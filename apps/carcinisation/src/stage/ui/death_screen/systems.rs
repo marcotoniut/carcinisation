@@ -2,6 +2,7 @@ use super::{input::DeathScreenInput, messages::DeathScreenRestartMessage};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
+/// @system Writes a restart message when the restart input fires on the death screen.
 pub fn check_press_continue_input(
     mut screen_shutdown_event_writer: MessageWriter<DeathScreenRestartMessage>,
     input: Res<ActionState<DeathScreenInput>>,

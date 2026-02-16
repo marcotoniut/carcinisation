@@ -1,3 +1,4 @@
+//! Spatial placement components: depth, floor, speed, and position types.
 #![allow(clippy::wrong_self_convention)]
 
 use crate::layer::{Layer, MidDepth, PreBackgroundDepth};

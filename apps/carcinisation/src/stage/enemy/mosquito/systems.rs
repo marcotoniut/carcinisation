@@ -29,6 +29,7 @@ use std::time::Duration;
 
 pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
 
+/// @system Picks the correct mosquito sprite for the current behavior and depth.
 pub fn assign_mosquito_animation(
     mut commands: Commands,
     query: Query<
@@ -128,6 +129,7 @@ pub fn assign_mosquito_animation(
     }
 }
 
+/// @system Spawns a death animation and awards score when a mosquito dies.
 pub fn despawn_dead_mosquitoes(
     mut commands: Commands,
     assets_sprite: PxAssets<PxSprite>,
@@ -160,6 +162,7 @@ pub fn despawn_dead_mosquitoes(
     }
 }
 
+/// @system Fires ranged attacks from idle in-view mosquitoes on a cooldown.
 pub fn check_idle_mosquito(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

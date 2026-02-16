@@ -1,3 +1,5 @@
+//! Full-screen transition effects (venetian wipes, fades).
+
 pub mod data;
 pub mod spiral;
 

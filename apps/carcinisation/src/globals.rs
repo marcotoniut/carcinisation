@@ -1,3 +1,5 @@
+//! Screen-size constants, asset paths, and shared helper functions.
+
 use crate::components::DespawnMark;
 use assert_assets_path::assert_assets_path;
 use bevy::{ecs::query::QueryFilter, prelude::*};

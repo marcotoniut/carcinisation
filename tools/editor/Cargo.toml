@@ -2,6 +2,7 @@
 name = "editor"
 version = "0.1.0"
 edition.workspace = true
+description = "Bevy-based scene editor for stages and cutscenes"
 
 [dependencies]
 assert_assets_path = { workspace = true }

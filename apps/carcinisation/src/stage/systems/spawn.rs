@@ -1,3 +1,5 @@
+//! Entity spawning systems for enemies, pickups, destructibles, and objects.
+
 use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::stage::{
     components::{
@@ -37,6 +39,7 @@ use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
+/// @system Drains the step spawner queue, triggering spawns whose elapsed time has come.
 pub fn check_step_spawn(
     mut commands: Commands,
     mut stage_step_spawner_query: Query<&mut StageStepSpawner>,
@@ -62,6 +65,7 @@ pub fn check_step_spawn(
     }
 }
 
+/// @trigger Spawns an entity (enemy, pickup, destructible, or object) from a stage spawn event.
 pub fn on_stage_spawn(
     trigger: On<StageSpawnEvent>,
     mut commands: Commands,
@@ -208,9 +212,8 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
     }
 }
 
-/**
- * TODO move to Destructible mod?
- */
+/// Spawns a destructible entity with its animation bundle.
+// TODO move to Destructible mod?
 pub fn spawn_destructible(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
@@ -270,6 +273,7 @@ pub fn spawn_object(
         .id()
 }
 
+/// @system Spawns contained items when a carrier entity dies.
 pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

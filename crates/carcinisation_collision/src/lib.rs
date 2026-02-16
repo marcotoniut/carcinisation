@@ -1,3 +1,5 @@
+//! Collision detection primitives and optional pixel-mask support.
+
 pub mod shapes;
 
 #[cfg(feature = "pixel-mask")]

@@ -2,9 +2,8 @@
 
 use bevy::prelude::*;
 
-/// TODO derive Add
-#[derive(Resource, Default)]
 /// Tracks the current run score.
+#[derive(Resource, Default)]
 pub struct Score {
     pub value: u32,
 }

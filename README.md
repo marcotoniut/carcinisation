@@ -5,7 +5,7 @@ Carcinisation is a Bevy 0.17 workspace for a pixel-art action game and its suppo
 ## Prerequisites
 
 - [Rust toolchain](https://www.rust-lang.org/tools/install) with `cargo` on your `PATH`.
-- [`cargo-watch`](https://crates.io/crates/cargo-watch) for hot-reload workflows (`cargo install cargo-watch`).
+- [`bacon`](https://dystroy.org/bacon/) for watch-and-rebuild workflows (`cargo install bacon --locked`).
 - [Bevy CLI](https://thebevyflock.github.io/bevy_cli) for `bevy run`, `bevy lint`, and browser builds. Install it with `cargo install bevy_cli --locked` and verify with `bevy --version`.
 - [`proto`](https://moonrepo.dev/docs/proto) to provision the pinned Node.js, pnpm, Python, and Ruff versions (`proto install`).
 - [`pnpm`](https://pnpm.io/installation) for Biome linting and web tooling (installed via `proto install` above).
@@ -13,7 +13,7 @@ Carcinisation is a Bevy 0.17 workspace for a pixel-art action game and its suppo
 ## Quick Start
 
 ```bash
-# rebuilds and reruns the game via `bevy run` whenever game source or assets change (requires cargo-watch; the watcher stays alive even if a run crashes so you can fix the error before the next change)
+# watches source and assets, rebuilds and reruns via bacon
 make dev
 
 # run once without file watching
@@ -52,8 +52,7 @@ Troubleshooting: If VS Code reports `Import "PIL" could not be resolved`, re-run
 
 - `CONTRIBUTING.md` – project guardrails, quality gates, and pull-request expectations.
 - `DEVELOPMENT.md` – make targets, asset tooling, palette generation workflow, and day-to-day processes.
-- `AGENTS.md` – Codex/Claude collaboration rules and coordination tips.
-- `CLAUDE.md` – Claude-specific planning and documentation preferences.
+- `AGENTS.md` – AI agent collaboration rules and coordination tips.
 
 ## Planning Work
 
