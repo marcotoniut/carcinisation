@@ -14,6 +14,7 @@ use seldom_pixel::prelude::PxSprite;
 
 const DEBUG_MODULE: &str = "Player";
 
+/// @trigger Spawns the player entity and crosshair on `PlayerStartupEvent`.
 pub fn on_player_startup(
     _trigger: On<PlayerStartupEvent>,
     mut commands: Commands,
@@ -26,6 +27,7 @@ pub fn on_player_startup(
     commands.spawn(make_player_bundle(&mut assets_sprite, &crosshair_settings));
 }
 
+/// @trigger Despawns all player entities on `PlayerShutdownEvent`.
 pub fn on_player_shutdown(
     _trigger: On<PlayerShutdownEvent>,
     mut commands: Commands,

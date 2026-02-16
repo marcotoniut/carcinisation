@@ -8,6 +8,7 @@ use crate::{
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxSubPosition;
 
+/// @system Applies random offset during a camera shake, then restores the original position.
 pub fn camera_shake(
     mut commands: Commands,
     mut query: Query<(Entity, &mut CameraShake, &mut PxSubPosition)>,
@@ -28,6 +29,7 @@ pub fn camera_shake(
     }
 }
 
+/// @trigger Initiates a camera shake on `CameraShakeEvent`.
 pub fn on_camera_shake(
     _trigger: On<CameraShakeEvent>,
     mut commands: Commands,

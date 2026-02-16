@@ -23,15 +23,12 @@ pub struct CinematicAssetGameStep {
 }
 
 #[derive(Component, Clone, Debug)]
-/// Placeholder for credits sequence.
+/// Credits sequence step (not yet implemented).
 pub struct CreditsGameStep;
 
 #[derive(Component, Clone, Debug)]
-/// Placeholder for transitions between stages/cutscenes.
-pub struct TransitionGameStep {
-    // TODO
-    // pub transition: bool,
-}
+/// Transition step between stages/cutscenes (not yet implemented).
+pub struct TransitionGameStep;
 
 #[derive(new, Component, Clone, Debug)]
 /// Stage step with fully loaded stage data.

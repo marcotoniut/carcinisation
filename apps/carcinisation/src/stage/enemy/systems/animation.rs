@@ -7,9 +7,8 @@ use crate::stage::{
 };
 use bevy::prelude::*;
 
-/**
- * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose
- */
+/// @system Re-triggers enemy animation selection when depth changes.
+// TODO there's a bug that can happen when DepthChanged is sent on a Dead entity
 pub fn on_enemy_depth_changed(
     mut reader: MessageReader<DepthChangedMessage>,
     mut commands: Commands,

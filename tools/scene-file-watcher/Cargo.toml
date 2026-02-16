@@ -2,6 +2,7 @@
 name = "scene-file-watcher"
 version = "0.1.0"
 edition.workspace = true
+description = "Watches RON assets for parse errors during development"
 
 [dependencies]
 bevy = { workspace = true, features = ["wayland"] }

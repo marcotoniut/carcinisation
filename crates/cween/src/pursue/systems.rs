@@ -4,7 +4,8 @@ use super::components::*;
 use crate::structs::MovementVec2Position;
 use bevy::{ecs::component::Mutable, prelude::*};
 
-/** TODO generalise current position via a generic LinearPosition trait */
+/// @system Moves entities toward their pursue target each frame.
+// TODO generalise current position via a generic LinearPosition trait
 pub fn update<D, P>(
     mut movement_query: Query<
         (&mut P, &PursueSpeed<D, P>, &PursueTargetPosition<D, P>),
@@ -24,9 +25,8 @@ pub fn update<D, P>(
     }
 }
 
-/**
- * What to do if there's already a bundle? Should I simply clean it up on added?
- */
+/// @system Clears stale reach markers when a new pursue target is assigned.
+// TODO what to do if there's already a bundle? Should we simply clean it up on added?
 pub fn on_position_added<D, P>(
     mut commands: Commands,
     movement_query: Query<Entity, Added<PursueTargetPosition<D, P>>>,
@@ -43,6 +43,7 @@ pub fn on_position_added<D, P>(
     }
 }
 
+/// @system Marks X-axis as reached when the position passes the target.
 pub fn check_x_reached<D, P>(
     mut commands: Commands,
     mut movement_query: Query<
@@ -65,6 +66,7 @@ pub fn check_x_reached<D, P>(
     }
 }
 
+/// @system Marks Y-axis as reached when the position passes the target.
 pub fn check_y_reached<D, P>(
     mut commands: Commands,
     mut movement_query: Query<
@@ -87,7 +89,8 @@ pub fn check_y_reached<D, P>(
     }
 }
 
-// TODO, could be using the other checks at the same time to avoid a next frame "Reached" status
+/// @system Inserts `PursueTargetReached` once both axes are reached.
+// TODO could combine with axis checks to avoid a one-frame delay.
 pub fn check_reached<D, P>(
     mut commands: Commands,
     movement_query: Query<

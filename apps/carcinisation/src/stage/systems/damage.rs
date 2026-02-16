@@ -19,6 +19,7 @@ lazy_static! {
     pub static ref DAMAGE_INVERT_DURATION: Duration = Duration::from_secs_f32(0.15);
 }
 
+/// @system Applies incoming damage and marks entities as `Dead` when health reaches zero.
 pub fn on_damage(
     mut commands: Commands,
     mut event_reader: MessageReader<DamageMessage>,
@@ -34,9 +35,8 @@ pub fn on_damage(
     }
 }
 
-/**
- * Should be checked after damage taken
- */
+/// @system Starts a damage flicker cycle on flickerable entities that were just hit.
+// NOTE: should be checked after damage taken
 pub fn check_damage_flicker_taken(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
@@ -54,6 +54,7 @@ pub fn check_damage_flicker_taken(
     }
 }
 
+/// @system Applies the invert filter during the active phase of a damage flicker.
 pub fn add_invert_filter(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
@@ -72,6 +73,7 @@ pub fn add_invert_filter(
     }
 }
 
+/// @system Removes the invert filter and advances/ends the flicker cycle.
 pub fn remove_invert_filter(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,

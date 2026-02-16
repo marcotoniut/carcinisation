@@ -17,6 +17,7 @@ use activable::{activate, deactivate};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
+/// @system Writes a shutdown message when the back-to-menu input fires.
 pub fn check_press_continue_input(
     mut screen_shutdown_event_writer: MessageWriter<GameOverScreenShutdownMessage>,
     input: Res<ActionState<GameOverScreenInput>>,
@@ -26,6 +27,7 @@ pub fn check_press_continue_input(
     }
 }
 
+/// @system Restarts the stage or returns to the main menu depending on remaining lives.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_game_over_screen_continue(
     mut event_reader: MessageReader<GameOverScreenShutdownMessage>,

@@ -9,6 +9,7 @@ use crate::structs::{Magnitude, TweenDirection};
 
 use super::components::{extra::LinearTween2DReachCheck, *};
 
+/// @system Integrates linear speed (and optional acceleration) into the value each frame.
 pub fn update<D, P>(
     mut query: Query<
         (
@@ -31,9 +32,8 @@ pub fn update<D, P>(
     }
 }
 
-/**
- * What to do if there's already a bundle? Should I simply clean it up on added?
- */
+/// @system Clears stale `LinearValueReached` when a new target is assigned.
+// TODO what to do if there's already a bundle? Should we simply clean it up on added?
 pub fn on_value_added<D, P>(
     mut commands: Commands,
     query: Query<(Entity, Option<&ChildOf>), Added<LinearTargetValue<D, P>>>,
@@ -55,6 +55,7 @@ pub fn on_value_added<D, P>(
     }
 }
 
+/// @system Clamps value and inserts `LinearValueReached` when the target is hit.
 pub fn check_value_reached<D, P>(
     mut commands: Commands,
     mut query: Query<

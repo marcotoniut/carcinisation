@@ -1,3 +1,5 @@
+//! Collider shapes (box, circle) and overlap-testing logic.
+
 use bevy::prelude::*;
 use derive_more::From;
 use derive_new::new;

@@ -17,6 +17,7 @@ use bevy::{audio::PlaybackMode, prelude::*};
 #[cfg(debug_assertions)]
 const DEBUG_MODULE: &str = "MainMenu";
 
+/// @system Activates the main-menu plugin and enters the press-start screen.
 pub fn on_main_menu_startup(
     mut commands: Commands,
     mut screen_state: ResMut<NextState<MainMenuScreen>>,
@@ -45,6 +46,7 @@ pub fn on_main_menu_shutdown(
     mark_for_despawn_by_query(&mut commands, &main_menu_entity_query);
 }
 
+/// @system Spawns the looping main-menu music track.
 pub fn spawn_main_menu_music(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -60,6 +62,7 @@ pub fn spawn_main_menu_music(
     commands.spawn((player, settings, system_bundle, music_tag, MainMenuMusic));
 }
 
+/// @system Despawns the main-menu music entity.
 pub fn cleanup_main_menu_music(
     mut commands: Commands,
     music_query: Query<Entity, With<MainMenuMusic>>,

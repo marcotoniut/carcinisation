@@ -61,7 +61,7 @@ pub fn on_game_startup(
 //     next_state.set(GamePluginUpdateState::Inactive);
 // }
 
-/// @trigger Placeholder hook for future game-over cleanup.
+/// @trigger Game-over cleanup (no-op for now).
 pub fn on_game_over(_trigger: On<GameOverEvent>) {}
 
 /// @trigger Advances progress when a stage reports it has been cleared.

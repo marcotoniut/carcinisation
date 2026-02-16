@@ -1,9 +1,13 @@
+/** Shared helpers for running commands, capturing logs, and generating focus files. */
+
 import { spawn } from "node:child_process"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 
+/** Absolute path to the agent reports directory (`reports/agent/`). */
 export const REPORTS_DIR = path.resolve(process.cwd(), "reports", "agent")
 
+/** Creates the reports directory if it doesn't already exist. */
 export const ensureReportsDir = async (): Promise<void> => {
   await mkdir(REPORTS_DIR, { recursive: true })
 }
@@ -23,6 +27,7 @@ type CommandResult = {
   logFilePath: string
 }
 
+/** Spawns a shell command, captures stdout/stderr, and writes combined output to a log file. */
 export const runCommand = async (
   command: string,
   logFileName: string,
@@ -53,6 +58,7 @@ export const runCommand = async (
   return { exitCode, stdout, stderr, logFilePath }
 }
 
+/** Extracts lines matching the given patterns from a log file into a shorter focus file. */
 export const createFocusFile = async ({
   logFilePath,
   focusFilePath,
@@ -89,6 +95,7 @@ export const createFocusFile = async ({
   await writeFile(focusFilePath, `${focusLines.join("\n")}\n`, "utf8")
 }
 
+/** Writes summary lines to stdout. */
 export const printSummary = (lines: string[]): void => {
   process.stdout.write(`${lines.join("\n")}\n`)
 }

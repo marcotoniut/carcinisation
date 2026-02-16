@@ -1,3 +1,5 @@
+//! Gameboy-style input mapping to keyboard keys.
+
 use bevy::{prelude::KeyCode, reflect::Reflect};
 use leafwing_input_manager::Actionlike;
 

@@ -16,6 +16,7 @@ use activable::{activate, deactivate};
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxFilter;
 
+/// @trigger Initialises a venetian-blind transition effect.
 #[allow(dead_code)]
 pub fn on_transition_startup(
     trigger: On<TransitionVenetianStartupEvent>,
@@ -53,6 +54,7 @@ pub fn on_transition_startup(
     ));
 }
 
+/// @trigger Tears down a venetian-blind transition and removes its resources.
 #[allow(dead_code)]
 pub fn on_transition_shutdown(
     _trigger: On<TransitionVenetianShutdownEvent>,

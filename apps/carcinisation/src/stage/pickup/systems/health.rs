@@ -94,6 +94,7 @@ pub struct PickupFeedbackBundle {
     default: PickupFeedbackDefaultBundle,
 }
 
+/// @system Heals the player, despawns the pickup, and spawns the feedback animation.
 #[allow(clippy::too_many_arguments)]
 pub fn pickup_health(
     mut commands: Commands,

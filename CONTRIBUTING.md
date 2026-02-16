@@ -7,7 +7,6 @@ Thank you for helping us evolve Carcinisation. This guide gathers the guardrails
 - Project overview & setup – `README.md`
 - Command catalogue & tooling – `DEVELOPMENT.md`
 - Multi-agent coordination – `AGENTS.md`
-- Claude-specific guidance – `CLAUDE.md`
 
 ## Before You Start
 

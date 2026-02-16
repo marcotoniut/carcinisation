@@ -3,6 +3,7 @@ use crate::game::score::components::Score;
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxText;
 
+/// @system Refreshes the on-screen score display when the score changes.
 pub fn update_score_text(mut query: Query<&mut PxText, With<ScoreText>>, score: Res<Score>) {
     for mut text in query.iter_mut() {
         text.value = score.value.to_string();

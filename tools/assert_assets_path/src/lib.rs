@@ -1,3 +1,5 @@
+//! Proc-macro that validates asset paths at compile time.
+
 extern crate proc_macro;
 
 use proc_macro::TokenStream;

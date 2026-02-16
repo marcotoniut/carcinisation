@@ -2,6 +2,7 @@
 name = "carcinisation_collision"
 version.workspace = true
 edition.workspace = true
+description = "Collision detection primitives and pixel-mask support"
 
 [features]
 default = []

@@ -3,6 +3,7 @@ use bevy_prototype_lyon::prelude::*;
 
 use crate::components::{CutsceneActConnection, CutsceneActNode};
 
+/// @system Redraws lines between cutscene act nodes when their transforms change.
 pub fn update_cutscene_act_connections(
     mut commands: Commands,
     mut cutscene_act_connections_query: Query<(Entity, &CutsceneActConnection)>,

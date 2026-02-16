@@ -21,6 +21,7 @@ use bevy::prelude::*;
 use cween::linear::components::{LinearValueReached, TargetingValueZ};
 use seldom_pixel::prelude::PxSprite;
 
+/// @system Marks entities as `Dead` when their health reaches zero.
 // TODO remove in favor of damage taken?
 pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health), Without<Dead>>) {
     for (entity, health) in &mut query.iter() {
@@ -30,6 +31,7 @@ pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health),
     }
 }
 
+/// @system Despawns enemy attacks that reached their target depth while off-screen.
 pub fn miss_on_reached(
     mut commands: Commands,
     query: Query<
@@ -46,9 +48,8 @@ pub fn miss_on_reached(
     }
 }
 
-/**
- * TODO there's a bug that can happen when DepthChanged is sent on a Dead entity, I suppose
- */
+/// @system Updates the hovering-attack sprite when its depth layer changes.
+// TODO there's a bug that can happen when DepthChanged is sent on a Dead entity
 pub fn on_enemy_attack_depth_changed(
     mut commands: Commands,
     // TODO do I need an EventReader for this? Can't I just use a query that checks for Changed<Depth>?
@@ -82,6 +83,7 @@ pub fn on_enemy_attack_depth_changed(
     }
 }
 
+/// @system Despawns enemy attacks that have been marked dead.
 pub fn despawn_dead_attacks(
     mut commands: Commands,
     query: Query<Entity, (Added<Dead>, With<EnemyAttack>)>,

@@ -9,9 +9,7 @@ pub struct CameraPos;
 
 const CAMERA_MOVEMENT_SPEED: f32 = 30.;
 
-// /**
-// DEBUG Move the camera placement using the debug arrow keys
-// */
+/// @system DEBUG — moves the camera via debug arrow keys.
 pub fn move_camera(
     mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
     gb_input: Res<ActionState<GBInput>>,

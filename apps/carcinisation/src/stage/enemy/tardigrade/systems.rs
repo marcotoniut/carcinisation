@@ -25,6 +25,7 @@ use std::time::Duration;
 
 pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
 
+/// @system Picks the tardigrade idle sprite for the current depth.
 pub fn assign_tardigrade_animation(
     mut commands: Commands,
     query: Query<
@@ -52,6 +53,7 @@ pub fn assign_tardigrade_animation(
     }
 }
 
+/// @system Spawns a death animation and awards score when a tardigrade dies.
 pub fn despawn_dead_tardigrade(
     mut commands: Commands,
     assets_sprite: PxAssets<PxSprite>,
@@ -84,6 +86,7 @@ pub fn despawn_dead_tardigrade(
     }
 }
 
+/// @system Fires boulder attacks from idle in-view tardigrades on a cooldown.
 pub fn check_idle_tardigrade(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

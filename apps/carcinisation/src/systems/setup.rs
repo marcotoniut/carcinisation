@@ -6,20 +6,23 @@ use bevy_framepace::Limiter;
 use leafwing_input_manager::prelude::{ActionState, InputMap};
 use seldom_pixel::prelude::PxSubPosition;
 
+/// @system Caps the frame limiter to the target Game Boy refresh rate.
 pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {
     settings.limiter = Limiter::from_framerate(59.727500569606);
 }
 
-/// Align the fixed timestep with the target framerate so fixed-schedule systems move at expected speed.
+/// @system Aligns the fixed timestep with the target framerate.
 pub fn set_fixed_timestep(mut fixed_time: ResMut<Time<Fixed>>) {
     fixed_time.set_timestep_hz(59.727500569606);
 }
 
+/// @system Spawns the 2D camera and a `CameraPos` tracking entity.
 pub fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
     commands.spawn((PxSubPosition::default(), CameraPos));
 }
 
+/// @system Registers the Game Boy input map and action state resources.
 pub fn init_gb_input(mut commands: Commands) {
     let ms: Vec<(GBInput, KeyCode)> = vec![
         (GBInput::Left, GBInput::Left.into()),
