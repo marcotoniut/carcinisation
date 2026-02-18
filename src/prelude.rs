@@ -46,6 +46,7 @@ pub use crate::{
         PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
         PxAnimationFinished, PxAnimationPlugin,
     },
+    atlas::{AtlasRect, AtlasRegion, AtlasRegionId, PxAtlasSprite, PxSpriteAtlasAsset},
     camera::{PxCamera, PxCanvas},
     cursor::{PxCursor, PxCursorPosition},
     filter::{PxFilter, PxFilterAsset, PxFilterLayers, PxInvertMask},

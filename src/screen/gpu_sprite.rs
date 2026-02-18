@@ -590,16 +590,13 @@ mod tests {
             out.push_str(&format!("{label} -> {index}\n"));
         }
 
-        assert_snapshot!(
-            "frame_index_wraps",
-            out,
-            @r###"frame_count=4
+        assert_snapshot!(&out, @r###"
+frame_count=4
 index 0.0 -> 0
 index 5.2 -> 1
 index -1.0 -> 3
 normalized 1.8 -> 1
 normalized -0.2 -> 3
-"###
-        );
+"###);
     }
 }

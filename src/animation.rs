@@ -28,10 +28,12 @@ pub(crate) fn plug(app: &mut App) {
         PostUpdate,
         (
             sync_frame_counts_on_component_change::<PxSprite>,
+            sync_frame_counts_on_atlas_sprite_change,
             sync_frame_counts_on_component_change::<PxFilter>,
             sync_frame_counts_on_component_change::<PxText>,
             sync_frame_counts_on_component_change::<PxMap>,
             sync_frame_counts_on_asset_event::<PxSprite>,
+            sync_frame_counts_on_atlas_asset_event,
             sync_frame_counts_on_asset_event::<PxFilter>,
             sync_frame_counts_on_asset_event::<PxText>,
             sync_frame_counts_on_asset_event::<PxMap>,
@@ -96,7 +98,8 @@ pub enum PxAnimationFinishBehavior {
     Loop,
 }
 
-/// Animates an entity. Works on sprites, filters, text, tilemaps, rectangles, and lines.
+/// Animates an entity. Works on sprites, atlas sprites, filters, text, tilemaps, rectangles, and
+/// lines.
 #[derive(Component, Clone, Copy, Debug)]
 #[require(PxFrameView, PxFrameControl, PxFrameCount)]
 pub struct PxAnimation {
@@ -209,6 +212,21 @@ fn sync_frame_counts_on_component_change<A: AnimatedAssetComponent>(
     }
 }
 
+fn sync_frame_counts_on_atlas_sprite_change(
+    atlases: Res<Assets<PxSpriteAtlasAsset>>,
+    mut query: Query<
+        (&PxAtlasSprite, &mut PxFrameCount),
+        (
+            With<PxAnimation>,
+            Or<(Changed<PxAtlasSprite>, Added<PxAnimation>)>,
+        ),
+    >,
+) {
+    for (sprite, mut count) in &mut query {
+        count.0 = atlas_region_frame_count(&atlases, sprite);
+    }
+}
+
 fn sync_frame_counts_on_asset_event<A: AnimatedAssetComponent>(
     assets: Res<Assets<A::Asset>>,
     mut events: MessageReader<AssetEvent<A::Asset>>,
@@ -224,5 +242,188 @@ fn sync_frame_counts_on_asset_event<A: AnimatedAssetComponent>(
             continue;
         };
         count.0 = A::max_frame_count(asset);
+    }
+}
+
+fn sync_frame_counts_on_atlas_asset_event(
+    atlases: Res<Assets<PxSpriteAtlasAsset>>,
+    mut events: MessageReader<AssetEvent<PxSpriteAtlasAsset>>,
+    mut query: Query<(&PxAtlasSprite, &mut PxFrameCount), With<PxAnimation>>,
+) {
+    if events.read().next().is_none() {
+        return;
+    }
+
+    for (sprite, mut count) in &mut query {
+        count.0 = atlas_region_frame_count(&atlases, sprite);
+    }
+}
+
+fn atlas_region_frame_count(atlases: &Assets<PxSpriteAtlasAsset>, sprite: &PxAtlasSprite) -> usize {
+    let Some(atlas) = atlases.get(&sprite.atlas) else {
+        return 0;
+    };
+    atlas
+        .region(sprite.region)
+        .map(|region| region.frame_count())
+        .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::atlas::{AtlasRect, AtlasRegion, AtlasRegionId, PxSpriteAtlasAsset};
+    use crate::image::PxImage;
+    use crate::position::InsertDefaultLayer;
+    use bevy_asset::{AssetId, uuid::Uuid};
+    use bevy_ecs::{prelude::*, system::RunSystemOnce};
+    use bevy_math::UVec2;
+    use bevy_platform::collections::HashMap;
+
+    fn make_atlas(frame_count: usize) -> PxSpriteAtlasAsset {
+        let frames = (0..frame_count)
+            .map(|i| AtlasRect {
+                x: i as u32,
+                y: 0,
+                w: 1,
+                h: 1,
+            })
+            .collect::<Vec<_>>();
+        PxSpriteAtlasAsset {
+            size: UVec2::new(frame_count as u32, 1),
+            data: PxImage::new(vec![1u8; frame_count], frame_count),
+            regions: vec![AtlasRegion {
+                frame_size: UVec2::new(1, 1),
+                frames,
+            }],
+            names: HashMap::default(),
+        }
+    }
+
+    fn atlas_with_handle(
+        assets: &mut Assets<PxSpriteAtlasAsset>,
+        frame_count: usize,
+    ) -> Handle<PxSpriteAtlasAsset> {
+        let uuid = Uuid::new_v4();
+        assets
+            .insert(AssetId::Uuid { uuid }, make_atlas(frame_count))
+            .unwrap();
+        Handle::Uuid(uuid, std::marker::PhantomData)
+    }
+
+    // atlas_region_frame_count: pure helper logic
+
+    #[test]
+    fn frame_count_returns_zero_for_missing_atlas() {
+        let atlases = Assets::<PxSpriteAtlasAsset>::default();
+        let sprite = PxAtlasSprite::new(Handle::default(), AtlasRegionId(0));
+        assert_eq!(atlas_region_frame_count(&atlases, &sprite), 0);
+    }
+
+    #[test]
+    fn frame_count_returns_zero_for_missing_region() {
+        let mut atlases = Assets::<PxSpriteAtlasAsset>::default();
+        let handle = atlas_with_handle(&mut atlases, 3);
+        // Region index 99 does not exist.
+        let sprite = PxAtlasSprite::new(handle, AtlasRegionId(99));
+        assert_eq!(atlas_region_frame_count(&atlases, &sprite), 0);
+    }
+
+    #[test]
+    fn frame_count_returns_region_frame_count() {
+        let mut atlases = Assets::<PxSpriteAtlasAsset>::default();
+        let handle = atlas_with_handle(&mut atlases, 5);
+        let sprite = PxAtlasSprite::new(handle, AtlasRegionId(0));
+        assert_eq!(atlas_region_frame_count(&atlases, &sprite), 5);
+    }
+
+    // sync_frame_counts_on_atlas_sprite_change via World::run_system_once.
+    //
+    // PxAtlasSprite has #[require(DefaultLayer)] whose on_add hook calls
+    // world.remove_resource::<InsertDefaultLayer>().unwrap(). We satisfy this by inserting
+    // a no-op InsertDefaultLayer before spawning and flushing commands afterwards.
+
+    fn setup_world() -> World {
+        let mut world = World::new();
+        // Satisfy the DefaultLayer component hook (it remove/re-inserts this resource).
+        world.insert_resource(InsertDefaultLayer::noop());
+        world
+    }
+
+    #[test]
+    fn sync_on_sprite_change_sets_frame_count() {
+        let mut world = setup_world();
+
+        let mut atlases = Assets::<PxSpriteAtlasAsset>::default();
+        let handle = atlas_with_handle(&mut atlases, 4);
+        world.insert_resource(atlases);
+
+        let entity = world
+            .spawn((
+                PxAtlasSprite::new(handle, AtlasRegionId(0)),
+                PxFrameCount(0),
+                PxAnimation::default(),
+            ))
+            .id();
+        world.flush();
+
+        world
+            .run_system_once(sync_frame_counts_on_atlas_sprite_change)
+            .unwrap();
+
+        assert_eq!(world.get::<PxFrameCount>(entity).unwrap().0, 4);
+    }
+
+    #[test]
+    fn sync_on_sprite_change_zeroes_count_when_atlas_missing() {
+        let mut world = setup_world();
+        world.insert_resource(Assets::<PxSpriteAtlasAsset>::default());
+
+        let entity = world
+            .spawn((
+                PxAtlasSprite::new(Handle::default(), AtlasRegionId(0)),
+                PxFrameCount(7),
+                PxAnimation::default(),
+            ))
+            .id();
+        world.flush();
+
+        world
+            .run_system_once(sync_frame_counts_on_atlas_sprite_change)
+            .unwrap();
+
+        assert_eq!(world.get::<PxFrameCount>(entity).unwrap().0, 0);
+    }
+
+    #[test]
+    fn sync_on_asset_event_updates_frame_count() {
+        let mut world = setup_world();
+
+        let mut atlases = Assets::<PxSpriteAtlasAsset>::default();
+        let handle = atlas_with_handle(&mut atlases, 3);
+        world.insert_resource(atlases);
+        world.init_resource::<Messages<AssetEvent<PxSpriteAtlasAsset>>>();
+
+        let entity = world
+            .spawn((
+                PxAtlasSprite::new(handle, AtlasRegionId(0)),
+                PxFrameCount(0),
+                PxAnimation::default(),
+            ))
+            .id();
+        world.flush();
+
+        // Send a fake asset event so the system sees something to process.
+        world
+            .resource_mut::<Messages<AssetEvent<PxSpriteAtlasAsset>>>()
+            .write(AssetEvent::LoadedWithDependencies {
+                id: AssetId::default(),
+            });
+
+        world
+            .run_system_once(sync_frame_counts_on_atlas_asset_event)
+            .unwrap();
+
+        assert_eq!(world.get::<PxFrameCount>(entity).unwrap().0, 3);
     }
 }

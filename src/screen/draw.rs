@@ -10,6 +10,7 @@ use bytemuck::cast_slice_mut;
 #[cfg(feature = "line")]
 use crate::line::draw_line;
 use crate::{
+    atlas::PxSpriteAtlasAsset,
     cursor::{CursorState, PxCursorPosition},
     filter::{PxFilterAsset, draw_filter},
     frame::{Frames, draw_spatial, resolve_frame_binding},
@@ -35,6 +36,15 @@ pub(crate) type MapEntry<'a> = (
 
 pub(crate) type SpriteEntry<'a> = (
     &'a PxSprite,
+    PxPosition,
+    PxAnchor,
+    PxCanvas,
+    Option<&'a PxFrame>,
+    Option<&'a PxFilter>,
+);
+
+pub(crate) type AtlasSpriteEntry<'a> = (
+    &'a PxAtlasSprite,
     PxPosition,
     PxAnchor,
     PxCanvas,
@@ -85,6 +95,7 @@ pub(crate) type FilterEntry<'a> = (&'a PxFilter, Option<&'a PxFrame>);
 pub(crate) type LayerContents<'a> = (
     Vec<MapEntry<'a>>,
     Vec<SpriteEntry<'a>>,
+    Vec<AtlasSpriteEntry<'a>>,
     Vec<CompositeSpriteEntry<'a>>,
     Vec<TextEntry<'a>>,
     Vec<RectEntry<'a>>,
@@ -99,6 +110,7 @@ pub(crate) type LayerContents<'a> = (
 pub(crate) type LayerContents<'a> = (
     Vec<MapEntry<'a>>,
     Vec<SpriteEntry<'a>>,
+    Vec<AtlasSpriteEntry<'a>>,
     Vec<CompositeSpriteEntry<'a>>,
     Vec<TextEntry<'a>>,
     Vec<RectEntry<'a>>,
@@ -121,6 +133,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
     #[cfg(feature = "gpu_palette")] layer_order: &[L],
 ) {
     let tilesets = world.resource::<RenderAssets<PxTileset>>();
+    let atlas_assets = world.resource::<RenderAssets<PxSpriteAtlasAsset>>();
     let sprite_assets = world.resource::<RenderAssets<PxSpriteAsset>>();
     let typefaces = world.resource::<RenderAssets<PxTypeface>>();
     let filters = world.resource::<RenderAssets<PxFilterAsset>>();
@@ -153,6 +166,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
             (
                 maps,
                 sprites,
+                atlas_sprites,
                 composites,
                 texts,
                 clip_rects,
@@ -227,6 +241,27 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
 
                 draw_spatial(
                     sprite,
+                    (),
+                    &mut layer_slice,
+                    position,
+                    anchor,
+                    canvas,
+                    frame.copied(),
+                    filter.and_then(|filter| filters.get(&**filter)),
+                    camera,
+                );
+            }
+
+            for (sprite, position, anchor, canvas, frame, filter) in atlas_sprites {
+                let Some(atlas) = atlas_assets.get(&sprite.atlas) else {
+                    continue;
+                };
+                let Some(region) = atlas.region(sprite.region) else {
+                    continue;
+                };
+
+                draw_spatial(
+                    &(atlas, region),
                     (),
                     &mut layer_slice,
                     position,
@@ -684,11 +719,10 @@ mod tests {
         );
         out.push_str("after_invert_rect:\n");
         out.push_str(&depth_to_string(&depth, width, height));
+        out.push('\n');
 
-        assert_snapshot!(
-            "depth_updates",
-            out,
-            @r###"after_layer_image:
+        assert_snapshot!(&out, @r###"
+after_layer_image:
 0 0 0 0
 0 2 2 0
 0 2 2 0
@@ -702,7 +736,7 @@ after_invert_rect:
 4 4 4 4
 4 4 4 4
 4 4 2 0
-4 4 0 0"###
-        );
+4 4 0 0
+"###);
     }
 }

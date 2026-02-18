@@ -67,13 +67,18 @@ where
 }
 
 #[derive(Resource, Deref)]
-struct InsertDefaultLayer(Box<dyn Fn(&mut EntityWorldMut) + Send + Sync>);
+pub(crate) struct InsertDefaultLayer(Box<dyn Fn(&mut EntityWorldMut) + Send + Sync>);
 
 impl InsertDefaultLayer {
     fn new<L: PxLayer>() -> Self {
         Self(Box::new(|entity| {
             entity.insert_if_new(L::default());
         }))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn noop() -> Self {
+        Self(Box::new(|_| {}))
     }
 }
 

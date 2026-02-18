@@ -12,6 +12,7 @@
 #![warn(missing_docs)]
 
 pub mod animation;
+pub mod atlas;
 pub mod blink;
 mod camera;
 pub mod cursor;
@@ -90,6 +91,7 @@ impl<L: PxLayer> Plugin for PxPlugin<L> {
         ));
 
         let palette_path = self.palette_path.clone();
+        atlas::plug::<L>(app, palette_path.clone());
         filter::plug::<L>(app, palette_path.clone());
         map::plug::<L>(app, palette_path.clone());
         sprite::plug::<L>(app, palette_path.clone());
