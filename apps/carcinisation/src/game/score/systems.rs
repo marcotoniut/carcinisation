@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 
-use super::components::*;
+use super::components::HighScores;
 use crate::game::messages::GameOverEvent;
 
 /// @system Inserts the final run score into the high-score list.

@@ -7,6 +7,9 @@ use crate::{
 use bevy::prelude::*;
 use seldom_pixel::prelude::{PxAnchor, PxAnimationDuration, PxSprite};
 
+/// # Panics
+///
+/// Panics if there is no hovering animation registered for the given `depth`.
 pub fn make_hovering_attack_animation_bundle(
     assets_sprite: &mut PxAssets<PxSprite>,
     attack_type: &EnemyHoveringAttackType,

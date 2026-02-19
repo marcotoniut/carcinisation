@@ -5,7 +5,7 @@ use super::attacks::{
     AttackButton, AttackDefinitions, AttackId, AttackInputPolicy, AttackInputState, AttackLifetime,
     AttackLoadout,
 };
-use super::components::*;
+use super::components::{PLAYER_SIZE, PLAYER_SPEED, Player, PlayerAttack};
 use crate::input::GBInput;
 use crate::pixel::PxAssets;
 use crate::stage::player::attacks::AttackEffectState;
@@ -71,10 +71,10 @@ pub fn player_movement(
         // TODO review what's more expensive, querying or input subroutine, although, most of the times
         // a player will exist, so it's probably more that the former is redundant
         let mut direction = Vec2::new(
-            (gb_input.pressed(&GBInput::Right) as i32 - gb_input.pressed(&GBInput::Left) as i32)
-                as f32,
-            (gb_input.pressed(&GBInput::Up) as i32 - gb_input.pressed(&GBInput::Down) as i32)
-                as f32,
+            (i32::from(gb_input.pressed(&GBInput::Right))
+                - i32::from(gb_input.pressed(&GBInput::Left))) as f32,
+            (i32::from(gb_input.pressed(&GBInput::Up))
+                - i32::from(gb_input.pressed(&GBInput::Down))) as f32,
         );
 
         if direction.length() > 0.0 {
@@ -85,7 +85,7 @@ pub fn player_movement(
 }
 
 /// @system Reads attack inputs (press/hold/release) and spawns player attacks.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn detect_player_attack(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

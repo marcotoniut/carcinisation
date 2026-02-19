@@ -95,6 +95,10 @@ pub struct PickupFeedbackBundle {
 }
 
 /// @system Heals the player, despawns the pickup, and spawns the feedback animation.
+///
+/// # Panics
+///
+/// Panics if the camera entity is missing from the world.
 #[allow(clippy::too_many_arguments)]
 pub fn pickup_health(
     mut commands: Commands,
@@ -215,7 +219,7 @@ pub fn update_pickup_feedback_glitter(
     mut query: Query<(Entity, &mut PickupFeedbackGlitter)>,
 ) {
     let now = stage_time.elapsed();
-    for (entity, mut glitter) in query.iter_mut() {
+    for (entity, mut glitter) in &mut query {
         if now < glitter.start_at {
             continue;
         }

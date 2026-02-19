@@ -68,7 +68,7 @@ pub fn update_music_volume(
     mut source_settings: Query<(&mut PlaybackSettings, &AudioSystemType)>,
     volume_settings: Res<VolumeSettings>,
 ) {
-    for (mut music_source_settings, audio_system_type) in source_settings.iter_mut() {
+    for (mut music_source_settings, audio_system_type) in &mut source_settings {
         if matches!(audio_system_type, AudioSystemType::SFX) {
             music_source_settings.volume = volume_settings.music;
         }

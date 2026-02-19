@@ -1,7 +1,7 @@
 use super::components::{HealthIcon, HealthText, Hud, UIBackground};
 use crate::pixel::{PxAssets, PxRectBundle, PxSpriteBundle, PxTextBundle};
 use crate::{
-    globals::*,
+    globals::{HUD_HEIGHT, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
     layer::Layer,
     stage::{components::StageEntity, ui::components::ScoreText},
 };

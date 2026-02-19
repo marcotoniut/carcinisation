@@ -26,6 +26,7 @@ pub enum GBColor {
 }
 
 impl GBColor {
+    #[must_use]
     pub fn get_filter_path(&self) -> &'static str {
         match self {
             GBColor::Black => {
@@ -74,6 +75,7 @@ pub struct Music;
 pub struct DelayedDespawnOnPxAnimationFinished(pub Duration);
 
 impl DelayedDespawnOnPxAnimationFinished {
+    #[must_use]
     pub fn from_secs_f32(secs: f32) -> Self {
         Self(Duration::from_secs_f32(secs))
     }

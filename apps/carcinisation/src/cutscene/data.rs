@@ -48,6 +48,7 @@ pub struct TargetMovement {
 }
 
 impl TargetMovement {
+    #[must_use]
     pub fn make_bundles(
         self,
         coordinates: Vec2,
@@ -127,6 +128,7 @@ pub struct CutsceneImagesSpawn {
 }
 
 impl CutsceneImagesSpawn {
+    #[must_use]
     pub fn push_spawn(mut self, spawn: CutsceneImageSpawn) -> Self {
         self.spawns.push(spawn);
         self
@@ -167,31 +169,37 @@ pub struct CutsceneAct {
 }
 
 impl CutsceneAct {
+    #[must_use]
     pub fn move_letterbox(mut self, x: LetterboxMove) -> Self {
         self.letterbox_move_o = Some(x);
         self
     }
 
+    #[must_use]
     pub fn spawn_animations(mut self, spawns: CutsceneAnimationsSpawn) -> Self {
         self.spawn_animations_o = Some(spawns);
         self
     }
 
+    #[must_use]
     pub fn spawn_images(mut self, spawns: CutsceneImagesSpawn) -> Self {
         self.spawn_images_o = Some(spawns);
         self
     }
 
+    #[must_use]
     pub fn spawn_music(mut self, spawn: CutsceneMusicSpawn) -> Self {
         self.music_spawn_o = Some(spawn);
         self
     }
 
+    #[must_use]
     pub fn despawn_music(mut self) -> Self {
         self.music_despawn_o = Some(CutsceneMusicDespawn {});
         self
     }
 
+    #[must_use]
     pub fn with_elapse(mut self, secs: f32) -> Self {
         self.elapse = Duration::from_secs_f32(secs);
         self
@@ -230,6 +238,7 @@ pub struct CutsceneData {
 }
 
 impl CutsceneData {
+    #[must_use]
     pub fn set_steps(mut self, steps: Vec<CutsceneAct>) -> Self {
         self.steps = steps;
         self

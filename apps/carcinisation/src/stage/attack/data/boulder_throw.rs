@@ -39,13 +39,13 @@ const BOULDER_THROW_DEPTHS: [Depth; 8] = [
 ];
 const HIT_DEPTH: Depth = PLAYER_DEPTH;
 
-lazy_static! {
-    pub static ref BOULDER_ATTACK_ANIMATIONS: HoveringAttackAnimations = {
+pub static BOULDER_ATTACK_ANIMATIONS: std::sync::LazyLock<HoveringAttackAnimations> =
+    std::sync::LazyLock::new(|| {
         let hovering_frames = 2;
         let hovering_speed = 300;
 
         let mut hovering = HashMap::new();
-        for &i in BOULDER_THROW_DEPTHS.iter() {
+        for &i in &BOULDER_THROW_DEPTHS {
             hovering.insert(
                 i,
                 AnimationData {
@@ -96,5 +96,4 @@ lazy_static! {
         );
 
         HoveringAttackAnimations { hovering, hit }
-    };
-}
+    });

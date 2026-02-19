@@ -13,15 +13,18 @@ pub enum EnemyType {
 }
 
 impl EnemyType {
+    #[must_use]
     pub fn get_name(&self) -> Name {
         Name::new(self.show_type())
     }
 
+    #[must_use]
     pub fn show_type(&self) -> String {
         format!("Enemy<{self:?}>")
     }
 
     /// Returns the sprite base name for this enemy type
+    #[must_use]
     pub fn sprite_base_name(&self) -> &'static str {
         match self {
             EnemyType::Mosquito => "mosquito",

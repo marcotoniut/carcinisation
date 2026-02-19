@@ -22,6 +22,7 @@ pub struct BackgroundBundle {
 
 impl BackgroundBundle {
     /// Creates a background sprite bundle using the provided pixel sprite handle.
+    #[must_use]
     pub fn new(sprite: Handle<PxSpriteAsset>) -> Self {
         Self {
             name: Name::new("Background"),

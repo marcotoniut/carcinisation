@@ -27,7 +27,7 @@ pub struct EnemyStepTweenChild;
 #[derive(Component, Clone, Debug)]
 pub enum BehaviorBundle {
     Idle,
-    /// LinearTween now returns just the LinearTween marker component.
+    /// `LinearTween` now returns just the `LinearTween` marker component.
     /// Movement children are spawned separately via Commands.
     LinearTween(LinearTween),
     Jump,
@@ -36,6 +36,7 @@ pub enum BehaviorBundle {
 }
 
 impl EnemyCurrentBehavior {
+    #[must_use]
     pub fn get_bundles(
         &self,
         time_offset: Duration,
@@ -169,6 +170,7 @@ pub struct EnemyBehaviorTimer {
 }
 
 impl EnemyBehaviorTimer {
+    #[must_use]
     pub fn new(entity: Entity, duration: f32) -> Self {
         EnemyBehaviorTimer {
             entity,

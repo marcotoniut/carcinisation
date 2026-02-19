@@ -9,6 +9,13 @@ use rusttype::{Font, Scale, point};
 const RESOURCES_PATH: &str = "../../resources/";
 
 /// Renders each glyph to a vertically stacked bitmap strip.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::cast_lossless
+)]
 fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> RgbaImage {
     let font_data = std::fs::read(font_path).unwrap();
     let font = Font::try_from_vec(font_data).unwrap();
@@ -32,7 +39,7 @@ fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> R
 
     let mut y = 0;
 
-    for c in characters.iter() {
+    for c in characters {
         let glyph = font.glyph(*c).scaled(scale);
         let h_metrics = glyph.h_metrics();
 

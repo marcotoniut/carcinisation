@@ -53,6 +53,7 @@ pub struct LinearTweenDirection<D: Send + Sync + 'static, P> {
 }
 
 impl<D: Send + Sync + 'static, P> LinearTweenDirection<D, P> {
+    #[must_use]
     pub fn from_delta(value: f32) -> Self {
         Self::new(if value > 0.0 {
             TweenDirection::Positive
@@ -138,6 +139,7 @@ pub struct LinearTweenBundle<D: Send + Sync + 'static, P: Constructor<f32> + Com
 impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
     LinearTweenBundle<D, P>
 {
+    #[must_use]
     pub fn new(current_value: f32, target_value: f32, speed: f32) -> Self {
         Self {
             direction: LinearTweenDirection::<D, P>::from_delta(target_value - current_value),
@@ -163,6 +165,7 @@ pub struct LinearTweenAcceleratedBundle<
 impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
     LinearTweenAcceleratedBundle<D, P>
 {
+    #[must_use]
     pub fn new(current_value: f32, target_value: f32, speed: f32, acceleration: f32) -> Self {
         Self {
             direction: LinearTweenDirection::<D, P>::from_delta(target_value - current_value),
@@ -189,6 +192,7 @@ pub struct TweenChildBundle<D: Send + Sync + 'static, P: Constructor<f32> + Comp
 }
 
 impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude> TweenChildBundle<D, P> {
+    #[must_use]
     pub fn new(parent: Entity, current_value: f32, target_value: f32, speed: f32) -> Self {
         Self {
             child_of: ChildOf(parent),
@@ -212,6 +216,7 @@ pub struct TweenChildAcceleratedBundle<
 impl<D: Send + Sync + 'static, P: Constructor<f32> + Component + Magnitude>
     TweenChildAcceleratedBundle<D, P>
 {
+    #[must_use]
     pub fn new(
         parent: Entity,
         current_value: f32,

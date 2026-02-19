@@ -8,7 +8,10 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
-use cween::{linear::components::*, structs::TweenDirection};
+use cween::{
+    linear::components::{LinearValueReached, TargetingValueX, TargetingValueY, TargetingValueZ},
+    structs::TweenDirection,
+};
 use seldom_pixel::prelude::PxSubPosition;
 
 /// @system Recalculates entity depth from the Z tween value and emits `DepthChangedMessage`.
@@ -50,7 +53,7 @@ pub fn circle_around(
     time: Res<Time<StageTimeDomain>>,
     mut query: Query<(&CircleAround, &mut PxSubPosition)>,
 ) {
-    for (circle_around, mut position) in query.iter_mut() {
+    for (circle_around, mut position) in &mut query {
         let elapsed_seconds = time.elapsed().as_secs_f32();
         let angle = match circle_around.direction {
             TweenDirection::Positive => elapsed_seconds + circle_around.time_offset,
@@ -63,7 +66,7 @@ pub fn circle_around(
 }
 
 /// @system Detects when enemy X-axis tween children reach their target.
-/// Updates the parent enemy's LinearTween.reached_x flag.
+/// Updates the parent enemy's `LinearTween.reached_x` flag.
 pub fn check_linear_tween_x_finished(
     mut parent_query: Query<&mut LinearTween, With<EnemyCurrentBehavior>>,
     child_query: Query<
@@ -82,7 +85,7 @@ pub fn check_linear_tween_x_finished(
 }
 
 /// @system Detects when enemy Y-axis tween children reach their target.
-/// Updates the parent enemy's LinearTween.reached_y flag.
+/// Updates the parent enemy's `LinearTween.reached_y` flag.
 pub fn check_linear_tween_y_finished(
     mut parent_query: Query<&mut LinearTween, With<EnemyCurrentBehavior>>,
     child_query: Query<
@@ -104,9 +107,9 @@ pub fn check_linear_tween_y_finished(
 // TODO this should not be tied to the stage tween
 pub fn check_linear_tween_finished(
     mut commands: Commands,
-    mut query: Query<(Entity, &LinearTween), (With<EnemyCurrentBehavior>,)>,
+    query: Query<(Entity, &LinearTween), (With<EnemyCurrentBehavior>,)>,
 ) {
-    for (entity, linear_movement) in query.iter_mut() {
+    for (entity, linear_movement) in query {
         if linear_movement.reached_x && linear_movement.reached_y {
             commands
                 .entity(entity)

@@ -1,7 +1,7 @@
 pub mod components;
 mod systems;
 
-use self::systems::*;
+use self::systems::{check_reached, check_x_reached, check_y_reached, on_position_added, update};
 use super::structs::MovementVec2Position;
 use bevy::{ecs::component::Mutable, prelude::*};
 use std::marker::PhantomData;

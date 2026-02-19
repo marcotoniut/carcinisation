@@ -5,7 +5,7 @@ use crate::{
     globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
     stage::components::{
         interactive::{ColliderData, ColliderShape},
-        placement::*,
+        placement::{Depth, Floor},
     },
     systems::camera::CameraPos,
 };
@@ -67,7 +67,7 @@ pub fn draw_colliders(
 
     for (data, position) in query.iter() {
         let absolute_position = position.0 - camera_pos.0;
-        for data in data.0.iter() {
+        for data in &data.0 {
             match data.shape {
                 ColliderShape::Circle(radius) => {
                     gizmos.circle_2d(

@@ -30,6 +30,7 @@ pub struct EnemyAttackOriginPosition(pub Vec2);
 pub struct EnemyAttackOriginDepth(pub Depth);
 
 impl EnemyHoveringAttackType {
+    #[must_use]
     pub fn get_name(&self) -> String {
         match self {
             EnemyHoveringAttackType::BloodShot => "Blood Shot".to_string(),
@@ -37,6 +38,7 @@ impl EnemyHoveringAttackType {
         }
     }
 
+    #[must_use]
     pub fn get_animations(&self) -> &'static HoveringAttackAnimations {
         match self {
             EnemyHoveringAttackType::BloodShot => &BLOOD_ATTACK_ANIMATIONS,

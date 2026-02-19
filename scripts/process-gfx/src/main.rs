@@ -5,14 +5,19 @@ extern crate image;
 mod paths;
 mod quantize;
 
-use image::*;
-use paths::*;
-use serde_derive::*;
+use image::{ImageBuffer, Rgba, imageops};
+use paths::{ASSETS_PATH, BASE_PALETTE_SUBPATH, RESOURCES_GFX_PATH};
+use serde_derive::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
 use crate::quantize::reduce_colors;
 
 /// Rescales an RGBA image to a target width while preserving aspect ratio.
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 fn rescale_image(
     target_width: u32,
     img: &ImageBuffer<Rgba<u8>, Vec<u8>>,
@@ -83,12 +88,12 @@ fn main() {
         println!();
 
         let _ = match image::open(format!("{}{}", RESOURCES_GFX_PATH, image.path))
-            .map(|img| img.into_rgba8())
+            .map(image::DynamicImage::into_rgba8)
             .map(|img| {
                 if let Some(width) = image.width {
                     rescale_image(width, &img)
                 } else {
-                    img.to_owned()
+                    img.clone()
                 }
             })
             .map(|img| reduce_colors(&palette_image, image.invert_colors, &img))

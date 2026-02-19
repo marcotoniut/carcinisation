@@ -28,24 +28,24 @@ pub const VIEWPORT_RESOLUTION_OFFSET: Vec2 = Vec2::new(EXTRA_X / 2., 0.);
 pub const HUD_HEIGHT: u32 = 14;
 pub const FONT_SIZE: u32 = 10;
 
-lazy_static! {
-    // TODO is there some way to assert IVec2 at static time?
-    pub static ref SCREEN_RESOLUTION_H: IVec2 = (SCREEN_RESOLUTION / 2).as_ivec2();
-}
+// TODO is there some way to assert IVec2 at static time?
+pub static SCREEN_RESOLUTION_H: std::sync::LazyLock<IVec2> =
+    std::sync::LazyLock::new(|| (SCREEN_RESOLUTION / 2).as_ivec2());
 
-lazy_static! {
-    pub static ref SCREEN_RESOLUTION_F32: Vec2 = SCREEN_RESOLUTION.as_vec2();
-    pub static ref SCREEN_RESOLUTION_F32_H: Vec2 = SCREEN_RESOLUTION.as_vec2() / 2.0;
-}
+pub static SCREEN_RESOLUTION_F32: std::sync::LazyLock<Vec2> =
+    std::sync::LazyLock::new(|| SCREEN_RESOLUTION.as_vec2());
+pub static SCREEN_RESOLUTION_F32_H: std::sync::LazyLock<Vec2> =
+    std::sync::LazyLock::new(|| SCREEN_RESOLUTION.as_vec2() / 2.0);
 
-lazy_static! {
-    pub static ref GAME_HUD_OFFSET: UVec2 = UVec2::new(0, HUD_HEIGHT);
-    pub static ref GAME_CAMERA_RESOLUTION: UVec2 =
-        (SCREEN_RESOLUTION.as_vec2() - GAME_HUD_OFFSET.as_vec2()).as_uvec2();
-    pub static ref GAME_CAMERA_RESOLUTION_H: Vec2 = GAME_CAMERA_RESOLUTION.as_vec2() / 2.0;
-    pub static ref GAME_CAMERA_CENTER: Vec2 =
-        GAME_CAMERA_RESOLUTION.as_vec2() / 2.0 + GAME_HUD_OFFSET.as_vec2();
-}
+pub static GAME_HUD_OFFSET: std::sync::LazyLock<UVec2> =
+    std::sync::LazyLock::new(|| UVec2::new(0, HUD_HEIGHT));
+pub static GAME_CAMERA_RESOLUTION: std::sync::LazyLock<UVec2> = std::sync::LazyLock::new(|| {
+    (SCREEN_RESOLUTION.as_vec2() - GAME_HUD_OFFSET.as_vec2()).as_uvec2()
+});
+pub static GAME_CAMERA_RESOLUTION_H: std::sync::LazyLock<Vec2> =
+    std::sync::LazyLock::new(|| GAME_CAMERA_RESOLUTION.as_vec2() / 2.0);
+pub static GAME_CAMERA_CENTER: std::sync::LazyLock<Vec2> =
+    std::sync::LazyLock::new(|| GAME_CAMERA_RESOLUTION.as_vec2() / 2.0 + GAME_HUD_OFFSET.as_vec2());
 
 pub const PATH_SPRITES_ENEMIES: &str = assert_assets_path!("sprites/enemies/");
 pub const PATH_SPRITES_ATTACKS: &str = assert_assets_path!("sprites/attacks/");
@@ -61,6 +61,7 @@ pub const DEFAULT_CROSSHAIR_INDEX: u8 = 1;
 
 pub const DEBUG_STAGESTEP: bool = false;
 
+#[must_use]
 pub fn is_inside_area(position: Vec2, bottom_left: Vec2, top_right: Vec2) -> bool {
     position.x >= bottom_left.x
         && position.x <= top_right.x

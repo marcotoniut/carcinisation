@@ -8,8 +8,14 @@ mod systems;
 use self::{
     resources::DifficultySelection,
     systems::{
-        interactions::*,
-        layout::*,
+        interactions::{
+            check_main_select_select_option_input, check_press_start_input,
+            game_difficulty_select_change, game_difficulty_select_option,
+        },
+        layout::{
+            enter_game_difficulty_screen, enter_press_start_screen, exit_game_difficulty_screen,
+            exit_press_start_screen, spawn_main_menu, update_difficulty_selection_indicator,
+        },
         setup::{
             cleanup_main_menu_music, on_main_menu_shutdown, on_main_menu_startup,
             spawn_main_menu_music,

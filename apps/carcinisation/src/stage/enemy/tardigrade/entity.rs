@@ -23,6 +23,7 @@ pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;
 pub struct EnemyTardigrade;
 
 impl EnemyTardigrade {
+    #[must_use]
     pub fn kill_score(&self) -> u32 {
         7
     }

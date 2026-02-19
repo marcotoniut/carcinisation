@@ -12,11 +12,10 @@ fn resolve_assets_root() -> PathBuf {
 
     ASSETS_ROOT
         .get_or_init(|| {
-            let mut dir = std::env::var("CARGO_MANIFEST_DIR")
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| {
-                    std::env::current_dir().expect("unable to determine current dir")
-                });
+            let mut dir = std::env::var("CARGO_MANIFEST_DIR").map_or_else(
+                |_| std::env::current_dir().expect("unable to determine current dir"),
+                PathBuf::from,
+            );
 
             loop {
                 let candidate = dir.join("assets");
@@ -24,13 +23,12 @@ fn resolve_assets_root() -> PathBuf {
                     return candidate;
                 }
 
-                if !dir.pop() {
-                    panic!(
-                        "Unable to locate an `assets` directory relative to `{}`",
-                        std::env::var("CARGO_MANIFEST_DIR")
-                            .unwrap_or_else(|_| dir.display().to_string())
-                    );
-                }
+                assert!(
+                    dir.pop(),
+                    "Unable to locate an `assets` directory relative to `{}`",
+                    std::env::var("CARGO_MANIFEST_DIR")
+                        .unwrap_or_else(|_| dir.display().to_string())
+                );
             }
         })
         .clone()
@@ -43,14 +41,18 @@ fn check_assets_path_exists(path: &str) -> bool {
 }
 
 // TODO should check for a file, and reject folders. Could add a different function for folders
+/// # Panics
+///
+/// Panics if the asset path does not exist.
 #[proc_macro]
 pub fn assert_assets_path(input: TokenStream) -> TokenStream {
     let path_lit = parse_macro_input!(input as LitStr);
     let path_str = path_lit.value();
 
-    if !check_assets_path_exists(&path_str) {
-        panic!("File does not exist: {path_str}");
-    }
+    assert!(
+        check_assets_path_exists(&path_str),
+        "File does not exist: {path_str}"
+    );
 
     let expanded = quote! {
         #path_str

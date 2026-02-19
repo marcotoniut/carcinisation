@@ -189,10 +189,9 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
             }
             entity
         }
-        EnemyType::Kyle => commands.spawn((name, Enemy, behaviors)).id(),
-        EnemyType::Marauder => commands.spawn((name, Enemy, behaviors)).id(),
-        EnemyType::Spidey => commands.spawn((name, Enemy, behaviors)).id(),
-        EnemyType::Spidomonsta => commands.spawn((name, Enemy, behaviors)).id(),
+        EnemyType::Kyle | EnemyType::Marauder | EnemyType::Spidey | EnemyType::Spidomonsta => {
+            commands.spawn((name, Enemy, behaviors)).id()
+        }
         EnemyType::Tardigrade => {
             let collider =
                 Collider::new_circle(ENEMY_TARDIGRADE_RADIUS).with_offset(Vec2::new(-3., 2.));

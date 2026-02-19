@@ -27,8 +27,8 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
 
 const TARDIGRADE_DEPTHS: &[Depth] = &[Depth::Six, Depth::Seven, Depth::Eight];
 
-lazy_static! {
-    pub static ref TARDIGRADE_ANIMATIONS: TardigradeAnimations = {
+pub static TARDIGRADE_ANIMATIONS: std::sync::LazyLock<TardigradeAnimations> =
+    std::sync::LazyLock::new(|| {
         let idle_frames = 2;
         let idle_speed = 500;
 
@@ -119,10 +119,9 @@ lazy_static! {
         }
 
         TardigradeAnimations {
-            death,
-            sucking,
-            idle,
             attack,
+            death,
+            idle,
+            sucking,
         }
-    };
-}
+    });

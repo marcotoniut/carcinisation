@@ -11,10 +11,13 @@ use crate::{
     debug::plugin::debug_print_startup,
     game::{
         GamePlugin,
-        components::steps::*,
-        data::*,
+        components::steps::{
+            CinematicAssetGameStep, CreditsGameStep, CutsceneGameStep, StageAssetGameStep,
+            StageGameStep, TransitionGameStep,
+        },
+        data::{GameStep, STARTING_LIVES},
         messages::{GameOverEvent, GameStartupEvent},
-        resources::*,
+        resources::{CutsceneAssetHandle, GameData, GameProgress, Lives, StageAssetHandle},
     },
     progression::game::GAME_DATA,
     stage::{
@@ -105,6 +108,7 @@ pub fn progress(
 ) {
     if game_progress.is_added() || game_progress.is_changed() {
         if let Some(data) = game_data.steps.get(game_progress.index) {
+            #[allow(clippy::match_same_arms)]
             match data {
                 GameStep::Credits(CreditsGameStep {}) => {
                     // TODO

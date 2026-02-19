@@ -13,7 +13,11 @@ use self::{
     resources::CutsceneTimeDomain,
     systems::{
         interactions::check_press_start_input,
-        progress::*,
+        progress::{
+            check_cutscene_elapsed, process_cutscene_animations_spawn,
+            process_cutscene_images_spawn, process_cutscene_music_despawn,
+            process_cutscene_music_spawn, read_step_trigger,
+        },
         setup::{on_cutscene_shutdown, on_cutscene_startup},
     },
 };

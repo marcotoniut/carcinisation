@@ -4,7 +4,7 @@ pub mod messages;
 mod systems;
 
 use self::{
-    components::*,
+    components::{ClearedScreen, InfoText, UIBackground},
     input::{ClearScreenInput, init_input},
     messages::ClearScreenShutdownMessage,
     systems::check_press_continue_input,

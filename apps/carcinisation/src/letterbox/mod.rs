@@ -9,7 +9,11 @@ use crate::core::time::tick_time;
 use activable::{Activable, ActivableAppExt, activate_system};
 use cween::linear::{LinearTweenPlugin, components::TargetingValueY};
 
-use self::{messages::LetterboxMoveEvent, resources::LetterboxTimeDomain, systems::*};
+use self::{
+    messages::LetterboxMoveEvent,
+    resources::LetterboxTimeDomain,
+    systems::{on_letterbox_shutdown, on_letterbox_startup, on_move},
+};
 use bevy::{prelude::*, time::Fixed};
 
 /// Manages letterbox entities, movement triggers, and timing.

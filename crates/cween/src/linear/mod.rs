@@ -1,7 +1,11 @@
 pub mod components;
 mod systems;
 
-use self::systems::*;
+use self::systems::{
+    aggregate_tween_children_to_parent, check_2d_x_reached, check_2d_y_reached,
+    check_value_reached, on_reached_cleanup, on_value_added, propagate_child_reached_to_parent,
+    update,
+};
 use super::structs::Magnitude;
 use bevy::{ecs::component::Mutable, prelude::*};
 use std::marker::PhantomData;
@@ -66,6 +70,7 @@ where
     }
 }
 
+#[allow(clippy::struct_field_names)]
 pub struct LinearTween2DPlugin<
     D: Default + Send + Sync + 'static,
     X: Magnitude + 'static + Component<Mutability = Mutable>,

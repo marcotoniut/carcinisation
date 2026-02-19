@@ -5,7 +5,10 @@ mod systems;
 
 use bevy::prelude::*;
 
-use self::{components::*, systems::*};
+use self::{
+    components::{HighScores, Score},
+    systems::{debug_high_scores_updated, on_game_over_update_high_scores},
+};
 
 /// Maintains run score and high-score tables.
 pub struct ScorePlugin;

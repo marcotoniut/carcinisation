@@ -18,10 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::{DurationSecondsWithFrac, serde_as};
 use std::{collections::VecDeque, time::Duration};
 
-lazy_static! {
-    /// Convenience spawn position centred on the gameplay viewport.
-    pub static ref DEFAULT_COORDINATES: Vec2 = *SCREEN_RESOLUTION_F32_H;
-}
+/// Convenience spawn position centred on the gameplay viewport.
+pub static DEFAULT_COORDINATES: std::sync::LazyLock<Vec2> =
+    std::sync::LazyLock::new(|| *SCREEN_RESOLUTION_F32_H);
 
 pub const GAME_BASE_SPEED: f32 = 15.0;
 
@@ -50,6 +49,7 @@ pub enum ObjectType {
 
 impl ObjectType {
     /// Returns the sprite base name for this object type
+    #[must_use]
     pub fn sprite_base_name(&self) -> &'static str {
         match self {
             ObjectType::BenchBig => "bench_big",
@@ -73,6 +73,7 @@ pub enum PickupType {
 
 impl PickupType {
     /// Returns the sprite base name for this pickup type
+    #[must_use]
     pub fn sprite_base_name(&self) -> &'static str {
         match self {
             PickupType::SmallHealthpack => "health_4",
@@ -103,21 +104,26 @@ pub struct PickupSpawn {
 
 impl PickupSpawn {
     /// Builds a Bevy name for debugging.
+    #[must_use]
     pub fn get_name(&self) -> Name {
         Name::new(self.show_type())
     }
     /// Display string describing the pickup type.
+    #[must_use]
     pub fn show_type(&self) -> String {
         format!("Pickup<{:?}>", self.pickup_type)
     }
+    #[must_use]
     pub fn with_elapsed_f32(mut self, value: f32) -> Self {
         self.elapsed = Duration::from_secs_f32(value);
         self
     }
+    #[must_use]
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
+    #[must_use]
     pub fn big_healthpack_base() -> Self {
         Self {
             pickup_type: PickupType::BigHealthpack,
@@ -126,6 +132,7 @@ impl PickupSpawn {
             depth: Depth::Six,
         }
     }
+    #[must_use]
     pub fn small_healthpack_base() -> Self {
         Self {
             pickup_type: PickupType::SmallHealthpack,
@@ -145,6 +152,7 @@ pub struct PickupDropSpawn {
 
 impl PickupDropSpawn {
     /// Creates a concrete spawn from this template at the provided location/depth.
+    #[must_use]
     pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> PickupSpawn {
         PickupSpawn {
             pickup_type: self.pickup_type,
@@ -165,19 +173,23 @@ pub struct ObjectSpawn {
 
 impl ObjectSpawn {
     /// Builds a Bevy name for debugging.
+    #[must_use]
     pub fn get_name(&self) -> Name {
         Name::new(self.show_type())
     }
     /// Display string describing the object type.
+    #[must_use]
     pub fn show_type(&self) -> String {
         format!("Object<{:?}>", self.object_type)
     }
 
+    #[must_use]
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
 
+    #[must_use]
     pub fn bench_big_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::BenchBig,
@@ -187,6 +199,7 @@ impl ObjectSpawn {
         }
     }
 
+    #[must_use]
     pub fn bench_small_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::BenchSmall,
@@ -196,6 +209,7 @@ impl ObjectSpawn {
         }
     }
 
+    #[must_use]
     pub fn fibertree_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::Fibertree,
@@ -204,6 +218,7 @@ impl ObjectSpawn {
         }
     }
 
+    #[must_use]
     pub fn rugpark_sign_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::RugparkSign,
@@ -242,6 +257,7 @@ pub struct EnemyDropSpawn {
 }
 
 impl EnemyDropSpawn {
+    #[must_use]
     pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> EnemySpawn {
         EnemySpawn {
             enemy_type: self.enemy_type,
@@ -256,54 +272,66 @@ impl EnemyDropSpawn {
 }
 
 impl EnemySpawn {
+    #[must_use]
     pub fn with_elapsed_f32(mut self, value: f32) -> Self {
         self.elapsed = Duration::from_secs_f32(value);
         self
     }
+    #[must_use]
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
+    #[must_use]
     pub fn with_x(mut self, value: f32) -> Self {
         self.coordinates.x = value;
         self
     }
+    #[must_use]
     pub fn with_y(mut self, value: f32) -> Self {
         self.coordinates.y = value;
         self
     }
+    #[must_use]
     pub fn with_speed(mut self, value: f32) -> Self {
         self.speed = value;
         self
     }
+    #[must_use]
     pub fn with_steps(mut self, value: VecDeque<EnemyStep>) -> Self {
         self.steps = value;
         self
     }
+    #[must_use]
     pub fn with_steps_vec(mut self, value: Vec<EnemyStep>) -> Self {
         self.steps = value.into();
         self
     }
+    #[must_use]
     pub fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
         self
     }
     /** TODO should I implement these as a trait Contains */
+    #[must_use]
     pub fn with_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
         self.contains = value;
         self
     }
+    #[must_use]
     pub fn drops(mut self, value: ContainerSpawn) -> Self {
         self.contains = Some(Box::new(value));
         self
     }
 
+    #[must_use]
     pub fn add_step(mut self, value: EnemyStep) -> Self {
         self.steps.extend(vec![value]);
         self
     }
 
     // Enemies
+    #[must_use]
     pub fn tardigrade_base() -> Self {
         Self {
             enemy_type: EnemyType::Tardigrade,
@@ -315,6 +343,7 @@ impl EnemySpawn {
             contains: None,
         }
     }
+    #[must_use]
     pub fn mosquito_base() -> Self {
         Self {
             enemy_type: EnemyType::Mosquito,
@@ -326,11 +355,13 @@ impl EnemySpawn {
             contains: None,
         }
     }
+    #[must_use]
     pub fn mosquito_variant_circle() -> Self {
         Self::mosquito_base().with_steps_vec(vec![
             EnemyStep::circle_around_base().with_radius(12.).into(),
         ])
     }
+    #[must_use]
     pub fn mosquito_variant_approacher() -> Self {
         Self::mosquito_base()
             .with_depth(Depth::Eight)
@@ -349,6 +380,7 @@ impl EnemySpawn {
                 EnemyStep::idle_base().into(),
             ])
     }
+    #[must_use]
     pub fn mosquito_variant_linear() -> Self {
         Self::mosquito_base()
             .with_x(SCREEN_RESOLUTION.x as f32 + 10.)
@@ -359,6 +391,7 @@ impl EnemySpawn {
                     .into(),
             ])
     }
+    #[must_use]
     pub fn mosquito_variant_linear_opposite() -> Self {
         Self::mosquito_base().with_x(-10.).with_steps_vec(vec![
             EnemyStep::linear_movement_base()
@@ -367,6 +400,7 @@ impl EnemySpawn {
             EnemyStep::linear_movement_base().into(),
         ])
     }
+    #[must_use]
     pub fn spidey_base(speed_multiplier: f32, coordinates: Vec2) -> Self {
         Self {
             enemy_type: EnemyType::Spidey,
@@ -389,6 +423,7 @@ pub enum StageSpawn {
 }
 
 impl StageSpawn {
+    #[must_use]
     pub fn get_coordinates(&self) -> &Vec2 {
         match self {
             StageSpawn::Destructible(s) => &s.coordinates,
@@ -398,16 +433,18 @@ impl StageSpawn {
         }
     }
 
+    #[must_use]
     pub fn get_elapsed(&self) -> Duration {
         match self {
-            StageSpawn::Destructible(_) => Duration::ZERO,
+            StageSpawn::Destructible(_) | StageSpawn::Object(_) => Duration::ZERO,
             StageSpawn::Enemy(s) => s.elapsed.div_f32(GAME_BASE_SPEED),
-            StageSpawn::Object(_) => Duration::ZERO,
             StageSpawn::Pickup(s) => s.elapsed.div_f32(GAME_BASE_SPEED),
         }
     }
 
+    #[must_use]
     pub fn get_depth(&self) -> Depth {
+        #[allow(clippy::match_same_arms)]
         match self {
             StageSpawn::Destructible(DestructibleSpawn { depth, .. }) => *depth,
             StageSpawn::Enemy(EnemySpawn { depth, .. }) => *depth,
@@ -416,6 +453,7 @@ impl StageSpawn {
         }
     }
 
+    #[must_use]
     pub fn show_type(&self) -> String {
         match self {
             StageSpawn::Destructible(s) => s.show_type(),

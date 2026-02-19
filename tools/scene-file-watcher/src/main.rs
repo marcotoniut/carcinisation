@@ -1,5 +1,5 @@
 use carcinisation::cutscene::data::CutsceneData;
-use colored::*;
+use colored::Colorize;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ron::de::from_str;
 use std::collections::HashMap;
@@ -13,9 +13,10 @@ use std::time::{Duration, Instant};
 const DEBOUNCE_DURATION: Duration = Duration::from_secs(1);
 
 fn find_assets_root() -> PathBuf {
-    let mut dir = env::var("CARGO_MANIFEST_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| env::current_dir().expect("unable to determine current dir"));
+    let mut dir = env::var("CARGO_MANIFEST_DIR").map_or_else(
+        |_| env::current_dir().expect("unable to determine current dir"),
+        PathBuf::from,
+    );
 
     loop {
         let candidate = dir.join("assets");
@@ -23,12 +24,11 @@ fn find_assets_root() -> PathBuf {
             return candidate;
         }
 
-        if !dir.pop() {
-            panic!(
-                "Unable to locate an `assets` directory relative to `{}`",
-                env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| dir.display().to_string())
-            );
-        }
+        assert!(
+            dir.pop(),
+            "Unable to locate an `assets` directory relative to `{}`",
+            env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| dir.display().to_string())
+        );
     }
 }
 
@@ -48,7 +48,7 @@ fn main() -> notify::Result<()> {
     let path_to_watch: &Path = assets_root.as_ref();
     watcher.watch(path_to_watch, RecursiveMode::Recursive)?;
 
-    println!("Watching {path_to_watch:?} for changes...");
+    println!("Watching {} for changes...", path_to_watch.display());
 
     let last_processed: Arc<Mutex<HashMap<PathBuf, Instant>>> =
         Arc::new(Mutex::new(HashMap::new()));
@@ -56,8 +56,7 @@ fn main() -> notify::Result<()> {
     loop {
         match rx.recv() {
             Ok(event) => {
-                let last_processed = Arc::clone(&last_processed);
-                handle_result(event, last_processed)
+                handle_result(event, &last_processed);
             }
             Err(e) => println!("{} {:?}", "Watch error:".red(), e),
         }
@@ -67,7 +66,7 @@ fn main() -> notify::Result<()> {
 // Function to handle the result of the event
 fn handle_result(
     event: Result<Event, notify::Error>,
-    last_processed: Arc<Mutex<HashMap<PathBuf, Instant>>>,
+    last_processed: &Arc<Mutex<HashMap<PathBuf, Instant>>>,
 ) {
     match event {
         Ok(event) => handle_event(event, last_processed),
@@ -76,7 +75,7 @@ fn handle_result(
 }
 
 // Function to handle changes in RON files
-fn handle_event(event: Event, last_processed: Arc<Mutex<HashMap<PathBuf, Instant>>>) {
+fn handle_event(event: Event, last_processed: &Arc<Mutex<HashMap<PathBuf, Instant>>>) {
     let mut last_processed = last_processed.lock().unwrap();
 
     for path in event.paths {
@@ -101,7 +100,7 @@ fn handle_event(event: Event, last_processed: Arc<Mutex<HashMap<PathBuf, Instant
                     }
                 },
                 Err(err) => {
-                    println!("{} to read file: {:?}", "FAILED".red().bold(), err)
+                    println!("{} to read file: {:?}", "FAILED".red().bold(), err);
                 }
             }
         }

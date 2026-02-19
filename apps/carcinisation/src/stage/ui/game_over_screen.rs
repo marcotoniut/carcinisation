@@ -4,7 +4,7 @@ pub mod messages;
 mod systems;
 
 use self::{
-    components::*,
+    components::{FinalScoreText, GameOverScreen, InfoText, UIBackground},
     input::{GameOverScreenInput, init_input},
     messages::GameOverScreenShutdownMessage,
     systems::{check_press_continue_input, handle_game_over_screen_continue},

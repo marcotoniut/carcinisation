@@ -1,4 +1,7 @@
-use super::super::components::*;
+use super::super::components::{
+    DifficultySelectScreenEntity, DifficultySelectionIndicator, MainMenu, MainMenuEntity,
+    PressStartScreenEntity,
+};
 use crate::{
     components::GBColor,
     game::resources::Difficulty,

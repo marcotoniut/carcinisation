@@ -6,7 +6,10 @@ use crate::{
     components::{Cleared, CutsceneElapsedStarted, Music, Tag},
     cutscene::{
         components::{Cinematic, CutsceneEntity, CutsceneGraphic},
-        data::*,
+        data::{
+            CutsceneAnimationsSpawn, CutsceneData, CutsceneElapse, CutsceneImagesSpawn,
+            CutsceneLayer, CutsceneMusicDespawn, CutsceneMusicSpawn,
+        },
         messages::CutsceneShutdownEvent,
         resources::{CutsceneProgress, CutsceneTimeDomain},
     },
@@ -125,7 +128,7 @@ pub fn process_cutscene_animations_spawn(
             }
         }
 
-        for spawn in spawns.spawns.iter() {
+        for spawn in &spawns.spawns {
             let sprite = assets_sprite.load_animated(spawn.image_path.clone(), spawn.frame_count);
 
             let mut entity_commands = commands.spawn((
@@ -181,7 +184,7 @@ pub fn process_cutscene_images_spawn(
             }
         }
 
-        for spawn in spawns.spawns.iter() {
+        for spawn in &spawns.spawns {
             let sprite = assets_sprite.load(spawn.image_path.clone());
 
             let mut entity_commands = commands.spawn((

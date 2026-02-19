@@ -8,12 +8,12 @@ use seldom_pixel::prelude::PxSubPosition;
 
 /// @system Caps the frame limiter to the target Game Boy refresh rate.
 pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {
-    settings.limiter = Limiter::from_framerate(59.727500569606);
+    settings.limiter = Limiter::from_framerate(59.727_500_569_606);
 }
 
 /// @system Aligns the fixed timestep with the target framerate.
 pub fn set_fixed_timestep(mut fixed_time: ResMut<Time<Fixed>>) {
-    fixed_time.set_timestep_hz(59.727500569606);
+    fixed_time.set_timestep_hz(59.727_500_569_606);
 }
 
 /// @system Spawns the 2D camera and a `CameraPos` tracking entity.

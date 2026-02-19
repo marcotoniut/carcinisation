@@ -10,11 +10,12 @@ mod systems;
 use self::{
     attacks::{AttackDefinitions, AttackInputState, AttackLoadout},
     crosshair::{Crosshair, CrosshairSettings},
-    messages::*,
+    messages::{CameraShakeEvent, PlayerShutdownEvent, PlayerStartupEvent},
     systems::{
         camera::{camera_shake, on_camera_shake},
-        messages::*,
-        *,
+        confine_player_movement, despawn_expired_attacks, detect_player_attack,
+        messages::{on_player_shutdown, on_player_startup},
+        player_movement, tick_attack_lifetimes,
     },
 };
 use crate::pixel::{PxAsset, PxAssets, PxSpriteData};
@@ -70,12 +71,14 @@ pub struct CrosshairInfo {
 impl CrosshairInfo {
     /** REVIEW if these are needed */
     /// Returns the underlying sprite handle (consumes the wrapper).
+    #[must_use]
     pub fn get_sprite(crosshair: CrosshairInfo) -> Handle<PxAsset<PxSpriteData>> {
         crosshair.sprite
     }
 
     /** REVIEW if these are needed */
     /// Returns the crosshair metadata (consumes the wrapper).
+    #[must_use]
     pub fn get_crosshair(crosshair: CrosshairInfo) -> Crosshair {
         crosshair.crosshair
     }
@@ -103,14 +106,6 @@ impl CrosshairInfo {
                 ));
                 crosshair = Crosshair {
                     name: "negative".to_string(),
-                };
-            }
-            0 => {
-                sprite = asset_server.load(assert_assets_path!(
-                    "sprites/crosshairs/gun_sight_inverted.px_sprite.png"
-                ));
-                crosshair = Crosshair {
-                    name: "default".to_string(),
                 };
             }
             _ => {

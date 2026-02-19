@@ -33,16 +33,18 @@ pub enum ActiveState<P: Activable> {
 
 impl<P: Activable> ActiveState<P> {
     #[inline]
+    #[must_use]
     pub fn inactive() -> Self {
         Self::Inactive(PhantomData)
     }
     #[inline]
+    #[must_use]
     pub fn active() -> Self {
         Self::Active(PhantomData)
     }
 
     #[inline]
-    fn is_active(&self) -> bool {
+    fn is_active(self) -> bool {
         matches!(self, Self::Active(_))
     }
 }
@@ -66,7 +68,7 @@ impl<P: Activable> PartialEq for ActiveState<P> {
 impl<P: Activable> Eq for ActiveState<P> {}
 impl<P: Activable> Hash for ActiveState<P> {
     fn hash<H: Hasher>(&self, h: &mut H) {
-        self.is_active().hash(h)
+        self.is_active().hash(h);
     }
 }
 impl<P: Activable> fmt::Debug for ActiveState<P> {

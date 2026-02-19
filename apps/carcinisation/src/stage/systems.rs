@@ -9,14 +9,14 @@ pub mod spawn;
 use super::{
     StageProgressState,
     attack::components::EnemyAttack,
-    bundles::*,
+    bundles::{BackgroundBundle, SkyboxBundle},
     components::{
         CinematicStageStep, CurrentStageStep, Stage, StageElapsedStarted, StageEntity,
         StopStageStep, TweenStageStep,
         interactive::{Dead, Object},
         placement::spawn_floor_depths,
     },
-    data::*,
+    data::{GAME_BASE_SPEED, StageData, StageStep},
     destructible::components::Destructible,
     enemy::components::Enemy,
     messages::{NextStepEvent, StageClearedEvent, StageDeathEvent},
@@ -501,8 +501,7 @@ pub fn check_stop_step_finished_by_duration(
     for (step, current_step) in query.iter() {
         if step
             .max_duration
-            .map(|max_duration| current_step.started + max_duration <= stage_time.elapsed())
-            .unwrap_or(false)
+            .is_some_and(|max_duration| current_step.started + max_duration <= stage_time.elapsed())
         {
             commands.trigger(NextStepEvent);
         }
@@ -572,9 +571,9 @@ pub fn debug_visibility_hierarchy(
                 info!(
                     "B0004 candidate: child {:?} ({:?}), parent {:?} ({:?})",
                     entity,
-                    child_name.map(|n| n.as_str()),
+                    child_name.map(bevy::prelude::Name::as_str),
                     parent.0,
-                    parent_name.map(|n| n.as_str())
+                    parent_name.map(bevy::prelude::Name::as_str)
                 );
             }
         }
