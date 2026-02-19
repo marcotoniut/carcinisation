@@ -1,11 +1,15 @@
 #![allow(clippy::type_complexity)]
 
-use super::components::*;
+use super::components::{
+    PursueSpeed, PursueTargetPosition, PursueTargetReached, PursueTargetXReached,
+    PursueTargetYReached,
+};
 use crate::structs::MovementVec2Position;
 use bevy::{ecs::component::Mutable, prelude::*};
 
 /// @system Moves entities toward their pursue target each frame.
 // TODO generalise current position via a generic LinearPosition trait
+#[allow(clippy::needless_pass_by_value)]
 pub fn update<D, P>(
     mut movement_query: Query<
         (&mut P, &PursueSpeed<D, P>, &PursueTargetPosition<D, P>),
@@ -16,7 +20,7 @@ pub fn update<D, P>(
     D: Default + Send + Sync + 'static,
     P: MovementVec2Position + Component<Mutability = Mutable>,
 {
-    for (mut position, speed, target) in movement_query.iter_mut() {
+    for (mut position, speed, target) in &mut movement_query {
         let direction = target.value - position.get();
         let direction = direction.normalize_or_zero();
         let direction = direction * speed.value * delta_time.delta().as_secs_f32();
@@ -46,7 +50,7 @@ pub fn on_position_added<D, P>(
 /// @system Marks X-axis as reached when the position passes the target.
 pub fn check_x_reached<D, P>(
     mut commands: Commands,
-    mut movement_query: Query<
+    movement_query: Query<
         (Entity, &P, &PursueSpeed<D, P>, &PursueTargetPosition<D, P>),
         Without<PursueTargetXReached<D, P>>,
     >,
@@ -54,7 +58,7 @@ pub fn check_x_reached<D, P>(
     D: Default + Send + Sync + 'static,
     P: MovementVec2Position + Component,
 {
-    for (entity, position, speed, target) in movement_query.iter_mut() {
+    for (entity, position, speed, target) in movement_query {
         let vec = position.get();
         if (speed.value.x < 0. && vec.x <= target.value.x)
             || (speed.value.x > 0. && vec.x >= target.value.x)
@@ -69,7 +73,7 @@ pub fn check_x_reached<D, P>(
 /// @system Marks Y-axis as reached when the position passes the target.
 pub fn check_y_reached<D, P>(
     mut commands: Commands,
-    mut movement_query: Query<
+    movement_query: Query<
         (Entity, &P, &PursueSpeed<D, P>, &PursueTargetPosition<D, P>),
         Without<PursueTargetYReached<D, P>>,
     >,
@@ -77,7 +81,7 @@ pub fn check_y_reached<D, P>(
     D: Default + Send + Sync + 'static,
     P: MovementVec2Position + Component,
 {
-    for (entity, position, speed, target) in movement_query.iter_mut() {
+    for (entity, position, speed, target) in movement_query {
         let vec = position.get();
         if (speed.value.y < 0. && vec.y <= target.value.y)
             || (speed.value.y > 0. && vec.y >= target.value.y)

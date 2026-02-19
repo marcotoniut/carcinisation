@@ -29,7 +29,7 @@ fn into_asset_path(path: impl Into<String>) -> AssetPath<'static> {
     AssetPath::from(path.into())
 }
 
-impl<'w, 's> PxAssets<'w, 's, PxSprite> {
+impl PxAssets<'_, '_, PxSprite> {
     pub fn load(&self, path: impl Into<String>) -> Handle<PxAsset<PxSpriteData>> {
         self.asset_server.load(into_asset_path(path))
     }
@@ -45,7 +45,7 @@ impl<'w, 's> PxAssets<'w, 's, PxSprite> {
     }
 }
 
-impl<'w, 's> PxAssets<'w, 's, PxFilter> {
+impl PxAssets<'_, '_, PxFilter> {
     pub fn load(&self, path: impl Into<String>) -> Handle<PxAsset<PxFilterData>> {
         self.asset_server.load(into_asset_path(path))
     }
@@ -55,7 +55,7 @@ impl<'w, 's> PxAssets<'w, 's, PxFilter> {
     }
 }
 
-impl<'w, 's> PxAssets<'w, 's, PxTypeface> {
+impl PxAssets<'_, '_, PxTypeface> {
     pub fn load(
         &self,
         path: impl Into<String>,
@@ -80,7 +80,11 @@ pub(crate) fn ensure_sprite_meta(path: &str, frames: usize) {
     write_meta_file(&meta_path, &contents);
 }
 
-pub(crate) fn ensure_typeface_meta(path: &str, characters: &str, separators: &HashMap<char, u32>) {
+pub(crate) fn ensure_typeface_meta<S: std::hash::BuildHasher>(
+    path: &str,
+    characters: &str,
+    separators: &HashMap<char, u32, S>,
+) {
     let meta_path = asset_meta_path(path);
     let contents = typeface_meta_contents(characters, separators);
     write_meta_file(&meta_path, &contents);
@@ -146,7 +150,10 @@ fn sprite_meta_contents(frames: usize) -> String {
     )
 }
 
-fn typeface_meta_contents(characters: &str, separators: &HashMap<char, u32>) -> String {
+fn typeface_meta_contents<S: std::hash::BuildHasher>(
+    characters: &str,
+    separators: &HashMap<char, u32, S>,
+) -> String {
     let separator_entries = if separators.is_empty() {
         String::from("{}")
     } else {
@@ -194,5 +201,5 @@ fn escape_ron_char(ch: char) -> String {
 }
 
 fn escape_ron_string(value: &str) -> String {
-    value.chars().flat_map(|c| c.escape_default()).collect()
+    value.chars().flat_map(char::escape_default).collect()
 }

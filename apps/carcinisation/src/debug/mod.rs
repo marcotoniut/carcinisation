@@ -4,7 +4,10 @@ pub mod plugin;
 mod systems;
 pub mod types;
 
-use self::{systems::*, types::register_types};
+use self::{
+    systems::{draw_colliders, draw_floor_lines},
+    types::register_types,
+};
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 

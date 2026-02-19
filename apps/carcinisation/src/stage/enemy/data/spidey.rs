@@ -30,8 +30,8 @@ const SPIDEY_DEPTHS: &[Depth] = &[
     Depth::Seven,
 ];
 
-lazy_static! {
-    pub static ref MOSQUITO_ANIMATIONS: SpideyAnimations = {
+pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<SpideyAnimations> =
+    std::sync::LazyLock::new(|| {
         let idle_frames = 1;
         let idle_speed = 500;
 
@@ -78,5 +78,4 @@ lazy_static! {
         }
 
         SpideyAnimations { death, idle }
-    };
-}
+    });

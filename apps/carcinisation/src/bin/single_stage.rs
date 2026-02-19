@@ -102,6 +102,7 @@ fn load_stage(path: &PathBuf) -> Result<Arc<StageData>> {
     Ok(Arc::new(parsed))
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn log_stage_choice(loaded: Res<LoadedSingleStage>) {
     info!(
         "Launching single-stage run with {}",
@@ -109,6 +110,7 @@ fn log_stage_choice(loaded: Res<LoadedSingleStage>) {
     );
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn install_single_stage_data(mut commands: Commands, loaded: Res<LoadedSingleStage>) {
     commands.insert_resource(GameData {
         name: format!(
@@ -127,6 +129,7 @@ fn trigger_game_startup(mut commands: Commands) {
     commands.trigger(GameStartupEvent);
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn trigger_stage_startup(loaded: Res<LoadedSingleStage>, mut commands: Commands) {
     commands.trigger(StageStartupEvent {
         data: loaded.stage_data.clone(),

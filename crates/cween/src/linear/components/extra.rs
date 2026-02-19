@@ -15,6 +15,7 @@ pub struct LinearTween2DReachCheck<D: Send + Sync + 'static, X, Y> {
 }
 
 impl<D: Send + Sync + 'static, X, Y> LinearTween2DReachCheck<D, X, Y> {
+    #[must_use]
     pub fn reached(&self) -> bool {
         self.reached.0 && self.reached.1
     }

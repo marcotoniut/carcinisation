@@ -1,6 +1,9 @@
 //! Shared constants and enums describing game progression steps.
 
-use super::components::steps::*;
+use super::components::steps::{
+    CinematicAssetGameStep, CreditsGameStep, CutsceneGameStep, StageAssetGameStep, StageGameStep,
+    TransitionGameStep,
+};
 use derive_more::From;
 
 pub const STARTING_LIVES: u8 = 3;

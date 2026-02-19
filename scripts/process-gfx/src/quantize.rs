@@ -1,8 +1,8 @@
 //! Palette-aware colour quantisation helpers shared by the asset pipeline.
 
-use image::*;
+use image::{ImageBuffer, Rgba};
 use palette::color_difference::EuclideanDistance;
-use palette::*;
+use palette::{Srgb, Srgba, WithAlpha};
 
 /// Returns the index of the palette entry closest to `color` in RGB space.
 fn find_closest_color(palette: &[Srgb], color: Srgb) -> usize {
@@ -40,11 +40,11 @@ pub fn reduce_colors(
     let mut output_image: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
     for (x, y, input_color) in img.enumerate_pixels() {
-        let input_srgba_color: Srgba = Srgba::from(input_color.0).into_format();
-        if input_srgba_color.alpha != 0.0 {
-            let input_srgb_color = input_srgba_color.without_alpha();
+        let with_alpha: Srgba = Srgba::from(input_color.0).into_format();
+        if with_alpha.alpha != 0.0 {
+            let rgb = with_alpha.without_alpha();
 
-            let closest_color_index = find_closest_color(&palette, input_srgb_color);
+            let closest_color_index = find_closest_color(&palette, rgb);
             let adjusted_index = if invert {
                 palette.len() - 1 - closest_color_index
             } else {

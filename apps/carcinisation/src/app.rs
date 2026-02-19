@@ -2,7 +2,7 @@
 
 use bevy::window::{WindowCloseRequested, WindowResolution};
 use bevy::{asset::AssetPlugin, prelude::*};
-use bevy_framepace::*;
+use bevy_framepace::FramepacePlugin;
 #[cfg(debug_assertions)]
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 #[cfg(debug_assertions)]
@@ -207,8 +207,7 @@ impl Plugin for DebugInspectorOverlayPlugin {
 fn inspector_overlay_world_ui(world: &mut World) {
     let toggled_via_key = world
         .get_resource::<ButtonInput<KeyCode>>()
-        .map(|keys| keys.just_pressed(KeyCode::F12))
-        .unwrap_or(false);
+        .is_some_and(|keys| keys.just_pressed(KeyCode::F12));
 
     let mut open = {
         let mut state = world.resource_mut::<InspectorUiState>();

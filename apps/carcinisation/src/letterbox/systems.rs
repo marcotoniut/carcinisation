@@ -1,6 +1,6 @@
 //! Systems managing the lifecycle and movement of letterbox bars.
 
-use super::components::*;
+use super::components::{LetterboxBottom, LetterboxEntity, LetterboxTop};
 use super::messages::LetterboxMoveEvent;
 use super::resources::LetterboxTimeDomain;
 use crate::components::GBColor;

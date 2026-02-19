@@ -23,12 +23,12 @@ pub fn update_health_text(
     mut query: Query<&mut PxText, With<HealthText>>,
     player_query: Query<&Health, With<Player>>,
 ) {
-    for mut text in query.iter_mut() {
+    for mut text in &mut query {
         match player_query.single() {
             Ok(health) => {
                 text.value = health.0.to_string();
             }
             Err(_) => return,
-        };
+        }
     }
 }

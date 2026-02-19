@@ -14,7 +14,7 @@ pub fn camera_shake(
     mut query: Query<(Entity, &mut CameraShake, &mut PxSubPosition)>,
     time: Res<Time<StageTimeDomain>>,
 ) {
-    for (entity, mut shake, mut position) in query.iter_mut() {
+    for (entity, mut shake, mut position) in &mut query {
         if shake.shaking {
             if shake.timer.tick(time.delta()).just_finished() {
                 let random_x = (rand::random::<f32>() - 0.5) * 2.0 * shake.intensity;

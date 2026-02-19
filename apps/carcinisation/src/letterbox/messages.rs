@@ -15,31 +15,37 @@ pub struct LetterboxMoveEvent {
 
 impl LetterboxMoveEvent {
     /// Slides bars to the open position using default speed.
+    #[must_use]
     pub fn open() -> Self {
         Self::new(LETTERBOX_NORMAL_SPEED, LETTERBOX_HEIGHT as f32)
     }
 
     /// Slides bars to the closed position using default speed.
+    #[must_use]
     pub fn close() -> Self {
         Self::new(LETTERBOX_NORMAL_SPEED, 0.0)
     }
 
     /// Instantly shows the bars.
+    #[must_use]
     pub fn show() -> Self {
         Self::new(LETTERBOX_INSTANT_SPEED, LETTERBOX_HEIGHT as f32)
     }
 
     /// Instantly hides the bars.
+    #[must_use]
     pub fn hide() -> Self {
         Self::new(LETTERBOX_INSTANT_SPEED, 0.0)
     }
 
     /// Moves bars to a target using default speed.
+    #[must_use]
     pub fn move_to(target: f32) -> Self {
         Self::new(LETTERBOX_NORMAL_SPEED, target)
     }
 
     /// Moves bars to a target using the provided speed.
+    #[must_use]
     pub fn move_to_at(target: f32, speed: f32) -> Self {
         Self::new(speed, target)
     }

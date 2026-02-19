@@ -1,3 +1,10 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
+
 use bevy::asset::AssetId;
 use bevy::prelude::*;
 use bevy::reflect::{Reflect, ReflectRef};
@@ -108,6 +115,7 @@ impl SpritePixelData {
         })
     }
 
+    #[must_use]
     pub fn frame_size(&self) -> UVec2 {
         UVec2::new(self.width, self.height)
     }
@@ -119,6 +127,7 @@ impl SpritePixelData {
     }
 }
 
+#[must_use]
 pub fn sprite_data(
     cache: &mut PixelCollisionCache,
     assets: &Assets<PxSpriteAsset>,
@@ -137,6 +146,7 @@ pub fn sprite_data(
     }
 }
 
+#[must_use]
 pub fn sprite_rect(
     size: UVec2,
     position: PxPosition,
@@ -156,6 +166,7 @@ pub fn sprite_rect(
     }
 }
 
+#[must_use]
 pub fn pixel_overlap(
     attack_data: &SpritePixelData,
     attack_frame: Option<PxFrameView>,
@@ -197,6 +208,7 @@ pub fn pixel_overlap(
 }
 
 /// Returns true when the sprite's pixel mask covers the given screen-space point.
+#[must_use]
 pub fn mask_contains_point(
     sprite: &SpritePixelData,
     frame: Option<PxFrameView>,
@@ -300,9 +312,8 @@ fn shifted_row_word(row: &[u64], shift: i32, word_index: usize) -> u64 {
         let shift = shift as u32;
         let word_shift = (shift / 64) as usize;
         let bit_shift = shift % 64;
-        let src = match word_index.checked_sub(word_shift) {
-            Some(index) => index,
-            None => return 0,
+        let Some(src) = word_index.checked_sub(word_shift) else {
+            return 0;
         };
         let low = row.get(src).copied().unwrap_or(0);
         if bit_shift == 0 {
@@ -450,7 +461,7 @@ fn frame_index_for_pos(frame: Option<PxFrameView>, frame_count: usize, pos: UVec
     };
     let base = index.floor() as usize;
     let bit = 0b1000_0000_0000_0000u16 >> (pos.x % 4 + pos.y % 4 * 4);
-    let offset = (bit & dithering != 0) as usize;
+    let offset = usize::from(bit & dithering != 0);
 
     (base + offset) % frame_count
 }

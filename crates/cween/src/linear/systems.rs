@@ -7,9 +7,13 @@ use bevy::{
 
 use crate::structs::{Magnitude, TweenDirection};
 
-use super::components::{extra::LinearTween2DReachCheck, *};
+use super::components::{
+    LinearAcceleration, LinearSpeed, LinearTargetValue, LinearTweenDirection, LinearValueReached,
+    LinearValueRemovalBundle, TweenChild, extra::LinearTween2DReachCheck,
+};
 
 /// @system Integrates linear speed (and optional acceleration) into the value each frame.
+#[allow(clippy::needless_pass_by_value)]
 pub fn update<D, P>(
     mut query: Query<
         (
@@ -24,7 +28,7 @@ pub fn update<D, P>(
     D: Default + Send + Sync + 'static,
     P: Magnitude + Component<Mutability = Mutable>,
 {
-    for (mut value, mut speed, acceleration_o) in query.iter_mut() {
+    for (mut value, mut speed, acceleration_o) in &mut query {
         if let Some(acceleration) = acceleration_o {
             speed.add(acceleration.value * delta_time.delta().as_secs_f32());
         }
@@ -71,7 +75,7 @@ pub fn check_value_reached<D, P>(
     D: Default + Send + Sync + 'static,
     P: Magnitude + Component<Mutability = Mutable>,
 {
-    for (entity, mut value, direction, target) in query.iter_mut() {
+    for (entity, mut value, direction, target) in &mut query {
         let current_value = value.get();
         if (direction.value == TweenDirection::Negative && current_value <= target.value)
             || (direction.value == TweenDirection::Positive && current_value >= target.value)
@@ -179,6 +183,7 @@ pub fn check_2d_y_reached<D, X, Y>(
 /// @system Aggregates tween child velocities and integrates them into the parent's value.
 /// This system runs after tween children have updated their values and computes
 /// the net displacement from all children affecting a given axis.
+#[allow(clippy::needless_pass_by_value)]
 pub fn aggregate_tween_children_to_parent<D, P>(
     mut parent_query: Query<(Entity, &mut P), Without<TweenChild>>,
     children_query: Query<(&ChildOf, &LinearSpeed<D, P>), With<TweenChild>>,
@@ -198,7 +203,7 @@ pub fn aggregate_tween_children_to_parent<D, P>(
 
     // Apply accumulated velocity to each parent
     let dt = delta_time.delta().as_secs_f32();
-    for (parent_entity, mut parent_value) in parent_query.iter_mut() {
+    for (parent_entity, mut parent_value) in &mut parent_query {
         if let Some(&velocity) = parent_velocities.get(&parent_entity) {
             parent_value.add(velocity * dt);
         }

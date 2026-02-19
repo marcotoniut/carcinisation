@@ -9,7 +9,8 @@ pub enum TweenDirection {
 }
 
 impl TweenDirection {
-    pub fn opposite(&self) -> TweenDirection {
+    #[must_use]
+    pub fn opposite(self) -> TweenDirection {
         match self {
             TweenDirection::Negative => TweenDirection::Positive,
             TweenDirection::Positive => TweenDirection::Negative,

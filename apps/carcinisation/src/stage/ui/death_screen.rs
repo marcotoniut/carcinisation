@@ -4,7 +4,7 @@ pub mod messages;
 mod systems;
 
 use self::{
-    components::*,
+    components::{CurrentScoreText, DeathScreen, InfoText, UIBackground},
     input::{DeathScreenInput, init_input},
     messages::DeathScreenRestartMessage,
     systems::check_press_continue_input,

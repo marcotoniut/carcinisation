@@ -39,8 +39,8 @@ const BLOOD_SHOT_DEPTHS: [Depth; 8] = [
 ];
 const HIT_DEPTH: Depth = PLAYER_DEPTH;
 
-lazy_static! {
-    pub static ref BLOOD_ATTACK_ANIMATIONS: HoveringAttackAnimations = {
+pub static BLOOD_ATTACK_ANIMATIONS: std::sync::LazyLock<HoveringAttackAnimations> =
+    std::sync::LazyLock::new(|| {
         let hovering_frames = 4;
         let hovering_speed = 700;
 
@@ -49,7 +49,7 @@ lazy_static! {
 
         let mut hovering = HashMap::new();
 
-        for &i in BLOOD_SHOT_DEPTHS.iter() {
+        for &i in &BLOOD_SHOT_DEPTHS {
             hovering.insert(
                 i,
                 AnimationData {
@@ -96,5 +96,4 @@ lazy_static! {
         );
 
         HoveringAttackAnimations { hovering, hit }
-    };
-}
+    });

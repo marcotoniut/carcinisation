@@ -1,6 +1,6 @@
 //! Convenience helpers for consistent debug logging.
 
-use colored::*;
+use colored::Colorize;
 
 /// Logs a startup message for the given module (debug builds only).
 pub fn debug_print_startup(module: &str) {

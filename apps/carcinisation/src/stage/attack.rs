@@ -6,8 +6,11 @@ pub mod spawns;
 mod systems;
 
 use self::{
-    systems::player::*,
-    systems::{hovering::*, *},
+    systems::player::check_got_hit,
+    systems::{
+        check_health_at_0, despawn_dead_attacks, hovering::hovering_damage_on_reached,
+        miss_on_reached, on_enemy_attack_depth_changed,
+    },
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;

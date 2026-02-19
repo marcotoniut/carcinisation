@@ -48,6 +48,7 @@ pub struct SpriteNameRegistry {
 
 impl SpriteNameRegistry {
     /// Creates the complete registry with all sprite base names
+    #[must_use]
     pub fn new() -> Self {
         Self {
             enemies: vec![

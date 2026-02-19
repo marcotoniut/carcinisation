@@ -38,20 +38,24 @@ pub fn game_difficulty_select_change(
     mut selection: ResMut<DifficultySelection>,
     gb_input: Res<ActionState<GBInput>>,
 ) {
-    let input =
-        gb_input.just_pressed(&GBInput::Down) as i8 - gb_input.just_pressed(&GBInput::Up) as i8;
-    if input < 0 {
-        if let Ok(y) = Difficulty::try_from((selection.0 as i8) - 1) {
-            selection.0 = y;
-        } else {
-            // Little sound indicating lower bound
+    let input = i8::from(gb_input.just_pressed(&GBInput::Down))
+        - i8::from(gb_input.just_pressed(&GBInput::Up));
+    match input.cmp(&0) {
+        std::cmp::Ordering::Less => {
+            if let Ok(y) = Difficulty::try_from((selection.0 as i8) - 1) {
+                selection.0 = y;
+            } else {
+                // Little sound indicating lower bound
+            }
         }
-    } else if input > 0 {
-        if let Ok(y) = Difficulty::try_from((selection.0 as i8) + 1) {
-            selection.0 = y;
-        } else {
-            // Little sound indicating upper bound
+        std::cmp::Ordering::Greater => {
+            if let Ok(y) = Difficulty::try_from((selection.0 as i8) + 1) {
+                selection.0 = y;
+            } else {
+                // Little sound indicating upper bound
+            }
         }
+        std::cmp::Ordering::Equal => {}
     }
 }
 

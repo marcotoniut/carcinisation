@@ -9,9 +9,17 @@ mod systems;
 pub mod tardigrade;
 
 use self::{
-    mosquito::systems::*,
-    systems::{animation::on_enemy_depth_changed, behaviors::*},
-    tardigrade::systems::*,
+    mosquito::systems::{assign_mosquito_animation, check_idle_mosquito, despawn_dead_mosquitoes},
+    systems::{
+        animation::on_enemy_depth_changed,
+        behaviors::{
+            check_no_behavior, tick_enemy_behavior_timer,
+            tied_components_enemy_current_behavior_circle_around,
+        },
+    },
+    tardigrade::systems::{
+        assign_tardigrade_animation, check_idle_tardigrade, despawn_dead_tardigrade,
+    },
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;

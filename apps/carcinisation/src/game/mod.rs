@@ -10,7 +10,15 @@ mod systems;
 use crate::core::event::on_trigger_write_event;
 use activable::{Activable, ActivableAppExt};
 
-use self::{messages::*, resources::GameProgress, score::ScorePlugin, systems::setup::*};
+use self::{
+    messages::{GameOverEvent, GameStartupEvent},
+    resources::GameProgress,
+    score::ScorePlugin,
+    systems::setup::{
+        check_cutscene_data_loaded, check_stage_data_loaded, on_cutscene_shutdown, on_game_over,
+        on_game_startup, on_stage_cleared, progress,
+    },
+};
 use bevy::prelude::*;
 use resources::{CutsceneAssetHandle, StageAssetHandle};
 use systems::debug::debug_on_game_over;

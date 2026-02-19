@@ -9,8 +9,8 @@ use seldom_pixel::prelude::{PxAnchor, PxSprite};
 
 /**
  * TODO
- * - depth will have an impact on the sprite_path
- * - anchor data should be included in the AnimationData
+ * - depth will have an impact on the `sprite_path`
+ * - anchor data should be included in the `AnimationData`
  * - this function could be agnostic
  */
 pub fn make_enemy_animation_bundle(

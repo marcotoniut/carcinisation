@@ -75,7 +75,7 @@ impl Next for MidDepth {
     const MIN: Self = MidDepth::Six;
 
     fn next(self) -> Option<Self> {
-        use MidDepth::*;
+        use MidDepth::{Five, Four, One, Six, Three, Two, Zero};
 
         match self {
             Six => Some(Five),
@@ -93,7 +93,7 @@ impl Next for PreBackgroundDepth {
     const MIN: Self = PreBackgroundDepth::Nine;
 
     fn next(self) -> Option<Self> {
-        use PreBackgroundDepth::*;
+        use PreBackgroundDepth::{Eight, Nine, Seven};
 
         match self {
             Nine => Some(Eight),
@@ -107,7 +107,7 @@ impl Next for CutsceneLayer {
     const MIN: Self = CutsceneLayer::Background(0);
 
     fn next(self) -> Option<Self> {
-        use CutsceneLayer::*;
+        use CutsceneLayer::{Background, Foreground, Letterbox, Middle, Overtext, Text, Textbox};
 
         match self {
             Background(layer) if layer < u8::MAX => Some(Background(layer + 1)),

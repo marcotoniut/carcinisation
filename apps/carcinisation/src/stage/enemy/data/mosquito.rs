@@ -37,8 +37,8 @@ const MOSQUITO_DEPTHS: &[Depth] = &[
 
 pub const MOSQUITO_DEPTH_RANGE: RangeInclusive<Depth> = Depth::Three..=Depth::Eight;
 
-lazy_static! {
-    pub static ref MOSQUITO_ANIMATIONS: MosquitoAnimations = {
+pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<MosquitoAnimations> =
+    std::sync::LazyLock::new(|| {
         let idle_frames = 3;
         let idle_speed = 500;
 
@@ -134,5 +134,4 @@ lazy_static! {
             idle,
             melee_attack,
         }
-    };
-}
+    });

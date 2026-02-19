@@ -1,5 +1,13 @@
 //! Carcinisation game library — exposes data types and plugins for the runtime, editor, and tooling.
-#![allow(dead_code, clippy::type_complexity)]
+#![allow(
+    dead_code,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::needless_pass_by_value,
+    clippy::type_complexity
+)]
 
 mod assets;
 pub mod bevy_utils {
@@ -28,9 +36,6 @@ pub mod stage;
 mod systems;
 mod transitions;
 
-#[macro_use]
-extern crate lazy_static;
-
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -43,7 +48,11 @@ pub mod asset_meta {
         crate::pixel::assets::ensure_sprite_meta(path, frames);
     }
 
-    pub fn ensure_typeface_meta(path: &str, characters: &str, separators: &HashMap<char, u32>) {
+    pub fn ensure_typeface_meta<S: std::hash::BuildHasher>(
+        path: &str,
+        characters: &str,
+        separators: &HashMap<char, u32, S>,
+    ) {
         crate::pixel::assets::ensure_typeface_meta(path, characters, separators);
     }
 }

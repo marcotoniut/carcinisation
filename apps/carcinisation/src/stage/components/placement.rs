@@ -74,14 +74,17 @@ impl Depth {
     pub const MAX: Self = Self::Nine;
     pub const MIN: Self = Self::Zero;
 
+    #[must_use]
     pub fn to_f32(&self) -> f32 {
-        self.to_i8() as f32
+        f32::from(self.to_i8())
     }
 
+    #[must_use]
     pub fn to_i8(&self) -> i8 {
         *self as i8
     }
 
+    #[must_use]
     pub fn to_layer(&self) -> Layer {
         match self {
             Self::Nine => Layer::PreBackgroundDepth(PreBackgroundDepth::Nine),
@@ -127,8 +130,11 @@ impl MovementVec2Position for RailPosition {
     }
 }
 
-pub fn spawn_floor_depths(commands: &mut Commands, floor_depths: &HashMap<Depth, f32>) {
-    for (depth, y) in floor_depths.iter() {
+pub fn spawn_floor_depths<S: std::hash::BuildHasher>(
+    commands: &mut Commands,
+    floor_depths: &HashMap<Depth, f32, S>,
+) {
+    for (depth, y) in floor_depths {
         commands.spawn((Floor(*y), *depth));
     }
 }

@@ -27,9 +27,9 @@ pub enum DestructibleState {
     Broken,
 }
 
-pub fn make_animation_bundle(
+pub fn make_animation_bundle<S: std::hash::BuildHasher>(
     assets_sprite: &mut PxAssets<PxSprite>,
-    animation_map: &HashMap<Depth, DestructibleAnimationData>,
+    animation_map: &HashMap<Depth, DestructibleAnimationData, S>,
     destructible_state: &DestructibleState,
     depth: &Depth,
 ) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, ColliderData)> {

@@ -10,7 +10,10 @@ use crate::{
     game::score::components::Score,
     pixel::PxAssets,
     stage::{
-        attack::components::*,
+        attack::components::{
+            SCORE_MELEE_CRITICAL_HIT, SCORE_MELEE_REGULAR_HIT, SCORE_RANGED_CRITICAL_HIT,
+            SCORE_RANGED_REGULAR_HIT,
+        },
         components::interactive::{ColliderData, Hittable},
         components::placement::Depth,
         enemy::components::Enemy,
@@ -26,7 +29,7 @@ use crate::{
         resources::StageTimeDomain,
     },
 };
-use colored::*;
+use colored::Colorize;
 
 const CRITICAL_THRESHOLD: f32 = 0.5;
 const MELEE_DEPTH_MIN: crate::stage::components::placement::Depth =
@@ -36,7 +39,7 @@ const MELEE_DEPTH_MAX: crate::stage::components::placement::Depth =
 
 /// @system Checks player attacks against hittable entities using pixel-mask and collider tests.
 // TODO could split between box and circle collider
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn check_got_hit(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
@@ -61,7 +64,7 @@ pub fn check_got_hit(
         Option<&Depth>,
     )>,
     // mut attack_query: Query<(&PlayerAttack, &mut AttackHitTracker, Option<&Reach>)>,
-    mut hittable_query: Query<
+    hittable_query: Query<
         (
             Entity,
             &PxPosition,
@@ -97,7 +100,7 @@ pub fn check_got_hit(
         mut hit_tracker,
         mut effect_state,
         bomb_depth,
-    ) in attack_query.iter_mut()
+    ) in &mut attack_query
     {
         hit_tracker.tick(delta_secs);
         let attack_definition = attack_definitions.get(attack.attack_id);
@@ -142,7 +145,7 @@ pub fn check_got_hit(
             entity_depth,
             enemy,
             destructible,
-        ) in hittable_query.iter_mut()
+        ) in hittable_query
         {
             if attack.attack_id == AttackId::Bomb {
                 let depth_match = match (bomb_depth, entity_depth) {
@@ -279,8 +282,7 @@ pub fn check_got_hit(
 
             let defense = collider_data
                 .and_then(|data| data.point_collides(entity_sub_position.0, hit_position))
-                .map(|value| value.defense)
-                .unwrap_or(1.0);
+                .map_or(1.0, |value| value.defense);
 
             if !hit_tracker.can_hit(entity, attack_definition.hit_policy) {
                 continue;

@@ -13,11 +13,11 @@ const IN_VIEW_OFFSET_BOTTOM: u32 = HUD_HEIGHT + IN_VIEW_OFFSET;
 /// @system Adds `InView` to entities that enter the visible screen area.
 pub fn check_in_view(
     mut commands: Commands,
-    mut query: Query<(Entity, &PxSubPosition), Without<InView>>,
+    query: Query<(Entity, &PxSubPosition), Without<InView>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
     if let Ok(camera_pos) = camera_query.single() {
-        for (entity, position) in query.iter_mut() {
+        for (entity, position) in query {
             if is_inside_area(
                 position.0,
                 camera_pos.0 + Vec2::new(IN_VIEW_OFFSET as f32, IN_VIEW_OFFSET_BOTTOM as f32),
@@ -36,11 +36,11 @@ pub fn check_in_view(
 /// @system Removes `InView` from entities that leave the visible screen area.
 pub fn check_outside_view(
     mut commands: Commands,
-    mut query: Query<(Entity, &PxSubPosition), With<InView>>,
+    query: Query<(Entity, &PxSubPosition), With<InView>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
     if let Ok(camera_pos) = camera_query.single() {
-        for (entity, position) in query.iter_mut() {
+        for (entity, position) in query {
             if !is_inside_area(
                 position.0,
                 camera_pos.0,

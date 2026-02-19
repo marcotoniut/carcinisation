@@ -23,6 +23,7 @@ pub struct DestructibleAnimationData {
 }
 
 impl DestructibleAnimationData {
+    #[must_use]
     pub fn by_state(&self, state: &DestructibleState) -> &AnimationData {
         match state {
             DestructibleState::Base => &self.base,
@@ -44,6 +45,7 @@ pub struct DestructibleAnimations {
 }
 
 impl DestructibleAnimations {
+    #[must_use]
     pub fn get_animation_data(
         &self,
         destructible_type: &DestructibleType,
@@ -65,8 +67,8 @@ fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> Stri
 const FRAGMENT_BASE: &str = "base";
 const FRAGMENT_BROKEN: &str = "broken";
 
-lazy_static! {
-    pub static ref DESTRUCTIBLE_ANIMATIONS: DestructibleAnimations = {
+pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> =
+    std::sync::LazyLock::new(|| {
         let mut animations = DestructibleAnimations::new();
 
         let lamp_base_frames = 1;
@@ -258,5 +260,4 @@ lazy_static! {
             }
         }
         animations
-    };
-}
+    });

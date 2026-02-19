@@ -1,4 +1,6 @@
-use super::entity::*;
+use super::entity::{
+    EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
+};
 use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
     components::DespawnMark,
@@ -12,7 +14,7 @@ use crate::{
             placement::{Depth, InView},
         },
         enemy::{
-            bundles::*,
+            bundles::make_enemy_animation_bundle,
             components::behavior::EnemyCurrentBehavior,
             data::{
                 mosquito::MOSQUITO_ANIMATIONS,
@@ -163,6 +165,10 @@ pub fn despawn_dead_mosquitoes(
 }
 
 /// @system Fires ranged attacks from idle in-view mosquitoes on a cooldown.
+///
+/// # Panics
+///
+/// Panics if the camera entity is missing from the world.
 pub fn check_idle_mosquito(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

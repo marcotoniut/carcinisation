@@ -20,6 +20,7 @@ pub enum AttackButton {
 }
 
 impl AttackButton {
+    #[must_use]
     pub fn gb_input(self) -> crate::input::GBInput {
         match self {
             AttackButton::A => crate::input::GBInput::A,
@@ -100,6 +101,12 @@ pub struct AttackDefinitions {
 }
 
 impl AttackDefinitions {
+    /// Returns the [`AttackDefinition`] for the given [`AttackId`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if no definition has been registered for `id`.
+    #[must_use]
     pub fn get(&self, id: AttackId) -> &AttackDefinition {
         self.defs
             .get(&id)
@@ -108,6 +115,7 @@ impl AttackDefinitions {
 }
 
 impl Default for AttackDefinitions {
+    #[allow(clippy::too_many_lines)]
     fn default() -> Self {
         let mut defs = HashMap::new();
         defs.insert(
@@ -280,10 +288,12 @@ pub struct AttackCycle {
 }
 
 impl AttackCycle {
+    #[must_use]
     pub fn new(options: Vec<AttackId>) -> Self {
         Self { options, index: 0 }
     }
 
+    #[must_use]
     pub fn current(&self) -> AttackId {
         self.options[self.index]
     }
@@ -304,6 +314,7 @@ pub struct AttackLoadout {
 }
 
 impl AttackLoadout {
+    #[must_use]
     pub fn current(&self, button: AttackButton) -> AttackId {
         match button {
             AttackButton::A => self.a.current(),
@@ -373,6 +384,7 @@ pub struct AttackLifetime {
 }
 
 impl AttackLifetime {
+    #[must_use]
     pub fn new(duration_secs: f32) -> Self {
         Self {
             timer: Timer::from_seconds(duration_secs, TimerMode::Once),
@@ -400,6 +412,7 @@ impl AttackHitTracker {
         }
     }
 
+    #[must_use]
     pub fn can_hit(&self, entity: Entity, policy: AttackHitPolicy) -> bool {
         match policy {
             AttackHitPolicy::Single => !self.records.contains_key(&entity),
@@ -410,6 +423,7 @@ impl AttackHitTracker {
         }
     }
 
+    #[must_use]
     pub fn has_hit(&self, entity: Entity) -> bool {
         self.records
             .get(&entity)

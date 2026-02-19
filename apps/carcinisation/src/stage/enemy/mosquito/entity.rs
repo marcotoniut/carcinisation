@@ -23,6 +23,7 @@ pub const ENEMY_MOSQUITO_BASE_HEALTH: u32 = 40;
 pub struct EnemyMosquito;
 
 impl EnemyMosquito {
+    #[must_use]
     pub fn kill_score(&self) -> u32 {
         10
     }

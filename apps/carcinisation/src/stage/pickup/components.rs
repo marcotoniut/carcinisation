@@ -6,6 +6,7 @@ use std::time::Duration;
 pub struct HealthRecovery(pub u32);
 
 impl HealthRecovery {
+    #[must_use]
     pub fn score_deduction(&self) -> i32 {
         -(self.0 as i32) * 2
     }
@@ -32,6 +33,7 @@ pub struct PickupFeedbackGlitter {
 }
 
 impl PickupFeedbackGlitter {
+    #[must_use]
     pub fn new(
         start_at: Duration,
         end_at: Duration,

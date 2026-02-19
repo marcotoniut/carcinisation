@@ -18,7 +18,7 @@ pub fn check_no_behavior(
     >,
     stage_time: Res<Time<StageTimeDomain>>,
 ) {
-    for (entity, mut behaviors, position, speed, depth) in query.iter_mut() {
+    for (entity, mut behaviors, position, speed, depth) in &mut query {
         let behavior = behaviors.next_step();
 
         let duration_o = behavior.get_duration_o();
@@ -30,7 +30,7 @@ pub fn check_no_behavior(
 
         let bundles = current_behavior.get_bundles(stage_time.elapsed(), position, speed.0, *depth);
         match bundles {
-            BehaviorBundle::Idle => {}
+            BehaviorBundle::Idle | BehaviorBundle::Attack | BehaviorBundle::Jump => {}
             BehaviorBundle::LinearTween(linear_movement) => {
                 // Insert the LinearTween marker on the enemy
                 commands.entity(entity).insert(linear_movement);
@@ -44,14 +44,10 @@ pub fn check_no_behavior(
                     *depth,
                 );
             }
-            BehaviorBundle::Attack => {}
             BehaviorBundle::Circle(bundles) => {
                 commands.entity(entity).insert(bundles);
             }
-            BehaviorBundle::Jump => {
-                // Jump currently does not add additional components.
-            }
-        };
+        }
 
         commands
             .entity(entity)
@@ -70,7 +66,7 @@ pub fn tick_enemy_behavior_timer(
     mut query: Query<&mut EnemyBehaviorTimer>,
     stage_time: Res<Time<StageTimeDomain>>,
 ) {
-    for mut behavior in query.iter_mut() {
+    for mut behavior in &mut query {
         behavior.timer.tick(stage_time.delta());
         if behavior.timer.just_finished() {
             commands

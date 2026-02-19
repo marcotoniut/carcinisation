@@ -87,6 +87,10 @@ pub fn despawn_dead_tardigrade(
 }
 
 /// @system Fires boulder attacks from idle in-view tardigrades on a cooldown.
+///
+/// # Panics
+///
+/// Panics if the camera entity is missing from the world.
 pub fn check_idle_tardigrade(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,

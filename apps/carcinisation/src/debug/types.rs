@@ -17,8 +17,8 @@ use crate::{
         },
         enemy::{
             components::{
+                CircleAround, LinearTween,
                 behavior::{EnemyBehaviors, EnemyCurrentBehavior},
-                *,
             },
             mosquito::entity::{
                 CurrentEnemyMosquitoStep, EnemyMosquito, EnemyMosquitoAnimation,

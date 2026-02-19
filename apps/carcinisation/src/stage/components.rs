@@ -50,6 +50,7 @@ pub struct StageElapse {
 
 impl StageElapse {
     /// Convenience constructor from seconds.
+    #[must_use]
     pub fn from_secs_f32(secs: f32) -> Self {
         Self {
             duration: Duration::from_secs_f32(secs),
@@ -58,6 +59,7 @@ impl StageElapse {
     }
 
     /// Flags that any graphics created during the elapse should be cleaned up.
+    #[must_use]
     pub fn clear_graphics(mut self) -> Self {
         self.clear_graphics = true;
         self
@@ -100,29 +102,34 @@ pub struct TweenStageStep {
 
 impl TweenStageStep {
     /// Appends extra spawns to the step definition.
+    #[must_use]
     pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
         self.spawns.extend(new_spawns);
         self
     }
 
     /// Base builder with initial coordinates.
+    #[must_use]
     pub fn base(x: f32, y: f32) -> Self {
         Self::new().with_coordinates(Vec2::new(x, y))
     }
 
     /// Overrides the base tween speed used for the segment.
+    #[must_use]
     pub fn with_base_speed(mut self, value: f32) -> Self {
         self.base_speed = value;
         self
     }
 
     /// Sets the coordinates the stage camera/entity should aim for.
+    #[must_use]
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
 
     /// Specifies optional per-depth floor offsets.
+    #[must_use]
     pub fn with_floor_depths(mut self, value: HashMap<Depth, f32>) -> Self {
         self.floor_depths = Some(value);
         self
@@ -157,30 +164,35 @@ pub struct StopStageStep {
 
 impl StopStageStep {
     /// Appends extra spawns that occur during the stop.
+    #[must_use]
     pub fn add_spawns(mut self, new_spawns: Vec<StageSpawn>) -> Self {
         self.spawns.extend(new_spawns);
         self
     }
 
     /// Configures whether the stop step clears all enemies.
+    #[must_use]
     pub fn with_kill_all(mut self, value: bool) -> Self {
         self.kill_all = value;
         self
     }
 
     /// Configures whether the stop step clears the boss.
+    #[must_use]
     pub fn with_kill_boss(mut self, value: bool) -> Self {
         self.kill_boss = value;
         self
     }
 
     /// Sets a maximum duration before the stop advances automatically.
+    #[must_use]
     pub fn with_max_duration(mut self, value: f32) -> Self {
         self.max_duration = Some(Duration::from_secs_f32(value));
         self
     }
 
     /// Overrides per-depth floor offsets for the stop step.
+    #[must_use]
     pub fn with_floor_depths(mut self, value: HashMap<Depth, f32>) -> Self {
         self.floor_depths = Some(value);
         self

@@ -31,6 +31,7 @@ pub enum LampDepth {
 }
 
 impl LampDepth {
+    #[must_use]
     pub fn to_depth(&self) -> Depth {
         match self {
             LampDepth::Three => Depth::Three,
@@ -45,6 +46,7 @@ pub enum TrashcanDepth {
 }
 
 impl TrashcanDepth {
+    #[must_use]
     pub fn to_depth(&self) -> Depth {
         match self {
             TrashcanDepth::Six => Depth::Six,
@@ -58,6 +60,7 @@ pub enum MushroomDepth {
 }
 
 impl MushroomDepth {
+    #[must_use]
     pub fn to_depth(&self) -> Depth {
         match self {
             MushroomDepth::Four => Depth::Four,
@@ -70,6 +73,7 @@ pub enum CrystalDepth {
 }
 
 impl CrystalDepth {
+    #[must_use]
     pub fn to_depth(&self) -> Depth {
         match self {
             CrystalDepth::Five => Depth::Five,
@@ -78,39 +82,47 @@ impl CrystalDepth {
 }
 
 impl DestructibleSpawn {
+    #[must_use]
     pub fn get_name(&self) -> Name {
         Name::new(self.show_type())
     }
     // TODO could use a Spawn trait
+    #[must_use]
     pub fn show_type(&self) -> String {
         format!("Destructible<{:?}>", self.destructible_type)
     }
 
+    #[must_use]
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
 
+    #[must_use]
     pub fn with_contains(mut self, value: Option<Box<ContainerSpawn>>) -> Self {
         self.contains = value;
         self
     }
 
+    #[must_use]
     pub fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
         self
     }
 
+    #[must_use]
     pub fn with_health(mut self, value: u32) -> Self {
         self.health = value;
         self
     }
 
+    #[must_use]
     pub fn drops(mut self, value: ContainerSpawn) -> Self {
         self.contains = Some(Box::new(value));
         self
     }
 
+    #[must_use]
     pub fn lamp_base(x: f32, y: f32, depth: LampDepth) -> Self {
         Self {
             contains: None,
@@ -124,6 +136,7 @@ impl DestructibleSpawn {
     /**
      * depth needs to be 1 or 4
      */
+    #[must_use]
     pub fn trashcan_base(x: f32, y: f32, depth: TrashcanDepth) -> Self {
         Self {
             destructible_type: DestructibleType::Trashcan,
@@ -134,6 +147,7 @@ impl DestructibleSpawn {
         }
     }
 
+    #[must_use]
     pub fn crystal_base(x: f32, y: f32, depth: CrystalDepth) -> Self {
         Self {
             destructible_type: DestructibleType::Crystal,
@@ -144,6 +158,7 @@ impl DestructibleSpawn {
         }
     }
 
+    #[must_use]
     pub fn mushroom_base(x: f32, y: f32, depth: MushroomDepth) -> Self {
         Self {
             destructible_type: DestructibleType::Mushroom,
@@ -166,6 +181,7 @@ pub struct AnimationData {
 }
 
 impl AnimationData {
+    #[must_use]
     pub fn make_animation_bundle(&self) -> PxAnimationBundle {
         PxAnimationBundle::from_parts(
             self.direction,
@@ -185,7 +201,7 @@ impl Default for AnimationData {
             finish_behavior: PxAnimationFinishBehavior::Mark,
             frames: 0,
             speed: 0,
-            sprite_path: String::from(""),
+            sprite_path: String::new(),
         }
     }
 }

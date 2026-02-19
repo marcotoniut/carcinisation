@@ -14,10 +14,10 @@ use std::time::Duration;
 
 pub const DAMAGE_FLICKER_COUNT: u8 = 4;
 
-lazy_static! {
-    pub static ref DAMAGE_REGULAR_DURATION: Duration = Duration::from_secs_f32(0.2);
-    pub static ref DAMAGE_INVERT_DURATION: Duration = Duration::from_secs_f32(0.15);
-}
+pub static DAMAGE_REGULAR_DURATION: std::sync::LazyLock<Duration> =
+    std::sync::LazyLock::new(|| Duration::from_secs_f32(0.2));
+pub static DAMAGE_INVERT_DURATION: std::sync::LazyLock<Duration> =
+    std::sync::LazyLock::new(|| Duration::from_secs_f32(0.15));
 
 /// @system Applies incoming damage and marks entities as `Dead` when health reaches zero.
 pub fn on_damage(

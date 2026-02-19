@@ -1,7 +1,11 @@
-use super::{CrosshairInfo, components::*, crosshair::CrosshairSettings};
+use super::{
+    CrosshairInfo,
+    components::{PLAYER_MAX_HEALTH, Player},
+    crosshair::CrosshairSettings,
+};
 use crate::pixel::{PxAssets, PxSpriteBundle};
 use crate::{
-    globals::*,
+    globals::{HUD_HEIGHT, SCREEN_RESOLUTION, SCREEN_RESOLUTION_H},
     layer::Layer,
     stage::components::{StageEntity, interactive::Health},
 };

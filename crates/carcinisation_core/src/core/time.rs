@@ -31,6 +31,7 @@ impl<D: Send + Sync + 'static> Default for TimeShouldRun<D> {
 
 #[cfg(not(debug_assertions))]
 /// @system Advances a `Time<T>` domain using the delta of a source `Time<S>` (release builds).
+#[allow(clippy::needless_pass_by_value)]
 pub fn tick_time<S: Send + Sync + Default + 'static, T: Send + Sync + Default + 'static>(
     mut target: ResMut<Time<T>>,
     source: Res<Time<S>>,
@@ -45,6 +46,7 @@ pub fn tick_time<S: Send + Sync + Default + 'static, T: Send + Sync + Default + 
 
 #[cfg(debug_assertions)]
 /// @system Advances a `Time<T>` domain using the delta of a source `Time<S>`, respecting optional multipliers (debug builds).
+#[allow(clippy::needless_pass_by_value)]
 pub fn tick_time<S: Send + Sync + Default + 'static, T: Send + Sync + Default + 'static>(
     mut target: ResMut<Time<T>>,
     source: Res<Time<S>>,
@@ -52,7 +54,7 @@ pub fn tick_time<S: Send + Sync + Default + 'static, T: Send + Sync + Default + 
     time_multiplier: Option<Res<TimeMultiplier<T>>>,
 ) {
     if time_should_run.is_none_or(|x| x.value) {
-        let multiplier = time_multiplier.map(|x| x.value).unwrap_or(1.0);
+        let multiplier = time_multiplier.map_or(1.0, |x| x.value);
         target.advance_by(source.delta().mul_f32(multiplier));
     } else {
         target.advance_by(Duration::ZERO);

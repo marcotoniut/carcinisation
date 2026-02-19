@@ -38,7 +38,7 @@ impl Default for AnimationData {
             frame_transition: PxFrameTransition::None,
             frames: 0,
             speed: 0,
-            sprite_path: "".into(),
+            sprite_path: String::new(),
         }
     }
 }

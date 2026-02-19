@@ -2,19 +2,21 @@ use std::sync::Arc;
 
 use crate::stage::components::placement::Depth;
 use crate::stage::components::{StopStageStep, TweenStageStep};
-use crate::stage::data::*;
+use crate::stage::data::{
+    EnemyDropSpawn, EnemySpawn, ObjectSpawn, PickupDropSpawn, PickupType, SkyboxData, StageData,
+    StageSpawn, StageStep,
+};
 use crate::stage::destructible::data::{DestructibleSpawn, LampDepth, TrashcanDepth};
 use crate::stage::enemy::data::steps::EnemyStep;
 use crate::stage::enemy::entity::EnemyType;
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use lazy_static::lazy_static;
 
 const OBJECT_FIBERTREE_Y: f32 = 13.;
 const OBJECT_LAMP_Y: f32 = -5.;
 
-lazy_static! {
-    pub static ref STAGE_DEBUG_DATA: Arc<StageData> = StageData {
+pub static STAGE_DEBUG_DATA: std::sync::LazyLock<Arc<StageData>> = std::sync::LazyLock::new(|| {
+    StageData {
         name: "Debug".to_string(),
         music_path: assert_assets_path!("audio/music/stage_1.ogg").to_string(),
         background_path: assert_assets_path!("backgrounds/rugpark/background.png").to_string(),
@@ -28,8 +30,8 @@ lazy_static! {
         on_start_transition_o: None,
         on_end_transition_o: None,
     }
-    .into();
-}
+    .into()
+});
 
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![

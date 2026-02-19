@@ -20,7 +20,10 @@ use self::{
     components::placement::RailPosition,
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
-    messages::*,
+    messages::{
+        DamageMessage, DepthChangedMessage, NextStepEvent, StageClearedEvent, StageDeathEvent,
+        StageSpawnEvent, StageStartupEvent,
+    },
     pickup::systems::health::{
         mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
     },
@@ -28,12 +31,22 @@ use self::{
     resources::{StageActionTimer, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
     systems::{
-        camera::*,
-        damage::*,
-        movement::*,
+        camera::{check_in_view, check_outside_view, update_camera_pos_x, update_camera_pos_y},
+        check_movement_step_reached, check_stage_death, check_stage_step_timer,
+        check_staged_cleared, check_stop_step_finished_by_duration,
+        damage::{add_invert_filter, check_damage_flicker_taken, on_damage, remove_invert_filter},
+        debug_visibility_hierarchy, initialise_cinematic_step, initialise_movement_step,
+        initialise_stop_step,
+        movement::{
+            check_linear_tween_finished, check_linear_tween_x_finished,
+            check_linear_tween_y_finished, circle_around, update_depth,
+        },
+        on_death, on_next_step_cleanup_cinematic_step, on_next_step_cleanup_movement_step,
+        on_next_step_cleanup_stop_step, on_stage_cleared, read_step_trigger,
         setup::on_stage_startup,
         spawn::{check_dead_drop, check_step_spawn, on_stage_spawn},
-        *,
+        tick_stage_step_timer, toggle_game, update_cinematic_step, update_stage,
+        update_stage_time_should_run,
     },
     ui::{
         StageUiPlugin,
@@ -83,6 +96,7 @@ pub struct StagePlugin;
  * - implement mapping of buttons exclusive to the plugin. (then we could have the menus create their own mappers.)
  */
 impl Plugin for StagePlugin {
+    #[allow(clippy::too_many_lines)]
     fn build(&self, app: &mut App) {
         #[cfg(debug_assertions)]
         app.insert_resource(TimeMultiplier::<StageTimeDomain>::new(1.));
