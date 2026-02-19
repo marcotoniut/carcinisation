@@ -363,9 +363,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 PxFilterLayers::Many(layers) => {
                     layers.iter().map(|layer| (layer.clone(), true)).collect()
                 }
-            }
-            .into_iter()
-            {
+            } {
                 let rect = (rect, filter, pos, anchor, canvas, animation, invert);
                 #[cfg(feature = "gpu_palette")]
                 {
@@ -430,9 +428,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 PxFilterLayers::Many(layers) => {
                     layers.iter().map(|layer| (layer.clone(), true)).collect()
                 }
-            }
-            .into_iter()
-            {
+            } {
                 #[cfg(feature = "gpu_palette")]
                 {
                     layer_set.insert(layer.clone());
@@ -494,9 +490,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 PxFilterLayers::Many(layers) => {
                     layers.iter().map(|layer| (layer.clone(), true)).collect()
                 }
-            }
-            .into_iter()
-            {
+            } {
                 #[cfg(feature = "gpu_palette")]
                 {
                     layer_set.insert(layer.clone());

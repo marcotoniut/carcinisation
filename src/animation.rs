@@ -73,11 +73,13 @@ impl Default for PxAnimationDuration {
 
 impl PxAnimationDuration {
     /// Creates a [`PxAnimationDuration::PerAnimation`] with the given number of milliseconds.
+    #[must_use]
     pub fn millis_per_animation(millis: u64) -> Self {
         Self::PerAnimation(Duration::from_millis(millis))
     }
 
     /// Creates a [`PxAnimationDuration::PerFrame`] with the given number of milliseconds.
+    #[must_use]
     pub fn millis_per_frame(millis: u64) -> Self {
         Self::PerFrame(Duration::from_millis(millis))
     }
@@ -265,8 +267,7 @@ fn atlas_region_frame_count(atlases: &Assets<PxSpriteAtlasAsset>, sprite: &PxAtl
     };
     atlas
         .region(sprite.region)
-        .map(|region| region.frame_count())
-        .unwrap_or(0)
+        .map_or(0, super::atlas::AtlasRegion::frame_count)
 }
 
 #[cfg(test)]

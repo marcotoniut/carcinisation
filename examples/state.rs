@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this game, you can press space to cast a spell
 // `seldom_state` is used to handle the animations
 

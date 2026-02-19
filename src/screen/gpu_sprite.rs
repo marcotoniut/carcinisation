@@ -224,9 +224,8 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         target: &ViewTarget,
         world: &'w World,
     ) -> Result<(), NodeRunError> {
-        let uniform_binding = match world.resource::<PxUniformBuffer>().binding() {
-            Some(binding) => binding,
-            None => return Ok(()),
+        let Some(uniform_binding) = world.resource::<PxUniformBuffer>().binding() else {
+            return Ok(());
         };
 
         let screen = world.resource::<Screen>();
@@ -338,7 +337,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         let mut vertices: Vec<SpriteVertex> = Vec::new();
         let mut draws: Vec<SpriteDraw<'_>> = Vec::new();
 
-        for (layer, items) in sprites_by_layer.into_iter() {
+        for (layer, items) in sprites_by_layer {
             let Some(layer_index) = layer_index_for(&layer_order, &layer) else {
                 continue;
             };
@@ -348,9 +347,8 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                     continue;
                 };
 
-                let frame_height = match frame_height(sprite_gpu) {
-                    Some(height) => height,
-                    None => continue,
+                let Some(frame_height) = frame_height(sprite_gpu) else {
+                    continue;
                 };
 
                 let frame_count = frame_count(sprite_gpu);
@@ -507,7 +505,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
 
 fn frame_height(sprite: &PxSpriteGpu) -> Option<u32> {
     let width = sprite.size.x as usize;
-    if width == 0 || sprite.frame_size == 0 || sprite.frame_size % width != 0 {
+    if width == 0 || sprite.frame_size == 0 || !sprite.frame_size.is_multiple_of(width) {
         return None;
     }
 
@@ -533,9 +531,8 @@ fn frame_index(frame: Option<PxFrameView>, frame_count: usize) -> usize {
         return 0;
     }
 
-    let frame = match frame {
-        Some(frame) => frame,
-        None => return 0,
+    let Some(frame) = frame else {
+        return 0;
     };
 
     let index = match frame.selector {
@@ -567,6 +564,8 @@ fn pixel_to_ndc(pos: Vec2, screen_size: Vec2, fit_factor: Vec2) -> [f32; 2] {
 
 #[cfg(all(test, feature = "gpu_palette"))]
 mod tests {
+    use std::fmt::Write as _;
+
     use super::*;
     use insta::assert_snapshot;
 
@@ -587,7 +586,7 @@ mod tests {
                 transition: PxFrameTransition::None,
             };
             let index = frame_index(Some(frame), frame_count);
-            out.push_str(&format!("{label} -> {index}\n"));
+            let _ = writeln!(&mut out, "{label} -> {index}");
         }
 
         assert_snapshot!(&out, @r###"

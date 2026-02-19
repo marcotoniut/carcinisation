@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a composite sprite is rendered via the GPU palette path.
 
 use bevy::prelude::*;

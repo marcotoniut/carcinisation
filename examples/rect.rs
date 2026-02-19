@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a rectangle filter is applied over a region
 
 use bevy::prelude::*;

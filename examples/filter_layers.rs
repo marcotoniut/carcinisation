@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this game, you can change the filter's layer by pressing space
 
 use bevy::prelude::*;

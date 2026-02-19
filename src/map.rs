@@ -172,6 +172,7 @@ impl RenderAsset for PxTileset {
 
 impl PxTileset {
     /// The size of tiles in the tileset
+    #[must_use]
     pub fn tile_size(&self) -> UVec2 {
         self.tile_size
     }
@@ -187,6 +188,7 @@ pub struct PxTiles {
 
 impl PxTiles {
     /// Creates a [`PxMap`]
+    #[must_use]
     pub fn new(size: UVec2) -> Self {
         Self {
             tiles: vec![None; (size.x * size.y) as usize],
@@ -206,6 +208,7 @@ impl PxTiles {
 
     /// Gets a tile. Returns `None` if there is no tile at the given position or if the position is
     /// out of bounds.
+    #[must_use]
     pub fn get(&self, at: UVec2) -> Option<Entity> {
         self.tiles.get(self.index(at)?).copied()?
     }
@@ -230,12 +233,14 @@ impl PxTiles {
     }
 
     /// Gets the size of the map
+    #[must_use]
     pub fn size(&self) -> UVec2 {
         let width = self.width as u32;
         UVec2::new(width, self.tiles.len() as u32 / width)
     }
 
     /// Gets the position of a tile
+    #[must_use]
     pub fn pos(&self, id: Entity) -> Option<UVec2> {
         let &index = self.tile_poses.get(&id)?;
         Some(uvec2(

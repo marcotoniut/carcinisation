@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a filter is used
 
 use bevy::prelude::*;

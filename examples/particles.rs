@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a particle emitter is spawned
 
 use std::time::Duration;

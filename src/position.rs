@@ -94,7 +94,7 @@ fn insert_default_layer(mut world: DeferredWorld, ctx: HookContext) {
         }
         world.insert_resource(insert_default_layer);
         // That's what it's all about!
-    })
+    });
 }
 
 /// How a sprite is positioned relative to its [`PxPosition`]. It defaults to [`PxAnchor::Center`].

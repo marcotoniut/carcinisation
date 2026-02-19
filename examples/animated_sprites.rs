@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, animated sprites are spawned
 
 use bevy::prelude::*;

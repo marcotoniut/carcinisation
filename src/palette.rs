@@ -68,6 +68,11 @@ pub struct PaletteHandle(pub Handle<Palette>);
 
 impl Palette {
     /// Create a palette from an [`Image`]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the image cannot be converted, is uninitialized, or the top-left pixel
+    /// is not transparent.
     pub fn new(image: &Image) -> Result<Palette> {
         let image = image
             .convert(TextureFormat::Rgba8UnormSrgb)

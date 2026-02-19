@@ -1,8 +1,9 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this game, you can move the camera with the arrow keys, and switch the mage's canvas
 // by pressing space
 
 use bevy::prelude::*;
-use rand::{Rng, thread_rng};
+use rand::{RngExt, rng};
 use carapace::prelude::*;
 
 fn main() {
@@ -56,8 +57,8 @@ fn move_camera(
 ) -> Result {
     let mut camera_pos = camera_poses.single_mut()?;
     **camera_pos += IVec2::new(
-        keys.pressed(KeyCode::ArrowRight) as i32 - keys.pressed(KeyCode::ArrowLeft) as i32,
-        keys.pressed(KeyCode::ArrowUp) as i32 - keys.pressed(KeyCode::ArrowDown) as i32,
+        i32::from(keys.pressed(KeyCode::ArrowRight)) - i32::from(keys.pressed(KeyCode::ArrowLeft)),
+        i32::from(keys.pressed(KeyCode::ArrowUp)) - i32::from(keys.pressed(KeyCode::ArrowDown)),
     )
     .as_vec2()
     .normalize_or_zero()
@@ -75,9 +76,7 @@ struct Mage;
 // Jitter the mage around randomly. This function is framerate-sensitive, which is not good
 // for a game, but it's fine for this example.
 fn move_mage(mut mages: Query<&mut PxPosition, With<Mage>>) -> Result {
-    if let Some(delta) =
-        [IVec2::X, -IVec2::X, IVec2::Y, -IVec2::Y].get(thread_rng().gen_range(0..50))
-    {
+    if let Some(delta) = [IVec2::X, -IVec2::X, IVec2::Y, -IVec2::Y].get(rng().random_range(0..50)) {
         **mages.single_mut()? += *delta;
     }
 

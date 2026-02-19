@@ -13,6 +13,7 @@ pub trait RectExt {
     fn pos_size_anchor(pos: IVec2, size: UVec2, anchor: PxAnchor) -> Self;
 
     /// Subtracts an [`IVec2`] from the rectangle's points
+    #[must_use]
     fn sub_ivec2(self, other: IVec2) -> Self;
 }
 
@@ -66,8 +67,9 @@ pub enum Diagonal {
 
 impl Diagonal {
     /// 1 for each positive axis and 0 for each negative axis
+    #[must_use]
     pub fn as_uvec2(self) -> UVec2 {
-        use Diagonal::*;
+        use Diagonal::{DownLeft, DownRight, UpLeft, UpRight};
 
         match self {
             UpRight => UVec2::ONE,

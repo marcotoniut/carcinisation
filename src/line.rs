@@ -93,7 +93,7 @@ impl Frames for (&PxLine, &PxFilterAsset) {
                     let pos = ivec2(x, y);
                     let pixel = image.image_pixel_mut(pos);
                     *pixel = filter.pixel(ivec2(
-                        *pixel as i32,
+                        i32::from(*pixel),
                         frame(uvec2(x as u32, y as u32)) as i32,
                     ));
                 }
@@ -127,7 +127,7 @@ impl Frames for (&PxLine, &PxFilterAsset) {
 
                 let pixel = image.image_pixel_mut(pos);
                 *pixel = filter.pixel(ivec2(
-                    *pixel as i32,
+                    i32::from(*pixel),
                     frame(uvec2(pos.x as u32, pos.y as u32)) as i32,
                 ));
             }

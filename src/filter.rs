@@ -1,4 +1,5 @@
 //! Filtering
+#![allow(clippy::items_after_test_module)]
 
 use std::{error::Error, ops::RangeInclusive, path::PathBuf};
 
@@ -184,17 +185,17 @@ impl Frames for PxFilterAsset {
         image.for_each_mut(|index, _, pixel| {
             let index = index as u32;
             *pixel = filter.pixel(IVec2::new(
-                *pixel as i32,
+                i32::from(*pixel),
                 frame(UVec2::new(index % width, index / width)) as i32,
             ));
-        })
+        });
     }
 }
 
 impl PxFilterAsset {
     pub(crate) fn as_fn(&self) -> impl '_ + Fn(u8) -> u8 {
         let Self(filter) = self;
-        |pixel| filter.pixel(IVec2::new(pixel as i32, 0))
+        |pixel| filter.pixel(IVec2::new(i32::from(pixel), 0))
     }
 }
 
@@ -295,7 +296,7 @@ fn insert_default_px_filter_layers(mut world: DeferredWorld, ctx: HookContext) {
             insert_default_px_filter_layers(default.clip, entity.remove::<DefaultPxFilterLayers>());
         }
         world.insert_resource(insert_default_px_filter_layers);
-    })
+    });
 }
 
 #[derive(Component)]

@@ -126,12 +126,12 @@ pub(crate) fn update_key_fields(
         };
 
         if let Some(mut field) = world.get_mut::<PxKeyField>(field_id) {
-            field.cached_text = key.clone();
+            field.cached_text.clone_from(&key);
         }
 
         if let Some(mut text) = world.get_mut::<PxText>(field_id) {
             text.value = key;
-        };
+        }
     });
 
     cmd.trigger(PxKeyFieldUpdate {

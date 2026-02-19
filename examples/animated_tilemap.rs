@@ -1,7 +1,8 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, animated tilemaps are spawned
 
 use bevy::prelude::*;
-use rand::{Rng, thread_rng};
+use rand::{RngExt, rng};
 use carapace::prelude::*;
 
 fn main() {
@@ -26,12 +27,12 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
 
     let mut tiles = PxTiles::new(UVec2::new(2, 4));
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     for x in 0..2 {
         for y in 0..4 {
             tiles.set(
-                Some(commands.spawn(PxTile::from(rng.gen_range(0..4))).id()),
+                Some(commands.spawn(PxTile::from(rng.random_range(0..4))).id()),
                 UVec2::new(x, y),
             );
         }

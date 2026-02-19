@@ -182,7 +182,8 @@ pub(crate) fn animate(frame: PxFrameView, frame_count: usize) -> impl Fn(UVec2) 
     let index = index.floor() as usize;
 
     move |pos| {
-        (index + ((0b1000_0000_0000_0000 >> (pos.x % 4 + pos.y % 4 * 4)) & dithering != 0) as usize)
+        (index
+            + usize::from((0b1000_0000_0000_0000 >> (pos.x % 4 + pos.y % 4 * 4)) & dithering != 0))
             % frame_count
     }
 }

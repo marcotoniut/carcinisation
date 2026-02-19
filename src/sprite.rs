@@ -297,6 +297,7 @@ pub(crate) struct PxCompositePartMetrics {
 
 impl PxCompositeSprite {
     /// Create a composite sprite from parts.
+    #[must_use]
     pub fn new(parts: Vec<PxCompositePart>) -> Self {
         Self {
             parts,
@@ -325,13 +326,13 @@ impl PxCompositeSprite {
             let part_min = part.offset;
             let part_max = part.offset + size;
 
-            if !any {
+            if any {
+                min = min.min(part_min);
+                max = max.max(part_max);
+            } else {
                 min = part_min;
                 max = part_max;
                 any = true;
-            } else {
-                min = min.min(part_min);
-                max = max.max(part_max);
             }
 
             frame_count = frame_count.max(metrics.frame_count);
@@ -358,17 +359,14 @@ impl PxCompositeSprite {
                 frame_count: sprite.frame_count(),
             })
         });
-        match metrics {
-            Some(metrics) => {
-                self.size = metrics.size;
-                self.origin = metrics.origin;
-                self.frame_count = metrics.frame_count;
-            }
-            None => {
-                self.size = UVec2::ZERO;
-                self.origin = IVec2::ZERO;
-                self.frame_count = 0;
-            }
+        if let Some(metrics) = metrics {
+            self.size = metrics.size;
+            self.origin = metrics.origin;
+            self.frame_count = metrics.frame_count;
+        } else {
+            self.size = UVec2::ZERO;
+            self.origin = IVec2::ZERO;
+            self.frame_count = 0;
         }
     }
 }
@@ -388,6 +386,7 @@ pub struct PxCompositePart {
 
 impl PxCompositePart {
     /// Create a composite part with default binding and zero offset.
+    #[must_use]
     pub fn new(sprite: Handle<PxSpriteAsset>) -> Self {
         Self {
             sprite,
@@ -476,6 +475,8 @@ fn sync_composite_frame_count_on_animation_added(
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write as _;
+
     use super::*;
     use crate::{
         camera::PxCamera,
@@ -505,7 +506,7 @@ mod tests {
                 if x > 0 {
                     out.push(' ');
                 }
-                out.push_str(&format!("{value:02}"));
+                let _ = write!(&mut out, "{value:02}");
             }
             if y + 1 < size.y as i32 {
                 out.push('\n');

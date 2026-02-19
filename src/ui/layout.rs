@@ -22,6 +22,14 @@ fn calc_min_size<L: PxLayer>(
     typefaces: &Assets<PxTypeface>,
     sprites: &Assets<PxSpriteAsset>,
 ) -> UVec2 {
+    fn dim(vec: UVec2, y: bool) -> u32 {
+        if y { vec.y } else { vec.x }
+    }
+
+    fn dim_mut(vec: &mut UVec2, y: bool) -> &mut u32 {
+        if y { &mut vec.y } else { &mut vec.x }
+    }
+
     let Ok(((min_size, margin, row, grid, stack, rect, sprite, text), _, _)) = uis.get(ui) else {
         // This includes `PxSpace`. Surprise, the `PxSpace` component doesn't do anything at all.
         // It's just easier to spawn in UI.
@@ -54,14 +62,6 @@ fn calc_min_size<L: PxLayer>(
                 margin
             }
         };
-    }
-
-    fn dim(vec: UVec2, y: bool) -> u32 {
-        if y { vec.y } else { vec.x }
-    }
-
-    fn dim_mut(vec: &mut UVec2, y: bool) -> &mut u32 {
-        if y { &mut vec.y } else { &mut vec.x }
     }
 
     if let Some((row, children)) = row {
@@ -240,6 +240,19 @@ fn layout_inner<L: PxLayer>(
     typefaces: &Assets<PxTypeface>,
     sprites: &Assets<PxSpriteAsset>,
 ) -> Result<Option<L>> {
+    fn dim(vec: IVec2, y: bool) -> i32 {
+        if y { vec.y } else { vec.x }
+    }
+
+    // Adds to x, subtracts from y
+    fn add(augend: i32, addend: i32, y: bool) -> i32 {
+        if y { augend - addend } else { augend + addend }
+    }
+
+    fn rect_size(rect: IRect, y: bool) -> i32 {
+        if y { rect.height() } else { rect.width() }
+    }
+
     let Ok(((min_size, margin, row, grid, stack, rect, sprite, text), _, _)) = uis.get(ui) else {
         return Ok(None);
     };
@@ -287,30 +300,17 @@ fn layout_inner<L: PxLayer>(
         };
     }
 
-    fn dim(vec: IVec2, y: bool) -> i32 {
-        if y { vec.y } else { vec.x }
-    }
-
-    // Adds to x, subtracts from y
-    fn add(augend: i32, addend: i32, y: bool) -> i32 {
-        if y { augend - addend } else { augend + addend }
-    }
-
-    fn rect_size(rect: IRect, y: bool) -> i32 {
-        if y { rect.height() } else { rect.width() }
-    }
-
     if let Some((row, children)) = row {
+        fn dim_mut(vec: &mut IVec2, y: bool) -> &mut i32 {
+            if y { &mut vec.y } else { &mut vec.x }
+        }
+
         let row = row.clone();
         let children = children
             .iter()
             .flat_map(|children| &**children)
             .copied()
             .collect::<Vec<_>>();
-
-        fn dim_mut(vec: &mut IVec2, y: bool) -> &mut i32 {
-            if y { &mut vec.y } else { &mut vec.x }
-        }
 
         let vert = row.vertical;
         let mut pos = ivec2(target_rect.min.x, target_rect.max.y);
@@ -473,7 +473,7 @@ fn layout_inner<L: PxLayer>(
                     sprites,
                 )? {
                     layer = Some(last_layer);
-                };
+                }
 
                 x_pos += width + grid.columns.space_between as i32;
             }
@@ -511,7 +511,7 @@ fn layout_inner<L: PxLayer>(
                 sprites,
             )? {
                 layer = Some(last_layer);
-            };
+            }
         }
 
         return Ok(layer);
@@ -694,26 +694,26 @@ fn layout_inner<L: PxLayer>(
             }
 
             return Ok(layer);
-        } else {
-            if let Some((mut pos, _)) = pos {
-                **pos = target_rect.center();
-            }
-
-            let rect_layer = target_layer.clone();
-            match *layers {
-                PxFilterLayers::Single { ref mut layer, .. } => *layer = rect_layer,
-                PxFilterLayers::Range(ref mut layers) => {
-                    *layers = layers.start().clone()..=rect_layer
-                }
-                ref mut layers @ PxFilterLayers::Many(_) => {
-                    *layers = PxFilterLayers::single_over(rect_layer)
-                }
-            }
-
-            **rect = target_rect.size().as_uvec2();
-
-            return Ok(Some(target_layer.clone()));
         }
+
+        if let Some((mut pos, _)) = pos {
+            **pos = target_rect.center();
+        }
+
+        let rect_layer = target_layer.clone();
+        match *layers {
+            PxFilterLayers::Single { ref mut layer, .. } => *layer = rect_layer,
+            PxFilterLayers::Range(ref mut layers) => {
+                *layers = layers.start().clone()..=rect_layer;
+            }
+            ref mut layers @ PxFilterLayers::Many(_) => {
+                *layers = PxFilterLayers::single_over(rect_layer);
+            }
+        }
+
+        **rect = target_rect.size().as_uvec2();
+
+        return Ok(Some(target_layer.clone()));
     }
 
     if sprite.is_some() {
@@ -776,7 +776,7 @@ fn layout_inner<L: PxLayer>(
                 let width = char.frame_size().x as i32;
 
                 if x != 0 {
-                    x += 1
+                    x += 1;
                 }
                 x += width;
 

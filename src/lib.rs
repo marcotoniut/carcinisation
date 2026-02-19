@@ -7,7 +7,26 @@
 
 // TODO Remove `Px` prefix where possible
 
-#![allow(clippy::too_many_arguments, clippy::type_complexity)]
+#![allow(
+    // Pixel/graphics math requires pervasive narrowing casts (`as usize`, `as u32`, `as f32`).
+    clippy::cast_possible_truncation,
+    // Coordinate system conversions between unsigned and signed integers are unavoidable.
+    clippy::cast_possible_wrap,
+    // Pixel coordinates don't need double precision; `u32 as f32` is fine for rendering.
+    clippy::cast_precision_loss,
+    // Signed-to-unsigned casts for indexing where values are contextually non-negative.
+    clippy::cast_sign_loss,
+    // Bevy system signatures expand to 8+ params via `Extract<Query<...>>` tuples.
+    clippy::too_many_arguments,
+    // Layout and rendering functions are inherently complex.
+    clippy::too_many_lines,
+    // Bevy ECS queries produce deeply nested generics (`Query<(...), (With<A>, Without<B>)>`).
+    clippy::type_complexity,
+    // Bevy system params (`Res<T>`, `Query<T>`, `Commands`) must be taken by value.
+    clippy::needless_pass_by_value,
+    // Tracing span guards use `let _span = ...` to keep the span alive until drop.
+    clippy::no_effect_underscore_binding,
+)]
 #![cfg_attr(not(feature = "headed"), allow(unused_imports))]
 #![warn(missing_docs)]
 

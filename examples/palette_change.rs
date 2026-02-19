@@ -1,7 +1,8 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this game, you can spawn a mage by pressing space and switch the palette by pressing tab
 
 use bevy::prelude::*;
-use rand::{Rng, thread_rng};
+use rand::{RngExt, rng};
 use carapace::{
     palette::{Palette, PaletteHandle},
     prelude::*,
@@ -48,13 +49,13 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
 fn spawn_mage(keys: Res<ButtonInput<KeyCode>>, assets: Res<AssetServer>, mut commands: Commands) {
     if keys.just_pressed(KeyCode::Space) {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         commands.spawn((
             // Usually, this sprite would be added in `init` to avoid duplicating data,
             // but it's here instead to show that loading assets is independent
             // of the current palette
             PxSprite(assets.load("sprite/mage.px_sprite.png")),
-            PxPosition(IVec2::new(rng.gen_range(0..56), rng.gen_range(0..48))),
+            PxPosition(IVec2::new(rng.random_range(0..56), rng.random_range(0..48))),
             PxAnchor::BottomLeft,
         ));
     }

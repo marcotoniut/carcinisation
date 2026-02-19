@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // Demonstrates the experimental GPU palette sprite path.
 
 use bevy::prelude::*;

@@ -133,7 +133,7 @@ impl ExtractResource for CursorState {
     type Source = ButtonInput<MouseButton>;
 
     fn extract_resource(source: &ButtonInput<MouseButton>) -> Self {
-        use CursorState::*;
+        use CursorState::{Idle, Left, Right};
 
         if source.pressed(MouseButton::Left) {
             Left

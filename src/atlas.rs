@@ -151,21 +151,25 @@ pub struct PxSpriteAtlasAsset {
 
 impl PxSpriteAtlasAsset {
     /// Atlas pixel dimensions.
+    #[must_use]
     pub fn size(&self) -> UVec2 {
         self.size
     }
 
     /// Resolve a region id by name.
+    #[must_use]
     pub fn region_id(&self, name: &str) -> Option<AtlasRegionId> {
         self.names.get(name).copied()
     }
 
     /// Look up a region by id.
+    #[must_use]
     pub fn region(&self, id: AtlasRegionId) -> Option<&AtlasRegion> {
         self.regions.get(id.0 as usize)
     }
 
     /// All regions in this atlas.
+    #[must_use]
     pub fn regions(&self) -> &[AtlasRegion] {
         &self.regions
     }
@@ -190,6 +194,7 @@ pub struct AtlasRect {
 
 impl AtlasRect {
     /// Size of the rectangle in pixels.
+    #[must_use]
     pub fn size(&self) -> UVec2 {
         UVec2::new(self.w, self.h)
     }
@@ -213,11 +218,13 @@ pub struct AtlasRegion {
 
 impl AtlasRegion {
     /// Number of frames in the region.
+    #[must_use]
     pub fn frame_count(&self) -> usize {
         self.frames.len()
     }
 
     /// Get the frame rectangle at an index.
+    #[must_use]
     pub fn frame(&self, index: usize) -> Option<AtlasRect> {
         self.frames.get(index).copied()
     }
@@ -236,6 +243,7 @@ pub struct PxAtlasSprite {
 
 impl PxAtlasSprite {
     /// Create a new atlas sprite pointing at a region.
+    #[must_use]
     pub fn new(atlas: Handle<PxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
         Self { atlas, region }
     }
@@ -567,8 +575,7 @@ mod tests {
         // region(id) returns None => frame_count should be 0.
         let count = atlas
             .region(sprite.region)
-            .map(|r| r.frame_count())
-            .unwrap_or(0);
+            .map_or(0, AtlasRegion::frame_count);
         assert_eq!(count, 0);
     }
 
@@ -604,8 +611,7 @@ mod tests {
         };
         let count = atlas
             .region(AtlasRegionId(0))
-            .map(|r| r.frame_count())
-            .unwrap_or(0);
+            .map_or(0, AtlasRegion::frame_count);
         assert_eq!(count, 3);
     }
 

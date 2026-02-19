@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, an in-game cursor is used
 
 use bevy::prelude::*;

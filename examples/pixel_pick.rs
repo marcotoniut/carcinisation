@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, clicking a sprite highlights the clicked pixel with a filter.
 
 use bevy::prelude::*;

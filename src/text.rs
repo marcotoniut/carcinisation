@@ -118,13 +118,13 @@ impl AssetLoader for PxTypefaceLoader {
                 .collect::<HashMap<_, _>>()
         };
 
-        let max_frame_count =
-            characters
-                .values()
-                .fold(0, |max, character| match character.frame_size > max {
-                    true => character.frame_size,
-                    false => max,
-                });
+        let max_frame_count = characters.values().fold(0, |max, character| {
+            if character.frame_size > max {
+                character.frame_size
+            } else {
+                max
+            }
+        });
 
         Ok(PxTypeface {
             height: if image.texture_descriptor.size.height == 0 {
@@ -175,6 +175,7 @@ pub struct PxTypeface {
 
 impl PxTypeface {
     /// Check whether the typeface contains the given character, including separators
+    #[must_use]
     pub fn contains(&self, character: char) -> bool {
         self.characters.contains_key(&character) || self.separators.contains_key(&character)
     }
@@ -229,6 +230,45 @@ impl AnimatedAssetComponent for PxText {
 
     fn max_frame_count(typeface: &PxTypeface) -> usize {
         typeface.max_frame_count
+    }
+}
+
+pub(crate) type TextComponents<L> = (
+    &'static PxText,
+    &'static PxPosition,
+    &'static PxAnchor,
+    &'static L,
+    &'static PxCanvas,
+    Option<&'static PxFrame>,
+    Option<&'static PxFilter>,
+);
+
+#[cfg(feature = "headed")]
+fn extract_texts<L: PxLayer>(
+    texts: Extract<Query<(TextComponents<L>, &InheritedVisibility, RenderEntity)>>,
+    mut cmd: Commands,
+) {
+    for ((text, &pos, &alignment, layer, &canvas, frame, filter), visibility, id) in &texts {
+        let mut entity = cmd.entity(id);
+
+        if !visibility.get() {
+            entity.remove::<L>();
+            continue;
+        }
+
+        entity.insert((text.clone(), pos, alignment, layer.clone(), canvas));
+
+        if let Some(frame) = frame {
+            entity.insert(*frame);
+        } else {
+            entity.remove::<PxFrame>();
+        }
+
+        if let Some(filter) = filter {
+            entity.insert(filter.clone());
+        } else {
+            entity.remove::<PxFilter>();
+        }
     }
 }
 
@@ -289,7 +329,7 @@ mod tests {
                 char,
                 (),
                 &mut slice,
-                PxPosition(top_left + ivec2(x as i32, -(y as i32))),
+                PxPosition(top_left + ivec2(x as i32, -y)),
                 PxAnchor::TopLeft,
                 PxCanvas::Camera,
                 None,
@@ -327,44 +367,5 @@ mod tests {
 
         let expected = vec![1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1];
         assert_eq!(pixels(&image), expected);
-    }
-}
-
-pub(crate) type TextComponents<L> = (
-    &'static PxText,
-    &'static PxPosition,
-    &'static PxAnchor,
-    &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
-);
-
-#[cfg(feature = "headed")]
-fn extract_texts<L: PxLayer>(
-    texts: Extract<Query<(TextComponents<L>, &InheritedVisibility, RenderEntity)>>,
-    mut cmd: Commands,
-) {
-    for ((text, &pos, &alignment, layer, &canvas, frame, filter), visibility, id) in &texts {
-        let mut entity = cmd.entity(id);
-
-        if !visibility.get() {
-            entity.remove::<L>();
-            continue;
-        }
-
-        entity.insert((text.clone(), pos, alignment, layer.clone(), canvas));
-
-        if let Some(frame) = frame {
-            entity.insert(*frame);
-        } else {
-            entity.remove::<PxFrame>();
-        }
-
-        if let Some(filter) = filter {
-            entity.insert(filter.clone());
-        } else {
-            entity.remove::<PxFilter>();
-        }
     }
 }

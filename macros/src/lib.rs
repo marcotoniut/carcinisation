@@ -12,17 +12,7 @@ pub fn px_layer(
     args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let mut output = proc_macro::TokenStream::from(if !args.is_empty() {
-        let error = match syn::parse::<Meta>(args) {
-            Ok(args) => Error::new_spanned(args, "px_layer should not have arguments"),
-            Err(error) => error,
-        }
-        .into_compile_error();
-
-        quote! {
-            #error
-        }
-    } else {
+    let mut output = proc_macro::TokenStream::from(if args.is_empty() {
         quote! {
             #[derive(
                 ::bevy::render::extract_component::ExtractComponent,
@@ -37,6 +27,16 @@ pub fn px_layer(
                 ::std::fmt::Debug,
             )]
             #[next(path = ::carapace::math::Next)]
+        }
+    } else {
+        let error = match syn::parse::<Meta>(args) {
+            Ok(args) => Error::new_spanned(args, "px_layer should not have arguments"),
+            Err(error) => error,
+        }
+        .into_compile_error();
+
+        quote! {
+            #error
         }
     });
 

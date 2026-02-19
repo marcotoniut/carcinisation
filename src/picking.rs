@@ -30,7 +30,7 @@ fn layer_depth<L: PxLayer>(layer_depths: &mut BTreeMap<L, f32>, layer: &L) -> f3
         layer_depths.range(..layer).last(),
         layer_depths.range(layer..).next(),
     ) {
-        (Some((_, &lower)), Some((_, &upper))) => (lower + upper) / 2.,
+        (Some((_, &lower)), Some((_, &upper))) => f32::midpoint(lower, upper),
         (Some((_, &lower)), None) => lower - 1.,
         (None, Some((_, &upper))) => upper + 1.,
         (None, None) => 0.,

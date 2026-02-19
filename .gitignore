@@ -1,8 +1,19 @@
-target/
-/Cargo.lock
-.vscode/
-imported_assets/
-.DS_Store
+# Rust build artifacts
+/target/
 /rustc-ice-*.txt
-*.pending-snap
+
+# Cargo lockfile policy for this library crate
+/Cargo.lock
+
+# Editor and local development environment
+.vscode/
 .direnv/
+.mcp.json
+
+# macOS metadata
+.DS_Store
+
+# Local/generated assets and temporary files
+imported_assets/
+tmp/
+*.pending-snap

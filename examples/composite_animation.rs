@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a composed sprite is animated by driving a master frame manually.
 
 use bevy::prelude::*;

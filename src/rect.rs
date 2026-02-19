@@ -8,9 +8,9 @@ use crate::{
     prelude::*,
 };
 
-pub(crate) fn plug<L: PxLayer>(_app: &mut App) {
+pub(crate) fn plug<L: PxLayer>(app: &mut App) {
     #[cfg(feature = "headed")]
-    _app.sub_app_mut(RenderApp)
+    app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, extract_rects::<L>);
 }
 
@@ -57,7 +57,7 @@ impl Frames for (PxRect, &PxFilterAsset) {
                     let pos = ivec2(x, y);
                     let pixel = image.image_pixel_mut(pos);
                     *pixel = filter_fn(filter.pixel(ivec2(
-                        *pixel as i32,
+                        i32::from(*pixel),
                         frame(uvec2(x as u32, y as u32)) as i32,
                     )));
                 }
@@ -68,7 +68,7 @@ impl Frames for (PxRect, &PxFilterAsset) {
                     let pos = ivec2(x, y);
                     let pixel = image.image_pixel_mut(pos);
                     *pixel = filter_fn(filter.pixel(ivec2(
-                        *pixel as i32,
+                        i32::from(*pixel),
                         frame(uvec2(x as u32, y as u32)) as i32,
                     )));
                 }
@@ -79,7 +79,7 @@ impl Frames for (PxRect, &PxFilterAsset) {
                     let pos = ivec2(x, y);
                     let pixel = image.image_pixel_mut(pos);
                     *pixel = filter_fn(filter.pixel(ivec2(
-                        *pixel as i32,
+                        i32::from(*pixel),
                         frame(uvec2(x as u32, y as u32)) as i32,
                     )));
                 }
@@ -88,7 +88,7 @@ impl Frames for (PxRect, &PxFilterAsset) {
                     let pos = ivec2(x, y);
                     let pixel = image.image_pixel_mut(pos);
                     *pixel = filter_fn(filter.pixel(ivec2(
-                        *pixel as i32,
+                        i32::from(*pixel),
                         frame(uvec2(x as u32, y as u32)) as i32,
                     )));
                 }
@@ -98,7 +98,8 @@ impl Frames for (PxRect, &PxFilterAsset) {
             image.for_each_mut(|_, image_index, pixel| {
                 let x = (image_index % image_width) as u32;
                 let y = (image_index / image_width) as u32;
-                *pixel = filter_fn(filter.pixel(ivec2(*pixel as i32, frame(uvec2(x, y)) as i32)));
+                *pixel =
+                    filter_fn(filter.pixel(ivec2(i32::from(*pixel), frame(uvec2(x, y)) as i32)));
             });
         }
     }

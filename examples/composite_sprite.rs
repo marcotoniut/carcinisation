@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a sprite is composed from multiple sprite parts.
 
 use bevy::prelude::*;

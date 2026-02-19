@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a line is spawned
 
 use bevy::prelude::*;

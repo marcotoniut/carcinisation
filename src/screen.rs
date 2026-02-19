@@ -140,13 +140,13 @@ impl<L: PxLayer> Plugin for Plug<L> {
         }
     }
 
-    fn finish(&self, _app: &mut App) {
+    fn finish(&self, app: &mut App) {
         #[cfg(feature = "headed")]
-        _app.sub_app_mut(RenderApp)
+        app.sub_app_mut(RenderApp)
             .init_resource::<PxPipeline>()
             .init_resource::<PxRenderBuffer>();
         #[cfg(feature = "gpu_palette")]
-        _app.sub_app_mut(RenderApp)
+        app.sub_app_mut(RenderApp)
             .init_resource::<PxGpuSpritePipeline>()
             .init_resource::<PxGpuSpriteBuffer>()
             .init_resource::<PxLayerOrder<L>>();
@@ -172,7 +172,7 @@ impl From<UVec2> for ScreenSize {
 
 impl ScreenSize {
     fn compute(self, window_size: Vec2) -> UVec2 {
-        use ScreenSize::*;
+        use ScreenSize::{Fixed, MinPixels};
 
         match self {
             Fixed(size) => size,
@@ -200,6 +200,7 @@ pub struct Screen {
 
 impl Screen {
     /// Computed size of the screen
+    #[must_use]
     pub fn size(&self) -> UVec2 {
         self.computed_size
     }
@@ -233,9 +234,10 @@ pub(crate) fn gpu_composite_supported(
 pub(crate) fn screen_scale(screen_size: UVec2, window_size: Vec2) -> Vec2 {
     let aspect = screen_size.y as f32 / screen_size.x as f32;
 
-    Vec2::from(match window_size.y > aspect * window_size.x {
-        true => (window_size.x, window_size.x * aspect),
-        false => (window_size.y / aspect, window_size.y),
+    Vec2::from(if window_size.y > aspect * window_size.x {
+        (window_size.x, window_size.x * aspect)
+    } else {
+        (window_size.y / aspect, window_size.y)
     })
 }
 
@@ -245,10 +247,10 @@ type Windows<'w, 's> = Query<'w, 's, &'static Window, With<PrimaryWindow>>;
 type Windows<'w, 's> = Query<'w, 's, ()>;
 
 fn insert_screen(size: ScreenSize) -> impl Fn(Windows, Commands) -> Result {
-    move |_windows, mut commands| {
+    move |windows, mut commands| {
         #[cfg(feature = "headed")]
         let (computed_size, window_aspect_ratio) = {
-            let window = _windows.single()?;
+            let window = windows.single()?;
             (
                 size.compute(Vec2::new(window.width(), window.height())),
                 window.width() / window.height(),

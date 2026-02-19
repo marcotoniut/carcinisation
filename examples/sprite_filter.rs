@@ -1,3 +1,4 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a filter is applied to a single sprite
 
 use bevy::prelude::*;

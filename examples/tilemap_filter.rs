@@ -1,7 +1,8 @@
+#![allow(clippy::needless_pass_by_value)]
 // In this program, a filter is applied to a tilemap and its tiles
 
 use bevy::prelude::*;
-use rand::{Rng, thread_rng};
+use rand::{RngExt, rng};
 use carapace::prelude::*;
 
 fn main() {
@@ -26,7 +27,7 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     let mut tiles = PxTiles::new(UVec2::splat(4));
     let dim = assets.load("filter/dim.px_filter.png");
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     for x in 0..4 {
         for y in 0..4 {
@@ -35,7 +36,7 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
                 Some(
                     commands
                         .spawn((
-                            PxTile::from(rng.gen_range(0..4)),
+                            PxTile::from(rng.random_range(0..4)),
                             // Insert a filter on the tile
                             PxFilter(dim.clone()),
                         ))

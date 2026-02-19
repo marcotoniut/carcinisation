@@ -176,7 +176,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                 over_lines,
                 over_filters,
             ),
-        ) in layer_contents.into_iter()
+        ) in layer_contents
         {
             #[cfg(feature = "gpu_palette")]
             let base_depth = layer_index_for(layer_order, &layer);
@@ -516,7 +516,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
             cursor_image.height() as i32 - 1 - cursor_pos.y as i32,
         );
         if let Some(pixel) = cursor_image.get_pixel_mut(cursor_pos) {
-            if let Some(new_pixel) = filter.get_pixel(IVec2::new(*pixel as i32, 0)) {
+            if let Some(new_pixel) = filter.get_pixel(IVec2::new(i32::from(*pixel), 0)) {
                 *pixel = new_pixel;
             } else {
                 error!("`PxCursor` filter is the wrong size");
@@ -524,11 +524,11 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
         }
         #[cfg(feature = "gpu_palette")]
         if let Some(depth) = depth_image.as_mut().and_then(|depth| depth.data.as_mut()) {
-            let width = cursor_image.image_width() as usize;
+            let width = cursor_image.image_width();
             if cursor_pos.x >= 0 && cursor_pos.y >= 0 {
                 let x = cursor_pos.x as usize;
                 let y = cursor_pos.y as usize;
-                if x < width && y < cursor_image.image_height() as usize {
+                if x < width && y < cursor_image.image_height() {
                     let depth = cast_slice_mut::<u8, u16>(depth);
                     depth[y * width + x] = u16::MAX;
                 }

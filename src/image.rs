@@ -181,77 +181,6 @@ impl PxImage {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::palette::Palette;
-    use bevy_asset::RenderAssetUsages;
-    use bevy_image::Image;
-    use bevy_render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-
-    fn rgba_image(width: u32, height: u32, pixels: &[[u8; 4]]) -> Image {
-        let data = pixels.iter().flatten().copied().collect();
-        Image::new(
-            Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            data,
-            TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::default(),
-        )
-    }
-
-    fn make_palette() -> Palette {
-        // 2×1 palette: pixel 0 transparent (background), pixel 1 = red.
-        let img = rgba_image(2, 1, &[[0, 0, 0, 0], [255, 0, 0, 255]]);
-        Palette::new(&img).unwrap()
-    }
-
-    #[test]
-    fn palette_indices_transparent_maps_to_zero() {
-        let palette = make_palette();
-        // Transparent pixel → index 0 regardless of RGB.
-        let img = rgba_image(1, 1, &[[99, 0, 0, 0]]);
-        let px = PxImage::palette_indices(&palette, &img).unwrap();
-        assert_eq!(px.pixel(IVec2::ZERO), 0);
-    }
-
-    #[test]
-    fn palette_indices_known_color_maps_to_index() {
-        let palette = make_palette();
-        // Red opaque → index 1.
-        let img = rgba_image(1, 1, &[[255, 0, 0, 255]]);
-        let px = PxImage::palette_indices(&palette, &img).unwrap();
-        assert_eq!(px.pixel(IVec2::ZERO), 1);
-    }
-
-    #[test]
-    fn palette_indices_unknown_color_errors() {
-        let palette = make_palette();
-        // Green is not in the palette.
-        let img = rgba_image(1, 1, &[[0, 255, 0, 255]]);
-        let err = PxImage::palette_indices(&palette, &img).unwrap_err();
-        assert!(
-            err.to_string().contains("wasn't in the palette"),
-            "got: {err}"
-        );
-    }
-
-    #[test]
-    fn palette_indices_width_is_preserved() {
-        let palette = make_palette();
-        // 2×1 image: transparent then red.
-        let img = rgba_image(2, 1, &[[0, 0, 0, 0], [255, 0, 0, 255]]);
-        let px = PxImage::palette_indices(&palette, &img).unwrap();
-        assert_eq!(px.size(), UVec2::new(2, 1));
-        assert_eq!(px.pixel(IVec2::new(0, 0)), 0);
-        assert_eq!(px.pixel(IVec2::new(1, 0)), 1);
-    }
-}
-
 pub(crate) struct PxImageSliceMut<'a> {
     // TODO Currently, this is the entire image. Trim it down to the slice that this should have
     // access to.
@@ -370,5 +299,76 @@ impl<'a> PxImageSliceMut<'a> {
                 *pixel = new_pixel;
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::palette::Palette;
+    use bevy_asset::RenderAssetUsages;
+    use bevy_image::Image;
+    use bevy_render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+
+    fn rgba_image(width: u32, height: u32, pixels: &[[u8; 4]]) -> Image {
+        let data = pixels.iter().flatten().copied().collect();
+        Image::new(
+            Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            data,
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::default(),
+        )
+    }
+
+    fn make_palette() -> Palette {
+        // 2×1 palette: pixel 0 transparent (background), pixel 1 = red.
+        let img = rgba_image(2, 1, &[[0, 0, 0, 0], [255, 0, 0, 255]]);
+        Palette::new(&img).unwrap()
+    }
+
+    #[test]
+    fn palette_indices_transparent_maps_to_zero() {
+        let palette = make_palette();
+        // Transparent pixel → index 0 regardless of RGB.
+        let img = rgba_image(1, 1, &[[99, 0, 0, 0]]);
+        let px = PxImage::palette_indices(&palette, &img).unwrap();
+        assert_eq!(px.pixel(IVec2::ZERO), 0);
+    }
+
+    #[test]
+    fn palette_indices_known_color_maps_to_index() {
+        let palette = make_palette();
+        // Red opaque → index 1.
+        let img = rgba_image(1, 1, &[[255, 0, 0, 255]]);
+        let px = PxImage::palette_indices(&palette, &img).unwrap();
+        assert_eq!(px.pixel(IVec2::ZERO), 1);
+    }
+
+    #[test]
+    fn palette_indices_unknown_color_errors() {
+        let palette = make_palette();
+        // Green is not in the palette.
+        let img = rgba_image(1, 1, &[[0, 255, 0, 255]]);
+        let err = PxImage::palette_indices(&palette, &img).unwrap_err();
+        assert!(
+            err.to_string().contains("wasn't in the palette"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn palette_indices_width_is_preserved() {
+        let palette = make_palette();
+        // 2×1 image: transparent then red.
+        let img = rgba_image(2, 1, &[[0, 0, 0, 0], [255, 0, 0, 255]]);
+        let px = PxImage::palette_indices(&palette, &img).unwrap();
+        assert_eq!(px.size(), UVec2::new(2, 1));
+        assert_eq!(px.pixel(IVec2::new(0, 0)), 0);
+        assert_eq!(px.pixel(IVec2::new(1, 0)), 1);
     }
 }

@@ -6,9 +6,9 @@ use bevy_derive::{Deref, DerefMut};
 
 use crate::prelude::*;
 
-pub(crate) fn plug(_app: &mut App) {
+pub(crate) fn plug(app: &mut App) {
     #[cfg(feature = "headed")]
-    _app.add_systems(PostUpdate, blink);
+    app.add_systems(PostUpdate, blink);
 }
 
 /// Toggles `Visibility` whenever the timer finishes
@@ -18,6 +18,7 @@ pub struct Blink(Timer);
 
 impl Blink {
     /// Creates a `Blink` with the given period
+    #[must_use]
     pub fn new(period: Duration) -> Self {
         Self(Timer::new(period, TimerMode::Repeating))
     }
