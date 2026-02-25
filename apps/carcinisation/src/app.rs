@@ -2,6 +2,8 @@
 
 use bevy::window::{WindowCloseRequested, WindowResolution};
 use bevy::{asset::AssetPlugin, prelude::*};
+#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+use bevy_brp_extras::BrpExtrasPlugin;
 use bevy_framepace::FramepacePlugin;
 #[cfg(debug_assertions)]
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
@@ -127,6 +129,9 @@ pub fn build_app(options: AppLaunchOptions) -> App {
     app.init_resource::<DifficultySelected>()
         .init_resource::<VolumeSettings>()
         .add_plugins(InputManagerPlugin::<GBInput>::default());
+
+    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+    app.add_plugins(BrpExtrasPlugin);
 
     #[cfg(not(target_arch = "wasm32"))]
     {

@@ -21,6 +21,7 @@ bevy = { workspace = true }
 bevy-inspector-egui = { workspace = true }
 bevy_common_assets = { workspace = true }
 bevy_ecs = { workspace = true }
+bevy_brp_extras = { workspace = true }
 bevy_framepace = { workspace = true }
 bevy_state = { workspace = true }
 leafwing-input-manager = { workspace = true }

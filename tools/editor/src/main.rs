@@ -25,6 +25,8 @@ use bevy::diagnostic::LogDiagnosticsPlugin;
 use bevy::prelude::*;
 #[cfg(feature = "full_editor")]
 use bevy::window::Window;
+#[cfg(all(feature = "full_editor", debug_assertions, not(target_arch = "wasm32")))]
+use bevy_brp_extras::BrpExtrasPlugin;
 #[cfg(feature = "full_editor")]
 use bevy_common_assets::ron::RonAssetPlugin;
 #[cfg(feature = "full_editor")]
@@ -60,8 +62,12 @@ use ui::systems::update_ui;
 fn main() {
     let title: String = "SCENE EDITOR".to_string();
 
-    App::new()
-        .init_resource::<systems::input::DragState>()
+    let mut app = App::new();
+
+    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+    app.add_plugins(BrpExtrasPlugin);
+
+    app.init_resource::<systems::input::DragState>()
         .init_resource::<StageControlsUI>()
         .add_plugins(
             DefaultPlugins

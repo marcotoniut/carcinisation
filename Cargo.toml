@@ -28,6 +28,7 @@ bevy = { version = "0.17", features = [
     "std",
     "async_executor",
 ] }
+bevy_brp_extras = "0.17.3"
 bevy_state = "0.17.2"
 bevy_ecs = "0.17.2"
 bevy_common_assets = { version = "0.14", features = ["ron"] }

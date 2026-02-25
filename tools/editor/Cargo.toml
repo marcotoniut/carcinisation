@@ -7,6 +7,7 @@ description = "Bevy-based scene editor for stages and cutscenes"
 [dependencies]
 assert_assets_path = { workspace = true }
 bevy = { workspace = true }
+bevy_brp_extras = { workspace = true }
 bevy_common_assets = { workspace = true }
 bevy-inspector-egui = { workspace = true }
 bevy_prototype_lyon = { version = "0.15", optional = true }
