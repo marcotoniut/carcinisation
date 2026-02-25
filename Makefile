@@ -170,21 +170,31 @@ clean:
 .PHONY: fmt
 fmt:
 	cargo fmt --all
-
 .PHONY: lint
 lint:
-	$(BEVY) lint --workspace --all-targets --all-features
+	cargo fmt --all -- --check
+	cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 .PHONY: lint-fix
 lint-fix:
 	cargo fmt --all
 	proto run ruff -- check --fix
 	pnpm lint:fix
+	# rust lints can't "auto-fix" like ruff/eslint; clippy has limited suggestions but no universal --fix
+	# keep bevy lint fix as optional
+	@$(MAKE) bevy-lint-fix || true
+
+.PHONY: bevy-lint
+bevy-lint:
+	$(BEVY) lint --workspace --all-targets --all-features
+
+.PHONY: bevy-lint-fix
+bevy-lint-fix:
 	$(BEVY) lint --workspace --all-targets --all-features --fix
 
 .PHONY: clippy
 clippy:
-	@echo "⚠️  Use 'make lint' instead (runs workspace-wide clippy)"
+	@echo "⚠️  Use 'make lint' instead (runs workspace-wide fmt+clippy)"
 	@$(MAKE) lint
 
 .PHONY: fix
