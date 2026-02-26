@@ -5,8 +5,7 @@ edition.workspace = true
 description = "Converts source art to palette-reduced, rescaled textures for the game renderer"
 
 [dependencies]
-image = "0.24.6"
-palette = "0.7.2"
-serde = "1.0.183"
-serde_derive = "1.0.183"
-toml = "0.8.1"
+image = "0.25"
+palette = "0.7.6"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.9"

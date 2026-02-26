@@ -7,7 +7,7 @@ mod quantize;
 
 use image::{ImageBuffer, Rgba, imageops};
 use paths::{ASSETS_PATH, BASE_PALETTE_SUBPATH, RESOURCES_GFX_PATH};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
 use crate::quantize::reduce_colors;

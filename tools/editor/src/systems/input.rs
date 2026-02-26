@@ -132,20 +132,21 @@ pub fn on_ctrl_mouse_motion(
             .or_else(|| last_cursor.map(|last| event.position - last));
         *last_cursor = Some(event.position);
 
-        if ctrl_pressed && no_selection {
-            if let Some(delta) = delta {
-                camera_transform.translation.x -= delta.x * CAMERA_MOVE_SENSITIVITY;
-                camera_transform.translation.y += delta.y * CAMERA_MOVE_SENSITIVITY;
+        if ctrl_pressed
+            && no_selection
+            && let Some(delta) = delta
+        {
+            camera_transform.translation.x -= delta.x * CAMERA_MOVE_SENSITIVITY;
+            camera_transform.translation.y += delta.y * CAMERA_MOVE_SENSITIVITY;
 
-                camera_transform.translation.x = camera_transform
-                    .translation
-                    .x
-                    .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
-                camera_transform.translation.y = camera_transform
-                    .translation
-                    .y
-                    .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
-            }
+            camera_transform.translation.x = camera_transform
+                .translation
+                .x
+                .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
+            camera_transform.translation.y = camera_transform
+                .translation
+                .y
+                .clamp(-CAMERA_MOVE_BOUNDARY, CAMERA_MOVE_BOUNDARY);
         }
 
         if mouse_buttons.pressed(MouseButton::Right) {
@@ -175,65 +176,62 @@ pub fn on_mouse_press(
         let Ok(window) = params.window_query.single() else {
             return;
         };
-        if let Some(cursor_position) = window.cursor_position() {
-            if let Ok((camera, camera_transform)) = params.camera_query.single() {
-                if let Some(world_position) =
-                    screen_to_world(camera, camera_transform, cursor_position)
-                {
-                    let mut candidates: Vec<_> = params.draggable_query.iter().collect();
-                    candidates.sort_by(|a, b| {
-                        b.2.translation()
-                            .z
-                            .partial_cmp(&a.2.translation().z)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    });
+        if let Some(cursor_position) = window.cursor_position()
+            && let Ok((camera, camera_transform)) = params.camera_query.single()
+            && let Some(world_position) = screen_to_world(camera, camera_transform, cursor_position)
+        {
+            let mut candidates: Vec<_> = params.draggable_query.iter().collect();
+            candidates.sort_by(|a, b| {
+                b.2.translation()
+                    .z
+                    .partial_cmp(&a.2.translation().z)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
-                    let mut picked = None;
-                    for (entity, sprite, global_transform, anchor) in candidates {
-                        if sprite_hit_test(
-                            sprite,
-                            anchor.copied().unwrap_or_default(),
-                            global_transform,
-                            world_position,
-                            &params.images,
-                            &params.texture_atlas_layouts,
-                        ) {
-                            let position = global_transform.translation().truncate();
-                            picked = Some((entity, sprite, anchor, position));
-                            break;
-                        }
-                    }
-
-                    if let Some((entity, sprite, anchor, position)) = picked {
-                        for entity in params.selected_query.iter() {
-                            commands.entity(entity).remove::<SelectedItem>();
-                        }
-                        for entity in params.outline_query.iter() {
-                            commands.entity(entity).despawn();
-                        }
-                        commands.entity(entity).insert(SelectedItem);
-                        spawn_selection_outline(
-                            &mut commands,
-                            entity,
-                            sprite,
-                            anchor.copied().unwrap_or_default(),
-                            &params.images,
-                            &params.texture_atlas_layouts,
-                        );
-                        params.drag_state.active = Some(DragInfo {
-                            entity,
-                            offset: world_position - position,
-                        });
-                    } else {
-                        for entity in params.selected_query.iter() {
-                            commands.entity(entity).remove::<SelectedItem>();
-                        }
-                        for entity in params.outline_query.iter() {
-                            commands.entity(entity).despawn();
-                        }
-                        params.drag_state.active = None;
-                    }
+            let mut picked = None;
+            for (entity, sprite, global_transform, anchor) in candidates {
+                if sprite_hit_test(
+                    sprite,
+                    anchor.copied().unwrap_or_default(),
+                    global_transform,
+                    world_position,
+                    &params.images,
+                    &params.texture_atlas_layouts,
+                ) {
+                    let position = global_transform.translation().truncate();
+                    picked = Some((entity, sprite, anchor, position));
+                    break;
                 }
+            }
+
+            if let Some((entity, sprite, anchor, position)) = picked {
+                for entity in params.selected_query.iter() {
+                    commands.entity(entity).remove::<SelectedItem>();
+                }
+                for entity in params.outline_query.iter() {
+                    commands.entity(entity).despawn();
+                }
+                commands.entity(entity).insert(SelectedItem);
+                spawn_selection_outline(
+                    &mut commands,
+                    entity,
+                    sprite,
+                    anchor.copied().unwrap_or_default(),
+                    &params.images,
+                    &params.texture_atlas_layouts,
+                );
+                params.drag_state.active = Some(DragInfo {
+                    entity,
+                    offset: world_position - position,
+                });
+            } else {
+                for entity in params.selected_query.iter() {
+                    commands.entity(entity).remove::<SelectedItem>();
+                }
+                for entity in params.outline_query.iter() {
+                    commands.entity(entity).despawn();
+                }
+                params.drag_state.active = None;
             }
         }
     }
@@ -283,10 +281,10 @@ pub fn on_mouse_drag(
                 let Some(spawn_ref) = spawn_ref else {
                     continue;
                 };
-                if let Some(scene_data) = scene_data.as_mut() {
-                    if let SceneData::Stage(stage_data) = scene_data.bypass_change_detection() {
-                        update_spawn_from_drag(spawn_ref, target_position, stage_data);
-                    }
+                if let Some(scene_data) = scene_data.as_mut()
+                    && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
+                {
+                    update_spawn_from_drag(spawn_ref, target_position, stage_data);
                 }
             } else {
                 drag_state.active = None;

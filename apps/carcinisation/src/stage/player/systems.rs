@@ -116,11 +116,11 @@ pub fn detect_player_attack(
         }
     }
 
-    if gb_input.just_pressed(&GBInput::Select) {
-        if let Some(button) = input_state.active_button {
-            loadout.cycle(button);
-            input_state.mark_cycled();
-        }
+    if gb_input.just_pressed(&GBInput::Select)
+        && let Some(button) = input_state.active_button
+    {
+        loadout.cycle(button);
+        input_state.mark_cycled();
     }
 
     let Some(button) = input_state.active_button else {
@@ -215,22 +215,23 @@ pub fn detect_player_attack(
         }
     };
 
-    if still_pressed && !attack_active {
-        if let AttackInputPolicy::Hold {
+    if still_pressed
+        && !attack_active
+        && let AttackInputPolicy::Hold {
             warmup_secs,
             interval_secs,
         } = definition.input_policy
+    {
+        let held_for = now - input_state.pressed_at;
+        let can_fire = input_state
+            .last_hold_fire_at
+            .is_none_or(|last| now - last >= interval_secs);
+        if held_for >= warmup_secs
+            && can_fire
+            && let Some(position) = player_position
         {
-            let held_for = now - input_state.pressed_at;
-            let can_fire = input_state
-                .last_hold_fire_at
-                .is_none_or(|last| now - last >= interval_secs);
-            if held_for >= warmup_secs && can_fire {
-                if let Some(position) = player_position {
-                    spawn_attack(position.0, position.0);
-                    input_state.mark_hold_fired(now);
-                }
-            }
+            spawn_attack(position.0, position.0);
+            input_state.mark_hold_fired(now);
         }
     }
 
@@ -241,17 +242,18 @@ pub fn detect_player_attack(
                 AttackInputPolicy::Hold { .. } => !input_state.hold_fired,
             };
 
-        if should_fire && !attack_active {
-            if let Some(position) = player_position {
-                let current_world = position.0 + camera_offset;
-                let (spawn_position, origin_position) = if attack_id == AttackId::Bomb {
-                    let origin = input_state.pressed_world_position.unwrap_or(current_world);
-                    (current_world, origin)
-                } else {
-                    (position.0, position.0)
-                };
-                spawn_attack(spawn_position, origin_position);
-            }
+        if should_fire
+            && !attack_active
+            && let Some(position) = player_position
+        {
+            let current_world = position.0 + camera_offset;
+            let (spawn_position, origin_position) = if attack_id == AttackId::Bomb {
+                let origin = input_state.pressed_world_position.unwrap_or(current_world);
+                (current_world, origin)
+            } else {
+                (position.0, position.0)
+            };
+            spawn_attack(spawn_position, origin_position);
         }
 
         input_state.clear();
@@ -298,25 +300,25 @@ pub fn despawn_expired_attacks(
             commands.trigger(CameraShakeEvent);
             effect_state.screen_shake_triggered = true;
         }
-        if !effect_state.follow_up_spawned {
-            if let Some(next_id) = definition.spawn_on_expire {
-                let next_definition = attack_definitions.get(next_id);
-                let next_attack = PlayerAttack {
-                    position: position.0,
-                    attack_id: next_id,
-                };
-                let (attack_bundle, sound_bundle) = next_attack.make_bundles(
-                    next_definition,
-                    &mut assets_sprite,
-                    asset_server.as_ref(),
-                    volume_settings.as_ref(),
-                );
-                commands.spawn(attack_bundle);
-                if let Some(sound_bundle) = sound_bundle {
-                    commands.spawn(sound_bundle);
-                }
-                effect_state.follow_up_spawned = true;
+        if !effect_state.follow_up_spawned
+            && let Some(next_id) = definition.spawn_on_expire
+        {
+            let next_definition = attack_definitions.get(next_id);
+            let next_attack = PlayerAttack {
+                position: position.0,
+                attack_id: next_id,
+            };
+            let (attack_bundle, sound_bundle) = next_attack.make_bundles(
+                next_definition,
+                &mut assets_sprite,
+                asset_server.as_ref(),
+                volume_settings.as_ref(),
+            );
+            commands.spawn(attack_bundle);
+            if let Some(sound_bundle) = sound_bundle {
+                commands.spawn(sound_bundle);
             }
+            effect_state.follow_up_spawned = true;
         }
         commands.entity(entity).insert(DespawnMark);
     }

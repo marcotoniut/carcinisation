@@ -133,12 +133,13 @@ pub fn update_ui(world: &mut World) {
                         ui.visuals().widgets.active.bg_fill,
                     );
 
-                    if track_rect.width() > 0.0 && (response.dragged() || response.clicked()) {
-                        if let Some(pointer) = response.interact_pointer_pos() {
-                            let new_t = ((pointer.x - track_rect.left()) / track_rect.width())
-                                .clamp(0.0, 1.0);
-                            t = new_t;
-                        }
+                    if track_rect.width() > 0.0
+                        && (response.dragged() || response.clicked())
+                        && let Some(pointer) = response.interact_pointer_pos()
+                    {
+                        let new_t =
+                            ((pointer.x - track_rect.left()) / track_rect.width()).clamp(0.0, 1.0);
+                        t = new_t;
                     }
                 });
 

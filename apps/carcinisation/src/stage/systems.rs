@@ -141,16 +141,16 @@ pub fn update_stage(
             next_state.set(StageProgressState::Running);
         }
         StageProgressState::Running => {
-            if let Some(action) = stage_data.steps.get(stage_progress.index) {
-                if DEBUG_STAGESTEP {
-                    let curr_action = match action {
-                        StageStep::Tween { .. } => "tween".to_string(),
-                        StageStep::Stop { .. } => "stop".to_string(),
-                        StageStep::Cinematic { .. } => "cinematic".to_string(),
-                    };
+            if let Some(action) = stage_data.steps.get(stage_progress.index)
+                && DEBUG_STAGESTEP
+            {
+                let curr_action = match action {
+                    StageStep::Tween { .. } => "tween".to_string(),
+                    StageStep::Stop { .. } => "stop".to_string(),
+                    StageStep::Cinematic { .. } => "cinematic".to_string(),
+                };
 
-                    info!("curr action: {}", curr_action);
-                }
+                info!("curr action: {}", curr_action);
             }
         }
         StageProgressState::Clear => {
@@ -335,29 +335,29 @@ pub fn read_step_trigger(
     data: Res<StageData>,
     time: Res<Time<StageTimeDomain>>,
 ) {
-    if let Ok(entity) = query.single() {
-        if let Some(action) = data.steps.get(progress.index) {
-            progress.index += 1;
+    if let Ok(entity) = query.single()
+        && let Some(action) = data.steps.get(progress.index)
+    {
+        progress.index += 1;
 
-            let mut entity_commands = commands.entity(entity);
-            entity_commands.insert((
-                CurrentStageStep {
-                    started: time.elapsed(),
-                },
-                // StageElapse::new(action.elapse),
-                StageElapsedStarted(time.elapsed()),
-            ));
+        let mut entity_commands = commands.entity(entity);
+        entity_commands.insert((
+            CurrentStageStep {
+                started: time.elapsed(),
+            },
+            // StageElapse::new(action.elapse),
+            StageElapsedStarted(time.elapsed()),
+        ));
 
-            match action {
-                StageStep::Cinematic(step) => {
-                    entity_commands.insert(step.clone());
-                }
-                StageStep::Tween(step) => {
-                    entity_commands.insert(step.clone());
-                }
-                StageStep::Stop(step) => {
-                    entity_commands.insert(step.clone());
-                }
+        match action {
+            StageStep::Cinematic(step) => {
+                entity_commands.insert(step.clone());
+            }
+            StageStep::Tween(step) => {
+                entity_commands.insert(step.clone());
+            }
+            StageStep::Stop(step) => {
+                entity_commands.insert(step.clone());
             }
         }
     }
@@ -393,52 +393,51 @@ pub fn initialise_movement_step(
             floor_depths,
         },
     )) = query.single()
+        && let Ok((camera_entity, position)) = camera_query.single()
     {
-        if let Ok((camera_entity, position)) = camera_query.single() {
-            let direction = *coordinates - position.0;
-            let speed = direction.normalize_or_zero() * *base_speed * GAME_BASE_SPEED;
+        let direction = *coordinates - position.0;
+        let speed = direction.normalize_or_zero() * *base_speed * GAME_BASE_SPEED;
 
-            commands.entity(camera_entity).insert((
-                TargetingValueX::new(position.0.x),
-                TargetingValueY::new(position.0.y),
-            ));
+        commands.entity(camera_entity).insert((
+            TargetingValueX::new(position.0.x),
+            TargetingValueY::new(position.0.y),
+        ));
 
-            // Spawn movement children for the camera
-            commands.spawn((
-                TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
-                    camera_entity,
-                    position.x,
-                    coordinates.x,
-                    speed.x,
-                ),
-                CameraStepTween,
-                Name::new("Camera Movement X"),
-            ));
+        // Spawn movement children for the camera
+        commands.spawn((
+            TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
+                camera_entity,
+                position.x,
+                coordinates.x,
+                speed.x,
+            ),
+            CameraStepTween,
+            Name::new("Camera Movement X"),
+        ));
 
-            commands.spawn((
-                TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
-                    camera_entity,
-                    position.y,
-                    coordinates.y,
-                    speed.y,
-                ),
-                CameraStepTween,
-                Name::new("Camera Movement Y"),
-            ));
+        commands.spawn((
+            TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
+                camera_entity,
+                position.y,
+                coordinates.y,
+                speed.y,
+            ),
+            CameraStepTween,
+            Name::new("Camera Movement Y"),
+        ));
 
-            // Add reach check to camera
-            commands
-                .entity(camera_entity)
-                .insert(LinearTween2DReachCheck::<
-                    StageTimeDomain,
-                    TargetingValueX,
-                    TargetingValueY,
-                >::new())
-                .insert(StageStepSpawner::new(spawns.clone()));
+        // Add reach check to camera
+        commands
+            .entity(camera_entity)
+            .insert(LinearTween2DReachCheck::<
+                StageTimeDomain,
+                TargetingValueX,
+                TargetingValueY,
+            >::new())
+            .insert(StageStepSpawner::new(spawns.clone()));
 
-            if let Some(floor_depths) = floor_depths {
-                spawn_floor_depths(&mut commands, floor_depths);
-            }
+        if let Some(floor_depths) = floor_depths {
+            spawn_floor_depths(&mut commands, floor_depths);
         }
     }
 }
@@ -566,16 +565,16 @@ pub fn debug_visibility_hierarchy(
     parents: Query<(Option<&InheritedVisibility>, Option<&Name>)>,
 ) {
     for (entity, parent, child_name) in &children {
-        if let Ok((opt_vis, parent_name)) = parents.get(parent.0) {
-            if opt_vis.is_none() {
-                info!(
-                    "B0004 candidate: child {:?} ({:?}), parent {:?} ({:?})",
-                    entity,
-                    child_name.map(bevy::prelude::Name::as_str),
-                    parent.0,
-                    parent_name.map(bevy::prelude::Name::as_str)
-                );
-            }
+        if let Ok((opt_vis, parent_name)) = parents.get(parent.0)
+            && opt_vis.is_none()
+        {
+            info!(
+                "B0004 candidate: child {:?} ({:?}), parent {:?} ({:?})",
+                entity,
+                child_name.map(bevy::prelude::Name::as_str),
+                parent.0,
+                parent_name.map(bevy::prelude::Name::as_str)
+            );
         }
     }
 }

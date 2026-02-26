@@ -81,11 +81,11 @@ fn handle_event(event: Event, last_processed: &Arc<Mutex<HashMap<PathBuf, Instan
     for path in event.paths {
         if path.extension().is_some_and(|ext| ext == "ron") {
             let now = Instant::now();
-            if let Some(&last_time) = last_processed.get(&path) {
-                if now.duration_since(last_time) < DEBOUNCE_DURATION {
-                    // Skip this event as it's within the debounce interval
-                    continue;
-                }
+            if let Some(&last_time) = last_processed.get(&path)
+                && now.duration_since(last_time) < DEBOUNCE_DURATION
+            {
+                // Skip this event as it's within the debounce interval
+                continue;
             }
             last_processed.insert(path.clone(), now);
 

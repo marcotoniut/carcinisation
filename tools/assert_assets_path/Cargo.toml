@@ -8,6 +8,6 @@ description = "Compile-time asset path validator"
 proc-macro = true
 
 [dependencies]
-syn = "1.0"
-quote = "1.0"
-proc-macro2 = "1.0"
+syn = "2"
+quote = "1"
+proc-macro2 = "1"

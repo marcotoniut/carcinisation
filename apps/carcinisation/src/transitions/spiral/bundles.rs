@@ -93,9 +93,9 @@ pub fn update_transition(
 /// This avoids resource borrow conflicts when triggering observers.
 #[allow(dead_code)]
 pub fn check_transition_finished(mut commands: Commands, counter: Option<Res<TransitionCounter>>) {
-    if let Some(counter) = counter {
-        if counter.finished {
-            commands.trigger(TransitionVenetianShutdownEvent);
-        }
+    if let Some(counter) = counter
+        && counter.finished
+    {
+        commands.trigger(TransitionVenetianShutdownEvent);
     }
 }
