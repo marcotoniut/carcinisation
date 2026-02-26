@@ -178,7 +178,7 @@ lint:
 .PHONY: lint-fix
 lint-fix:
 	cargo fmt --all
-	proto run ruff -- check --fix
+	proto run ruff -- check --fix scripts
 	pnpm lint:fix
 	# rust lints can't "auto-fix" like ruff/eslint; clippy has limited suggestions but no universal --fix
 	# keep bevy lint fix as optional

@@ -89,5 +89,6 @@ def main() -> None:
         f" and {filter_sets} filter set(s) in '{filter_dir}'."
     )
 
+
 if __name__ == "__main__":
     main()

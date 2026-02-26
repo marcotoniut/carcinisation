@@ -8,7 +8,7 @@ pre-commit:
     biome-lint:
       run: pnpm lint
     ruff-check:
-      run: proto run ruff -- check
+      run: proto run ruff -- check scripts
 
 pre-push:
   commands:
