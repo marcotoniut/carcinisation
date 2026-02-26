@@ -2,6 +2,7 @@
   "name": "@carcinisation/agent-check",
   "private": true,
   "version": "0.1.0",
+  "description": "Agent quality-gate runner with captured log output",
   "type": "module",
   "scripts": {
     "check": "tsx src/check.ts"
