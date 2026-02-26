@@ -1,7 +1,6 @@
-# Architecture Review
+# Technical Debt
 
-This document captures issues, improvement opportunities, and redundancies noticed in the Rust
-codebase (app, editor, and libraries). It is a backlog of findings, not a prioritized roadmap.
+Known issues, improvement opportunities, and redundancies in the Rust codebase (app, editor, and libraries). This is a backlog of findings, not a prioritized roadmap.
 
 ## App (apps/carcinisation)
 

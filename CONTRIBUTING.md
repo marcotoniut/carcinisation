@@ -10,10 +10,7 @@ Thank you for helping us evolve Carcinisation. This guide gathers the guardrails
 
 ## Before You Start
 
-- Confirm your environment matches the prerequisites in `README.md`.
-- Run each quality gate once to verify your setup: `pnpm lint`, `make fmt`, `make lint`, `make test`.
-- Optional (agents): `pnpm check:agent --all` runs the standard checks and writes focus logs under `reports/agent/`.
-- Review the relevant sections of `DEVELOPMENT.md` for the make targets or scripts your work will touch.
+Confirm your environment matches the prerequisites in `README.md` and review the make targets in `DEVELOPMENT.md` for the surfaces your work will touch.
 
 ## Project Guardrails
 
@@ -26,15 +23,17 @@ Thank you for helping us evolve Carcinisation. This guide gathers the guardrails
 
 ## Workflow
 
-1. **Branch** – Sync `main` and create a feature branch (`git checkout -b feature/descriptive-name`).
-2. **Iterate** – Use the make targets in `DEVELOPMENT.md` (`make dev`, `make watch-scene-files`, asset generators) instead of ad-hoc commands.
-3. **Validate** – Before each push, run `make fmt && make lint && make test`; add `pnpm lint` or wasm/asset scripts when your change touches those surfaces.
+See `DEVELOPMENT.md` for the full command catalogue. The short version:
+
+1. **Branch** – Sync `main` and create a feature branch.
+2. **Iterate** – Use `make dev` and the tooling targets in `DEVELOPMENT.md`.
+3. **Validate** – `make fmt && make lint && make test` before each push; add surface-specific checks (wasm, assets, `pnpm lint`) as needed.
 4. **Summarise** – Capture context, validation output, and follow-ups in your pull request description.
 5. **Review** – Preserve existing behaviour unless you document the rationale and verification for changes.
 
 ## Definition of Done
 
-- Quality gates (`pnpm lint`, `make fmt`, `make lint`, `make test`) pass locally with no ignored warnings.
+- Quality gates pass locally with no ignored warnings.
 - System docs and run-condition notes remain accurate for every modified gameplay system.
 - New systems declare when they execute (states, resources, schedules).
 - No new unchecked `TODO`s—open a GitHub issue and link it if the note must stay near the code.
