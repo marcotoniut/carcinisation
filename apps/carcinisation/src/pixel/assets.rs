@@ -98,16 +98,16 @@ fn asset_meta_path(path: &str) -> PathBuf {
 fn write_meta_file(path: &PathBuf, contents: &str) {
     #[cfg(debug_assertions)]
     {
-        if let Ok(existing) = fs::read_to_string(path) {
-            if existing == contents {
-                return;
-            }
+        if let Ok(existing) = fs::read_to_string(path)
+            && existing == contents
+        {
+            return;
         }
 
-        if let Some(parent) = path.parent() {
-            if let Err(err) = fs::create_dir_all(parent) {
-                panic!("Failed to create directories for {}: {err}", path.display());
-            }
+        if let Some(parent) = path.parent()
+            && let Err(err) = fs::create_dir_all(parent)
+        {
+            panic!("Failed to create directories for {}: {err}", path.display());
         }
 
         if let Err(err) = fs::write(path, contents) {

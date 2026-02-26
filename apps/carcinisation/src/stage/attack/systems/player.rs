@@ -208,16 +208,17 @@ pub fn check_got_hit(
                 }
             }
 
-            if hit.is_none() && !evaluated {
-                if let Some(collider_data) = collider_data {
-                    if collider_data
-                        .point_collides(entity_sub_position.0, attack_world)
-                        .is_some()
-                    {
-                        hit = Some(attack_world);
-                    }
-                    evaluated = true;
+            if hit.is_none()
+                && !evaluated
+                && let Some(collider_data) = collider_data
+            {
+                if collider_data
+                    .point_collides(entity_sub_position.0, attack_world)
+                    .is_some()
+                {
+                    hit = Some(attack_world);
                 }
+                evaluated = true;
             }
 
             if !evaluated && enemy.is_some() {
@@ -241,12 +242,11 @@ pub fn check_got_hit(
                 continue;
             };
 
-            if attack_definition.category == AttackCategory::Melee {
-                if let Some(depth) = entity_depth {
-                    if *depth < MELEE_DEPTH_MIN || *depth > MELEE_DEPTH_MAX {
-                        continue;
-                    }
-                }
+            if attack_definition.category == AttackCategory::Melee
+                && let Some(depth) = entity_depth
+                && (*depth < MELEE_DEPTH_MIN || *depth > MELEE_DEPTH_MAX)
+            {
+                continue;
             }
 
             if attack_definition.detonates_on_hit {

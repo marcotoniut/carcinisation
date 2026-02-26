@@ -105,10 +105,9 @@ pub fn inspector_ui(world: &mut World) {
                         egui::Button::new(save_text).min_size(egui::vec2(save_width, 0.0)),
                     )
                     .clicked()
+                    && let Some(scene_data) = scene_data.as_ref()
                 {
-                    if let Some(scene_data) = scene_data.as_ref() {
-                        save_scene(world, &scene_path, scene_data);
-                    }
+                    save_scene(world, &scene_path, scene_data);
                 }
 
                 if ui

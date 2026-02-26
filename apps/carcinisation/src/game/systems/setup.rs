@@ -106,33 +106,33 @@ pub fn progress(
     // mut cutscene_startup_event_writer: MessageWriter<CutsceneStartupEvent>,
     mut stage_startup_event_writer: MessageWriter<StageStartupEvent>,
 ) {
-    if game_progress.is_added() || game_progress.is_changed() {
-        if let Some(data) = game_data.steps.get(game_progress.index) {
-            #[allow(clippy::match_same_arms)]
-            match data {
-                GameStep::Credits(CreditsGameStep {}) => {
-                    // TODO
-                }
-                GameStep::Cutscene(CutsceneGameStep { data, .. }) => {
-                    commands.trigger(CutsceneStartupEvent { data: data.clone() });
-                    // cutscene_startup_event_writer.write();
-                }
-                GameStep::CutsceneAsset(CinematicAssetGameStep { src, .. }) => {
-                    commands.insert_resource(CutsceneAssetHandle {
-                        handle: asset_server.load::<CutsceneData>(src),
-                    });
-                }
-                GameStep::Stage(StageGameStep { data }) => {
-                    stage_startup_event_writer.write(StageStartupEvent { data: data.clone() });
-                }
-                GameStep::StageAsset(StageAssetGameStep(src)) => {
-                    commands.insert_resource(StageAssetHandle {
-                        handle: asset_server.load::<StageData>(src),
-                    });
-                }
-                GameStep::Transition(TransitionGameStep {}) => {
-                    // TODO
-                }
+    if (game_progress.is_added() || game_progress.is_changed())
+        && let Some(data) = game_data.steps.get(game_progress.index)
+    {
+        #[allow(clippy::match_same_arms)]
+        match data {
+            GameStep::Credits(CreditsGameStep {}) => {
+                // TODO
+            }
+            GameStep::Cutscene(CutsceneGameStep { data, .. }) => {
+                commands.trigger(CutsceneStartupEvent { data: data.clone() });
+                // cutscene_startup_event_writer.write();
+            }
+            GameStep::CutsceneAsset(CinematicAssetGameStep { src, .. }) => {
+                commands.insert_resource(CutsceneAssetHandle {
+                    handle: asset_server.load::<CutsceneData>(src),
+                });
+            }
+            GameStep::Stage(StageGameStep { data }) => {
+                stage_startup_event_writer.write(StageStartupEvent { data: data.clone() });
+            }
+            GameStep::StageAsset(StageAssetGameStep(src)) => {
+                commands.insert_resource(StageAssetHandle {
+                    handle: asset_server.load::<StageData>(src),
+                });
+            }
+            GameStep::Transition(TransitionGameStep {}) => {
+                // TODO
             }
         }
     }

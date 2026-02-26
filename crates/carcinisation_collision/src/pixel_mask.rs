@@ -181,20 +181,21 @@ pub fn pixel_overlap(
     let enemy_dither = enemy_frame
         .as_ref()
         .is_some_and(|frame| matches!(frame.transition, PxFrameTransition::Dither));
-    if !attack_dither && !enemy_dither {
-        if let (Some(attack_index), Some(enemy_index)) = (
+    if !attack_dither
+        && !enemy_dither
+        && let (Some(attack_index), Some(enemy_index)) = (
             frame_index_for_static(attack_frame, attack_data.frame_count),
             frame_index_for_static(enemy_frame, enemy_data.frame_count),
-        ) {
-            return pixel_overlap_fast(
-                attack_data,
-                attack_index,
-                attack_rect,
-                enemy_data,
-                enemy_index,
-                enemy_rect,
-            );
-        }
+        )
+    {
+        return pixel_overlap_fast(
+            attack_data,
+            attack_index,
+            attack_rect,
+            enemy_data,
+            enemy_index,
+            enemy_rect,
+        );
     }
 
     pixel_overlap_slow(
