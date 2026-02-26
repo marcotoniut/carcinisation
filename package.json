@@ -11,12 +11,12 @@
     "tsx": "^4.20.6"
   },
   "scripts": {
-    "check:agent": "pnpm exec tsx scripts/agent/check.ts",
+    "check:agent": "pnpm --filter @carcinisation/agent-check run check --",
     "format": "biome format",
     "format:check": "biome check",
     "lint": "biome check",
     "lint:fix": "biome check --write"
   },
   "packageManager": "pnpm@10.19.0",
-  "workspaces": ["scripts"]
+  "workspaces": ["scripts", "packages/*"]
 }

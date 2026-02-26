@@ -7,7 +7,7 @@
       }
     }
   },
-  "files": { "ignoreUnknown": true },
+  "files": { "ignoreUnknown": true, "includes": ["**", "!tools", "!.claude"] },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,

@@ -1,4 +1,5 @@
 line-length = 100
+include = ["scripts/**/*.py"]
 
 [format]
 indent-style = "space"

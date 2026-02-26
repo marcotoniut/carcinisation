@@ -17,6 +17,13 @@
       "command": "bevy_brp_mcp",
       "args": [],
       "env": {}
+    },
+    "aseprite": {
+      "type": "stdio",
+      "command": "proto",
+      "args": ["run", "python", "3.13.9", "--", "-m", "aseprite_mcp"],
+      "cwd": "${workspaceFolder}",
+      "env": {}
     }
   }
 }
