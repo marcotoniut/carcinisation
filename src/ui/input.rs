@@ -240,36 +240,40 @@ pub(crate) fn update_text_fields(
     mut keys: MessageReader<KeyboardInput>,
     mut cmd: Commands,
 ) {
-    let keys = keys
-        .read()
-        .filter(|key| matches!(key.state, ButtonState::Pressed))
-        .collect::<Vec<_>>();
-
-    if keys.is_empty() {
-        return;
-    }
-
     let Some(focus_id) = focus.get() else {
+        keys.read().for_each(drop);
         return;
     };
 
     let Ok((mut field, mut text)) = fields.get_mut(focus_id) else {
+        keys.read().for_each(drop);
         return;
     };
 
-    for key in keys {
+    let mut changed = false;
+    for key in keys.read() {
+        if !matches!(key.state, ButtonState::Pressed) {
+            continue;
+        }
         match key.logical_key {
             Key::Character(ref characters) | Key::Unidentified(NativeKey::Web(ref characters)) => {
                 for character in characters.chars() {
-                    field.cached_text += &character.to_string();
+                    field.cached_text.push(character);
+                    changed = true;
                 }
             }
-            Key::Space => field.cached_text += " ",
+            Key::Space => {
+                field.cached_text.push(' ');
+                changed = true;
+            }
             Key::Backspace => {
-                field.cached_text.pop();
+                changed |= field.cached_text.pop().is_some();
             }
             _ => (),
         }
+    }
+    if !changed {
+        return;
     }
 
     text.value = field.cached_text.clone() + &field.caret_char.to_string();
@@ -279,4 +283,85 @@ pub(crate) fn update_text_fields(
         entity: focus_id,
         text: field.cached_text.clone(),
     });
+}
+
+#[cfg(all(test, feature = "headed"))]
+mod tests {
+    use super::*;
+    use bevy_ecs::{message::Messages, schedule::Schedule};
+
+    fn test_world() -> World {
+        let mut world = World::new();
+        world.init_resource::<InputFocus>();
+        world.init_resource::<Messages<KeyboardInput>>();
+        // `PxText` requires `DefaultLayer`; this no-op keeps setup focused on text-input behavior.
+        world.insert_resource(crate::position::InsertDefaultLayer::noop());
+        world
+    }
+
+    fn spawn_text_field(world: &mut World) -> Entity {
+        world
+            .spawn((
+                PxTextField {
+                    cached_text: String::new(),
+                    caret_char: '|',
+                    caret: None,
+                },
+                PxText::default(),
+            ))
+            .id()
+    }
+
+    fn key_input_char(character: &str) -> KeyboardInput {
+        KeyboardInput {
+            key_code: bevy_input::keyboard::KeyCode::KeyA,
+            logical_key: Key::Character(character.into()),
+            state: ButtonState::Pressed,
+            text: Some(character.into()),
+            repeat: false,
+            window: Entity::from_raw_u32(1).unwrap(),
+        }
+    }
+
+    #[test]
+    fn text_input_does_not_replay_after_focus_is_restored() {
+        let mut world = test_world();
+        let text_field = spawn_text_field(&mut world);
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(update_text_fields);
+
+        world
+            .resource_mut::<Messages<KeyboardInput>>()
+            .write(key_input_char("a"));
+        schedule.run(&mut world);
+
+        world.resource_mut::<InputFocus>().set(text_field);
+        schedule.run(&mut world);
+
+        let field = world.get::<PxTextField>(text_field).unwrap();
+        assert!(field.cached_text.is_empty());
+    }
+
+    #[test]
+    fn text_input_does_not_replay_after_invalid_focus_entity() {
+        let mut world = test_world();
+        let text_field = spawn_text_field(&mut world);
+        let invalid_focus = world.spawn_empty().id();
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(update_text_fields);
+
+        world.resource_mut::<InputFocus>().set(invalid_focus);
+        world
+            .resource_mut::<Messages<KeyboardInput>>()
+            .write(key_input_char("a"));
+        schedule.run(&mut world);
+
+        world.resource_mut::<InputFocus>().set(text_field);
+        schedule.run(&mut world);
+
+        let field = world.get::<PxTextField>(text_field).unwrap();
+        assert!(field.cached_text.is_empty());
+    }
 }

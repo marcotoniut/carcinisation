@@ -14,7 +14,7 @@ use bevy_render::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    animation::{AnimatedAssetComponent, PxAnimation},
+    animation::AnimatedAssetComponent,
     image::PxImage,
     palette::Palette,
     position::{DefaultLayer, PxLayer, Spatial},
@@ -410,7 +410,7 @@ fn extract_maps<L: PxLayer>(
         if let Some(frame) = frame {
             entity.insert(*frame);
         } else {
-            entity.remove::<PxAnimation>();
+            entity.remove::<PxFrame>();
         }
 
         if let Some(filter) = filter {

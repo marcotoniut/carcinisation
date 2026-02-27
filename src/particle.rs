@@ -330,14 +330,10 @@ fn update_emitters<L: PxLayer>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::px_layer;
     use bevy_ecs::schedule::Schedule;
 
-    #[cfg_attr(
-        feature = "headed",
-        derive(bevy_render::extract_component::ExtractComponent)
-    )]
-    #[derive(Component, next::Next, Ord, PartialOrd, Eq, PartialEq, Clone, Default, Debug)]
-    #[next(path = next::Next)]
+    #[px_layer]
     enum TestLayer {
         #[default]
         Test,
@@ -385,15 +381,14 @@ mod tests {
     fn valid_emitter_can_spawn_particles() {
         let mut world = test_world();
 
-        let emitter = world
-            .spawn(PxEmitter {
-                sprites: vec![default()],
-                frequency: PxEmitterFrequency::single(Duration::ZERO),
-                simulation: PxEmitterSimulation::None,
-                ..default()
-            })
-            .id();
-        world.entity_mut(emitter).insert(TestLayer::default());
+        let emitter = world.spawn(PxEmitter {
+            sprites: vec![default()],
+            frequency: PxEmitterFrequency::single(Duration::ZERO),
+            simulation: PxEmitterSimulation::None,
+            ..default()
+        });
+        emitter.id();
+        world.entity_mut(emitter.id()).insert(TestLayer::default());
 
         run_emitter_step(&mut world);
 
