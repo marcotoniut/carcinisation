@@ -208,6 +208,16 @@ impl Screen {
     pub fn size(&self) -> UVec2 {
         self.computed_size
     }
+
+    #[cfg(test)]
+    pub(crate) fn test_resource(computed_size: UVec2) -> Self {
+        Self {
+            size: ScreenSize::Fixed(computed_size),
+            computed_size,
+            window_aspect_ratio: 1.0,
+            palette: [Vec3::ZERO; 256],
+        }
+    }
 }
 
 #[cfg(feature = "gpu_palette")]

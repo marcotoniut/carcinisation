@@ -480,6 +480,67 @@ mod tests {
             Some(render_tile_new)
         );
     }
+
+    #[cfg(feature = "headed")]
+    #[test]
+    fn extract_maps_updates_when_map_render_entity_changes() {
+        let mut render_world = World::new();
+        render_world.init_resource::<MainWorld>();
+        render_world.insert_resource(crate::position::InsertDefaultLayer::noop());
+
+        let render_map_old = render_world.spawn_empty().id();
+        let render_map_new = render_world.spawn_empty().id();
+        let render_tile = render_world.spawn_empty().id();
+
+        let src_tile = {
+            let mut main_world = render_world.resource_mut::<MainWorld>();
+            main_world.insert_resource(crate::position::InsertDefaultLayer::noop());
+            main_world
+                .spawn((PxTile { texture: 0 }, RenderEntity::from(render_tile)))
+                .id()
+        };
+
+        let mut tiles = PxTiles::new(UVec2::ONE);
+        tiles.set(Some(src_tile), UVec2::ZERO);
+
+        let map_entity = {
+            let mut main_world = render_world.resource_mut::<MainWorld>();
+            main_world
+                .spawn((
+                    PxMap {
+                        tiles,
+                        tileset: default(),
+                    },
+                    PxPosition::default(),
+                    TestLayer::default(),
+                    PxCanvas::Camera,
+                    InheritedVisibility::VISIBLE,
+                    RenderEntity::from(render_map_old),
+                ))
+                .id()
+        };
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(extract_maps::<TestLayer>);
+        schedule.run(&mut render_world);
+
+        assert!(render_world.get::<PxMap>(render_map_old).is_some());
+
+        {
+            let mut main_world = render_world.resource_mut::<MainWorld>();
+            main_world.clear_trackers();
+            main_world
+                .entity_mut(map_entity)
+                .insert(RenderEntity::from(render_map_new));
+        }
+
+        schedule.run(&mut render_world);
+
+        assert!(
+            render_world.get::<PxMap>(render_map_new).is_some(),
+            "new render entity should receive extracted PxMap when map RenderEntity changes"
+        );
+    }
 }
 
 impl<'a> Spatial for (&'a PxTiles, &'a PxTileset) {
@@ -541,7 +602,11 @@ fn extract_maps<L: PxLayer>(
     changed_maps: Extract<
         Query<
             (&PxMap, &InheritedVisibility, RenderEntity),
-            Or<(Changed<PxMap>, Changed<InheritedVisibility>)>,
+            Or<(
+                Changed<PxMap>,
+                Changed<InheritedVisibility>,
+                Changed<RenderEntity>,
+            )>,
         >,
     >,
     changed_tiles: Extract<Query<(), (With<PxTile>, Changed<RenderEntity>)>>,

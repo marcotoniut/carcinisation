@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use bevy_picking::backend::prelude::*;
 
 use crate::{
@@ -19,27 +17,44 @@ use crate::{
 pub struct PxPixelPick;
 
 pub(crate) fn plug<L: PxLayer>(app: &mut App) {
-    app.add_systems(PostUpdate, pick::<L>.in_set(PxSet::Picking));
+    app.add_systems(
+        PostUpdate,
+        pick::<L>.in_set(PxSet::Picking).run_if(pick_needs_run),
+    );
 }
 
-fn layer_depth<L: PxLayer>(layer_depths: &mut BTreeMap<L, f32>, layer: &L) -> f32 {
-    if let Some(&depth) = layer_depths.get(layer) {
-        return depth;
+fn pick_needs_run(
+    cursor: Res<PxCursorPosition>,
+    screen: Res<Screen>,
+    cameras: Query<(), With<Camera>>,
+    pointers: Query<&PointerId>,
+) -> bool {
+    cursor.is_some()
+        && screen.computed_size.x > 0
+        && screen.computed_size.y > 0
+        && !cameras.is_empty()
+        && pointers
+            .iter()
+            .any(|pointer| matches!(pointer, PointerId::Mouse))
+}
+
+fn layer_depth<L: PxLayer>(layer_depths: &mut Vec<(L, f32)>, layer: &L) -> f32 {
+    match layer_depths.binary_search_by(|(existing, _)| existing.cmp(layer)) {
+        Ok(index) => layer_depths[index].1,
+        Err(index) => {
+            let depth = match (
+                index.checked_sub(1).map(|i| layer_depths[i].1),
+                layer_depths.get(index).map(|(_, upper)| *upper),
+            ) {
+                (Some(lower), Some(upper)) => f32::midpoint(lower, upper),
+                (Some(lower), None) => lower - 1.,
+                (None, Some(upper)) => upper + 1.,
+                (None, None) => 0.,
+            };
+            layer_depths.insert(index, (layer.clone(), depth));
+            depth
+        }
     }
-
-    let depth = match (
-        layer_depths.range(..layer).last(),
-        layer_depths.range(layer..).next(),
-    ) {
-        (Some((_, &lower)), Some((_, &upper))) => f32::midpoint(lower, upper),
-        (Some((_, &lower)), None) => lower - 1.,
-        (None, Some((_, &upper))) => upper + 1.,
-        (None, None) => 0.,
-    };
-
-    // R-A workaround
-    BTreeMap::insert(layer_depths, layer.clone(), depth);
-    depth
 }
 
 fn spatial_rect(
@@ -151,6 +166,7 @@ fn pick<L: PxLayer>(
     px_camera: Res<PxCamera>,
     screen: Res<Screen>,
     cameras: Query<(&Camera, Entity)>,
+    mut depth_cache: Local<Vec<(L, f32)>>,
 ) {
     let _pick_span = px_trace_span!(
         "carapace::picking::pick",
@@ -179,8 +195,19 @@ fn pick<L: PxLayer>(
         };
         px_profile!(mouse_pointer_count += 1);
 
-        let mut layer_depths = BTreeMap::new();
-        let mut picks = Vec::new();
+        depth_cache.clear();
+        let mut picks: Option<Vec<(Entity, HitData)>> = None;
+        let mut push_pick = |id, depth| {
+            picks.get_or_insert_with(Vec::new).push((
+                id,
+                HitData {
+                    camera: camera_id,
+                    depth,
+                    position: None,
+                    normal: None,
+                },
+            ));
+        };
 
         for (&rect, layer, &pos, &anchor, canvas, visibility, id) in &rects {
             if !visibility.get() {
@@ -197,19 +224,11 @@ fn pick<L: PxLayer>(
                 continue;
             };
 
-            let depth = layer_depth(&mut layer_depths, layer);
+            let depth = layer_depth(&mut depth_cache, layer);
             let rect = spatial_rect(*rect, pos, anchor, *canvas, cam_pos);
 
             if rect.contains_exclusive(cursor) {
-                picks.push((
-                    id,
-                    HitData {
-                        camera: camera_id,
-                        depth,
-                        position: None,
-                        normal: None,
-                    },
-                ));
+                push_pick(id, depth);
             }
         }
 
@@ -245,7 +264,7 @@ fn pick<L: PxLayer>(
                 continue;
             }
 
-            let depth = layer_depth(&mut layer_depths, layer);
+            let depth = layer_depth(&mut depth_cache, layer);
 
             let frame = frame_view
                 .copied()
@@ -262,15 +281,7 @@ fn pick<L: PxLayer>(
                 continue;
             }
 
-            picks.push((
-                id,
-                HitData {
-                    camera: camera_id,
-                    depth,
-                    position: None,
-                    normal: None,
-                },
-            ));
+            push_pick(id, depth);
         }
 
         for (
@@ -314,7 +325,7 @@ fn pick<L: PxLayer>(
                 continue;
             }
 
-            let depth = layer_depth(&mut layer_depths, layer);
+            let depth = layer_depth(&mut depth_cache, layer);
             let frame = frame_view
                 .copied()
                 .or_else(|| frame_control.copied().map(PxFrameView::from));
@@ -362,18 +373,11 @@ fn pick<L: PxLayer>(
             }
 
             if hit {
-                picks.push((
-                    id,
-                    HitData {
-                        camera: camera_id,
-                        depth,
-                        position: None,
-                        normal: None,
-                    },
-                ));
+                push_pick(id, depth);
             }
         }
 
+        let picks = picks.unwrap_or_default();
         px_profile!(hit_count += picks.len());
         hits.write(PointerHits {
             pointer,
@@ -388,8 +392,54 @@ fn pick<L: PxLayer>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
+
     use crate::frame::{PxFrameSelector, PxFrameTransition};
     use crate::image::PxImage;
+    use crate::screen::Screen;
+    use bevy_ecs::{message::Messages, schedule::Schedule, system::RunSystemOnce};
+
+    #[derive(
+        bevy_render::extract_component::ExtractComponent,
+        Component,
+        next::Next,
+        Ord,
+        PartialOrd,
+        Eq,
+        PartialEq,
+        Clone,
+        Default,
+        Debug,
+    )]
+    #[next(path = next::Next)]
+    enum TestLayer {
+        Back,
+        #[default]
+        Mid,
+        Front,
+    }
+
+    fn layer_depth_reference(
+        layer_depths: &mut BTreeMap<TestLayer, f32>,
+        layer: &TestLayer,
+    ) -> f32 {
+        if let Some(&depth) = layer_depths.get(layer) {
+            return depth;
+        }
+
+        let depth = match (
+            layer_depths.range(..layer).last(),
+            layer_depths.range(layer..).next(),
+        ) {
+            (Some((_, &lower)), Some((_, &upper))) => f32::midpoint(lower, upper),
+            (Some((_, &lower)), None) => lower - 1.,
+            (None, Some((_, &upper))) => upper + 1.,
+            (None, None) => 0.,
+        };
+
+        BTreeMap::insert(layer_depths, layer.clone(), depth);
+        depth
+    }
 
     #[test]
     fn pixel_pick_uses_local_pos_for_dither() {
@@ -407,5 +457,103 @@ mod tests {
 
         assert!(hit_a);
         assert!(!hit_b);
+    }
+
+    #[test]
+    fn layer_depth_matches_previous_btreemap_behavior() {
+        let sequence = [
+            TestLayer::Mid,
+            TestLayer::Back,
+            TestLayer::Front,
+            TestLayer::Mid,
+            TestLayer::Front,
+        ];
+
+        let mut vec_cache = Vec::new();
+        let mut map_cache = BTreeMap::new();
+        for layer in sequence {
+            let vec_depth = layer_depth(&mut vec_cache, &layer);
+            let map_depth = layer_depth_reference(&mut map_cache, &layer);
+            assert_eq!(vec_depth, map_depth);
+        }
+    }
+
+    #[test]
+    fn layer_depth_cache_clear_resets_anchor_depth() {
+        let mut cache = Vec::new();
+        let _ = layer_depth(&mut cache, &TestLayer::Back);
+        let _ = layer_depth(&mut cache, &TestLayer::Mid);
+        cache.clear();
+        assert_eq!(layer_depth(&mut cache, &TestLayer::Front), 0.0);
+    }
+
+    #[derive(Resource, Default)]
+    struct PickSummary {
+        messages: usize,
+        picks: usize,
+    }
+
+    fn count_pointer_hits(mut hits: MessageReader<PointerHits>, mut summary: ResMut<PickSummary>) {
+        for hit in hits.read() {
+            summary.messages += 1;
+            summary.picks += hit.picks.len();
+        }
+    }
+
+    #[test]
+    fn pick_emits_empty_hits_when_no_entities_match() {
+        let mut world = World::new();
+        world.init_resource::<Messages<PointerHits>>();
+        world.insert_resource(PickSummary::default());
+        world.insert_resource(Assets::<PxSpriteAsset>::default());
+        world.insert_resource(Assets::<PxFilterAsset>::default());
+        world.insert_resource(PxCursorPosition(Some(UVec2::new(1, 1))));
+        world.insert_resource(PxCamera::default());
+        world.insert_resource(Screen::test_resource(UVec2::new(16, 16)));
+
+        world.spawn(PointerId::Mouse);
+        world.spawn(Camera::default());
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems((pick::<TestLayer>, count_pointer_hits).chain());
+        schedule.run(&mut world);
+
+        let summary = world.resource::<PickSummary>();
+        assert_eq!(summary.messages, 1);
+        assert_eq!(summary.picks, 0);
+    }
+
+    #[test]
+    fn pick_run_condition_requires_visible_cursor_and_mouse_pointer() {
+        let mut world = World::new();
+        world.insert_resource(PxCursorPosition(None));
+        world.insert_resource(Screen::test_resource(UVec2::new(16, 16)));
+        world.spawn(Camera::default());
+        world.spawn(PointerId::Mouse);
+
+        let runs = world.run_system_once(pick_needs_run).unwrap();
+        assert!(!runs, "pick should skip when cursor is off-screen");
+
+        *world.resource_mut::<PxCursorPosition>() = PxCursorPosition(Some(UVec2::new(1, 1)));
+        let runs = world.run_system_once(pick_needs_run).unwrap();
+        assert!(
+            runs,
+            "pick should run when cursor and mouse pointer are available"
+        );
+    }
+
+    #[test]
+    fn pick_run_condition_skips_without_camera() {
+        let mut world = World::new();
+        world.insert_resource(PxCursorPosition(Some(UVec2::new(1, 1))));
+        world.insert_resource(Screen::test_resource(UVec2::new(16, 16)));
+        world.spawn(PointerId::Mouse);
+
+        let runs = world.run_system_once(pick_needs_run).unwrap();
+        assert!(!runs, "pick should skip until a camera exists");
+
+        world.spawn(Camera::default());
+        let runs = world.run_system_once(pick_needs_run).unwrap();
+        assert!(runs, "pick should run once a camera exists");
     }
 }
