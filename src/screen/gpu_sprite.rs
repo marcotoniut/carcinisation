@@ -27,6 +27,7 @@ use bytemuck::{Pod, Zeroable};
 use crate::{
     frame::{PxFrameView, resolve_frame_binding},
     prelude::*,
+    profiling::{px_end_span, px_trace, px_trace_span},
     sprite::{
         CompositeSpriteComponents, PxGpuComposite, PxGpuSprite, PxSpriteAsset, PxSpriteGpu,
         SpriteComponents,
@@ -232,6 +233,11 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         };
 
         let screen = world.resource::<Screen>();
+        let _run_span = px_trace_span!(
+            "carapace::gpu_sprite_node::run",
+            width = screen.computed_size.x,
+            height = screen.computed_size.y
+        );
         if screen.computed_size.x == 0 || screen.computed_size.y == 0 {
             return Ok(());
         }
@@ -255,6 +261,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
 
         let sprite_assets = world.resource::<RenderAssets<PxSpriteGpu>>();
         let mut sprites_by_layer: BTreeMap<L, Vec<SpriteItem>> = BTreeMap::new();
+        let _collect_span = px_trace_span!("carapace::gpu_sprite_node::collect");
 
         for (sprite, &position, &anchor, layer, &canvas, frame, filter) in
             self.sprites.iter_manual(world)
@@ -332,11 +339,17 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                     });
             }
         }
+        px_end_span!(_collect_span);
 
         if sprites_by_layer.is_empty() {
             return Ok(());
         }
+        px_trace!(
+            layer_count = sprites_by_layer.len(),
+            "carapace::gpu_sprite_node::collected"
+        );
 
+        let _build_span = px_trace_span!("carapace::gpu_sprite_node::build");
         let mut vertices: Vec<SpriteVertex> = Vec::new();
         let mut draws: Vec<SpriteDraw<'_>> = Vec::new();
 
@@ -430,11 +443,18 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                 });
             }
         }
+        px_end_span!(_build_span);
 
         if vertices.is_empty() {
             return Ok(());
         }
+        px_trace!(
+            vertex_count = vertices.len(),
+            draw_count = draws.len(),
+            "carapace::gpu_sprite_node::prepared"
+        );
 
+        let _upload_span = px_trace_span!("carapace::gpu_sprite_node::upload");
         let render_device = render_context.render_device();
         let render_queue = world.resource::<RenderQueue>();
         let Some(vertex_buffer) =
@@ -477,7 +497,9 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                 }
             }
         }
+        px_end_span!(_upload_span);
 
+        let _present_span = px_trace_span!("carapace::gpu_sprite_node::present");
         let mut render_pass = render_context.begin_tracked_render_pass(RenderPassDescriptor {
             label: Some("px_gpu_sprite_pass"),
             color_attachments: &[Some(RenderPassColorAttachment {
@@ -501,6 +523,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
             render_pass.set_bind_group(0, bind_group, &[]);
             render_pass.draw(draw.range.clone(), 0..1);
         }
+        px_end_span!(_present_span);
 
         Ok(())
     }

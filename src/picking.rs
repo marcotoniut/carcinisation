@@ -8,6 +8,7 @@ use crate::{
     math::RectExt,
     position::Spatial,
     prelude::*,
+    profiling::{px_end_span, px_profile, px_trace_span},
     screen::Screen,
     set::PxSet,
     sprite::PxSpriteAsset,
@@ -151,6 +152,11 @@ fn pick<L: PxLayer>(
     screen: Res<Screen>,
     cameras: Query<(&Camera, Entity)>,
 ) {
+    let _pick_span = px_trace_span!(
+        "carapace::picking::pick",
+        width = screen.computed_size.x,
+        height = screen.computed_size.y
+    );
     // Note: PxPixelPick enables per-pixel picking; rects remain rectangle-based.
     let Some(cursor) = **cursor else {
         return;
@@ -165,10 +171,13 @@ fn pick<L: PxLayer>(
     if screen.computed_size.y == 0 || screen.computed_size.x == 0 {
         return;
     }
+    px_profile!(let mut mouse_pointer_count = 0usize);
+    px_profile!(let mut hit_count = 0usize);
     for &pointer in &pointers {
         let PointerId::Mouse = pointer else {
             continue;
         };
+        px_profile!(mouse_pointer_count += 1);
 
         let mut layer_depths = BTreeMap::new();
         let mut picks = Vec::new();
@@ -365,12 +374,15 @@ fn pick<L: PxLayer>(
             }
         }
 
+        px_profile!(hit_count += picks.len());
         hits.write(PointerHits {
             pointer,
             picks,
             order: camera.order as f32,
         });
     }
+    px_profile!(emit mouse_pointer_count, hit_count, "carapace::picking::hits");
+    px_end_span!(_pick_span);
 }
 
 #[cfg(test)]

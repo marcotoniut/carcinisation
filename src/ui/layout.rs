@@ -1,4 +1,9 @@
-use crate::{position::Spatial, prelude::*, screen::Screen};
+use crate::{
+    position::Spatial,
+    prelude::*,
+    profiling::{px_end_span, px_trace, px_trace_span},
+    screen::Screen,
+};
 
 use super::widgets::{PxGrid, PxMargin, PxMinSize, PxRow, PxRowSlot, PxScroll, PxStack};
 
@@ -837,12 +842,19 @@ pub(crate) fn layout<L: PxLayer>(
     sprites: Res<Assets<PxSpriteAsset>>,
     screen: Res<Screen>,
 ) -> Result {
-    for (layer, canvas, root) in uis
+    let _layout_span = px_trace_span!(
+        "carapace::ui::layout",
+        width = screen.computed_size.x,
+        height = screen.computed_size.y
+    );
+    let roots = uis
         .p0()
         .iter()
         .map(|(layer, &canvas, entity)| (layer.clone(), canvas, entity))
-        .collect::<Vec<_>>()
-    {
+        .collect::<Vec<_>>();
+    px_trace!(root_count = roots.len(), "carapace::ui::layout_roots");
+
+    for (layer, canvas, root) in roots {
         layout_inner(
             IRect {
                 min: IVec2::ZERO,
@@ -857,6 +869,7 @@ pub(crate) fn layout<L: PxLayer>(
             &sprites,
         )?;
     }
+    px_end_span!(_layout_span);
 
     OK
 }

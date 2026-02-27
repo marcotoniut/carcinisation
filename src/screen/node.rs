@@ -27,6 +27,7 @@ use crate::{
     map::{MapComponents, TileComponents},
     position::PxLayer,
     prelude::*,
+    profiling::{px_end_span, px_trace, px_trace_span},
     rect::RectComponents,
     sprite::{CompositeSpriteComponents, SpriteComponents},
     text::TextComponents,
@@ -112,6 +113,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         // Compose each layer into a CPU buffer, then blit to the GPU texture once per frame.
         let &camera = world.resource::<PxCamera>();
         let screen = world.resource::<Screen>();
+        let _run_span = px_trace_span!(
+            "carapace::screen_node::run",
+            width = screen.computed_size.x,
+            height = screen.computed_size.y
+        );
 
         let device = world.resource::<RenderDevice>();
         let render_buffer = world.resource::<PxRenderBuffer>();
@@ -121,6 +127,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         let mut layer_contents: LayerContentsMap<'w, L> = BTreeMap::default();
         #[cfg(feature = "gpu_palette")]
         let mut layer_set: BTreeSet<L> = BTreeSet::new();
+        let _collect_span = px_trace_span!("carapace::screen_node::collect");
 
         for (map, &pos, layer, &canvas, animation, filter) in self.maps.iter_manual(world) {
             let map = (map, pos, canvas, animation, filter);
@@ -538,28 +545,37 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 }
             }
         }
+        px_end_span!(_collect_span);
 
         #[cfg(feature = "gpu_palette")]
         let layer_order: Vec<L> = layer_set.into_iter().collect();
         #[cfg(feature = "gpu_palette")]
         world.resource::<PxLayerOrder<L>>().set(layer_order.clone());
-
-        #[cfg(feature = "gpu_palette")]
-        draw::draw_layers(
-            world,
-            render_buffer,
-            camera,
-            layer_contents,
-            &self.tiles,
-            &layer_order,
+        px_trace!(
+            layer_count = layer_contents.len(),
+            "carapace::screen_node::draw"
         );
-        #[cfg(not(feature = "gpu_palette"))]
-        draw::draw_layers(world, render_buffer, camera, layer_contents, &self.tiles);
+
+        {
+            let _draw_span = px_trace_span!("carapace::screen_node::draw_layers");
+            #[cfg(feature = "gpu_palette")]
+            draw::draw_layers(
+                world,
+                render_buffer,
+                camera,
+                layer_contents,
+                &self.tiles,
+                &layer_order,
+            );
+            #[cfg(not(feature = "gpu_palette"))]
+            draw::draw_layers(world, render_buffer, camera, layer_contents, &self.tiles);
+        }
 
         let Some(uniform_binding) = world.resource::<PxUniformBuffer>().binding() else {
             return Ok(());
         };
 
+        let _upload_span = px_trace_span!("carapace::screen_node::upload");
         let inner = render_buffer.read_inner();
         let texture = inner.texture.as_ref().unwrap();
         let image = inner.image.as_ref().unwrap();
@@ -599,7 +615,9 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 );
             }
         }
+        px_end_span!(_upload_span);
 
+        let _present_span = px_trace_span!("carapace::screen_node::present");
         let texture_view = texture.create_view(&TextureViewDescriptor {
             label: Some("px_texture_view"),
             format: Some(image_descriptor.format),
@@ -639,6 +657,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         render_pass.set_render_pipeline(pipeline);
         render_pass.set_bind_group(0, &bind_group, &[]);
         render_pass.draw(0..6, 0..1);
+        px_end_span!(_present_span);
 
         Ok(())
     }

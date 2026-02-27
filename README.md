@@ -84,6 +84,11 @@ Then add `PxPlugin` to your app. Check out the examples for further usage.
 Enable the `gpu_palette` feature and add `PxGpuSprite` or `PxGpuComposite` to entities you want
 rendered via the GPU palette pass. Filters and dithering are not supported on this path yet.
 
+### Profiling spans
+
+Enable `profiling_spans` to emit tracing spans/events in hot systems for performance profiling.
+This feature is opt-in and disabled by default.
+
 ## Compatibility
 
 | Bevy | `seldom_interop` | `bevy_ecs_tilemap` | `carapace` |

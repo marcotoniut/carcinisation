@@ -22,6 +22,7 @@ headed = [
 default = ["headed"]
 gpu_palette = ["headed"]
 line = ["line_drawing"]
+profiling_spans = []
 # Backward-compatible no-op feature. Navigation integration moved out of core.
 nav = []
 particle = ["bevy_turborand"]

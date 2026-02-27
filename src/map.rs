@@ -62,6 +62,37 @@ impl PxTilesetLoader {
     }
 }
 
+fn tileset_pixel_pos(
+    tile_index: u32,
+    tile_pos: u32,
+    tile_tileset_width: u32,
+    tile_size: UVec2,
+) -> UVec2 {
+    UVec2::new(
+        tile_index % tile_tileset_width,
+        tile_index / tile_tileset_width,
+    ) * tile_size
+        + UVec2::new(tile_pos % tile_size.x, tile_pos / tile_size.x)
+}
+
+fn remap_map_tiles(map: &PxMap, mut resolve: impl FnMut(Entity) -> Option<Entity>) -> PxMap {
+    let mut map = map.clone();
+    for opt_tile in &mut map.tiles.tiles {
+        if let Some(tile) = *opt_tile {
+            *opt_tile = resolve(tile);
+        }
+    }
+
+    map.tiles.tile_poses.clear();
+    for (index, opt_tile) in map.tiles.tiles.iter().copied().enumerate() {
+        if let Some(tile) = opt_tile {
+            map.tiles.tile_poses.insert(tile, index);
+        }
+    }
+
+    map
+}
+
 impl AssetLoader for PxTilesetLoader {
     type Asset = PxTileset;
     type Settings = PxTilesetLoaderSettings;
@@ -96,16 +127,9 @@ impl AssetLoader for PxTilesetLoader {
             let tile_index = i as u32 / tile_area;
             let tile_pos = i as u32 % tile_area;
 
-            tile.push(
-                indices.pixel(
-                    (UVec2::new(
-                        tile_index % tile_tileset_width,
-                        tile_index / tile_tileset_width,
-                    ) * tile_size
-                        + UVec2::new(tile_pos % tile_size.x, tile_pos / tile_size.y))
-                    .as_ivec2(),
-                ),
-            );
+            tile.push(indices.pixel(
+                tileset_pixel_pos(tile_index, tile_pos, tile_tileset_width, tile_size).as_ivec2(),
+            ));
 
             if tile_pos == tile_area - 1
                 && tile_index % tile_tileset_width == tile_tileset_width - 1
@@ -263,7 +287,13 @@ mod tests {
     use super::*;
     use crate::{camera::PxCamera, frame::draw_spatial, image::PxImage, sprite::PxSpriteAsset};
     use bevy_ecs::entity::Entity;
+    #[cfg(feature = "headed")]
+    use bevy_ecs::schedule::Schedule;
     use bevy_platform::collections::HashMap;
+    #[cfg(feature = "headed")]
+    use bevy_render::MainWorld;
+    #[cfg(feature = "headed")]
+    use bevy_render::sync_world::RenderEntity;
 
     fn pixels(image: &PxImage) -> Vec<u8> {
         let size = image.size();
@@ -329,6 +359,127 @@ mod tests {
         let expected = vec![2, 3];
         assert_eq!(pixels(&image), expected);
     }
+
+    #[test]
+    fn tileset_pixel_pos_uses_tile_width_for_local_row_stride() {
+        let tile_size = UVec2::new(2, 3);
+        let tile_index = 0;
+        let tile_tileset_width = 1;
+
+        // Local index 4 in a 2x3 tile should map to (0, 2), not (0, 1).
+        let pos = tileset_pixel_pos(tile_index, 4, tile_tileset_width, tile_size);
+
+        assert_eq!(pos, UVec2::new(0, 2));
+    }
+
+    #[test]
+    fn remap_map_tiles_updates_entities_and_tile_positions() {
+        let src_a = Entity::from_raw_u32(10).unwrap();
+        let src_b = Entity::from_raw_u32(11).unwrap();
+        let dst_a = Entity::from_raw_u32(20).unwrap();
+
+        let mut tiles = PxTiles::new(UVec2::new(2, 1));
+        tiles.set(Some(src_a), UVec2::new(0, 0));
+        tiles.set(Some(src_b), UVec2::new(1, 0));
+
+        let map = PxMap {
+            tiles,
+            tileset: default(),
+        };
+
+        let remapped = remap_map_tiles(&map, |entity| (entity == src_a).then_some(dst_a));
+
+        assert_eq!(map.tiles.get(UVec2::new(0, 0)), Some(src_a));
+        assert_eq!(map.tiles.get(UVec2::new(1, 0)), Some(src_b));
+
+        assert_eq!(remapped.tiles.get(UVec2::new(0, 0)), Some(dst_a));
+        assert_eq!(remapped.tiles.get(UVec2::new(1, 0)), None);
+        assert_eq!(remapped.tiles.pos(dst_a), Some(UVec2::new(0, 0)));
+        assert_eq!(remapped.tiles.pos(src_a), None);
+    }
+
+    #[cfg(feature = "headed")]
+    #[derive(
+        bevy_render::extract_component::ExtractComponent,
+        Component,
+        next::Next,
+        Ord,
+        PartialOrd,
+        Eq,
+        PartialEq,
+        Clone,
+        Default,
+        Debug,
+    )]
+    #[next(path = next::Next)]
+    enum TestLayer {
+        #[default]
+        Test,
+    }
+
+    #[cfg(feature = "headed")]
+    #[test]
+    fn extract_maps_remaps_when_only_tile_render_entity_changes() {
+        let mut render_world = World::new();
+        render_world.init_resource::<MainWorld>();
+        render_world.insert_resource(crate::position::InsertDefaultLayer::noop());
+
+        let render_map = render_world.spawn_empty().id();
+        let render_tile_old = render_world.spawn_empty().id();
+        let render_tile_new = render_world.spawn_empty().id();
+
+        let src_tile = {
+            let mut main_world = render_world.resource_mut::<MainWorld>();
+            main_world.insert_resource(crate::position::InsertDefaultLayer::noop());
+            main_world
+                .spawn((PxTile { texture: 0 }, RenderEntity::from(render_tile_old)))
+                .id()
+        };
+
+        let mut tiles = PxTiles::new(UVec2::ONE);
+        tiles.set(Some(src_tile), UVec2::ZERO);
+
+        {
+            let mut main_world = render_world.resource_mut::<MainWorld>();
+            main_world.spawn((
+                PxMap {
+                    tiles,
+                    tileset: default(),
+                },
+                PxPosition::default(),
+                TestLayer::default(),
+                PxCanvas::Camera,
+                InheritedVisibility::VISIBLE,
+                RenderEntity::from(render_map),
+            ));
+        }
+
+        let mut schedule = Schedule::default();
+        schedule.add_systems(extract_maps::<TestLayer>);
+        schedule.run(&mut render_world);
+
+        let map_after_first_extract = render_world.get::<PxMap>(render_map).unwrap();
+        assert_eq!(
+            map_after_first_extract.tiles.get(UVec2::ZERO),
+            Some(render_tile_old)
+        );
+
+        {
+            let mut main_world = render_world.resource_mut::<MainWorld>();
+            main_world.clear_trackers();
+            main_world
+                .entity_mut(src_tile)
+                .insert(RenderEntity::from(render_tile_new));
+        }
+
+        schedule.run(&mut render_world);
+
+        let map_after_second_extract = render_world.get::<PxMap>(render_map).unwrap();
+        assert_eq!(
+            map_after_second_extract.tiles.get(UVec2::ZERO),
+            Some(render_tile_new)
+        );
+    }
 }
 
 impl<'a> Spatial for (&'a PxTiles, &'a PxTileset) {
@@ -387,25 +538,46 @@ pub(crate) type MapComponents<L> = (
 #[cfg(feature = "headed")]
 fn extract_maps<L: PxLayer>(
     maps: Extract<Query<(MapComponents<L>, &InheritedVisibility, RenderEntity)>>,
+    changed_maps: Extract<
+        Query<
+            (&PxMap, &InheritedVisibility, RenderEntity),
+            Or<(Changed<PxMap>, Changed<InheritedVisibility>)>,
+        >,
+    >,
+    changed_tiles: Extract<Query<(), (With<PxTile>, Changed<RenderEntity>)>>,
     render_entities: Extract<Query<RenderEntity>>,
     mut cmd: Commands,
 ) {
-    for ((map, &position, layer, &canvas, frame, filter), visibility, id) in &maps {
+    let remap_all_maps = changed_tiles.iter().next().is_some();
+
+    if remap_all_maps {
+        for ((map, _, _, _, _, _), visibility, id) in &maps {
+            if !visibility.get() {
+                continue;
+            }
+
+            let mapped = remap_map_tiles(map, |tile| render_entities.get(tile).ok());
+            cmd.entity(id).insert(mapped);
+        }
+    } else {
+        for (map, visibility, id) in &changed_maps {
+            if !visibility.get() {
+                continue;
+            }
+
+            let mapped = remap_map_tiles(map, |tile| render_entities.get(tile).ok());
+            cmd.entity(id).insert(mapped);
+        }
+    }
+
+    for ((_, &position, layer, &canvas, frame, filter), visibility, id) in &maps {
         let mut entity = cmd.entity(id);
 
         if !visibility.get() {
             entity.remove::<L>();
             continue;
         }
-
-        let mut map = map.clone();
-        for opt_tile in &mut map.tiles.tiles {
-            if let &mut Some(tile) = opt_tile {
-                *opt_tile = render_entities.get(tile).ok();
-            }
-        }
-
-        entity.insert((map, position, layer.clone(), canvas));
+        entity.insert((position, layer.clone(), canvas));
 
         if let Some(frame) = frame {
             entity.insert(*frame);

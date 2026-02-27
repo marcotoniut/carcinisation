@@ -70,7 +70,8 @@ pub(crate) fn update_key_field_focus(
     if let Some(focus) = focus
         && let Ok((field, mut text, _, id)) = fields.get_mut(focus)
     {
-        text.value = field.caret.to_string();
+        text.value.clear();
+        text.value.push(field.caret);
         cmd.entity(id)
             .try_insert(Blink::new(Duration::from_millis(500)));
     }
@@ -194,8 +195,8 @@ pub(crate) fn update_text_field_focus(
     if let Some(focus) = focus
         && let Ok((mut field, mut text)) = fields.get_mut(focus)
     {
-        field.cached_text = text.value.clone();
-        text.value += &field.caret_char.to_string();
+        field.cached_text.clone_from(&text.value);
+        text.value.push(field.caret_char);
         field.caret = Some(default());
     }
 
@@ -214,10 +215,10 @@ pub(crate) fn caret_blink(mut fields: Query<(&mut PxTextField, &mut PxText)>, ti
             caret.state ^= true;
             let state = caret.state;
 
-            text.value = field.cached_text.clone();
+            text.value.clone_from(&field.cached_text);
 
             if state {
-                text.value += &field.caret_char.to_string();
+                text.value.push(field.caret_char);
             }
         }
     }
@@ -276,7 +277,8 @@ pub(crate) fn update_text_fields(
         return;
     }
 
-    text.value = field.cached_text.clone() + &field.caret_char.to_string();
+    text.value.clone_from(&field.cached_text);
+    text.value.push(field.caret_char);
     field.caret = Some(default());
 
     cmd.trigger(PxTextFieldUpdate {
