@@ -9,6 +9,7 @@ use bevy_asset::{AssetLoader, LoadContext, io::Reader};
 use bevy_derive::{Deref, DerefMut};
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
 use bevy_platform::collections::HashMap;
+use bevy_reflect::TypePath;
 use bevy_render::render_resource::TextureFormat;
 
 use crate::prelude::*;
@@ -21,7 +22,7 @@ pub(crate) fn plug(palette_path: PathBuf) -> impl Fn(&mut App) {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 struct PaletteLoader;
 
 impl AssetLoader for PaletteLoader {

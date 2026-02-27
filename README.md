@@ -20,11 +20,6 @@
 - Lines (enable `line` feature)
 - And more to come!
 
-It also features optional integration with:
-
-- `seldom_state` (for animation state machines; `state` feature)
-- `seldom_map_nav` (makes `SubPxPosition` implement `Position2`; `nav` feature)
-
 See the `examples` directory for examples. If you need help, feel free to ping me
 on [the Bevy Discord server](https://discord.com/invite/bevy) (`@Seldom`)! If any of the docs
 need improvement, feel free to submit an issue or pr!
@@ -91,16 +86,16 @@ rendered via the GPU palette pass. Filters and dithering are not supported on th
 
 ## Compatibility
 
-| Bevy | `seldom_state` | `seldom_map_nav` | `seldom_interop` | `bevy_ecs_tilemap` | `carapace` |
-| ---- | -------------- | ---------------- | ---------------- | ------------------ | -------------- |
-| 0.15 | 0.12           | 0.8              |                  |                    | 0.8            |
-| 0.14 | 0.11           | 0.7              |                  |                    | 0.7            |
-| 0.13 | 0.10           | 0.6              |                  |                    | 0.6            |
-| 0.12 | 0.9            |                  | 0.5              | 0.12               | 0.5            |
-| 0.11 | 0.7            |                  | 0.4              | 0.11               | 0.4            |
-| 0.10 | 0.6            |                  | 0.3              | 0.10               | 0.3            |
-| 0.10 | 0.5            |                  | 0.3              | 0.10               | 0.2            |
-| 0.8  | 0.2            |                  | 0.1              | 0.7                | 0.1            |
+| Bevy | `seldom_interop` | `bevy_ecs_tilemap` | `carapace` |
+| ---- | ---------------- | ------------------ | -------------- |
+| 0.15 |                  |                    | 0.8            |
+| 0.14 |                  |                    | 0.7            |
+| 0.13 |                  |                    | 0.6            |
+| 0.12 | 0.5              | 0.12               | 0.5            |
+| 0.11 | 0.4              | 0.11               | 0.4            |
+| 0.10 | 0.3              | 0.10               | 0.3            |
+| 0.10 | 0.3              | 0.10               | 0.2            |
+| 0.8  | 0.1              | 0.7                | 0.1            |
 
 ## License
 

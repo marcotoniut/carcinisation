@@ -3,6 +3,7 @@ use std::{error::Error, path::PathBuf};
 use bevy_asset::{AssetLoader, LoadContext, io::Reader};
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
 use bevy_platform::collections::HashMap;
+use bevy_reflect::TypePath;
 #[cfg(feature = "headed")]
 use bevy_render::{
     Extract, RenderApp,
@@ -53,6 +54,7 @@ impl Default for PxTypefaceLoaderSettings {
     }
 }
 
+#[derive(TypePath)]
 struct PxTypefaceLoader {
     palette_path: PathBuf,
 }
@@ -134,7 +136,7 @@ impl AssetLoader for PxTypefaceLoader {
                     "Typeface `{}` was assigned no characters. \
                         If no `.meta` file exists for that asset, create one. \
                         See `assets/typeface/` for examples.",
-                    load_context.path().display()
+                    load_context.path()
                 )
                 .into());
             } else {

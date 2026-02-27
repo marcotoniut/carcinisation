@@ -93,8 +93,7 @@ pub enum PxAnimationFinishBehavior {
     Despawn,
     /// [`PxAnimationFinished`] is added to the entity when the animation finishes.
     Mark,
-    /// A successful [`Done`] is added to the entity when the animation finishes.
-    #[cfg(feature = "state")]
+    /// Backward-compatible alias for [`PxAnimationFinishBehavior::Mark`].
     Done,
     /// The animation loops when it finishes.
     Loop,
@@ -163,9 +162,9 @@ fn update_animations(
 
         let ratio = elapsed.div_duration_f32(lifetime);
         let ratio = match animation.on_finish {
-            PxAnimationFinishBehavior::Despawn | PxAnimationFinishBehavior::Mark => ratio.min(1.),
-            #[cfg(feature = "state")]
-            PxAnimationFinishBehavior::Done => ratio.min(1.),
+            PxAnimationFinishBehavior::Despawn
+            | PxAnimationFinishBehavior::Mark
+            | PxAnimationFinishBehavior::Done => ratio.min(1.),
             PxAnimationFinishBehavior::Loop => ratio.fract(),
         };
         let ratio = match animation.direction {
@@ -183,14 +182,10 @@ fn update_animations(
                 PxAnimationFinishBehavior::Despawn => {
                     cmd.entity(id).despawn();
                 }
-                PxAnimationFinishBehavior::Mark => {
+                PxAnimationFinishBehavior::Mark | PxAnimationFinishBehavior::Done => {
                     if !finished {
                         cmd.entity(id).insert(PxAnimationFinished);
                     }
-                }
-                #[cfg(feature = "state")]
-                PxAnimationFinishBehavior::Done => {
-                    cmd.entity(id).insert(Done::Success);
                 }
                 PxAnimationFinishBehavior::Loop => (),
             }

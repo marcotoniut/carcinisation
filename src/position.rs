@@ -167,17 +167,6 @@ impl From<Vec2> for PxSubPosition {
     }
 }
 
-#[cfg(feature = "nav")]
-impl Position2 for PxSubPosition {
-    fn get(&self) -> Vec2 {
-        **self
-    }
-
-    fn set(&mut self, pos: Vec2) {
-        **self = pos;
-    }
-}
-
 /// Velocity. Entities with this and [`PxSubPosition`] will move at this velocity over time.
 #[derive(Clone, Component, Copy, Debug, Default, Deref, DerefMut)]
 #[require(PxSubPosition)]

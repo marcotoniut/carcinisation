@@ -3,6 +3,7 @@ use std::{error::Error, mem::replace, path::PathBuf};
 use bevy_asset::{AssetLoader, LoadContext, io::Reader};
 use bevy_ecs::entity::EntityHashMap;
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
+use bevy_reflect::TypePath;
 #[cfg(feature = "headed")]
 use bevy_render::{
     Extract, RenderApp,
@@ -50,6 +51,7 @@ impl Default for PxTilesetLoaderSettings {
     }
 }
 
+#[derive(TypePath)]
 struct PxTilesetLoader {
     palette_path: PathBuf,
 }

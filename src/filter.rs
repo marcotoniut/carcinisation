@@ -8,6 +8,7 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{lifecycle::HookContext, world::DeferredWorld};
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
 use bevy_math::uvec2;
+use bevy_reflect::TypePath;
 #[cfg(feature = "headed")]
 use bevy_render::{
     Extract, RenderApp,
@@ -53,6 +54,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
         .add_systems(ExtractSchedule, extract_filters::<L>);
 }
 
+#[derive(TypePath)]
 struct PxFilterLoader {
     palette_path: PathBuf,
 }

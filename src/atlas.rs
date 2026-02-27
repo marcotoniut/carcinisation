@@ -6,6 +6,7 @@ use std::{collections::BTreeMap, error::Error, path::PathBuf};
 use bevy_asset::{AssetId, AssetLoader, LoadContext, io::Reader};
 use bevy_math::{ivec2, uvec2};
 use bevy_platform::collections::HashMap;
+use bevy_reflect::TypePath;
 #[cfg(feature = "headed")]
 use bevy_render::{
     Extract, RenderApp,
@@ -52,6 +53,7 @@ struct AtlasRegionDescriptor {
     frames: Vec<AtlasRect>,
 }
 
+#[derive(TypePath)]
 struct PxSpriteAtlasLoader {
     palette_path: PathBuf,
 }

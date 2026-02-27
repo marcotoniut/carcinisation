@@ -21,10 +21,6 @@ pub(crate) use bevy_turborand::prelude::*;
 pub(crate) use bevy_utils::prelude::*;
 #[cfg(feature = "headed")]
 pub(crate) use bevy_window::prelude::*;
-#[cfg(feature = "nav")]
-pub(crate) use seldom_map_nav::prelude::*;
-#[cfg(feature = "state")]
-pub(crate) use seldom_state::prelude::*;
 
 pub(crate) const OK: Result = Ok(());
 

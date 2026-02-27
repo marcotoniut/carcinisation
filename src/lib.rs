@@ -2,8 +2,7 @@
 //! through images; apply to layers or individual entities), simple UI (text, buttons, and sprites
 //! locked to the camera), tilemaps, animations (for sprites, filters, tilesets, and text;
 //! supports dithering!), custom layers, particles (with pre-simulation!), palette changing,
-//! typefaces, an in-game cursor, camera, lines, and more to come! Optional integration with
-//! `seldom_state` (for animation state machines) and `seldom_map_nav`.
+//! typefaces, an in-game cursor, camera, lines, and more to come!
 
 // TODO Remove `Px` prefix where possible
 

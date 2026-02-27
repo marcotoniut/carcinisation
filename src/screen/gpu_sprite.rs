@@ -11,11 +11,12 @@ use bevy_render::{
     render_asset::RenderAssets,
     render_graph::{NodeRunError, RenderGraphContext, ViewNode},
     render_resource::{
-        BindGroup, BindGroupEntries, BindGroupLayout, BindGroupLayoutEntries, BlendState, Buffer,
-        BufferDescriptor, BufferUsages, CachedRenderPipelineId, ColorTargetState, ColorWrites,
-        FragmentState, PipelineCache, RenderPassColorAttachment, RenderPassDescriptor,
-        RenderPipelineDescriptor, ShaderStages, TextureFormat, TextureSampleType,
-        TextureViewDescriptor, VertexAttribute, VertexFormat, VertexState, VertexStepMode,
+        BindGroup, BindGroupEntries, BindGroupLayout, BindGroupLayoutDescriptor,
+        BindGroupLayoutEntries, BlendState, Buffer, BufferDescriptor, BufferUsages,
+        CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, PipelineCache,
+        RenderPassColorAttachment, RenderPassDescriptor, RenderPipelineDescriptor, ShaderStages,
+        TextureFormat, TextureSampleType, TextureViewDescriptor, VertexAttribute, VertexFormat,
+        VertexState, VertexStepMode,
         binding_types::{texture_2d, uniform_buffer},
     },
     renderer::{RenderContext, RenderDevice, RenderQueue},
@@ -97,7 +98,7 @@ impl FromWorld for PxGpuSpritePipeline {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<bevy_render::renderer::RenderDevice>();
 
-        let layout = render_device.create_bind_group_layout(
+        let layout_descriptor = BindGroupLayoutDescriptor::new(
             "px_gpu_sprite_bind_group_layout",
             &BindGroupLayoutEntries::sequential(
                 ShaderStages::FRAGMENT,
@@ -108,13 +109,15 @@ impl FromWorld for PxGpuSpritePipeline {
                 ),
             ),
         );
+        let layout = render_device
+            .create_bind_group_layout(layout_descriptor.label.as_ref(), &layout_descriptor.entries);
 
         let id =
             world
                 .resource_mut::<PipelineCache>()
                 .queue_render_pipeline(RenderPipelineDescriptor {
                     label: Some("px_gpu_sprite_pipeline".into()),
-                    layout: vec![layout.clone()],
+                    layout: vec![layout_descriptor],
                     vertex: VertexState {
                         shader: GPU_SPRITE_SHADER_HANDLE,
                         shader_defs: Vec::new(),

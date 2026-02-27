@@ -7,7 +7,9 @@
 mod draw;
 #[cfg(feature = "gpu_palette")]
 mod gpu_sprite;
+#[cfg(feature = "headed")]
 mod node;
+#[cfg(feature = "headed")]
 mod pipeline;
 
 use std::marker::PhantomData;
@@ -38,7 +40,9 @@ use crate::{
 
 #[cfg(feature = "gpu_palette")]
 use gpu_sprite::{PxGpuSpriteBuffer, PxGpuSpriteNode, PxGpuSpritePipeline};
+#[cfg(feature = "headed")]
 use node::PxRenderNode;
+#[cfg(feature = "headed")]
 use pipeline::{PxPipeline, PxRenderBuffer, PxUniformBuffer, prepare_uniform};
 
 #[cfg(feature = "headed")]

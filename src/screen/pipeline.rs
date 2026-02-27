@@ -4,10 +4,11 @@ use bevy_derive::{Deref, DerefMut};
 #[cfg(feature = "headed")]
 use bevy_render::{
     render_resource::{
-        BindGroupLayout, BindGroupLayoutEntries, CachedRenderPipelineId, ColorTargetState,
-        ColorWrites, DynamicUniformBuffer, Extent3d, FragmentState, PipelineCache,
-        RenderPipelineDescriptor, ShaderStages, ShaderType, Texture, TextureDescriptor,
-        TextureDimension, TextureFormat, TextureSampleType, TextureUsages, VertexState,
+        BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntries, CachedRenderPipelineId,
+        ColorTargetState, ColorWrites, DynamicUniformBuffer, Extent3d, FragmentState,
+        PipelineCache, RenderPipelineDescriptor, ShaderStages, ShaderType, Texture,
+        TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType, TextureUsages,
+        VertexState,
         binding_types::{texture_2d, uniform_buffer},
     },
     renderer::{RenderDevice, RenderQueue},
@@ -63,7 +64,7 @@ impl FromWorld for PxPipeline {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<RenderDevice>();
 
-        let layout = render_device.create_bind_group_layout(
+        let layout_descriptor = BindGroupLayoutDescriptor::new(
             "px_bind_group_layout",
             &BindGroupLayoutEntries::sequential(
                 ShaderStages::FRAGMENT,
@@ -73,12 +74,14 @@ impl FromWorld for PxPipeline {
                 ),
             ),
         );
+        let layout = render_device
+            .create_bind_group_layout(layout_descriptor.label.as_ref(), &layout_descriptor.entries);
 
         Self {
             id: world.resource_mut::<PipelineCache>().queue_render_pipeline(
                 RenderPipelineDescriptor {
                     label: Some("px_pipeline".into()),
-                    layout: vec![layout.clone()],
+                    layout: vec![layout_descriptor],
                     vertex: VertexState {
                         shader: SCREEN_SHADER_HANDLE,
                         shader_defs: Vec::new(),

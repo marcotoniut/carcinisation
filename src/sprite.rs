@@ -8,6 +8,7 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::system::lifetimeless::SRes;
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
 use bevy_math::{ivec2, uvec2};
+use bevy_reflect::TypePath;
 #[cfg(feature = "headed")]
 use bevy_render::{
     Extract, RenderApp,
@@ -90,6 +91,7 @@ impl Default for PxSpriteLoaderSettings {
     }
 }
 
+#[derive(TypePath)]
 struct PxSpriteLoader {
     palette_path: PathBuf,
 }
