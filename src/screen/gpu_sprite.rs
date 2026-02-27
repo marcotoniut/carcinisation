@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, hash_map::Entry},
+    collections::{BTreeMap, HashMap, HashSet},
     mem::size_of,
     ops::Range,
     sync::RwLock,
@@ -344,14 +344,16 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         if sprites_by_layer.is_empty() {
             return Ok(());
         }
+        let estimated_items: usize = sprites_by_layer.values().map(Vec::len).sum();
         px_trace!(
             layer_count = sprites_by_layer.len(),
+            estimated_items,
             "carapace::gpu_sprite_node::collected"
         );
 
         let _build_span = px_trace_span!("carapace::gpu_sprite_node::build");
-        let mut vertices: Vec<SpriteVertex> = Vec::new();
-        let mut draws: Vec<SpriteDraw<'_>> = Vec::new();
+        let mut vertices: Vec<SpriteVertex> = Vec::with_capacity(estimated_items.saturating_mul(6));
+        let mut draws: Vec<SpriteDraw<'_>> = Vec::with_capacity(estimated_items);
 
         for (layer, items) in sprites_by_layer {
             let Some(layer_index) = layer_index_for(&layer_order, &layer) else {
@@ -359,7 +361,8 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
             };
 
             for item in items {
-                let Some(sprite_gpu) = sprite_assets.get(&item.sprite) else {
+                let handle = item.sprite;
+                let Some(sprite_gpu) = sprite_assets.get(&handle) else {
                     continue;
                 };
 
@@ -439,7 +442,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                 draws.push(SpriteDraw {
                     range: start..start + 6,
                     sprite: sprite_gpu,
-                    handle: item.sprite.clone(),
+                    handle,
                 });
             }
         }
@@ -475,27 +478,26 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
 
         let post_process = target.post_process_write();
 
-        let mut bind_groups: HashMap<Handle<PxSpriteAsset>, BindGroup> = HashMap::new();
-        for draw in &draws {
-            match bind_groups.entry(draw.handle.clone()) {
-                Entry::Occupied(_) => {}
-                Entry::Vacant(entry) => {
-                    let texture_view = draw
-                        .sprite
-                        .texture
-                        .create_view(&TextureViewDescriptor::default());
-                    let bind_group = render_device.create_bind_group(
-                        "px_gpu_sprite_bind_group",
-                        &px_pipeline.layout,
-                        &BindGroupEntries::sequential((
-                            &texture_view,
-                            &depth_view,
-                            uniform_binding.clone(),
-                        )),
-                    );
-                    entry.insert(bind_group);
-                }
-            }
+        let mut bind_groups: HashMap<Handle<PxSpriteAsset>, BindGroup> =
+            HashMap::with_capacity(draws.len());
+        // Build one bind group per distinct sprite texture, preserving first-seen draw order.
+        for draw_index in first_seen_indices_by_asset_id(draws.iter().map(|draw| draw.handle.id()))
+        {
+            let draw = &draws[draw_index];
+            let texture_view = draw
+                .sprite
+                .texture
+                .create_view(&TextureViewDescriptor::default());
+            let bind_group = render_device.create_bind_group(
+                "px_gpu_sprite_bind_group",
+                &px_pipeline.layout,
+                &BindGroupEntries::sequential((
+                    &texture_view,
+                    &depth_view,
+                    uniform_binding.clone(),
+                )),
+            );
+            bind_groups.insert(draw.handle.clone(), bind_group);
         }
         px_end_span!(_upload_span);
 
@@ -536,6 +538,32 @@ fn frame_height(sprite: &PxSpriteGpu) -> Option<u32> {
     }
 
     Some((sprite.frame_size / width) as u32)
+}
+
+/// Returns indices of the first occurrence of each distinct sprite asset id.
+///
+/// Preserves first-seen order from `asset_ids`.
+/// Used to build one GPU bind group per unique sprite texture.
+///
+/// Complexity:
+/// - Time: `O(n)` expected (hash set inserts/lookups)
+/// - Space: `O(u)` where `u` is number of unique asset ids
+fn first_seen_indices_by_asset_id<I>(asset_ids: I) -> Vec<usize>
+where
+    I: IntoIterator<Item = bevy_asset::AssetId<PxSpriteAsset>>,
+{
+    let asset_ids = asset_ids.into_iter();
+    let (lower_bound, _) = asset_ids.size_hint();
+    let mut seen = HashSet::with_capacity(lower_bound);
+    let mut first_seen_indices = Vec::with_capacity(lower_bound);
+
+    for (index, asset_id) in asset_ids.enumerate() {
+        if seen.insert(asset_id) {
+            first_seen_indices.push(index);
+        }
+    }
+
+    first_seen_indices
 }
 
 fn frame_count(sprite: &PxSpriteGpu) -> usize {
@@ -593,6 +621,7 @@ mod tests {
     use std::fmt::Write as _;
 
     use super::*;
+    use bevy_asset::uuid::Uuid;
     use insta::assert_snapshot;
 
     #[test]
@@ -623,5 +652,36 @@ index -1.0 -> 3
 normalized 1.8 -> 1
 normalized -0.2 -> 3
 "###);
+    }
+
+    #[test]
+    fn bind_group_selection_uses_first_seen_sprite_handles() {
+        fn sprite_handle(id: u128) -> Handle<PxSpriteAsset> {
+            Handle::Uuid(Uuid::from_u128(id), std::marker::PhantomData)
+        }
+
+        let handles = [
+            sprite_handle(3),
+            sprite_handle(1),
+            sprite_handle(3),
+            sprite_handle(2),
+            sprite_handle(1),
+        ];
+
+        let indices = first_seen_indices_by_asset_id(handles.iter().map(|handle| handle.id()));
+
+        assert_eq!(
+            indices,
+            vec![0, 1, 3],
+            "bind-group creation should keep first-seen draw indices for each sprite handle"
+        );
+        assert_eq!(
+            indices
+                .iter()
+                .map(|&index| handles[index].id())
+                .collect::<Vec<_>>(),
+            vec![handles[0].id(), handles[1].id(), handles[3].id()],
+            "selected draw indices should map to unique sprite handles in first-seen order"
+        );
     }
 }
