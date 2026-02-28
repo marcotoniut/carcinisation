@@ -1,4 +1,3 @@
-use std::io::Read;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -50,13 +49,34 @@ fn discover_examples() -> Vec<Example> {
         .filter(|t| t.is_example())
         .filter(|t| !EXCLUDED.contains(&t.name.as_str()))
         .map(|t| Example {
+            features: {
+                let mut features = t.required_features.clone();
+                features.sort();
+                features.dedup();
+                features
+            },
             name: t.name.clone(),
-            features: t.required_features.clone(),
         })
         .collect();
 
     examples.sort_by(|a, b| a.name.cmp(&b.name));
     examples
+}
+
+fn sort_examples_by_feature_set(examples: &mut [&Example]) {
+    examples.sort_by(|a, b| {
+        a.features
+            .cmp(&b.features)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+}
+
+fn feature_set_label(example: &Example) -> String {
+    if example.features.is_empty() {
+        "default (+brp_extras)".to_string()
+    } else {
+        format!("{} (+brp_extras)", example.features.join(","))
+    }
 }
 
 /// Returns the BRP poll timeout, overridable via `XTASK_BRP_TIMEOUT_SECS`.
@@ -168,7 +188,7 @@ fn spawn_example(example: &Example, port: u16) -> Child {
         ])
         .env("BRP_EXTRAS_PORT", port.to_string())
         .stdout(Stdio::null())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::inherit())
         .spawn()
         .unwrap_or_else(|e| panic!("failed to spawn '{}': {e}", example.name))
 }
@@ -193,15 +213,7 @@ fn capture_one(example: &Example, port: u16) -> Result<(), String> {
 
     match &result {
         Ok(()) => eprintln!("  captured: {output_path}"),
-        Err(e) => {
-            if let Some(mut stderr) = child.stderr.take() {
-                let mut buf = String::new();
-                if stderr.read_to_string(&mut buf).is_ok() && !buf.is_empty() {
-                    eprintln!("  stderr:\n{buf}");
-                }
-            }
-            eprintln!("  FAILED: {e}");
-        }
+        Err(e) => eprintln!("  FAILED: {e}"),
     }
 
     result
@@ -211,7 +223,7 @@ fn capture_one(example: &Example, port: u16) -> Result<(), String> {
 fn cmd_screenshots(args: &[String]) {
     let examples = discover_examples();
 
-    let targets: Vec<&Example> = match args.first() {
+    let mut targets: Vec<&Example> = match args.first() {
         Some(name) => match examples.iter().find(|e| e.name == *name) {
             Some(ex) => vec![ex],
             None => {
@@ -226,11 +238,22 @@ fn cmd_screenshots(args: &[String]) {
         None => examples.iter().collect(),
     };
 
+    if args.is_empty() {
+        sort_examples_by_feature_set(&mut targets);
+    }
+
     eprintln!("capturing {} screenshot(s)", targets.len());
 
     let mut failures = Vec::new();
+    let mut active_feature_set: Option<String> = None;
     for (i, example) in targets.iter().enumerate() {
         let port = DEFAULT_PORT + i as u16;
+        let feature_set = feature_set_label(example);
+        if active_feature_set.as_deref() != Some(feature_set.as_str()) {
+            eprintln!();
+            eprintln!("feature set: {feature_set}");
+            active_feature_set = Some(feature_set);
+        }
         if let Err(e) = capture_one(example, port) {
             failures.push((example.name.clone(), e));
         }
@@ -262,5 +285,44 @@ fn main() {
             eprintln!("unknown subcommand: {other}");
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Example, sort_examples_by_feature_set};
+
+    #[test]
+    fn sort_examples_groups_by_required_features_then_name() {
+        let examples = vec![
+            Example {
+                name: "zeta".to_string(),
+                features: vec!["line".to_string()],
+            },
+            Example {
+                name: "alpha".to_string(),
+                features: vec![],
+            },
+            Example {
+                name: "beta".to_string(),
+                features: vec!["gpu_palette".to_string()],
+            },
+            Example {
+                name: "gamma".to_string(),
+                features: vec![],
+            },
+            Example {
+                name: "delta".to_string(),
+                features: vec!["gpu_palette".to_string()],
+            },
+        ];
+        let mut targets: Vec<&Example> = examples.iter().collect();
+        sort_examples_by_feature_set(&mut targets);
+
+        let ordered_names: Vec<&str> = targets.iter().map(|ex| ex.name.as_str()).collect();
+        assert_eq!(
+            ordered_names,
+            vec!["alpha", "gamma", "beta", "delta", "zeta"]
+        );
     }
 }
