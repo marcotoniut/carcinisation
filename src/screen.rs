@@ -60,7 +60,10 @@ pub(crate) struct PxLayerOrder<L: PxLayer> {
 #[cfg(feature = "gpu_palette")]
 impl<L: PxLayer> PxLayerOrder<L> {
     pub(crate) fn set(&self, layers: Vec<L>) {
-        *self.inner.write().unwrap() = layers;
+        let mut inner = self.inner.write().unwrap();
+        if *inner != layers {
+            *inner = layers;
+        }
     }
 
     pub(crate) fn read(&self) -> std::sync::RwLockReadGuard<'_, Vec<L>> {

@@ -677,7 +677,10 @@ fn layout_inner<L: PxLayer>(
             let (scroll, _, _) = rect.unwrap();
             let (mut scroll, _) = scroll.unwrap();
 
-            scroll.max_scroll = (view_size as f32 * (1. / ratio - 1.)).ceil() as u32;
+            let new_max_scroll = (view_size as f32 * (1. / ratio - 1.)).ceil() as u32;
+            if scroll.max_scroll != new_max_scroll {
+                scroll.max_scroll = new_max_scroll;
+            }
 
             if let Some(last_bar_layer) = bar
                 .map(|bar| {
@@ -760,7 +763,7 @@ fn layout_inner<L: PxLayer>(
             return Ok(Some(target_layer.clone()));
         };
 
-        line_breaks.clear();
+        let mut new_line_breaks = Vec::new();
 
         let max_width = target_rect.width();
         let mut x = 0;
@@ -774,7 +777,7 @@ fn layout_inner<L: PxLayer>(
                 let split = x > max_width;
                 if split {
                     x = 0;
-                    line_breaks.push(last_separator.unwrap_or(index.saturating_sub(1)));
+                    new_line_breaks.push(last_separator.unwrap_or(index.saturating_sub(1)));
                     last_separator = None;
                 }
 
@@ -787,7 +790,7 @@ fn layout_inner<L: PxLayer>(
 
                 if x > max_width && !split {
                     x = width;
-                    line_breaks.push(last_separator.unwrap_or(index.saturating_sub(1)));
+                    new_line_breaks.push(last_separator.unwrap_or(index.saturating_sub(1)));
                     last_separator = None;
                 }
 
@@ -800,6 +803,10 @@ fn layout_inner<L: PxLayer>(
             } else {
                 error!(r#"character "{char}" in text isn't in typeface"#);
             }
+        }
+
+        if *line_breaks != new_line_breaks {
+            *line_breaks = new_line_breaks;
         }
 
         let line_break_count = line_breaks.len() as i32;
@@ -872,4 +879,35 @@ pub(crate) fn layout<L: PxLayer>(
     px_end_span!(_layout_span);
 
     OK
+}
+
+pub(crate) fn layout_needs_recompute(
+    roots: Query<(), With<PxUiRoot>>,
+    changed_structure: Query<
+        (),
+        Or<(
+            Changed<PxUiRoot>,
+            Changed<Children>,
+            Changed<PxMinSize>,
+            Changed<PxMargin>,
+            Changed<PxRow>,
+            Changed<PxGrid>,
+            Changed<PxStack>,
+            Changed<PxRowSlot>,
+        )>,
+    >,
+    changed_content: Query<(), Or<(Changed<PxScroll>, Changed<PxSprite>, Changed<PxText>)>>,
+    typefaces: Option<Res<Assets<PxTypeface>>>,
+    sprites: Option<Res<Assets<PxSpriteAsset>>>,
+    screen: Option<Res<Screen>>,
+) -> bool {
+    if roots.is_empty() {
+        return false;
+    }
+
+    changed_structure.iter().next().is_some()
+        || changed_content.iter().next().is_some()
+        || typefaces.is_some_and(|assets| assets.is_changed())
+        || sprites.is_some_and(|assets| assets.is_changed())
+        || screen.is_some_and(|screen| screen.is_changed())
 }

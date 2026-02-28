@@ -2,9 +2,7 @@
 // In this program, clicking a sprite highlights the clicked pixel with a filter.
 
 use bevy::prelude::*;
-use bevy_picking::prelude::{
-    Click, InteractionPlugin, Pickable, PickingPlugin, Pointer, PointerButton, PointerInputPlugin,
-};
+use bevy_picking::prelude::{Click, Pickable, Pointer, PointerButton};
 use carapace::prelude::*;
 
 #[derive(Resource, Default)]
@@ -21,7 +19,6 @@ fn main() {
             ..default()
         }),
         PxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
-        (PointerInputPlugin, PickingPlugin, InteractionPlugin),
     ));
 
     app.insert_resource(ClearColor(Color::BLACK))

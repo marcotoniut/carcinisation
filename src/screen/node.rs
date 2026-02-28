@@ -550,7 +550,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         #[cfg(feature = "gpu_palette")]
         let layer_order: Vec<L> = layer_set.into_iter().collect();
         #[cfg(feature = "gpu_palette")]
-        world.resource::<PxLayerOrder<L>>().set(layer_order.clone());
+        let layer_order_res = world.resource::<PxLayerOrder<L>>();
+        #[cfg(feature = "gpu_palette")]
+        layer_order_res.set(layer_order);
+        #[cfg(feature = "gpu_palette")]
+        let layer_order = layer_order_res.read();
         px_trace!(
             layer_count = layer_contents.len(),
             "carapace::screen_node::draw"
