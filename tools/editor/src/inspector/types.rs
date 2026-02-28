@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 
 use crate::{
-    components::*,
+    components::{
+        CutsceneActConnection, CutsceneActNode, CutsceneImage, CutsceneImageLabel, Draggable,
+        LetterboxLabel, SelectedItem, StageSpawnRef,
+    },
     resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI},
 };
 

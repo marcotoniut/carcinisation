@@ -49,7 +49,7 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 [target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
 wasm-bindgen = "0.2"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [[bin]]
 name = "ron_bridge"

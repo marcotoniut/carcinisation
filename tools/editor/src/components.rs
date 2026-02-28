@@ -1,3 +1,5 @@
+#![allow(clippy::used_underscore_binding)]
+
 use bevy::prelude::*;
 use carcinisation::{CutsceneData, stage::data::StageData};
 

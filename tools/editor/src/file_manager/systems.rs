@@ -23,7 +23,7 @@ pub fn load_recent_file(mut commands: Commands) {
             let mut path = String::new();
             if file.read_to_string(&mut path).is_ok() && !path.trim().is_empty() {
                 let path_buf = PathBuf::from(path.trim());
-                println!("Loading recent file: {path_buf:?}");
+                println!("Loading recent file: {}", path_buf.display());
                 Some(path_buf)
             } else {
                 None
@@ -45,15 +45,16 @@ fn asset_relative_path(path: &Path) -> Option<String> {
 }
 
 /// @system Polls file picker tasks and loads the selected scene asset.
+#[allow(clippy::needless_pass_by_value)]
 pub fn poll_selected_file(
     mut commands: Commands,
     mut selected_files: Query<(Entity, &mut SelectedFile)>,
     asset_server: Res<AssetServer>,
 ) {
-    for (entity, mut selected_file) in selected_files.iter_mut() {
+    for (entity, mut selected_file) in &mut selected_files {
         if let Some(result) = future::block_on(future::poll_once(&mut selected_file.0)) {
             if let Some(path) = result {
-                println!("Selected file: {path:?}");
+                println!("Selected file: {}", path.display());
                 let file_path = path.to_string_lossy().to_string();
                 let asset_path = asset_relative_path(&path);
 
@@ -65,7 +66,7 @@ pub fn poll_selected_file(
                             path: file_path,
                         });
                     } else {
-                        eprintln!("Selected file is outside the assets root: {file_path:?}");
+                        eprintln!("Selected file is outside the assets root: {file_path}");
                     }
                 } else if file_path.ends_with(".sg.ron") {
                     if let Some(asset_path) = asset_path {
@@ -75,11 +76,11 @@ pub fn poll_selected_file(
                             path: file_path,
                         });
                     } else {
-                        eprintln!("Selected file is outside the assets root: {file_path:?}");
+                        eprintln!("Selected file is outside the assets root: {file_path}");
                     }
                 } else {
-                    eprintln!("Unsupported file type: {file_path:?}");
-                };
+                    eprintln!("Unsupported file type: {file_path}");
+                }
             }
             commands.entity(entity).remove::<SelectedFile>();
         }
@@ -87,6 +88,7 @@ pub fn poll_selected_file(
 }
 
 /// @system Persists the current scene path to the recent-file tracker.
+#[allow(clippy::needless_pass_by_value)]
 pub fn on_write_recent_file_path(
     _trigger: On<WriteRecentFilePathEvent>,
     scene_path: Res<ScenePath>,
@@ -98,12 +100,12 @@ pub fn on_write_recent_file_path(
                 Ok(mut file) => {
                     println!("{path}");
                     if let Err(e) = writeln!(file, "{path}") {
-                        eprintln!("Failed to write to recent file path: {e:?}");
+                        eprintln!("Failed to write to recent file path: {e}");
                     }
                     let _ = file.flush();
                 }
                 Err(e) => {
-                    eprintln!("Failed to create recent file path: {e:?}");
+                    eprintln!("Failed to create recent file path: {e}");
                 }
             }
         })

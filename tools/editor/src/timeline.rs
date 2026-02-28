@@ -7,6 +7,7 @@ use carcinisation::stage::data::{StageData, StageStep};
 
 /// Configures how stage steps contribute to timeline durations.
 #[derive(Clone, Copy, Debug)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct StageTimelineConfig {
     pub include_spawn_delays: bool,
     pub include_stop_durations: bool,
@@ -82,7 +83,7 @@ impl StageTimeline {
             remaining -= step.duration;
         }
 
-        self.steps.last().map(|step| step.index).unwrap_or(0)
+        self.steps.last().map_or(0, |step| step.index)
     }
 }
 

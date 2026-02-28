@@ -9,7 +9,9 @@ use carcinisation::stage::{
     destructible::data::DestructibleSpawn,
 };
 
-use crate::builders::thumbnail::*;
+use crate::builders::thumbnail::{
+    get_destructible_thumbnail, get_enemy_thumbnail, get_object_thumbnail, get_pickup_thumbnail,
+};
 use crate::timeline::{
     StageTimelineConfig, cinematic_duration, stop_duration, tween_travel_duration,
 };
@@ -34,8 +36,8 @@ impl StageDataUtils for StageData {
                     let time_to_move = tween_travel_duration(current_position, s);
 
                     if current_elapsed + time_to_move > elapsed {
-                        let t =
-                            (elapsed - current_elapsed).as_secs_f32() / time_to_move.as_secs_f32();
+                        let t = elapsed.saturating_sub(current_elapsed).as_secs_f32()
+                            / time_to_move.as_secs_f32();
                         return current_position.lerp(s.coordinates, t);
                     }
 

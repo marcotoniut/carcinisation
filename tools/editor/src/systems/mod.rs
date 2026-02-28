@@ -46,6 +46,7 @@ pub fn maximize_window(mut window_query: Query<&mut Window, With<PrimaryWindow>>
 }
 
 /// @system Loads cutscene data once the asset server finishes loading the selected file.
+#[allow(clippy::needless_pass_by_value)]
 pub fn check_cutscene_data_loaded(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -57,7 +58,7 @@ pub fn check_cutscene_data_loaded(
         match state {
             LoadState::Loaded => {
                 if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
-                    *scene_path = ScenePath(cutscene_asset_handle.path.to_string());
+                    *scene_path = ScenePath(cutscene_asset_handle.path.clone());
                     println!("Cutscene data loaded: {data:?}");
                     commands.remove_resource::<CutsceneAssetHandle>();
                     commands.insert_resource(SceneData::Cutscene(data.clone()));
@@ -81,6 +82,7 @@ pub fn check_cutscene_data_loaded(
 }
 
 /// @system Loads stage data once the asset server finishes loading the selected file.
+#[allow(clippy::needless_pass_by_value)]
 pub fn check_stage_data_loaded(
     asset_server: Res<AssetServer>,
     stage_asset_handle: Res<StageAssetHandle>,
@@ -92,7 +94,7 @@ pub fn check_stage_data_loaded(
         match state {
             LoadState::Loaded => {
                 if let Some(data) = stage_data_assets.get(&stage_asset_handle.handle) {
-                    *scene_path = ScenePath(stage_asset_handle.path.to_string());
+                    *scene_path = ScenePath(stage_asset_handle.path.clone());
                     println!("Stage data loaded: {data:?}");
                     commands.remove_resource::<StageAssetHandle>();
                     commands.insert_resource(SceneData::Stage(data.clone()));
@@ -116,6 +118,7 @@ pub fn check_stage_data_loaded(
 }
 
 /// @system Rebuilds editor entities when the scene or visibility toggles change.
+#[allow(clippy::needless_pass_by_value)]
 pub fn on_scene_change(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -159,6 +162,7 @@ pub fn on_unload_scene(
 }
 
 /// @system Advances sprite atlas frames when their animation timer ticks.
+#[allow(clippy::needless_pass_by_value)]
 pub fn animate_sprite(
     time: Res<Time>,
     mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut Sprite)>,

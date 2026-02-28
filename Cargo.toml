@@ -22,35 +22,35 @@ version = "0.2.0"
 assert_assets_path = { path = "tools/assert_assets_path" }
 carcinisation_collision = { path = "crates/carcinisation_collision" }
 # Dynamic linking speeds up host builds; wasm targets ignore this feature.
-bevy = { version = "0.17", features = [
+bevy = { version = "0.18", features = [
     "dynamic_linking",
     "wayland",
     "std",
     "async_executor",
 ] }
-bevy_brp_extras = "0.17.3"
-bevy_state = "0.17.2"
-bevy_ecs = "0.17.2"
-bevy_common_assets = { version = "0.14", features = ["ron"] }
-bevy-inspector-egui = "0.35.0"
-bevy_framepace = "0.20"
-colored = "3.0.0"
+bevy_brp_extras = "0.18"
+bevy_state = "0.18"
+bevy_ecs = "0.18"
+bevy_common_assets = { version = "0.15", features = ["ron"] }
+bevy-inspector-egui = "0.36"
+bevy_framepace = "0.21"
+colored = "3.1.1"
 derive-new = "0.7.0"
-derive_more = "2.0.1"
-lazy_static = "1.4.0"
-leafwing-input-manager = "0.19.0"
-num_enum = "0.7.2"
-rand = "0.9.2"
+derive_more = "2.1.1"
+lazy_static = "1.5.0"
+leafwing-input-manager = "0.20"
+num_enum = "0.7.5"
+rand = "0.10.0"
 seldom_pixel = { git = "https://github.com/marcotoniut/seldom_pixel", branch = "main", default-features = true, features = [
     "line",
 ] }
 serde = { version = "1.0", features = ["derive"] }
-serde_with = "3.8.1"
+serde_with = "3.17.0"
 serde_json = "1.0"
-ron = "0.11.0"
+ron = "0.12.0"
 anyhow = "1.0"
-strum = "0.27.2"
-strum_macros = "0.27.2"
+strum = "0.28.0"
+strum_macros = "0.28.0"
 
 [profile.dev]
 opt-level = 1

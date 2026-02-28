@@ -183,7 +183,7 @@ struct ActivateCommand<P: Activable>(PhantomData<P>);
 impl<P: Activable> bevy::ecs::system::Command for ActivateCommand<P> {
     fn apply(self, world: &mut World) {
         if let Some(mut next) = world.get_resource_mut::<NextState<ActiveState<P>>>() {
-            *next = NextState::Pending(ActiveState::<P>::active());
+            *next = NextState::PendingIfNeq(ActiveState::<P>::active());
         }
     }
 }
@@ -192,7 +192,7 @@ struct DeactivateCommand<P: Activable>(PhantomData<P>);
 impl<P: Activable> bevy::ecs::system::Command for DeactivateCommand<P> {
     fn apply(self, world: &mut World) {
         if let Some(mut next) = world.get_resource_mut::<NextState<ActiveState<P>>>() {
-            *next = NextState::Pending(ActiveState::<P>::inactive());
+            *next = NextState::PendingIfNeq(ActiveState::<P>::inactive());
         }
     }
 }

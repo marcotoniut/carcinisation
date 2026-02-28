@@ -10,13 +10,13 @@ bevy = { workspace = true }
 bevy_brp_extras = { workspace = true }
 bevy_common_assets = { workspace = true }
 bevy-inspector-egui = { workspace = true }
-bevy_prototype_lyon = { version = "0.15", optional = true }
+bevy_prototype_lyon = { version = "0.16", optional = true }
 carcinisation = { path = "../../apps/carcinisation" }
 derive-new = { workspace = true }
 derive_more = { workspace = true }
-futures-lite = "2.3.0"
+futures-lite = "2.6.1"
 lazy_static = { workspace = true }
-rfd = "0.14.1"
+rfd = "0.17.2"
 ron = { workspace = true }
 serde = { workspace = true }
 serde_with = { workspace = true }

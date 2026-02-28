@@ -71,6 +71,7 @@ pub struct MousePressParams<'w, 's> {
 }
 
 /// @system Alt + mouse motion zooms the camera around the cursor.
+#[allow(clippy::needless_pass_by_value)]
 pub fn on_alt_mouse_motion(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
@@ -102,6 +103,7 @@ pub fn on_alt_mouse_motion(
 }
 
 /// @system Ctrl-drag pans the camera when nothing is selected; right-click drags selected entities.
+#[allow(clippy::needless_pass_by_value)]
 pub fn on_ctrl_mouse_motion(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -156,7 +158,7 @@ pub fn on_ctrl_mouse_motion(
                 screen_to_world(camera, &camera_transform, cursor_position)
             {
                 let world_position = world_position.extend(0.0);
-                for mut transform in selected_query.iter_mut() {
+                for mut transform in &mut selected_query {
                     transform.translation = world_position;
                 }
             }
@@ -165,6 +167,7 @@ pub fn on_ctrl_mouse_motion(
 }
 
 /// @system Left click selects the top-most draggable entity under the cursor.
+#[allow(clippy::needless_pass_by_value)]
 pub fn on_mouse_press(
     buttons: Res<ButtonInput<MouseButton>>,
     mut commands: Commands,
@@ -238,6 +241,7 @@ pub fn on_mouse_press(
 }
 
 /// @system Clears drag state when the left mouse button is released.
+#[allow(clippy::needless_pass_by_value)]
 pub fn on_mouse_release(buttons: Res<ButtonInput<MouseButton>>, mut drag_state: ResMut<DragState>) {
     if buttons.just_released(MouseButton::Left) {
         drag_state.active = None;
@@ -245,6 +249,7 @@ pub fn on_mouse_release(buttons: Res<ButtonInput<MouseButton>>, mut drag_state: 
 }
 
 /// @system Drag selected entities with the left mouse button.
+#[allow(clippy::needless_pass_by_value)]
 pub fn on_mouse_drag(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -405,8 +410,19 @@ fn sprite_hit_test(
     if size.x == 0 || size.y == 0 {
         return false;
     }
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     let x = texture_point.x.floor().clamp(0.0, size.x as f32 - 1.0) as usize;
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     let y = texture_point.y.floor().clamp(0.0, size.y as f32 - 1.0) as usize;
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
     let idx = (y * size.x as usize + x) * 4;
     let Some(data) = image.data.as_deref() else {
         return false;
@@ -470,6 +486,7 @@ fn sprite_texture_rect(
         .as_ref()
         .and_then(|s| s.texture_rect(texture_atlas_layouts))
         .map(|r| r.as_rect());
+    #[allow(clippy::cast_precision_loss)]
     let base_rect = Rect::new(0.0, 0.0, image_size.x as f32, image_size.y as f32);
 
     let rect = match (atlas_rect, sprite.rect) {
@@ -552,6 +569,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn drag_updates_stage_spawn_coordinates() {
         let mut app = App::new();
         app.add_message::<CursorMoved>();
@@ -562,10 +580,10 @@ mod tests {
 
         let stage_data = StageData {
             name: "Test".to_string(),
-            background_path: "".to_string(),
-            music_path: "".to_string(),
+            background_path: String::new(),
+            music_path: String::new(),
             skybox: SkyboxData {
-                path: "".to_string(),
+                path: String::new(),
                 frames: 1,
             },
             start_coordinates: Vec2::ZERO,
