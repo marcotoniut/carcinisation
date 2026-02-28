@@ -223,7 +223,7 @@ pub fn process_cutscene_music_spawn(
         let (player, settings, system_bundle, music_tag) = make_music_bundle(
             &asset_server,
             &volume_settings,
-            spawn.music_path.to_string(),
+            spawn.music_path.clone(),
             PlaybackMode::Loop,
         );
 

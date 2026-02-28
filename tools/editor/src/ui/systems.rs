@@ -10,6 +10,7 @@ use crate::timeline::{StageTimeline, StageTimelineConfig};
 use std::time::Duration;
 
 /// @system Builds the editor UI: stage timeline slider and stage control toggles.
+#[allow(clippy::too_many_lines)]
 pub fn update_ui(world: &mut World) {
     let window_width = {
         let Ok(window) = world
@@ -48,7 +49,7 @@ pub fn update_ui(world: &mut World) {
             .get_resource::<SceneData>()
             .and_then(|scene_data| match scene_data {
                 SceneData::Stage(stage_data) => Some(stage_data.clone()),
-                _ => None,
+                SceneData::Cutscene(_) => None,
             })
     {
         let timeline = StageTimeline::from_stage(&stage_data, StageTimelineConfig::SLIDER);

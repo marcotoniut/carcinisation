@@ -88,6 +88,6 @@ pub fn on_stage_startup(
 
     commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
-    next_game_state.set(GameProgressState::Running);
+    *next_game_state = NextState::PendingIfNeq(GameProgressState::Running);
     commands.trigger(PlayerStartupEvent);
 }

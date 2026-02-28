@@ -1,6 +1,6 @@
 # Carcinisation
 
-Carcinisation is a Bevy 0.17 workspace for a pixel-art action game and its supporting toolchain. The repository brings together the runtime, asset generators, editor utilities, and web build scripts under a single cargo workspace.
+Carcinisation is a Bevy 0.18 workspace for a pixel-art action game and its supporting toolchain. The repository brings together the runtime, asset generators, editor utilities, and web build scripts under a single cargo workspace.
 
 ## Prerequisites
 

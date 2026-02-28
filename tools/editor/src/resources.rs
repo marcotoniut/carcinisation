@@ -26,6 +26,7 @@ pub struct StageAssetHandle {
 #[derive(Debug, Reflect, Resource, Deserialize, Serialize)]
 #[reflect(Resource)]
 #[serde(rename_all = "PascalCase")]
+#[allow(clippy::struct_excessive_bools)]
 pub struct StageControlsUI {
     pub elapsed_duration: Duration,
 

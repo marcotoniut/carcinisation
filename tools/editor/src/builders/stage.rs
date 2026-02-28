@@ -99,7 +99,7 @@ pub fn spawn_path(
                 current_elapsed += stop_duration(s, timeline_config);
 
                 // TODO elapsed?
-                for spawn in s.spawns.iter() {
+                for spawn in &s.spawns {
                     current_elapsed += spawn.get_elapsed();
                 }
             }
@@ -116,6 +116,7 @@ pub fn spawn_path(
 }
 
 /// Spawns stage background/skybox, spawns, and optional path overlay.
+#[allow(clippy::too_many_lines)]
 pub fn spawn_stage(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,

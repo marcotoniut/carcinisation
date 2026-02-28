@@ -104,7 +104,7 @@ pub fn spawn_current_stage_bundle(
             ));
         });
 
-    state.set(GameProgressState::Running);
+    *state = NextState::PendingIfNeq(GameProgressState::Running);
 }
 
 // TODO combine the two and use just_finished

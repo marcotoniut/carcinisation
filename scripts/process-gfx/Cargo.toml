@@ -8,4 +8,4 @@ description = "Converts source art to palette-reduced, rescaled textures for the
 image = "0.25"
 palette = "0.7.6"
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.9"
+toml = "1.0"

@@ -12,6 +12,7 @@ use carcinisation::letterbox::messages::LetterboxMove;
 const ACT_OFFSET: f32 = 250.0;
 
 /// Spawns cutscene nodes and visual connections for the editor.
+#[allow(clippy::cast_precision_loss)]
 pub fn spawn_cutscene(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
