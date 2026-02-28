@@ -2,8 +2,8 @@
 // In this program, a filter is applied to a tilemap and its tiles
 
 use bevy::prelude::*;
-use rand::{RngExt, rng};
 use carapace::prelude::*;
+use rand::{RngExt, rng};
 
 fn main() {
     App::new()

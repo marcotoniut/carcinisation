@@ -58,6 +58,8 @@ mod ui;
 
 use std::{marker::PhantomData, path::PathBuf};
 
+#[cfg(all(feature = "brp_extras", feature = "headed"))]
+use bevy_brp_extras::BrpExtrasPlugin;
 use position::PxLayer;
 use prelude::*;
 
@@ -87,6 +89,9 @@ impl<L: PxLayer> PxPlugin<L> {
 
 impl<L: PxLayer> Plugin for PxPlugin<L> {
     fn build(&self, app: &mut App) {
+        #[cfg(all(feature = "brp_extras", feature = "headed"))]
+        register_brp_extras_plugin(app);
+
         app.add_plugins((
             (
                 blink::plug,
@@ -115,5 +120,28 @@ impl<L: PxLayer> Plugin for PxPlugin<L> {
         map::plug::<L>(app, palette_path.clone());
         sprite::plug::<L>(app, palette_path.clone());
         text::plug::<L>(app, palette_path);
+    }
+}
+
+#[cfg(all(feature = "brp_extras", feature = "headed"))]
+fn register_brp_extras_plugin(app: &mut App) {
+    if !app.is_plugin_added::<BrpExtrasPlugin>() {
+        app.add_plugins(BrpExtrasPlugin);
+    }
+}
+
+#[cfg(all(test, feature = "headed", feature = "brp_extras"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn px_plugin_registers_brp_extras_when_feature_enabled() {
+        let mut app = App::new();
+        register_brp_extras_plugin(&mut app);
+        assert!(app.is_plugin_added::<BrpExtrasPlugin>());
+
+        // Regression guard: duplicate registration should stay a no-op.
+        register_brp_extras_plugin(&mut app);
+        assert!(app.is_plugin_added::<BrpExtrasPlugin>());
     }
 }

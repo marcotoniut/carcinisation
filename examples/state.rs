@@ -3,8 +3,8 @@
 // This example uses local ECS components plus PxAnimationFinished as a small state machine.
 
 use bevy::prelude::*;
-use leafwing_input_manager::prelude::*;
 use carapace::prelude::*;
+use leafwing_input_manager::prelude::*;
 
 fn main() {
     App::new()

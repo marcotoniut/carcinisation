@@ -3,8 +3,8 @@
 // by pressing space
 
 use bevy::prelude::*;
-use rand::{RngExt, rng};
 use carapace::prelude::*;
+use rand::{RngExt, rng};
 
 fn main() {
     App::new()

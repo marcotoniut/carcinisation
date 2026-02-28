@@ -1,9 +1,17 @@
 #![allow(clippy::needless_pass_by_value)]
-// In this program, a tilemap is spawned
+// Minimal BRP screenshot target.
+//
+// Run:
+//   cargo run --example brp_screenshot --features brp_extras
+//
+// Capture:
+//   mkdir -p tmp
+//   curl -s http://127.0.0.1:15702/jsonrpc \
+//     -H 'content-type: application/json' \
+//     -d '{"jsonrpc":"2.0","id":1,"method":"brp_extras/screenshot","params":{"path":"tmp/brp_screenshot.png"}}'
 
 use bevy::prelude::*;
 use carapace::prelude::*;
-use rand::{RngExt, rng};
 
 fn main() {
     App::new()
@@ -15,7 +23,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
+            PxPlugin::<Layer>::new(UVec2::splat(64), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -24,24 +32,14 @@ fn main() {
 
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
-
-    let mut tiles = PxTiles::new(UVec2::splat(4));
-    let mut rng = rng();
-
-    for x in 0..4 {
-        for y in 0..4 {
-            tiles.set(
-                Some(commands.spawn(PxTile::from(rng.random_range(0..4))).id()),
-                UVec2::new(x, y),
-            );
-        }
-    }
-
-    // Spawn the map
-    commands.spawn(PxMap {
-        tiles,
-        tileset: assets.load("tileset/tileset.px_tileset.png"),
-    });
+    commands.spawn((
+        Layer,
+        PxUiRoot,
+        PxText::new(
+            "BRP screenshot target",
+            assets.load("typeface/typeface.px_typeface.png"),
+        ),
+    ));
 }
 
 #[px_layer]

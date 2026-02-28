@@ -89,6 +89,58 @@ rendered via the GPU palette pass. Filters and dithering are not supported on th
 Enable `profiling_spans` to emit tracing spans/events in hot systems for performance profiling.
 This feature is opt-in and disabled by default.
 
+Enable `brp_extras` to auto-register `BrpExtrasPlugin` from `bevy_brp_extras`. This is opt-in
+and intended for BRP tooling workflows (e.g., screenshot/shutdown/input control).
+On native targets, `BrpExtrasPlugin` wires BRP HTTP transport; on wasm targets, you still need
+to provide your own BRP transport.
+
+### BRP extras examples
+
+Run a dedicated BRP screenshot example:
+
+```bash
+cargo run --example brp_screenshot --features brp_extras
+```
+
+Run on a custom BRP port:
+
+```bash
+BRP_EXTRAS_PORT=15703 cargo run --example brp_screenshot --features brp_extras
+```
+
+Capture a screenshot through BRP (saved under `tmp/`, which is gitignored):
+
+```bash
+mkdir -p tmp
+curl -s http://127.0.0.1:15702/jsonrpc \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"brp_extras/screenshot","params":{"path":"tmp/brp-screenshot.png"}}'
+```
+
+Commit example screenshot baselines under `screenshots/examples/`:
+
+```bash
+cargo xtask screenshots text
+cargo xtask screenshots
+```
+
+If your first run is compiling many crates, you can increase BRP wait timeout:
+
+```bash
+XTASK_BRP_TIMEOUT_SECS=600 cargo xtask screenshots text
+```
+
+### Quick checks
+
+This repo includes cargo aliases in `.cargo/config.toml` for faster local verification:
+
+```bash
+cargo check-quick
+cargo test-quick
+cargo verify-quick
+cargo example-brp
+```
+
 ## Compatibility
 
 | Bevy | `seldom_interop` | `bevy_ecs_tilemap` | `carapace` |

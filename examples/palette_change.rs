@@ -2,11 +2,11 @@
 // In this game, you can spawn a mage by pressing space and switch the palette by pressing tab
 
 use bevy::prelude::*;
-use rand::{RngExt, rng};
 use carapace::{
     palette::{Palette, PaletteHandle},
     prelude::*,
 };
+use rand::{RngExt, rng};
 
 fn main() {
     App::new()
