@@ -41,6 +41,28 @@ use super::{
     pipeline::{PxPipeline, PxRenderBuffer, PxUniformBuffer},
 };
 
+fn resolve_filter_layers<L: PxLayer>(
+    out: &mut Vec<(L, bool)>,
+    layers: &PxFilterLayers<L>,
+    layer_contents: &LayerContentsMap<'_, L>,
+) {
+    out.clear();
+    match layers {
+        PxFilterLayers::Single { layer, clip } => out.push((layer.clone(), *clip)),
+        // TODO: Revisit range resolution so it can target layers not yet extracted.
+        // Current behavior only targets layers already extracted into `layer_contents`.
+        PxFilterLayers::Range(range) => out.extend(
+            layer_contents
+                .keys()
+                .filter(|layer| range.contains(layer))
+                .map(|layer| (layer.clone(), true)),
+        ),
+        PxFilterLayers::Many(layers) => {
+            out.extend(layers.iter().map(|layer| (layer.clone(), true)));
+        }
+    }
+}
+
 pub(crate) struct PxRenderNode<L: PxLayer> {
     maps: QueryState<MapComponents<L>>,
     tiles: QueryState<TileComponents>,
@@ -135,28 +157,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             {
                 layer_set.insert(layer.clone());
             }
-
-            if let Some((maps, _, _, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
-                maps.push(map);
-            } else {
-                BTreeMap::insert(
-                    &mut layer_contents,
-                    layer.clone(),
-                    (
-                        vec![map],
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                    ),
-                );
-            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .maps
+                .push(map);
         }
 
         #[cfg(feature = "gpu_palette")]
@@ -170,28 +175,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             }
 
             let sprite = (sprite, position, anchor, canvas, animation, filter);
-
-            if let Some((_, sprites, _, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
-                sprites.push(sprite);
-            } else {
-                BTreeMap::insert(
-                    &mut layer_contents,
-                    layer.clone(),
-                    (
-                        Vec::new(),
-                        vec![sprite],
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                    ),
-                );
-            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .sprites
+                .push(sprite);
         }
 
         #[cfg(not(feature = "gpu_palette"))]
@@ -199,28 +187,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             self.sprites.iter_manual(world)
         {
             let sprite = (sprite, position, anchor, canvas, animation, filter);
-
-            if let Some((_, sprites, _, _, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
-                sprites.push(sprite);
-            } else {
-                BTreeMap::insert(
-                    &mut layer_contents,
-                    layer.clone(),
-                    (
-                        Vec::new(),
-                        vec![sprite],
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                    ),
-                );
-            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .sprites
+                .push(sprite);
         }
 
         for (sprite, &position, &anchor, layer, &canvas, animation, filter) in
@@ -231,30 +202,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             {
                 layer_set.insert(layer.clone());
             }
-
-            if let Some((_, _, atlas_sprites, _, _, _, _, _, _, _, _)) =
-                layer_contents.get_mut(layer)
-            {
-                atlas_sprites.push(sprite);
-            } else {
-                BTreeMap::insert(
-                    &mut layer_contents,
-                    layer.clone(),
-                    (
-                        Vec::new(),
-                        Vec::new(),
-                        vec![sprite],
-                        Vec::new(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                    ),
-                );
-            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .atlas_sprites
+                .push(sprite);
         }
 
         #[cfg(feature = "gpu_palette")]
@@ -269,29 +221,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             }
 
             let composite = (composite, position, anchor, canvas, animation, filter);
-
-            if let Some((_, _, _, composites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer)
-            {
-                composites.push(composite);
-            } else {
-                BTreeMap::insert(
-                    &mut layer_contents,
-                    layer.clone(),
-                    (
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        vec![composite],
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                    ),
-                );
-            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .composites
+                .push(composite);
         }
 
         #[cfg(not(feature = "gpu_palette"))]
@@ -299,29 +233,11 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             self.composites.iter_manual(world)
         {
             let composite = (composite, position, anchor, canvas, animation, filter);
-
-            if let Some((_, _, _, composites, _, _, _, _, _, _, _)) = layer_contents.get_mut(layer)
-            {
-                composites.push(composite);
-            } else {
-                BTreeMap::insert(
-                    &mut layer_contents,
-                    layer.clone(),
-                    (
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        vec![composite],
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                    ),
-                );
-            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .composites
+                .push(composite);
         }
 
         for (text, &pos, &alignment, layer, &canvas, animation, filter) in
@@ -332,92 +248,29 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             {
                 layer_set.insert(layer.clone());
             }
-
-            if let Some((_, _, _, _, texts, _, _, _, _, _, _)) = layer_contents.get_mut(layer) {
-                texts.push(text);
-            } else {
-                BTreeMap::insert(
-                    &mut layer_contents,
-                    layer.clone(),
-                    (
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        Vec::new(),
-                        vec![text],
-                        default(),
-                        default(),
-                        Vec::new(),
-                        default(),
-                        default(),
-                        Vec::new(),
-                    ),
-                );
-            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .texts
+                .push(text);
         }
 
+        let mut resolved_filter_layers = Vec::with_capacity(8);
         for (&rect, filter, layers, &pos, &anchor, &canvas, animation, invert) in
             self.rects.iter_manual(world)
         {
-            for (layer, clip) in match layers {
-                PxFilterLayers::Single { layer, clip } => vec![(layer.clone(), *clip)],
-                // TODO Need to do this after all layers have been extracted
-                PxFilterLayers::Range(range) => layer_contents
-                    .keys()
-                    .filter(|layer| range.contains(layer))
-                    .map(|layer| (layer.clone(), true))
-                    .collect(),
-                PxFilterLayers::Many(layers) => {
-                    layers.iter().map(|layer| (layer.clone(), true)).collect()
-                }
-            } {
+            resolve_filter_layers(&mut resolved_filter_layers, layers, &layer_contents);
+
+            for (layer, clip) in &resolved_filter_layers {
                 let rect = (rect, filter, pos, anchor, canvas, animation, invert);
                 #[cfg(feature = "gpu_palette")]
                 {
                     layer_set.insert(layer.clone());
                 }
-
-                if let Some((_, _, _, _, _, clip_rects, _, _, over_rects, _, _)) =
-                    layer_contents.get_mut(&layer)
-                {
-                    if clip { clip_rects } else { over_rects }.push(rect);
-                } else {
-                    let rects = vec![rect];
-
-                    BTreeMap::insert(
-                        &mut layer_contents,
-                        layer,
-                        if clip {
-                            (
-                                default(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                rects,
-                                default(),
-                                Vec::new(),
-                                default(),
-                                default(),
-                                Vec::new(),
-                            )
-                        } else {
-                            (
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                default(),
-                                default(),
-                                default(),
-                                rects,
-                                default(),
-                                Vec::new(),
-                            )
-                        },
-                    );
-                }
+                layer_contents
+                    .entry(layer.clone())
+                    .or_default()
+                    .push_rect(rect, *clip);
             }
         }
 
@@ -425,124 +278,34 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         for (line, filter, layers, &canvas, animation, invert) in self.lines.iter_manual(world) {
             let line = (line, filter, canvas, animation, invert);
 
-            for (layer, clip) in match layers {
-                PxFilterLayers::Single { layer, clip } => vec![(layer.clone(), *clip)],
-                PxFilterLayers::Range(range) => layer_contents
-                    .keys()
-                    .filter(|layer| range.contains(layer))
-                    .map(|layer| (layer.clone(), true))
-                    .collect(),
-                PxFilterLayers::Many(layers) => {
-                    layers.iter().map(|layer| (layer.clone(), true)).collect()
-                }
-            } {
+            resolve_filter_layers(&mut resolved_filter_layers, layers, &layer_contents);
+
+            for (layer, clip) in &resolved_filter_layers {
                 #[cfg(feature = "gpu_palette")]
                 {
                     layer_set.insert(layer.clone());
                 }
-                if let Some((_, _, _, _, _, _, clip_lines, _, _, over_lines, _)) =
-                    layer_contents.get_mut(&layer)
-                {
-                    if clip { clip_lines } else { over_lines }.push(line);
-                } else {
-                    let lines = vec![line];
-
-                    BTreeMap::insert(
-                        &mut layer_contents,
-                        layer,
-                        if clip {
-                            (
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                default(),
-                                lines,
-                                Vec::new(),
-                                default(),
-                                default(),
-                                Vec::new(),
-                            )
-                        } else {
-                            (
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                default(),
-                                default(),
-                                Vec::new(),
-                                default(),
-                                lines,
-                                Vec::new(),
-                            )
-                        },
-                    );
-                }
+                layer_contents
+                    .entry(layer.clone())
+                    .or_default()
+                    .push_line(line, *clip);
             }
         }
 
         for (filter, layers, animation) in self.filters.iter_manual(world) {
             let filter = (filter, animation);
 
-            for (layer, clip) in match layers {
-                PxFilterLayers::Single { layer, clip } => vec![(layer.clone(), *clip)],
-                PxFilterLayers::Range(range) => layer_contents
-                    .keys()
-                    .filter(|layer| range.contains(layer))
-                    .map(|layer| (layer.clone(), true))
-                    .collect(),
-                PxFilterLayers::Many(layers) => {
-                    layers.iter().map(|layer| (layer.clone(), true)).collect()
-                }
-            } {
+            resolve_filter_layers(&mut resolved_filter_layers, layers, &layer_contents);
+
+            for (layer, clip) in &resolved_filter_layers {
                 #[cfg(feature = "gpu_palette")]
                 {
                     layer_set.insert(layer.clone());
                 }
-                if let Some((_, _, _, _, _, _, _, clip_filters, _, _, over_filters)) =
-                    layer_contents.get_mut(&layer)
-                {
-                    if clip { clip_filters } else { over_filters }.push(filter);
-                } else {
-                    let filters = vec![filter];
-
-                    BTreeMap::insert(
-                        &mut layer_contents,
-                        layer,
-                        if clip {
-                            (
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                default(),
-                                default(),
-                                filters,
-                                default(),
-                                default(),
-                                Vec::new(),
-                            )
-                        } else {
-                            (
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                Vec::new(),
-                                default(),
-                                default(),
-                                Vec::new(),
-                                default(),
-                                default(),
-                                filters,
-                            )
-                        },
-                    );
-                }
+                layer_contents
+                    .entry(layer.clone())
+                    .or_default()
+                    .push_filter(filter, *clip);
             }
         }
         px_end_span!(_collect_span);
@@ -664,5 +427,77 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         px_end_span!(_present_span);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg_attr(
+        feature = "headed",
+        derive(bevy_render::extract_component::ExtractComponent)
+    )]
+    #[derive(Component, next::Next, Ord, PartialOrd, Eq, PartialEq, Clone, Default, Debug)]
+    #[next(path = next::Next)]
+    enum TestLayer {
+        Back,
+        #[default]
+        Mid,
+        Front,
+    }
+
+    #[test]
+    fn resolve_filter_layers_single_preserves_clip_flag() {
+        let mut out = Vec::new();
+        let layer_contents: LayerContentsMap<'static, TestLayer> = BTreeMap::new();
+
+        resolve_filter_layers(
+            &mut out,
+            &PxFilterLayers::Single {
+                layer: TestLayer::Mid,
+                clip: false,
+            },
+            &layer_contents,
+        );
+
+        assert_eq!(out, vec![(TestLayer::Mid, false)]);
+    }
+
+    #[test]
+    fn resolve_filter_layers_range_uses_existing_layer_keys() {
+        let mut out = Vec::new();
+        let mut layer_contents: LayerContentsMap<'static, TestLayer> = BTreeMap::new();
+        layer_contents.insert(TestLayer::Back, draw::LayerContents::default());
+        layer_contents.insert(TestLayer::Front, draw::LayerContents::default());
+
+        resolve_filter_layers(
+            &mut out,
+            &PxFilterLayers::Range(TestLayer::Back..=TestLayer::Front),
+            &layer_contents,
+        );
+
+        assert_eq!(out, vec![(TestLayer::Back, true), (TestLayer::Front, true)]);
+    }
+
+    #[test]
+    fn resolve_filter_layers_many_keeps_declared_order() {
+        let mut out = Vec::new();
+        let layer_contents: LayerContentsMap<'static, TestLayer> = BTreeMap::new();
+
+        resolve_filter_layers(
+            &mut out,
+            &PxFilterLayers::Many(vec![TestLayer::Front, TestLayer::Back, TestLayer::Mid]),
+            &layer_contents,
+        );
+
+        assert_eq!(
+            out,
+            vec![
+                (TestLayer::Front, true),
+                (TestLayer::Back, true),
+                (TestLayer::Mid, true)
+            ]
+        );
     }
 }

@@ -92,34 +92,63 @@ pub(crate) type LineEntry<'a> = (
 pub(crate) type FilterEntry<'a> = (&'a PxFilter, Option<&'a PxFrame>);
 
 #[cfg(feature = "line")]
-pub(crate) type LayerContents<'a> = (
-    Vec<MapEntry<'a>>,
-    Vec<SpriteEntry<'a>>,
-    Vec<AtlasSpriteEntry<'a>>,
-    Vec<CompositeSpriteEntry<'a>>,
-    Vec<TextEntry<'a>>,
-    Vec<RectEntry<'a>>,
-    Vec<LineEntry<'a>>,
-    Vec<FilterEntry<'a>>,
-    Vec<RectEntry<'a>>,
-    Vec<LineEntry<'a>>,
-    Vec<FilterEntry<'a>>,
-);
+#[derive(Default)]
+pub(crate) struct LayerContents<'a> {
+    pub(crate) maps: Vec<MapEntry<'a>>,
+    pub(crate) sprites: Vec<SpriteEntry<'a>>,
+    pub(crate) atlas_sprites: Vec<AtlasSpriteEntry<'a>>,
+    pub(crate) composites: Vec<CompositeSpriteEntry<'a>>,
+    pub(crate) texts: Vec<TextEntry<'a>>,
+    pub(crate) clip_rects: Vec<RectEntry<'a>>,
+    pub(crate) clip_lines: Vec<LineEntry<'a>>,
+    pub(crate) clip_filters: Vec<FilterEntry<'a>>,
+    pub(crate) over_rects: Vec<RectEntry<'a>>,
+    pub(crate) over_lines: Vec<LineEntry<'a>>,
+    pub(crate) over_filters: Vec<FilterEntry<'a>>,
+}
 
 #[cfg(not(feature = "line"))]
-pub(crate) type LayerContents<'a> = (
-    Vec<MapEntry<'a>>,
-    Vec<SpriteEntry<'a>>,
-    Vec<AtlasSpriteEntry<'a>>,
-    Vec<CompositeSpriteEntry<'a>>,
-    Vec<TextEntry<'a>>,
-    Vec<RectEntry<'a>>,
-    (),
-    Vec<FilterEntry<'a>>,
-    Vec<RectEntry<'a>>,
-    (),
-    Vec<FilterEntry<'a>>,
-);
+#[derive(Default)]
+pub(crate) struct LayerContents<'a> {
+    pub(crate) maps: Vec<MapEntry<'a>>,
+    pub(crate) sprites: Vec<SpriteEntry<'a>>,
+    pub(crate) atlas_sprites: Vec<AtlasSpriteEntry<'a>>,
+    pub(crate) composites: Vec<CompositeSpriteEntry<'a>>,
+    pub(crate) texts: Vec<TextEntry<'a>>,
+    pub(crate) clip_rects: Vec<RectEntry<'a>>,
+    pub(crate) clip_filters: Vec<FilterEntry<'a>>,
+    pub(crate) over_rects: Vec<RectEntry<'a>>,
+    pub(crate) over_filters: Vec<FilterEntry<'a>>,
+}
+
+impl<'a> LayerContents<'a> {
+    pub(crate) fn push_rect(&mut self, rect: RectEntry<'a>, clip: bool) {
+        if clip {
+            self.clip_rects.push(rect);
+        } else {
+            self.over_rects.push(rect);
+        }
+    }
+
+    pub(crate) fn push_filter(&mut self, filter: FilterEntry<'a>, clip: bool) {
+        if clip {
+            self.clip_filters.push(filter);
+        } else {
+            self.over_filters.push(filter);
+        }
+    }
+}
+
+#[cfg(feature = "line")]
+impl<'a> LayerContents<'a> {
+    pub(crate) fn push_line(&mut self, line: LineEntry<'a>, clip: bool) {
+        if clip {
+            self.clip_lines.push(line);
+        } else {
+            self.over_lines.push(line);
+        }
+    }
+}
 
 pub(crate) type LayerContentsMap<'a, L> = BTreeMap<L, LayerContents<'a>>;
 
@@ -161,23 +190,22 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
         let mut image_slice = PxImageSliceMut::from_image_mut(image).unwrap();
 
         #[allow(unused_variables)]
-        for (
-            layer,
-            (
+        for (layer, contents) in layer_contents {
+            let LayerContents {
                 maps,
                 sprites,
                 atlas_sprites,
                 composites,
                 texts,
                 clip_rects,
+                #[cfg(feature = "line")]
                 clip_lines,
                 clip_filters,
                 over_rects,
+                #[cfg(feature = "line")]
                 over_lines,
                 over_filters,
-            ),
-        ) in layer_contents
-        {
+            } = contents;
             #[cfg(feature = "gpu_palette")]
             let base_depth = layer_index_for(layer_order, &layer);
             #[cfg(feature = "gpu_palette")]
