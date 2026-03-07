@@ -48,17 +48,14 @@ impl Plugin for PlayerPlugin {
             .add_observer(on_player_startup)
             .add_message::<PlayerShutdownEvent>()
             .add_observer(on_player_shutdown)
-            .add_active_systems::<PlayerPlugin, _>(
-                // Player logic only runs when the plugin is active.
-                (
-                    tick_attack_lifetimes,
-                    despawn_expired_attacks,
-                    detect_player_attack,
-                    camera_shake,
-                    player_movement.in_set(MovementSystems),
-                    confine_player_movement.in_set(ConfinementSystems),
-                ),
-            );
+            .add_active_systems::<PlayerPlugin, _>((
+                tick_attack_lifetimes,
+                despawn_expired_attacks,
+                detect_player_attack,
+                camera_shake,
+                player_movement.in_set(MovementSystems),
+                confine_player_movement.in_set(ConfinementSystems),
+            ));
     }
 }
 

@@ -63,6 +63,7 @@ use crate::{
         event::on_trigger_write_event,
         time::{TimeShouldRun, tick_time},
     },
+    game::GameProgressState,
     systems::{check_despawn_after_delay, delay_despawn},
 };
 use activable::{Activable, ActivableAppExt, activate_system, deactivate_system};
@@ -144,6 +145,15 @@ impl Plugin for StagePlugin {
                 deactivate_system::<PlayerPlugin>,
                 deactivate_system::<StageUiPlugin>,
             ))
+            // Pause/unpause the player when the game state toggles.
+            .add_systems(
+                OnEnter(GameProgressState::Paused),
+                deactivate_system::<PlayerPlugin>,
+            )
+            .add_systems(
+                OnExit(GameProgressState::Paused),
+                activate_system::<PlayerPlugin>,
+            )
             // Shared movement helpers (linear/pursue) reused by multiple enemy types.
             .add_plugins(PursueMovementPlugin::<StageTimeDomain, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTimeDomain, PxSubPosition>::default())
@@ -160,6 +170,7 @@ impl Plugin for StagePlugin {
             .add_plugins(EnemyPlugin)
             .add_plugins(PlayerPlugin)
             .add_plugins(StageRestartPlugin)
+            .add_plugins(StageUiPlugin)
             .add_active_systems_in::<StagePlugin, _>(
                 FixedUpdate,
                 (
@@ -202,7 +213,7 @@ impl Plugin for StagePlugin {
                         // Stage
                         read_step_trigger,
                         check_stage_step_timer,
-                        check_staged_cleared,
+                        check_staged_cleared.run_if(in_state(StageProgressState::Running)),
                         check_step_spawn,
                         check_stage_death,
                     ),
