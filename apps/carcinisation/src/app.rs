@@ -1,5 +1,7 @@
 //! Shared Bevy bootstrap for the main game binaries.
 
+use bevy::render::RenderPlugin;
+use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::window::{WindowCloseRequested, WindowResolution};
 use bevy::{asset::AssetPlugin, prelude::*};
 #[cfg(feature = "brp")]
@@ -58,99 +60,137 @@ impl StartFlow {
 #[derive(Debug, Clone, Copy)]
 pub struct AppLaunchOptions {
     pub start_flow: StartFlow,
+    /// When `true`, uses `MinimalPlugins` instead of `DefaultPlugins` and skips
+    /// rendering, audio, and window systems. Useful for integration tests.
+    pub headless: bool,
 }
 
 impl Default for AppLaunchOptions {
     fn default() -> Self {
         Self {
             start_flow: StartFlow::Full,
+            headless: false,
         }
     }
 }
 
 /// Builds the Bevy `App` with shared plugins/resources, parameterised by the entry flow.
 pub fn build_app(options: AppLaunchOptions) -> App {
-    let title: String = "CARCINISATION".to_string();
-    let focused: bool = false;
-
     let mut app = App::new();
-    #[cfg(debug_assertions)]
-    {
-        app.add_plugins((
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title,
-                        focused,
-                        resizable: true,
-                        resolution: WindowResolution::new(
-                            VIEWPORT_RESOLUTION.x as u32,
-                            VIEWPORT_RESOLUTION.y as u32,
-                        ),
-                        ..default()
-                    }),
-                    close_when_requested: false,
-                    ..default()
-                })
-                .set(AssetPlugin {
-                    file_path: "../../assets".into(),
-                    ..default()
-                }),
-            EguiPlugin::default(),
-            DebugInspectorOverlayPlugin,
-            bevy::diagnostic::LogDiagnosticsPlugin::default(),
-            DebugPlugin,
-        ));
-    }
-    #[cfg(not(debug_assertions))]
-    {
+
+    if options.headless {
         app.add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title,
-                        focused,
-                        resizable: false,
-                        resolution: WindowResolution::new(
-                            VIEWPORT_RESOLUTION.x as u32,
-                            VIEWPORT_RESOLUTION.y as u32,
-                        ),
+                    primary_window: None,
+                    close_when_requested: false,
+                    ..default()
+                })
+                .set(RenderPlugin {
+                    render_creation: RenderCreation::Automatic(WgpuSettings {
+                        backends: None,
                         ..default()
                     }),
-                    close_when_requested: false,
                     ..default()
                 })
                 .set(AssetPlugin {
                     file_path: "../../assets".into(),
                     ..default()
-                }),
+                })
+                .disable::<bevy::winit::WinitPlugin>(),
         );
+    } else {
+        let title: String = "CARCINISATION".to_string();
+        let focused: bool = false;
+
+        #[cfg(debug_assertions)]
+        {
+            app.add_plugins((
+                DefaultPlugins
+                    .set(WindowPlugin {
+                        primary_window: Some(Window {
+                            title,
+                            focused,
+                            resizable: true,
+                            resolution: WindowResolution::new(
+                                VIEWPORT_RESOLUTION.x as u32,
+                                VIEWPORT_RESOLUTION.y as u32,
+                            ),
+                            ..default()
+                        }),
+                        close_when_requested: false,
+                        ..default()
+                    })
+                    .set(AssetPlugin {
+                        file_path: "../../assets".into(),
+                        ..default()
+                    }),
+                EguiPlugin::default(),
+                DebugInspectorOverlayPlugin,
+                bevy::diagnostic::LogDiagnosticsPlugin::default(),
+                DebugPlugin,
+            ));
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            app.add_plugins(
+                DefaultPlugins
+                    .set(WindowPlugin {
+                        primary_window: Some(Window {
+                            title,
+                            focused,
+                            resizable: false,
+                            resolution: WindowResolution::new(
+                                VIEWPORT_RESOLUTION.x as u32,
+                                VIEWPORT_RESOLUTION.y as u32,
+                            ),
+                            ..default()
+                        }),
+                        close_when_requested: false,
+                        ..default()
+                    })
+                    .set(AssetPlugin {
+                        file_path: "../../assets".into(),
+                        ..default()
+                    }),
+            );
+        }
     }
 
     app.init_resource::<DifficultySelected>()
         .init_resource::<VolumeSettings>()
         .add_plugins(InputManagerPlugin::<GBInput>::default());
 
-    #[cfg(feature = "brp")]
-    app.add_plugins(BrpExtrasPlugin);
+    if !options.headless {
+        #[cfg(feature = "brp")]
+        app.add_plugins(BrpExtrasPlugin);
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        app.add_plugins(FramepacePlugin)
-            .add_systems(Startup, (set_framespace, set_fixed_timestep));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            app.add_plugins(FramepacePlugin)
+                .add_systems(Startup, (set_framespace, set_fixed_timestep));
+        }
     }
 
     app.add_plugins(PixelPlugin::<Layer>::default())
-        .add_systems(Startup, (spawn_camera, init_gb_input))
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
-        .add_plugins(PxPlugin::<Layer>::new(
-            SCREEN_RESOLUTION,
-            "palette/base.png",
-        ))
         .add_plugins(PxAnimationPlugin)
         .add_plugins(TransitionVenetianPlugin)
         .add_plugins(LetterboxPlugin);
+
+    let px_plugin = PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png");
+    if options.headless {
+        px_plugin.build_headless(&mut app);
+    } else {
+        app.add_plugins(px_plugin);
+    }
+
+    if !options.headless {
+        app.add_systems(Startup, spawn_camera);
+    }
+
+    app.add_systems(Startup, init_gb_input);
 
     if options.start_flow.includes_start_flow() {
         app.add_plugins(CutscenePlugin)
@@ -161,8 +201,11 @@ pub fn build_app(options: AppLaunchOptions) -> App {
     app.add_plugins(StagePlugin)
         .add_plugins(GamePlugin)
         .add_systems(Update, (move_camera, update_position_x, update_position_y))
-        .add_systems(Update, exit_on_window_close_request)
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>);
+
+    if !options.headless {
+        app.add_systems(Update, exit_on_window_close_request);
+    }
 
     app
 }
