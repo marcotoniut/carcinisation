@@ -37,6 +37,21 @@ use crate::{
     set::PxSet,
 };
 
+pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
+    app.init_asset::<PxSpriteAsset>()
+        .register_asset_loader(PxSpriteLoader::new(palette_path));
+
+    app.add_systems(
+        PostUpdate,
+        (
+            update_composite_metrics_on_change,
+            update_composite_metrics_on_assets,
+            sync_composite_frame_count_on_animation_added,
+        )
+            .before(PxSet::FinishAnimations),
+    );
+}
+
 pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
@@ -52,18 +67,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
         SyncComponentPlugin::<PxGpuComposite>::default(),
     ));
 
-    app.init_asset::<PxSpriteAsset>()
-        .register_asset_loader(PxSpriteLoader::new(palette_path));
-
-    app.add_systems(
-        PostUpdate,
-        (
-            update_composite_metrics_on_change,
-            update_composite_metrics_on_assets,
-            sync_composite_frame_count_on_animation_added,
-        )
-            .before(PxSet::FinishAnimations),
-    );
+    plug_core(app, palette_path);
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp).add_systems(

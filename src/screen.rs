@@ -85,14 +85,21 @@ impl<L: PxLayer> Plug<L> {
     }
 }
 
+/// Register ECS-side screen systems (palette init + palette update).
+/// The startup system that creates the [`Screen`] resource is **not** included —
+/// callers pick [`insert_screen`] (headed) or [`insert_screen_headless`] (headless).
+pub(crate) fn plug_core(app: &mut App) {
+    app.add_systems(Update, init_screen)
+        .add_systems(PostUpdate, update_screen_palette);
+}
+
 impl<L: PxLayer> Plugin for Plug<L> {
     fn build(&self, app: &mut App) {
         #[cfg(feature = "headed")]
         app.add_plugins(ExtractResourcePlugin::<Screen>::default());
 
-        app.add_systems(Startup, insert_screen(self.size))
-            .add_systems(Update, init_screen)
-            .add_systems(PostUpdate, update_screen_palette);
+        plug_core(app);
+        app.add_systems(Startup, insert_screen(self.size));
 
         // R-A workaround
         #[cfg(feature = "headed")]
@@ -286,6 +293,20 @@ fn insert_screen(size: ScreenSize) -> impl Fn(Windows, Commands) -> Result {
         });
 
         OK
+    }
+}
+
+/// Headless variant of [`insert_screen`] that uses a default window size (no actual window
+/// required). For use with [`PxPlugin::build_headless`](crate::PxPlugin::build_headless).
+pub(crate) fn insert_screen_headless(size: ScreenSize) -> impl Fn(Commands) {
+    move |mut commands| {
+        let (computed_size, window_aspect_ratio) = (size.compute(Vec2::new(500., 500.)), 1.);
+        commands.insert_resource(Screen {
+            size,
+            computed_size,
+            window_aspect_ratio,
+            palette: [Vec3::ZERO; 256],
+        });
     }
 }
 

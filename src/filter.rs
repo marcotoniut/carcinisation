@@ -30,13 +30,7 @@ use crate::{
 pub const TRANSPARENT_FILTER: Handle<PxFilterAsset> =
     uuid_handle!("798C57A4-A83C-5DD6-8FA6-1426E31A84CA");
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
-    #[cfg(feature = "headed")]
-    app.add_plugins((
-        RenderAssetPlugin::<PxFilterAsset>::default(),
-        SyncComponentPlugin::<PxFilterLayers<L>>::default(),
-    ));
-
+pub(crate) fn plug_core<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     app.init_asset::<PxFilterAsset>()
         .register_asset_loader(PxFilterLoader::new(palette_path));
     app.insert_resource(InsertDefaultPxFilterLayers::new::<L>());
@@ -47,6 +41,16 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
         TRANSPARENT_FILTER.id(),
         PxFilterAsset(PxImage::empty(uvec2(16, 16))),
     );
+}
+
+pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
+    #[cfg(feature = "headed")]
+    app.add_plugins((
+        RenderAssetPlugin::<PxFilterAsset>::default(),
+        SyncComponentPlugin::<PxFilterLayers<L>>::default(),
+    ));
+
+    plug_core::<L>(app, palette_path);
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)

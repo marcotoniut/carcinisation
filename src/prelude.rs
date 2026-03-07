@@ -37,7 +37,7 @@ pub use crate::picking::PxPixelPick;
 #[cfg(feature = "gpu_palette")]
 pub use crate::sprite::{PxGpuComposite, PxGpuSprite};
 pub use crate::{
-    PxPlugin,
+    PxHeadlessPlugin, PxPlugin,
     animation::{
         PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
         PxAnimationFinished, PxAnimationPlugin,

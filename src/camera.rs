@@ -7,10 +7,14 @@ use bevy_render::{
 
 use crate::prelude::*;
 
+pub(crate) fn plug_core(app: &mut App) {
+    app.init_resource::<PxCamera>();
+}
+
 pub(crate) fn plug(app: &mut App) {
+    plug_core(app);
     #[cfg(feature = "headed")]
     app.add_plugins(ExtractResourcePlugin::<PxCamera>::default());
-    app.init_resource::<PxCamera>();
 }
 
 /// Resource that represents the camera's position

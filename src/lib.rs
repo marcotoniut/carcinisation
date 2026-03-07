@@ -58,15 +58,60 @@ pub mod sprite;
 mod text;
 mod ui;
 
-use std::{marker::PhantomData, path::PathBuf};
+use std::{
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
 
 #[cfg(all(feature = "brp_extras", feature = "headed"))]
 use bevy_brp_extras::BrpExtrasPlugin;
 use position::PxLayer;
 use prelude::*;
 
-/// Add to your [`App`] to enable `carapace`. The type parameter is your custom layer type
-/// used for z-ordering. You can make one using [`px_layer`].
+/// Registers only ECS-side types, resources, assets, and systems — without any render pipeline,
+/// window, or GPU dependencies.
+///
+/// Use this for headless integration tests or server builds where game logic needs `carapace`
+/// components and assets registered, but no rendering occurs.
+///
+/// # Usage
+///
+/// ```ignore
+/// // Headless (tests, servers):
+/// app.add_plugins(PxHeadlessPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
+///
+/// // Headed (normal game):
+/// app.add_plugins(PxPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
+/// ```
+#[derive(Debug)]
+pub struct PxHeadlessPlugin<L: PxLayer> {
+    screen_size: ScreenSize,
+    palette_path: PathBuf,
+    _l: PhantomData<L>,
+}
+
+impl<L: PxLayer> PxHeadlessPlugin<L> {
+    /// Create a [`PxHeadlessPlugin`]. `screen_size` is the size of the screen in pixels.
+    /// `palette_path` is the path from `assets/` to your game's palette.
+    pub fn new(screen_size: impl Into<ScreenSize>, palette_path: impl Into<PathBuf>) -> Self {
+        Self {
+            screen_size: screen_size.into(),
+            palette_path: palette_path.into(),
+            _l: PhantomData,
+        }
+    }
+}
+
+impl<L: PxLayer> Plugin for PxHeadlessPlugin<L> {
+    fn build(&self, app: &mut App) {
+        build_headless::<L>(app, self.screen_size, &self.palette_path);
+    }
+}
+
+/// Add to your [`App`] to enable `carapace` with full rendering support. The type parameter
+/// is your custom layer type used for z-ordering. You can make one using [`px_layer`].
+///
+/// For headless usage (tests, servers), use [`PxHeadlessPlugin`] instead.
 ///
 /// Add [`animation::PxAnimationPlugin`] if you want the built-in animation systems.
 #[derive(Debug)]
@@ -86,6 +131,18 @@ impl<L: PxLayer> PxPlugin<L> {
             palette_path: palette_path.into(),
             _l: PhantomData,
         }
+    }
+
+    /// Register only ECS-side types without the render pipeline.
+    ///
+    /// Prefer [`PxHeadlessPlugin`] for new code — it provides the same behavior through
+    /// the standard `Plugin` interface:
+    ///
+    /// ```ignore
+    /// app.add_plugins(PxHeadlessPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
+    /// ```
+    pub fn build_headless(&self, app: &mut App) {
+        build_headless::<L>(app, self.screen_size, &self.palette_path);
     }
 }
 
@@ -126,6 +183,37 @@ impl<L: PxLayer> Plugin for PxPlugin<L> {
         sprite::plug::<L>(app, palette_path.clone());
         text::plug::<L>(app, palette_path);
     }
+}
+
+/// Shared headless registration sequence used by both [`PxHeadlessPlugin`] and
+/// [`PxPlugin::build_headless`].
+fn build_headless<L: PxLayer>(app: &mut App, screen_size: ScreenSize, palette_path: &Path) {
+    #[cfg(feature = "reflect")]
+    reflect::register_types(app);
+
+    camera::plug_core(app);
+    cursor::plug_core(app);
+    frame::plug(app);
+    app.add_plugins(palette::plug(palette_path.to_path_buf()));
+    position::plug_core::<L>(app);
+
+    // Screen: shared systems + headless startup (no window required)
+    screen::plug_core(app);
+    app.add_systems(Startup, screen::insert_screen_headless(screen_size));
+
+    let palette_path = palette_path.to_path_buf();
+    atlas::plug_core(app, palette_path.clone());
+    filter::plug_core::<L>(app, palette_path.clone());
+    map::plug_core(app, palette_path.clone());
+    sprite::plug_core(app, palette_path.clone());
+    text::plug_core(app, palette_path);
+
+    // Blink, rect, line: no-op — their plugs only register headed systems
+    // UI: layout + input systems (no RenderApp access)
+    ui::plug::<L>(app);
+
+    #[cfg(feature = "particle")]
+    app.add_plugins((RngPlugin::default(), particle::plug::<L>));
 }
 
 #[cfg(all(feature = "brp_extras", feature = "headed"))]

@@ -18,6 +18,11 @@ use crate::{
     position::PxLayer, prelude::*,
 };
 
+pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
+    app.init_asset::<PxTypeface>()
+        .register_asset_loader(PxTypefaceLoader::new(palette_path));
+}
+
 pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
@@ -25,8 +30,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
         SyncComponentPlugin::<PxText>::default(),
     ));
 
-    app.init_asset::<PxTypeface>()
-        .register_asset_loader(PxTypefaceLoader::new(palette_path));
+    plug_core(app, palette_path);
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)

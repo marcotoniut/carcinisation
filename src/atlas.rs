@@ -24,6 +24,11 @@ use crate::{
     prelude::*,
 };
 
+pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
+    app.init_asset::<PxSpriteAtlasAsset>()
+        .register_asset_loader(PxSpriteAtlasLoader::new(palette_path));
+}
+
 pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
@@ -31,8 +36,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
         SyncComponentPlugin::<PxAtlasSprite>::default(),
     ));
 
-    app.init_asset::<PxSpriteAtlasAsset>()
-        .register_asset_loader(PxSpriteAtlasLoader::new(palette_path));
+    plug_core(app, palette_path);
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)

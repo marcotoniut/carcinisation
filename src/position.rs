@@ -10,7 +10,7 @@ use next::Next;
 
 use crate::{prelude::*, set::PxSet};
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug_core<L: PxLayer>(app: &mut App) {
     app.insert_resource(InsertDefaultLayer::new::<L>())
         .add_systems(
             PreUpdate,
@@ -20,6 +20,10 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
             )
                 .chain(),
         );
+}
+
+pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+    plug_core::<L>(app);
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)
         .insert_resource(InsertDefaultLayer::new::<L>());

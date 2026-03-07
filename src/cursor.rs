@@ -13,15 +13,19 @@ use crate::{
     set::PxSet,
 };
 
+pub(crate) fn plug_core(app: &mut App) {
+    app.init_resource::<PxCursor>()
+        .init_resource::<PxCursorPosition>();
+}
+
 pub(crate) fn plug(app: &mut App) {
+    plug_core(app);
     #[cfg(feature = "headed")]
     app.add_plugins((
         ExtractResourcePlugin::<PxCursor>::default(),
         ExtractResourcePlugin::<PxCursorPosition>::default(),
         ExtractResourcePlugin::<CursorState>::default(),
     ));
-    app.init_resource::<PxCursor>()
-        .init_resource::<PxCursorPosition>();
     #[cfg(feature = "headed")]
     app.add_systems(
         PreUpdate,

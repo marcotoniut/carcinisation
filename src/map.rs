@@ -22,6 +22,11 @@ use crate::{
     sprite::PxSpriteAsset,
 };
 
+pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
+    app.init_asset::<PxTileset>()
+        .register_asset_loader(PxTilesetLoader::new(palette_path));
+}
+
 pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
@@ -29,8 +34,9 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
         SyncComponentPlugin::<PxMap>::default(),
         SyncComponentPlugin::<PxTile>::default(),
     ));
-    app.init_asset::<PxTileset>()
-        .register_asset_loader(PxTilesetLoader::new(palette_path));
+
+    plug_core(app, palette_path);
+
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, (extract_maps::<L>, extract_tiles));
