@@ -2,7 +2,7 @@
 
 use bevy::window::{WindowCloseRequested, WindowResolution};
 use bevy::{asset::AssetPlugin, prelude::*};
-#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+#[cfg(feature = "brp")]
 use bevy_brp_extras::BrpExtrasPlugin;
 use bevy_framepace::FramepacePlugin;
 #[cfg(debug_assertions)]
@@ -16,9 +16,10 @@ use bevy_inspector_egui::{
 use carcinisation_core::bevy_utils::despawn_entities;
 use carcinisation_core::components::{DespawnMark, VolumeSettings};
 
+#[cfg(debug_assertions)]
+use crate::debug::DebugPlugin;
 use crate::{
     cutscene::CutscenePlugin,
-    debug::DebugPlugin,
     game::GamePlugin,
     globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION},
     input::GBInput,
@@ -130,7 +131,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
         .init_resource::<VolumeSettings>()
         .add_plugins(InputManagerPlugin::<GBInput>::default());
 
-    #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+    #[cfg(feature = "brp")]
     app.add_plugins(BrpExtrasPlugin);
 
     #[cfg(not(target_arch = "wasm32"))]

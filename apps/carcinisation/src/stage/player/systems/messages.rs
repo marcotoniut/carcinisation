@@ -1,6 +1,7 @@
+#[cfg(debug_assertions)]
+use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
 use crate::pixel::PxAssets;
 use crate::{
-    debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
     stage::player::{
         bundles::make_player_bundle,

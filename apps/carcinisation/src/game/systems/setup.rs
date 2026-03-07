@@ -2,13 +2,14 @@
 
 use std::sync::Arc;
 
+#[cfg(debug_assertions)]
+use crate::debug::plugin::debug_print_startup;
 use crate::{
     cutscene::{
         CutscenePlugin,
         data::CutsceneData,
         messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
     },
-    debug::plugin::debug_print_startup,
     game::{
         GamePlugin,
         components::steps::{

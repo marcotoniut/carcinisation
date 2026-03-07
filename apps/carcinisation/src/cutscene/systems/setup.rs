@@ -1,6 +1,8 @@
 //! Startup/shutdown handling for cutscenes.
 
 use crate::cutscene::CutscenePlugin;
+#[cfg(debug_assertions)]
+use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
 use crate::{
     cutscene::{
         components::{Cinematic, CutsceneEntity},
@@ -8,7 +10,6 @@ use crate::{
         messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
         resources::CutsceneProgress,
     },
-    debug::plugin::{debug_print_shutdown, debug_print_startup},
     globals::mark_for_despawn_by_query,
     letterbox::{components::LetterboxEntity, messages::LetterboxMoveEvent},
 };

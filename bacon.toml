@@ -48,6 +48,7 @@ command = [
     "cargo", "run",
     "--bin", "carcinisation",
     "--package", "carcinisation",
+    "--features", "brp",
 ]
 need_stdout = true
 allow_warnings = true
