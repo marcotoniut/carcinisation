@@ -202,7 +202,7 @@ impl PxFilterAsset {
 }
 
 /// Applies a [`PxFilterAsset`] to the entity
-#[derive(Component, Deref, DerefMut, Default, Clone, Debug)]
+#[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect)]
 pub struct PxFilter(pub Handle<PxFilterAsset>);
 
 impl AnimatedAssetComponent for PxFilter {
@@ -314,7 +314,7 @@ impl Default for DefaultPxFilterLayers {
 }
 
 /// Marks that a filter should apply outside a shape rather than inside it.
-#[derive(Component, Default)]
+#[derive(Component, Default, Reflect)]
 pub struct PxInvertMask;
 
 pub(crate) type FilterComponents<L> = (

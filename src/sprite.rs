@@ -258,7 +258,7 @@ impl Spatial for PxSpriteAsset {
 }
 
 /// A sprite
-#[derive(Component, Deref, DerefMut, Default, Clone, Debug)]
+#[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect)]
 #[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
 #[cfg_attr(feature = "headed", require(Visibility))]
 pub struct PxSprite(pub Handle<PxSpriteAsset>);

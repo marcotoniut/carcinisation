@@ -18,7 +18,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
 }
 
 /// Point list for a line
-#[derive(Component, Deref, DerefMut, Clone, Default, Debug)]
+#[derive(Component, Deref, DerefMut, Clone, Default, Debug, Reflect)]
 #[require(DefaultPxFilterLayers, PxCanvas)]
 pub struct PxLine(pub Vec<IVec2>);
 

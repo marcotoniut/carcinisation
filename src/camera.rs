@@ -15,7 +15,7 @@ pub(crate) fn plug(app: &mut App) {
 
 /// Resource that represents the camera's position
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
-#[derive(Resource, Deref, DerefMut, Clone, Copy, Default, Debug)]
+#[derive(Resource, Deref, DerefMut, Clone, Copy, Default, Debug, Reflect)]
 pub struct PxCamera(pub IVec2);
 
 /// Determines whether the entity is locked to the camera

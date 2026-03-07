@@ -50,6 +50,8 @@ pub mod position;
 pub mod prelude;
 mod profiling;
 mod rect;
+#[cfg(feature = "reflect")]
+mod reflect;
 pub mod screen;
 pub mod set;
 pub mod sprite;
@@ -91,6 +93,9 @@ impl<L: PxLayer> Plugin for PxPlugin<L> {
     fn build(&self, app: &mut App) {
         #[cfg(all(feature = "brp_extras", feature = "headed"))]
         register_brp_extras_plugin(app);
+
+        #[cfg(feature = "reflect")]
+        reflect::register_types(app);
 
         app.add_plugins((
             (

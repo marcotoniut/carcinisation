@@ -12,7 +12,7 @@ pub(crate) fn plug(app: &mut App) {
 }
 
 /// Toggles `Visibility` whenever the timer finishes
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Deref, DerefMut, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
 pub struct Blink(Timer);
 

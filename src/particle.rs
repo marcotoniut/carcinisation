@@ -54,7 +54,7 @@ fn validate_emitters(
 }
 
 /// A particle's lifetime
-#[derive(Clone, Component, Copy, Debug, Deref, DerefMut)]
+#[derive(Clone, Component, Copy, Debug, Deref, DerefMut, Reflect)]
 pub struct PxParticleLifetime(pub Duration);
 
 impl Default for PxParticleLifetime {

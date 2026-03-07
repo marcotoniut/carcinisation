@@ -32,7 +32,7 @@ pub(crate) fn plug(app: &mut App) {
 
 /// Resource that defines whether to use an in-game cursor
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
-#[derive(Resource, Clone, Default, Debug)]
+#[derive(Resource, Clone, Default, Debug, Reflect)]
 pub enum PxCursor {
     /// Use the operating system's cursor
     #[default]
@@ -53,7 +53,7 @@ pub enum PxCursor {
 /// Contains [`None`] if the cursor is off-screen. The cursor's world position
 /// is the contained value plus [`PxCamera`]'s contained value.
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
-#[derive(Resource, Deref, DerefMut, Clone, Default, Debug)]
+#[derive(Resource, Deref, DerefMut, Clone, Default, Debug, Reflect)]
 pub struct PxCursorPosition(pub Option<UVec2>);
 
 #[cfg(feature = "headed")]

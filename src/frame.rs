@@ -14,7 +14,7 @@ pub(crate) fn plug(app: &mut App) {
 }
 
 /// Selects a frame by absolute index or normalized progress.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Reflect)]
 pub enum PxFrameSelector {
     /// Direct frame index (may be fractional for transitions).
     Index(f32),
@@ -29,7 +29,7 @@ impl Default for PxFrameSelector {
 }
 
 /// Method the animation uses to interpolate between frames.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Reflect)]
 pub enum PxFrameTransition {
     /// Frames are not interpolated.
     #[default]
@@ -39,7 +39,7 @@ pub enum PxFrameTransition {
 }
 
 /// Maps a master frame selection to a part-specific frame selection.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Reflect)]
 pub enum PxFrameBinding {
     /// Use the master's normalized progress.
     #[default]
@@ -53,7 +53,7 @@ pub enum PxFrameBinding {
 }
 
 /// Per-entity frame view consumed by drawables.
-#[derive(Component, Default, Clone, Copy)]
+#[derive(Component, Default, Clone, Copy, Reflect)]
 pub struct PxFrameView {
     /// Frame selection mode.
     pub selector: PxFrameSelector,
@@ -62,7 +62,7 @@ pub struct PxFrameView {
 }
 
 /// Cached frame count for the entity's active frame source.
-#[derive(Component, Default, Clone, Copy, Debug)]
+#[derive(Component, Default, Clone, Copy, Debug, Reflect)]
 pub struct PxFrameCount(pub usize);
 
 /// Backwards-compatible alias for the frame view.
@@ -78,7 +78,7 @@ impl From<PxFrameSelector> for PxFrameView {
 }
 
 /// Per-entity frame control input (e.g., for animation or manual control).
-#[derive(Component, Default, Clone, Copy)]
+#[derive(Component, Default, Clone, Copy, Reflect)]
 pub struct PxFrameControl {
     /// Frame selection mode.
     pub selector: PxFrameSelector,

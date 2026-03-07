@@ -99,7 +99,7 @@ fn insert_default_layer(mut world: DeferredWorld, ctx: HookContext) {
 
 /// How a sprite is positioned relative to its [`PxPosition`]. It defaults to [`PxAnchor::Center`].
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
-#[derive(Component, Clone, Copy, Default, Debug)]
+#[derive(Component, Clone, Copy, Default, Debug, Reflect)]
 pub enum PxAnchor {
     /// Center
     #[default]
@@ -157,7 +157,7 @@ impl PxAnchor {
 // TODO Remove
 /// Float-based position. Add to entities that have [`PxPosition`], but also need
 /// a sub-pixel position. Use [`PxPosition`] unless a sub-pixel position is necessary.
-#[derive(Component, Debug, Default, Deref, DerefMut)]
+#[derive(Component, Debug, Default, Deref, DerefMut, Reflect)]
 #[require(PxPosition)]
 pub struct PxSubPosition(pub Vec2);
 
@@ -168,7 +168,7 @@ impl From<Vec2> for PxSubPosition {
 }
 
 /// Velocity. Entities with this and [`PxSubPosition`] will move at this velocity over time.
-#[derive(Clone, Component, Copy, Debug, Default, Deref, DerefMut)]
+#[derive(Clone, Component, Copy, Debug, Default, Deref, DerefMut, Reflect)]
 #[require(PxSubPosition)]
 pub struct PxVelocity(pub Vec2);
 

@@ -45,7 +45,7 @@ pub(crate) fn plug(app: &mut App) {
 }
 
 /// Direction the animation plays.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Reflect)]
 pub enum PxAnimationDirection {
     /// The animation plays foreward.
     #[default]
@@ -55,7 +55,7 @@ pub enum PxAnimationDirection {
 }
 
 /// Animation duration.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub enum PxAnimationDuration {
     /// Duration of the entire animation. When used on a tilemap, each tile's animation
     /// takes the same amount of time, but their frames may desync.
@@ -86,7 +86,7 @@ impl PxAnimationDuration {
 }
 
 /// Specifies what the animation does when it finishes.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Reflect)]
 pub enum PxAnimationFinishBehavior {
     /// The entity is despawned when the animation finishes.
     #[default]
@@ -127,7 +127,7 @@ impl Default for PxAnimation {
 
 /// Marks an animation that has finished. Automatically added to animations
 /// with [`PxAnimationFinishBehavior::Mark`].
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Reflect)]
 pub struct PxAnimationFinished;
 
 pub(crate) trait AnimatedAssetComponent: Component {

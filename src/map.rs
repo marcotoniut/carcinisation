@@ -574,7 +574,7 @@ impl AnimatedAssetComponent for PxMap {
 }
 
 /// A tile. Must be added to tiles added to [`PxMap`].
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, Clone, Default, Debug, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
 pub struct PxTile {
     /// The index to the tile texture in the tileset
