@@ -77,6 +77,7 @@ fn run() -> Result<()> {
 
     let mut app = build_app(AppLaunchOptions {
         start_flow: StartFlow::StageOnly,
+        ..Default::default()
     });
     app.add_plugins(SingleStageBootstrapPlugin {
         stage_data,
