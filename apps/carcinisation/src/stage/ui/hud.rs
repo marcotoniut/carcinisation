@@ -8,8 +8,6 @@ use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxText;
 
-// TODO Review separator comments
-
 #[derive(Activable)]
 pub struct HudPlugin;
 
@@ -23,12 +21,10 @@ pub fn update_health_text(
     mut query: Query<&mut PxText, With<HealthText>>,
     player_query: Query<&Health, With<Player>>,
 ) {
+    let Ok(health) = player_query.single() else {
+        return;
+    };
     for mut text in &mut query {
-        match player_query.single() {
-            Ok(health) => {
-                text.value = health.0.to_string();
-            }
-            Err(_) => return,
-        }
+        text.value = health.0.to_string();
     }
 }
