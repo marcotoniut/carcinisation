@@ -4,8 +4,8 @@ use super::components::{LetterboxBottom, LetterboxEntity, LetterboxTop};
 use super::messages::LetterboxMoveEvent;
 use super::resources::LetterboxTimeDomain;
 use crate::components::GBColor;
-use crate::debug::plugin::debug_print_shutdown;
-use crate::debug::plugin::debug_print_startup;
+#[cfg(debug_assertions)]
+use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
 use crate::globals::SCREEN_RESOLUTION_F32;
 use crate::globals::mark_for_despawn_by_query;
 use crate::{

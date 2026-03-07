@@ -56,6 +56,10 @@ dev:
 	# On macOS with bevy/dynamic_linking, DYLD_LIBRARY_PATH is handled by cargo run.
 	RUST_BACKTRACE=full bacon run
 
+.PHONY: run-brp
+run-brp:
+	RUST_BACKTRACE=full $(BEVY) run $(RUN_TARGET_FLAGS) --features bevy/dynamic_linking,brp $(RUN_ARG_FLAGS)
+
 .PHONY: dev-stage
 dev-stage:
 	@if [ ! -f apps/carcinisation/single-stage.config.ron ]; then \
@@ -229,6 +233,7 @@ help:
 	@echo ""
 	@echo "🎮 Game Loop:"
 	@echo "  run                - Launch the main binary via 'bevy run' (override RUN_BIN/RUN_PACKAGE/ARGS as needed)"
+	@echo "  run-brp            - Launch with BRP (Bevy Remote Protocol) enabled for runtime inspection"
 	@echo "  dev                - Watch and rebuild via bacon (replaces cargo-watch, faster and more reliable)"
 	@echo "  debug-binary       - Run pre-built target/debug/carcinisation with proper DYLD_LIBRARY_PATH (for IDEs/debuggers)"
 	@echo "  build-and-run      - Build once, then run via wrapper script (faster for repeated manual runs)"
