@@ -30,7 +30,7 @@ const SPIDEY_DEPTHS: &[Depth] = &[
     Depth::Seven,
 ];
 
-pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<SpideyAnimations> =
+pub static SPIDEY_ANIMATIONS: std::sync::LazyLock<SpideyAnimations> =
     std::sync::LazyLock::new(|| {
         let idle_frames = 1;
         let idle_speed = 500;

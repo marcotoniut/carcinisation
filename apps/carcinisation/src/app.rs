@@ -25,6 +25,8 @@ use dotenvy::dotenv_override;
 
 #[cfg(debug_assertions)]
 use crate::debug::DebugPlugin;
+#[cfg(feature = "gallery")]
+use crate::gallery::GalleryPlugin;
 use crate::{
     cutscene::CutscenePlugin,
     game::GamePlugin,
@@ -53,6 +55,7 @@ use seldom_pixel::prelude::*;
 pub enum StartFlow {
     Full,
     StageOnly,
+    Gallery,
 }
 
 const INITIAL_SOUND_LEVEL_ENV: &str = "CARCINISATION_INITIAL_SOUND";
@@ -60,6 +63,10 @@ const INITIAL_SOUND_LEVEL_ENV: &str = "CARCINISATION_INITIAL_SOUND";
 impl StartFlow {
     const fn includes_start_flow(self) -> bool {
         matches!(self, StartFlow::Full)
+    }
+
+    const fn includes_gallery(self) -> bool {
+        matches!(self, StartFlow::Gallery)
     }
 }
 
@@ -209,6 +216,11 @@ pub fn build_app(options: AppLaunchOptions) -> App {
         .add_plugins(GamePlugin)
         .add_systems(Update, (move_camera, update_position_x, update_position_y))
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>);
+
+    #[cfg(feature = "gallery")]
+    if options.start_flow.includes_gallery() || options.start_flow.includes_start_flow() {
+        app.add_plugins(GalleryPlugin);
+    }
 
     if !options.headless {
         app.add_systems(Update, exit_on_window_close_request);
