@@ -1,0 +1,8 @@
+[[sprites]]
+source = "mosquiton_3.aseprite"
+target_dir = "sprites/enemies"
+entity = "mosquiton"
+depth = 3
+palette = "base"
+part_group = "base"
+origin_slice = "origin"
