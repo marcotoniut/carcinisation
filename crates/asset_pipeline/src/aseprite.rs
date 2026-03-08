@@ -68,7 +68,7 @@ pub struct ExportRequest {
 }
 
 /// Final piece-atlas metadata written next to the packed atlas image.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CompositionAtlas {
     /// Version of the exported JSON schema.
     pub schema_version: u32,
@@ -93,7 +93,7 @@ pub struct CompositionAtlas {
 }
 
 /// One canonical part layer exported from Aseprite.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PartDefinition {
     /// Stable snake_case part identifier derived from the layer name.
     pub id: String,
@@ -104,7 +104,7 @@ pub struct PartDefinition {
 }
 
 /// One deduplicated image packed into the atlas.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AtlasSprite {
     /// Stable sprite identifier referenced by [`PartPlacement`].
     pub id: String,
@@ -113,7 +113,7 @@ pub struct AtlasSprite {
 }
 
 /// One Aseprite tag exported as a composed animation.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Animation {
     /// Source Aseprite tag name.
     pub tag: String,
@@ -126,7 +126,7 @@ pub struct Animation {
 }
 
 /// One composed frame in an animation tag.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AnimationFrame {
     /// Zero-based source frame index from the `.aseprite` file.
     pub source_frame: usize,
@@ -137,7 +137,7 @@ pub struct AnimationFrame {
 }
 
 /// One part placement in a composed frame.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PartPlacement {
     /// Part identifier matching [`PartDefinition::id`].
     pub part_id: String,

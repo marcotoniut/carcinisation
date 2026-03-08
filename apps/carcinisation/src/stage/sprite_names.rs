@@ -57,6 +57,10 @@ impl SpriteNameRegistry {
                     base_name: "mosquito".to_string(),
                 },
                 EnemySpriteName {
+                    enemy_type: EnemyType::Mosquiton,
+                    base_name: "mosquiton".to_string(),
+                },
+                EnemySpriteName {
                     enemy_type: EnemyType::Spidey,
                     base_name: "spidey".to_string(),
                 },
@@ -149,6 +153,7 @@ mod tests {
             .collect();
         for enemy in [
             EnemyType::Mosquito,
+            EnemyType::Mosquiton,
             EnemyType::Spidey,
             EnemyType::Tardigrade,
             EnemyType::Marauder,

@@ -123,6 +123,15 @@ pub fn make_steps() -> Vec<StageStep> {
                 EnemySpawn::mosquito_variant_circle()
                     .with_coordinates(Vec2::new(30.0, 60.0))
                     .into(),
+                EnemySpawn::mosquiton_base()
+                    .with_coordinates(Vec2::new(95.0, 72.0))
+                    .with_elapsed_f32(1.2)
+                    .with_steps_vec(vec![
+                        EnemyStep::idle_base().with_duration(2.).into(),
+                        EnemyStep::attack_base().with_duration(1.).into(),
+                        EnemyStep::idle_base().with_duration(2.).into(),
+                    ])
+                    .into(),
                 // EnemySpawn::tardigrade_base()
                 //     .with_coordinates(Vec2::new(90.0, 50.0))
                 //     .with_elapsed(34.)
