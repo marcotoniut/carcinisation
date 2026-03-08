@@ -55,6 +55,9 @@ tools/editor/recent_file_path.txt
 *.local
 /tmp
 
+# auto-generated asset metadata (created at runtime in debug builds)
+*.meta
+
 # App config
 *.config.ron
 apps/carcinisation/single-stage.config.ron
