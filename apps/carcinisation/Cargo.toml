@@ -7,6 +7,7 @@ default-run = "carcinisation"
 
 [features]
 default = []
+gallery = []
 brp = ["dep:bevy_brp_extras", "seldom_pixel/brp_extras"]
 
 [dependencies]
@@ -61,3 +62,7 @@ path = "src/bin/ron_bridge.rs"
 [[bin]]
 name = "single_stage"
 path = "src/bin/single_stage.rs"
+
+[[bin]]
+name = "gallery"
+path = "src/bin/gallery.rs"

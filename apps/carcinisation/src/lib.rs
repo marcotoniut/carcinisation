@@ -23,6 +23,8 @@ pub mod app;
 pub mod cutscene;
 mod data;
 pub mod debug;
+#[cfg(feature = "gallery")]
+pub mod gallery;
 pub mod game;
 pub mod globals;
 mod input;

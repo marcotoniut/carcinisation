@@ -87,6 +87,10 @@ dev-legacy:
 dev-wasm:
 	RUST_BACKTRACE=full $(BEVY_WEB_RUN_CMD)
 
+.PHONY: gallery
+gallery:
+	RUST_BACKTRACE=full $(BEVY) run --bin gallery --package carcinisation --features bevy/dynamic_linking,gallery,brp
+
 # =============================================================================
 # Tooling launchers
 # =============================================================================

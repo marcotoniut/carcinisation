@@ -1,20 +1,34 @@
 //! Systems handling menu inputs and transitions between screens.
 
+#[cfg(feature = "gallery")]
+use crate::gallery::{GalleryPlugin, messages::GalleryStartupEvent};
 use crate::{
     game::{messages::GameStartupEvent, resources::Difficulty},
     input::GBInput,
     main_menu::{MainMenuPlugin, MainMenuScreen, resources::DifficultySelection},
     resources::DifficultySelected,
 };
+#[cfg(feature = "gallery")]
+use activable::activate;
 use activable::deactivate;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
-/// @system Transitions from press-start screen to difficulty selection.
+/// @system Transitions from press-start screen to difficulty selection, or gallery via Select.
+#[allow(unused_mut, unused_variables)]
 pub fn check_press_start_input(
+    mut commands: Commands,
     mut next_screen: ResMut<NextState<MainMenuScreen>>,
     gb_input: Res<ActionState<GBInput>>,
 ) {
+    #[cfg(feature = "gallery")]
+    if gb_input.just_pressed(&GBInput::Select) {
+        commands.trigger(GalleryStartupEvent);
+        deactivate::<MainMenuPlugin>(&mut commands);
+        activate::<GalleryPlugin>(&mut commands);
+        return;
+    }
+
     if gb_input.just_pressed(&GBInput::Start)
         || gb_input.just_pressed(&GBInput::A)
         || gb_input.just_pressed(&GBInput::B)

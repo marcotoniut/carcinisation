@@ -27,6 +27,7 @@ carcinisation_collision = { path = "crates/carcinisation_collision" }
 # Dynamic linking speeds up host builds; wasm targets ignore this feature.
 bevy = { version = "0.18", features = [
     "dynamic_linking",
+    "file_watcher",
     "wayland",
     "std",
     "async_executor",

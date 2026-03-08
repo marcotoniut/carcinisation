@@ -102,7 +102,7 @@ impl ComposedAnimationState {
 }
 
 #[derive(Component, Clone, Debug, Default)]
-pub(crate) struct ComposedAtlasBindings {
+pub struct ComposedAtlasBindings {
     atlas: Handle<PxSpriteAtlasAsset>,
     sprite_regions: HashMap<String, AtlasRegionId>,
 }
@@ -161,15 +161,13 @@ fn composed_enemy_sprite_atlas_path(base_path: &str) -> String {
     format!("{base_path}.px_atlas.ron")
 }
 
-pub(crate) fn prepare_composed_atlas_assets(
-    mut atlas_assets: ResMut<Assets<CompositionAtlasAsset>>,
-) {
+pub fn prepare_composed_atlas_assets(mut atlas_assets: ResMut<Assets<CompositionAtlasAsset>>) {
     for (_, atlas_asset) in atlas_assets.iter_mut() {
         atlas_asset.prepare_runtime();
     }
 }
 
-pub(crate) fn ensure_composed_enemy_parts(
+pub fn ensure_composed_enemy_parts(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     atlas_assets: Res<Assets<CompositionAtlasAsset>>,
@@ -245,7 +243,7 @@ pub(crate) fn ensure_composed_enemy_parts(
     }
 }
 
-pub(crate) fn update_composed_enemy_visuals(
+pub fn update_composed_enemy_visuals(
     mut commands: Commands,
     atlas_assets: Res<Assets<CompositionAtlasAsset>>,
     stage_time: Res<Time<StageTimeDomain>>,
