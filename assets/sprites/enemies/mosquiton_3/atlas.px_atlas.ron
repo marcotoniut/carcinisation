@@ -1,0 +1,151 @@
+(
+    image: "sprites/enemies/mosquiton_3/atlas.png",
+    regions: [
+        (
+            frame_size: (20, 33),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 20,
+                    h: 33,
+                ),
+            ],
+        ),
+        (
+            frame_size: (23, 25),
+            frames: [
+                (
+                    x: 20,
+                    y: 0,
+                    w: 23,
+                    h: 25,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 30),
+            frames: [
+                (
+                    x: 43,
+                    y: 0,
+                    w: 13,
+                    h: 30,
+                ),
+            ],
+        ),
+        (
+            frame_size: (15, 28),
+            frames: [
+                (
+                    x: 56,
+                    y: 0,
+                    w: 15,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (16, 28),
+            frames: [
+                (
+                    x: 71,
+                    y: 0,
+                    w: 16,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (22, 31),
+            frames: [
+                (
+                    x: 87,
+                    y: 0,
+                    w: 22,
+                    h: 31,
+                ),
+            ],
+        ),
+        (
+            frame_size: (23, 26),
+            frames: [
+                (
+                    x: 0,
+                    y: 33,
+                    w: 23,
+                    h: 26,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 23),
+            frames: [
+                (
+                    x: 23,
+                    y: 33,
+                    w: 13,
+                    h: 23,
+                ),
+            ],
+        ),
+        (
+            frame_size: (15, 29),
+            frames: [
+                (
+                    x: 36,
+                    y: 33,
+                    w: 15,
+                    h: 29,
+                ),
+            ],
+        ),
+        (
+            frame_size: (17, 26),
+            frames: [
+                (
+                    x: 51,
+                    y: 33,
+                    w: 17,
+                    h: 26,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 16),
+            frames: [
+                (
+                    x: 68,
+                    y: 33,
+                    w: 13,
+                    h: 16,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 16),
+            frames: [
+                (
+                    x: 81,
+                    y: 33,
+                    w: 13,
+                    h: 16,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "sprite_0000": 0,
+        "sprite_0001": 1,
+        "sprite_0002": 2,
+        "sprite_0003": 3,
+        "sprite_0004": 4,
+        "sprite_0005": 5,
+        "sprite_0006": 6,
+        "sprite_0007": 7,
+        "sprite_0008": 8,
+        "sprite_0009": 9,
+        "sprite_0010": 10,
+        "sprite_0011": 11,
+    },
+)

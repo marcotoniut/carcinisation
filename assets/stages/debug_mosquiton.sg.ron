@@ -1,0 +1,44 @@
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+StageData(
+    name: "Debug Mosquiton",
+    background_path: "backgrounds/spaceship/background.png",
+    music_path: "audio/music/stage_1.ogg",
+    skybox: SkyboxData(
+        path: "backgrounds/spaceship/skybox.png",
+        frames: 1,
+    ),
+    start_coordinates: Vec2(0.0, 0.0),
+    spawns: [
+        Enemy(
+            enemy_type: Mosquiton,
+            elapsed: 0.0,
+            contains: None,
+            coordinates: Vec2(95.0, 72.0),
+            speed: 0.0,
+            steps: [
+                Idle(
+                    duration: 99999.0,
+                ),
+            ],
+            depth: Three,
+        ),
+    ],
+    steps: [
+        Stop(
+            max_duration: 99999.0,
+            kill_all: false,
+            kill_boss: false,
+            spawns: [],
+            floor_depths: None,
+        ),
+        Stop(
+            max_duration: 99999.0,
+            kill_all: false,
+            kill_boss: false,
+            spawns: [],
+            floor_depths: None,
+        ),
+    ],
+)
