@@ -1,0 +1,9 @@
+[package]
+name = "process-aseprite"
+version = "0.1.0"
+edition.workspace = true
+description = "Exports Aseprite source files into intermediate sprite sheets and metadata"
+
+[dependencies]
+anyhow.workspace = true
+asset_pipeline.workspace = true

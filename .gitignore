@@ -53,6 +53,7 @@ tools/editor/recent_file_path.txt
 *.tmp
 .cache/
 *.local
+/tmp
 
 # App config
 *.config.ron

@@ -4,10 +4,12 @@ members = [
     "apps/carcinisation",
     "crates/activable_macros",
     "crates/activable",
+    "crates/asset_pipeline",
     "crates/carcinisation_collision",
     "crates/carcinisation_core",
     "crates/cween",
     "scripts/generate-typeface",
+    "scripts/process-aseprite",
     "scripts/process-gfx",
     "tools/editor",
     "tools/assert_assets_path",
@@ -20,6 +22,7 @@ version = "0.2.0"
 
 [workspace.dependencies]
 assert_assets_path = { path = "tools/assert_assets_path" }
+asset_pipeline = { path = "crates/asset_pipeline" }
 carcinisation_collision = { path = "crates/carcinisation_collision" }
 # Dynamic linking speeds up host builds; wasm targets ignore this feature.
 bevy = { version = "0.18", features = [

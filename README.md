@@ -45,7 +45,7 @@ Troubleshooting: If VS Code reports `Import "PIL" could not be resolved`, re-run
 - `apps/carcinisation` – main game executable and gameplay plugins.
 - `assets/` – runtime content: stages, cinematics, palettes, and sprites.
 - `tools/` – supporting utilities (editor, scene watcher, palette generator, asset validators).
-- `scripts/` – Rust binaries for typeface and graphics generation.
+- `scripts/` – Rust binaries for typeface generation and graphics processing.
 - `web-deploy/` – output for wasm builds.
 
 ## Documentation

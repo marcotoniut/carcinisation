@@ -23,6 +23,10 @@ BEVY_WEB_RUN_CMD := $(BEVY) run $(RUN_TARGET_FLAGS) $(RUN_WASM_FEATURE_FLAGS) we
 
 PYTHON_VENV := .venv
 PYTHON_BIN := $(PYTHON_VENV)/bin/python
+ASEPRITE_MANIFEST ?= resources/sprites/data.toml
+ENTITY ?=
+DEPTH ?=
+OUTPUT_ROOT ?= tmp/aseprite-export
 ifeq ($(OS),Windows_NT)
 	PYTHON_BIN := $(PYTHON_VENV)/Scripts/python.exe
 endif
@@ -136,6 +140,14 @@ generate-typeface:
 process-gfx:
 	$(BEVY) run --package process-gfx
 
+.PHONY: export-aseprite
+export-aseprite:
+	@if [ -z "$(ENTITY)" ] || [ -z "$(DEPTH)" ]; then \
+		echo "Usage: make export-aseprite ENTITY=mosquiton DEPTH=3 [ASEPRITE_MANIFEST=resources/sprites/data.toml] [OUTPUT_ROOT=tmp/aseprite-export]"; \
+		exit 1; \
+	fi
+	cargo run -p process-aseprite -- --manifest $(ASEPRITE_MANIFEST) --entity $(ENTITY) --depth $(DEPTH) --output-root $(OUTPUT_ROOT)
+
 # =============================================================================
 # Web targets
 # =============================================================================
@@ -246,6 +258,7 @@ help:
 	@echo "  palettes           - Regenerate color palette assets"
 	@echo "  generate-typeface  - Rebuild bitmap fonts"
 	@echo "  process-gfx        - Process art assets for the game"
+	@echo "  export-aseprite    - Export one Aseprite sprite entry from resources/sprites/data.toml"
 	@echo ""
 	@echo "🌐 Web Targets:"
 	@echo "  install-web-deps   - Install wasm toolchain dependencies"
