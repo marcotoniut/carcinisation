@@ -1,5 +1,8 @@
 //! Shared Bevy bootstrap for the main game binaries.
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::env;
+
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::window::{WindowCloseRequested, WindowResolution};
@@ -17,6 +20,8 @@ use bevy_inspector_egui::{
 };
 use carcinisation_core::bevy_utils::despawn_entities;
 use carcinisation_core::components::{DespawnMark, VolumeSettings};
+#[cfg(not(target_arch = "wasm32"))]
+use dotenvy::dotenv_override;
 
 #[cfg(debug_assertions)]
 use crate::debug::DebugPlugin;
@@ -49,6 +54,8 @@ pub enum StartFlow {
     Full,
     StageOnly,
 }
+
+const INITIAL_SOUND_LEVEL_ENV: &str = "CARCINISATION_INITIAL_SOUND";
 
 impl StartFlow {
     const fn includes_start_flow(self) -> bool {
@@ -158,7 +165,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
     }
 
     app.init_resource::<DifficultySelected>()
-        .init_resource::<VolumeSettings>()
+        .insert_resource(initial_volume_settings())
         .add_plugins(InputManagerPlugin::<GBInput>::default());
 
     if !options.headless {
@@ -210,6 +217,52 @@ pub fn build_app(options: AppLaunchOptions) -> App {
     app
 }
 
+fn initial_volume_settings() -> VolumeSettings {
+    let Some(initial_sound_level) = load_initial_sound_level() else {
+        return VolumeSettings::default();
+    };
+
+    VolumeSettings::default().with_master_level(initial_sound_level)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_initial_sound_level() -> Option<f32> {
+    None
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_initial_sound_level() -> Option<f32> {
+    let _ = dotenv_override();
+
+    match env::var(INITIAL_SOUND_LEVEL_ENV) {
+        Ok(value) => match parse_normalized_sound_level(&value) {
+            Ok(level) => Some(level),
+            Err(message) => {
+                warn!("{INITIAL_SOUND_LEVEL_ENV} {message}; using default audio levels");
+                None
+            }
+        },
+        Err(env::VarError::NotPresent) => None,
+        Err(env::VarError::NotUnicode(_)) => {
+            warn!("{INITIAL_SOUND_LEVEL_ENV} must be valid UTF-8; using default audio levels");
+            None
+        }
+    }
+}
+
+fn parse_normalized_sound_level(value: &str) -> Result<f32, &'static str> {
+    let level = value
+        .trim()
+        .parse::<f32>()
+        .map_err(|_| "must parse as a number between 0.0 and 1.0")?;
+
+    if !(0.0..=1.0).contains(&level) {
+        return Err("must be between 0.0 and 1.0");
+    }
+
+    Ok(level)
+}
+
 /// @system Exits the app when the user requests the window to close.
 fn exit_on_window_close_request(
     mut close_requests: MessageReader<WindowCloseRequested>,
@@ -217,6 +270,29 @@ fn exit_on_window_close_request(
 ) {
     if close_requests.read().next().is_some() {
         exit.write(AppExit::Success);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_normalized_sound_level;
+
+    #[test]
+    fn accepts_values_inside_range() {
+        assert_eq!(parse_normalized_sound_level("0").unwrap(), 0.0);
+        assert_eq!(parse_normalized_sound_level("0.5").unwrap(), 0.5);
+        assert_eq!(parse_normalized_sound_level("1").unwrap(), 1.0);
+    }
+
+    #[test]
+    fn rejects_values_outside_range() {
+        assert!(parse_normalized_sound_level("-0.1").is_err());
+        assert!(parse_normalized_sound_level("1.1").is_err());
+    }
+
+    #[test]
+    fn rejects_non_numeric_values() {
+        assert!(parse_normalized_sound_level("loud").is_err());
     }
 }
 

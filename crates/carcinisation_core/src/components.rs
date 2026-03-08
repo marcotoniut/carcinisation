@@ -104,3 +104,21 @@ impl Default for VolumeSettings {
         }
     }
 }
+
+impl VolumeSettings {
+    #[must_use]
+    pub fn with_master_level(self, master_level: f32) -> Self {
+        Self {
+            master: Volume::Linear(master_level),
+            music: scaled_volume(self.music, master_level),
+            sfx: scaled_volume(self.sfx, master_level),
+        }
+    }
+}
+
+fn scaled_volume(volume: Volume, factor: f32) -> Volume {
+    match volume {
+        Volume::Linear(level) => Volume::Linear(level * factor),
+        Volume::Decibels(level) => Volume::Decibels(level * factor),
+    }
+}
