@@ -28,18 +28,8 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     let overlay = assets.load("sprite/snow_2.px_sprite.png");
 
     let composite = PxCompositeSprite::new(vec![
-        PxCompositePart {
-            sprite: base,
-            offset: IVec2::ZERO,
-            frame: PxFrameBinding::default(),
-            filter: None,
-        },
-        PxCompositePart {
-            sprite: overlay,
-            offset: IVec2::new(2, 6),
-            frame: PxFrameBinding::default(),
-            filter: None,
-        },
+        PxCompositePart::new(base),
+        PxCompositePart::new(overlay).with_offset(IVec2::new(2, 6)),
     ]);
 
     commands.spawn((composite, PxGpuComposite, PxPosition(IVec2::splat(8))));

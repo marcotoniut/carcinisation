@@ -29,7 +29,8 @@ use crate::{
     prelude::*,
     profiling::{px_end_span, px_trace, px_trace_span},
     sprite::{
-        CompositeSpriteComponents, PxGpuComposite, PxGpuSprite, PxSpriteAsset, PxSpriteGpu,
+        CompositeSpriteComponents, PxCompositeMetrics, PxCompositePartMetrics,
+        PxCompositePartSource, PxGpuComposite, PxGpuSprite, PxSpriteAsset, PxSpriteGpu,
         SpriteComponents,
     },
 };
@@ -290,20 +291,23 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
             }
 
             let metrics = if composite.size.x == 0 || composite.size.y == 0 {
-                composite.metrics_with(|handle| {
+                composite.metrics_with(|source| {
+                    let PxCompositePartSource::Sprite(handle) = source else {
+                        return None;
+                    };
                     let sprite = sprite_assets.get(handle)?;
                     let part_count = frame_count(sprite);
                     let part_size = match frame_height(sprite) {
                         Some(height) => UVec2::new(sprite.size.x, height),
                         None => return None,
                     };
-                    Some(crate::sprite::PxCompositePartMetrics {
+                    Some(PxCompositePartMetrics {
                         size: part_size,
                         frame_count: part_count,
                     })
                 })
             } else {
-                Some(crate::sprite::PxCompositeMetrics {
+                Some(PxCompositeMetrics {
                     size: composite.size,
                     origin: composite.origin,
                     frame_count: composite.frame_count,
@@ -318,7 +322,10 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
             let master_count = metrics.frame_count;
 
             for part in &composite.parts {
-                let Some(sprite_gpu) = sprite_assets.get(&part.sprite) else {
+                let PxCompositePartSource::Sprite(sprite_handle) = &part.source else {
+                    continue;
+                };
+                let Some(sprite_gpu) = sprite_assets.get(sprite_handle) else {
                     continue;
                 };
 
@@ -331,7 +338,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                     .entry(layer.clone())
                     .or_default()
                     .push(SpriteItem {
-                        sprite: part.sprite.clone(),
+                        sprite: sprite_handle.clone(),
                         position: PxPosition(part_pos),
                         anchor: PxAnchor::BottomLeft,
                         canvas,

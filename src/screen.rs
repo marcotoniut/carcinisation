@@ -252,7 +252,12 @@ pub(crate) fn gpu_composite_supported(
         return false;
     }
 
-    composite.parts.iter().all(|part| part.filter.is_none())
+    composite.parts.iter().all(|part| {
+        part.filter.is_none()
+            && !part.flip_x
+            && !part.flip_y
+            && matches!(part.source, crate::sprite::PxCompositePartSource::Sprite(_))
+    })
 }
 
 pub(crate) fn screen_scale(screen_size: UVec2, window_size: Vec2) -> Vec2 {

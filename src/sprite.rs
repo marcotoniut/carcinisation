@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     animation::AnimatedAssetComponent,
+    atlas::{AtlasRegion, AtlasRegionId, PxSpriteAtlasAsset},
     filter::PxFilterAsset,
     frame::{Frames, PxFrameBinding, PxFrameCount},
     image::{PxImage, PxImageSliceMut},
@@ -261,6 +262,39 @@ impl Spatial for PxSpriteAsset {
     }
 }
 
+impl Frames for PxResolvedCompositePart<'_> {
+    type Param = ();
+
+    fn frame_count(&self) -> usize {
+        match self {
+            Self::Sprite(sprite) => sprite.frame_count(),
+            Self::AtlasRegion { region, .. } => region.frame_count(),
+        }
+    }
+
+    fn draw(
+        &self,
+        (): (),
+        image: &mut PxImageSliceMut,
+        frame: impl Fn(UVec2) -> usize,
+        filter: impl Fn(u8) -> u8,
+    ) {
+        match self {
+            Self::Sprite(sprite) => sprite.draw((), image, frame, filter),
+            Self::AtlasRegion { atlas, region } => (*atlas, *region).draw((), image, frame, filter),
+        }
+    }
+}
+
+impl Spatial for PxResolvedCompositePart<'_> {
+    fn frame_size(&self) -> UVec2 {
+        match self {
+            Self::Sprite(sprite) => sprite.frame_size(),
+            Self::AtlasRegion { region, .. } => region.frame_size,
+        }
+    }
+}
+
 /// A sprite
 #[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect)]
 #[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
@@ -273,7 +307,11 @@ impl From<Handle<PxSpriteAsset>> for PxSprite {
     }
 }
 
-/// A sprite composed of multiple sprite parts.
+/// A sprite composed of multiple sprite or atlas-backed parts.
+///
+/// The CPU renderer supports all composite part sources and per-part flips. The optional
+/// [`PxGpuComposite`] path is a narrower optimization subset: it currently supports only
+/// sprite-backed parts with no per-part filter and no flips.
 #[derive(Component, Default, Clone, Debug)]
 #[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
 #[cfg_attr(feature = "headed", require(Visibility))]
@@ -301,6 +339,136 @@ pub(crate) struct PxCompositePartMetrics {
     pub frame_count: usize,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum PxResolvedCompositePart<'a> {
+    Sprite(&'a PxSpriteAsset),
+    AtlasRegion {
+        atlas: &'a PxSpriteAtlasAsset,
+        region: &'a AtlasRegion,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum PxCompositePartResolveError {
+    MissingSpriteAsset(Handle<PxSpriteAsset>),
+    MissingAtlasAsset(Handle<PxSpriteAtlasAsset>),
+    MissingAtlasRegion {
+        atlas: Handle<PxSpriteAtlasAsset>,
+        region: AtlasRegionId,
+    },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PxCompositePartDrawable<'a> {
+    pub resolved: PxResolvedCompositePart<'a>,
+    pub flip_x: bool,
+    pub flip_y: bool,
+}
+
+impl PxResolvedCompositePart<'_> {
+    pub(crate) fn metrics(&self) -> PxCompositePartMetrics {
+        PxCompositePartMetrics {
+            size: self.frame_size(),
+            frame_count: self.frame_count(),
+        }
+    }
+
+    pub(crate) fn pixel(&self, frame_index: usize, local_pos: UVec2) -> Option<u8> {
+        let size = self.frame_size();
+        if local_pos.x >= size.x || local_pos.y >= size.y {
+            return None;
+        }
+
+        match self {
+            Self::Sprite(sprite) => {
+                let pixel_y = frame_index as i32 * size.y as i32 + local_pos.y as i32;
+                sprite
+                    .data
+                    .get_pixel(IVec2::new(local_pos.x as i32, pixel_y))
+            }
+            Self::AtlasRegion { atlas, region } => {
+                let rect = region.frame(frame_index)?;
+                atlas.data.get_pixel(ivec2(
+                    rect.x as i32 + local_pos.x as i32,
+                    rect.y as i32 + local_pos.y as i32,
+                ))
+            }
+        }
+    }
+
+    pub(crate) fn flipped_pixel(
+        &self,
+        frame_index: usize,
+        local_pos: UVec2,
+        flip_x: bool,
+        flip_y: bool,
+    ) -> Option<u8> {
+        let size = self.frame_size();
+        let mapped = uvec2(
+            if flip_x {
+                size.x.checked_sub(local_pos.x + 1)?
+            } else {
+                local_pos.x
+            },
+            if flip_y {
+                size.y.checked_sub(local_pos.y + 1)?
+            } else {
+                local_pos.y
+            },
+        );
+
+        self.pixel(frame_index, mapped)
+    }
+}
+
+impl Frames for PxCompositePartDrawable<'_> {
+    type Param = ();
+
+    fn frame_count(&self) -> usize {
+        self.resolved.frame_count()
+    }
+
+    fn draw(
+        &self,
+        (): (),
+        image: &mut PxImageSliceMut,
+        frame: impl Fn(UVec2) -> usize,
+        filter: impl Fn(u8) -> u8,
+    ) {
+        let size = self.frame_size();
+        if size.x == 0 || size.y == 0 {
+            return;
+        }
+        let frame_width = size.x as usize;
+        let image_width = image.image_width();
+
+        image.for_each_mut(|slice_i, image_i, pixel| {
+            let local_pos = uvec2(
+                (slice_i % frame_width) as u32,
+                (slice_i / frame_width) as u32,
+            );
+            let frame_index = frame(uvec2(
+                (image_i % image_width) as u32,
+                (image_i / image_width) as u32,
+            ));
+
+            if let Some(value) =
+                self.resolved
+                    .flipped_pixel(frame_index, local_pos, self.flip_x, self.flip_y)
+                && value != 0
+            {
+                *pixel = filter(value);
+            }
+        });
+    }
+}
+
+impl Spatial for PxCompositePartDrawable<'_> {
+    fn frame_size(&self) -> UVec2 {
+        self.resolved.frame_size()
+    }
+}
+
 impl PxCompositeSprite {
     /// Create a composite sprite from parts.
     #[must_use]
@@ -316,7 +484,7 @@ impl PxCompositeSprite {
     /// Recompute cached size/origin/frame count from current parts.
     pub(crate) fn metrics_with<F>(&self, mut get: F) -> Option<PxCompositeMetrics>
     where
-        F: FnMut(&Handle<PxSpriteAsset>) -> Option<PxCompositePartMetrics>,
+        F: FnMut(&PxCompositePartSource) -> Option<PxCompositePartMetrics>,
     {
         let mut any = false;
         let mut min = IVec2::ZERO;
@@ -324,7 +492,7 @@ impl PxCompositeSprite {
         let mut frame_count = 0usize;
 
         for part in &self.parts {
-            let Some(metrics) = get(&part.sprite) else {
+            let Some(metrics) = get(&part.source) else {
                 continue;
             };
 
@@ -356,14 +524,37 @@ impl PxCompositeSprite {
         })
     }
 
-    /// Recompute cached size/origin/frame count from current parts.
+    /// Recompute cached size/origin/frame count from current parts using sprite assets only.
+    ///
+    /// Atlas-backed parts are ignored by this compatibility helper. Use
+    /// [`PxCompositeSprite::recompute_metrics_with_atlases`] when a composite may contain atlas
+    /// regions.
     pub fn recompute_metrics(&mut self, sprites: &Assets<PxSpriteAsset>) {
-        let metrics = self.metrics_with(|handle| {
-            let sprite = sprites.get(handle)?;
-            Some(PxCompositePartMetrics {
-                size: sprite.frame_size(),
-                frame_count: sprite.frame_count(),
-            })
+        if self
+            .parts
+            .iter()
+            .any(|part| matches!(part.source, PxCompositePartSource::AtlasRegion { .. }))
+        {
+            warn!(
+                "PxCompositeSprite::recompute_metrics() ignores atlas-backed parts; \
+                 use recompute_metrics_with_atlases() for atlas-backed composites"
+            );
+        }
+        let atlases = Assets::<PxSpriteAtlasAsset>::default();
+        self.recompute_metrics_with_atlases(sprites, &atlases);
+    }
+
+    /// Recompute cached size/origin/frame count from current parts using sprite and atlas assets.
+    pub fn recompute_metrics_with_atlases(
+        &mut self,
+        sprites: &Assets<PxSpriteAsset>,
+        atlases: &Assets<PxSpriteAtlasAsset>,
+    ) {
+        let metrics = self.metrics_with(|source| {
+            source
+                .resolve(|handle| sprites.get(handle), |handle| atlases.get(handle))
+                .ok()
+                .map(|resolved| resolved.metrics())
         });
         if let Some(metrics) = metrics {
             self.size = metrics.size;
@@ -377,28 +568,165 @@ impl PxCompositeSprite {
     }
 }
 
+/// Source for a composite part.
+///
+/// Composite parts stay source-agnostic at the engine layer: a part can draw either a standalone
+/// [`PxSpriteAsset`] or a region within a [`PxSpriteAtlasAsset`], referenced by atlas handle and
+/// [`AtlasRegionId`].
+///
+/// For most call sites, prefer [`PxCompositePart::new`] or [`PxCompositePart::atlas_region`] and
+/// then configure the part with builder-style helpers. Use this enum directly when you need to
+/// construct or store the source separately from the part.
+#[derive(Clone, Debug)]
+pub enum PxCompositePartSource {
+    /// Draw from a standalone sprite asset.
+    Sprite(Handle<PxSpriteAsset>),
+    /// Draw from a named region within a sprite atlas asset.
+    AtlasRegion {
+        /// Atlas asset handle.
+        atlas: Handle<PxSpriteAtlasAsset>,
+        /// Region identifier within the atlas.
+        region: AtlasRegionId,
+    },
+}
+
+impl PxCompositePartSource {
+    /// Create a composite part source from a standalone sprite.
+    #[must_use]
+    pub fn sprite(sprite: Handle<PxSpriteAsset>) -> Self {
+        Self::Sprite(sprite)
+    }
+
+    /// Create a composite part source from an atlas region.
+    #[must_use]
+    pub fn atlas_region(atlas: Handle<PxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
+        Self::AtlasRegion { atlas, region }
+    }
+
+    pub(crate) fn resolve<'a, FS, FA>(
+        &self,
+        mut get_sprite: FS,
+        mut get_atlas: FA,
+    ) -> Result<PxResolvedCompositePart<'a>, PxCompositePartResolveError>
+    where
+        FS: FnMut(&Handle<PxSpriteAsset>) -> Option<&'a PxSpriteAsset>,
+        FA: FnMut(&Handle<PxSpriteAtlasAsset>) -> Option<&'a PxSpriteAtlasAsset>,
+    {
+        match self {
+            Self::Sprite(sprite) => get_sprite(sprite)
+                .map(PxResolvedCompositePart::Sprite)
+                .ok_or_else(|| PxCompositePartResolveError::MissingSpriteAsset(sprite.clone())),
+            Self::AtlasRegion { atlas, region } => {
+                let atlas_asset = get_atlas(atlas)
+                    .ok_or_else(|| PxCompositePartResolveError::MissingAtlasAsset(atlas.clone()))?;
+                let region_asset = atlas_asset.region(*region).ok_or_else(|| {
+                    PxCompositePartResolveError::MissingAtlasRegion {
+                        atlas: atlas.clone(),
+                        region: *region,
+                    }
+                })?;
+                Ok(PxResolvedCompositePart::AtlasRegion {
+                    atlas: atlas_asset,
+                    region: region_asset,
+                })
+            }
+        }
+    }
+}
+
 /// A single part of a composite sprite.
 #[derive(Clone, Debug)]
 pub struct PxCompositePart {
-    /// Sprite asset used for this part.
-    pub sprite: Handle<PxSpriteAsset>,
-    /// Offset from the composite's bottom-left (before anchor).
+    /// Source asset used for this part.
+    pub source: PxCompositePartSource,
+    /// Offset in composite-local pixel space from the part's bottom-left corner.
+    ///
+    /// This is an engine-space, bottom-left-oriented offset. If your asset pipeline or runtime
+    /// manifest uses top-left image coordinates, convert into this space before constructing the
+    /// part.
     pub offset: IVec2,
     /// Frame binding to the composite's master frame.
     pub frame: PxFrameBinding,
     /// Optional filter applied before the composite's filter.
     pub filter: Option<Handle<PxFilterAsset>>,
+    /// Mirror the part horizontally at draw time.
+    pub flip_x: bool,
+    /// Mirror the part vertically at draw time.
+    pub flip_y: bool,
 }
 
 impl PxCompositePart {
     /// Create a composite part with default binding and zero offset.
     #[must_use]
     pub fn new(sprite: Handle<PxSpriteAsset>) -> Self {
+        Self::from_source(PxCompositePartSource::Sprite(sprite))
+    }
+
+    /// Create a composite part from any supported source.
+    #[must_use]
+    pub fn from_source(source: PxCompositePartSource) -> Self {
         Self {
-            sprite,
+            source,
             offset: IVec2::ZERO,
             frame: PxFrameBinding::default(),
             filter: None,
+            flip_x: false,
+            flip_y: false,
+        }
+    }
+
+    /// Create a composite part that draws from an atlas region.
+    #[must_use]
+    pub fn atlas_region(atlas: Handle<PxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
+        Self::from_source(PxCompositePartSource::AtlasRegion { atlas, region })
+    }
+
+    /// Set the part offset relative to the composite origin.
+    #[must_use]
+    pub fn with_offset(mut self, offset: IVec2) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    /// Set how this part binds to the composite master frame.
+    #[must_use]
+    pub fn with_frame_binding(mut self, frame: PxFrameBinding) -> Self {
+        self.frame = frame;
+        self
+    }
+
+    /// Set an optional per-part filter.
+    #[must_use]
+    pub fn with_filter(mut self, filter: Option<Handle<PxFilterAsset>>) -> Self {
+        self.filter = filter;
+        self
+    }
+
+    /// Set horizontal and vertical flip flags for draw-time mirroring.
+    #[must_use]
+    pub fn with_flip(mut self, flip_x: bool, flip_y: bool) -> Self {
+        self.flip_x = flip_x;
+        self.flip_y = flip_y;
+        self
+    }
+}
+
+pub(crate) fn log_composite_part_resolve_error(
+    part_index: usize,
+    error: &PxCompositePartResolveError,
+) {
+    match error {
+        PxCompositePartResolveError::MissingSpriteAsset(handle) => {
+            error!("skipping composite part {part_index}: missing sprite asset {handle:?}");
+        }
+        PxCompositePartResolveError::MissingAtlasAsset(handle) => {
+            error!("skipping composite part {part_index}: missing atlas asset {handle:?}");
+        }
+        PxCompositePartResolveError::MissingAtlasRegion { atlas, region } => {
+            error!(
+                "skipping composite part {part_index}: missing atlas region {:?} in atlas {atlas:?}",
+                region
+            );
         }
     }
 }
@@ -410,6 +738,16 @@ impl PxCompositePart {
 pub struct PxGpuSprite;
 
 /// Marker to render a composite sprite via the experimental GPU palette path.
+///
+/// This is an optimization subset of [`PxCompositeSprite`], not a separate composite feature set.
+/// A composite is GPU-eligible only when every part:
+///
+/// - uses [`PxCompositePartSource::Sprite`]
+/// - has no per-part filter
+/// - has `flip_x == false`
+/// - has `flip_y == false`
+///
+/// Composites outside that subset fall back to the CPU renderer.
 #[cfg(feature = "gpu_palette")]
 #[derive(Component, Default, Clone, Copy, Debug)]
 #[require(PxCompositeSprite)]
@@ -436,9 +774,10 @@ impl Spatial for PxCompositeSprite {
 fn sync_composite_metrics(
     composite: &mut PxCompositeSprite,
     sprites: &Assets<PxSpriteAsset>,
+    atlases: &Assets<PxSpriteAtlasAsset>,
     mut count: Option<Mut<PxFrameCount>>,
 ) {
-    composite.recompute_metrics(sprites);
+    composite.recompute_metrics_with_atlases(sprites, atlases);
     if let Some(count) = count.as_mut() {
         count.0 = composite.frame_count;
     }
@@ -446,36 +785,40 @@ fn sync_composite_metrics(
 
 fn update_composite_metrics_on_change(
     sprites: Res<Assets<PxSpriteAsset>>,
+    atlases: Res<Assets<PxSpriteAtlasAsset>>,
     mut composites: Query<
         (&mut PxCompositeSprite, Option<&mut PxFrameCount>),
         Changed<PxCompositeSprite>,
     >,
 ) {
     for (mut composite, count) in &mut composites {
-        sync_composite_metrics(&mut composite, &sprites, count);
+        sync_composite_metrics(&mut composite, &sprites, &atlases, count);
     }
 }
 
 fn update_composite_metrics_on_assets(
     sprites: Res<Assets<PxSpriteAsset>>,
-    mut events: MessageReader<AssetEvent<PxSpriteAsset>>,
+    atlases: Res<Assets<PxSpriteAtlasAsset>>,
+    mut sprite_events: MessageReader<AssetEvent<PxSpriteAsset>>,
+    mut atlas_events: MessageReader<AssetEvent<PxSpriteAtlasAsset>>,
     mut composites: Query<(&mut PxCompositeSprite, Option<&mut PxFrameCount>)>,
 ) {
-    if events.read().next().is_none() {
+    if sprite_events.read().next().is_none() && atlas_events.read().next().is_none() {
         return;
     }
 
     for (mut composite, count) in &mut composites {
-        sync_composite_metrics(&mut composite, &sprites, count);
+        sync_composite_metrics(&mut composite, &sprites, &atlases, count);
     }
 }
 
 fn sync_composite_frame_count_on_animation_added(
     sprites: Res<Assets<PxSpriteAsset>>,
+    atlases: Res<Assets<PxSpriteAtlasAsset>>,
     mut composites: Query<(&mut PxCompositeSprite, &mut PxFrameCount), Added<PxAnimation>>,
 ) {
     for (mut composite, count) in &mut composites {
-        sync_composite_metrics(&mut composite, &sprites, Some(count));
+        sync_composite_metrics(&mut composite, &sprites, &atlases, Some(count));
     }
 }
 
@@ -485,11 +828,13 @@ mod tests {
 
     use super::*;
     use crate::{
+        atlas::{AtlasRect, PxSpriteAtlasAsset},
         camera::PxCamera,
         frame::{PxFrameSelector, PxFrameView, draw_spatial, resolve_frame_binding},
         image::PxImage,
     };
     use bevy_asset::Assets;
+    use bevy_platform::collections::HashMap;
     use insta::assert_snapshot;
 
     fn pixels(image: &PxImage) -> Vec<u8> {
@@ -526,21 +871,30 @@ mod tests {
         composite: &PxCompositeSprite,
         master: Option<PxFrameView>,
         sprites: &Assets<PxSpriteAsset>,
+        atlases: &Assets<PxSpriteAtlasAsset>,
     ) {
         let mut slice = image.slice_all_mut();
         let base_pos = IVec2::ZERO - PxAnchor::BottomLeft.pos(composite.size).as_ivec2();
 
         for part in &composite.parts {
-            let sprite = sprites.get(&part.sprite).unwrap();
+            let resolved = part
+                .source
+                .resolve(|handle| sprites.get(handle), |handle| atlases.get(handle))
+                .unwrap();
             let part_frame = resolve_frame_binding(
                 master,
                 composite.frame_count,
-                sprite.frame_count(),
+                resolved.frame_count(),
                 &part.frame,
             );
             let part_pos = base_pos + (part.offset - composite.origin);
+            let drawable = PxCompositePartDrawable {
+                resolved,
+                flip_x: part.flip_x,
+                flip_y: part.flip_y,
+            };
             draw_spatial(
-                sprite,
+                &drawable,
                 (),
                 &mut slice,
                 part_pos.into(),
@@ -581,6 +935,7 @@ mod tests {
     #[test]
     fn composite_sprite_snapshot() {
         let mut sprites = Assets::default();
+        let atlases = Assets::default();
         let sprite_a = sprites.add(PxSpriteAsset {
             data: PxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
@@ -592,22 +947,26 @@ mod tests {
 
         let mut composite = PxCompositeSprite::new(vec![
             PxCompositePart {
-                sprite: sprite_a,
+                source: PxCompositePartSource::Sprite(sprite_a),
                 offset: IVec2::ZERO,
                 frame: PxFrameBinding::default(),
                 filter: None,
+                flip_x: false,
+                flip_y: false,
             },
             PxCompositePart {
-                sprite: sprite_b,
+                source: PxCompositePartSource::Sprite(sprite_b),
                 offset: IVec2::new(2, 0),
                 frame: PxFrameBinding::default(),
                 filter: None,
+                flip_x: false,
+                flip_y: false,
             },
         ]);
-        composite.recompute_metrics(&sprites);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
         let mut image = PxImage::new(vec![0; 8], 4);
-        draw_composite(&mut image, &composite, None, &sprites);
+        draw_composite(&mut image, &composite, None, &sprites, &atlases);
 
         assert_snapshot!(
             image_grid(&image),
@@ -621,6 +980,7 @@ mod tests {
     #[test]
     fn composite_animation_snapshot() {
         let mut sprites = Assets::default();
+        let atlases = Assets::default();
         let sprite_a = sprites.add(PxSpriteAsset {
             data: PxImage::new(vec![1, 2, 3, 4, 9, 10, 11, 12], 2),
             frame_size: 4,
@@ -632,19 +992,23 @@ mod tests {
 
         let mut composite = PxCompositeSprite::new(vec![
             PxCompositePart {
-                sprite: sprite_a,
+                source: PxCompositePartSource::Sprite(sprite_a),
                 offset: IVec2::ZERO,
                 frame: PxFrameBinding::default(),
                 filter: None,
+                flip_x: false,
+                flip_y: false,
             },
             PxCompositePart {
-                sprite: sprite_b,
+                source: PxCompositePartSource::Sprite(sprite_b),
                 offset: IVec2::new(2, 0),
                 frame: PxFrameBinding::Offset(1),
                 filter: None,
+                flip_x: false,
+                flip_y: false,
             },
         ]);
-        composite.recompute_metrics(&sprites);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
         let mut image_frame_0 = PxImage::new(vec![0; 8], 4);
         draw_composite(
@@ -652,6 +1016,7 @@ mod tests {
             &composite,
             Some(PxFrameView::from(PxFrameSelector::Index(0.))),
             &sprites,
+            &atlases,
         );
 
         let mut image_frame_1 = PxImage::new(vec![0; 8], 4);
@@ -660,6 +1025,7 @@ mod tests {
             &composite,
             Some(PxFrameView::from(PxFrameSelector::Index(1.))),
             &sprites,
+            &atlases,
         );
 
         let snapshot = format!(
@@ -679,6 +1045,168 @@ frame 1
 11 12 07 08
 "###
         );
+    }
+
+    fn two_frame_atlas() -> PxSpriteAtlasAsset {
+        PxSpriteAtlasAsset {
+            size: UVec2::new(4, 2),
+            data: PxImage::new(vec![1, 2, 5, 6, 3, 4, 7, 8], 4),
+            regions: vec![AtlasRegion {
+                frame_size: UVec2::new(2, 2),
+                frames: vec![
+                    AtlasRect {
+                        x: 0,
+                        y: 0,
+                        w: 2,
+                        h: 2,
+                    },
+                    AtlasRect {
+                        x: 2,
+                        y: 0,
+                        w: 2,
+                        h: 2,
+                    },
+                ],
+            }],
+            names: HashMap::default(),
+        }
+    }
+
+    #[test]
+    fn composite_metrics_support_mixed_sources() {
+        let mut sprites = Assets::default();
+        let mut atlases = Assets::default();
+        let sprite = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2], 2),
+            frame_size: 2,
+        });
+        let atlas = atlases.add(two_frame_atlas());
+
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart {
+                source: PxCompositePartSource::Sprite(sprite),
+                offset: IVec2::new(-1, 1),
+                frame: PxFrameBinding::default(),
+                filter: None,
+                flip_x: false,
+                flip_y: false,
+            },
+            PxCompositePart {
+                source: PxCompositePartSource::AtlasRegion {
+                    atlas,
+                    region: AtlasRegionId(0),
+                },
+                offset: IVec2::new(1, -1),
+                frame: PxFrameBinding::default(),
+                filter: None,
+                flip_x: false,
+                flip_y: false,
+            },
+        ]);
+
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+
+        assert_eq!(composite.origin, IVec2::new(-1, -1));
+        assert_eq!(composite.size, UVec2::new(4, 3));
+        assert_eq!(composite.frame_count, 2);
+    }
+
+    #[test]
+    fn composite_atlas_part_uses_frame_binding() {
+        let sprites = Assets::default();
+        let mut atlases = Assets::default();
+        let atlas = atlases.add(two_frame_atlas());
+
+        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
+            source: PxCompositePartSource::AtlasRegion {
+                atlas,
+                region: AtlasRegionId(0),
+            },
+            offset: IVec2::ZERO,
+            frame: PxFrameBinding::Offset(1),
+            filter: None,
+            flip_x: false,
+            flip_y: false,
+        }]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+
+        let mut image = PxImage::new(vec![0; 4], 2);
+        draw_composite(
+            &mut image,
+            &composite,
+            Some(PxFrameView::from(PxFrameSelector::Index(0.))),
+            &sprites,
+            &atlases,
+        );
+
+        assert_eq!(pixels(&image), vec![5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn composite_part_flip_semantics() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let sprite = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4], 2),
+            frame_size: 4,
+        });
+
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart {
+                source: PxCompositePartSource::Sprite(sprite.clone()),
+                offset: IVec2::ZERO,
+                frame: PxFrameBinding::default(),
+                filter: None,
+                flip_x: true,
+                flip_y: false,
+            },
+            PxCompositePart {
+                source: PxCompositePartSource::Sprite(sprite),
+                offset: IVec2::new(2, 0),
+                frame: PxFrameBinding::default(),
+                filter: None,
+                flip_x: false,
+                flip_y: true,
+            },
+        ]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+
+        let mut image = PxImage::new(vec![0; 8], 4);
+        draw_composite(&mut image, &composite, None, &sprites, &atlases);
+
+        assert_eq!(pixels(&image), vec![2, 1, 3, 4, 4, 3, 1, 2]);
+    }
+
+    #[test]
+    fn composite_part_source_reports_missing_atlas_asset() {
+        let result = PxCompositePartSource::atlas_region(Handle::default(), AtlasRegionId(3))
+            .resolve(
+                |_: &Handle<PxSpriteAsset>| None,
+                |_: &Handle<PxSpriteAtlasAsset>| None,
+            );
+
+        assert!(matches!(
+            result,
+            Err(PxCompositePartResolveError::MissingAtlasAsset(_))
+        ));
+    }
+
+    #[test]
+    fn composite_part_source_reports_missing_atlas_region() {
+        let atlas = two_frame_atlas();
+        let result = PxCompositePartSource::atlas_region(Handle::default(), AtlasRegionId(3))
+            .resolve(
+                |_: &Handle<PxSpriteAsset>| None,
+                |_: &Handle<PxSpriteAtlasAsset>| Some(&atlas),
+            );
+
+        assert!(matches!(
+            result,
+            Err(PxCompositePartResolveError::MissingAtlasRegion {
+                region: AtlasRegionId(3),
+                ..
+            })
+        ));
     }
 }
 

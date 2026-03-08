@@ -51,7 +51,7 @@ pub use crate::{
     position::{PxAnchor, PxLayer, PxPosition, PxSubPosition, PxVelocity},
     rect::PxRect,
     screen::ScreenSize,
-    sprite::{PxCompositePart, PxCompositeSprite, PxSprite, PxSpriteAsset},
+    sprite::{PxCompositePart, PxCompositePartSource, PxCompositeSprite, PxSprite, PxSpriteAsset},
     text::{PxText, PxTypeface},
     ui::{
         PxCaret, PxGrid, PxGridRow, PxGridRows, PxKeyField, PxKeyFieldUpdate, PxMargin, PxMinSize,

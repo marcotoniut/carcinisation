@@ -1,6 +1,7 @@
 use bevy_picking::backend::prelude::*;
 
 use crate::{
+    atlas::PxSpriteAtlasAsset,
     cursor::PxCursorPosition,
     frame::{Frames, PxFrameControl, PxFrameView, animate, resolve_frame_binding},
     math::RectExt,
@@ -9,7 +10,7 @@ use crate::{
     profiling::{px_end_span, px_profile, px_trace_span},
     screen::Screen,
     set::PxSet,
-    sprite::PxSpriteAsset,
+    sprite::{PxResolvedCompositePart, PxSpriteAsset},
 };
 
 /// Enable pixel-perfect picking for a sprite.
@@ -77,10 +78,12 @@ fn spatial_rect(
 }
 
 fn sprite_pixel_visible<'a>(
-    sprite: &PxSpriteAsset,
+    sprite: PxResolvedCompositePart<'_>,
     frame: Option<PxFrameView>,
     filters: impl IntoIterator<Item = &'a PxFilterAsset>,
     local_pos: UVec2,
+    flip_x: bool,
+    flip_y: bool,
 ) -> bool {
     let size = sprite.frame_size();
     if size.x == 0 || size.y == 0 {
@@ -100,8 +103,9 @@ fn sprite_pixel_visible<'a>(
         None => 0,
     };
 
-    let pixel_y = frame_index as i32 * size.y as i32 + local_pos.y as i32;
-    let mut pixel = sprite.data.pixel(IVec2::new(local_pos.x as i32, pixel_y));
+    let Some(mut pixel) = sprite.flipped_pixel(frame_index, local_pos, flip_x, flip_y) else {
+        return false;
+    };
     if pixel == 0 {
         return false;
     }
@@ -161,6 +165,7 @@ fn pick<L: PxLayer>(
         With<PxPixelPick>,
     >,
     sprite_assets: Res<Assets<PxSpriteAsset>>,
+    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
     filters: Res<Assets<PxFilterAsset>>,
     cursor: Res<PxCursorPosition>,
     px_camera: Res<PxCamera>,
@@ -277,7 +282,14 @@ fn pick<L: PxLayer>(
 
             let local_pos = UVec2::new(local_x, local_y);
             let filter = filter.and_then(|filter| filters.get(&**filter));
-            if !sprite_pixel_visible(sprite, frame, filter.into_iter(), local_pos) {
+            if !sprite_pixel_visible(
+                PxResolvedCompositePart::Sprite(sprite),
+                frame,
+                filter.into_iter(),
+                local_pos,
+                false,
+                false,
+            ) {
                 continue;
             }
 
@@ -302,12 +314,17 @@ fn pick<L: PxLayer>(
             }
 
             let metrics = if composite.size.x == 0 || composite.size.y == 0 {
-                composite.metrics_with(|handle| {
-                    let sprite = sprite_assets.get(handle)?;
-                    Some(crate::sprite::PxCompositePartMetrics {
-                        size: sprite.frame_size(),
-                        frame_count: sprite.frame_count(),
-                    })
+                composite.metrics_with(|source| {
+                    source
+                        .resolve(
+                            |handle| sprite_assets.get(handle),
+                            |handle| atlas_assets.get(handle),
+                        )
+                        .ok()
+                        .map(|resolved| crate::sprite::PxCompositePartMetrics {
+                            size: resolved.frame_size(),
+                            frame_count: resolved.frame_count(),
+                        })
                 })
             } else {
                 Some(crate::sprite::PxCompositeMetrics {
@@ -335,11 +352,14 @@ fn pick<L: PxLayer>(
 
             let mut hit = false;
             for part in &composite.parts {
-                let Some(sprite) = sprite_assets.get(&part.sprite) else {
+                let Ok(resolved) = part.source.resolve(
+                    |handle| sprite_assets.get(handle),
+                    |handle| atlas_assets.get(handle),
+                ) else {
                     continue;
                 };
 
-                let part_size = sprite.frame_size().as_ivec2();
+                let part_size = resolved.frame_size().as_ivec2();
                 if part_size.x == 0 || part_size.y == 0 {
                     continue;
                 }
@@ -355,17 +375,18 @@ fn pick<L: PxLayer>(
                 }
 
                 let part_frame =
-                    resolve_frame_binding(frame, master_count, sprite.frame_count(), &part.frame);
+                    resolve_frame_binding(frame, master_count, resolved.frame_count(), &part.frame);
                 let local_x = part_local.x as u32;
                 let local_y = part_local.y as u32;
-                let local_y = part_size.y as u32 - 1 - local_y;
-                let local_pos = UVec2::new(local_x, local_y);
+                let local_pos = UVec2::new(local_x, part_size.y as u32 - 1 - local_y);
                 let part_filter = part.filter.as_ref().and_then(|filter| filters.get(filter));
                 if sprite_pixel_visible(
-                    sprite,
+                    resolved,
                     part_frame,
                     [part_filter, entity_filter].into_iter().flatten(),
                     local_pos,
+                    part.flip_x,
+                    part.flip_y,
                 ) {
                     hit = true;
                     break;
@@ -452,8 +473,22 @@ mod tests {
             transition: PxFrameTransition::Dither,
         };
 
-        let hit_a = sprite_pixel_visible(&sprite, Some(frame), [], UVec2::new(0, 0));
-        let hit_b = sprite_pixel_visible(&sprite, Some(frame), [], UVec2::new(1, 0));
+        let hit_a = sprite_pixel_visible(
+            PxResolvedCompositePart::Sprite(&sprite),
+            Some(frame),
+            [],
+            UVec2::new(0, 0),
+            false,
+            false,
+        );
+        let hit_b = sprite_pixel_visible(
+            PxResolvedCompositePart::Sprite(&sprite),
+            Some(frame),
+            [],
+            UVec2::new(1, 0),
+            false,
+            false,
+        );
 
         assert!(hit_a);
         assert!(!hit_b);
@@ -506,6 +541,7 @@ mod tests {
         world.init_resource::<Messages<PointerHits>>();
         world.insert_resource(PickSummary::default());
         world.insert_resource(Assets::<PxSpriteAsset>::default());
+        world.insert_resource(Assets::<PxSpriteAtlasAsset>::default());
         world.insert_resource(Assets::<PxFilterAsset>::default());
         world.insert_resource(PxCursorPosition(Some(UVec2::new(1, 1))));
         world.insert_resource(PxCamera::default());

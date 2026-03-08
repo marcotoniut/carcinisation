@@ -31,18 +31,8 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     let runner = assets.load("sprite/runner.px_sprite.png");
 
     let composite = PxCompositeSprite::new(vec![
-        PxCompositePart {
-            sprite: runner.clone(),
-            offset: IVec2::ZERO,
-            frame: PxFrameBinding::default(),
-            filter: None,
-        },
-        PxCompositePart {
-            sprite: runner,
-            offset: IVec2::new(8, 0),
-            frame: PxFrameBinding::default(),
-            filter: None,
-        },
+        PxCompositePart::new(runner.clone()),
+        PxCompositePart::new(runner).with_offset(IVec2::new(8, 0)),
     ]);
 
     commands.spawn((
