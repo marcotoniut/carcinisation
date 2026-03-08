@@ -13,7 +13,7 @@ use crate::stage::{
         data::destructibles::DESTRUCTIBLE_ANIMATIONS,
     },
     enemy::{
-        composed::ComposedEnemyVisual,
+        composed::{ComposedAnimationState, ComposedEnemyVisual},
         entity::EnemyType,
         mosquito::entity::{ENEMY_MOSQUITO_RADIUS, MosquitoBundle},
         mosquiton::entity::MosquitonBundle,
@@ -206,12 +206,16 @@ pub fn spawn_enemy(
                 .spawn(MosquitonBundle {
                     behaviors,
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                    composed_animation: ComposedAnimationState::new("idle_stand"),
                     composed_visual: ComposedEnemyVisual::for_enemy(
                         asset_server,
                         EnemyType::Mosquiton,
                         *depth,
-                        "idle_stand",
                     ),
+                    transform: Transform::default(),
+                    global_transform: GlobalTransform::default(),
+                    visibility: Visibility::Visible,
+                    inherited_visibility: InheritedVisibility::VISIBLE,
                     depth: *depth,
                     position: PxSubPosition::from(position),
                     speed: Speed(*speed),

@@ -6,7 +6,7 @@ use crate::{
         components::{interactive::Dead, placement::Depth},
         enemy::{
             components::behavior::EnemyCurrentBehavior,
-            composed::ComposedEnemyVisual,
+            composed::ComposedAnimationState,
             mosquito::entity::{EnemyMosquitoAttack, EnemyMosquitoAttacking},
         },
     },
@@ -21,13 +21,14 @@ pub fn assign_mosquiton_animation(
             &EnemyCurrentBehavior,
             &EnemyMosquitoAttacking,
             Option<&EnemyMosquitonAnimation>,
-            &mut ComposedEnemyVisual,
+            &mut ComposedAnimationState,
             &Depth,
         ),
         With<EnemyMosquiton>,
     >,
 ) {
-    for (entity, _behavior, attacking, current_animation, mut visual, _depth) in &mut query {
+    for (entity, _behavior, attacking, current_animation, mut animation_state, _depth) in &mut query
+    {
         let (next_animation, next_tag) = match attacking.attack {
             Some(EnemyMosquitoAttack::Melee | EnemyMosquitoAttack::Ranged) => {
                 (EnemyMosquitonAnimation::ShootStand, "shoot_stand")
@@ -38,8 +39,8 @@ pub fn assign_mosquiton_animation(
         if current_animation != Some(&next_animation) {
             commands.entity(entity).insert(next_animation);
         }
-        if visual.requested_tag != next_tag {
-            visual.requested_tag = next_tag.to_string();
+        if animation_state.requested_tag != next_tag {
+            animation_state.requested_tag = next_tag.to_string();
         }
     }
 }

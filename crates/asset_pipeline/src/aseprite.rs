@@ -1,8 +1,9 @@
 //! Parser-based Aseprite export pipeline.
 //!
 //! This module turns one `.aseprite` source file into a piece atlas package:
-//! a packed `atlas.png` plus an `atlas.json` manifest describing how a runtime
-//! can compose animation frames from deduplicated part sprites.
+//! a packed `atlas.png`, an engine-consumable `atlas.px_atlas.ron`, and an
+//! `atlas.json` manifest describing how a runtime can compose animation frames
+//! from deduplicated part sprites.
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use aseprite_loader::{
@@ -19,7 +20,7 @@ use aseprite_loader::{
 use image::{ImageBuffer, Rgba, RgbaImage, imageops};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs,
     path::{Path, PathBuf},
 };
@@ -27,15 +28,16 @@ use std::{
 const DEFAULT_PART_GROUP: &str = "base";
 const DEFAULT_ORIGIN_SLICE: &str = "origin";
 const CURRENT_SCHEMA_VERSION: u32 = 1;
+const BASE_PALETTE_PATH: &str = "assets/palette/base.png";
 
-/// Describes the Aseprite source files that can be exported into piece atlases.
+/// Top-level manifest for Aseprite exports.
 #[derive(Debug, Deserialize)]
 pub struct Manifest {
-    /// Source sprite entries keyed by entity and depth.
+    /// Source sprite entries keyed by the unique `(entity, depth)` pair.
     pub sprites: Vec<SpriteSpec>,
 }
 
-/// One composed enemy or entity source file.
+/// One exportable composed sprite source.
 #[derive(Debug, Deserialize)]
 pub struct SpriteSpec {
     /// Path to the `.aseprite` file, relative to the manifest file.
@@ -49,13 +51,13 @@ pub struct SpriteSpec {
     /// Optional palette label reserved for later pipeline stages.
     #[allow(dead_code)]
     pub palette: Option<String>,
-    /// Top-level group containing the exportable part layers.
+    /// Top-level group containing the exportable part layers. Defaults to `"base"`.
     pub part_group: Option<String>,
-    /// Slice whose pivot defines the shared composition origin.
+    /// Slice whose pivot defines the shared composition origin. Defaults to `"origin"`.
     pub origin_slice: Option<String>,
 }
 
-/// CLI request for exporting one sprite entry.
+/// Concrete export request resolved by the CLI wrapper.
 pub struct ExportRequest {
     /// Path to the TOML manifest that declares available sprite sources.
     pub manifest_path: PathBuf,
@@ -67,7 +69,7 @@ pub struct ExportRequest {
     pub output_root: PathBuf,
 }
 
-/// Final piece-atlas metadata written next to the packed atlas image.
+/// Final JSON metadata written next to the packed atlas image.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CompositionAtlas {
     /// Version of the exported JSON schema.
@@ -92,7 +94,7 @@ pub struct CompositionAtlas {
     pub animations: Vec<Animation>,
 }
 
-/// One canonical part layer exported from Aseprite.
+/// One canonical part exported from the source file.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PartDefinition {
     /// Stable snake_case part identifier derived from the layer name.
@@ -103,7 +105,7 @@ pub struct PartDefinition {
     pub draw_order: u32,
 }
 
-/// One deduplicated image packed into the atlas.
+/// One deduplicated sprite image packed into the atlas.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AtlasSprite {
     /// Stable sprite identifier referenced by [`PartPlacement`].
@@ -247,8 +249,9 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
 
     let atlas_png = output_dir.join("atlas.png");
     let atlas_json = output_dir.join("atlas.json");
-    atlas
-        .0
+    let palette_image = load_base_palette()?;
+    let atlas_image = reduce_to_palette(&palette_image, &atlas.0);
+    atlas_image
         .save(&atlas_png)
         .with_context(|| format!("Failed to save {}", atlas_png.display()))?;
     let metadata = CompositionAtlas {
@@ -258,8 +261,15 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),
         ..atlas.1
     };
-    fs::write(&atlas_json, serde_json::to_string_pretty(&metadata)?)
-        .with_context(|| format!("Failed to write {}", atlas_json.display()))?;
+    let atlas_asset_image_path = PathBuf::from(&sprite.target_dir)
+        .join(format!("{}_{}", sprite.entity, sprite.depth))
+        .join(&metadata.atlas_image);
+    write_px_atlas_metadata(&output_dir, &metadata, atlas_asset_image_path)?;
+    fs::write(
+        &atlas_json,
+        format!("{}\n", serde_json::to_string_pretty(&metadata)?),
+    )
+    .with_context(|| format!("Failed to write {}", atlas_json.display()))?;
 
     println!(
         "Exported piece atlas for {} depth {} to {}",
@@ -311,6 +321,8 @@ fn build_piece_atlas(
     let mut parts = Vec::new();
 
     for layer in &selected_layers {
+        // Invisible direct children of the part group do not participate in the
+        // exported composition.
         if !layer.visible {
             continue;
         }
@@ -369,12 +381,16 @@ fn build_piece_atlas(
             let mut placements = Vec::new();
 
             for layer in &selected_layers {
+                // Invisible layers are excluded at export time instead of
+                // emitting permanently hidden parts.
                 if !layer.visible {
                     continue;
                 }
                 let part = part_lookup.get(layer.name).ok_or_else(|| {
                     anyhow!("Visible layer '{}' is missing from part lookup", layer.name)
                 })?;
+                // Missing cels are intentional: the part is invisible for this
+                // authored frame.
                 let Some(frame_cel) = frame.cels.iter().find(|cel| cel.layer_index == layer.index)
                 else {
                     continue;
@@ -399,6 +415,7 @@ fn build_piece_atlas(
                 );
 
                 let cel_image = load_cel_image(aseprite, frame_cel)?;
+                // Fully transparent cels do not produce atlas sprites.
                 let Some((trimmed_image, trimmed_bounds)) = trim_transparent_bounds(&cel_image)
                 else {
                     continue;
@@ -458,6 +475,64 @@ fn build_piece_atlas(
     };
 
     Ok((atlas_image, metadata))
+}
+
+#[derive(Serialize)]
+struct PxSpriteAtlasDescriptor {
+    image: PathBuf,
+    regions: Vec<AtlasRegionDescriptor>,
+    #[serde(default)]
+    names: BTreeMap<String, u32>,
+}
+
+#[derive(Serialize)]
+struct AtlasRegionDescriptor {
+    frame_size: [u32; 2],
+    frames: Vec<AtlasRectDescriptor>,
+}
+
+#[derive(Serialize)]
+struct AtlasRectDescriptor {
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+}
+
+fn write_px_atlas_metadata(
+    output_dir: &Path,
+    metadata: &CompositionAtlas,
+    image_asset_path: PathBuf,
+) -> Result<()> {
+    let descriptor = PxSpriteAtlasDescriptor {
+        image: image_asset_path,
+        regions: metadata
+            .sprites
+            .iter()
+            .map(|sprite| AtlasRegionDescriptor {
+                frame_size: [sprite.rect.w, sprite.rect.h],
+                frames: vec![AtlasRectDescriptor {
+                    x: sprite.rect.x,
+                    y: sprite.rect.y,
+                    w: sprite.rect.w,
+                    h: sprite.rect.h,
+                }],
+            })
+            .collect(),
+        names: metadata
+            .sprites
+            .iter()
+            .enumerate()
+            .map(|(index, sprite)| (sprite.id.clone(), index as u32))
+            .collect(),
+    };
+
+    let atlas_path = output_dir.join("atlas.px_atlas.ron");
+    let body = ron::ser::to_string_pretty(&descriptor, ron::ser::PrettyConfig::default())
+        .context("Failed to serialize atlas metadata")?;
+    fs::write(&atlas_path, body)
+        .with_context(|| format!("Failed to write {}", atlas_path.display()))?;
+    Ok(())
 }
 
 fn select_part_layers<'a>(
@@ -688,6 +763,53 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
     }
 
     Ok((atlas, atlas_sprites))
+}
+
+fn load_base_palette() -> Result<RgbaImage> {
+    let image = image::open(BASE_PALETTE_PATH)
+        .with_context(|| format!("Failed to open base palette at {BASE_PALETTE_PATH}"))?
+        .to_rgba8();
+    Ok(image)
+}
+
+fn reduce_to_palette(
+    palette_image: &ImageBuffer<Rgba<u8>, Vec<u8>>,
+    image: &RgbaImage,
+) -> RgbaImage {
+    let palette: Vec<[u8; 3]> = palette_image
+        .pixels()
+        .filter(|pixel| pixel[3] != 0)
+        .map(|pixel| [pixel[0], pixel[1], pixel[2]])
+        .collect();
+    assert!(
+        !palette.is_empty(),
+        "base palette must contain at least one opaque color"
+    );
+
+    let mut output = image.clone();
+    for pixel in output.pixels_mut() {
+        if pixel[3] == 0 {
+            continue;
+        }
+        let closest = find_closest_palette_color(&palette, [pixel[0], pixel[1], pixel[2]]);
+        *pixel = Rgba([closest[0], closest[1], closest[2], pixel[3]]);
+    }
+
+    output
+}
+
+fn find_closest_palette_color(palette: &[[u8; 3]], color: [u8; 3]) -> &[u8; 3] {
+    palette
+        .iter()
+        .min_by_key(|candidate| color_distance_sq(**candidate, color))
+        .expect("palette must contain at least one color")
+}
+
+fn color_distance_sq(a: [u8; 3], b: [u8; 3]) -> u32 {
+    let dr = i32::from(a[0]) - i32::from(b[0]);
+    let dg = i32::from(a[1]) - i32::from(b[1]);
+    let db = i32::from(a[2]) - i32::from(b[2]);
+    (dr * dr + dg * dg + db * db) as u32
 }
 
 fn next_power_of_two(value: u32) -> u32 {

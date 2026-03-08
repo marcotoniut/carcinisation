@@ -28,7 +28,10 @@ use self::{
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::json::JsonAssetPlugin;
-use composed::{CompositionAtlasAsset, ensure_composed_enemy_parts, update_composed_enemy_visuals};
+use composed::{
+    CompositionAtlasAsset, ensure_composed_enemy_parts, prepare_composed_atlas_assets,
+    update_composed_enemy_visuals,
+};
 
 /// Registers shared enemy behaviour systems and species handlers.
 #[derive(Activable)]
@@ -59,8 +62,12 @@ impl Plugin for EnemyPlugin {
                 (
                     // Mosquiton
                     assign_mosquiton_animation,
-                    ensure_composed_enemy_parts,
-                    update_composed_enemy_visuals,
+                    (
+                        prepare_composed_atlas_assets,
+                        ensure_composed_enemy_parts,
+                        update_composed_enemy_visuals,
+                    )
+                        .chain(),
                     despawn_dead_mosquitons,
                 ),
                 (

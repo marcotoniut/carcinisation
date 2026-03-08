@@ -6,7 +6,7 @@ use crate::stage::{
     },
     enemy::{
         components::{Enemy, behavior::EnemyBehaviors},
-        composed::ComposedEnemyVisual,
+        composed::{ComposedAnimationState, ComposedEnemyVisual},
         entity::EnemyType,
         mosquito::entity::{ENEMY_MOSQUITO_BASE_HEALTH, EnemyMosquito, EnemyMosquitoAttacking},
     },
@@ -63,7 +63,12 @@ impl Default for MosquitonDefaultBundle {
 pub struct MosquitonBundle {
     pub behaviors: EnemyBehaviors,
     pub collider_data: ColliderData,
+    pub composed_animation: ComposedAnimationState,
     pub composed_visual: ComposedEnemyVisual,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visibility: Visibility,
+    pub inherited_visibility: InheritedVisibility,
     pub depth: Depth,
     pub position: PxSubPosition,
     pub speed: Speed,
