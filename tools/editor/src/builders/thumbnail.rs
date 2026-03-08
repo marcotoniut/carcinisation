@@ -39,6 +39,10 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Opti
                 _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
             }
         }
+        EnemyType::Mosquiton => match depth {
+            Depth::Three => ("sprites/enemies/mosquiton_3/atlas.png".into(), None),
+            _ => panic!("mosquiton_3 Invalid depth {}", depth.to_i8()),
+        },
         EnemyType::Spidey => {
             let loc = "sprites/enemies/spider_idle_";
             let ext = ".px_sprite.png";

@@ -867,6 +867,7 @@ dependencies = [
  "bevy_reflect",
  "ron 0.11.0",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
 ]
 
@@ -2216,6 +2217,7 @@ dependencies = [
  "activable_macros",
  "anyhow",
  "assert_assets_path",
+ "asset_pipeline",
  "bevy",
  "bevy-inspector-egui",
  "bevy_brp_extras",

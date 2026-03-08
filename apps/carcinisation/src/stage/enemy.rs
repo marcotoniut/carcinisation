@@ -2,15 +2,19 @@
 
 pub mod bundles;
 pub mod components;
+pub mod composed;
 pub mod data;
 pub mod entity;
 pub mod mosquito;
+pub mod mosquiton;
 mod systems;
 pub mod tardigrade;
 
 use self::{
     mosquito::systems::{assign_mosquito_animation, check_idle_mosquito, despawn_dead_mosquitoes},
+    mosquiton::systems::{assign_mosquiton_animation, despawn_dead_mosquitons},
     systems::{
+        animation::on_composed_enemy_depth_changed,
         animation::on_enemy_depth_changed,
         behaviors::{
             check_no_behavior, tick_enemy_behavior_timer,
@@ -23,6 +27,8 @@ use self::{
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
+use bevy_common_assets::json::JsonAssetPlugin;
+use composed::{CompositionAtlasAsset, ensure_composed_enemy_parts, update_composed_enemy_visuals};
 
 /// Registers shared enemy behaviour systems and species handlers.
 #[derive(Activable)]
@@ -30,11 +36,15 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(JsonAssetPlugin::<CompositionAtlasAsset>::new(&[
+            "atlas.json",
+        ]));
         app.add_active_systems::<EnemyPlugin, _>(
             // Behaviour/animation updates only run while the enemy subsystem is active.
             (
                 check_no_behavior,
                 on_enemy_depth_changed,
+                on_composed_enemy_depth_changed,
                 tick_enemy_behavior_timer,
                 (
                     // Tied components
@@ -45,6 +55,13 @@ impl Plugin for EnemyPlugin {
                     assign_mosquito_animation,
                     check_idle_mosquito,
                     despawn_dead_mosquitoes,
+                ),
+                (
+                    // Mosquiton
+                    assign_mosquiton_animation,
+                    ensure_composed_enemy_parts,
+                    update_composed_enemy_visuals,
+                    despawn_dead_mosquitons,
                 ),
                 (
                     // Tardigrade

@@ -13,8 +13,10 @@ use crate::stage::{
         data::destructibles::DESTRUCTIBLE_ANIMATIONS,
     },
     enemy::{
+        composed::ComposedEnemyVisual,
         entity::EnemyType,
         mosquito::entity::{ENEMY_MOSQUITO_RADIUS, MosquitoBundle},
+        mosquiton::entity::MosquitonBundle,
         tardigrade::entity::{ENEMY_TARDIGRADE_RADIUS, TardigradeBundle},
     },
     player::{attacks::AttackHitTracker, components::PlayerAttack},
@@ -70,6 +72,7 @@ pub fn on_stage_spawn(
     trigger: On<StageSpawnEvent>,
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
     match &trigger.event().spawn {
@@ -78,7 +81,7 @@ pub fn on_stage_spawn(
         }
         StageSpawn::Enemy(x) => {
             let camera_pos = camera_query.single().unwrap();
-            spawn_enemy(&mut commands, camera_pos.0, x);
+            spawn_enemy(&mut commands, &asset_server, camera_pos.0, x);
         }
         StageSpawn::Object(x) => {
             spawn_object(&mut commands, &mut assets_sprite, x);
@@ -151,7 +154,12 @@ pub fn spawn_pickup(
     }
 }
 
-pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) -> Entity {
+pub fn spawn_enemy(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    offset: Vec2,
+    spawn: &EnemySpawn,
+) -> Entity {
     let EnemySpawn {
         enemy_type,
         coordinates,
@@ -177,6 +185,36 @@ pub fn spawn_enemy(commands: &mut Commands, offset: Vec2, spawn: &EnemySpawn) ->
                     behaviors,
                     position: PxSubPosition::from(position),
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                    default: default(),
+                })
+                .id();
+
+            if let Some(contains) = contains {
+                commands.entity(entity).insert(SpawnDrop {
+                    contains: *contains.clone(),
+                    entity,
+                });
+            }
+            entity
+        }
+        EnemyType::Mosquiton => {
+            let collider: Collider =
+                Collider::new_circle(ENEMY_MOSQUITO_RADIUS).with_offset(Vec2::new(0., 2.));
+            let critical_collider = collider.new_scaled(0.4).with_defense(0.4);
+
+            let entity = commands
+                .spawn(MosquitonBundle {
+                    behaviors,
+                    collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                    composed_visual: ComposedEnemyVisual::for_enemy(
+                        asset_server,
+                        EnemyType::Mosquiton,
+                        *depth,
+                        "idle_stand",
+                    ),
+                    depth: *depth,
+                    position: PxSubPosition::from(position),
+                    speed: Speed(*speed),
                     default: default(),
                 })
                 .id();
@@ -276,6 +314,7 @@ pub fn spawn_object(
 pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     mut attack_query: Query<&mut AttackHitTracker, With<PlayerAttack>>,
     query: Query<(&SpawnDrop, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
@@ -289,6 +328,7 @@ pub fn check_dead_drop(
             ),
             ContainerSpawn::Enemy(spawn) => spawn_enemy(
                 &mut commands,
+                &asset_server,
                 Vec2::ZERO,
                 &spawn.from_spawn(position.0, *depth),
             ),

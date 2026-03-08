@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum EnemyType {
     #[default]
     Mosquito,
+    Mosquiton,
     Spidey,
     Tardigrade,
     Marauder,
@@ -28,6 +29,7 @@ impl EnemyType {
     pub fn sprite_base_name(&self) -> &'static str {
         match self {
             EnemyType::Mosquito => "mosquito",
+            EnemyType::Mosquiton => "mosquiton",
             EnemyType::Spidey => "spidey",
             EnemyType::Tardigrade => "tardigrade",
             EnemyType::Marauder => "marauder",

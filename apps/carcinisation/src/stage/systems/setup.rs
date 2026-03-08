@@ -56,7 +56,7 @@ pub fn on_stage_startup(
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, Vec2::ZERO, spawn);
+                spawn_enemy(&mut commands, &asset_server, Vec2::ZERO, spawn);
             }
             StageSpawn::Object(spawn) => {
                 spawn_object(&mut commands, &mut assets_sprite, spawn);

@@ -2,6 +2,7 @@ use super::entity::{
     EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
 };
 use crate::pixel::{PxAssets, PxSpriteBundle};
+use crate::stage::enemy::mosquiton::entity::EnemyMosquiton;
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -42,7 +43,11 @@ pub fn assign_mosquito_animation(
             &EnemyMosquitoAttacking,
             &Depth,
         ),
-        (With<EnemyMosquito>, Without<EnemyMosquitoAnimation>),
+        (
+            With<EnemyMosquito>,
+            Without<EnemyMosquitoAnimation>,
+            Without<EnemyMosquiton>,
+        ),
     >,
     mut assets_sprite: PxAssets<PxSprite>,
 ) {
@@ -136,7 +141,10 @@ pub fn despawn_dead_mosquitoes(
     mut commands: Commands,
     assets_sprite: PxAssets<PxSprite>,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyMosquito, &PxSubPosition, &Depth), Added<Dead>>,
+    query: Query<
+        (Entity, &EnemyMosquito, &PxSubPosition, &Depth),
+        (Added<Dead>, Without<EnemyMosquiton>),
+    >,
 ) {
     for (entity, mosquito, position, depth) in query.iter() {
         commands.entity(entity).insert(DespawnMark);

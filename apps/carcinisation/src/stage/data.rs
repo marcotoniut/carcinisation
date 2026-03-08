@@ -356,6 +356,14 @@ impl EnemySpawn {
         }
     }
     #[must_use]
+    pub fn mosquiton_base() -> Self {
+        Self {
+            enemy_type: EnemyType::Mosquiton,
+            depth: Depth::Three,
+            ..Self::mosquito_base()
+        }
+    }
+    #[must_use]
     pub fn mosquito_variant_circle() -> Self {
         Self::mosquito_base().with_steps_vec(vec![
             EnemyStep::circle_around_base().with_radius(12.).into(),

@@ -1,0 +1,559 @@
+{
+  "schema_version": 1,
+  "entity": "mosquiton",
+  "depth": 3,
+  "source": "mosquiton_3.aseprite",
+  "canvas": {
+    "w": 95,
+    "h": 95
+  },
+  "origin": {
+    "x": 47,
+    "y": 43
+  },
+  "atlas_image": "atlas.png",
+  "parts": [
+    {
+      "id": "wing_r",
+      "name": "Wing R",
+      "draw_order": 4
+    },
+    {
+      "id": "wing_l",
+      "name": "Wing L",
+      "draw_order": 5
+    },
+    {
+      "id": "body",
+      "name": "Body",
+      "draw_order": 6
+    },
+    {
+      "id": "head",
+      "name": "Head",
+      "draw_order": 7
+    },
+    {
+      "id": "leg_r",
+      "name": "Leg R",
+      "draw_order": 8
+    },
+    {
+      "id": "leg_l",
+      "name": "Leg L",
+      "draw_order": 9
+    },
+    {
+      "id": "arm_r",
+      "name": "Arm R",
+      "draw_order": 10
+    },
+    {
+      "id": "arm_l",
+      "name": "Arm L",
+      "draw_order": 11
+    }
+  ],
+  "sprites": [
+    {
+      "id": "sprite_0000",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 20,
+        "h": 33
+      }
+    },
+    {
+      "id": "sprite_0001",
+      "rect": {
+        "x": 20,
+        "y": 0,
+        "w": 23,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0002",
+      "rect": {
+        "x": 43,
+        "y": 0,
+        "w": 13,
+        "h": 30
+      }
+    },
+    {
+      "id": "sprite_0003",
+      "rect": {
+        "x": 56,
+        "y": 0,
+        "w": 15,
+        "h": 28
+      }
+    },
+    {
+      "id": "sprite_0004",
+      "rect": {
+        "x": 71,
+        "y": 0,
+        "w": 16,
+        "h": 28
+      }
+    },
+    {
+      "id": "sprite_0005",
+      "rect": {
+        "x": 87,
+        "y": 0,
+        "w": 22,
+        "h": 31
+      }
+    },
+    {
+      "id": "sprite_0006",
+      "rect": {
+        "x": 0,
+        "y": 33,
+        "w": 23,
+        "h": 26
+      }
+    },
+    {
+      "id": "sprite_0007",
+      "rect": {
+        "x": 23,
+        "y": 33,
+        "w": 13,
+        "h": 23
+      }
+    },
+    {
+      "id": "sprite_0008",
+      "rect": {
+        "x": 36,
+        "y": 33,
+        "w": 15,
+        "h": 29
+      }
+    },
+    {
+      "id": "sprite_0009",
+      "rect": {
+        "x": 51,
+        "y": 33,
+        "w": 17,
+        "h": 26
+      }
+    },
+    {
+      "id": "sprite_0010",
+      "rect": {
+        "x": 68,
+        "y": 33,
+        "w": 13,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0011",
+      "rect": {
+        "x": 81,
+        "y": 33,
+        "w": 13,
+        "h": 16
+      }
+    }
+  ],
+  "animations": [
+    {
+      "tag": "idle_stand",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 0,
+          "duration_ms": 200,
+          "parts": [
+            {
+              "part_id": "wing_r",
+              "sprite_id": "sprite_0000",
+              "offset": {
+                "x": -19,
+                "y": -17
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_l",
+              "sprite_id": "sprite_0000",
+              "offset": {
+                "x": 0,
+                "y": -17
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "offset": {
+                "x": -11,
+                "y": -20
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "offset": {
+                "x": -6,
+                "y": -14
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0003",
+              "offset": {
+                "x": -19,
+                "y": 1
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0003",
+              "offset": {
+                "x": 5,
+                "y": 1
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0004",
+              "offset": {
+                "x": -24,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0004",
+              "offset": {
+                "x": 9,
+                "y": -11
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 1,
+          "duration_ms": 200,
+          "parts": [
+            {
+              "part_id": "wing_r",
+              "sprite_id": "sprite_0005",
+              "offset": {
+                "x": -21,
+                "y": -16
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_l",
+              "sprite_id": "sprite_0005",
+              "offset": {
+                "x": 0,
+                "y": -16
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0006",
+              "offset": {
+                "x": -11,
+                "y": -21
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0007",
+              "offset": {
+                "x": -6,
+                "y": -15
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0008",
+              "offset": {
+                "x": -19,
+                "y": 0
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0008",
+              "offset": {
+                "x": 5,
+                "y": 0
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0009",
+              "offset": {
+                "x": -25,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0009",
+              "offset": {
+                "x": 9,
+                "y": -11
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "shoot_stand",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 2,
+          "duration_ms": 200,
+          "parts": [
+            {
+              "part_id": "wing_r",
+              "sprite_id": "sprite_0005",
+              "offset": {
+                "x": -21,
+                "y": -16
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_l",
+              "sprite_id": "sprite_0005",
+              "offset": {
+                "x": 0,
+                "y": -16
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0006",
+              "offset": {
+                "x": -11,
+                "y": -21
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0010",
+              "offset": {
+                "x": -6,
+                "y": -15
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0008",
+              "offset": {
+                "x": -19,
+                "y": 0
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0008",
+              "offset": {
+                "x": 5,
+                "y": 0
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0009",
+              "offset": {
+                "x": -25,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0009",
+              "offset": {
+                "x": 9,
+                "y": -11
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 3,
+          "duration_ms": 200,
+          "parts": [
+            {
+              "part_id": "wing_r",
+              "sprite_id": "sprite_0000",
+              "offset": {
+                "x": -19,
+                "y": -17
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_l",
+              "sprite_id": "sprite_0000",
+              "offset": {
+                "x": 0,
+                "y": -17
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "offset": {
+                "x": -11,
+                "y": -20
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0011",
+              "offset": {
+                "x": -6,
+                "y": -15
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0003",
+              "offset": {
+                "x": -19,
+                "y": 1
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0003",
+              "offset": {
+                "x": 5,
+                "y": 1
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0004",
+              "offset": {
+                "x": -24,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0004",
+              "offset": {
+                "x": 9,
+                "y": -11
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "opacity": 255
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

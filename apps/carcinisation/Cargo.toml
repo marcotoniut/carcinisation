@@ -16,6 +16,7 @@ activable_macros = { path = "../../crates/activable_macros" }
 carcinisation_core = { path = "../../crates/carcinisation_core" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 cween = { path = "../../crates/cween" }
+asset_pipeline = { workspace = true }
 
 # Bevy ecosystem
 bevy = { workspace = true }
