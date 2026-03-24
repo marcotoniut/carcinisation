@@ -14,6 +14,7 @@ use crate::stage::{
     },
     enemy::{
         composed::{ComposedAnimationState, ComposedEnemyVisual},
+        data::mosquiton::TAG_IDLE_FLY,
         entity::EnemyType,
         mosquito::entity::{ENEMY_MOSQUITO_RADIUS, MosquitoBundle},
         mosquiton::entity::MosquitonBundle,
@@ -206,7 +207,7 @@ pub fn spawn_enemy(
                 .spawn(MosquitonBundle {
                     behaviors,
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    composed_animation: ComposedAnimationState::new("idle_stand"),
+                    composed_animation: ComposedAnimationState::new(TAG_IDLE_FLY),
                     composed_visual: ComposedEnemyVisual::for_enemy(
                         asset_server,
                         EnemyType::Mosquiton,

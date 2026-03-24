@@ -26,8 +26,9 @@ impl EnemyMosquiton {
 
 #[derive(Clone, Component, Debug, PartialEq, Eq, Reflect)]
 pub enum EnemyMosquitonAnimation {
-    IdleStand,
-    ShootStand,
+    IdleFly,
+    ShootFly,
+    MeleeFly,
 }
 
 #[derive(Bundle, Debug)]

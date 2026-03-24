@@ -1,13 +1,13 @@
 (
-    image: "sprites/enemies/mosquiton_3/atlas.png",
+    image: "sprites/enemies/mosquiton_3/atlas.runtime.png",
     regions: [
         (
-            frame_size: (20, 33),
+            frame_size: (39, 33),
             frames: [
                 (
                     x: 0,
                     y: 0,
-                    w: 20,
+                    w: 39,
                     h: 33,
                 ),
             ],
@@ -16,7 +16,7 @@
             frame_size: (23, 25),
             frames: [
                 (
-                    x: 20,
+                    x: 39,
                     y: 0,
                     w: 23,
                     h: 25,
@@ -27,7 +27,7 @@
             frame_size: (13, 30),
             frames: [
                 (
-                    x: 43,
+                    x: 62,
                     y: 0,
                     w: 13,
                     h: 30,
@@ -35,12 +35,254 @@
             ],
         ),
         (
-            frame_size: (15, 28),
+            frame_size: (39, 28),
             frames: [
                 (
-                    x: 56,
+                    x: 75,
                     y: 0,
-                    w: 15,
+                    w: 39,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (49, 28),
+            frames: [
+                (
+                    x: 114,
+                    y: 0,
+                    w: 49,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (41, 33),
+            frames: [
+                (
+                    x: 163,
+                    y: 0,
+                    w: 41,
+                    h: 33,
+                ),
+            ],
+        ),
+        (
+            frame_size: (23, 25),
+            frames: [
+                (
+                    x: 204,
+                    y: 0,
+                    w: 23,
+                    h: 25,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 28),
+            frames: [
+                (
+                    x: 227,
+                    y: 0,
+                    w: 13,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (43, 31),
+            frames: [
+                (
+                    x: 0,
+                    y: 33,
+                    w: 43,
+                    h: 31,
+                ),
+            ],
+        ),
+        (
+            frame_size: (23, 25),
+            frames: [
+                (
+                    x: 43,
+                    y: 33,
+                    w: 23,
+                    h: 25,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 26),
+            frames: [
+                (
+                    x: 66,
+                    y: 33,
+                    w: 13,
+                    h: 26,
+                ),
+            ],
+        ),
+        (
+            frame_size: (39, 29),
+            frames: [
+                (
+                    x: 79,
+                    y: 33,
+                    w: 39,
+                    h: 29,
+                ),
+            ],
+        ),
+        (
+            frame_size: (51, 26),
+            frames: [
+                (
+                    x: 118,
+                    y: 33,
+                    w: 51,
+                    h: 26,
+                ),
+            ],
+        ),
+        (
+            frame_size: (38, 28),
+            frames: [
+                (
+                    x: 169,
+                    y: 33,
+                    w: 38,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (50, 28),
+            frames: [
+                (
+                    x: 0,
+                    y: 64,
+                    w: 50,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (35, 28),
+            frames: [
+                (
+                    x: 50,
+                    y: 64,
+                    w: 35,
+                    h: 28,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 23),
+            frames: [
+                (
+                    x: 85,
+                    y: 64,
+                    w: 13,
+                    h: 23,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 16),
+            frames: [
+                (
+                    x: 98,
+                    y: 64,
+                    w: 13,
+                    h: 16,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 16),
+            frames: [
+                (
+                    x: 111,
+                    y: 64,
+                    w: 13,
+                    h: 16,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 27),
+            frames: [
+                (
+                    x: 124,
+                    y: 64,
+                    w: 13,
+                    h: 27,
+                ),
+            ],
+        ),
+        (
+            frame_size: (17, 26),
+            frames: [
+                (
+                    x: 137,
+                    y: 64,
+                    w: 17,
+                    h: 26,
+                ),
+            ],
+        ),
+        (
+            frame_size: (24, 13),
+            frames: [
+                (
+                    x: 154,
+                    y: 64,
+                    w: 24,
+                    h: 13,
+                ),
+            ],
+        ),
+        (
+            frame_size: (25, 13),
+            frames: [
+                (
+                    x: 178,
+                    y: 64,
+                    w: 25,
+                    h: 13,
+                ),
+            ],
+        ),
+        (
+            frame_size: (23, 25),
+            frames: [
+                (
+                    x: 203,
+                    y: 64,
+                    w: 23,
+                    h: 25,
+                ),
+            ],
+        ),
+        (
+            frame_size: (16, 18),
+            frames: [
+                (
+                    x: 226,
+                    y: 64,
+                    w: 16,
+                    h: 18,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 28),
+            frames: [
+                (
+                    x: 242,
+                    y: 64,
+                    w: 13,
                     h: 28,
                 ),
             ],
@@ -49,87 +291,98 @@
             frame_size: (16, 28),
             frames: [
                 (
-                    x: 71,
-                    y: 0,
+                    x: 0,
+                    y: 92,
                     w: 16,
                     h: 28,
                 ),
             ],
         ),
         (
-            frame_size: (22, 31),
+            frame_size: (22, 20),
             frames: [
                 (
-                    x: 87,
-                    y: 0,
+                    x: 16,
+                    y: 92,
                     w: 22,
-                    h: 31,
+                    h: 20,
                 ),
             ],
         ),
         (
-            frame_size: (23, 26),
+            frame_size: (31, 21),
+            frames: [
+                (
+                    x: 38,
+                    y: 92,
+                    w: 31,
+                    h: 21,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 30),
+            frames: [
+                (
+                    x: 69,
+                    y: 92,
+                    w: 13,
+                    h: 30,
+                ),
+            ],
+        ),
+        (
+            frame_size: (37, 25),
+            frames: [
+                (
+                    x: 82,
+                    y: 92,
+                    w: 37,
+                    h: 25,
+                ),
+            ],
+        ),
+        (
+            frame_size: (65, 19),
+            frames: [
+                (
+                    x: 119,
+                    y: 92,
+                    w: 65,
+                    h: 19,
+                ),
+            ],
+        ),
+        (
+            frame_size: (25, 32),
+            frames: [
+                (
+                    x: 184,
+                    y: 92,
+                    w: 25,
+                    h: 32,
+                ),
+            ],
+        ),
+        (
+            frame_size: (49, 28),
             frames: [
                 (
                     x: 0,
-                    y: 33,
-                    w: 23,
-                    h: 26,
+                    y: 124,
+                    w: 49,
+                    h: 28,
                 ),
             ],
         ),
         (
-            frame_size: (13, 23),
+            frame_size: (69, 12),
             frames: [
                 (
-                    x: 23,
-                    y: 33,
-                    w: 13,
-                    h: 23,
-                ),
-            ],
-        ),
-        (
-            frame_size: (15, 29),
-            frames: [
-                (
-                    x: 36,
-                    y: 33,
-                    w: 15,
-                    h: 29,
-                ),
-            ],
-        ),
-        (
-            frame_size: (17, 26),
-            frames: [
-                (
-                    x: 51,
-                    y: 33,
-                    w: 17,
-                    h: 26,
-                ),
-            ],
-        ),
-        (
-            frame_size: (13, 16),
-            frames: [
-                (
-                    x: 68,
-                    y: 33,
-                    w: 13,
-                    h: 16,
-                ),
-            ],
-        ),
-        (
-            frame_size: (13, 16),
-            frames: [
-                (
-                    x: 81,
-                    y: 33,
-                    w: 13,
-                    h: 16,
+                    x: 49,
+                    y: 124,
+                    w: 69,
+                    h: 12,
                 ),
             ],
         ),
@@ -147,5 +400,28 @@
         "sprite_0009": 9,
         "sprite_0010": 10,
         "sprite_0011": 11,
+        "sprite_0012": 12,
+        "sprite_0013": 13,
+        "sprite_0014": 14,
+        "sprite_0015": 15,
+        "sprite_0016": 16,
+        "sprite_0017": 17,
+        "sprite_0018": 18,
+        "sprite_0019": 19,
+        "sprite_0020": 20,
+        "sprite_0021": 21,
+        "sprite_0022": 22,
+        "sprite_0023": 23,
+        "sprite_0024": 24,
+        "sprite_0025": 25,
+        "sprite_0026": 26,
+        "sprite_0027": 27,
+        "sprite_0028": 28,
+        "sprite_0029": 29,
+        "sprite_0030": 30,
+        "sprite_0031": 31,
+        "sprite_0032": 32,
+        "sprite_0033": 33,
+        "sprite_0034": 34,
     },
 )
