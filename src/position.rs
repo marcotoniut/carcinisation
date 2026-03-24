@@ -54,6 +54,11 @@ impl From<IVec2> for PxPosition {
 /// or derive/implement the required traits manually. The layers will be rendered in the order
 /// defined by the [`PartialOrd`] implementation. So, lower values will be in the back
 /// and vice versa.
+///
+// TODO: For games with fixed enum layers, an opt-in `DenseLayer` trait that maps variants to
+// `usize` would allow the collect phase in `screen/node.rs` to use pre-sized `Vec` storage
+// instead of `BTreeMap`, eliminating tree operations entirely. This should be kept opt-in so
+// the default `PxLayer` API remains ergonomic for parameterized layer types like `Layer(i32)`.
 #[cfg(feature = "headed")]
 pub trait PxLayer:
     ExtractComponent + Component<Mutability = Mutable> + Next + Ord + Clone + Default + Debug

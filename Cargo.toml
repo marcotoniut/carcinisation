@@ -28,11 +28,7 @@ line = ["line_drawing"]
 profiling_spans = []
 reflect = []
 brp_extras = ["headed", "reflect", "dep:bevy_brp_extras"]
-# Backward-compatible no-op feature. Navigation integration moved out of core.
-nav = []
 particle = ["bevy_turborand"]
-# Backward-compatible no-op feature. State-machine integration moved out of core.
-state = []
 
 [dependencies]
 next = "0.2.0"

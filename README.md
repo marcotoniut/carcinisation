@@ -1,169 +1,50 @@
-# `carapace`
+# carapace
 
-[![Crates.io](https://img.shields.io/crates/v/carapace.svg)](https://crates.io/crates/carapace)
-[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Seldom-SE/carapace#license)
-[![Crates.io](https://img.shields.io/crates/d/carapace.svg)](https://crates.io/crates/carapace)
+Pixel rendering engine for limited-palette games built on [Bevy](https://bevyengine.org/).
+Forked from [Seldom-SE/seldom_pixel](https://github.com/Seldom-SE/seldom_pixel) and adapted
+for the carcinisation project.
 
-`carapace` is a Bevy plugin for limited color palette pixel art games. It handles:
+## Features
 
-- Sprites
-- Filters (defined through images; apply to layers or individual entities)
-- Simple UI (text, buttons, and sprites locked to the camera)
-- Tilemaps
-- Animations (for sprites, filters, tilesets, and text; supports dithering!)
-- Custom layers
-- Particles (with pre-simulation! Enable `particle` feature)
-- Palette changing
-- Typefaces
-- An in-game cursor
-- Camera
-- Lines (enable `line` feature)
-- And more to come!
-
-See the `examples` directory for examples. If you need help, feel free to ping me
-on [the Bevy Discord server](https://discord.com/invite/bevy) (`@Seldom`)! If any of the docs
-need improvement, feel free to submit an issue or pr!
-
-## Philosophies
-
-- Assets are normal images
-
-All assets, including filters, are loaded from images. `carapace`'s scope is limited
-to rendered things, so this doesn't apply to things like levels and sounds. I recommend
-finding an art program you're comfortable with. Personally, I use [GIMP](https://www.gimp.org/),
-but it can be difficult to figure out. I hear good things
-about [Aseprite](https://github.com/aseprite/aseprite/), which you can use for free if you
-can compile it. I've only used this plugin on `.png` files, so I recommend using that format,
-but feel free to try it on other lossless formats.
-
-- What you see is what you get
-
-This crate's position component, `PxPosition`, uses an `IVec2` (2-dimensional `i32` vector)
-to store positions. This means that entities are located at exact pixel positions.
-So, if it looks like the player is up against a wall, or a projectile hit an enemy, then the game
-will respond like that's true. There is also a `SubPxPosition` component, which uses a `Vec2`,
-for features like movement and velocity. It automatically updates the `PxPosition` component,
-which I recommend using when possible. I also recommend resetting the `SubPxPosition`
-to `PxPosition`'s value when it stops moving, so moving objects feel consistent to the player.
-This is less of a concern for games with smaller pixels.
-
-- Trade versatility for productivity
-
-If you are already interested in making a limited color palette pixel art game,
-this is an easy win for you. Filters in `carapace` are just maps from each color
-in the palette to another color in the palette. Filters like this would be difficult to create
-for each of the 16,777,216 RGB colors, but `carapace` only allows up to 255 colors
-in your palette (and you will likely want to use fewer), so it's easy to create effects.
-This also applies on the library-development end too. The limitations of `carapace` mean
-I only need to make its features work for 2D games that use bytes for pixels, so it's easier
-to develop and maintain. Anyway, limitations can incite creativity.
-
-## Future Work
-
-- [x] Advanced UI, good enough to build a UI library on
-- [ ] More advanced particle system
-- [x] More shape primitives
-- [ ] Spatial filters that can filter defined areas, and apply their animations over space
-      instead of time. For effects like lighting and bloom.
-- [x] Make the rendering happen in the render world
+- Palette-indexed sprite rendering with CPU compositing
+- Sprite atlases (`.px_atlas.ron`) with region-based sprite sheets
+- Composite sprites for multi-part characters with per-part animation
+- Layer-based rendering with filter effects (per-entity or per-layer)
+- Tilemaps with per-tile filters
+- Typeface-based text rendering
+- Particle system (`particle` feature)
+- Line drawing (`line` feature)
+- Pixel-perfect picking
+- Camera and UI system
+- GPU palette pass (`gpu_palette` feature, experimental)
+- BRP integration for tooling (`brp_extras` feature)
+- Tracing instrumentation (`profiling_spans` feature)
 
 ## Usage
 
-Add to your `Cargo.toml`
+This crate is vendored as a workspace member. Add it as a path dependency:
 
 ```toml
-# Replace * with your desired version
 [dependencies]
-carapace = "*"
+carapace = { path = "../carapace", features = ["line", "reflect"] }
 ```
 
-Then add `PxPlugin` to your app. Check out the examples for further usage.
+Then add `PxPlugin` to your app:
 
-### GPU palette path (experimental)
+```rust
+use carapace::prelude::*;
 
-Enable the `gpu_palette` feature and add `PxGpuSprite` or `PxGpuComposite` to entities you want
-rendered via the GPU palette pass. Filters and dithering are not supported on this path yet.
-
-### Profiling spans
-
-Enable `profiling_spans` to emit tracing spans/events in hot systems for performance profiling.
-This feature is opt-in and disabled by default.
-
-Enable `brp_extras` to auto-register `BrpExtrasPlugin` from `bevy_brp_extras`. This is opt-in
-and intended for BRP tooling workflows (e.g., screenshot/shutdown/input control).
-On native targets, `BrpExtrasPlugin` wires BRP HTTP transport; on wasm targets, you still need
-to provide your own BRP transport.
-
-### BRP extras examples
-
-Run a dedicated BRP screenshot example:
-
-```bash
-cargo run --example brp_screenshot --features brp_extras
+app.add_plugins(PxPlugin::<Layer>::new(UVec2::new(320, 180), "palette/palette.palette.png"));
 ```
 
-Run on a custom BRP port:
+See the `examples/` directory for usage patterns.
 
-```bash
-BRP_EXTRAS_PORT=15703 cargo run --example brp_screenshot --features brp_extras
-```
+## Bevy compatibility
 
-Capture a screenshot through BRP (saved under `tmp/`, which is gitignored):
-
-```bash
-mkdir -p tmp
-curl -s http://127.0.0.1:15702/jsonrpc \
-  -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"brp_extras/screenshot","params":{"path":"tmp/brp-screenshot.png"}}'
-```
-
-Commit example screenshot baselines under `screenshots/examples/`:
-
-```bash
-cargo xtask screenshots text
-cargo xtask screenshots
-```
-
-If your first run is compiling many crates, you can increase BRP wait timeout:
-
-```bash
-XTASK_BRP_TIMEOUT_SECS=600 cargo xtask screenshots text
-```
-
-### Quick checks
-
-This repo includes cargo aliases in `.cargo/config.toml` for faster local verification:
-
-```bash
-cargo check-quick
-cargo test-quick
-cargo verify-quick
-cargo example-brp
-```
-
-## Compatibility
-
-| Bevy | `seldom_interop` | `bevy_ecs_tilemap` | `carapace` |
-| ---- | ---------------- | ------------------ | -------------- |
-| 0.15 |                  |                    | 0.8            |
-| 0.14 |                  |                    | 0.7            |
-| 0.13 |                  |                    | 0.6            |
-| 0.12 | 0.5              | 0.12               | 0.5            |
-| 0.11 | 0.4              | 0.11               | 0.4            |
-| 0.10 | 0.3              | 0.10               | 0.3            |
-| 0.10 | 0.3              | 0.10               | 0.2            |
-| 0.8  | 0.1              | 0.7                | 0.1            |
+| Bevy | carapace |
+| ---- | -------- |
+| 0.18 | current  |
 
 ## License
 
-`carapace` is dual-licensed under MIT and Apache 2.0 at your option.
-
-## Contributing
-
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion
-in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above,
-without any additional terms or conditions.
-
-## Demo Video
-
-[![Demo video](https://img.youtube.com/vi/pmTPdGxYVYw/maxresdefault.jpg)](https://youtu.be/pmTPdGxYVYw)
+Dual-licensed under MIT and Apache 2.0. See `LICENSE-MIT` and `LICENSE-APACHE`.

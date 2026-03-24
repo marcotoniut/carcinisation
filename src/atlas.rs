@@ -1,5 +1,9 @@
 //! Sprite atlas assets (metadata + palette-indexed image data).
-//! Atlas metadata is loaded from `.px_atlas.ron` and references the atlas image by asset path.
+//! Atlas metadata is loaded from `.px_atlas.ron`.
+//!
+//! The `image` field in `.px_atlas.ron` must be a Bevy asset-server path relative to the game's
+//! asset root. It is not resolved relative to the `.px_atlas.ron` file itself, and absolute
+//! filesystem paths are not supported.
 
 use std::{collections::BTreeMap, error::Error, path::PathBuf};
 
@@ -45,6 +49,9 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
 
 #[derive(Serialize, Deserialize)]
 struct PxSpriteAtlasDescriptor {
+    // Asset-server path to the atlas image, relative to the game asset root.
+    // This is not resolved relative to the `.px_atlas.ron` file location.
+    // Absolute filesystem paths are not supported.
     image: PathBuf,
     regions: Vec<AtlasRegionDescriptor>,
     #[serde(default)]
@@ -94,6 +101,8 @@ impl AssetLoader for PxSpriteAtlasLoader {
         let image = load_context
             .loader()
             .immediate()
+            // `descriptor.image` is a Bevy asset path relative to the asset root.
+            // It is intentionally not resolved relative to the `.px_atlas.ron` file path.
             .load::<Image>(descriptor.image.clone())
             .await
             .map_err(|err| err.to_string())?;
@@ -146,6 +155,11 @@ impl RenderAsset for PxSpriteAtlasAsset {
 }
 
 /// A palette-indexed sprite atlas.
+///
+/// Atlas assets are loaded from `.px_atlas.ron` metadata. The metadata `image` field must be an
+/// asset-server path relative to the game asset root. It is not interpreted relative to the
+/// `.px_atlas.ron` file, and absolute filesystem paths are not supported.
+///
 /// Rects use atlas image coordinates with the origin at the top-left.
 #[derive(Asset, Clone, Reflect, Debug)]
 pub struct PxSpriteAtlasAsset {

@@ -41,25 +41,51 @@ use super::{
     pipeline::{PxPipeline, PxRenderBuffer, PxUniformBuffer},
 };
 
+/// Resolves filter layer targets against a pre-built ordered layer index.
+///
+/// Uses binary search (`partition_point`) for `Range` variants, giving `O(log L + K)` cost
+/// instead of the previous `O(L)` full-scan approach. The `ordered_layers` slice must be
+/// sorted (which it is, since it comes from `BTreeMap::keys`).
 fn resolve_filter_layers<L: PxLayer>(
     out: &mut Vec<(L, bool)>,
     layers: &PxFilterLayers<L>,
-    layer_contents: &LayerContentsMap<'_, L>,
+    ordered_layers: &[L],
 ) {
     out.clear();
     match layers {
         PxFilterLayers::Single { layer, clip } => out.push((layer.clone(), *clip)),
-        // TODO: Revisit range resolution so it can target layers not yet extracted.
-        // Current behavior only targets layers already extracted into `layer_contents`.
-        PxFilterLayers::Range(range) => out.extend(
-            layer_contents
-                .keys()
-                .filter(|layer| range.contains(layer))
-                .map(|layer| (layer.clone(), true)),
-        ),
+        PxFilterLayers::Range(range) => {
+            let start = ordered_layers.partition_point(|l| l < range.start());
+            let end = start + ordered_layers[start..].partition_point(|l| l <= range.end());
+            out.extend(
+                ordered_layers[start..end]
+                    .iter()
+                    .map(|layer| (layer.clone(), true)),
+            );
+        }
         PxFilterLayers::Many(layers) => {
             out.extend(layers.iter().map(|layer| (layer.clone(), true)));
         }
+    }
+}
+
+/// Pre-registers layers referenced by `Single` and `Many` filter targets so they are present
+/// in the layer map before the ordered index is built. `Range` targets are not pre-registered
+/// because they resolve against the discovered set.
+fn preregister_filter_layer<L: PxLayer>(
+    layers: &PxFilterLayers<L>,
+    layer_contents: &mut LayerContentsMap<'_, L>,
+) {
+    match layers {
+        PxFilterLayers::Single { layer, .. } => {
+            layer_contents.entry(layer.clone()).or_default();
+        }
+        PxFilterLayers::Many(ls) => {
+            for l in ls {
+                layer_contents.entry(l.clone()).or_default();
+            }
+        }
+        PxFilterLayers::Range(_) => {}
     }
 }
 
@@ -255,30 +281,64 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 .push(text);
         }
 
+        // === Two-phase filter extraction ===
+        // Phase 1: buffer rect/line/filter entities and pre-register their explicit layer targets.
+        // This ensures Range resolution in phase 2 sees the complete set of layers.
+        let pending_rects: Vec<_> = self
+            .rects
+            .iter_manual(world)
+            .map(
+                |(&rect, filter, layers, &pos, &anchor, &canvas, animation, invert)| {
+                    preregister_filter_layer(layers, &mut layer_contents);
+                    (
+                        (rect, filter, pos, anchor, canvas, animation, invert),
+                        layers,
+                    )
+                },
+            )
+            .collect();
+
+        #[cfg(feature = "line")]
+        let pending_lines: Vec<_> = self
+            .lines
+            .iter_manual(world)
+            .map(|(line, filter, layers, &canvas, animation, invert)| {
+                preregister_filter_layer(layers, &mut layer_contents);
+                ((line, filter, canvas, animation, invert), layers)
+            })
+            .collect();
+
+        let pending_filters: Vec<_> = self
+            .filters
+            .iter_manual(world)
+            .map(|(filter, layers, animation)| {
+                preregister_filter_layer(layers, &mut layer_contents);
+                ((filter, animation), layers)
+            })
+            .collect();
+
+        // Phase 2: build ordered layer index and resolve pending filters.
+        let ordered_layers: Vec<L> = layer_contents.keys().cloned().collect();
         let mut resolved_filter_layers = Vec::with_capacity(8);
-        for (&rect, filter, layers, &pos, &anchor, &canvas, animation, invert) in
-            self.rects.iter_manual(world)
-        {
-            resolve_filter_layers(&mut resolved_filter_layers, layers, &layer_contents);
+
+        for (rect, layers) in pending_rects {
+            resolve_filter_layers(&mut resolved_filter_layers, layers, &ordered_layers);
 
             for (layer, clip) in &resolved_filter_layers {
-                let rect = (rect, filter, pos, anchor, canvas, animation, invert);
                 #[cfg(feature = "gpu_palette")]
                 {
                     layer_set.insert(layer.clone());
                 }
                 layer_contents
-                    .entry(layer.clone())
-                    .or_default()
+                    .get_mut(layer)
+                    .unwrap()
                     .push_rect(rect, *clip);
             }
         }
 
         #[cfg(feature = "line")]
-        for (line, filter, layers, &canvas, animation, invert) in self.lines.iter_manual(world) {
-            let line = (line, filter, canvas, animation, invert);
-
-            resolve_filter_layers(&mut resolved_filter_layers, layers, &layer_contents);
+        for (line, layers) in pending_lines {
+            resolve_filter_layers(&mut resolved_filter_layers, layers, &ordered_layers);
 
             for (layer, clip) in &resolved_filter_layers {
                 #[cfg(feature = "gpu_palette")]
@@ -286,16 +346,14 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                     layer_set.insert(layer.clone());
                 }
                 layer_contents
-                    .entry(layer.clone())
-                    .or_default()
+                    .get_mut(layer)
+                    .unwrap()
                     .push_line(line, *clip);
             }
         }
 
-        for (filter, layers, animation) in self.filters.iter_manual(world) {
-            let filter = (filter, animation);
-
-            resolve_filter_layers(&mut resolved_filter_layers, layers, &layer_contents);
+        for (filter, layers) in pending_filters {
+            resolve_filter_layers(&mut resolved_filter_layers, layers, &ordered_layers);
 
             for (layer, clip) in &resolved_filter_layers {
                 #[cfg(feature = "gpu_palette")]
@@ -303,8 +361,8 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                     layer_set.insert(layer.clone());
                 }
                 layer_contents
-                    .entry(layer.clone())
-                    .or_default()
+                    .get_mut(layer)
+                    .unwrap()
                     .push_filter(filter, *clip);
             }
         }
@@ -447,50 +505,82 @@ mod tests {
         Front,
     }
 
-    #[test]
-    fn resolve_filter_layers_single_preserves_clip_flag() {
-        let mut out = Vec::new();
-        let layer_contents: LayerContentsMap<'static, TestLayer> = BTreeMap::new();
+    /// Richer layer enum for testing binary search with gaps.
+    #[cfg_attr(
+        feature = "headed",
+        derive(bevy_render::extract_component::ExtractComponent)
+    )]
+    #[derive(Component, next::Next, Ord, PartialOrd, Eq, PartialEq, Clone, Default, Debug)]
+    #[next(path = next::Next)]
+    enum WideLayer {
+        #[default]
+        L0,
+        L1,
+        L2,
+        L3,
+        L4,
+        L5,
+        L6,
+        L7,
+    }
 
+    #[test]
+    fn resolve_single_preserves_clip() {
+        let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
             &PxFilterLayers::Single {
                 layer: TestLayer::Mid,
                 clip: false,
             },
-            &layer_contents,
+            &[],
         );
-
         assert_eq!(out, vec![(TestLayer::Mid, false)]);
     }
 
     #[test]
-    fn resolve_filter_layers_range_uses_existing_layer_keys() {
+    fn resolve_range_subset() {
         let mut out = Vec::new();
-        let mut layer_contents: LayerContentsMap<'static, TestLayer> = BTreeMap::new();
-        layer_contents.insert(TestLayer::Back, draw::LayerContents::default());
-        layer_contents.insert(TestLayer::Front, draw::LayerContents::default());
-
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Range(TestLayer::Back..=TestLayer::Front),
-            &layer_contents,
+            &PxFilterLayers::Range(TestLayer::Mid..=TestLayer::Front),
+            &[TestLayer::Back, TestLayer::Mid, TestLayer::Front],
         );
-
-        assert_eq!(out, vec![(TestLayer::Back, true), (TestLayer::Front, true)]);
+        assert_eq!(out, vec![(TestLayer::Mid, true), (TestLayer::Front, true)]);
     }
 
     #[test]
-    fn resolve_filter_layers_many_keeps_declared_order() {
+    fn resolve_range_empty_when_no_layers_in_range() {
         let mut out = Vec::new();
-        let layer_contents: LayerContentsMap<'static, TestLayer> = BTreeMap::new();
+        resolve_filter_layers(
+            &mut out,
+            &PxFilterLayers::Range(TestLayer::Mid..=TestLayer::Front),
+            &[TestLayer::Back],
+        );
+        assert!(out.is_empty());
+    }
 
+    #[test]
+    fn resolve_range_sparse() {
+        // Range boundaries (L2, L6) don't exist in the ordered set — tests that
+        // partition_point correctly handles gaps without leaking adjacent layers.
+        let mut out = Vec::new();
+        resolve_filter_layers(
+            &mut out,
+            &PxFilterLayers::Range(WideLayer::L2..=WideLayer::L6),
+            &[WideLayer::L1, WideLayer::L3, WideLayer::L5, WideLayer::L7],
+        );
+        assert_eq!(out, vec![(WideLayer::L3, true), (WideLayer::L5, true)]);
+    }
+
+    #[test]
+    fn resolve_many_keeps_declared_order() {
+        let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
             &PxFilterLayers::Many(vec![TestLayer::Front, TestLayer::Back, TestLayer::Mid]),
-            &layer_contents,
+            &[],
         );
-
         assert_eq!(
             out,
             vec![
@@ -499,5 +589,66 @@ mod tests {
                 (TestLayer::Mid, true)
             ]
         );
+    }
+
+    #[test]
+    fn resolve_clears_previous_results() {
+        let mut out = Vec::new();
+        resolve_filter_layers(
+            &mut out,
+            &PxFilterLayers::Range(TestLayer::Back..=TestLayer::Front),
+            &[TestLayer::Back, TestLayer::Mid, TestLayer::Front],
+        );
+        assert_eq!(out.len(), 3);
+
+        // Second call must not retain stale data from the first.
+        resolve_filter_layers(
+            &mut out,
+            &PxFilterLayers::Single {
+                layer: TestLayer::Mid,
+                clip: false,
+            },
+            &[],
+        );
+        assert_eq!(out, vec![(TestLayer::Mid, false)]);
+    }
+
+    #[test]
+    fn two_phase_range_sees_preregistered_layers() {
+        // The core correctness test: a Range must include layers introduced by
+        // Single and Many pre-registration, not just base content.
+        let mut lc: LayerContentsMap<'static, WideLayer> = BTreeMap::new();
+
+        // Base content on L0 and L7 only.
+        lc.insert(WideLayer::L0, draw::LayerContents::default());
+        lc.insert(WideLayer::L7, draw::LayerContents::default());
+
+        // A Single target introduces L2.
+        preregister_filter_layer(
+            &PxFilterLayers::Single {
+                layer: WideLayer::L2,
+                clip: true,
+            },
+            &mut lc,
+        );
+
+        // A Many target introduces L4 and L6.
+        preregister_filter_layer(
+            &PxFilterLayers::Many(vec![WideLayer::L4, WideLayer::L6]),
+            &mut lc,
+        );
+
+        // A Range pre-registers nothing (by design).
+        let range = PxFilterLayers::Range(WideLayer::L1..=WideLayer::L5);
+        preregister_filter_layer(&range, &mut lc);
+
+        // Build ordered index after all pre-registration.
+        let ordered: Vec<WideLayer> = lc.keys().cloned().collect();
+        let mut out = Vec::new();
+        resolve_filter_layers(&mut out, &range, &ordered);
+
+        // Range(L1..=L5) should find L2 (from Single) and L4 (from Many),
+        // but not L0, L6, or L7.
+        assert_eq!(out, vec![(WideLayer::L2, true), (WideLayer::L4, true)]);
     }
 }

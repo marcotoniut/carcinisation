@@ -1,158 +1,45 @@
 # Changelog
 
-## 0.9.0-dev (Unreleased)
+## Unreleased
 
 ### Added
 
-- Frame view/control API: `PxFrameView`, `PxFrameControl`, `PxFrameSelector`, `PxFrameTransition`, and
-  `PxFrame` alias for manual or externally-driven frame selection.
-- `PxAnimationPlugin` so animation systems are opt-in.
-- Pixel-perfect sprite picking with `PxPixelPick` (uses the current frame, including dithering).
-- `gpu_palette` feature with `PxGpuSprite` and a GPU sprite pass (sprites only; filters and dithering
-  are not supported yet). See `ARCHITECTURE_REVIEW.md` for details.
-- New examples: `pixel_pick` and `gpu_palette`.
+- Sprite atlas assets (`.px_atlas.ron`) with region-based sprite sheets and animation.
+- Composite sprites (`PxCompositeSprite`) for multi-part characters with per-part animation.
+- Frame view/control API (`PxFrameView`, `PxFrameControl`, `PxFrameSelector`,
+  `PxFrameTransition`, `PxFrame`) for manual or externally-driven frame selection.
+- `PxAnimationPlugin` — animation systems are now opt-in.
+- Pixel-perfect sprite picking with `PxPixelPick`.
+- `gpu_palette` feature with `PxGpuSprite` GPU sprite pass.
+- `PxHeadlessPlugin` for integration tests and server builds.
+- `Reflect` derives and feature-gated type registration (`reflect` feature).
+- `brp_extras` feature for Bevy Remote Protocol integration.
+- `profiling_spans` feature for tracing instrumentation.
 
 ### Changed
 
-- Animation systems are no longer part of `PxPlugin`; add `PxAnimationPlugin` explicitly.
-- Rendering now reuses screen buffers across frames to reduce allocations.
-- `PxFilterLayers` gained helper constructors for common layer/filter patterns.
+- Upgraded to Bevy 0.18.
+- Two-phase filter extraction: `PxFilterLayers::Range` now resolves against the complete
+  layer set instead of only layers collected so far. Range resolution uses binary search
+  (`O(log L + K)`) instead of linear scan (`O(L)`).
+- Rendering reuses screen buffers across frames.
+- `PxFilterLayers` gained helper constructors (`single_clip`, `single_over`, `range_clip`,
+  `many_clip`).
+- Screen and UI code split into submodules.
 
 ### Fixed
 
 - `PxImage::trim_right` no longer risks shrinking to zero width.
-- Palette loading now reports conversion errors and rejects palettes with more than 255 colors.
+- Palette loading reports conversion errors and rejects palettes with more than 255 colors.
+- Render-entity remapping for maps and picking.
+- Input/event handling hardened for particle emitters.
 
 ### Performance
 
-- Eliminated per-call allocations in `PxImageSliceMut::for_each_mut`.
-- `PxRect` and `PxLine` drawing now iterates only over affected pixels instead of the full screen.
-
-## 0.8 (2025-01-01)
-
-### Added
-
-- `PxSprite` and `PxFilter` components to be used instead of `Handle<Px{Sprite,Filter}Asset>` (which
-  were called `Handle<Px{Sprite,Filter}>`)
-- `PxAnimation` component
-- `PxMap` component, which contains `PxTiles`, which was previously called `PxMap` and is no longer
-  a component
-- `ScreenSize` enum, with a variant that allows dynamically changing draw resolution as the window's
-  aspect ratio changes. `PxPlugin` now accepts an `impl Into<ScreenSize>` for the screen size (which
-  may be a `UVec2`, like before).
-- `PaletteHandle` resources, which contains the current `Handle<Palette>`
-- `SelectLayerFn` trait, which layer selection functions must now implement. It has the additional
-  bound of `Clone`.
-- `PaletteLoader` (`.px_palette.png`), `PxSpriteLoader` (`.px_sprite.png`), `PxFilterLoader`
-  (`.px_filter.png`), `PxTypefaceLoader` (`.px_typeface.png`) and `PxTilesetLoader`
-  (`.px_tileset.png`)
-- `PxButtonSprite` and `PxButtonFilter` components
-- `Orthogonal` and `Diagonal` math types
-
-### Changed
-
-- Updated `bevy` to 0.15
-- `carapace` entities are extracted to the render world and drawn there. Involved components
-  implement `ExtractComponent` and involved resources implement `ExtractResource`. Due to this change,
-  entities on the same layer Z-fight. This behavior may change in the future.
-- `PxSpriteData`, `PxFilter`, and `PxTilesetData` are now called `PxSpriteAsset`, `PxFilterAsset`,
-  and `PxTileset` respectively
-- `PxAnimationDirection`, `PxAnimationDuration`, `PxAnimationFinishBehavior`, and
-  `PxAnimationFrameTransition` are no longer components and are instead fields of the new
-  `PxAnimation` component
-- `PxText` has a `Handle<PxTypeface>` component, replacing the handle's use as a component
-- `PxEmitterFrequency` and `PxEmitterSimulation` are no longer components and are instead fields of
-  the new `PxEmitter` component
-- `Palette` is an asset instead of a resource
-- `#[px_layer]` derives `ExtractComponent`
-- `PxAnimationFinished`, `PxHover`, and `PxClick` are table components. They were sparse set.
-
-### Removed
-
-- The built-in asset management (`PxAsset`, `PxAssets`, `PxAssetTrait`, `PxAssetData`, and
-  `LoadingAssets`) in favor of the new asset loaders.
-- Bundles (`PxSpriteBundle`, `PxFilterBundle`, `PxAnimationBundle`, `PxTextBundle`, `PxMapBundle`,
-  `PxTileBundle`, `PxEmitterBundle`, `PxButtonSpriteBundle`, and `PxButtonFilterBundle`) in favor of
-  required components
-- `PxEmitterSprites`, `PxEmitterRange`, and `PxEmitterFn` in favor of `Vec<Handle<PxSprite>>`,
-  `IRect`, and `Box<dyn Fn(&mut EntityCommands) + Send + Sync>` fields in `PxEmitter`
-- `PxIdleSprite`, `PxHoverSprite`, and `PxClickSprite` in favor of `PxButtonSprite`
-- `PxIdleFilter`, `PxHoverFilter`, and `PxClickFilter` in favor of `PxButtonFilter`
-- `PxAnimationStart` in favor of an `Instant` field in `PxAnimation`
-- Vestigial variants of `PxSet` (`Unloaded`, `Loaded`, `LoadAssets`, `Draw`, and `DrawCursor`)
-
-## 0.7 (2024-07-09)
-
-### Changed
-
-- Updated `bevy` to 0.14
-
-### Removed
-
-- `seldom_fn_plugin` integration
-
-## 0.6.1 (2024-05-30)
-
-### Fixed
-
-- Fixed crash when drawing lines against the bounds of the screen
-
-## 0.6 (2024-05-07)
-
-### Changed
-
-- Updated `bevy` to 0.13
-- Replaced `bevy_ecs_tilemap` with built-in tilemap
-
-## 0.5 (2024-02-16)
-
-### Added
-
-- `RectExt` extension trait for `IRect`, with some helper functions
-
-### Changed
-
-- Updated `bevy` to 0.12
-
-### Removed
-
-- `URect` and `IRect` in favor of `bevy`'s types of the same names
-
-## 0.4 (2023-08-06)
-
-### Changed
-
-- Updated `bevy` to 0.11
-
-## 0.3 (2023-05-07)
-
-### Changed
-
-- Updated `seldom_state` to 0.6
-
-## 0.2.2 (2023-04-24)
-
-### Fixed
-
-- In wasm, spawning a particle emitter with pre-simulation too soon after startup caused a panic
-
-## 0.2.1 (2023-04-15)
-
-### Fixed
-
-- Some setups had compile errors
-- Wasm builds do not run (not fixed with the `particle` feature)
-
-## 0.2 (2023-03-27)
-
-### Changed
-
-- Updated `bevy` to 0.10
-- Text is drawn within a `PxRect` component
-- Text requires `PxCanvas`
-
-## 0.1.1 (2022-11-06)
-
-### Fixed
-
-- Animations spasmed when `PxAnimationBundle` is added, removed, and then added again
+- Two-phase filter extraction with indexed range resolution (3-4x for range-heavy scenes).
+- Per-call allocations eliminated in `PxImageSliceMut::for_each_mut`.
+- `PxRect` and `PxLine` drawing iterates only affected pixels.
+- UI layout/caret/key/scroll systems gated with run conditions.
+- GPU sprite node preallocates frame buffers.
+- Map tile change detection with render-entity remap.
+- Named `LayerContents` struct replaces anonymous tuples.

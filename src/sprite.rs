@@ -349,6 +349,7 @@ pub(crate) enum PxResolvedCompositePart<'a> {
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum PxCompositePartResolveError {
     MissingSpriteAsset(Handle<PxSpriteAsset>),
     MissingAtlasAsset(Handle<PxSpriteAtlasAsset>),
