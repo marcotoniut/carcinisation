@@ -28,7 +28,8 @@ use std::{
 const DEFAULT_PART_GROUP: &str = "base";
 const DEFAULT_ORIGIN_SLICE: &str = "origin";
 const CURRENT_SCHEMA_VERSION: u32 = 1;
-const BASE_PALETTE_PATH: &str = "assets/palette/base.png";
+const RUNTIME_ATLAS_IMAGE_NAME: &str = "atlas.runtime.png";
+const DEFAULT_RUNTIME_PALETTE_PATH: &str = "assets/palette/base.png";
 
 /// Top-level manifest for Aseprite exports.
 #[derive(Debug, Deserialize)]
@@ -248,12 +249,13 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
         .with_context(|| format!("Failed to create output directory {}", output_dir.display()))?;
 
     let atlas_png = output_dir.join("atlas.png");
+    let runtime_atlas_png = output_dir.join(RUNTIME_ATLAS_IMAGE_NAME);
     let atlas_json = output_dir.join("atlas.json");
-    let palette_image = load_base_palette()?;
-    let atlas_image = reduce_to_palette(&palette_image, &atlas.0);
-    atlas_image
+    atlas
+        .0
         .save(&atlas_png)
         .with_context(|| format!("Failed to save {}", atlas_png.display()))?;
+    quantize_runtime_atlas(&atlas.0, &runtime_atlas_png)?;
     let metadata = CompositionAtlas {
         schema_version: CURRENT_SCHEMA_VERSION,
         atlas_image: atlas_png
@@ -261,10 +263,10 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),
         ..atlas.1
     };
-    let atlas_asset_image_path = PathBuf::from(&sprite.target_dir)
+    let runtime_atlas_asset_image_path = PathBuf::from(&sprite.target_dir)
         .join(format!("{}_{}", sprite.entity, sprite.depth))
-        .join(&metadata.atlas_image);
-    write_px_atlas_metadata(&output_dir, &metadata, atlas_asset_image_path)?;
+        .join(RUNTIME_ATLAS_IMAGE_NAME);
+    write_px_atlas_metadata(&output_dir, &metadata, runtime_atlas_asset_image_path)?;
     fs::write(
         &atlas_json,
         format!("{}\n", serde_json::to_string_pretty(&metadata)?),
@@ -535,6 +537,119 @@ fn write_px_atlas_metadata(
     Ok(())
 }
 
+/// Writes the runtime-only atlas image in a palette-safe form for `seldom_pixel`.
+///
+/// The semantic `atlas.png` must preserve authored colors. The runtime atlas is
+/// a separate quantized image because `PxSpriteAtlasLoader` requires every
+/// opaque pixel to exist in the configured project palette.
+fn quantize_runtime_atlas(source: &RgbaImage, destination: &Path) -> Result<()> {
+    let palette = load_runtime_palette(Path::new(DEFAULT_RUNTIME_PALETTE_PATH))?;
+    let mut runtime_image = source.clone();
+    let grayscale_mapping = grayscale_ramp_mapping(source, &palette);
+
+    for pixel in runtime_image.pixels_mut() {
+        if pixel.0[3] == 0 {
+            continue;
+        }
+        *pixel = grayscale_mapping
+            .get(&pixel.0)
+            .copied()
+            .unwrap_or_else(|| nearest_palette_color(*pixel, &palette));
+    }
+
+    runtime_image
+        .save(destination)
+        .with_context(|| format!("Failed to save {}", destination.display()))?;
+    Ok(())
+}
+
+fn load_runtime_palette(path: &Path) -> Result<Vec<Rgba<u8>>> {
+    let palette_image = image::open(path)
+        .with_context(|| format!("Failed to load runtime palette {}", path.display()))?
+        .to_rgba8();
+    let mut palette = Vec::new();
+
+    for pixel in palette_image.pixels() {
+        if pixel.0[3] == 0 || palette.iter().any(|entry: &Rgba<u8>| entry.0 == pixel.0) {
+            continue;
+        }
+        palette.push(*pixel);
+    }
+
+    ensure!(
+        !palette.is_empty(),
+        "Runtime palette '{}' does not contain any opaque colors",
+        path.display()
+    );
+
+    Ok(palette)
+}
+
+fn nearest_palette_color(pixel: Rgba<u8>, palette: &[Rgba<u8>]) -> Rgba<u8> {
+    let [r, g, b, a] = pixel.0;
+
+    palette
+        .iter()
+        .copied()
+        .min_by_key(|candidate| {
+            let [cr, cg, cb, ca] = candidate.0;
+            let dr = i32::from(r) - i32::from(cr);
+            let dg = i32::from(g) - i32::from(cg);
+            let db = i32::from(b) - i32::from(cb);
+            let da = i32::from(a) - i32::from(ca);
+            dr * dr + dg * dg + db * db + da * da
+        })
+        .expect("palette is guaranteed non-empty by load_runtime_palette")
+}
+
+/// Preserves authored grayscale ramps by mapping tones by luminance rank rather
+/// than raw RGB distance.
+///
+/// The project palette is not itself grayscale. Naive nearest-color mapping can
+/// collapse multiple authored tones into the same palette entry, which is
+/// visually incorrect for sprites intentionally authored as ordered ramps.
+fn grayscale_ramp_mapping(source: &RgbaImage, palette: &[Rgba<u8>]) -> HashMap<[u8; 4], Rgba<u8>> {
+    let mut source_colors = Vec::<Rgba<u8>>::new();
+
+    for pixel in source.pixels() {
+        if pixel.0[3] == 0 {
+            continue;
+        }
+        if source_colors.iter().any(|existing| existing.0 == pixel.0) {
+            continue;
+        }
+        source_colors.push(*pixel);
+    }
+
+    if source_colors.is_empty()
+        || source_colors.len() > palette.len()
+        || source_colors.iter().any(|pixel| !is_grayscale(pixel))
+    {
+        return HashMap::new();
+    }
+
+    source_colors.sort_by_key(|pixel| luminance_key(*pixel));
+
+    let mut palette_by_luminance = palette.to_vec();
+    palette_by_luminance.sort_by_key(|pixel| luminance_key(*pixel));
+
+    source_colors
+        .into_iter()
+        .zip(palette_by_luminance)
+        .map(|(source, target)| (source.0, target))
+        .collect()
+}
+
+fn is_grayscale(pixel: &Rgba<u8>) -> bool {
+    let [r, g, b, _] = pixel.0;
+    r == g && g == b
+}
+
+fn luminance_key(pixel: Rgba<u8>) -> u32 {
+    let [r, g, b, _] = pixel.0;
+    2126_u32 * u32::from(r) + 7152_u32 * u32::from(g) + 722_u32 * u32::from(b)
+}
+
 fn select_part_layers<'a>(
     aseprite: &'a AsepriteFile<'a>,
     part_group: &str,
@@ -763,53 +878,6 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
     }
 
     Ok((atlas, atlas_sprites))
-}
-
-fn load_base_palette() -> Result<RgbaImage> {
-    let image = image::open(BASE_PALETTE_PATH)
-        .with_context(|| format!("Failed to open base palette at {BASE_PALETTE_PATH}"))?
-        .to_rgba8();
-    Ok(image)
-}
-
-fn reduce_to_palette(
-    palette_image: &ImageBuffer<Rgba<u8>, Vec<u8>>,
-    image: &RgbaImage,
-) -> RgbaImage {
-    let palette: Vec<[u8; 3]> = palette_image
-        .pixels()
-        .filter(|pixel| pixel[3] != 0)
-        .map(|pixel| [pixel[0], pixel[1], pixel[2]])
-        .collect();
-    assert!(
-        !palette.is_empty(),
-        "base palette must contain at least one opaque color"
-    );
-
-    let mut output = image.clone();
-    for pixel in output.pixels_mut() {
-        if pixel[3] == 0 {
-            continue;
-        }
-        let closest = find_closest_palette_color(&palette, [pixel[0], pixel[1], pixel[2]]);
-        *pixel = Rgba([closest[0], closest[1], closest[2], pixel[3]]);
-    }
-
-    output
-}
-
-fn find_closest_palette_color(palette: &[[u8; 3]], color: [u8; 3]) -> &[u8; 3] {
-    palette
-        .iter()
-        .min_by_key(|candidate| color_distance_sq(**candidate, color))
-        .expect("palette must contain at least one color")
-}
-
-fn color_distance_sq(a: [u8; 3], b: [u8; 3]) -> u32 {
-    let dr = i32::from(a[0]) - i32::from(b[0]);
-    let dg = i32::from(a[1]) - i32::from(b[1]);
-    let db = i32::from(a[2]) - i32::from(b[2]);
-    (dr * dr + dg * dg + db * db) as u32
 }
 
 fn next_power_of_two(value: u32) -> u32 {

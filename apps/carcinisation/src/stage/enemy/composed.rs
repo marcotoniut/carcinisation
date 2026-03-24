@@ -855,6 +855,18 @@ mod tests {
             tags.contains("shoot_stand"),
             "expected shoot_stand tag in exported mosquiton atlas"
         );
+        assert!(
+            tags.contains("idle_fly"),
+            "expected idle_fly tag in exported mosquiton atlas"
+        );
+        assert!(
+            tags.contains("shoot_fly"),
+            "expected shoot_fly tag in exported mosquiton atlas"
+        );
+        assert!(
+            tags.contains("melee_fly"),
+            "expected melee_fly tag in exported mosquiton atlas"
+        );
     }
 
     #[test]

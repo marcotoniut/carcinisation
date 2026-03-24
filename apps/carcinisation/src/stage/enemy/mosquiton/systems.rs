@@ -7,6 +7,10 @@ use crate::{
         enemy::{
             components::behavior::EnemyCurrentBehavior,
             composed::ComposedAnimationState,
+            data::{
+                mosquiton::{TAG_IDLE_FLY, TAG_MELEE_FLY, TAG_SHOOT_FLY},
+                steps::{EnemyStep, JumpEnemyStep},
+            },
             mosquito::entity::{EnemyMosquitoAttack, EnemyMosquitoAttacking},
         },
     },
@@ -27,13 +31,31 @@ pub fn assign_mosquiton_animation(
         With<EnemyMosquiton>,
     >,
 ) {
-    for (entity, _behavior, attacking, current_animation, mut animation_state, _depth) in &mut query
+    for (entity, behavior, attacking, current_animation, mut animation_state, _depth) in &mut query
     {
         let (next_animation, next_tag) = match attacking.attack {
             Some(EnemyMosquitoAttack::Melee | EnemyMosquitoAttack::Ranged) => {
-                (EnemyMosquitonAnimation::ShootStand, "shoot_stand")
+                let animation = match attacking.attack {
+                    Some(EnemyMosquitoAttack::Melee) => EnemyMosquitonAnimation::MeleeFly,
+                    Some(EnemyMosquitoAttack::Ranged) => EnemyMosquitonAnimation::ShootFly,
+                    None => unreachable!("attack arm already matched on Some"),
+                };
+                let tag = match attacking.attack {
+                    Some(EnemyMosquitoAttack::Melee) => TAG_MELEE_FLY,
+                    Some(EnemyMosquitoAttack::Ranged) => TAG_SHOOT_FLY,
+                    None => unreachable!("attack arm already matched on Some"),
+                };
+                (animation, tag)
             }
-            None => (EnemyMosquitonAnimation::IdleStand, "idle_stand"),
+            None => match behavior.behavior {
+                EnemyStep::Attack { .. }
+                | EnemyStep::Circle { .. }
+                | EnemyStep::Idle { .. }
+                | EnemyStep::LinearTween { .. }
+                | EnemyStep::Jump(JumpEnemyStep { .. }) => {
+                    (EnemyMosquitonAnimation::IdleFly, TAG_IDLE_FLY)
+                }
+            },
         };
 
         if current_animation != Some(&next_animation) {
