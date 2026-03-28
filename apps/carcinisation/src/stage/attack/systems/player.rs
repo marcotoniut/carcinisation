@@ -1,7 +1,9 @@
 use bevy::asset::AssetEvent;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use carcinisation_collision::pixel_mask::{
-    PixelCollisionCache, mask_contains_point, pixel_overlap, sprite_data, sprite_rect,
+    AtlasPixelCollisionCache, PixelCollisionCache, atlas_data, atlas_region_contains_point,
+    mask_contains_point, pixel_overlap, sprite_data, sprite_rect,
 };
 use seldom_pixel::prelude::*;
 
@@ -16,8 +18,14 @@ use crate::{
         },
         components::interactive::{ColliderData, Hittable},
         components::placement::Depth,
-        enemy::components::Enemy,
-        messages::DamageMessage,
+        enemy::{
+            components::Enemy,
+            composed::{
+                ComposedAtlasBindings, ComposedCollisionState, ComposedResolvedParts,
+                ResolvedPartCollision, ResolvedPartState,
+            },
+        },
+        messages::{DamageMessage, PartDamageMessage},
         player::components::PlayerAttack,
         player::{
             attacks::{
@@ -37,6 +45,16 @@ const MELEE_DEPTH_MIN: crate::stage::components::placement::Depth =
 const MELEE_DEPTH_MAX: crate::stage::components::placement::Depth =
     crate::stage::components::placement::Depth::Three;
 
+#[derive(SystemParam)]
+pub(crate) struct PixelHitAssets<'w, 's> {
+    sprite_assets: Res<'w, Assets<PxSpriteAsset>>,
+    atlas_assets: Res<'w, Assets<PxSpriteAtlasAsset>>,
+    sprite_asset_events: MessageReader<'w, 's, AssetEvent<PxSpriteAsset>>,
+    atlas_asset_events: MessageReader<'w, 's, AssetEvent<PxSpriteAtlasAsset>>,
+    sprite_cache: Local<'s, PixelCollisionCache>,
+    atlas_cache: Local<'s, AtlasPixelCollisionCache>,
+}
+
 /// @system Checks player attacks against hittable entities using pixel-mask and collider tests.
 // TODO could split between box and circle collider
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
@@ -45,9 +63,9 @@ pub fn check_got_hit(
     mut assets_sprite: PxAssets<PxSprite>,
     asset_server: Res<AssetServer>,
     camera: Res<PxCamera>,
-    sprite_assets: Res<Assets<PxSpriteAsset>>,
-    mut asset_events: MessageReader<AssetEvent<PxSpriteAsset>>,
+    mut pixel_assets: PixelHitAssets,
     mut event_writer: MessageWriter<DamageMessage>,
+    mut part_event_writer: MessageWriter<PartDamageMessage>,
     time: Res<Time<StageTimeDomain>>,
     attack_definitions: Res<AttackDefinitions>,
     volume_settings: Res<VolumeSettings>,
@@ -74,6 +92,9 @@ pub fn check_got_hit(
             Option<&PxFrameView>,
             Option<&PxSprite>,
             Option<&ColliderData>,
+            Option<&ComposedCollisionState>,
+            Option<&ComposedResolvedParts>,
+            Option<&ComposedAtlasBindings>,
             Option<&Depth>,
             Option<&Enemy>,
             Option<&crate::stage::destructible::components::Destructible>,
@@ -81,10 +102,12 @@ pub fn check_got_hit(
         With<Hittable>,
     >,
     mut score: ResMut<Score>,
-    mut cache: Local<PixelCollisionCache>,
 ) {
-    if asset_events.read().next().is_some() {
-        cache.clear();
+    if pixel_assets.sprite_asset_events.read().next().is_some() {
+        pixel_assets.sprite_cache.clear();
+    }
+    if pixel_assets.atlas_asset_events.read().next().is_some() {
+        pixel_assets.atlas_cache.clear();
     }
 
     let delta_secs = time.delta().as_secs_f32();
@@ -109,7 +132,11 @@ pub fn check_got_hit(
         }
         let attack_data = if matches!(attack_definition.collision, AttackCollisionMode::SpriteMask)
         {
-            sprite_data(&mut cache, &sprite_assets, attack_sprite)
+            sprite_data(
+                &mut pixel_assets.sprite_cache,
+                &pixel_assets.sprite_assets,
+                attack_sprite,
+            )
         } else {
             None
         };
@@ -142,6 +169,9 @@ pub fn check_got_hit(
             entity_frame,
             entity_sprite,
             collider_data,
+            composed_collision_state,
+            composed_resolved_parts,
+            composed_atlas_bindings,
             entity_depth,
             enemy,
             destructible,
@@ -163,7 +193,13 @@ pub fn check_got_hit(
             let wants_pixel = destructible.is_none() && entity_sprite.is_some();
             let entity_data = if wants_pixel {
                 // TODO: allow opting into a dedicated collision sprite/mask component.
-                entity_sprite.and_then(|sprite| sprite_data(&mut cache, &sprite_assets, sprite))
+                entity_sprite.and_then(|sprite| {
+                    sprite_data(
+                        &mut pixel_assets.sprite_cache,
+                        &pixel_assets.sprite_assets,
+                        sprite,
+                    )
+                })
             } else {
                 None
             };
@@ -205,6 +241,18 @@ pub fn check_got_hit(
                         PxCanvas::World => (screen_pos + camera.0).as_vec2(),
                         PxCanvas::Camera => screen_pos.as_vec2(),
                     });
+                }
+            }
+
+            if hit.is_none()
+                && let Some(composed_collision_state) = composed_collision_state
+            {
+                evaluated = true;
+                if composed_collision_state
+                    .point_collides(attack_world)
+                    .is_some()
+                {
+                    hit = Some(attack_world);
                 }
             }
 
@@ -280,9 +328,22 @@ pub fn check_got_hit(
                 break;
             }
 
-            let defense = collider_data
-                .and_then(|data| data.point_collides(entity_sub_position.0, hit_position))
-                .map_or(1.0, |value| value.defense);
+            let composed_hit = resolve_composed_hit_at_point(
+                hit_position,
+                composed_collision_state,
+                composed_resolved_parts,
+                composed_atlas_bindings,
+                &pixel_assets.atlas_assets,
+                &mut pixel_assets.atlas_cache,
+            );
+            let defense = composed_hit.as_ref().map_or_else(
+                || {
+                    collider_data
+                        .and_then(|data| data.point_collides(entity_sub_position.0, hit_position))
+                        .map_or(1.0, |value| value.defense)
+                },
+                |value| value.defense,
+            );
 
             if !hit_tracker.can_hit(entity, attack_definition.hit_policy) {
                 continue;
@@ -300,7 +361,16 @@ pub fn check_got_hit(
             };
 
             hit_tracker.register_hit(entity, attack_definition.hit_policy);
-            event_writer.write(DamageMessage::new(entity, (damage as f32 / defense) as u32));
+            let damage = (damage as f32 / defense) as u32;
+            if let Some(composed_hit) = composed_hit {
+                part_event_writer.write(PartDamageMessage::new(
+                    entity,
+                    composed_hit.part_id,
+                    damage,
+                ));
+            } else {
+                event_writer.write(DamageMessage::new(entity, damage));
+            }
 
             if attack_definition.effects.screen_shake && !effect_state.screen_shake_triggered {
                 commands.trigger(CameraShakeEvent);
@@ -336,5 +406,200 @@ pub fn check_got_hit(
                 }
             }
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct ComposedHitSelection {
+    part_id: String,
+    defense: f32,
+}
+
+/// Selects a semantic part from coarse composed collisions plus optional pixel refinement.
+///
+/// Policy:
+/// - coarse collision volumes decide which parts are even eligible
+/// - pixel-perfect atlas alpha disambiguates overlapping eligible parts
+/// - visual draw order breaks ties and remains the fallback when no pixel hit resolves
+fn resolve_composed_hit_at_point(
+    hit_position: Vec2,
+    collision_state: Option<&ComposedCollisionState>,
+    resolved_parts: Option<&ComposedResolvedParts>,
+    atlas_bindings: Option<&ComposedAtlasBindings>,
+    atlas_assets: &Assets<PxSpriteAtlasAsset>,
+    atlas_cache: &mut AtlasPixelCollisionCache,
+) -> Option<ComposedHitSelection> {
+    let collision_state = collision_state?;
+    if let (Some(resolved_parts), Some(atlas_bindings)) = (resolved_parts, atlas_bindings)
+        && let Some(atlas_pixels) =
+            atlas_data(atlas_cache, atlas_assets, atlas_bindings.atlas_handle())
+        && let Some(selected_part) = select_resolved_composed_part(
+            collision_state.collisions(),
+            resolved_parts.parts(),
+            hit_position,
+            |part| {
+                let Some(region_rect) = atlas_bindings.sprite_rect(part.sprite_id.as_str()) else {
+                    return false;
+                };
+                let sprite_rect = IRect {
+                    min: part.world_top_left_position.round().as_ivec2(),
+                    max: part.world_top_left_position.round().as_ivec2()
+                        + part.frame_size.as_ivec2(),
+                };
+                atlas_region_contains_point(
+                    atlas_pixels.as_ref(),
+                    region_rect,
+                    sprite_rect,
+                    hit_position.round().as_ivec2(),
+                    part.flip_x,
+                    part.flip_y,
+                )
+            },
+        )
+        && let Some(collision) = part_collision_at_point(
+            collision_state.collisions(),
+            selected_part.part_id.as_str(),
+            hit_position,
+        )
+    {
+        return Some(ComposedHitSelection {
+            part_id: selected_part.part_id.clone(),
+            defense: collision.collider.defense,
+        });
+    }
+
+    collision_state
+        .point_collides(hit_position)
+        .map(|collision| ComposedHitSelection {
+            part_id: collision.part_id.clone(),
+            defense: collision.collider.defense,
+        })
+}
+
+fn select_resolved_composed_part<'a, F>(
+    collisions: &[ResolvedPartCollision],
+    resolved_parts: &'a [ResolvedPartState],
+    hit_position: Vec2,
+    mut pixel_contains: F,
+) -> Option<&'a ResolvedPartState>
+where
+    F: FnMut(&ResolvedPartState) -> bool,
+{
+    let mut front_most_coarse = None;
+
+    for part in resolved_parts.iter().rev() {
+        if !part.targetable {
+            continue;
+        }
+        if part_collision_at_point(collisions, part.part_id.as_str(), hit_position).is_none() {
+            continue;
+        }
+        front_most_coarse.get_or_insert(part);
+        if pixel_contains(part) {
+            return Some(part);
+        }
+    }
+
+    front_most_coarse
+}
+
+fn part_collision_at_point<'a>(
+    collisions: &'a [ResolvedPartCollision],
+    part_id: &str,
+    hit_position: Vec2,
+) -> Option<&'a ResolvedPartCollision> {
+    collisions.iter().rev().find(|collision| {
+        collision.part_id == part_id
+            && collision.collider.shape.point_collides(
+                collision.pivot_position + collision.collider.offset,
+                hit_position,
+            )
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use carcinisation_collision::{Collider, ColliderShape};
+
+    fn collisions_for(parts: &[(&str, f32)]) -> Vec<ResolvedPartCollision> {
+        parts
+            .iter()
+            .map(|(part_id, defense)| ResolvedPartCollision {
+                part_id: (*part_id).to_string(),
+                collider: Collider::new(ColliderShape::Circle(4.0)).with_defense(*defense),
+                pivot_position: Vec2::ZERO,
+            })
+            .collect()
+    }
+
+    fn resolved_parts_for(parts: &[(&str, u32, &str, bool)]) -> Vec<ResolvedPartState> {
+        parts
+            .iter()
+            .map(
+                |(part_id, draw_order, sprite_id, flip_x)| ResolvedPartState {
+                    part_id: (*part_id).to_string(),
+                    parent_id: None,
+                    draw_order: *draw_order,
+                    sprite_id: (*sprite_id).to_string(),
+                    frame_size: UVec2::new(4, 4),
+                    flip_x: *flip_x,
+                    flip_y: false,
+                    world_top_left_position: Vec2::new(-2.0, -2.0),
+                    world_pivot_position: Vec2::ZERO,
+                    tags: vec![],
+                    targetable: true,
+                    health_pool: Some("core".to_string()),
+                    armour: 0,
+                    current_durability: None,
+                    max_durability: None,
+                    breakable: false,
+                    broken: false,
+                    collisions: vec![],
+                },
+            )
+            .collect()
+    }
+
+    #[test]
+    fn pixel_selection_overrides_front_most_coarse_part() {
+        let collisions = collisions_for(&[("body", 1.0), ("head", 0.5)]);
+        let parts =
+            resolved_parts_for(&[("body", 10, "shared", false), ("head", 20, "shared", false)]);
+
+        let selected = select_resolved_composed_part(&collisions, &parts, Vec2::ZERO, |part| {
+            part.part_id == "body"
+        })
+        .expect("pixel refinement should choose a colliding part");
+
+        assert_eq!(selected.part_id, "body");
+    }
+
+    #[test]
+    fn front_most_coarse_part_wins_when_no_pixel_hit_resolves() {
+        let collisions = collisions_for(&[("body", 1.0), ("head", 0.5)]);
+        let parts =
+            resolved_parts_for(&[("body", 10, "shared", false), ("head", 20, "shared", false)]);
+
+        let selected = select_resolved_composed_part(&collisions, &parts, Vec2::ZERO, |_| false)
+            .expect("coarse fallback should still choose the front-most part");
+
+        assert_eq!(selected.part_id, "head");
+    }
+
+    #[test]
+    fn shared_sprite_semantics_remain_distinct_during_pixel_selection() {
+        let collisions = collisions_for(&[("arm_l", 1.0), ("arm_r", 1.0)]);
+        let parts = resolved_parts_for(&[
+            ("arm_l", 10, "arm_shared", false),
+            ("arm_r", 20, "arm_shared", true),
+        ]);
+
+        let selected = select_resolved_composed_part(&collisions, &parts, Vec2::ZERO, |part| {
+            part.part_id == "arm_l"
+        })
+        .expect("pixel refinement should preserve semantic ids even when sprite ids match");
+
+        assert_eq!(selected.part_id, "arm_l");
     }
 }

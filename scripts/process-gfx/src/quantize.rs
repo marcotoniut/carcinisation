@@ -29,12 +29,18 @@ pub fn reduce_colors(
 ) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let palette = palette_image
         .enumerate_pixels()
+        .filter(|(_, _, pixel)| pixel.0[3] != 0)
         .map(|(_, _, pixel)| {
             let x: Srgba = Srgba::from(pixel.0).into_format();
             let y: Srgb = x.without_alpha();
             y
         })
         .collect::<Vec<Srgb>>();
+
+    assert!(
+        !palette.is_empty(),
+        "palette image must contain at least one opaque color"
+    );
 
     let (width, height) = img.dimensions();
     let mut output_image: ImageBuffer<image::Rgba<u8>, Vec<u8>> = ImageBuffer::new(width, height);

@@ -20,14 +20,14 @@ use aseprite_loader::{
 use image::{ImageBuffer, Rgba, RgbaImage, imageops};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
 
 const DEFAULT_PART_GROUP: &str = "base";
 const DEFAULT_ORIGIN_SLICE: &str = "origin";
-const CURRENT_SCHEMA_VERSION: u32 = 1;
+const CURRENT_SCHEMA_VERSION: u32 = 2;
 const RUNTIME_ATLAS_IMAGE_NAME: &str = "atlas.runtime.png";
 const DEFAULT_RUNTIME_PALETTE_PATH: &str = "assets/palette/base.png";
 
@@ -56,6 +56,8 @@ pub struct SpriteSpec {
     pub part_group: Option<String>,
     /// Slice whose pivot defines the shared composition origin. Defaults to `"origin"`.
     pub origin_slice: Option<String>,
+    /// Structured semantic-composition metadata relative to the manifest file.
+    pub composition: Option<String>,
 }
 
 /// Concrete export request resolved by the CLI wrapper.
@@ -71,6 +73,10 @@ pub struct ExportRequest {
 }
 
 /// Final JSON metadata written next to the packed atlas image.
+///
+/// Despite the legacy `Atlas` name, this is the full composed-asset manifest:
+/// visual sprite regions, semantic hierarchy, authored frame placements, and
+/// gameplay metadata that the runtime validates before building caches.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CompositionAtlas {
     /// Version of the exported JSON schema.
@@ -83,33 +89,74 @@ pub struct CompositionAtlas {
     pub source: String,
     /// Full source canvas size in pixels.
     pub canvas: Size,
-    /// Shared composition origin used as the offset reference for all parts.
+    /// Shared world/root anchor authored from the Aseprite origin slice.
     pub origin: Point,
     /// Atlas image filename stored alongside this manifest.
     pub atlas_image: String,
-    /// Exported parts in draw order.
-    pub parts: Vec<PartDefinition>,
+    /// Reusable semantic part definitions.
+    #[serde(default)]
+    pub part_definitions: Vec<PartDefinition>,
+    /// Concrete semantic part instances for this composed asset.
+    pub parts: Vec<PartInstance>,
     /// Deduplicated sprite rectangles packed into the atlas image.
     pub sprites: Vec<AtlasSprite>,
     /// Animation tags and their per-frame composition data.
     pub animations: Vec<Animation>,
+    /// Gameplay metadata kept separate from visual deduplication.
+    #[serde(default)]
+    pub gameplay: CompositionGameplay,
 }
 
-/// One canonical part exported from the source file.
+/// Reusable semantic part definition shared by multiple instances.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PartDefinition {
-    /// Stable snake_case part identifier derived from the layer name.
+    /// Stable snake_case semantic identifier.
     pub id: String,
-    /// Original Aseprite layer name.
+    /// Broad semantic tags inherited by instances of this definition.
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Definition-level gameplay metadata inherited by instances.
+    #[serde(default)]
+    pub gameplay: PartGameplayMetadata,
+}
+
+/// Concrete semantic part instance in the composed hierarchy.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct PartInstance {
+    /// Stable snake_case instance identifier.
+    pub id: String,
+    /// Referenced reusable semantic definition.
+    pub definition_id: String,
+    /// Human-readable label for tooling/debugging.
     pub name: String,
+    /// Optional parent instance id for hierarchical composition.
+    pub parent_id: Option<String>,
+    /// Optional source Aseprite layer used to author this visual node.
+    pub source_layer: Option<String>,
     /// Draw order for this part within a composed frame.
+    ///
+    /// This belongs to the visual layer only. Validation enforces uniqueness
+    /// only for parts with a bound `source_layer`.
     pub draw_order: u32,
+    /// Sprite-local attachment origin authored for this visual part instance.
+    #[serde(default)]
+    pub pivot: Point,
+    /// Instance-only semantic tags layered on top of the definition tags.
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Reserved visibility default. The current runtime requires visibility to
+    /// be authored explicitly per frame, so validation rejects `false`.
+    #[serde(default = "default_true")]
+    pub visible_by_default: bool,
+    /// Instance-level gameplay metadata overrides.
+    #[serde(default)]
+    pub gameplay: PartGameplayMetadata,
 }
 
 /// One deduplicated sprite image packed into the atlas.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AtlasSprite {
-    /// Stable sprite identifier referenced by [`PartPlacement`].
+    /// Stable sprite identifier referenced by [`PartPose`].
     pub id: String,
     /// Rectangle in atlas pixel coordinates.
     pub rect: Rect,
@@ -135,29 +182,132 @@ pub struct AnimationFrame {
     pub source_frame: usize,
     /// Frame duration in milliseconds.
     pub duration_ms: u32,
-    /// Per-part placements needed to compose this frame.
-    pub parts: Vec<PartPlacement>,
+    /// Per-part poses needed to compose this frame.
+    pub parts: Vec<PartPose>,
 }
 
-/// One part placement in a composed frame.
+/// One per-part authored placement in a composed frame.
+///
+/// The legacy `Pose` name remains because it is part of the exported schema,
+/// but this value is not a pure transform track: it also selects the sprite to
+/// draw for the semantic part in this frame.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct PartPlacement {
-    /// Part identifier matching [`PartDefinition::id`].
+pub struct PartPose {
+    /// Part instance identifier matching [`PartInstance::id`].
     pub part_id: String,
     /// Sprite identifier matching [`AtlasSprite::id`].
     pub sprite_id: String,
-    /// Offset from [`CompositionAtlas::origin`] in source canvas pixels.
-    pub offset: Point,
+    /// Pivot-to-pivot offset from the parent visual ancestor, or from
+    /// [`CompositionAtlas::origin`] for root visual parts.
+    pub local_offset: Point,
     /// Whether the runtime should mirror the sprite horizontally.
     pub flip_x: bool,
     /// Whether the runtime should mirror the sprite vertically.
     pub flip_y: bool,
+    /// Whether this part is visible in the current frame.
+    #[serde(default = "default_true")]
+    pub visible: bool,
     /// Final opacity after combining layer opacity and cel opacity.
     pub opacity: u8,
 }
 
+/// Top-level gameplay state kept separate from the visual atlas.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct CompositionGameplay {
+    /// Health pool mirrored onto the entity-level `Health` component.
+    pub entity_health_pool: Option<String>,
+    /// Shared health pools referenced by semantic parts.
+    #[serde(default)]
+    pub health_pools: Vec<HealthPool>,
+}
+
+/// Shared gameplay health pool.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct HealthPool {
+    pub id: String,
+    pub max_health: u32,
+}
+
+/// Gameplay metadata attached to a semantic definition or instance.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct PartGameplayMetadata {
+    /// Whether the part can be targeted directly.
+    pub targetable: Option<bool>,
+    /// Shared health-pool id used when routing damage to this part.
+    pub health_pool: Option<String>,
+    /// Flat armour value retained as metadata for gameplay systems.
+    #[serde(default)]
+    pub armour: u32,
+    /// Optional local durability that absorbs damage before health-pool routing.
+    ///
+    /// Durability is tracked per semantic part instance at runtime even when
+    /// multiple parts share one definition or core health pool.
+    pub durability: Option<u32>,
+    /// Whether the part should become gameplay-inactive once durability reaches zero.
+    ///
+    /// Current runtime support disables future targeting/collision for the part.
+    /// Visual state changes remain authored work and are not automatic yet.
+    pub breakable: Option<bool>,
+    /// Collision volumes attached to the part.
+    ///
+    /// The current runtime only consumes targetable `Collider` volumes. Other
+    /// roles are reserved for later gameplay work and are rejected at
+    /// validation time so authoring does not silently no-op.
+    #[serde(default)]
+    pub collision: Vec<CollisionVolume>,
+}
+
+/// One collision-related volume attached to a semantic part.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CollisionVolume {
+    /// Stable collision identifier scoped to the owning part.
+    pub id: String,
+    /// Semantic purpose of the volume.
+    pub role: CollisionRole,
+    /// Geometry resolved in part-local pivot space.
+    pub shape: CollisionShape,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+/// Semantic meaning for a collision volume.
+///
+/// Only `Collider` is currently supported by the runtime. The other variants are
+/// kept in the schema as reserved concepts and must fail loudly until gameplay
+/// systems consume them.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CollisionRole {
+    Collider,
+    Hurtbox,
+    Hitbox,
+}
+
+/// Serializable collision shape description.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "shape", rename_all = "snake_case")]
+pub enum CollisionShape {
+    Circle {
+        radius: f32,
+        #[serde(default)]
+        offset: Vec2Value,
+    },
+    Box {
+        size: Vec2Value,
+        #[serde(default)]
+        offset: Vec2Value,
+    },
+}
+
+/// Lightweight serializable 2D vector used in gameplay metadata.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq)]
+pub struct Vec2Value {
+    pub x: f32,
+    pub y: f32,
+}
+
 /// Two-dimensional integer point in source canvas pixels.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Point {
     /// Horizontal position.
     pub x: i32,
@@ -187,6 +337,33 @@ pub struct Size {
     pub h: u32,
 }
 
+/// Source-of-truth semantic composition metadata loaded alongside the Aseprite file.
+#[derive(Debug, Deserialize)]
+struct CompositionSource {
+    #[serde(default)]
+    part_definitions: Vec<PartDefinition>,
+    #[serde(default)]
+    parts: Vec<CompositionPartSource>,
+    #[serde(default)]
+    gameplay: CompositionGameplay,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompositionPartSource {
+    id: String,
+    definition_id: String,
+    name: Option<String>,
+    parent_id: Option<String>,
+    source_layer: Option<String>,
+    draw_order: u32,
+    pivot: Option<Point>,
+    #[serde(default)]
+    tags: Vec<String>,
+    visible_by_default: Option<bool>,
+    #[serde(default)]
+    gameplay: PartGameplayMetadata,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct SelectedLayer<'a> {
     index: usize,
@@ -196,9 +373,24 @@ struct SelectedLayer<'a> {
 }
 
 #[derive(Debug, Clone)]
+struct RawPlacement {
+    sprite_id: String,
+    top_left: Point,
+    flip_x: bool,
+    flip_y: bool,
+    opacity: u8,
+}
+
+#[derive(Debug, Clone)]
 struct PreparedSprite {
     id: String,
     image: RgbaImage,
+}
+
+#[derive(Debug, Default)]
+struct SpriteInterner {
+    sprites: Vec<PreparedSprite>,
+    cache: HashMap<ImageKey, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -213,6 +405,10 @@ struct ImageKey {
     width: u32,
     height: u32,
     pixels: Vec<u8>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Exports one piece-atlas package for the requested entity/depth pair.
@@ -239,7 +435,9 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
         .with_context(|| format!("Failed to read {}", source_path.display()))?;
     let aseprite = AsepriteFile::load(&source_bytes)
         .with_context(|| format!("Failed to parse {}", source_path.display()))?;
-    let atlas = build_piece_atlas(sprite, &aseprite)?;
+    let composition_path = manifest_dir.join(sprite.composition_path()?);
+    let composition = load_composition_source(&composition_path)?;
+    let atlas = build_piece_atlas(sprite, &aseprite, &composition)?;
 
     let output_dir = request
         .output_root
@@ -306,9 +504,20 @@ pub fn default_output_root() -> PathBuf {
     PathBuf::from("tmp/aseprite-export")
 }
 
+fn load_composition_source(path: &Path) -> Result<CompositionSource> {
+    let contents = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read composition metadata {}", path.display()))?;
+    let composition = toml::from_str(&contents)
+        .with_context(|| format!("Failed to parse composition metadata {}", path.display()))?;
+    validate_composition_source(&composition)
+        .with_context(|| format!("Invalid composition metadata {}", path.display()))?;
+    Ok(composition)
+}
+
 fn build_piece_atlas(
     sprite: &SpriteSpec,
     aseprite: &AsepriteFile<'_>,
+    composition: &CompositionSource,
 ) -> Result<(RgbaImage, CompositionAtlas)> {
     ensure!(
         !aseprite.tags().is_empty(),
@@ -318,52 +527,18 @@ fn build_piece_atlas(
 
     let selected_layers = select_part_layers(aseprite, sprite.part_group_name())?;
     let origin = resolve_origin(aseprite, sprite.origin_slice_name())?;
-    let mut part_id_map = HashMap::new();
-    let mut draw_order_map = HashMap::new();
-    let mut parts = Vec::new();
-
-    for layer in &selected_layers {
-        // Invisible direct children of the part group do not participate in the
-        // exported composition.
-        if !layer.visible {
-            continue;
-        }
-        let part_id = normalize_part_id(layer.name);
-        if let Some(previous) = part_id_map.insert(part_id.clone(), layer.name.to_string()) {
-            bail!(
-                "Layer names '{}' and '{}' both normalize to part id '{}'",
-                previous,
-                layer.name,
-                part_id
-            );
-        }
-        if let Some(previous) = draw_order_map.insert(layer.index as u32, layer.name.to_string()) {
-            bail!(
-                "Layers '{}' and '{}' both use draw_order {}",
-                previous,
-                layer.name,
-                layer.index
-            );
-        }
-        parts.push(PartDefinition {
-            id: part_id,
-            name: layer.name.to_string(),
-            draw_order: layer.index as u32,
-        });
-    }
-    ensure!(
-        !parts.is_empty(),
-        "Aseprite file '{}' has no visible parts in group '{}'",
-        sprite.source,
-        sprite.part_group_name()
-    );
-
-    let part_lookup: HashMap<&str, &PartDefinition> = parts
+    let layer_lookup: HashMap<&str, &SelectedLayer<'_>> = selected_layers
         .iter()
-        .map(|part| (part.name.as_str(), part))
+        .map(|layer| (layer.name, layer))
         .collect();
-    let mut sprite_cache: HashMap<ImageKey, String> = HashMap::new();
-    let mut prepared_sprites: Vec<PreparedSprite> = Vec::new();
+    let parts = composition
+        .parts
+        .iter()
+        .map(CompositionPartSource::to_instance)
+        .collect::<Vec<_>>();
+    validate_layer_bindings(&parts, &selected_layers)?;
+    let topo_order = build_part_topology(&parts)?;
+    let mut sprite_interner = SpriteInterner::default();
     let mut animations = Vec::new();
 
     for tag in aseprite.tags() {
@@ -377,73 +552,17 @@ fn build_piece_atlas(
                     frame_index
                 )
             })?;
-            let raw_frame = aseprite.file.frames.get(frame_index).ok_or_else(|| {
-                anyhow!("Missing raw frame {} for tag '{}'", frame_index, tag.name)
-            })?;
-            let mut placements = Vec::new();
-
-            for layer in &selected_layers {
-                // Invisible layers are excluded at export time instead of
-                // emitting permanently hidden parts.
-                if !layer.visible {
-                    continue;
-                }
-                let part = part_lookup.get(layer.name).ok_or_else(|| {
-                    anyhow!("Visible layer '{}' is missing from part lookup", layer.name)
-                })?;
-                // Missing cels are intentional: the part is invisible for this
-                // authored frame.
-                let Some(frame_cel) = frame.cels.iter().find(|cel| cel.layer_index == layer.index)
-                else {
-                    continue;
-                };
-                let raw_cel = raw_frame
-                    .cels
-                    .get(layer.index)
-                    .and_then(|cel| cel.as_ref())
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "Resolved frame cel missing matching raw cel at frame {} layer '{}'",
-                            frame_index,
-                            layer.name
-                        )
-                    })?;
-                ensure!(
-                    raw_cel.z_index == 0,
-                    "Layer '{}' uses cel z-index {} in frame {}; dynamic z-order is not supported yet",
-                    layer.name,
-                    raw_cel.z_index,
-                    frame_index
-                );
-
-                let cel_image = load_cel_image(aseprite, frame_cel)?;
-                // Fully transparent cels do not produce atlas sprites.
-                let Some((trimmed_image, trimmed_bounds)) = trim_transparent_bounds(&cel_image)
-                else {
-                    continue;
-                };
-                let usage = intern_sprite(&mut prepared_sprites, &mut sprite_cache, &trimmed_image);
-                let world_x = i32::from(frame_cel.origin.0) + trimmed_bounds.x as i32;
-                let world_y = i32::from(frame_cel.origin.1) + trimmed_bounds.y as i32;
-                placements.push(PartPlacement {
-                    part_id: part.id.clone(),
-                    sprite_id: usage.sprite_id,
-                    offset: Point {
-                        x: world_x - origin.x,
-                        y: world_y - origin.y,
-                    },
-                    flip_x: usage.flip_x,
-                    flip_y: usage.flip_y,
-                    opacity: combine_opacity(layer.opacity, raw_cel.opacity),
-                });
-            }
-
-            placements.sort_by_key(|placement| {
-                parts
-                    .iter()
-                    .find(|part| part.id == placement.part_id)
-                    .map_or(u32::MAX, |part| part.draw_order)
-            });
+            let raw_placements = build_raw_placements(
+                &parts,
+                &layer_lookup,
+                aseprite,
+                frame,
+                frame_index,
+                origin,
+                &mut sprite_interner,
+            )?;
+            let placements =
+                build_frame_poses(&parts, &raw_placements, &topo_order, frame_index, &tag.name)?;
             frames.push(AnimationFrame {
                 source_frame: frame_index,
                 duration_ms: u32::from(frame.duration),
@@ -459,7 +578,7 @@ fn build_piece_atlas(
         });
     }
 
-    let (atlas_image, atlas_sprites) = pack_sprites(&prepared_sprites)?;
+    let (atlas_image, atlas_sprites) = pack_sprites(&sprite_interner.sprites)?;
     let metadata = CompositionAtlas {
         schema_version: CURRENT_SCHEMA_VERSION,
         entity: sprite.entity.clone(),
@@ -471,10 +590,14 @@ fn build_piece_atlas(
         },
         origin,
         atlas_image: String::new(),
+        part_definitions: composition.part_definitions.clone(),
         parts,
         sprites: atlas_sprites,
         animations,
+        gameplay: composition.gameplay.clone(),
     };
+
+    validate_composition_atlas(&metadata)?;
 
     Ok((atlas_image, metadata))
 }
@@ -1017,9 +1140,736 @@ fn validate_manifest(manifest: &Manifest) -> Result<()> {
             "Sprite entry {} is missing an entity name",
             index + 1
         );
+        ensure!(
+            sprite
+                .composition
+                .as_deref()
+                .is_some_and(|value| !value.trim().is_empty()),
+            "Sprite entry {} is missing composition metadata",
+            index + 1
+        );
     }
 
     Ok(())
+}
+
+fn validate_composition_source(source: &CompositionSource) -> Result<()> {
+    ensure!(
+        !source.part_definitions.is_empty(),
+        "composition metadata must define at least one part definition"
+    );
+    ensure!(
+        !source.parts.is_empty(),
+        "composition metadata must define at least one part instance"
+    );
+    validate_composition_source_contracts(source)?;
+
+    let parts = source
+        .parts
+        .iter()
+        .map(CompositionPartSource::to_instance)
+        .collect::<Vec<_>>();
+    validate_part_graph(&source.part_definitions, &parts, &source.gameplay)
+}
+
+fn validate_composition_source_contracts(source: &CompositionSource) -> Result<()> {
+    for part in &source.parts {
+        if part.source_layer.is_some() {
+            ensure!(
+                part.pivot.is_some(),
+                "visual part '{}' must define an explicit pivot in composition metadata",
+                part.id
+            );
+        }
+        ensure!(
+            part.visible_by_default.unwrap_or(true),
+            "part '{}' cannot set visible_by_default = false; visibility must be authored per frame",
+            part.id
+        );
+    }
+
+    Ok(())
+}
+
+/// Validates an exported composed-asset manifest at the load boundary.
+///
+/// This function is intentionally strict: if a schema concept is not yet
+/// supported by the runtime, validation should reject it rather than allow a
+/// silent partial load.
+pub fn validate_composition_atlas(atlas: &CompositionAtlas) -> Result<()> {
+    validate_part_graph(&atlas.part_definitions, &atlas.parts, &atlas.gameplay)?;
+
+    let mut sprite_ids = HashSet::new();
+    for sprite in &atlas.sprites {
+        ensure!(
+            sprite_ids.insert(sprite.id.as_str()),
+            "duplicate sprite id '{}'",
+            sprite.id
+        );
+        ensure!(
+            sprite.rect.w > 0 && sprite.rect.h > 0,
+            "sprite '{}' must have a non-zero rectangle",
+            sprite.id
+        );
+    }
+
+    let part_lookup: HashMap<&str, &PartInstance> = atlas
+        .parts
+        .iter()
+        .map(|part| (part.id.as_str(), part))
+        .collect();
+    let sprite_lookup: HashSet<&str> = atlas
+        .sprites
+        .iter()
+        .map(|sprite| sprite.id.as_str())
+        .collect();
+    let mut animation_tags = HashSet::new();
+
+    for animation in &atlas.animations {
+        ensure!(
+            animation_tags.insert(animation.tag.as_str()),
+            "duplicate animation tag '{}'",
+            animation.tag
+        );
+        ensure!(
+            !animation.frames.is_empty(),
+            "animation '{}' must contain at least one frame",
+            animation.tag
+        );
+
+        for frame in &animation.frames {
+            let mut frame_parts = HashSet::new();
+            for pose in &frame.parts {
+                ensure!(
+                    frame_parts.insert(pose.part_id.as_str()),
+                    "animation '{}' frame {} defines part '{}' more than once",
+                    animation.tag,
+                    frame.source_frame,
+                    pose.part_id
+                );
+                ensure!(
+                    part_lookup.contains_key(pose.part_id.as_str()),
+                    "animation '{}' frame {} references missing part '{}'",
+                    animation.tag,
+                    frame.source_frame,
+                    pose.part_id
+                );
+                ensure!(
+                    sprite_lookup.contains(pose.sprite_id.as_str()),
+                    "animation '{}' frame {} references missing sprite '{}'",
+                    animation.tag,
+                    frame.source_frame,
+                    pose.sprite_id
+                );
+                ensure!(
+                    !(pose.visible && pose.opacity == 0),
+                    "animation '{}' frame {} marks part '{}' visible with zero opacity",
+                    animation.tag,
+                    frame.source_frame,
+                    pose.part_id
+                );
+
+                let mut parent_id = part_lookup
+                    .get(pose.part_id.as_str())
+                    .and_then(|part| part.parent_id.as_deref());
+                while let Some(parent) = parent_id {
+                    let parent_part = part_lookup.get(parent).expect("validated part graph");
+                    if parent_part.source_layer.is_some() {
+                        ensure!(
+                            frame_parts.contains(parent),
+                            "animation '{}' frame {} renders child '{}' without visible parent '{}'",
+                            animation.tag,
+                            frame.source_frame,
+                            pose.part_id,
+                            parent
+                        );
+                    }
+                    parent_id = parent_part.parent_id.as_deref();
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_part_graph(
+    part_definitions: &[PartDefinition],
+    parts: &[PartInstance],
+    gameplay: &CompositionGameplay,
+) -> Result<()> {
+    let mut definition_ids = HashSet::new();
+    for definition in part_definitions {
+        ensure!(
+            !definition.id.trim().is_empty(),
+            "part definitions must not use empty ids"
+        );
+        ensure!(
+            definition.id == normalize_part_id(&definition.id),
+            "part definition id '{}' must already be snake_case",
+            definition.id
+        );
+        ensure!(
+            definition_ids.insert(definition.id.as_str()),
+            "duplicate part definition id '{}'",
+            definition.id
+        );
+        validate_tags(
+            &definition.tags,
+            &format!("part definition '{}'", definition.id),
+        )?;
+        validate_part_gameplay(
+            &definition.gameplay,
+            gameplay,
+            &format!("part definition '{}'", definition.id),
+        )?;
+    }
+
+    let mut part_ids = HashSet::new();
+    let mut visual_draw_orders = HashSet::new();
+    let mut source_layers = HashSet::new();
+    let definition_lookup: HashMap<&str, &PartDefinition> = part_definitions
+        .iter()
+        .map(|part| (part.id.as_str(), part))
+        .collect();
+
+    for part in parts {
+        ensure!(
+            !part.id.trim().is_empty(),
+            "part instances must not use empty ids"
+        );
+        ensure!(
+            part.id == normalize_part_id(&part.id),
+            "part instance id '{}' must already be snake_case",
+            part.id
+        );
+        ensure!(
+            part_ids.insert(part.id.as_str()),
+            "duplicate part id '{}'",
+            part.id
+        );
+        ensure!(
+            definition_lookup.contains_key(part.definition_id.as_str()),
+            "part '{}' references missing definition '{}'",
+            part.id,
+            part.definition_id
+        );
+        let definition = definition_lookup
+            .get(part.definition_id.as_str())
+            .expect("definition existence validated above");
+        if let Some(source_layer) = part.source_layer.as_deref() {
+            ensure!(
+                visual_draw_orders.insert(part.draw_order),
+                "duplicate visual draw_order {}",
+                part.draw_order
+            );
+            ensure!(
+                source_layers.insert(source_layer),
+                "source layer '{}' is referenced by more than one part",
+                source_layer
+            );
+        }
+        validate_tags(&part.tags, &format!("part '{}'", part.id))?;
+        let merged_gameplay = merged_part_gameplay(&definition.gameplay, &part.gameplay);
+        validate_part_gameplay(&merged_gameplay, gameplay, &format!("part '{}'", part.id))?;
+        if part.source_layer.is_none() {
+            ensure!(
+                part_gameplay_is_empty(&merged_gameplay),
+                "non-visual part '{}' cannot carry gameplay metadata until transform-only semantic nodes are supported",
+                part.id
+            );
+        }
+    }
+
+    let part_lookup: HashMap<&str, &PartInstance> =
+        parts.iter().map(|part| (part.id.as_str(), part)).collect();
+    for part in parts {
+        if let Some(parent_id) = part.parent_id.as_deref() {
+            let parent = part_lookup.get(parent_id).ok_or_else(|| {
+                anyhow!(
+                    "part '{}' references missing parent '{}'",
+                    part.id,
+                    parent_id
+                )
+            })?;
+            ensure!(
+                parent.id != part.id,
+                "part '{}' cannot parent itself",
+                part.id
+            );
+        }
+    }
+
+    build_part_topology(parts)?;
+    let root_count = parts.iter().filter(|part| part.parent_id.is_none()).count();
+    ensure!(
+        root_count == 1,
+        "composition must define exactly one root part"
+    );
+    validate_health_pools(gameplay)?;
+    Ok(())
+}
+
+fn validate_health_pools(gameplay: &CompositionGameplay) -> Result<()> {
+    let mut health_pools = HashSet::new();
+    for pool in &gameplay.health_pools {
+        ensure!(
+            !pool.id.trim().is_empty(),
+            "health pools must not use empty ids"
+        );
+        ensure!(
+            pool.id == normalize_part_id(&pool.id),
+            "health pool id '{}' must already be snake_case",
+            pool.id
+        );
+        ensure!(
+            health_pools.insert(pool.id.as_str()),
+            "duplicate health pool id '{}'",
+            pool.id
+        );
+        ensure!(
+            pool.max_health > 0,
+            "health pool '{}' must have max_health > 0",
+            pool.id
+        );
+    }
+
+    if let Some(entity_health_pool) = gameplay.entity_health_pool.as_deref() {
+        ensure!(
+            health_pools.contains(entity_health_pool),
+            "entity_health_pool '{}' must reference a declared health pool",
+            entity_health_pool
+        );
+    }
+
+    Ok(())
+}
+
+fn validate_part_gameplay(
+    gameplay: &PartGameplayMetadata,
+    composition_gameplay: &CompositionGameplay,
+    context: &str,
+) -> Result<()> {
+    if let Some(health_pool) = gameplay.health_pool.as_deref() {
+        ensure!(
+            composition_gameplay
+                .health_pools
+                .iter()
+                .any(|pool| pool.id == health_pool),
+            "{} references missing health pool '{}'",
+            context,
+            health_pool
+        );
+    }
+    if gameplay.targetable == Some(true) || !gameplay.collision.is_empty() {
+        ensure!(
+            gameplay.health_pool.is_some() || gameplay.durability.is_some(),
+            "{} must define a health_pool or durability when it is targetable or owns collision volumes",
+            context
+        );
+    }
+    if gameplay.targetable == Some(true) {
+        ensure!(
+            !gameplay.collision.is_empty(),
+            "{} must define at least one collision volume when it is targetable",
+            context
+        );
+    }
+    if !gameplay.collision.is_empty() {
+        ensure!(
+            gameplay.targetable == Some(true),
+            "{} must set targetable = true when it owns collision volumes; non-targetable or role-specific collision routing is not yet supported",
+            context
+        );
+    }
+    if let Some(durability) = gameplay.durability {
+        ensure!(durability > 0, "{} must use durability > 0", context);
+        ensure!(
+            gameplay.targetable == Some(true),
+            "{} must set targetable = true when durability is defined",
+            context
+        );
+        ensure!(
+            !gameplay.collision.is_empty(),
+            "{} must define collision volumes when durability is defined",
+            context
+        );
+    }
+    if gameplay.breakable == Some(true) {
+        ensure!(
+            gameplay.durability.is_some(),
+            "{} must define durability when breakable = true",
+            context
+        );
+    }
+
+    let mut collision_ids = HashSet::new();
+    for collision in &gameplay.collision {
+        ensure!(
+            !collision.id.trim().is_empty(),
+            "{} defines a collision volume with an empty id",
+            context
+        );
+        ensure!(
+            collision_ids.insert(collision.id.as_str()),
+            "{} defines duplicate collision id '{}'",
+            context,
+            collision.id
+        );
+        validate_tags(
+            &collision.tags,
+            &format!("{context} collision '{}'", collision.id),
+        )?;
+        ensure!(
+            collision.role == CollisionRole::Collider,
+            "{} collision '{}' uses unsupported role '{:?}'; composed runtime currently supports only collider volumes",
+            context,
+            collision.id,
+            collision.role
+        );
+        match &collision.shape {
+            CollisionShape::Circle { radius, .. } => {
+                ensure!(
+                    *radius > 0.0,
+                    "{context} collision '{}' must use radius > 0",
+                    collision.id
+                );
+            }
+            CollisionShape::Box { size, .. } => {
+                ensure!(
+                    size.x > 0.0 && size.y > 0.0,
+                    "{context} collision '{}' must use a positive box size",
+                    collision.id
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn merged_part_gameplay(
+    definition: &PartGameplayMetadata,
+    instance: &PartGameplayMetadata,
+) -> PartGameplayMetadata {
+    PartGameplayMetadata {
+        targetable: instance.targetable.or(definition.targetable),
+        health_pool: instance
+            .health_pool
+            .clone()
+            .or_else(|| definition.health_pool.clone()),
+        armour: definition.armour.saturating_add(instance.armour),
+        durability: instance.durability.or(definition.durability),
+        breakable: instance.breakable.or(definition.breakable),
+        collision: definition
+            .collision
+            .iter()
+            .chain(instance.collision.iter())
+            .cloned()
+            .collect(),
+    }
+}
+
+fn part_gameplay_is_empty(gameplay: &PartGameplayMetadata) -> bool {
+    gameplay.targetable != Some(true)
+        && gameplay.health_pool.is_none()
+        && gameplay.armour == 0
+        && gameplay.durability.is_none()
+        && gameplay.breakable != Some(true)
+        && gameplay.collision.is_empty()
+}
+
+fn validate_tags(tags: &[String], context: &str) -> Result<()> {
+    let mut seen = HashSet::new();
+    for tag in tags {
+        ensure!(!tag.trim().is_empty(), "{} contains an empty tag", context);
+        ensure!(
+            seen.insert(tag.as_str()),
+            "{} contains duplicate tag '{}'",
+            context,
+            tag
+        );
+    }
+
+    Ok(())
+}
+
+fn validate_layer_bindings(
+    parts: &[PartInstance],
+    selected_layers: &[SelectedLayer<'_>],
+) -> Result<()> {
+    let bound_layers: HashSet<&str> = parts
+        .iter()
+        .filter_map(|part| part.source_layer.as_deref())
+        .collect();
+
+    for layer in selected_layers {
+        if !layer.visible {
+            continue;
+        }
+        ensure!(
+            bound_layers.contains(layer.name),
+            "visible source layer '{}' is not referenced by composition metadata",
+            layer.name
+        );
+    }
+
+    for part in parts {
+        let Some(layer_name) = part.source_layer.as_deref() else {
+            continue;
+        };
+        let layer = selected_layers
+            .iter()
+            .find(|candidate| candidate.name == layer_name)
+            .ok_or_else(|| {
+                anyhow!(
+                    "part '{}' references missing source layer '{}'",
+                    part.id,
+                    layer_name
+                )
+            })?;
+        ensure!(
+            layer.visible,
+            "part '{}' references hidden source layer '{}'",
+            part.id,
+            layer_name
+        );
+    }
+
+    Ok(())
+}
+
+fn build_part_topology(parts: &[PartInstance]) -> Result<Vec<String>> {
+    let part_lookup: HashMap<&str, &PartInstance> =
+        parts.iter().map(|part| (part.id.as_str(), part)).collect();
+    let mut ordered = Vec::with_capacity(parts.len());
+    let mut visiting = HashSet::new();
+    let mut visited = HashSet::new();
+
+    for part in parts {
+        visit_part(
+            part.id.as_str(),
+            &part_lookup,
+            &mut visiting,
+            &mut visited,
+            &mut ordered,
+        )?;
+    }
+
+    Ok(ordered)
+}
+
+fn visit_part(
+    part_id: &str,
+    part_lookup: &HashMap<&str, &PartInstance>,
+    visiting: &mut HashSet<String>,
+    visited: &mut HashSet<String>,
+    ordered: &mut Vec<String>,
+) -> Result<()> {
+    if visited.contains(part_id) {
+        return Ok(());
+    }
+    ensure!(
+        visiting.insert(part_id.to_string()),
+        "part hierarchy contains a cycle involving '{}'",
+        part_id
+    );
+
+    let part = part_lookup
+        .get(part_id)
+        .ok_or_else(|| anyhow!("missing part '{}' while building hierarchy", part_id))?;
+    if let Some(parent_id) = part.parent_id.as_deref() {
+        visit_part(parent_id, part_lookup, visiting, visited, ordered)?;
+    }
+
+    visiting.remove(part_id);
+    visited.insert(part_id.to_string());
+    ordered.push(part_id.to_string());
+    Ok(())
+}
+
+fn build_raw_placements(
+    parts: &[PartInstance],
+    layer_lookup: &HashMap<&str, &SelectedLayer<'_>>,
+    aseprite: &AsepriteFile<'_>,
+    frame: &aseprite_loader::loader::Frame,
+    frame_index: usize,
+    origin: Point,
+    sprite_interner: &mut SpriteInterner,
+) -> Result<HashMap<String, RawPlacement>> {
+    let mut placements = HashMap::new();
+    let raw_frame = aseprite.file.frames.get(frame_index).ok_or_else(|| {
+        anyhow!(
+            "Missing raw frame {} while building placements",
+            frame_index
+        )
+    })?;
+
+    for part in parts {
+        let Some(layer_name) = part.source_layer.as_deref() else {
+            continue;
+        };
+        let layer = layer_lookup.get(layer_name).ok_or_else(|| {
+            anyhow!(
+                "part '{}' references missing source layer '{}'",
+                part.id,
+                layer_name
+            )
+        })?;
+        let Some(frame_cel) = frame.cels.iter().find(|cel| cel.layer_index == layer.index) else {
+            continue;
+        };
+        let raw_cel = raw_frame
+            .cels
+            .get(layer.index)
+            .and_then(|cel| cel.as_ref())
+            .ok_or_else(|| {
+                anyhow!(
+                    "Resolved frame cel missing matching raw cel at frame {} layer '{}'",
+                    frame_index,
+                    layer.name
+                )
+            })?;
+        ensure!(
+            raw_cel.z_index == 0,
+            "Layer '{}' uses cel z-index {} in frame {}; dynamic z-order is not supported yet",
+            layer.name,
+            raw_cel.z_index,
+            frame_index
+        );
+
+        let cel_image = load_cel_image(aseprite, frame_cel)?;
+        let Some((trimmed_image, trimmed_bounds)) = trim_transparent_bounds(&cel_image) else {
+            continue;
+        };
+        let usage = sprite_interner.intern(&trimmed_image);
+        let world_x = i32::from(frame_cel.origin.0) + trimmed_bounds.x as i32;
+        let world_y = i32::from(frame_cel.origin.1) + trimmed_bounds.y as i32;
+
+        placements.insert(
+            part.id.clone(),
+            RawPlacement {
+                sprite_id: usage.sprite_id,
+                top_left: Point {
+                    x: world_x - origin.x,
+                    y: world_y - origin.y,
+                },
+                flip_x: usage.flip_x,
+                flip_y: usage.flip_y,
+                opacity: combine_opacity(layer.opacity, raw_cel.opacity),
+            },
+        );
+    }
+
+    Ok(placements)
+}
+
+fn build_frame_poses(
+    parts: &[PartInstance],
+    raw_placements: &HashMap<String, RawPlacement>,
+    topo_order: &[String],
+    frame_index: usize,
+    animation_tag: &str,
+) -> Result<Vec<PartPose>> {
+    let part_lookup: HashMap<&str, &PartInstance> =
+        parts.iter().map(|part| (part.id.as_str(), part)).collect();
+    let mut absolute_pivots = HashMap::<String, Point>::new();
+    let mut poses = Vec::new();
+
+    for part_id in topo_order {
+        let Some(part) = part_lookup.get(part_id.as_str()) else {
+            continue;
+        };
+        let Some(raw) = raw_placements.get(part.id.as_str()) else {
+            continue;
+        };
+
+        let pivot_world = Point {
+            x: raw.top_left.x + part.pivot.x,
+            y: raw.top_left.y + part.pivot.y,
+        };
+        let local_offset = if part.parent_id.is_some() {
+            let parent_pivot = resolve_parent_pivot_anchor(&part_lookup, part, &absolute_pivots)
+                .with_context(|| {
+                    format!(
+                        "animation '{}' frame {} renders '{}' without visible parent chain",
+                        animation_tag, frame_index, part.id
+                    )
+                })?;
+            Point {
+                x: pivot_world.x - parent_pivot.x,
+                y: pivot_world.y - parent_pivot.y,
+            }
+        } else {
+            pivot_world
+        };
+
+        absolute_pivots.insert(part.id.clone(), pivot_world);
+        poses.push(PartPose {
+            part_id: part.id.clone(),
+            sprite_id: raw.sprite_id.clone(),
+            local_offset,
+            flip_x: raw.flip_x,
+            flip_y: raw.flip_y,
+            visible: true,
+            opacity: raw.opacity,
+        });
+    }
+
+    poses.sort_by_key(|pose| {
+        part_lookup
+            .get(pose.part_id.as_str())
+            .map_or(u32::MAX, |part| part.draw_order)
+    });
+
+    Ok(poses)
+}
+
+fn resolve_parent_pivot_anchor(
+    part_lookup: &HashMap<&str, &PartInstance>,
+    part: &PartInstance,
+    absolute_pivots: &HashMap<String, Point>,
+) -> Result<Point> {
+    let mut parent_id = part.parent_id.as_deref();
+    while let Some(current_parent_id) = parent_id {
+        let parent = part_lookup
+            .get(current_parent_id)
+            .expect("validated hierarchy parent");
+        if parent.source_layer.is_some() {
+            return absolute_pivots
+                .get(current_parent_id)
+                .copied()
+                .ok_or_else(|| {
+                    anyhow!("missing resolved pivot for visual parent '{current_parent_id}'")
+                });
+        }
+        parent_id = parent.parent_id.as_deref();
+    }
+
+    Ok(Point::default())
+}
+
+impl CompositionPartSource {
+    fn to_instance(&self) -> PartInstance {
+        PartInstance {
+            id: self.id.clone(),
+            definition_id: self.definition_id.clone(),
+            name: self.name.clone().unwrap_or_else(|| self.id.clone()),
+            parent_id: self.parent_id.clone(),
+            source_layer: self.source_layer.clone(),
+            draw_order: self.draw_order,
+            pivot: self.pivot.unwrap_or_default(),
+            tags: self.tags.clone(),
+            visible_by_default: self.visible_by_default.unwrap_or(true),
+            gameplay: self.gameplay.clone(),
+        }
+    }
+}
+
+impl SpriteInterner {
+    fn intern(&mut self, image: &RgbaImage) -> SpriteUsage {
+        intern_sprite(&mut self.sprites, &mut self.cache, image)
+    }
 }
 
 impl SpriteSpec {
@@ -1036,13 +1886,28 @@ impl SpriteSpec {
             .filter(|value| !value.trim().is_empty())
             .unwrap_or(DEFAULT_ORIGIN_SLICE)
     }
+
+    fn composition_path(&self) -> Result<&str> {
+        self.composition
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| {
+                anyhow!(
+                    "Sprite '{}' depth {} is missing composition metadata",
+                    self.entity,
+                    self.depth
+                )
+            })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        ImageKey, Manifest, Rect, SpriteSpec, image_key, normalize_part_id,
-        trim_transparent_bounds, validate_manifest,
+        CollisionShape, CollisionVolume, CompositionGameplay, CompositionPartSource,
+        CompositionSource, HealthPool, ImageKey, Manifest, PartDefinition, PartGameplayMetadata,
+        Point, Rect, SpriteSpec, Vec2Value, image_key, normalize_part_id, trim_transparent_bounds,
+        validate_composition_source, validate_manifest,
     };
     use image::{ImageBuffer, Rgba};
 
@@ -1055,6 +1920,49 @@ mod tests {
             palette: None,
             part_group: Some(String::from("base")),
             origin_slice: Some(String::from("origin")),
+            composition: Some(format!("{entity}_{depth}.composition.toml")),
+        }
+    }
+
+    fn minimal_composition() -> CompositionSource {
+        CompositionSource {
+            part_definitions: vec![PartDefinition {
+                id: "body".to_string(),
+                tags: vec!["core".to_string()],
+                gameplay: PartGameplayMetadata {
+                    targetable: Some(true),
+                    health_pool: Some("core".to_string()),
+                    collision: vec![CollisionVolume {
+                        id: "body_hurtbox".to_string(),
+                        role: super::CollisionRole::Collider,
+                        shape: CollisionShape::Circle {
+                            radius: 4.0,
+                            offset: Vec2Value::default(),
+                        },
+                        tags: vec!["body".to_string()],
+                    }],
+                    ..Default::default()
+                },
+            }],
+            parts: vec![CompositionPartSource {
+                id: "body".to_string(),
+                definition_id: "body".to_string(),
+                name: Some("Body".to_string()),
+                parent_id: None,
+                source_layer: Some("body".to_string()),
+                draw_order: 0,
+                pivot: Some(Point::default()),
+                tags: vec![],
+                visible_by_default: Some(true),
+                gameplay: PartGameplayMetadata::default(),
+            }],
+            gameplay: CompositionGameplay {
+                entity_health_pool: Some("core".to_string()),
+                health_pools: vec![HealthPool {
+                    id: "core".to_string(),
+                    max_health: 10,
+                }],
+            },
         }
     }
 
@@ -1107,5 +2015,146 @@ mod tests {
                 pixels: image.as_raw().clone(),
             }
         );
+    }
+
+    #[test]
+    fn rejects_composition_cycles() {
+        let mut composition = minimal_composition();
+        composition.parts.push(CompositionPartSource {
+            id: "head".to_string(),
+            definition_id: "body".to_string(),
+            name: Some("Head".to_string()),
+            parent_id: Some("body".to_string()),
+            source_layer: Some("head".to_string()),
+            draw_order: 1,
+            pivot: Some(Point::default()),
+            tags: vec![],
+            visible_by_default: Some(true),
+            gameplay: PartGameplayMetadata::default(),
+        });
+        composition.parts[0].parent_id = Some("head".to_string());
+
+        let error = validate_composition_source(&composition)
+            .expect_err("cyclic hierarchies should be rejected")
+            .to_string();
+        assert!(error.contains("cycle"));
+    }
+
+    #[test]
+    fn rejects_missing_health_pool_references() {
+        let mut composition = minimal_composition();
+        composition.part_definitions[0].gameplay.health_pool = Some("missing".to_string());
+
+        let error = validate_composition_source(&composition)
+            .expect_err("missing health pools should fail validation")
+            .to_string();
+        assert!(error.contains("missing health pool"));
+    }
+
+    #[test]
+    fn rejects_non_visual_parts_with_gameplay_metadata() {
+        let mut composition = minimal_composition();
+        composition.part_definitions.push(PartDefinition {
+            id: "marker".to_string(),
+            tags: vec!["marker".to_string()],
+            gameplay: PartGameplayMetadata {
+                targetable: Some(true),
+                health_pool: Some("core".to_string()),
+                collision: vec![CollisionVolume {
+                    id: "marker".to_string(),
+                    role: super::CollisionRole::Collider,
+                    shape: CollisionShape::Circle {
+                        radius: 2.0,
+                        offset: Vec2Value::default(),
+                    },
+                    tags: vec![],
+                }],
+                ..Default::default()
+            },
+        });
+        composition.parts.push(CompositionPartSource {
+            id: "marker".to_string(),
+            definition_id: "marker".to_string(),
+            name: Some("Marker".to_string()),
+            parent_id: Some("body".to_string()),
+            source_layer: None,
+            draw_order: 1,
+            pivot: None,
+            tags: vec![],
+            visible_by_default: Some(true),
+            gameplay: PartGameplayMetadata::default(),
+        });
+
+        let error = validate_composition_source(&composition)
+            .expect_err("non-visual gameplay-bearing nodes should be rejected")
+            .to_string();
+        assert!(error.contains("non-visual part"));
+    }
+
+    #[test]
+    fn rejects_non_targetable_collision_volumes() {
+        let mut composition = minimal_composition();
+        composition.part_definitions[0].gameplay.targetable = Some(false);
+
+        let error = validate_composition_source(&composition)
+            .expect_err("collision volumes without targetable routing should fail")
+            .to_string();
+        assert!(error.contains("targetable = true"));
+    }
+
+    #[test]
+    fn rejects_unsupported_collision_roles() {
+        let mut composition = minimal_composition();
+        composition.part_definitions[0].gameplay.collision[0].role = super::CollisionRole::Hurtbox;
+
+        let error = validate_composition_source(&composition)
+            .expect_err("unsupported collision roles should fail loudly")
+            .to_string();
+        assert!(error.contains("supports only collider volumes"));
+    }
+
+    #[test]
+    fn rejects_breakable_parts_without_durability() {
+        let mut composition = minimal_composition();
+        composition.part_definitions[0].gameplay.breakable = Some(true);
+
+        let error = validate_composition_source(&composition)
+            .expect_err("breakable parts must define durability")
+            .to_string();
+        assert!(error.contains("breakable = true"));
+    }
+
+    #[test]
+    fn rejects_durability_without_targetable_collision_contract() {
+        let mut composition = minimal_composition();
+        composition.part_definitions[0].gameplay.targetable = Some(false);
+        composition.part_definitions[0].gameplay.durability = Some(5);
+
+        let error = validate_composition_source(&composition)
+            .expect_err("durability should require targetable collision routing")
+            .to_string();
+        assert!(error.contains("targetable = true"));
+    }
+
+    #[test]
+    fn rejects_visual_parts_without_explicit_pivots() {
+        let mut composition = minimal_composition();
+        composition.parts[0].pivot = None;
+
+        let error = validate_composition_source(&composition)
+            .expect_err("visual parts must author pivots explicitly")
+            .to_string();
+        assert!(error.contains("explicit pivot"));
+    }
+
+    #[test]
+    fn rejects_visible_by_default_false_until_runtime_supports_it() {
+        let mut composition = minimal_composition();
+        composition.parts[0].visible_by_default = Some(false);
+
+        let error = validate_composition_source(&composition)
+            .expect_err("visible_by_default false is currently unsupported")
+            .to_string();
+        assert!(error.contains("visible_by_default = false"));
     }
 }

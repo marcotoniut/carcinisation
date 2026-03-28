@@ -20,9 +20,10 @@ use self::{
     components::placement::RailPosition,
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
+    enemy::composed::{apply_composed_part_damage, check_composed_damage_flicker_taken},
     messages::{
-        DamageMessage, DepthChangedMessage, NextStepEvent, StageClearedEvent, StageDeathEvent,
-        StageSpawnEvent, StageStartupEvent,
+        DamageMessage, DepthChangedMessage, NextStepEvent, PartDamageMessage, StageClearedEvent,
+        StageDeathEvent, StageSpawnEvent, StageStartupEvent,
     },
     pickup::systems::health::{
         mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
@@ -116,6 +117,7 @@ impl Plugin for StagePlugin {
             .init_resource::<StageProgress>()
             // Message streams for the combat/progression loop.
             .add_message::<DamageMessage>()
+            .add_message::<PartDamageMessage>()
             .add_message::<DepthChangedMessage>()
             .add_message::<StageDeathEvent>()
             .add_observer(on_death)
@@ -219,7 +221,13 @@ impl Plugin for StagePlugin {
                     ),
                     (
                         // Damage
-                        (on_damage, check_damage_flicker_taken).chain(),
+                        (
+                            apply_composed_part_damage,
+                            on_damage,
+                            check_composed_damage_flicker_taken,
+                            check_damage_flicker_taken,
+                        )
+                            .chain(),
                         add_invert_filter,
                         remove_invert_filter,
                         check_dead_drop,

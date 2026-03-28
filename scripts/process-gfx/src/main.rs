@@ -6,7 +6,7 @@ mod paths;
 mod quantize;
 
 use image::{ImageBuffer, Rgba, imageops};
-use paths::{ASSETS_PATH, BASE_PALETTE_SUBPATH, RESOURCES_GFX_PATH};
+use paths::{BASE_PALETTE_SUBPATH, assets_path, resources_gfx_path};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
 
@@ -46,38 +46,25 @@ struct Config {
 
 /// Loads the processing manifest and emits palette-reduced textures.
 fn main() {
-    let data_str = if cfg!(windows) {
-        println!("this is windows");
-        let mut root = std::env::current_dir().unwrap();
-        root.push(RESOURCES_GFX_PATH);
-        println!("{}", root.display());
-
-        let win_path = root.join("data.toml");
-        println!("WINDOWS PATH: {}", win_path.display());
-
-        fs::read_to_string(&win_path).unwrap()
-    } else {
-        fs::read_to_string(format!("{RESOURCES_GFX_PATH}data.toml")).unwrap()
-    };
+    let resources_gfx_path = resources_gfx_path();
+    let assets_path = assets_path();
+    let data_str = fs::read_to_string(resources_gfx_path.join("data.toml"))
+        .expect("could not read resources/gfx/data.toml");
 
     let data: Config = toml::from_str(&data_str).unwrap();
 
     let palette_image: ImageBuffer<Rgba<u8>, Vec<u8>> =
-        image::open([ASSETS_PATH, BASE_PALETTE_SUBPATH].concat())
+        image::open(assets_path.join(BASE_PALETTE_SUBPATH))
             .expect("could not open base palette")
             .to_rgba8();
 
     for image in data.images {
-        let asset_path = format!(
-            "{}{}",
-            ASSETS_PATH,
-            image.target_path.unwrap_or(image.path.clone())
-        );
+        let asset_path = assets_path.join(image.target_path.unwrap_or(image.path.clone()));
         if let Some(parent_dir) = Path::new(&asset_path).parent() {
             fs::create_dir_all(parent_dir).expect("could not create directory");
         }
 
-        println!("processing {asset_path}");
+        println!("processing {}", asset_path.display());
         println!(
             "{} {}",
             image
@@ -87,7 +74,7 @@ fn main() {
         );
         println!();
 
-        let _ = match image::open(format!("{}{}", RESOURCES_GFX_PATH, image.path))
+        let _ = match image::open(resources_gfx_path.join(&image.path))
             .map(image::DynamicImage::into_rgba8)
             .map(|img| {
                 if let Some(width) = image.width {

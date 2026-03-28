@@ -51,3 +51,11 @@ pub struct DamageMessage {
     pub entity: Entity,
     pub value: u32,
 }
+
+#[derive(new, Message)]
+/// Damage targeted at a composed semantic part rather than the whole entity.
+pub struct PartDamageMessage {
+    pub entity: Entity,
+    pub part_id: String,
+    pub value: u32,
+}

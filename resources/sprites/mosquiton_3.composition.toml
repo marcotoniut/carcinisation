@@ -1,0 +1,180 @@
+[[part_definitions]]
+id = "group_marker"
+tags = ["group"]
+
+[[part_definitions]]
+id = "body"
+tags = ["core", "torso", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+
+[[part_definitions.gameplay.collision]]
+id = "body_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 10.0, offset = { x = 0.0, y = 2.0 } }
+tags = ["body", "core"]
+
+[[part_definitions]]
+id = "head"
+tags = ["core", "head", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+
+[[part_definitions.gameplay.collision]]
+id = "head_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 7.0, offset = { x = 0.0, y = 4.0 } }
+tags = ["head", "core"]
+
+[[part_definitions]]
+id = "arm"
+tags = ["arm", "limb", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 1
+
+[[part_definitions.gameplay.collision]]
+id = "arm_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 6.0, offset = { x = 0.0, y = 1.0 } }
+tags = ["arm", "appendage"]
+
+[[part_definitions]]
+id = "wing_marker"
+tags = ["wing", "limb"]
+
+[[part_definitions]]
+id = "leg_marker"
+tags = ["leg", "limb"]
+
+[[part_definitions]]
+id = "visual_overlay"
+tags = ["visual_only"]
+
+[[parts]]
+id = "root"
+definition_id = "group_marker"
+name = "Root"
+draw_order = 0
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "body"
+definition_id = "body"
+name = "Body"
+parent_id = "root"
+source_layer = "body"
+draw_order = 20
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "head"
+definition_id = "head"
+name = "Head"
+parent_id = "body"
+source_layer = "head"
+draw_order = 30
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "arm_l"
+definition_id = "arm"
+name = "Arm Left"
+parent_id = "body"
+source_layer = "arm_l"
+draw_order = 40
+pivot = { x = 0, y = 0 }
+tags = ["left"]
+
+[[parts]]
+id = "arm_r"
+definition_id = "arm"
+name = "Arm Right"
+parent_id = "body"
+source_layer = "arm_r"
+draw_order = 50
+pivot = { x = 0, y = 0 }
+tags = ["right"]
+
+[[parts]]
+id = "arms_overlay"
+definition_id = "visual_overlay"
+name = "Arms Overlay"
+parent_id = "root"
+source_layer = "arms"
+draw_order = 60
+pivot = { x = 0, y = 0 }
+tags = ["arms", "visual_only"]
+
+[[parts]]
+id = "wings_visual"
+definition_id = "visual_overlay"
+name = "Wings Visual"
+parent_id = "root"
+source_layer = "wings"
+draw_order = 10
+pivot = { x = 0, y = 0 }
+tags = ["wings", "visual_only"]
+
+[[parts]]
+id = "legs_visual"
+definition_id = "visual_overlay"
+name = "Legs Visual"
+parent_id = "root"
+source_layer = "legs"
+draw_order = 70
+pivot = { x = 0, y = 0 }
+tags = ["legs", "visual_only"]
+
+[[parts]]
+# Temporary migration bridge: semantics exist before the source art is split into
+# independently authored left/right wing visuals.
+id = "wing_l"
+definition_id = "wing_marker"
+name = "Wing Left"
+parent_id = "root"
+draw_order = 80
+pivot = { x = 0, y = 0 }
+tags = ["left"]
+
+[[parts]]
+id = "wing_r"
+definition_id = "wing_marker"
+name = "Wing Right"
+parent_id = "root"
+draw_order = 90
+pivot = { x = 0, y = 0 }
+tags = ["right"]
+
+[[parts]]
+# Temporary migration bridge: semantics exist before the source art is split into
+# independently authored left/right leg visuals.
+id = "leg_l"
+definition_id = "leg_marker"
+name = "Leg Left"
+parent_id = "root"
+draw_order = 100
+pivot = { x = 0, y = 0 }
+tags = ["left"]
+
+[[parts]]
+id = "leg_r"
+definition_id = "leg_marker"
+name = "Leg Right"
+parent_id = "root"
+draw_order = 110
+pivot = { x = 0, y = 0 }
+tags = ["right"]
+
+[gameplay]
+entity_health_pool = "core"
+
+[[gameplay.health_pools]]
+id = "core"
+max_health = 40

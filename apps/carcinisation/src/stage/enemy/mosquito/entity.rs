@@ -30,6 +30,7 @@ impl EnemyMosquito {
 }
 
 #[derive(new, Clone, Component, Debug, Default, Reflect)]
+#[reflect(Component)]
 pub struct EnemyMosquitoAttacking {
     #[new(default)]
     pub attack: Option<EnemyMosquitoAttack>,
