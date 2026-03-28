@@ -4,6 +4,7 @@ use crate::stage::{
         damage::{DamageFlicker, InvertFilter},
         interactive::{Dead, Flickerer, Health},
     },
+    enemy::composed::ComposedHealthPools,
     messages::DamageMessage,
     resources::StageTimeDomain,
 };
@@ -23,7 +24,7 @@ pub static DAMAGE_INVERT_DURATION: std::sync::LazyLock<Duration> =
 pub fn on_damage(
     mut commands: Commands,
     mut event_reader: MessageReader<DamageMessage>,
-    mut query: Query<&mut Health, Without<Dead>>,
+    mut query: Query<&mut Health, (Without<Dead>, Without<ComposedHealthPools>)>,
 ) {
     for e in event_reader.read() {
         if let Ok(mut health) = query.get_mut(e.entity) {

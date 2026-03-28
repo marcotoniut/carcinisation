@@ -11,7 +11,10 @@ mod systems;
 pub mod tardigrade;
 
 use self::{
-    mosquito::systems::{assign_mosquito_animation, check_idle_mosquito, despawn_dead_mosquitoes},
+    mosquito::systems::{
+        assign_mosquito_animation, check_idle_mosquito, clear_finished_mosquito_attacks,
+        despawn_dead_mosquitoes,
+    },
     mosquiton::systems::{assign_mosquiton_animation, despawn_dead_mosquitons},
     systems::{
         animation::on_composed_enemy_depth_changed,
@@ -55,13 +58,18 @@ impl Plugin for EnemyPlugin {
                 ),
                 (
                     // Mosquito
-                    assign_mosquito_animation,
-                    check_idle_mosquito,
+                    // Resolve transient attack state before selecting visuals so
+                    // newly spawned idle enemies render idle until a real shot
+                    // has both triggered and not yet cleared.
+                    (clear_finished_mosquito_attacks, check_idle_mosquito)
+                        .chain()
+                        .after(check_no_behavior),
+                    assign_mosquito_animation.after(check_idle_mosquito),
                     despawn_dead_mosquitoes,
                 ),
                 (
                     // Mosquiton
-                    assign_mosquiton_animation,
+                    assign_mosquiton_animation.after(check_idle_mosquito),
                     (
                         prepare_composed_atlas_assets,
                         ensure_composed_enemy_parts,

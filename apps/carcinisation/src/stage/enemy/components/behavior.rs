@@ -15,6 +15,7 @@ use std::collections::VecDeque;
 use std::time::Duration;
 
 #[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub struct EnemyCurrentBehavior {
     pub started: Duration,
     pub behavior: EnemyStep,

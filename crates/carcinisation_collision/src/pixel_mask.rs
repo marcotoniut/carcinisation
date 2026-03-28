@@ -43,6 +43,17 @@ impl PixelCollisionCache {
     }
 }
 
+#[derive(Default)]
+pub struct AtlasPixelCollisionCache {
+    atlases: HashMap<AssetId<PxSpriteAtlasAsset>, Arc<AtlasPixelData>>,
+}
+
+impl AtlasPixelCollisionCache {
+    pub fn clear(&mut self) {
+        self.atlases.clear();
+    }
+}
+
 /// Pixel mask derived from a sprite asset, cached for overlap tests.
 pub struct SpritePixelData {
     width: u32,
@@ -52,6 +63,13 @@ pub struct SpritePixelData {
     segments_per_row: usize,
     // Row-major u64 bitmasks for fast pixel overlap.
     row_masks: Vec<u64>,
+}
+
+/// Pixel data extracted from a palette-indexed atlas image.
+pub struct AtlasPixelData {
+    width: u32,
+    height: u32,
+    pixels: Vec<u8>,
 }
 
 impl SpritePixelData {
@@ -127,6 +145,41 @@ impl SpritePixelData {
     }
 }
 
+impl AtlasPixelData {
+    fn from_asset(asset: &PxSpriteAtlasAsset) -> Option<Self> {
+        let ReflectRef::Struct(atlas_struct) = (asset as &dyn Reflect).reflect_ref() else {
+            return None;
+        };
+        let data = atlas_struct.field("data")?;
+        let ReflectRef::Struct(image_struct) = data.reflect_ref() else {
+            return None;
+        };
+        let width = image_struct
+            .field("width")
+            .and_then(|value| value.try_downcast_ref::<usize>().copied())?;
+        let pixels = image_struct
+            .field("image")
+            .and_then(|value| value.try_downcast_ref::<Vec<u8>>())?;
+        if width == 0 || pixels.is_empty() || pixels.len() % width != 0 {
+            return None;
+        }
+
+        Some(Self {
+            width: width as u32,
+            height: (pixels.len() / width) as u32,
+            pixels: pixels.clone(),
+        })
+    }
+
+    fn pixel_visible(&self, atlas_x: u32, atlas_y: u32) -> bool {
+        if atlas_x >= self.width || atlas_y >= self.height {
+            return false;
+        }
+        let index = atlas_y as usize * self.width as usize + atlas_x as usize;
+        self.pixels.get(index).is_some_and(|pixel| *pixel != 0)
+    }
+}
+
 #[must_use]
 pub fn sprite_data(
     cache: &mut PixelCollisionCache,
@@ -139,6 +192,25 @@ pub fn sprite_data(
         std::collections::hash_map::Entry::Vacant(entry) => {
             let asset = assets.get(handle)?;
             let data = SpritePixelData::from_asset(asset)?;
+            let data = Arc::new(data);
+            entry.insert(data.clone());
+            Some(data)
+        }
+    }
+}
+
+#[must_use]
+pub fn atlas_data(
+    cache: &mut AtlasPixelCollisionCache,
+    assets: &Assets<PxSpriteAtlasAsset>,
+    handle: &Handle<PxSpriteAtlasAsset>,
+) -> Option<Arc<AtlasPixelData>> {
+    let id = handle.id();
+    match cache.atlases.entry(id) {
+        std::collections::hash_map::Entry::Occupied(entry) => Some(entry.get().clone()),
+        std::collections::hash_map::Entry::Vacant(entry) => {
+            let asset = assets.get(handle)?;
+            let data = AtlasPixelData::from_asset(asset)?;
             let data = Arc::new(data);
             entry.insert(data.clone());
             Some(data)
@@ -229,6 +301,48 @@ pub fn mask_contains_point(
     let sprite_y = sprite.height.saturating_sub(1).saturating_sub(local_y);
     let local = UVec2::new(local_x, sprite_y);
     sprite_pixel_visible(sprite, frame, local)
+}
+
+/// Returns true when an atlas-backed part contains the given world-space point.
+///
+/// `sprite_rect` uses the resolved part's top-left world position and frame size.
+/// The composed runtime uses this for pixel-perfect semantic part selection after
+/// coarse collision volumes identify candidate parts.
+#[must_use]
+pub fn atlas_region_contains_point(
+    atlas: &AtlasPixelData,
+    region_rect: AtlasRect,
+    sprite_rect: IRect,
+    point: IVec2,
+    flip_x: bool,
+    flip_y: bool,
+) -> bool {
+    if point.x < sprite_rect.min.x
+        || point.x >= sprite_rect.max.x
+        || point.y < sprite_rect.min.y
+        || point.y >= sprite_rect.max.y
+    {
+        return false;
+    }
+
+    let local_x = (point.x - sprite_rect.min.x) as u32;
+    let local_y = (point.y - sprite_rect.min.y) as u32;
+    let atlas_x = if flip_x {
+        region_rect
+            .x
+            .saturating_add(region_rect.w.saturating_sub(1).saturating_sub(local_x))
+    } else {
+        region_rect.x.saturating_add(local_x)
+    };
+    let atlas_y = if flip_y {
+        region_rect
+            .y
+            .saturating_add(region_rect.h.saturating_sub(1).saturating_sub(local_y))
+    } else {
+        region_rect.y.saturating_add(local_y)
+    };
+
+    atlas.pixel_visible(atlas_x, atlas_y)
 }
 
 fn pixel_overlap_fast(
@@ -534,6 +648,19 @@ mod tests {
         }
     }
 
+    fn make_atlas(width: u32, height: u32, on: &[(u32, u32)]) -> AtlasPixelData {
+        let mut pixels = vec![0u8; width as usize * height as usize];
+        for (x, y) in on {
+            let index = *y as usize * width as usize + *x as usize;
+            pixels[index] = 1;
+        }
+        AtlasPixelData {
+            width,
+            height,
+            pixels,
+        }
+    }
+
     fn mask_overlaps_box(
         mask: &SpritePixelData,
         frame: Option<PxFrameView>,
@@ -650,6 +777,86 @@ mod tests {
 
         assert!(mask_contains_point(&mask, None, rect, IVec2::new(12, 6)));
         assert!(!mask_contains_point(&mask, None, rect, IVec2::new(11, 6)));
+    }
+
+    #[test]
+    fn atlas_region_contains_point_respects_flip_x() {
+        let atlas = make_atlas(2, 1, &[(0, 0)]);
+        let region = AtlasRect {
+            x: 0,
+            y: 0,
+            w: 2,
+            h: 1,
+        };
+        let sprite_rect = IRect {
+            min: IVec2::new(10, 5),
+            max: IVec2::new(12, 6),
+        };
+
+        assert!(atlas_region_contains_point(
+            &atlas,
+            region,
+            sprite_rect,
+            IVec2::new(10, 5),
+            false,
+            false
+        ));
+        assert!(!atlas_region_contains_point(
+            &atlas,
+            region,
+            sprite_rect,
+            IVec2::new(11, 5),
+            false,
+            false
+        ));
+        assert!(atlas_region_contains_point(
+            &atlas,
+            region,
+            sprite_rect,
+            IVec2::new(11, 5),
+            true,
+            false
+        ));
+    }
+
+    #[test]
+    fn atlas_region_contains_point_respects_flip_y() {
+        let atlas = make_atlas(1, 2, &[(0, 0)]);
+        let region = AtlasRect {
+            x: 0,
+            y: 0,
+            w: 1,
+            h: 2,
+        };
+        let sprite_rect = IRect {
+            min: IVec2::new(4, 8),
+            max: IVec2::new(5, 10),
+        };
+
+        assert!(atlas_region_contains_point(
+            &atlas,
+            region,
+            sprite_rect,
+            IVec2::new(4, 8),
+            false,
+            false
+        ));
+        assert!(!atlas_region_contains_point(
+            &atlas,
+            region,
+            sprite_rect,
+            IVec2::new(4, 9),
+            false,
+            false
+        ));
+        assert!(atlas_region_contains_point(
+            &atlas,
+            region,
+            sprite_rect,
+            IVec2::new(4, 9),
+            false,
+            true
+        ));
     }
 
     #[test]

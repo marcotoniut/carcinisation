@@ -6,3 +6,4 @@ depth = 3
 palette = "base"
 part_group = "base"
 origin_slice = "origin"
+composition = "mosquiton_3.composition.toml"

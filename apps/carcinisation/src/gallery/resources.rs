@@ -7,7 +7,7 @@ use bevy::prelude::*;
 use strum::IntoEnumIterator;
 
 /// All characters viewable in the gallery.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Reflect)]
 pub enum GalleryCharacter {
     #[default]
     Mosquito,
@@ -119,7 +119,12 @@ impl GalleryCharacter {
 }
 
 /// Persistent gallery UI state: tracks current selection and previous values for change detection.
-#[derive(Resource, Debug)]
+///
+/// This resource is the single source of truth for gallery selection. The egui
+/// panel mutates it interactively, and BRP/debug tooling may mutate it
+/// directly for deterministic verification without simulating gameplay.
+#[derive(Resource, Debug, Reflect)]
+#[reflect(Resource)]
 pub struct GalleryState {
     pub selected_character: GalleryCharacter,
     pub selected_animation: String,

@@ -31,6 +31,27 @@ use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 use std::time::Duration;
 
 pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
+/// Keep the transient ranged-attack marker alive for the full authored
+/// Mosquiton `shoot_fly` clip.
+///
+/// The attack state is the only gameplay-side signal that tells composed
+/// enemies to request `shoot_fly`. If we clear it before the authored clip can
+/// read, the shot technically fires but the action is barely visible. If we
+/// never clear it, the enemy gets stuck in attack presentation. This duration
+/// must therefore stay long enough for a readable shot while still remaining
+/// shorter than the 3s attack cadence.
+const ENEMY_MOSQUITO_RANGED_PRESENTATION: Duration = Duration::from_millis(1400);
+
+fn mosquito_attack_cooldown_ready(cooldown_anchor: Duration, stage_elapsed: Duration) -> bool {
+    stage_elapsed >= cooldown_anchor + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
+}
+
+fn mosquito_attack_presentation_finished(
+    last_attack_started: Duration,
+    stage_elapsed: Duration,
+) -> bool {
+    stage_elapsed >= last_attack_started + ENEMY_MOSQUITO_RANGED_PRESENTATION
+}
 
 /// @system Picks the correct mosquito sprite for the current behavior and depth.
 pub fn assign_mosquito_animation(
@@ -172,6 +193,37 @@ pub fn despawn_dead_mosquitoes(
     }
 }
 
+/// @system Clears short-lived mosquito attack presentation state once the shot
+/// has been visible long enough.
+///
+/// The idle behaviour remains active while ranged attacks are fired. Attack
+/// state is therefore a transient visual/action marker, not a long-lived
+/// behaviour state. Clearing it restores idle visuals after the shot.
+pub fn clear_finished_mosquito_attacks(
+    mut commands: Commands,
+    stage_time: Res<Time<StageTimeDomain>>,
+    query: Query<(Entity, &EnemyMosquitoAttacking), With<EnemyMosquito>>,
+) {
+    for (entity, attacking) in &query {
+        if attacking.attack.is_none()
+            || !mosquito_attack_presentation_finished(
+                attacking.last_attack_started,
+                stage_time.elapsed(),
+            )
+        {
+            continue;
+        }
+
+        commands
+            .entity(entity)
+            .remove::<EnemyMosquitoAnimation>()
+            .insert(EnemyMosquitoAttacking {
+                attack: None,
+                last_attack_started: attacking.last_attack_started,
+            });
+    }
+}
+
 /// @system Fires ranged attacks from idle in-view mosquitoes on a cooldown.
 ///
 /// # Panics
@@ -184,38 +236,102 @@ pub fn check_idle_mosquito(
     // TODO
     // event_writer: MessageWriter<BloodAttackEvent>,
     stage_time: Res<Time<StageTimeDomain>>,
-    query: Query<
-        (Entity, &mut EnemyMosquitoAttacking, &PxSubPosition, &Depth),
+    mut query: Query<
+        (
+            Entity,
+            &EnemyCurrentBehavior,
+            &mut EnemyMosquitoAttacking,
+            &PxSubPosition,
+            &Depth,
+        ),
         (With<InView>, With<EnemyMosquito>),
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();
-    for (entity, attacking, position, depth) in &mut query.iter() {
-        if attacking.attack.is_none() {
-            // if let EnemyStep::Idle { duration } = enemy.current_step() {
-            if attacking.last_attack_started
-                < stage_time.elapsed() + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
-            {
-                #[cfg(debug_assertions)]
-                info!("Mosquito {:?} is attacking", entity);
-
-                commands
-                    .entity(entity)
-                    .remove::<EnemyMosquitoAnimation>()
-                    .insert(EnemyMosquitoAttacking {
-                        attack: Some(EnemyMosquitoAttack::Ranged),
-                        last_attack_started: stage_time.elapsed(),
-                    });
-
-                spawn_blood_shot_attack(
-                    &mut commands,
-                    &mut assets_sprite,
-                    &stage_time,
-                    *SCREEN_RESOLUTION_F32_H + camera_pos.0,
-                    position.0,
-                    depth,
-                );
-            }
+    for (entity, behavior, attacking, position, depth) in &mut query {
+        if attacking.attack.is_some() || !matches!(behavior.behavior, EnemyStep::Idle { .. }) {
+            continue;
         }
+        let cooldown_anchor = attacking.last_attack_started.max(behavior.started);
+        if !mosquito_attack_cooldown_ready(cooldown_anchor, stage_time.elapsed()) {
+            continue;
+        }
+
+        #[cfg(debug_assertions)]
+        info!("Mosquito {:?} is attacking", entity);
+
+        commands
+            .entity(entity)
+            .remove::<EnemyMosquitoAnimation>()
+            .insert(EnemyMosquitoAttacking {
+                attack: Some(EnemyMosquitoAttack::Ranged),
+                last_attack_started: stage_time.elapsed(),
+            });
+
+        spawn_blood_shot_attack(
+            &mut commands,
+            &mut assets_sprite,
+            &stage_time,
+            *SCREEN_RESOLUTION_F32_H + camera_pos.0,
+            position.0,
+            depth,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mosquito_attack_cooldown_ready;
+    use std::time::Duration;
+
+    #[test]
+    fn mosquito_attack_waits_for_full_cooldown() {
+        let cooldown = Duration::from_secs_f32(super::ENEMY_MOSQUITO_ATTACK_SPEED);
+        assert!(!mosquito_attack_cooldown_ready(
+            Duration::ZERO,
+            cooldown - Duration::from_millis(1)
+        ));
+        assert!(mosquito_attack_cooldown_ready(Duration::ZERO, cooldown));
+    }
+
+    #[test]
+    fn mosquito_attack_uses_last_attack_timestamp_as_absolute_time() {
+        let last_attack_started = Duration::from_secs(5);
+        assert!(!mosquito_attack_cooldown_ready(
+            last_attack_started,
+            last_attack_started + Duration::from_secs_f32(super::ENEMY_MOSQUITO_ATTACK_SPEED)
+                - Duration::from_millis(1),
+        ));
+        assert!(mosquito_attack_cooldown_ready(
+            last_attack_started,
+            last_attack_started + Duration::from_secs_f32(super::ENEMY_MOSQUITO_ATTACK_SPEED),
+        ));
+    }
+
+    #[test]
+    fn mosquito_attack_waits_for_idle_entry_even_when_stage_elapsed_is_large() {
+        let idle_started = Duration::from_secs(29);
+        let stage_elapsed = Duration::from_secs(30);
+
+        assert!(!mosquito_attack_cooldown_ready(idle_started, stage_elapsed));
+        assert!(mosquito_attack_cooldown_ready(
+            idle_started,
+            idle_started + Duration::from_secs_f32(super::ENEMY_MOSQUITO_ATTACK_SPEED),
+        ));
+    }
+
+    #[test]
+    fn mosquito_ranged_presentation_clears_after_short_hold() {
+        let attack_started = Duration::from_secs(3);
+        let presentation_duration = super::ENEMY_MOSQUITO_RANGED_PRESENTATION;
+
+        assert!(!super::mosquito_attack_presentation_finished(
+            attack_started,
+            attack_started + presentation_duration - Duration::from_nanos(1),
+        ));
+        assert!(super::mosquito_attack_presentation_finished(
+            attack_started,
+            attack_started + presentation_duration,
+        ));
     }
 }

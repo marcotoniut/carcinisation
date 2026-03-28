@@ -16,8 +16,8 @@ use crate::stage::{
         composed::{ComposedAnimationState, ComposedEnemyVisual},
         data::mosquiton::TAG_IDLE_FLY,
         entity::EnemyType,
-        mosquito::entity::{ENEMY_MOSQUITO_RADIUS, MosquitoBundle},
-        mosquiton::entity::MosquitonBundle,
+        mosquito::entity::{ENEMY_MOSQUITO_RADIUS, MosquitoBundle, MosquitoDefaultBundle},
+        mosquiton::entity::{MosquitonBundle, MosquitonDefaultBundle},
         tardigrade::entity::{ENEMY_TARDIGRADE_RADIUS, TardigradeBundle},
     },
     player::{attacks::AttackHitTracker, components::PlayerAttack},
@@ -186,7 +186,7 @@ pub fn spawn_enemy(
                     behaviors,
                     position: PxSubPosition::from(position),
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    default: default(),
+                    default: MosquitoDefaultBundle::default(),
                 })
                 .id();
 
@@ -220,7 +220,7 @@ pub fn spawn_enemy(
                     depth: *depth,
                     position: PxSubPosition::from(position),
                     speed: Speed(*speed),
-                    default: default(),
+                    default: MosquitonDefaultBundle::default(),
                 })
                 .id();
 

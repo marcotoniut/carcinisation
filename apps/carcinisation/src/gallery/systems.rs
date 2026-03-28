@@ -17,7 +17,12 @@ use crate::{
             bundles::make_enemy_animation_bundle,
             composed::{ComposedAnimationState, ComposedEnemyVisual},
             data::{
-                mosquito::MOSQUITO_ANIMATIONS, spidey::SPIDEY_ANIMATIONS,
+                mosquito::MOSQUITO_ANIMATIONS,
+                mosquiton::{
+                    GALLERY_ACTION_TAGS as MOSQUITON_GALLERY_ACTION_TAGS,
+                    apply_mosquiton_animation_state,
+                },
+                spidey::SPIDEY_ANIMATIONS,
                 tardigrade::TARDIGRADE_ANIMATIONS,
             },
             entity::EnemyType,
@@ -199,6 +204,21 @@ pub fn gallery_panel_ui(world: &mut World) {
                         anim_name.as_str(),
                     );
                 }
+            }
+
+            if selected_character == GalleryCharacter::Mosquiton {
+                ui.separator();
+                ui.label("Verification actions:");
+                ui.horizontal_wrapped(|ui| {
+                    for action in MOSQUITON_GALLERY_ACTION_TAGS {
+                        if ui.button(*action).clicked() {
+                            selected_animation.clear();
+                            selected_animation.push_str(action);
+                            paused = false;
+                            selected_frame = 0;
+                        }
+                    }
+                });
             }
 
             if frame_count > 0 {
@@ -394,11 +414,7 @@ pub fn update_gallery_composed_animation(
         return;
     }
     for mut anim_state in &mut query {
-        if anim_state.requested_tag != state.selected_animation {
-            anim_state
-                .requested_tag
-                .clone_from(&state.selected_animation);
-        }
+        apply_mosquiton_animation_state(&mut anim_state, &state.selected_animation);
     }
 }
 

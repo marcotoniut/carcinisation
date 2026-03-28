@@ -8,24 +8,75 @@ pub mod types;
 
 #[cfg(debug_assertions)]
 use self::{
-    systems::{draw_colliders, draw_floor_lines},
+    systems::{
+        debug_damage_composed_parts, draw_colliders, draw_composed_parts, draw_floor_lines,
+        log_composed_health_pool_changes,
+    },
     types::register_types,
 };
 #[cfg(debug_assertions)]
-use activable::{Activable, ActivableAppExt};
+use activable::{Activable, ActivableAppExt, activate_system};
 #[cfg(debug_assertions)]
 use bevy::prelude::*;
+#[cfg(debug_assertions)]
+use serde::{Deserialize, Serialize};
 
 /// Registers debug drawing systems and type introspection helpers.
 #[cfg(debug_assertions)]
 #[derive(Activable)]
 pub struct DebugPlugin;
 
+/// BRP-drivable debug probe used to exercise composed-part damage deterministically.
+///
+/// This resource is debug-only and does not own gameplay state. It exists so
+/// runtime inspection tools can drive the same semantic collision and damage
+/// routing path without relying on manual input timing.
+#[cfg(debug_assertions)]
+#[derive(Resource, Clone, Debug, Default, Reflect, Serialize, Deserialize)]
+#[reflect(Resource)]
+pub struct DebugComposedDamageProbe {
+    pub request: Option<DebugComposedDamageProbeRequest>,
+    pub last_result: Option<DebugComposedDamageProbeResult>,
+}
+
+/// A single pending composed-part damage request.
+#[cfg(debug_assertions)]
+#[derive(Clone, Debug, Reflect, Serialize, Deserialize)]
+pub struct DebugComposedDamageProbeRequest {
+    pub part_id: String,
+    pub damage: u32,
+}
+
+/// The last composed-part probe the debug system attempted to dispatch.
+///
+/// `dispatched = true` means the probe resolved through composed collision
+/// state and emitted a real `PartDamageMessage`.
+#[cfg(debug_assertions)]
+#[derive(Clone, Debug, Reflect, Serialize, Deserialize)]
+pub struct DebugComposedDamageProbeResult {
+    pub requested_part_id: String,
+    pub resolved_part_id: Option<String>,
+    pub damage: u32,
+    pub pool_id: Option<String>,
+    pub pool_before: Option<u32>,
+    pub probe_point: Option<Vec2>,
+    pub dispatched: bool,
+    pub error: Option<String>,
+}
+
 #[cfg(debug_assertions)]
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         register_types(app);
-        app.add_active_systems::<DebugPlugin, _>((draw_floor_lines, draw_colliders));
+        app.init_resource::<DebugComposedDamageProbe>()
+            .add_systems(Startup, activate_system::<DebugPlugin>)
+            .add_active_systems::<DebugPlugin, _>((
+                draw_floor_lines,
+                draw_colliders,
+                draw_composed_parts,
+                debug_damage_composed_parts,
+                log_composed_health_pool_changes,
+            ));
     }
 }
 
