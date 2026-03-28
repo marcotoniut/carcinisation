@@ -12,12 +12,13 @@ use crate::{
 };
 use bevy::prelude::*;
 use seldom_pixel::prelude::PxAnimationFinishBehavior;
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = -2.;
 pub const BLOOD_SHOT_ATTACK_LINE_SPEED: f32 = 25.;
 pub const BLOOD_SHOT_ATTACK_DAMAGE: u32 = 20;
 pub const BLOOD_SHOT_ATTACK_RANDOMNESS: f32 = 20.;
+pub const BLOOD_SHOT_ATTACK_STARTUP_HOLD: Duration = Duration::from_millis(60);
 
 const FRAGMENT_HOVERING: &str = "hovering";
 const FRAGMENT_HIT: &str = "hit";

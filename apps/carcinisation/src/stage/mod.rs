@@ -22,8 +22,8 @@ use self::{
     enemy::EnemyPlugin,
     enemy::composed::{apply_composed_part_damage, check_composed_damage_flicker_taken},
     messages::{
-        DamageMessage, DepthChangedMessage, NextStepEvent, PartDamageMessage, StageClearedEvent,
-        StageDeathEvent, StageSpawnEvent, StageStartupEvent,
+        ComposedAnimationCueMessage, DamageMessage, DepthChangedMessage, NextStepEvent,
+        PartDamageMessage, StageClearedEvent, StageDeathEvent, StageSpawnEvent, StageStartupEvent,
     },
     pickup::systems::health::{
         mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
@@ -118,6 +118,7 @@ impl Plugin for StagePlugin {
             // Message streams for the combat/progression loop.
             .add_message::<DamageMessage>()
             .add_message::<PartDamageMessage>()
+            .add_message::<ComposedAnimationCueMessage>()
             .add_message::<DepthChangedMessage>()
             .add_message::<StageDeathEvent>()
             .add_observer(on_death)

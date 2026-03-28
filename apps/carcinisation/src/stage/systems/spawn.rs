@@ -16,9 +16,15 @@ use crate::stage::{
         composed::{ComposedAnimationState, ComposedEnemyVisual},
         data::mosquiton::TAG_IDLE_FLY,
         entity::EnemyType,
-        mosquito::entity::{ENEMY_MOSQUITO_RADIUS, MosquitoBundle, MosquitoDefaultBundle},
+        mosquito::entity::{
+            ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS, MosquitoBundle,
+            MosquitoDefaultBundle,
+        },
         mosquiton::entity::{MosquitonBundle, MosquitonDefaultBundle},
-        tardigrade::entity::{ENEMY_TARDIGRADE_RADIUS, TardigradeBundle},
+        tardigrade::entity::{
+            ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS, TardigradeBundle,
+            TardigradeDefaultBundle,
+        },
     },
     player::{attacks::AttackHitTracker, components::PlayerAttack},
     resources::{StageStepSpawner, StageTimeDomain},
@@ -27,7 +33,7 @@ use crate::{
     layer::Layer,
     stage::{
         components::{
-            interactive::{Flickerer, Health, Hittable, Object},
+            interactive::{Flickerer, Health, HealthOverride, Hittable, Object},
             placement::Speed,
         },
         data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
@@ -165,6 +171,7 @@ pub fn spawn_enemy(
         enemy_type,
         coordinates,
         speed,
+        health,
         steps,
         contains,
         depth,
@@ -186,7 +193,10 @@ pub fn spawn_enemy(
                     behaviors,
                     position: PxSubPosition::from(position),
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    default: MosquitoDefaultBundle::default(),
+                    default: MosquitoDefaultBundle {
+                        health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
+                        ..MosquitoDefaultBundle::default()
+                    },
                 })
                 .id();
 
@@ -220,9 +230,16 @@ pub fn spawn_enemy(
                     depth: *depth,
                     position: PxSubPosition::from(position),
                     speed: Speed(*speed),
-                    default: MosquitonDefaultBundle::default(),
+                    default: MosquitonDefaultBundle {
+                        health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
+                        ..MosquitonDefaultBundle::default()
+                    },
                 })
                 .id();
+
+            if let Some(health) = health {
+                commands.entity(entity).insert(HealthOverride(*health));
+            }
 
             if let Some(contains) = contains {
                 commands.entity(entity).insert(SpawnDrop {
@@ -247,7 +264,10 @@ pub fn spawn_enemy(
                     behaviors,
                     position: PxSubPosition::from(position),
                     collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    default: default(),
+                    default: TardigradeDefaultBundle {
+                        health: Health(health.unwrap_or(ENEMY_TARDIGRADE_BASE_HEALTH)),
+                        ..default()
+                    },
                 })
                 .id()
         }

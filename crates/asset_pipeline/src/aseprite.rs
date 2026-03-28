@@ -27,7 +27,7 @@ use std::{
 
 const DEFAULT_PART_GROUP: &str = "base";
 const DEFAULT_ORIGIN_SLICE: &str = "origin";
-const CURRENT_SCHEMA_VERSION: u32 = 2;
+const CURRENT_SCHEMA_VERSION: u32 = 3;
 const RUNTIME_ATLAS_IMAGE_NAME: &str = "atlas.runtime.png";
 const DEFAULT_RUNTIME_PALETTE_PATH: &str = "assets/palette/base.png";
 
@@ -182,8 +182,36 @@ pub struct AnimationFrame {
     pub source_frame: usize,
     /// Frame duration in milliseconds.
     pub duration_ms: u32,
+    /// One-shot authored cues fired when playback enters this frame.
+    #[serde(default)]
+    pub events: Vec<AnimationEvent>,
     /// Per-part poses needed to compose this frame.
     pub parts: Vec<PartPose>,
+}
+
+/// One authored animation event emitted when playback enters a frame.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+pub struct AnimationEvent {
+    /// Broad semantic category consumed by gameplay, VFX, or SFX systems.
+    pub kind: AnimationEventKind,
+    /// Stable consumer-defined event identifier within `kind`.
+    pub id: String,
+    /// Optional semantic part id used as the event origin or target.
+    pub part_id: Option<String>,
+    /// Pixel offset from the owning part pivot in local authored sprite space.
+    #[serde(default)]
+    pub local_offset: Point,
+}
+
+/// Supported authored composed-animation event kinds.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum AnimationEventKind {
+    ProjectileSpawn,
+    HitboxOn,
+    HitboxOff,
+    EffectSpawn,
+    SoundPlay,
 }
 
 /// One per-part authored placement in a composed frame.
@@ -307,7 +335,7 @@ pub struct Vec2Value {
 }
 
 /// Two-dimensional integer point in source canvas pixels.
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq, Hash)]
 pub struct Point {
     /// Horizontal position.
     pub x: i32,
@@ -345,6 +373,8 @@ struct CompositionSource {
     #[serde(default)]
     parts: Vec<CompositionPartSource>,
     #[serde(default)]
+    animation_events: Vec<CompositionAnimationEventSource>,
+    #[serde(default)]
     gameplay: CompositionGameplay,
 }
 
@@ -362,6 +392,17 @@ struct CompositionPartSource {
     visible_by_default: Option<bool>,
     #[serde(default)]
     gameplay: PartGameplayMetadata,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompositionAnimationEventSource {
+    tag: String,
+    frame: usize,
+    kind: AnimationEventKind,
+    id: String,
+    part_id: Option<String>,
+    #[serde(default)]
+    local_offset: Point,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -537,6 +578,7 @@ fn build_piece_atlas(
         .map(CompositionPartSource::to_instance)
         .collect::<Vec<_>>();
     validate_layer_bindings(&parts, &selected_layers)?;
+    let authored_events = bind_animation_events(aseprite, &parts, &composition.animation_events)?;
     let topo_order = build_part_topology(&parts)?;
     let mut sprite_interner = SpriteInterner::default();
     let mut animations = Vec::new();
@@ -563,9 +605,15 @@ fn build_piece_atlas(
             )?;
             let placements =
                 build_frame_poses(&parts, &raw_placements, &topo_order, frame_index, &tag.name)?;
+            let authored_frame_events = authored_events
+                .get(tag.name.as_str())
+                .and_then(|events_by_frame| events_by_frame.get(&frames.len()))
+                .cloned()
+                .unwrap_or_default();
             frames.push(AnimationFrame {
                 source_frame: frame_index,
                 duration_ms: u32::from(frame.duration),
+                events: authored_frame_events,
                 parts: placements,
             });
         }
@@ -1188,6 +1236,27 @@ fn validate_composition_source_contracts(source: &CompositionSource) -> Result<(
         );
     }
 
+    for event in &source.animation_events {
+        ensure!(
+            !event.tag.trim().is_empty(),
+            "animation events must define a non-empty tag"
+        );
+        ensure!(
+            !event.id.trim().is_empty(),
+            "animation event on tag '{}' frame {} must define a non-empty id",
+            event.tag,
+            event.frame
+        );
+        if let Some(part_id) = event.part_id.as_deref() {
+            ensure!(
+                part_id == normalize_part_id(part_id),
+                "animation event '{}' on tag '{}' must reference a snake_case part id",
+                event.id,
+                event.tag
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -1239,6 +1308,7 @@ pub fn validate_composition_atlas(atlas: &CompositionAtlas) -> Result<()> {
 
         for frame in &animation.frames {
             let mut frame_parts = HashSet::new();
+            let mut frame_events = HashSet::new();
             for pose in &frame.parts {
                 ensure!(
                     frame_parts.insert(pose.part_id.as_str()),
@@ -1287,10 +1357,106 @@ pub fn validate_composition_atlas(atlas: &CompositionAtlas) -> Result<()> {
                     parent_id = parent_part.parent_id.as_deref();
                 }
             }
+
+            for event in &frame.events {
+                ensure!(
+                    !event.id.trim().is_empty(),
+                    "animation '{}' frame {} defines an event with an empty id",
+                    animation.tag,
+                    frame.source_frame
+                );
+                if let Some(part_id) = event.part_id.as_deref() {
+                    ensure!(
+                        part_lookup.contains_key(part_id),
+                        "animation '{}' frame {} references missing event part '{}'",
+                        animation.tag,
+                        frame.source_frame,
+                        part_id
+                    );
+                }
+                ensure!(
+                    frame_events.insert((event.kind, event.id.as_str(), event.part_id.as_deref())),
+                    "animation '{}' frame {} defines event '{:?}:{}' more than once",
+                    animation.tag,
+                    frame.source_frame,
+                    event.kind,
+                    event.id
+                );
+            }
         }
     }
 
     Ok(())
+}
+
+fn bind_animation_events(
+    aseprite: &AsepriteFile<'_>,
+    parts: &[PartInstance],
+    authored_events: &[CompositionAnimationEventSource],
+) -> Result<HashMap<String, HashMap<usize, Vec<AnimationEvent>>>> {
+    let frame_counts_by_tag: HashMap<&str, usize> = aseprite
+        .tags()
+        .iter()
+        .map(|tag| (tag.name.as_str(), tag.range.len()))
+        .collect();
+    let part_ids: HashSet<&str> = parts.iter().map(|part| part.id.as_str()).collect();
+    bind_animation_events_from_maps(&frame_counts_by_tag, &part_ids, authored_events)
+}
+
+fn bind_animation_events_from_maps<'a>(
+    frame_counts_by_tag: &HashMap<&'a str, usize>,
+    part_ids: &HashSet<&'a str>,
+    authored_events: &[CompositionAnimationEventSource],
+) -> Result<HashMap<String, HashMap<usize, Vec<AnimationEvent>>>> {
+    let mut events_by_tag: HashMap<String, HashMap<usize, Vec<AnimationEvent>>> = HashMap::new();
+
+    for event in authored_events {
+        let Some(frame_count) = frame_counts_by_tag.get(event.tag.as_str()).copied() else {
+            bail!(
+                "animation event '{}' references missing tag '{}'",
+                event.id,
+                event.tag
+            );
+        };
+        ensure!(
+            event.frame < frame_count,
+            "animation event '{}' references out-of-range frame {} for tag '{}' ({} frames)",
+            event.id,
+            event.frame,
+            event.tag,
+            frame_count
+        );
+        if let Some(part_id) = event.part_id.as_deref() {
+            ensure!(
+                part_ids.contains(part_id),
+                "animation event '{}' references missing part '{}'",
+                event.id,
+                part_id
+            );
+        }
+
+        let tag_events = events_by_tag.entry(event.tag.clone()).or_default();
+        let frame_events = tag_events.entry(event.frame).or_default();
+        ensure!(
+            !frame_events.iter().any(|existing| {
+                existing.kind == event.kind
+                    && existing.id == event.id
+                    && existing.part_id.as_deref() == event.part_id.as_deref()
+            }),
+            "animation event '{}' is duplicated on tag '{}' frame {}",
+            event.id,
+            event.tag,
+            event.frame
+        );
+        frame_events.push(AnimationEvent {
+            kind: event.kind,
+            id: event.id.clone(),
+            part_id: event.part_id.clone(),
+            local_offset: event.local_offset,
+        });
+    }
+
+    Ok(events_by_tag)
 }
 
 fn validate_part_graph(
@@ -1904,10 +2070,11 @@ impl SpriteSpec {
 #[cfg(test)]
 mod tests {
     use super::{
-        CollisionShape, CollisionVolume, CompositionGameplay, CompositionPartSource,
-        CompositionSource, HealthPool, ImageKey, Manifest, PartDefinition, PartGameplayMetadata,
-        Point, Rect, SpriteSpec, Vec2Value, image_key, normalize_part_id, trim_transparent_bounds,
-        validate_composition_source, validate_manifest,
+        AnimationEventKind, CollisionShape, CollisionVolume, CompositionAnimationEventSource,
+        CompositionGameplay, CompositionPartSource, CompositionSource, HealthPool, ImageKey,
+        Manifest, PartDefinition, PartGameplayMetadata, Point, Rect, SpriteSpec, Vec2Value,
+        image_key, normalize_part_id, trim_transparent_bounds, validate_composition_source,
+        validate_manifest,
     };
     use image::{ImageBuffer, Rgba};
 
@@ -1956,6 +2123,7 @@ mod tests {
                 visible_by_default: Some(true),
                 gameplay: PartGameplayMetadata::default(),
             }],
+            animation_events: vec![],
             gameplay: CompositionGameplay {
                 entity_health_pool: Some("core".to_string()),
                 health_pools: vec![HealthPool {
@@ -2156,5 +2324,94 @@ mod tests {
             .expect_err("visible_by_default false is currently unsupported")
             .to_string();
         assert!(error.contains("visible_by_default = false"));
+    }
+
+    #[test]
+    fn rejects_animation_events_that_reference_missing_tags() {
+        let composition = minimal_composition();
+        let parts = composition
+            .parts
+            .iter()
+            .map(CompositionPartSource::to_instance)
+            .collect::<Vec<_>>();
+        let source = vec![CompositionAnimationEventSource {
+            tag: "missing".to_string(),
+            frame: 0,
+            kind: AnimationEventKind::ProjectileSpawn,
+            id: "blood_shot".to_string(),
+            part_id: Some("body".to_string()),
+            local_offset: Point::default(),
+        }];
+
+        let error = bind_animation_events_for_tests([("idle", 1)], &parts, &source)
+            .expect_err("missing tag should fail")
+            .to_string();
+        assert!(error.contains("missing tag"));
+    }
+
+    #[test]
+    fn rejects_animation_events_with_out_of_range_frames() {
+        let composition = minimal_composition();
+        let parts = composition
+            .parts
+            .iter()
+            .map(CompositionPartSource::to_instance)
+            .collect::<Vec<_>>();
+        let source = vec![CompositionAnimationEventSource {
+            tag: "idle".to_string(),
+            frame: 2,
+            kind: AnimationEventKind::ProjectileSpawn,
+            id: "blood_shot".to_string(),
+            part_id: Some("body".to_string()),
+            local_offset: Point::default(),
+        }];
+
+        let error = bind_animation_events_for_tests([("idle", 1)], &parts, &source)
+            .expect_err("out of range frame should fail")
+            .to_string();
+        assert!(error.contains("out-of-range frame"));
+    }
+
+    #[test]
+    fn rejects_animation_events_with_missing_parts() {
+        let composition = minimal_composition();
+        let parts = composition
+            .parts
+            .iter()
+            .map(CompositionPartSource::to_instance)
+            .collect::<Vec<_>>();
+        let source = vec![CompositionAnimationEventSource {
+            tag: "idle".to_string(),
+            frame: 0,
+            kind: AnimationEventKind::ProjectileSpawn,
+            id: "blood_shot".to_string(),
+            part_id: Some("missing".to_string()),
+            local_offset: Point::default(),
+        }];
+
+        let error = bind_animation_events_for_tests([("idle", 1)], &parts, &source)
+            .expect_err("missing part should fail")
+            .to_string();
+        assert!(error.contains("missing part"));
+    }
+
+    fn bind_animation_events_for_tests<'a>(
+        tags: impl IntoIterator<Item = (&'a str, usize)>,
+        parts: &[super::PartInstance],
+        authored_events: &[CompositionAnimationEventSource],
+    ) -> anyhow::Result<
+        std::collections::HashMap<
+            String,
+            std::collections::HashMap<usize, Vec<super::AnimationEvent>>,
+        >,
+    > {
+        let frame_counts_by_tag = tags
+            .into_iter()
+            .collect::<std::collections::HashMap<_, _>>();
+        let part_ids = parts
+            .iter()
+            .map(|part| part.id.as_str())
+            .collect::<std::collections::HashSet<_>>();
+        super::bind_animation_events_from_maps(&frame_counts_by_tag, &part_ids, authored_events)
     }
 }

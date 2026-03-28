@@ -2,11 +2,14 @@ use super::entity::{EnemyMosquiton, EnemyMosquitonAnimation};
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
+    globals::SCREEN_RESOLUTION_F32_H,
+    pixel::PxAssets,
     stage::{
+        attack::spawns::blood_shot::spawn_blood_shot_attack,
         components::{interactive::Dead, placement::Depth},
         enemy::{
             components::behavior::EnemyCurrentBehavior,
-            composed::ComposedAnimationState,
+            composed::{ComposedAnimationState, ComposedResolvedParts},
             data::{
                 mosquiton::{
                     TAG_IDLE_FLY, TAG_MELEE_FLY, TAG_SHOOT_FLY, apply_mosquiton_animation_state,
@@ -15,9 +18,15 @@ use crate::{
             },
             mosquito::entity::{EnemyMosquitoAttack, EnemyMosquitoAttacking},
         },
+        messages::ComposedAnimationCueMessage,
+        resources::StageTimeDomain,
     },
+    systems::camera::CameraPos,
 };
 use bevy::prelude::*;
+use seldom_pixel::prelude::{PxSprite, PxSubPosition};
+
+const MOSQUITON_BLOOD_SHOT_EVENT_ID: &str = "blood_shot";
 
 /// Mosquiton keeps its wing flap loop sourced from `idle_fly` while the body
 /// track switches between airborne action tags.
@@ -80,6 +89,65 @@ pub fn despawn_dead_mosquitons(
     for (entity, mosquiton) in &query {
         commands.entity(entity).insert(DespawnMark);
         score.add_u(mosquiton.kill_score());
+    }
+}
+
+/// Consumes generic composed-animation cues and applies Mosquiton-specific gameplay.
+///
+/// The composed runtime owns authored timing and dispatch. Species systems own
+/// the gameplay reaction so cue kinds stay generic rather than hardcoded into
+/// the renderer.
+pub fn trigger_mosquiton_authored_attack_cues(
+    mut commands: Commands,
+    mut assets_sprite: PxAssets<PxSprite>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut cue_reader: MessageReader<ComposedAnimationCueMessage>,
+    query: Query<
+        (
+            &EnemyMosquiton,
+            &PxSubPosition,
+            &Depth,
+            Option<&ComposedResolvedParts>,
+        ),
+        Without<Dead>,
+    >,
+) {
+    let camera_pos = camera_query.single().unwrap();
+
+    for cue in cue_reader.read() {
+        if cue.id != MOSQUITON_BLOOD_SHOT_EVENT_ID
+            || cue.kind != asset_pipeline::aseprite::AnimationEventKind::ProjectileSpawn
+        {
+            continue;
+        }
+
+        let Ok((_mosquiton, position, depth, resolved_parts)) = query.get(cue.entity) else {
+            continue;
+        };
+
+        let current_pos = cue
+            .part_id
+            .as_deref()
+            .and_then(|part_id| {
+                resolved_parts
+                    .and_then(|parts| parts.parts().iter().find(|part| part.part_id == part_id))
+            })
+            .map_or(position.0, |part| {
+                part.world_point_from_local_offset(IVec2::new(
+                    cue.local_offset.x,
+                    cue.local_offset.y,
+                ))
+            });
+
+        spawn_blood_shot_attack(
+            &mut commands,
+            &mut assets_sprite,
+            &stage_time,
+            *SCREEN_RESOLUTION_F32_H + camera_pos.0,
+            current_pos,
+            depth,
+        );
     }
 }
 

@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use asset_pipeline::aseprite::{AnimationEventKind, Point};
 use bevy::prelude::*;
 use derive_new::new;
 
@@ -58,4 +59,17 @@ pub struct PartDamageMessage {
     pub entity: Entity,
     pub part_id: String,
     pub value: u32,
+}
+
+#[derive(Clone, Debug, Message)]
+/// One-shot authored cue emitted by composed animation playback when a frame is entered.
+pub struct ComposedAnimationCueMessage {
+    pub entity: Entity,
+    pub tag: String,
+    pub frame_index: usize,
+    pub source_frame: usize,
+    pub kind: AnimationEventKind,
+    pub id: String,
+    pub part_id: Option<String>,
+    pub local_offset: Point,
 }

@@ -17,3 +17,6 @@ pub struct Dead;
 
 #[derive(Clone, Component, Debug, Reflect)]
 pub struct Health(pub u32);
+
+#[derive(Clone, Component, Debug, Reflect)]
+pub struct HealthOverride(pub u32);

@@ -9,11 +9,13 @@ tags = ["core", "torso", "targetable"]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
+armour = 1
+durability = 4
 
 [[part_definitions.gameplay.collision]]
 id = "body_hurtbox"
 role = "collider"
-shape = { shape = "circle", radius = 10.0, offset = { x = 0.0, y = 2.0 } }
+shape = { shape = "circle", radius = 10.0, offset = { x = 11.0, y = 12.0 } }
 tags = ["body", "core"]
 
 [[part_definitions]]
@@ -27,7 +29,7 @@ health_pool = "core"
 [[part_definitions.gameplay.collision]]
 id = "head_hurtbox"
 role = "collider"
-shape = { shape = "circle", radius = 7.0, offset = { x = 0.0, y = 4.0 } }
+shape = { shape = "circle", radius = 7.0, offset = { x = 6.0, y = 11.0 } }
 tags = ["head", "core"]
 
 [[part_definitions]]
@@ -38,6 +40,7 @@ tags = ["arm", "limb", "targetable"]
 targetable = true
 health_pool = "core"
 armour = 1
+durability = 2
 
 [[part_definitions.gameplay.collision]]
 id = "arm_hurtbox"
@@ -46,12 +49,65 @@ shape = { shape = "circle", radius = 6.0, offset = { x = 0.0, y = 1.0 } }
 tags = ["arm", "appendage"]
 
 [[part_definitions]]
+id = "arm_overlay"
+tags = ["arm", "limb", "targetable", "overlay"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 1
+durability = 2
+
+[[part_definitions.gameplay.collision]]
+id = "arms_overlay_left_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 6.0, offset = { x = 12.0, y = 12.0 } }
+tags = ["arm", "appendage", "left"]
+
+[[part_definitions.gameplay.collision]]
+id = "arms_overlay_right_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 6.0, offset = { x = 37.0, y = 12.0 } }
+tags = ["arm", "appendage", "right"]
+
+[[part_definitions]]
 id = "wing_marker"
 tags = ["wing", "limb"]
 
 [[part_definitions]]
 id = "leg_marker"
 tags = ["leg", "limb"]
+
+[[part_definitions]]
+id = "wing"
+tags = ["wing", "limb", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+durability = 1
+
+[[part_definitions.gameplay.collision]]
+id = "wings_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 18.0, offset = { x = 32.0, y = 9.0 } }
+tags = ["wings", "appendage"]
+
+[[part_definitions]]
+id = "leg"
+tags = ["leg", "limb", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 1
+durability = 2
+
+[[part_definitions.gameplay.collision]]
+id = "legs_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 10.0, offset = { x = 12.0, y = 16.0 } }
+tags = ["legs", "appendage"]
 
 [[part_definitions]]
 id = "visual_overlay"
@@ -104,33 +160,33 @@ tags = ["right"]
 
 [[parts]]
 id = "arms_overlay"
-definition_id = "visual_overlay"
+definition_id = "arm_overlay"
 name = "Arms Overlay"
 parent_id = "root"
 source_layer = "arms"
 draw_order = 60
 pivot = { x = 0, y = 0 }
-tags = ["arms", "visual_only"]
+tags = ["arms"]
 
 [[parts]]
 id = "wings_visual"
-definition_id = "visual_overlay"
+definition_id = "wing"
 name = "Wings Visual"
 parent_id = "root"
 source_layer = "wings"
 draw_order = 10
 pivot = { x = 0, y = 0 }
-tags = ["wings", "visual_only"]
+tags = ["wings"]
 
 [[parts]]
 id = "legs_visual"
-definition_id = "visual_overlay"
+definition_id = "leg"
 name = "Legs Visual"
 parent_id = "root"
 source_layer = "legs"
 draw_order = 70
 pivot = { x = 0, y = 0 }
-tags = ["legs", "visual_only"]
+tags = ["legs"]
 
 [[parts]]
 # Temporary migration bridge: semantics exist before the source art is split into
@@ -171,6 +227,20 @@ parent_id = "root"
 draw_order = 110
 pivot = { x = 0, y = 0 }
 tags = ["right"]
+
+[[animation_events]]
+# Tag-local frame index inside `shoot_fly`. This is the first clear discharge
+# pose, so projectile timing is authored by animation playback rather than tied
+# to attack start.
+tag = "shoot_fly"
+frame = 5
+kind = "projectile_spawn"
+id = "blood_shot"
+part_id = "head"
+# Blood shots are center-anchored circles. This cue marks the center of the
+# black mouth opening on the current `shoot_fly` head frame so the visible
+# splat originates from the mouth itself.
+local_offset = { x = 6, y = 9 }
 
 [gameplay]
 entity_health_pool = "core"

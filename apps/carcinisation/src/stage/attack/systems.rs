@@ -1,6 +1,8 @@
 pub mod hovering;
 pub mod player;
 
+#[cfg(debug_assertions)]
+use super::components::EnemyAttackDebugPosition;
 use super::components::{
     EnemyAttack, EnemyHoveringAttackType, bundles::make_hovering_attack_animation_bundle,
 };
@@ -20,6 +22,8 @@ use crate::{
 use bevy::prelude::*;
 use cween::linear::components::{LinearValueReached, TargetingValueZ};
 use seldom_pixel::prelude::PxSprite;
+#[cfg(debug_assertions)]
+use seldom_pixel::prelude::PxSubPosition;
 
 /// @system Marks entities as `Dead` when their health reaches zero.
 // TODO remove in favor of damage taken?
@@ -28,6 +32,17 @@ pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health),
         if health.0 == 0 {
             commands.entity(entity).insert(Dead);
         }
+    }
+}
+
+/// Mirrors non-reflectable attack position state into a reflectable debug
+/// component so BRP can inspect exact projectile centers in live gameplay.
+#[cfg(debug_assertions)]
+pub fn sync_enemy_attack_debug_positions(
+    mut query: Query<(&PxSubPosition, &mut EnemyAttackDebugPosition), With<EnemyAttack>>,
+) {
+    for (position, mut debug_position) in &mut query {
+        debug_position.current = position.0;
     }
 }
 
