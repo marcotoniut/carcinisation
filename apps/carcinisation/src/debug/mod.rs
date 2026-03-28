@@ -26,6 +26,25 @@ use serde::{Deserialize, Serialize};
 #[derive(Activable)]
 pub struct DebugPlugin;
 
+/// Debug-only player invulnerability toggle.
+///
+/// This is intentionally a runtime debug resource rather than gameplay state.
+/// Combat systems still emit normal damage; the shared damage application
+/// boundary decides whether player damage is ignored while debugging.
+#[cfg(debug_assertions)]
+#[derive(Resource, Clone, Copy, Debug, Reflect, Serialize, Deserialize)]
+#[reflect(Resource)]
+pub struct DebugGodMode {
+    pub enabled: bool,
+}
+
+#[cfg(debug_assertions)]
+impl DebugGodMode {
+    pub const fn new(enabled: bool) -> Self {
+        Self { enabled }
+    }
+}
+
 /// BRP-drivable debug probe used to exercise composed-part damage deterministically.
 ///
 /// This resource is debug-only and does not own gameplay state. It exists so
@@ -74,6 +93,7 @@ impl Plugin for DebugPlugin {
                 draw_floor_lines,
                 draw_colliders,
                 draw_composed_parts,
+                systems::toggle_debug_god_mode,
                 debug_damage_composed_parts,
                 log_composed_health_pool_changes,
             ));

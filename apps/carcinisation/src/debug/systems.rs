@@ -2,7 +2,7 @@
 
 use super::{
     DebugColor, DebugComposedDamageProbe, DebugComposedDamageProbeRequest,
-    DebugComposedDamageProbeResult,
+    DebugComposedDamageProbeResult, DebugGodMode,
 };
 use crate::{
     globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
@@ -29,6 +29,33 @@ const SCREEN_Y: f32 = SCREEN_RESOLUTION.y as f32;
 const DEBUG_HEAD_DAMAGE: u32 = 3;
 const DEBUG_BODY_DAMAGE: u32 = 5;
 const DEBUG_ARM_DAMAGE: u32 = 4;
+
+/// @system Toggles debug god mode with `Shift+G`.
+///
+/// The toggle lives in the debug plugin so it stays out of production input
+/// mappings. Damage is still emitted normally; only the shared damage
+/// application system consults this resource.
+pub fn toggle_debug_god_mode(
+    keys: Res<ButtonInput<KeyCode>>,
+    god_mode: Option<ResMut<DebugGodMode>>,
+) {
+    let Some(mut god_mode) = god_mode else {
+        return;
+    };
+
+    let shift_held = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
+    if shift_held && keys.just_pressed(KeyCode::KeyG) {
+        god_mode.enabled = !god_mode.enabled;
+        info!(
+            "Debug god mode {}",
+            if god_mode.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        );
+    }
+}
 
 pub fn to_viewport_ratio_x(x: f32) -> f32 {
     VIEWPORT_MULTIPLIER * x
@@ -336,5 +363,26 @@ fn take_debug_probe_request(
         })
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shift_g_toggles_debug_god_mode() {
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+        app.insert_resource(DebugGodMode::new(true));
+        app.add_systems(Update, toggle_debug_god_mode);
+
+        {
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.press(KeyCode::ShiftLeft);
+            keys.press(KeyCode::KeyG);
+        }
+        app.update();
+        assert!(!app.world().resource::<DebugGodMode>().enabled);
     }
 }

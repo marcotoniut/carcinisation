@@ -6,6 +6,7 @@ use cween::linear::components::{TargetingValueX, TargetingValueY, TargetingValue
 #[cfg(debug_assertions)]
 use crate::debug::{
     DebugComposedDamageProbe, DebugComposedDamageProbeRequest, DebugComposedDamageProbeResult,
+    DebugGodMode,
 };
 #[cfg(all(debug_assertions, feature = "gallery"))]
 use crate::gallery::resources::{GalleryCharacter, GalleryState};
@@ -28,7 +29,7 @@ use crate::{
             },
             composed::{
                 ComposedAnimationState, ComposedCollisionState, ComposedHealthPools,
-                ComposedPartStates, ComposedResolvedParts, PartGameplayState,
+                ComposedPartStates, ComposedResolvedParts, PartGameplayState, PartHitBlinkState,
                 ResolvedCollisionVolume, ResolvedPartCollision, ResolvedPartState,
             },
             mosquito::entity::{
@@ -49,7 +50,8 @@ pub fn register_types(app: &mut App) {
     #[cfg(debug_assertions)]
     app.register_type::<DebugComposedDamageProbe>()
         .register_type::<DebugComposedDamageProbeRequest>()
-        .register_type::<DebugComposedDamageProbeResult>();
+        .register_type::<DebugComposedDamageProbeResult>()
+        .register_type::<DebugGodMode>();
 
     app.register_type::<CameraShake>()
         .register_type::<CircleAround>()
@@ -82,6 +84,7 @@ pub fn register_types(app: &mut App) {
         .register_type::<GBColor>()
         .register_type::<Layer>()
         .register_type::<LinearTween>()
+        .register_type::<PartHitBlinkState>()
         .register_type::<PartGameplayState>()
         .register_type::<PlayerAttack>()
         .register_type::<RailPosition>()
@@ -93,6 +96,9 @@ pub fn register_types(app: &mut App) {
         .register_type::<TargetingValueX>()
         .register_type::<TargetingValueY>()
         .register_type::<TargetingValueZ>();
+
+    #[cfg(debug_assertions)]
+    app.register_type::<crate::stage::attack::components::EnemyAttackDebugPosition>();
 
     #[cfg(feature = "gallery")]
     {

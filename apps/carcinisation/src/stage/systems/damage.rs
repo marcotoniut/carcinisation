@@ -1,3 +1,5 @@
+#[cfg(debug_assertions)]
+use crate::debug::DebugGodMode;
 use crate::pixel::PxAssets;
 use crate::stage::{
     components::{
@@ -6,6 +8,7 @@ use crate::stage::{
     },
     enemy::composed::ComposedHealthPools,
     messages::DamageMessage,
+    player::components::Player,
     resources::StageTimeDomain,
 };
 use assert_assets_path::assert_assets_path;
@@ -25,8 +28,16 @@ pub fn on_damage(
     mut commands: Commands,
     mut event_reader: MessageReader<DamageMessage>,
     mut query: Query<&mut Health, (Without<Dead>, Without<ComposedHealthPools>)>,
+    players: Query<(), With<Player>>,
+    #[cfg(debug_assertions)] god_mode: Option<Res<DebugGodMode>>,
 ) {
     for e in event_reader.read() {
+        #[cfg(debug_assertions)]
+        if god_mode.as_ref().is_some_and(|god_mode| god_mode.enabled) && players.contains(e.entity)
+        {
+            continue;
+        }
+
         if let Ok(mut health) = query.get_mut(e.entity) {
             health.0 = health.0.saturating_sub(e.value);
             if health.0 == 0 {
@@ -94,5 +105,26 @@ pub fn remove_invert_filter(
                 entity_commands.remove::<DamageFlicker>();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn player_damage_is_ignored_while_debug_god_mode_is_enabled() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        #[cfg(debug_assertions)]
+        app.insert_resource(DebugGodMode::new(true));
+        app.add_systems(Update, on_damage);
+
+        let entity = app.world_mut().spawn((Player, Health(10))).id();
+        app.world_mut().write_message(DamageMessage::new(entity, 4));
+        app.update();
+
+        assert_eq!(app.world().entity(entity).get::<Health>().unwrap().0, 10);
+        assert!(app.world().entity(entity).get::<Dead>().is_none());
     }
 }

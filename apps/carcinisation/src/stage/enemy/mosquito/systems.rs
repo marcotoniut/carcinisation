@@ -1,10 +1,11 @@
 use super::entity::{
     EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
 };
-use crate::pixel::{PxAssets, PxSpriteBundle};
+use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
+use crate::stage::enemy::composed::ComposedAnimationState;
 use crate::stage::enemy::mosquiton::entity::EnemyMosquiton;
 use crate::{
-    components::DespawnMark,
+    components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
     game::score::components::Score,
     globals::SCREEN_RESOLUTION_F32_H,
     layer::Layer,
@@ -27,7 +28,9 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
+use seldom_pixel::prelude::{
+    PxAnchor, PxAnimationDuration, PxAnimationFinishBehavior, PxSprite, PxSubPosition,
+};
 use std::time::Duration;
 
 pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
@@ -41,6 +44,7 @@ pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
 /// must therefore stay long enough for a readable shot while still remaining
 /// shorter than the 3s attack cadence.
 const ENEMY_MOSQUITO_RANGED_PRESENTATION: Duration = Duration::from_millis(1400);
+const ENEMY_MOSQUITO_DEATH_LINGER: Duration = Duration::from_secs(2);
 
 fn mosquito_attack_cooldown_ready(cooldown_anchor: Duration, stage_elapsed: Duration) -> bool {
     stage_elapsed >= cooldown_anchor + Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
@@ -176,6 +180,8 @@ pub fn despawn_dead_mosquitoes(
             let texture =
                 assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
 
+            // Death visuals should remain visible after the final frame rather
+            // than immediately despawning with the source animation.
             commands.spawn((
                 Name::new("Dead - Mosquito"),
                 PxSubPosition::from(position.0),
@@ -185,7 +191,13 @@ pub fn despawn_dead_mosquitoes(
                     anchor: PxAnchor::Center,
                     ..default()
                 },
-                animation.make_animation_bundle(),
+                PxAnimationBundle::from_parts(
+                    animation.direction,
+                    PxAnimationDuration::millis_per_animation(animation.speed),
+                    PxAnimationFinishBehavior::Mark,
+                    animation.frame_transition,
+                ),
+                DelayedDespawnOnPxAnimationFinished(ENEMY_MOSQUITO_DEATH_LINGER),
             ));
         }
 
@@ -202,9 +214,9 @@ pub fn despawn_dead_mosquitoes(
 pub fn clear_finished_mosquito_attacks(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
-    query: Query<(Entity, &EnemyMosquitoAttacking), With<EnemyMosquito>>,
+    mut query: Query<(Entity, &mut EnemyMosquitoAttacking), (With<EnemyMosquito>, Without<Dead>)>,
 ) {
-    for (entity, attacking) in &query {
+    for (entity, mut attacking) in &mut query {
         if attacking.attack.is_none()
             || !mosquito_attack_presentation_finished(
                 attacking.last_attack_started,
@@ -214,13 +226,8 @@ pub fn clear_finished_mosquito_attacks(
             continue;
         }
 
-        commands
-            .entity(entity)
-            .remove::<EnemyMosquitoAnimation>()
-            .insert(EnemyMosquitoAttacking {
-                attack: None,
-                last_attack_started: attacking.last_attack_started,
-            });
+        attacking.attack = None;
+        commands.entity(entity).remove::<EnemyMosquitoAnimation>();
     }
 }
 
@@ -241,6 +248,7 @@ pub fn check_idle_mosquito(
             Entity,
             &EnemyCurrentBehavior,
             &mut EnemyMosquitoAttacking,
+            Option<&ComposedAnimationState>,
             &PxSubPosition,
             &Depth,
         ),
@@ -248,7 +256,7 @@ pub fn check_idle_mosquito(
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();
-    for (entity, behavior, attacking, position, depth) in &mut query {
+    for (entity, behavior, attacking, composed_animation, position, depth) in &mut query {
         if attacking.attack.is_some() || !matches!(behavior.behavior, EnemyStep::Idle { .. }) {
             continue;
         }
@@ -268,14 +276,18 @@ pub fn check_idle_mosquito(
                 last_attack_started: stage_time.elapsed(),
             });
 
-        spawn_blood_shot_attack(
-            &mut commands,
-            &mut assets_sprite,
-            &stage_time,
-            *SCREEN_RESOLUTION_F32_H + camera_pos.0,
-            position.0,
-            depth,
-        );
+        // Composed enemies own projectile timing through authored animation
+        // cues. Legacy atlas-strip mosquitoes still spawn immediately here.
+        if composed_animation.is_none() {
+            spawn_blood_shot_attack(
+                &mut commands,
+                &mut assets_sprite,
+                &stage_time,
+                *SCREEN_RESOLUTION_F32_H + camera_pos.0,
+                position.0,
+                depth,
+            );
+        }
     }
 }
 
@@ -333,5 +345,10 @@ mod tests {
             attack_started,
             attack_started + presentation_duration,
         ));
+    }
+
+    #[test]
+    fn mosquito_death_linger_is_at_least_two_seconds() {
+        assert!(super::ENEMY_MOSQUITO_DEATH_LINGER >= Duration::from_secs(2));
     }
 }

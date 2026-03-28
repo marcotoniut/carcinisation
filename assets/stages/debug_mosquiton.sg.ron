@@ -17,6 +17,7 @@ StageData(
             contains: None,
             coordinates: Vec2(95.0, 72.0),
             speed: 0.0,
+            health: 150,
             steps: [
                 Idle(
                     duration: 99999.0,

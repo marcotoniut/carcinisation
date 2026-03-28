@@ -11,20 +11,25 @@
 //! track. This module documents those contracts close to the runtime that
 //! consumes them.
 
-use crate::stage::systems::damage::{DAMAGE_FLICKER_COUNT, DAMAGE_REGULAR_DURATION};
 use crate::stage::{
     components::{
-        damage::DamageFlicker,
         interactive::{Dead, Flickerer, Health},
         placement::Depth,
     },
     enemy::entity::EnemyType,
-    messages::PartDamageMessage,
+    messages::{ComposedAnimationCueMessage, PartDamageMessage},
     resources::StageTimeDomain,
 };
+use crate::{
+    pixel::PxAssets,
+    stage::systems::damage::{
+        DAMAGE_FLICKER_COUNT, DAMAGE_INVERT_DURATION, DAMAGE_REGULAR_DURATION,
+    },
+};
+use assert_assets_path::assert_assets_path;
 use asset_pipeline::aseprite::{
-    CollisionShape as CompositionCollisionShape, CompositionAtlas, PartGameplayMetadata,
-    validate_composition_atlas,
+    AnimationEventKind, CollisionShape as CompositionCollisionShape, CompositionAtlas,
+    PartGameplayMetadata, validate_composition_atlas,
 };
 use bevy::{
     asset::{Asset, LoadState},
@@ -32,15 +37,18 @@ use bevy::{
     reflect::{Reflect, TypePath},
 };
 use carcinisation_collision::{Collider, ColliderShape};
-use seldom_pixel::prelude::{
-    AtlasRect, AtlasRegionId, PxAnchor, PxCanvas, PxCompositePart, PxCompositeSprite, PxPosition,
-    PxSpriteAtlasAsset, PxSubPosition,
+use seldom_pixel::{
+    filter::{PxFilter, PxFilterAsset},
+    prelude::{
+        AtlasRect, AtlasRegionId, PxAnchor, PxCanvas, PxCompositePart, PxCompositeSprite,
+        PxPosition, PxSpriteAtlasAsset, PxSubPosition,
+    },
 };
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 /// Current runtime schema version accepted by the composed-enemy renderer.
-pub const SUPPORTED_COMPOSITION_SCHEMA_VERSION: u32 = 2;
+pub const SUPPORTED_COMPOSITION_SCHEMA_VERSION: u32 = 3;
 const COMPOSED_ENEMY_ASSET_ROOT: &str = "sprites/enemies";
 const COMPOSED_ENEMY_ATLAS_BASENAME: &str = "atlas";
 
@@ -95,8 +103,18 @@ struct CachedAnimation {
 
 #[derive(Clone, Debug)]
 struct CachedAnimationFrame {
+    source_frame: usize,
     duration_ms: u32,
+    events: Vec<CachedAnimationEvent>,
     poses: HashMap<String, CachedPose>,
+}
+
+#[derive(Clone, Debug)]
+struct CachedAnimationEvent {
+    kind: AnimationEventKind,
+    id: String,
+    part_id: Option<String>,
+    local_offset: IVec2,
 }
 
 #[derive(Clone, Debug)]
@@ -194,9 +212,22 @@ pub struct ComposedHealthPools {
 
 impl ComposedHealthPools {
     fn from_cache(cache: &CompositionAtlasCache) -> Self {
-        Self {
-            pools: cache.health_pools.clone(),
+        Self::from_cache_with_entity_health_override(cache, None)
+    }
+
+    fn from_cache_with_entity_health_override(
+        cache: &CompositionAtlasCache,
+        entity_health_override: Option<u32>,
+    ) -> Self {
+        let mut pools = cache.health_pools.clone();
+        if let (Some(override_health), Some(entity_health_pool)) =
+            (entity_health_override, cache.entity_health_pool.as_deref())
+            && let Some(pool_health) = pools.get_mut(entity_health_pool)
+        {
+            *pool_health = override_health;
         }
+
+        Self { pools }
     }
 
     #[must_use]
@@ -215,9 +246,9 @@ impl ComposedHealthPools {
 #[reflect(Component)]
 /// Mutable per-part gameplay state for a live composed enemy instance.
 ///
-/// This currently tracks optional durability and broken state per semantic part.
-/// Part ids remain the authoritative gameplay key; sprite ids are never used to
-/// own durability or breakage.
+/// This tracks transient gameplay/runtime state such as durability, breakage,
+/// and hit-blink presentation. Part ids remain the authoritative gameplay key;
+/// sprite ids are never used to own part state.
 pub struct ComposedPartStates {
     parts: HashMap<String, PartGameplayState>,
 }
@@ -228,7 +259,11 @@ impl ComposedPartStates {
             .parts_by_id
             .values()
             .filter_map(|part| {
-                let durability = part.gameplay.durability?;
+                if !part.gameplay.targetable && part.gameplay.durability.is_none() {
+                    return None;
+                }
+
+                let durability = part.gameplay.durability.unwrap_or_default();
                 Some((
                     part.id.clone(),
                     PartGameplayState {
@@ -236,6 +271,7 @@ impl ComposedPartStates {
                         max_durability: durability,
                         breakable: part.gameplay.breakable,
                         broken: false,
+                        hit_blink: None,
                     },
                 ))
             })
@@ -261,6 +297,17 @@ pub struct PartGameplayState {
     pub max_durability: u32,
     pub breakable: bool,
     pub broken: bool,
+    /// Active part-local hit blink. This is runtime-only presentation state:
+    /// authored gameplay metadata decides which parts are targetable, but the
+    /// blink lifecycle is resolved entirely at runtime from damage messages.
+    pub hit_blink: Option<PartHitBlinkState>,
+}
+
+#[derive(Clone, Debug, Reflect)]
+pub struct PartHitBlinkState {
+    pub phase_started_at_ms: u64,
+    pub showing_invert: bool,
+    pub remaining_invert_cycles: u8,
 }
 
 #[derive(Component, Clone, Debug, Default, Reflect)]
@@ -305,7 +352,33 @@ pub struct ResolvedPartState {
     pub max_durability: Option<u32>,
     pub breakable: bool,
     pub broken: bool,
+    pub blinking: bool,
     pub collisions: Vec<ResolvedCollisionVolume>,
+}
+
+impl ResolvedPartState {
+    #[must_use]
+    /// Resolves an authored local cue offset into world space for this visual part.
+    ///
+    /// The offset is authored in unflipped sprite-local pixels relative to the
+    /// part pivot in authored top-left/Y-down space. Runtime mirrors the offset
+    /// when the resolved part is flipped so event origins stay attached to
+    /// semantic features like a mouth or hand, then converts that authored
+    /// point into world bottom-left/Y-up space.
+    pub fn world_point_from_local_offset(&self, local_offset: IVec2) -> Vec2 {
+        let x = if self.flip_x {
+            self.frame_size.x as f32 - 1.0 - local_offset.x as f32
+        } else {
+            local_offset.x as f32
+        };
+        let y = if self.flip_y {
+            self.frame_size.y as f32 - 1.0 - local_offset.y as f32
+        } else {
+            local_offset.y as f32
+        };
+
+        self.world_pivot_position + Vec2::new(x, -y)
+    }
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -468,6 +541,24 @@ struct ComposedTrackPlaybackState {
     frame_index: usize,
     frame_started_at_ms: u64,
     ping_pong_forward: bool,
+    completed_loops: u32,
+}
+
+#[derive(Clone, Debug)]
+struct FiredAnimationCue {
+    tag: String,
+    frame_index: usize,
+    source_frame: usize,
+    kind: AnimationEventKind,
+    id: String,
+    part_id: Option<String>,
+    local_offset: IVec2,
+}
+
+#[derive(Clone, Debug)]
+struct ResolvedAnimationFrame {
+    poses: HashMap<String, CachedPose>,
+    fired_cues: Vec<FiredAnimationCue>,
 }
 
 #[derive(Component, Debug)]
@@ -508,14 +599,20 @@ pub fn ensure_composed_enemy_parts(
     atlas_assets: Res<Assets<CompositionAtlasAsset>>,
     sprite_atlases: Res<Assets<PxSpriteAtlasAsset>>,
     mut query: Query<
-        (Entity, &ComposedEnemyVisual, &Depth, Option<&mut Health>),
+        (
+            Entity,
+            &ComposedEnemyVisual,
+            &Depth,
+            Option<&mut Health>,
+            Option<&crate::stage::components::interactive::HealthOverride>,
+        ),
         (
             Without<ComposedEnemyVisualReady>,
             Without<ComposedEnemyVisualFailed>,
         ),
     >,
 ) {
-    for (entity, visual, depth, health) in &mut query {
+    for (entity, visual, depth, health, health_override) in &mut query {
         let Some(atlas_asset) = atlas_assets.get(&visual.atlas_manifest) else {
             if let LoadState::Failed(error) = asset_server.load_state(visual.atlas_manifest.id()) {
                 error!(
@@ -544,16 +641,22 @@ pub fn ensure_composed_enemy_parts(
                 visual.sprite_atlas.clone(),
             ) {
                 Ok(bindings) => {
+                    let health_override = health_override.map(|override_health| override_health.0);
+                    let initial_health_pools =
+                        ComposedHealthPools::from_cache_with_entity_health_override(
+                            cache,
+                            health_override,
+                        );
                     if let (Some(entity_health_pool), Some(mut health)) =
                         (cache.entity_health_pool.as_deref(), health)
-                        && let Some(current) = cache.health_pools.get(entity_health_pool)
+                        && let Some(current) = initial_health_pools.pools().get(entity_health_pool)
                     {
                         health.0 = *current;
                     }
                     commands.entity(entity).insert((
                         bindings,
                         ComposedCollisionState::default(),
-                        ComposedHealthPools::from_cache(cache),
+                        initial_health_pools,
                         ComposedPartStates::from_cache(cache),
                         ComposedResolvedParts::default(),
                         PxCompositeSprite::default(),
@@ -592,6 +695,8 @@ pub fn update_composed_enemy_visuals(
     mut commands: Commands,
     atlas_assets: Res<Assets<CompositionAtlasAsset>>,
     stage_time: Res<Time<StageTimeDomain>>,
+    mut cue_writer: MessageWriter<ComposedAnimationCueMessage>,
+    filters: PxAssets<PxFilter>,
     mut root_query: Query<
         (
             Entity,
@@ -600,7 +705,7 @@ pub fn update_composed_enemy_visuals(
             &PxSubPosition,
             &ComposedAtlasBindings,
             &mut ComposedCollisionState,
-            &ComposedPartStates,
+            &mut ComposedPartStates,
             &mut ComposedResolvedParts,
             &mut PxCompositeSprite,
             &mut PxPosition,
@@ -611,6 +716,7 @@ pub fn update_composed_enemy_visuals(
     >,
 ) {
     let now_ms = stage_time.elapsed().as_millis() as u64;
+    let invert_filter = filters.load(assert_assets_path!("filter/invert.px_filter.png"));
 
     for (
         entity,
@@ -619,7 +725,7 @@ pub fn update_composed_enemy_visuals(
         position,
         atlas_bindings,
         mut collision_state,
-        part_states,
+        mut part_states,
         mut resolved_part_states,
         mut composite,
         mut px_position,
@@ -680,9 +786,32 @@ pub fn update_composed_enemy_visuals(
         };
         visual.last_error = None;
 
-        let Some((parts, metrics, resolved_parts)) =
-            compose_frame(&resolved_frame.poses, cache, atlas_bindings, entity)
-        else {
+        advance_part_hit_blinks(&mut part_states, now_ms);
+
+        for cue in &resolved_frame.fired_cues {
+            cue_writer.write(ComposedAnimationCueMessage {
+                entity,
+                tag: cue.tag.clone(),
+                frame_index: cue.frame_index,
+                source_frame: cue.source_frame,
+                kind: cue.kind,
+                id: cue.id.clone(),
+                part_id: cue.part_id.clone(),
+                local_offset: asset_pipeline::aseprite::Point {
+                    x: cue.local_offset.x,
+                    y: cue.local_offset.y,
+                },
+            });
+        }
+
+        let Some((parts, metrics, resolved_parts)) = compose_frame(
+            &resolved_frame.poses,
+            cache,
+            atlas_bindings,
+            &part_states,
+            &invert_filter,
+            entity,
+        ) else {
             hide_composite(
                 &mut collision_state,
                 &mut resolved_part_states,
@@ -701,12 +830,12 @@ pub fn update_composed_enemy_visuals(
             position.y.round() as i32,
         ));
         collision_state.collisions =
-            build_collision_state(cache, &resolved_parts, part_states, position.0);
+            build_collision_state(cache, &resolved_parts, &part_states, position.0);
         resolved_part_states.parts = build_resolved_part_states(
             cache,
             &resolved_frame.poses,
             &resolved_parts,
-            part_states,
+            &part_states,
             position.0,
         );
         *anchor = anchor_for_origin(metrics);
@@ -786,18 +915,28 @@ pub fn apply_composed_part_damage(
 }
 
 pub fn check_composed_damage_flicker_taken(
-    mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
     mut reader: MessageReader<PartDamageMessage>,
-    query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
+    mut query: Query<&mut ComposedPartStates, (With<Flickerer>, Without<Dead>)>,
 ) {
+    let now_ms = stage_time.elapsed().as_millis() as u64;
+
     for event in reader.read() {
-        if query.get(event.entity).is_ok() {
-            commands.entity(event.entity).insert(DamageFlicker {
-                phase_start: stage_time.elapsed() + *DAMAGE_REGULAR_DURATION,
-                count: DAMAGE_FLICKER_COUNT,
-            });
+        let Ok(mut part_states) = query.get_mut(event.entity) else {
+            continue;
+        };
+        let Some(part_state) = part_states.part_mut(&event.part_id) else {
+            continue;
+        };
+        if part_state.broken {
+            continue;
         }
+
+        part_state.hit_blink = Some(PartHitBlinkState {
+            phase_started_at_ms: now_ms,
+            showing_invert: true,
+            remaining_invert_cycles: DAMAGE_FLICKER_COUNT,
+        });
     }
 }
 
@@ -957,7 +1096,18 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
             }
 
             cached_frames.push(CachedAnimationFrame {
+                source_frame: frame.source_frame,
                 duration_ms: frame.duration_ms,
+                events: frame
+                    .events
+                    .iter()
+                    .map(|event| CachedAnimationEvent {
+                        kind: event.kind,
+                        id: event.id.clone(),
+                        part_id: event.part_id.clone(),
+                        local_offset: IVec2::new(event.local_offset.x, event.local_offset.y),
+                    })
+                    .collect(),
                 poses,
             });
         }
@@ -1245,8 +1395,9 @@ fn resolve_requested_animation_frame(
     requested_tracks: &[RequestedAnimationTrack],
     cache: &CompositionAtlasCache,
     now_ms: u64,
-) -> Result<CachedAnimationFrame, String> {
-    sync_animation_track_states(&mut visual.track_states, requested_tracks, cache, now_ms)?;
+) -> Result<ResolvedAnimationFrame, String> {
+    let fired_cues =
+        sync_animation_track_states(&mut visual.track_states, requested_tracks, cache, now_ms)?;
 
     let mut poses = HashMap::new();
     for part_id in &cache.visual_parts_in_draw_order {
@@ -1261,10 +1412,7 @@ fn resolve_requested_animation_frame(
         poses.insert(part.id.clone(), pose);
     }
 
-    Ok(CachedAnimationFrame {
-        duration_ms: 0,
-        poses,
-    })
+    Ok(ResolvedAnimationFrame { poses, fired_cues })
 }
 
 /// Synchronizes the runtime playback cursors with the currently requested
@@ -1277,7 +1425,8 @@ fn sync_animation_track_states(
     requested_tracks: &[RequestedAnimationTrack],
     cache: &CompositionAtlasCache,
     now_ms: u64,
-) -> Result<(), String> {
+) -> Result<Vec<FiredAnimationCue>, String> {
+    let mut fired_cues = Vec::new();
     if track_states.len() > requested_tracks.len() {
         track_states.truncate(requested_tracks.len());
     }
@@ -1309,7 +1458,13 @@ fn sync_animation_track_states(
                 frame_index: initial_frame_index(animation),
                 frame_started_at_ms: now_ms,
                 ping_pong_forward: animation.direction != CachedAnimationDirection::PingPongReverse,
+                completed_loops: 0,
             };
+            fired_cues.extend(fired_frame_cues(
+                request.tag.as_str(),
+                animation,
+                replacement.frame_index,
+            ));
             if index < track_states.len() {
                 track_states[index] = replacement;
             } else {
@@ -1319,10 +1474,15 @@ fn sync_animation_track_states(
         }
 
         let track_state = &mut track_states[index];
-        advance_track_playback(track_state, animation, now_ms);
+        fired_cues.extend(advance_track_playback(
+            track_state,
+            request,
+            animation,
+            now_ms,
+        ));
     }
 
-    Ok(())
+    Ok(fired_cues)
 }
 
 fn resolve_part_pose_from_tracks(
@@ -1376,6 +1536,8 @@ fn compose_frame(
     poses: &HashMap<String, CachedPose>,
     cache: &CompositionAtlasCache,
     atlas_bindings: &ComposedAtlasBindings,
+    part_states: &ComposedPartStates,
+    invert_filter: &Handle<PxFilterAsset>,
     entity: Entity,
 ) -> Option<(
     Vec<PxCompositePart>,
@@ -1414,6 +1576,13 @@ fn compose_frame(
         parts.push(
             PxCompositePart::atlas_region(atlas_bindings.atlas.clone(), *region_id)
                 .with_offset(bottom_left_offset)
+                .with_filter(
+                    part_states
+                        .part(part.id.as_str())
+                        .and_then(|state| state.hit_blink.as_ref())
+                        .filter(|state| state.showing_invert)
+                        .map(|_| invert_filter.clone()),
+                )
                 .with_flip(pose.flip_x, pose.flip_y),
         );
         metrics_source.push((bottom_left_offset, pose.size));
@@ -1544,8 +1713,9 @@ fn build_collision_state(
         for collision in &part.gameplay.collisions {
             collisions.push(ResolvedPartCollision {
                 part_id: part.id.clone(),
-                collider: Collider::new(collision.shape).with_offset(collision.offset),
-                pivot_position: root_position + transform.pivot.as_vec2(),
+                collider: Collider::new(collision.shape)
+                    .with_offset(Vec2::new(collision.offset.x, -collision.offset.y)),
+                pivot_position: world_point_from_authored(root_position, transform.pivot),
             });
         }
     }
@@ -1579,7 +1749,7 @@ fn build_resolved_part_states(
             .iter()
             .map(|collision| ResolvedCollisionVolume {
                 shape: collision.shape,
-                offset: collision.offset,
+                offset: Vec2::new(collision.offset.x, -collision.offset.y),
             })
             .collect();
 
@@ -1591,16 +1761,25 @@ fn build_resolved_part_states(
             frame_size: pose.size,
             flip_x: pose.flip_x,
             flip_y: pose.flip_y,
-            world_top_left_position: root_position + transform.top_left.as_vec2(),
-            world_pivot_position: root_position + transform.pivot.as_vec2(),
+            world_top_left_position: world_point_from_authored(root_position, transform.top_left),
+            world_pivot_position: world_point_from_authored(root_position, transform.pivot),
             tags: part.tags.clone(),
             targetable: part.gameplay.targetable && !part_state.is_some_and(|state| state.broken),
             health_pool: part.gameplay.health_pool.clone(),
             armour: part.gameplay.armour,
-            current_durability: part_state.map(|state| state.current_durability),
-            max_durability: part_state.map(|state| state.max_durability),
+            current_durability: part
+                .gameplay
+                .durability
+                .and(part_state.map(|state| state.current_durability)),
+            max_durability: part
+                .gameplay
+                .durability
+                .and(part_state.map(|state| state.max_durability)),
             breakable: part_state.is_some_and(|state| state.breakable),
             broken: part_state.is_some_and(|state| state.broken),
+            blinking: part_state
+                .and_then(|state| state.hit_blink.as_ref())
+                .is_some_and(|state| state.showing_invert),
             collisions,
         });
     }
@@ -1608,18 +1787,64 @@ fn build_resolved_part_states(
     states
 }
 
+fn advance_part_hit_blinks(part_states: &mut ComposedPartStates, now_ms: u64) {
+    let regular_duration_ms = DAMAGE_REGULAR_DURATION.as_millis() as u64;
+    let invert_duration_ms = DAMAGE_INVERT_DURATION.as_millis() as u64;
+
+    for state in part_states.parts.values_mut() {
+        let mut clear_blink = false;
+
+        {
+            let Some(blink) = state.hit_blink.as_mut() else {
+                continue;
+            };
+
+            loop {
+                let phase_duration_ms = if blink.showing_invert {
+                    invert_duration_ms
+                } else {
+                    regular_duration_ms
+                };
+
+                if now_ms < blink.phase_started_at_ms + phase_duration_ms {
+                    break;
+                }
+
+                blink.phase_started_at_ms += phase_duration_ms;
+                if blink.showing_invert {
+                    blink.showing_invert = false;
+                    continue;
+                }
+
+                if blink.remaining_invert_cycles == 0 {
+                    clear_blink = true;
+                    break;
+                }
+
+                blink.remaining_invert_cycles -= 1;
+                blink.showing_invert = true;
+            }
+        }
+
+        if clear_blink {
+            state.hit_blink = None;
+        }
+    }
+}
+
+fn world_point_from_authored(root_position: Vec2, point: IVec2) -> Vec2 {
+    root_position + Vec2::new(point.x as f32, -(point.y as f32))
+}
+
 fn advance_track_playback(
     track_state: &mut ComposedTrackPlaybackState,
+    request: &RequestedAnimationTrack,
     animation: &CachedAnimation,
     now_ms: u64,
-) {
+) -> Vec<FiredAnimationCue> {
+    let mut fired_cues = Vec::new();
     if animation.frames.is_empty() {
-        return;
-    }
-
-    if let Some(0) = animation.repeats {
-        track_state.frame_index = initial_frame_index(animation);
-        return;
+        return fired_cues;
     }
 
     loop {
@@ -1629,16 +1854,24 @@ fn advance_track_playback(
             break;
         }
 
+        let next_frame_index = match advance_track_to_next_frame(track_state, animation) {
+            Some(frame_index) => frame_index,
+            None => {
+                track_state.frame_started_at_ms = now_ms;
+                break;
+            }
+        };
         track_state.frame_started_at_ms = track_state
             .frame_started_at_ms
             .saturating_add(frame_duration);
-        track_state.frame_index = next_frame_index(
-            animation.direction,
-            track_state.frame_index,
-            animation.frames.len(),
-            &mut track_state.ping_pong_forward,
-        );
+        fired_cues.extend(fired_frame_cues(
+            request.tag.as_str(),
+            animation,
+            next_frame_index,
+        ));
     }
+
+    fired_cues
 }
 
 fn initial_frame_index(animation: &CachedAnimation) -> usize {
@@ -1652,6 +1885,81 @@ fn initial_frame_index(animation: &CachedAnimation) -> usize {
         }
         CachedAnimationDirection::Forward | CachedAnimationDirection::PingPong => 0,
     }
+}
+
+fn terminal_frame_index(animation: &CachedAnimation) -> usize {
+    if animation.frames.is_empty() {
+        return 0;
+    }
+
+    match animation.direction {
+        CachedAnimationDirection::Forward | CachedAnimationDirection::PingPong => {
+            animation.frames.len() - 1
+        }
+        CachedAnimationDirection::Reverse | CachedAnimationDirection::PingPongReverse => 0,
+    }
+}
+
+fn can_restart_playback(
+    track_state: &ComposedTrackPlaybackState,
+    animation: &CachedAnimation,
+) -> bool {
+    match animation.repeats {
+        None | Some(0) => true,
+        Some(total_plays) => track_state.completed_loops + 1 < total_plays,
+    }
+}
+
+/// Advances one playback step and reports the newly entered frame.
+///
+/// Events are tied to frame entry, so callers should emit cues for the
+/// returned frame index exactly once. `None` means playback has reached its
+/// finite terminal frame and should remain clamped there.
+fn advance_track_to_next_frame(
+    track_state: &mut ComposedTrackPlaybackState,
+    animation: &CachedAnimation,
+) -> Option<usize> {
+    if animation.frames.is_empty() {
+        return None;
+    }
+
+    if animation.frames.len() == 1 {
+        if can_restart_playback(track_state, animation) {
+            track_state.completed_loops = track_state.completed_loops.saturating_add(1);
+            return Some(0);
+        }
+        return None;
+    }
+
+    let next = next_frame_index(
+        animation.direction,
+        track_state.frame_index,
+        animation.frames.len(),
+        &mut track_state.ping_pong_forward,
+    );
+
+    let wrapped = match animation.direction {
+        CachedAnimationDirection::Forward => {
+            track_state.frame_index == terminal_frame_index(animation)
+                && next == initial_frame_index(animation)
+        }
+        CachedAnimationDirection::Reverse => {
+            track_state.frame_index == terminal_frame_index(animation)
+                && next == initial_frame_index(animation)
+        }
+        CachedAnimationDirection::PingPong | CachedAnimationDirection::PingPongReverse => false,
+    };
+
+    if wrapped && !can_restart_playback(track_state, animation) {
+        return None;
+    }
+
+    if wrapped {
+        track_state.completed_loops = track_state.completed_loops.saturating_add(1);
+    }
+
+    track_state.frame_index = next;
+    Some(next)
 }
 
 fn next_frame_index(
@@ -1697,6 +2005,30 @@ fn next_frame_index(
     }
 }
 
+fn fired_frame_cues(
+    tag: &str,
+    animation: &CachedAnimation,
+    frame_index: usize,
+) -> Vec<FiredAnimationCue> {
+    let Some(frame) = animation.frames.get(frame_index) else {
+        return Vec::new();
+    };
+
+    frame
+        .events
+        .iter()
+        .map(|event| FiredAnimationCue {
+            tag: tag.to_string(),
+            frame_index,
+            source_frame: frame.source_frame,
+            kind: event.kind,
+            id: event.id.clone(),
+            part_id: event.part_id.clone(),
+            local_offset: event.local_offset,
+        })
+        .collect()
+}
+
 fn hide_composite(
     collision_state: &mut ComposedCollisionState,
     resolved_part_states: &mut ComposedResolvedParts,
@@ -1736,9 +2068,9 @@ fn fail_ready_composed_enemy(
 mod tests {
     use super::*;
     use asset_pipeline::aseprite::{
-        Animation, AnimationFrame, AtlasSprite, CollisionRole, CollisionShape, CollisionVolume,
-        CompositionGameplay, HealthPool, PartDefinition, PartGameplayMetadata, PartInstance,
-        PartPose, Point, Rect, Size, Vec2Value,
+        Animation, AnimationEvent, AnimationEventKind, AnimationFrame, AtlasSprite, CollisionRole,
+        CollisionShape, CollisionVolume, CompositionGameplay, HealthPool, PartDefinition,
+        PartGameplayMetadata, PartInstance, PartPose, Point, Rect, Size, Vec2Value,
     };
     use std::{fs, path::PathBuf};
 
@@ -1804,6 +2136,7 @@ mod tests {
                 frames: vec![AnimationFrame {
                     source_frame: 0,
                     duration_ms: 100,
+                    events: vec![],
                     parts: vec![PartPose {
                         part_id: "body".to_string(),
                         sprite_id: "sprite_0000".to_string(),
@@ -1962,6 +2295,7 @@ mod tests {
                         AnimationFrame {
                             source_frame: 0,
                             duration_ms: 100,
+                            events: vec![],
                             parts: vec![
                                 PartPose {
                                     part_id: "body".to_string(),
@@ -1986,6 +2320,7 @@ mod tests {
                         AnimationFrame {
                             source_frame: 1,
                             duration_ms: 100,
+                            events: vec![],
                             parts: vec![
                                 PartPose {
                                     part_id: "body".to_string(),
@@ -2013,19 +2348,41 @@ mod tests {
                     tag: "shoot_fly".to_string(),
                     direction: "forward".to_string(),
                     repeats: None,
-                    frames: vec![AnimationFrame {
-                        source_frame: 2,
-                        duration_ms: 250,
-                        parts: vec![PartPose {
-                            part_id: "body".to_string(),
-                            sprite_id: "body_shoot".to_string(),
-                            local_offset: Point::default(),
-                            flip_x: false,
-                            flip_y: false,
-                            visible: true,
-                            opacity: 255,
-                        }],
-                    }],
+                    frames: vec![
+                        AnimationFrame {
+                            source_frame: 2,
+                            duration_ms: 100,
+                            events: vec![],
+                            parts: vec![PartPose {
+                                part_id: "body".to_string(),
+                                sprite_id: "body_shoot".to_string(),
+                                local_offset: Point::default(),
+                                flip_x: false,
+                                flip_y: false,
+                                visible: true,
+                                opacity: 255,
+                            }],
+                        },
+                        AnimationFrame {
+                            source_frame: 3,
+                            duration_ms: 100,
+                            events: vec![AnimationEvent {
+                                kind: AnimationEventKind::ProjectileSpawn,
+                                id: "blood_shot".to_string(),
+                                part_id: Some("body".to_string()),
+                                local_offset: Point { x: 2, y: 1 },
+                            }],
+                            parts: vec![PartPose {
+                                part_id: "body".to_string(),
+                                sprite_id: "body_shoot".to_string(),
+                                local_offset: Point::default(),
+                                flip_x: false,
+                                flip_y: false,
+                                visible: true,
+                                opacity: 255,
+                            }],
+                        },
+                    ],
                 },
                 Animation {
                     tag: "melee_fly".to_string(),
@@ -2034,6 +2391,7 @@ mod tests {
                     frames: vec![AnimationFrame {
                         source_frame: 3,
                         duration_ms: 180,
+                        events: vec![],
                         parts: vec![PartPose {
                             part_id: "body".to_string(),
                             sprite_id: "body_melee".to_string(),
@@ -2048,6 +2406,26 @@ mod tests {
             ],
             gameplay: CompositionGameplay::default(),
         }
+    }
+
+    fn cue_ids_at_times(
+        visual: &mut ComposedEnemyVisual,
+        state: &ComposedAnimationState,
+        cache: &CompositionAtlasCache,
+        times_ms: &[u64],
+    ) -> Vec<Vec<String>> {
+        let tracks = requested_animation_tracks(state);
+        times_ms
+            .iter()
+            .map(|now_ms| {
+                resolve_requested_animation_frame(visual, &tracks, cache, *now_ms)
+                    .expect("frame resolution should succeed")
+                    .fired_cues
+                    .into_iter()
+                    .map(|cue| cue.id)
+                    .collect()
+            })
+            .collect()
     }
 
     #[test]
@@ -2111,6 +2489,37 @@ mod tests {
     }
 
     #[test]
+    fn exported_mosquiton_shoot_fly_authors_blood_shot_cue_on_mouth_open_frame() {
+        let atlas = load_exported_mosquiton();
+        let shoot = atlas
+            .atlas
+            .animations
+            .iter()
+            .find(|animation| animation.tag == "shoot_fly")
+            .expect("shoot_fly animation should exist");
+
+        let authored_frames: Vec<_> = shoot
+            .frames
+            .iter()
+            .enumerate()
+            .filter_map(|(frame_index, frame)| {
+                frame
+                    .events
+                    .iter()
+                    .find(|event| {
+                        event.kind == AnimationEventKind::ProjectileSpawn
+                            && event.id == "blood_shot"
+                            && event.part_id.as_deref() == Some("head")
+                            && event.local_offset == Point { x: 6, y: 9 }
+                    })
+                    .map(|_| frame_index)
+            })
+            .collect();
+
+        assert_eq!(authored_frames, vec![5]);
+    }
+
+    #[test]
     fn monolithic_animation_resolution_remains_unchanged_without_overrides() {
         let atlas = minimal_mixed_animation_atlas();
         let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
@@ -2156,20 +2565,40 @@ mod tests {
         let resolved = resolve_requested_animation_frame(&mut visual, &tracks, &cache, 200)
             .expect("mosquiton shoot fly should resolve");
 
-        let idle_wing = cache.animations["idle_fly"].frames[1]
-            .poses
-            .get("wings_visual")
-            .expect("idle fly should author wings");
-        let shoot_body = cache.animations["shoot_fly"].frames[1]
-            .poses
-            .get("body")
-            .expect("shoot fly should author body");
+        let mut idle_visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let idle_tracks = requested_animation_tracks(&ComposedAnimationState::new("idle_fly"));
+        let _ = resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 0)
+            .expect("initial idle frame should resolve");
+        let idle_resolved =
+            resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 200)
+                .expect("idle fly should resolve");
+
+        let mut shoot_visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let shoot_tracks = requested_animation_tracks(&ComposedAnimationState::new("shoot_fly"));
+        let _ = resolve_requested_animation_frame(&mut shoot_visual, &shoot_tracks, &cache, 0)
+            .expect("initial shoot frame should resolve");
+        let shoot_resolved =
+            resolve_requested_animation_frame(&mut shoot_visual, &shoot_tracks, &cache, 200)
+                .expect("shoot fly should resolve");
 
         assert_eq!(
             resolved.poses["wings_visual"].sprite_id,
-            idle_wing.sprite_id
+            idle_resolved.poses["wings_visual"].sprite_id
         );
-        assert_eq!(resolved.poses["body"].sprite_id, shoot_body.sprite_id);
+        assert_eq!(
+            resolved.poses["body"].sprite_id,
+            shoot_resolved.poses["body"].sprite_id
+        );
     }
 
     #[test]
@@ -2194,20 +2623,40 @@ mod tests {
         let resolved = resolve_requested_animation_frame(&mut visual, &tracks, &cache, 200)
             .expect("mosquiton melee fly should resolve");
 
-        let idle_wing = cache.animations["idle_fly"].frames[1]
-            .poses
-            .get("wings_visual")
-            .expect("idle fly should author wings");
-        let melee_body = cache.animations["melee_fly"].frames[1]
-            .poses
-            .get("body")
-            .expect("melee fly should author body");
+        let mut idle_visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let idle_tracks = requested_animation_tracks(&ComposedAnimationState::new("idle_fly"));
+        let _ = resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 0)
+            .expect("initial idle frame should resolve");
+        let idle_resolved =
+            resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 200)
+                .expect("idle fly should resolve");
+
+        let mut melee_visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let melee_tracks = requested_animation_tracks(&ComposedAnimationState::new("melee_fly"));
+        let _ = resolve_requested_animation_frame(&mut melee_visual, &melee_tracks, &cache, 0)
+            .expect("initial melee frame should resolve");
+        let melee_resolved =
+            resolve_requested_animation_frame(&mut melee_visual, &melee_tracks, &cache, 200)
+                .expect("melee fly should resolve");
 
         assert_eq!(
             resolved.poses["wings_visual"].sprite_id,
-            idle_wing.sprite_id
+            idle_resolved.poses["wings_visual"].sprite_id
         );
-        assert_eq!(resolved.poses["body"].sprite_id, melee_body.sprite_id);
+        assert_eq!(
+            resolved.poses["body"].sprite_id,
+            melee_resolved.poses["body"].sprite_id
+        );
     }
 
     #[test]
@@ -2354,6 +2803,150 @@ mod tests {
     }
 
     #[test]
+    fn animation_events_fire_when_the_authored_frame_is_entered() {
+        let atlas = minimal_mixed_animation_atlas();
+        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 99, 100]);
+        assert!(
+            cues[0].is_empty(),
+            "event should not fire at animation start"
+        );
+        assert!(
+            cues[1].is_empty(),
+            "event should not fire before the authored frame"
+        );
+        assert_eq!(cues[2], vec!["blood_shot".to_string()]);
+    }
+
+    #[test]
+    fn animation_events_refire_on_the_next_loop_only() {
+        let atlas = minimal_mixed_animation_atlas();
+        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 100, 150, 200, 300]);
+        assert_eq!(cues[1], vec!["blood_shot".to_string()]);
+        assert!(cues[2].is_empty());
+        assert!(
+            cues[3].is_empty(),
+            "loop restart should not refire until the authored frame is entered again"
+        );
+        assert_eq!(cues[4], vec!["blood_shot".to_string()]);
+    }
+
+    #[test]
+    fn animation_events_survive_multi_frame_advances() {
+        let atlas = minimal_mixed_animation_atlas();
+        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 250]);
+        assert_eq!(cues[1], vec!["blood_shot".to_string()]);
+    }
+
+    #[test]
+    fn finite_repeat_animations_do_not_refire_after_completion() {
+        let mut atlas = minimal_mixed_animation_atlas();
+        let shoot = atlas
+            .animations
+            .iter_mut()
+            .find(|animation| animation.tag == "shoot_fly")
+            .expect("shoot_fly animation should exist");
+        shoot.repeats = Some(1);
+
+        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 100, 300, 600]);
+        assert_eq!(cues[1], vec!["blood_shot".to_string()]);
+        assert!(cues[2].is_empty());
+        assert!(
+            cues[3].is_empty(),
+            "non-looping clips should not refire after completion"
+        );
+    }
+
+    #[test]
+    fn animations_without_authored_events_remain_silent() {
+        let atlas = minimal_mixed_animation_atlas();
+        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("idle_fly");
+
+        let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 100, 200, 300]);
+        assert!(cues.into_iter().all(|events| events.is_empty()));
+    }
+
+    #[test]
+    fn cue_offsets_follow_part_flips_in_world_space() {
+        let part = ResolvedPartState {
+            part_id: "head".to_string(),
+            parent_id: None,
+            draw_order: 0,
+            sprite_id: "head".to_string(),
+            frame_size: UVec2::new(13, 16),
+            flip_x: true,
+            flip_y: false,
+            world_top_left_position: Vec2::ZERO,
+            world_pivot_position: Vec2::new(10.0, 20.0),
+            tags: vec![],
+            targetable: false,
+            health_pool: None,
+            armour: 0,
+            current_durability: None,
+            max_durability: None,
+            breakable: false,
+            broken: false,
+            blinking: false,
+            collisions: vec![],
+        };
+
+        let point = part.world_point_from_local_offset(IVec2::new(2, 10));
+        assert_eq!(point, Vec2::new(20.0, 10.0));
+    }
+
+    #[test]
+    fn authored_part_positions_flip_y_into_world_space() {
+        let root_position = Vec2::new(100.0, 80.0);
+
+        assert_eq!(
+            world_point_from_authored(root_position, IVec2::new(5, 7)),
+            Vec2::new(105.0, 73.0)
+        );
+    }
+
+    #[test]
     fn anchor_tracks_shared_origin_inside_composite_bounds() {
         let metrics = CachedCompositeMetrics {
             origin: IVec2::new(-10, -4),
@@ -2406,6 +2999,7 @@ mod tests {
         });
 
         let cache = build_runtime_cache(&atlas).expect("hierarchical atlas should validate");
+        let part_states = ComposedPartStates::from_cache(&cache);
         let bindings = ComposedAtlasBindings {
             atlas: Handle::default(),
             sprite_regions: HashMap::from([
@@ -2434,9 +3028,15 @@ mod tests {
             ]),
         };
         let frame = &cache.animations["idle_stand"].frames[0];
-        let (_parts, metrics, resolved_parts) =
-            compose_frame(&frame.poses, &cache, &bindings, Entity::from_bits(1))
-                .expect("frame should compose");
+        let (_parts, metrics, resolved_parts) = compose_frame(
+            &frame.poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &Handle::default(),
+            Entity::from_bits(1),
+        )
+        .expect("frame should compose");
 
         assert_eq!(metrics.origin, IVec2::new(0, -4));
         assert_eq!(metrics.size, UVec2::new(5, 6));
@@ -2456,6 +3056,11 @@ mod tests {
         assert!(arm_r.tags.contains(&"right".to_string()));
         assert_eq!(arm_r.gameplay.health_pool.as_deref(), Some("core"));
         assert_eq!(arm_r.gameplay.armour, 1);
+        assert_eq!(arm_r.gameplay.durability, Some(2));
+
+        let head = cache.parts_by_id.get("head").expect("head should exist");
+        assert_eq!(head.gameplay.armour, 0);
+        assert_eq!(head.gameplay.durability, None);
 
         let wing_l = cache
             .parts_by_id
@@ -2464,6 +3069,24 @@ mod tests {
         assert!(wing_l.tags.contains(&"wing".to_string()));
         assert!(wing_l.tags.contains(&"left".to_string()));
         assert_eq!(wing_l.gameplay.health_pool, None);
+
+        let wings_visual = cache
+            .parts_by_id
+            .get("wings_visual")
+            .expect("wings_visual should exist");
+        assert!(wings_visual.tags.contains(&"targetable".to_string()));
+        assert_eq!(wings_visual.gameplay.health_pool.as_deref(), Some("core"));
+        assert_eq!(wings_visual.gameplay.durability, Some(1));
+
+        let legs_visual = cache
+            .parts_by_id
+            .get("legs_visual")
+            .expect("legs_visual should exist");
+        assert!(legs_visual.tags.contains(&"targetable".to_string()));
+        assert_eq!(legs_visual.gameplay.health_pool.as_deref(), Some("core"));
+        assert_eq!(legs_visual.gameplay.armour, 1);
+        assert_eq!(legs_visual.gameplay.durability, Some(2));
+
         assert_eq!(cache.entity_health_pool.as_deref(), Some("core"));
         assert_eq!(cache.health_pools.get("core"), Some(&40));
     }
@@ -2626,8 +3249,8 @@ mod tests {
             arm_left,
             AppliedPartDamage {
                 pool_id: Some("core".to_string()),
-                remaining_health: Some(37),
-                remaining_durability: None,
+                remaining_health: Some(39),
+                remaining_durability: Some(0),
                 broke_part: false,
             }
         );
@@ -2638,8 +3261,8 @@ mod tests {
             arm_right,
             AppliedPartDamage {
                 pool_id: Some("core".to_string()),
-                remaining_health: Some(34),
-                remaining_durability: None,
+                remaining_health: Some(38),
+                remaining_durability: Some(0),
                 broke_part: false,
             }
         );
@@ -2676,10 +3299,16 @@ mod tests {
                 .collect(),
         };
         let frame = &cache.animations["idle_fly"].frames[0];
-        let (_parts, _metrics, resolved_parts) =
-            compose_frame(&frame.poses, &cache, &bindings, Entity::from_bits(1))
-                .expect("frame should compose");
         let part_states = ComposedPartStates::from_cache(&cache);
+        let (_parts, _metrics, resolved_parts) = compose_frame(
+            &frame.poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &Handle::default(),
+            Entity::from_bits(1),
+        )
+        .expect("frame should compose");
         let collisions =
             build_collision_state(&cache, &resolved_parts, &part_states, Vec2::new(85.0, 68.0));
 
@@ -2717,6 +3346,13 @@ mod tests {
                 .iter()
                 .all(|collision| collision.part_id != "wing_l" && collision.part_id != "wing_r"),
             "non-visual contract-A wing markers must not produce runtime collisions"
+        );
+        assert!(
+            collision_state
+                .collisions()
+                .iter()
+                .any(|collision| collision.part_id == "wings_visual"),
+            "rendered wing visuals should now own gameplay collisions"
         );
     }
 
@@ -2801,10 +3437,16 @@ mod tests {
             ]),
         };
         let frame = &cache.animations["idle_stand"].frames[0];
-        let (_parts, _metrics, resolved_parts) =
-            compose_frame(&frame.poses, &cache, &bindings, Entity::from_bits(1))
-                .expect("frame should compose");
         let part_states = ComposedPartStates::from_cache(&cache);
+        let (_parts, _metrics, resolved_parts) = compose_frame(
+            &frame.poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &Handle::default(),
+            Entity::from_bits(1),
+        )
+        .expect("frame should compose");
         let collision_state = ComposedCollisionState {
             collisions: build_collision_state(&cache, &resolved_parts, &part_states, Vec2::ZERO),
         };
@@ -2831,8 +3473,8 @@ mod tests {
             arm_r,
             AppliedPartDamage {
                 pool_id: Some("core".to_string()),
-                remaining_health: Some(36),
-                remaining_durability: None,
+                remaining_health: Some(38),
+                remaining_durability: Some(0),
                 broke_part: false,
             }
         );
@@ -2843,7 +3485,7 @@ mod tests {
             head,
             AppliedPartDamage {
                 pool_id: Some("core".to_string()),
-                remaining_health: Some(30),
+                remaining_health: Some(32),
                 remaining_durability: None,
                 broke_part: false,
             }
@@ -2860,6 +3502,172 @@ mod tests {
         let error = apply_part_damage(&cache, &mut health_pools, &mut part_states, "wing_l", 5)
             .expect_err("non-visual semantic markers should not be targetable");
         assert!(error.contains("not gameplay-targetable"));
+    }
+
+    #[test]
+    fn compose_frame_applies_invert_filter_only_to_blinking_part() {
+        let mut atlas = minimal_atlas();
+        atlas.part_definitions.push(PartDefinition {
+            id: "head".to_string(),
+            tags: vec!["head".to_string()],
+            gameplay: PartGameplayMetadata {
+                targetable: Some(true),
+                health_pool: Some("core".to_string()),
+                collision: vec![asset_pipeline::aseprite::CollisionVolume {
+                    id: "head".to_string(),
+                    role: asset_pipeline::aseprite::CollisionRole::Collider,
+                    shape: asset_pipeline::aseprite::CollisionShape::Circle {
+                        radius: 4.0,
+                        offset: asset_pipeline::aseprite::Vec2Value::default(),
+                    },
+                    tags: vec![],
+                }],
+                ..Default::default()
+            },
+        });
+        atlas.parts.push(PartInstance {
+            id: "head".to_string(),
+            definition_id: "head".to_string(),
+            name: "Head".to_string(),
+            parent_id: Some("body".to_string()),
+            source_layer: Some("head".to_string()),
+            draw_order: 1,
+            pivot: Point::default(),
+            tags: vec![],
+            visible_by_default: true,
+            gameplay: PartGameplayMetadata::default(),
+        });
+        atlas.sprites.push(AtlasSprite {
+            id: "sprite_0001".to_string(),
+            rect: Rect {
+                x: 4,
+                y: 0,
+                w: 4,
+                h: 4,
+            },
+        });
+        atlas.animations[0].frames[0].parts.push(PartPose {
+            part_id: "head".to_string(),
+            sprite_id: "sprite_0001".to_string(),
+            local_offset: Point::default(),
+            flip_x: false,
+            flip_y: false,
+            visible: true,
+            opacity: 255,
+        });
+
+        let cache = build_runtime_cache(&atlas).expect("blink atlas should validate");
+        let bindings = ComposedAtlasBindings {
+            atlas: Handle::default(),
+            sprite_regions: HashMap::from([
+                ("sprite_0000".to_string(), AtlasRegionId(0)),
+                ("sprite_0001".to_string(), AtlasRegionId(1)),
+            ]),
+            sprite_rects: HashMap::from([
+                (
+                    "sprite_0000".to_string(),
+                    AtlasRect {
+                        x: 0,
+                        y: 0,
+                        w: 4,
+                        h: 4,
+                    },
+                ),
+                (
+                    "sprite_0001".to_string(),
+                    AtlasRect {
+                        x: 4,
+                        y: 0,
+                        w: 4,
+                        h: 4,
+                    },
+                ),
+            ]),
+        };
+        let mut part_states = ComposedPartStates::from_cache(&cache);
+        part_states.part_mut("head").unwrap().hit_blink = Some(PartHitBlinkState {
+            phase_started_at_ms: 0,
+            showing_invert: true,
+            remaining_invert_cycles: DAMAGE_FLICKER_COUNT,
+        });
+
+        let (parts, _, _) = compose_frame(
+            &cache.animations["idle_stand"].frames[0].poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &Handle::default(),
+            Entity::from_bits(1),
+        )
+        .expect("frame should compose");
+
+        assert_eq!(parts.len(), 2);
+        assert!(parts[0].filter.is_none(), "body should not blink");
+        assert!(parts[1].filter.is_some(), "head should blink");
+    }
+
+    #[test]
+    fn part_hit_blink_advances_and_clears() {
+        let mut part_states = ComposedPartStates {
+            parts: HashMap::from([(
+                "head".to_string(),
+                PartGameplayState {
+                    current_durability: 0,
+                    max_durability: 0,
+                    breakable: false,
+                    broken: false,
+                    hit_blink: Some(PartHitBlinkState {
+                        phase_started_at_ms: 0,
+                        showing_invert: true,
+                        remaining_invert_cycles: 1,
+                    }),
+                },
+            )]),
+        };
+
+        advance_part_hit_blinks(&mut part_states, 0);
+        assert!(
+            part_states
+                .part("head")
+                .unwrap()
+                .hit_blink
+                .as_ref()
+                .unwrap()
+                .showing_invert
+        );
+
+        advance_part_hit_blinks(&mut part_states, DAMAGE_INVERT_DURATION.as_millis() as u64);
+        assert!(
+            !part_states
+                .part("head")
+                .unwrap()
+                .hit_blink
+                .as_ref()
+                .unwrap()
+                .showing_invert
+        );
+
+        advance_part_hit_blinks(
+            &mut part_states,
+            DAMAGE_INVERT_DURATION.as_millis() as u64 + DAMAGE_REGULAR_DURATION.as_millis() as u64,
+        );
+        assert!(
+            part_states
+                .part("head")
+                .unwrap()
+                .hit_blink
+                .as_ref()
+                .unwrap()
+                .showing_invert
+        );
+
+        advance_part_hit_blinks(
+            &mut part_states,
+            ((*DAMAGE_INVERT_DURATION + *DAMAGE_REGULAR_DURATION + *DAMAGE_INVERT_DURATION)
+                .as_millis() as u64)
+                + (*DAMAGE_REGULAR_DURATION).as_millis() as u64,
+        );
+        assert!(part_states.part("head").unwrap().hit_blink.is_none());
     }
 
     #[test]
@@ -2920,10 +3728,17 @@ mod tests {
             )]),
         };
         let frame = &cache.animations["idle_stand"].frames[0];
-        let (_parts, _metrics, resolved_parts) =
-            compose_frame(&frame.poses, &cache, &bindings, Entity::from_bits(1))
-                .expect("frame should compose");
-        let mut part_states = ComposedPartStates::from_cache(&cache);
+        let part_states = ComposedPartStates::from_cache(&cache);
+        let (_parts, _metrics, resolved_parts) = compose_frame(
+            &frame.poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &Handle::default(),
+            Entity::from_bits(1),
+        )
+        .expect("frame should compose");
+        let mut part_states = part_states;
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
 
         let active = build_collision_state(&cache, &resolved_parts, &part_states, Vec2::ZERO);
@@ -2987,15 +3802,25 @@ mod tests {
             .entity(entity)
             .get::<ComposedHealthPools>()
             .expect("composed pools should remain attached");
-        assert_eq!(pools.pools().get("core"), Some(&32));
+        assert_eq!(pools.pools().get("core"), Some(&37));
         assert_eq!(
             app.world()
                 .entity(entity)
                 .get::<Health>()
                 .expect("entity health should mirror the core pool")
                 .0,
-            32
+            37
         );
+    }
+
+    #[test]
+    fn composed_health_override_replaces_entity_health_pool_on_setup() {
+        let atlas = load_exported_mosquiton();
+        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+
+        let pools = ComposedHealthPools::from_cache_with_entity_health_override(&cache, Some(150));
+
+        assert_eq!(pools.pools().get("core"), Some(&150));
     }
 
     #[test]
@@ -3041,14 +3866,14 @@ mod tests {
             .entity(entity)
             .get::<ComposedHealthPools>()
             .expect("composed pools should remain attached");
-        assert_eq!(pools.pools().get("core"), Some(&34));
+        assert_eq!(pools.pools().get("core"), Some(&38));
         assert_eq!(
             app.world()
                 .entity(entity)
                 .get::<Health>()
                 .expect("entity health should mirror the shared core pool")
                 .0,
-            34
+            38
         );
     }
 }

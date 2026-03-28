@@ -24,7 +24,7 @@ use carcinisation_core::components::{DespawnMark, VolumeSettings};
 use dotenvy::dotenv_override;
 
 #[cfg(debug_assertions)]
-use crate::debug::DebugPlugin;
+use crate::debug::{DebugGodMode, DebugPlugin};
 #[cfg(feature = "gallery")]
 use crate::gallery::GalleryPlugin;
 use crate::{
@@ -59,6 +59,8 @@ pub enum StartFlow {
 }
 
 const INITIAL_SOUND_LEVEL_ENV: &str = "CARCINISATION_INITIAL_SOUND";
+#[cfg(not(target_arch = "wasm32"))]
+const INITIAL_GOD_MODE_ENV: &str = "CARCINISATION_GOD_MODE";
 
 impl StartFlow {
     const fn includes_start_flow(self) -> bool {
@@ -175,6 +177,9 @@ pub fn build_app(options: AppLaunchOptions) -> App {
         .insert_resource(initial_volume_settings())
         .add_plugins(InputManagerPlugin::<GBInput>::default());
 
+    #[cfg(debug_assertions)]
+    app.insert_resource(DebugGodMode::new(load_initial_god_mode(options.start_flow)));
+
     if !options.headless {
         #[cfg(feature = "brp")]
         app.add_plugins(BrpExtrasPlugin);
@@ -262,6 +267,31 @@ fn load_initial_sound_level() -> Option<f32> {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+fn load_initial_god_mode(start_flow: StartFlow) -> bool {
+    matches!(start_flow, StartFlow::StageOnly)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_initial_god_mode(start_flow: StartFlow) -> bool {
+    let _ = dotenv_override();
+
+    match env::var(INITIAL_GOD_MODE_ENV) {
+        Ok(value) => match parse_bool_flag(&value) {
+            Ok(enabled) => enabled,
+            Err(message) => {
+                warn!("{INITIAL_GOD_MODE_ENV} {message}; defaulting based on launch flow");
+                matches!(start_flow, StartFlow::StageOnly)
+            }
+        },
+        Err(env::VarError::NotPresent) => matches!(start_flow, StartFlow::StageOnly),
+        Err(env::VarError::NotUnicode(_)) => {
+            warn!("{INITIAL_GOD_MODE_ENV} must be valid UTF-8; defaulting based on launch flow");
+            matches!(start_flow, StartFlow::StageOnly)
+        }
+    }
+}
+
 fn parse_normalized_sound_level(value: &str) -> Result<f32, &'static str> {
     let level = value
         .trim()
@@ -273,6 +303,14 @@ fn parse_normalized_sound_level(value: &str) -> Result<f32, &'static str> {
     }
 
     Ok(level)
+}
+
+fn parse_bool_flag(value: &str) -> Result<bool, &'static str> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Ok(true),
+        "0" | "false" | "no" | "off" => Ok(false),
+        _ => Err("must be one of 1/0/true/false/yes/no/on/off"),
+    }
 }
 
 /// @system Exits the app when the user requests the window to close.
@@ -287,7 +325,7 @@ fn exit_on_window_close_request(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_normalized_sound_level;
+    use super::{parse_bool_flag, parse_normalized_sound_level};
 
     #[test]
     fn accepts_values_inside_range() {
@@ -305,6 +343,19 @@ mod tests {
     #[test]
     fn rejects_non_numeric_values() {
         assert!(parse_normalized_sound_level("loud").is_err());
+    }
+
+    #[test]
+    fn parses_common_bool_flags() {
+        assert!(parse_bool_flag("true").unwrap());
+        assert!(parse_bool_flag("On").unwrap());
+        assert!(!parse_bool_flag("false").unwrap());
+        assert!(!parse_bool_flag("0").unwrap());
+    }
+
+    #[test]
+    fn rejects_unknown_bool_flags() {
+        assert!(parse_bool_flag("maybe").is_err());
     }
 }
 

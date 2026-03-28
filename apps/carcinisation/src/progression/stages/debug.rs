@@ -125,6 +125,7 @@ pub fn make_steps() -> Vec<StageStep> {
                     .into(),
                 EnemySpawn::mosquiton_base()
                     .with_coordinates(Vec2::new(95.0, 72.0))
+                    .with_health(150)
                     .with_elapsed_f32(1.2)
                     .with_steps_vec(vec![
                         EnemyStep::idle_base().with_duration(2.).into(),

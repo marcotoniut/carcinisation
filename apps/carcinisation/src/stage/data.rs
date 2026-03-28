@@ -241,6 +241,8 @@ pub struct EnemySpawn {
     pub coordinates: Vec2,
     pub speed: f32,
     #[serde(default)]
+    pub health: Option<u32>,
+    #[serde(default)]
     pub steps: VecDeque<EnemyStep>,
     pub depth: Depth,
 }
@@ -253,6 +255,8 @@ pub struct EnemyDropSpawn {
     pub contains: Option<Box<ContainerSpawn>>,
     pub speed: f32,
     #[serde(default)]
+    pub health: Option<u32>,
+    #[serde(default)]
     pub steps: VecDeque<EnemyStep>,
 }
 
@@ -264,6 +268,7 @@ impl EnemyDropSpawn {
             coordinates,
             depth,
             speed: self.speed,
+            health: self.health,
             steps: self.steps.clone(),
             contains: self.contains.clone(),
             elapsed: Duration::ZERO,
@@ -295,6 +300,11 @@ impl EnemySpawn {
     #[must_use]
     pub fn with_speed(mut self, value: f32) -> Self {
         self.speed = value;
+        self
+    }
+    #[must_use]
+    pub fn with_health(mut self, value: u32) -> Self {
+        self.health = Some(value);
         self
     }
     #[must_use]
@@ -339,6 +349,7 @@ impl EnemySpawn {
             depth: Depth::Six,
             elapsed: Duration::ZERO,
             speed: 0.5,
+            health: None,
             steps: vec![].into(),
             contains: None,
         }
@@ -351,6 +362,7 @@ impl EnemySpawn {
             depth: Depth::Five,
             elapsed: Duration::ZERO,
             speed: 2.0,
+            health: None,
             steps: vec![].into(),
             contains: None,
         }
@@ -417,6 +429,7 @@ impl EnemySpawn {
             elapsed: Duration::ZERO,
             steps: vec![EnemyStep::circle_around_base().opposite_direction().into()].into(),
             speed: speed_multiplier,
+            health: None,
             contains: None,
         }
     }

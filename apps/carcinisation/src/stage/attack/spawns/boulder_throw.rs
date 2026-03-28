@@ -126,6 +126,13 @@ pub fn spawn_boulder_throw_attack(
         targeting_value_z: depth_f32.into(),
         default: default(),
     });
+
+    #[cfg(debug_assertions)]
+    entity_commands.insert(crate::stage::attack::components::EnemyAttackDebugPosition {
+        current: current_pos,
+        origin: current_pos,
+    });
+
     entity_commands.insert((sprite, animation));
 
     if !collider_data.0.is_empty() {

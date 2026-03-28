@@ -555,6 +555,7 @@ mod tests {
                     max_durability: None,
                     breakable: false,
                     broken: false,
+                    blinking: false,
                     collisions: vec![],
                 },
             )

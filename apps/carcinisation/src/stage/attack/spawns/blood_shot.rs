@@ -7,7 +7,7 @@ use crate::stage::{
         },
         data::blood_shot::{
             BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED, BLOOD_SHOT_ATTACK_LINE_SPEED,
-            BLOOD_SHOT_ATTACK_RANDOMNESS,
+            BLOOD_SHOT_ATTACK_RANDOMNESS, BLOOD_SHOT_ATTACK_STARTUP_HOLD,
         },
     },
     components::{
@@ -24,6 +24,7 @@ use cween::{
     structs::{Constructor, Magnitude},
 };
 use seldom_pixel::prelude::{PxSprite, PxSubPosition};
+use std::time::Duration;
 
 fn spawn_blood_shot_tween_child<P>(
     commands: &mut Commands,
@@ -58,6 +59,15 @@ impl Default for BloodShotDefaultBundle {
 #[derive(Component, Clone, Debug)]
 pub struct BloodShotTween;
 
+/// Holds a freshly spawned blood shot at its authored cue origin briefly so
+/// the first visible frame reads as emerging from the mouth before travel.
+#[derive(Component, Clone, Debug)]
+pub struct PendingBloodShotMotion {
+    pub armed_at: Duration,
+    pub far_target: Vec2,
+    pub speed: Vec2,
+}
+
 #[derive(Bundle)]
 pub struct BloodShotBundle {
     pub enemy_attack_origin_position: EnemyAttackOriginPosition,
@@ -75,7 +85,7 @@ pub struct BloodShotBundle {
 pub fn spawn_blood_shot_attack(
     commands: &mut Commands,
     assets_sprite: &mut PxAssets<PxSprite>,
-    _stage_time: &Res<Time<StageTimeDomain>>,
+    stage_time: &Res<Time<StageTimeDomain>>,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,
@@ -107,51 +117,140 @@ pub fn spawn_blood_shot_attack(
         default: default(),
     });
 
+    #[cfg(debug_assertions)]
+    entity_commands.insert(crate::stage::attack::components::EnemyAttackDebugPosition {
+        current: current_pos,
+        origin: current_pos,
+    });
+
     entity_commands.insert((sprite, animation));
 
     if !collider_data.0.is_empty() {
         entity_commands.insert(collider_data);
     }
 
-    let blood_shot_entity = entity_commands.id();
-
-    // Blood shots don't have a fixed target - they travel in a straight line
-    // Use a very large target position to approximate infinite travel
+    // Blood shots don't have a fixed target - they travel in a straight line.
+    // Use a very large target position to approximate infinite travel once the
+    // short startup hold finishes.
     let far_target = current_pos + direction.normalize_or_zero() * 1000.0;
 
-    // Spawn tween children for X
-    spawn_blood_shot_tween_child(
-        commands,
-        TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
-            blood_shot_entity,
-            current_pos.x,
-            far_target.x,
-            speed.x,
-        ),
-        "Blood Shot Tween X",
-    );
+    entity_commands.insert(PendingBloodShotMotion {
+        armed_at: stage_time.elapsed() + BLOOD_SHOT_ATTACK_STARTUP_HOLD,
+        far_target,
+        speed,
+    });
+}
 
-    // Spawn tween children for Y
-    spawn_blood_shot_tween_child(
-        commands,
-        TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
-            blood_shot_entity,
-            current_pos.y,
-            far_target.y,
-            speed.y,
-        ),
-        "Blood Shot Tween Y",
-    );
+pub fn arm_pending_blood_shot_motion(
+    mut commands: Commands,
+    stage_time: Res<Time<StageTimeDomain>>,
+    query: Query<(Entity, &PendingBloodShotMotion, &PxSubPosition, &Depth), With<EnemyAttack>>,
+) {
+    for (entity, pending, position, depth) in &query {
+        if stage_time.elapsed() < pending.armed_at {
+            continue;
+        }
 
-    // Spawn tween children for Z (toward player depth)
-    spawn_blood_shot_tween_child(
-        commands,
-        TweenChildBundle::<StageTimeDomain, TargetingValueZ>::new(
-            blood_shot_entity,
-            depth.to_f32(),
-            PLAYER_DEPTH.to_f32(),
-            BLOOD_SHOT_ATTACK_DEPTH_SPEED,
-        ),
-        "Blood Shot Tween Z",
-    );
+        spawn_blood_shot_tween_child(
+            &mut commands,
+            TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
+                entity,
+                position.0.x,
+                pending.far_target.x,
+                pending.speed.x,
+            ),
+            "Blood Shot Tween X",
+        );
+
+        spawn_blood_shot_tween_child(
+            &mut commands,
+            TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
+                entity,
+                position.0.y,
+                pending.far_target.y,
+                pending.speed.y,
+            ),
+            "Blood Shot Tween Y",
+        );
+
+        spawn_blood_shot_tween_child(
+            &mut commands,
+            TweenChildBundle::<StageTimeDomain, TargetingValueZ>::new(
+                entity,
+                depth.to_f32(),
+                PLAYER_DEPTH.to_f32(),
+                BLOOD_SHOT_ATTACK_DEPTH_SPEED,
+            ),
+            "Blood Shot Tween Z",
+        );
+
+        commands.entity(entity).remove::<PendingBloodShotMotion>();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cween::linear::components::{
+        TargetingValueX, TargetingValueY, TargetingValueZ, TweenChild,
+    };
+    use std::time::Duration;
+
+    #[test]
+    fn pending_blood_shot_motion_arms_only_after_hold() {
+        let mut app = App::new();
+        app.insert_resource(Time::<StageTimeDomain>::default());
+        app.add_systems(Update, arm_pending_blood_shot_motion);
+
+        let attack = app
+            .world_mut()
+            .spawn((
+                EnemyAttack,
+                PxSubPosition(Vec2::new(10.0, 20.0)),
+                Depth::Three,
+                PendingBloodShotMotion {
+                    armed_at: Duration::from_millis(60),
+                    far_target: Vec2::new(100.0, 120.0),
+                    speed: Vec2::new(5.0, 6.0),
+                },
+            ))
+            .id();
+
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(Duration::from_millis(59));
+        app.update();
+
+        assert!(
+            app.world()
+                .entity(attack)
+                .contains::<PendingBloodShotMotion>()
+        );
+        {
+            let world = app.world_mut();
+            let mut child_query = world.query_filtered::<Entity, With<TweenChild>>();
+            assert_eq!(child_query.iter(world).count(), 0);
+        }
+
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(Duration::from_millis(1));
+        app.update();
+
+        assert!(
+            !app.world()
+                .entity(attack)
+                .contains::<PendingBloodShotMotion>()
+        );
+
+        {
+            let world = app.world_mut();
+            let mut child_query = world.query_filtered::<(
+                Option<&TargetingValueX>,
+                Option<&TargetingValueY>,
+                Option<&TargetingValueZ>,
+            ), With<TweenChild>>();
+            assert_eq!(child_query.iter(world).count(), 3);
+        }
+    }
 }

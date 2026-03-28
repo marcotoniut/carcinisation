@@ -5,7 +5,10 @@ pub mod data;
 pub mod spawns;
 mod systems;
 
+#[cfg(debug_assertions)]
+use self::systems::sync_enemy_attack_debug_positions;
 use self::{
+    spawns::blood_shot::arm_pending_blood_shot_motion,
     systems::player::check_got_hit,
     systems::{
         check_health_at_0, despawn_dead_attacks, hovering::hovering_damage_on_reached,
@@ -25,6 +28,9 @@ impl Plugin for AttackPlugin {
             // Only advance attack behaviour when the plugin is explicitly active.
             (
                 (check_got_hit, check_health_at_0).chain(),
+                #[cfg(debug_assertions)]
+                sync_enemy_attack_debug_positions,
+                arm_pending_blood_shot_motion,
                 despawn_dead_attacks,
                 on_enemy_attack_depth_changed,
                 miss_on_reached,
