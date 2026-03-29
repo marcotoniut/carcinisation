@@ -11,6 +11,7 @@
 //! track. This module documents those contracts close to the runtime that
 //! consumes them.
 
+use crate::pixel::PxAssets;
 use crate::stage::{
     components::{
         interactive::{Dead, Flickerer, Health},
@@ -19,12 +20,6 @@ use crate::stage::{
     enemy::entity::EnemyType,
     messages::{ComposedAnimationCueMessage, PartDamageMessage},
     resources::StageTimeDomain,
-};
-use crate::{
-    pixel::PxAssets,
-    stage::systems::damage::{
-        DAMAGE_FLICKER_COUNT, DAMAGE_INVERT_DURATION, DAMAGE_REGULAR_DURATION,
-    },
 };
 use assert_assets_path::assert_assets_path;
 use asset_pipeline::aseprite::{
@@ -51,6 +46,13 @@ use std::collections::{HashMap, HashSet};
 pub const SUPPORTED_COMPOSITION_SCHEMA_VERSION: u32 = 3;
 const COMPOSED_ENEMY_ASSET_ROOT: &str = "sprites/enemies";
 const COMPOSED_ENEMY_ATLAS_BASENAME: &str = "atlas";
+/// Composed-part hit feedback should read as a brief local blink, not as the
+/// longer whole-entity damage flicker used elsewhere in the stage.
+const COMPOSED_PART_HIT_BLINK_PHASE: std::time::Duration = std::time::Duration::from_millis(30);
+/// Two additional invert phases after the initial flash yields:
+/// invert -> regular -> invert -> regular -> invert
+/// for a total blink window of 150ms.
+const COMPOSED_PART_HIT_BLINK_INVERT_CYCLES: u8 = 2;
 
 #[derive(Asset, Clone, Debug, Deserialize, TypePath)]
 /// Asset wrapper around the exported composed manifest plus the lazily-built runtime cache.
@@ -935,7 +937,7 @@ pub fn check_composed_damage_flicker_taken(
         part_state.hit_blink = Some(PartHitBlinkState {
             phase_started_at_ms: now_ms,
             showing_invert: true,
-            remaining_invert_cycles: DAMAGE_FLICKER_COUNT,
+            remaining_invert_cycles: COMPOSED_PART_HIT_BLINK_INVERT_CYCLES,
         });
     }
 }
@@ -1788,8 +1790,7 @@ fn build_resolved_part_states(
 }
 
 fn advance_part_hit_blinks(part_states: &mut ComposedPartStates, now_ms: u64) {
-    let regular_duration_ms = DAMAGE_REGULAR_DURATION.as_millis() as u64;
-    let invert_duration_ms = DAMAGE_INVERT_DURATION.as_millis() as u64;
+    let phase_duration_ms = COMPOSED_PART_HIT_BLINK_PHASE.as_millis() as u64;
 
     for state in part_states.parts.values_mut() {
         let mut clear_blink = false;
@@ -1800,12 +1801,6 @@ fn advance_part_hit_blinks(part_states: &mut ComposedPartStates, now_ms: u64) {
             };
 
             loop {
-                let phase_duration_ms = if blink.showing_invert {
-                    invert_duration_ms
-                } else {
-                    regular_duration_ms
-                };
-
                 if now_ms < blink.phase_started_at_ms + phase_duration_ms {
                     break;
                 }
@@ -3087,6 +3082,15 @@ mod tests {
         assert_eq!(legs_visual.gameplay.armour, 1);
         assert_eq!(legs_visual.gameplay.durability, Some(2));
 
+        let arms_overlay = cache
+            .parts_by_id
+            .get("arms_overlay")
+            .expect("arms_overlay should exist");
+        assert!(arms_overlay.tags.contains(&"targetable".to_string()));
+        assert_eq!(arms_overlay.gameplay.health_pool.as_deref(), Some("core"));
+        assert_eq!(arms_overlay.gameplay.armour, 1);
+        assert_eq!(arms_overlay.gameplay.durability, Some(2));
+
         assert_eq!(cache.entity_health_pool.as_deref(), Some("core"));
         assert_eq!(cache.health_pools.get("core"), Some(&40));
     }
@@ -3321,7 +3325,7 @@ mod tests {
             .find(|collision| collision.part_id == "body")
             .expect("body collision should exist");
         let head_point = head.pivot_position + head.collider.offset;
-        let body_point = body.pivot_position + body.collider.offset;
+        let body_point = body.pivot_position + body.collider.offset + Vec2::new(8.0, 0.0);
         let collision_state = ComposedCollisionState { collisions };
 
         assert_eq!(
@@ -3353,6 +3357,13 @@ mod tests {
                 .iter()
                 .any(|collision| collision.part_id == "wings_visual"),
             "rendered wing visuals should now own gameplay collisions"
+        );
+        assert!(
+            collision_state
+                .collisions()
+                .iter()
+                .any(|collision| collision.part_id == "arms_overlay"),
+            "idle flying overlay arms should remain targetable when separate arm parts are absent"
         );
     }
 
@@ -3588,7 +3599,7 @@ mod tests {
         part_states.part_mut("head").unwrap().hit_blink = Some(PartHitBlinkState {
             phase_started_at_ms: 0,
             showing_invert: true,
-            remaining_invert_cycles: DAMAGE_FLICKER_COUNT,
+            remaining_invert_cycles: COMPOSED_PART_HIT_BLINK_INVERT_CYCLES,
         });
 
         let (parts, _, _) = compose_frame(
@@ -3636,7 +3647,10 @@ mod tests {
                 .showing_invert
         );
 
-        advance_part_hit_blinks(&mut part_states, DAMAGE_INVERT_DURATION.as_millis() as u64);
+        advance_part_hit_blinks(
+            &mut part_states,
+            COMPOSED_PART_HIT_BLINK_PHASE.as_millis() as u64,
+        );
         assert!(
             !part_states
                 .part("head")
@@ -3649,7 +3663,7 @@ mod tests {
 
         advance_part_hit_blinks(
             &mut part_states,
-            DAMAGE_INVERT_DURATION.as_millis() as u64 + DAMAGE_REGULAR_DURATION.as_millis() as u64,
+            (COMPOSED_PART_HIT_BLINK_PHASE + COMPOSED_PART_HIT_BLINK_PHASE).as_millis() as u64,
         );
         assert!(
             part_states
@@ -3663,9 +3677,7 @@ mod tests {
 
         advance_part_hit_blinks(
             &mut part_states,
-            ((*DAMAGE_INVERT_DURATION + *DAMAGE_REGULAR_DURATION + *DAMAGE_INVERT_DURATION)
-                .as_millis() as u64)
-                + (*DAMAGE_REGULAR_DURATION).as_millis() as u64,
+            (COMPOSED_PART_HIT_BLINK_PHASE * 4).as_millis() as u64,
         );
         assert!(part_states.part("head").unwrap().hit_blink.is_none());
     }

@@ -2,11 +2,14 @@ use crate::stage::{
     components::placement::{Depth, Speed},
     enemy::components::{
         CircleAround, Enemy,
-        behavior::{BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior},
+        behavior::{
+            BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior,
+            EnemyStepTweenChild,
+        },
     },
     resources::StageTimeDomain,
 };
-use bevy::prelude::*;
+use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use seldom_pixel::prelude::PxSubPosition;
 
 /// @system Assigns the next behavior step to enemies with no active behavior.
@@ -84,5 +87,29 @@ pub fn tied_components_enemy_current_behavior_circle_around(
 ) {
     for entity in query.iter() {
         commands.entity(entity).remove::<CircleAround>();
+    }
+}
+
+/// @system Despawns tween children when their parent enemy's behavior ends.
+///
+/// Tween children (`EnemyStepTweenChild`) are spawned to drive `LinearTween` movement
+/// but are not part of Bevy's hierarchy system. Without cleanup, they orphan when
+/// behaviors transition, causing memory leaks.
+///
+/// This system:
+/// 1. Queries all tween children with their parent reference (`ChildOf`)
+/// 2. Checks if parent still has `EnemyCurrentBehavior`
+/// 3. Despawns orphaned children whose parent behavior ended
+pub fn cleanup_orphaned_tween_children(
+    mut commands: Commands,
+    tween_children_query: Query<(Entity, &ChildOf), With<EnemyStepTweenChild>>,
+    parent_query: Query<(), With<EnemyCurrentBehavior>>,
+) {
+    for (child_entity, child_of) in &tween_children_query {
+        // Check if parent still has active behavior
+        if parent_query.get(child_of.0).is_err() {
+            // Parent behavior ended, despawn orphaned tween child
+            commands.entity(child_entity).despawn();
+        }
     }
 }

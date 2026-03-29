@@ -22,7 +22,7 @@ use self::{
         animation::on_composed_enemy_depth_changed,
         animation::on_enemy_depth_changed,
         behaviors::{
-            check_no_behavior, tick_enemy_behavior_timer,
+            check_no_behavior, cleanup_orphaned_tween_children, tick_enemy_behavior_timer,
             tied_components_enemy_current_behavior_circle_around,
         },
     },
@@ -55,8 +55,9 @@ impl Plugin for EnemyPlugin {
                 on_composed_enemy_depth_changed,
                 tick_enemy_behavior_timer,
                 (
-                    // Tied components
-                    tied_components_enemy_current_behavior_circle_around
+                    // Tied components - cleanup when behaviors end
+                    tied_components_enemy_current_behavior_circle_around,
+                    cleanup_orphaned_tween_children,
                 ),
                 (
                     // Mosquito
