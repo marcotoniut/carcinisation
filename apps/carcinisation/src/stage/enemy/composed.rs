@@ -24,7 +24,7 @@ use crate::stage::{
         interactive::{Dead, Flickerer, Health},
         placement::Depth,
     },
-    enemy::entity::EnemyType,
+    enemy::{components::composed_state::Dying, entity::EnemyType},
     messages::{ComposedAnimationCueMessage, PartDamageMessage},
     resources::StageTimeDomain,
 };
@@ -280,6 +280,7 @@ impl ComposedPartStates {
                         max_durability: durability,
                         breakable: part.gameplay.breakable,
                         broken: false,
+                        visible: true,
                         hit_blink: None,
                     },
                 ))
@@ -298,9 +299,14 @@ impl ComposedPartStates {
         self.parts.get_mut(part_id)
     }
 
-    /// Returns an iterator over all (part_id, part_state) pairs.
+    /// Returns an iterator over all (`part_id`, `part_state`) pairs.
     pub fn iter(&self) -> impl Iterator<Item = (&String, &PartGameplayState)> {
         self.parts.iter()
+    }
+
+    /// Returns a mutable iterator over all (`part_id`, `part_state`) pairs.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut PartGameplayState)> {
+        self.parts.iter_mut()
     }
 }
 
@@ -311,6 +317,9 @@ pub struct PartGameplayState {
     pub max_durability: u32,
     pub breakable: bool,
     pub broken: bool,
+    /// Controls whether this part should be rendered. Used for death effects
+    /// and other runtime visibility changes.
+    pub visible: bool,
     /// Active part-local hit blink. This is runtime-only presentation state:
     /// authored gameplay metadata decides which parts are targetable, but the
     /// blink lifecycle is resolved entirely at runtime from damage messages.
@@ -451,6 +460,10 @@ impl ComposedAnimationState {
 pub struct ComposedAnimationOverride {
     pub tag: String,
     pub selector: ComposedPartSelector,
+    /// When true, only the `sprite_id` is taken from the override animation,
+    /// while position (`local_offset`) is preserved from the base animation.
+    /// This prevents misalignment when swapping only visual sprites (like death faces).
+    pub sprite_only: bool,
 }
 
 impl ComposedAnimationOverride {
@@ -462,6 +475,23 @@ impl ComposedAnimationOverride {
         Self {
             tag: tag.into(),
             selector: ComposedPartSelector::for_tags(part_tags),
+            sprite_only: false,
+        }
+    }
+
+    /// Creates an override that only swaps `sprite_ids` while preserving base animation positions.
+    ///
+    /// This is useful for visual-only changes like death faces that should overlay
+    /// the current pose without causing position misalignment.
+    #[must_use]
+    pub fn for_part_tags_sprite_only(
+        tag: impl Into<String>,
+        part_tags: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        Self {
+            tag: tag.into(),
+            selector: ComposedPartSelector::for_tags(part_tags),
+            sprite_only: true,
         }
     }
 }
@@ -547,6 +577,7 @@ impl ComposedEnemyVisual {
 struct RequestedAnimationTrack {
     tag: String,
     selector: Option<ComposedPartSelector>,
+    sprite_only: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -725,6 +756,7 @@ pub fn update_composed_enemy_visuals(
             &mut PxPosition,
             &mut PxAnchor,
             &mut Visibility,
+            Option<&Dying>,
         ),
         With<ComposedEnemyVisualReady>,
     >,
@@ -745,8 +777,16 @@ pub fn update_composed_enemy_visuals(
         mut px_position,
         mut anchor,
         mut visibility,
+        dying,
     ) in &mut root_query
     {
+        // Freeze animation time for dying entities so they show death face on their last pose frame
+        let animation_time_ms = if let Some(dying) = dying {
+            dying.started.as_millis() as u64
+        } else {
+            now_ms
+        };
+
         let Some(atlas_asset) = atlas_assets.get(&visual.atlas_manifest) else {
             fail_ready_composed_enemy(
                 &mut commands,
@@ -777,7 +817,7 @@ pub fn update_composed_enemy_visuals(
             &mut visual,
             &requested_tracks,
             cache,
-            now_ms,
+            animation_time_ms,
         ) {
             Ok(frame) => frame,
             Err(reason) => {
@@ -800,7 +840,10 @@ pub fn update_composed_enemy_visuals(
         };
         visual.last_error = None;
 
-        advance_part_hit_blinks(&mut part_states, now_ms);
+        // Don't advance hit blinks for dying entities - freeze all flickering
+        if dying.is_none() {
+            advance_part_hit_blinks(&mut part_states, animation_time_ms);
+        }
 
         for cue in &resolved_frame.fired_cues {
             cue_writer.write(ComposedAnimationCueMessage {
@@ -1297,6 +1340,7 @@ fn apply_part_damage(
         remaining_damage = remaining_damage.saturating_sub(absorbed);
         if state.breakable && state.current_durability == 0 {
             state.broken = true;
+            state.visible = false; // Hide broken parts immediately
             broke_part = true;
         }
         remaining_durability = Some(state.current_durability);
@@ -1387,11 +1431,13 @@ fn requested_animation_tracks(
         RequestedAnimationTrack {
             tag: override_track.tag.clone(),
             selector: Some(override_track.selector.clone()),
+            sprite_only: override_track.sprite_only,
         }
     }));
     tracks.push(RequestedAnimationTrack {
         tag: animation_state.requested_tag.clone(),
         selector: None,
+        sprite_only: false,
     });
     tracks
 }
@@ -1498,12 +1544,19 @@ fn sync_animation_track_states(
     Ok(fired_cues)
 }
 
+/// Resolves the final pose for a part by merging base animation with overrides.
+///
+/// Sprite-only overrides preserve the base animation's position while swapping the sprite.
+/// This prevents misalignment when applying visual-only changes like death faces.
 fn resolve_part_pose_from_tracks(
     part: &CachedPart,
     requested_tracks: &[RequestedAnimationTrack],
     track_states: &[ComposedTrackPlaybackState],
     cache: &CompositionAtlasCache,
 ) -> Result<Option<CachedPose>, String> {
+    // Track sprite-only override if found
+    let mut sprite_override: Option<CachedPose> = None;
+
     for (request, playback) in requested_tracks.iter().zip(track_states.iter()) {
         let selector_matches = request
             .selector
@@ -1538,11 +1591,32 @@ fn resolve_part_pose_from_tracks(
             .poses
             .get(part.id.as_str())
         {
-            return Ok(Some(pose.clone()));
+            if request.sprite_only {
+                // For sprite-only overrides, save the sprite and continue
+                // looking for the base pose to preserve its position
+                sprite_override = Some(pose.clone());
+            } else {
+                if let Some(sprite_only_pose) = sprite_override.take() {
+                    // We found the base pose and have a sprite override - merge them
+                    return Ok(Some(CachedPose {
+                        sprite_id: sprite_only_pose.sprite_id,
+                        size: sprite_only_pose.size,
+                        flip_x: sprite_only_pose.flip_x,
+                        flip_y: sprite_only_pose.flip_y,
+                        visible: sprite_only_pose.visible,
+                        // Preserve position from base animation
+                        local_offset: pose.local_offset,
+                    }));
+                }
+                // Normal override - use it entirely
+                return Ok(Some(pose.clone()));
+            }
         }
     }
 
-    Ok(None)
+    // If we only found a sprite override but no base, return it as-is
+    // (This shouldn't normally happen with proper setup, but handle gracefully)
+    Ok(sprite_override)
 }
 
 fn compose_frame(
@@ -1570,6 +1644,12 @@ fn compose_frame(
             continue;
         };
         if !pose.visible {
+            continue;
+        }
+        // Check runtime visibility state (used for death effects, etc.)
+        if let Some(part_state) = part_states.part(part.id.as_str())
+            && !part_state.visible
+        {
             continue;
         }
         let Some(region_id) = atlas_bindings.sprite_regions.get(pose.sprite_id.as_str()) else {
@@ -3632,6 +3712,7 @@ mod tests {
                     max_durability: 0,
                     breakable: false,
                     broken: false,
+                    visible: true,
                     hit_blink: Some(PartHitBlinkState {
                         phase_started_at_ms: 0,
                         showing_invert: true,

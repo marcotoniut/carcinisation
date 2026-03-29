@@ -1,6 +1,7 @@
 use super::entity::{
-    BrokenParts, EnemyMosquiton, EnemyMosquitonAnimation, FallingState, WingsBroken,
+    BrokenParts, Dying, EnemyMosquiton, EnemyMosquitonAnimation, FallingState, WingsBroken,
 };
+use crate::stage::enemy::composed::ComposedAnimationOverride;
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -17,7 +18,7 @@ use crate::{
             composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
             data::{
                 mosquiton::{
-                    TAG_FALLING, TAG_IDLE_FLY, TAG_MELEE_FLY, TAG_SHOOT_FLY,
+                    TAG_DEATH_FLY, TAG_FALLING, TAG_IDLE_FLY, TAG_MELEE_FLY, TAG_SHOOT_FLY,
                     apply_mosquiton_animation_state,
                 },
                 steps::{EnemyStep, JumpEnemyStep},
@@ -43,6 +44,8 @@ const MOSQUITON_BLOOD_SHOT_EVENT_ID: &str = "blood_shot";
 ///
 /// If the mosquiton's wings are broken, it will use the falling animation
 /// instead of any flying animations.
+///
+/// Dead mosquitons are excluded to prevent overriding death animations.
 pub fn assign_mosquiton_animation(
     mut commands: Commands,
     mut query: Query<
@@ -55,7 +58,7 @@ pub fn assign_mosquiton_animation(
             &mut ComposedAnimationState,
             &Depth,
         ),
-        With<EnemyMosquiton>,
+        (With<EnemyMosquiton>, Without<Dead>),
     >,
 ) {
     for (
@@ -109,10 +112,43 @@ pub fn assign_mosquiton_animation(
 pub fn despawn_dead_mosquitons(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyMosquiton), Added<Dead>>,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut query: Query<
+        (
+            Entity,
+            &EnemyMosquiton,
+            &mut ComposedAnimationState,
+            &mut ComposedPartStates,
+        ),
+        Added<Dead>,
+    >,
 ) {
-    for (entity, mosquiton) in &query {
-        commands.entity(entity).insert(DespawnMark);
+    for (entity, mosquiton, mut animation_state, mut part_states) in &mut query {
+        info!(
+            "Mosquiton {:?} died - applying death face in current pose",
+            entity
+        );
+
+        // Clear all active hit blinks to prevent flickering during death
+        for (_part_id, part_state) in part_states.iter_mut() {
+            part_state.hit_blink = None;
+        }
+
+        // Keep the current animation pose (falling, shooting, idle, etc.)
+        // but override just the head sprite to show death eyes from death_fly animation.
+        // Use sprite_only to preserve the base animation's head position and avoid misalignment.
+        let head_override =
+            ComposedAnimationOverride::for_part_tags_sprite_only(TAG_DEATH_FLY, ["head"]);
+
+        // Preserve existing wing overrides if present, add head override
+        let mut overrides = animation_state.part_overrides.clone();
+        overrides.push(head_override);
+        animation_state.set_part_overrides(overrides);
+
+        commands.entity(entity).insert(Dying {
+            started: stage_time.elapsed(),
+        });
+
         score.add_u(mosquiton.kill_score());
     }
 }
@@ -183,6 +219,8 @@ pub fn trigger_mosquiton_authored_attack_cues(
 /// - Tracks all broken parts in the `BrokenParts` component
 /// - Adds specific behavioral markers (like `WingsBroken`) when certain parts break
 /// - Initiates appropriate state changes (like falling when wings break)
+///
+/// Dead mosquitons are excluded since part breakage is irrelevant once dead.
 pub fn detect_part_breakage(
     mut commands: Commands,
     mut query: Query<
@@ -192,7 +230,7 @@ pub fn detect_part_breakage(
             &PxSubPosition,
             Option<&mut BrokenParts>,
         ),
-        With<EnemyMosquiton>,
+        (With<EnemyMosquiton>, Without<Dead>),
     >,
 ) {
     for (entity, part_states, position, broken_parts) in &mut query {
@@ -205,8 +243,7 @@ pub fn detect_part_breakage(
                 // Check if this is a newly broken part
                 let is_newly_broken = broken_parts
                     .as_ref()
-                    .map(|bp| !bp.is_broken(part_id))
-                    .unwrap_or(true);
+                    .is_none_or(|bp| !bp.is_broken(part_id));
 
                 if is_newly_broken {
                     newly_broken_parts.push(part_id.clone());
@@ -233,27 +270,22 @@ pub fn detect_part_breakage(
 
             // Apply specific behavioral markers based on which parts broke
             for part_id in &newly_broken_parts {
-                match part_id.as_str() {
-                    "wings_visual" => {
-                        info!("Mosquiton {:?} wings destroyed - initiating fall", entity);
-                        commands.entity(entity).insert((
-                            WingsBroken,
-                            FallingState {
-                                fall_start_y: position.0.y,
-                                vertical_velocity: 0.0,
-                                grounded: false,
-                            },
-                        ));
-                    }
-                    // Future: Add other part-specific behaviors here
-                    // "arm_left" | "arm_right" => {
-                    //     // Disable melee attacks?
-                    //     commands.entity(entity).insert(ArmsBroken);
-                    // }
-                    _ => {
-                        // Generic part breakage, no specific behavior
-                    }
+                if part_id.as_str() == "wings_visual" {
+                    info!("Mosquiton {:?} wings destroyed - initiating fall", entity);
+                    commands.entity(entity).insert((
+                        WingsBroken,
+                        FallingState {
+                            fall_start_y: position.0.y,
+                            vertical_velocity: 0.0,
+                            grounded: false,
+                        },
+                    ));
                 }
+                // Future: Add other part-specific behaviors here
+                // else if part_id.as_str() == "arm_left" || part_id.as_str() == "arm_right" {
+                //     // Disable melee attacks?
+                //     commands.entity(entity).insert(ArmsBroken);
+                // }
             }
         }
     }
@@ -263,6 +295,8 @@ pub fn detect_part_breakage(
 ///
 /// The mosquiton will fall until the body part reaches the floor for its depth.
 /// Upon landing, it takes fall damage based on the drop height and transitions to grounded movement.
+///
+/// Dead mosquitons are excluded to prevent physics simulation during death animations.
 pub fn apply_mosquiton_falling_physics(
     mut messages: MessageWriter<crate::stage::messages::DamageMessage>,
     stage_time: Res<Time<StageTimeDomain>>,
@@ -276,7 +310,7 @@ pub fn apply_mosquiton_falling_physics(
             &Depth,
             &ComposedResolvedParts,
         ),
-        (With<EnemyMosquiton>, With<WingsBroken>),
+        (With<EnemyMosquiton>, With<WingsBroken>, Without<Dead>),
     >,
 ) {
     const TERMINAL_VELOCITY: f32 = 600.0; // max fall speed pixels per second
@@ -331,6 +365,7 @@ pub fn apply_mosquiton_falling_physics(
         let body_bottom_y = position.0.y + body_relative_offset - body_half_height;
 
         // Log falling state periodically
+        #[allow(clippy::float_cmp)]
         if (position.0.y / 10.0).floor() != (falling_state.fall_start_y / 10.0).floor() {
             info!(
                 "Mosquiton {:?} falling: y={:.1}, body_bottom={:.1}, floor={:.1}, velocity={:.1}",
@@ -357,7 +392,8 @@ pub fn apply_mosquiton_falling_physics(
             );
 
             if fall_damage > 0 {
-                // Apply fall damage via the damage message system
+                // Apply fall damage as entity-level damage (bypasses part durability).
+                // Fall damage goes directly to the entity's health pool, not individual parts.
                 use crate::stage::messages::DamageMessage;
                 messages.write(DamageMessage {
                     entity,
@@ -387,6 +423,83 @@ fn calculate_fall_damage(fall_distance: f32) -> u32 {
     } else {
         // Heavy falls: 5 damage + 1 per additional 30px
         5 + ((fall_distance - MEDIUM_DAMAGE_HEIGHT) / 30.0).floor() as u32
+    }
+}
+
+/// Applies a progressive pixel-disappearing effect to dying mosquitons.
+///
+/// Broken parts disappear faster (0.5 seconds) than intact parts (1.0 second).
+/// The effect works by progressively hiding parts based on elapsed time with an
+/// accelerating flicker pattern that simulates pixels disappearing.
+/// After the effect completes, the entity is marked for despawn.
+///
+/// # Panics
+///
+/// Panics if `stage_time.elapsed()` is less than `dying.started`, which should never
+/// happen in normal operation as the death timestamp is set from the same clock.
+pub fn update_mosquiton_death_effect(
+    mut commands: Commands,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut query: Query<
+        (
+            Entity,
+            &Dying,
+            Option<&BrokenParts>,
+            &mut ComposedPartStates,
+        ),
+        With<EnemyMosquiton>,
+    >,
+) {
+    use std::time::Duration;
+
+    const DEATH_DURATION: Duration = Duration::from_millis(750);
+
+    for (entity, dying, broken_parts_opt, mut part_states) in &mut query {
+        let elapsed = stage_time.elapsed().checked_sub(dying.started).unwrap();
+
+        // Check if we should despawn (after all effects complete)
+        if elapsed >= DEATH_DURATION {
+            info!("Mosquiton {:?} death effect complete - despawning", entity);
+            commands.entity(entity).insert(DespawnMark);
+            continue;
+        }
+
+        // Hide parts progressively based on whether they're broken
+        let broken_part_ids: std::collections::HashSet<String> = broken_parts_opt
+            .map(|bp| bp.broken_parts().clone())
+            .unwrap_or_default();
+
+        for (part_id, part_state) in part_states.iter_mut() {
+            let is_broken = broken_part_ids.contains(part_id);
+
+            // Broken parts are already invisible (broken on impact), so skip them
+            if is_broken {
+                continue;
+            }
+
+            let part_progress = elapsed.as_secs_f32() / DEATH_DURATION.as_secs_f32();
+
+            // Hide intact part based on disappearing pixels effect:
+            // - 0-40%: Fully visible
+            // - 40-70%: Slow flicker (visible most of the time)
+            // - 70-90%: Medium flicker (visible half the time)
+            // - 90-100%: Fast flicker (visible rarely)
+            // - 100%+: Fully invisible
+            if part_progress >= 1.0 {
+                // Part has fully disappeared
+                part_state.visible = false;
+            } else if part_progress >= 0.9 {
+                // Fast flicker - visible only 25% of the time (mostly disappeared)
+                part_state.visible = (elapsed.as_millis() / 50).is_multiple_of(4);
+            } else if part_progress >= 0.7 {
+                // Medium flicker - visible 50% of the time
+                part_state.visible = (elapsed.as_millis() / 75).is_multiple_of(2);
+            } else if part_progress >= 0.4 {
+                // Slow flicker - visible 75% of the time (just starting to fade)
+                part_state.visible = (elapsed.as_millis() / 100) % 4 != 3;
+            }
+            // else: fully visible (part_progress < 0.4)
+        }
     }
 }
 

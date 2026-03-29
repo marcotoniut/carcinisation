@@ -55,7 +55,7 @@ const GALLERY_DISPLAY_POSITION: Vec2 = Vec2::new(
 fn resolve_animation_data(
     character: GalleryCharacter,
     animation_name: &str,
-    depth: &Depth,
+    depth: Depth,
 ) -> Option<&'static AnimationData> {
     match character {
         GalleryCharacter::Mosquito => {
@@ -85,7 +85,7 @@ fn resolve_animation_data(
         }
         _ => return None,
     }
-    .get(depth)
+    .get(&depth)
 }
 
 /// Observer: bootstraps the gallery scene.
@@ -129,6 +129,7 @@ pub fn on_gallery_startup(
 }
 
 /// Egui side panel for character and animation selection.
+#[allow(clippy::too_many_lines)]
 pub fn gallery_panel_ui(world: &mut World) {
     let Ok(egui_context) = world
         .query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>()
@@ -348,7 +349,7 @@ pub fn apply_gallery_animation(
         let Some(data) = resolve_animation_data(
             state.selected_character,
             &override_comp.animation_name,
-            depth,
+            *depth,
         ) else {
             continue;
         };

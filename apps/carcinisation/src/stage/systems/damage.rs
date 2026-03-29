@@ -23,7 +23,11 @@ pub static DAMAGE_REGULAR_DURATION: std::sync::LazyLock<Duration> =
 pub static DAMAGE_INVERT_DURATION: std::sync::LazyLock<Duration> =
     std::sync::LazyLock::new(|| Duration::from_secs_f32(0.15));
 
-/// @system Applies incoming damage and marks entities as `Dead` when health reaches zero.
+/// @system Applies incoming entity-level damage and marks entities as `Dead` when health reaches zero.
+///
+/// Entities with `ComposedHealthPools` are excluded because their damage is routed through
+/// part-specific health pools via `PartDamageMessage`. Entity-level damage (fall damage, etc.)
+/// should still go through this system, so composed enemies should use a simple `Health` component.
 pub fn on_damage(
     mut commands: Commands,
     mut event_reader: MessageReader<DamageMessage>,

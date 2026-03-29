@@ -1,4 +1,5 @@
 pub mod behavior;
+pub mod composed_state;
 
 use bevy::prelude::*;
 use cween::structs::TweenDirection;
