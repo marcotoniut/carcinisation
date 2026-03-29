@@ -1,381 +1,243 @@
-//! Spawn queue determinism tests.
-//!
-//! Validates `StageStepSpawner` queue drain logic is deterministic:
-//! - Queue drains completely when time advances sufficiently
-//! - Spawns process in authored order
-//! - Elapsed accumulator carries over correctly
-//!
-//! # Why These Tests Exist
-//!
-//! The spawn system drains the queue based on `elapsed + delta()`. If timing
-//! calculation drifts, spawns can skip or duplicate, causing stages to have
-//! incorrect entity counts with no error raised.
+//! Deterministic stage-spawn queue tests.
 
-use bevy::math::Vec2;
+use std::{mem, time::Duration};
+
+use bevy::prelude::*;
 use carcinisation::stage::{
+    check_step_spawn,
     components::placement::Depth,
     data::{EnemySpawn, GAME_BASE_SPEED, PickupSpawn, PickupType, StageSpawn},
     enemy::entity::EnemyType,
-    resources::StageStepSpawner,
+    messages::StageSpawnEvent,
+    resources::{StageStepSpawner, StageTimeDomain},
 };
-use std::time::Duration;
 
-/// Helper to create spawn elapsed time accounting for GAME_BASE_SPEED.
-/// Spawns are authored in "game time" but get_elapsed() divides by GAME_BASE_SPEED.
-fn spawn_time(millis: u64) -> Duration {
-    Duration::from_millis((millis as f32 * GAME_BASE_SPEED) as u64)
+#[derive(Resource, Default)]
+struct ObservedStageSpawns(Vec<StageSpawn>);
+
+fn build_spawn_test_app() -> App {
+    let mut app = App::new();
+    app.insert_resource(Time::<StageTimeDomain>::default());
+    app.init_resource::<ObservedStageSpawns>();
+    app.add_message::<StageSpawnEvent>();
+    app.add_observer(
+        |trigger: On<StageSpawnEvent>, mut observed: ResMut<ObservedStageSpawns>| {
+            observed.0.push(trigger.event().spawn.clone());
+        },
+    );
+    app.add_systems(Update, check_step_spawn);
+    app
 }
 
-/// Simulates the spawn drain logic from `check_step_spawn`.
-fn drain_spawns(spawner: &mut StageStepSpawner, delta: Duration) -> usize {
-    let mut elapsed = spawner.elapsed + delta;
-    let mut processed = 0;
-
-    spawner.spawns.retain_mut(|spawn| {
-        let spawn_elapsed = spawn.get_elapsed();
-        if spawn_elapsed <= elapsed {
-            elapsed -= spawn_elapsed;
-            processed += 1;
-            false
-        } else {
-            true
-        }
-    });
-
-    spawner.elapsed = elapsed;
-    processed
+fn advance_stage(app: &mut App, duration: Duration) {
+    app.world_mut()
+        .resource_mut::<Time<StageTimeDomain>>()
+        .advance_by(duration);
+    app.update();
 }
 
-/// Validates queue drains completely when time advances past all spawns.
+fn take_spawn_events(app: &mut App) -> Vec<StageSpawn> {
+    mem::take(&mut app.world_mut().resource_mut::<ObservedStageSpawns>().0)
+}
+
+fn authored_elapsed(runtime_duration: Duration) -> Duration {
+    Duration::from_secs_f32(runtime_duration.as_secs_f32() * GAME_BASE_SPEED)
+}
+
+fn get_spawner_queue_len(app: &mut App) -> usize {
+    app.world_mut()
+        .query::<&StageStepSpawner>()
+        .iter(app.world())
+        .next()
+        .map(|spawner| spawner.spawns.len())
+        .unwrap_or(0)
+}
+
+fn get_spawner_elapsed(app: &mut App) -> Duration {
+    app.world_mut()
+        .query::<&StageStepSpawner>()
+        .iter(app.world())
+        .next()
+        .map(|spawner| spawner.elapsed)
+        .unwrap_or(Duration::ZERO)
+}
+
 #[test]
-fn spawn_queue_drains_completely() {
+fn spawn_queue_drains_all_spawns() {
+    let mut app = build_spawn_test_app();
+
     let spawns = vec![
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: Duration::from_secs(1),
+            elapsed: authored_elapsed(Duration::from_secs(1)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
         }),
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: Duration::from_secs(2),
-            coordinates: Vec2::ZERO,
+            elapsed: authored_elapsed(Duration::from_secs(2)),
+            coordinates: Vec2::new(100., 0.),
             depth: Depth::Three,
             ..Default::default()
         }),
         StageSpawn::Pickup(PickupSpawn {
             pickup_type: PickupType::SmallHealthpack,
-            elapsed: Duration::from_secs(1),
-            coordinates: Vec2::ZERO,
+            elapsed: authored_elapsed(Duration::from_secs(1)),
+            coordinates: Vec2::new(200., 0.),
             depth: Depth::Three,
         }),
     ];
 
-    let mut spawner = StageStepSpawner::new(spawns);
-    assert_eq!(spawner.spawns.len(), 3);
+    app.world_mut().spawn(StageStepSpawner::new(spawns.clone()));
 
-    drain_spawns(&mut spawner, Duration::from_secs(10));
+    advance_stage(&mut app, Duration::from_secs(10));
 
-    assert_eq!(spawner.spawns.len(), 0);
+    assert_eq!(get_spawner_queue_len(&mut app), 0);
+    assert_eq!(take_spawn_events(&mut app).len(), spawns.len());
 }
 
-/// Validates spawns drain incrementally as time advances.
 #[test]
-fn spawns_drain_incrementally() {
-    let spawns = vec![
+fn spawns_trigger_at_authored_times() {
+    let mut app = build_spawn_test_app();
+
+    app.world_mut().spawn(StageStepSpawner::new(vec![
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: spawn_time(500),
+            elapsed: authored_elapsed(Duration::from_millis(500)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
         }),
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: spawn_time(1000),
+            elapsed: authored_elapsed(Duration::from_millis(1000)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
         }),
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: spawn_time(1500),
+            elapsed: authored_elapsed(Duration::from_millis(1500)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
         }),
-    ];
+    ]));
 
-    let mut spawner = StageStepSpawner::new(spawns);
+    app.update();
+    assert!(take_spawn_events(&mut app).is_empty());
 
-    assert_eq!(drain_spawns(&mut spawner, Duration::ZERO), 0);
-    assert_eq!(spawner.spawns.len(), 3);
+    advance_stage(&mut app, Duration::from_millis(500));
+    assert_eq!(take_spawn_events(&mut app).len(), 1);
 
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(500)), 1);
-    assert_eq!(spawner.spawns.len(), 2);
+    advance_stage(&mut app, Duration::from_millis(1000));
+    assert_eq!(take_spawn_events(&mut app).len(), 1);
 
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(1000)), 1);
-    assert_eq!(spawner.spawns.len(), 1);
-
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(1500)), 1);
-    assert_eq!(spawner.spawns.len(), 0);
+    advance_stage(&mut app, Duration::from_millis(1500));
+    assert_eq!(take_spawn_events(&mut app).len(), 1);
+    assert_eq!(get_spawner_queue_len(&mut app), 0);
 }
 
-/// Validates zero-elapsed spawns drain immediately.
 #[test]
-fn zero_elapsed_spawns_drain_immediately() {
-    let spawns = vec![
+fn simultaneous_spawns_maintain_authored_order() {
+    let mut app = build_spawn_test_app();
+    let authored = vec![
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
+            elapsed: authored_elapsed(Duration::from_secs(1)),
+            coordinates: Vec2::new(0., 0.),
+            depth: Depth::Three,
+            ..Default::default()
+        }),
+        StageSpawn::Pickup(PickupSpawn {
+            pickup_type: PickupType::SmallHealthpack,
             elapsed: Duration::ZERO,
-            coordinates: Vec2::ZERO,
+            coordinates: Vec2::new(100., 0.),
             depth: Depth::Three,
-            ..Default::default()
         }),
         StageSpawn::Enemy(EnemySpawn {
-            enemy_type: EnemyType::Mosquito,
+            enemy_type: EnemyType::Tardigrade,
             elapsed: Duration::ZERO,
-            coordinates: Vec2::ZERO,
+            coordinates: Vec2::new(200., 0.),
             depth: Depth::Three,
             ..Default::default()
         }),
     ];
 
-    let mut spawner = StageStepSpawner::new(spawns);
+    app.world_mut().spawn(StageStepSpawner::new(authored));
+    advance_stage(&mut app, Duration::from_secs(1));
 
-    assert_eq!(drain_spawns(&mut spawner, Duration::ZERO), 2);
-    assert_eq!(spawner.spawns.len(), 0);
+    let emitted = take_spawn_events(&mut app);
+    assert_eq!(emitted.len(), 3);
+    assert!(matches!(
+        (&emitted[0], &emitted[1], &emitted[2]),
+        (
+            StageSpawn::Enemy(EnemySpawn {
+                enemy_type: EnemyType::Mosquito,
+                ..
+            }),
+            StageSpawn::Pickup(PickupSpawn {
+                pickup_type: PickupType::SmallHealthpack,
+                ..
+            }),
+            StageSpawn::Enemy(EnemySpawn {
+                enemy_type: EnemyType::Tardigrade,
+                ..
+            }),
+        )
+    ));
 }
 
-/// Validates spawns with identical elapsed times drain sequentially.
-///
-/// Multiple spawns with same wait time require cumulative elapsed time to drain all.
 #[test]
-fn identical_elapsed_spawns_drain_sequentially() {
-    let spawns = vec![
-        StageSpawn::Enemy(EnemySpawn {
+fn elapsed_accumulator_carries_over_correctly() {
+    let mut app = build_spawn_test_app();
+
+    app.world_mut()
+        .spawn(StageStepSpawner::new(vec![StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: spawn_time(1000),
+            elapsed: authored_elapsed(Duration::from_millis(500)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
-        }),
-        StageSpawn::Pickup(PickupSpawn {
-            pickup_type: PickupType::SmallHealthpack,
-            elapsed: spawn_time(1000),
-            coordinates: Vec2::ZERO,
-            depth: Depth::Three,
-        }),
-        StageSpawn::Enemy(EnemySpawn {
-            enemy_type: EnemyType::Tardigrade,
-            elapsed: spawn_time(1000),
-            coordinates: Vec2::ZERO,
-            depth: Depth::Three,
-            ..Default::default()
-        }),
-    ];
+        })]));
 
-    let mut spawner = StageStepSpawner::new(spawns);
+    advance_stage(&mut app, Duration::from_millis(600));
 
-    // First spawn drains at 1000ms
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(1000)), 1);
-    assert_eq!(spawner.spawns.len(), 2);
-
-    // Second spawn needs another 1000ms (cumulative 2000ms)
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(1000)), 1);
-    assert_eq!(spawner.spawns.len(), 1);
-
-    // Third spawn needs another 1000ms (cumulative 3000ms)
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(1000)), 1);
-    assert_eq!(spawner.spawns.len(), 0);
+    assert_eq!(take_spawn_events(&mut app).len(), 1);
+    assert_eq!(get_spawner_elapsed(&mut app), Duration::from_millis(100));
 }
 
-/// Validates small deltas respect spawn timing.
 #[test]
-fn small_deltas_respect_spawn_timing() {
-    let spawns = vec![StageSpawn::Enemy(EnemySpawn {
-        enemy_type: EnemyType::Mosquito,
-        elapsed: spawn_time(100),
-        coordinates: Vec2::ZERO,
-        depth: Depth::Three,
-        ..Default::default()
-    })];
+fn large_time_jump_processes_every_intermediate_spawn() {
+    let mut app = build_spawn_test_app();
 
-    let mut spawner = StageStepSpawner::new(spawns);
-
-    // spawn_time(100) creates a spawn that drains after ~100ms accumulated time
-    // (Note: div_f32 rounding means actual threshold is 100.000001ms)
-    // Advance by 10ms increments (should not drain for 9 iterations)
-    for _ in 0..9 {
-        assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(10)), 0);
-        assert_eq!(spawner.spawns.len(), 1);
-    }
-    // Total so far: 10 * 9 = 90ms
-
-    // 10th advance pushes past 100ms threshold (accounting for floating point rounding)
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(11)), 1);
-    assert_eq!(spawner.spawns.len(), 0);
-}
-
-/// Validates large time jump drains all spawns.
-#[test]
-fn large_time_jump_drains_all_spawns() {
-    let spawns = vec![
+    app.world_mut().spawn(StageStepSpawner::new(vec![
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: Duration::from_secs(1),
+            elapsed: authored_elapsed(Duration::from_secs(1)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
         }),
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: Duration::from_secs(1),
+            elapsed: authored_elapsed(Duration::from_secs(1)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
         }),
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Mosquito,
-            elapsed: Duration::from_secs(1),
+            elapsed: authored_elapsed(Duration::from_secs(1)),
             coordinates: Vec2::ZERO,
             depth: Depth::Three,
             ..Default::default()
         }),
-    ];
+    ]));
 
-    let mut spawner = StageStepSpawner::new(spawns);
+    advance_stage(&mut app, Duration::from_secs(10));
 
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_secs(10)), 3);
-    assert_eq!(spawner.spawns.len(), 0);
-}
-
-/// Validates elapsed accumulator carries over remaining time.
-#[test]
-fn elapsed_accumulator_carries_over() {
-    let spawns = vec![StageSpawn::Enemy(EnemySpawn {
-        enemy_type: EnemyType::Mosquito,
-        elapsed: spawn_time(500),
-        coordinates: Vec2::ZERO,
-        depth: Depth::Three,
-        ..Default::default()
-    })];
-
-    let mut spawner = StageStepSpawner::new(spawns);
-
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(600)), 1);
-    assert_eq!(spawner.spawns.len(), 0);
-    assert_eq!(spawner.elapsed, Duration::from_millis(100));
-}
-
-/// Validates queue doesn't drain when time frozen.
-#[test]
-fn frozen_time_preserves_queue() {
-    let spawns = vec![StageSpawn::Enemy(EnemySpawn {
-        enemy_type: EnemyType::Mosquito,
-        elapsed: Duration::from_millis(100),
-        coordinates: Vec2::ZERO,
-        depth: Depth::Three,
-        ..Default::default()
-    })];
-
-    let mut spawner = StageStepSpawner::new(spawns);
-
-    for _ in 0..10 {
-        assert_eq!(drain_spawns(&mut spawner, Duration::ZERO), 0);
-    }
-
-    assert_eq!(spawner.spawns.len(), 1);
-}
-
-/// Validates queue length invariant across spawn counts.
-#[test]
-fn queue_length_invariant_holds() {
-    for count in [1, 5, 10, 20] {
-        let spawns: Vec<_> = (0..count)
-            .map(|i| {
-                StageSpawn::Enemy(EnemySpawn {
-                    enemy_type: EnemyType::Mosquito,
-                    elapsed: Duration::from_millis(i as u64 * 100),
-                    coordinates: Vec2::ZERO,
-                    depth: Depth::Three,
-                    ..Default::default()
-                })
-            })
-            .collect();
-
-        let mut spawner = StageStepSpawner::new(spawns);
-
-        assert_eq!(spawner.spawns.len(), count);
-
-        drain_spawns(&mut spawner, Duration::from_secs(10));
-
-        assert_eq!(spawner.spawns.len(), 0);
-    }
-}
-
-/// Validates partial drain leaves correct remaining spawns.
-#[test]
-fn partial_drain_preserves_remaining_spawns() {
-    let spawns = vec![
-        StageSpawn::Enemy(EnemySpawn {
-            enemy_type: EnemyType::Mosquito,
-            elapsed: spawn_time(100),
-            coordinates: Vec2::ZERO,
-            depth: Depth::Three,
-            ..Default::default()
-        }),
-        StageSpawn::Enemy(EnemySpawn {
-            enemy_type: EnemyType::Tardigrade,
-            elapsed: spawn_time(500),
-            coordinates: Vec2::ZERO,
-            depth: Depth::Three,
-            ..Default::default()
-        }),
-    ];
-
-    let mut spawner = StageStepSpawner::new(spawns);
-
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(200)), 1);
-    assert_eq!(spawner.spawns.len(), 1);
-
-    match &spawner.spawns[0] {
-        StageSpawn::Enemy(e) => {
-            assert_eq!(e.enemy_type, EnemyType::Tardigrade);
-        }
-        _ => panic!("Wrong spawn type remained"),
-    }
-}
-
-/// Validates mixed spawn types drain correctly.
-#[test]
-fn mixed_spawn_types_drain_correctly() {
-    let spawns = vec![
-        StageSpawn::Enemy(EnemySpawn {
-            enemy_type: EnemyType::Mosquito,
-            elapsed: Duration::from_millis(100),
-            coordinates: Vec2::ZERO,
-            depth: Depth::Three,
-            ..Default::default()
-        }),
-        StageSpawn::Pickup(PickupSpawn {
-            pickup_type: PickupType::SmallHealthpack,
-            elapsed: Duration::from_millis(200),
-            coordinates: Vec2::ZERO,
-            depth: Depth::Three,
-        }),
-        StageSpawn::Enemy(EnemySpawn {
-            enemy_type: EnemyType::Tardigrade,
-            elapsed: Duration::from_millis(300),
-            coordinates: Vec2::ZERO,
-            depth: Depth::Three,
-            ..Default::default()
-        }),
-    ];
-
-    let mut spawner = StageStepSpawner::new(spawns);
-
-    assert_eq!(drain_spawns(&mut spawner, Duration::from_millis(600)), 3);
-    assert_eq!(spawner.spawns.len(), 0);
+    assert_eq!(take_spawn_events(&mut app).len(), 3);
+    assert_eq!(get_spawner_queue_len(&mut app), 0);
 }

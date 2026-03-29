@@ -2,7 +2,7 @@
   "schema_version": 3,
   "entity": "mosquiton",
   "depth": 3,
-  "source": "mosquiton_3.aseprite",
+  "source": "enemies/mosquiton_3.aseprite",
   "canvas": {
     "w": 95,
     "h": 95
