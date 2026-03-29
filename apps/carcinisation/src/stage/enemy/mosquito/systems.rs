@@ -43,7 +43,7 @@ pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
 /// never clear it, the enemy gets stuck in attack presentation. This duration
 /// must therefore stay long enough for a readable shot while still remaining
 /// shorter than the 3s attack cadence.
-const ENEMY_MOSQUITO_RANGED_PRESENTATION: Duration = Duration::from_millis(1400);
+pub const ENEMY_MOSQUITO_RANGED_PRESENTATION: Duration = Duration::from_millis(1400);
 const ENEMY_MOSQUITO_DEATH_LINGER: Duration = Duration::from_secs(2);
 
 fn mosquito_attack_cooldown_ready(cooldown_anchor: Duration, stage_elapsed: Duration) -> bool {
