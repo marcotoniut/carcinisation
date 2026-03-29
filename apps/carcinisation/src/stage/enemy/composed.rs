@@ -11,6 +11,13 @@
 //! track. This module documents those contracts close to the runtime that
 //! consumes them.
 
+#![allow(
+    clippy::struct_excessive_bools,
+    clippy::too_many_lines,
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss
+)]
+
 use crate::pixel::PxAssets;
 use crate::stage::{
     components::{
@@ -48,10 +55,10 @@ const COMPOSED_ENEMY_ASSET_ROOT: &str = "sprites/enemies";
 const COMPOSED_ENEMY_ATLAS_BASENAME: &str = "atlas";
 /// Composed-part hit feedback should read as a brief local blink, not as the
 /// longer whole-entity damage flicker used elsewhere in the stage.
-const COMPOSED_PART_HIT_BLINK_PHASE: std::time::Duration = std::time::Duration::from_millis(30);
+const COMPOSED_PART_HIT_BLINK_PHASE: std::time::Duration = std::time::Duration::from_millis(60);
 /// Two additional invert phases after the initial flash yields:
 /// invert -> regular -> invert -> regular -> invert
-/// for a total blink window of 150ms.
+/// for a total blink window of 300ms.
 const COMPOSED_PART_HIT_BLINK_INVERT_CYCLES: u8 = 2;
 
 #[derive(Asset, Clone, Debug, Deserialize, TypePath)]
@@ -681,7 +688,7 @@ pub fn ensure_composed_enemy_parts(
             Err(_) if atlas_asset.is_invalid() => {
                 commands.entity(entity).insert(ComposedEnemyVisualFailed);
             }
-            Err("unprepared") => continue,
+            Err("unprepared") => {}
             Err(reason) => {
                 error!(
                     "Unexpected composed atlas runtime state for '{} {}': {}",
@@ -1342,8 +1349,7 @@ fn validate_parent_pose_chain(
     while let Some(parent) = parent_id {
         let parent_part = parts_by_id.get(parent).ok_or_else(|| {
             format!(
-                "animation '{}' frame {} references missing parent '{}'",
-                animation_tag, source_frame, parent
+                "animation '{animation_tag}' frame {source_frame} references missing parent '{parent}'"
             )
         })?;
         if parent_part.is_visual && !poses.contains_key(parent) {
@@ -1849,12 +1855,9 @@ fn advance_track_playback(
             break;
         }
 
-        let next_frame_index = match advance_track_to_next_frame(track_state, animation) {
-            Some(frame_index) => frame_index,
-            None => {
-                track_state.frame_started_at_ms = now_ms;
-                break;
-            }
+        let Some(next_frame_index) = advance_track_to_next_frame(track_state, animation) else {
+            track_state.frame_started_at_ms = now_ms;
+            break;
         };
         track_state.frame_started_at_ms = track_state
             .frame_started_at_ms
@@ -1934,11 +1937,7 @@ fn advance_track_to_next_frame(
     );
 
     let wrapped = match animation.direction {
-        CachedAnimationDirection::Forward => {
-            track_state.frame_index == terminal_frame_index(animation)
-                && next == initial_frame_index(animation)
-        }
-        CachedAnimationDirection::Reverse => {
+        CachedAnimationDirection::Forward | CachedAnimationDirection::Reverse => {
             track_state.frame_index == terminal_frame_index(animation)
                 && next == initial_frame_index(animation)
         }
@@ -3663,7 +3662,7 @@ mod tests {
 
         advance_part_hit_blinks(
             &mut part_states,
-            (COMPOSED_PART_HIT_BLINK_PHASE + COMPOSED_PART_HIT_BLINK_PHASE).as_millis() as u64,
+            (COMPOSED_PART_HIT_BLINK_PHASE * 2).as_millis() as u64,
         );
         assert!(
             part_states

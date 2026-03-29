@@ -29,18 +29,14 @@ fn parse_args(args: &[String]) -> Result<ExportRequest> {
                 manifest_path = PathBuf::from(value);
             }
             "--entity" => {
-                entity = Some(
-                    iter.next()
-                        .context("Missing value for --entity")?
-                        .to_string(),
-                );
+                entity = Some(iter.next().context("Missing value for --entity")?.clone());
             }
             "--depth" => {
                 let value = iter.next().context("Missing value for --depth")?;
                 depth = Some(
                     value
                         .parse::<u8>()
-                        .with_context(|| format!("Invalid depth '{}'", value))?,
+                        .with_context(|| format!("Invalid depth '{value}'"))?,
                 );
             }
             "--output-root" => {

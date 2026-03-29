@@ -97,6 +97,7 @@ pub fn despawn_dead_mosquitons(
 /// The composed runtime owns authored timing and dispatch. Species systems own
 /// the gameplay reaction so cue kinds stay generic rather than hardcoded into
 /// the renderer.
+#[allow(clippy::missing_panics_doc)]
 pub fn trigger_mosquiton_authored_attack_cues(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
