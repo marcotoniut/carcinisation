@@ -30,7 +30,7 @@ use self::{
         mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
     },
     player::PlayerPlugin,
-    resources::{StageActionTimer, StageProgress, StageTimeDomain},
+    resources::{StageActionTimer, StageGravity, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
     systems::{
         camera::{check_in_view, check_outside_view, update_camera_pos_x, update_camera_pos_y},
@@ -116,6 +116,7 @@ impl Plugin for StagePlugin {
             .init_resource::<Time<StageTimeDomain>>()
             .init_resource::<TimeShouldRun<StageTimeDomain>>()
             .init_resource::<StageProgress>()
+            .init_resource::<StageGravity>()
             // Message streams for the combat/progression loop.
             .add_message::<DamageMessage>()
             .add_message::<PartDamageMessage>()

@@ -297,6 +297,11 @@ impl ComposedPartStates {
     fn part_mut(&mut self, part_id: &str) -> Option<&mut PartGameplayState> {
         self.parts.get_mut(part_id)
     }
+
+    /// Returns an iterator over all (part_id, part_state) pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &PartGameplayState)> {
+        self.parts.iter()
+    }
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -3069,8 +3074,9 @@ mod tests {
             .get("wings_visual")
             .expect("wings_visual should exist");
         assert!(wings_visual.tags.contains(&"targetable".to_string()));
-        assert_eq!(wings_visual.gameplay.health_pool.as_deref(), Some("core"));
-        assert_eq!(wings_visual.gameplay.durability, Some(1));
+        assert_eq!(wings_visual.gameplay.health_pool.as_deref(), Some("wings"));
+        assert_eq!(wings_visual.gameplay.armour, 6);
+        assert_eq!(wings_visual.gameplay.durability, Some(2));
 
         let legs_visual = cache
             .parts_by_id

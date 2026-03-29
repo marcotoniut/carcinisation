@@ -171,13 +171,13 @@
       "tags": ["wing", "limb", "targetable"],
       "gameplay": {
         "targetable": true,
-        "health_pool": "core",
+        "health_pool": "wings",
         "armour": 0,
-        "durability": 1,
+        "durability": null,
         "breakable": null,
         "collision": [
           {
-            "id": "wings_hurtbox",
+            "id": "wings_def_hurtbox",
             "role": "collider",
             "shape": {
               "shape": "circle",
@@ -378,12 +378,26 @@
       "tags": ["wings"],
       "visible_by_default": true,
       "gameplay": {
-        "targetable": null,
-        "health_pool": null,
-        "armour": 0,
-        "durability": null,
-        "breakable": null,
-        "collision": []
+        "targetable": true,
+        "health_pool": "wings",
+        "armour": 6,
+        "durability": 2,
+        "breakable": true,
+        "collision": [
+          {
+            "id": "wings_hurtbox",
+            "role": "collider",
+            "shape": {
+              "shape": "circle",
+              "radius": 18.0,
+              "offset": {
+                "x": 32.0,
+                "y": 9.0
+              }
+            },
+            "tags": ["wings", "appendage"]
+          }
+        ]
       }
     },
     {
@@ -845,33 +859,96 @@
       "rect": {
         "x": 85,
         "y": 130,
-        "w": 49,
-        "h": 28
+        "w": 13,
+        "h": 19
       }
     },
     {
       "id": "sprite_0039",
       "rect": {
-        "x": 134,
+        "x": 98,
         "y": 130,
-        "w": 65,
-        "h": 19
+        "w": 51,
+        "h": 20
       }
     },
     {
       "id": "sprite_0040",
       "rect": {
-        "x": 199,
+        "x": 149,
         "y": 130,
-        "w": 25,
-        "h": 32
+        "w": 57,
+        "h": 18
       }
     },
     {
       "id": "sprite_0041",
       "rect": {
+        "x": 206,
+        "y": 130,
+        "w": 23,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0042",
+      "rect": {
+        "x": 229,
+        "y": 130,
+        "w": 13,
+        "h": 18
+      }
+    },
+    {
+      "id": "sprite_0043",
+      "rect": {
         "x": 0,
         "y": 164,
+        "w": 50,
+        "h": 22
+      }
+    },
+    {
+      "id": "sprite_0044",
+      "rect": {
+        "x": 50,
+        "y": 164,
+        "w": 54,
+        "h": 23
+      }
+    },
+    {
+      "id": "sprite_0045",
+      "rect": {
+        "x": 104,
+        "y": 164,
+        "w": 49,
+        "h": 28
+      }
+    },
+    {
+      "id": "sprite_0046",
+      "rect": {
+        "x": 153,
+        "y": 164,
+        "w": 65,
+        "h": 19
+      }
+    },
+    {
+      "id": "sprite_0047",
+      "rect": {
+        "x": 218,
+        "y": 164,
+        "w": 25,
+        "h": 32
+      }
+    },
+    {
+      "id": "sprite_0048",
+      "rect": {
+        "x": 0,
+        "y": 196,
         "w": 69,
         "h": 12
       }
@@ -2474,7 +2551,7 @@
               "sprite_id": "sprite_0031",
               "local_offset": {
                 "x": -10,
-                "y": -9
+                "y": -10
               },
               "flip_x": false,
               "flip_y": false,
@@ -2486,7 +2563,7 @@
               "sprite_id": "sprite_0032",
               "local_offset": {
                 "x": 4,
-                "y": 3
+                "y": 4
               },
               "flip_x": false,
               "flip_y": false,
@@ -2544,7 +2621,7 @@
                 "y": -23
               },
               "flip_x": false,
-              "flip_y": false,
+              "flip_y": true,
               "visible": true,
               "opacity": 255
             },
@@ -2589,18 +2666,245 @@
       ]
     },
     {
-      "tag": "idle_fly",
+      "tag": "falling",
       "direction": "forward",
       "repeats": null,
       "frames": [
         {
           "source_frame": 24,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0031",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0038",
+              "local_offset": {
+                "x": 4,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arms_overlay",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": -25,
+                "y": -18
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs_visual",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": -28,
+                "y": 9
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 25,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0041",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0042",
+              "local_offset": {
+                "x": 5,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arms_overlay",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -24,
+                "y": -19
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs_visual",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": -23,
+                "y": 7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 26,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0031",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0038",
+              "local_offset": {
+                "x": 4,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arms_overlay",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": -25,
+                "y": -18
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs_visual",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": -28,
+                "y": 9
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 27,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0041",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0042",
+              "local_offset": {
+                "x": 5,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arms_overlay",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -25,
+                "y": -19
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs_visual",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": -30,
+                "y": 7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "idle_fly",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 28,
           "duration_ms": 50,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -14
@@ -2636,7 +2940,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -2648,7 +2952,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -2661,13 +2965,13 @@
           ]
         },
         {
-          "source_frame": 25,
+          "source_frame": 29,
           "duration_ms": 50,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -34,
                 "y": -5
@@ -2703,7 +3007,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -2715,7 +3019,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -2728,13 +3032,13 @@
           ]
         },
         {
-          "source_frame": 26,
+          "source_frame": 30,
           "duration_ms": 50,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -1
@@ -2770,7 +3074,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -2782,7 +3086,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -2795,13 +3099,13 @@
           ]
         },
         {
-          "source_frame": 27,
+          "source_frame": 31,
           "duration_ms": 50,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -1
@@ -2837,7 +3141,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -2849,7 +3153,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -2869,13 +3173,13 @@
       "repeats": null,
       "frames": [
         {
-          "source_frame": 28,
+          "source_frame": 32,
           "duration_ms": 50,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -34,
                 "y": -5
@@ -2911,7 +3215,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -2923,7 +3227,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -2943,13 +3247,13 @@
       "repeats": null,
       "frames": [
         {
-          "source_frame": 29,
+          "source_frame": 33,
           "duration_ms": 200,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -14
@@ -2985,7 +3289,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -2997,7 +3301,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3010,13 +3314,13 @@
           ]
         },
         {
-          "source_frame": 30,
+          "source_frame": 34,
           "duration_ms": 200,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -34,
                 "y": -5
@@ -3052,7 +3356,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -3064,7 +3368,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3077,13 +3381,13 @@
           ]
         },
         {
-          "source_frame": 31,
+          "source_frame": 35,
           "duration_ms": 200,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -1
@@ -3119,7 +3423,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -3131,7 +3435,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3144,13 +3448,13 @@
           ]
         },
         {
-          "source_frame": 32,
+          "source_frame": 36,
           "duration_ms": 200,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -14
@@ -3186,7 +3490,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -3198,7 +3502,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3211,13 +3515,13 @@
           ]
         },
         {
-          "source_frame": 33,
+          "source_frame": 37,
           "duration_ms": 200,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -34,
                 "y": -5
@@ -3253,7 +3557,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -3265,7 +3569,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3278,7 +3582,7 @@
           ]
         },
         {
-          "source_frame": 34,
+          "source_frame": 38,
           "duration_ms": 200,
           "events": [
             {
@@ -3294,7 +3598,7 @@
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -1
@@ -3330,7 +3634,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -3342,7 +3646,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3355,13 +3659,13 @@
           ]
         },
         {
-          "source_frame": 35,
+          "source_frame": 39,
           "duration_ms": 200,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -14
@@ -3397,7 +3701,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -3409,7 +3713,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3429,13 +3733,13 @@
       "repeats": null,
       "frames": [
         {
-          "source_frame": 36,
+          "source_frame": 40,
           "duration_ms": 150,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -14
@@ -3471,7 +3775,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": -24,
                 "y": 5
@@ -3483,7 +3787,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3496,13 +3800,13 @@
           ]
         },
         {
-          "source_frame": 37,
+          "source_frame": 41,
           "duration_ms": 150,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -34,
                 "y": -5
@@ -3562,7 +3866,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3575,13 +3879,13 @@
           ]
         },
         {
-          "source_frame": 38,
+          "source_frame": 42,
           "duration_ms": 150,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -1
@@ -3641,7 +3945,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3654,13 +3958,13 @@
           ]
         },
         {
-          "source_frame": 39,
+          "source_frame": 43,
           "duration_ms": 150,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -32,
                 "y": -14
@@ -3720,7 +4024,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3733,13 +4037,13 @@
           ]
         },
         {
-          "source_frame": 40,
+          "source_frame": 44,
           "duration_ms": 150,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -34,
                 "y": -5
@@ -3799,7 +4103,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3812,13 +4116,13 @@
           ]
         },
         {
-          "source_frame": 41,
+          "source_frame": 45,
           "duration_ms": 150,
           "events": [],
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -34,
                 "y": -5
@@ -3878,7 +4182,7 @@
             },
             {
               "part_id": "legs_visual",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -12,
                 "y": 17
@@ -3899,6 +4203,10 @@
       {
         "id": "core",
         "max_health": 40
+      },
+      {
+        "id": "wings",
+        "max_health": 8
       }
     ]
   }

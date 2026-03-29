@@ -595,6 +595,7 @@ mod tests {
             steps: Vec::new(),
             on_start_transition_o: None,
             on_end_transition_o: None,
+            gravity: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 

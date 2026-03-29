@@ -13,6 +13,8 @@ pub const TAG_SHOOT_FLY: &str = "shoot_fly";
 pub const TAG_MELEE_FLY: &str = "melee_fly";
 /// One-shot death preview exposed in the gallery.
 pub const TAG_DEATH_FLY: &str = "death_fly";
+/// Falling animation used when wings are destroyed.
+pub const TAG_FALLING: &str = "falling";
 
 const MOSQUITON_WING_PART_TAGS: &[&str] = &["wings"];
 
@@ -22,6 +24,7 @@ pub const GALLERY_TAGS: &[&str] = &[
     TAG_SHOOT_FLY,
     TAG_MELEE_FLY,
     TAG_DEATH_FLY,
+    TAG_FALLING,
     "liftoff",
     "idle_stand",
     "walking_forward",
@@ -65,4 +68,5 @@ pub fn apply_mosquiton_animation_state(
 #[must_use]
 pub fn uses_flying_wing_override(tag: &str) -> bool {
     matches!(tag, TAG_IDLE_FLY | TAG_SHOOT_FLY | TAG_MELEE_FLY)
+    // Note: TAG_FALLING is intentionally excluded - wingless animation has no wing track
 }
