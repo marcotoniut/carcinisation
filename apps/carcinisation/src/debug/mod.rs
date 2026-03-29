@@ -40,6 +40,7 @@ pub struct DebugGodMode {
 
 #[cfg(debug_assertions)]
 impl DebugGodMode {
+    #[must_use]
     pub const fn new(enabled: bool) -> Self {
         Self { enabled }
     }

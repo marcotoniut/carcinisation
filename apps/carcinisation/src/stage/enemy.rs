@@ -16,7 +16,8 @@ use self::{
         despawn_dead_mosquitoes,
     },
     mosquiton::systems::{
-        assign_mosquiton_animation, despawn_dead_mosquitons, trigger_mosquiton_authored_attack_cues,
+        apply_mosquiton_falling_physics, assign_mosquiton_animation, despawn_dead_mosquitons,
+        detect_part_breakage, trigger_mosquiton_authored_attack_cues,
     },
     systems::{
         animation::on_composed_enemy_depth_changed,
@@ -73,13 +74,15 @@ impl Plugin for EnemyPlugin {
                 (
                     // Mosquiton
                     assign_mosquiton_animation.after(check_idle_mosquito),
+                    apply_mosquiton_falling_physics,
                     (
                         prepare_composed_atlas_assets,
                         ensure_composed_enemy_parts,
                         update_composed_enemy_visuals,
+                        detect_part_breakage,
+                        trigger_mosquiton_authored_attack_cues,
                     )
                         .chain(),
-                    trigger_mosquiton_authored_attack_cues.after(update_composed_enemy_visuals),
                     despawn_dead_mosquitons,
                 ),
                 (

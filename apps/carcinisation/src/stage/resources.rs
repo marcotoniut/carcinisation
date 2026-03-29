@@ -52,3 +52,68 @@ pub struct StageStepSpawner {
     pub elapsed_since_spawn: Duration,
     pub spawns: Vec<StageSpawn>,
 }
+
+#[derive(Resource, Clone, Copy, Debug, Reflect)]
+#[reflect(Resource)]
+/// Stage-specific gravity configuration.
+///
+/// Different stages can have different gravitational forces:
+/// - Standard stages: ~800.0 px/s² (Earth-like)
+/// - Low gravity stages: ~300.0 px/s² (Moon-like)
+/// - Zero gravity stages: 0.0 px/s² (Outer space)
+/// - High gravity stages: ~1200.0 px/s² (Heavy planet)
+///
+/// This affects falling enemies (like mosquitons with broken wings),
+/// projectiles with arc trajectories (like boulder throws), and any
+/// other gravity-dependent mechanics.
+pub struct StageGravity {
+    /// Gravitational acceleration in pixels per second squared.
+    /// Positive values indicate downward acceleration (Y increases upward in this coordinate system,
+    /// so gravity is applied negatively to make things fall down).
+    pub acceleration: f32,
+}
+
+impl StageGravity {
+    /// Standard Earth-like gravity for most stages
+    pub const STANDARD: f32 = 800.0;
+
+    /// Low gravity for moon or low-G environments
+    pub const LOW: f32 = 300.0;
+
+    /// Zero gravity for outer space stages
+    pub const ZERO: f32 = 0.0;
+
+    /// High gravity for dense planets
+    pub const HIGH: f32 = 1200.0;
+
+    /// Create a new gravity configuration
+    pub fn new(acceleration: f32) -> Self {
+        Self { acceleration }
+    }
+
+    /// Create standard gravity
+    pub fn standard() -> Self {
+        Self::new(Self::STANDARD)
+    }
+
+    /// Create low gravity
+    pub fn low() -> Self {
+        Self::new(Self::LOW)
+    }
+
+    /// Create zero gravity
+    pub fn zero() -> Self {
+        Self::new(Self::ZERO)
+    }
+
+    /// Create high gravity
+    pub fn high() -> Self {
+        Self::new(Self::HIGH)
+    }
+}
+
+impl Default for StageGravity {
+    fn default() -> Self {
+        Self::standard()
+    }
+}

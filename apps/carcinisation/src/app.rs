@@ -1,5 +1,7 @@
 //! Shared Bevy bootstrap for the main game binaries.
 
+#![allow(clippy::too_many_lines)]
+
 #[cfg(not(target_arch = "wasm32"))]
 use std::env;
 

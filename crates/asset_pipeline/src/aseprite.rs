@@ -5,6 +5,17 @@
 //! `atlas.json` manifest describing how a runtime can compose animation frames
 //! from deduplicated part sprites.
 
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::too_many_lines,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_wrap,
+    clippy::unnecessary_wraps
+)]
+
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use aseprite_loader::{
     binary::{
@@ -116,7 +127,7 @@ pub struct CompositionAtlas {
 /// Reusable semantic part definition shared by multiple instances.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PartDefinition {
-    /// Stable snake_case semantic identifier.
+    /// Stable `snake_case` semantic identifier.
     pub id: String,
     /// Broad semantic tags inherited by instances of this definition.
     #[serde(default)]
@@ -129,7 +140,7 @@ pub struct PartDefinition {
 /// Concrete semantic part instance in the composed hierarchy.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PartInstance {
-    /// Stable snake_case instance identifier.
+    /// Stable `snake_case` instance identifier.
     pub id: String,
     /// Referenced reusable semantic definition.
     pub definition_id: String,
@@ -543,11 +554,13 @@ pub fn load_manifest(path: &Path) -> Result<Manifest> {
 }
 
 /// Returns the default manifest path used by the exporter CLI.
+#[must_use]
 pub fn default_manifest_path() -> PathBuf {
     PathBuf::from("resources/sprites/data.toml")
 }
 
 /// Returns the default output root used by the exporter CLI.
+#[must_use]
 pub fn default_output_root() -> PathBuf {
     PathBuf::from("tmp/aseprite-export")
 }
@@ -801,7 +814,7 @@ fn grayscale_ramp_mapping(source: &RgbaImage, palette: &[Rgba<u8>]) -> HashMap<[
 
     if source_colors.is_empty()
         || source_colors.len() > palette.len()
-        || source_colors.iter().any(|pixel| !is_grayscale(pixel))
+        || source_colors.iter().any(|pixel| !is_grayscale(*pixel))
     {
         return HashMap::new();
     }
@@ -818,7 +831,7 @@ fn grayscale_ramp_mapping(source: &RgbaImage, palette: &[Rgba<u8>]) -> HashMap<[
         .collect()
 }
 
-fn is_grayscale(pixel: &Rgba<u8>) -> bool {
+fn is_grayscale(pixel: Rgba<u8>) -> bool {
     let [r, g, b, _] = pixel.0;
     r == g && g == b
 }
@@ -837,7 +850,7 @@ fn select_part_layers<'a>(
         .layers
         .iter()
         .position(|layer| layer.layer_type == LayerType::Group && layer.name == part_group)
-        .ok_or_else(|| anyhow!("Missing part group '{}'", part_group))?;
+        .ok_or_else(|| anyhow!("Missing part group '{part_group}'"))?;
     let group = &aseprite.file.layers[group_index];
     let group_level = group.child_level;
     let child_level = group_level + 1;
@@ -899,8 +912,7 @@ fn select_part_layers<'a>(
 
     ensure!(
         !selected.is_empty(),
-        "Part group '{}' does not contain any direct child layers",
-        part_group
+        "Part group '{part_group}' does not contain any direct child layers"
     );
     Ok(selected)
 }
@@ -924,20 +936,19 @@ fn resolve_origin(aseprite: &AsepriteFile<'_>, slice_name: &str) -> Result<Point
         .slices()
         .iter()
         .find(|slice| slice.name == slice_name)
-        .ok_or_else(|| anyhow!("Missing required origin slice '{}'", slice_name))?;
+        .ok_or_else(|| anyhow!("Missing required origin slice '{slice_name}'"))?;
     let first_key = slice
         .slice_keys
         .first()
-        .ok_or_else(|| anyhow!("Origin slice '{}' does not contain any keys", slice_name))?;
+        .ok_or_else(|| anyhow!("Origin slice '{slice_name}' does not contain any keys"))?;
     let first_pivot = first_key
         .pivot
-        .ok_or_else(|| anyhow!("Origin slice '{}' must define a pivot", slice_name))?;
+        .ok_or_else(|| anyhow!("Origin slice '{slice_name}' must define a pivot"))?;
 
     for key in slice.slice_keys.iter().skip(1) {
         ensure!(
             key_matches_origin(first_key, key),
-            "Origin slice '{}' varies across frames; this exporter requires one shared origin",
-            slice_name
+            "Origin slice '{slice_name}' varies across frames; this exporter requires one shared origin"
         );
     }
 
@@ -1155,13 +1166,7 @@ fn find_sprite<'a>(manifest: &'a Manifest, entity: &str, depth: u8) -> Result<&'
         .sprites
         .iter()
         .find(|sprite| sprite.entity == entity && sprite.depth == depth)
-        .ok_or_else(|| {
-            anyhow!(
-                "No sprite entry found for entity '{}' at depth {}",
-                entity,
-                depth
-            )
-        })
+        .ok_or_else(|| anyhow!("No sprite entry found for entity '{entity}' at depth {depth}"))
 }
 
 fn validate_manifest(manifest: &Manifest) -> Result<()> {
@@ -1539,8 +1544,7 @@ fn validate_part_graph(
             );
             ensure!(
                 source_layers.insert(source_layer),
-                "source layer '{}' is referenced by more than one part",
-                source_layer
+                "source layer '{source_layer}' is referenced by more than one part"
             );
         }
         validate_tags(&part.tags, &format!("part '{}'", part.id))?;
@@ -1611,8 +1615,7 @@ fn validate_health_pools(gameplay: &CompositionGameplay) -> Result<()> {
     if let Some(entity_health_pool) = gameplay.entity_health_pool.as_deref() {
         ensure!(
             health_pools.contains(entity_health_pool),
-            "entity_health_pool '{}' must reference a declared health pool",
-            entity_health_pool
+            "entity_health_pool '{entity_health_pool}' must reference a declared health pool"
         );
     }
 
@@ -1630,50 +1633,42 @@ fn validate_part_gameplay(
                 .health_pools
                 .iter()
                 .any(|pool| pool.id == health_pool),
-            "{} references missing health pool '{}'",
-            context,
-            health_pool
+            "{context} references missing health pool '{health_pool}'"
         );
     }
     if gameplay.targetable == Some(true) || !gameplay.collision.is_empty() {
         ensure!(
             gameplay.health_pool.is_some() || gameplay.durability.is_some(),
-            "{} must define a health_pool or durability when it is targetable or owns collision volumes",
-            context
+            "{context} must define a health_pool or durability when it is targetable or owns collision volumes"
         );
     }
     if gameplay.targetable == Some(true) {
         ensure!(
             !gameplay.collision.is_empty(),
-            "{} must define at least one collision volume when it is targetable",
-            context
+            "{context} must define at least one collision volume when it is targetable"
         );
     }
     if !gameplay.collision.is_empty() {
         ensure!(
             gameplay.targetable == Some(true),
-            "{} must set targetable = true when it owns collision volumes; non-targetable or role-specific collision routing is not yet supported",
-            context
+            "{context} must set targetable = true when it owns collision volumes; non-targetable or role-specific collision routing is not yet supported"
         );
     }
     if let Some(durability) = gameplay.durability {
-        ensure!(durability > 0, "{} must use durability > 0", context);
+        ensure!(durability > 0, "{context} must use durability > 0");
         ensure!(
             gameplay.targetable == Some(true),
-            "{} must set targetable = true when durability is defined",
-            context
+            "{context} must set targetable = true when durability is defined"
         );
         ensure!(
             !gameplay.collision.is_empty(),
-            "{} must define collision volumes when durability is defined",
-            context
+            "{context} must define collision volumes when durability is defined"
         );
     }
     if gameplay.breakable == Some(true) {
         ensure!(
             gameplay.durability.is_some(),
-            "{} must define durability when breakable = true",
-            context
+            "{context} must define durability when breakable = true"
         );
     }
 
@@ -1681,8 +1676,7 @@ fn validate_part_gameplay(
     for collision in &gameplay.collision {
         ensure!(
             !collision.id.trim().is_empty(),
-            "{} defines a collision volume with an empty id",
-            context
+            "{context} defines a collision volume with an empty id"
         );
         ensure!(
             collision_ids.insert(collision.id.as_str()),
@@ -1756,12 +1750,10 @@ fn part_gameplay_is_empty(gameplay: &PartGameplayMetadata) -> bool {
 fn validate_tags(tags: &[String], context: &str) -> Result<()> {
     let mut seen = HashSet::new();
     for tag in tags {
-        ensure!(!tag.trim().is_empty(), "{} contains an empty tag", context);
+        ensure!(!tag.trim().is_empty(), "{context} contains an empty tag");
         ensure!(
             seen.insert(tag.as_str()),
-            "{} contains duplicate tag '{}'",
-            context,
-            tag
+            "{context} contains duplicate tag '{tag}'"
         );
     }
 
@@ -1845,13 +1837,12 @@ fn visit_part(
     }
     ensure!(
         visiting.insert(part_id.to_string()),
-        "part hierarchy contains a cycle involving '{}'",
-        part_id
+        "part hierarchy contains a cycle involving '{part_id}'"
     );
 
     let part = part_lookup
         .get(part_id)
-        .ok_or_else(|| anyhow!("missing part '{}' while building hierarchy", part_id))?;
+        .ok_or_else(|| anyhow!("missing part '{part_id}' while building hierarchy"))?;
     if let Some(parent_id) = part.parent_id.as_deref() {
         visit_part(parent_id, part_lookup, visiting, visited, ordered)?;
     }
@@ -1872,12 +1863,11 @@ fn build_raw_placements(
     sprite_interner: &mut SpriteInterner,
 ) -> Result<HashMap<String, RawPlacement>> {
     let mut placements = HashMap::new();
-    let raw_frame = aseprite.file.frames.get(frame_index).ok_or_else(|| {
-        anyhow!(
-            "Missing raw frame {} while building placements",
-            frame_index
-        )
-    })?;
+    let raw_frame = aseprite
+        .file
+        .frames
+        .get(frame_index)
+        .ok_or_else(|| anyhow!("Missing raw frame {frame_index} while building placements"))?;
 
     for part in parts {
         let Some(layer_name) = part.source_layer.as_deref() else {

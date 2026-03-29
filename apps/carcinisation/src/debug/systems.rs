@@ -172,6 +172,7 @@ pub fn draw_composed_parts(
 /// The probe resolves through the same composed collision state used by live
 /// gameplay before emitting `PartDamageMessage`, so its success/failure path is
 /// a runtime proof of semantic targeting rather than a separate shortcut.
+#[allow(clippy::too_many_lines)]
 pub fn debug_damage_composed_parts(
     keys: Res<ButtonInput<KeyCode>>,
     mut debug_probe: ResMut<DebugComposedDamageProbe>,

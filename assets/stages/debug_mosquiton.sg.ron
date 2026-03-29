@@ -10,6 +10,7 @@ StageData(
         frames: 1,
     ),
     start_coordinates: Vec2(0.0, 0.0),
+    gravity: 800.0,
     spawns: [
         Enemy(
             enemy_type: Mosquiton,
@@ -32,14 +33,24 @@ StageData(
             kill_all: false,
             kill_boss: false,
             spawns: [],
-            floor_depths: None,
+            floor_depths: {
+                Three: 40.0,
+                Four: 35.0,
+                Five: 30.0,
+                Six: 25.0,
+            },
         ),
         Stop(
             max_duration: 99999.0,
             kill_all: false,
             kill_boss: false,
             spawns: [],
-            floor_depths: None,
+            floor_depths: {
+                Three: 40.0,
+                Four: 35.0,
+                Five: 30.0,
+                Six: 25.0,
+            },
         ),
     ],
 )

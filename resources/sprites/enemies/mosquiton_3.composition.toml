@@ -84,11 +84,10 @@ tags = ["wing", "limb", "targetable"]
 
 [part_definitions.gameplay]
 targetable = true
-health_pool = "core"
-durability = 1
+health_pool = "wings"
 
 [[part_definitions.gameplay.collision]]
-id = "wings_hurtbox"
+id = "wings_def_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 18.0, offset = { x = 32.0, y = 9.0 } }
 tags = ["wings", "appendage"]
@@ -178,6 +177,19 @@ draw_order = 10
 pivot = { x = 0, y = 0 }
 tags = ["wings"]
 
+[parts.gameplay]
+targetable = true
+health_pool = "wings"
+armour = 10
+durability = 2
+breakable = true
+
+[[parts.gameplay.collision]]
+id = "wings_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 18.0, offset = { x = 32.0, y = 9.0 } }
+tags = ["wings", "appendage"]
+
 [[parts]]
 id = "legs_visual"
 definition_id = "leg"
@@ -248,3 +260,7 @@ entity_health_pool = "core"
 [[gameplay.health_pools]]
 id = "core"
 max_health = 40
+
+[[gameplay.health_pools]]
+id = "wings"
+max_health = 8

@@ -512,4 +512,8 @@ pub struct StageData {
     pub on_start_transition_o: Option<TransitionRequest>,
     #[serde(default)]
     pub on_end_transition_o: Option<TransitionRequest>,
+    /// Optional gravity override for this stage in pixels per second squared.
+    /// If not specified, defaults to standard gravity (800.0).
+    #[serde(default)]
+    pub gravity: Option<f32>,
 }

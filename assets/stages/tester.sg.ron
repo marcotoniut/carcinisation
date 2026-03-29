@@ -10,6 +10,7 @@ StageData(
         frames: 1,
     ),
     start_coordinates: Vec2(18.0, 10.0),
+    gravity: 800.0,
     spawns: [
         Destructible(
             contains: None,

@@ -10,6 +10,7 @@ use crate::{
         data::{StageData, StageSpawn},
         messages::StageStartupEvent,
         player::messages::PlayerStartupEvent,
+        resources::StageGravity,
         ui::hud::spawn::spawn_hud,
     },
     systems::spawn::make_music_bundle,
@@ -35,6 +36,14 @@ pub fn on_stage_startup(
     activate::<StagePlugin>(&mut commands);
 
     commands.insert_resource::<StageData>(data.clone());
+
+    // Set stage-specific gravity or use default
+    let gravity = if let Some(gravity_value) = data.gravity {
+        StageGravity::new(gravity_value)
+    } else {
+        StageGravity::standard()
+    };
+    commands.insert_resource(gravity);
 
     if let Some(request) = &data.on_start_transition_o {
         trigger_transition(&mut commands, request);
