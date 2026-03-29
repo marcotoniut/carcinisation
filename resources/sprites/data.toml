@@ -1,9 +1,7 @@
 [[sprites]]
-source = "mosquiton_3.aseprite"
-target_dir = "sprites/enemies"
+source = "enemies/mosquiton_3.aseprite"
 entity = "mosquiton"
 depth = 3
 palette = "base"
 part_group = "base"
 origin_slice = "origin"
-composition = "mosquiton_3.composition.toml"

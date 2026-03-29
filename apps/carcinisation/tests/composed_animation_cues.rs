@@ -18,10 +18,7 @@ use carcinisation::stage::{
         },
         mosquito::{
             entity::{EnemyMosquito, EnemyMosquitoAttack, EnemyMosquitoAttacking},
-            systems::{
-                ENEMY_MOSQUITO_ATTACK_SPEED, ENEMY_MOSQUITO_RANGED_PRESENTATION,
-                clear_finished_mosquito_attacks,
-            },
+            systems::{ENEMY_MOSQUITO_RANGED_PRESENTATION, clear_finished_mosquito_attacks},
         },
         mosquiton::{
             entity::{EnemyMosquiton, EnemyMosquitonAnimation},

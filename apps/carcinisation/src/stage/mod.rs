@@ -14,6 +14,7 @@ pub mod restart;
 pub mod sprite_names;
 mod systems;
 pub mod ui;
+pub use systems::spawn::check_step_spawn;
 
 use self::{
     attack::AttackPlugin,
@@ -45,7 +46,7 @@ use self::{
         on_death, on_next_step_cleanup_cinematic_step, on_next_step_cleanup_movement_step,
         on_next_step_cleanup_stop_step, on_stage_cleared, read_step_trigger,
         setup::on_stage_startup,
-        spawn::{check_dead_drop, check_step_spawn, on_stage_spawn},
+        spawn::{check_dead_drop, on_stage_spawn},
         tick_stage_step_timer, toggle_game, update_cinematic_step, update_stage,
         update_stage_time_should_run,
     },

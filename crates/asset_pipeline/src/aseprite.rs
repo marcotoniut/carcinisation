@@ -43,8 +43,11 @@ pub struct Manifest {
 pub struct SpriteSpec {
     /// Path to the `.aseprite` file, relative to the manifest file.
     pub source: String,
-    /// Output directory relative to the exporter output root.
-    pub target_dir: String,
+    /// Optional output directory relative to the exporter output root.
+    ///
+    /// When omitted, the exporter mirrors the source file's parent directory
+    /// under `assets/sprites/...`.
+    pub target_dir: Option<String>,
     /// Canonical composed asset name.
     pub entity: String,
     /// Depth variant of the composed asset.
@@ -56,7 +59,10 @@ pub struct SpriteSpec {
     pub part_group: Option<String>,
     /// Slice whose pivot defines the shared composition origin. Defaults to `"origin"`.
     pub origin_slice: Option<String>,
-    /// Structured semantic-composition metadata relative to the manifest file.
+    /// Optional structured semantic-composition metadata relative to the manifest file.
+    ///
+    /// When omitted, the exporter expects a sibling `*.composition.toml`
+    /// sidecar next to the `.aseprite` source.
     pub composition: Option<String>,
 }
 
@@ -482,7 +488,7 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
 
     let output_dir = request
         .output_root
-        .join(&sprite.target_dir)
+        .join(sprite.target_dir_path()?)
         .join(format!("{}_{}", sprite.entity, sprite.depth));
     fs::create_dir_all(&output_dir)
         .with_context(|| format!("Failed to create output directory {}", output_dir.display()))?;
@@ -502,7 +508,8 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),
         ..atlas.1
     };
-    let runtime_atlas_asset_image_path = PathBuf::from(&sprite.target_dir)
+    let runtime_atlas_asset_image_path = sprite
+        .target_dir_path()?
         .join(format!("{}_{}", sprite.entity, sprite.depth))
         .join(RUNTIME_ATLAS_IMAGE_NAME);
     write_px_atlas_metadata(&output_dir, &metadata, runtime_atlas_asset_image_path)?;
@@ -525,7 +532,7 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
 /// Loads and validates an Aseprite export manifest.
 ///
 /// Validation currently enforces unique `(entity, depth)` pairs and requires
-/// each sprite entry to define `source`, `target_dir`, and `entity`.
+/// each sprite entry to define `source` and `entity`.
 pub fn load_manifest(path: &Path) -> Result<Manifest> {
     let contents = fs::read_to_string(path)
         .with_context(|| format!("Failed to read manifest {}", path.display()))?;
@@ -1178,24 +1185,25 @@ fn validate_manifest(manifest: &Manifest) -> Result<()> {
             "Sprite entry {} is missing a source path",
             index + 1
         );
-        ensure!(
-            !sprite.target_dir.trim().is_empty(),
-            "Sprite entry {} is missing a target_dir",
-            index + 1
-        );
+        if let Some(target_dir) = &sprite.target_dir {
+            ensure!(
+                !target_dir.trim().is_empty(),
+                "Sprite entry {} has an empty target_dir override",
+                index + 1
+            );
+        }
         ensure!(
             !sprite.entity.trim().is_empty(),
             "Sprite entry {} is missing an entity name",
             index + 1
         );
-        ensure!(
-            sprite
-                .composition
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty()),
-            "Sprite entry {} is missing composition metadata",
-            index + 1
-        );
+        if let Some(composition) = &sprite.composition {
+            ensure!(
+                !composition.trim().is_empty(),
+                "Sprite entry {} has an empty composition override",
+                index + 1
+            );
+        }
     }
 
     Ok(())
@@ -2053,17 +2061,43 @@ impl SpriteSpec {
             .unwrap_or(DEFAULT_ORIGIN_SLICE)
     }
 
-    fn composition_path(&self) -> Result<&str> {
-        self.composition
+    fn target_dir_path(&self) -> Result<PathBuf> {
+        if let Some(target_dir) = self
+            .target_dir
             .as_deref()
             .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| {
-                anyhow!(
-                    "Sprite '{}' depth {} is missing composition metadata",
-                    self.entity,
-                    self.depth
-                )
-            })
+        {
+            return Ok(PathBuf::from(target_dir));
+        }
+
+        let source_path = Path::new(&self.source);
+        let mut target_dir = PathBuf::from("sprites");
+        if let Some(parent) = source_path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            target_dir.push(parent);
+        }
+        Ok(target_dir)
+    }
+
+    fn composition_path(&self) -> Result<PathBuf> {
+        if let Some(composition) = self
+            .composition
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        {
+            return Ok(PathBuf::from(composition));
+        }
+
+        let source_path = Path::new(&self.source);
+        let stem = source_path
+            .file_stem()
+            .ok_or_else(|| anyhow!("Sprite source '{}' is missing a file stem", self.source))?;
+        let mut composition_path = source_path
+            .parent()
+            .map_or_else(PathBuf::new, Path::to_path_buf);
+        composition_path.push(format!("{}.composition.toml", stem.to_string_lossy()));
+        Ok(composition_path)
     }
 }
 
@@ -2077,18 +2111,57 @@ mod tests {
         validate_manifest,
     };
     use image::{ImageBuffer, Rgba};
+    use std::path::PathBuf;
 
     fn sprite(entity: &str, depth: u8) -> SpriteSpec {
         SpriteSpec {
             source: format!("{entity}_{depth}.aseprite"),
-            target_dir: String::from("sprites/enemies"),
+            target_dir: None,
             entity: entity.to_string(),
             depth,
             palette: None,
             part_group: Some(String::from("base")),
             origin_slice: Some(String::from("origin")),
-            composition: Some(format!("{entity}_{depth}.composition.toml")),
+            composition: None,
         }
+    }
+
+    #[test]
+    fn derives_target_dir_from_source_parent() {
+        let sprite = SpriteSpec {
+            source: "enemies/mosquiton_3.aseprite".to_string(),
+            target_dir: None,
+            entity: "mosquiton".to_string(),
+            depth: 3,
+            palette: None,
+            part_group: None,
+            origin_slice: None,
+            composition: None,
+        };
+
+        assert_eq!(
+            sprite.target_dir_path().unwrap(),
+            PathBuf::from("sprites/enemies")
+        );
+    }
+
+    #[test]
+    fn derives_composition_sidecar_from_source_basename() {
+        let sprite = SpriteSpec {
+            source: "enemies/mosquiton_3.aseprite".to_string(),
+            target_dir: None,
+            entity: "mosquiton".to_string(),
+            depth: 3,
+            palette: None,
+            part_group: None,
+            origin_slice: None,
+            composition: None,
+        };
+
+        assert_eq!(
+            sprite.composition_path().unwrap(),
+            PathBuf::from("enemies/mosquiton_3.composition.toml")
+        );
     }
 
     fn minimal_composition() -> CompositionSource {
