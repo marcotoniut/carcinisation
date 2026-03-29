@@ -17,7 +17,7 @@ pub struct MosquitoAnimations {
 const FRAGMENT_IDLE: &str = "idle";
 const FRAGMENT_FLY: &str = "fly";
 const FRAGMENT_DEATH: &str = "death";
-const FRAGMENT_MELEE_ATTACK: &str = "melee_attack";
+const FRAGMENT_MELEE: &str = "melee";
 
 // Enemy
 const FRAGMENT_ENEMY: &str = "mosquito";
@@ -117,7 +117,7 @@ pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<MosquitoAnimations> =
                     sprite_path: concat_strings_and_number(
                         PATH_SPRITES_ENEMIES,
                         FRAGMENT_ENEMY,
-                        FRAGMENT_MELEE_ATTACK,
+                        FRAGMENT_MELEE,
                         i,
                     ),
                     finish_behavior: PxAnimationFinishBehavior::Mark,

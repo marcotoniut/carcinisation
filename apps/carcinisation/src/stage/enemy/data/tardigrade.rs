@@ -22,7 +22,7 @@ const FRAGMENT_SUCKING: &str = "sucking";
 const FRAGMENT_ENEMY: &str = "tardigrade";
 
 fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
-    format!("{}{}_{}_{}.png", s1, s2, s3, depth.to_i8())
+    format!("{}{}_{}_{}.px_sprite.png", s1, s2, s3, depth.to_i8())
 }
 
 const TARDIGRADE_DEPTHS: &[Depth] = &[Depth::Six, Depth::Seven, Depth::Eight];
