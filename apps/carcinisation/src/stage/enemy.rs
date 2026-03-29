@@ -18,6 +18,7 @@ use self::{
     mosquiton::systems::{
         apply_mosquiton_falling_physics, assign_mosquiton_animation, despawn_dead_mosquitons,
         detect_part_breakage, trigger_mosquiton_authored_attack_cues,
+        update_mosquiton_death_effect,
     },
     systems::{
         animation::on_composed_enemy_depth_changed,
@@ -84,6 +85,7 @@ impl Plugin for EnemyPlugin {
                     )
                         .chain(),
                     despawn_dead_mosquitons,
+                    update_mosquiton_death_effect,
                 ),
                 (
                     // Tardigrade

@@ -47,14 +47,23 @@ pub struct DepthChangedMessage {
 }
 
 #[derive(new, Message)]
-/// Generic damage message consumed by combat systems.
-pub struct DamageMessage {
+/// Entity-level damage that bypasses part durability and goes directly to entity health.
+///
+/// Use for environmental/non-combat damage like fall damage, poison, drowning, etc.
+/// This allows composed enemies with breakable armor parts to still take entity damage.
+pub struct EntityDamageMessage {
     pub entity: Entity,
     pub value: u32,
 }
 
+/// Legacy alias for backwards compatibility.
+pub type DamageMessage = EntityDamageMessage;
+
 #[derive(new, Message)]
-/// Damage targeted at a composed semantic part rather than the whole entity.
+/// Combat damage targeted at a specific composed part, absorbed by part durability first.
+///
+/// Part damage is routed through `ComposedHealthPools` if present, allowing armor/shield
+/// parts to protect the entity. Only overflow damage affects entity health.
 pub struct PartDamageMessage {
     pub entity: Entity,
     pub part_id: String,

@@ -87,26 +87,31 @@ impl StageGravity {
     pub const HIGH: f32 = 1200.0;
 
     /// Create a new gravity configuration
+    #[must_use]
     pub fn new(acceleration: f32) -> Self {
         Self { acceleration }
     }
 
     /// Create standard gravity
+    #[must_use]
     pub fn standard() -> Self {
         Self::new(Self::STANDARD)
     }
 
     /// Create low gravity
+    #[must_use]
     pub fn low() -> Self {
         Self::new(Self::LOW)
     }
 
     /// Create zero gravity
+    #[must_use]
     pub fn zero() -> Self {
         Self::new(Self::ZERO)
     }
 
     /// Create high gravity
+    #[must_use]
     pub fn high() -> Self {
         Self::new(Self::HIGH)
     }

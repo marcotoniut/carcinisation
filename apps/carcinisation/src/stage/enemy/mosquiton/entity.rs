@@ -5,7 +5,7 @@ use crate::stage::{
         placement::{Depth, Speed},
     },
     enemy::{
-        components::{Enemy, behavior::EnemyBehaviors},
+        components::{Enemy, behavior::EnemyBehaviors, composed_state},
         composed::{ComposedAnimationState, ComposedEnemyVisual},
         entity::EnemyType,
         mosquito::entity::{ENEMY_MOSQUITO_BASE_HEALTH, EnemyMosquito, EnemyMosquitoAttacking},
@@ -13,6 +13,9 @@ use crate::stage::{
 };
 use bevy::prelude::*;
 use seldom_pixel::position::PxSubPosition;
+
+// Re-export generic composed enemy state components for backwards compatibility
+pub use composed_state::{BrokenParts, Dying};
 
 #[derive(Component, Clone, Debug, Default, Reflect)]
 pub struct EnemyMosquiton;
@@ -32,32 +35,7 @@ pub enum EnemyMosquitonAnimation {
     Falling,
 }
 
-/// Tracks which parts of this composed enemy have been broken.
-///
-/// This is a generic component that tracks all broken parts. Specific behavioral
-/// markers like `WingsBroken` are added based on which parts break.
-#[derive(Component, Clone, Debug, Default, Reflect)]
-pub struct BrokenParts {
-    /// Set of part IDs that have been broken
-    pub parts: std::collections::HashSet<String>,
-}
-
-impl BrokenParts {
-    /// Check if a specific part is broken
-    pub fn is_broken(&self, part_id: &str) -> bool {
-        self.parts.contains(part_id)
-    }
-
-    /// Mark a part as broken
-    pub fn mark_broken(&mut self, part_id: String) {
-        self.parts.insert(part_id);
-    }
-
-    /// Get all broken parts
-    pub fn broken_parts(&self) -> &std::collections::HashSet<String> {
-        &self.parts
-    }
-}
+// BrokenParts is now imported from components::composed_state
 
 /// Marker component indicating the mosquiton's wings have been destroyed.
 ///
@@ -66,7 +44,7 @@ impl BrokenParts {
 /// - Flying behaviors and wing animations are disabled
 /// - The entity transitions to ground-based movement
 ///
-/// This is automatically added when the "wings_visual" part breaks.
+/// This is automatically added when the `"wings_visual"` part breaks.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 pub struct WingsBroken;
 
@@ -84,6 +62,8 @@ pub struct FallingState {
     /// Whether the entity has landed on the ground
     pub grounded: bool,
 }
+
+// Dying is now imported from components::composed_state
 
 #[derive(Bundle, Debug)]
 pub struct MosquitonDefaultBundle {
