@@ -24,7 +24,7 @@ bound of `Clone`.
 ### Changed
 
 - Updated `bevy` to 0.15
-- `seldom_pixel` entities are extracted to the render world and drawn there. Involved components
+- `carapace` entities are extracted to the render world and drawn there. Involved components
 implement `ExtractComponent` and involved resources implement `ExtractResource`. Due to this change,
 entities on the same layer Z-fight. This behavior may change in the future.
 - `PxSpriteData`, `PxFilter`, and `PxTilesetData` are now called `PxSpriteAsset`, `PxFilterAsset`,

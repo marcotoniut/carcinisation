@@ -1,12 +1,12 @@
 [package]
-name = "seldom_pixel_macros"
+name = "carapace_macros"
 version = "0.3.0-dev"
 edition = "2021"
 categories = ["game-development"]
-description = "Macros for `seldom_pixel`"
+description = "Macros for `carapace`"
 keywords = ["gamedev", "bevy", "graphics", "gui", "2d"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/Seldom-SE/seldom_pixel"
+repository = "https://github.com/marcotoniut/carcinisation"
 
 [lib]
 proc-macro = true

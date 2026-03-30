@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use bevy::{ecs::system::EntityCommands, prelude::*};
-use seldom_pixel::prelude::*;
+use carapace::prelude::*;
 
 fn main() {
     App::new()

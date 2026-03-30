@@ -1,10 +1,10 @@
-# `seldom_pixel`
+# `carapace`
 
-[![Crates.io](https://img.shields.io/crates/v/seldom_pixel.svg)](https://crates.io/crates/seldom_pixel)
-[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Seldom-SE/seldom_pixel#license)
-[![Crates.io](https://img.shields.io/crates/d/seldom_pixel.svg)](https://crates.io/crates/seldom_pixel)
+[![Crates.io](https://img.shields.io/crates/v/carapace.svg)](https://crates.io/crates/carapace)
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Seldom-SE/carapace#license)
+[![Crates.io](https://img.shields.io/crates/d/carapace.svg)](https://crates.io/crates/carapace)
 
-`seldom_pixel` is a Bevy plugin for limited color palette pixel art games. It handles:
+`carapace` is a Bevy plugin for limited color palette pixel art games. It handles:
 
 - Sprites
 - Filters (defined through images; apply to layers or individual entities)
@@ -33,7 +33,7 @@ need improvement, feel free to submit an issue or pr!
 
 - Assets are normal images
 
-All assets, including filters, are loaded from images. `seldom_pixel`'s scope is limited
+All assets, including filters, are loaded from images. `carapace`'s scope is limited
 to rendered things, so this doesn't apply to things like levels and sounds. I recommend
 finding an art program you're comfortable with. Personally, I use [GIMP](https://www.gimp.org/),
 but it can be difficult to figure out. I hear good things
@@ -55,11 +55,11 @@ This is less of a concern for games with smaller pixels.
 - Trade versatility for productivity
 
 If you are already interested in making a limited color palette pixel art game,
-this is an easy win for you. Filters in `seldom_pixel` are just maps from each color
+this is an easy win for you. Filters in `carapace` are just maps from each color
 in the palette to another color in the palette. Filters like this would be difficult to create
-for each of the 16,777,216 RGB colors, but `seldom_pixel` only allows up to 255 colors
+for each of the 16,777,216 RGB colors, but `carapace` only allows up to 255 colors
 in your palette (and you will likely want to use fewer), so it's easy to create effects.
-This also applies on the library-development end too. The limitations of `seldom_pixel` mean
+This also applies on the library-development end too. The limitations of `carapace` mean
 I only need to make its features work for 2D games that use bytes for pixels, so it's easier
 to develop and maintain. Anyway, limitations can incite creativity.
 
@@ -79,14 +79,14 @@ Add to your `Cargo.toml`
 ```toml
 # Replace * with your desired version
 [dependencies]
-seldom_pixel = "*"
+carapace = "*"
 ```
 
 Then add `PxPlugin` to your app. Check out the examples for further usage.
 
 ## Compatibility
 
-| Bevy | `seldom_state` | `seldom_map_nav` | `seldom_interop` | `bevy_ecs_tilemap` | `seldom_pixel` |
+| Bevy | `seldom_state` | `seldom_map_nav` | `seldom_interop` | `bevy_ecs_tilemap` | `carapace` |
 | ---- | -------------- | ---------------- | ---------------- | ------------------ | -------------- |
 | 0.15 | 0.12           | 0.8              |                  |                    | 0.8            |
 | 0.14 | 0.11           | 0.7              |                  |                    | 0.7            |
@@ -99,7 +99,7 @@ Then add `PxPlugin` to your app. Check out the examples for further usage.
 
 ## License
 
-`seldom_pixel` is dual-licensed under MIT and Apache 2.0 at your option.
+`carapace` is dual-licensed under MIT and Apache 2.0 at your option.
 
 ## Contributing
 

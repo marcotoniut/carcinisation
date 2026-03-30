@@ -40,7 +40,7 @@ use std::{marker::PhantomData, path::PathBuf};
 use position::PxLayer;
 use prelude::*;
 
-/// Add to your [`App`] to enable `seldom_pixel`. The type parameter is your custom layer type
+/// Add to your [`App`] to enable `carapace`. The type parameter is your custom layer type
 /// used for z-ordering. You can make one using [`px_layer`].
 #[derive(Debug)]
 pub struct PxPlugin<L: PxLayer> {

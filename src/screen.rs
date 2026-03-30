@@ -106,7 +106,7 @@ impl<L: PxLayer> Plugin for Plug<L> {
     }
 }
 
-/// Size of the image which `seldom_pixel` draws to
+/// Size of the image which `carapace` draws to
 #[derive(Clone, Copy, Debug)]
 pub enum ScreenSize {
     /// The screen will have the given dimensions, which is scaled up to fit the window, preserving
@@ -140,7 +140,7 @@ impl ScreenSize {
     }
 }
 
-/// Metadata for the image that `seldom_pixel` draws to
+/// Metadata for the image that `carapace` draws to
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
 #[derive(Resource, Clone, Debug)]
 pub struct Screen {

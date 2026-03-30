@@ -1,7 +1,7 @@
 // In this game, you can change the filter's layer by pressing space
 
 use bevy::prelude::*;
-use seldom_pixel::prelude::*;
+use carapace::prelude::*;
 
 fn main() {
     App::new()

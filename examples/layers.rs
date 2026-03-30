@@ -1,7 +1,7 @@
 // In this program, layers are demonstrated
 
 use bevy::prelude::*;
-use seldom_pixel::prelude::*;
+use carapace::prelude::*;
 
 fn main() {
     App::new()

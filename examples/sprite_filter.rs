@@ -1,7 +1,7 @@
 // In this program, a filter is applied to a single sprite
 
 use bevy::prelude::*;
-use seldom_pixel::prelude::*;
+use carapace::prelude::*;
 
 fn main() {
     App::new()

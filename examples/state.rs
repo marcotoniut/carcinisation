@@ -3,7 +3,7 @@
 
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
-use seldom_pixel::prelude::*;
+use carapace::prelude::*;
 use seldom_state::prelude::*;
 
 fn main() {

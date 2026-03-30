@@ -1,4 +1,4 @@
-//! Macros for `seldom_pixel`
+//! Macros for `carapace`
 
 #![warn(missing_docs)]
 
@@ -27,7 +27,7 @@ pub fn px_layer(
             #[derive(
                 ::bevy::render::extract_component::ExtractComponent,
                 ::bevy::prelude::Component,
-                ::seldom_pixel::math::Next,
+                ::carapace::math::Next,
                 ::std::cmp::Ord,
                 ::std::cmp::PartialOrd,
                 ::std::cmp::Eq,
@@ -36,7 +36,7 @@ pub fn px_layer(
                 ::std::default::Default,
                 ::std::fmt::Debug,
             )]
-            #[next(path = ::seldom_pixel::math::Next)]
+            #[next(path = ::carapace::math::Next)]
         }
     });
 

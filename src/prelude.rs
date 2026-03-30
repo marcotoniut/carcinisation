@@ -1,4 +1,4 @@
-//! Module for convenient imports. Use with `use seldom_pixel::prelude::*;`.
+//! Module for convenient imports. Use with `use carapace::prelude::*;`.
 
 pub(crate) use bevy_app::prelude::*;
 pub(crate) use bevy_asset::prelude::*;
@@ -54,4 +54,4 @@ pub use crate::{
     },
 };
 
-pub use seldom_pixel_macros::px_layer;
+pub use carapace_macros::px_layer;

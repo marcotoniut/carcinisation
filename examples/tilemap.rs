@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use rand::{Rng, thread_rng};
-use seldom_pixel::prelude::*;
+use carapace::prelude::*;
 
 fn main() {
     App::new()

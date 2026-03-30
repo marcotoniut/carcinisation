@@ -1,4 +1,4 @@
-//! `seldom_pixel`'s UI system. The building blocks of UI are here, but they are all just pieces.
+//! `carapace`'s UI system. The building blocks of UI are here, but they are all just pieces.
 //! For example, there is a [`PxTextField`] component, but if you spawn it on its own, the text
 //! field won't have a background, and you won't even be able to type in it. Instead, you should
 //! make your own helper functions that compose UI components together. For a text field, you could

@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use rand::{Rng, thread_rng};
-use seldom_pixel::{
+use carapace::{
     palette::{Palette, PaletteHandle},
     prelude::*,
 };
