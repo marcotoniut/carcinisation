@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
     PxFrameTransition,
 };

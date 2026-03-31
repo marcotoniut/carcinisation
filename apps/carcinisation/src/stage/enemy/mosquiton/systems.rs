@@ -32,7 +32,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxSprite, PxSubPosition};
+use carapace::prelude::{PxSprite, PxSubPosition};
 
 const MOSQUITON_BLOOD_SHOT_EVENT_ID: &str = "blood_shot";
 

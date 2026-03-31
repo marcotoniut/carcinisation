@@ -18,10 +18,10 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
+use carapace::prelude::{PxAnchor, PxCanvas, PxFilter, PxSprite, PxSubPosition};
 use cween::linear::components::{
     LinearValueReached, TargetingValueX, TargetingValueY, TweenChildAcceleratedBundle,
 };
-use seldom_pixel::prelude::{PxAnchor, PxCanvas, PxFilter, PxSprite, PxSubPosition};
 use std::time::Duration;
 
 /// Marker component for pickup feedback tween children.

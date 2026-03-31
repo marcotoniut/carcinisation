@@ -1,8 +1,8 @@
-//! Compatibility bundles and helpers that approximate the pre-0.8 `seldom_pixel`
+//! Compatibility bundles and helpers that approximate the pre-0.8 `carapace`
 //! spawn ergonomics while using the newer component-driven API.
 
 use bevy::prelude::{Bundle, Component, Visibility};
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
     PxCanvas, PxFilter, PxFilterLayers, PxFrame, PxFrameControl, PxFrameTransition, PxLayer,
     PxLine, PxPosition, PxRect, PxSprite, PxText,

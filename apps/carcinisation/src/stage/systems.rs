@@ -39,11 +39,11 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
+use carapace::prelude::{PxSprite, PxSubPosition};
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TweenChildBundle, extra::LinearTween2DReachCheck,
 };
 use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 /// @system Toggles the game state between running and paused on `Start`.
 pub fn toggle_game(

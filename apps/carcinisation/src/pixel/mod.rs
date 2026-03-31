@@ -1,10 +1,10 @@
-//! Integrates `seldom_pixel` helpers for rendering and assets.
+//! Integrates `carapace` helpers for rendering and assets.
 
 pub mod assets;
 pub mod bundle;
 
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxLayer;
+use carapace::prelude::PxLayer;
 use std::marker::PhantomData;
 
 pub use assets::{PxAsset, PxAssets, PxSpriteData};

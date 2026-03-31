@@ -6,10 +6,10 @@ description = "Collision detection primitives and pixel-mask support"
 
 [features]
 default = []
-pixel-mask = ["seldom_pixel"]
+pixel-mask = ["carapace"]
 
 [dependencies]
 bevy = { workspace = true }
 derive-new = { workspace = true }
 derive_more = { workspace = true }
-seldom_pixel = { workspace = true, optional = true }
+carapace = { workspace = true, optional = true }

@@ -18,7 +18,7 @@ use crate::{
 };
 use activable::activate;
 use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::prelude::{PxFilter, PxSprite, PxTypeface};
+use carapace::prelude::{PxFilter, PxSprite, PxTypeface};
 
 /// @trigger Builds the stage world: spawns HUD, enemies, pickups, background, and music.
 #[allow(clippy::too_many_arguments)]

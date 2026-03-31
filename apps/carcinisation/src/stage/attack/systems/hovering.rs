@@ -21,8 +21,8 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
+use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
 use cween::linear::components::{LinearValueReached, TargetingValueZ};
-use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 /// @system Deals damage and spawns a hit animation when a hovering attack reaches its target depth.
 pub fn hovering_damage_on_reached(

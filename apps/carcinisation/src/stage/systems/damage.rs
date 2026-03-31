@@ -13,7 +13,7 @@ use crate::stage::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxFilter;
+use carapace::prelude::PxFilter;
 use std::time::Duration;
 
 pub const DAMAGE_FLICKER_COUNT: u8 = 4;

@@ -19,7 +19,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
     PxText, PxTypeface,
 };

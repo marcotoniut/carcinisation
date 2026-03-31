@@ -26,11 +26,11 @@ use crate::{
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use leafwing_input_manager::plugin::InputManagerPlugin;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSubPosition, PxText,
     PxTypeface,
 };
+use leafwing_input_manager::plugin::InputManagerPlugin;
 
 pub fn render_death_screen(
     mut commands: Commands,

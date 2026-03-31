@@ -1,7 +1,7 @@
 use crate::layer::Layer;
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnchor, PxAnimationFinishBehavior, PxCanvas, PxFrameTransition};
+use carapace::prelude::{PxAnchor, PxAnimationFinishBehavior, PxCanvas, PxFrameTransition};
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, Reflect, PartialEq, Eq, Hash)]

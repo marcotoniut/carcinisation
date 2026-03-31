@@ -5,7 +5,7 @@ use crate::{
     transitions::data::TransitionVenetianData,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxCanvas, PxFilter, PxFilterLayers};
+use carapace::prelude::{PxCanvas, PxFilter, PxFilterLayers};
 
 use super::{
     components::{TransitionVenetian, TransitionVenetianRow},

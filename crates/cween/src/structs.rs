@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
+use carapace::prelude::PxSubPosition;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Reflect, Serialize)]

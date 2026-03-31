@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxFilter;
+use carapace::prelude::PxFilter;
 use std::time::Duration;
 
 #[derive(Component, Debug, Clone, Reflect)]

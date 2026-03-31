@@ -1,6 +1,6 @@
 use bevy::{prelude::*, time::Time};
+use carapace::prelude::{PxCamera, PxSubPosition};
 use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::prelude::{PxCamera, PxSubPosition};
 
 use crate::input::GBInput;
 

@@ -20,10 +20,10 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use cween::linear::components::{LinearValueReached, TargetingValueZ};
-use seldom_pixel::prelude::PxSprite;
+use carapace::prelude::PxSprite;
 #[cfg(debug_assertions)]
-use seldom_pixel::prelude::PxSubPosition;
+use carapace::prelude::PxSubPosition;
+use cween::linear::components::{LinearValueReached, TargetingValueZ};
 
 /// @system Marks entities as `Dead` when their health reaches zero.
 // TODO remove in favor of damage taken?

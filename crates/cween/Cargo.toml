@@ -8,7 +8,7 @@ description = "Tweening system for animating stage entities on fixed-step time d
 carcinisation_core = { path = "../carcinisation_core" }
 
 bevy = { workspace = true }
-seldom_pixel = { workspace = true, features = ["line"] }
+carapace = { workspace = true, features = ["line"] }
 
 derive-new = { workspace = true }
 derive_more = { workspace = true }

@@ -14,7 +14,7 @@ use crate::{
 };
 use activable::{activate, deactivate};
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxFilter;
+use carapace::prelude::PxFilter;
 
 /// @trigger Initialises a venetian-blind transition effect.
 #[allow(dead_code)]

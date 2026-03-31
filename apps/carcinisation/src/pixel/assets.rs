@@ -1,4 +1,4 @@
-//! Sprite/typeface asset loading helpers and metadata writers for `seldom_pixel`.
+//! Sprite/typeface asset loading helpers and metadata writers for `carapace`.
 
 use crate::components::GBColor;
 use bevy::{
@@ -6,7 +6,7 @@ use bevy::{
     ecs::system::SystemParam,
     prelude::{Handle, Res},
 };
-use seldom_pixel::{
+use carapace::{
     filter::{PxFilter, PxFilterAsset},
     prelude::{PxSprite, PxSpriteAsset, PxTypeface},
 };
@@ -134,7 +134,7 @@ fn sprite_meta_contents(frames: usize) -> String {
         r#"(
     meta_format_version: "1.0",
     asset: Load(
-        loader: "seldom_pixel::sprite::PxSpriteLoader",
+        loader: "carapace::sprite::PxSpriteLoader",
         settings: (
             frame_count: {frames},
             image_loader_settings: (
@@ -173,7 +173,7 @@ fn typeface_meta_contents<S: std::hash::BuildHasher>(
         r#"(
     meta_format_version: "1.0",
     asset: Load(
-        loader: "seldom_pixel::text::PxTypefaceLoader",
+        loader: "carapace::text::PxTypefaceLoader",
         settings: (
             default_frames: 1,
             characters: "{escaped_chars}",

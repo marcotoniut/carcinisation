@@ -8,7 +8,7 @@ use std::env;
 use bevy::render::RenderPlugin;
 use bevy::render::settings::{RenderCreation, WgpuSettings};
 use bevy::window::{WindowCloseRequested, WindowResolution};
-use bevy::{asset::AssetPlugin, prelude::*};
+use bevy::{asset::AssetMetaCheck, asset::AssetPlugin, prelude::*};
 #[cfg(feature = "brp")]
 use bevy_brp_extras::BrpExtrasPlugin;
 use bevy_framepace::FramepacePlugin;
@@ -48,9 +48,9 @@ use crate::{
     },
     transitions::spiral::TransitionVenetianPlugin,
 };
+use carapace::animation::PxAnimationPlugin;
+use carapace::prelude::*;
 use leafwing_input_manager::prelude::InputManagerPlugin;
-use seldom_pixel::animation::PxAnimationPlugin;
-use seldom_pixel::prelude::*;
 
 /// Controls whether the full start/menu stack should run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,6 +113,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                 })
                 .set(AssetPlugin {
                     file_path: "../../assets".into(),
+                    meta_check: AssetMetaCheck::Never,
                     ..default()
                 })
                 .disable::<bevy::winit::WinitPlugin>(),

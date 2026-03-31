@@ -15,8 +15,8 @@ use crate::{
     pixel::{PxAssets, PxRectBundle},
 };
 use bevy::prelude::*;
+use carapace::prelude::*;
 use cween::linear::components::{LinearTweenBundle, TargetingValueY};
-use seldom_pixel::prelude::*;
 
 const DEBUG_MODULE: &str = "Letterbox";
 

@@ -7,11 +7,11 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carcinisation_core::components::GBColor;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
     PxText, PxTypeface,
 };
+use carcinisation_core::components::GBColor;
 
 pub(super) const LAYOUT_Y: i32 = 3;
 pub(super) const HUD_BOTTOM_Y: i32 = SCREEN_RESOLUTION.y as i32 - HUD_HEIGHT as i32;

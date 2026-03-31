@@ -6,7 +6,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
+use carapace::prelude::PxSubPosition;
 
 /// @system Applies random offset during a camera shake, then restores the original position.
 pub fn camera_shake(

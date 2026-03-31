@@ -17,12 +17,12 @@ use crate::{
     stage::components::placement::Depth,
 };
 use bevy::prelude::*;
+use carapace::prelude::{PxCamera, PxSprite, PxSubPosition};
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
     TweenChildBundle,
 };
 use leafwing_input_manager::prelude::ActionState;
-use seldom_pixel::prelude::{PxCamera, PxSprite, PxSubPosition};
 
 const BOMB_THROW_INITIAL_SPEED_Y: f32 = 80.0;
 const BOMB_THROW_MIN_DURATION_SECS: f32 = 0.05;

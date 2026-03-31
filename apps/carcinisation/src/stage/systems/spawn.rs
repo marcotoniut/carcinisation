@@ -46,7 +46,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
+use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
 
 /// @system Drains the step spawner queue, triggering spawns whose elapsed time has come.
 pub fn check_step_spawn(

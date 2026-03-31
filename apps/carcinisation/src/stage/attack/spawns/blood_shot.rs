@@ -19,11 +19,11 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
+use carapace::prelude::{PxSprite, PxSubPosition};
 use cween::{
     linear::components::{TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle},
     structs::{Constructor, Magnitude},
 };
-use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 use std::time::Duration;
 
 fn spawn_blood_shot_tween_child<P>(

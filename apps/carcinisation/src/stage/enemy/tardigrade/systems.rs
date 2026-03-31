@@ -20,7 +20,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnchor, PxSprite, PxSubPosition};
+use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
 use std::time::Duration;
 
 pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;

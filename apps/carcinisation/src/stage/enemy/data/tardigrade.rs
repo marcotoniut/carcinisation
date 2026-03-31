@@ -2,7 +2,7 @@ use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
+use carapace::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
 use std::collections::HashMap;
 
 pub struct TardigradeAnimations {

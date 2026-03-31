@@ -38,14 +38,14 @@ use bevy::{
     prelude::*,
     reflect::{Reflect, TypePath},
 };
-use carcinisation_collision::{Collider, ColliderShape};
-use seldom_pixel::{
+use carapace::{
     filter::{PxFilter, PxFilterAsset},
     prelude::{
         AtlasRect, AtlasRegionId, PxAnchor, PxCanvas, PxCompositePart, PxCompositeSprite,
         PxPosition, PxSpriteAtlasAsset, PxSubPosition,
     },
 };
+use carcinisation_collision::{Collider, ColliderShape};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 

@@ -6,7 +6,7 @@ use crate::stage::{
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxText;
+use carapace::prelude::PxText;
 
 #[derive(Activable)]
 pub struct HudPlugin;

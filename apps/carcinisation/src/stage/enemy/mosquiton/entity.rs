@@ -12,7 +12,7 @@ use crate::stage::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::position::PxSubPosition;
+use carapace::position::PxSubPosition;
 
 // Re-export generic composed enemy state components for backwards compatibility
 pub use composed_state::{BrokenParts, Dying};

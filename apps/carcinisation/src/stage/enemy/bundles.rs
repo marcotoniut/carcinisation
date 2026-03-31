@@ -5,7 +5,7 @@ use crate::{
     stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnchor, PxSprite};
+use carapace::prelude::{PxAnchor, PxSprite};
 
 /**
  * TODO

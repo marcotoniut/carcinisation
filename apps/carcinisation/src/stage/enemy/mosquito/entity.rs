@@ -1,6 +1,6 @@
 use bevy::prelude::*;
+use carapace::position::PxSubPosition;
 use derive_new::new;
-use seldom_pixel::position::PxSubPosition;
 use std::time::Duration;
 
 use crate::stage::{

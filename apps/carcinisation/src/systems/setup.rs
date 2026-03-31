@@ -3,8 +3,8 @@ use crate::input::GBInput;
 use super::camera::CameraPos;
 use bevy::{prelude::*, time::Fixed};
 use bevy_framepace::Limiter;
+use carapace::prelude::PxSubPosition;
 use leafwing_input_manager::prelude::{ActionState, InputMap};
-use seldom_pixel::prelude::PxSubPosition;
 
 /// @system Caps the frame limiter to the target Game Boy refresh rate.
 pub fn set_framespace(mut settings: ResMut<bevy_framepace::FramepaceSettings>) {

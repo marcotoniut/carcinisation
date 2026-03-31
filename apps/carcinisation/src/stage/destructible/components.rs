@@ -5,7 +5,7 @@ use crate::{
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxSprite;
+use carapace::prelude::PxSprite;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

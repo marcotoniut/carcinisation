@@ -6,11 +6,11 @@ use crate::{
     pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle},
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxCanvas,
     PxFrameTransition, PxSprite, PxSubPosition,
 };
-use seldom_pixel::sprite::PxSpriteAsset;
+use carapace::sprite::PxSpriteAsset;
 
 #[derive(Bundle)]
 /// Pixel background sprite anchored to the bottom-left of the world.

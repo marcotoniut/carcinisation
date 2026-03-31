@@ -6,7 +6,7 @@ description = "Shared utilities for runtime, UI, and editor"
 
 [dependencies]
 bevy = { workspace = true }
-seldom_pixel = { workspace = true, features = ["line"] }
+carapace = { workspace = true, features = ["line"] }
 
 assert_assets_path = { workspace = true }
 derive-new = { workspace = true }

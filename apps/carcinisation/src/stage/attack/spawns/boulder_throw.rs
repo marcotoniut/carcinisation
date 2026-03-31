@@ -18,6 +18,7 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
+use carapace::prelude::{PxSprite, PxSubPosition};
 use cween::{
     linear::components::{
         TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
@@ -25,7 +26,6 @@ use cween::{
     },
     structs::{Constructor, Magnitude},
 };
-use seldom_pixel::prelude::{PxSprite, PxSubPosition};
 
 fn spawn_boulder_throw_tween_child<P>(
     commands: &mut Commands,

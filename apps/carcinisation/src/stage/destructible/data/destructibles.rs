@@ -13,8 +13,8 @@ use crate::{
     },
 };
 use bevy::prelude::*;
+use carapace::prelude::PxAnimationFinishBehavior;
 use derive_new::new;
-use seldom_pixel::prelude::PxAnimationFinishBehavior;
 use std::collections::HashMap;
 
 pub struct DestructibleAnimationData {

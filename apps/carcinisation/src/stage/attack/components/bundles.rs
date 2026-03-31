@@ -5,7 +5,7 @@ use crate::{
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxAnchor, PxAnimationDuration, PxSprite};
+use carapace::prelude::{PxAnchor, PxAnimationDuration, PxSprite};
 
 /// # Panics
 ///

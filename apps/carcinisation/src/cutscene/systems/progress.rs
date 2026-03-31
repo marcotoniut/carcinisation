@@ -20,7 +20,7 @@ use crate::{
     transitions::trigger_transition,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxCanvas,
     PxFrameTransition, PxSprite, PxSubPosition,
 };

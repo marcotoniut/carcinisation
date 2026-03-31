@@ -28,7 +28,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxAnimationDuration, PxAnimationFinishBehavior, PxSprite, PxSubPosition,
 };
 use std::time::Duration;

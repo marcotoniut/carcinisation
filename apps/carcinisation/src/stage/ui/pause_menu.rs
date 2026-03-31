@@ -9,11 +9,11 @@ use crate::{
     layer::Layer,
 };
 use bevy::prelude::*;
-use carcinisation_core::components::GBColor;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
     PxText, PxTypeface,
 };
+use carcinisation_core::components::GBColor;
 
 // TODO if state is changed (split unpause from pause?)
 pub fn pause_menu_renderer(

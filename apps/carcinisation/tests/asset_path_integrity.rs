@@ -262,7 +262,7 @@ fn tardigrade_sprites_cover_full_depth_range() {
 
 /// Validates mosquito sprite paths follow .px_sprite.png convention.
 ///
-/// Legacy mosquito sprites use seldom_pixel's .px_sprite.png suffix for
+/// Legacy mosquito sprites use carapace's .px_sprite.png suffix for
 /// animated sprite sheets. Ensures no path typos use wrong extension.
 #[test]
 fn mosquito_sprites_use_px_sprite_extension() {

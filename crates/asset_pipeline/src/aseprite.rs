@@ -728,7 +728,7 @@ fn write_px_atlas_metadata(
     Ok(())
 }
 
-/// Writes the runtime-only atlas image in a palette-safe form for `seldom_pixel`.
+/// Writes the runtime-only atlas image in a palette-safe form for `carapace`.
 ///
 /// The semantic `atlas.png` must preserve authored colors. The runtime atlas is
 /// a separate quantized image because `PxSpriteAtlasLoader` requires every

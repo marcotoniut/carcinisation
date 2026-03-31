@@ -22,7 +22,7 @@ use crate::pixel::{PxAsset, PxAssets, PxSpriteData};
 use activable::{Activable, ActivableAppExt};
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxSprite;
+use carapace::prelude::PxSprite;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Player movement systems run before confinement to ensure corrected positions.

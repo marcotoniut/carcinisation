@@ -1,11 +1,11 @@
 use bevy::asset::AssetEvent;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use carapace::prelude::*;
 use carcinisation_collision::pixel_mask::{
     AtlasPixelCollisionCache, PixelCollisionCache, atlas_data, atlas_region_contains_point,
     mask_contains_point, pixel_overlap, sprite_data, sprite_rect,
 };
-use seldom_pixel::prelude::*;
 
 use crate::{
     components::{DespawnMark, VolumeSettings},

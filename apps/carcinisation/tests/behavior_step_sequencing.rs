@@ -16,6 +16,7 @@
 //! potentially interfering with subsequent behaviors.
 
 use bevy::{math::Vec2, prelude::*};
+use carapace::position::PxSubPosition;
 use carcinisation::stage::{
     components::placement::{Depth, Speed},
     enemy::{
@@ -26,7 +27,6 @@ use carcinisation::stage::{
         data::steps::{EnemyStep, IdleEnemyStep, LinearTweenEnemyStep},
     },
 };
-use seldom_pixel::position::PxSubPosition;
 use std::{collections::VecDeque, time::Duration};
 
 /// Validates empty behavior queue returns default (Idle) step.

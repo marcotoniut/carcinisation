@@ -12,8 +12,8 @@ use crate::stage::{
     },
 };
 use bevy::prelude::*;
+use carapace::position::PxSubPosition;
 use derive_new::new;
-use seldom_pixel::position::PxSubPosition;
 
 pub const ENEMY_TARDIGRADE_RADIUS: f32 = 9.0;
 pub const ENEMY_TARDIGRADE_BASE_HEALTH: u32 = 240;

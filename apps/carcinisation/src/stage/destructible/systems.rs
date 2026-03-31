@@ -8,7 +8,7 @@ use crate::stage::components::{
     placement::Depth,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::{PxSprite, PxSubPosition};
+use carapace::prelude::{PxSprite, PxSubPosition};
 
 /// @system Replaces a destroyed destructible's sprite with its broken animation.
 pub fn check_dead_destructible(

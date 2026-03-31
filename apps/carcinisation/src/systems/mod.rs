@@ -13,7 +13,7 @@ use crate::{
 };
 use activable::activate;
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxAnimationFinished;
+use carapace::prelude::PxAnimationFinished;
 
 /*
  * DEBUG

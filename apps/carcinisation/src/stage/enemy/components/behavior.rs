@@ -6,11 +6,11 @@ use crate::stage::enemy::data::steps::{
 };
 use crate::stage::{data::GAME_BASE_SPEED, resources::StageTimeDomain};
 use bevy::prelude::*;
+use carapace::prelude::PxSubPosition;
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle,
 };
 use derive_new::new;
-use seldom_pixel::prelude::PxSubPosition;
 use std::collections::VecDeque;
 use std::time::Duration;
 

@@ -1,5 +1,5 @@
 use bevy::reflect::Reflect;
-use seldom_pixel::{math::Next, prelude::px_layer};
+use carapace::{math::Next, prelude::px_layer};
 use serde::{Deserialize, Serialize};
 
 use crate::cutscene::data::CutsceneLayer;
@@ -34,7 +34,7 @@ pub enum PreBackgroundDepth {
 
 #[derive(Deserialize, Reflect, Serialize)]
 #[px_layer]
-/// Rendering layers for `seldom_pixel` content. Entries later in the enum render on
+/// Rendering layers for `carapace` content. Entries later in the enum render on
 /// top of earlier ones, so tiers are grouped roughly as:
 pub enum Layer {
     /// Static sky gradients or far parallax art.

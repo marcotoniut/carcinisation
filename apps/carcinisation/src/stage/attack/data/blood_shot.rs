@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxAnimationFinishBehavior;
+use carapace::prelude::PxAnimationFinishBehavior;
 use std::{collections::HashMap, time::Duration};
 
 pub const BLOOD_SHOT_ATTACK_DEPTH_SPEED: f32 = -2.;

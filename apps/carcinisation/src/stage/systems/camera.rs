@@ -4,8 +4,8 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
+use carapace::prelude::PxSubPosition;
 use cween::linear::components::{TargetingValueX, TargetingValueY};
-use seldom_pixel::prelude::PxSubPosition;
 
 const IN_VIEW_OFFSET: u32 = 5;
 const IN_VIEW_OFFSET_BOTTOM: u32 = HUD_HEIGHT + IN_VIEW_OFFSET;

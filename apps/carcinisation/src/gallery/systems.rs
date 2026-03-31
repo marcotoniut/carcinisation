@@ -34,14 +34,14 @@ use crate::{
 use activable::activate;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::{EguiContext, PrimaryEguiContext, egui};
-use carcinisation_core::components::{DespawnMark, GBColor};
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxRect, PxSprite, PxSubPosition, PxTypeface,
 };
-use seldom_pixel::{
+use carapace::{
     animation::PxAnimation,
     frame::{PxFrameControl, PxFrameCount, PxFrameSelector},
 };
+use carcinisation_core::components::{DespawnMark, GBColor};
 
 use super::GalleryPlugin;
 

@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxSprite;
+use carapace::prelude::PxSprite;
 
 const DEBUG_MODULE: &str = "Player";
 

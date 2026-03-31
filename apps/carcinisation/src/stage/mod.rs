@@ -71,6 +71,7 @@ use crate::{
 use activable::{Activable, ActivableAppExt, activate_system, deactivate_system};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
+use carapace::prelude::PxSubPosition;
 use cween::{
     linear::{
         LinearTween2DPlugin, LinearTweenPlugin, LinearTweenSystems,
@@ -79,7 +80,6 @@ use cween::{
     pursue::PursueMovementPlugin,
 };
 use data::StageData;
-use seldom_pixel::prelude::PxSubPosition;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Systems that load stage data and assets before play begins.

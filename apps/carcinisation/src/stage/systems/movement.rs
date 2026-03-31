@@ -8,11 +8,11 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
+use carapace::prelude::PxSubPosition;
 use cween::{
     linear::components::{LinearValueReached, TargetingValueX, TargetingValueY, TargetingValueZ},
     structs::TweenDirection,
 };
-use seldom_pixel::prelude::PxSubPosition;
 
 /// @system Recalculates entity depth from the Z tween value and emits `DepthChangedMessage`.
 pub fn update_depth(

@@ -20,7 +20,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use seldom_pixel::prelude::PxSubPosition;
+use carapace::prelude::PxSubPosition;
 
 pub const LINE_EXTENSION: f32 = 1000.;
 

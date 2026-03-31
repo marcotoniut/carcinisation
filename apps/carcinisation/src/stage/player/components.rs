@@ -13,7 +13,7 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
-use seldom_pixel::prelude::{PxAnimationDirection, PxAnimationDuration, PxSprite, PxSubPosition};
+use carapace::prelude::{PxAnimationDirection, PxAnimationDuration, PxSprite, PxSubPosition};
 
 #[derive(Component)]
 pub struct Player;

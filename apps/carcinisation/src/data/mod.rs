@@ -2,7 +2,7 @@
 
 use crate::{pixel::PxAnimationBundle, stage::components::interactive::ColliderData};
 use bevy::prelude::*;
-use seldom_pixel::prelude::{
+use carapace::prelude::{
     PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxFrameTransition,
 };
 

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
+use carapace::prelude::PxSubPosition;
 use cween::linear::components::{TargetingValueX, TargetingValueY};
-use seldom_pixel::prelude::PxSubPosition;
 
 use crate::systems::camera::CameraPos;
 

@@ -10,7 +10,7 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
-use seldom_pixel::prelude::PxSubPosition;
+use carapace::prelude::PxSubPosition;
 
 /// @system Assigns the next behavior step to enemies with no active behavior.
 pub fn check_no_behavior(

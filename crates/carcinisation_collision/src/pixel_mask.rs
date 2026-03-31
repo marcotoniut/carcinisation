@@ -8,7 +8,7 @@
 use bevy::asset::AssetId;
 use bevy::prelude::*;
 use bevy::reflect::{Reflect, ReflectRef};
-use seldom_pixel::prelude::*;
+use carapace::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
 // Ordered 4x4 dithering threshold map used by PxFrameTransition::Dither.

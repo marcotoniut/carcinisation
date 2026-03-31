@@ -8,7 +8,7 @@ default-run = "carcinisation"
 [features]
 default = []
 gallery = []
-brp = ["dep:bevy_brp_extras", "seldom_pixel/brp_extras"]
+brp = ["dep:bevy_brp_extras", "carapace/brp_extras"]
 
 [dependencies]
 # Workspace crates
@@ -28,7 +28,7 @@ bevy_brp_extras = { workspace = true, optional = true }
 bevy_framepace = { workspace = true }
 bevy_state = { workspace = true }
 leafwing-input-manager = { workspace = true }
-seldom_pixel = { workspace = true }
+carapace = { workspace = true }
 
 # Serialization
 ron = { workspace = true }
