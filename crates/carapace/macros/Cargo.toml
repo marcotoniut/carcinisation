@@ -1,0 +1,16 @@
+[package]
+name = "carapace_macros"
+version = "0.3.0-dev"
+edition = "2021"
+categories = ["game-development"]
+description = "Macros for `carapace`"
+keywords = ["gamedev", "bevy", "graphics", "gui", "2d"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/marcotoniut/carcinisation"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0"
+syn = "2.0"

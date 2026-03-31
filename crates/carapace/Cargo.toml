@@ -1,0 +1,96 @@
+[workspace]
+members = [".", "macros", "xtask"]
+
+[package]
+name = "carapace"
+version = "0.9.0-dev"
+edition = "2024"
+categories = ["game-development"]
+description = "Bevy plugin for limited color palette pixel art games"
+exclude = ["assets/"]
+keywords = ["gamedev", "bevy", "graphics", "gui", "2d"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/marcotoniut/carcinisation"
+
+[features]
+headed = [
+    "bevy_window",
+    "bevy_camera",
+    "bevy_shader",
+    "bevy_core_pipeline",
+    "bevy_picking",
+    "bevy_input_focus",
+]
+default = ["headed"]
+gpu_palette = ["headed"]
+line = ["line_drawing"]
+profiling_spans = []
+reflect = []
+brp_extras = ["headed", "reflect", "dep:bevy_brp_extras"]
+particle = ["bevy_turborand"]
+
+[dependencies]
+next = "0.2.0"
+serde = "1.0"
+ron = "0.12.0"
+line_drawing = { version = "1.0", optional = true }
+bevy_utils = { version = "0.18.0", default-features = false }
+bevy_math = { version = "0.18.0", default-features = false }
+bevy_mesh = { version = "0.18.0", default-features = false }
+bevy_transform = { version = "0.18.0", default-features = false }
+bevy_color = { version = "0.18.0", default-features = false }
+bevy_platform = { version = "0.18.0", default-features = false }
+bevy_image = { version = "0.18.0", default-features = false }
+bevy_log = { version = "0.18.0", default-features = false }
+bevy_derive = { version = "0.18.0", default-features = false }
+bevy_app = { version = "0.18.0", default-features = false }
+bevy_ecs = { version = "0.18.0", default-features = false }
+bevy_time = { version = "0.18.0", default-features = false }
+bevy_asset = { version = "0.18.0", default-features = false }
+bevy_reflect = { version = "0.18.0", default-features = false }
+bevy_input = { version = "0.18.0", default-features = false }
+bevy_window = { version = "0.18.0", default-features = false, optional = true }
+bevy_render = { version = "0.18.0", default-features = false }
+bevy_camera = { version = "0.18.0", default-features = false, optional = true }
+bevy_shader = { version = "0.18.0", default-features = false, optional = true }
+bevy_core_pipeline = { version = "0.18.0", default-features = false, optional = true }
+bevy_picking = { version = "0.18.0", default-features = false, optional = true }
+bevy_input_focus = { version = "0.18.0", default-features = false, optional = true }
+bevy_brp_extras = { version = "0.18.6", default-features = false, optional = true }
+bytemuck = { version = "1.25.0", features = ["derive"] }
+bevy_turborand = { version = "0.13.0", optional = true }
+carapace_macros = { version = "0.3.0-dev", path = "macros" }
+
+[dev-dependencies]
+bevy = "0.18.0"
+leafwing-input-manager = "0.20.0"
+rand = "0.10.0"
+insta = "1.46.3"
+
+[[example]]
+name = "line"
+required-features = ["line"]
+
+[[example]]
+name = "gpu_palette"
+required-features = ["gpu_palette"]
+
+[[example]]
+name = "composite_gpu"
+required-features = ["gpu_palette"]
+
+[[example]]
+name = "particles"
+required-features = ["particle"]
+
+[[example]]
+name = "state"
+required-features = ["state"]
+
+[[example]]
+name = "brp_screenshot"
+required-features = ["brp_extras"]
+
+[package.metadata.docs.rs]
+all-features = true
