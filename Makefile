@@ -222,6 +222,29 @@ fix:
 	cargo fix --lib --tests --allow-dirty
 
 # =============================================================================
+# Engine (carapace)
+# =============================================================================
+CARAPACE_MANIFEST := crates/carapace/Cargo.toml
+
+.PHONY: engine-test
+engine-test:
+	cargo test --manifest-path $(CARAPACE_MANIFEST) --all-features
+
+.PHONY: engine-example
+engine-example:
+	@if [ -z "$(EXAMPLE)" ]; then \
+		echo "Usage: make engine-example EXAMPLE=composite_sprite"; \
+		echo "Available:"; \
+		ls crates/carapace/examples/*.rs | xargs -n1 basename | sed 's/\.rs//' | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	BRP_EXTRAS_PORT=15702 cargo run --example $(EXAMPLE) --manifest-path $(CARAPACE_MANIFEST) --features brp_extras
+
+.PHONY: engine-lint
+engine-lint:
+	cargo clippy --manifest-path $(CARAPACE_MANIFEST) --all-features -- -D warnings
+
+# =============================================================================
 # Testing
 # =============================================================================
 .PHONY: test
@@ -276,6 +299,11 @@ help:
 	@echo "  fmt                - Format Rust sources"
 	@echo "  lint               - Run 'bevy lint' workspace-wide"
 	@echo "  fix                - Apply rustfix suggestions (lib/tests only)"
+	@echo ""
+	@echo "🔧 Engine (carapace):"
+	@echo "  engine-test        - Run carapace unit tests (all features)"
+	@echo "  engine-example     - Run a carapace example with BRP (EXAMPLE=composite_sprite)"
+	@echo "  engine-lint        - Clippy the engine crate (all features)"
 	@echo ""
 	@echo "🧪 Testing:"
 	@echo "  test               - Run the full workspace test suite"
