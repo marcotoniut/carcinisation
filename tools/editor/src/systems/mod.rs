@@ -16,7 +16,7 @@ use crate::{
     builders::{cutscene::spawn_cutscene, stage::spawn_stage},
     components::{SceneData, SceneItem, ScenePath},
     events::UnloadSceneTrigger,
-    resources::{CutsceneAssetHandle, StageAssetHandle},
+    resources::{CutsceneAssetHandle, StageAssetHandle, ThumbnailCache},
 };
 
 /// @system Spawns the editor camera centered on the primary window.
@@ -125,7 +125,9 @@ pub fn on_scene_change(
     layer_shown_ui: Res<StageControlsUI>,
     loaded_scene: Res<SceneData>,
     scene_item_query: Query<Entity, With<SceneItem>>,
+    mut image_assets: ResMut<Assets<Image>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut thumbnail_cache: ResMut<ThumbnailCache>,
 ) {
     if loaded_scene.is_changed() || layer_shown_ui.is_changed() {
         for entity in scene_item_query.iter() {
@@ -141,7 +143,9 @@ pub fn on_scene_change(
                     &asset_server,
                     &layer_shown_ui,
                     &data,
+                    &mut image_assets,
                     &mut texture_atlas_layouts,
+                    &mut thumbnail_cache,
                 );
             }
         }

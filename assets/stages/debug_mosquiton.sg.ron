@@ -1,6 +1,7 @@
-#![enable(implicit_some)]
 #![enable(unwrap_newtypes)]
+#![enable(implicit_some)]
 #![enable(unwrap_variant_newtypes)]
+#![enable(explicit_struct_names)]
 StageData(
     name: "Debug Mosquiton",
     background_path: "backgrounds/spaceship/background.png",
@@ -10,13 +11,12 @@ StageData(
         frames: 1,
     ),
     start_coordinates: Vec2(0.0, 0.0),
-    gravity: 800.0,
     spawns: [
         Enemy(
             enemy_type: Mosquiton,
             elapsed: 0.0,
             contains: None,
-            coordinates: Vec2(95.0, 72.0),
+            coordinates: Vec2(102.84375, 122.4805),
             speed: 0.0,
             health: 150,
             steps: [
@@ -34,23 +34,41 @@ StageData(
             kill_boss: false,
             spawns: [],
             floor_depths: {
-                Three: 40.0,
                 Four: 35.0,
-                Five: 30.0,
+                Three: 40.0,
                 Six: 25.0,
+                Five: 30.0,
             },
         ),
         Stop(
             max_duration: 99999.0,
             kill_all: false,
             kill_boss: false,
-            spawns: [],
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquiton,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(140.0, 72.0),
+                    speed: 0.0,
+                    health: 150,
+                    steps: [
+                        Idle(
+                            duration: 99999.0,
+                        ),
+                    ],
+                    depth: Three,
+                ),
+            ],
             floor_depths: {
-                Three: 40.0,
-                Four: 35.0,
-                Five: 30.0,
                 Six: 25.0,
+                Five: 30.0,
+                Four: 35.0,
+                Three: 40.0,
             },
         ),
     ],
+    on_start_transition_o: None,
+    on_end_transition_o: None,
+    gravity: 800.0,
 )

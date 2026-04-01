@@ -44,7 +44,7 @@ use file_manager::FileManagerPlugin;
 #[cfg(feature = "full_editor")]
 use inspector::InspectorPlugin;
 #[cfg(feature = "full_editor")]
-use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI};
+use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI, ThumbnailCache};
 #[cfg(feature = "full_editor")]
 use systems::{
     animate_sprite, check_cutscene_data_loaded, check_stage_data_loaded,
@@ -69,6 +69,7 @@ fn main() {
 
     app.init_resource::<systems::input::DragState>()
         .init_resource::<StageControlsUI>()
+        .init_resource::<ThumbnailCache>()
         .add_plugins(
             DefaultPlugins
                 .set(AssetPlugin {

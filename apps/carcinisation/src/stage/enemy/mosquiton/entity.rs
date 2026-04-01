@@ -37,14 +37,17 @@ pub enum EnemyMosquitonAnimation {
 
 // BrokenParts is now imported from components::composed_state
 
-/// Marker component indicating the mosquiton's wings have been destroyed.
+/// Marker component indicating the mosquiton's wing subsystem is fully destroyed.
 ///
 /// When this component is present:
 /// - The mosquiton will enter a falling state if airborne
-/// - Flying behaviors and wing animations are disabled
+/// - Flying behaviours and wing animations are disabled
 /// - The entity transitions to ground-based movement
 ///
-/// This is automatically added when the `"wings_visual"` part breaks.
+/// Inserted when **all** parts tagged `"wings"` are broken (joined-wing rule).
+/// Individual wing parts (wing_l, wing_r) share a "wings" health pool and are
+/// independently targetable, but the fall trigger requires the full subsystem
+/// to be destroyed.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 pub struct WingsBroken;
 

@@ -85,6 +85,9 @@ tags = ["wing", "limb", "targetable"]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "wings"
+armour = 10
+durability = 2
+breakable = true
 
 [[part_definitions.gameplay.collision]]
 id = "wings_def_hurtbox"
@@ -168,77 +171,34 @@ pivot = { x = 0, y = 0 }
 tags = ["arms"]
 
 [[parts]]
+# Monolithic "wings" layer with visual-only render fragmentation. The exporter
+# splits the layer into left/right halves for atlas dedup while preserving a
+# single logical/gameplay part. Gameplay metadata is inherited from the "wing"
+# definition — no duplication. Both halves break together as one unit.
 id = "wings_visual"
 definition_id = "wing"
 name = "Wings Visual"
 parent_id = "root"
 source_layer = "wings"
+split = "mirror_x"
 draw_order = 10
 pivot = { x = 0, y = 0 }
 tags = ["wings"]
 
-[parts.gameplay]
-targetable = true
-health_pool = "wings"
-armour = 10
-durability = 2
-breakable = true
-
-[[parts.gameplay.collision]]
-id = "wings_hurtbox"
-role = "collider"
-shape = { shape = "circle", radius = 18.0, offset = { x = 32.0, y = 9.0 } }
-tags = ["wings", "appendage"]
-
 [[parts]]
+# Monolithic "legs" layer with visual-only render fragmentation. The exporter
+# splits the layer into left/right halves for atlas dedup while preserving a
+# single logical/gameplay part. Gameplay metadata is inherited from the "leg"
+# definition — no duplication.
 id = "legs_visual"
 definition_id = "leg"
 name = "Legs Visual"
 parent_id = "root"
 source_layer = "legs"
+split = "mirror_x"
 draw_order = 70
 pivot = { x = 0, y = 0 }
 tags = ["legs"]
-
-[[parts]]
-# Temporary migration bridge: semantics exist before the source art is split into
-# independently authored left/right wing visuals.
-id = "wing_l"
-definition_id = "wing_marker"
-name = "Wing Left"
-parent_id = "root"
-draw_order = 80
-pivot = { x = 0, y = 0 }
-tags = ["left"]
-
-[[parts]]
-id = "wing_r"
-definition_id = "wing_marker"
-name = "Wing Right"
-parent_id = "root"
-draw_order = 90
-pivot = { x = 0, y = 0 }
-tags = ["right"]
-
-[[parts]]
-# Temporary migration bridge: semantics exist before the source art is split into
-# independently authored left/right leg visuals.
-id = "leg_l"
-definition_id = "leg_marker"
-name = "Leg Left"
-parent_id = "root"
-draw_order = 100
-pivot = { x = 0, y = 0 }
-tags = ["left"]
-
-[[parts]]
-id = "leg_r"
-definition_id = "leg_marker"
-name = "Leg Right"
-parent_id = "root"
-draw_order = 110
-pivot = { x = 0, y = 0 }
-tags = ["right"]
 
 [[animation_events]]
 # Tag-local frame index inside `shoot_fly`. This is the first clear discharge

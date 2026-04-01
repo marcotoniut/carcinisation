@@ -1,11 +1,11 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use carcinisation::{
     cutscene::data::CutsceneData,
-    stage::{components::placement::Depth, data::StageData},
+    stage::{components::placement::Depth, data::StageData, enemy::entity::EnemyType},
 };
 
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::Anchor};
 use serde::{Deserialize, Serialize};
 
 /// Active cutscene asset handle and source path.
@@ -20,6 +20,18 @@ pub struct CutsceneAssetHandle {
 pub struct StageAssetHandle {
     pub handle: Handle<StageData>,
     pub path: String,
+}
+
+/// Cached generated thumbnails used by editor scene previews.
+#[derive(Debug, Default, Resource)]
+pub struct ThumbnailCache {
+    pub composed_enemies: HashMap<(EnemyType, Depth), CachedThumbnail>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CachedThumbnail {
+    pub image: Handle<Image>,
+    pub anchor: Anchor,
 }
 
 /// UI state for editor stage controls and layer visibility.

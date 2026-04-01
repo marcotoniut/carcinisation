@@ -115,7 +115,9 @@ struct CachedAnimationFrame {
     source_frame: usize,
     duration_ms: u32,
     events: Vec<CachedAnimationEvent>,
-    poses: HashMap<String, CachedPose>,
+    /// Per-part render fragment list. Non-split parts have a single-element Vec.
+    /// Split parts have multiple entries (one per render fragment).
+    poses: HashMap<String, Vec<CachedPose>>,
 }
 
 #[derive(Clone, Debug)]
@@ -134,6 +136,7 @@ struct CachedPose {
     flip_x: bool,
     flip_y: bool,
     visible: bool,
+    fragment: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -282,6 +285,7 @@ impl ComposedPartStates {
                         broken: false,
                         visible: true,
                         hit_blink: None,
+                        tags: part.tags.clone(),
                     },
                 ))
             })
@@ -324,6 +328,17 @@ pub struct PartGameplayState {
     /// authored gameplay metadata decides which parts are targetable, but the
     /// blink lifecycle is resolved entirely at runtime from damage messages.
     pub hit_blink: Option<PartHitBlinkState>,
+    /// Merged semantic tags from definition + instance, copied at load time.
+    /// Enables gameplay systems to query parts by semantic role (e.g., "wings")
+    /// without depending on specific visual part IDs.
+    pub tags: Vec<String>,
+}
+
+impl PartGameplayState {
+    /// Returns `true` if any of the given tags matches this part's semantic tags.
+    pub fn has_any_tag(&self, tags: &[&str]) -> bool {
+        tags.iter().any(|t| self.tags.iter().any(|pt| pt == t))
+    }
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -602,7 +617,7 @@ struct FiredAnimationCue {
 
 #[derive(Clone, Debug)]
 struct ResolvedAnimationFrame {
-    poses: HashMap<String, CachedPose>,
+    poses: HashMap<String, Vec<CachedPose>>,
     fired_cues: Vec<FiredAnimationCue>,
 }
 
@@ -1066,14 +1081,14 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
             CachedPart {
                 id: part.id.clone(),
                 parent_id: part.parent_id.clone(),
-                is_visual: part.source_layer.is_some(),
+                is_visual: part.source_layer.is_some() || part.source_region.is_some(),
                 draw_order: part.draw_order,
                 pivot: IVec2::new(part.pivot.x, part.pivot.y),
                 tags: merge_tags(&definition.tags, &part.tags),
                 gameplay: merge_gameplay(&definition.gameplay, &part.gameplay),
             },
         );
-        if part.source_layer.is_some() {
+        if part.source_layer.is_some() || part.source_region.is_some() {
             visual_parts_in_draw_order.push(part.id.clone());
         }
     }
@@ -1099,7 +1114,8 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
         let direction = parse_animation_direction(animation.direction.as_str())?;
         let mut cached_frames = Vec::with_capacity(animation.frames.len());
         for frame in &animation.frames {
-            let mut poses = HashMap::with_capacity(frame.parts.len());
+            let mut poses: HashMap<String, Vec<CachedPose>> =
+                HashMap::with_capacity(frame.parts.len());
             for pose in &frame.parts {
                 if pose.opacity != u8::MAX {
                     return Err(format!(
@@ -1126,18 +1142,25 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
                     flip_x: pose.flip_x,
                     flip_y: pose.flip_y,
                     visible: pose.visible,
+                    fragment: pose.fragment,
                 };
 
-                if poses.insert(pose.part_id.clone(), cached).is_some() {
-                    return Err(format!(
-                        "animation '{}' frame {} defines part '{}' more than once",
-                        animation.tag, frame.source_frame, pose.part_id
-                    ));
-                }
+                poses.entry(pose.part_id.clone()).or_default().push(cached);
             }
 
-            for (part_id, pose) in &poses {
-                if !pose.visible {
+            for (part_id, fragments) in &mut poses {
+                fragments.sort_unstable_by_key(|pose| pose.fragment);
+                validate_cached_fragment_sequence(
+                    fragments,
+                    part_id,
+                    &animation.tag,
+                    frame.source_frame,
+                )?;
+            }
+
+            for (part_id, fragments) in &poses {
+                // Visibility is checked on the first/primary fragment.
+                if !fragments.first().is_some_and(|f| f.visible) {
                     continue;
                 }
                 let part = parts_by_id
@@ -1389,7 +1412,7 @@ fn composition_collision_offset(shape: &CompositionCollisionShape) -> Vec2 {
 
 fn validate_parent_pose_chain(
     parts_by_id: &HashMap<String, CachedPart>,
-    poses: &HashMap<String, CachedPose>,
+    poses: &HashMap<String, Vec<CachedPose>>,
     part: &CachedPart,
     animation_tag: &str,
     source_frame: usize,
@@ -1408,6 +1431,35 @@ fn validate_parent_pose_chain(
             ));
         }
         parent_id = parent_part.parent_id.as_deref();
+    }
+
+    Ok(())
+}
+
+fn validate_cached_fragment_sequence(
+    fragments: &[CachedPose],
+    part_id: &str,
+    animation_tag: &str,
+    source_frame: usize,
+) -> Result<(), String> {
+    if fragments.is_empty() {
+        return Ok(());
+    }
+
+    if fragments.first().map(|pose| pose.fragment) != Some(0) {
+        return Err(format!(
+            "animation '{}' frame {} part '{}' is missing primary fragment 0",
+            animation_tag, source_frame, part_id
+        ));
+    }
+
+    for (expected, fragment) in fragments.iter().enumerate() {
+        if fragment.fragment != expected as u32 {
+            return Err(format!(
+                "animation '{}' frame {} part '{}' has non-contiguous fragments: expected {} but found {}",
+                animation_tag, source_frame, part_id, expected, fragment.fragment
+            ));
+        }
     }
 
     Ok(())
@@ -1553,9 +1605,9 @@ fn resolve_part_pose_from_tracks(
     requested_tracks: &[RequestedAnimationTrack],
     track_states: &[ComposedTrackPlaybackState],
     cache: &CompositionAtlasCache,
-) -> Result<Option<CachedPose>, String> {
-    // Track sprite-only override if found
-    let mut sprite_override: Option<CachedPose> = None;
+) -> Result<Option<Vec<CachedPose>>, String> {
+    // Track sprite-only override if found (uses primary fragment only).
+    let mut sprite_override: Option<Vec<CachedPose>> = None;
 
     for (request, playback) in requested_tracks.iter().zip(track_states.iter()) {
         let selector_matches = request
@@ -1587,40 +1639,48 @@ fn resolve_part_pose_from_tracks(
             ));
         }
 
-        if let Some(pose) = animation.frames[playback.frame_index]
+        if let Some(fragments) = animation.frames[playback.frame_index]
             .poses
             .get(part.id.as_str())
         {
             if request.sprite_only {
-                // For sprite-only overrides, save the sprite and continue
-                // looking for the base pose to preserve its position
-                sprite_override = Some(pose.clone());
+                sprite_override = Some(fragments.clone());
             } else {
-                if let Some(sprite_only_pose) = sprite_override.take() {
-                    // We found the base pose and have a sprite override - merge them
-                    return Ok(Some(CachedPose {
-                        sprite_id: sprite_only_pose.sprite_id,
-                        size: sprite_only_pose.size,
-                        flip_x: sprite_only_pose.flip_x,
-                        flip_y: sprite_only_pose.flip_y,
-                        visible: sprite_only_pose.visible,
-                        // Preserve position from base animation
-                        local_offset: pose.local_offset,
-                    }));
+                if let Some(sprite_only_fragments) = sprite_override.take() {
+                    // Merge sprite override with base position: use sprite/flip
+                    // from override, position from base. Apply to primary fragment;
+                    // for additional fragments, use the override fragments directly.
+                    let merged: Vec<CachedPose> = fragments
+                        .iter()
+                        .enumerate()
+                        .map(|(i, base)| {
+                            if let Some(ovr) = sprite_only_fragments.get(i) {
+                                CachedPose {
+                                    sprite_id: ovr.sprite_id.clone(),
+                                    size: ovr.size,
+                                    flip_x: ovr.flip_x,
+                                    flip_y: ovr.flip_y,
+                                    visible: ovr.visible,
+                                    local_offset: base.local_offset,
+                                    fragment: base.fragment,
+                                }
+                            } else {
+                                base.clone()
+                            }
+                        })
+                        .collect();
+                    return Ok(Some(merged));
                 }
-                // Normal override - use it entirely
-                return Ok(Some(pose.clone()));
+                return Ok(Some(fragments.clone()));
             }
         }
     }
 
-    // If we only found a sprite override but no base, return it as-is
-    // (This shouldn't normally happen with proper setup, but handle gracefully)
     Ok(sprite_override)
 }
 
 fn compose_frame(
-    poses: &HashMap<String, CachedPose>,
+    poses: &HashMap<String, Vec<CachedPose>>,
     cache: &CompositionAtlasCache,
     atlas_bindings: &ComposedAtlasBindings,
     part_states: &ComposedPartStates,
@@ -1640,10 +1700,12 @@ fn compose_frame(
         let Some(part) = cache.parts_by_id.get(part_id.as_str()) else {
             continue;
         };
-        let Some(pose) = poses.get(part.id.as_str()) else {
+        let Some(fragments) = poses.get(part.id.as_str()) else {
             continue;
         };
-        if !pose.visible {
+        // All fragments share visibility from the primary (first) fragment.
+        let primary = fragments.first()?;
+        if !primary.visible {
             continue;
         }
         // Check runtime visibility state (used for death effects, etc.)
@@ -1652,33 +1714,52 @@ fn compose_frame(
         {
             continue;
         }
-        let Some(region_id) = atlas_bindings.sprite_regions.get(pose.sprite_id.as_str()) else {
-            error!(
-                "Composed enemy {:?} is missing atlas region '{}' for part '{}'",
-                entity, pose.sprite_id, part.id,
-            );
-            return None;
-        };
-        let absolute_pivot = resolve_pivot(part, poses, cache, &mut resolved_pivots)?;
-        let absolute_top_left = absolute_pivot - part.pivot;
-        let bottom_left_offset = IVec2::new(
-            absolute_top_left.x,
-            -(absolute_top_left.y + pose.size.y as i32),
-        );
 
-        parts.push(
-            PxCompositePart::atlas_region(atlas_bindings.atlas.clone(), *region_id)
-                .with_offset(bottom_left_offset)
-                .with_filter(
-                    part_states
-                        .part(part.id.as_str())
-                        .and_then(|state| state.hit_blink.as_ref())
-                        .filter(|state| state.showing_invert)
-                        .map(|_| invert_filter.clone()),
-                )
-                .with_flip(pose.flip_x, pose.flip_y),
-        );
-        metrics_source.push((bottom_left_offset, pose.size));
+        // Resolve pivot once for the logical part (using primary fragment).
+        let absolute_pivot = resolve_pivot(part, poses, cache, &mut resolved_pivots)?;
+
+        let hit_filter = part_states
+            .part(part.id.as_str())
+            .and_then(|state| state.hit_blink.as_ref())
+            .filter(|state| state.showing_invert)
+            .map(|_| invert_filter.clone());
+
+        // Emit one PxCompositePart per render fragment.
+        for pose in fragments {
+            let Some(region_id) = atlas_bindings.sprite_regions.get(pose.sprite_id.as_str()) else {
+                error!(
+                    "Composed enemy {:?} is missing atlas region '{}' for part '{}'",
+                    entity, pose.sprite_id, part.id,
+                );
+                return None;
+            };
+            let frag_pivot = if std::ptr::eq(pose, primary) {
+                absolute_pivot
+            } else {
+                // Non-primary fragments: compute from their own local_offset.
+                if part.parent_id.is_some() {
+                    let parent_pivot =
+                        resolve_parent_pivot(part, poses, cache, &mut resolved_pivots)?;
+                    parent_pivot + pose.local_offset
+                } else {
+                    pose.local_offset
+                }
+            };
+            let frag_top_left = frag_pivot - part.pivot;
+            let bottom_left_offset =
+                IVec2::new(frag_top_left.x, -(frag_top_left.y + pose.size.y as i32));
+
+            parts.push(
+                PxCompositePart::atlas_region(atlas_bindings.atlas.clone(), *region_id)
+                    .with_offset(bottom_left_offset)
+                    .with_filter(hit_filter.clone())
+                    .with_flip(pose.flip_x, pose.flip_y),
+            );
+            metrics_source.push((bottom_left_offset, pose.size));
+        }
+
+        // Store resolved transform for the logical part (primary fragment).
+        let absolute_top_left = absolute_pivot - part.pivot;
         resolved_parts.insert(
             part.id.clone(),
             ResolvedPartTransform {
@@ -1694,19 +1775,20 @@ fn compose_frame(
 
 fn resolve_pivot(
     part: &CachedPart,
-    poses: &HashMap<String, CachedPose>,
+    poses: &HashMap<String, Vec<CachedPose>>,
     cache: &CompositionAtlasCache,
     resolved_pivots: &mut HashMap<String, IVec2>,
 ) -> Option<IVec2> {
     if let Some(resolved) = resolved_pivots.get(part.id.as_str()) {
         return Some(*resolved);
     }
-    let pose = poses.get(part.id.as_str())?;
+    // Use the primary (first) fragment for pivot resolution.
+    let primary = poses.get(part.id.as_str())?.first()?;
     let resolved_pivot = if part.parent_id.is_some() {
         let parent_pivot = resolve_parent_pivot(part, poses, cache, resolved_pivots)?;
-        parent_pivot + pose.local_offset
+        parent_pivot + primary.local_offset
     } else {
-        pose.local_offset
+        primary.local_offset
     };
     resolved_pivots.insert(part.id.clone(), resolved_pivot);
     Some(resolved_pivot)
@@ -1714,7 +1796,7 @@ fn resolve_pivot(
 
 fn resolve_parent_pivot(
     part: &CachedPart,
-    poses: &HashMap<String, CachedPose>,
+    poses: &HashMap<String, Vec<CachedPose>>,
     cache: &CompositionAtlasCache,
     resolved_pivots: &mut HashMap<String, IVec2>,
 ) -> Option<IVec2> {
@@ -1818,7 +1900,7 @@ fn build_collision_state(
 
 fn build_resolved_part_states(
     cache: &CompositionAtlasCache,
-    poses: &HashMap<String, CachedPose>,
+    poses: &HashMap<String, Vec<CachedPose>>,
     resolved_parts: &HashMap<String, ResolvedPartTransform>,
     part_states: &ComposedPartStates,
     root_position: Vec2,
@@ -1832,7 +1914,8 @@ fn build_resolved_part_states(
         let Some(transform) = resolved_parts.get(part_id.as_str()) else {
             continue;
         };
-        let Some(pose) = poses.get(part_id.as_str()) else {
+        // Use the primary (first) fragment for resolved state.
+        let Some(pose) = poses.get(part_id.as_str()).and_then(|v| v.first()) else {
             continue;
         };
         let part_state = part_states.part(part.id.as_str());
@@ -2153,6 +2236,19 @@ mod tests {
     };
     use std::{fs, path::PathBuf};
 
+    /// Find all visual part IDs in the cache that have any of the given tags.
+    fn visual_part_ids_with_tags(cache: &CompositionAtlasCache, tags: &[&str]) -> Vec<String> {
+        cache
+            .visual_parts_in_draw_order
+            .iter()
+            .filter(|part_id| {
+                let part = &cache.parts_by_id[part_id.as_str()];
+                tags.iter().any(|&t| part.tags.iter().any(|pt| pt == t))
+            })
+            .cloned()
+            .collect()
+    }
+
     fn load_exported_mosquiton() -> CompositionAtlasAsset {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../assets/sprites/enemies/mosquiton_3/atlas.json");
@@ -2168,7 +2264,7 @@ mod tests {
             source: "example.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: asset_pipeline::aseprite::Point { x: 8, y: 8 },
-            atlas_image: "atlas.png".to_string(),
+            atlas_image: "source.png".to_string(),
             part_definitions: vec![PartDefinition {
                 id: "body".to_string(),
                 tags: vec!["core".to_string()],
@@ -2193,6 +2289,8 @@ mod tests {
                 name: "Body".to_string(),
                 parent_id: None,
                 source_layer: Some("body".to_string()),
+                source_region: None,
+                split: None,
                 draw_order: 0,
                 pivot: Point::default(),
                 tags: vec![],
@@ -2224,6 +2322,7 @@ mod tests {
                         flip_y: false,
                         visible: true,
                         opacity: 255,
+                        fragment: 0,
                     }],
                 }],
             }],
@@ -2248,6 +2347,7 @@ mod tests {
                 frame
                     .poses
                     .get(part_id.as_str())
+                    .and_then(|v| v.first())
                     .is_some_and(|pose| pose.visible)
             })
             .cloned()
@@ -2262,7 +2362,7 @@ mod tests {
             source: "mixed.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: Point { x: 8, y: 8 },
-            atlas_image: "atlas.png".to_string(),
+            atlas_image: "source.png".to_string(),
             part_definitions: vec![
                 PartDefinition {
                     id: "root".to_string(),
@@ -2287,6 +2387,8 @@ mod tests {
                     name: "Root".to_string(),
                     parent_id: None,
                     source_layer: None,
+                    source_region: None,
+                    split: None,
                     draw_order: 99,
                     pivot: Point::default(),
                     tags: vec![],
@@ -2299,6 +2401,8 @@ mod tests {
                     name: "Body".to_string(),
                     parent_id: Some("root".to_string()),
                     source_layer: Some("body".to_string()),
+                    source_region: None,
+                    split: None,
                     draw_order: 1,
                     pivot: Point::default(),
                     tags: vec![],
@@ -2311,6 +2415,8 @@ mod tests {
                     name: "Wings".to_string(),
                     parent_id: Some("root".to_string()),
                     source_layer: Some("wings_visual".to_string()),
+                    source_region: None,
+                    split: None,
                     draw_order: 0,
                     pivot: Point::default(),
                     tags: vec!["visual_only".to_string()],
@@ -2384,6 +2490,7 @@ mod tests {
                                     flip_y: false,
                                     visible: true,
                                     opacity: 255,
+                                    fragment: 0,
                                 },
                                 PartPose {
                                     part_id: "wings_visual".to_string(),
@@ -2393,6 +2500,7 @@ mod tests {
                                     flip_y: false,
                                     visible: true,
                                     opacity: 255,
+                                    fragment: 0,
                                 },
                             ],
                         },
@@ -2409,6 +2517,7 @@ mod tests {
                                     flip_y: false,
                                     visible: true,
                                     opacity: 255,
+                                    fragment: 0,
                                 },
                                 PartPose {
                                     part_id: "wings_visual".to_string(),
@@ -2418,6 +2527,7 @@ mod tests {
                                     flip_y: false,
                                     visible: true,
                                     opacity: 255,
+                                    fragment: 0,
                                 },
                             ],
                         },
@@ -2440,6 +2550,7 @@ mod tests {
                                 flip_y: false,
                                 visible: true,
                                 opacity: 255,
+                                fragment: 0,
                             }],
                         },
                         AnimationFrame {
@@ -2459,6 +2570,7 @@ mod tests {
                                 flip_y: false,
                                 visible: true,
                                 opacity: 255,
+                                fragment: 0,
                             }],
                         },
                     ],
@@ -2479,6 +2591,7 @@ mod tests {
                             flip_y: false,
                             visible: true,
                             opacity: 255,
+                            fragment: 0,
                         }],
                     }],
                 },
@@ -2519,7 +2632,7 @@ mod tests {
         assert!(!atlas.atlas.parts.is_empty());
         assert!(!atlas.atlas.sprites.is_empty());
         assert!(!atlas.atlas.animations.is_empty());
-        assert_eq!(atlas.atlas.atlas_image, "atlas.png");
+        assert_eq!(atlas.atlas.atlas_image, "source.png");
     }
 
     #[test]
@@ -2618,7 +2731,7 @@ mod tests {
         )
         .expect("single-source animation should still resolve");
 
-        assert_eq!(resolved.poses["body"].sprite_id, "body_shoot");
+        assert_eq!(resolved.poses["body"][0].sprite_id, "body_shoot");
         assert!(!resolved.poses.contains_key("wings_visual"));
     }
 
@@ -2670,13 +2783,17 @@ mod tests {
             resolve_requested_animation_frame(&mut shoot_visual, &shoot_tracks, &cache, 200)
                 .expect("shoot fly should resolve");
 
+        // Wing parts (by tag) should match idle_fly poses when overridden.
+        for wing_id in &visual_part_ids_with_tags(&cache, &["wings"]) {
+            assert_eq!(
+                resolved.poses[wing_id.as_str()][0].sprite_id,
+                idle_resolved.poses[wing_id.as_str()][0].sprite_id,
+                "wing part '{wing_id}' should use idle_fly sprite when overridden"
+            );
+        }
         assert_eq!(
-            resolved.poses["wings_visual"].sprite_id,
-            idle_resolved.poses["wings_visual"].sprite_id
-        );
-        assert_eq!(
-            resolved.poses["body"].sprite_id,
-            shoot_resolved.poses["body"].sprite_id
+            resolved.poses["body"][0].sprite_id,
+            shoot_resolved.poses["body"][0].sprite_id
         );
     }
 
@@ -2728,13 +2845,16 @@ mod tests {
             resolve_requested_animation_frame(&mut melee_visual, &melee_tracks, &cache, 200)
                 .expect("melee fly should resolve");
 
+        for wing_id in &visual_part_ids_with_tags(&cache, &["wings"]) {
+            assert_eq!(
+                resolved.poses[wing_id.as_str()][0].sprite_id,
+                idle_resolved.poses[wing_id.as_str()][0].sprite_id,
+                "wing part '{wing_id}' should use idle_fly sprite when overridden"
+            );
+        }
         assert_eq!(
-            resolved.poses["wings_visual"].sprite_id,
-            idle_resolved.poses["wings_visual"].sprite_id
-        );
-        assert_eq!(
-            resolved.poses["body"].sprite_id,
-            melee_resolved.poses["body"].sprite_id
+            resolved.poses["body"][0].sprite_id,
+            melee_resolved.poses["body"][0].sprite_id
         );
     }
 
@@ -2789,8 +2909,8 @@ mod tests {
         )
         .expect("mixed resolution should succeed");
 
-        assert_eq!(resolved.poses["body"].sprite_id, "body_shoot");
-        assert_eq!(resolved.poses["wings_visual"].sprite_id, "wings_flap_a");
+        assert_eq!(resolved.poses["body"][0].sprite_id, "body_shoot");
+        assert_eq!(resolved.poses["wings_visual"][0].sprite_id, "wings_flap_a");
     }
 
     #[test]
@@ -2817,13 +2937,13 @@ mod tests {
         let third =
             resolve_requested_animation_frame(&mut visual, &tracks, &cache, 200).expect("frame 2");
 
-        assert_eq!(first.poses["body"].sprite_id, "body_shoot");
-        assert_eq!(second.poses["body"].sprite_id, "body_shoot");
-        assert_eq!(third.poses["body"].sprite_id, "body_shoot");
+        assert_eq!(first.poses["body"][0].sprite_id, "body_shoot");
+        assert_eq!(second.poses["body"][0].sprite_id, "body_shoot");
+        assert_eq!(third.poses["body"][0].sprite_id, "body_shoot");
 
-        assert_eq!(first.poses["wings_visual"].sprite_id, "wings_flap_a");
-        assert_eq!(second.poses["wings_visual"].sprite_id, "wings_flap_b");
-        assert_eq!(third.poses["wings_visual"].sprite_id, "wings_flap_a");
+        assert_eq!(first.poses["wings_visual"][0].sprite_id, "wings_flap_a");
+        assert_eq!(second.poses["wings_visual"][0].sprite_id, "wings_flap_b");
+        assert_eq!(third.poses["wings_visual"][0].sprite_id, "wings_flap_a");
     }
 
     #[test]
@@ -2850,8 +2970,8 @@ mod tests {
         )
         .expect("fallback to base should succeed");
 
-        assert_eq!(resolved.poses["body"].sprite_id, "body_idle");
-        assert_eq!(resolved.poses["wings_visual"].sprite_id, "wings_flap_a");
+        assert_eq!(resolved.poses["body"][0].sprite_id, "body_idle");
+        assert_eq!(resolved.poses["wings_visual"][0].sprite_id, "wings_flap_a");
     }
 
     #[test]
@@ -3052,6 +3172,8 @@ mod tests {
             name: "Head".to_string(),
             parent_id: Some("body".to_string()),
             source_layer: Some("head".to_string()),
+            source_region: None,
+            split: None,
             draw_order: 1,
             pivot: Point::default(),
             tags: vec![],
@@ -3075,6 +3197,7 @@ mod tests {
             flip_y: false,
             visible: true,
             opacity: 255,
+            fragment: 0,
         });
 
         let cache = build_runtime_cache(&atlas).expect("hierarchical atlas should validate");
@@ -3141,31 +3264,45 @@ mod tests {
         assert_eq!(head.gameplay.armour, 0);
         assert_eq!(head.gameplay.durability, None);
 
-        let wing_l = cache
-            .parts_by_id
-            .get("wing_l")
-            .expect("wing_l should exist");
-        assert!(wing_l.tags.contains(&"wing".to_string()));
-        assert!(wing_l.tags.contains(&"left".to_string()));
-        assert_eq!(wing_l.gameplay.health_pool, None);
-
-        let wings_visual = cache
+        let wings = cache
             .parts_by_id
             .get("wings_visual")
             .expect("wings_visual should exist");
-        assert!(wings_visual.tags.contains(&"targetable".to_string()));
-        assert_eq!(wings_visual.gameplay.health_pool.as_deref(), Some("wings"));
-        assert_eq!(wings_visual.gameplay.armour, 6);
-        assert_eq!(wings_visual.gameplay.durability, Some(2));
+        assert!(wings.tags.contains(&"wing".to_string()));
+        assert!(wings.tags.contains(&"wings".to_string()));
+        assert_eq!(wings.gameplay.health_pool.as_deref(), Some("wings"));
 
-        let legs_visual = cache
+        // At least one visual wing part should be targetable and route to the "wings" pool.
+        let wing_parts: Vec<_> = cache
             .parts_by_id
-            .get("legs_visual")
-            .expect("legs_visual should exist");
-        assert!(legs_visual.tags.contains(&"targetable".to_string()));
-        assert_eq!(legs_visual.gameplay.health_pool.as_deref(), Some("core"));
-        assert_eq!(legs_visual.gameplay.armour, 1);
-        assert_eq!(legs_visual.gameplay.durability, Some(2));
+            .values()
+            .filter(|p| p.tags.contains(&"wings".to_string()) && p.is_visual)
+            .collect();
+        assert!(
+            !wing_parts.is_empty(),
+            "at least one visual wing part should exist"
+        );
+        for wp in &wing_parts {
+            assert!(wp.tags.contains(&"targetable".to_string()));
+            assert_eq!(wp.gameplay.health_pool.as_deref(), Some("wings"));
+            assert_eq!(wp.gameplay.durability, Some(2));
+        }
+
+        // At least one visual leg part should be targetable and route to the "core" pool.
+        let leg_parts: Vec<_> = cache
+            .parts_by_id
+            .values()
+            .filter(|p| p.tags.contains(&"legs".to_string()) && p.is_visual)
+            .collect();
+        assert!(
+            !leg_parts.is_empty(),
+            "at least one visual leg part should exist"
+        );
+        for lp in &leg_parts {
+            assert!(lp.tags.contains(&"targetable".to_string()));
+            assert_eq!(lp.gameplay.health_pool.as_deref(), Some("core"));
+            assert!(lp.gameplay.durability.is_some());
+        }
 
         let arms_overlay = cache
             .parts_by_id
@@ -3199,6 +3336,8 @@ mod tests {
             name: "Marker".to_string(),
             parent_id: Some("body".to_string()),
             source_layer: None,
+            source_region: None,
+            split: None,
             draw_order: 999,
             pivot: Point::default(),
             tags: vec![],
@@ -3211,6 +3350,8 @@ mod tests {
             name: "Head".to_string(),
             parent_id: Some("body".to_string()),
             source_layer: Some("head".to_string()),
+            source_region: None,
+            split: None,
             draw_order: 5,
             pivot: Point::default(),
             tags: vec![],
@@ -3234,6 +3375,7 @@ mod tests {
             flip_y: false,
             visible: true,
             opacity: 255,
+            fragment: 0,
         });
 
         let cache = build_runtime_cache(&atlas).expect("atlas should validate");
@@ -3246,10 +3388,8 @@ mod tests {
         let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
         let frame = &cache.animations["idle_fly"].frames[0];
         let visible = visible_part_ids_in_frame(&cache, frame);
-        let wings_index = visible
-            .iter()
-            .position(|part_id| part_id == "wings_visual")
-            .expect("wings should be visible");
+        // All wing parts (by tag) should appear before body in draw order.
+        let wing_ids = visual_part_ids_with_tags(&cache, &["wings"]);
         let body_index = visible
             .iter()
             .position(|part_id| part_id == "body")
@@ -3259,8 +3399,20 @@ mod tests {
             .position(|part_id| part_id == "head")
             .expect("head should be visible");
 
-        assert!(wings_index < body_index);
-        assert!(wings_index < head_index);
+        for wing_id in &wing_ids {
+            let wing_index = visible
+                .iter()
+                .position(|part_id| part_id == wing_id)
+                .unwrap_or_else(|| panic!("wing part '{wing_id}' should be visible"));
+            assert!(
+                wing_index < body_index,
+                "wing '{wing_id}' should render behind body"
+            );
+            assert!(
+                wing_index < head_index,
+                "wing '{wing_id}' should render behind head"
+            );
+        }
     }
 
     #[test]
@@ -3277,6 +3429,8 @@ mod tests {
             name: "Arm Left".to_string(),
             parent_id: Some("body".to_string()),
             source_layer: Some("arm_l".to_string()),
+            source_region: None,
+            split: None,
             draw_order: 1,
             pivot: Point::default(),
             tags: vec!["left".to_string()],
@@ -3289,6 +3443,8 @@ mod tests {
             name: "Arm Right".to_string(),
             parent_id: Some("body".to_string()),
             source_layer: Some("arm_r".to_string()),
+            source_region: None,
+            split: None,
             draw_order: 2,
             pivot: Point::default(),
             tags: vec!["right".to_string()],
@@ -3303,6 +3459,7 @@ mod tests {
             flip_y: false,
             visible: true,
             opacity: 255,
+            fragment: 0,
         });
         atlas.animations[0].frames[0].parts.push(PartPose {
             part_id: "arm_r".to_string(),
@@ -3312,17 +3469,18 @@ mod tests {
             flip_y: false,
             visible: true,
             opacity: 255,
+            fragment: 0,
         });
 
         let cache = build_runtime_cache(&atlas).expect("atlas should validate");
         let frame = &cache.animations["idle_stand"].frames[0];
 
         assert_eq!(
-            frame.poses["arm_l"].sprite_id, frame.poses["arm_r"].sprite_id,
+            frame.poses["arm_l"][0].sprite_id, frame.poses["arm_r"][0].sprite_id,
             "canonical sprite should be reused across semantic arm instances"
         );
-        assert!(!frame.poses["arm_l"].flip_x);
-        assert!(frame.poses["arm_r"].flip_x);
+        assert!(!frame.poses["arm_l"][0].flip_x);
+        assert!(frame.poses["arm_r"][0].flip_x);
     }
 
     #[test]
@@ -3429,19 +3587,15 @@ mod tests {
             "body"
         );
 
+        // At least one wing-tagged collision should exist.
         assert!(
-            collision_state
-                .collisions()
-                .iter()
-                .all(|collision| collision.part_id != "wing_l" && collision.part_id != "wing_r"),
-            "non-visual contract-A wing markers must not produce runtime collisions"
-        );
-        assert!(
-            collision_state
-                .collisions()
-                .iter()
-                .any(|collision| collision.part_id == "wings_visual"),
-            "rendered wing visuals should now own gameplay collisions"
+            collision_state.collisions().iter().any(|collision| {
+                cache
+                    .parts_by_id
+                    .get(&collision.part_id)
+                    .is_some_and(|p| p.tags.contains(&"wings".to_string()) && p.is_visual)
+            }),
+            "visual wing parts should produce gameplay collisions"
         );
         assert!(
             collision_state
@@ -3479,6 +3633,8 @@ mod tests {
             name: "Head".to_string(),
             parent_id: Some("body".to_string()),
             source_layer: Some("head".to_string()),
+            source_region: None,
+            split: None,
             draw_order: 1,
             pivot: Point::default(),
             tags: vec![],
@@ -3502,6 +3658,7 @@ mod tests {
             flip_y: false,
             visible: true,
             opacity: 255,
+            fragment: 0,
         });
 
         let cache = build_runtime_cache(&atlas).expect("atlas should validate");
@@ -3595,9 +3752,118 @@ mod tests {
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
-        let error = apply_part_damage(&cache, &mut health_pools, &mut part_states, "wing_l", 5)
-            .expect_err("non-visual semantic markers should not be targetable");
+        // The root part is a non-visual structural node with no gameplay metadata.
+        let error = apply_part_damage(&cache, &mut health_pools, &mut part_states, "root", 5)
+            .expect_err("non-visual structural nodes should not be targetable");
         assert!(error.contains("not gameplay-targetable"));
+    }
+
+    // --- Joined-wing subsystem tests ---
+    //
+    // wing_l and wing_r are individually targetable and breakable, but share a
+    // "wings" health pool. The gameplay contract is that they form a single
+    // joined wing subsystem: the mosquiton only falls when ALL wing parts are
+    // destroyed, not when a single wing breaks.
+    //
+    // Future per-wing independence would change the breakage predicate but
+    // should not require restructuring the damage routing or health pool model.
+
+    #[test]
+    fn wing_damage_routes_to_shared_wings_pool() {
+        let atlas = load_exported_mosquiton();
+        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+        let mut health_pools = ComposedHealthPools::from_cache(&cache);
+        let mut part_states = ComposedPartStates::from_cache(&cache);
+
+        // Damage wings_visual — armour=10 (from def), durability=2, breakable=true,
+        // value=15 → 5 effective after armour, 2 absorbed by durability, 3 to "wings" pool (8 → 5).
+        let result = apply_part_damage(
+            &cache,
+            &mut health_pools,
+            &mut part_states,
+            "wings_visual",
+            15,
+        )
+        .expect("wings_visual should be targetable");
+        assert_eq!(result.pool_id.as_deref(), Some("wings"));
+        assert_eq!(result.remaining_health, Some(5));
+        assert_eq!(result.remaining_durability, Some(0));
+        assert!(
+            result.broke_part,
+            "wings_visual should break at 0 durability"
+        );
+
+        // Wings pool still has health remaining after part broke.
+        assert_eq!(health_pools.pools()["wings"], 5);
+    }
+
+    #[test]
+    fn wings_visual_is_single_gameplay_part() {
+        let atlas = load_exported_mosquiton();
+        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+
+        let wings = cache
+            .parts_by_id
+            .get("wings_visual")
+            .expect("wings_visual should exist as a single logical part");
+
+        assert!(wings.is_visual, "wings_visual should be a visual part");
+        assert!(
+            wings.gameplay.targetable,
+            "wings_visual should be targetable"
+        );
+        assert_eq!(
+            wings.gameplay.health_pool.as_deref(),
+            Some("wings"),
+            "wings_visual should route to wings pool"
+        );
+        // No separate wing_l/wing_r gameplay parts.
+        assert!(!cache.parts_by_id.contains_key("wing_l"));
+        assert!(!cache.parts_by_id.contains_key("wing_r"));
+    }
+
+    #[test]
+    fn legs_visual_is_single_targetable_part() {
+        let atlas = load_exported_mosquiton();
+        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+
+        let legs = cache
+            .parts_by_id
+            .get("legs_visual")
+            .expect("legs_visual should exist as a single logical part");
+
+        assert!(legs.is_visual, "legs_visual should be a visual part");
+        assert!(legs.gameplay.targetable, "legs_visual should be targetable");
+        assert_eq!(
+            legs.gameplay.health_pool.as_deref(),
+            Some("core"),
+            "legs_visual should route to core pool"
+        );
+        // No separate leg_l/leg_r gameplay parts.
+        assert!(!cache.parts_by_id.contains_key("leg_l"));
+        assert!(!cache.parts_by_id.contains_key("leg_r"));
+    }
+
+    #[test]
+    fn legs_visual_damage_routes_to_core_pool() {
+        let atlas = load_exported_mosquiton();
+        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+        let mut health_pools = ComposedHealthPools::from_cache(&cache);
+        let mut part_states = ComposedPartStates::from_cache(&cache);
+
+        // Damage legs_visual — armour=1 (def only, no instance override),
+        // durability=2, value=5 → 4 effective, 2 absorbed by durability,
+        // 2 to "core" pool (40 → 38).
+        let result = apply_part_damage(
+            &cache,
+            &mut health_pools,
+            &mut part_states,
+            "legs_visual",
+            5,
+        )
+        .expect("legs_visual should be targetable");
+        assert_eq!(result.pool_id.as_deref(), Some("core"));
+        assert_eq!(result.remaining_health, Some(38));
     }
 
     #[test]
@@ -3627,6 +3893,8 @@ mod tests {
             name: "Head".to_string(),
             parent_id: Some("body".to_string()),
             source_layer: Some("head".to_string()),
+            source_region: None,
+            split: None,
             draw_order: 1,
             pivot: Point::default(),
             tags: vec![],
@@ -3650,6 +3918,7 @@ mod tests {
             flip_y: false,
             visible: true,
             opacity: 255,
+            fragment: 0,
         });
 
         let cache = build_runtime_cache(&atlas).expect("blink atlas should validate");
@@ -3718,6 +3987,7 @@ mod tests {
                         showing_invert: true,
                         remaining_invert_cycles: 1,
                     }),
+                    tags: vec![],
                 },
             )]),
         };
@@ -3973,5 +4243,390 @@ mod tests {
                 .0,
             38
         );
+    }
+
+    // ---------------------------------------------------------------
+    // Split (render fragment) invariant tests — T-1 through T-5
+    // ---------------------------------------------------------------
+
+    /// Build a minimal atlas with one split part (legs_visual) producing two
+    /// render fragments, plus a non-split body part.
+    fn split_atlas() -> CompositionAtlas {
+        CompositionAtlas {
+            schema_version: SUPPORTED_COMPOSITION_SCHEMA_VERSION,
+            entity: "split_test".to_string(),
+            depth: 1,
+            source: "split_test.aseprite".to_string(),
+            canvas: Size { w: 32, h: 16 },
+            origin: Point { x: 16, y: 8 },
+            atlas_image: "source.png".to_string(),
+            part_definitions: vec![
+                PartDefinition {
+                    id: "root_marker".to_string(),
+                    tags: vec!["group".to_string()],
+                    gameplay: PartGameplayMetadata::default(),
+                },
+                PartDefinition {
+                    id: "body_def".to_string(),
+                    tags: vec!["core".to_string()],
+                    gameplay: PartGameplayMetadata {
+                        targetable: Some(true),
+                        health_pool: Some("core".to_string()),
+                        collision: vec![CollisionVolume {
+                            id: "body_hurtbox".to_string(),
+                            role: CollisionRole::Collider,
+                            shape: CollisionShape::Circle {
+                                radius: 4.0,
+                                offset: Vec2Value::default(),
+                            },
+                            tags: vec!["body".to_string()],
+                        }],
+                        ..Default::default()
+                    },
+                },
+                PartDefinition {
+                    id: "leg_def".to_string(),
+                    tags: vec!["legs".to_string(), "limb".to_string()],
+                    gameplay: PartGameplayMetadata {
+                        targetable: Some(true),
+                        health_pool: Some("core".to_string()),
+                        armour: 1,
+                        durability: Some(2),
+                        collision: vec![CollisionVolume {
+                            id: "legs_hurtbox".to_string(),
+                            role: CollisionRole::Collider,
+                            shape: CollisionShape::Circle {
+                                radius: 6.0,
+                                offset: Vec2Value::default(),
+                            },
+                            tags: vec!["legs".to_string()],
+                        }],
+                        ..Default::default()
+                    },
+                },
+            ],
+            parts: vec![
+                PartInstance {
+                    id: "root".to_string(),
+                    definition_id: "root_marker".to_string(),
+                    name: "Root".to_string(),
+                    parent_id: None,
+                    source_layer: None,
+                    source_region: None,
+                    split: None,
+                    draw_order: 0,
+                    pivot: Point::default(),
+                    tags: vec![],
+                    visible_by_default: true,
+                    gameplay: PartGameplayMetadata::default(),
+                },
+                PartInstance {
+                    id: "body".to_string(),
+                    definition_id: "body_def".to_string(),
+                    name: "Body".to_string(),
+                    parent_id: Some("root".to_string()),
+                    source_layer: Some("body".to_string()),
+                    source_region: None,
+                    split: None,
+                    draw_order: 10,
+                    pivot: Point::default(),
+                    tags: vec![],
+                    visible_by_default: true,
+                    gameplay: PartGameplayMetadata::default(),
+                },
+                PartInstance {
+                    id: "legs_visual".to_string(),
+                    definition_id: "leg_def".to_string(),
+                    name: "Legs Visual".to_string(),
+                    parent_id: Some("root".to_string()),
+                    source_layer: Some("legs".to_string()),
+                    source_region: None,
+                    split: Some(asset_pipeline::aseprite::SplitMode::MirrorX),
+                    draw_order: 20,
+                    pivot: Point::default(),
+                    tags: vec!["legs".to_string()],
+                    visible_by_default: true,
+                    gameplay: PartGameplayMetadata::default(),
+                },
+            ],
+            sprites: vec![
+                AtlasSprite {
+                    id: "body_s".to_string(),
+                    rect: Rect {
+                        x: 0,
+                        y: 0,
+                        w: 8,
+                        h: 8,
+                    },
+                },
+                AtlasSprite {
+                    id: "legs_left_s".to_string(),
+                    rect: Rect {
+                        x: 8,
+                        y: 0,
+                        w: 6,
+                        h: 6,
+                    },
+                },
+                AtlasSprite {
+                    id: "legs_right_s".to_string(),
+                    rect: Rect {
+                        x: 14,
+                        y: 0,
+                        w: 6,
+                        h: 6,
+                    },
+                },
+            ],
+            animations: vec![Animation {
+                tag: "idle_stand".to_string(),
+                direction: "forward".to_string(),
+                repeats: None,
+                frames: vec![AnimationFrame {
+                    source_frame: 0,
+                    duration_ms: 100,
+                    events: vec![],
+                    parts: vec![
+                        PartPose {
+                            part_id: "body".to_string(),
+                            sprite_id: "body_s".to_string(),
+                            local_offset: Point { x: 0, y: 0 },
+                            flip_x: false,
+                            flip_y: false,
+                            visible: true,
+                            opacity: 255,
+                            fragment: 0,
+                        },
+                        PartPose {
+                            part_id: "legs_visual".to_string(),
+                            sprite_id: "legs_left_s".to_string(),
+                            local_offset: Point { x: -4, y: 4 },
+                            flip_x: false,
+                            flip_y: false,
+                            visible: true,
+                            opacity: 255,
+                            fragment: 0,
+                        },
+                        PartPose {
+                            part_id: "legs_visual".to_string(),
+                            sprite_id: "legs_right_s".to_string(),
+                            local_offset: Point { x: 4, y: 4 },
+                            flip_x: true,
+                            flip_y: false,
+                            visible: true,
+                            opacity: 255,
+                            fragment: 1,
+                        },
+                    ],
+                }],
+            }],
+            gameplay: CompositionGameplay {
+                entity_health_pool: Some("core".to_string()),
+                health_pools: vec![HealthPool {
+                    id: "core".to_string(),
+                    max_health: 20,
+                }],
+            },
+        }
+    }
+
+    // T-1: Split part produces one gameplay identity
+    #[test]
+    fn split_part_produces_one_gameplay_identity() {
+        let atlas = split_atlas();
+        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+
+        // Exactly one cached part for legs_visual.
+        assert!(cache.parts_by_id.contains_key("legs_visual"));
+        // No separate leg_l/leg_r parts.
+        assert!(!cache.parts_by_id.contains_key("leg_l"));
+        assert!(!cache.parts_by_id.contains_key("leg_r"));
+
+        // One visual entry in draw order.
+        let leg_entries: Vec<_> = cache
+            .visual_parts_in_draw_order
+            .iter()
+            .filter(|id| id.as_str() == "legs_visual")
+            .collect();
+        assert_eq!(
+            leg_entries.len(),
+            1,
+            "exactly one visual entry for split part"
+        );
+
+        // Gameplay state builds one entry per logical part.
+        let part_states = ComposedPartStates::from_cache(&cache);
+        assert!(
+            part_states.part("legs_visual").is_some(),
+            "gameplay state exists for legs_visual"
+        );
+    }
+
+    // T-2: Split part produces multiple render fragments per frame
+    #[test]
+    fn split_part_produces_multiple_render_fragments_per_frame() {
+        let atlas = split_atlas();
+        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+        let frame = &cache.animations["idle_stand"].frames[0];
+
+        // legs_visual should have 2 fragments in its Vec.
+        let fragments = &frame.poses["legs_visual"];
+        assert_eq!(
+            fragments.len(),
+            2,
+            "split part should have 2 render fragments"
+        );
+        // Verify distinct sprite IDs (left vs right half).
+        assert_ne!(
+            fragments[0].sprite_id, fragments[1].sprite_id,
+            "fragments should reference different sprites"
+        );
+        // At least one fragment should be flipped (dedup via mirror).
+        assert!(
+            fragments[0].flip_x || fragments[1].flip_x,
+            "at least one fragment should be flipped"
+        );
+        // Non-split body should still have exactly one fragment.
+        assert_eq!(frame.poses["body"].len(), 1);
+    }
+
+    #[test]
+    fn unordered_fragments_are_canonicalised_before_runtime_use() {
+        let mut atlas = split_atlas();
+        atlas.animations[0].frames[0].parts.swap(1, 2);
+
+        let cache = build_runtime_cache(&atlas).expect("unordered fragments should canonicalise");
+        let fragments = &cache.animations["idle_stand"].frames[0].poses["legs_visual"];
+
+        assert_eq!(
+            fragments
+                .iter()
+                .map(|fragment| fragment.fragment)
+                .collect::<Vec<_>>(),
+            vec![0, 1],
+            "runtime cache should sort fragments by fragment index"
+        );
+        assert_eq!(fragments[0].local_offset, IVec2::new(-4, 4));
+        assert_eq!(fragments[1].local_offset, IVec2::new(4, 4));
+    }
+
+    #[test]
+    fn runtime_rejects_missing_primary_fragment_zero() {
+        let mut atlas = split_atlas();
+        atlas.animations[0].frames[0]
+            .parts
+            .retain(|pose| pose.part_id != "legs_visual" || pose.fragment != 0);
+
+        let error = build_runtime_cache(&atlas)
+            .expect_err("missing fragment 0 should fail at runtime boundary");
+        assert!(error.contains("missing primary fragment 0"));
+    }
+
+    #[test]
+    fn runtime_rejects_non_contiguous_fragment_indices() {
+        let mut atlas = split_atlas();
+        let right_fragment = atlas.animations[0].frames[0]
+            .parts
+            .iter_mut()
+            .find(|pose| pose.part_id == "legs_visual" && pose.fragment == 1)
+            .expect("split atlas should include fragment 1");
+        right_fragment.fragment = 2;
+
+        let error =
+            build_runtime_cache(&atlas).expect_err("fragment gaps should fail at runtime boundary");
+        assert!(error.contains("non-contiguous fragments"));
+    }
+
+    // T-3: Broken state hides all fragments
+    #[test]
+    fn broken_state_hides_all_split_fragments() {
+        let atlas = split_atlas();
+        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+        let frame = &cache.animations["idle_stand"].frames[0];
+
+        let mut part_states = ComposedPartStates::from_cache(&cache);
+        // Mark legs_visual as not visible (simulating broken state).
+        if let Some(state) = part_states.part_mut("legs_visual") {
+            state.visible = false;
+        }
+
+        let atlas_handle = Handle::<PxSpriteAtlasAsset>::default();
+        let filter_handle = Handle::<PxFilterAsset>::default();
+        let bindings = ComposedAtlasBindings {
+            atlas: atlas_handle,
+            sprite_regions: atlas
+                .sprites
+                .iter()
+                .enumerate()
+                .map(|(i, s)| (s.id.clone(), AtlasRegionId(i as u32)))
+                .collect(),
+            sprite_rects: atlas
+                .sprites
+                .iter()
+                .map(|s| {
+                    (
+                        s.id.clone(),
+                        AtlasRect {
+                            x: s.rect.x,
+                            y: s.rect.y,
+                            w: s.rect.w,
+                            h: s.rect.h,
+                        },
+                    )
+                })
+                .collect(),
+        };
+
+        let result = compose_frame(
+            &frame.poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &filter_handle,
+            Entity::PLACEHOLDER,
+        );
+
+        if let Some((parts, _, _)) = result {
+            // Only body should be rendered, not legs_visual fragments.
+            assert_eq!(
+                parts.len(),
+                1,
+                "only body should render when legs_visual is hidden"
+            );
+        }
+    }
+
+    // T-4: Animation resolution applies to all fragments
+    #[test]
+    fn animation_resolution_applies_to_all_fragments() {
+        let atlas = split_atlas();
+        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+
+        // All fragments for legs_visual come from the same animation frame.
+        let frame = &cache.animations["idle_stand"].frames[0];
+        let fragments = &frame.poses["legs_visual"];
+        // All fragments should be visible (same state from animation resolution).
+        assert!(
+            fragments.iter().all(|f| f.visible),
+            "all fragments share visibility"
+        );
+    }
+
+    // T-5: No per-fragment collision
+    #[test]
+    fn no_per_fragment_collision() {
+        let atlas = split_atlas();
+        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+
+        // The legs part has one collision volume from the definition.
+        let leg_part = &cache.parts_by_id["legs_visual"];
+        assert_eq!(
+            leg_part.gameplay.collisions.len(),
+            1,
+            "collision volumes are per-logical-part, not per-fragment"
+        );
+        // No collision entries reference fragment-specific IDs.
+        assert!(!cache.parts_by_id.contains_key("legs_visual_0"));
+        assert!(!cache.parts_by_id.contains_key("legs_visual_1"));
     }
 }

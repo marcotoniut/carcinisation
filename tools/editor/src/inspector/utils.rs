@@ -1,17 +1,11 @@
 use std::time::Duration;
 
-use bevy::{
-    math::{Rect, Vec2},
-    prelude::Name,
-};
+use bevy::{math::Vec2, prelude::Name};
 use carcinisation::stage::{
     data::{EnemySpawn, ObjectSpawn, PickupSpawn, StageData, StageSpawn, StageStep},
     destructible::data::DestructibleSpawn,
 };
 
-use crate::builders::thumbnail::{
-    get_destructible_thumbnail, get_enemy_thumbnail, get_object_thumbnail, get_pickup_thumbnail,
-};
 use crate::timeline::{
     StageTimelineConfig, cinematic_duration, stop_duration, tween_travel_duration,
 };
@@ -81,8 +75,6 @@ pub trait StageSpawnUtils {
     fn get_editor_name_component(&self, index: usize) -> Name;
     /// Returns a z-index for layering in the editor view.
     fn get_depth_editor_z_index(&self) -> f32;
-    /// Returns the thumbnail sprite and optional texture rect.
-    fn get_thumbnail(&self) -> (String, Option<Rect>);
 }
 
 impl StageSpawnUtils for StageSpawn {
@@ -103,23 +95,6 @@ impl StageSpawnUtils for StageSpawn {
             StageSpawn::Enemy(EnemySpawn { depth, .. }) => -depth.to_f32() + 0.4,
             StageSpawn::Object(ObjectSpawn { depth, .. }) => -depth.to_f32() + 0.3,
             StageSpawn::Pickup(PickupSpawn { depth, .. }) => -depth.to_f32() + 0.1,
-        }
-    }
-
-    fn get_thumbnail(&self) -> (String, Option<Rect>) {
-        match self {
-            StageSpawn::Destructible(DestructibleSpawn {
-                destructible_type, ..
-            }) => get_destructible_thumbnail(*destructible_type, self.get_depth()),
-            StageSpawn::Enemy(EnemySpawn { enemy_type, .. }) => {
-                get_enemy_thumbnail(*enemy_type, self.get_depth())
-            }
-            StageSpawn::Object(ObjectSpawn { object_type, .. }) => {
-                get_object_thumbnail(*object_type, self.get_depth())
-            }
-            StageSpawn::Pickup(PickupSpawn { pickup_type, .. }) => {
-                get_pickup_thumbnail(*pickup_type, self.get_depth())
-            }
         }
     }
 }

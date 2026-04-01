@@ -16,7 +16,7 @@ pub const TAG_DEATH_FLY: &str = "death_fly";
 /// Falling animation used when wings are destroyed.
 pub const TAG_FALLING: &str = "falling";
 
-const MOSQUITON_WING_PART_TAGS: &[&str] = &["wings"];
+pub const MOSQUITON_WING_PART_TAGS: &[&str] = &["wings"];
 const MOSQUITON_HEAD_PART_TAGS: &[&str] = &["head"];
 
 /// Full authored tag list exposed in the gallery.

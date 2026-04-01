@@ -18,8 +18,8 @@ use crate::{
             composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
             data::{
                 mosquiton::{
-                    TAG_DEATH_FLY, TAG_FALLING, TAG_IDLE_FLY, TAG_MELEE_FLY, TAG_SHOOT_FLY,
-                    apply_mosquiton_animation_state,
+                    MOSQUITON_WING_PART_TAGS, TAG_DEATH_FLY, TAG_FALLING, TAG_IDLE_FLY,
+                    TAG_MELEE_FLY, TAG_SHOOT_FLY, apply_mosquiton_animation_state,
                 },
                 steps::{EnemyStep, JumpEnemyStep},
             },
@@ -268,24 +268,28 @@ pub fn detect_part_breakage(
                 commands.entity(entity).insert(broken_parts);
             }
 
-            // Apply specific behavioral markers based on which parts broke
-            for part_id in &newly_broken_parts {
-                if part_id.as_str() == "wings_visual" {
-                    info!("Mosquiton {:?} wings destroyed - initiating fall", entity);
-                    commands.entity(entity).insert((
-                        WingsBroken,
-                        FallingState {
-                            fall_start_y: position.0.y,
-                            vertical_velocity: 0.0,
-                            grounded: false,
-                        },
-                    ));
-                }
-                // Future: Add other part-specific behaviors here
-                // else if part_id.as_str() == "arm_left" || part_id.as_str() == "arm_right" {
-                //     // Disable melee attacks?
-                //     commands.entity(entity).insert(ArmsBroken);
-                // }
+            // Wings are a single gameplay part (wings_visual). When the wing
+            // part breaks, the mosquiton starts falling.
+            let all_wings_broken = part_states
+                .iter()
+                .all(|(_, state)| !state.has_any_tag(MOSQUITON_WING_PART_TAGS) || state.broken);
+
+            if all_wings_broken
+                && newly_broken_parts.iter().any(|part_id| {
+                    part_states
+                        .part(part_id)
+                        .is_some_and(|state| state.has_any_tag(MOSQUITON_WING_PART_TAGS))
+                })
+            {
+                info!("Mosquiton {:?} wings destroyed - initiating fall", entity);
+                commands.entity(entity).insert((
+                    WingsBroken,
+                    FallingState {
+                        fall_start_y: position.0.y,
+                        vertical_velocity: 0.0,
+                        grounded: false,
+                    },
+                ));
             }
         }
     }

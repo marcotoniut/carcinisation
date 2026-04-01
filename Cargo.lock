@@ -3020,7 +3020,9 @@ dependencies = [
 name = "editor"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "assert_assets_path",
+ "asset_pipeline",
  "bevy",
  "bevy-inspector-egui",
  "bevy_brp_extras",
@@ -3030,10 +3032,12 @@ dependencies = [
  "derive-new",
  "derive_more",
  "futures-lite",
+ "image",
  "lazy_static",
  "rfd",
  "ron 0.12.0",
  "serde",
+ "serde_json",
  "serde_with",
  "strum 0.28.0",
 ]

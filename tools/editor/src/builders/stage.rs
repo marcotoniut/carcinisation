@@ -1,7 +1,9 @@
 use std::time::Duration;
 
+use crate::builders::thumbnail::resolve_stage_spawn_thumbnail;
 use crate::constants::EditorColor;
 use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
+use crate::resources::ThumbnailCache;
 use crate::timeline::{
     StageTimelineConfig, cinematic_duration, stop_duration, tween_travel_duration,
 };
@@ -122,7 +124,9 @@ pub fn spawn_stage(
     asset_server: &Res<AssetServer>,
     stage_controls_ui: &Res<StageControlsUI>,
     stage_data: &StageData,
+    image_assets: &mut Assets<Image>,
     texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
+    thumbnail_cache: &mut ThumbnailCache,
 ) {
     if stage_controls_ui.background_is_visible() {
         let sprite = Sprite::from_image(asset_server.load(stage_data.background_path.clone()));
@@ -175,9 +179,8 @@ pub fn spawn_stage(
         .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
         .enumerate()
     {
-        let (image_path, rect) = spawn.get_thumbnail();
-        let mut sprite = Sprite::from_image(asset_server.load(image_path));
-        sprite.rect = rect;
+        let preview =
+            resolve_stage_spawn_thumbnail(spawn, asset_server, image_assets, thumbnail_cache);
 
         commands.spawn((
             spawn.get_editor_name_component(index),
@@ -185,13 +188,13 @@ pub fn spawn_stage(
             StageSpawnRef::Static { index },
             Draggable,
             SceneItem,
-            sprite,
+            preview.sprite,
             Transform::from_translation(
                 spawn
                     .get_coordinates()
                     .extend(spawn.get_depth_editor_z_index()),
             ),
-            Anchor::BOTTOM_CENTER,
+            preview.anchor,
         ));
     }
 
@@ -209,9 +212,12 @@ pub fn spawn_stage(
                     for (spawn_index, spawn) in s.spawns.iter().enumerate() {
                         if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
                             let v = current_position + *spawn.get_coordinates();
-                            let (image_path, rect) = spawn.get_thumbnail();
-                            let mut sprite = Sprite::from_image(asset_server.load(image_path));
-                            sprite.rect = rect;
+                            let preview = resolve_stage_spawn_thumbnail(
+                                spawn,
+                                asset_server,
+                                image_assets,
+                                thumbnail_cache,
+                            );
 
                             commands.spawn((
                                 spawn.get_editor_name_component(index),
@@ -223,11 +229,11 @@ pub fn spawn_stage(
                                 },
                                 Draggable,
                                 SceneItem,
-                                sprite,
+                                preview.sprite,
                                 Transform::from_translation(
                                     v.extend(spawn.get_depth_editor_z_index()),
                                 ),
-                                Anchor::BOTTOM_CENTER,
+                                preview.anchor,
                             ));
                         }
                     }
@@ -243,9 +249,12 @@ pub fn spawn_stage(
                     for (spawn_index, spawn) in s.spawns.iter().enumerate() {
                         if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
                             let v = current_position + *spawn.get_coordinates();
-                            let (image_path, rect) = spawn.get_thumbnail();
-                            let mut sprite = Sprite::from_image(asset_server.load(image_path));
-                            sprite.rect = rect;
+                            let preview = resolve_stage_spawn_thumbnail(
+                                spawn,
+                                asset_server,
+                                image_assets,
+                                thumbnail_cache,
+                            );
 
                             commands.spawn((
                                 spawn.get_editor_name_component(index),
@@ -257,11 +266,11 @@ pub fn spawn_stage(
                                 },
                                 Draggable,
                                 SceneItem,
-                                sprite,
+                                preview.sprite,
                                 Transform::from_translation(
                                     v.extend(spawn.get_depth_editor_z_index()),
                                 ),
-                                Anchor::BOTTOM_CENTER,
+                                preview.anchor,
                             ));
                         }
                     }

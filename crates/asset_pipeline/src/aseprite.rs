@@ -1,7 +1,7 @@
 //! Parser-based Aseprite export pipeline.
 //!
 //! This module turns one `.aseprite` source file into a piece atlas package:
-//! a packed `atlas.png`, an engine-consumable `atlas.px_atlas.ron`, and an
+//! a packed `atlas.png`, an engine-consumable `atlas.px_atlas.ron`, and a
 //! `atlas.json` manifest describing how a runtime can compose animation frames
 //! from deduplicated part sprites.
 
@@ -39,7 +39,7 @@ use std::{
 const DEFAULT_PART_GROUP: &str = "base";
 const DEFAULT_ORIGIN_SLICE: &str = "origin";
 const CURRENT_SCHEMA_VERSION: u32 = 3;
-const RUNTIME_ATLAS_IMAGE_NAME: &str = "atlas.runtime.png";
+const RUNTIME_ATLAS_IMAGE_NAME: &str = "atlas.png";
 const DEFAULT_RUNTIME_PALETTE_PATH: &str = "assets/palette/base.png";
 
 /// Top-level manifest for Aseprite exports.
@@ -149,11 +149,21 @@ pub struct PartInstance {
     /// Optional parent instance id for hierarchical composition.
     pub parent_id: Option<String>,
     /// Optional source Aseprite layer used to author this visual node.
+    /// Mutually exclusive with `source_region`.
     pub source_layer: Option<String>,
+    /// Optional virtual sub-region of a source layer, resolved at export time.
+    /// Mutually exclusive with `source_layer`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_region: Option<SourceRegion>,
+    /// Visual-only render fragmentation mode. When set, the exporter produces
+    /// multiple render fragments for one logical part. Present for provenance;
+    /// the runtime does not act on it directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub split: Option<SplitMode>,
     /// Draw order for this part within a composed frame.
     ///
     /// This belongs to the visual layer only. Validation enforces uniqueness
-    /// only for parts with a bound `source_layer`.
+    /// only for visual parts (those with `source_layer` or `source_region`).
     pub draw_order: u32,
     /// Sprite-local attachment origin authored for this visual part instance.
     #[serde(default)]
@@ -254,6 +264,11 @@ pub struct PartPose {
     pub visible: bool,
     /// Final opacity after combining layer opacity and cel opacity.
     pub opacity: u8,
+    /// Render fragment index within a split part. Default 0, omitted for
+    /// non-split parts. Used only to disambiguate multiple entries with the
+    /// same `part_id` within a frame — not a logical/gameplay identifier.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub fragment: u32,
 }
 
 /// Top-level gameplay state kept separate from the visual atlas.
@@ -395,13 +410,55 @@ struct CompositionSource {
     gameplay: CompositionGameplay,
 }
 
+/// Virtual region of a source layer, resolved at export time.
+///
+/// This allows multiple semantic parts to reference different halves of a
+/// single authored layer without splitting the source art. The exporter crops
+/// each cel at the composition origin and applies centre-column exclusion for
+/// odd-width frames so that the interner can detect horizontal flip matches.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct SourceRegion {
+    /// The Aseprite layer name to read from.
+    pub layer: String,
+    /// Which half of the layer to extract.
+    pub half: SplitHalf,
+}
+
+/// Which side of the symmetry axis to extract from a source layer.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitHalf {
+    /// Left half: cel-local X in `[0, centre)`. Centre column excluded.
+    Left,
+    /// Right half: cel-local X in `[centre + 1, width)`. Centre column excluded.
+    Right,
+}
+
+/// Visual fragmentation mode for atlas dedup. This is a render-level
+/// optimisation that does not create new logical parts or gameplay identities.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitMode {
+    /// Split at the composition origin X. Produces two render fragments per
+    /// frame (left half + right half with centre-column exclusion). The
+    /// interner detects horizontal flip matches between the halves.
+    MirrorX,
+}
+
 #[derive(Debug, Deserialize)]
 struct CompositionPartSource {
     id: String,
     definition_id: String,
     name: Option<String>,
     parent_id: Option<String>,
+    /// Whole-layer source. Mutually exclusive with `source_region`.
     source_layer: Option<String>,
+    /// Virtual sub-region of a layer. Mutually exclusive with `source_layer`.
+    source_region: Option<SourceRegion>,
+    /// Visual-only render fragmentation hint. When set, the exporter produces
+    /// multiple render fragments from one logical part for atlas dedup.
+    /// Mutually exclusive with `source_region`.
+    split: Option<SplitMode>,
     draw_order: u32,
     pivot: Option<Point>,
     #[serde(default)]
@@ -449,6 +506,24 @@ struct PreparedSprite {
 struct SpriteInterner {
     sprites: Vec<PreparedSprite>,
     cache: HashMap<ImageKey, String>,
+    stats: InternerStats,
+}
+
+/// Tracks deduplication statistics during sprite interning.
+#[derive(Clone, Debug, Default)]
+pub struct InternerStats {
+    /// Total intern() calls.
+    pub total_interns: u32,
+    /// Calls that produced a new unique sprite.
+    pub new_sprites: u32,
+    /// Calls that matched an existing sprite exactly (identity, no flip).
+    pub exact_hits: u32,
+    /// Calls that matched via horizontal flip.
+    pub flip_x_hits: u32,
+    /// Calls that matched via vertical flip.
+    pub flip_y_hits: u32,
+    /// Calls that matched via both horizontal and vertical flip.
+    pub flip_xy_hits: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -467,6 +542,10 @@ struct ImageKey {
 
 fn default_true() -> bool {
     true
+}
+
+fn is_zero_u32(v: &u32) -> bool {
+    *v == 0
 }
 
 /// Exports one piece-atlas package for the requested entity/depth pair.
@@ -495,7 +574,8 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
         .with_context(|| format!("Failed to parse {}", source_path.display()))?;
     let composition_path = manifest_dir.join(sprite.composition_path()?);
     let composition = load_composition_source(&composition_path)?;
-    let atlas = build_piece_atlas(sprite, &aseprite, &composition)?;
+    let (atlas_image, atlas_metadata, interner_stats) =
+        build_piece_atlas(sprite, &aseprite, &composition)?;
 
     let output_dir = request
         .output_root
@@ -504,20 +584,19 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
     fs::create_dir_all(&output_dir)
         .with_context(|| format!("Failed to create output directory {}", output_dir.display()))?;
 
-    let atlas_png = output_dir.join("atlas.png");
+    let source_png = output_dir.join("source.png");
     let runtime_atlas_png = output_dir.join(RUNTIME_ATLAS_IMAGE_NAME);
     let atlas_json = output_dir.join("atlas.json");
-    atlas
-        .0
-        .save(&atlas_png)
-        .with_context(|| format!("Failed to save {}", atlas_png.display()))?;
-    quantize_runtime_atlas(&atlas.0, &runtime_atlas_png)?;
+    atlas_image
+        .save(&source_png)
+        .with_context(|| format!("Failed to save {}", source_png.display()))?;
+    quantize_runtime_atlas(&atlas_image, &runtime_atlas_png)?;
     let metadata = CompositionAtlas {
         schema_version: CURRENT_SCHEMA_VERSION,
-        atlas_image: atlas_png
+        atlas_image: source_png
             .file_name()
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),
-        ..atlas.1
+        ..atlas_metadata
     };
     let runtime_atlas_asset_image_path = sprite
         .target_dir_path()?
@@ -536,6 +615,17 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
         sprite.depth,
         output_dir.display()
     );
+
+    // Post-export analysis: dedup report and split candidate detection.
+    let report = crate::analysis::build_report(
+        &metadata,
+        &interner_stats,
+        atlas_image.width(),
+        atlas_image.height(),
+        Some(&atlas_image),
+    );
+    crate::analysis::print_report(&report);
+    crate::analysis::write_json_report(&report, &output_dir)?;
 
     Ok(())
 }
@@ -579,7 +669,7 @@ fn build_piece_atlas(
     sprite: &SpriteSpec,
     aseprite: &AsepriteFile<'_>,
     composition: &CompositionSource,
-) -> Result<(RgbaImage, CompositionAtlas)> {
+) -> Result<(RgbaImage, CompositionAtlas, InternerStats)> {
     ensure!(
         !aseprite.tags().is_empty(),
         "Aseprite file '{}' does not define any animation tags",
@@ -667,7 +757,7 @@ fn build_piece_atlas(
 
     validate_composition_atlas(&metadata)?;
 
-    Ok((atlas_image, metadata))
+    Ok((atlas_image, metadata, sprite_interner.stats))
 }
 
 #[derive(Serialize)]
@@ -730,7 +820,7 @@ fn write_px_atlas_metadata(
 
 /// Writes the runtime-only atlas image in a palette-safe form for `carapace`.
 ///
-/// The semantic `atlas.png` must preserve authored colors. The runtime atlas is
+/// The semantic `source.png` must preserve authored colors. The runtime atlas is
 /// a separate quantized image because `PxSpriteAtlasLoader` requires every
 /// opaque pixel to exist in the configured project palette.
 fn quantize_runtime_atlas(source: &RgbaImage, destination: &Path) -> Result<()> {
@@ -1080,8 +1170,11 @@ fn next_power_of_two(value: u32) -> u32 {
 fn intern_sprite(
     sprites: &mut Vec<PreparedSprite>,
     cache: &mut HashMap<ImageKey, String>,
+    stats: &mut InternerStats,
     image: &RgbaImage,
 ) -> SpriteUsage {
+    stats.total_interns += 1;
+
     let variants = [
         (image.clone(), false, false),
         (imageops::flip_horizontal(image), true, false),
@@ -1096,6 +1189,12 @@ fn intern_sprite(
     for (variant_image, flip_x, flip_y) in &variants {
         let key = image_key(variant_image);
         if let Some(sprite_id) = cache.get(&key) {
+            match (flip_x, flip_y) {
+                (false, false) => stats.exact_hits += 1,
+                (true, false) => stats.flip_x_hits += 1,
+                (false, true) => stats.flip_y_hits += 1,
+                (true, true) => stats.flip_xy_hits += 1,
+            }
             return SpriteUsage {
                 sprite_id: sprite_id.clone(),
                 flip_x: *flip_x,
@@ -1104,6 +1203,7 @@ fn intern_sprite(
         }
     }
 
+    stats.new_sprites += 1;
     let sprite_id = format!("sprite_{:04}", sprites.len());
     let key = image_key(image);
     cache.insert(key, sprite_id.clone());
@@ -1235,7 +1335,19 @@ fn validate_composition_source(source: &CompositionSource) -> Result<()> {
 
 fn validate_composition_source_contracts(source: &CompositionSource) -> Result<()> {
     for part in &source.parts {
-        if part.source_layer.is_some() {
+        ensure!(
+            part.source_layer.is_none() || part.source_region.is_none(),
+            "part '{}' must specify source_layer OR source_region, not both",
+            part.id
+        );
+        if part.split.is_some() {
+            ensure!(
+                part.source_region.is_none(),
+                "part '{}' has both `split` and `source_region`; these are mutually exclusive",
+                part.id
+            );
+        }
+        if part.is_visual() {
             ensure!(
                 part.pivot.is_some(),
                 "visual part '{}' must define an explicit pivot in composition metadata",
@@ -1320,16 +1432,23 @@ pub fn validate_composition_atlas(atlas: &CompositionAtlas) -> Result<()> {
         );
 
         for frame in &animation.frames {
-            let mut frame_parts = HashSet::new();
+            let mut frame_part_fragments: HashSet<(&str, u32)> = HashSet::new();
+            let mut fragments_by_part: HashMap<&str, Vec<u32>> = HashMap::new();
             let mut frame_events = HashSet::new();
             for pose in &frame.parts {
                 ensure!(
-                    frame_parts.insert(pose.part_id.as_str()),
-                    "animation '{}' frame {} defines part '{}' more than once",
+                    frame_part_fragments.insert((pose.part_id.as_str(), pose.fragment)),
+                    "animation '{}' frame {} defines part '{}' fragment {} more than once",
                     animation.tag,
                     frame.source_frame,
-                    pose.part_id
+                    pose.part_id,
+                    pose.fragment
                 );
+                // Fragment indices are allowed when produced by authored `split`
+                // or by the exporter's auto-symmetry canonicalisation. The
+                // `(part_id, fragment)` uniqueness check above is the real
+                // invariant; this note documents why non-zero fragments can
+                // appear on parts without an explicit `split` field.
                 ensure!(
                     part_lookup.contains_key(pose.part_id.as_str()),
                     "animation '{}' frame {} references missing part '{}'",
@@ -1351,15 +1470,19 @@ pub fn validate_composition_atlas(atlas: &CompositionAtlas) -> Result<()> {
                     frame.source_frame,
                     pose.part_id
                 );
+                fragments_by_part
+                    .entry(pose.part_id.as_str())
+                    .or_default()
+                    .push(pose.fragment);
 
                 let mut parent_id = part_lookup
                     .get(pose.part_id.as_str())
                     .and_then(|part| part.parent_id.as_deref());
                 while let Some(parent) = parent_id {
                     let parent_part = part_lookup.get(parent).expect("validated part graph");
-                    if parent_part.source_layer.is_some() {
+                    if parent_part.source_layer.is_some() || parent_part.source_region.is_some() {
                         ensure!(
-                            frame_parts.contains(parent),
+                            frame_part_fragments.iter().any(|(id, _)| *id == parent),
                             "animation '{}' frame {} renders child '{}' without visible parent '{}'",
                             animation.tag,
                             frame.source_frame,
@@ -1368,6 +1491,28 @@ pub fn validate_composition_atlas(atlas: &CompositionAtlas) -> Result<()> {
                         );
                     }
                     parent_id = parent_part.parent_id.as_deref();
+                }
+            }
+
+            for (part_id, fragments) in &mut fragments_by_part {
+                fragments.sort_unstable();
+                ensure!(
+                    fragments.first().copied() == Some(0),
+                    "animation '{}' frame {} part '{}' is missing primary fragment 0",
+                    animation.tag,
+                    frame.source_frame,
+                    part_id
+                );
+                for (expected, actual) in fragments.iter().enumerate() {
+                    ensure!(
+                        *actual == expected as u32,
+                        "animation '{}' frame {} part '{}' has non-contiguous fragments: expected {} but found {}",
+                        animation.tag,
+                        frame.source_frame,
+                        part_id,
+                        expected,
+                        actual
+                    );
                 }
             }
 
@@ -1536,12 +1681,30 @@ fn validate_part_graph(
         let definition = definition_lookup
             .get(part.definition_id.as_str())
             .expect("definition existence validated above");
-        if let Some(source_layer) = part.source_layer.as_deref() {
+        // split constraints: requires source_layer, incompatible with source_region.
+        if part.split.is_some() {
+            ensure!(
+                part.source_layer.is_some(),
+                "part '{}' has `split` without `source_layer`; split requires a whole-layer source",
+                part.id
+            );
+            ensure!(
+                part.source_region.is_none(),
+                "part '{}' has both `split` and `source_region`; these are mutually exclusive",
+                part.id
+            );
+        }
+        let is_visual = part.source_layer.is_some() || part.source_region.is_some();
+        if is_visual {
             ensure!(
                 visual_draw_orders.insert(part.draw_order),
                 "duplicate visual draw_order {}",
                 part.draw_order
             );
+        }
+        // Whole-layer sources must be unique (1:1 mapping). Region-based
+        // sources may share the same layer (e.g. left/right halves).
+        if let Some(source_layer) = part.source_layer.as_deref() {
             ensure!(
                 source_layers.insert(source_layer),
                 "source layer '{source_layer}' is referenced by more than one part"
@@ -1550,7 +1713,7 @@ fn validate_part_graph(
         validate_tags(&part.tags, &format!("part '{}'", part.id))?;
         let merged_gameplay = merged_part_gameplay(&definition.gameplay, &part.gameplay);
         validate_part_gameplay(&merged_gameplay, gameplay, &format!("part '{}'", part.id))?;
-        if part.source_layer.is_none() {
+        if !is_visual {
             ensure!(
                 part_gameplay_is_empty(&merged_gameplay),
                 "non-visual part '{}' cannot carry gameplay metadata until transform-only semantic nodes are supported",
@@ -1764,9 +1927,14 @@ fn validate_layer_bindings(
     parts: &[PartInstance],
     selected_layers: &[SelectedLayer<'_>],
 ) -> Result<()> {
+    // Collect all referenced layer names (from source_layer and source_region).
     let bound_layers: HashSet<&str> = parts
         .iter()
-        .filter_map(|part| part.source_layer.as_deref())
+        .filter_map(|part| {
+            part.source_layer
+                .as_deref()
+                .or_else(|| part.source_region.as_ref().map(|r| r.layer.as_str()))
+        })
         .collect();
 
     for layer in selected_layers {
@@ -1781,7 +1949,11 @@ fn validate_layer_bindings(
     }
 
     for part in parts {
-        let Some(layer_name) = part.source_layer.as_deref() else {
+        let layer_name = part
+            .source_layer
+            .as_deref()
+            .or_else(|| part.source_region.as_ref().map(|r| r.layer.as_str()));
+        let Some(layer_name) = layer_name else {
             continue;
         };
         let layer = selected_layers
@@ -1853,6 +2025,246 @@ fn visit_part(
     Ok(())
 }
 
+/// Crops a cel image to one half of the symmetry axis for virtual part splitting.
+///
+/// The centre column (at `canvas_origin_x`) is excluded from both halves,
+/// guaranteeing equal dimensions so the interner can detect flip mirrors.
+///
+/// Returns `None` if the requested half has zero width (cel does not span it).
+fn crop_to_split_half(
+    cel_image: &RgbaImage,
+    cel_origin_x: i16,
+    canvas_origin_x: i32,
+    half: SplitHalf,
+) -> Option<(RgbaImage, i32)> {
+    let center_local = canvas_origin_x - i32::from(cel_origin_x);
+    let w = cel_image.width() as i32;
+    let h = cel_image.height();
+
+    let (start_x, region_w) = match half {
+        SplitHalf::Left => {
+            let end = center_local.min(w).max(0);
+            (0i32, end)
+        }
+        SplitHalf::Right => {
+            let start = (center_local + 1).max(0).min(w);
+            (start, w - start)
+        }
+    };
+
+    if region_w <= 0 || h == 0 {
+        return None;
+    }
+
+    let cropped = imageops::crop_imm(cel_image, start_x as u32, 0, region_w as u32, h).to_image();
+    let canvas_x = i32::from(cel_origin_x) + start_x;
+    Some((cropped, canvas_x))
+}
+
+/// Tests whether a trimmed sprite is self-symmetric under horizontal flip.
+///
+/// Splits the image at the horizontal centre, excludes the centre column for
+/// odd widths, and compares left half vs flipped right half pixel-by-pixel.
+/// Returns `true` only on exact equality — no fuzzy matching.
+fn is_self_symmetric_h(image: &RgbaImage) -> bool {
+    let w = image.width() as i32;
+    let h = image.height();
+    if w < 2 || h == 0 {
+        return false;
+    }
+    let cx = w / 2;
+    let right_start = if w % 2 == 1 { cx + 1 } else { cx };
+    let half_w = cx as u32;
+    let right_w = (w - right_start) as u32;
+    if half_w != right_w || half_w == 0 {
+        return false;
+    }
+    // Compare left[x, y] == right[half_w - 1 - x, y] for all pixels.
+    for y in 0..h {
+        for x in 0..half_w {
+            let left_px = image.get_pixel(x, y);
+            let right_px = image.get_pixel(right_start as u32 + half_w - 1 - x, y);
+            if left_px != right_px {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn centre_column_has_opaque(image: &RgbaImage, centre_x: u32) -> bool {
+    image
+        .enumerate_pixels()
+        .any(|(x, _, pixel)| x == centre_x && pixel.0[3] > 0)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_self_symmetric_fragments(
+    placements: &mut HashMap<PlacementKey, RawPlacement>,
+    part_id: &str,
+    trimmed_image: &RgbaImage,
+    world_x: i32,
+    world_y: i32,
+    origin: Point,
+    sprite_interner: &mut SpriteInterner,
+    opacity: u8,
+) {
+    let trimmed_w = trimmed_image.width() as i32;
+    let trimmed_h = trimmed_image.height();
+    let cx = trimmed_w / 2;
+    let odd = trimmed_w % 2 == 1;
+
+    let left = imageops::crop_imm(trimmed_image, 0, 0, cx as u32, trimmed_h).to_image();
+    let half_usage = sprite_interner.intern(&left);
+
+    let mut next_fragment = 0u32;
+    placements.insert(
+        (part_id.to_string(), next_fragment),
+        RawPlacement {
+            sprite_id: half_usage.sprite_id.clone(),
+            top_left: Point {
+                x: world_x - origin.x,
+                y: world_y - origin.y,
+            },
+            flip_x: half_usage.flip_x,
+            flip_y: half_usage.flip_y,
+            opacity,
+        },
+    );
+    next_fragment += 1;
+
+    if odd && centre_column_has_opaque(trimmed_image, cx as u32) {
+        let centre_col = imageops::crop_imm(trimmed_image, cx as u32, 0, 1, trimmed_h).to_image();
+        let centre_usage = sprite_interner.intern(&centre_col);
+        placements.insert(
+            (part_id.to_string(), next_fragment),
+            RawPlacement {
+                sprite_id: centre_usage.sprite_id,
+                top_left: Point {
+                    x: (world_x + cx) - origin.x,
+                    y: world_y - origin.y,
+                },
+                flip_x: centre_usage.flip_x,
+                flip_y: centre_usage.flip_y,
+                opacity,
+            },
+        );
+        next_fragment += 1;
+    }
+
+    let right_offset_x = cx + i32::from(odd);
+    placements.insert(
+        (part_id.to_string(), next_fragment),
+        RawPlacement {
+            sprite_id: half_usage.sprite_id,
+            top_left: Point {
+                x: (world_x + right_offset_x) - origin.x,
+                y: world_y - origin.y,
+            },
+            flip_x: !half_usage.flip_x,
+            flip_y: half_usage.flip_y,
+            opacity,
+        },
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_authored_mirror_x_split_fragments(
+    placements: &mut HashMap<PlacementKey, RawPlacement>,
+    part: &PartInstance,
+    cel_image: &RgbaImage,
+    cel_origin_x: i16,
+    cel_origin_y: i16,
+    origin: Point,
+    canvas_origin_x: i32,
+    sprite_interner: &mut SpriteInterner,
+    opacity: u8,
+    _frame_index: usize,
+    _layer_name: &str,
+) -> Result<()> {
+    let left_crop = crop_to_split_half(cel_image, cel_origin_x, canvas_origin_x, SplitHalf::Left);
+    let right_crop = crop_to_split_half(cel_image, cel_origin_x, canvas_origin_x, SplitHalf::Right);
+    let centre_local_x = canvas_origin_x - i32::from(cel_origin_x);
+    let centre_column = if (0..cel_image.width() as i32).contains(&centre_local_x) {
+        let centre = imageops::crop_imm(cel_image, centre_local_x as u32, 0, 1, cel_image.height())
+            .to_image();
+        trim_transparent_bounds(&centre)
+    } else {
+        None
+    };
+    if left_crop.is_none() && right_crop.is_none() && centre_column.is_none() {
+        return Ok(());
+    }
+
+    let left_trimmed = left_crop.and_then(|(cropped, canvas_x)| {
+        trim_transparent_bounds(&cropped).map(|(trimmed, bounds)| {
+            let usage = sprite_interner.intern(&trimmed);
+            let world_x = canvas_x + bounds.x as i32;
+            let world_y = i32::from(cel_origin_y) + bounds.y as i32;
+            RawPlacement {
+                sprite_id: usage.sprite_id,
+                top_left: Point {
+                    x: world_x - origin.x,
+                    y: world_y - origin.y,
+                },
+                flip_x: usage.flip_x,
+                flip_y: usage.flip_y,
+                opacity,
+            }
+        })
+    });
+    let right_trimmed = right_crop.and_then(|(cropped, canvas_x)| {
+        trim_transparent_bounds(&cropped).map(|(trimmed, bounds)| {
+            let usage = sprite_interner.intern(&trimmed);
+            let world_x = canvas_x + bounds.x as i32;
+            let world_y = i32::from(cel_origin_y) + bounds.y as i32;
+            RawPlacement {
+                sprite_id: usage.sprite_id,
+                top_left: Point {
+                    x: world_x - origin.x,
+                    y: world_y - origin.y,
+                },
+                flip_x: usage.flip_x,
+                flip_y: usage.flip_y,
+                opacity,
+            }
+        })
+    });
+    let centre_trimmed = centre_column.map(|(trimmed_centre, centre_bounds)| {
+        let usage = sprite_interner.intern(&trimmed_centre);
+        let world_x = canvas_origin_x;
+        let world_y = i32::from(cel_origin_y) + centre_bounds.y as i32;
+        RawPlacement {
+            sprite_id: usage.sprite_id,
+            top_left: Point {
+                x: world_x - origin.x,
+                y: world_y - origin.y,
+            },
+            flip_x: usage.flip_x,
+            flip_y: usage.flip_y,
+            opacity,
+        }
+    });
+
+    let mut next_fragment = 0u32;
+    if let Some(left) = left_trimmed {
+        placements.insert((part.id.clone(), next_fragment), left);
+        next_fragment += 1;
+    }
+    if let Some(centre) = centre_trimmed {
+        placements.insert((part.id.clone(), next_fragment), centre);
+        next_fragment += 1;
+    }
+    if let Some(right) = right_trimmed {
+        placements.insert((part.id.clone(), next_fragment), right);
+    }
+
+    Ok(())
+}
+
+/// Key for raw placements: `(part_id, fragment_index)`.
+type PlacementKey = (String, u32);
+
 fn build_raw_placements(
     parts: &[PartInstance],
     layer_lookup: &HashMap<&str, &SelectedLayer<'_>>,
@@ -1861,7 +2273,7 @@ fn build_raw_placements(
     frame_index: usize,
     origin: Point,
     sprite_interner: &mut SpriteInterner,
-) -> Result<HashMap<String, RawPlacement>> {
+) -> Result<HashMap<PlacementKey, RawPlacement>> {
     let mut placements = HashMap::new();
     let raw_frame = aseprite
         .file
@@ -1870,9 +2282,15 @@ fn build_raw_placements(
         .ok_or_else(|| anyhow!("Missing raw frame {frame_index} while building placements"))?;
 
     for part in parts {
-        let Some(layer_name) = part.source_layer.as_deref() else {
-            continue;
+        // Resolve the layer name: either from source_layer or source_region.
+        let (layer_name, split_half) = if let Some(ref name) = part.source_layer {
+            (name.as_str(), None)
+        } else if let Some(ref region) = part.source_region {
+            (region.layer.as_str(), Some(region.half))
+        } else {
+            continue; // Non-visual marker part.
         };
+
         let layer = layer_lookup.get(layer_name).ok_or_else(|| {
             anyhow!(
                 "part '{}' references missing source layer '{}'",
@@ -1903,15 +2321,75 @@ fn build_raw_placements(
         );
 
         let cel_image = load_cel_image(aseprite, frame_cel)?;
-        let Some((trimmed_image, trimmed_bounds)) = trim_transparent_bounds(&cel_image) else {
+        let opacity = combine_opacity(layer.opacity, raw_cel.opacity);
+
+        // Split parts are a visual-only decomposition around the composition
+        // origin. The exporter preserves the authored left half, optional
+        // centre strip, and authored right half exactly; it does not require
+        // the layer itself to be self-symmetric.
+        if part.split.is_some() {
+            emit_authored_mirror_x_split_fragments(
+                &mut placements,
+                part,
+                &cel_image,
+                frame_cel.origin.0,
+                frame_cel.origin.1,
+                origin,
+                origin.x,
+                sprite_interner,
+                opacity,
+                frame_index,
+                layer_name,
+            )?;
+            continue;
+        }
+
+        // For source_region parts, crop to the requested half before trimming.
+        let (working_image, base_x) = if let Some(half) = split_half {
+            let Some((cropped, canvas_x)) =
+                crop_to_split_half(&cel_image, frame_cel.origin.0, origin.x, half)
+            else {
+                continue; // Cel does not span this half.
+            };
+            (cropped, canvas_x)
+        } else {
+            (cel_image, i32::from(frame_cel.origin.0))
+        };
+
+        let Some((trimmed_image, trimmed_bounds)) = trim_transparent_bounds(&working_image) else {
             continue;
         };
-        let usage = sprite_interner.intern(&trimmed_image);
-        let world_x = i32::from(frame_cel.origin.0) + trimmed_bounds.x as i32;
+        let world_x = base_x + trimmed_bounds.x as i32;
         let world_y = i32::from(frame_cel.origin.1) + trimmed_bounds.y as i32;
 
+        // Auto-canonicalisation: if the trimmed sprite is self-symmetric under
+        // H-flip, store only the left half and reconstruct via mirror fragments.
+        //
+        // For odd-width sprites with a non-empty centre column, a 3rd fragment
+        // preserves the centre strip that would otherwise be lost.
+        //
+        // Fragment layout:
+        //   even width:              [left half] [mirrored right half]
+        //   odd width, empty centre: [left half] [mirrored right half]
+        //   odd width, filled centre: [left half] [centre strip] [mirrored right half]
+        if is_self_symmetric_h(&trimmed_image) {
+            emit_self_symmetric_fragments(
+                &mut placements,
+                &part.id,
+                &trimmed_image,
+                world_x,
+                world_y,
+                origin,
+                sprite_interner,
+                opacity,
+            );
+            continue;
+        }
+
+        let usage = sprite_interner.intern(&trimmed_image);
+
         placements.insert(
-            part.id.clone(),
+            (part.id.clone(), 0),
             RawPlacement {
                 sprite_id: usage.sprite_id,
                 top_left: Point {
@@ -1920,7 +2398,7 @@ fn build_raw_placements(
                 },
                 flip_x: usage.flip_x,
                 flip_y: usage.flip_y,
-                opacity: combine_opacity(layer.opacity, raw_cel.opacity),
+                opacity,
             },
         );
     }
@@ -1930,7 +2408,7 @@ fn build_raw_placements(
 
 fn build_frame_poses(
     parts: &[PartInstance],
-    raw_placements: &HashMap<String, RawPlacement>,
+    raw_placements: &HashMap<PlacementKey, RawPlacement>,
     topo_order: &[String],
     frame_index: usize,
     animation_tag: &str,
@@ -1944,13 +2422,46 @@ fn build_frame_poses(
         let Some(part) = part_lookup.get(part_id.as_str()) else {
             continue;
         };
-        let Some(raw) = raw_placements.get(part.id.as_str()) else {
+
+        // Collect all fragment indices for this part from the raw placements.
+        let mut fragment_indices: Vec<u32> = raw_placements
+            .keys()
+            .filter(|(id, _)| id == &part.id)
+            .map(|(_, frag)| *frag)
+            .collect();
+        fragment_indices.sort_unstable();
+
+        if fragment_indices.is_empty() {
             continue;
-        };
+        }
+
+        ensure!(
+            fragment_indices.first().copied() == Some(0),
+            "animation '{}' frame {} part '{}' is missing primary fragment 0",
+            animation_tag,
+            frame_index,
+            part.id
+        );
+        for (expected, actual) in fragment_indices.iter().enumerate() {
+            ensure!(
+                *actual == expected as u32,
+                "animation '{}' frame {} part '{}' has non-contiguous fragments: expected {} but found {}",
+                animation_tag,
+                frame_index,
+                part.id,
+                expected,
+                actual
+            );
+        }
+
+        // Fragment 0 is the primary fragment; indices are contiguous from there.
+        let primary_raw = raw_placements
+            .get(&(part.id.clone(), fragment_indices[0]))
+            .expect("fragment index collected from keys");
 
         let pivot_world = Point {
-            x: raw.top_left.x + part.pivot.x,
-            y: raw.top_left.y + part.pivot.y,
+            x: primary_raw.top_left.x + part.pivot.x,
+            y: primary_raw.top_left.y + part.pivot.y,
         };
         let local_offset = if part.parent_id.is_some() {
             let parent_pivot = resolve_parent_pivot_anchor(&part_lookup, part, &absolute_pivots)
@@ -1969,15 +2480,50 @@ fn build_frame_poses(
         };
 
         absolute_pivots.insert(part.id.clone(), pivot_world);
-        poses.push(PartPose {
-            part_id: part.id.clone(),
-            sprite_id: raw.sprite_id.clone(),
-            local_offset,
-            flip_x: raw.flip_x,
-            flip_y: raw.flip_y,
-            visible: true,
-            opacity: raw.opacity,
-        });
+
+        // Emit one pose per fragment.
+        for &fragment in &fragment_indices {
+            let raw = raw_placements
+                .get(&(part.id.clone(), fragment))
+                .expect("fragment index collected from keys");
+
+            // For non-primary fragments, compute offset relative to primary.
+            let frag_offset = if fragment == fragment_indices[0] {
+                local_offset
+            } else {
+                let frag_pivot = Point {
+                    x: raw.top_left.x + part.pivot.x,
+                    y: raw.top_left.y + part.pivot.y,
+                };
+                if part.parent_id.is_some() {
+                    let parent_pivot =
+                        resolve_parent_pivot_anchor(&part_lookup, part, &absolute_pivots)
+                            .with_context(|| {
+                                format!(
+                                    "animation '{}' frame {} renders '{}' fragment {} without visible parent chain",
+                                    animation_tag, frame_index, part.id, fragment
+                                )
+                            })?;
+                    Point {
+                        x: frag_pivot.x - parent_pivot.x,
+                        y: frag_pivot.y - parent_pivot.y,
+                    }
+                } else {
+                    frag_pivot
+                }
+            };
+
+            poses.push(PartPose {
+                part_id: part.id.clone(),
+                sprite_id: raw.sprite_id.clone(),
+                local_offset: frag_offset,
+                flip_x: raw.flip_x,
+                flip_y: raw.flip_y,
+                visible: true,
+                opacity: raw.opacity,
+                fragment,
+            });
+        }
     }
 
     poses.sort_by_key(|pose| {
@@ -1999,7 +2545,7 @@ fn resolve_parent_pivot_anchor(
         let parent = part_lookup
             .get(current_parent_id)
             .expect("validated hierarchy parent");
-        if parent.source_layer.is_some() {
+        if parent.source_layer.is_some() || parent.source_region.is_some() {
             return absolute_pivots
                 .get(current_parent_id)
                 .copied()
@@ -2021,6 +2567,8 @@ impl CompositionPartSource {
             name: self.name.clone().unwrap_or_else(|| self.id.clone()),
             parent_id: self.parent_id.clone(),
             source_layer: self.source_layer.clone(),
+            source_region: self.source_region.clone(),
+            split: self.split,
             draw_order: self.draw_order,
             pivot: self.pivot.unwrap_or_default(),
             tags: self.tags.clone(),
@@ -2028,11 +2576,16 @@ impl CompositionPartSource {
             gameplay: self.gameplay.clone(),
         }
     }
+
+    /// Whether this part is visual (has a source layer or region).
+    fn is_visual(&self) -> bool {
+        self.source_layer.is_some() || self.source_region.is_some()
+    }
 }
 
 impl SpriteInterner {
     fn intern(&mut self, image: &RgbaImage) -> SpriteUsage {
-        intern_sprite(&mut self.sprites, &mut self.cache, image)
+        intern_sprite(&mut self.sprites, &mut self.cache, &mut self.stats, image)
     }
 }
 
@@ -2094,14 +2647,16 @@ impl SpriteSpec {
 #[cfg(test)]
 mod tests {
     use super::{
-        AnimationEventKind, CollisionShape, CollisionVolume, CompositionAnimationEventSource,
-        CompositionGameplay, CompositionPartSource, CompositionSource, HealthPool, ImageKey,
-        Manifest, PartDefinition, PartGameplayMetadata, Point, Rect, SpriteSpec, Vec2Value,
-        image_key, normalize_part_id, trim_transparent_bounds, validate_composition_source,
-        validate_manifest,
+        Animation, AnimationEventKind, AnimationFrame, AtlasSprite, CollisionShape,
+        CollisionVolume, CompositionAnimationEventSource, CompositionAtlas, CompositionGameplay,
+        CompositionPartSource, CompositionSource, HealthPool, ImageKey, Manifest, PartDefinition,
+        PartGameplayMetadata, PartInstance, PartPose, Point, Rect, Size, SplitMode, SpriteInterner,
+        SpriteSpec, Vec2Value, emit_authored_mirror_x_split_fragments, image_key,
+        normalize_part_id, trim_transparent_bounds, validate_composition_atlas,
+        validate_composition_source, validate_manifest,
     };
-    use image::{ImageBuffer, Rgba};
-    use std::path::PathBuf;
+    use image::{ImageBuffer, Rgba, RgbaImage};
+    use std::{collections::HashMap, path::PathBuf};
 
     fn sprite(entity: &str, depth: u8) -> SpriteSpec {
         SpriteSpec {
@@ -2180,6 +2735,8 @@ mod tests {
                 name: Some("Body".to_string()),
                 parent_id: None,
                 source_layer: Some("body".to_string()),
+                source_region: None,
+                split: None,
                 draw_order: 0,
                 pivot: Some(Point::default()),
                 tags: vec![],
@@ -2248,6 +2805,120 @@ mod tests {
         );
     }
 
+    /// Verifies that centre-column exclusion during a symmetric split produces
+    /// equal-width halves that the interner deduplicates via horizontal flip.
+    ///
+    /// Given a 5-wide horizontally symmetric image:
+    ///   [A B | C | B A]      (C is the centre column)
+    ///
+    /// With centre exclusion:
+    ///   left  = [A B]   (2 px)
+    ///   right = [B A]   (2 px)
+    ///   right == H-flip of left → interner returns same sprite_id with flip_x
+    ///
+    /// Without centre exclusion:
+    ///   left  = [A B]   (2 px)
+    ///   right = [C B A] (3 px)
+    ///   Different widths → interner cannot match.
+    #[test]
+    fn centre_column_exclusion_enables_flip_dedup_for_symmetric_sprites() {
+        let mut interner = SpriteInterner::default();
+
+        // Build a 5x2 symmetric image: columns mirror around the centre (col 2).
+        //   col:  0   1   2   3   4
+        //         R   G   W   G   R    (row 0)
+        //         B   Y   W   Y   B    (row 1)
+        let red = Rgba([255, 0, 0, 255]);
+        let green = Rgba([0, 255, 0, 255]);
+        let white = Rgba([255, 255, 255, 255]);
+        let blue = Rgba([0, 0, 255, 255]);
+        let yellow = Rgba([255, 255, 0, 255]);
+
+        let mut full = ImageBuffer::from_pixel(5, 2, Rgba([0, 0, 0, 0]));
+        full.put_pixel(0, 0, red);
+        full.put_pixel(1, 0, green);
+        full.put_pixel(2, 0, white);
+        full.put_pixel(3, 0, green);
+        full.put_pixel(4, 0, red);
+        full.put_pixel(0, 1, blue);
+        full.put_pixel(1, 1, yellow);
+        full.put_pixel(2, 1, white);
+        full.put_pixel(3, 1, yellow);
+        full.put_pixel(4, 1, blue);
+
+        let mid = 2; // floor(5 / 2)
+
+        // Split WITH centre-column exclusion: left = [0,2), right = [3,5).
+        let left: RgbaImage = ImageBuffer::from_fn(mid as u32, 2, |x, y| *full.get_pixel(x, y));
+        let right: RgbaImage =
+            ImageBuffer::from_fn(mid as u32, 2, |x, y| *full.get_pixel(x + mid as u32 + 1, y));
+
+        assert_eq!(left.width(), right.width(), "halves must have equal width");
+
+        let usage_l = interner.intern(&left);
+        let usage_r = interner.intern(&right);
+
+        assert_eq!(
+            usage_l.sprite_id, usage_r.sprite_id,
+            "symmetric halves should share a sprite_id after centre exclusion"
+        );
+        assert!(!usage_l.flip_x, "left half should be canonical (no flip)");
+        assert!(
+            usage_r.flip_x,
+            "right half should be detected as H-flip of left"
+        );
+        assert_eq!(
+            interner.stats.new_sprites, 1,
+            "only one unique sprite should be created"
+        );
+        assert_eq!(
+            interner.stats.flip_x_hits, 1,
+            "right half should register as a flip_x cache hit"
+        );
+    }
+
+    /// Confirms that WITHOUT centre-column exclusion, equal-content halves
+    /// of an odd-width sprite have different dimensions and cannot match.
+    #[test]
+    fn odd_width_split_without_exclusion_prevents_dedup() {
+        let mut interner = SpriteInterner::default();
+
+        // Same 5x2 symmetric image.
+        let red = Rgba([255, 0, 0, 255]);
+        let green = Rgba([0, 255, 0, 255]);
+        let white = Rgba([255, 255, 255, 255]);
+
+        let mut full = ImageBuffer::from_pixel(5, 1, Rgba([0, 0, 0, 0]));
+        full.put_pixel(0, 0, red);
+        full.put_pixel(1, 0, green);
+        full.put_pixel(2, 0, white);
+        full.put_pixel(3, 0, green);
+        full.put_pixel(4, 0, red);
+
+        let mid = 2;
+
+        // Split WITHOUT exclusion: left = [0,2), right = [2,5) — includes centre.
+        let left: RgbaImage = ImageBuffer::from_fn(mid as u32, 1, |x, y| *full.get_pixel(x, y));
+        let right_with_centre: RgbaImage =
+            ImageBuffer::from_fn(5 - mid as u32, 1, |x, y| *full.get_pixel(x + mid as u32, y));
+
+        assert_ne!(
+            left.width(),
+            right_with_centre.width(),
+            "without exclusion, halves have different widths"
+        );
+
+        let usage_l = interner.intern(&left);
+        let usage_r = interner.intern(&right_with_centre);
+
+        assert_ne!(
+            usage_l.sprite_id, usage_r.sprite_id,
+            "different-width halves cannot deduplicate"
+        );
+        assert_eq!(interner.stats.new_sprites, 2);
+        assert_eq!(interner.stats.flip_x_hits, 0);
+    }
+
     #[test]
     fn rejects_composition_cycles() {
         let mut composition = minimal_composition();
@@ -2257,6 +2928,8 @@ mod tests {
             name: Some("Head".to_string()),
             parent_id: Some("body".to_string()),
             source_layer: Some("head".to_string()),
+            source_region: None,
+            split: None,
             draw_order: 1,
             pivot: Some(Point::default()),
             tags: vec![],
@@ -2309,6 +2982,8 @@ mod tests {
             name: Some("Marker".to_string()),
             parent_id: Some("body".to_string()),
             source_layer: None,
+            source_region: None,
+            split: None,
             draw_order: 1,
             pivot: None,
             tags: vec![],
@@ -2456,6 +3131,565 @@ mod tests {
             .expect_err("missing part should fail")
             .to_string();
         assert!(error.contains("missing part"));
+    }
+
+    // -- T-6: Validation rejects split + source_region --
+
+    #[test]
+    fn rejects_split_with_source_region() {
+        let mut comp = minimal_composition();
+        // Clear source_layer so the source_layer-OR-source_region contract
+        // doesn't fire first, then set both split and source_region.
+        comp.parts[0].source_layer = None;
+        comp.parts[0].split = Some(super::SplitMode::MirrorX);
+        comp.parts[0].source_region = Some(super::SourceRegion {
+            layer: "body".to_string(),
+            half: super::SplitHalf::Left,
+        });
+        let error = validate_composition_source(&comp).unwrap_err().to_string();
+        assert!(
+            error.contains("split") && error.contains("source_region"),
+            "expected split+source_region rejection, got: {error}"
+        );
+    }
+
+    #[test]
+    fn rejects_split_without_source_layer() {
+        let mut comp = minimal_composition();
+        comp.parts[0].source_layer = None;
+        comp.parts[0].split = Some(super::SplitMode::MirrorX);
+        let error = validate_composition_source(&comp).unwrap_err().to_string();
+        assert!(
+            error.contains("split") && error.contains("source_layer"),
+            "expected split-without-source_layer rejection, got: {error}"
+        );
+    }
+
+    // -- Self-symmetry detection tests --
+
+    fn make_symmetric_image(w: u32, h: u32, fill_centre: bool) -> RgbaImage {
+        let red = Rgba([255, 0, 0, 255]);
+        let blue = Rgba([0, 0, 255, 255]);
+        let green = Rgba([0, 255, 0, 255]);
+        let transparent = Rgba([0, 0, 0, 0]);
+        let cx = w / 2;
+        let odd = w % 2 == 1;
+        ImageBuffer::from_fn(w, h, |x, y| {
+            if odd && x == cx {
+                return if fill_centre { green } else { transparent };
+            }
+            // Map right-side pixels to their left-side mirror coordinate.
+            let lx = if x < cx {
+                x
+            } else {
+                // For odd width: right side starts at cx+1, mirror of cx+1 is cx-1, etc.
+                // For even width: right side starts at cx, mirror of cx is cx-1, etc.
+                let right_start = if odd { cx + 1 } else { cx };
+                let dist_from_right_start = x - right_start;
+                cx - 1 - dist_from_right_start
+            };
+            if (lx + y) % 2 == 0 { red } else { blue }
+        })
+    }
+
+    fn make_split_part_instance() -> PartInstance {
+        PartInstance {
+            id: "legs_visual".to_string(),
+            definition_id: "legs".to_string(),
+            name: "Legs Visual".to_string(),
+            parent_id: None,
+            source_layer: Some("legs".to_string()),
+            source_region: None,
+            split: Some(SplitMode::MirrorX),
+            draw_order: 0,
+            pivot: Point::default(),
+            tags: vec![],
+            visible_by_default: true,
+            gameplay: PartGameplayMetadata::default(),
+        }
+    }
+
+    fn reconstruct_fragment_image(
+        placements: &HashMap<(String, u32), super::RawPlacement>,
+        interner: &SpriteInterner,
+        expected_top_left: Point,
+        width: u32,
+        height: u32,
+    ) -> RgbaImage {
+        let mut reconstructed = RgbaImage::new(width, height);
+        let mut fragments: Vec<_> = placements.iter().collect();
+        fragments.sort_unstable_by_key(|((_, fragment), _)| *fragment);
+
+        for ((_part_id, _fragment), placement) in fragments {
+            let sprite = interner
+                .sprites
+                .iter()
+                .find(|sprite| sprite.id == placement.sprite_id)
+                .expect("placement sprite should exist in interner");
+            let mut image = sprite.image.clone();
+            if placement.flip_x {
+                image = image::imageops::flip_horizontal(&image);
+            }
+            if placement.flip_y {
+                image = image::imageops::flip_vertical(&image);
+            }
+
+            let draw_x = (placement.top_left.x - expected_top_left.x) as u32;
+            let draw_y = (placement.top_left.y - expected_top_left.y) as u32;
+            for y in 0..image.height() {
+                for x in 0..image.width() {
+                    let pixel = image.get_pixel(x, y);
+                    if pixel.0[3] > 0 {
+                        reconstructed.put_pixel(draw_x + x, draw_y + y, *pixel);
+                    }
+                }
+            }
+        }
+
+        reconstructed
+    }
+
+    fn assert_authored_mirror_x_split_lossless(
+        original: &RgbaImage,
+        label: &str,
+        expected_fragments: Option<Vec<u32>>,
+    ) {
+        let pad_left = 2u32;
+        let pad_top = 1u32;
+        let pad_right = 3u32;
+        let pad_bottom = 2u32;
+        let origin = Point { x: 20, y: 7 };
+        let frame_origin_x = (origin.x - (pad_left as i32 + (original.width() / 2) as i32)) as i16;
+        let frame_origin_y = 29i16;
+
+        let mut cel = RgbaImage::new(
+            original.width() + pad_left + pad_right,
+            original.height() + pad_top + pad_bottom,
+        );
+        for y in 0..original.height() {
+            for x in 0..original.width() {
+                cel.put_pixel(x + pad_left, y + pad_top, *original.get_pixel(x, y));
+            }
+        }
+
+        let (trimmed_image, _trimmed_bounds) =
+            trim_transparent_bounds(&cel).expect("padded cel should trim back to authored image");
+        assert_eq!(
+            trimmed_image, *original,
+            "{label}: trim path should preserve authored pixels before split emission"
+        );
+
+        let expected_top_left = Point {
+            x: i32::from(frame_origin_x) + pad_left as i32 - origin.x,
+            y: i32::from(frame_origin_y) + pad_top as i32 - origin.y,
+        };
+        let mut placements = HashMap::new();
+        let mut interner = SpriteInterner::default();
+        let part = make_split_part_instance();
+
+        emit_authored_mirror_x_split_fragments(
+            &mut placements,
+            &part,
+            &cel,
+            frame_origin_x,
+            frame_origin_y,
+            origin,
+            origin.x,
+            &mut interner,
+            255,
+            0,
+            "legs",
+        )
+        .expect("authored mirror_x split should emit fragments");
+
+        let mut fragment_indices: Vec<_> = placements
+            .keys()
+            .map(|(_part_id, fragment)| *fragment)
+            .collect();
+        fragment_indices.sort_unstable();
+        if let Some(expected_fragments) = expected_fragments {
+            assert_eq!(
+                fragment_indices, expected_fragments,
+                "{label}: emitted fragment indices should be contiguous and start at 0"
+            );
+        }
+
+        let reconstructed = reconstruct_fragment_image(
+            &placements,
+            &interner,
+            expected_top_left,
+            original.width(),
+            original.height(),
+        );
+
+        for y in 0..original.height() {
+            for x in 0..original.width() {
+                assert_eq!(
+                    original.get_pixel(x, y),
+                    reconstructed.get_pixel(x, y),
+                    "{label}: pixel mismatch at ({x},{y})"
+                );
+            }
+        }
+    }
+
+    fn make_fragment_contract_atlas(frame_parts: Vec<PartPose>) -> CompositionAtlas {
+        CompositionAtlas {
+            schema_version: 3,
+            entity: "fragment_contract".to_string(),
+            depth: 1,
+            source: "fragment_contract.aseprite".to_string(),
+            canvas: Size { w: 16, h: 16 },
+            origin: Point::default(),
+            atlas_image: "source.png".to_string(),
+            part_definitions: vec![PartDefinition {
+                id: "legs".to_string(),
+                tags: vec![],
+                gameplay: PartGameplayMetadata::default(),
+            }],
+            parts: vec![PartInstance {
+                id: "legs_visual".to_string(),
+                definition_id: "legs".to_string(),
+                name: "Legs Visual".to_string(),
+                parent_id: None,
+                source_layer: Some("legs".to_string()),
+                source_region: None,
+                split: Some(SplitMode::MirrorX),
+                draw_order: 0,
+                pivot: Point::default(),
+                tags: vec![],
+                visible_by_default: true,
+                gameplay: PartGameplayMetadata::default(),
+            }],
+            sprites: vec![
+                AtlasSprite {
+                    id: "legs_left".to_string(),
+                    rect: Rect {
+                        x: 0,
+                        y: 0,
+                        w: 3,
+                        h: 4,
+                    },
+                },
+                AtlasSprite {
+                    id: "legs_right".to_string(),
+                    rect: Rect {
+                        x: 3,
+                        y: 0,
+                        w: 3,
+                        h: 4,
+                    },
+                },
+            ],
+            animations: vec![Animation {
+                tag: "idle".to_string(),
+                direction: "forward".to_string(),
+                repeats: None,
+                frames: vec![AnimationFrame {
+                    source_frame: 0,
+                    duration_ms: 100,
+                    events: vec![],
+                    parts: frame_parts,
+                }],
+            }],
+            gameplay: CompositionGameplay {
+                entity_health_pool: None,
+                health_pools: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn self_symmetry_detects_even_width() {
+        let img = make_symmetric_image(8, 8, false);
+        assert!(super::is_self_symmetric_h(&img));
+    }
+
+    #[test]
+    fn self_symmetry_detects_odd_width_empty_centre() {
+        let img = make_symmetric_image(9, 9, false);
+        assert!(super::is_self_symmetric_h(&img));
+    }
+
+    #[test]
+    fn self_symmetry_detects_odd_width_filled_centre() {
+        let img = make_symmetric_image(9, 9, true);
+        assert!(super::is_self_symmetric_h(&img));
+    }
+
+    #[test]
+    fn self_symmetry_rejects_asymmetric() {
+        let mut img = make_symmetric_image(8, 8, false);
+        // Break symmetry by changing one pixel on the right half only.
+        img.put_pixel(6, 3, Rgba([0, 255, 0, 255]));
+        assert!(!super::is_self_symmetric_h(&img));
+    }
+
+    #[test]
+    fn self_symmetry_rejects_near_miss() {
+        let mut img = make_symmetric_image(10, 10, false);
+        // 1 pixel different on the right side.
+        img.put_pixel(8, 4, Rgba([128, 128, 128, 255]));
+        assert!(!super::is_self_symmetric_h(&img));
+    }
+
+    #[test]
+    fn self_symmetry_rejects_too_narrow() {
+        let img: RgbaImage = ImageBuffer::from_fn(1, 5, |_, _| Rgba([255, 0, 0, 255]));
+        assert!(!super::is_self_symmetric_h(&img));
+    }
+
+    /// Simulate the actual auto-canonicalisation pipeline path for a given
+    /// symmetric image: detect symmetry, crop/intern fragments, then
+    /// reconstruct from fragments and verify pixel-exact equivalence.
+    fn assert_auto_canon_lossless(original: &RgbaImage, label: &str) {
+        let w = original.width();
+        let h = original.height();
+        assert!(
+            super::is_self_symmetric_h(original),
+            "{label}: precondition — image must be self-symmetric"
+        );
+
+        let cx = w / 2;
+        let odd = w % 2 == 1;
+        let mut interner = SpriteInterner::default();
+
+        // --- replicate the exact pipeline path in build_raw_placements ---
+        // Left half
+        let left = image::imageops::crop_imm(original, 0, 0, cx, h).to_image();
+        let half_usage = interner.intern(&left);
+
+        // Collect fragments as (sprite_image, render_x, flip_x)
+        let mut fragments: Vec<(RgbaImage, u32, bool)> = Vec::new();
+
+        // Fragment 0: left half
+        let half_sprite = interner.sprites[0].image.clone();
+        let f0_img = if half_usage.flip_x {
+            image::imageops::flip_horizontal(&half_sprite)
+        } else {
+            half_sprite.clone()
+        };
+        fragments.push((f0_img, 0, false));
+
+        // Centre strip (odd-width, if opaque pixels present)
+        if odd {
+            let centre_col = image::imageops::crop_imm(original, cx, 0, 1, h).to_image();
+            let has_opaque = centre_col.pixels().any(|p| p.0[3] > 0);
+            if has_opaque {
+                let centre_usage = interner.intern(&centre_col);
+                let idx = interner
+                    .sprites
+                    .iter()
+                    .position(|s| s.id == centre_usage.sprite_id)
+                    .expect("centre sprite must exist");
+                let mut c_img = interner.sprites[idx].image.clone();
+                if centre_usage.flip_x {
+                    c_img = image::imageops::flip_horizontal(&c_img);
+                }
+                if centre_usage.flip_y {
+                    c_img = image::imageops::flip_vertical(&c_img);
+                }
+                fragments.push((c_img, cx, false));
+            }
+        }
+
+        // Mirrored right half
+        let right_x = cx + u32::from(odd);
+        let right_img = if !half_usage.flip_x {
+            image::imageops::flip_horizontal(&half_sprite)
+        } else {
+            half_sprite.clone()
+        };
+        fragments.push((right_img, right_x, true));
+
+        // --- reconstruct from fragments ---
+        let mut reconstructed = RgbaImage::new(w, h);
+        for (frag_img, rx, _) in &fragments {
+            for y in 0..frag_img.height() {
+                for x in 0..frag_img.width() {
+                    let px = frag_img.get_pixel(x, y);
+                    if px.0[3] > 0 {
+                        reconstructed.put_pixel(rx + x, y, *px);
+                    }
+                }
+            }
+        }
+
+        // --- verify pixel-exact equivalence ---
+        for y in 0..h {
+            for x in 0..w {
+                assert_eq!(
+                    original.get_pixel(x, y),
+                    reconstructed.get_pixel(x, y),
+                    "{label}: pixel mismatch at ({x},{y})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn pixel_equivalence_even_width_auto_canon() {
+        let img = make_symmetric_image(8, 6, false);
+        assert_auto_canon_lossless(&img, "8x6 even");
+    }
+
+    #[test]
+    fn pixel_equivalence_odd_width_empty_centre_auto_canon() {
+        let img = make_symmetric_image(9, 7, false);
+        assert_auto_canon_lossless(&img, "9x7 empty centre");
+    }
+
+    #[test]
+    fn pixel_equivalence_odd_width_filled_centre_auto_canon() {
+        let img = make_symmetric_image(9, 7, true);
+        assert_auto_canon_lossless(&img, "9x7 filled centre");
+    }
+
+    #[test]
+    fn pixel_equivalence_large_odd_filled_centre_auto_canon() {
+        // Matches mosquiton head dimensions: 13px wide, odd, filled centre.
+        let img = make_symmetric_image(13, 30, true);
+        assert_auto_canon_lossless(&img, "13x30 filled centre");
+    }
+
+    #[test]
+    fn pixel_equivalence_body_dimensions_auto_canon() {
+        // Matches mosquiton body dimensions: 23px wide, odd, filled centre.
+        let img = make_symmetric_image(23, 25, true);
+        assert_auto_canon_lossless(&img, "23x25 filled centre");
+    }
+
+    #[test]
+    fn pixel_equivalence_even_width_authored_mirror_x_split() {
+        let img = make_symmetric_image(8, 6, false);
+        assert_authored_mirror_x_split_lossless(&img, "8x6 even authored split", None);
+    }
+
+    #[test]
+    fn pixel_equivalence_odd_width_empty_centre_authored_mirror_x_split() {
+        let img = make_symmetric_image(9, 7, false);
+        assert_authored_mirror_x_split_lossless(
+            &img,
+            "9x7 empty centre authored split",
+            Some(vec![0, 1]),
+        );
+    }
+
+    #[test]
+    fn pixel_equivalence_odd_width_filled_centre_authored_mirror_x_split() {
+        let img = make_symmetric_image(9, 7, true);
+        assert_authored_mirror_x_split_lossless(
+            &img,
+            "9x7 filled centre authored split",
+            Some(vec![0, 1, 2]),
+        );
+    }
+
+    #[test]
+    fn authored_mirror_x_split_preserves_asymmetric_cels_losslessly() {
+        let mut img = make_symmetric_image(9, 7, true);
+        img.put_pixel(7, 3, Rgba([255, 255, 255, 255]));
+
+        assert_authored_mirror_x_split_lossless(&img, "9x7 asymmetric authored split", None);
+    }
+
+    #[test]
+    fn validate_composition_atlas_rejects_missing_primary_fragment() {
+        let atlas = make_fragment_contract_atlas(vec![PartPose {
+            part_id: "legs_visual".to_string(),
+            sprite_id: "legs_right".to_string(),
+            local_offset: Point::default(),
+            flip_x: true,
+            flip_y: false,
+            visible: true,
+            opacity: 255,
+            fragment: 1,
+        }]);
+
+        let error = validate_composition_atlas(&atlas)
+            .expect_err("missing fragment 0 should be rejected")
+            .to_string();
+        assert!(error.contains("missing primary fragment 0"));
+    }
+
+    #[test]
+    fn validate_composition_atlas_rejects_non_contiguous_fragment_indices() {
+        let atlas = make_fragment_contract_atlas(vec![
+            PartPose {
+                part_id: "legs_visual".to_string(),
+                sprite_id: "legs_left".to_string(),
+                local_offset: Point { x: -3, y: 0 },
+                flip_x: false,
+                flip_y: false,
+                visible: true,
+                opacity: 255,
+                fragment: 0,
+            },
+            PartPose {
+                part_id: "legs_visual".to_string(),
+                sprite_id: "legs_right".to_string(),
+                local_offset: Point { x: 3, y: 0 },
+                flip_x: true,
+                flip_y: false,
+                visible: true,
+                opacity: 255,
+                fragment: 2,
+            },
+        ]);
+
+        let error = validate_composition_atlas(&atlas)
+            .expect_err("fragment gaps should be rejected")
+            .to_string();
+        assert!(error.contains("non-contiguous fragments"));
+    }
+
+    #[test]
+    fn validate_composition_atlas_rejects_duplicate_fragment_indices() {
+        let atlas = make_fragment_contract_atlas(vec![
+            PartPose {
+                part_id: "legs_visual".to_string(),
+                sprite_id: "legs_left".to_string(),
+                local_offset: Point { x: -3, y: 0 },
+                flip_x: false,
+                flip_y: false,
+                visible: true,
+                opacity: 255,
+                fragment: 0,
+            },
+            PartPose {
+                part_id: "legs_visual".to_string(),
+                sprite_id: "legs_right".to_string(),
+                local_offset: Point { x: 3, y: 0 },
+                flip_x: true,
+                flip_y: false,
+                visible: true,
+                opacity: 255,
+                fragment: 0,
+            },
+        ]);
+
+        let error = validate_composition_atlas(&atlas)
+            .expect_err("duplicate fragment indices should be rejected")
+            .to_string();
+        assert!(error.contains("fragment 0 more than once"));
+    }
+
+    #[test]
+    fn symmetric_half_interns_as_single_sprite() {
+        // A symmetric 8x4 image should intern its left half and detect flip.
+        let img = make_symmetric_image(8, 4, false);
+        let left = image::imageops::crop_imm(&img, 0, 0, 4, 4).to_image();
+        let right = image::imageops::crop_imm(&img, 4, 0, 4, 4).to_image();
+
+        let mut interner = SpriteInterner::default();
+        let usage_left = interner.intern(&left);
+        let usage_right = interner.intern(&right);
+
+        assert_eq!(
+            usage_left.sprite_id, usage_right.sprite_id,
+            "symmetric halves should dedup to same sprite"
+        );
+        assert!(usage_right.flip_x, "right half should match via H-flip");
     }
 
     fn bind_animation_events_for_tests<'a>(
