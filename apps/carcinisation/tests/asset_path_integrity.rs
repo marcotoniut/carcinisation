@@ -3,7 +3,7 @@
 //! Validates that sprite files referenced by enemy data definitions exist on disk:
 //! - Legacy atlas-strip mosquitoes (24 sprites across 6 depths × 4 animations)
 //! - Legacy atlas-strip tardigrades (12 sprites across 3 depths × 4 animations)
-//! - Composed mosquiton atlas assets (atlas.json + atlas.png)
+//! - Composed mosquiton atlas assets (atlas.json + atlas.pxi)
 //!
 //! # Why These Tests Exist
 //!
@@ -30,13 +30,13 @@
 //!
 //! **Mosquiton composed assets**:
 //! - `sprites/enemies/mosquiton_3/atlas.json`
-//! - `sprites/enemies/mosquiton_3/atlas.png`
+//! - `sprites/enemies/mosquiton_3/atlas.pxi`
 
 use carcinisation::stage::{
     components::placement::Depth,
     enemy::data::{mosquito::MOSQUITO_ANIMATIONS, tardigrade::TARDIGRADE_ANIMATIONS},
 };
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 /// Converts asset-relative path to workspace-root-relative path for test validation.
 ///
@@ -128,23 +128,68 @@ fn all_tardigrade_sprites_exist() {
 /// Validates mosquiton composed atlas files exist.
 ///
 /// Mosquiton uses composed sprite rendering with multi-part animations authored
-/// in Aseprite. Requires both atlas.json and source.png.
+/// in Aseprite. Requires atlas.json, source.png, atlas.pxi, and
+/// atlas.px_atlas.ron.
 #[test]
 fn mosquiton_composed_atlas_exists() {
-    let atlas_json = to_project_path("sprites/enemies/mosquiton_3/atlas.json");
-    let atlas_png = to_project_path("sprites/enemies/mosquiton_3/source.png");
+    let base = "sprites/enemies/mosquiton_3";
+    let required = [
+        "atlas.json",
+        "source.png",
+        "atlas.pxi",
+        "atlas.px_atlas.ron",
+    ];
+
+    let mut missing = Vec::new();
+    for file in &required {
+        let path = to_project_path(&format!("{base}/{file}"));
+        if !path.exists() {
+            missing.push(format!("{base}/{file}"));
+        }
+    }
 
     assert!(
-        atlas_json.exists(),
-        "Mosquiton atlas metadata missing: {}",
-        atlas_json.display()
+        missing.is_empty(),
+        "Mosquiton atlas files missing: {}",
+        missing.join(", ")
     );
+}
+
+/// Validates the mosquiton PXI file has a correct header and plausible size.
+///
+/// Decodes the header only — no Bevy or palette infrastructure needed.
+/// Guards against truncated or corrupt exports.
+#[test]
+fn mosquiton_pxi_header_is_valid() {
+    let pxi_path = to_project_path("sprites/enemies/mosquiton_3/atlas.pxi");
+    let bytes = fs::read(&pxi_path).expect("atlas.pxi should be readable");
 
     assert!(
-        atlas_png.exists(),
-        "Mosquiton atlas texture missing: {}",
-        atlas_png.display()
+        bytes.len() >= 10,
+        "PXI file too short: {} bytes",
+        bytes.len()
     );
+    assert_eq!(&bytes[0..4], b"PXAI", "bad magic");
+    assert_eq!(bytes[4], 1, "unexpected version");
+    // format: 0 = raw 4bpp, 1 = deflate 4bpp
+    assert!(bytes[5] <= 1, "unexpected format byte: {}", bytes[5]);
+
+    let width = u16::from_le_bytes([bytes[6], bytes[7]]) as usize;
+    let height = u16::from_le_bytes([bytes[8], bytes[9]]) as usize;
+    assert!(width > 0 && height > 0, "zero dimensions: {width}×{height}");
+
+    let payload_len = bytes.len() - 10;
+    let raw_packed_len = (width * height + 1) / 2;
+    // Compressed payload should be smaller than raw packed size.
+    // Raw payload should match exactly.
+    if bytes[5] == 0 {
+        assert_eq!(payload_len, raw_packed_len, "raw payload size mismatch");
+    } else {
+        assert!(
+            payload_len < raw_packed_len,
+            "compressed payload ({payload_len}) should be smaller than raw ({raw_packed_len})"
+        );
+    }
 }
 
 /// Validates mosquito sprite naming follows expected depth range convention.

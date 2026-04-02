@@ -1,7 +1,7 @@
 //! Parser-based Aseprite export pipeline.
 //!
 //! This module turns one `.aseprite` source file into a piece atlas package:
-//! a packed `atlas.png`, an engine-consumable `atlas.px_atlas.ron`, and a
+//! a packed `atlas.pxi`, an engine-consumable `atlas.px_atlas.ron`, and a
 //! `atlas.json` manifest describing how a runtime can compose animation frames
 //! from deduplicated part sprites.
 
@@ -39,7 +39,7 @@ use std::{
 const DEFAULT_PART_GROUP: &str = "base";
 const DEFAULT_ORIGIN_SLICE: &str = "origin";
 const CURRENT_SCHEMA_VERSION: u32 = 3;
-const RUNTIME_ATLAS_IMAGE_NAME: &str = "atlas.png";
+const RUNTIME_ATLAS_PXI_NAME: &str = "atlas.pxi";
 const DEFAULT_RUNTIME_PALETTE_PATH: &str = "assets/palette/base.png";
 
 /// Top-level manifest for Aseprite exports.
@@ -553,7 +553,7 @@ fn is_zero_u32(v: &u32) -> bool {
 /// The exporter reads the source `.aseprite` file directly, selects part layers
 /// from the configured top-level group, resolves the shared origin from the
 /// configured slice, deduplicates repeated or mirrored cel images, packs them
-/// into `atlas.png`, and writes a matching `atlas.json` manifest.
+/// into `atlas.pxi`, and writes a matching `atlas.json` manifest.
 pub fn export_sprite(request: &ExportRequest) -> Result<()> {
     let manifest = load_manifest(&request.manifest_path)?;
     let sprite = find_sprite(&manifest, &request.entity, request.depth)?;
@@ -585,12 +585,19 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
         .with_context(|| format!("Failed to create output directory {}", output_dir.display()))?;
 
     let source_png = output_dir.join("source.png");
-    let runtime_atlas_png = output_dir.join(RUNTIME_ATLAS_IMAGE_NAME);
+    let runtime_atlas_pxi = output_dir.join(RUNTIME_ATLAS_PXI_NAME);
     let atlas_json = output_dir.join("atlas.json");
     atlas_image
         .save(&source_png)
         .with_context(|| format!("Failed to save {}", source_png.display()))?;
-    quantize_runtime_atlas(&atlas_image, &runtime_atlas_png)?;
+
+    let palette_indices = compute_palette_indices(&atlas_image)?;
+    let pxi_bytes =
+        crate::pxi::encode_compressed(atlas_image.width(), atlas_image.height(), &palette_indices)
+            .context("Failed to encode PXI atlas")?;
+    fs::write(&runtime_atlas_pxi, &pxi_bytes)
+        .with_context(|| format!("Failed to write {}", runtime_atlas_pxi.display()))?;
+
     let metadata = CompositionAtlas {
         schema_version: CURRENT_SCHEMA_VERSION,
         atlas_image: source_png
@@ -598,11 +605,11 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned()),
         ..atlas_metadata
     };
-    let runtime_atlas_asset_image_path = sprite
+    let entity_depth_dir = sprite
         .target_dir_path()?
-        .join(format!("{}_{}", sprite.entity, sprite.depth))
-        .join(RUNTIME_ATLAS_IMAGE_NAME);
-    write_px_atlas_metadata(&output_dir, &metadata, runtime_atlas_asset_image_path)?;
+        .join(format!("{}_{}", sprite.entity, sprite.depth));
+    let runtime_atlas_asset_pxi_path = entity_depth_dir.join(RUNTIME_ATLAS_PXI_NAME);
+    write_px_atlas_metadata(&output_dir, &metadata, runtime_atlas_asset_pxi_path)?;
     fs::write(
         &atlas_json,
         format!("{}\n", serde_json::to_string_pretty(&metadata)?),
@@ -762,7 +769,8 @@ fn build_piece_atlas(
 
 #[derive(Serialize)]
 struct PxSpriteAtlasDescriptor {
-    image: PathBuf,
+    /// Path to the compact indexed runtime image (.pxi).
+    indexed_image: PathBuf,
     regions: Vec<AtlasRegionDescriptor>,
     #[serde(default)]
     names: BTreeMap<String, u32>,
@@ -785,10 +793,10 @@ struct AtlasRectDescriptor {
 fn write_px_atlas_metadata(
     output_dir: &Path,
     metadata: &CompositionAtlas,
-    image_asset_path: PathBuf,
+    pxi_asset_path: PathBuf,
 ) -> Result<()> {
     let descriptor = PxSpriteAtlasDescriptor {
-        image: image_asset_path,
+        indexed_image: pxi_asset_path,
         regions: metadata
             .sprites
             .iter()
@@ -818,30 +826,46 @@ fn write_px_atlas_metadata(
     Ok(())
 }
 
-/// Writes the runtime-only atlas image in a palette-safe form for `carapace`.
+/// Maps source atlas pixels to palette indices for the `.pxi` runtime image.
 ///
-/// The semantic `source.png` must preserve authored colors. The runtime atlas is
-/// a separate quantized image because `PxSpriteAtlasLoader` requires every
-/// opaque pixel to exist in the configured project palette.
-fn quantize_runtime_atlas(source: &RgbaImage, destination: &Path) -> Result<()> {
+/// Quantizes authored colours to the nearest runtime palette entry, then
+/// returns one `u8` per pixel: 0 = transparent, 1–N = palette index.
+fn compute_palette_indices(source: &RgbaImage) -> Result<Vec<u8>> {
     let palette = load_runtime_palette(Path::new(DEFAULT_RUNTIME_PALETTE_PATH))?;
-    let mut runtime_image = source.clone();
     let grayscale_mapping = grayscale_ramp_mapping(source, &palette);
 
-    for pixel in runtime_image.pixels_mut() {
-        if pixel.0[3] == 0 {
-            continue;
-        }
-        *pixel = grayscale_mapping
-            .get(&pixel.0)
-            .copied()
-            .unwrap_or_else(|| nearest_palette_color(*pixel, &palette));
-    }
+    // Build palette index lookup: RGB → 1-based index (0 = transparent).
+    // Keyed on RGB (not RGBA) to match the runtime Palette which ignores alpha.
+    let palette_index: HashMap<[u8; 3], u8> = palette
+        .iter()
+        .enumerate()
+        .map(|(i, color)| ([color.0[0], color.0[1], color.0[2]], (i + 1) as u8))
+        .collect();
 
-    runtime_image
-        .save(destination)
-        .with_context(|| format!("Failed to save {}", destination.display()))?;
-    Ok(())
+    ensure!(
+        palette_index.len() <= 15,
+        "Runtime palette has {} colours, but PXI format supports at most 15 \
+         (indices 1–15, with 0 reserved for transparent)",
+        palette_index.len(),
+    );
+
+    let indices: Vec<u8> = source
+        .pixels()
+        .map(|pixel| {
+            if pixel.0[3] == 0 {
+                return 0;
+            }
+            // Quantize to palette colour first, then look up its index.
+            let quantized = grayscale_mapping
+                .get(&pixel.0)
+                .copied()
+                .unwrap_or_else(|| nearest_palette_color(*pixel, &palette));
+            let rgb = [quantized.0[0], quantized.0[1], quantized.0[2]];
+            *palette_index.get(&rgb).unwrap_or(&0)
+        })
+        .collect();
+
+    Ok(indices)
 }
 
 fn load_runtime_palette(path: &Path) -> Result<Vec<Rgba<u8>>> {

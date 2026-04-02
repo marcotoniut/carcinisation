@@ -1,5 +1,5 @@
 (
-    image: "sprites/enemies/mosquiton_3/atlas.png",
+    indexed_image: "sprites/enemies/mosquiton_3/atlas.pxi",
     regions: [
         (
             frame_size: (11, 25),

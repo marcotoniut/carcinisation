@@ -1,9 +1,9 @@
 //! Sprite atlas assets (metadata + palette-indexed image data).
 //! Atlas metadata is loaded from `.px_atlas.ron`.
 //!
-//! The `image` field in `.px_atlas.ron` must be a Bevy asset-server path relative to the game's
-//! asset root. It is not resolved relative to the `.px_atlas.ron` file itself, and absolute
-//! filesystem paths are not supported.
+//! The `indexed_image` field in `.px_atlas.ron` points to a `.pxi` file containing
+//! pre-computed palette indices. Paths are Bevy asset-server paths relative to the
+//! game's asset root, not relative to the `.px_atlas.ron` file itself.
 
 use std::{collections::BTreeMap, error::Error, path::PathBuf};
 
@@ -23,14 +23,15 @@ use serde::{Deserialize, Serialize};
 use crate::{
     frame::Frames,
     image::{PxImage, PxImageSliceMut},
-    palette::Palette,
     position::{DefaultLayer, PxLayer, Spatial},
     prelude::*,
 };
 
-pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
-    app.init_asset::<PxSpriteAtlasAsset>()
-        .register_asset_loader(PxSpriteAtlasLoader::new(palette_path));
+pub(crate) fn plug_core(app: &mut App, _palette_path: PathBuf) {
+    app.init_asset::<crate::pxi::PxIndexedImage>()
+        .register_asset_loader(crate::pxi::PxiLoader)
+        .init_asset::<PxSpriteAtlasAsset>()
+        .register_asset_loader(PxSpriteAtlasLoader);
 }
 
 pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
@@ -49,10 +50,10 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
 
 #[derive(Serialize, Deserialize)]
 struct PxSpriteAtlasDescriptor {
-    // Asset-server path to the atlas image, relative to the game asset root.
-    // This is not resolved relative to the `.px_atlas.ron` file location.
-    // Absolute filesystem paths are not supported.
-    image: PathBuf,
+    /// Path to the compact indexed runtime image (.pxi), relative to the game
+    /// asset root. Contains pre-computed palette indices — no PNG decode or
+    /// palette lookup needed.
+    indexed_image: PathBuf,
     regions: Vec<AtlasRegionDescriptor>,
     #[serde(default)]
     names: BTreeMap<String, u32>,
@@ -65,15 +66,7 @@ struct AtlasRegionDescriptor {
 }
 
 #[derive(TypePath)]
-struct PxSpriteAtlasLoader {
-    palette_path: PathBuf,
-}
-
-impl PxSpriteAtlasLoader {
-    fn new(palette_path: PathBuf) -> Self {
-        Self { palette_path }
-    }
-}
+struct PxSpriteAtlasLoader;
 
 impl AssetLoader for PxSpriteAtlasLoader {
     type Asset = PxSpriteAtlasAsset;
@@ -91,24 +84,13 @@ impl AssetLoader for PxSpriteAtlasLoader {
         let descriptor: PxSpriteAtlasDescriptor =
             ron::de::from_bytes(&bytes).map_err(|err| err.to_string())?;
 
-        let palette = load_context
+        let indexed = load_context
             .loader()
             .immediate()
-            .load::<Palette>(self.palette_path.clone())
+            .load::<crate::pxi::PxIndexedImage>(descriptor.indexed_image.clone())
             .await
-            .map_err(|err| err.to_string())?;
-
-        let image = load_context
-            .loader()
-            .immediate()
-            // `descriptor.image` is a Bevy asset path relative to the asset root.
-            // It is intentionally not resolved relative to the `.px_atlas.ron` file path.
-            .load::<Image>(descriptor.image.clone())
-            .await
-            .map_err(|err| err.to_string())?;
-
-        let data =
-            PxImage::palette_indices(palette.get(), image.get()).map_err(|err| err.to_string())?;
+            .map_err(|err| format!("failed to load indexed image: {err}"))?;
+        let data = indexed.get().image.clone();
         let size = data.size();
 
         let mut regions = Vec::with_capacity(descriptor.regions.len());
@@ -156,9 +138,10 @@ impl RenderAsset for PxSpriteAtlasAsset {
 
 /// A palette-indexed sprite atlas.
 ///
-/// Atlas assets are loaded from `.px_atlas.ron` metadata. The metadata `image` field must be an
-/// asset-server path relative to the game asset root. It is not interpreted relative to the
-/// `.px_atlas.ron` file, and absolute filesystem paths are not supported.
+/// Atlas assets are loaded from `.px_atlas.ron` metadata. The metadata
+/// `indexed_image` field must be an asset-server path relative to the game
+/// asset root. It is not interpreted relative to the `.px_atlas.ron` file, and
+/// absolute filesystem paths are not supported.
 ///
 /// Rects use atlas image coordinates with the origin at the top-left.
 #[derive(Asset, Clone, Reflect, Debug)]

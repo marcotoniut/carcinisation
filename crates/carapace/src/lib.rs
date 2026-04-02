@@ -49,6 +49,7 @@ mod picking;
 pub mod position;
 pub mod prelude;
 mod profiling;
+pub(crate) mod pxi;
 mod rect;
 #[cfg(feature = "reflect")]
 mod reflect;
