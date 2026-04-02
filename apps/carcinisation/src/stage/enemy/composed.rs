@@ -9,7 +9,8 @@
 //! represents the full composed asset manifest, not only atlas rectangles, and
 //! `PartPose` represents a per-frame visual placement, not a pure transform
 //! track. This module documents those contracts close to the runtime that
-//! consumes them.
+//! consumes them. Compact manifest and atlas metadata mismatches are rejected
+//! explicitly at load time rather than relying on unchecked indexing.
 
 #![allow(
     clippy::struct_excessive_bools,
@@ -33,8 +34,9 @@ use asset_pipeline::aseprite::{
     AnimationEventKind, CollisionShape as CompositionCollisionShape, CompositionAtlas,
     PartGameplayMetadata, validate_composition_atlas,
 };
+use asset_pipeline::composed_ron::{CompactComposedAtlas, CompactDirection, CompactPartGameplay};
 use bevy::{
-    asset::{Asset, LoadState},
+    asset::{Asset, AssetLoader, LoadContext, LoadState, io::Reader},
     prelude::*,
     reflect::{Reflect, TypePath},
 };
@@ -46,11 +48,12 @@ use carapace::{
     },
 };
 use carcinisation_collision::{Collider, ColliderShape};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::collections::{HashMap, HashSet};
 
-/// Current runtime schema version accepted by the composed-enemy renderer.
-pub const SUPPORTED_COMPOSITION_SCHEMA_VERSION: u32 = 3;
+/// Current runtime schema version accepted by the JSON path (kept for tests/fallback).
+#[allow(dead_code)]
+const SUPPORTED_COMPOSITION_SCHEMA_VERSION: u32 = 3;
 const COMPOSED_ENEMY_ASSET_ROOT: &str = "sprites/enemies";
 const COMPOSED_ENEMY_ATLAS_BASENAME: &str = "atlas";
 /// Composed-part hit feedback should read as a brief local blink, not as the
@@ -61,13 +64,54 @@ const COMPOSED_PART_HIT_BLINK_PHASE: std::time::Duration = std::time::Duration::
 /// for a total blink window of 300ms.
 const COMPOSED_PART_HIT_BLINK_INVERT_CYCLES: u8 = 2;
 
-#[derive(Asset, Clone, Debug, Deserialize, TypePath)]
-/// Asset wrapper around the exported composed manifest plus the lazily-built runtime cache.
+#[derive(Asset, Clone, Debug, TypePath)]
+/// Asset wrapper around the compact composed manifest plus the lazily-built runtime cache.
 pub struct CompositionAtlasAsset {
-    #[serde(flatten)]
-    pub atlas: CompositionAtlas,
-    #[serde(skip)]
+    pub atlas: CompactComposedAtlas,
     runtime: CompositionAtlasRuntime,
+}
+
+impl<'de> Deserialize<'de> for CompositionAtlasAsset {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let atlas = CompactComposedAtlas::deserialize(deserializer)?;
+        Ok(Self {
+            atlas,
+            runtime: CompositionAtlasRuntime::default(),
+        })
+    }
+}
+
+#[derive(TypePath)]
+pub struct CompositionAtlasLoader;
+
+impl AssetLoader for CompositionAtlasLoader {
+    type Asset = CompositionAtlasAsset;
+    type Settings = ();
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        (): &(),
+        load_context: &mut LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        ron::de::from_bytes(&bytes).map_err(|err| {
+            error!(
+                "Failed to deserialize composed atlas '{}': {err}",
+                load_context.path()
+            );
+            err.to_string().into()
+        })
+    }
+
+    fn extensions(&self) -> &[&str] {
+        &["atlas.composed.ron"]
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -640,7 +684,7 @@ pub fn composed_enemy_asset_base_path(enemy_type: EnemyType, depth: Depth) -> St
 }
 
 fn composed_enemy_manifest_path(base_path: &str) -> String {
-    format!("{base_path}.json")
+    format!("{base_path}.composed.ron")
 }
 
 fn composed_enemy_sprite_atlas_path(base_path: &str) -> String {
@@ -695,7 +739,7 @@ pub fn ensure_composed_enemy_parts(
         };
 
         match atlas_asset.runtime() {
-            Ok(cache) => match build_atlas_bindings(
+            Ok(cache) => match build_atlas_bindings_compact(
                 &atlas_asset.atlas,
                 sprite_atlas,
                 visual.sprite_atlas.clone(),
@@ -1026,7 +1070,7 @@ impl CompositionAtlasAsset {
             return;
         }
 
-        let prepared = build_runtime_cache(&self.atlas);
+        let prepared = build_runtime_cache_compact(&self.atlas);
         self.runtime = match prepared {
             Ok(cache) => CompositionAtlasRuntime::Ready(cache),
             Err(reason) => {
@@ -1052,6 +1096,298 @@ impl CompositionAtlasAsset {
     }
 }
 
+fn validate_compact_sprite_tables(atlas: &CompactComposedAtlas) -> Result<(), String> {
+    if atlas.sprite_names.len() != atlas.sprite_sizes.len() {
+        return Err(format!(
+            "compact sprite table length mismatch: sprite_names has {} entries, sprite_sizes has {}",
+            atlas.sprite_names.len(),
+            atlas.sprite_sizes.len(),
+        ));
+    }
+
+    let mut seen = HashSet::with_capacity(atlas.sprite_names.len());
+    for name in &atlas.sprite_names {
+        if !seen.insert(name.as_str()) {
+            return Err(format!(
+                "compact sprite table contains duplicate sprite name '{name}'"
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn build_runtime_cache_compact(
+    atlas: &CompactComposedAtlas,
+) -> Result<CompositionAtlasCache, String> {
+    let part_name = |idx: u8| -> Result<&str, String> {
+        atlas
+            .part_names
+            .get(idx as usize)
+            .map(String::as_str)
+            .ok_or_else(|| format!("part index {} out of range", idx))
+    };
+    let sprite_name = |idx: u8| -> Result<&str, String> {
+        atlas
+            .sprite_names
+            .get(idx as usize)
+            .map(String::as_str)
+            .ok_or_else(|| format!("sprite index {} out of range", idx))
+    };
+
+    let mut parts_by_id = HashMap::with_capacity(atlas.parts.len());
+    let mut visual_parts_in_draw_order = Vec::new();
+    for part in &atlas.parts {
+        let id = part_name(part.id)?.to_owned();
+        let parent_id = part
+            .parent
+            .map(|idx| part_name(idx).map(str::to_owned))
+            .transpose()?;
+        let gameplay = compact_gameplay_to_cached(&part.gameplay);
+
+        parts_by_id.insert(
+            id.clone(),
+            CachedPart {
+                id: id.clone(),
+                parent_id,
+                is_visual: part.visual,
+                draw_order: part.draw_order as u32,
+                pivot: IVec2::new(part.pivot.0 as i32, part.pivot.1 as i32),
+                tags: part.tags.clone(),
+                gameplay,
+            },
+        );
+        if part.visual {
+            visual_parts_in_draw_order.push(id);
+        }
+    }
+    visual_parts_in_draw_order.sort_by_key(|part_id| {
+        parts_by_id
+            .get(part_id.as_str())
+            .map_or(u32::MAX, |part| part.draw_order)
+    });
+
+    // Build sprite id → size lookup.
+    let sprite_sizes: Vec<UVec2> = atlas
+        .sprite_sizes
+        .iter()
+        .map(|&(w, h)| UVec2::new(w as u32, h as u32))
+        .collect();
+
+    let mut animations = HashMap::with_capacity(atlas.animations.len());
+    for animation in &atlas.animations {
+        if animations.contains_key(animation.tag.as_str()) {
+            return Err(format!("duplicate animation tag '{}'", animation.tag));
+        }
+
+        let direction = match animation.direction {
+            CompactDirection::Forward => CachedAnimationDirection::Forward,
+            CompactDirection::Reverse => CachedAnimationDirection::Reverse,
+            CompactDirection::PingPong => CachedAnimationDirection::PingPong,
+            CompactDirection::PingPongReverse => CachedAnimationDirection::PingPongReverse,
+        };
+
+        let mut cached_frames = Vec::with_capacity(animation.frames.len());
+        for (frame_idx, frame) in animation.frames.iter().enumerate() {
+            let mut poses: HashMap<String, Vec<CachedPose>> =
+                HashMap::with_capacity(frame.poses.len());
+            for pose in &frame.poses {
+                let pid = part_name(pose.p)?.to_owned();
+                let sid = sprite_name(pose.s)?.to_owned();
+                let size = sprite_sizes.get(pose.s as usize).copied().ok_or_else(|| {
+                    format!(
+                        "sprite index {} out of range in animation '{}' frame {}",
+                        pose.s, animation.tag, frame_idx
+                    )
+                })?;
+
+                let cached = CachedPose {
+                    sprite_id: sid,
+                    local_offset: IVec2::new(pose.o.0 as i32, pose.o.1 as i32),
+                    size,
+                    flip_x: pose.fx,
+                    flip_y: pose.fy,
+                    visible: true, // compact format omits always-true visible
+                    fragment: pose.frag as u32,
+                };
+                poses.entry(pid).or_default().push(cached);
+            }
+
+            for (part_id, fragments) in &mut poses {
+                fragments.sort_unstable_by_key(|pose| pose.fragment);
+                validate_cached_fragment_sequence(fragments, part_id, &animation.tag, frame_idx)?;
+            }
+
+            for (part_id, fragments) in &poses {
+                if !fragments.first().is_some_and(|f| f.visible) {
+                    continue;
+                }
+                let part = parts_by_id
+                    .get(part_id.as_str())
+                    .expect("validated part id");
+                validate_parent_pose_chain(&parts_by_id, &poses, part, &animation.tag, frame_idx)?;
+            }
+
+            cached_frames.push(CachedAnimationFrame {
+                source_frame: frame_idx,
+                duration_ms: frame.duration_ms as u32,
+                events: frame
+                    .events
+                    .iter()
+                    .map(|event| {
+                        let event_part_id = event
+                            .part
+                            .map(|idx| part_name(idx).map(str::to_owned))
+                            .transpose()?;
+                        Ok(CachedAnimationEvent {
+                            kind: event.kind,
+                            id: event.id.clone(),
+                            part_id: event_part_id,
+                            local_offset: IVec2::new(event.offset.0 as i32, event.offset.1 as i32),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, String>>()?,
+                poses,
+            });
+        }
+
+        animations.insert(
+            animation.tag.clone(),
+            CachedAnimation {
+                direction,
+                repeats: animation.repeats,
+                frames: cached_frames,
+            },
+        );
+    }
+
+    let health_pools = atlas
+        .gameplay
+        .health_pools
+        .iter()
+        .map(|pool| (pool.id.clone(), pool.max_health as u32))
+        .collect();
+
+    Ok(CompositionAtlasCache {
+        visual_parts_in_draw_order,
+        parts_by_id,
+        animations,
+        entity_health_pool: atlas.gameplay.entity_health_pool.clone(),
+        health_pools,
+    })
+}
+
+fn compact_gameplay_to_cached(gameplay: &CompactPartGameplay) -> CachedPartGameplay {
+    let collisions = gameplay
+        .collisions
+        .iter()
+        .map(|collision| CachedCollisionVolume {
+            shape: composition_collision_shape_to_runtime(&collision.shape),
+            offset: composition_collision_offset(&collision.shape),
+        })
+        .collect();
+
+    CachedPartGameplay {
+        targetable: gameplay.targetable,
+        health_pool: gameplay.health_pool.clone(),
+        armour: gameplay.armour as u32,
+        durability: gameplay.durability.map(|d| d as u32),
+        breakable: gameplay.breakable,
+        collisions,
+    }
+}
+
+fn build_atlas_bindings_compact(
+    atlas: &CompactComposedAtlas,
+    sprite_atlas: &PxSpriteAtlasAsset,
+    atlas_handle: Handle<PxSpriteAtlasAsset>,
+) -> Result<ComposedAtlasBindings, String> {
+    validate_compact_sprite_tables(atlas)?;
+    if sprite_atlas.regions().len() != atlas.sprite_names.len() {
+        return Err(format!(
+            "sprite atlas region count {} does not match compact sprite count {}",
+            sprite_atlas.regions().len(),
+            atlas.sprite_names.len(),
+        ));
+    }
+
+    let mut sprite_regions = HashMap::with_capacity(atlas.sprite_sizes.len());
+    let mut sprite_rects = HashMap::with_capacity(atlas.sprite_sizes.len());
+
+    for (i, (name, &(w, h))) in atlas
+        .sprite_names
+        .iter()
+        .zip(atlas.sprite_sizes.iter())
+        .enumerate()
+    {
+        let expected_region_id = AtlasRegionId(u32::try_from(i).map_err(|_| {
+            format!(
+                "compact sprite index {} for '{}' exceeds u32 range",
+                i, name
+            )
+        })?);
+        let region_id = sprite_atlas
+            .region_id(name)
+            .ok_or_else(|| format!("sprite atlas is missing region '{}'", name))?;
+        let expected_region = sprite_atlas.region(expected_region_id).ok_or_else(|| {
+            format!(
+                "sprite atlas is missing expected region {:?} for compact sprite '{}'",
+                expected_region_id, name
+            )
+        })?;
+        let region = sprite_atlas.region(region_id).ok_or_else(|| {
+            format!(
+                "sprite atlas resolved region {:?} for '{}' but it does not exist",
+                region_id, name
+            )
+        })?;
+        if region.frame_count() != 1 {
+            return Err(format!(
+                "sprite atlas region '{}' must contain exactly 1 frame, found {}",
+                name,
+                region.frame_count()
+            ));
+        }
+        if region.frame_size != UVec2::new(w as u32, h as u32) {
+            return Err(format!(
+                "sprite atlas region '{}' has frame_size {:?}, expected {}x{}",
+                name, region.frame_size, w, h
+            ));
+        }
+        let frame = region.frame(0).ok_or_else(|| {
+            format!(
+                "sprite atlas region '{}' is missing its first frame rectangle",
+                name
+            )
+        })?;
+        let expected_frame = expected_region.frame(0).ok_or_else(|| {
+            format!(
+                "sprite atlas expected region {:?} for '{}' is missing its first frame rectangle",
+                expected_region_id, name
+            )
+        })?;
+        if region_id != expected_region_id || frame != expected_frame {
+            return Err(format!(
+                "sprite atlas region '{}' resolved to rect {:?} at index {}, expected rect {:?} at index {}",
+                name, frame, region_id.0, expected_frame, expected_region_id.0
+            ));
+        }
+        if sprite_regions.insert(name.clone(), region_id).is_some() {
+            return Err(format!("duplicate compact sprite binding '{}'", name));
+        }
+        if sprite_rects.insert(name.clone(), frame).is_some() {
+            return Err(format!("duplicate compact sprite rect binding '{}'", name));
+        }
+    }
+
+    Ok(ComposedAtlasBindings {
+        atlas: atlas_handle,
+        sprite_regions,
+        sprite_rects,
+    })
+}
+
+#[allow(dead_code)]
 fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache, String> {
     if atlas.schema_version != SUPPORTED_COMPOSITION_SCHEMA_VERSION {
         return Err(format!(
@@ -1218,6 +1554,7 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
     })
 }
 
+#[allow(dead_code)]
 fn build_atlas_bindings(
     atlas: &CompositionAtlas,
     sprite_atlas: &PxSpriteAtlasAsset,
@@ -1283,6 +1620,7 @@ fn build_atlas_bindings(
     })
 }
 
+#[allow(dead_code)]
 fn merge_tags(definition_tags: &[String], instance_tags: &[String]) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut merged = Vec::with_capacity(definition_tags.len() + instance_tags.len());
@@ -1296,6 +1634,7 @@ fn merge_tags(definition_tags: &[String], instance_tags: &[String]) -> Vec<Strin
     merged
 }
 
+#[allow(dead_code)]
 fn merge_gameplay(
     definition: &PartGameplayMetadata,
     instance: &PartGameplayMetadata,
@@ -2234,7 +2573,14 @@ mod tests {
         CollisionShape, CollisionVolume, CompositionGameplay, HealthPool, PartDefinition,
         PartGameplayMetadata, PartInstance, PartPose, Point, Rect, Size, Vec2Value,
     };
+    use asset_pipeline::composed_ron;
     use std::{fs, path::PathBuf};
+
+    /// Encode a `CompositionAtlas` to compact format and build the runtime cache.
+    fn build_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache, String> {
+        let compact = composed_ron::encode(atlas).map_err(|e| e.to_string())?;
+        build_runtime_cache_compact(&compact)
+    }
 
     /// Find all visual part IDs in the cache that have any of the given tags.
     fn visual_part_ids_with_tags(cache: &CompositionAtlasCache, tags: &[&str]) -> Vec<String> {
@@ -2249,11 +2595,34 @@ mod tests {
             .collect()
     }
 
-    fn load_exported_mosquiton() -> CompositionAtlasAsset {
+    fn load_exported_mosquiton_json() -> CompositionAtlas {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../assets/sprites/enemies/mosquiton_3/atlas.json");
         let body = fs::read_to_string(path).expect("generated mosquiton atlas.json should exist");
         serde_json::from_str(&body).expect("generated mosquiton atlas.json should deserialize")
+    }
+
+    fn load_exported_mosquiton() -> CompositionAtlasAsset {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/sprites/enemies/mosquiton_3/atlas.composed.ron");
+        let bytes = fs::read(path).expect("atlas.composed.ron should exist");
+        ron::de::from_bytes(&bytes).expect("atlas.composed.ron should deserialize")
+    }
+
+    #[test]
+    fn exported_mosquiton_compact_manifest_parses_from_runtime_bytes() {
+        let atlas = load_exported_mosquiton();
+        assert_eq!(atlas.atlas.entity, "mosquiton");
+    }
+
+    #[test]
+    fn compact_sprite_tables_reject_mismatched_lengths() {
+        let mut atlas = load_exported_mosquiton();
+        atlas.atlas.sprite_sizes.pop();
+
+        let error = validate_compact_sprite_tables(&atlas.atlas)
+            .expect_err("mismatched compact sprite table lengths should fail");
+        assert!(error.contains("sprite_names has"), "got: {error}");
     }
 
     fn minimal_atlas() -> CompositionAtlas {
@@ -2623,16 +2992,11 @@ mod tests {
     #[test]
     fn exported_mosquiton_manifest_deserializes() {
         let atlas = load_exported_mosquiton();
-        assert_eq!(
-            atlas.atlas.schema_version,
-            SUPPORTED_COMPOSITION_SCHEMA_VERSION
-        );
         assert_eq!(atlas.atlas.entity, "mosquiton");
         assert_eq!(atlas.atlas.depth, 3);
         assert!(!atlas.atlas.parts.is_empty());
-        assert!(!atlas.atlas.sprites.is_empty());
+        assert!(!atlas.atlas.sprite_sizes.is_empty());
         assert!(!atlas.atlas.animations.is_empty());
-        assert_eq!(atlas.atlas.atlas_image, "source.png");
     }
 
     #[test]
@@ -2640,12 +3004,8 @@ mod tests {
         let atlas = load_exported_mosquiton();
         let mut ids = HashSet::new();
         for part in &atlas.atlas.parts {
-            assert!(
-                ids.insert(part.id.clone()),
-                "duplicate part id '{}': {:?}",
-                part.id,
-                atlas.atlas.parts
-            );
+            let name = &atlas.atlas.part_names[part.id as usize];
+            assert!(ids.insert(name.clone()), "duplicate part id '{}'", name,);
         }
     }
 
@@ -2683,6 +3043,12 @@ mod tests {
     #[test]
     fn exported_mosquiton_shoot_fly_authors_blood_shot_cue_on_mouth_open_frame() {
         let atlas = load_exported_mosquiton();
+        let head_idx = atlas
+            .atlas
+            .part_names
+            .iter()
+            .position(|n| n == "head")
+            .map(|i| i as u8);
         let shoot = atlas
             .atlas
             .animations
@@ -2701,8 +3067,8 @@ mod tests {
                     .find(|event| {
                         event.kind == AnimationEventKind::ProjectileSpawn
                             && event.id == "blood_shot"
-                            && event.part_id.as_deref() == Some("head")
-                            && event.local_offset == Point { x: 6, y: 9 }
+                            && event.part == head_idx
+                            && event.offset == (6, 9)
                     })
                     .map(|_| frame_index)
             })
@@ -2714,7 +3080,7 @@ mod tests {
     #[test]
     fn monolithic_animation_resolution_remains_unchanged_without_overrides() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -2738,7 +3104,8 @@ mod tests {
     #[test]
     fn exported_mosquiton_shoot_fly_uses_action_body_and_flapping_wings() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -2800,7 +3167,8 @@ mod tests {
     #[test]
     fn exported_mosquiton_melee_fly_uses_action_body_and_flapping_wings() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -2859,36 +3227,19 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unsupported_schema_version() {
-        let mut atlas = minimal_atlas();
-        atlas.schema_version = SUPPORTED_COMPOSITION_SCHEMA_VERSION + 1;
-
-        let error = build_runtime_cache(&atlas).expect_err("schema version should be validated");
-        assert!(error.contains("unsupported schema_version"));
-    }
-
-    #[test]
     fn rejects_frames_that_reference_missing_sprites() {
         let mut atlas = minimal_atlas();
         atlas.animations[0].frames[0].parts[0].sprite_id = "missing".to_string();
 
-        let error = build_runtime_cache(&atlas).expect_err("missing sprite ids should fail");
-        assert!(error.contains("references missing sprite"));
-    }
-
-    #[test]
-    fn rejects_non_opaque_part_placements() {
-        let mut atlas = minimal_atlas();
-        atlas.animations[0].frames[0].parts[0].opacity = 200;
-
-        let error = build_runtime_cache(&atlas).expect_err("non-opaque placements should fail");
-        assert!(error.contains("requires fully opaque part placements"));
+        // Compact encoder rejects unknown sprite references at encode time.
+        let error = composed_ron::encode(&atlas).expect_err("missing sprite ids should fail");
+        assert!(error.to_string().contains("unknown sprite"), "got: {error}",);
     }
 
     #[test]
     fn mixed_animation_resolution_uses_wing_override_and_action_body() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -2916,7 +3267,7 @@ mod tests {
     #[test]
     fn mixed_animation_progression_keeps_wings_independent() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -2949,7 +3300,7 @@ mod tests {
     #[test]
     fn missing_override_poses_fall_back_to_base_animation() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -2977,7 +3328,7 @@ mod tests {
     #[test]
     fn missing_override_tag_fails_explicitly() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -3004,7 +3355,7 @@ mod tests {
     #[test]
     fn animation_events_fire_when_the_authored_frame_is_entered() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -3028,7 +3379,7 @@ mod tests {
     #[test]
     fn animation_events_refire_on_the_next_loop_only() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -3050,7 +3401,7 @@ mod tests {
     #[test]
     fn animation_events_survive_multi_frame_advances() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -3073,7 +3424,7 @@ mod tests {
             .expect("shoot_fly animation should exist");
         shoot.repeats = Some(1);
 
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -3094,7 +3445,7 @@ mod tests {
     #[test]
     fn animations_without_authored_events_remain_silent() {
         let atlas = minimal_mixed_animation_atlas();
-        let cache = build_runtime_cache(&atlas).expect("mixed atlas should validate");
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
         let mut visual = ComposedEnemyVisual {
             atlas_manifest: Handle::default(),
             sprite_atlas: Handle::default(),
@@ -3200,7 +3551,7 @@ mod tests {
             fragment: 0,
         });
 
-        let cache = build_runtime_cache(&atlas).expect("hierarchical atlas should validate");
+        let cache = build_cache(&atlas).expect("hierarchical atlas should validate");
         let part_states = ComposedPartStates::from_cache(&cache);
         let bindings = ComposedAtlasBindings {
             atlas: Handle::default(),
@@ -3251,7 +3602,8 @@ mod tests {
     #[test]
     fn merged_tags_and_damage_routing_remain_semantic() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
 
         let arm_r = cache.parts_by_id.get("arm_r").expect("arm_r should exist");
         assert!(arm_r.tags.contains(&"arm".to_string()));
@@ -3338,7 +3690,7 @@ mod tests {
             source_layer: None,
             source_region: None,
             split: None,
-            draw_order: 999,
+            draw_order: 99,
             pivot: Point::default(),
             tags: vec![],
             visible_by_default: true,
@@ -3378,14 +3730,15 @@ mod tests {
             fragment: 0,
         });
 
-        let cache = build_runtime_cache(&atlas).expect("atlas should validate");
+        let cache = build_cache(&atlas).expect("atlas should validate");
         assert_eq!(cache.visual_parts_in_draw_order, vec!["body", "head"]);
     }
 
     #[test]
     fn exported_mosquiton_idle_fly_orders_wings_behind_body() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
         let frame = &cache.animations["idle_fly"].frames[0];
         let visible = visible_part_ids_in_frame(&cache, frame);
         // All wing parts (by tag) should appear before body in draw order.
@@ -3472,7 +3825,7 @@ mod tests {
             fragment: 0,
         });
 
-        let cache = build_runtime_cache(&atlas).expect("atlas should validate");
+        let cache = build_cache(&atlas).expect("atlas should validate");
         let frame = &cache.animations["idle_stand"].frames[0];
 
         assert_eq!(
@@ -3486,7 +3839,8 @@ mod tests {
     #[test]
     fn shared_pool_damage_accumulates_across_semantic_parts() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
@@ -3518,28 +3872,30 @@ mod tests {
     #[test]
     fn collision_state_resolves_points_to_semantic_parts() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
         let bindings = ComposedAtlasBindings {
             atlas: Handle::default(),
             sprite_regions: atlas
                 .atlas
-                .sprites
+                .sprite_names
                 .iter()
                 .enumerate()
-                .map(|(index, sprite)| (sprite.id.clone(), AtlasRegionId(index as u32)))
+                .map(|(index, name)| (name.clone(), AtlasRegionId(index as u32)))
                 .collect(),
             sprite_rects: atlas
                 .atlas
-                .sprites
+                .sprite_sizes
                 .iter()
-                .map(|sprite| {
+                .zip(atlas.atlas.sprite_names.iter())
+                .map(|(&(w, h), name)| {
                     (
-                        sprite.id.clone(),
+                        name.clone(),
                         AtlasRect {
-                            x: sprite.rect.x,
-                            y: sprite.rect.y,
-                            w: sprite.rect.w,
-                            h: sprite.rect.h,
+                            x: 0,
+                            y: 0,
+                            w: w as u32,
+                            h: h as u32,
                         },
                     )
                 })
@@ -3661,7 +4017,7 @@ mod tests {
             fragment: 0,
         });
 
-        let cache = build_runtime_cache(&atlas).expect("atlas should validate");
+        let cache = build_cache(&atlas).expect("atlas should validate");
         let bindings = ComposedAtlasBindings {
             atlas: Handle::default(),
             sprite_regions: HashMap::from([
@@ -3716,7 +4072,8 @@ mod tests {
     #[test]
     fn applies_part_damage_through_entity_health_pool() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
@@ -3748,7 +4105,8 @@ mod tests {
     #[test]
     fn rejects_damage_on_non_gameplay_semantic_nodes() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
@@ -3771,7 +4129,7 @@ mod tests {
     #[test]
     fn wing_damage_routes_to_shared_wings_pool() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+        let cache = build_runtime_cache_compact(&atlas.atlas).expect("atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
@@ -3800,7 +4158,7 @@ mod tests {
     #[test]
     fn wings_visual_is_single_gameplay_part() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+        let cache = build_runtime_cache_compact(&atlas.atlas).expect("atlas should validate");
 
         let wings = cache
             .parts_by_id
@@ -3825,7 +4183,7 @@ mod tests {
     #[test]
     fn legs_visual_is_single_targetable_part() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+        let cache = build_runtime_cache_compact(&atlas.atlas).expect("atlas should validate");
 
         let legs = cache
             .parts_by_id
@@ -3847,7 +4205,7 @@ mod tests {
     #[test]
     fn legs_visual_damage_routes_to_core_pool() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("atlas should validate");
+        let cache = build_runtime_cache_compact(&atlas.atlas).expect("atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
@@ -3921,7 +4279,7 @@ mod tests {
             fragment: 0,
         });
 
-        let cache = build_runtime_cache(&atlas).expect("blink atlas should validate");
+        let cache = build_cache(&atlas).expect("blink atlas should validate");
         let bindings = ComposedAtlasBindings {
             atlas: Handle::default(),
             sprite_regions: HashMap::from([
@@ -4044,7 +4402,7 @@ mod tests {
         atlas.part_definitions[0].gameplay.durability = Some(5);
         atlas.part_definitions[0].gameplay.breakable = Some(true);
 
-        let cache = build_runtime_cache(&atlas).expect("durability atlas should validate");
+        let cache = build_cache(&atlas).expect("durability atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
@@ -4081,7 +4439,7 @@ mod tests {
         atlas.part_definitions[0].gameplay.durability = Some(2);
         atlas.part_definitions[0].gameplay.breakable = Some(true);
 
-        let cache = build_runtime_cache(&atlas).expect("breakable atlas should validate");
+        let cache = build_cache(&atlas).expect("breakable atlas should validate");
         let bindings = ComposedAtlasBindings {
             atlas: Handle::default(),
             sprite_regions: HashMap::from([("sprite_0000".to_string(), AtlasRegionId(0))]),
@@ -4184,7 +4542,8 @@ mod tests {
     #[test]
     fn composed_health_override_replaces_entity_health_pool_on_setup() {
         let atlas = load_exported_mosquiton();
-        let cache = build_runtime_cache(&atlas.atlas).expect("mosquiton atlas should validate");
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
 
         let pools = ComposedHealthPools::from_cache_with_entity_health_override(&cache, Some(150));
 
@@ -4434,7 +4793,7 @@ mod tests {
     #[test]
     fn split_part_produces_one_gameplay_identity() {
         let atlas = split_atlas();
-        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+        let cache = build_cache(&atlas).expect("split atlas should be valid");
 
         // Exactly one cached part for legs_visual.
         assert!(cache.parts_by_id.contains_key("legs_visual"));
@@ -4466,7 +4825,7 @@ mod tests {
     #[test]
     fn split_part_produces_multiple_render_fragments_per_frame() {
         let atlas = split_atlas();
-        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+        let cache = build_cache(&atlas).expect("split atlas should be valid");
         let frame = &cache.animations["idle_stand"].frames[0];
 
         // legs_visual should have 2 fragments in its Vec.
@@ -4495,7 +4854,7 @@ mod tests {
         let mut atlas = split_atlas();
         atlas.animations[0].frames[0].parts.swap(1, 2);
 
-        let cache = build_runtime_cache(&atlas).expect("unordered fragments should canonicalise");
+        let cache = build_cache(&atlas).expect("unordered fragments should canonicalise");
         let fragments = &cache.animations["idle_stand"].frames[0].poses["legs_visual"];
 
         assert_eq!(
@@ -4517,8 +4876,8 @@ mod tests {
             .parts
             .retain(|pose| pose.part_id != "legs_visual" || pose.fragment != 0);
 
-        let error = build_runtime_cache(&atlas)
-            .expect_err("missing fragment 0 should fail at runtime boundary");
+        let error =
+            build_cache(&atlas).expect_err("missing fragment 0 should fail at runtime boundary");
         assert!(error.contains("missing primary fragment 0"));
     }
 
@@ -4532,8 +4891,7 @@ mod tests {
             .expect("split atlas should include fragment 1");
         right_fragment.fragment = 2;
 
-        let error =
-            build_runtime_cache(&atlas).expect_err("fragment gaps should fail at runtime boundary");
+        let error = build_cache(&atlas).expect_err("fragment gaps should fail at runtime boundary");
         assert!(error.contains("non-contiguous fragments"));
     }
 
@@ -4541,7 +4899,7 @@ mod tests {
     #[test]
     fn broken_state_hides_all_split_fragments() {
         let atlas = split_atlas();
-        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+        let cache = build_cache(&atlas).expect("split atlas should be valid");
         let frame = &cache.animations["idle_stand"].frames[0];
 
         let mut part_states = ComposedPartStates::from_cache(&cache);
@@ -4600,7 +4958,7 @@ mod tests {
     #[test]
     fn animation_resolution_applies_to_all_fragments() {
         let atlas = split_atlas();
-        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+        let cache = build_cache(&atlas).expect("split atlas should be valid");
 
         // All fragments for legs_visual come from the same animation frame.
         let frame = &cache.animations["idle_stand"].frames[0];
@@ -4616,7 +4974,7 @@ mod tests {
     #[test]
     fn no_per_fragment_collision() {
         let atlas = split_atlas();
-        let cache = build_runtime_cache(&atlas).expect("split atlas should be valid");
+        let cache = build_cache(&atlas).expect("split atlas should be valid");
 
         // The legs part has one collision volume from the definition.
         let leg_part = &cache.parts_by_id["legs_visual"];

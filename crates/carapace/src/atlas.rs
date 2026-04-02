@@ -385,8 +385,10 @@ mod tests {
     use crate::camera::PxCamera;
     use crate::frame::{PxFrameSelector, PxFrameView, draw_frame, draw_spatial};
     use crate::image::PxImage;
+    use asset_pipeline::composed_ron::CompactComposedAtlas;
     use bevy_math::IVec2;
     use bevy_platform::collections::HashMap;
+    use std::{fs, path::PathBuf};
 
     fn pixels(image: &PxImage) -> Vec<u8> {
         let size = image.size();
@@ -737,5 +739,80 @@ mod tests {
             pixels(&image),
             vec![5, 6, 0, 0, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,]
         );
+    }
+
+    fn load_exported_mosquiton_compact() -> CompactComposedAtlas {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/sprites/enemies/mosquiton_3/atlas.composed.ron");
+        let body = fs::read_to_string(path).expect("atlas.composed.ron should exist");
+        ron::from_str(&body).expect("atlas.composed.ron should deserialize")
+    }
+
+    fn load_exported_mosquiton_px_descriptor() -> PxSpriteAtlasDescriptor {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/sprites/enemies/mosquiton_3/atlas.px_atlas.ron");
+        let body = fs::read_to_string(path).expect("atlas.px_atlas.ron should exist");
+        ron::from_str(&body).expect("atlas.px_atlas.ron should deserialize")
+    }
+
+    #[test]
+    fn exported_mosquiton_compact_and_px_atlas_stay_aligned() {
+        let compact = load_exported_mosquiton_compact();
+        let descriptor = load_exported_mosquiton_px_descriptor();
+
+        assert_eq!(
+            compact.sprite_names.len(),
+            compact.sprite_sizes.len(),
+            "compact sprite tables should stay aligned",
+        );
+        assert_eq!(
+            compact.sprite_names.len(),
+            descriptor.regions.len(),
+            "compact sprite count should match atlas region count",
+        );
+        assert_eq!(
+            compact.sprite_names.len(),
+            descriptor.names.len(),
+            "compact sprite count should match atlas name table size",
+        );
+
+        for (index, (name, &(w, h))) in compact
+            .sprite_names
+            .iter()
+            .zip(compact.sprite_sizes.iter())
+            .enumerate()
+        {
+            let expected_index = index as u32;
+            let resolved_index = descriptor
+                .names
+                .get(name)
+                .copied()
+                .unwrap_or_else(|| panic!("sprite '{name}' should exist in atlas name table"));
+            assert_eq!(
+                resolved_index, expected_index,
+                "sprite '{}' should resolve to region {}",
+                name, expected_index
+            );
+
+            let expected_region = &descriptor.regions[index];
+            let actual_region = &descriptor.regions[resolved_index as usize];
+            assert_eq!(
+                actual_region.frame_size,
+                [w as u32, h as u32],
+                "sprite '{}' frame_size should match compact sprite size",
+                name
+            );
+            assert_eq!(
+                actual_region.frames.len(),
+                1,
+                "sprite '{}' should use exactly one atlas frame",
+                name
+            );
+            assert_eq!(
+                actual_region.frames[0], expected_region.frames[0],
+                "sprite '{}' should preserve atlas rect identity",
+                name
+            );
+        }
     }
 }

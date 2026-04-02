@@ -40,6 +40,7 @@ const DEFAULT_PART_GROUP: &str = "base";
 const DEFAULT_ORIGIN_SLICE: &str = "origin";
 const CURRENT_SCHEMA_VERSION: u32 = 3;
 const RUNTIME_ATLAS_PXI_NAME: &str = "atlas.pxi";
+const RUNTIME_COMPOSED_RON_NAME: &str = "atlas.composed.ron";
 const DEFAULT_RUNTIME_PALETTE_PATH: &str = "assets/palette/base.png";
 
 /// Top-level manifest for Aseprite exports.
@@ -615,6 +616,14 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
         format!("{}\n", serde_json::to_string_pretty(&metadata)?),
     )
     .with_context(|| format!("Failed to write {}", atlas_json.display()))?;
+
+    let compact =
+        crate::composed_ron::encode(&metadata).context("Failed to encode compact composed RON")?;
+    let composed_ron_path = output_dir.join(RUNTIME_COMPOSED_RON_NAME);
+    let composed_ron_body = crate::composed_ron::to_ron(&compact)
+        .context("Failed to serialize compact composed RON")?;
+    fs::write(&composed_ron_path, &composed_ron_body)
+        .with_context(|| format!("Failed to write {}", composed_ron_path.display()))?;
 
     println!(
         "Exported piece atlas for {} depth {} to {}",

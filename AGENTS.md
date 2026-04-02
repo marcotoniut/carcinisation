@@ -45,6 +45,10 @@ If something is blocked, state exactly what and why.
 - Nice to have
 - Approval status: Approved or Not approved
 
+## Commits
+
+- Do not add Co-Authored-By lines to commits.
+
 ## Hygiene
 
 - Stop any watchers/dev servers/helper processes you started.

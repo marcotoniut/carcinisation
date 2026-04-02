@@ -34,10 +34,9 @@ use self::{
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use bevy_common_assets::json::JsonAssetPlugin;
 use composed::{
-    CompositionAtlasAsset, ensure_composed_enemy_parts, prepare_composed_atlas_assets,
-    update_composed_enemy_visuals,
+    CompositionAtlasAsset, CompositionAtlasLoader, ensure_composed_enemy_parts,
+    prepare_composed_atlas_assets, update_composed_enemy_visuals,
 };
 
 /// Registers shared enemy behaviour systems and species handlers.
@@ -46,9 +45,8 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(JsonAssetPlugin::<CompositionAtlasAsset>::new(&[
-            "atlas.json",
-        ]));
+        app.init_asset::<CompositionAtlasAsset>()
+            .register_asset_loader(CompositionAtlasLoader);
         app.add_active_systems::<EnemyPlugin, _>(
             // Behaviour/animation updates only run while the enemy subsystem is active.
             (

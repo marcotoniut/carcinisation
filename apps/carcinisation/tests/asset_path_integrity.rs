@@ -128,12 +128,13 @@ fn all_tardigrade_sprites_exist() {
 /// Validates mosquiton composed atlas files exist.
 ///
 /// Mosquiton uses composed sprite rendering with multi-part animations authored
-/// in Aseprite. Requires atlas.json, source.png, atlas.pxi, and
-/// atlas.px_atlas.ron.
+/// in Aseprite. Requires atlas.composed.ron (runtime), atlas.json (debug),
+/// source.png, atlas.pxi, and atlas.px_atlas.ron.
 #[test]
 fn mosquiton_composed_atlas_exists() {
     let base = "sprites/enemies/mosquiton_3";
     let required = [
+        "atlas.composed.ron",
         "atlas.json",
         "source.png",
         "atlas.pxi",
