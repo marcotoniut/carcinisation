@@ -9,7 +9,11 @@ mod events;
 #[cfg(feature = "full_editor")]
 mod file_manager;
 #[cfg(feature = "full_editor")]
+mod history;
+#[cfg(feature = "full_editor")]
 mod inspector;
+#[cfg(feature = "full_editor")]
+mod placement;
 #[cfg(feature = "full_editor")]
 mod resources;
 #[cfg(feature = "full_editor")]
@@ -44,14 +48,17 @@ use file_manager::FileManagerPlugin;
 #[cfg(feature = "full_editor")]
 use inspector::InspectorPlugin;
 #[cfg(feature = "full_editor")]
+use placement::PlacementMode;
+#[cfg(feature = "full_editor")]
 use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI, ThumbnailCache};
 #[cfg(feature = "full_editor")]
 use systems::{
     animate_sprite, check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
     input::{
-        on_alt_mouse_motion, on_ctrl_mouse_motion, on_mouse_drag, on_mouse_press, on_mouse_release,
-        on_mouse_wheel,
+        on_alt_mouse_motion, on_delete_selected, on_middle_mouse_pan, on_mouse_drag,
+        on_mouse_press, on_mouse_release, on_pinch_zoom, on_right_click_drag, on_scroll,
+        tick_gesture_timeout, update_placement_ghost,
     },
     maximize_window, on_scene_change, on_unload_scene, setup_camera,
 };
@@ -68,8 +75,10 @@ fn main() {
     app.add_plugins(BrpExtrasPlugin);
 
     app.init_resource::<systems::input::DragState>()
+        .init_resource::<systems::input::GestureState>()
         .init_resource::<StageControlsUI>()
         .init_resource::<ThumbnailCache>()
+        .init_resource::<PlacementMode>()
         .add_plugins(
             DefaultPlugins
                 .set(AssetPlugin {
@@ -112,15 +121,20 @@ fn main() {
         .add_systems(
             Update,
             (
+                tick_gesture_timeout,
                 on_alt_mouse_motion,
-                on_ctrl_mouse_motion,
+                on_right_click_drag,
+                on_middle_mouse_pan,
+                on_pinch_zoom,
                 on_mouse_press,
                 on_mouse_drag,
                 on_mouse_release,
-                on_mouse_wheel,
+                on_scroll,
+                on_delete_selected,
             ),
         )
         .add_systems(EguiPrimaryContextPass, update_ui)
+        .add_systems(Update, update_placement_ghost)
         .add_systems(Update, systems::exit_on_window_close_request)
         .add_systems(Update, animate_sprite)
         .run();

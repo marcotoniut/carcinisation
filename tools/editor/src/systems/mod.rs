@@ -9,9 +9,10 @@ use bevy::{
 };
 use carcinisation::{CutsceneData, stage::data::StageData};
 
-use crate::components::{AnimationIndices, AnimationTimer, EditorCamera};
+use crate::components::{AnimationIndices, AnimationTimer, EditorCamera, PlacementGhost};
 use crate::file_manager::events::WriteRecentFilePathEvent;
 use crate::resources::StageControlsUI;
+use crate::systems::input::CoordinateOverlay;
 use crate::{
     builders::{cutscene::spawn_cutscene, stage::spawn_stage},
     components::{SceneData, SceneItem, ScenePath},
@@ -118,19 +119,27 @@ pub fn check_stage_data_loaded(
 }
 
 /// @system Rebuilds editor entities when the scene or visibility toggles change.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
 pub fn on_scene_change(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     layer_shown_ui: Res<StageControlsUI>,
     loaded_scene: Res<SceneData>,
     scene_item_query: Query<Entity, With<SceneItem>>,
+    overlay_query: Query<Entity, With<CoordinateOverlay>>,
+    ghost_query: Query<Entity, With<PlacementGhost>>,
     mut image_assets: ResMut<Assets<Image>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut thumbnail_cache: ResMut<ThumbnailCache>,
 ) {
     if loaded_scene.is_changed() || layer_shown_ui.is_changed() {
         for entity in scene_item_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in overlay_query.iter() {
+            commands.entity(entity).despawn();
+        }
+        for entity in ghost_query.iter() {
             commands.entity(entity).despawn();
         }
         match loaded_scene.clone() {

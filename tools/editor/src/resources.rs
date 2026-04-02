@@ -35,7 +35,7 @@ pub struct CachedThumbnail {
 }
 
 /// UI state for editor stage controls and layer visibility.
-#[derive(Debug, Reflect, Resource, Deserialize, Serialize)]
+#[derive(Clone, Debug, Reflect, Resource, Deserialize, Serialize)]
 #[reflect(Resource)]
 #[serde(rename_all = "PascalCase")]
 #[allow(clippy::struct_excessive_bools)]

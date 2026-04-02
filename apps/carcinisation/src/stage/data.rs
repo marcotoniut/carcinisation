@@ -124,6 +124,11 @@ impl PickupSpawn {
         self
     }
     #[must_use]
+    pub fn with_depth(mut self, value: Depth) -> Self {
+        self.depth = value;
+        self
+    }
+    #[must_use]
     pub fn big_healthpack_base() -> Self {
         Self {
             pickup_type: PickupType::BigHealthpack,
@@ -186,6 +191,12 @@ impl ObjectSpawn {
     #[must_use]
     pub fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
+        self
+    }
+
+    #[must_use]
+    pub fn with_depth(mut self, value: Depth) -> Self {
+        self.depth = value;
         self
     }
 
@@ -320,6 +331,11 @@ impl EnemySpawn {
     #[must_use]
     pub fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
+        self
+    }
+    #[must_use]
+    pub fn with_enemy_type(mut self, value: EnemyType) -> Self {
+        self.enemy_type = value;
         self
     }
     /** TODO should I implement these as a trait Contains */
@@ -471,6 +487,15 @@ impl StageSpawn {
             StageSpawn::Enemy(EnemySpawn { depth, .. }) => *depth,
             StageSpawn::Object(ObjectSpawn { depth, .. }) => *depth,
             StageSpawn::Pickup(PickupSpawn { depth, .. }) => *depth,
+        }
+    }
+
+    pub fn set_coordinates(&mut self, position: Vec2) {
+        match self {
+            StageSpawn::Destructible(s) => s.coordinates = position,
+            StageSpawn::Enemy(s) => s.coordinates = position,
+            StageSpawn::Object(s) => s.coordinates = position,
+            StageSpawn::Pickup(s) => s.coordinates = position,
         }
     }
 

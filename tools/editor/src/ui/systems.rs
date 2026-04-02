@@ -1,15 +1,18 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{
     bevy_egui::{EguiContext, PrimaryEguiContext},
-    egui::{self, epaint::Shadow},
+    egui::{self},
 };
+use carcinisation::stage::components::placement::Depth;
 
 use crate::components::SceneData;
+use crate::placement::{EDITOR_DEPTHS, PlacementMode, PlacementState, SpawnTemplate};
 use crate::resources::StageControlsUI;
 use crate::timeline::{StageTimeline, StageTimelineConfig};
+use crate::ui::style::{apply_editor_style, field_label, section_header};
 use std::time::Duration;
 
-/// @system Builds the editor UI: stage timeline slider and stage control toggles.
+/// @system Builds the editor UI: stage timeline slider, stage control toggles, and spawn palette.
 #[allow(clippy::too_many_lines)]
 pub fn update_ui(world: &mut World) {
     let window_width = {
@@ -31,18 +34,12 @@ pub fn update_ui(world: &mut World) {
         egui_context.clone()
     };
 
-    let egui_style: egui::Style = egui::Style {
-        visuals: egui::Visuals {
-            window_shadow: Shadow {
-                offset: [0, 0],
-                ..default()
-            },
-            ..egui::Visuals::dark()
-        },
-        ..default()
-    };
-
     let ctx = egui_context.get_mut();
+    apply_editor_style(ctx);
+
+    let has_stage = world
+        .get_resource::<SceneData>()
+        .is_some_and(|sd| matches!(sd, SceneData::Stage(_)));
 
     if let Some(stage_data) =
         world
@@ -155,13 +152,174 @@ pub fn update_ui(world: &mut World) {
             });
     }
 
+    stage_controls_window(world, ctx);
+
+    // Spawn palette and undo/redo status
+    if has_stage {
+        spawn_palette_window(world, ctx);
+    }
+}
+
+fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
+    let mut controls = world.resource::<StageControlsUI>().clone();
+    let original = controls.clone();
+
     egui::Window::new("Stage Controls")
         .anchor(egui::Align2::LEFT_TOP, [0.0, 30.0])
         .resizable(false)
         .show(ctx, |ui| {
-            ctx.set_style(egui_style.clone());
-            egui::ScrollArea::horizontal().show(ui, |ui| {
-                bevy_inspector_egui::bevy_inspector::ui_for_resource::<StageControlsUI>(world, ui);
+            section_header(ui, "Overlays");
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut controls.elapsed_path, "Path");
+                ui.checkbox(&mut controls.skybox, "Skybox");
+                ui.checkbox(&mut controls.background, "Background");
+            });
+
+            section_header(ui, "Depth layers");
+            let depths: &mut [(&str, &mut bool)] = &mut [
+                ("9", &mut controls.nine),
+                ("8", &mut controls.eight),
+                ("7", &mut controls.seven),
+                ("6", &mut controls.six),
+                ("5", &mut controls.five),
+                ("4", &mut controls.four),
+                ("3", &mut controls.three),
+                ("2", &mut controls.two),
+                ("1", &mut controls.one),
+            ];
+
+            egui::Grid::new("depth_toggles")
+                .num_columns(5)
+                .spacing([4.0, 2.0])
+                .show(ui, |ui| {
+                    for (i, (label, value)) in depths.iter_mut().enumerate() {
+                        ui.checkbox(value, *label);
+                        if (i + 1) % 5 == 0 {
+                            ui.end_row();
+                        }
+                    }
+                });
+        });
+
+    // Write back if changed (compare serialised to avoid spurious change detection).
+    if controls.elapsed_path != original.elapsed_path
+        || controls.skybox != original.skybox
+        || controls.background != original.background
+        || controls.nine != original.nine
+        || controls.eight != original.eight
+        || controls.seven != original.seven
+        || controls.six != original.six
+        || controls.five != original.five
+        || controls.four != original.four
+        || controls.three != original.three
+        || controls.two != original.two
+        || controls.one != original.one
+        || controls.zero != original.zero
+    {
+        *world.resource_mut::<StageControlsUI>() = controls;
+    }
+}
+
+fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
+    let placing_label = world
+        .get_resource::<PlacementMode>()
+        .and_then(|pm| pm.active.as_ref().map(|s| s.template.label().to_string()));
+    let current_depth = world
+        .get_resource::<PlacementMode>()
+        .and_then(|pm| pm.active.as_ref().map(|s| s.depth))
+        .unwrap_or(Depth::Three);
+
+    let objects = SpawnTemplate::all_objects();
+    let destructibles = SpawnTemplate::all_destructibles();
+    let pickups = SpawnTemplate::all_pickups();
+    let enemies = SpawnTemplate::all_enemies();
+
+    let mut set_placement: Option<SpawnTemplate> = None;
+    let mut set_depth: Option<Depth> = None;
+
+    egui::Window::new("Spawn Palette")
+        .default_pos([200.0, 30.0])
+        .resizable(false)
+        .default_open(true)
+        .show(ctx, |ui| {
+            if let Some(label) = &placing_label {
+                ui.colored_label(
+                    egui::Color32::YELLOW,
+                    format!("Placing: {label} (ESC to cancel)"),
+                );
+                ui.add_space(2.0);
+            }
+
+            let mut selected_depth = current_depth;
+            let active_template = world
+                .get_resource::<PlacementMode>()
+                .and_then(|pm| pm.active.as_ref().map(|s| s.template.clone()));
+
+            ui.horizontal(|ui| {
+                // Left column: depth radio buttons
+                ui.vertical(|ui| {
+                    field_label(ui, "Depth");
+                    for &depth in EDITOR_DEPTHS {
+                        let enabled = active_template
+                            .as_ref()
+                            .is_some_and(|t| t.has_sprite_at_depth(depth));
+                        let label = format!("{}", depth.to_i8());
+                        ui.add_enabled_ui(enabled, |ui| {
+                            if ui.radio_value(&mut selected_depth, depth, label).changed() {
+                                set_depth = Some(selected_depth);
+                            }
+                        });
+                    }
+                });
+
+                ui.separator();
+
+                // Right column: spawn type lists
+                ui.vertical(|ui| {
+                    palette_section(ui, "Objects", &objects, &mut set_placement);
+                    palette_section(ui, "Destructibles", &destructibles, &mut set_placement);
+                    palette_section(ui, "Pickups", &pickups, &mut set_placement);
+                    palette_section(ui, "Enemies", &enemies, &mut set_placement);
+                });
             });
         });
+
+    if let Some(template) = set_placement
+        && let Some(mut pm) = world.get_resource_mut::<PlacementMode>()
+    {
+        // Use current depth if valid for the new template, otherwise fall back to default.
+        let depth = if template.has_sprite_at_depth(current_depth) {
+            current_depth
+        } else {
+            template.default_depth()
+        };
+        pm.active = Some(PlacementState { template, depth });
+    }
+    if let Some(depth) = set_depth
+        && let Some(mut pm) = world.get_resource_mut::<PlacementMode>()
+        && let Some(state) = pm.active.as_mut()
+    {
+        state.depth = depth;
+    }
+}
+
+fn palette_section(
+    ui: &mut egui::Ui,
+    heading: &str,
+    templates: &[SpawnTemplate],
+    set_placement: &mut Option<SpawnTemplate>,
+) {
+    ui.collapsing(heading, |ui| {
+        for template in templates {
+            if ui
+                .add_sized(
+                    [ui.available_width(), 0.0],
+                    egui::Button::new(template.label()),
+                )
+                .clicked()
+            {
+                *set_placement = Some(template.clone());
+            }
+        }
+    });
 }

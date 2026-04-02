@@ -83,6 +83,17 @@ pub fn resolve_stage_spawn_thumbnail(
     }
 }
 
+/// Returns a placeholder thumbnail for spawn types without a valid sprite at the given depth.
+fn placeholder_thumbnail() -> ResolvedThumbnail {
+    ResolvedThumbnail {
+        sprite: Sprite::from_color(
+            bevy::color::Color::srgba(1.0, 0.0, 1.0, 0.5),
+            Vec2::new(16.0, 16.0),
+        ),
+        anchor: Anchor::BOTTOM_CENTER,
+    }
+}
+
 fn resolve_enemy_thumbnail(
     enemy_type: EnemyType,
     depth: Depth,
@@ -91,30 +102,38 @@ fn resolve_enemy_thumbnail(
     cache: &mut ThumbnailCache,
 ) -> ResolvedThumbnail {
     match enemy_type {
-        EnemyType::Mosquiton => {
-            let cached = cache
-                .composed_enemies
-                .entry((enemy_type, depth))
-                .or_insert_with(|| {
-                    let preview = compose_mosquiton_preview(depth).unwrap_or_else(|error| {
-                        panic!(
-                            "failed to build mosquiton editor preview for depth {}: {error:#}",
-                            depth.to_i8(),
-                        );
-                    });
-                    CachedThumbnail {
+        EnemyType::Mosquiton => match compose_mosquiton_preview(depth) {
+            Ok(preview) => {
+                let cached = cache
+                    .composed_enemies
+                    .entry((enemy_type, depth))
+                    .or_insert_with(|| CachedThumbnail {
                         image: image_assets.add(rgba_image_to_bevy_image(&preview.pixels)),
                         anchor: preview.anchor,
-                    }
-                })
-                .clone();
+                    })
+                    .clone();
 
-            ResolvedThumbnail {
-                sprite: Sprite::from_image(cached.image),
-                anchor: cached.anchor,
+                ResolvedThumbnail {
+                    sprite: Sprite::from_image(cached.image),
+                    anchor: cached.anchor,
+                }
             }
-        }
-        _ => asset_thumbnail(asset_server, get_enemy_thumbnail(enemy_type, depth)),
+            Err(e) => {
+                bevy::log::warn!("No mosquiton preview for depth {}: {e:#}", depth.to_i8());
+                placeholder_thumbnail()
+            }
+        },
+        _ => match get_enemy_thumbnail(enemy_type, depth) {
+            Some(thumb) => asset_thumbnail(asset_server, thumb),
+            None => {
+                bevy::log::warn!(
+                    "No thumbnail for {:?} at depth {}",
+                    enemy_type,
+                    depth.to_i8()
+                );
+                placeholder_thumbnail()
+            }
+        },
     }
 }
 
@@ -393,92 +412,78 @@ fn ivec2_from_point(point: &asset_pipeline::aseprite::Point) -> IVec2 {
     IVec2::new(point.x, point.y)
 }
 
-pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> (String, Option<Rect>) {
+pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> Option<(String, Option<Rect>)> {
     match enemy_type {
         EnemyType::Mosquito => {
             let loc = "sprites/enemies/mosquito_idle_";
             let ext = ".px_sprite.png";
             match depth {
-                Depth::Three => (
+                Depth::Three => Some((
                     format!("{loc}3{ext}"),
                     URect::new(0, 0, 49, 49).as_rect().into(),
-                ),
-                Depth::Four => (
+                )),
+                Depth::Four => Some((
                     format!("{loc}4{ext}"),
                     URect::new(0, 0, 35, 35).as_rect().into(),
-                ),
-                Depth::Five => (
+                )),
+                Depth::Five => Some((
                     format!("{loc}5{ext}"),
                     URect::new(0, 0, 23, 23).as_rect().into(),
-                ),
-                Depth::Six => (
+                )),
+                Depth::Six => Some((
                     format!("{loc}6{ext}"),
                     URect::new(0, 0, 15, 15).as_rect().into(),
-                ),
-                Depth::Seven => (
+                )),
+                Depth::Seven => Some((
                     format!("{loc}7{ext}"),
                     URect::new(0, 0, 9, 9).as_rect().into(),
-                ),
-                Depth::Eight => (
+                )),
+                Depth::Eight => Some((
                     format!("{loc}8{ext}"),
                     URect::new(0, 0, 5, 5).as_rect().into(),
-                ),
-                _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
+                )),
+                _ => None,
             }
         }
         EnemyType::Mosquiton => match depth {
-            Depth::Three => ("sprites/enemies/mosquiton_3/source.png".into(), None),
-            _ => panic!("mosquiton_3 Invalid depth {}", depth.to_i8()),
+            Depth::Three => Some(("sprites/enemies/mosquiton_3/source.png".into(), None)),
+            _ => None,
         },
         EnemyType::Spidey => {
             let loc = "sprites/enemies/spider_idle_";
             let ext = ".px_sprite.png";
             match depth {
-                Depth::Two => (
+                Depth::Two => Some((
                     format!("{loc}2{ext}"),
                     URect::new(0, 0, 49, 49).as_rect().into(),
-                ),
-                Depth::Seven => (
+                )),
+                Depth::Seven => Some((
                     format!("{loc}7{ext}"),
                     URect::new(0, 0, 35, 35).as_rect().into(),
-                ),
-                _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
+                )),
+                _ => None,
             }
         }
         EnemyType::Tardigrade => {
             let loc = "sprites/enemies/tardigrade_idle_";
             let ext = ".px_sprite.png";
             match depth {
-                Depth::Six => (
+                Depth::Six => Some((
                     format!("{loc}6{ext}"),
                     URect::new(0, 0, 63, 63).as_rect().into(),
-                ),
-                Depth::Seven => (
+                )),
+                Depth::Seven => Some((
                     format!("{loc}7{ext}"),
                     URect::new(0, 0, 42, 42).as_rect().into(),
-                ),
-                Depth::Eight => (
+                )),
+                Depth::Eight => Some((
                     format!("{loc}8{ext}"),
                     URect::new(0, 0, 23, 23).as_rect().into(),
-                ),
-                _ => panic!("{} Invalid depth {}", loc, depth.to_i8()),
+                )),
+                _ => None,
             }
         }
-        EnemyType::Marauder => {
-            let loc = "sprites/enemies/marauder_idle_";
-            let ext = ".px_sprite.png";
-            panic!("{}{} Invalid depth {}", loc, ext, depth.to_i8());
-        }
-        EnemyType::Spidomonsta => {
-            let loc = "sprites/enemies/spidomonsta_idle_";
-            let ext = ".px_sprite.png";
-            panic!("{}{} Invalid depth {}", loc, ext, depth.to_i8());
-        }
-        EnemyType::Kyle => {
-            let loc = "sprites/enemies/kyle_idle_";
-            let ext = ".px_sprite.png";
-            panic!("{}{} Invalid depth {}", loc, ext, depth.to_i8());
-        }
+        EnemyType::Marauder | EnemyType::Spidomonsta | EnemyType::Kyle => None,
     }
 }
 

@@ -86,3 +86,7 @@ pub struct ScenePath(pub String);
 /// Marker for stage spawn label entities.
 #[derive(Component, Debug, Default, Reflect, Resource)]
 pub struct StageSpawnLabel;
+
+/// Marker for the translucent placement ghost that follows the cursor.
+#[derive(Component, Debug)]
+pub struct PlacementGhost;

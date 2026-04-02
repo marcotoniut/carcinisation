@@ -1,11 +1,12 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{
     bevy_egui::{EguiContext, PrimaryEguiContext},
-    egui::{self, Align2, epaint::Shadow},
+    egui::{self, Align2},
 };
 
 use crate::components::{SceneData, ScenePath, SelectedItem};
 use crate::file_manager::actions::{request_file_picker, save_scene};
+use crate::ui::style::{apply_editor_style, section_header};
 
 /// @system Renders inspector windows (world, scene, and file path controls).
 #[allow(clippy::too_many_lines)]
@@ -30,6 +31,8 @@ pub fn inspector_ui(world: &mut World) {
     };
 
     let ctx = egui_context.get_mut();
+    apply_editor_style(ctx);
+
     let scene_path = world.resource::<ScenePath>().0.clone();
     let scene_data = world.get_resource::<SceneData>().cloned();
     let selected_entity = world
@@ -60,7 +63,8 @@ pub fn inspector_ui(world: &mut World) {
         .show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 if let Some(entity) = selected_entity {
-                    ui.heading("Selection");
+                    section_header(ui, "Selection");
+                    ui.add_space(2.0);
                     bevy_inspector_egui::bevy_inspector::ui_for_entity(world, entity, ui);
                 } else {
                     bevy_inspector_egui::bevy_inspector::ui_for_resource::<SceneData>(world, ui);
@@ -75,16 +79,6 @@ pub fn inspector_ui(world: &mut World) {
         .resizable(false)
         .movable(false)
         .show(ctx, |ui| {
-            ctx.set_style(egui::Style {
-                visuals: egui::Visuals {
-                    window_shadow: Shadow {
-                        offset: [0, 0],
-                        ..default()
-                    },
-                    ..egui::Visuals::dark()
-                },
-                ..default()
-            });
             ui.horizontal(|ui| {
                 let button_height = ui.spacing().interact_size.y;
                 let save_width = 46.0;
