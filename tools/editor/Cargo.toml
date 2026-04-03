@@ -27,5 +27,5 @@ strum = { workspace = true }
 image = "0.25"
 
 [features]
-default = []
+default = ["full_editor"]
 full_editor = ["bevy_prototype_lyon"]

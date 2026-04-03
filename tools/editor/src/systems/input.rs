@@ -1,5 +1,6 @@
 use crate::components::{
     Draggable, EditorCamera, SceneData, SelectedItem, SelectionOutline, StageSpawnRef,
+    StartCoordinatesNode, TweenPathNode,
 };
 use crate::constants::{CAMERA_MOVE_BOUNDARY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN};
 use crate::history::SpawnLocation;
@@ -76,12 +77,12 @@ impl Default for GestureState {
 impl GestureState {
     /// Check if a scroll gesture has timed out and reset if so.
     fn tick_scroll_timeout(&mut self) {
-        if let Some(last) = self.last_scroll_time {
-            if last.elapsed() > SCROLL_GESTURE_TIMEOUT {
-                self.last_scroll_time = None;
-                if self.owner != GestureTarget::Tool {
-                    self.owner = GestureTarget::None;
-                }
+        if let Some(last) = self.last_scroll_time
+            && last.elapsed() > SCROLL_GESTURE_TIMEOUT
+        {
+            self.last_scroll_time = None;
+            if self.owner != GestureTarget::Tool {
+                self.owner = GestureTarget::None;
             }
         }
     }
@@ -115,7 +116,12 @@ type SelectedDragQuery<'w, 's> = Query<
     'w,
     's,
     (&'static mut Transform, Option<&'static StageSpawnRef>),
-    (With<Draggable>, Without<EditorCamera>),
+    (
+        With<Draggable>,
+        Without<EditorCamera>,
+        Without<TweenPathNode>,
+        Without<StartCoordinatesNode>,
+    ),
 >;
 
 #[derive(Resource, Default)]
@@ -123,10 +129,30 @@ pub struct DragState {
     pub active: Option<DragInfo>,
 }
 
+/// What kind of entity is being dragged.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub enum DragKind {
+    /// A spawn entity (enemy, object, pickup, destructible).
+    #[default]
+    Spawn,
+    /// A camera-path tween node.
+    PathNode,
+    /// The start_coordinates node.
+    StartNode,
+}
+
+impl DragKind {
+    /// Whether this drag kind targets path overlay geometry (needs rebuild on release).
+    pub fn is_path(self) -> bool {
+        matches!(self, DragKind::PathNode | DragKind::StartNode)
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct DragInfo {
     pub entity: Entity,
     pub offset: Vec2,
+    pub kind: DragKind,
 }
 
 /// Currently displayed coordinate overlay entity.
@@ -152,6 +178,9 @@ pub struct MousePressParams<'w, 's> {
         ),
         With<Draggable>,
     >,
+    pub path_node_query: Query<'w, 's, (Entity, &'static GlobalTransform, &'static TweenPathNode)>,
+    pub start_node_query:
+        Query<'w, 's, (Entity, &'static GlobalTransform), With<StartCoordinatesNode>>,
     pub camera_query: Query<'w, 's, (&'static Camera, &'static Transform), With<EditorCamera>>,
 }
 
@@ -339,7 +368,7 @@ pub fn on_middle_mouse_pan(
 // ─── Entity interaction systems ─────────────────────────────────────────────
 
 /// @system Right-click drags selected entities to cursor position.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::type_complexity)]
 pub fn on_right_click_drag(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -486,21 +515,97 @@ pub fn on_mouse_press(
             params.drag_state.active = Some(DragInfo {
                 entity,
                 offset: world_position - position,
+                kind: DragKind::Spawn,
             });
             gesture.owner = GestureTarget::Tool;
         } else {
-            for entity in params.selected_query.iter() {
-                commands.entity(entity).remove::<SelectedItem>();
+            // Check path node handles (circle distance test).
+            // Use the hover-scaled radius so the clickable area matches the visual.
+            let hit_radius = crate::builders::stage::PATH_NODE_RADIUS
+                * crate::builders::stage::PATH_NODE_HOVER_SCALE
+                * camera_transform.scale.x.max(1.0);
+            let mut node_picked = false;
+            for (entity, global_transform, _node) in params.path_node_query.iter() {
+                let node_pos = global_transform.translation().truncate();
+                if node_pos.distance(world_position) <= hit_radius {
+                    for entity in params.selected_query.iter() {
+                        commands.entity(entity).remove::<SelectedItem>();
+                    }
+                    for entity in params.outline_query.iter() {
+                        commands.entity(entity).despawn();
+                    }
+                    commands.entity(entity).insert(SelectedItem);
+                    params.drag_state.active = Some(DragInfo {
+                        entity,
+                        offset: world_position - node_pos,
+                        kind: DragKind::PathNode,
+                    });
+                    gesture.owner = GestureTarget::Tool;
+                    node_picked = true;
+                    break;
+                }
             }
-            for entity in params.outline_query.iter() {
-                commands.entity(entity).despawn();
+
+            // Check start_coordinates node.
+            if !node_picked {
+                for (entity, global_transform) in params.start_node_query.iter() {
+                    let node_pos = global_transform.translation().truncate();
+                    if node_pos.distance(world_position) <= hit_radius {
+                        for entity in params.selected_query.iter() {
+                            commands.entity(entity).remove::<SelectedItem>();
+                        }
+                        for entity in params.outline_query.iter() {
+                            commands.entity(entity).despawn();
+                        }
+                        commands.entity(entity).insert(SelectedItem);
+                        params.drag_state.active = Some(DragInfo {
+                            entity,
+                            offset: world_position - node_pos,
+                            kind: DragKind::StartNode,
+                        });
+                        gesture.owner = GestureTarget::Tool;
+                        node_picked = true;
+                        break;
+                    }
+                }
             }
-            params.drag_state.active = None;
+
+            if !node_picked {
+                // Alt+click on empty canvas: insert a Tween step at the cursor position
+                // into the nearest path segment.
+                let alt_pressed = keyboard_buttons.pressed(KeyCode::AltLeft)
+                    || keyboard_buttons.pressed(KeyCode::AltRight);
+                if alt_pressed {
+                    if let Some(scene_data) = scene_data.as_mut()
+                        && let SceneData::Stage(stage_data) = scene_data.as_mut()
+                    {
+                        let h_screen = carcinisation::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
+                        let data_coords = world_position - h_screen;
+                        let insert_idx = path_insert_index(stage_data, data_coords);
+                        let mut tween = carcinisation::stage::components::TweenStageStep::new();
+                        tween.coordinates = data_coords;
+                        stage_data.steps.insert(
+                            insert_idx,
+                            carcinisation::stage::data::StageStep::Tween(tween),
+                        );
+                    }
+                    gesture.owner = GestureTarget::Tool;
+                } else {
+                    for entity in params.selected_query.iter() {
+                        commands.entity(entity).remove::<SelectedItem>();
+                    }
+                    for entity in params.outline_query.iter() {
+                        commands.entity(entity).despawn();
+                    }
+                    params.drag_state.active = None;
+                }
+            }
         }
     }
 }
 
 /// @system Clears drag state, gesture ownership, and coordinate overlay on mouse release.
+/// If a path node was being dragged, marks SceneData changed to trigger a clean rebuild.
 #[allow(clippy::needless_pass_by_value)]
 pub fn on_mouse_release(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -508,6 +613,7 @@ pub fn on_mouse_release(
     mut gesture: ResMut<GestureState>,
     mut commands: Commands,
     overlay_query: Query<Entity, With<CoordinateOverlay>>,
+    mut pending_rebuild: ResMut<crate::resources::PendingSceneRebuild>,
 ) {
     let any_released = buttons.just_released(MouseButton::Left)
         || buttons.just_released(MouseButton::Middle)
@@ -524,6 +630,12 @@ pub fn on_mouse_release(
     }
 
     if buttons.just_released(MouseButton::Left) {
+        // If a path node was dragged, request a full scene rebuild for the next frame.
+        if let Some(ref info) = drag_state.active
+            && info.kind.is_path()
+        {
+            pending_rebuild.0 = true;
+        }
         drag_state.active = None;
         for entity in overlay_query.iter() {
             commands.entity(entity).despawn();
@@ -533,10 +645,23 @@ pub fn on_mouse_release(
 
 /// @system Drag selected entities with the left mouse button, showing coordinate overlay.
 #[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn on_mouse_drag(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut selected_query: SelectedDragQuery,
+    mut path_node_query: Query<
+        (&mut Transform, &TweenPathNode),
+        (Without<EditorCamera>, Without<StartCoordinatesNode>),
+    >,
+    mut start_node_query: Query<
+        &mut Transform,
+        (
+            With<StartCoordinatesNode>,
+            Without<EditorCamera>,
+            Without<TweenPathNode>,
+        ),
+    >,
     mut scene_data: Option<ResMut<SceneData>>,
     mut drag_state: ResMut<DragState>,
     camera_query: Query<(&Camera, &Transform), With<EditorCamera>>,
@@ -560,55 +685,130 @@ pub fn on_mouse_drag(
         return;
     };
 
+    let h_screen = carcinisation::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
+
     for event in cursor_moved_events.read() {
         if event.window != window_entity {
             continue;
         }
 
-        if let Some(world_position) = screen_to_world(camera, camera_transform, event.position) {
-            let target_position = world_position - drag_info.offset;
-            if let Ok((mut transform, spawn_ref)) = selected_query.get_mut(drag_info.entity) {
-                transform.translation = target_position.extend(transform.translation.z);
-                let Some(spawn_ref) = spawn_ref else {
-                    continue;
-                };
-                if let Some(scene_data) = scene_data.as_mut()
-                    && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
-                {
-                    update_spawn_from_drag(spawn_ref, target_position, stage_data);
+        let Some(world_position) = screen_to_world(camera, camera_transform, event.position) else {
+            continue;
+        };
+        let target_position = world_position - drag_info.offset;
 
-                    // Update coordinate overlay
-                    if let Some(ref asset_server) = asset_server {
-                        let depth = {
-                            let loc = SpawnLocation::from_ref(spawn_ref);
-                            crate::history::resolve_spawn(stage_data, &loc).map(|s| s.get_depth())
-                        };
-                        update_coordinate_overlay(
-                            &mut commands,
-                            &overlay_query,
-                            target_position,
-                            depth,
-                            asset_server,
-                        );
-                    }
-                }
-            } else {
-                drag_state.active = None;
+        // Path node drag: update tween step coordinates.
+        if let Ok((mut transform, node)) = path_node_query.get_mut(drag_info.entity) {
+            transform.translation = target_position.extend(transform.translation.z);
+            // Node is rendered at coordinates + h_screen, so subtract half-screen to get data coords.
+            let data_coords = target_position - h_screen;
+            // bypass_change_detection: keep the dragged entity alive across frames.
+            // SceneData will be marked changed on mouse release to trigger a clean rebuild.
+            if let Some(scene_data) = scene_data.as_mut()
+                && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
+                && let Some(carcinisation::stage::data::StageStep::Tween(tween)) =
+                    stage_data.steps.get_mut(node.step_index)
+            {
+                tween.coordinates = data_coords;
             }
+            if let Some(ref asset_server) = asset_server {
+                update_coordinate_overlay(
+                    &mut commands,
+                    &overlay_query,
+                    data_coords,
+                    None,
+                    asset_server,
+                );
+            }
+            continue;
+        }
+
+        // Start coordinates node drag.
+        if let Ok(mut transform) = start_node_query.get_mut(drag_info.entity) {
+            transform.translation = target_position.extend(transform.translation.z);
+            let data_coords = target_position - h_screen;
+            if let Some(scene_data) = scene_data.as_mut()
+                && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
+            {
+                stage_data.start_coordinates = data_coords;
+            }
+            if let Some(ref asset_server) = asset_server {
+                update_coordinate_overlay(
+                    &mut commands,
+                    &overlay_query,
+                    data_coords,
+                    None,
+                    asset_server,
+                );
+            }
+            continue;
+        }
+
+        // Spawn entity drag.
+        if let Ok((mut transform, spawn_ref)) = selected_query.get_mut(drag_info.entity) {
+            transform.translation = target_position.extend(transform.translation.z);
+            let Some(spawn_ref) = spawn_ref else {
+                continue;
+            };
+            if let Some(scene_data) = scene_data.as_mut()
+                && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
+            {
+                update_spawn_from_drag(spawn_ref, target_position, stage_data);
+
+                // Update coordinate overlay
+                if let Some(ref asset_server) = asset_server {
+                    let depth = {
+                        let loc = SpawnLocation::from_ref(spawn_ref);
+                        crate::history::resolve_spawn(stage_data, &loc).map(|s| s.get_depth())
+                    };
+                    update_coordinate_overlay(
+                        &mut commands,
+                        &overlay_query,
+                        target_position,
+                        depth,
+                        asset_server,
+                    );
+                }
+            }
+        } else {
+            // Entity was despawned (e.g. by a concurrent scene rebuild). If it was a
+            // path drag, mark SceneData changed so stale decorative geometry gets cleaned up.
+            if drag_info.kind.is_path()
+                && let Some(ref mut sd) = scene_data
+            {
+                sd.set_changed();
+            }
+            drag_state.active = None;
         }
     }
 }
 
-/// @system Delete/Backspace removes the selected entity.
-#[allow(clippy::needless_pass_by_value)]
+/// @system Delete/Backspace removes the selected spawn or path node.
+#[allow(clippy::needless_pass_by_value, clippy::type_complexity)]
 pub fn on_delete_selected(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
-    selected_query: Query<(Entity, &StageSpawnRef), With<SelectedItem>>,
+    selected_query: Query<(Entity, &StageSpawnRef), (With<SelectedItem>, Without<TweenPathNode>)>,
+    path_node_query: Query<(Entity, &TweenPathNode), With<SelectedItem>>,
     outline_query: Query<Entity, With<SelectionOutline>>,
     mut scene_data: Option<ResMut<SceneData>>,
 ) {
     if !keyboard.just_pressed(KeyCode::Delete) && !keyboard.just_pressed(KeyCode::Backspace) {
+        return;
+    }
+
+    // Delete a selected path node (removes the whole step).
+    if let Ok((entity, node)) = path_node_query.single() {
+        if let Some(scene_data) = scene_data.as_mut()
+            && let SceneData::Stage(stage_data) = scene_data.as_mut()
+            && node.step_index < stage_data.steps.len()
+        {
+            stage_data.steps.remove(node.step_index);
+        }
+        commands.entity(entity).remove::<SelectedItem>();
+        for entity in outline_query.iter() {
+            commands.entity(entity).despawn();
+        }
         return;
     }
 
@@ -638,6 +838,65 @@ pub fn on_delete_selected(
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /// Converts a screen position to world coordinates using the editor camera.
+/// Finds the step index at which a new tween should be inserted so that it
+/// sits on the path segment nearest to `point`. Returns `steps.len()` (append)
+/// if appending after the last segment is the best fit.
+fn path_insert_index(stage_data: &carcinisation::stage::data::StageData, point: Vec2) -> usize {
+    use carcinisation::stage::data::StageStep;
+
+    // Walk the path collecting (segment_start, segment_end, insert_before_index).
+    // "insert_before_index" = the index of the tween that ENDS this segment + 1,
+    // so that inserting there puts the new tween between the two endpoints.
+    let mut segments: Vec<(Vec2, Vec2, usize)> = Vec::new();
+    let mut current_pos = stage_data.start_coordinates;
+    for (i, step) in stage_data.steps.iter().enumerate() {
+        if let StageStep::Tween(t) = step {
+            // Inserting at index i would place the new step before this tween.
+            segments.push((current_pos, t.coordinates, i));
+            current_pos = t.coordinates;
+        }
+    }
+
+    if segments.is_empty() {
+        return stage_data.steps.len();
+    }
+
+    let mut best_idx = stage_data.steps.len(); // default: append
+    let mut best_dist = f32::MAX;
+
+    for &(a, b, before_idx) in &segments {
+        let dist = point_to_segment_dist_sq(point, a, b);
+        if dist < best_dist {
+            best_dist = dist;
+            // Insert *before* the tween that ends this segment, so the new node
+            // sits between the segment's start and end.
+            best_idx = before_idx;
+        }
+    }
+
+    // If the point is at least as close to the last endpoint as to any segment,
+    // prefer appending (extending the path) over splitting an existing segment.
+    let append_dist = (point - current_pos).length_squared();
+    if append_dist <= best_dist {
+        best_idx = stage_data.steps.len();
+    }
+
+    best_idx
+}
+
+/// Squared distance from `point` to the line segment `a`–`b`.
+fn point_to_segment_dist_sq(point: Vec2, a: Vec2, b: Vec2) -> f32 {
+    let ab = b - a;
+    let ap = point - a;
+    let len_sq = ab.length_squared();
+    if len_sq < f32::EPSILON {
+        return ap.length_squared();
+    }
+    let t = (ap.dot(ab) / len_sq).clamp(0.0, 1.0);
+    let proj = a + ab * t;
+    (point - proj).length_squared()
+}
+
 fn screen_to_world(camera: &Camera, transform: &Transform, cursor_position: Vec2) -> Option<Vec2> {
     camera
         .viewport_to_world_2d(&GlobalTransform::from(*transform), cursor_position)
@@ -841,6 +1100,49 @@ fn update_coordinate_overlay(
     ));
 }
 
+/// @system Highlights path node handles by scaling them up when the cursor is nearby.
+#[allow(clippy::needless_pass_by_value, clippy::type_complexity)]
+pub fn highlight_hovered_path_nodes(
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    camera_query: Query<(&Camera, &Transform), With<EditorCamera>>,
+    mut node_query: Query<
+        (&GlobalTransform, &mut Transform),
+        (
+            With<crate::components::PathOverlay>,
+            With<Draggable>,
+            Without<EditorCamera>,
+        ),
+    >,
+) {
+    let Ok(window) = window_query.single() else {
+        return;
+    };
+    let Some(cursor_position) = window.cursor_position() else {
+        return;
+    };
+    let Ok((camera, camera_transform)) = camera_query.single() else {
+        return;
+    };
+    let Some(world_cursor) = screen_to_world(camera, camera_transform, cursor_position) else {
+        return;
+    };
+
+    let hover_radius = crate::builders::stage::PATH_NODE_RADIUS
+        * crate::builders::stage::PATH_NODE_HOVER_SCALE
+        * camera_transform.scale.x.max(1.0);
+
+    for (global_transform, mut transform) in &mut node_query {
+        let node_pos = global_transform.translation().truncate();
+        let hovered = node_pos.distance(world_cursor) <= hover_radius;
+        let target_scale = if hovered {
+            crate::builders::stage::PATH_NODE_HOVER_SCALE
+        } else {
+            1.0
+        };
+        transform.scale = Vec3::splat(target_scale);
+    }
+}
+
 /// @system Spawns, updates, or despawns the translucent placement ghost under the cursor.
 #[allow(
     clippy::needless_pass_by_value,
@@ -937,6 +1239,7 @@ mod tests {
         app.init_resource::<DragState>();
         app.init_resource::<GestureState>();
         app.init_resource::<PlacementMode>();
+        app.init_resource::<crate::resources::PendingSceneRebuild>();
         app.insert_resource(Assets::<Image>::default());
         app.insert_resource(Assets::<TextureAtlasLayout>::default());
         app.insert_resource(ButtonInput::<MouseButton>::default());
@@ -1057,5 +1360,437 @@ mod tests {
         };
         assert!((spawn.coordinates.x - 20.0).abs() < 0.01);
         assert!((spawn.coordinates.y - 0.0).abs() < 0.01);
+    }
+
+    /// Helper: build a minimal test App with the systems needed for path node testing.
+    fn make_path_node_test_app() -> App {
+        use carcinisation::stage::components::TweenStageStep;
+        use carcinisation::stage::data::StageStep;
+
+        let mut app = App::new();
+        app.add_message::<CursorMoved>();
+        app.init_resource::<DragState>();
+        app.init_resource::<GestureState>();
+        app.init_resource::<PlacementMode>();
+        app.init_resource::<crate::resources::PendingSceneRebuild>();
+        app.insert_resource(Assets::<Image>::default());
+        app.insert_resource(Assets::<TextureAtlasLayout>::default());
+        app.insert_resource(ButtonInput::<MouseButton>::default());
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+
+        let stage_data = StageData {
+            name: "Test".to_string(),
+            background_path: String::new(),
+            music_path: String::new(),
+            skybox: SkyboxData {
+                path: String::new(),
+                frames: 1,
+            },
+            start_coordinates: Vec2::ZERO,
+            spawns: Vec::new(),
+            steps: vec![StageStep::Tween(TweenStageStep {
+                coordinates: Vec2::new(100.0, 50.0),
+                base_speed: 1.0,
+                spawns: Vec::new(),
+                floor_depths: None,
+            })],
+            on_start_transition_o: None,
+            on_end_transition_o: None,
+            gravity: None,
+        };
+        app.insert_resource(SceneData::Stage(stage_data));
+
+        app.add_systems(Update, (on_mouse_press, on_mouse_drag, on_mouse_release));
+
+        app
+    }
+
+    /// Spawns the test window, camera, and a TweenPathNode handle. Returns (window_entity, node_entity).
+    fn spawn_path_node_test_entities(app: &mut App) -> (Entity, Entity) {
+        let window_entity = app
+            .world_mut()
+            .spawn((
+                Window {
+                    resolution: WindowResolution::new(200, 200),
+                    ..default()
+                },
+                PrimaryWindow,
+            ))
+            .id();
+
+        {
+            let mut window_entity_mut = app.world_mut().entity_mut(window_entity);
+            let mut window = window_entity_mut.get_mut::<Window>().unwrap();
+            // Cursor at center → maps to world (0, 0) with default camera.
+            window.set_cursor_position(Some(Vec2::new(100.0, 100.0)));
+        }
+
+        let mut camera = Camera::default();
+        let half = Vec2::new(100.0, 100.0);
+        camera.computed.clip_from_view =
+            Mat4::from_scale(Vec3::new(1.0 / half.x, 1.0 / half.y, 1.0));
+        camera.computed.target_info = Some(RenderTargetInfo {
+            physical_size: UVec2::new(200, 200),
+            scale_factor: 1.0,
+        });
+
+        app.world_mut().spawn((
+            TestCameraBundle {
+                camera,
+                camera_2d: Camera2d,
+                transform: Transform::default(),
+                global_transform: GlobalTransform::default(),
+            },
+            EditorCamera,
+        ));
+
+        // Node at world (0, 0) — within hit radius of cursor at world (0, 0).
+        let transform = Transform::from_xyz(0.0, 0.0, 10.1);
+        let node_entity = app
+            .world_mut()
+            .spawn((
+                TweenPathNode { step_index: 0 },
+                Draggable,
+                crate::components::SceneItem,
+                transform,
+                GlobalTransform::from(transform),
+            ))
+            .id();
+
+        (window_entity, node_entity)
+    }
+
+    #[test]
+    fn drag_tween_path_node_updates_coordinates() {
+        use carcinisation::stage::data::StageStep;
+
+        let mut app = make_path_node_test_app();
+        let (window_entity, node_entity) = spawn_path_node_test_entities(&mut app);
+
+        // Press left mouse to pick the path node.
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+
+        // Verify drag was started on the path node.
+        let drag = app.world().resource::<DragState>();
+        assert!(drag.active.is_some());
+        assert_eq!(drag.active.unwrap().entity, node_entity);
+        assert_eq!(drag.active.unwrap().kind, DragKind::PathNode);
+
+        // Drag to (120, 100) → world offset of (+20, 0).
+        app.world_mut()
+            .resource_mut::<Messages<CursorMoved>>()
+            .write(CursorMoved {
+                window: window_entity,
+                position: Vec2::new(120.0, 100.0),
+                delta: Some(Vec2::new(20.0, 0.0)),
+            });
+        app.update();
+
+        // Entity should still be alive.
+        assert!(app.world().get_entity(node_entity).is_ok());
+
+        // The tween coordinates should have been updated.
+        let scene_data = app.world().resource::<SceneData>();
+        let SceneData::Stage(stage_data) = scene_data else {
+            panic!("Expected stage data");
+        };
+        let StageStep::Tween(tween) = &stage_data.steps[0] else {
+            panic!("Expected tween step");
+        };
+        // Node was at world (0,0), dragged +20 on x. Data coords = world - h_screen.
+        // With h_screen = SCREEN_RESOLUTION/2 = (80, 72), data_coords.x = 20.0 - 80.0 = -60.0
+        let h_screen = carcinisation::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
+        let expected_x = 20.0 - h_screen.x;
+        assert!(
+            (tween.coordinates.x - expected_x).abs() < 0.01,
+            "expected x ~{}, got {}",
+            expected_x,
+            tween.coordinates.x,
+        );
+    }
+
+    #[test]
+    fn path_node_drag_survives_multiple_frames() {
+        let mut app = make_path_node_test_app();
+        let (window_entity, node_entity) = spawn_path_node_test_entities(&mut app);
+
+        // Pick the node.
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+
+        // Drag frame 1.
+        app.world_mut()
+            .resource_mut::<Messages<CursorMoved>>()
+            .write(CursorMoved {
+                window: window_entity,
+                position: Vec2::new(110.0, 100.0),
+                delta: Some(Vec2::new(10.0, 0.0)),
+            });
+        app.update();
+        assert!(app.world().resource::<DragState>().active.is_some());
+
+        // Drag frame 2 — entity must still be alive and drag must continue.
+        app.world_mut()
+            .resource_mut::<Messages<CursorMoved>>()
+            .write(CursorMoved {
+                window: window_entity,
+                position: Vec2::new(130.0, 100.0),
+                delta: Some(Vec2::new(20.0, 0.0)),
+            });
+        app.update();
+        assert!(app.world().resource::<DragState>().active.is_some());
+        assert!(app.world().get_entity(node_entity).is_ok());
+    }
+
+    #[test]
+    fn path_node_release_clears_drag_state() {
+        let mut app = make_path_node_test_app();
+        let (window_entity, _node_entity) = spawn_path_node_test_entities(&mut app);
+
+        // Pick.
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+
+        // Drag.
+        app.world_mut()
+            .resource_mut::<Messages<CursorMoved>>()
+            .write(CursorMoved {
+                window: window_entity,
+                position: Vec2::new(120.0, 100.0),
+                delta: Some(Vec2::new(20.0, 0.0)),
+            });
+        app.update();
+        assert!(app.world().resource::<DragState>().active.is_some());
+
+        // Release: clear press first, then release. Bevy's ButtonInput needs both.
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .release(MouseButton::Left);
+        // Need an extra update to flush the release through on_mouse_release.
+        // But first, clear_just_pressed/released from previous frame.
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .clear();
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .release(MouseButton::Left);
+        app.update();
+
+        // After release, DragState should be cleared.
+        assert!(app.world().resource::<DragState>().active.is_none());
+    }
+
+    #[test]
+    fn delete_selected_path_node_removes_step() {
+        let mut app = make_path_node_test_app();
+        let (_window_entity, node_entity) = spawn_path_node_test_entities(&mut app);
+
+        // Add on_delete_selected to the system schedule.
+        app.add_systems(Update, on_delete_selected);
+
+        // Mark the node as selected (simulating a click pick).
+        app.world_mut().entity_mut(node_entity).insert(SelectedItem);
+
+        // Press Delete.
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Delete);
+        app.update();
+
+        // The tween step should have been removed.
+        let scene_data = app.world().resource::<SceneData>();
+        let SceneData::Stage(stage_data) = scene_data else {
+            panic!("Expected stage data");
+        };
+        assert!(
+            stage_data.steps.is_empty(),
+            "expected steps to be empty after deletion, got {}",
+            stage_data.steps.len()
+        );
+    }
+
+    #[test]
+    fn alt_click_inserts_tween_at_correct_path_position() {
+        use carcinisation::stage::components::TweenStageStep;
+        use carcinisation::stage::data::StageStep;
+
+        let mut app = App::new();
+        app.add_message::<CursorMoved>();
+        app.init_resource::<DragState>();
+        app.init_resource::<GestureState>();
+        app.init_resource::<PlacementMode>();
+        app.insert_resource(Assets::<Image>::default());
+        app.insert_resource(Assets::<TextureAtlasLayout>::default());
+        app.insert_resource(ButtonInput::<MouseButton>::default());
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+
+        // Path: start(0,0) → tween[0](100,0) → tween[1](200,0)
+        let stage_data = StageData {
+            name: "Test".to_string(),
+            background_path: String::new(),
+            music_path: String::new(),
+            skybox: SkyboxData {
+                path: String::new(),
+                frames: 1,
+            },
+            start_coordinates: Vec2::ZERO,
+            spawns: Vec::new(),
+            steps: vec![
+                StageStep::Tween(TweenStageStep {
+                    coordinates: Vec2::new(100.0, 0.0),
+                    base_speed: 1.0,
+                    spawns: Vec::new(),
+                    floor_depths: None,
+                }),
+                StageStep::Tween(TweenStageStep {
+                    coordinates: Vec2::new(200.0, 0.0),
+                    base_speed: 1.0,
+                    spawns: Vec::new(),
+                    floor_depths: None,
+                }),
+            ],
+            on_start_transition_o: None,
+            on_end_transition_o: None,
+            gravity: None,
+        };
+        app.insert_resource(SceneData::Stage(stage_data));
+
+        app.add_systems(Update, on_mouse_press);
+
+        let window_entity = app
+            .world_mut()
+            .spawn((
+                Window {
+                    resolution: WindowResolution::new(200, 200),
+                    ..default()
+                },
+                PrimaryWindow,
+            ))
+            .id();
+
+        {
+            let mut we = app.world_mut().entity_mut(window_entity);
+            let mut window = we.get_mut::<Window>().unwrap();
+            // Click at screen center → world (0,0). With h_screen offset, data_coords will be
+            // (-80, -72). That's closest to the first segment start(0,0)→tween(100,0).
+            window.set_cursor_position(Some(Vec2::new(100.0, 100.0)));
+        }
+
+        let mut camera = Camera::default();
+        let half = Vec2::new(100.0, 100.0);
+        camera.computed.clip_from_view =
+            Mat4::from_scale(Vec3::new(1.0 / half.x, 1.0 / half.y, 1.0));
+        camera.computed.target_info = Some(RenderTargetInfo {
+            physical_size: UVec2::new(200, 200),
+            scale_factor: 1.0,
+        });
+
+        app.world_mut().spawn((
+            TestCameraBundle {
+                camera,
+                camera_2d: Camera2d,
+                transform: Transform::default(),
+                global_transform: GlobalTransform::default(),
+            },
+            EditorCamera,
+        ));
+
+        // Press Alt + Left click.
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::AltLeft);
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+
+        let scene_data = app.world().resource::<SceneData>();
+        let SceneData::Stage(stage_data) = scene_data else {
+            panic!("Expected stage data");
+        };
+
+        // Should now have 3 steps (was 2).
+        assert_eq!(stage_data.steps.len(), 3);
+
+        // The new tween should have been inserted at index 0 (before the first tween),
+        // since the click point (-80, -72) is closest to the start→first_tween segment.
+        assert!(
+            matches!(stage_data.steps[0], StageStep::Tween(_)),
+            "expected inserted tween at index 0"
+        );
+
+        // Original tweens should now be at indices 1 and 2.
+        if let StageStep::Tween(t) = &stage_data.steps[1] {
+            assert!(
+                (t.coordinates.x - 100.0).abs() < 0.01,
+                "expected original tween at index 1, got x={}",
+                t.coordinates.x
+            );
+        } else {
+            panic!("expected tween at index 1");
+        }
+        if let StageStep::Tween(t) = &stage_data.steps[2] {
+            assert!(
+                (t.coordinates.x - 200.0).abs() < 0.01,
+                "expected original tween at index 2, got x={}",
+                t.coordinates.x
+            );
+        } else {
+            panic!("expected tween at index 2");
+        }
+    }
+
+    #[test]
+    fn path_insert_index_finds_nearest_segment() {
+        use carcinisation::stage::components::TweenStageStep;
+        use carcinisation::stage::data::StageStep;
+
+        let stage_data = StageData {
+            name: "Test".to_string(),
+            background_path: String::new(),
+            music_path: String::new(),
+            skybox: SkyboxData {
+                path: String::new(),
+                frames: 1,
+            },
+            start_coordinates: Vec2::ZERO,
+            spawns: Vec::new(),
+            steps: vec![
+                StageStep::Tween(TweenStageStep {
+                    coordinates: Vec2::new(100.0, 0.0),
+                    base_speed: 1.0,
+                    spawns: Vec::new(),
+                    floor_depths: None,
+                }),
+                StageStep::Tween(TweenStageStep {
+                    coordinates: Vec2::new(200.0, 0.0),
+                    base_speed: 1.0,
+                    spawns: Vec::new(),
+                    floor_depths: None,
+                }),
+            ],
+            on_start_transition_o: None,
+            on_end_transition_o: None,
+            gravity: None,
+        };
+
+        // Point near the first segment (0,0)→(100,0): should insert at index 0.
+        assert_eq!(path_insert_index(&stage_data, Vec2::new(50.0, 5.0)), 0);
+
+        // Point near the second segment (100,0)→(200,0): should insert at index 1.
+        assert_eq!(path_insert_index(&stage_data, Vec2::new(150.0, 5.0)), 1);
+
+        // Point far beyond the last tween: should append.
+        assert_eq!(
+            path_insert_index(&stage_data, Vec2::new(500.0, 0.0)),
+            stage_data.steps.len()
+        );
     }
 }

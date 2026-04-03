@@ -33,7 +33,10 @@ use self::{
     resources::{StageActionTimer, StageGravity, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
     systems::{
-        camera::{check_in_view, check_outside_view, update_camera_pos_x, update_camera_pos_y},
+        camera::{
+            check_in_view, check_outside_view, initialise_camera_from_stage, update_camera_pos_x,
+            update_camera_pos_y,
+        },
         check_movement_step_reached, check_stage_death, check_stage_step_timer,
         check_staged_cleared, check_stop_step_finished_by_duration,
         damage::{add_invert_filter, check_damage_flicker_taken, on_damage, remove_invert_filter},
@@ -203,6 +206,7 @@ impl Plugin for StagePlugin {
                 (
                     (
                         // Camera
+                        initialise_camera_from_stage,
                         check_in_view,
                         check_outside_view,
                         update_camera_pos_x,

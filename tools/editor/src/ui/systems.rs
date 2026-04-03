@@ -59,7 +59,7 @@ pub fn update_ui(world: &mut World) {
         };
         current_elapsed = timeline.clamp_elapsed(current_elapsed);
 
-        let slider_width = window_width * 0.6;
+        let slider_width = window_width * 0.45;
         let step_index = timeline.step_index_at(current_elapsed);
         let total_secs = timeline.total.as_secs_f32().max(0.0001);
         let current_secs = current_elapsed.as_secs_f32().clamp(0.0, total_secs);
@@ -174,6 +174,7 @@ fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
                 ui.checkbox(&mut controls.skybox, "Skybox");
                 ui.checkbox(&mut controls.background, "Background");
             });
+            ui.checkbox(&mut controls.show_all_spawns, "Show all spawns (ghost)");
 
             section_header(ui, "Depth layers");
             let depths: &mut [(&str, &mut bool)] = &mut [
@@ -203,6 +204,7 @@ fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
 
     // Write back if changed (compare serialised to avoid spurious change detection).
     if controls.elapsed_path != original.elapsed_path
+        || controls.show_all_spawns != original.show_all_spawns
         || controls.skybox != original.skybox
         || controls.background != original.background
         || controls.nine != original.nine

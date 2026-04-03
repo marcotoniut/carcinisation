@@ -50,17 +50,20 @@ use inspector::InspectorPlugin;
 #[cfg(feature = "full_editor")]
 use placement::PlacementMode;
 #[cfg(feature = "full_editor")]
-use resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI, ThumbnailCache};
+use resources::{
+    CloseConfirmation, CutsceneAssetHandle, PendingSceneRebuild, SavedSceneSnapshot,
+    SceneInspectorLayout, ShouldExit, StageAssetHandle, StageControlsUI, ThumbnailCache,
+};
 #[cfg(feature = "full_editor")]
 use systems::{
     animate_sprite, check_cutscene_data_loaded, check_stage_data_loaded,
     cutscene::update_cutscene_act_connections,
     input::{
-        on_alt_mouse_motion, on_delete_selected, on_middle_mouse_pan, on_mouse_drag,
-        on_mouse_press, on_mouse_release, on_pinch_zoom, on_right_click_drag, on_scroll,
-        tick_gesture_timeout, update_placement_ghost,
+        highlight_hovered_path_nodes, on_alt_mouse_motion, on_delete_selected, on_middle_mouse_pan,
+        on_mouse_drag, on_mouse_press, on_mouse_release, on_pinch_zoom, on_right_click_drag,
+        on_scroll, tick_gesture_timeout, update_placement_ghost,
     },
-    maximize_window, on_scene_change, on_unload_scene, setup_camera,
+    maximize_window, on_scene_change, on_unload_scene, rebuild_path_during_drag, setup_camera,
 };
 #[cfg(feature = "full_editor")]
 use ui::systems::update_ui;
@@ -79,6 +82,11 @@ fn main() {
         .init_resource::<StageControlsUI>()
         .init_resource::<ThumbnailCache>()
         .init_resource::<PlacementMode>()
+        .init_resource::<SavedSceneSnapshot>()
+        .init_resource::<SceneInspectorLayout>()
+        .init_resource::<CloseConfirmation>()
+        .init_resource::<ShouldExit>()
+        .init_resource::<PendingSceneRebuild>()
         .add_plugins(
             DefaultPlugins
                 .set(AssetPlugin {
@@ -134,6 +142,8 @@ fn main() {
             ),
         )
         .add_systems(EguiPrimaryContextPass, update_ui)
+        .add_systems(Update, rebuild_path_during_drag.after(on_mouse_drag))
+        .add_systems(Update, highlight_hovered_path_nodes)
         .add_systems(Update, update_placement_ghost)
         .add_systems(Update, systems::exit_on_window_close_request)
         .add_systems(Update, animate_sprite)

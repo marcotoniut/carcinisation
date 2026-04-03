@@ -105,6 +105,52 @@ impl Frames for (PxRect, &PxFilterAsset) {
     }
 }
 
+impl Spatial for (PxRect, &PxFilterAsset) {
+    fn frame_size(&self) -> UVec2 {
+        *self.0
+    }
+}
+
+pub(crate) type RectComponents<L> = (
+    &'static PxRect,
+    &'static PxFilter,
+    &'static PxFilterLayers<L>,
+    &'static PxPosition,
+    &'static PxAnchor,
+    &'static PxCanvas,
+    Option<&'static PxFrame>,
+    Has<PxInvertMask>,
+);
+
+#[cfg(feature = "headed")]
+fn extract_rects<L: PxLayer>(
+    rects: Extract<Query<(RectComponents<L>, &InheritedVisibility, RenderEntity)>>,
+    mut cmd: Commands,
+) {
+    for ((&rect, filter, layers, &pos, &anchor, &canvas, frame, invert), visibility, id) in &rects {
+        let mut entity = cmd.entity(id);
+
+        if !visibility.get() {
+            entity.remove::<PxFilterLayers<L>>();
+            continue;
+        }
+
+        entity.insert((rect, filter.clone(), layers.clone(), pos, anchor, canvas));
+
+        if let Some(&frame) = frame {
+            entity.insert(frame);
+        } else {
+            entity.remove::<PxFrame>();
+        }
+
+        if invert {
+            entity.insert(PxInvertMask);
+        } else {
+            entity.remove::<PxInvertMask>();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,51 +203,5 @@ mod tests {
 
         let expected = vec![2, 2, 2, 2, 2, 1, 1, 2, 2, 1, 1, 2, 2, 2, 2, 2];
         assert_eq!(pixels(&image), expected);
-    }
-}
-
-impl Spatial for (PxRect, &PxFilterAsset) {
-    fn frame_size(&self) -> UVec2 {
-        *self.0
-    }
-}
-
-pub(crate) type RectComponents<L> = (
-    &'static PxRect,
-    &'static PxFilter,
-    &'static PxFilterLayers<L>,
-    &'static PxPosition,
-    &'static PxAnchor,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Has<PxInvertMask>,
-);
-
-#[cfg(feature = "headed")]
-fn extract_rects<L: PxLayer>(
-    rects: Extract<Query<(RectComponents<L>, &InheritedVisibility, RenderEntity)>>,
-    mut cmd: Commands,
-) {
-    for ((&rect, filter, layers, &pos, &anchor, &canvas, frame, invert), visibility, id) in &rects {
-        let mut entity = cmd.entity(id);
-
-        if !visibility.get() {
-            entity.remove::<PxFilterLayers<L>>();
-            continue;
-        }
-
-        entity.insert((rect, filter.clone(), layers.clone(), pos, anchor, canvas));
-
-        if let Some(&frame) = frame {
-            entity.insert(frame);
-        } else {
-            entity.remove::<PxFrame>();
-        }
-
-        if invert {
-            entity.insert(PxInvertMask);
-        } else {
-            entity.remove::<PxInvertMask>();
-        }
     }
 }

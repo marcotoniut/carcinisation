@@ -9,8 +9,10 @@ pub enum TransitionVenetianDataState {
     Closing,
 }
 
-#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
+#[reflect(Default)]
 pub enum TransitionRequest {
+    #[default]
     Venetian,
 }
 

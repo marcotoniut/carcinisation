@@ -32,6 +32,9 @@ pub fn save_scene(world: &mut World, scene_path: &str, scene_data: &SceneData) {
         SceneData::Stage(data) => save_ron(data.clone(), path),
     }
 
+    // Capture the saved state so we can detect future unsaved changes by comparison.
+    let snapshot = crate::resources::SavedSceneSnapshot::capture(scene_data);
+    world.insert_resource(snapshot);
     world.trigger(WriteRecentFilePathEvent);
 }
 

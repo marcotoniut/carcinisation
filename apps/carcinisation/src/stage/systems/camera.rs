@@ -1,6 +1,6 @@
 use crate::{
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION, is_inside_area},
-    stage::{components::placement::InView, player::components::CameraShake},
+    stage::{components::placement::InView, data::StageData, player::components::CameraShake},
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
@@ -49,6 +49,21 @@ pub fn check_outside_view(
                 commands.entity(entity).remove::<InView>();
             }
         }
+    }
+}
+
+/// @system Positions the camera at `StageData::start_coordinates` when the resource is first added.
+///
+/// Runs as a normal Update system so that the camera entity (spawned during Startup)
+/// is guaranteed to exist. Uses change detection on StageData to fire only once.
+pub fn initialise_camera_from_stage(
+    stage_data: Res<StageData>,
+    mut camera_query: Query<&mut PxSubPosition, With<CameraPos>>,
+) {
+    if stage_data.is_added()
+        && let Ok(mut cam_pos) = camera_query.single_mut()
+    {
+        cam_pos.0 = stage_data.start_coordinates;
     }
 }
 

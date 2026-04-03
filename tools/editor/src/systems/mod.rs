@@ -9,12 +9,17 @@ use bevy::{
 };
 use carcinisation::{CutsceneData, stage::data::StageData};
 
-use crate::components::{AnimationIndices, AnimationTimer, EditorCamera, PlacementGhost};
+use crate::components::{
+    AnimationIndices, AnimationTimer, EditorCamera, PathOverlay, PlacementGhost,
+};
 use crate::file_manager::events::WriteRecentFilePathEvent;
 use crate::resources::StageControlsUI;
-use crate::systems::input::CoordinateOverlay;
+use crate::systems::input::{CoordinateOverlay, DragState};
 use crate::{
-    builders::{cutscene::spawn_cutscene, stage::spawn_stage},
+    builders::{
+        cutscene::spawn_cutscene,
+        stage::{spawn_path, spawn_stage},
+    },
     components::{SceneData, SceneItem, ScenePath},
     events::UnloadSceneTrigger,
     resources::{CutsceneAssetHandle, StageAssetHandle, ThumbnailCache},
@@ -61,8 +66,10 @@ pub fn check_cutscene_data_loaded(
                 if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
                     *scene_path = ScenePath(cutscene_asset_handle.path.clone());
                     println!("Cutscene data loaded: {data:?}");
+                    let scene = SceneData::Cutscene(data.clone());
+                    commands.insert_resource(crate::resources::SavedSceneSnapshot::capture(&scene));
                     commands.remove_resource::<CutsceneAssetHandle>();
-                    commands.insert_resource(SceneData::Cutscene(data.clone()));
+                    commands.insert_resource(scene);
                     commands.trigger(WriteRecentFilePathEvent);
                 } else {
                     println!("Cutscene data error");
@@ -97,8 +104,10 @@ pub fn check_stage_data_loaded(
                 if let Some(data) = stage_data_assets.get(&stage_asset_handle.handle) {
                     *scene_path = ScenePath(stage_asset_handle.path.clone());
                     println!("Stage data loaded: {data:?}");
+                    let scene = SceneData::Stage(data.clone());
+                    commands.insert_resource(crate::resources::SavedSceneSnapshot::capture(&scene));
                     commands.remove_resource::<StageAssetHandle>();
-                    commands.insert_resource(SceneData::Stage(data.clone()));
+                    commands.insert_resource(scene);
                     commands.trigger(WriteRecentFilePathEvent);
                 } else {
                     println!("Stage data error");
@@ -131,8 +140,21 @@ pub fn on_scene_change(
     mut image_assets: ResMut<Assets<Image>>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut thumbnail_cache: ResMut<ThumbnailCache>,
+    drag_state: Res<DragState>,
+    mut pending_rebuild: ResMut<crate::resources::PendingSceneRebuild>,
 ) {
-    if loaded_scene.is_changed() || layer_shown_ui.is_changed() {
+    // Skip full rebuild during an active path drag — the dragged handle entity must
+    // stay alive. rebuild_path_during_drag handles the decorative geometry instead.
+    if drag_state.active.as_ref().is_some_and(|d| d.kind.is_path()) {
+        // Remember that a rebuild was requested so it happens when the drag ends.
+        if loaded_scene.is_changed() || layer_shown_ui.is_changed() {
+            pending_rebuild.0 = true;
+        }
+        return;
+    }
+
+    if loaded_scene.is_changed() || layer_shown_ui.is_changed() || pending_rebuild.0 {
+        pending_rebuild.0 = false;
         for entity in scene_item_query.iter() {
             commands.entity(entity).despawn();
         }
@@ -159,6 +181,44 @@ pub fn on_scene_change(
             }
         }
     }
+}
+
+/// @system Rebuilds the non-interactive path overlay entities (polyline, arrows, camera rect)
+/// during an active path-node drag. The dragged node handle is kept alive — only the
+/// decorative geometry is torn down and rebuilt from the latest StageData coordinates.
+#[allow(clippy::needless_pass_by_value, clippy::type_complexity)]
+pub fn rebuild_path_during_drag(
+    mut commands: Commands,
+    drag_state: Res<DragState>,
+    scene_data: Option<Res<SceneData>>,
+    stage_controls_ui: Res<StageControlsUI>,
+    path_overlay_query: Query<
+        Entity,
+        (
+            With<PathOverlay>,
+            Without<crate::components::TweenPathNode>,
+            Without<crate::components::StartCoordinatesNode>,
+        ),
+    >,
+) {
+    let Some(info) = &drag_state.active else {
+        return;
+    };
+    if !info.kind.is_path() {
+        return;
+    }
+    let Some(SceneData::Stage(stage_data)) = scene_data.as_deref() else {
+        return;
+    };
+
+    // Despawn non-node path overlay entities (polyline, arrows, camera rect).
+    // Node handles are excluded by the Without<TweenPathNode> filter.
+    for entity in path_overlay_query.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Rebuild just the decorative path geometry from current data.
+    spawn_path(&mut commands, stage_data, &stage_controls_ui, true);
 }
 
 /// @system Clears the current scene entities and resets the scene path.
@@ -194,12 +254,28 @@ pub fn animate_sprite(
     }
 }
 
-/// @system Exits the app on close requests without despawning the window entity.
+/// @system Intercepts window close requests. If there are unsaved changes, shows a
+/// confirmation dialog instead of exiting immediately.
 pub fn exit_on_window_close_request(
     mut close_requests: MessageReader<WindowCloseRequested>,
     mut exit: MessageWriter<AppExit>,
+    snapshot: Res<crate::resources::SavedSceneSnapshot>,
+    scene_data: Option<Res<SceneData>>,
+    mut confirm: ResMut<crate::resources::CloseConfirmation>,
+    should_exit: Res<crate::resources::ShouldExit>,
 ) {
-    if close_requests.read().next().is_some() {
+    if should_exit.0 {
         exit.write(AppExit::Success);
+        return;
+    }
+    if close_requests.read().next().is_some() {
+        let has_unsaved = scene_data
+            .as_ref()
+            .is_some_and(|sd| snapshot.has_unsaved_changes(sd));
+        if has_unsaved {
+            confirm.0 = true;
+        } else {
+            exit.write(AppExit::Success);
+        }
     }
 }

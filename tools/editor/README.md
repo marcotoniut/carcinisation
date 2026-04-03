@@ -11,7 +11,7 @@ make launch-editor
 Or directly:
 
 ```sh
-cargo run -p editor --features full_editor
+cargo run -p editor
 ```
 
 ## Loading a scene
@@ -97,4 +97,4 @@ The editor reads and writes the same `.sg.ron` format the game uses at runtime. 
 - The editor is a separate binary from the game -- it does not run gameplay systems
 - Scene entities are fully rebuilt whenever scene data changes (full rebuild on change model)
 - Camera navigation uses a custom input system with gesture-ownership tracking (no external camera crate)
-- BRP (Bevy Remote Protocol) is enabled in debug builds for remote inspection
+- BRP (Bevy Remote Protocol) is enabled in debug builds of the full editor for remote inspection

@@ -90,3 +90,18 @@ pub struct StageSpawnLabel;
 /// Marker for the translucent placement ghost that follows the cursor.
 #[derive(Component, Debug)]
 pub struct PlacementGhost;
+
+/// Marks entities that are part of the camera path overlay (polyline, arrows, nodes).
+/// These are rebuilt independently from the full scene during path-node drags.
+#[derive(Component, Debug)]
+pub struct PathOverlay;
+
+/// Maps a viewport handle to a Tween step in StageData for interactive path editing.
+#[derive(Component, Copy, Clone, Debug)]
+pub struct TweenPathNode {
+    pub step_index: usize,
+}
+
+/// Maps a viewport handle to StageData::start_coordinates for interactive editing.
+#[derive(Component, Copy, Clone, Debug)]
+pub struct StartCoordinatesNode;

@@ -823,6 +823,94 @@ fn sync_composite_frame_count_on_animation_added(
     }
 }
 
+pub(crate) type SpriteComponents<L> = (
+    &'static PxSprite,
+    &'static PxPosition,
+    &'static PxAnchor,
+    &'static L,
+    &'static PxCanvas,
+    Option<&'static PxFrame>,
+    Option<&'static PxFilter>,
+);
+
+pub(crate) type CompositeSpriteComponents<L> = (
+    &'static PxCompositeSprite,
+    &'static PxPosition,
+    &'static PxAnchor,
+    &'static L,
+    &'static PxCanvas,
+    Option<&'static PxFrame>,
+    Option<&'static PxFilter>,
+);
+
+#[cfg(feature = "headed")]
+fn extract_sprites<L: PxLayer>(
+    // TODO Maybe calculate `ViewVisibility`
+    sprites: Extract<Query<(SpriteComponents<L>, &InheritedVisibility, RenderEntity)>>,
+    mut cmd: Commands,
+) {
+    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {
+        let mut entity = cmd.entity(id);
+
+        if !visibility.get() {
+            // TODO Need to a better way to prevent entities from rendering
+            entity.remove::<L>();
+            continue;
+        }
+
+        entity.insert((sprite.clone(), position, anchor, layer.clone(), canvas));
+
+        if let Some(frame) = frame {
+            entity.insert(*frame);
+        } else {
+            entity.remove::<PxFrame>();
+        }
+
+        if let Some(filter) = filter {
+            entity.insert(filter.clone());
+        } else {
+            entity.remove::<PxFilter>();
+        }
+    }
+}
+
+#[cfg(feature = "headed")]
+fn extract_composite_sprites<L: PxLayer>(
+    // TODO Maybe calculate `ViewVisibility`
+    sprites: Extract<
+        Query<(
+            CompositeSpriteComponents<L>,
+            &InheritedVisibility,
+            RenderEntity,
+        )>,
+    >,
+    mut cmd: Commands,
+) {
+    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {
+        let mut entity = cmd.entity(id);
+
+        if !visibility.get() {
+            // TODO Need to a better way to prevent entities from rendering
+            entity.remove::<L>();
+            continue;
+        }
+
+        entity.insert((sprite.clone(), position, anchor, layer.clone(), canvas));
+
+        if let Some(frame) = frame {
+            entity.insert(*frame);
+        } else {
+            entity.remove::<PxFrame>();
+        }
+
+        if let Some(filter) = filter {
+            entity.insert(filter.clone());
+        } else {
+            entity.remove::<PxFilter>();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fmt::Write as _;
@@ -1431,94 +1519,6 @@ frame 1
 //         ));
 //     }
 // }
-
-pub(crate) type SpriteComponents<L> = (
-    &'static PxSprite,
-    &'static PxPosition,
-    &'static PxAnchor,
-    &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
-);
-
-pub(crate) type CompositeSpriteComponents<L> = (
-    &'static PxCompositeSprite,
-    &'static PxPosition,
-    &'static PxAnchor,
-    &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
-);
-
-#[cfg(feature = "headed")]
-fn extract_sprites<L: PxLayer>(
-    // TODO Maybe calculate `ViewVisibility`
-    sprites: Extract<Query<(SpriteComponents<L>, &InheritedVisibility, RenderEntity)>>,
-    mut cmd: Commands,
-) {
-    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {
-        let mut entity = cmd.entity(id);
-
-        if !visibility.get() {
-            // TODO Need to a better way to prevent entities from rendering
-            entity.remove::<L>();
-            continue;
-        }
-
-        entity.insert((sprite.clone(), position, anchor, layer.clone(), canvas));
-
-        if let Some(frame) = frame {
-            entity.insert(*frame);
-        } else {
-            entity.remove::<PxFrame>();
-        }
-
-        if let Some(filter) = filter {
-            entity.insert(filter.clone());
-        } else {
-            entity.remove::<PxFilter>();
-        }
-    }
-}
-
-#[cfg(feature = "headed")]
-fn extract_composite_sprites<L: PxLayer>(
-    // TODO Maybe calculate `ViewVisibility`
-    sprites: Extract<
-        Query<(
-            CompositeSpriteComponents<L>,
-            &InheritedVisibility,
-            RenderEntity,
-        )>,
-    >,
-    mut cmd: Commands,
-) {
-    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {
-        let mut entity = cmd.entity(id);
-
-        if !visibility.get() {
-            // TODO Need to a better way to prevent entities from rendering
-            entity.remove::<L>();
-            continue;
-        }
-
-        entity.insert((sprite.clone(), position, anchor, layer.clone(), canvas));
-
-        if let Some(frame) = frame {
-            entity.insert(*frame);
-        } else {
-            entity.remove::<PxFrame>();
-        }
-
-        if let Some(filter) = filter {
-            entity.insert(filter.clone());
-        } else {
-            entity.remove::<PxFilter>();
-        }
-    }
-}
 
 // pub(crate) type ImageToSpriteComponents<L> = (
 //     &'static ImageToSprite,

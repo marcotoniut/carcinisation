@@ -11,10 +11,11 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy_prototype_lyon::{prelude::*, shapes};
 use carcinisation::globals::SCREEN_RESOLUTION;
-use carcinisation::stage::data::{StageData, StageStep};
+use carcinisation::stage::data::{StageData, StageSpawn, StageStep};
 
 use crate::components::{
-    AnimationIndices, AnimationTimer, Draggable, SceneItem, StageSpawnLabel, StageSpawnRef,
+    AnimationIndices, AnimationTimer, Draggable, PathOverlay, SceneItem, StageSpawnLabel,
+    StageSpawnRef, StartCoordinatesNode, TweenPathNode,
 };
 use crate::constants::FONT_PATH;
 use crate::resources::StageControlsUI;
@@ -23,12 +24,20 @@ const SKYBOX_Z: f32 = -11.0;
 const BACKGROUND_Z: f32 = -10.0;
 const CAMERA_POSITION_Z: f32 = 9.9;
 const PATH_Z: f32 = 10.0;
+const PATH_NODE_Z: f32 = 10.1;
+/// Radius of the draggable tween path node handles.
+pub const PATH_NODE_RADIUS: f32 = 5.0;
+/// Scale factor applied to hovered path nodes.
+pub const PATH_NODE_HOVER_SCALE: f32 = 1.5;
 
-/// Spawns the elapsed camera path overlay for the stage.
+/// Spawns the camera path overlay. When `skip_nodes` is true, only decorative geometry
+/// (polyline, arrows, camera rect) is created — node handles are omitted to avoid
+/// duplicating the actively dragged handle.
 pub fn spawn_path(
     commands: &mut Commands,
     stage_data: &StageData,
     stage_controls_ui: &Res<StageControlsUI>,
+    skip_nodes: bool,
 ) {
     let screen_resolution = SCREEN_RESOLUTION.as_vec2();
     let h_screen_resolution = screen_resolution / 2.0;
@@ -47,6 +56,7 @@ pub fn spawn_path(
     commands.spawn((
         Name::new("Camera Position"),
         SceneItem,
+        PathOverlay,
         ShapeBuilder::with(&camera_shape)
             .stroke((Color::WHITE, 1.0))
             .build(),
@@ -55,6 +65,29 @@ pub fn spawn_path(
             ..default()
         },
     ));
+
+    if !skip_nodes {
+        let start_node_shape = shapes::Circle {
+            radius: PATH_NODE_RADIUS,
+            center: Vec2::ZERO,
+        };
+        let start_transform = Transform::from_translation(
+            (stage_data.start_coordinates + h_screen_resolution).extend(PATH_NODE_Z),
+        );
+        commands.spawn((
+            Name::new("Start Coordinates Node"),
+            SceneItem,
+            PathOverlay,
+            StartCoordinatesNode,
+            Draggable,
+            ShapeBuilder::with(&start_node_shape)
+                .fill(Color::srgb(0.2, 1.0, 0.2))
+                .stroke((Color::WHITE, 1.0))
+                .build(),
+            start_transform,
+            GlobalTransform::from(start_transform),
+        ));
+    }
 
     let mut path = ShapePath::new().move_to(stage_data.start_coordinates + h_screen_resolution);
 
@@ -84,6 +117,7 @@ pub fn spawn_path(
                 commands.spawn((
                     Name::new(format!("Elapsed Path Tween Arrow {index}")),
                     SceneItem,
+                    PathOverlay,
                     ShapeBuilder::with(&arrow_shape).fill(Color::CYAN).build(),
                     Transform {
                         translation: (current_position + h_screen_resolution).extend(PATH_Z),
@@ -92,6 +126,30 @@ pub fn spawn_path(
                     },
                     GlobalTransform::default(),
                 ));
+
+                if !skip_nodes {
+                    // Draggable handle at the tween target position.
+                    let node_shape = shapes::Circle {
+                        radius: PATH_NODE_RADIUS,
+                        center: Vec2::ZERO,
+                    };
+                    let node_transform = Transform::from_translation(
+                        (s.coordinates + h_screen_resolution).extend(PATH_NODE_Z),
+                    );
+                    commands.spawn((
+                        Name::new(format!("Tween Node {index}")),
+                        SceneItem,
+                        PathOverlay,
+                        TweenPathNode { step_index: index },
+                        Draggable,
+                        ShapeBuilder::with(&node_shape)
+                            .fill(Color::WHITE)
+                            .stroke((Color::CYAN, 1.0))
+                            .build(),
+                        node_transform,
+                        GlobalTransform::from(node_transform),
+                    ));
+                }
 
                 let time_to_move = tween_travel_duration(current_position, s);
                 current_position = s.coordinates;
@@ -111,6 +169,7 @@ pub fn spawn_path(
     commands.spawn((
         Name::new("Elapsed Path"),
         SceneItem,
+        PathOverlay,
         ShapeBuilder::with(&path).stroke((Color::CYAN, 1.0)).build(),
         Transform::from_xyz(0.0, 0.0, PATH_Z),
         GlobalTransform::default(),
@@ -208,35 +267,19 @@ pub fn spawn_stage(
             }
             StageStep::Tween(s) => {
                 let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
-                if step_started {
-                    for (spawn_index, spawn) in s.spawns.iter().enumerate() {
-                        if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
-                            let v = current_position + *spawn.get_coordinates();
-                            let preview = resolve_stage_spawn_thumbnail(
-                                spawn,
-                                asset_server,
-                                image_assets,
-                                thumbnail_cache,
-                            );
-
-                            commands.spawn((
-                                spawn.get_editor_name_component(index),
-                                StageSpawnLabel,
-                                StageSpawnRef::Step {
-                                    step_index: index,
-                                    spawn_index,
-                                    step_origin: current_position,
-                                },
-                                Draggable,
-                                SceneItem,
-                                preview.sprite,
-                                Transform::from_translation(
-                                    v.extend(spawn.get_depth_editor_z_index()),
-                                ),
-                                preview.anchor,
-                            ));
-                        }
-                    }
+                let ghost = !step_started && stage_controls_ui.show_all_spawns;
+                if step_started || ghost {
+                    spawn_step_entities(
+                        commands,
+                        asset_server,
+                        stage_controls_ui,
+                        image_assets,
+                        thumbnail_cache,
+                        &s.spawns,
+                        index,
+                        current_position,
+                        ghost,
+                    );
                 }
 
                 let time_to_move = tween_travel_duration(current_position, s);
@@ -245,35 +288,19 @@ pub fn spawn_stage(
             }
             StageStep::Stop(s) => {
                 let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
-                if step_started {
-                    for (spawn_index, spawn) in s.spawns.iter().enumerate() {
-                        if stage_controls_ui.depth_is_visible(spawn.get_depth()) {
-                            let v = current_position + *spawn.get_coordinates();
-                            let preview = resolve_stage_spawn_thumbnail(
-                                spawn,
-                                asset_server,
-                                image_assets,
-                                thumbnail_cache,
-                            );
-
-                            commands.spawn((
-                                spawn.get_editor_name_component(index),
-                                StageSpawnLabel,
-                                StageSpawnRef::Step {
-                                    step_index: index,
-                                    spawn_index,
-                                    step_origin: current_position,
-                                },
-                                Draggable,
-                                SceneItem,
-                                preview.sprite,
-                                Transform::from_translation(
-                                    v.extend(spawn.get_depth_editor_z_index()),
-                                ),
-                                preview.anchor,
-                            ));
-                        }
-                    }
+                let ghost = !step_started && stage_controls_ui.show_all_spawns;
+                if step_started || ghost {
+                    spawn_step_entities(
+                        commands,
+                        asset_server,
+                        stage_controls_ui,
+                        image_assets,
+                        thumbnail_cache,
+                        &s.spawns,
+                        index,
+                        current_position,
+                        ghost,
+                    );
                 }
                 current_elapsed += stop_duration(s, timeline_config);
             }
@@ -305,6 +332,50 @@ pub fn spawn_stage(
     ));
 
     if stage_controls_ui.path_is_visible() {
-        spawn_path(commands, stage_data, stage_controls_ui);
+        spawn_path(commands, stage_data, stage_controls_ui, false);
+    }
+}
+
+const GHOST_ALPHA: f32 = 0.3;
+
+/// Spawns entities for a step's spawns list, optionally as 30% opacity ghosts.
+#[allow(clippy::too_many_arguments)]
+fn spawn_step_entities(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    stage_controls_ui: &StageControlsUI,
+    image_assets: &mut Assets<Image>,
+    thumbnail_cache: &mut ThumbnailCache,
+    spawns: &[StageSpawn],
+    step_index: usize,
+    step_origin: Vec2,
+    ghost: bool,
+) {
+    for (spawn_index, spawn) in spawns.iter().enumerate() {
+        if !stage_controls_ui.depth_is_visible(spawn.get_depth()) {
+            continue;
+        }
+        let v = step_origin + *spawn.get_coordinates();
+        let mut preview =
+            resolve_stage_spawn_thumbnail(spawn, asset_server, image_assets, thumbnail_cache);
+
+        if ghost {
+            preview.sprite.color = preview.sprite.color.with_alpha(GHOST_ALPHA);
+        }
+
+        commands.spawn((
+            spawn.get_editor_name_component(step_index),
+            StageSpawnLabel,
+            StageSpawnRef::Step {
+                step_index,
+                spawn_index,
+                step_origin,
+            },
+            Draggable,
+            SceneItem,
+            preview.sprite,
+            Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
+            preview.anchor,
+        ));
     }
 }

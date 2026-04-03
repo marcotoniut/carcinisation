@@ -180,7 +180,7 @@ fn mosquiton_pxi_header_is_valid() {
     assert!(width > 0 && height > 0, "zero dimensions: {width}×{height}");
 
     let payload_len = bytes.len() - 10;
-    let raw_packed_len = (width * height + 1) / 2;
+    let raw_packed_len = (width * height).div_ceil(2);
     // Compressed payload should be smaller than raw packed size.
     // Raw payload should match exactly.
     if bytes[5] == 0 {

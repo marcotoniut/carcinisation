@@ -43,6 +43,7 @@ pub struct StageControlsUI {
     pub elapsed_duration: Duration,
 
     pub elapsed_path: bool,
+    pub show_all_spawns: bool,
 
     pub skybox: bool,
     pub background: bool,
@@ -63,6 +64,7 @@ impl Default for StageControlsUI {
     fn default() -> Self {
         StageControlsUI {
             elapsed_path: true,
+            show_all_spawns: false,
             elapsed_duration: Duration::from_secs(999),
             skybox: true,
             background: true,
@@ -109,6 +111,69 @@ impl StageControlsUI {
             Depth::Two => self.two,
             Depth::One => self.one,
             Depth::Zero => self.zero,
+        }
+    }
+}
+
+/// Holds a RON snapshot of the scene at last save/load.
+/// Comparing the current SceneData serialization against this detects unsaved changes
+/// without relying on change-detection flags.
+#[derive(Resource, Default, Debug)]
+pub struct SavedSceneSnapshot(pub Option<String>);
+
+impl SavedSceneSnapshot {
+    /// Captures the current SceneData as a RON string.
+    pub fn capture(scene_data: &crate::components::SceneData) -> Self {
+        let ron_str = match scene_data {
+            crate::components::SceneData::Cutscene(data) => Self::to_ron(data),
+            crate::components::SceneData::Stage(data) => Self::to_ron(data),
+        };
+        Self(Some(ron_str))
+    }
+
+    /// Returns true if the current scene differs from the saved snapshot.
+    pub fn has_unsaved_changes(&self, current: &crate::components::SceneData) -> bool {
+        let Some(ref saved) = self.0 else {
+            return false;
+        };
+        let current_ron = match current {
+            crate::components::SceneData::Cutscene(data) => Self::to_ron(data),
+            crate::components::SceneData::Stage(data) => Self::to_ron(data),
+        };
+        *saved != current_ron
+    }
+
+    fn to_ron<T: serde::Serialize>(data: &T) -> String {
+        let config = ron::ser::PrettyConfig::new()
+            .struct_names(true)
+            .extensions(ron::extensions::Extensions::all());
+        ron::ser::to_string_pretty(data, config).unwrap_or_default()
+    }
+}
+
+/// When true, the close-confirmation dialog is shown.
+#[derive(Resource, Default, Debug)]
+pub struct CloseConfirmation(pub bool);
+
+/// Set to true to exit the app on the next frame.
+#[derive(Resource, Default, Debug)]
+pub struct ShouldExit(pub bool);
+
+/// Set to true to force a full scene rebuild on the next frame.
+/// Used to defer rebuilds that were skipped during an active path drag.
+#[derive(Resource, Default, Debug)]
+pub struct PendingSceneRebuild(pub bool);
+
+/// Persistent UI state for the Scene inspector split layout.
+#[derive(Resource, Debug)]
+pub struct SceneInspectorLayout {
+    pub selection_height: f32,
+}
+
+impl Default for SceneInspectorLayout {
+    fn default() -> Self {
+        Self {
+            selection_height: 220.0,
         }
     }
 }

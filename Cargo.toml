@@ -26,14 +26,8 @@ version = "0.2.0"
 assert_assets_path = { path = "tools/assert_assets_path" }
 asset_pipeline = { path = "crates/asset_pipeline" }
 carcinisation_collision = { path = "crates/carcinisation_collision" }
-# Dynamic linking speeds up host builds; wasm targets ignore this feature.
-bevy = { version = "0.18", features = [
-    "dynamic_linking",
-    "file_watcher",
-    "wayland",
-    "std",
-    "async_executor",
-] }
+# Keep host binaries self-contained so BRP/MCP launchers can execute them directly.
+bevy = { version = "0.18", features = ["file_watcher", "wayland", "std", "async_executor"] }
 bevy_brp_extras = "0.18"
 bevy_state = "0.18"
 bevy_ecs = "0.18"

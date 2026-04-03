@@ -327,6 +327,20 @@ fn update_emitters<L: PxLayer>(
     }
 }
 
+fn despawn_particles(
+    mut commands: Commands,
+    particles: Query<(Entity, &PxParticleLifetime, &PxParticleStart)>,
+    time: Res<Time<Real>>,
+) {
+    for (particle, lifetime, start) in &particles {
+        if time.last_update().unwrap_or_else(|| time.startup()) + TIME_OFFSET - **start
+            >= **lifetime
+        {
+            commands.entity(particle).despawn();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -399,19 +413,5 @@ mod tests {
 
         let particles = world.query::<&PxParticleStart>().iter(&world).count();
         assert!(particles >= 1);
-    }
-}
-
-fn despawn_particles(
-    mut commands: Commands,
-    particles: Query<(Entity, &PxParticleLifetime, &PxParticleStart)>,
-    time: Res<Time<Real>>,
-) {
-    for (particle, lifetime, start) in &particles {
-        if time.last_update().unwrap_or_else(|| time.startup()) + TIME_OFFSET - **start
-            >= **lifetime
-        {
-            commands.entity(particle).despawn();
-        }
     }
 }
