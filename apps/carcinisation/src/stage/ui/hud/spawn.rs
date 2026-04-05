@@ -1,7 +1,7 @@
 use super::components::{HealthIcon, HealthText, Hud, UIBackground};
 use crate::pixel::{PxAssets, PxRectBundle, PxSpriteBundle, PxTextBundle};
 use crate::{
-    globals::{HUD_HEIGHT, SCREEN_RESOLUTION, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH},
+    globals::{HUD_HEIGHT, SCREEN_RESOLUTION, load_inverted_typeface},
     layer::Layer,
     stage::{components::StageEntity, ui::components::ScoreText},
 };
@@ -28,7 +28,7 @@ pub fn spawn_hud(
     assets_sprite: &mut PxAssets<PxSprite>,
     filters: &mut PxAssets<PxFilter>,
 ) -> Entity {
-    let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+    let typeface = load_inverted_typeface(typefaces);
     commands
         .spawn((
             Hud,

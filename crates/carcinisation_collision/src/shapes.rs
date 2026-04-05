@@ -125,22 +125,6 @@ impl ColliderData {
     }
 
     #[must_use]
-    pub fn point_collides_with(
-        &self,
-        collider_position: Vec2,
-        point_position: Vec2,
-    ) -> Vec<Collider> {
-        self.0
-            .iter()
-            .filter(|x| {
-                x.shape
-                    .point_collides(collider_position + x.offset, point_position)
-            })
-            .copied()
-            .collect()
-    }
-
-    #[must_use]
     pub fn point_collides(
         &self,
         collider_position: Vec2,

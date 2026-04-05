@@ -4,6 +4,9 @@ use crate::components::DespawnMark;
 use assert_assets_path::assert_assets_path;
 use bevy::{ecs::query::QueryFilter, prelude::*};
 
+/// Relative path from the crate manifest to the workspace assets directory.
+pub const ASSETS_PATH: &str = "../../assets";
+
 pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);
 
 #[cfg(debug_assertions)]
@@ -11,7 +14,7 @@ pub const VIEWPORT_MULTIPLIER: f32 = 4.;
 #[cfg(not(debug_assertions))]
 pub const VIEWPORT_MULTIPLIER: f32 = 3.;
 
-pub const REAL_RESOLUTION: Vec2 = Vec2::new(
+const REAL_RESOLUTION: Vec2 = Vec2::new(
     SCREEN_RESOLUTION.x as f32 * VIEWPORT_MULTIPLIER,
     SCREEN_RESOLUTION.y as f32 * VIEWPORT_MULTIPLIER,
 );
@@ -37,25 +40,20 @@ pub static SCREEN_RESOLUTION_F32: std::sync::LazyLock<Vec2> =
 pub static SCREEN_RESOLUTION_F32_H: std::sync::LazyLock<Vec2> =
     std::sync::LazyLock::new(|| SCREEN_RESOLUTION.as_vec2() / 2.0);
 
-pub static GAME_HUD_OFFSET: std::sync::LazyLock<UVec2> =
-    std::sync::LazyLock::new(|| UVec2::new(0, HUD_HEIGHT));
-pub static GAME_CAMERA_RESOLUTION: std::sync::LazyLock<UVec2> = std::sync::LazyLock::new(|| {
-    (SCREEN_RESOLUTION.as_vec2() - GAME_HUD_OFFSET.as_vec2()).as_uvec2()
-});
-pub static GAME_CAMERA_RESOLUTION_H: std::sync::LazyLock<Vec2> =
-    std::sync::LazyLock::new(|| GAME_CAMERA_RESOLUTION.as_vec2() / 2.0);
-pub static GAME_CAMERA_CENTER: std::sync::LazyLock<Vec2> =
-    std::sync::LazyLock::new(|| GAME_CAMERA_RESOLUTION.as_vec2() / 2.0 + GAME_HUD_OFFSET.as_vec2());
-
 pub const PATH_SPRITES_ENEMIES: &str = assert_assets_path!("sprites/enemies/");
 pub const PATH_SPRITES_ATTACKS: &str = assert_assets_path!("sprites/attacks/");
 pub const PATH_SPRITES_OBJECTS: &str = assert_assets_path!("sprites/objects/");
 
-pub const TYPEFACE_PATH: &str = assert_assets_path!("typeface/pixeboy.px_typeface.png");
-pub const TYPEFACE_INVERTED_PATH: &str =
+const TYPEFACE_INVERTED_PATH: &str =
     assert_assets_path!("typeface/pixeboy-inverted.px_typeface.png");
-// pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-pub const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?";
+const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?";
+
+/// Loads the standard inverted typeface used by all UI overlays.
+pub fn load_inverted_typeface(
+    assets: &crate::pixel::PxAssets<'_, '_, carapace::prelude::PxTypeface>,
+) -> Handle<carapace::prelude::PxTypeface> {
+    assets.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)])
+}
 
 pub const DEFAULT_CROSSHAIR_INDEX: u8 = 1;
 
@@ -77,11 +75,4 @@ pub fn mark_for_despawn_by_query<F: QueryFilter>(
     for entity in query.iter() {
         commands.entity(entity).insert(DespawnMark);
     }
-}
-
-pub fn mark_for_despawn_by_query_system<F: QueryFilter>(
-    mut commands: Commands,
-    query: Query<'_, '_, Entity, F>,
-) {
-    mark_for_despawn_by_query(&mut commands, &query);
 }

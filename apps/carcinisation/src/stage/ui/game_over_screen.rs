@@ -12,10 +12,7 @@ use self::{
 use crate::{
     components::GBColor,
     game::score::components::Score,
-    globals::{
-        SCREEN_RESOLUTION_F32_H, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
-        mark_for_despawn_by_query,
-    },
+    globals::{SCREEN_RESOLUTION_F32_H, load_inverted_typeface, mark_for_despawn_by_query},
     layer::Layer,
     stage::StageProgressState,
 };
@@ -41,8 +38,7 @@ pub fn render_game_over_screen(
     stage_state: Res<State<StageProgressState>>,
 ) {
     if stage_state.is_changed() && *stage_state.get() == StageProgressState::GameOver {
-        let typeface =
-            assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+        let typeface = load_inverted_typeface(&assets_typeface);
         let score_text = score.value.to_string();
 
         commands.spawn((

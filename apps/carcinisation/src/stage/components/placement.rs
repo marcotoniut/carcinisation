@@ -3,7 +3,6 @@
 
 use crate::layer::{Layer, MidDepth, PreBackgroundDepth};
 use bevy::prelude::*;
-use cween::structs::MovementVec2Position;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -112,23 +111,6 @@ pub struct InView;
 
 #[derive(Component, Debug)]
 pub struct LinearUpdateDisabled;
-
-// DEPRECATED
-#[derive(Clone, Component, Debug, Reflect)]
-pub struct RailPosition(pub Vec2);
-
-// DEPRECATED
-impl MovementVec2Position for RailPosition {
-    fn get(&self) -> Vec2 {
-        self.0
-    }
-    fn set(&mut self, position: Vec2) {
-        self.0 = position;
-    }
-    fn add(&mut self, position: Vec2) {
-        self.0 += position;
-    }
-}
 
 pub fn spawn_floor_depths<S: std::hash::BuildHasher>(
     commands: &mut Commands,

@@ -22,7 +22,7 @@ use crate::{
             TweenStageStep,
             damage::{DamageFlicker, InflictsDamage},
             interactive::{ColliderData, Health},
-            placement::{Depth, Floor, RailPosition, Speed},
+            placement::{Depth, Floor, Speed},
         },
         data::{
             ContainerSpawn, EnemyDropSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupDropSpawn,
@@ -119,7 +119,6 @@ pub fn register_types(app: &mut App) {
         .register_type::<PickupSpawn>()
         .register_type::<PickupType>()
         .register_type::<PlayerAttack>()
-        .register_type::<RailPosition>()
         .register_type::<ResolvedCollisionVolume>()
         .register_type::<ResolvedPartCollision>()
         .register_type::<ResolvedPartState>()

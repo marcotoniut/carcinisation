@@ -10,7 +10,7 @@ use crate::{
         StagePlugin, StageProgressState,
         data::StageData,
         messages::StageRestart,
-        resources::{StageActionTimer, StageProgress, StageTimeDomain},
+        resources::{StageActionTimer, StageProgress, StageTimeDomain, reset_stage_progression},
     },
 };
 use activable::{activate, deactivate};
@@ -41,16 +41,18 @@ pub fn handle_game_over_screen_continue(
     mut stage_restart_writer: MessageWriter<StageRestart>,
 ) {
     if event_reader.read().next().is_some() {
-        stage_progress.index = 0;
-
         if lives.0 > 0 {
-            *stage_time = Time::default();
-            stage_action_timer.timer.reset();
-            stage_action_timer.stop();
-            stage_state.set(StageProgressState::Initial);
+            reset_stage_progression(
+                &mut stage_progress,
+                &mut stage_state,
+                &mut stage_time,
+                &mut stage_action_timer,
+            );
             stage_restart_writer.write(StageRestart);
             return;
         }
+
+        stage_progress.index = 0;
 
         game_progress.index = 0;
         lives.0 = STARTING_LIVES;

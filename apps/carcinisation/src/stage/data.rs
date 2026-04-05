@@ -205,8 +205,7 @@ impl ObjectSpawn {
         Self {
             object_type: ObjectType::BenchBig,
             coordinates: Vec2::new(x, y),
-            // TODO should be Six
-            depth: Depth::Eight,
+            depth: Depth::Six,
         }
     }
 
@@ -215,8 +214,7 @@ impl ObjectSpawn {
         Self {
             object_type: ObjectType::BenchSmall,
             coordinates: Vec2::new(x, y),
-            // TODO should be Six
-            depth: Depth::Eight,
+            depth: Depth::Six,
         }
     }
 

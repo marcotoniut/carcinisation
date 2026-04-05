@@ -91,7 +91,9 @@ pub(crate) fn ensure_typeface_meta<S: std::hash::BuildHasher>(
 }
 
 fn asset_meta_path(path: &str) -> PathBuf {
-    PathBuf::from("assets").join(format!("{path}.meta"))
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join(crate::globals::ASSETS_PATH)
+        .join(format!("{path}.meta"))
 }
 
 #[cfg(not(target_family = "wasm"))]

@@ -1,6 +1,7 @@
 use carcinisation::cutscene::data::CutsceneData;
+use carcinisation::stage::data::StageData;
 use colored::Colorize;
-use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::Watcher;
 use ron::de::from_str;
 use std::collections::HashMap;
 use std::env;
@@ -36,9 +37,9 @@ fn main() -> notify::Result<()> {
     let (tx, rx) = channel();
 
     // Create a watcher object, delivering events.
-    let mut watcher: RecommendedWatcher = Watcher::new(
+    let mut watcher: notify::RecommendedWatcher = notify::Watcher::new(
         tx,
-        Config::default()
+        notify::Config::default()
             .with_compare_contents(true)
             .with_poll_interval(Duration::from_secs(1)),
     )?;
@@ -46,7 +47,7 @@ fn main() -> notify::Result<()> {
     // Define the path to watch.
     let assets_root = find_assets_root();
     let path_to_watch: &Path = assets_root.as_ref();
-    watcher.watch(path_to_watch, RecursiveMode::Recursive)?;
+    watcher.watch(path_to_watch, notify::RecursiveMode::Recursive)?;
 
     println!("Watching {} for changes...", path_to_watch.display());
 
@@ -65,7 +66,7 @@ fn main() -> notify::Result<()> {
 
 // Function to handle the result of the event
 fn handle_result(
-    event: Result<Event, notify::Error>,
+    event: Result<notify::Event, notify::Error>,
     last_processed: &Arc<Mutex<HashMap<PathBuf, Instant>>>,
 ) {
     match event {
@@ -74,8 +75,25 @@ fn handle_result(
     }
 }
 
+/// Determines the RON file kind from its path extension pattern.
+enum RonKind {
+    Cutscene,
+    Stage,
+}
+
+fn classify_ron(path: &Path) -> Option<RonKind> {
+    let name = path.file_name()?.to_str()?;
+    if name.ends_with(".cs.ron") {
+        Some(RonKind::Cutscene)
+    } else if name.ends_with(".sg.ron") {
+        Some(RonKind::Stage)
+    } else {
+        None
+    }
+}
+
 // Function to handle changes in RON files
-fn handle_event(event: Event, last_processed: &Arc<Mutex<HashMap<PathBuf, Instant>>>) {
+fn handle_event(event: notify::Event, last_processed: &Arc<Mutex<HashMap<PathBuf, Instant>>>) {
     let mut last_processed = last_processed.lock().unwrap();
 
     for path in event.paths {
@@ -89,16 +107,26 @@ fn handle_event(event: Event, last_processed: &Arc<Mutex<HashMap<PathBuf, Instan
             }
             last_processed.insert(path.clone(), now);
 
+            let Some(kind) = classify_ron(&path) else {
+                continue;
+            };
+
             println!("Change detected in: {}", path.display().to_string().cyan());
             let data = fs::read_to_string(&path);
             match data {
-                Ok(content) => match from_str::<CutsceneData>(&content) {
-                    Ok(_) => println!("{} parsed RON file.", "SUCCESSFULLY".green().bold()),
-                    Err(err) => {
-                        println!("{} to parse RON:", "FAILED".red().bold());
-                        println!("{err:?}");
+                Ok(content) => {
+                    let result = match kind {
+                        RonKind::Cutscene => from_str::<CutsceneData>(&content).map(|_| ()),
+                        RonKind::Stage => from_str::<StageData>(&content).map(|_| ()),
+                    };
+                    match result {
+                        Ok(()) => println!("{} parsed RON file.", "SUCCESSFULLY".green().bold()),
+                        Err(err) => {
+                            println!("{} to parse RON:", "FAILED".red().bold());
+                            println!("{err:?}");
+                        }
                     }
-                },
+                }
                 Err(err) => {
                     println!("{} to read file: {:?}", "FAILED".red().bold(), err);
                 }

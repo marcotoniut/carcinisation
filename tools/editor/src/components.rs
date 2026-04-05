@@ -80,11 +80,11 @@ pub enum StageSpawnRef {
 }
 
 /// Current scene file path (absolute) for persistence and UI.
-#[derive(Component, Debug, Default, Reflect, Resource)]
+#[derive(Debug, Default, Resource)]
 pub struct ScenePath(pub String);
 
 /// Marker for stage spawn label entities.
-#[derive(Component, Debug, Default, Reflect, Resource)]
+#[derive(Component, Debug, Default, Reflect)]
 pub struct StageSpawnLabel;
 
 /// Marker for the translucent placement ghost that follows the cursor.

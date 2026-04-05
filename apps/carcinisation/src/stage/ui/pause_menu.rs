@@ -5,7 +5,7 @@ use crate::globals::{SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H};
 use crate::pixel::{PxAssets, PxRectBundle, PxTextBundle};
 use crate::{
     game::{GameProgressState, score::components::Score},
-    globals::{TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH, mark_for_despawn_by_query},
+    globals::{load_inverted_typeface, mark_for_despawn_by_query},
     layer::Layer,
 };
 use bevy::prelude::*;
@@ -49,7 +49,7 @@ pub fn spawn_pause_menu_bundle(
     filters: &PxAssets<PxFilter>,
     score: Res<Score>,
 ) -> Entity {
-    let typeface = typefaces.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+    let typeface = load_inverted_typeface(typefaces);
     let score_text = score.value.to_string();
     commands
         .spawn((

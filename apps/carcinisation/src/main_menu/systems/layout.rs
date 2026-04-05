@@ -7,8 +7,7 @@ use crate::{
     game::resources::Difficulty,
     globals::{
         FONT_SIZE, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32, SCREEN_RESOLUTION_F32_H,
-        SCREEN_RESOLUTION_H, TYPEFACE_CHARACTERS, TYPEFACE_INVERTED_PATH,
-        mark_for_despawn_by_query,
+        SCREEN_RESOLUTION_H, load_inverted_typeface, mark_for_despawn_by_query,
     },
     layer::Layer,
     main_menu::{MainMenuScreen, resources::DifficultySelection},
@@ -49,7 +48,7 @@ pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 /// @system Spawns the "Press Start" text when entering that screen state.
 pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: PxAssets<PxTypeface>) {
-    let typeface = assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+    let typeface = load_inverted_typeface(&assets_typeface);
 
     commands.spawn((
         MainMenuEntity,
@@ -86,7 +85,7 @@ pub fn enter_game_difficulty_screen(
     selection: Res<DifficultySelection>,
 ) {
     let color = GBColor::White;
-    let typeface = assets_typeface.load(TYPEFACE_INVERTED_PATH, TYPEFACE_CHARACTERS, [(' ', 4)]);
+    let typeface = load_inverted_typeface(&assets_typeface);
 
     commands.spawn((
         MainMenuEntity,

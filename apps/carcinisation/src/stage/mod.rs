@@ -18,7 +18,6 @@ pub use systems::spawn::check_step_spawn;
 
 use self::{
     attack::AttackPlugin,
-    components::placement::RailPosition,
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
     enemy::composed::{apply_composed_part_damage, check_composed_damage_flicker_taken},
@@ -163,7 +162,6 @@ impl Plugin for StagePlugin {
                 activate_system::<PlayerPlugin>,
             )
             // Shared movement helpers (linear/pursue) reused by multiple enemy types.
-            .add_plugins(PursueMovementPlugin::<StageTimeDomain, RailPosition>::default())
             .add_plugins(PursueMovementPlugin::<StageTimeDomain, PxSubPosition>::default())
             .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueX>::default())
             .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueY>::default())
@@ -220,7 +218,7 @@ impl Plugin for StagePlugin {
                     ),
                     (
                         // Stage
-                        read_step_trigger,
+                        read_step_trigger.run_if(in_state(StageProgressState::Running)),
                         check_stage_step_timer,
                         check_staged_cleared.run_if(in_state(StageProgressState::Running)),
                         check_step_spawn,

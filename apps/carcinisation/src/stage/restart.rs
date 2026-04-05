@@ -15,7 +15,7 @@ use crate::{
         enemy::components::Enemy,
         messages::{StageRestart, StageStartupEvent},
         player::components::Player,
-        resources::{StageActionTimer, StageProgress, StageTimeDomain},
+        resources::{StageActionTimer, StageProgress, StageTimeDomain, reset_stage_progression},
     },
 };
 
@@ -38,11 +38,12 @@ pub fn handle_stage_restart(
 ) {
     for _ in restart_reader.read() {
         // Reset progression/resources before rebuilding.
-        stage_progress.index = 0;
-        stage_state.set(StageProgressState::Initial);
-        *stage_time = Time::default();
-        stage_action_timer.timer.reset();
-        stage_action_timer.stop();
+        reset_stage_progression(
+            &mut stage_progress,
+            &mut stage_state,
+            &mut stage_time,
+            &mut stage_action_timer,
+        );
 
         // Clean up all stage-scoped entities so the upcoming startup runs from a clean slate.
         mark_for_despawn_by_query(&mut commands, &stage_query);

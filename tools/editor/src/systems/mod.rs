@@ -51,6 +51,41 @@ pub fn maximize_window(mut window_query: Query<&mut Window, With<PrimaryWindow>>
     }
 }
 
+/// Shared logic for processing an asset load state and installing the resulting scene.
+fn handle_asset_load<H: Resource>(
+    commands: &mut Commands,
+    scene_path: &mut ScenePath,
+    state: LoadState,
+    path: &str,
+    label: &str,
+    data: Option<SceneData>,
+) {
+    match state {
+        LoadState::Loaded => {
+            if let Some(scene) = data {
+                *scene_path = ScenePath(path.to_string());
+                info!("{label} data loaded");
+                commands.insert_resource(crate::resources::SavedSceneSnapshot::capture(&scene));
+                commands.remove_resource::<H>();
+                commands.insert_resource(scene);
+                commands.trigger(WriteRecentFilePathEvent);
+            } else {
+                warn!("{label} data error");
+            }
+        }
+        LoadState::Loading => {
+            info!("{label} data is still loading...");
+        }
+        LoadState::NotLoaded => {
+            warn!("{label} data is not loaded");
+        }
+        LoadState::Failed(e) => {
+            commands.remove_resource::<H>();
+            error!("{label} data failed to load: {e}");
+        }
+    }
+}
+
 /// @system Loads cutscene data once the asset server finishes loading the selected file.
 #[allow(clippy::needless_pass_by_value)]
 pub fn check_cutscene_data_loaded(
@@ -61,31 +96,17 @@ pub fn check_cutscene_data_loaded(
     mut scene_path: ResMut<ScenePath>,
 ) {
     if let Some(state) = asset_server.get_load_state(cutscene_asset_handle.handle.id()) {
-        match state {
-            LoadState::Loaded => {
-                if let Some(data) = cutscene_data_assets.get(&cutscene_asset_handle.handle) {
-                    *scene_path = ScenePath(cutscene_asset_handle.path.clone());
-                    println!("Cutscene data loaded: {data:?}");
-                    let scene = SceneData::Cutscene(data.clone());
-                    commands.insert_resource(crate::resources::SavedSceneSnapshot::capture(&scene));
-                    commands.remove_resource::<CutsceneAssetHandle>();
-                    commands.insert_resource(scene);
-                    commands.trigger(WriteRecentFilePathEvent);
-                } else {
-                    println!("Cutscene data error");
-                }
-            }
-            LoadState::Loading => {
-                println!("Cutscene data is still loading...");
-            }
-            LoadState::NotLoaded => {
-                println!("Cutscene data is not loaded");
-            }
-            LoadState::Failed(e) => {
-                commands.remove_resource::<CutsceneAssetHandle>();
-                println!("Cutscene data failed to load: {e}");
-            }
-        }
+        let data = cutscene_data_assets
+            .get(&cutscene_asset_handle.handle)
+            .map(|d| SceneData::Cutscene(d.clone()));
+        handle_asset_load::<CutsceneAssetHandle>(
+            &mut commands,
+            &mut scene_path,
+            state,
+            &cutscene_asset_handle.path,
+            "Cutscene",
+            data,
+        );
     }
 }
 
@@ -99,31 +120,17 @@ pub fn check_stage_data_loaded(
     mut scene_path: ResMut<ScenePath>,
 ) {
     if let Some(state) = asset_server.get_load_state(stage_asset_handle.handle.id()) {
-        match state {
-            LoadState::Loaded => {
-                if let Some(data) = stage_data_assets.get(&stage_asset_handle.handle) {
-                    *scene_path = ScenePath(stage_asset_handle.path.clone());
-                    println!("Stage data loaded: {data:?}");
-                    let scene = SceneData::Stage(data.clone());
-                    commands.insert_resource(crate::resources::SavedSceneSnapshot::capture(&scene));
-                    commands.remove_resource::<StageAssetHandle>();
-                    commands.insert_resource(scene);
-                    commands.trigger(WriteRecentFilePathEvent);
-                } else {
-                    println!("Stage data error");
-                }
-            }
-            LoadState::Loading => {
-                println!("Stage data is still loading...");
-            }
-            LoadState::NotLoaded => {
-                println!("Stage data is not loaded");
-            }
-            LoadState::Failed(e) => {
-                commands.remove_resource::<StageAssetHandle>();
-                println!("Stage data failed to load {e}");
-            }
-        }
+        let data = stage_data_assets
+            .get(&stage_asset_handle.handle)
+            .map(|d| SceneData::Stage(d.clone()));
+        handle_asset_load::<StageAssetHandle>(
+            &mut commands,
+            &mut scene_path,
+            state,
+            &stage_asset_handle.path,
+            "Stage",
+            data,
+        );
     }
 }
 

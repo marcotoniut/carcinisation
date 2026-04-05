@@ -32,12 +32,11 @@ use crate::gallery::GalleryPlugin;
 use crate::{
     cutscene::CutscenePlugin,
     game::GamePlugin,
-    globals::{DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION},
+    globals::{ASSETS_PATH, DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION},
     input::GBInput,
     layer::Layer,
     letterbox::LetterboxPlugin,
     main_menu::MainMenuPlugin,
-    pixel::PixelPlugin,
     resources::DifficultySelected,
     stage::{StagePlugin, player::crosshair::CrosshairSettings},
     systems::{
@@ -112,7 +111,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                     ..default()
                 })
                 .set(AssetPlugin {
-                    file_path: "../../assets".into(),
+                    file_path: ASSETS_PATH.into(),
                     meta_check: AssetMetaCheck::Never,
                     ..default()
                 })
@@ -141,7 +140,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                         ..default()
                     })
                     .set(AssetPlugin {
-                        file_path: "../../assets".into(),
+                        file_path: ASSETS_PATH.into(),
                         ..default()
                     }),
                 EguiPlugin::default(),
@@ -169,7 +168,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                         ..default()
                     })
                     .set(AssetPlugin {
-                        file_path: "../../assets".into(),
+                        file_path: ASSETS_PATH.into(),
                         ..default()
                     }),
             );
@@ -194,8 +193,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
         }
     }
 
-    app.add_plugins(PixelPlugin::<Layer>::default())
-        .insert_resource(ClearColor(Color::BLACK))
+    app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
         .add_plugins(PxAnimationPlugin)
         .add_plugins(TransitionVenetianPlugin)

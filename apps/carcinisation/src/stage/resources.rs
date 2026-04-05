@@ -48,9 +48,23 @@ impl Default for StageActionTimer {
 pub struct StageStepSpawner {
     #[new(default)]
     pub elapsed: Duration,
-    #[new(default)]
-    pub elapsed_since_spawn: Duration,
     pub spawns: Vec<StageSpawn>,
+}
+
+/// Resets all stage progression state to initial values.
+/// Used by both stage restart and game-over-continue paths to ensure
+/// consistent reset ordering.
+pub fn reset_stage_progression(
+    stage_progress: &mut StageProgress,
+    stage_state: &mut NextState<super::StageProgressState>,
+    stage_time: &mut Time<StageTimeDomain>,
+    stage_action_timer: &mut StageActionTimer,
+) {
+    stage_progress.index = 0;
+    stage_state.set(super::StageProgressState::Initial);
+    *stage_time = Time::default();
+    stage_action_timer.timer.reset();
+    stage_action_timer.stop();
 }
 
 #[derive(Resource, Clone, Copy, Debug, Reflect)]
