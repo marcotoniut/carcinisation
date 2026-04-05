@@ -370,10 +370,14 @@ pub(crate) fn draw_spatial_transformed<'a, A: Frames + Spatial>(
 ///
 /// Shared by both the single-sprite and composite transform paths.
 ///
+/// **Signed scale**: negative values produce mirroring (horizontal and/or
+/// vertical flip). The sign is carried through the inverse-transform math —
+/// no separate flip path is needed.
+///
 /// The transform pipeline (per destination pixel):
 /// 1. Express destination pixel relative to anchor in image space.
 /// 2. Apply inverse rotation (negate angle).
-/// 3. Apply inverse scale.
+/// 3. Apply inverse signed scale (negative inverts axis → mirror).
 /// 4. Add anchor offset in source space → source pixel coordinate.
 /// 5. Nearest-neighbour sample from scratch buffer.
 pub(crate) fn blit_transformed(
@@ -424,11 +428,14 @@ pub(crate) fn blit_transformed(
         max_y = max_y.max(rotated.y);
     }
 
-    // Destination extents in pixels (ceil to avoid clipping).
-    let half_left = (-min_x).ceil() as i32;
-    let half_right = max_x.ceil() as i32;
-    let half_top = (-min_y).ceil() as i32;
-    let half_bottom = max_y.ceil() as i32;
+    // Destination extents in pixels (ceil + 1 to cover boundary pixels that
+    // may land exactly on the edge when scale is negative). The extra pixel
+    // on each side is harmless — the source-bounds check rejects any inverse
+    // sample that falls outside the scratch buffer.
+    let half_left = (-min_x).ceil() as i32 + 1;
+    let half_right = max_x.ceil() as i32 + 1;
+    let half_top = (-min_y).ceil() as i32 + 1;
+    let half_bottom = max_y.ceil() as i32 + 1;
 
     if half_left + half_right <= 0 || half_top + half_bottom <= 0 {
         return;
@@ -673,5 +680,155 @@ mod tests {
         );
 
         assert_eq!(count_nonzero(&dest_a), count_nonzero(&dest_b));
+    }
+
+    #[test]
+    fn horizontal_flip_preserves_pixel_count() {
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(8, 8)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::new(-1.0, 1.0), // horizontal flip
+            0.0,
+            Vec2::ZERO,
+        );
+
+        assert_eq!(count_nonzero(&dest), 16);
+    }
+
+    #[test]
+    fn vertical_flip_preserves_pixel_count() {
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(8, 8)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::new(1.0, -1.0), // vertical flip
+            0.0,
+            Vec2::ZERO,
+        );
+
+        assert_eq!(count_nonzero(&dest), 16);
+    }
+
+    #[test]
+    fn horizontal_flip_mirrors_content() {
+        // Asymmetric source: left column = 1, right column = 2.
+        // Layout in row-major: [row0: 1, 2], [row1: 1, 2]
+        let scratch = PxImage::new(vec![1, 2, 1, 2], 2);
+
+        // Unflipped reference.
+        let mut dest_normal = PxImage::empty(UVec2::new(8, 8));
+        let mut slice_normal = dest_normal.slice_all_mut();
+        blit_transformed(
+            &scratch,
+            UVec2::new(2, 2),
+            &mut slice_normal,
+            PxPosition(IVec2::new(4, 4)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            0.0,
+            Vec2::ZERO,
+        );
+
+        // Flipped.
+        let mut dest_flip = PxImage::empty(UVec2::new(8, 8));
+        let mut slice_flip = dest_flip.slice_all_mut();
+        blit_transformed(
+            &scratch,
+            UVec2::new(2, 2),
+            &mut slice_flip,
+            PxPosition(IVec2::new(4, 4)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::new(-1.0, 1.0),
+            0.0,
+            Vec2::ZERO,
+        );
+
+        // The two results should have the same pixel count but different layout.
+        assert_eq!(count_nonzero(&dest_normal), count_nonzero(&dest_flip));
+        // Content should differ (mirrored).
+        let mut differs = false;
+        for y in 0..8_i32 {
+            for x in 0..8_i32 {
+                let pos = IVec2::new(x, y);
+                if dest_normal.get_pixel(pos) != dest_flip.get_pixel(pos) {
+                    differs = true;
+                }
+            }
+        }
+        assert!(differs, "flipped content should differ from unflipped");
+    }
+
+    #[test]
+    fn flip_with_rotation_preserves_pixel_count() {
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(8, 8)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::new(-1.0, -1.0),       // both axes flipped
+            std::f32::consts::FRAC_PI_2, // + 90° rotation
+            Vec2::ZERO,
+        );
+
+        // A 4x4 square with flip+90° should still produce ~16 pixels.
+        let n = count_nonzero(&dest);
+        assert!(
+            (12..=20).contains(&n),
+            "flip + 90° rotation should produce ~16 pixels, got {n}"
+        );
+    }
+
+    #[test]
+    fn negative_scale_2x_flip_approximately_quadruples_pixel_count() {
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest = PxImage::empty(UVec2::new(32, 32));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(16, 16)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::splat(-2.0), // 2x scale + flip both axes
+            0.0,
+            Vec2::ZERO,
+        );
+
+        let n = count_nonzero(&dest);
+        assert!(
+            (48..=64).contains(&n),
+            "-2x scale should produce ~64 pixels, got {n}"
+        );
     }
 }
