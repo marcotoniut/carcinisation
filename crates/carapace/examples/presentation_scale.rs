@@ -1,6 +1,8 @@
 #![allow(clippy::needless_pass_by_value)]
-// In this program, a mosquiton enemy is composed from atlas-backed sprite parts:
-// wings, body, head, arms overlay, and legs — using idle_stand frame 0.
+// Demonstrates PxPresentationTransform scaling on a composite sprite (Mosquiton).
+//
+// Left: static reference at native size.
+// Right: oscillates smoothly between 50% and 200% over 4 seconds.
 
 use bevy::prelude::*;
 use carapace::{atlas::AtlasRegionId, prelude::*};
@@ -15,40 +17,38 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(96, 96), "palette/base.png"),
+            PxPlugin::<Layer>::new(UVec2::new(128, 128), "palette/base.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
+        .add_systems(Update, oscillate_scale)
         .run();
 }
 
-/// Convert a top-left image-space offset (as found in atlas JSON) to the engine's
-/// bottom-left coordinate system.
+#[derive(Component)]
+struct Oscillating;
+
+/// Convert a top-left image-space offset to bottom-left engine coordinates.
 fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
     IVec2::new(top_left_offset.x, -(top_left_offset.y + part_height))
 }
 
-fn init(assets: Res<AssetServer>, mut commands: Commands) {
-    commands.spawn(Camera2d);
-
+/// Builds a mosquiton composite from idle_stand frame 0.
+///
+/// Atlas region mapping (from atlas.composed.ron idle_stand poses):
+///   0 = body left half (11x25)
+///   1 = body centre strip (1x25)
+///   2 = head left half (6x30)
+///   3 = head centre strip (1x30)
+///   4 = arms overlay (24x28)
+///   5 = wings (18x33)
+///   6 = wing centre strip (1x9)
+///   7 = legs (15x28)
+fn mosquiton_composite(assets: &Res<AssetServer>) -> PxCompositeSprite {
     let atlas: Handle<PxSpriteAtlasAsset> = assets.load("sprite/mosquiton/atlas.px_atlas.ron");
 
-    // Idle stand frame 0 — thirteen atlas-backed fragments composited in draw order.
-    // Self-symmetric sprites (body, head, arms_overlay) are auto-canonicalised:
-    // only the left half is stored, mirrored at render time via fragments.
-    // Odd-width parts with filled centre columns (body, head) get a centre-strip
-    // fragment to preserve the middle pixel column losslessly.
-    //
-    // Atlas region mapping:
-    //   0 = body left half (11x25)
-    //   1 = body centre strip (1x25)
-    //   2 = head left half (6x30)
-    //   3 = head centre strip (1x30)
-    //   4 = arms overlay (24x28)
-    //   5 = wings (18x33)
-    //   6 = wing centre strip (1x9)
-    //   7 = legs (15x28)
-    let composite = PxCompositeSprite::new(vec![
+    // Draw order matches the composed manifest: wings → body → head → arms → legs.
+    PxCompositeSprite::new(vec![
         // Wings: left, centre strip, right (flipped)
         PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
             .with_offset(bottom_left(IVec2::new(-18, -1), 33)),
@@ -66,7 +66,7 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, -4), 25)),
         // Head: left, centre strip, right (flipped)
-        // Head is parented to body — offsets resolved as body_pivot + head_local:
+        // Head is parented to body, so offsets are body_pivot + head_local_offset:
         // body pivot = (-11, -4), head offsets = (5,6), (11,6), (12,6)
         // absolute = (-6, 2), (0, 2), (1, 2)
         PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
@@ -88,9 +88,37 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
         PxCompositePart::atlas_region(atlas, AtlasRegionId(7))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(5, 17), 28)),
-    ]);
+    ])
+}
 
-    commands.spawn((composite, PxPosition(IVec2::new(48, 48))));
+fn init(assets: Res<AssetServer>, mut commands: Commands) {
+    commands.spawn(Camera2d);
+
+    // Left: static reference at native size (no PxPresentationTransform).
+    commands.spawn((mosquiton_composite(&assets), PxPosition(IVec2::new(32, 64))));
+
+    // Right: oscillating scale between 50% and 200%.
+    commands.spawn((
+        mosquiton_composite(&assets),
+        PxPosition(IVec2::new(96, 64)),
+        PxPresentationTransform::default(),
+        Oscillating,
+    ));
+}
+
+/// Oscillates scale between 50% and 200% over a 4-second sine wave period.
+fn oscillate_scale(
+    time: Res<Time>,
+    mut query: Query<&mut PxPresentationTransform, With<Oscillating>>,
+) {
+    let t = time.elapsed_secs();
+    let phase = (t / 4.0) * std::f32::consts::TAU;
+    // sin range [-1, 1] mapped to [0.5, 2.0]: midpoint 1.25, amplitude 0.75
+    let s = 1.25 + 0.75 * phase.sin();
+
+    for mut transform in &mut query {
+        transform.scale = Vec2::splat(s);
+    }
 }
 
 #[px_layer]

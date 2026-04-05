@@ -831,6 +831,7 @@ pub(crate) type SpriteComponents<L> = (
     &'static PxCanvas,
     Option<&'static PxFrame>,
     Option<&'static PxFilter>,
+    Option<&'static crate::presentation::PxPresentationTransform>,
 );
 
 pub(crate) type CompositeSpriteComponents<L> = (
@@ -841,6 +842,7 @@ pub(crate) type CompositeSpriteComponents<L> = (
     &'static PxCanvas,
     Option<&'static PxFrame>,
     Option<&'static PxFilter>,
+    Option<&'static crate::presentation::PxPresentationTransform>,
 );
 
 #[cfg(feature = "headed")]
@@ -849,7 +851,12 @@ fn extract_sprites<L: PxLayer>(
     sprites: Extract<Query<(SpriteComponents<L>, &InheritedVisibility, RenderEntity)>>,
     mut cmd: Commands,
 ) {
-    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {
+    for (
+        (sprite, &position, &anchor, layer, &canvas, frame, filter, presentation),
+        visibility,
+        id,
+    ) in &sprites
+    {
         let mut entity = cmd.entity(id);
 
         if !visibility.get() {
@@ -870,6 +877,12 @@ fn extract_sprites<L: PxLayer>(
             entity.insert(filter.clone());
         } else {
             entity.remove::<PxFilter>();
+        }
+
+        if let Some(&presentation) = presentation {
+            entity.insert(presentation);
+        } else {
+            entity.remove::<crate::presentation::PxPresentationTransform>();
         }
     }
 }
@@ -886,7 +899,12 @@ fn extract_composite_sprites<L: PxLayer>(
     >,
     mut cmd: Commands,
 ) {
-    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in &sprites {
+    for (
+        (sprite, &position, &anchor, layer, &canvas, frame, filter, presentation),
+        visibility,
+        id,
+    ) in &sprites
+    {
         let mut entity = cmd.entity(id);
 
         if !visibility.get() {
@@ -907,6 +925,12 @@ fn extract_composite_sprites<L: PxLayer>(
             entity.insert(filter.clone());
         } else {
             entity.remove::<PxFilter>();
+        }
+
+        if let Some(&presentation) = presentation {
+            entity.insert(presentation);
+        } else {
+            entity.remove::<crate::presentation::PxPresentationTransform>();
         }
     }
 }

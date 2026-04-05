@@ -49,6 +49,7 @@ pub use crate::{
     map::{PxMap, PxTile, PxTiles, PxTileset},
     math::{Diagonal, Orthogonal},
     position::{PxAnchor, PxLayer, PxPosition, PxSubPosition, PxVelocity},
+    presentation::PxPresentationTransform,
     rect::PxRect,
     screen::ScreenSize,
     sprite::{PxCompositePart, PxCompositePartSource, PxCompositeSprite, PxSprite, PxSpriteAsset},

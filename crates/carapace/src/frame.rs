@@ -321,3 +321,117 @@ pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
 
     draw_frame(spatial, param, &mut image, frame, filters);
 }
+
+/// Draws a spatial element with presentation scaling applied.
+///
+/// Renders the sprite at native size into a scratch buffer, then blits it
+/// to the destination with nearest-neighbour scaling around the anchor point.
+///
+/// The `scale` is expected to already be clamped via
+/// [`PxPresentationTransform::clamped_scale`].
+pub(crate) fn draw_spatial_scaled<'a, A: Frames + Spatial>(
+    spatial: &A,
+    param: <A as Frames>::Param,
+    image: &mut PxImageSliceMut,
+    position: PxPosition,
+    anchor: PxAnchor,
+    canvas: PxCanvas,
+    frame: Option<PxFrameView>,
+    filters: impl IntoIterator<Item = &'a PxFilterAsset>,
+    camera: PxCamera,
+    scale: Vec2,
+    offset: Vec2,
+) {
+    let native_size = spatial.frame_size();
+    if native_size.x == 0 || native_size.y == 0 {
+        return;
+    }
+
+    // Render at native size into a scratch buffer.
+    let mut scratch = crate::image::PxImage::empty(native_size);
+    let mut scratch_slice = scratch.slice_all_mut();
+    draw_frame(spatial, param, &mut scratch_slice, frame, filters);
+
+    blit_scaled(
+        &scratch,
+        native_size,
+        image,
+        position,
+        anchor,
+        canvas,
+        camera,
+        scale,
+        offset,
+    );
+}
+
+/// Nearest-neighbour blit from a scratch buffer to a destination image slice,
+/// applying scale and offset around the anchor point.
+///
+/// Shared by both the single-sprite and composite scaling paths.
+pub(crate) fn blit_scaled(
+    scratch: &crate::image::PxImage,
+    native_size: UVec2,
+    image: &mut PxImageSliceMut,
+    position: PxPosition,
+    anchor: PxAnchor,
+    canvas: PxCanvas,
+    camera: PxCamera,
+    scale: Vec2,
+    offset: Vec2,
+) {
+    // Compute scaled size (at least 1px in each dimension).
+    let scaled_w = ((native_size.x as f32 * scale.x).round() as i32).max(1);
+    let scaled_h = ((native_size.y as f32 * scale.y).round() as i32).max(1);
+
+    // Compute anchor offset in scaled space.
+    let scaled_size = UVec2::new(scaled_w as u32, scaled_h as u32);
+    let anchor_offset = anchor.pos(scaled_size).as_ivec2();
+
+    // World-to-image-space position, same as draw_spatial.
+    let position = *position - anchor_offset + offset.round().as_ivec2();
+    let position = match canvas {
+        PxCanvas::World => position - *camera,
+        PxCanvas::Camera => position,
+    };
+    let position = IVec2::new(position.x, image.height() as i32 - position.y);
+
+    // Destination rectangle in image space.
+    let dest_rect = IRect {
+        min: position - IVec2::new(0, scaled_h),
+        max: position + IVec2::new(scaled_w, 0),
+    };
+
+    // Clamp to image bounds.
+    let img_w = image.image_width() as i32;
+    let img_h = image.image_height() as i32;
+    let x_min = dest_rect.min.x.clamp(0, img_w);
+    let x_max = dest_rect.max.x.clamp(0, img_w);
+    let y_min = dest_rect.min.y.clamp(0, img_h);
+    let y_max = dest_rect.max.y.clamp(0, img_h);
+
+    let src_w = native_size.x as usize;
+    let src_h = native_size.y as usize;
+
+    // Precompute inverse scale to avoid per-pixel division.
+    let inv_scale_x = 1.0 / scale.x;
+    let inv_scale_y = 1.0 / scale.y;
+
+    // Nearest-neighbour blit from scratch buffer to destination.
+    for dy in y_min..y_max {
+        for dx in x_min..x_max {
+            // Map destination pixel to source pixel via inverse scale.
+            let sx = ((dx - dest_rect.min.x) as f32 * inv_scale_x) as usize;
+            let sy = ((dy - dest_rect.min.y) as f32 * inv_scale_y) as usize;
+
+            if sx < src_w
+                && sy < src_h
+                && let Some(pixel) = scratch.get_pixel(IVec2::new(sx as i32, sy as i32))
+                && pixel != 0
+                && let Some(dest) = image.get_pixel_mut(IVec2::new(dx, dy))
+            {
+                *dest = pixel;
+            }
+        }
+    }
+}

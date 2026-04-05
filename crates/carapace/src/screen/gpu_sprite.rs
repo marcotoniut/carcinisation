@@ -264,7 +264,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         let mut sprites_by_layer: BTreeMap<L, Vec<SpriteItem>> = BTreeMap::new();
         let _collect_span = px_trace_span!("carapace::gpu_sprite_node::collect");
 
-        for (sprite, &position, &anchor, layer, &canvas, frame, filter) in
+        for (sprite, &position, &anchor, layer, &canvas, frame, filter, _presentation) in
             self.sprites.iter_manual(world)
         {
             if !gpu_sprite_supported(frame.copied(), filter) {
@@ -283,7 +283,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                 });
         }
 
-        for (composite, &position, &anchor, layer, &canvas, frame, filter) in
+        for (composite, &position, &anchor, layer, &canvas, frame, filter, _presentation) in
             self.composites.iter_manual(world)
         {
             if !gpu_composite_supported(composite, frame.copied(), filter) {

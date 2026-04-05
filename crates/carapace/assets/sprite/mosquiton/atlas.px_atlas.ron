@@ -1,5 +1,5 @@
 (
-    image: "sprites/enemies/mosquiton_3/atlas.png",
+    indexed_image: "sprite/mosquiton/atlas.pxi",
     regions: [
         (
             frame_size: (11, 25),
@@ -68,10 +68,21 @@
             ],
         ),
         (
-            frame_size: (15, 28),
+            frame_size: (1, 9),
             frames: [
                 (
                     x: 61,
+                    y: 0,
+                    w: 1,
+                    h: 9,
+                ),
+            ],
+        ),
+        (
+            frame_size: (15, 28),
+            frames: [
+                (
+                    x: 62,
                     y: 0,
                     w: 15,
                     h: 28,
@@ -82,7 +93,7 @@
             frame_size: (11, 25),
             frames: [
                 (
-                    x: 76,
+                    x: 77,
                     y: 0,
                     w: 11,
                     h: 25,
@@ -93,7 +104,7 @@
             frame_size: (1, 25),
             frames: [
                 (
-                    x: 87,
+                    x: 88,
                     y: 0,
                     w: 1,
                     h: 25,
@@ -104,7 +115,7 @@
             frame_size: (6, 28),
             frames: [
                 (
-                    x: 88,
+                    x: 89,
                     y: 0,
                     w: 6,
                     h: 28,
@@ -115,7 +126,7 @@
             frame_size: (1, 28),
             frames: [
                 (
-                    x: 94,
+                    x: 95,
                     y: 0,
                     w: 1,
                     h: 28,
@@ -126,7 +137,7 @@
             frame_size: (20, 33),
             frames: [
                 (
-                    x: 95,
+                    x: 96,
                     y: 0,
                     w: 20,
                     h: 33,
@@ -137,7 +148,7 @@
             frame_size: (11, 25),
             frames: [
                 (
-                    x: 115,
+                    x: 116,
                     y: 0,
                     w: 11,
                     h: 25,
@@ -148,7 +159,7 @@
             frame_size: (1, 25),
             frames: [
                 (
-                    x: 126,
+                    x: 127,
                     y: 0,
                     w: 1,
                     h: 25,
@@ -159,7 +170,7 @@
             frame_size: (6, 26),
             frames: [
                 (
-                    x: 127,
+                    x: 128,
                     y: 0,
                     w: 6,
                     h: 26,
@@ -170,7 +181,7 @@
             frame_size: (1, 26),
             frames: [
                 (
-                    x: 133,
+                    x: 134,
                     y: 0,
                     w: 1,
                     h: 26,
@@ -181,7 +192,7 @@
             frame_size: (25, 26),
             frames: [
                 (
-                    x: 134,
+                    x: 135,
                     y: 0,
                     w: 25,
                     h: 26,
@@ -192,7 +203,7 @@
             frame_size: (21, 31),
             frames: [
                 (
-                    x: 159,
+                    x: 160,
                     y: 0,
                     w: 21,
                     h: 31,
@@ -200,10 +211,21 @@
             ],
         ),
         (
+            frame_size: (1, 6),
+            frames: [
+                (
+                    x: 181,
+                    y: 0,
+                    w: 1,
+                    h: 6,
+                ),
+            ],
+        ),
+        (
             frame_size: (15, 29),
             frames: [
                 (
-                    x: 180,
+                    x: 182,
                     y: 0,
                     w: 15,
                     h: 29,
@@ -214,7 +236,7 @@
             frame_size: (50, 28),
             frames: [
                 (
-                    x: 195,
+                    x: 197,
                     y: 0,
                     w: 50,
                     h: 28,
@@ -673,10 +695,21 @@
             ],
         ),
         (
-            frame_size: (8, 32),
+            frame_size: (1, 2),
             frames: [
                 (
                     x: 150,
+                    y: 97,
+                    w: 1,
+                    h: 2,
+                ),
+            ],
+        ),
+        (
+            frame_size: (8, 32),
+            frames: [
+                (
+                    x: 151,
                     y: 97,
                     w: 8,
                     h: 32,
@@ -687,7 +720,7 @@
             frame_size: (34, 12),
             frames: [
                 (
-                    x: 158,
+                    x: 159,
                     y: 97,
                     w: 34,
                     h: 12,
@@ -759,5 +792,8 @@
         "sprite_0060": 60,
         "sprite_0061": 61,
         "sprite_0062": 62,
+        "sprite_0063": 63,
+        "sprite_0064": 64,
+        "sprite_0065": 65,
     },
 )

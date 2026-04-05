@@ -48,6 +48,7 @@ mod particle;
 mod picking;
 pub mod position;
 pub mod prelude;
+pub mod presentation;
 mod profiling;
 pub(crate) mod pxi;
 mod rect;

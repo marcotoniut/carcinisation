@@ -191,8 +191,10 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         }
 
         #[cfg(feature = "gpu_palette")]
-        for ((sprite, &position, &anchor, layer, &canvas, animation, filter), has_gpu) in
-            self.sprites.iter_manual(world)
+        for (
+            (sprite, &position, &anchor, layer, &canvas, animation, filter, presentation),
+            has_gpu,
+        ) in self.sprites.iter_manual(world)
         {
             layer_set.insert(layer.clone());
             let gpu_eligible = has_gpu && gpu_sprite_supported(animation.copied(), filter);
@@ -200,7 +202,15 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 continue;
             }
 
-            let sprite = (sprite, position, anchor, canvas, animation, filter);
+            let sprite = (
+                sprite,
+                position,
+                anchor,
+                canvas,
+                animation,
+                filter,
+                presentation.copied(),
+            );
             layer_contents
                 .entry(layer.clone())
                 .or_default()
@@ -209,10 +219,18 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         }
 
         #[cfg(not(feature = "gpu_palette"))]
-        for (sprite, &position, &anchor, layer, &canvas, animation, filter) in
+        for (sprite, &position, &anchor, layer, &canvas, animation, filter, presentation) in
             self.sprites.iter_manual(world)
         {
-            let sprite = (sprite, position, anchor, canvas, animation, filter);
+            let sprite = (
+                sprite,
+                position,
+                anchor,
+                canvas,
+                animation,
+                filter,
+                presentation.copied(),
+            );
             layer_contents
                 .entry(layer.clone())
                 .or_default()
@@ -236,8 +254,10 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         }
 
         #[cfg(feature = "gpu_palette")]
-        for ((composite, &position, &anchor, layer, &canvas, animation, filter), has_gpu) in
-            self.composites.iter_manual(world)
+        for (
+            (composite, &position, &anchor, layer, &canvas, animation, filter, presentation),
+            has_gpu,
+        ) in self.composites.iter_manual(world)
         {
             layer_set.insert(layer.clone());
             let gpu_eligible =
@@ -246,7 +266,15 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 continue;
             }
 
-            let composite = (composite, position, anchor, canvas, animation, filter);
+            let composite = (
+                composite,
+                position,
+                anchor,
+                canvas,
+                animation,
+                filter,
+                presentation.copied(),
+            );
             layer_contents
                 .entry(layer.clone())
                 .or_default()
@@ -255,10 +283,18 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         }
 
         #[cfg(not(feature = "gpu_palette"))]
-        for (composite, &position, &anchor, layer, &canvas, animation, filter) in
+        for (composite, &position, &anchor, layer, &canvas, animation, filter, presentation) in
             self.composites.iter_manual(world)
         {
-            let composite = (composite, position, anchor, canvas, animation, filter);
+            let composite = (
+                composite,
+                position,
+                anchor,
+                canvas,
+                animation,
+                filter,
+                presentation.copied(),
+            );
             layer_contents
                 .entry(layer.clone())
                 .or_default()

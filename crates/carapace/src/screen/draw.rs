@@ -13,7 +13,7 @@ use crate::{
     atlas::PxSpriteAtlasAsset,
     cursor::{CursorState, PxCursorPosition},
     filter::{PxFilterAsset, draw_filter},
-    frame::{Frames, draw_spatial, resolve_frame_binding},
+    frame::{Frames, blit_scaled, draw_spatial, draw_spatial_scaled, resolve_frame_binding},
     image::{PxImage, PxImageSliceMut},
     map::{PxTile, PxTileset},
     position::Spatial,
@@ -44,6 +44,7 @@ pub(crate) type SpriteEntry<'a> = (
     PxCanvas,
     Option<&'a PxFrame>,
     Option<&'a PxFilter>,
+    Option<crate::presentation::PxPresentationTransform>,
 );
 
 pub(crate) type AtlasSpriteEntry<'a> = (
@@ -62,6 +63,7 @@ pub(crate) type CompositeSpriteEntry<'a> = (
     PxCanvas,
     Option<&'a PxFrame>,
     Option<&'a PxFilter>,
+    Option<crate::presentation::PxPresentationTransform>,
 );
 
 pub(crate) type TextEntry<'a> = (
@@ -265,22 +267,51 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                 }
             }
 
-            for (sprite, position, anchor, canvas, frame, filter) in sprites {
+            for (sprite, position, anchor, canvas, frame, filter, presentation) in sprites {
                 let Some(sprite) = sprite_assets.get(&**sprite) else {
                     continue;
                 };
 
-                draw_spatial(
-                    sprite,
-                    (),
-                    &mut layer_slice,
-                    position,
-                    anchor,
-                    canvas,
-                    frame.copied(),
-                    filter.and_then(|filter| filters.get(&**filter)),
-                    camera,
-                );
+                let resolved_filters = filter.and_then(|filter| filters.get(&**filter));
+
+                if let Some(pt) = presentation
+                    && pt.has_scale()
+                {
+                    // Scaled path: scratch buffer + nearest-neighbour blit.
+                    draw_spatial_scaled(
+                        sprite,
+                        (),
+                        &mut layer_slice,
+                        position,
+                        anchor,
+                        canvas,
+                        frame.copied(),
+                        resolved_filters,
+                        camera,
+                        pt.clamped_scale(),
+                        pt.offset,
+                    );
+                } else {
+                    // Unscaled path: offset-only adjustment (if any), no scratch buffer.
+                    let adjusted_pos = if let Some(pt) = presentation
+                        && pt.has_offset()
+                    {
+                        PxPosition(*position + pt.offset.round().as_ivec2())
+                    } else {
+                        position
+                    };
+                    draw_spatial(
+                        sprite,
+                        (),
+                        &mut layer_slice,
+                        adjusted_pos,
+                        anchor,
+                        canvas,
+                        frame.copied(),
+                        resolved_filters,
+                        camera,
+                    );
+                }
             }
 
             for (sprite, position, anchor, canvas, frame, filter) in atlas_sprites {
@@ -304,7 +335,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                 );
             }
 
-            for (composite, position, anchor, canvas, frame, filter) in composites {
+            for (composite, position, anchor, canvas, frame, filter, presentation) in composites {
                 let metrics = if composite.size.x == 0 || composite.size.y == 0 {
                     composite.metrics_with(|source| {
                         source
@@ -329,48 +360,122 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     continue;
                 };
 
-                let base_pos = *position - anchor.pos(metrics.size).as_ivec2();
-                let master = frame.copied();
-                let master_count = metrics.frame_count;
+                let needs_scaled = presentation.is_some_and(|pt| pt.has_scale());
 
-                for (part_index, part) in composite.parts.iter().enumerate() {
-                    let resolved = match part.source.resolve(
-                        |handle| sprite_assets.get(handle),
-                        |handle| atlas_assets.get(handle),
-                    ) {
-                        Ok(resolved) => resolved,
-                        Err(error) => {
-                            log_composite_part_resolve_error(part_index, &error);
-                            continue;
-                        }
-                    };
+                if needs_scaled {
+                    let pt = presentation.unwrap();
+                    let scale = pt.clamped_scale();
 
-                    let part_frame = resolve_frame_binding(
-                        master,
-                        master_count,
-                        resolved.frame_count(),
-                        &part.frame,
-                    );
-                    let part_pos = base_pos + (part.offset - metrics.origin);
-                    let part_filter = part.filter.as_ref().and_then(|handle| filters.get(handle));
-                    let entity_filter = filter.and_then(|filter| filters.get(&**filter));
-                    let drawable = PxCompositePartDrawable {
-                        resolved,
-                        flip_x: part.flip_x,
-                        flip_y: part.flip_y,
-                    };
+                    // Compose all parts into a scratch buffer at native size,
+                    // then blit the result scaled to the destination.
+                    let mut scratch = crate::image::PxImage::empty(metrics.size);
+                    let mut scratch_slice = scratch.slice_all_mut();
+                    let master = frame.copied();
+                    let master_count = metrics.frame_count;
 
-                    draw_spatial(
-                        &drawable,
-                        (),
+                    for (part_index, part) in composite.parts.iter().enumerate() {
+                        let resolved = match part.source.resolve(
+                            |handle| sprite_assets.get(handle),
+                            |handle| atlas_assets.get(handle),
+                        ) {
+                            Ok(resolved) => resolved,
+                            Err(error) => {
+                                log_composite_part_resolve_error(part_index, &error);
+                                continue;
+                            }
+                        };
+
+                        let part_frame = resolve_frame_binding(
+                            master,
+                            master_count,
+                            resolved.frame_count(),
+                            &part.frame,
+                        );
+                        let part_pos = part.offset - metrics.origin;
+                        let part_filter =
+                            part.filter.as_ref().and_then(|handle| filters.get(handle));
+                        let entity_filter = filter.and_then(|filter| filters.get(&**filter));
+                        let drawable = PxCompositePartDrawable {
+                            resolved,
+                            flip_x: part.flip_x,
+                            flip_y: part.flip_y,
+                        };
+
+                        // Draw part into scratch at native offset (no camera, no canvas).
+                        draw_spatial(
+                            &drawable,
+                            (),
+                            &mut scratch_slice,
+                            part_pos.into(),
+                            PxAnchor::BottomLeft,
+                            PxCanvas::Camera,
+                            part_frame,
+                            [part_filter, entity_filter].into_iter().flatten(),
+                            PxCamera(IVec2::ZERO),
+                        );
+                    }
+
+                    // Blit the composed scratch buffer scaled to the layer.
+                    blit_scaled(
+                        &scratch,
+                        metrics.size,
                         &mut layer_slice,
-                        part_pos.into(),
-                        PxAnchor::BottomLeft,
+                        position,
+                        anchor,
                         canvas,
-                        part_frame,
-                        [part_filter, entity_filter].into_iter().flatten(),
                         camera,
+                        scale,
+                        pt.offset,
                     );
+                } else {
+                    // Unscaled path: draw parts directly to layer. Apply offset if present.
+                    let offset_adjust = presentation
+                        .filter(|pt| pt.has_offset())
+                        .map_or(IVec2::ZERO, |pt| pt.offset.round().as_ivec2());
+                    let base_pos = *position + offset_adjust - anchor.pos(metrics.size).as_ivec2();
+                    let master = frame.copied();
+                    let master_count = metrics.frame_count;
+
+                    for (part_index, part) in composite.parts.iter().enumerate() {
+                        let resolved = match part.source.resolve(
+                            |handle| sprite_assets.get(handle),
+                            |handle| atlas_assets.get(handle),
+                        ) {
+                            Ok(resolved) => resolved,
+                            Err(error) => {
+                                log_composite_part_resolve_error(part_index, &error);
+                                continue;
+                            }
+                        };
+
+                        let part_frame = resolve_frame_binding(
+                            master,
+                            master_count,
+                            resolved.frame_count(),
+                            &part.frame,
+                        );
+                        let part_pos = base_pos + (part.offset - metrics.origin);
+                        let part_filter =
+                            part.filter.as_ref().and_then(|handle| filters.get(handle));
+                        let entity_filter = filter.and_then(|filter| filters.get(&**filter));
+                        let drawable = PxCompositePartDrawable {
+                            resolved,
+                            flip_x: part.flip_x,
+                            flip_y: part.flip_y,
+                        };
+
+                        draw_spatial(
+                            &drawable,
+                            (),
+                            &mut layer_slice,
+                            part_pos.into(),
+                            PxAnchor::BottomLeft,
+                            canvas,
+                            part_frame,
+                            [part_filter, entity_filter].into_iter().flatten(),
+                            camera,
+                        );
+                    }
                 }
             }
 
