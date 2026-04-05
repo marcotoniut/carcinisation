@@ -322,14 +322,12 @@ pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
     draw_frame(spatial, param, &mut image, frame, filters);
 }
 
-/// Draws a spatial element with presentation scaling applied.
+/// Draws a spatial element with a presentation transform (scale + rotation) applied.
 ///
 /// Renders the sprite at native size into a scratch buffer, then blits it
-/// to the destination with nearest-neighbour scaling around the anchor point.
-///
-/// The `scale` is expected to already be clamped via
-/// [`PxPresentationTransform::clamped_scale`].
-pub(crate) fn draw_spatial_scaled<'a, A: Frames + Spatial>(
+/// to the destination with the combined scale/rotation transform around the
+/// anchor point, using nearest-neighbour sampling.
+pub(crate) fn draw_spatial_transformed<'a, A: Frames + Spatial>(
     spatial: &A,
     param: <A as Frames>::Param,
     image: &mut PxImageSliceMut,
@@ -340,6 +338,7 @@ pub(crate) fn draw_spatial_scaled<'a, A: Frames + Spatial>(
     filters: impl IntoIterator<Item = &'a PxFilterAsset>,
     camera: PxCamera,
     scale: Vec2,
+    rotation: f32,
     offset: Vec2,
 ) {
     let native_size = spatial.frame_size();
@@ -352,7 +351,7 @@ pub(crate) fn draw_spatial_scaled<'a, A: Frames + Spatial>(
     let mut scratch_slice = scratch.slice_all_mut();
     draw_frame(spatial, param, &mut scratch_slice, frame, filters);
 
-    blit_scaled(
+    blit_transformed(
         &scratch,
         native_size,
         image,
@@ -361,15 +360,23 @@ pub(crate) fn draw_spatial_scaled<'a, A: Frames + Spatial>(
         canvas,
         camera,
         scale,
+        rotation,
         offset,
     );
 }
 
 /// Nearest-neighbour blit from a scratch buffer to a destination image slice,
-/// applying scale and offset around the anchor point.
+/// applying scale, rotation, and offset around the anchor point.
 ///
-/// Shared by both the single-sprite and composite scaling paths.
-pub(crate) fn blit_scaled(
+/// Shared by both the single-sprite and composite transform paths.
+///
+/// The transform pipeline (per destination pixel):
+/// 1. Express destination pixel relative to anchor in image space.
+/// 2. Apply inverse rotation (negate angle).
+/// 3. Apply inverse scale.
+/// 4. Add anchor offset in source space → source pixel coordinate.
+/// 5. Nearest-neighbour sample from scratch buffer.
+pub(crate) fn blit_transformed(
     scratch: &crate::image::PxImage,
     native_size: UVec2,
     image: &mut PxImageSliceMut,
@@ -378,60 +385,293 @@ pub(crate) fn blit_scaled(
     canvas: PxCanvas,
     camera: PxCamera,
     scale: Vec2,
+    rotation: f32,
     offset: Vec2,
 ) {
-    // Compute scaled size (at least 1px in each dimension).
-    let scaled_w = ((native_size.x as f32 * scale.x).round() as i32).max(1);
-    let scaled_h = ((native_size.y as f32 * scale.y).round() as i32).max(1);
+    let src_w = native_size.x as f32;
+    let src_h = native_size.y as f32;
 
-    // Compute anchor offset in scaled space.
-    let scaled_size = UVec2::new(scaled_w as u32, scaled_h as u32);
-    let anchor_offset = anchor.pos(scaled_size).as_ivec2();
+    // Anchor in source image space (top-left origin).
+    // PxAnchor::pos returns (x, y) with y=0 at bottom, so flip y for image space.
+    let anchor_world = anchor.pos(native_size).as_vec2();
+    let anchor_src = Vec2::new(anchor_world.x, src_h - anchor_world.y);
 
-    // World-to-image-space position, same as draw_spatial.
-    let position = *position - anchor_offset + offset.round().as_ivec2();
-    let position = match canvas {
-        PxCanvas::World => position - *camera,
-        PxCanvas::Camera => position,
+    // Precompute sin/cos once per entity.
+    let (sin_r, cos_r) = rotation.sin_cos();
+
+    // Compute destination bounding box by transforming source corners around anchor.
+    let corners = [
+        Vec2::new(0.0, 0.0) - anchor_src,
+        Vec2::new(src_w, 0.0) - anchor_src,
+        Vec2::new(src_w, src_h) - anchor_src,
+        Vec2::new(0.0, src_h) - anchor_src,
+    ];
+
+    let mut min_x = f32::MAX;
+    let mut max_x = f32::MIN;
+    let mut min_y = f32::MAX;
+    let mut max_y = f32::MIN;
+
+    for corner in &corners {
+        let scaled = Vec2::new(corner.x * scale.x, corner.y * scale.y);
+        let rotated = Vec2::new(
+            scaled.x * cos_r - scaled.y * sin_r,
+            scaled.x * sin_r + scaled.y * cos_r,
+        );
+        min_x = min_x.min(rotated.x);
+        max_x = max_x.max(rotated.x);
+        min_y = min_y.min(rotated.y);
+        max_y = max_y.max(rotated.y);
+    }
+
+    // Destination extents in pixels (ceil to avoid clipping).
+    let half_left = (-min_x).ceil() as i32;
+    let half_right = max_x.ceil() as i32;
+    let half_top = (-min_y).ceil() as i32;
+    let half_bottom = max_y.ceil() as i32;
+
+    if half_left + half_right <= 0 || half_top + half_bottom <= 0 {
+        return;
+    }
+
+    // Anchor position in image space (top-left origin).
+    let world_pos = *position + offset.round().as_ivec2();
+    let world_pos = match canvas {
+        PxCanvas::World => world_pos - *camera,
+        PxCanvas::Camera => world_pos,
     };
-    let position = IVec2::new(position.x, image.height() as i32 - position.y);
+    let anchor_img = IVec2::new(world_pos.x, image.height() as i32 - world_pos.y);
 
-    // Destination rectangle in image space.
-    let dest_rect = IRect {
-        min: position - IVec2::new(0, scaled_h),
-        max: position + IVec2::new(scaled_w, 0),
-    };
+    // Destination rectangle around anchor.
+    let dest_min = IVec2::new(anchor_img.x - half_left, anchor_img.y - half_top);
+    let dest_max = IVec2::new(anchor_img.x + half_right, anchor_img.y + half_bottom);
 
     // Clamp to image bounds.
-    let img_w = image.image_width() as i32;
-    let img_h = image.image_height() as i32;
-    let x_min = dest_rect.min.x.clamp(0, img_w);
-    let x_max = dest_rect.max.x.clamp(0, img_w);
-    let y_min = dest_rect.min.y.clamp(0, img_h);
-    let y_max = dest_rect.max.y.clamp(0, img_h);
+    let img_w_i = image.image_width() as i32;
+    let img_h_i = image.image_height() as i32;
+    let x_min = dest_min.x.clamp(0, img_w_i);
+    let x_max = dest_max.x.clamp(0, img_w_i);
+    let y_min = dest_min.y.clamp(0, img_h_i);
+    let y_max = dest_max.y.clamp(0, img_h_i);
 
-    let src_w = native_size.x as usize;
-    let src_h = native_size.y as usize;
+    // Precompute inverse scale.
+    let inv_sx = 1.0 / scale.x;
+    let inv_sy = 1.0 / scale.y;
 
-    // Precompute inverse scale to avoid per-pixel division.
-    let inv_scale_x = 1.0 / scale.x;
-    let inv_scale_y = 1.0 / scale.y;
+    let src_w_i = native_size.x as i32;
+    let src_h_i = native_size.y as i32;
 
-    // Nearest-neighbour blit from scratch buffer to destination.
+    // Nearest-neighbour blit with inverse transform.
     for dy in y_min..y_max {
         for dx in x_min..x_max {
-            // Map destination pixel to source pixel via inverse scale.
-            let sx = ((dx - dest_rect.min.x) as f32 * inv_scale_x) as usize;
-            let sy = ((dy - dest_rect.min.y) as f32 * inv_scale_y) as usize;
+            // Destination pixel relative to anchor in image space.
+            let rel_x = (dx - anchor_img.x) as f32;
+            let rel_y = (dy - anchor_img.y) as f32;
 
-            if sx < src_w
-                && sy < src_h
-                && let Some(pixel) = scratch.get_pixel(IVec2::new(sx as i32, sy as i32))
+            // Inverse rotation.
+            let unrot_x = rel_x * cos_r + rel_y * sin_r;
+            let unrot_y = -rel_x * sin_r + rel_y * cos_r;
+
+            // Inverse scale + re-centre on source anchor.
+            let src_x = (unrot_x * inv_sx + anchor_src.x).round() as i32;
+            let src_y = (unrot_y * inv_sy + anchor_src.y).round() as i32;
+
+            if src_x >= 0
+                && src_x < src_w_i
+                && src_y >= 0
+                && src_y < src_h_i
+                && let Some(pixel) = scratch.get_pixel(IVec2::new(src_x, src_y))
                 && pixel != 0
                 && let Some(dest) = image.get_pixel_mut(IVec2::new(dx, dy))
             {
                 *dest = pixel;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::image::PxImage;
+
+    /// Helper: create a scratch image filled with a single palette index.
+    fn solid_scratch(w: u32, h: u32, color: u8) -> PxImage {
+        PxImage::new(vec![color; (w * h) as usize], w as usize)
+    }
+
+    /// Helper: count non-zero pixels in an image.
+    fn count_nonzero(img: &PxImage) -> usize {
+        let size = img.size();
+        (0..size.y as i32)
+            .flat_map(|y| (0..size.x as i32).map(move |x| IVec2::new(x, y)))
+            .filter(|&pos| img.get_pixel(pos).is_some_and(|p| p != 0))
+            .count()
+    }
+
+    #[test]
+    fn identity_scale_no_rotation_preserves_pixel_count() {
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(8, 8)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            0.0,
+            Vec2::ZERO,
+        );
+
+        assert_eq!(count_nonzero(&dest), 16); // 4x4 = 16 pixels
+    }
+
+    #[test]
+    fn scale_2x_approximately_quadruples_pixel_count() {
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest = PxImage::empty(UVec2::new(32, 32));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(16, 16)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::splat(2.0),
+            0.0,
+            Vec2::ZERO,
+        );
+
+        // Nearest-neighbour rounding at anchor boundaries can lose a few
+        // edge pixels. Expect roughly 4x coverage (64), within tolerance.
+        let n = count_nonzero(&dest);
+        assert!(
+            (48..=64).contains(&n),
+            "2x scale should produce ~64 pixels, got {n}"
+        );
+    }
+
+    #[test]
+    fn rotation_90_approximately_preserves_pixel_count() {
+        // Use a larger sprite to reduce rounding noise at boundaries.
+        let scratch = solid_scratch(8, 8, 1);
+        let mut dest = PxImage::empty(UVec2::new(32, 32));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(8, 8),
+            &mut dest_slice,
+            PxPosition(IVec2::new(16, 16)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            std::f32::consts::FRAC_PI_2, // 90°
+            Vec2::ZERO,
+        );
+
+        // A square rotated 90° should produce approximately the same count.
+        // Small rounding variance at edges is expected.
+        let n = count_nonzero(&dest);
+        assert!(
+            (56..=72).contains(&n),
+            "90° rotation of 8x8 should produce ~64 pixels, got {n}"
+        );
+    }
+
+    #[test]
+    fn rotation_45_expands_bounding_box() {
+        // A 4x4 square at 45° should fill ~22-23 pixels (rotated diamond),
+        // more than the original 16, confirming bounding box expansion works.
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(8, 8)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            std::f32::consts::FRAC_PI_4, // 45°
+            Vec2::ZERO,
+        );
+
+        let n = count_nonzero(&dest);
+        assert!(n > 16, "45° rotation should expand coverage, got {n}");
+        assert!(n < 40, "45° rotation shouldn't overshoot, got {n}");
+    }
+
+    #[test]
+    fn zero_size_scratch_draws_nothing() {
+        let scratch = PxImage::empty(UVec2::ZERO);
+        let mut dest = PxImage::empty(UVec2::new(8, 8));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::ZERO,
+            &mut dest_slice,
+            PxPosition(IVec2::new(4, 4)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            0.0,
+            Vec2::ZERO,
+        );
+
+        assert_eq!(count_nonzero(&dest), 0);
+    }
+
+    #[test]
+    fn offset_shifts_without_changing_pixel_count() {
+        let scratch = solid_scratch(4, 4, 1);
+        let mut dest_a = PxImage::empty(UVec2::new(16, 16));
+        let mut dest_b = PxImage::empty(UVec2::new(16, 16));
+        let mut slice_a = dest_a.slice_all_mut();
+        let mut slice_b = dest_b.slice_all_mut();
+
+        // Without offset.
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut slice_a,
+            PxPosition(IVec2::new(8, 8)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            0.0,
+            Vec2::ZERO,
+        );
+
+        // With offset.
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 4),
+            &mut slice_b,
+            PxPosition(IVec2::new(8, 8)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            0.0,
+            Vec2::new(2.0, -1.0),
+        );
+
+        assert_eq!(count_nonzero(&dest_a), count_nonzero(&dest_b));
     }
 }

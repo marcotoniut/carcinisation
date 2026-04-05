@@ -13,7 +13,9 @@ use crate::{
     atlas::PxSpriteAtlasAsset,
     cursor::{CursorState, PxCursorPosition},
     filter::{PxFilterAsset, draw_filter},
-    frame::{Frames, blit_scaled, draw_spatial, draw_spatial_scaled, resolve_frame_binding},
+    frame::{
+        Frames, blit_transformed, draw_spatial, draw_spatial_transformed, resolve_frame_binding,
+    },
     image::{PxImage, PxImageSliceMut},
     map::{PxTile, PxTileset},
     position::Spatial,
@@ -275,10 +277,10 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                 let resolved_filters = filter.and_then(|filter| filters.get(&**filter));
 
                 if let Some(pt) = presentation
-                    && pt.has_scale()
+                    && pt.needs_transformed_blit()
                 {
-                    // Scaled path: scratch buffer + nearest-neighbour blit.
-                    draw_spatial_scaled(
+                    // Transformed path: scratch buffer + nearest-neighbour blit.
+                    draw_spatial_transformed(
                         sprite,
                         (),
                         &mut layer_slice,
@@ -289,6 +291,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         resolved_filters,
                         camera,
                         pt.clamped_scale(),
+                        pt.sanitised_rotation(),
                         pt.offset,
                     );
                 } else {
@@ -360,7 +363,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     continue;
                 };
 
-                let needs_scaled = presentation.is_some_and(|pt| pt.has_scale());
+                let needs_scaled = presentation.is_some_and(|pt| pt.needs_transformed_blit());
 
                 if needs_scaled {
                     let pt = presentation.unwrap();
@@ -415,8 +418,8 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         );
                     }
 
-                    // Blit the composed scratch buffer scaled to the layer.
-                    blit_scaled(
+                    // Blit the composed scratch buffer transformed to the layer.
+                    blit_transformed(
                         &scratch,
                         metrics.size,
                         &mut layer_slice,
@@ -425,6 +428,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         canvas,
                         camera,
                         scale,
+                        pt.sanitised_rotation(),
                         pt.offset,
                     );
                 } else {
