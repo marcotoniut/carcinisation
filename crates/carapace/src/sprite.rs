@@ -318,18 +318,31 @@ impl From<Handle<PxSpriteAsset>> for PxSprite {
 pub struct PxCompositeSprite {
     /// Parts that make up the composite sprite.
     pub parts: Vec<PxCompositePart>,
-    /// Cached composite size (computed from parts).
+    /// Cached base placement size (from native part bounds).
     pub size: UVec2,
-    /// Cached origin shift when parts have negative offsets.
+    /// Cached base placement origin (min corner of native part bounds).
     pub origin: IVec2,
+    /// Cached render envelope size (may exceed `size` for transformed parts).
+    pub render_size: UVec2,
+    /// Cached render envelope origin.
+    pub render_origin: IVec2,
     /// Cached frame count for the master animation.
     pub frame_count: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PxCompositeMetrics {
+    /// Base placement size (from untransformed / native part bounds).
+    /// Used for anchor computation and entity-level placement.
     pub size: UVec2,
+    /// Base placement origin (min corner of native part bounds).
     pub origin: IVec2,
+    /// Render envelope size (may be larger than `size` due to worst-case
+    /// envelopes for transformed parts). Used for scratch buffer allocation.
+    pub render_size: UVec2,
+    /// Render envelope origin (min corner of worst-case bounds).
+    /// Parts are placed in the scratch at `part.offset - render_origin`.
+    pub render_origin: IVec2,
     pub frame_count: usize,
 }
 
@@ -478,18 +491,33 @@ impl PxCompositeSprite {
             parts,
             size: UVec2::ZERO,
             origin: IVec2::ZERO,
+            render_size: UVec2::ZERO,
+            render_origin: IVec2::ZERO,
             frame_count: 0,
         }
     }
 
-    /// Recompute cached size/origin/frame count from current parts.
+    /// Recompute cached metrics from current parts.
+    ///
+    /// Computes two sets of bounds:
+    /// - **Base bounds** (`origin`, `size`): from native (untransformed) part extents.
+    ///   Used for anchor computation and entity-level placement.
+    /// - **Render bounds** (`render_origin`, `render_size`): union of base bounds and
+    ///   worst-case envelopes for transformed parts. Used for scratch buffer allocation.
+    ///
+    /// This separation ensures that expanding the render envelope for animated parts
+    /// does not shift the composite's anchor or world placement.
     pub(crate) fn metrics_with<F>(&self, mut get: F) -> Option<PxCompositeMetrics>
     where
         F: FnMut(&PxCompositePartSource) -> Option<PxCompositePartMetrics>,
     {
         let mut any = false;
-        let mut min = IVec2::ZERO;
-        let mut max = IVec2::ZERO;
+        // Base bounds: native part extents only.
+        let mut base_min = IVec2::ZERO;
+        let mut base_max = IVec2::ZERO;
+        // Render bounds: union of base bounds + worst-case envelopes.
+        let mut render_min = IVec2::ZERO;
+        let mut render_max = IVec2::ZERO;
         let mut frame_count = 0usize;
 
         for part in &self.parts {
@@ -497,16 +525,29 @@ impl PxCompositeSprite {
                 continue;
             };
 
-            let size = metrics.size.as_ivec2();
-            let part_min = part.offset;
-            let part_max = part.offset + size;
+            // Native / base bounds for this part (always computed).
+            let native_size = metrics.size.as_ivec2();
+            let native_min = part.offset;
+            let native_max = part.offset + native_size;
+
+            // Render envelope: use worst-case bounds for transformed parts,
+            // native bounds otherwise. worst_case_bounds is rotation-independent
+            // so the result is stable during runtime articulation.
+            let (env_min, env_max) = match &part.transform {
+                Some(t) if !t.is_identity() => t.worst_case_bounds(part.offset, metrics.size),
+                _ => (native_min, native_max),
+            };
 
             if any {
-                min = min.min(part_min);
-                max = max.max(part_max);
+                base_min = base_min.min(native_min);
+                base_max = base_max.max(native_max);
+                render_min = render_min.min(env_min);
+                render_max = render_max.max(env_max);
             } else {
-                min = part_min;
-                max = part_max;
+                base_min = native_min;
+                base_max = native_max;
+                render_min = env_min;
+                render_max = env_max;
                 any = true;
             }
 
@@ -517,10 +558,17 @@ impl PxCompositeSprite {
             return None;
         }
 
-        let size = max - min;
+        // Render bounds must be at least as large as base bounds.
+        render_min = render_min.min(base_min);
+        render_max = render_max.max(base_max);
+
+        let base_size = base_max - base_min;
+        let render_size = render_max - render_min;
         Some(PxCompositeMetrics {
-            origin: min,
-            size: UVec2::new(size.x.max(0) as u32, size.y.max(0) as u32),
+            origin: base_min,
+            size: UVec2::new(base_size.x.max(0) as u32, base_size.y.max(0) as u32),
+            render_origin: render_min,
+            render_size: UVec2::new(render_size.x.max(0) as u32, render_size.y.max(0) as u32),
             frame_count,
         })
     }
@@ -560,10 +608,14 @@ impl PxCompositeSprite {
         if let Some(metrics) = metrics {
             self.size = metrics.size;
             self.origin = metrics.origin;
+            self.render_size = metrics.render_size;
+            self.render_origin = metrics.render_origin;
             self.frame_count = metrics.frame_count;
         } else {
             self.size = UVec2::ZERO;
             self.origin = IVec2::ZERO;
+            self.render_size = UVec2::ZERO;
+            self.render_origin = IVec2::ZERO;
             self.frame_count = 0;
         }
     }
@@ -635,6 +687,247 @@ impl PxCompositePartSource {
     }
 }
 
+/// Per-part render-only transform applied during composite composition.
+///
+/// This is distinct from entity-level [`PxPresentationTransform`](crate::presentation::PxPresentationTransform):
+/// - `PxPartTransform` transforms an individual part **during** composition into the
+///   composite scratch buffer (articulation / procedural motion inside the composite).
+/// - `PxPresentationTransform` transforms the **composed result** when blitting to the
+///   final layer (whole-entity visual effects).
+///
+/// There is **no transform inheritance** between parts — each part's transform is
+/// self-contained and pivots around a point within its own bounds.
+///
+/// # Pivot
+///
+/// `pivot` is in normalised part-local coordinates with **top-left origin**:
+/// - `(0.0, 0.0)` = top-left of the part
+/// - `(0.5, 0.5)` = centre (default)
+/// - `(1.0, 1.0)` = bottom-right
+///
+/// The pivot controls the origin for scale and rotation.
+///
+/// # Scale
+///
+/// Negative scale values produce mirroring, matching the entity-level
+/// signed-scale semantics. Magnitude is clamped to `[MIN_SCALE, ∞)`.
+///
+/// # Multi-strip parts
+///
+/// Per-part transforms work best on **visually independent** parts (wings, limbs,
+/// antennae). Multi-strip regions that were split across several atlas regions
+/// (e.g., a head composed of left-half, centre-strip, right-half) cannot be
+/// transformed as a unit — each strip scales/rotates around its own pivot,
+/// creating gaps or overlaps.
+///
+/// For regions that must transform together, merge them into a **single atlas
+/// region** at the asset level. A future group-transform feature (sub-scratch
+/// per group of parts) may lift this limitation if content pressure demands it.
+///
+/// # Stable envelope
+///
+/// Composite metrics (`size`, `origin`) use a **worst-case full-rotation envelope**
+/// for transformed parts, not current-frame bounds. This means:
+/// - Runtime rotation changes do **not** shift the composite anchor or origin.
+/// - The scratch buffer may reserve more space than a single frame strictly needs.
+/// - This is intentional: stable anchoring is preferred over tight dynamic bounds.
+///
+/// The conservative envelope is a good fit at Carapace's pixel-art scale. Tighter
+/// range-based envelopes (e.g., declared max rotation) can be added later if
+/// the over-allocation ever matters.
+///
+/// # Invariant
+///
+/// `part.offset` defines **where** the part is placed in composite space.
+/// `part.transform` defines **how** the part looks around its local pivot.
+/// The transform does not implicitly orbit or remap the part's placement.
+#[derive(Clone, Copy, Debug)]
+pub struct PxPartTransform {
+    /// Non-uniform scale factor. `Vec2::ONE` = native size. Negative = flip.
+    pub scale: Vec2,
+    /// Rotation in radians, counter-clockwise around the pivot.
+    pub rotation: f32,
+    /// Normalised pivot within part bounds (top-left origin).
+    /// Default: `(0.5, 0.5)` = centre.
+    pub pivot: Vec2,
+}
+
+impl Default for PxPartTransform {
+    fn default() -> Self {
+        Self {
+            scale: Vec2::ONE,
+            rotation: 0.0,
+            pivot: Vec2::splat(0.5),
+        }
+    }
+}
+
+impl PxPartTransform {
+    /// Returns true if this transform would have no visual effect.
+    #[must_use]
+    pub fn is_identity(&self) -> bool {
+        !self.has_scale() && !self.has_rotation()
+    }
+
+    /// Returns true if scale differs meaningfully from `Vec2::ONE`.
+    #[must_use]
+    pub fn has_scale(&self) -> bool {
+        (self.scale - Vec2::ONE).length_squared() >= f32::EPSILON
+    }
+
+    /// Returns true if rotation differs meaningfully from zero.
+    #[must_use]
+    pub fn has_rotation(&self) -> bool {
+        self.rotation.abs() >= f32::EPSILON
+    }
+
+    /// Returns the scale with magnitude clamped per axis, preserving sign.
+    #[must_use]
+    pub(crate) fn clamped_scale(&self) -> Vec2 {
+        Vec2::new(
+            crate::presentation::clamp_scale_axis(self.scale.x),
+            crate::presentation::clamp_scale_axis(self.scale.y),
+        )
+    }
+
+    /// Returns the rotation, with NaN treated as 0.0.
+    #[must_use]
+    pub(crate) fn sanitised_rotation(&self) -> f32 {
+        crate::presentation::sanitise_rotation(self.rotation)
+    }
+
+    /// Converts the top-left-origin pivot to a [`PxAnchor::Custom`] (bottom-left origin).
+    #[must_use]
+    pub(crate) fn anchor(&self) -> PxAnchor {
+        PxAnchor::Custom(Vec2::new(self.pivot.x, 1.0 - self.pivot.y))
+    }
+
+    /// Computes the bounding box of this part for the **current** transform values.
+    ///
+    /// Returns `(min, max)` corners in composite engine-space.
+    ///
+    /// **Not suitable for composite metrics** — use [`worst_case_bounds`](Self::worst_case_bounds)
+    /// instead, which is rotation-independent and produces stable bounds for animated parts.
+    /// This method is retained for debug/editor visualisation of the current-frame footprint.
+    #[allow(dead_code)]
+    pub(crate) fn transformed_bounds(
+        &self,
+        part_offset: IVec2,
+        part_size: UVec2,
+    ) -> (IVec2, IVec2) {
+        let w = part_size.x as f32;
+        let h = part_size.y as f32;
+        let scale = self.clamped_scale();
+        let rotation = self.sanitised_rotation();
+
+        // Pivot in top-left image space.
+        let pivot_img = Vec2::new(self.pivot.x * w, self.pivot.y * h);
+
+        let (sin_r, cos_r) = rotation.sin_cos();
+
+        // Source corners relative to pivot (image space, top-left origin).
+        let corners = [
+            Vec2::new(0.0, 0.0) - pivot_img,
+            Vec2::new(w, 0.0) - pivot_img,
+            Vec2::new(w, h) - pivot_img,
+            Vec2::new(0.0, h) - pivot_img,
+        ];
+
+        let mut min_x = f32::MAX;
+        let mut max_x = f32::MIN;
+        let mut min_y = f32::MAX;
+        let mut max_y = f32::MIN;
+
+        for corner in &corners {
+            let scaled = Vec2::new(corner.x * scale.x, corner.y * scale.y);
+            let rotated = Vec2::new(
+                scaled.x * cos_r - scaled.y * sin_r,
+                scaled.x * sin_r + scaled.y * cos_r,
+            );
+            min_x = min_x.min(rotated.x);
+            max_x = max_x.max(rotated.x);
+            min_y = min_y.min(rotated.y);
+            max_y = max_y.max(rotated.y);
+        }
+
+        // Pivot position in composite engine-space (bottom-left origin).
+        // part_offset is the bottom-left of the part in engine space.
+        let pivot_engine =
+            part_offset.as_vec2() + Vec2::new(self.pivot.x * w, (1.0 - self.pivot.y) * h);
+
+        // Bounding box in engine space: pivot ± extents.
+        // Image-space Y is inverted relative to engine-space, so min_y (top in image)
+        // maps to max in engine, and vice versa.
+        let eng_min = Vec2::new(pivot_engine.x + min_x, pivot_engine.y - max_y);
+        let eng_max = Vec2::new(pivot_engine.x + max_x, pivot_engine.y - min_y);
+
+        (
+            IVec2::new(eng_min.x.floor() as i32, eng_min.y.floor() as i32),
+            IVec2::new(eng_max.x.ceil() as i32, eng_max.y.ceil() as i32),
+        )
+    }
+
+    /// Computes a **stable worst-case bounding box** for this part over all
+    /// possible rotation angles, in composite engine-space.
+    ///
+    /// Returns `(min, max)` corners. Used by composite metrics to size the
+    /// scratch buffer so that the composite `origin` and `size` remain stable
+    /// regardless of the current runtime rotation value.
+    ///
+    /// The envelope is conservative: for each corner of the part (relative to
+    /// the pivot, after scaling), the maximum distance from the pivot is used
+    /// as a uniform half-extent. This means the envelope may reserve more space
+    /// than a single frame strictly needs — but it guarantees that the composite
+    /// anchor never drifts during animation.
+    ///
+    /// At Carapace's pixel-art scale this over-allocation is negligible (a few KB
+    /// of transient scratch per composite). Tighter range-based envelopes can be
+    /// considered later if needed.
+    ///
+    /// # Stability
+    ///
+    /// The result depends only on `(part_offset, part_size, scale magnitude, pivot)`.
+    /// It is intentionally **independent of the current rotation angle**, so
+    /// calling this with different `self.rotation` values yields the same result.
+    pub(crate) fn worst_case_bounds(&self, part_offset: IVec2, part_size: UVec2) -> (IVec2, IVec2) {
+        let w = part_size.x as f32;
+        let h = part_size.y as f32;
+        let scale = self.clamped_scale();
+
+        // Pivot in top-left image space.
+        let pivot_img = Vec2::new(self.pivot.x * w, self.pivot.y * h);
+
+        // Corner vectors relative to pivot, scaled by magnitude (sign irrelevant
+        // for bounding — a flipped corner has the same distance from pivot).
+        let abs_sx = scale.x.abs();
+        let abs_sy = scale.y.abs();
+
+        let corners = [
+            Vec2::new((0.0 - pivot_img.x) * abs_sx, (0.0 - pivot_img.y) * abs_sy),
+            Vec2::new((w - pivot_img.x) * abs_sx, (0.0 - pivot_img.y) * abs_sy),
+            Vec2::new((w - pivot_img.x) * abs_sx, (h - pivot_img.y) * abs_sy),
+            Vec2::new((0.0 - pivot_img.x) * abs_sx, (h - pivot_img.y) * abs_sy),
+        ];
+
+        // For each corner, its maximum reach over all rotation angles is its
+        // distance from the pivot (the corner traces a circle of that radius).
+        let max_radius = corners.iter().map(|c| c.length()).fold(0.0_f32, f32::max);
+
+        let half = max_radius.ceil() as i32;
+
+        // Pivot position in composite engine-space (bottom-left origin).
+        let pivot_engine =
+            part_offset.as_vec2() + Vec2::new(self.pivot.x * w, (1.0 - self.pivot.y) * h);
+
+        let pivot_i = IVec2::new(pivot_engine.x.round() as i32, pivot_engine.y.round() as i32);
+
+        (
+            IVec2::new(pivot_i.x - half, pivot_i.y - half),
+            IVec2::new(pivot_i.x + half, pivot_i.y + half),
+        )
+    }
+}
+
 /// A single part of a composite sprite.
 #[derive(Clone, Debug)]
 pub struct PxCompositePart {
@@ -654,6 +947,12 @@ pub struct PxCompositePart {
     pub flip_x: bool,
     /// Mirror the part vertically at draw time.
     pub flip_y: bool,
+    /// Optional per-part render-time transform (scale/rotation around pivot).
+    ///
+    /// When present and non-identity, the part is rendered into a mini scratch buffer
+    /// and blitted with the transform during composition. `None` or identity uses the
+    /// direct fast path.
+    pub transform: Option<PxPartTransform>,
 }
 
 impl PxCompositePart {
@@ -673,6 +972,7 @@ impl PxCompositePart {
             filter: None,
             flip_x: false,
             flip_y: false,
+            transform: None,
         }
     }
 
@@ -708,6 +1008,16 @@ impl PxCompositePart {
     pub fn with_flip(mut self, flip_x: bool, flip_y: bool) -> Self {
         self.flip_x = flip_x;
         self.flip_y = flip_y;
+        self
+    }
+
+    /// Set a per-part render-time transform (scale/rotation around pivot).
+    ///
+    /// When set and non-identity, the part is rendered into a mini scratch buffer
+    /// and blitted with the transform during composition.
+    #[must_use]
+    pub fn with_transform(mut self, transform: PxPartTransform) -> Self {
+        self.transform = Some(transform);
         self
     }
 }
@@ -943,7 +1253,10 @@ mod tests {
     use crate::{
         atlas::{AtlasRect, PxSpriteAtlasAsset},
         camera::PxCamera,
-        frame::{PxFrameSelector, PxFrameView, draw_spatial, resolve_frame_binding},
+        frame::{
+            PxFrameSelector, PxFrameView, blit_transformed, draw_frame, draw_spatial,
+            resolve_frame_binding,
+        },
         image::PxImage,
     };
     use bevy_asset::Assets;
@@ -979,6 +1292,9 @@ mod tests {
         out
     }
 
+    /// Draw a composite into an image at base (non-render-envelope) size.
+    /// Parts with a per-part transform are rendered via a mini scratch +
+    /// `blit_transformed`, matching the real renderer's logic.
     fn draw_composite(
         image: &mut PxImage,
         composite: &PxCompositeSprite,
@@ -986,8 +1302,37 @@ mod tests {
         sprites: &Assets<PxSpriteAsset>,
         atlases: &Assets<PxSpriteAtlasAsset>,
     ) {
+        draw_composite_into(image, composite, master, sprites, atlases, false);
+    }
+
+    /// Draw a composite into an image using the render-envelope (render_origin
+    /// / render_size) for placement, as the real renderer does when per-part
+    /// transforms are present.
+    fn draw_composite_render(
+        image: &mut PxImage,
+        composite: &PxCompositeSprite,
+        master: Option<PxFrameView>,
+        sprites: &Assets<PxSpriteAsset>,
+        atlases: &Assets<PxSpriteAtlasAsset>,
+    ) {
+        draw_composite_into(image, composite, master, sprites, atlases, true);
+    }
+
+    fn draw_composite_into(
+        image: &mut PxImage,
+        composite: &PxCompositeSprite,
+        master: Option<PxFrameView>,
+        sprites: &Assets<PxSpriteAsset>,
+        atlases: &Assets<PxSpriteAtlasAsset>,
+        use_render_envelope: bool,
+    ) {
         let mut slice = image.slice_all_mut();
-        let base_pos = IVec2::ZERO - PxAnchor::BottomLeft.pos(composite.size).as_ivec2();
+        let (origin, size) = if use_render_envelope {
+            (composite.render_origin, composite.render_size)
+        } else {
+            (composite.origin, composite.size)
+        };
+        let base_pos = IVec2::ZERO - PxAnchor::BottomLeft.pos(size).as_ivec2();
 
         for part in &composite.parts {
             let resolved = part
@@ -1000,23 +1345,56 @@ mod tests {
                 resolved.frame_count(),
                 &part.frame,
             );
-            let part_pos = base_pos + (part.offset - composite.origin);
             let drawable = PxCompositePartDrawable {
                 resolved,
                 flip_x: part.flip_x,
                 flip_y: part.flip_y,
             };
-            draw_spatial(
-                &drawable,
-                (),
-                &mut slice,
-                part_pos.into(),
-                PxAnchor::BottomLeft,
-                PxCanvas::Camera,
-                part_frame,
-                [],
-                PxCamera::default(),
-            );
+
+            let needs_part_transform = part.transform.as_ref().is_some_and(|t| !t.is_identity());
+
+            if needs_part_transform {
+                let t = part.transform.as_ref().unwrap();
+                let part_size = drawable.frame_size();
+                if part_size.x == 0 || part_size.y == 0 {
+                    continue;
+                }
+                // Render part into a mini scratch at native size.
+                let mut mini = PxImage::empty(part_size);
+                let mut mini_slice = mini.slice_all_mut();
+                draw_frame(&drawable, (), &mut mini_slice, part_frame, []);
+
+                // Pivot position in engine-space relative to composite origin.
+                let part_bl = (part.offset - origin).as_vec2();
+                let ps = part_size.as_vec2();
+                let pivot_pos = part_bl + Vec2::new(t.pivot.x * ps.x, (1.0 - t.pivot.y) * ps.y);
+
+                blit_transformed(
+                    &mini,
+                    part_size,
+                    &mut slice,
+                    crate::position::PxPosition(pivot_pos.round().as_ivec2()),
+                    t.anchor(),
+                    PxCanvas::Camera,
+                    PxCamera(IVec2::ZERO),
+                    t.clamped_scale(),
+                    t.sanitised_rotation(),
+                    Vec2::ZERO,
+                );
+            } else {
+                let part_pos = base_pos + (part.offset - origin);
+                draw_spatial(
+                    &drawable,
+                    (),
+                    &mut slice,
+                    part_pos.into(),
+                    PxAnchor::BottomLeft,
+                    PxCanvas::Camera,
+                    part_frame,
+                    [],
+                    PxCamera::default(),
+                );
+            }
         }
     }
 
@@ -1066,6 +1444,7 @@ mod tests {
                 filter: None,
                 flip_x: false,
                 flip_y: false,
+                transform: None,
             },
             PxCompositePart {
                 source: PxCompositePartSource::Sprite(sprite_b),
@@ -1074,6 +1453,7 @@ mod tests {
                 filter: None,
                 flip_x: false,
                 flip_y: false,
+                transform: None,
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
@@ -1111,6 +1491,7 @@ mod tests {
                 filter: None,
                 flip_x: false,
                 flip_y: false,
+                transform: None,
             },
             PxCompositePart {
                 source: PxCompositePartSource::Sprite(sprite_b),
@@ -1119,6 +1500,7 @@ mod tests {
                 filter: None,
                 flip_x: false,
                 flip_y: false,
+                transform: None,
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
@@ -1203,6 +1585,7 @@ frame 1
                 filter: None,
                 flip_x: false,
                 flip_y: false,
+                transform: None,
             },
             PxCompositePart {
                 source: PxCompositePartSource::AtlasRegion {
@@ -1214,6 +1597,7 @@ frame 1
                 filter: None,
                 flip_x: false,
                 flip_y: false,
+                transform: None,
             },
         ]);
 
@@ -1240,6 +1624,7 @@ frame 1
             filter: None,
             flip_x: false,
             flip_y: false,
+            transform: None,
         }]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
@@ -1272,6 +1657,7 @@ frame 1
                 filter: None,
                 flip_x: true,
                 flip_y: false,
+                transform: None,
             },
             PxCompositePart {
                 source: PxCompositePartSource::Sprite(sprite),
@@ -1280,6 +1666,7 @@ frame 1
                 filter: None,
                 flip_x: false,
                 flip_y: true,
+                transform: None,
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
@@ -1287,7 +1674,8 @@ frame 1
         let mut image = PxImage::new(vec![0; 8], 4);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
 
-        assert_eq!(pixels(&image), vec![2, 1, 3, 4, 4, 3, 1, 2]);
+        // Left part: h-flipped [2,1 / 4,3]. Right part: v-flipped [3,4 / 1,2].
+        assert_eq!(image_grid(&image), "02 01 03 04\n04 03 01 02");
     }
 
     #[test]
@@ -1320,6 +1708,808 @@ frame 1
                 ..
             })
         ));
+    }
+
+    // --- PxPartTransform tests ---
+
+    #[test]
+    fn part_transform_default_is_identity() {
+        let t = PxPartTransform::default();
+        assert!(t.is_identity());
+        assert!(!t.has_scale());
+        assert!(!t.has_rotation());
+        assert!((t.pivot - Vec2::splat(0.5)).length() < f32::EPSILON);
+    }
+
+    #[test]
+    fn part_transform_scale_detected() {
+        let t = PxPartTransform {
+            scale: Vec2::new(2.0, 1.0),
+            ..Default::default()
+        };
+        assert!(!t.is_identity());
+        assert!(t.has_scale());
+    }
+
+    #[test]
+    fn part_transform_rotation_detected() {
+        let t = PxPartTransform {
+            rotation: 0.5,
+            ..Default::default()
+        };
+        assert!(!t.is_identity());
+        assert!(t.has_rotation());
+    }
+
+    #[test]
+    fn part_transform_clamped_scale_preserves_sign() {
+        let t = PxPartTransform {
+            scale: Vec2::new(-2.0, -0.001),
+            ..Default::default()
+        };
+        let s = t.clamped_scale();
+        assert!((s.x - (-2.0)).abs() < f32::EPSILON);
+        assert!(s.y < 0.0); // sign preserved
+        assert!(s.y.abs() >= crate::presentation::MIN_SCALE);
+    }
+
+    #[test]
+    fn part_transform_sanitised_rotation_handles_nan() {
+        let t = PxPartTransform {
+            rotation: f32::NAN,
+            ..Default::default()
+        };
+        assert_eq!(t.sanitised_rotation(), 0.0);
+    }
+
+    #[test]
+    fn part_transform_anchor_converts_pivot() {
+        // Centre pivot → PxAnchor centre
+        let t = PxPartTransform::default();
+        let anchor = t.anchor();
+        let pos = anchor.pos(UVec2::new(10, 10));
+        assert_eq!(pos, UVec2::new(5, 5));
+
+        // Top-left pivot (0, 0) → PxAnchor Custom(0, 1) = top-left
+        let t = PxPartTransform {
+            pivot: Vec2::new(0.0, 0.0),
+            ..Default::default()
+        };
+        let pos = t.anchor().pos(UVec2::new(10, 10));
+        assert_eq!(pos, UVec2::new(0, 10));
+
+        // Bottom-right pivot (1, 1) → PxAnchor Custom(1, 0) = bottom-right
+        let t = PxPartTransform {
+            pivot: Vec2::new(1.0, 1.0),
+            ..Default::default()
+        };
+        let pos = t.anchor().pos(UVec2::new(10, 10));
+        assert_eq!(pos, UVec2::new(10, 0));
+    }
+
+    #[test]
+    fn transformed_bounds_identity_matches_native() {
+        let t = PxPartTransform::default();
+        let (min, max) = t.transformed_bounds(IVec2::new(5, 10), UVec2::new(4, 6));
+        assert_eq!(min, IVec2::new(5, 10));
+        assert_eq!(max, IVec2::new(9, 16));
+    }
+
+    #[test]
+    fn transformed_bounds_2x_scale_expands() {
+        let t = PxPartTransform {
+            scale: Vec2::splat(2.0),
+            ..Default::default()
+        };
+        let (min, max) = t.transformed_bounds(IVec2::ZERO, UVec2::new(4, 4));
+        // 2x scale around centre: expands from [-2, -2] to [6, 6] in engine space
+        // (native [0..4] × 2 around pivot at 2,2)
+        let w = (max.x - min.x) as u32;
+        let h = (max.y - min.y) as u32;
+        assert!(w >= 8, "width should be ~8, got {w}");
+        assert!(h >= 8, "height should be ~8, got {h}");
+    }
+
+    #[test]
+    fn transformed_bounds_rotation_expands() {
+        let t = PxPartTransform {
+            rotation: std::f32::consts::FRAC_PI_4, // 45°
+            ..Default::default()
+        };
+        let (min, max) = t.transformed_bounds(IVec2::ZERO, UVec2::new(4, 4));
+        let w = (max.x - min.x) as u32;
+        let h = (max.y - min.y) as u32;
+        // 45° rotation of a 4x4 square produces a diamond wider than 4.
+        assert!(w > 4, "rotated width should exceed native 4, got {w}");
+        assert!(h > 4, "rotated height should exceed native 4, got {h}");
+    }
+
+    #[test]
+    fn transformed_bounds_negative_scale_same_as_positive() {
+        let pos = PxPartTransform {
+            scale: Vec2::splat(2.0),
+            ..Default::default()
+        };
+        let neg = PxPartTransform {
+            scale: Vec2::splat(-2.0),
+            ..Default::default()
+        };
+        let (min_p, max_p) = pos.transformed_bounds(IVec2::ZERO, UVec2::new(4, 4));
+        let (min_n, max_n) = neg.transformed_bounds(IVec2::ZERO, UVec2::new(4, 4));
+        // Bounding box size should be the same regardless of sign.
+        assert_eq!(max_p - min_p, max_n - min_n);
+    }
+
+    #[test]
+    fn metrics_expand_render_size_for_transformed_part() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let sprite = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1; 4], 2),
+            frame_size: 4,
+        });
+
+        // Untransformed composite: just 2x2 at origin.
+        let composite_plain = PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone())]);
+        let metrics_plain = composite_plain
+            .metrics_with(|source| {
+                source
+                    .resolve(|h| sprites.get(h), |h| atlases.get(h))
+                    .ok()
+                    .map(|r| r.metrics())
+            })
+            .unwrap();
+
+        // Transformed composite: 2x scale on the same part.
+        let composite_scaled =
+            PxCompositeSprite::new(vec![PxCompositePart::new(sprite).with_transform(
+                PxPartTransform {
+                    scale: Vec2::splat(2.0),
+                    ..Default::default()
+                },
+            )]);
+        let metrics_scaled = composite_scaled
+            .metrics_with(|source| {
+                source
+                    .resolve(|h| sprites.get(h), |h| atlases.get(h))
+                    .ok()
+                    .map(|r| r.metrics())
+            })
+            .unwrap();
+
+        // Base size should be the same (native part bounds don't change).
+        assert_eq!(
+            metrics_scaled.size, metrics_plain.size,
+            "base size should be unchanged by per-part transform",
+        );
+
+        // Render size should be larger (worst-case envelope expands).
+        assert!(
+            metrics_scaled.render_size.x > metrics_plain.render_size.x,
+            "render width {} should exceed plain render width {}",
+            metrics_scaled.render_size.x,
+            metrics_plain.render_size.x,
+        );
+        assert!(
+            metrics_scaled.render_size.y > metrics_plain.render_size.y,
+            "render height {} should exceed plain render height {}",
+            metrics_scaled.render_size.y,
+            metrics_plain.render_size.y,
+        );
+    }
+
+    // --- worst_case_bounds / stable envelope tests ---
+
+    #[test]
+    fn worst_case_bounds_independent_of_rotation() {
+        let size = UVec2::new(18, 33);
+        let offset = IVec2::new(-18, -34);
+
+        let angles = [0.0, 0.3, 0.7, 1.5, std::f32::consts::PI, 4.0, 6.0];
+        let mut results = Vec::new();
+        for angle in &angles {
+            let t = PxPartTransform {
+                rotation: *angle,
+                pivot: Vec2::new(1.0, 0.1),
+                ..Default::default()
+            };
+            results.push(t.worst_case_bounds(offset, size));
+        }
+
+        // All rotations must produce identical bounds.
+        for (i, result) in results.iter().enumerate().skip(1) {
+            assert_eq!(
+                results[0], *result,
+                "worst_case_bounds at angle {} ({}) differs from angle 0 ({}): {:?} vs {:?}",
+                i, angles[i], angles[0], result, results[0],
+            );
+        }
+    }
+
+    #[test]
+    fn worst_case_bounds_uses_scale_magnitude_not_sign() {
+        let pos = PxPartTransform {
+            scale: Vec2::splat(2.0),
+            ..Default::default()
+        };
+        let neg = PxPartTransform {
+            scale: Vec2::splat(-2.0),
+            ..Default::default()
+        };
+        let (min_p, max_p) = pos.worst_case_bounds(IVec2::ZERO, UVec2::new(4, 4));
+        let (min_n, max_n) = neg.worst_case_bounds(IVec2::ZERO, UVec2::new(4, 4));
+        assert_eq!((min_p, max_p), (min_n, max_n));
+    }
+
+    #[test]
+    fn worst_case_bounds_expands_beyond_native() {
+        let t = PxPartTransform {
+            scale: Vec2::splat(2.0),
+            ..Default::default()
+        };
+        let (min, max) = t.worst_case_bounds(IVec2::ZERO, UVec2::new(4, 4));
+        let w = (max.x - min.x) as u32;
+        let h = (max.y - min.y) as u32;
+        assert!(w > 4, "worst-case width {w} should exceed native 4");
+        assert!(h > 4, "worst-case height {h} should exceed native 4");
+    }
+
+    #[test]
+    fn worst_case_bounds_contains_all_transformed_bounds() {
+        let size = UVec2::new(18, 33);
+        let offset = IVec2::new(-5, 3);
+
+        let t_wc = PxPartTransform {
+            scale: Vec2::new(1.5, 1.2),
+            pivot: Vec2::new(0.8, 0.2),
+            ..Default::default()
+        };
+        let (wc_min, wc_max) = t_wc.worst_case_bounds(offset, size);
+
+        // Sample many rotations — each current-frame bounds must fit inside worst-case.
+        for i in 0..36 {
+            let angle = (i as f32 / 36.0) * std::f32::consts::TAU;
+            let t = PxPartTransform {
+                rotation: angle,
+                scale: Vec2::new(1.5, 1.2),
+                pivot: Vec2::new(0.8, 0.2),
+            };
+            let (tf_min, tf_max) = t.transformed_bounds(offset, size);
+            assert!(
+                wc_min.x <= tf_min.x
+                    && wc_min.y <= tf_min.y
+                    && wc_max.x >= tf_max.x
+                    && wc_max.y >= tf_max.y,
+                "worst-case [{wc_min},{wc_max}] must contain transformed [{tf_min},{tf_max}] at angle {angle:.2}",
+            );
+        }
+    }
+
+    #[test]
+    fn metrics_stable_across_rotation_changes() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let sprite = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1; 4], 2),
+            frame_size: 4,
+        });
+
+        let resolve = |source: &PxCompositePartSource| {
+            source
+                .resolve(|h| sprites.get(h), |h| atlases.get(h))
+                .ok()
+                .map(|r| r.metrics())
+        };
+
+        // All composites have a non-identity scale so they take the
+        // worst_case_bounds path, with different rotation values.
+        let composite_a =
+            PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone()).with_transform(
+                PxPartTransform {
+                    rotation: 0.1, // non-zero so is_identity() is false
+                    ..Default::default()
+                },
+            )]);
+        let metrics_a = composite_a.metrics_with(resolve).unwrap();
+
+        let composite_b =
+            PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone()).with_transform(
+                PxPartTransform {
+                    rotation: std::f32::consts::FRAC_PI_4,
+                    ..Default::default()
+                },
+            )]);
+        let metrics_b = composite_b.metrics_with(resolve).unwrap();
+
+        let composite_c =
+            PxCompositeSprite::new(vec![PxCompositePart::new(sprite).with_transform(
+                PxPartTransform {
+                    rotation: std::f32::consts::PI,
+                    ..Default::default()
+                },
+            )]);
+        let metrics_c = composite_c.metrics_with(resolve).unwrap();
+
+        // All must produce identical base and render metrics.
+        assert_eq!(
+            metrics_a.origin, metrics_b.origin,
+            "base origin must be stable"
+        );
+        assert_eq!(metrics_a.origin, metrics_c.origin);
+        assert_eq!(metrics_a.size, metrics_b.size, "base size must be stable");
+        assert_eq!(metrics_a.size, metrics_c.size);
+        assert_eq!(
+            metrics_a.render_origin, metrics_b.render_origin,
+            "render origin must be stable"
+        );
+        assert_eq!(metrics_a.render_origin, metrics_c.render_origin);
+        assert_eq!(
+            metrics_a.render_size, metrics_b.render_size,
+            "render size must be stable"
+        );
+        assert_eq!(metrics_a.render_size, metrics_c.render_size);
+    }
+
+    #[test]
+    fn base_metrics_unaffected_by_part_transform() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let sprite = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1; 4], 2),
+            frame_size: 4,
+        });
+
+        let resolve = |source: &PxCompositePartSource| {
+            source
+                .resolve(|h| sprites.get(h), |h| atlases.get(h))
+                .ok()
+                .map(|r| r.metrics())
+        };
+
+        // Composite without any transform.
+        let plain = PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone())]);
+        let m_plain = plain.metrics_with(resolve).unwrap();
+
+        // Same composite with a big rotation + scale transform.
+        let transformed =
+            PxCompositeSprite::new(vec![PxCompositePart::new(sprite).with_transform(
+                PxPartTransform {
+                    scale: Vec2::splat(3.0),
+                    rotation: 1.0,
+                    ..Default::default()
+                },
+            )]);
+        let m_trans = transformed.metrics_with(resolve).unwrap();
+
+        // Base origin and size must be identical — transforms don't affect placement.
+        assert_eq!(
+            m_plain.origin, m_trans.origin,
+            "base origin must not change"
+        );
+        assert_eq!(m_plain.size, m_trans.size, "base size must not change");
+
+        // Render envelope must be larger.
+        assert!(
+            m_trans.render_size.x >= m_trans.size.x,
+            "render size must be >= base size",
+        );
+    }
+
+    // ---- Exact pixel-grid matrix tests ----
+    //
+    // All use a 2x2 asymmetric pattern with 4 distinct values (image-space,
+    // top-left origin):
+    //
+    //   1 2
+    //   3 4
+    //
+    // This makes any orientation mistake immediately visible.
+
+    /// Shorthand: build a 2x2 `PxSpriteAsset` with 4 distinct palette indices.
+    fn sprite_2x2(sprites: &mut Assets<PxSpriteAsset>) -> Handle<PxSpriteAsset> {
+        sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4], 2),
+            frame_size: 4,
+        })
+    }
+
+    /// Shorthand: draw a one-part composite and return the pixel grid string.
+    fn composite_one_part_grid(
+        part: PxCompositePart,
+        sprites: &Assets<PxSpriteAsset>,
+        atlases: &Assets<PxSpriteAtlasAsset>,
+    ) -> String {
+        let mut composite = PxCompositeSprite::new(vec![part]);
+        composite.recompute_metrics_with_atlases(sprites, atlases);
+        let mut image = PxImage::new(
+            vec![0; (composite.size.x * composite.size.y) as usize],
+            composite.size.x as usize,
+        );
+        draw_composite(&mut image, &composite, None, sprites, atlases);
+        image_grid(&image)
+    }
+
+    // --- Authored flip exact tests ---
+
+    #[test]
+    fn authored_flip_x_exact() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let grid = composite_one_part_grid(
+            PxCompositePart {
+                flip_x: true,
+                ..PxCompositePart::new(s)
+            },
+            &sprites,
+            &atlases,
+        );
+        // Columns mirrored: 1↔2, 3↔4.
+        assert_eq!(grid, "02 01\n04 03");
+    }
+
+    #[test]
+    fn authored_flip_y_exact() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let grid = composite_one_part_grid(
+            PxCompositePart {
+                flip_y: true,
+                ..PxCompositePart::new(s)
+            },
+            &sprites,
+            &atlases,
+        );
+        // Rows mirrored: row0↔row1.
+        assert_eq!(grid, "03 04\n01 02");
+    }
+
+    #[test]
+    fn authored_flip_both_exact() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let grid = composite_one_part_grid(
+            PxCompositePart {
+                flip_x: true,
+                flip_y: true,
+                ..PxCompositePart::new(s)
+            },
+            &sprites,
+            &atlases,
+        );
+        // Both axes flipped = 180° rotation.
+        assert_eq!(grid, "04 03\n02 01");
+    }
+
+    // --- Composite placement exact tests ---
+
+    #[test]
+    fn composite_two_parts_side_by_side_exact() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let a = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4], 2),
+            frame_size: 4,
+        });
+        let b = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![5, 6, 7, 8], 2),
+            frame_size: 4,
+        });
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart::new(a),
+            PxCompositePart {
+                offset: IVec2::new(2, 0),
+                ..PxCompositePart::new(b)
+            },
+        ]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+        let mut image = PxImage::new(vec![0; 8], 4);
+        draw_composite(&mut image, &composite, None, &sprites, &atlases);
+        assert_eq!(image_grid(&image), "01 02 05 06\n03 04 07 08");
+    }
+
+    #[test]
+    fn composite_one_flipped_one_not_exact() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let mut composite = PxCompositeSprite::new(vec![
+            // Left: unflipped.
+            PxCompositePart::new(s.clone()),
+            // Right: h-flipped.
+            PxCompositePart {
+                offset: IVec2::new(2, 0),
+                flip_x: true,
+                ..PxCompositePart::new(s)
+            },
+        ]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+        let mut image = PxImage::new(vec![0; 8], 4);
+        draw_composite(&mut image, &composite, None, &sprites, &atlases);
+        // Left: 1 2 / 3 4, Right (h-flip): 2 1 / 4 3
+        assert_eq!(image_grid(&image), "01 02 02 01\n03 04 04 03");
+    }
+
+    #[test]
+    fn composite_part_with_negative_offset_exact() {
+        // Part B is placed at x=-2, overlapping to the left of part A.
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let a = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4], 2),
+            frame_size: 4,
+        });
+        let b = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![5, 6, 7, 8], 2),
+            frame_size: 4,
+        });
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart::new(a),
+            PxCompositePart {
+                offset: IVec2::new(-2, 0),
+                ..PxCompositePart::new(b)
+            },
+        ]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+        // Composite should be 4 wide: B at x=-2, A at x=0.
+        assert_eq!(composite.size, UVec2::new(4, 2));
+        let mut image = PxImage::new(vec![0; 8], 4);
+        draw_composite(&mut image, &composite, None, &sprites, &atlases);
+        // B occupies columns 0-1, A occupies columns 2-3.
+        // A draws second, so it overwrites any overlap (no overlap here).
+        assert_eq!(image_grid(&image), "05 06 01 02\n07 08 03 04");
+    }
+
+    #[test]
+    fn composite_vertical_offset_exact() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let a = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4], 2),
+            frame_size: 4,
+        });
+        let b = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![5, 6, 7, 8], 2),
+            frame_size: 4,
+        });
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart::new(a),
+            PxCompositePart {
+                offset: IVec2::new(0, -2), // below part A in engine-space (Y-up)
+                ..PxCompositePart::new(b)
+            },
+        ]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+        assert_eq!(composite.size, UVec2::new(2, 4));
+        let mut image = PxImage::new(vec![0; 8], 2);
+        draw_composite(&mut image, &composite, None, &sprites, &atlases);
+        // Engine Y-up → image Y-down: A is on top, B on bottom.
+        assert_eq!(image_grid(&image), "01 02\n03 04\n05 06\n07 08");
+    }
+
+    #[test]
+    fn composite_overlapping_parts_draw_order() {
+        // Two 2x2 parts at the same position. The second (later) part should
+        // overwrite non-zero pixels of the first.
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let a = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![1, 2, 3, 4], 2),
+            frame_size: 4,
+        });
+        let b = sprites.add(PxSpriteAsset {
+            data: PxImage::new(vec![5, 0, 0, 8], 2), // only corners non-zero
+            frame_size: 4,
+        });
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart::new(a),
+            PxCompositePart::new(b), // same offset, drawn second
+        ]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+        let mut image = PxImage::new(vec![0; 4], 2);
+        draw_composite(&mut image, &composite, None, &sprites, &atlases);
+        // B's non-zero pixels (5, 8) overwrite A's (1, 4). A's (2, 3) survive.
+        assert_eq!(image_grid(&image), "05 02\n03 08");
+    }
+
+    // --- Authored flip + runtime flip composition ---
+
+    #[test]
+    fn authored_hflip_plus_runtime_hflip_cancels() {
+        // Authored h-flip + runtime h-flip (signed scale) should cancel out
+        // and produce the original orientation.
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
+            flip_x: true,
+            transform: Some(PxPartTransform {
+                scale: Vec2::new(-1.0, 1.0),
+                ..Default::default()
+            }),
+            ..PxCompositePart::new(s)
+        }]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+        // Draw using the render envelope since there's a transform.
+        let mut image = PxImage::new(
+            vec![0; (composite.render_size.x * composite.render_size.y) as usize],
+            composite.render_size.x as usize,
+        );
+        draw_composite_render(&mut image, &composite, None, &sprites, &atlases);
+        // Extract non-zero pixels.
+        let grid = image.nonzero_grid();
+        // Authored h-flip produces [2,1 / 4,3], then runtime h-flip mirrors
+        // back to [1,2 / 3,4].
+        assert_eq!(grid, vec![vec![1, 2], vec![3, 4]]);
+    }
+
+    #[test]
+    fn authored_vflip_plus_runtime_vflip_cancels() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
+            flip_y: true,
+            transform: Some(PxPartTransform {
+                scale: Vec2::new(1.0, -1.0),
+                ..Default::default()
+            }),
+            ..PxCompositePart::new(s)
+        }]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+        let mut image = PxImage::new(
+            vec![0; (composite.render_size.x * composite.render_size.y) as usize],
+            composite.render_size.x as usize,
+        );
+        draw_composite_render(&mut image, &composite, None, &sprites, &atlases);
+        let grid = image.nonzero_grid();
+        assert_eq!(grid, vec![vec![1, 2], vec![3, 4]]);
+    }
+
+    // --- Per-part transform composite tests ---
+
+    #[test]
+    fn composite_one_transformed_one_static() {
+        // Two parts side by side: left is 180° rotated, right is static.
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let mut composite = PxCompositeSprite::new(vec![
+            PxCompositePart {
+                transform: Some(PxPartTransform {
+                    rotation: std::f32::consts::PI,
+                    ..Default::default()
+                }),
+                ..PxCompositePart::new(s.clone())
+            },
+            PxCompositePart {
+                offset: IVec2::new(2, 0),
+                ..PxCompositePart::new(s)
+            },
+        ]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+
+        let mut image = PxImage::new(
+            vec![0; (composite.render_size.x * composite.render_size.y) as usize],
+            composite.render_size.x as usize,
+        );
+        draw_composite_render(&mut image, &composite, None, &sprites, &atlases);
+
+        let grid = image.nonzero_grid();
+        // The render envelope may be larger than 2 rows due to worst-case bounds.
+        // Verify both parts are present by checking the full content.
+        let flat: Vec<u8> = grid.iter().flat_map(|r| r.iter().copied()).collect();
+        for v in 1..=4_u8 {
+            assert!(
+                flat.contains(&v),
+                "output should contain value {v}, got {grid:?}"
+            );
+        }
+        // Check that the rotated [4,3] and static [1,2] patterns appear in some row.
+        let has_rotated_top = grid.iter().any(|r| r.windows(2).any(|w| w == [4, 3]));
+        let has_static_top = grid.iter().any(|r| r.windows(2).any(|w| w == [1, 2]));
+        let has_rotated_bot = grid.iter().any(|r| r.windows(2).any(|w| w == [2, 1]));
+        let has_static_bot = grid.iter().any(|r| r.windows(2).any(|w| w == [3, 4]));
+        assert!(
+            has_rotated_top,
+            "should contain rotated row [4,3], got {grid:?}"
+        );
+        assert!(
+            has_static_top,
+            "should contain static row [1,2], got {grid:?}"
+        );
+        assert!(
+            has_rotated_bot,
+            "should contain rotated row [2,1], got {grid:?}"
+        );
+        assert!(
+            has_static_bot,
+            "should contain static row [3,4], got {grid:?}"
+        );
+    }
+
+    #[test]
+    fn composite_part_scale_2x_render_envelope() {
+        // A single 2x2 part with 2x scale needs a larger render envelope.
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
+            transform: Some(PxPartTransform {
+                scale: Vec2::splat(2.0),
+                ..Default::default()
+            }),
+            ..PxCompositePart::new(s)
+        }]);
+        composite.recompute_metrics_with_atlases(&sprites, &atlases);
+
+        // Base size stays 2x2 (native part bounds).
+        assert_eq!(composite.size, UVec2::new(2, 2));
+        // Render size must be larger to accommodate 2x scale.
+        assert!(
+            composite.render_size.x > composite.size.x
+                && composite.render_size.y > composite.size.y,
+            "render_size {:?} should exceed base size {:?}",
+            composite.render_size,
+            composite.size,
+        );
+
+        let mut image = PxImage::new(
+            vec![0; (composite.render_size.x * composite.render_size.y) as usize],
+            composite.render_size.x as usize,
+        );
+        draw_composite_render(&mut image, &composite, None, &sprites, &atlases);
+
+        let grid = image.nonzero_grid();
+        // 2x nearest-neighbour of [1,2/3,4] should produce each pixel doubled.
+        // Due to center-anchor rounding the output may be 3x3 instead of 4x4
+        // (same as the blit_grid tests in frame.rs), but all 4 values must appear.
+        let flat: Vec<u8> = grid.iter().flat_map(|r| r.iter().copied()).collect();
+        for v in 1..=4_u8 {
+            assert!(
+                flat.contains(&v),
+                "scaled output should contain value {v}, got {grid:?}"
+            );
+        }
+        // At least 3x3 = 9 pixels (2x scale of 4 pixels).
+        assert!(
+            flat.len() >= 9,
+            "expected at least 9 pixels, got {}",
+            flat.len()
+        );
+    }
+
+    // --- Invariant: authored flip is purely data-level, not spatial ---
+
+    #[test]
+    fn authored_flip_does_not_change_metrics() {
+        let mut sprites = Assets::default();
+        let atlases = Assets::default();
+        let s = sprite_2x2(&mut sprites);
+
+        let resolve = |source: &PxCompositePartSource| {
+            source
+                .resolve(|h| sprites.get(h), |h| atlases.get(h))
+                .ok()
+                .map(|r| r.metrics())
+        };
+
+        let plain = PxCompositeSprite::new(vec![PxCompositePart::new(s.clone())]);
+        let flipped = PxCompositeSprite::new(vec![PxCompositePart {
+            flip_x: true,
+            flip_y: true,
+            ..PxCompositePart::new(s)
+        }]);
+
+        let m_plain = plain.metrics_with(resolve).unwrap();
+        let m_flip = flipped.metrics_with(resolve).unwrap();
+
+        assert_eq!(m_plain.origin, m_flip.origin);
+        assert_eq!(m_plain.size, m_flip.size);
+        assert_eq!(m_plain.render_origin, m_flip.render_origin);
+        assert_eq!(m_plain.render_size, m_flip.render_size);
     }
 }
 

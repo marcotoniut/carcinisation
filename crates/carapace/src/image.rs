@@ -302,6 +302,41 @@ impl<'a> PxImageSliceMut<'a> {
     }
 }
 
+// --- Test-only helpers ---
+
+#[cfg(test)]
+impl PxImage {
+    /// Extract the tight bounding box of non-zero pixels as a row-major 2D grid.
+    ///
+    /// Useful for verifying exact pixel layouts in tiny-matrix tests without
+    /// depending on a specific image size or padding.
+    pub(crate) fn nonzero_grid(&self) -> Vec<Vec<u8>> {
+        let size = self.size();
+        let (mut min_x, mut min_y) = (size.x as i32, size.y as i32);
+        let (mut max_x, mut max_y) = (-1_i32, -1_i32);
+        for y in 0..size.y as i32 {
+            for x in 0..size.x as i32 {
+                if self.pixel(IVec2::new(x, y)) != 0 {
+                    min_x = min_x.min(x);
+                    max_x = max_x.max(x);
+                    min_y = min_y.min(y);
+                    max_y = max_y.max(y);
+                }
+            }
+        }
+        if max_x < 0 {
+            return vec![];
+        }
+        (min_y..=max_y)
+            .map(|y| {
+                (min_x..=max_x)
+                    .map(|x| self.pixel(IVec2::new(x, y)))
+                    .collect()
+            })
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

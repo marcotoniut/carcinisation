@@ -52,7 +52,10 @@ pub use crate::{
     presentation::PxPresentationTransform,
     rect::PxRect,
     screen::ScreenSize,
-    sprite::{PxCompositePart, PxCompositePartSource, PxCompositeSprite, PxSprite, PxSpriteAsset},
+    sprite::{
+        PxCompositePart, PxCompositePartSource, PxCompositeSprite, PxPartTransform, PxSprite,
+        PxSpriteAsset,
+    },
     text::{PxText, PxTypeface},
     ui::{
         PxCaret, PxGrid, PxGridRow, PxGridRows, PxKeyField, PxKeyFieldUpdate, PxMargin, PxMinSize,

@@ -13,8 +13,10 @@
 //! # Composites
 //!
 //! For composite sprites, parts are first assembled at native size into a scratch
-//! buffer. The presentation transform is then applied to the **composed result** —
-//! individual parts are never transformed independently.
+//! buffer. The presentation transform is then applied to the **composed result**.
+//!
+//! Individual parts may have their own [`PxPartTransform`](crate::sprite::PxPartTransform),
+//! but that is a separate concept applied **during** composition, not after.
 //!
 //! # Flipping / mirroring
 //!
@@ -45,7 +47,7 @@ use crate::prelude::*;
 
 /// Minimum allowed scale per axis. Values below this (including NaN) are
 /// clamped to avoid degenerate sampling in the render path.
-const MIN_SCALE: f32 = 0.01;
+pub(crate) const MIN_SCALE: f32 = 0.01;
 
 /// Maximum allowed scale per axis in debug builds. Scales above this trigger
 /// a warning — they are likely unintentional and allocate large scratch buffers.
@@ -202,13 +204,21 @@ impl PxPresentationTransform {
     /// Returns the rotation, with NaN treated as 0.0.
     #[must_use]
     pub(crate) fn sanitised_rotation(&self) -> f32 {
+        let r = sanitise_rotation(self.rotation);
+        #[cfg(debug_assertions)]
         if self.rotation.is_nan() {
-            #[cfg(debug_assertions)]
             warn!("PxPresentationTransform rotation is NaN — treated as 0.0");
-            return 0.0;
         }
-        self.rotation
+        r
     }
+}
+
+/// Sanitises a rotation value: NaN → 0.0.
+///
+/// Shared by both entity-level [`PxPresentationTransform`] and part-level
+/// [`PxPartTransform`](crate::sprite::PxPartTransform).
+pub(crate) fn sanitise_rotation(rotation: f32) -> f32 {
+    if rotation.is_nan() { 0.0 } else { rotation }
 }
 
 /// Clamps a single scale axis, preserving sign.
@@ -216,7 +226,10 @@ impl PxPresentationTransform {
 /// - NaN → `+MIN_SCALE`
 /// - Magnitude below `MIN_SCALE` → sign × `MIN_SCALE`
 /// - Otherwise → unchanged
-fn clamp_scale_axis(v: f32) -> f32 {
+///
+/// Shared by both entity-level [`PxPresentationTransform`] and part-level
+/// [`PxPartTransform`](crate::sprite::PxPartTransform).
+pub(crate) fn clamp_scale_axis(v: f32) -> f32 {
     if v.is_nan() {
         MIN_SCALE
     } else if v.abs() < MIN_SCALE {

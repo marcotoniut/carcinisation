@@ -356,6 +356,8 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     Some(PxCompositeMetrics {
                         size: composite.size,
                         origin: composite.origin,
+                        render_size: composite.render_size,
+                        render_origin: composite.render_origin,
                         frame_count: composite.frame_count,
                     })
                 };
@@ -369,9 +371,9 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     let pt = presentation.unwrap();
                     let scale = pt.clamped_scale();
 
-                    // Compose all parts into a scratch buffer at native size,
-                    // then blit the result scaled to the destination.
-                    let mut scratch = crate::image::PxImage::empty(metrics.size);
+                    // Compose all parts into a scratch buffer sized to the render
+                    // envelope (may be larger than base size for transformed parts).
+                    let mut scratch = crate::image::PxImage::empty(metrics.render_size);
                     let mut scratch_slice = scratch.slice_all_mut();
                     let master = frame.copied();
                     let master_count = metrics.frame_count;
@@ -394,7 +396,6 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             resolved.frame_count(),
                             &part.frame,
                         );
-                        let part_pos = part.offset - metrics.origin;
                         let part_filter =
                             part.filter.as_ref().and_then(|handle| filters.get(handle));
                         let entity_filter = filter.and_then(|filter| filters.get(&**filter));
@@ -404,27 +405,84 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             flip_y: part.flip_y,
                         };
 
-                        // Draw part into scratch at native offset (no camera, no canvas).
-                        draw_spatial(
-                            &drawable,
-                            (),
-                            &mut scratch_slice,
-                            part_pos.into(),
-                            PxAnchor::BottomLeft,
-                            PxCanvas::Camera,
-                            part_frame,
-                            [part_filter, entity_filter].into_iter().flatten(),
-                            PxCamera(IVec2::ZERO),
-                        );
+                        let needs_part_transform =
+                            part.transform.as_ref().is_some_and(|t| !t.is_identity());
+
+                        if needs_part_transform {
+                            let t = part.transform.as_ref().unwrap();
+                            let part_size = drawable.frame_size();
+                            if part_size.x == 0 || part_size.y == 0 {
+                                continue;
+                            }
+
+                            // Render part into a mini scratch at native size.
+                            let mut mini = PxImage::empty(part_size);
+                            let mut mini_slice = mini.slice_all_mut();
+                            crate::frame::draw_frame(
+                                &drawable,
+                                (),
+                                &mut mini_slice,
+                                part_frame,
+                                [part_filter, entity_filter].into_iter().flatten(),
+                            );
+
+                            // Pivot position in render-scratch engine-space.
+                            let part_bl = (part.offset - metrics.render_origin).as_vec2();
+                            let ps = part_size.as_vec2();
+                            let pivot_pos =
+                                part_bl + Vec2::new(t.pivot.x * ps.x, (1.0 - t.pivot.y) * ps.y);
+
+                            blit_transformed(
+                                &mini,
+                                part_size,
+                                &mut scratch_slice,
+                                PxPosition(pivot_pos.round().as_ivec2()),
+                                t.anchor(),
+                                PxCanvas::Camera,
+                                PxCamera(IVec2::ZERO),
+                                t.clamped_scale(),
+                                t.sanitised_rotation(),
+                                Vec2::ZERO,
+                            );
+                        } else {
+                            let part_pos = part.offset - metrics.render_origin;
+                            draw_spatial(
+                                &drawable,
+                                (),
+                                &mut scratch_slice,
+                                part_pos.into(),
+                                PxAnchor::BottomLeft,
+                                PxCanvas::Camera,
+                                part_frame,
+                                [part_filter, entity_filter].into_iter().flatten(),
+                                PxCamera(IVec2::ZERO),
+                            );
+                        }
                     }
 
                     // Blit the composed scratch buffer transformed to the layer.
+                    // The scratch is render_size (may be larger than base size).
+                    // Compute a custom anchor that maps the entity's anchor to the
+                    // correct position within the enlarged render scratch: the base
+                    // frame sits at offset (origin - render_origin) inside the scratch.
+                    let base_in_scratch = (metrics.origin - metrics.render_origin).as_vec2();
+                    let base_anchor = anchor.pos(metrics.size).as_vec2();
+                    let render_anchor_px = base_in_scratch + base_anchor;
+                    let render_anchor = if metrics.render_size.x == 0 || metrics.render_size.y == 0
+                    {
+                        anchor
+                    } else {
+                        PxAnchor::Custom(Vec2::new(
+                            render_anchor_px.x / metrics.render_size.x as f32,
+                            render_anchor_px.y / metrics.render_size.y as f32,
+                        ))
+                    };
                     blit_transformed(
                         &scratch,
-                        metrics.size,
+                        metrics.render_size,
                         &mut layer_slice,
                         position,
-                        anchor,
+                        render_anchor,
                         canvas,
                         camera,
                         scale,
@@ -458,7 +516,6 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             resolved.frame_count(),
                             &part.frame,
                         );
-                        let part_pos = base_pos + (part.offset - metrics.origin);
                         let part_filter =
                             part.filter.as_ref().and_then(|handle| filters.get(handle));
                         let entity_filter = filter.and_then(|filter| filters.get(&**filter));
@@ -468,17 +525,59 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             flip_y: part.flip_y,
                         };
 
-                        draw_spatial(
-                            &drawable,
-                            (),
-                            &mut layer_slice,
-                            part_pos.into(),
-                            PxAnchor::BottomLeft,
-                            canvas,
-                            part_frame,
-                            [part_filter, entity_filter].into_iter().flatten(),
-                            camera,
-                        );
+                        let needs_part_transform =
+                            part.transform.as_ref().is_some_and(|t| !t.is_identity());
+
+                        if needs_part_transform {
+                            let t = part.transform.as_ref().unwrap();
+                            let part_size = drawable.frame_size();
+                            if part_size.x == 0 || part_size.y == 0 {
+                                continue;
+                            }
+
+                            // Render part into a mini scratch at native size.
+                            let mut mini = PxImage::empty(part_size);
+                            let mut mini_slice = mini.slice_all_mut();
+                            crate::frame::draw_frame(
+                                &drawable,
+                                (),
+                                &mut mini_slice,
+                                part_frame,
+                                [part_filter, entity_filter].into_iter().flatten(),
+                            );
+
+                            // Pivot position in world engine-space.
+                            let part_bl = (base_pos + (part.offset - metrics.origin)).as_vec2();
+                            let ps = part_size.as_vec2();
+                            let pivot_pos =
+                                part_bl + Vec2::new(t.pivot.x * ps.x, (1.0 - t.pivot.y) * ps.y);
+
+                            blit_transformed(
+                                &mini,
+                                part_size,
+                                &mut layer_slice,
+                                PxPosition(pivot_pos.round().as_ivec2()),
+                                t.anchor(),
+                                canvas,
+                                camera,
+                                t.clamped_scale(),
+                                t.sanitised_rotation(),
+                                Vec2::ZERO,
+                            );
+                        } else {
+                            let part_pos = base_pos + (part.offset - metrics.origin);
+                            draw_spatial(
+                                &drawable,
+                                (),
+                                &mut layer_slice,
+                                part_pos.into(),
+                                PxAnchor::BottomLeft,
+                                canvas,
+                                part_frame,
+                                [part_filter, entity_filter].into_iter().flatten(),
+                                camera,
+                            );
+                        }
                     }
                 }
             }

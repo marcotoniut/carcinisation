@@ -516,6 +516,40 @@ mod tests {
             .count()
     }
 
+    /// Helper: blit a tiny source pattern through `blit_transformed` and return
+    /// the non-zero pixels as a row-major grid.
+    ///
+    /// Uses a padded destination with the source centred, then extracts the
+    /// tight bounding box of non-zero pixels.
+    fn blit_grid(src: &[u8], w: u32, h: u32, scale: Vec2, rotation: f32) -> Vec<Vec<u8>> {
+        let scratch = PxImage::new(src.to_vec(), w as usize);
+        let pad = ((w.max(h) as f32) * scale.x.abs().max(scale.y.abs())).ceil() as u32 + 4;
+        let dest_side = pad * 2;
+        let mut dest = PxImage::empty(UVec2::splat(dest_side));
+        let mut dest_slice = dest.slice_all_mut();
+        let center = dest_side as i32 / 2;
+        blit_transformed(
+            &scratch,
+            UVec2::new(w, h),
+            &mut dest_slice,
+            PxPosition(IVec2::new(center, center)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            scale,
+            rotation,
+            Vec2::ZERO,
+        );
+        dest.nonzero_grid()
+    }
+
+    // ---- Pixel-count / tolerance tests ----
+    //
+    // These verify that transforms preserve or change pixel coverage within
+    // expected ranges. They use uniform-colour sources so they only test
+    // coverage, not orientation. Exact layout correctness is covered by the
+    // `exact_*` tests below.
+
     #[test]
     fn identity_scale_no_rotation_preserves_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
@@ -830,5 +864,119 @@ mod tests {
             (48..=64).contains(&n),
             "-2x scale should produce ~64 pixels, got {n}"
         );
+    }
+
+    // ---- Exact pixel-grid matrix tests ----
+    //
+    // Use a 2x2 asymmetric pattern with 4 distinct values so any orientation
+    // mistake (wrong axis, wrong direction) is immediately visible.
+    //
+    //   Source (image-space, top-left origin):
+    //     1 2
+    //     3 4
+
+    #[test]
+    fn exact_identity() {
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::ONE, 0.0);
+        assert_eq!(grid, vec![vec![1, 2], vec![3, 4]]);
+    }
+
+    #[test]
+    fn exact_horizontal_flip_via_signed_scale() {
+        // H-flip mirrors columns: 1↔2, 3↔4.
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::new(-1.0, 1.0), 0.0);
+        assert_eq!(grid, vec![vec![2, 1], vec![4, 3]]);
+    }
+
+    #[test]
+    fn exact_vertical_flip_via_signed_scale() {
+        // V-flip mirrors rows: row0↔row1.
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::new(1.0, -1.0), 0.0);
+        assert_eq!(grid, vec![vec![3, 4], vec![1, 2]]);
+    }
+
+    #[test]
+    fn exact_both_flip_via_signed_scale() {
+        // Both axes flipped = 180° rotation.
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::new(-1.0, -1.0), 0.0);
+        assert_eq!(grid, vec![vec![4, 3], vec![2, 1]]);
+    }
+
+    #[test]
+    fn exact_rotation_180() {
+        // 180° rotation should produce the same result as flipping both axes.
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::ONE, std::f32::consts::PI);
+        assert_eq!(grid, vec![vec![4, 3], vec![2, 1]]);
+    }
+
+    #[test]
+    fn exact_rotation_90_ccw() {
+        // 90° counter-clockwise rotation (image-space, top-left origin).
+        // Source:  1 2    Result:  3 1
+        //          3 4             4 2
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::ONE, std::f32::consts::FRAC_PI_2);
+        assert_eq!(grid, vec![vec![3, 1], vec![4, 2]]);
+    }
+
+    #[test]
+    fn exact_rotation_270_ccw() {
+        // 270° CCW = 90° CW (image-space, top-left origin).
+        // Source:  1 2    Result:  2 4
+        //          3 4             1 3
+        let grid = blit_grid(
+            &[1, 2, 3, 4],
+            2,
+            2,
+            Vec2::ONE,
+            3.0 * std::f32::consts::FRAC_PI_2,
+        );
+        assert_eq!(grid, vec![vec![2, 4], vec![1, 3]]);
+    }
+
+    #[test]
+    fn exact_scale_2x() {
+        // 2x nearest-neighbour scaling. Center anchor on a 2x2 source rounds
+        // to a 3x3 output (boundary pixel lands outside the half-pixel centre).
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::splat(2.0), 0.0);
+        assert_eq!(grid, vec![vec![1, 2, 2], vec![3, 4, 4], vec![3, 4, 4],]);
+    }
+
+    #[test]
+    fn exact_hflip_plus_90_ccw() {
+        // Horizontal flip then 90° CCW rotation.
+        // (blit applies inverse(rot) then inverse(scale), equivalent to
+        //  scale-then-rotate in forward order.)
+        let grid = blit_grid(
+            &[1, 2, 3, 4],
+            2,
+            2,
+            Vec2::new(-1.0, 1.0),
+            std::f32::consts::FRAC_PI_2,
+        );
+        assert_eq!(grid, vec![vec![4, 2], vec![3, 1]]);
+    }
+
+    #[test]
+    fn exact_3x2_hflip() {
+        // Non-square source: 3 wide × 2 tall.
+        //   1 2 3       3 2 1
+        //   4 5 6  →    6 5 4
+        let grid = blit_grid(&[1, 2, 3, 4, 5, 6], 3, 2, Vec2::new(-1.0, 1.0), 0.0);
+        assert_eq!(grid, vec![vec![3, 2, 1], vec![6, 5, 4]]);
+    }
+
+    #[test]
+    fn exact_3x2_vflip() {
+        //   1 2 3       4 5 6
+        //   4 5 6  →    1 2 3
+        let grid = blit_grid(&[1, 2, 3, 4, 5, 6], 3, 2, Vec2::new(1.0, -1.0), 0.0);
+        assert_eq!(grid, vec![vec![4, 5, 6], vec![1, 2, 3]]);
+    }
+
+    #[test]
+    fn exact_hflip_scale_2x() {
+        // H-flip + 2x scale. Same center-anchor rounding as exact_scale_2x.
+        let grid = blit_grid(&[1, 2, 3, 4], 2, 2, Vec2::new(-2.0, 2.0), 0.0);
+        assert_eq!(grid, vec![vec![2, 2, 1], vec![4, 4, 3], vec![4, 4, 3],]);
     }
 }
