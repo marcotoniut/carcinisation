@@ -152,6 +152,15 @@ struct CachedAnimation {
     direction: CachedAnimationDirection,
     repeats: Option<u32>,
     frames: Vec<CachedAnimationFrame>,
+    /// Part-scoped overrides declared in the atlas metadata.
+    part_overrides: Vec<CachedAnimationOverride>,
+}
+
+#[derive(Clone, Debug)]
+struct CachedAnimationOverride {
+    source_tag: String,
+    selector: ComposedPartSelector,
+    sprite_only: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -874,7 +883,7 @@ pub fn update_composed_enemy_visuals(
             continue;
         };
 
-        let requested_tracks = requested_animation_tracks(animation_state);
+        let requested_tracks = requested_animation_tracks(animation_state, Some(cache));
         let resolved_frame = match resolve_requested_animation_frame(
             &mut visual,
             &requested_tracks,
@@ -1254,12 +1263,26 @@ fn build_runtime_cache_compact(
             });
         }
 
+        let part_overrides = animation
+            .part_overrides
+            .iter()
+            .map(|o| CachedAnimationOverride {
+                source_tag: o.source_tag.clone(),
+                selector: ComposedPartSelector {
+                    part_ids: o.selector.part_ids.clone(),
+                    part_tags: o.selector.part_tags.clone(),
+                },
+                sprite_only: o.sprite_only,
+            })
+            .collect();
+
         animations.insert(
             animation.tag.clone(),
             CachedAnimation {
                 direction,
                 repeats: animation.repeats,
                 frames: cached_frames,
+                part_overrides,
             },
         );
     }
@@ -1531,12 +1554,26 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
             });
         }
 
+        let part_overrides = animation
+            .part_overrides
+            .iter()
+            .map(|o| CachedAnimationOverride {
+                source_tag: o.source_tag.clone(),
+                selector: ComposedPartSelector {
+                    part_ids: o.part_ids.clone(),
+                    part_tags: o.part_tags.clone(),
+                },
+                sprite_only: o.sprite_only,
+            })
+            .collect();
+
         animations.insert(
             animation.tag.clone(),
             CachedAnimation {
                 direction,
                 repeats: animation.repeats,
                 frames: cached_frames,
+                part_overrides,
             },
         );
     }
@@ -1819,8 +1856,10 @@ fn parse_animation_direction(direction: &str) -> Result<CachedAnimationDirection
 
 fn requested_animation_tracks(
     animation_state: &ComposedAnimationState,
+    cache: Option<&CompositionAtlasCache>,
 ) -> Vec<RequestedAnimationTrack> {
     let mut tracks = Vec::with_capacity(animation_state.part_overrides.len() + 1);
+    // 1. Code-side overrides (highest priority).
     tracks.extend(animation_state.part_overrides.iter().map(|override_track| {
         RequestedAnimationTrack {
             tag: override_track.tag.clone(),
@@ -1828,6 +1867,17 @@ fn requested_animation_tracks(
             sprite_only: override_track.sprite_only,
         }
     }));
+    // 2. Metadata-declared overrides (medium priority).
+    if let Some(cache) = cache
+        && let Some(anim) = cache.animations.get(&animation_state.requested_tag)
+    {
+        tracks.extend(anim.part_overrides.iter().map(|o| RequestedAnimationTrack {
+            tag: o.source_tag.clone(),
+            selector: Some(o.selector.clone()),
+            sprite_only: o.sprite_only,
+        }));
+    }
+    // 3. Base animation (lowest priority / fallback).
     tracks.push(RequestedAnimationTrack {
         tag: animation_state.requested_tag.clone(),
         selector: None,
@@ -2592,9 +2642,10 @@ fn fail_ready_composed_enemy(
 mod tests {
     use super::*;
     use asset_pipeline::aseprite::{
-        Animation, AnimationEvent, AnimationEventKind, AnimationFrame, AtlasSprite, CollisionRole,
-        CollisionShape, CollisionVolume, CompositionGameplay, HealthPool, PartDefinition,
-        PartGameplayMetadata, PartInstance, PartPose, Point, Rect, Size, Vec2Value,
+        Animation, AnimationEvent, AnimationEventKind, AnimationFrame, AnimationOverride,
+        AtlasSprite, CollisionRole, CollisionShape, CollisionVolume, CompositionGameplay,
+        HealthPool, PartDefinition, PartGameplayMetadata, PartInstance, PartPose, Point, Rect,
+        Size, Vec2Value,
     };
     use asset_pipeline::composed_ron;
     use std::{fs, path::PathBuf};
@@ -2717,6 +2768,7 @@ mod tests {
                         fragment: 0,
                     }],
                 }],
+                part_overrides: vec![],
             }],
             gameplay: CompositionGameplay {
                 entity_health_pool: Some("core".to_string()),
@@ -2924,6 +2976,7 @@ mod tests {
                             ],
                         },
                     ],
+                    part_overrides: vec![],
                 },
                 Animation {
                     tag: "shoot_fly".to_string(),
@@ -2966,6 +3019,7 @@ mod tests {
                             }],
                         },
                     ],
+                    part_overrides: vec![],
                 },
                 Animation {
                     tag: "melee_fly".to_string(),
@@ -2986,6 +3040,7 @@ mod tests {
                             fragment: 0,
                         }],
                     }],
+                    part_overrides: vec![],
                 },
             ],
             gameplay: CompositionGameplay::default(),
@@ -3000,7 +3055,7 @@ mod tests {
         cache: &CompositionAtlasCache,
         times_ms: &[u64],
     ) -> Vec<Vec<String>> {
-        let tracks = requested_animation_tracks(state);
+        let tracks = requested_animation_tracks(state, Some(&cache));
         times_ms
             .iter()
             .map(|now_ms| {
@@ -3117,7 +3172,7 @@ mod tests {
 
         let resolved = resolve_requested_animation_frame(
             &mut visual,
-            &requested_animation_tracks(&state),
+            &requested_animation_tracks(&state, Some(&cache)),
             &cache,
             0,
         )
@@ -3143,7 +3198,7 @@ mod tests {
             "idle_fly",
             ["wings"],
         )]);
-        let tracks = requested_animation_tracks(&state);
+        let tracks = requested_animation_tracks(&state, Some(&cache));
         let _ = resolve_requested_animation_frame(&mut visual, &tracks, &cache, 0)
             .expect("initial shoot frame should resolve");
 
@@ -3156,7 +3211,8 @@ mod tests {
             track_states: Vec::new(),
             last_error: None,
         };
-        let idle_tracks = requested_animation_tracks(&ComposedAnimationState::new("idle_fly"));
+        let idle_tracks =
+            requested_animation_tracks(&ComposedAnimationState::new("idle_fly"), Some(&cache));
         let _ = resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 0)
             .expect("initial idle frame should resolve");
         let idle_resolved =
@@ -3169,7 +3225,8 @@ mod tests {
             track_states: Vec::new(),
             last_error: None,
         };
-        let shoot_tracks = requested_animation_tracks(&ComposedAnimationState::new("shoot_fly"));
+        let shoot_tracks =
+            requested_animation_tracks(&ComposedAnimationState::new("shoot_fly"), Some(&cache));
         let _ = resolve_requested_animation_frame(&mut shoot_visual, &shoot_tracks, &cache, 0)
             .expect("initial shoot frame should resolve");
         let shoot_resolved =
@@ -3206,7 +3263,7 @@ mod tests {
             "idle_fly",
             ["wings"],
         )]);
-        let tracks = requested_animation_tracks(&state);
+        let tracks = requested_animation_tracks(&state, Some(&cache));
         let _ = resolve_requested_animation_frame(&mut visual, &tracks, &cache, 0)
             .expect("initial melee frame should resolve");
 
@@ -3219,7 +3276,8 @@ mod tests {
             track_states: Vec::new(),
             last_error: None,
         };
-        let idle_tracks = requested_animation_tracks(&ComposedAnimationState::new("idle_fly"));
+        let idle_tracks =
+            requested_animation_tracks(&ComposedAnimationState::new("idle_fly"), Some(&cache));
         let _ = resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 0)
             .expect("initial idle frame should resolve");
         let idle_resolved =
@@ -3232,7 +3290,8 @@ mod tests {
             track_states: Vec::new(),
             last_error: None,
         };
-        let melee_tracks = requested_animation_tracks(&ComposedAnimationState::new("melee_fly"));
+        let melee_tracks =
+            requested_animation_tracks(&ComposedAnimationState::new("melee_fly"), Some(&cache));
         let _ = resolve_requested_animation_frame(&mut melee_visual, &melee_tracks, &cache, 0)
             .expect("initial melee frame should resolve");
         let melee_resolved =
@@ -3280,7 +3339,7 @@ mod tests {
 
         let resolved = resolve_requested_animation_frame(
             &mut visual,
-            &requested_animation_tracks(&state),
+            &requested_animation_tracks(&state, Some(&cache)),
             &cache,
             0,
         )
@@ -3305,7 +3364,7 @@ mod tests {
             "idle_fly",
             ["wing"],
         )]);
-        let tracks = requested_animation_tracks(&state);
+        let tracks = requested_animation_tracks(&state, Some(&cache));
 
         let first =
             resolve_requested_animation_frame(&mut visual, &tracks, &cache, 0).expect("frame 0");
@@ -3341,7 +3400,7 @@ mod tests {
 
         let resolved = resolve_requested_animation_frame(
             &mut visual,
-            &requested_animation_tracks(&state),
+            &requested_animation_tracks(&state, Some(&cache)),
             &cache,
             0,
         )
@@ -3369,7 +3428,7 @@ mod tests {
 
         let error = resolve_requested_animation_frame(
             &mut visual,
-            &requested_animation_tracks(&state),
+            &requested_animation_tracks(&state, Some(&cache)),
             &cache,
             0,
         )
@@ -3474,7 +3533,7 @@ mod tests {
         cache: &CompositionAtlasCache,
         times_ms: &[u64],
     ) -> Vec<Vec<AnimationEventKind>> {
-        let tracks = requested_animation_tracks(state);
+        let tracks = requested_animation_tracks(state, Some(&cache));
         times_ms
             .iter()
             .map(|now_ms| {
@@ -4906,6 +4965,7 @@ mod tests {
                         },
                     ],
                 }],
+                part_overrides: vec![],
             }],
             gameplay: CompositionGameplay {
                 entity_health_pool: Some("core".to_string()),
@@ -5153,6 +5213,7 @@ mod tests {
                     },
                 ],
             }],
+            part_overrides: vec![],
         });
 
         let cache = build_cache(&atlas).expect("extended split atlas should be valid");
@@ -5173,7 +5234,7 @@ mod tests {
 
         let resolved = resolve_requested_animation_frame(
             &mut visual,
-            &requested_animation_tracks(&state),
+            &requested_animation_tracks(&state, Some(&cache)),
             &cache,
             0,
         )
@@ -5207,5 +5268,114 @@ mod tests {
         // No collision entries reference fragment-specific IDs.
         assert!(!cache.parts_by_id.contains_key("legs_visual_0"));
         assert!(!cache.parts_by_id.contains_key("legs_visual_1"));
+    }
+
+    // ── Metadata part overrides ──────────────────────────────────────────
+
+    #[test]
+    fn metadata_part_overrides_applied_during_resolution() {
+        // Declare that shoot_fly should pull wings from idle_fly via metadata.
+        let mut atlas = minimal_mixed_animation_atlas();
+        let shoot = atlas
+            .animations
+            .iter_mut()
+            .find(|a| a.tag == "shoot_fly")
+            .unwrap();
+        shoot.part_overrides.push(AnimationOverride {
+            source_tag: "idle_fly".to_string(),
+            part_tags: vec!["wings".to_string()],
+            part_ids: vec![],
+            sprite_only: false,
+        });
+
+        let cache = build_cache(&atlas).expect("atlas with metadata overrides should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        // No code-side overrides — metadata should do it.
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        let resolved = resolve_requested_animation_frame(
+            &mut visual,
+            &requested_animation_tracks(&state, Some(&cache)),
+            &cache,
+            0,
+        )
+        .expect("metadata override should resolve");
+
+        // Body comes from shoot_fly.
+        assert_eq!(resolved.poses["body"][0].sprite_id, "body_shoot");
+        // Wings come from idle_fly via metadata override.
+        assert!(
+            resolved.poses.contains_key("wings_visual"),
+            "wings should be present from metadata override"
+        );
+    }
+
+    #[test]
+    fn metadata_overrides_merge_with_code_overrides() {
+        // Metadata declares idle_fly on wings for shoot_fly.
+        let mut atlas = minimal_mixed_animation_atlas();
+        let shoot = atlas
+            .animations
+            .iter_mut()
+            .find(|a| a.tag == "shoot_fly")
+            .unwrap();
+        shoot.part_overrides.push(AnimationOverride {
+            source_tag: "idle_fly".to_string(),
+            part_tags: vec!["wings".to_string()],
+            part_ids: vec![],
+            sprite_only: false,
+        });
+
+        let cache = build_cache(&atlas).expect("atlas should validate");
+        // Code-side override also targets wings — should take priority.
+        let mut state = ComposedAnimationState::new("shoot_fly");
+        state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
+            "idle_fly",
+            ["wings"],
+        )]);
+
+        let tracks_with_code = requested_animation_tracks(&state, Some(&cache));
+        // Code-side override should appear before metadata override.
+        assert_eq!(tracks_with_code[0].tag, "idle_fly");
+        assert!(tracks_with_code[0].selector.is_some());
+        // Metadata override is second.
+        assert_eq!(tracks_with_code[1].tag, "idle_fly");
+        // Base is last.
+        assert_eq!(tracks_with_code[2].tag, "shoot_fly");
+        assert!(tracks_with_code[2].selector.is_none());
+    }
+
+    #[test]
+    fn empty_metadata_overrides_are_no_op() {
+        // Atlas with no metadata overrides — should behave identically to before.
+        let atlas = minimal_mixed_animation_atlas();
+        let cache = build_cache(&atlas).expect("atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        let resolved = resolve_requested_animation_frame(
+            &mut visual,
+            &requested_animation_tracks(&state, Some(&cache)),
+            &cache,
+            0,
+        )
+        .expect("empty overrides should resolve");
+
+        // shoot_fly only authors body, no wings override.
+        assert_eq!(resolved.poses["body"][0].sprite_id, "body_shoot");
+        assert!(
+            !resolved.poses.contains_key("wings_visual"),
+            "wings should not appear without override"
+        );
     }
 }

@@ -201,6 +201,25 @@ pub struct Animation {
     pub repeats: Option<u32>,
     /// Ordered frames within this animation tag.
     pub frames: Vec<AnimationFrame>,
+    /// Part-scoped overrides declared in composition metadata.
+    #[serde(default)]
+    pub part_overrides: Vec<AnimationOverride>,
+}
+
+/// A part-scoped animation override from composition metadata.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AnimationOverride {
+    /// Source animation tag to pull pose data from.
+    pub source_tag: String,
+    /// Part tags to match.
+    #[serde(default)]
+    pub part_tags: Vec<String>,
+    /// Part ids to match.
+    #[serde(default)]
+    pub part_ids: Vec<String>,
+    /// When true, only sprite data is taken; position comes from the base.
+    #[serde(default)]
+    pub sprite_only: bool,
 }
 
 /// One composed frame in an animation tag.
@@ -411,7 +430,27 @@ struct CompositionSource {
     #[serde(default)]
     animation_events: Vec<CompositionAnimationEventSource>,
     #[serde(default)]
+    animation_overrides: Vec<CompositionAnimationOverrideSource>,
+    #[serde(default)]
     gameplay: CompositionGameplay,
+}
+
+/// Per-animation part override declared in composition metadata.
+#[derive(Clone, Debug, Deserialize)]
+struct CompositionAnimationOverrideSource {
+    /// Which animation tags this override applies to.
+    tags: Vec<String>,
+    /// Source animation tag for override pose data.
+    source_tag: String,
+    /// Part tags to match.
+    #[serde(default)]
+    part_tags: Vec<String>,
+    /// Part ids to match.
+    #[serde(default)]
+    part_ids: Vec<String>,
+    /// Sprite-only merge mode.
+    #[serde(default)]
+    sprite_only: bool,
 }
 
 /// Virtual region of a source layer, resolved at export time.
@@ -747,11 +786,25 @@ fn build_piece_atlas(
             });
         }
 
+        // Collect metadata-declared overrides that target this animation tag.
+        let part_overrides: Vec<AnimationOverride> = composition
+            .animation_overrides
+            .iter()
+            .filter(|o| o.tags.contains(&tag.name))
+            .map(|o| AnimationOverride {
+                source_tag: o.source_tag.clone(),
+                part_tags: o.part_tags.clone(),
+                part_ids: o.part_ids.clone(),
+                sprite_only: o.sprite_only,
+            })
+            .collect();
+
         animations.push(Animation {
             tag: tag.name.clone(),
             direction: animation_direction_name(tag.direction),
             repeats: tag.repeat.map(u32::from),
             frames,
+            part_overrides,
         });
     }
 
@@ -2780,6 +2833,7 @@ mod tests {
                 gameplay: PartGameplayMetadata::default(),
             }],
             animation_events: vec![],
+            animation_overrides: vec![],
             gameplay: CompositionGameplay {
                 entity_health_pool: Some("core".to_string()),
                 health_pools: vec![HealthPool {
@@ -3427,6 +3481,7 @@ mod tests {
                     events: vec![],
                     parts: frame_parts,
                 }],
+                part_overrides: vec![],
             }],
             gameplay: CompositionGameplay {
                 entity_health_pool: None,

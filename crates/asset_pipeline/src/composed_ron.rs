@@ -110,6 +110,32 @@ pub struct CompactAnimation {
     pub repeats: Option<u32>,
     /// Frames in playback order.
     pub frames: Vec<CompactFrame>,
+    /// Per-part overrides declared in metadata. At runtime these are merged
+    /// between code-side overrides (highest priority) and the base animation
+    /// (lowest priority).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub part_overrides: Vec<CompactAnimationOverride>,
+}
+
+/// A part-scoped animation override declared in the atlas metadata.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CompactAnimationOverride {
+    /// Source animation tag to pull pose data from.
+    pub source_tag: String,
+    /// Part selector (by tags or ids).
+    pub selector: CompactPartSelector,
+    /// When true, only sprite data is taken; position comes from the base.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sprite_only: bool,
+}
+
+/// Selector targeting a subset of parts by tag or id.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CompactPartSelector {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub part_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub part_tags: Vec<String>,
 }
 
 /// Playback direction enum (replaces string).
@@ -529,11 +555,25 @@ pub fn encode_with_diagnostics(
                 });
             }
 
+            let part_overrides = anim
+                .part_overrides
+                .iter()
+                .map(|o| CompactAnimationOverride {
+                    source_tag: o.source_tag.clone(),
+                    selector: CompactPartSelector {
+                        part_ids: o.part_ids.clone(),
+                        part_tags: o.part_tags.clone(),
+                    },
+                    sprite_only: o.sprite_only,
+                })
+                .collect();
+
             Ok(CompactAnimation {
                 tag: anim.tag.clone(),
                 direction,
                 repeats: anim.repeats,
                 frames,
+                part_overrides,
             })
         })
         .collect::<Result<Vec<_>>>()?;
@@ -784,6 +824,7 @@ mod tests {
                         part_id: "body".into(),
                         sprite_id: "sprite_0000".into(),
                         local_offset: Point { x: 0, y: 0 },
+
                         flip_x: false,
                         flip_y: false,
                         visible: true,
@@ -791,6 +832,7 @@ mod tests {
                         fragment: 0,
                     }],
                 }],
+                part_overrides: vec![],
             }],
             gameplay: CompositionGameplay::default(),
         }

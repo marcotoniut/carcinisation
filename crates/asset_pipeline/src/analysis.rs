@@ -729,6 +729,7 @@ mod tests {
                     parts: poses,
                 })
                 .collect(),
+            part_overrides: vec![],
         }];
 
         CompositionAtlas {
