@@ -215,7 +215,7 @@ struct SpriteDraw<'a> {
 }
 
 impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
-    type ViewQuery = &'static ViewTarget;
+    type ViewQuery = (&'static ViewTarget, Has<crate::screen::PxOverlayCamera>);
 
     fn update(&mut self, world: &mut World) {
         self.sprites.update_archetypes(world);
@@ -226,9 +226,12 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         &self,
         _: &mut RenderGraphContext,
         render_context: &mut RenderContext<'w>,
-        target: &ViewTarget,
+        (target, is_overlay): (&ViewTarget, bool),
         world: &'w World,
     ) -> Result<(), NodeRunError> {
+        if is_overlay {
+            return Ok(());
+        }
         let Some(uniform_binding) = world.resource::<PxUniformBuffer>().binding() else {
             return Ok(());
         };

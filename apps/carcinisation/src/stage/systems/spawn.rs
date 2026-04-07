@@ -5,7 +5,7 @@ use crate::stage::{
     components::{
         SpawnDrop, StageEntity,
         interactive::{Collider, ColliderData, Dead},
-        placement::Depth,
+        placement::{AuthoredDepths, Depth},
     },
     data::ContainerSpawn,
     destructible::{
@@ -47,6 +47,17 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
+
+/// Build an [`AuthoredDepths`] component from spawn data.
+///
+/// If the spawn specifies explicit authored depths, uses those.
+/// Otherwise defaults to the spawn's own depth as the only authored depth.
+fn authored_depths_from_spawn(depth: Depth, explicit: &Option<Vec<Depth>>) -> AuthoredDepths {
+    match explicit {
+        Some(depths) => AuthoredDepths::new(depths.clone()),
+        None => AuthoredDepths::single(depth),
+    }
+}
 
 /// @system Drains the step spawner queue, triggering spawns whose elapsed time has come.
 pub fn check_step_spawn(
@@ -106,13 +117,13 @@ pub fn spawn_pickup(
     offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
-    // TODO depth
     let PickupSpawn {
         pickup_type,
         coordinates,
         ..
     } = spawn;
     let position = PxSubPosition::from(offset + *coordinates);
+    let authored = authored_depths_from_spawn(spawn.depth, &spawn.authored_depths);
     match pickup_type {
         PickupType::BigHealthpack => {
             let sprite = assets_sprite.load(assert_assets_path!(
@@ -130,6 +141,7 @@ pub fn spawn_pickup(
                     },
                     position,
                     spawn.depth,
+                    authored,
                     Health(1),
                     ColliderData::from_one(Collider::new_box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
@@ -152,6 +164,7 @@ pub fn spawn_pickup(
                     },
                     position,
                     spawn.depth,
+                    authored.clone(),
                     Health(1),
                     ColliderData::from_one(Collider::new_box(Vec2::new(7., 5.))),
                     HealthRecovery(30),
@@ -180,6 +193,7 @@ pub fn spawn_enemy(
     let name = spawn.enemy_type.get_name();
     let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
+    let authored = authored_depths_from_spawn(*depth, &spawn.authored_depths);
     match enemy_type {
         EnemyType::Mosquito => {
             let collider: Collider =
@@ -187,17 +201,20 @@ pub fn spawn_enemy(
             let critical_collider = collider.new_scaled(0.4).with_defense(0.4);
 
             let entity = commands
-                .spawn(MosquitoBundle {
-                    depth: *depth,
-                    speed: Speed(*speed),
-                    behaviors,
-                    position: PxSubPosition::from(position),
-                    collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    default: MosquitoDefaultBundle {
-                        health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
-                        ..MosquitoDefaultBundle::default()
+                .spawn((
+                    MosquitoBundle {
+                        depth: *depth,
+                        speed: Speed(*speed),
+                        behaviors,
+                        position: PxSubPosition::from(position),
+                        collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                        default: MosquitoDefaultBundle {
+                            health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
+                            ..MosquitoDefaultBundle::default()
+                        },
                     },
-                })
+                    authored.clone(),
+                ))
                 .id();
 
             if let Some(contains) = contains {
@@ -214,27 +231,30 @@ pub fn spawn_enemy(
             let critical_collider = collider.new_scaled(0.4).with_defense(0.4);
 
             let entity = commands
-                .spawn(MosquitonBundle {
-                    behaviors,
-                    collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    composed_animation: ComposedAnimationState::new(TAG_IDLE_FLY),
-                    composed_visual: ComposedEnemyVisual::for_enemy(
-                        asset_server,
-                        EnemyType::Mosquiton,
-                        *depth,
-                    ),
-                    transform: Transform::default(),
-                    global_transform: GlobalTransform::default(),
-                    visibility: Visibility::Visible,
-                    inherited_visibility: InheritedVisibility::VISIBLE,
-                    depth: *depth,
-                    position: PxSubPosition::from(position),
-                    speed: Speed(*speed),
-                    default: MosquitonDefaultBundle {
-                        health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
-                        ..MosquitonDefaultBundle::default()
+                .spawn((
+                    MosquitonBundle {
+                        behaviors,
+                        collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                        composed_animation: ComposedAnimationState::new(TAG_IDLE_FLY),
+                        composed_visual: ComposedEnemyVisual::for_enemy(
+                            asset_server,
+                            EnemyType::Mosquiton,
+                            *depth,
+                        ),
+                        transform: Transform::default(),
+                        global_transform: GlobalTransform::default(),
+                        visibility: Visibility::Visible,
+                        inherited_visibility: InheritedVisibility::VISIBLE,
+                        depth: *depth,
+                        position: PxSubPosition::from(position),
+                        speed: Speed(*speed),
+                        default: MosquitonDefaultBundle {
+                            health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
+                            ..MosquitonDefaultBundle::default()
+                        },
                     },
-                })
+                    authored.clone(),
+                ))
                 .id();
 
             if let Some(health) = health {
@@ -250,7 +270,9 @@ pub fn spawn_enemy(
             entity
         }
         EnemyType::Kyle | EnemyType::Marauder | EnemyType::Spidey | EnemyType::Spidomonsta => {
-            commands.spawn((name, Enemy, behaviors)).id()
+            commands
+                .spawn((name, Enemy, behaviors, authored.clone()))
+                .id()
         }
         EnemyType::Tardigrade => {
             let collider =
@@ -258,17 +280,20 @@ pub fn spawn_enemy(
             let critical_collider = collider.new_scaled(0.4).with_defense(0.2);
 
             commands
-                .spawn(TardigradeBundle {
-                    depth: *depth,
-                    speed: Speed(*speed),
-                    behaviors,
-                    position: PxSubPosition::from(position),
-                    collider_data: ColliderData::from_many(vec![critical_collider, collider]),
-                    default: TardigradeDefaultBundle {
-                        health: Health(health.unwrap_or(ENEMY_TARDIGRADE_BASE_HEALTH)),
-                        ..default()
+                .spawn((
+                    TardigradeBundle {
+                        depth: *depth,
+                        speed: Speed(*speed),
+                        behaviors,
+                        position: PxSubPosition::from(position),
+                        collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                        default: TardigradeDefaultBundle {
+                            health: Health(health.unwrap_or(ENEMY_TARDIGRADE_BASE_HEALTH)),
+                            ..default()
+                        },
                     },
-                })
+                    authored,
+                ))
                 .id()
         }
     }
@@ -289,6 +314,7 @@ pub fn spawn_destructible(
         &spawn.depth,
     );
     let animation_bundle = animation_bundle_o.unwrap();
+    let authored = authored_depths_from_spawn(spawn.depth, &spawn.authored_depths);
 
     commands
         .spawn((
@@ -297,6 +323,7 @@ pub fn spawn_destructible(
             Hittable,
             spawn.get_name(),
             spawn.depth,
+            authored,
             Health(spawn.health),
             spawn.destructible_type,
             animation_bundle,
@@ -319,6 +346,7 @@ pub fn spawn_object(
             assert_assets_path!("sprites/objects/rugpark_sign.px_sprite.png")
         }
     });
+    let authored = authored_depths_from_spawn(spawn.depth, &spawn.authored_depths);
     commands
         .spawn((
             spawn.get_name(),
@@ -329,6 +357,8 @@ pub fn spawn_object(
                 layer: spawn.depth.to_layer(),
                 ..default()
             },
+            spawn.depth,
+            authored,
             PxSubPosition::from(spawn.coordinates),
             StageEntity,
         ))

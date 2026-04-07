@@ -38,6 +38,31 @@ use crate::{
     prelude::*,
 };
 
+/// Marker component for cameras that should **not** run the PxPlugin render
+/// pass. Attach this to a `Camera2d` to let Bevy gizmos render on top of
+/// pixel-art output without being overwritten by the fullscreen quad.
+///
+/// # Example
+///
+/// ```ignore
+/// commands.spawn((
+///     Camera2d,
+///     Camera { order: 1, clear_color: ClearColorConfig::None, ..default() },
+///     PxOverlayCamera,
+/// ));
+/// ```
+#[cfg(feature = "headed")]
+#[derive(
+    Component,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Reflect,
+    bevy_render::extract_component::ExtractComponent,
+)]
+pub struct PxOverlayCamera;
+
 #[cfg(feature = "gpu_palette")]
 use gpu_sprite::{PxGpuSpriteBuffer, PxGpuSpriteNode, PxGpuSpritePipeline};
 #[cfg(feature = "headed")]
@@ -96,7 +121,11 @@ pub(crate) fn plug_core(app: &mut App) {
 impl<L: PxLayer> Plugin for Plug<L> {
     fn build(&self, app: &mut App) {
         #[cfg(feature = "headed")]
-        app.add_plugins(ExtractResourcePlugin::<Screen>::default());
+        {
+            use bevy_render::extract_component::ExtractComponentPlugin;
+            app.add_plugins(ExtractResourcePlugin::<Screen>::default());
+            app.add_plugins(ExtractComponentPlugin::<PxOverlayCamera>::default());
+        }
 
         plug_core(app);
         app.add_systems(Startup, insert_screen(self.size));

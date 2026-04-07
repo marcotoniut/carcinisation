@@ -100,6 +100,92 @@ impl Depth {
     }
 }
 
+/// The set of visible depths for which an entity has authored/hand-made visuals.
+///
+/// Used by the fallback depth-scale system: when an entity's current [`Depth`]
+/// is **not** in this set, a render-only presentation scale is applied based on
+/// the [`DepthScaleConfig`](crate::stage::depth_scale::DepthScaleConfig).
+///
+/// The fallback reference depth is chosen as:
+/// 1. The nearest **shallower** (numerically smaller) authored depth, or
+/// 2. If none exists, the nearest **deeper** (numerically larger) authored depth.
+///
+/// Only meaningful for visible depths 1..=9. Depth 0 is excluded from
+/// normal fallback scaling.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Entity with visuals authored for depth 3 only:
+/// AuthoredDepths::single(Depth::Three)
+///
+/// // Entity with visuals for depths 3 and 6:
+/// AuthoredDepths::new(vec![Depth::Three, Depth::Six])
+/// ```
+#[derive(Component, Debug, Clone, PartialEq, Eq, Reflect, Serialize, Deserialize)]
+pub struct AuthoredDepths(pub Vec<Depth>);
+
+impl AuthoredDepths {
+    /// Create from a list of authored depths. Duplicates are removed and
+    /// the list is sorted (shallowest first, i.e. numerically ascending).
+    #[must_use]
+    pub fn new(mut depths: Vec<Depth>) -> Self {
+        depths.sort();
+        depths.dedup();
+        Self(depths)
+    }
+
+    /// Convenience: a single authored depth.
+    #[must_use]
+    pub fn single(depth: Depth) -> Self {
+        Self(vec![depth])
+    }
+
+    /// Returns `true` if the given depth has authored visuals.
+    #[must_use]
+    pub fn contains(&self, depth: Depth) -> bool {
+        self.0.contains(&depth)
+    }
+
+    /// Find the best fallback reference depth for a target depth that is
+    /// **not** in the authored set.
+    ///
+    /// Prefers the nearest shallower (numerically smaller) authored depth.
+    /// Falls back to the nearest deeper (numerically larger) if no shallower
+    /// one exists.
+    ///
+    /// Returns `None` if the set is empty.
+    #[must_use]
+    pub fn resolve_reference(&self, target: Depth) -> Option<Depth> {
+        let target_i = target.to_i8();
+        let mut nearest_shallower: Option<Depth> = None;
+        let mut nearest_deeper: Option<Depth> = None;
+
+        for &d in &self.0 {
+            let d_i = d.to_i8();
+            if d_i <= target_i {
+                // Shallower or equal — keep the closest (largest that's ≤ target).
+                if nearest_shallower.is_none_or(|prev| d_i > prev.to_i8()) {
+                    nearest_shallower = Some(d);
+                }
+            } else {
+                // Deeper — keep the closest (smallest that's > target).
+                if nearest_deeper.is_none_or(|prev| d_i < prev.to_i8()) {
+                    nearest_deeper = Some(d);
+                }
+            }
+        }
+
+        nearest_shallower.or(nearest_deeper)
+    }
+
+    /// Returns `true` if the set is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[derive(Component, Debug, Clone, Copy, Reflect)]
 pub struct Floor(pub f32);
 

@@ -24,6 +24,10 @@ pub struct DestructibleSpawn {
     pub depth: Depth,
     pub destructible_type: DestructibleType,
     pub health: u32,
+    /// Visible depths with hand-made visuals. When `None`, defaults to just
+    /// the spawn's own `depth`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authored_depths: Option<Vec<Depth>>,
 }
 
 pub enum LampDepth {
@@ -130,6 +134,7 @@ impl DestructibleSpawn {
             destructible_type: DestructibleType::Lamp,
             health: 60,
             depth: depth.to_depth(),
+            authored_depths: None,
         }
     }
 
@@ -144,6 +149,7 @@ impl DestructibleSpawn {
             contains: None,
             health: 100,
             depth: depth.to_depth(),
+            authored_depths: None,
         }
     }
 
@@ -155,6 +161,7 @@ impl DestructibleSpawn {
             contains: None,
             health: 300,
             depth: depth.to_depth(),
+            authored_depths: None,
         }
     }
 
@@ -166,6 +173,7 @@ impl DestructibleSpawn {
             contains: None,
             health: 120,
             depth: depth.to_depth(),
+            authored_depths: None,
         }
     }
 }

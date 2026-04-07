@@ -149,6 +149,7 @@ pub fn on_scene_change(
     mut thumbnail_cache: ResMut<ThumbnailCache>,
     drag_state: Res<DragState>,
     mut pending_rebuild: ResMut<crate::resources::PendingSceneRebuild>,
+    depth_scale_config: Res<carcinisation::stage::depth_scale::DepthScaleConfig>,
 ) {
     // Skip full rebuild during an active path drag — the dragged handle entity must
     // stay alive. rebuild_path_during_drag handles the decorative geometry instead.
@@ -184,6 +185,7 @@ pub fn on_scene_change(
                     &mut image_assets,
                     &mut texture_atlas_layouts,
                     &mut thumbnail_cache,
+                    &depth_scale_config,
                 );
             }
         }

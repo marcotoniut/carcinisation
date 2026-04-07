@@ -1,0 +1,30 @@
+//! Fallback depth scale configuration.
+//!
+//! Absolute visual scale at each visible depth (1..=9).
+//!
+//! Generated from a geometric progression:
+//!   max_scale = 1.0 (depth 1), min_scale = 0.04 (depth 9)
+//!   ratio per step ≈ 0.6687
+//!
+//! Used as a render-only fallback when an entity occupies a depth for which
+//! it has no depth-specific authored visuals. The actual scale applied is
+//! the ratio: scales[current_depth] / scales[authored_depth].
+//!
+//! Depth 0 is excluded from normal fallback scaling.
+//!
+//! Override this file to use custom values; the runtime will validate
+//! that all depths 1..=9 are present and positive.
+
+DepthScaleConfig(
+    scales: {
+        1: 1.000000,
+        2: 0.668740,
+        3: 0.447214,
+        4: 0.299070,
+        5: 0.200000,
+        6: 0.133748,
+        7: 0.089443,
+        8: 0.059814,
+        9: 0.040000,
+    },
+)

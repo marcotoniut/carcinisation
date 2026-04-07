@@ -12,6 +12,7 @@ use bevy::sprite::Anchor;
 use bevy_prototype_lyon::{prelude::*, shapes};
 use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::stage::data::{StageData, StageSpawn, StageStep};
+use carcinisation::stage::depth_scale::DepthScaleConfig;
 
 use crate::components::{
     AnimationIndices, AnimationTimer, Draggable, PathOverlay, SceneItem, StageSpawnLabel,
@@ -177,7 +178,7 @@ pub fn spawn_path(
 }
 
 /// Spawns stage background/skybox, spawns, and optional path overlay.
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub fn spawn_stage(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
@@ -186,6 +187,7 @@ pub fn spawn_stage(
     image_assets: &mut Assets<Image>,
     texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
     thumbnail_cache: &mut ThumbnailCache,
+    depth_scale_config: &DepthScaleConfig,
 ) {
     if stage_controls_ui.background_is_visible() {
         let sprite = Sprite::from_image(asset_server.load(stage_data.background_path.clone()));
@@ -241,6 +243,9 @@ pub fn spawn_stage(
         let preview =
             resolve_stage_spawn_thumbnail(spawn, asset_server, image_assets, thumbnail_cache);
 
+        let depth_scale = depth_scale_config
+            .scale_for(spawn.get_depth())
+            .unwrap_or(1.0);
         commands.spawn((
             spawn.get_editor_name_component(index),
             StageSpawnLabel,
@@ -252,7 +257,8 @@ pub fn spawn_stage(
                 spawn
                     .get_coordinates()
                     .extend(spawn.get_depth_editor_z_index()),
-            ),
+            )
+            .with_scale(Vec3::splat(depth_scale)),
             preview.anchor,
         ));
     }
@@ -279,6 +285,7 @@ pub fn spawn_stage(
                         index,
                         current_position,
                         ghost,
+                        depth_scale_config,
                     );
                 }
 
@@ -300,6 +307,7 @@ pub fn spawn_stage(
                         index,
                         current_position,
                         ghost,
+                        depth_scale_config,
                     );
                 }
                 current_elapsed += stop_duration(s, timeline_config);
@@ -350,6 +358,7 @@ fn spawn_step_entities(
     step_index: usize,
     step_origin: Vec2,
     ghost: bool,
+    depth_scale_config: &DepthScaleConfig,
 ) {
     for (spawn_index, spawn) in spawns.iter().enumerate() {
         if !stage_controls_ui.depth_is_visible(spawn.get_depth()) {
@@ -363,6 +372,9 @@ fn spawn_step_entities(
             preview.sprite.color = preview.sprite.color.with_alpha(GHOST_ALPHA);
         }
 
+        let depth_scale = depth_scale_config
+            .scale_for(spawn.get_depth())
+            .unwrap_or(1.0);
         commands.spawn((
             spawn.get_editor_name_component(step_index),
             StageSpawnLabel,
@@ -374,7 +386,8 @@ fn spawn_step_entities(
             Draggable,
             SceneItem,
             preview.sprite,
-            Transform::from_translation(v.extend(spawn.get_depth_editor_z_index())),
+            Transform::from_translation(v.extend(spawn.get_depth_editor_z_index()))
+                .with_scale(Vec3::splat(depth_scale)),
             preview.anchor,
         ));
     }

@@ -954,7 +954,7 @@ pub fn update_composed_enemy_visuals(
             &part_states,
             position.0,
         );
-        *anchor = anchor_for_origin(metrics);
+        *anchor = anchor_for_origin(atlas_asset.atlas.canvas, atlas_asset.atlas.origin);
         *visibility = Visibility::Visible;
     }
 }
@@ -1987,8 +1987,8 @@ fn resolve_part_pose_from_tracks(
             } else {
                 if let Some(sprite_only_fragments) = sprite_override.take() {
                     // Merge sprite override with base position: use sprite/flip
-                    // from override, position from base. Apply to primary fragment;
-                    // for additional fragments, use the override fragments directly.
+                    // from override, position from base. Applied uniformly to all
+                    // fragments where the override provides a matching entry.
                     let merged: Vec<CachedPose> = fragments
                         .iter()
                         .enumerate()
@@ -2186,16 +2186,22 @@ fn compute_composite_metrics(
     })
 }
 
-fn anchor_for_origin(metrics: CachedCompositeMetrics) -> PxAnchor {
-    if metrics.size.x == 0 || metrics.size.y == 0 {
+/// Compute a [`PxAnchor`] for a composed enemy actor.
+///
+/// - **X** uses the authored atlas origin to place the sprite's authored
+///   centre on the world position. For a 95px-wide sprite with origin at
+///   x=47, this gives anchor 47/95 ≈ 0.4947 — placing pixel 47 on the
+///   position instead of the geometric centre (47.5 → rounds to 48).
+/// - **Y** is `0.0` (bottom of the bounding box), so the entity's
+///   [`PxSubPosition`] sits at the lowest visible pixel. This guarantees
+///   no sprite content renders below the floor placement point.
+fn anchor_for_origin(canvas_size: (u16, u16), atlas_origin: (i16, i16)) -> PxAnchor {
+    if canvas_size.0 == 0 || canvas_size.1 == 0 {
         return PxAnchor::Center;
     }
 
-    let origin = -metrics.origin;
-    PxAnchor::Custom(Vec2::new(
-        origin.x as f32 / metrics.size.x as f32,
-        origin.y as f32 / metrics.size.y as f32,
-    ))
+    let anchor_x = atlas_origin.0 as f32 / canvas_size.0 as f32;
+    PxAnchor::Custom(Vec2::new(anchor_x, 0.0))
 }
 
 fn build_collision_state(
@@ -3497,16 +3503,20 @@ mod tests {
     }
 
     #[test]
-    fn anchor_tracks_shared_origin_inside_composite_bounds() {
-        let metrics = CachedCompositeMetrics {
-            origin: IVec2::new(-10, -4),
-            size: UVec2::new(20, 10),
-        };
+    fn anchor_uses_authored_origin_x() {
+        // Canvas size is the authored constant, not the per-frame bounds.
+        let canvas = (20u16, 10u16);
 
-        let PxAnchor::Custom(anchor) = anchor_for_origin(metrics) else {
+        // X derived from atlas origin / canvas width, Y = 0.0 (bottom).
+        let PxAnchor::Custom(a) = anchor_for_origin(canvas, (10, 5)) else {
             panic!("expected custom anchor");
         };
-        assert_eq!(anchor, Vec2::new(0.5, 0.4));
+        assert_eq!(a, Vec2::new(0.5, 0.0)); // 10/20 = 0.5
+
+        let PxAnchor::Custom(b) = anchor_for_origin(canvas, (7, 3)) else {
+            panic!("expected custom anchor");
+        };
+        assert_eq!(b, Vec2::new(0.35, 0.0)); // 7/20 = 0.35
     }
 
     #[test]
@@ -3641,10 +3651,12 @@ mod tests {
         }
 
         // At least one visual leg part should be targetable and route to the "core" pool.
+        // Filter by definition tag "leg" (not instance tag "legs" which also matches
+        // the non-targetable legs_overlay).
         let leg_parts: Vec<_> = cache
             .parts_by_id
             .values()
-            .filter(|p| p.tags.contains(&"legs".to_string()) && p.is_visual)
+            .filter(|p| p.tags.contains(&"leg".to_string()) && p.is_visual)
             .collect();
         assert!(
             !leg_parts.is_empty(),
@@ -4181,45 +4193,38 @@ mod tests {
     }
 
     #[test]
-    fn legs_visual_is_single_targetable_part() {
+    fn leg_parts_are_targetable() {
         let atlas = load_exported_mosquiton();
         let cache = build_runtime_cache_compact(&atlas.atlas).expect("atlas should validate");
 
-        let legs = cache
-            .parts_by_id
-            .get("legs_visual")
-            .expect("legs_visual should exist as a single logical part");
+        for part_id in &["leg_l", "leg_r"] {
+            let leg = cache
+                .parts_by_id
+                .get(*part_id)
+                .unwrap_or_else(|| panic!("{part_id} should exist"));
 
-        assert!(legs.is_visual, "legs_visual should be a visual part");
-        assert!(legs.gameplay.targetable, "legs_visual should be targetable");
-        assert_eq!(
-            legs.gameplay.health_pool.as_deref(),
-            Some("core"),
-            "legs_visual should route to core pool"
-        );
-        // No separate leg_l/leg_r gameplay parts.
-        assert!(!cache.parts_by_id.contains_key("leg_l"));
-        assert!(!cache.parts_by_id.contains_key("leg_r"));
+            assert!(leg.is_visual, "{part_id} should be a visual part");
+            assert!(leg.gameplay.targetable, "{part_id} should be targetable");
+            assert_eq!(
+                leg.gameplay.health_pool.as_deref(),
+                Some("core"),
+                "{part_id} should route to core pool"
+            );
+        }
     }
 
     #[test]
-    fn legs_visual_damage_routes_to_core_pool() {
+    fn leg_damage_routes_to_core_pool() {
         let atlas = load_exported_mosquiton();
         let cache = build_runtime_cache_compact(&atlas.atlas).expect("atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
 
-        // Damage legs_visual — armour=1 (def only, no instance override),
+        // Damage leg_r — armour=1 (def only, no instance override),
         // durability=2, value=5 → 4 effective, 2 absorbed by durability,
         // 2 to "core" pool (40 → 38).
-        let result = apply_part_damage(
-            &cache,
-            &mut health_pools,
-            &mut part_states,
-            "legs_visual",
-            5,
-        )
-        .expect("legs_visual should be targetable");
+        let result = apply_part_damage(&cache, &mut health_pools, &mut part_states, "leg_r", 5)
+            .expect("leg_r should be targetable");
         assert_eq!(result.pool_id.as_deref(), Some("core"));
         assert_eq!(result.remaining_health, Some(38));
     }
@@ -4970,7 +4975,100 @@ mod tests {
         );
     }
 
-    // T-5: No per-fragment collision
+    // T-5: Sprite-only override merges all fragments uniformly
+    #[test]
+    fn sprite_only_override_merges_all_fragments_uniformly() {
+        // Extend split_atlas with a second animation that uses different
+        // sprites for the split legs_visual part.
+        let mut atlas = split_atlas();
+        atlas.sprites.push(AtlasSprite {
+            id: "alt_legs_left_s".to_string(),
+            rect: Rect {
+                x: 20,
+                y: 0,
+                w: 6,
+                h: 6,
+            },
+        });
+        atlas.sprites.push(AtlasSprite {
+            id: "alt_legs_right_s".to_string(),
+            rect: Rect {
+                x: 26,
+                y: 0,
+                w: 6,
+                h: 6,
+            },
+        });
+        atlas.animations.push(Animation {
+            tag: "alt_legs".to_string(),
+            direction: "forward".to_string(),
+            repeats: None,
+            frames: vec![AnimationFrame {
+                source_frame: 0,
+                duration_ms: 100,
+                events: vec![],
+                parts: vec![
+                    PartPose {
+                        part_id: "legs_visual".to_string(),
+                        sprite_id: "alt_legs_left_s".to_string(),
+                        local_offset: Point { x: -10, y: 10 },
+                        flip_x: false,
+                        flip_y: false,
+                        visible: true,
+                        opacity: 255,
+                        fragment: 0,
+                    },
+                    PartPose {
+                        part_id: "legs_visual".to_string(),
+                        sprite_id: "alt_legs_right_s".to_string(),
+                        local_offset: Point { x: 10, y: 10 },
+                        flip_x: true,
+                        flip_y: false,
+                        visible: true,
+                        opacity: 255,
+                        fragment: 1,
+                    },
+                ],
+            }],
+        });
+
+        let cache = build_cache(&atlas).expect("extended split atlas should be valid");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+
+        // Base animation is idle_stand. Sprite-only override pulls sprites
+        // from alt_legs for parts tagged "legs".
+        let mut state = ComposedAnimationState::new("idle_stand");
+        state.set_part_overrides([ComposedAnimationOverride::for_part_tags_sprite_only(
+            "alt_legs",
+            ["legs"],
+        )]);
+
+        let resolved = resolve_requested_animation_frame(
+            &mut visual,
+            &requested_animation_tracks(&state),
+            &cache,
+            0,
+        )
+        .expect("sprite-only override on split part should resolve");
+
+        let fragments = &resolved.poses["legs_visual"];
+        assert_eq!(fragments.len(), 2, "both fragments should be present");
+
+        // Fragment 0: override sprite, base position.
+        assert_eq!(fragments[0].sprite_id, "alt_legs_left_s");
+        assert_eq!(fragments[0].local_offset, IVec2::new(-4, 4)); // base position
+
+        // Fragment 1: override sprite, base position.
+        assert_eq!(fragments[1].sprite_id, "alt_legs_right_s");
+        assert_eq!(fragments[1].local_offset, IVec2::new(4, 4)); // base position
+    }
+
+    // T-6: No per-fragment collision
     #[test]
     fn no_per_fragment_collision() {
         let atlas = split_atlas();

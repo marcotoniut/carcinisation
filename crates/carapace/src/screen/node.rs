@@ -135,7 +135,7 @@ impl<L: PxLayer> FromWorld for PxRenderNode<L> {
 
 #[cfg(feature = "headed")]
 impl<L: PxLayer> ViewNode for PxRenderNode<L> {
-    type ViewQuery = &'static ViewTarget;
+    type ViewQuery = (&'static ViewTarget, Has<crate::screen::PxOverlayCamera>);
 
     fn update(&mut self, world: &mut World) {
         self.maps.update_archetypes(world);
@@ -155,9 +155,13 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         &self,
         _: &mut RenderGraphContext,
         render_context: &mut RenderContext<'w>,
-        target: &ViewTarget,
+        (target, is_overlay): (&ViewTarget, bool),
         world: &'w World,
     ) -> Result<(), NodeRunError> {
+        // Skip rendering on overlay cameras so gizmos drawn on them remain visible.
+        if is_overlay {
+            return Ok(());
+        }
         // Compose each layer into a CPU buffer, then blit to the GPU texture once per frame.
         let &camera = world.resource::<PxCamera>();
         let screen = world.resource::<Screen>();

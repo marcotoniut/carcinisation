@@ -454,13 +454,62 @@
       }
     },
     {
-      "id": "legs_visual",
+      "id": "leg_l",
       "definition_id": "leg",
-      "name": "Legs Visual",
+      "name": "Leg Left",
+      "parent_id": "root",
+      "source_layer": "leg_l",
+      "draw_order": 70,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "left",
+        "legs"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "leg_r",
+      "definition_id": "leg",
+      "name": "Leg Right",
+      "parent_id": "root",
+      "source_layer": "leg_r",
+      "draw_order": 75,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "right",
+        "legs"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "legs_overlay",
+      "definition_id": "visual_overlay",
+      "name": "Legs Overlay",
       "parent_id": "root",
       "source_layer": "legs",
-      "split": "mirror_x",
-      "draw_order": 70,
+      "draw_order": 80,
       "pivot": {
         "x": 0,
         "y": 0
@@ -548,14 +597,14 @@
       "rect": {
         "x": 62,
         "y": 0,
-        "w": 15,
+        "w": 19,
         "h": 28
       }
     },
     {
       "id": "sprite_0008",
       "rect": {
-        "x": 77,
+        "x": 81,
         "y": 0,
         "w": 11,
         "h": 25
@@ -564,7 +613,7 @@
     {
       "id": "sprite_0009",
       "rect": {
-        "x": 88,
+        "x": 92,
         "y": 0,
         "w": 1,
         "h": 25
@@ -573,7 +622,7 @@
     {
       "id": "sprite_0010",
       "rect": {
-        "x": 89,
+        "x": 93,
         "y": 0,
         "w": 6,
         "h": 28
@@ -582,7 +631,7 @@
     {
       "id": "sprite_0011",
       "rect": {
-        "x": 95,
+        "x": 99,
         "y": 0,
         "w": 1,
         "h": 28
@@ -591,7 +640,7 @@
     {
       "id": "sprite_0012",
       "rect": {
-        "x": 96,
+        "x": 100,
         "y": 0,
         "w": 20,
         "h": 33
@@ -600,7 +649,7 @@
     {
       "id": "sprite_0013",
       "rect": {
-        "x": 116,
+        "x": 120,
         "y": 0,
         "w": 11,
         "h": 25
@@ -609,7 +658,7 @@
     {
       "id": "sprite_0014",
       "rect": {
-        "x": 127,
+        "x": 131,
         "y": 0,
         "w": 1,
         "h": 25
@@ -618,7 +667,7 @@
     {
       "id": "sprite_0015",
       "rect": {
-        "x": 128,
+        "x": 132,
         "y": 0,
         "w": 6,
         "h": 26
@@ -627,7 +676,7 @@
     {
       "id": "sprite_0016",
       "rect": {
-        "x": 134,
+        "x": 138,
         "y": 0,
         "w": 1,
         "h": 26
@@ -636,7 +685,7 @@
     {
       "id": "sprite_0017",
       "rect": {
-        "x": 135,
+        "x": 139,
         "y": 0,
         "w": 25,
         "h": 26
@@ -645,7 +694,7 @@
     {
       "id": "sprite_0018",
       "rect": {
-        "x": 160,
+        "x": 164,
         "y": 0,
         "w": 21,
         "h": 31
@@ -654,7 +703,7 @@
     {
       "id": "sprite_0019",
       "rect": {
-        "x": 181,
+        "x": 185,
         "y": 0,
         "w": 1,
         "h": 6
@@ -663,23 +712,41 @@
     {
       "id": "sprite_0020",
       "rect": {
-        "x": 182,
+        "x": 186,
         "y": 0,
-        "w": 15,
+        "w": 19,
         "h": 29
       }
     },
     {
       "id": "sprite_0021",
       "rect": {
-        "x": 197,
+        "x": 205,
         "y": 0,
-        "w": 50,
-        "h": 28
+        "w": 16,
+        "h": 27
       }
     },
     {
       "id": "sprite_0022",
+      "rect": {
+        "x": 221,
+        "y": 0,
+        "w": 17,
+        "h": 28
+      }
+    },
+    {
+      "id": "sprite_0023",
+      "rect": {
+        "x": 238,
+        "y": 0,
+        "w": 16,
+        "h": 28
+      }
+    },
+    {
+      "id": "sprite_0024",
       "rect": {
         "x": 0,
         "y": 33,
@@ -688,7 +755,7 @@
       }
     },
     {
-      "id": "sprite_0023",
+      "id": "sprite_0025",
       "rect": {
         "x": 12,
         "y": 33,
@@ -697,343 +764,325 @@
       }
     },
     {
-      "id": "sprite_0024",
+      "id": "sprite_0026",
       "rect": {
         "x": 29,
         "y": 33,
-        "w": 13,
-        "h": 28
-      }
-    },
-    {
-      "id": "sprite_0025",
-      "rect": {
-        "x": 42,
-        "y": 33,
         "w": 6,
-        "h": 23
-      }
-    },
-    {
-      "id": "sprite_0026",
-      "rect": {
-        "x": 48,
-        "y": 33,
-        "w": 1,
         "h": 23
       }
     },
     {
       "id": "sprite_0027",
       "rect": {
-        "x": 49,
+        "x": 35,
         "y": 33,
-        "w": 6,
-        "h": 16
+        "w": 1,
+        "h": 23
       }
     },
     {
       "id": "sprite_0028",
       "rect": {
-        "x": 55,
+        "x": 36,
         "y": 33,
-        "w": 1,
+        "w": 6,
         "h": 16
       }
     },
     {
       "id": "sprite_0029",
       "rect": {
-        "x": 56,
+        "x": 42,
         "y": 33,
-        "w": 6,
+        "w": 1,
         "h": 16
       }
     },
     {
       "id": "sprite_0030",
       "rect": {
-        "x": 62,
+        "x": 43,
         "y": 33,
-        "w": 1,
+        "w": 6,
         "h": 16
       }
     },
     {
       "id": "sprite_0031",
       "rect": {
-        "x": 63,
+        "x": 49,
+        "y": 33,
+        "w": 1,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0032",
+      "rect": {
+        "x": 50,
         "y": 33,
         "w": 13,
         "h": 27
       }
     },
     {
-      "id": "sprite_0032",
+      "id": "sprite_0033",
       "rect": {
-        "x": 76,
+        "x": 63,
         "y": 33,
         "w": 17,
         "h": 26
       }
     },
     {
-      "id": "sprite_0033",
-      "rect": {
-        "x": 93,
-        "y": 33,
-        "w": 24,
-        "h": 13
-      }
-    },
-    {
       "id": "sprite_0034",
       "rect": {
-        "x": 117,
+        "x": 80,
         "y": 33,
-        "w": 25,
+        "w": 24,
         "h": 13
       }
     },
     {
       "id": "sprite_0035",
       "rect": {
-        "x": 142,
+        "x": 104,
+        "y": 33,
+        "w": 25,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0036",
+      "rect": {
+        "x": 129,
         "y": 33,
         "w": 23,
         "h": 25
       }
     },
     {
-      "id": "sprite_0036",
+      "id": "sprite_0037",
       "rect": {
-        "x": 165,
+        "x": 152,
         "y": 33,
         "w": 16,
         "h": 18
       }
     },
     {
-      "id": "sprite_0037",
+      "id": "sprite_0038",
       "rect": {
-        "x": 181,
+        "x": 168,
         "y": 33,
         "w": 13,
         "h": 28
       }
     },
     {
-      "id": "sprite_0038",
+      "id": "sprite_0039",
       "rect": {
-        "x": 194,
+        "x": 181,
         "y": 33,
         "w": 16,
         "h": 28
       }
     },
     {
-      "id": "sprite_0039",
+      "id": "sprite_0040",
       "rect": {
-        "x": 210,
+        "x": 197,
         "y": 33,
         "w": 22,
         "h": 20
       }
     },
     {
-      "id": "sprite_0040",
+      "id": "sprite_0041",
       "rect": {
-        "x": 0,
-        "y": 61,
+        "x": 219,
+        "y": 33,
         "w": 31,
         "h": 21
       }
     },
     {
-      "id": "sprite_0041",
+      "id": "sprite_0042",
       "rect": {
-        "x": 31,
-        "y": 61,
+        "x": 250,
+        "y": 33,
         "w": 6,
         "h": 30
       }
     },
     {
-      "id": "sprite_0042",
-      "rect": {
-        "x": 37,
-        "y": 61,
-        "w": 14,
-        "h": 25
-      }
-    },
-    {
       "id": "sprite_0043",
       "rect": {
-        "x": 51,
-        "y": 61,
-        "w": 10,
+        "x": 0,
+        "y": 63,
+        "w": 18,
         "h": 25
       }
     },
     {
       "id": "sprite_0044",
       "rect": {
-        "x": 61,
-        "y": 61,
-        "w": 6,
-        "h": 26
+        "x": 18,
+        "y": 63,
+        "w": 10,
+        "h": 25
       }
     },
     {
       "id": "sprite_0045",
       "rect": {
-        "x": 67,
-        "y": 61,
-        "w": 19,
-        "h": 29
+        "x": 28,
+        "y": 63,
+        "w": 6,
+        "h": 26
       }
     },
     {
       "id": "sprite_0046",
       "rect": {
-        "x": 86,
-        "y": 61,
-        "w": 16,
-        "h": 36
+        "x": 34,
+        "y": 63,
+        "w": 19,
+        "h": 29
       }
     },
     {
       "id": "sprite_0047",
       "rect": {
-        "x": 102,
-        "y": 61,
-        "w": 12,
-        "h": 31
+        "x": 53,
+        "y": 63,
+        "w": 16,
+        "h": 36
       }
     },
     {
       "id": "sprite_0048",
       "rect": {
-        "x": 114,
-        "y": 61,
+        "x": 69,
+        "y": 63,
         "w": 16,
-        "h": 30
+        "h": 31
       }
     },
     {
       "id": "sprite_0049",
       "rect": {
-        "x": 130,
-        "y": 61,
-        "w": 7,
-        "h": 34
+        "x": 85,
+        "y": 63,
+        "w": 16,
+        "h": 30
       }
     },
     {
       "id": "sprite_0050",
       "rect": {
-        "x": 137,
-        "y": 61,
-        "w": 6,
-        "h": 19
+        "x": 101,
+        "y": 63,
+        "w": 9,
+        "h": 34
       }
     },
     {
       "id": "sprite_0051",
       "rect": {
-        "x": 143,
-        "y": 61,
-        "w": 1,
+        "x": 110,
+        "y": 63,
+        "w": 6,
         "h": 19
       }
     },
     {
       "id": "sprite_0052",
       "rect": {
-        "x": 144,
-        "y": 61,
-        "w": 25,
-        "h": 20
+        "x": 116,
+        "y": 63,
+        "w": 1,
+        "h": 19
       }
     },
     {
       "id": "sprite_0053",
       "rect": {
-        "x": 169,
-        "y": 61,
-        "w": 24,
-        "h": 18
+        "x": 117,
+        "y": 63,
+        "w": 25,
+        "h": 20
       }
     },
     {
       "id": "sprite_0054",
       "rect": {
-        "x": 193,
-        "y": 61,
-        "w": 11,
-        "h": 25
+        "x": 142,
+        "y": 63,
+        "w": 28,
+        "h": 18
       }
     },
     {
       "id": "sprite_0055",
       "rect": {
-        "x": 204,
-        "y": 61,
-        "w": 1,
+        "x": 170,
+        "y": 63,
+        "w": 11,
         "h": 25
       }
     },
     {
       "id": "sprite_0056",
       "rect": {
-        "x": 205,
-        "y": 61,
-        "w": 6,
-        "h": 18
+        "x": 181,
+        "y": 63,
+        "w": 1,
+        "h": 25
       }
     },
     {
       "id": "sprite_0057",
       "rect": {
-        "x": 211,
-        "y": 61,
-        "w": 1,
+        "x": 182,
+        "y": 63,
+        "w": 6,
         "h": 18
       }
     },
     {
       "id": "sprite_0058",
       "rect": {
-        "x": 0,
-        "y": 97,
-        "w": 50,
-        "h": 22
+        "x": 188,
+        "y": 63,
+        "w": 1,
+        "h": 18
       }
     },
     {
       "id": "sprite_0059",
       "rect": {
-        "x": 50,
-        "y": 97,
-        "w": 19,
-        "h": 21
+        "x": 189,
+        "y": 63,
+        "w": 50,
+        "h": 22
       }
     },
     {
       "id": "sprite_0060",
       "rect": {
-        "x": 69,
-        "y": 97,
-        "w": 25,
-        "h": 16
+        "x": 0,
+        "y": 99,
+        "w": 54,
+        "h": 23
       }
     },
     {
       "id": "sprite_0061",
       "rect": {
-        "x": 94,
-        "y": 97,
+        "x": 54,
+        "y": 99,
         "w": 24,
         "h": 28
       }
@@ -1041,8 +1090,8 @@
     {
       "id": "sprite_0062",
       "rect": {
-        "x": 118,
-        "y": 97,
+        "x": 78,
+        "y": 99,
         "w": 32,
         "h": 19
       }
@@ -1050,8 +1099,8 @@
     {
       "id": "sprite_0063",
       "rect": {
-        "x": 150,
-        "y": 97,
+        "x": 110,
+        "y": 99,
         "w": 1,
         "h": 2
       }
@@ -1059,19 +1108,28 @@
     {
       "id": "sprite_0064",
       "rect": {
-        "x": 151,
-        "y": 97,
-        "w": 8,
+        "x": 111,
+        "y": 99,
+        "w": 12,
         "h": 32
       }
     },
     {
       "id": "sprite_0065",
       "rect": {
-        "x": 159,
-        "y": 97,
+        "x": 123,
+        "y": 99,
         "w": 34,
         "h": 12
+      }
+    },
+    {
+      "id": "sprite_0066",
+      "rect": {
+        "x": 157,
+        "y": 99,
+        "w": 9,
+        "h": 31
       }
     }
   ],
@@ -1226,7 +1284,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -1238,10 +1296,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -1384,7 +1442,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -1396,10 +1454,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -1555,7 +1613,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -1567,10 +1625,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -1695,11 +1753,11 @@
               "fragment": 2
             },
             {
-              "part_id": "arms_overlay",
+              "part_id": "arm_l",
               "sprite_id": "sprite_0021",
               "local_offset": {
-                "x": -25,
-                "y": 5
+                "x": 20,
+                "y": 9
               },
               "flip_x": false,
               "flip_y": false,
@@ -1707,11 +1765,11 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "arm_r",
               "sprite_id": "sprite_0022",
               "local_offset": {
-                "x": -16,
-                "y": 17
+                "x": -14,
+                "y": 9
               },
               "flip_x": false,
               "flip_y": false,
@@ -1719,7 +1777,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "leg_l",
               "sprite_id": "sprite_0023",
               "local_offset": {
                 "x": 5,
@@ -1728,8 +1786,19 @@
               "flip_x": false,
               "flip_y": false,
               "visible": true,
-              "opacity": 255,
-              "fragment": 1
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0024",
+              "local_offset": {
+                "x": -16,
+                "y": 17
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
             }
           ]
         },
@@ -1878,8 +1947,8 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0024",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0025",
               "local_offset": {
                 "x": -17,
                 "y": 17
@@ -1890,10 +1959,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0024",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0025",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -2011,11 +2080,23 @@
               "fragment": 2
             },
             {
-              "part_id": "arms_overlay",
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": 20,
+                "y": 9
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
               "sprite_id": "sprite_0021",
               "local_offset": {
-                "x": -24,
-                "y": 5
+                "x": -13,
+                "y": 9
               },
               "flip_x": true,
               "flip_y": false,
@@ -2023,20 +2104,8 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0023",
-              "local_offset": {
-                "x": -21,
-                "y": 17
-              },
-              "flip_x": true,
-              "flip_y": false,
-              "visible": true,
-              "opacity": 255
-            },
-            {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0022",
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0024",
               "local_offset": {
                 "x": 5,
                 "y": 17
@@ -2044,8 +2113,19 @@
               "flip_x": true,
               "flip_y": false,
               "visible": true,
-              "opacity": 255,
-              "fragment": 1
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": -20,
+                "y": 17
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
             }
           ]
         },
@@ -2194,8 +2274,8 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0024",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0025",
               "local_offset": {
                 "x": -17,
                 "y": 17
@@ -2206,10 +2286,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0024",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0025",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -2372,7 +2452,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -2384,10 +2464,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -2530,7 +2610,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -2542,10 +2622,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -2701,7 +2781,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -2713,10 +2793,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -2810,7 +2890,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0025",
+              "sprite_id": "sprite_0026",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -2822,7 +2902,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0026",
+              "sprite_id": "sprite_0027",
               "local_offset": {
                 "x": 11,
                 "y": 5
@@ -2835,7 +2915,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0025",
+              "sprite_id": "sprite_0026",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -2872,7 +2952,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -2884,10 +2964,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -2981,7 +3061,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0027",
+              "sprite_id": "sprite_0028",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -2993,7 +3073,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0028",
+              "sprite_id": "sprite_0029",
               "local_offset": {
                 "x": 11,
                 "y": 5
@@ -3006,7 +3086,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0027",
+              "sprite_id": "sprite_0028",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -3043,7 +3123,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -3055,10 +3135,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -3152,7 +3232,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0029",
+              "sprite_id": "sprite_0030",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -3164,7 +3244,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0030",
+              "sprite_id": "sprite_0031",
               "local_offset": {
                 "x": 11,
                 "y": 5
@@ -3177,7 +3257,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0029",
+              "sprite_id": "sprite_0030",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -3214,7 +3294,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -3226,10 +3306,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -3385,7 +3465,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -3397,10 +3477,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -3563,7 +3643,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -3575,10 +3655,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -3672,7 +3752,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0031",
+              "sprite_id": "sprite_0032",
               "local_offset": {
                 "x": 4,
                 "y": 5
@@ -3684,7 +3764,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0032",
+              "sprite_id": "sprite_0033",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -3696,7 +3776,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0033",
+              "sprite_id": "sprite_0034",
               "local_offset": {
                 "x": -22,
                 "y": 5
@@ -3707,7 +3787,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -3719,10 +3799,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -3816,7 +3896,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0031",
+              "sprite_id": "sprite_0032",
               "local_offset": {
                 "x": 4,
                 "y": 5
@@ -3828,7 +3908,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0032",
+              "sprite_id": "sprite_0033",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -3840,7 +3920,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0034",
+              "sprite_id": "sprite_0035",
               "local_offset": {
                 "x": -23,
                 "y": -4
@@ -3851,7 +3931,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -3863,10 +3943,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -3909,7 +3989,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0035",
+              "sprite_id": "sprite_0036",
               "local_offset": {
                 "x": -11,
                 "y": -4
@@ -3959,7 +4039,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0032",
+              "sprite_id": "sprite_0033",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -3971,7 +4051,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0036",
+              "sprite_id": "sprite_0037",
               "local_offset": {
                 "x": -13,
                 "y": 7
@@ -3982,7 +4062,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -3994,10 +4074,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -4040,7 +4120,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0035",
+              "sprite_id": "sprite_0036",
               "local_offset": {
                 "x": -11,
                 "y": -4
@@ -4052,7 +4132,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0037",
+              "sprite_id": "sprite_0038",
               "local_offset": {
                 "x": 7,
                 "y": 7
@@ -4064,7 +4144,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0039",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -4076,7 +4156,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0040",
               "local_offset": {
                 "x": -3,
                 "y": 8
@@ -4087,7 +4167,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -4099,10 +4179,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -4196,7 +4276,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0037",
+              "sprite_id": "sprite_0038",
               "local_offset": {
                 "x": 7,
                 "y": 7
@@ -4208,7 +4288,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0039",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -4220,7 +4300,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0041",
               "local_offset": {
                 "x": 0,
                 "y": 8
@@ -4231,7 +4311,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
                 "x": -19,
@@ -4243,10 +4323,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0007",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -4347,7 +4427,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0042",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -4372,7 +4452,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0042",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -4409,7 +4489,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
                 "x": -19,
@@ -4421,10 +4501,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0020",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 16
               },
               "flip_x": true,
@@ -4587,8 +4667,8 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0042",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0043",
               "local_offset": {
                 "x": -18,
                 "y": 17
@@ -4599,10 +4679,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0042",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0043",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -4620,7 +4700,7 @@
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0046",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -16,
                 "y": -7
@@ -4632,7 +4712,7 @@
             },
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0046",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": 1,
                 "y": -7
@@ -4645,7 +4725,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": -10,
                 "y": -10
@@ -4670,7 +4750,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": 1,
                 "y": -10
@@ -4683,7 +4763,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0044",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": 4,
                 "y": 4
@@ -4708,7 +4788,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0044",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": 11,
                 "y": 4
@@ -4721,7 +4801,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0045",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": -19,
                 "y": 0
@@ -4733,7 +4813,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0045",
+              "sprite_id": "sprite_0046",
               "local_offset": {
                 "x": 1,
                 "y": 0
@@ -4745,8 +4825,8 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0047",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0048",
               "local_offset": {
                 "x": -16,
                 "y": 11
@@ -4757,10 +4837,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0047",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0048",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 11
               },
               "flip_x": true,
@@ -4778,7 +4858,7 @@
           "parts": [
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0046",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": -16,
                 "y": -21
@@ -4790,7 +4870,7 @@
             },
             {
               "part_id": "wings_visual",
-              "sprite_id": "sprite_0046",
+              "sprite_id": "sprite_0047",
               "local_offset": {
                 "x": 1,
                 "y": -21
@@ -4803,7 +4883,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": -10,
                 "y": -23
@@ -4828,7 +4908,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": 1,
                 "y": -23
@@ -4841,7 +4921,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0044",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": 4,
                 "y": 3
@@ -4866,7 +4946,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0044",
+              "sprite_id": "sprite_0045",
               "local_offset": {
                 "x": 11,
                 "y": 3
@@ -4879,7 +4959,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0048",
+              "sprite_id": "sprite_0049",
               "local_offset": {
                 "x": -16,
                 "y": -14
@@ -4891,7 +4971,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0048",
+              "sprite_id": "sprite_0049",
               "local_offset": {
                 "x": 1,
                 "y": -14
@@ -4903,8 +4983,8 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0049",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0050",
               "local_offset": {
                 "x": -9,
                 "y": -2
@@ -4915,10 +4995,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0049",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0050",
               "local_offset": {
-                "x": 3,
+                "x": 1,
                 "y": -2
               },
               "flip_x": true,
@@ -4943,7 +5023,7 @@
           "parts": [
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": -10,
                 "y": -10
@@ -4968,7 +5048,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": 1,
                 "y": -10
@@ -4981,7 +5061,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0050",
+              "sprite_id": "sprite_0051",
               "local_offset": {
                 "x": 4,
                 "y": 4
@@ -4993,7 +5073,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0051",
+              "sprite_id": "sprite_0052",
               "local_offset": {
                 "x": 10,
                 "y": 4
@@ -5006,7 +5086,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0050",
+              "sprite_id": "sprite_0051",
               "local_offset": {
                 "x": 11,
                 "y": 4
@@ -5019,7 +5099,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0052",
+              "sprite_id": "sprite_0053",
               "local_offset": {
                 "x": -25,
                 "y": -18
@@ -5031,7 +5111,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0052",
+              "sprite_id": "sprite_0053",
               "local_offset": {
                 "x": 1,
                 "y": -18
@@ -5043,8 +5123,8 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0053",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0054",
               "local_offset": {
                 "x": -28,
                 "y": 9
@@ -5055,10 +5135,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0053",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0054",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 9
               },
               "flip_x": true,
@@ -5076,7 +5156,7 @@
           "parts": [
             {
               "part_id": "body",
-              "sprite_id": "sprite_0054",
+              "sprite_id": "sprite_0055",
               "local_offset": {
                 "x": -11,
                 "y": -10
@@ -5088,7 +5168,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0055",
+              "sprite_id": "sprite_0056",
               "local_offset": {
                 "x": 0,
                 "y": -10
@@ -5101,7 +5181,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0054",
+              "sprite_id": "sprite_0055",
               "local_offset": {
                 "x": 1,
                 "y": -10
@@ -5114,7 +5194,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0056",
+              "sprite_id": "sprite_0057",
               "local_offset": {
                 "x": 5,
                 "y": 4
@@ -5126,7 +5206,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0057",
+              "sprite_id": "sprite_0058",
               "local_offset": {
                 "x": 11,
                 "y": 4
@@ -5139,7 +5219,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0056",
+              "sprite_id": "sprite_0057",
               "local_offset": {
                 "x": 12,
                 "y": 4
@@ -5152,7 +5232,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0058",
+              "sprite_id": "sprite_0059",
               "local_offset": {
                 "x": -24,
                 "y": -19
@@ -5163,29 +5243,16 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0059",
-              "local_offset": {
-                "x": -23,
-                "y": 9
-              },
-              "flip_x": false,
-              "flip_y": false,
-              "visible": true,
-              "opacity": 255
-            },
-            {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0060",
               "local_offset": {
-                "x": 6,
+                "x": -23,
                 "y": 7
               },
               "flip_x": false,
               "flip_y": false,
               "visible": true,
-              "opacity": 255,
-              "fragment": 1
+              "opacity": 255
             }
           ]
         },
@@ -5196,7 +5263,7 @@
           "parts": [
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": -10,
                 "y": -10
@@ -5221,7 +5288,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0043",
+              "sprite_id": "sprite_0044",
               "local_offset": {
                 "x": 1,
                 "y": -10
@@ -5234,7 +5301,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0050",
+              "sprite_id": "sprite_0051",
               "local_offset": {
                 "x": 4,
                 "y": 4
@@ -5246,7 +5313,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0051",
+              "sprite_id": "sprite_0052",
               "local_offset": {
                 "x": 10,
                 "y": 4
@@ -5259,7 +5326,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0050",
+              "sprite_id": "sprite_0051",
               "local_offset": {
                 "x": 11,
                 "y": 4
@@ -5272,7 +5339,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0052",
+              "sprite_id": "sprite_0053",
               "local_offset": {
                 "x": -25,
                 "y": -18
@@ -5284,7 +5351,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0052",
+              "sprite_id": "sprite_0053",
               "local_offset": {
                 "x": 1,
                 "y": -18
@@ -5296,8 +5363,8 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0053",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0054",
               "local_offset": {
                 "x": -28,
                 "y": 9
@@ -5308,10 +5375,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0053",
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0054",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 9
               },
               "flip_x": true,
@@ -5329,7 +5396,7 @@
           "parts": [
             {
               "part_id": "body",
-              "sprite_id": "sprite_0054",
+              "sprite_id": "sprite_0055",
               "local_offset": {
                 "x": -11,
                 "y": -10
@@ -5341,7 +5408,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0055",
+              "sprite_id": "sprite_0056",
               "local_offset": {
                 "x": 0,
                 "y": -10
@@ -5354,7 +5421,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0054",
+              "sprite_id": "sprite_0055",
               "local_offset": {
                 "x": 1,
                 "y": -10
@@ -5367,7 +5434,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0056",
+              "sprite_id": "sprite_0057",
               "local_offset": {
                 "x": 5,
                 "y": 4
@@ -5379,7 +5446,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0057",
+              "sprite_id": "sprite_0058",
               "local_offset": {
                 "x": 11,
                 "y": 4
@@ -5392,7 +5459,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0056",
+              "sprite_id": "sprite_0057",
               "local_offset": {
                 "x": 12,
                 "y": 4
@@ -5405,7 +5472,7 @@
             },
             {
               "part_id": "arms_overlay",
-              "sprite_id": "sprite_0058",
+              "sprite_id": "sprite_0059",
               "local_offset": {
                 "x": -25,
                 "y": -19
@@ -5416,7 +5483,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0060",
               "local_offset": {
                 "x": -30,
@@ -5426,19 +5493,6 @@
               "flip_y": false,
               "visible": true,
               "opacity": 255
-            },
-            {
-              "part_id": "legs_visual",
-              "sprite_id": "sprite_0059",
-              "local_offset": {
-                "x": 5,
-                "y": 9
-              },
-              "flip_x": true,
-              "flip_y": false,
-              "visible": true,
-              "opacity": 255,
-              "fragment": 1
             }
           ]
         }
@@ -5594,7 +5648,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -5606,10 +5660,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -5765,7 +5819,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -5777,10 +5831,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -5936,7 +5990,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -5948,10 +6002,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -6107,7 +6161,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -6119,10 +6173,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -6136,12 +6190,365 @@
       ]
     },
     {
-      "tag": "death_fly",
+      "tag": "flying_forward",
       "direction": "forward",
       "repeats": null,
       "frames": [
         {
           "source_frame": 32,
+          "duration_ms": 50,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "wings_visual",
+              "sprite_id": "sprite_0062",
+              "local_offset": {
+                "x": -32,
+                "y": -14
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wings_visual",
+              "sprite_id": "sprite_0063",
+              "local_offset": {
+                "x": 0,
+                "y": 0
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "wings_visual",
+              "sprite_id": "sprite_0062",
+              "local_offset": {
+                "x": 1,
+                "y": -14
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -4
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": 5,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 11,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": 12,
+                "y": 5
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 20,
+                "y": 9
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": -13,
+                "y": 9
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0066",
+              "local_offset": {
+                "x": -9,
+                "y": 17
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs_overlay",
+              "sprite_id": "sprite_0066",
+              "local_offset": {
+                "x": 1,
+                "y": 17
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "flying_backwards",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 33,
+          "duration_ms": 50,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "wings_visual",
+              "sprite_id": "sprite_0062",
+              "local_offset": {
+                "x": -32,
+                "y": -14
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wings_visual",
+              "sprite_id": "sprite_0063",
+              "local_offset": {
+                "x": 0,
+                "y": 0
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "wings_visual",
+              "sprite_id": "sprite_0062",
+              "local_offset": {
+                "x": 1,
+                "y": -14
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -4
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": 5,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 11,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": 12,
+                "y": 5
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": 20,
+                "y": 9
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": -14,
+                "y": 9
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": 5,
+                "y": 17
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": -20,
+                "y": 17
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "death_fly",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 34,
           "duration_ms": 50,
           "events": [],
           "parts": [
@@ -6223,7 +6630,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0042",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -6248,7 +6655,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0041",
+              "sprite_id": "sprite_0042",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -6285,7 +6692,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -6297,10 +6704,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -6319,7 +6726,7 @@
       "repeats": null,
       "frames": [
         {
-          "source_frame": 33,
+          "source_frame": 35,
           "duration_ms": 200,
           "events": [],
           "parts": [
@@ -6463,7 +6870,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -6475,10 +6882,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -6490,7 +6897,7 @@
           ]
         },
         {
-          "source_frame": 34,
+          "source_frame": 36,
           "duration_ms": 200,
           "events": [],
           "parts": [
@@ -6634,7 +7041,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -6646,10 +7053,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -6661,7 +7068,7 @@
           ]
         },
         {
-          "source_frame": 35,
+          "source_frame": 37,
           "duration_ms": 200,
           "events": [],
           "parts": [
@@ -6805,7 +7212,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -6817,10 +7224,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -6832,7 +7239,7 @@
           ]
         },
         {
-          "source_frame": 36,
+          "source_frame": 38,
           "duration_ms": 200,
           "events": [],
           "parts": [
@@ -6914,7 +7321,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0025",
+              "sprite_id": "sprite_0026",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -6926,7 +7333,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0026",
+              "sprite_id": "sprite_0027",
               "local_offset": {
                 "x": 11,
                 "y": 5
@@ -6939,7 +7346,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0025",
+              "sprite_id": "sprite_0026",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -6976,7 +7383,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -6988,10 +7395,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -7003,7 +7410,7 @@
           ]
         },
         {
-          "source_frame": 37,
+          "source_frame": 39,
           "duration_ms": 200,
           "events": [],
           "parts": [
@@ -7085,7 +7492,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0027",
+              "sprite_id": "sprite_0028",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -7097,7 +7504,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0028",
+              "sprite_id": "sprite_0029",
               "local_offset": {
                 "x": 11,
                 "y": 5
@@ -7110,7 +7517,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0027",
+              "sprite_id": "sprite_0028",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -7147,7 +7554,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -7159,10 +7566,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -7174,7 +7581,7 @@
           ]
         },
         {
-          "source_frame": 38,
+          "source_frame": 40,
           "duration_ms": 200,
           "events": [
             {
@@ -7266,7 +7673,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0029",
+              "sprite_id": "sprite_0030",
               "local_offset": {
                 "x": 5,
                 "y": 5
@@ -7278,7 +7685,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0030",
+              "sprite_id": "sprite_0031",
               "local_offset": {
                 "x": 11,
                 "y": 5
@@ -7291,7 +7698,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0029",
+              "sprite_id": "sprite_0030",
               "local_offset": {
                 "x": 12,
                 "y": 5
@@ -7328,7 +7735,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -7340,10 +7747,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -7355,7 +7762,7 @@
           ]
         },
         {
-          "source_frame": 39,
+          "source_frame": 41,
           "duration_ms": 200,
           "events": [],
           "parts": [
@@ -7499,7 +7906,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -7511,10 +7918,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -7533,7 +7940,7 @@
       "repeats": null,
       "frames": [
         {
-          "source_frame": 40,
+          "source_frame": 42,
           "duration_ms": 150,
           "events": [],
           "parts": [
@@ -7677,7 +8084,7 @@
               "fragment": 1
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -7689,10 +8096,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -7704,7 +8111,7 @@
           ]
         },
         {
-          "source_frame": 41,
+          "source_frame": 43,
           "duration_ms": 150,
           "events": [],
           "parts": [
@@ -7786,7 +8193,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0031",
+              "sprite_id": "sprite_0032",
               "local_offset": {
                 "x": 4,
                 "y": 5
@@ -7798,7 +8205,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0032",
+              "sprite_id": "sprite_0033",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -7810,7 +8217,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0033",
+              "sprite_id": "sprite_0034",
               "local_offset": {
                 "x": -22,
                 "y": 5
@@ -7821,7 +8228,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -7833,10 +8240,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -7848,7 +8255,7 @@
           ]
         },
         {
-          "source_frame": 42,
+          "source_frame": 44,
           "duration_ms": 150,
           "events": [],
           "parts": [
@@ -7930,7 +8337,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0031",
+              "sprite_id": "sprite_0032",
               "local_offset": {
                 "x": 4,
                 "y": 5
@@ -7942,7 +8349,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0032",
+              "sprite_id": "sprite_0033",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -7954,7 +8361,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0034",
+              "sprite_id": "sprite_0035",
               "local_offset": {
                 "x": -23,
                 "y": -4
@@ -7965,7 +8372,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -7977,10 +8384,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -7992,7 +8399,7 @@
           ]
         },
         {
-          "source_frame": 43,
+          "source_frame": 45,
           "duration_ms": 150,
           "events": [],
           "parts": [
@@ -8036,7 +8443,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0035",
+              "sprite_id": "sprite_0036",
               "local_offset": {
                 "x": -11,
                 "y": -4
@@ -8086,7 +8493,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0039",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -8098,7 +8505,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0036",
+              "sprite_id": "sprite_0037",
               "local_offset": {
                 "x": -13,
                 "y": 7
@@ -8109,7 +8516,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -8121,10 +8528,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -8136,7 +8543,7 @@
           ]
         },
         {
-          "source_frame": 44,
+          "source_frame": 46,
           "duration_ms": 150,
           "events": [],
           "parts": [
@@ -8180,7 +8587,7 @@
             },
             {
               "part_id": "body",
-              "sprite_id": "sprite_0035",
+              "sprite_id": "sprite_0036",
               "local_offset": {
                 "x": -11,
                 "y": -4
@@ -8192,7 +8599,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0037",
+              "sprite_id": "sprite_0038",
               "local_offset": {
                 "x": 7,
                 "y": 7
@@ -8204,7 +8611,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0039",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -8216,7 +8623,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0039",
+              "sprite_id": "sprite_0040",
               "local_offset": {
                 "x": -3,
                 "y": 8
@@ -8227,7 +8634,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -8239,10 +8646,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,
@@ -8254,7 +8661,7 @@
           ]
         },
         {
-          "source_frame": 45,
+          "source_frame": 47,
           "duration_ms": 150,
           "events": [],
           "parts": [
@@ -8336,7 +8743,7 @@
             },
             {
               "part_id": "head",
-              "sprite_id": "sprite_0037",
+              "sprite_id": "sprite_0038",
               "local_offset": {
                 "x": 7,
                 "y": 7
@@ -8348,7 +8755,7 @@
             },
             {
               "part_id": "arm_l",
-              "sprite_id": "sprite_0038",
+              "sprite_id": "sprite_0039",
               "local_offset": {
                 "x": 20,
                 "y": 9
@@ -8360,7 +8767,7 @@
             },
             {
               "part_id": "arm_r",
-              "sprite_id": "sprite_0040",
+              "sprite_id": "sprite_0041",
               "local_offset": {
                 "x": 0,
                 "y": 8
@@ -8371,7 +8778,7 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
                 "x": -12,
@@ -8383,10 +8790,10 @@
               "opacity": 255
             },
             {
-              "part_id": "legs_visual",
+              "part_id": "legs_overlay",
               "sprite_id": "sprite_0064",
               "local_offset": {
-                "x": 5,
+                "x": 1,
                 "y": 17
               },
               "flip_x": true,

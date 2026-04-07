@@ -76,6 +76,7 @@ impl SpawnTemplate {
                     depth,
                     health: 60,
                     contains: None,
+                    authored_depths: None,
                 })
             }
             SpawnTemplate::Destructible(DestructibleType::Trashcan) => {
@@ -85,6 +86,7 @@ impl SpawnTemplate {
                     depth,
                     health: 100,
                     contains: None,
+                    authored_depths: None,
                 })
             }
             SpawnTemplate::Destructible(DestructibleType::Crystal) => {
@@ -94,6 +96,7 @@ impl SpawnTemplate {
                     depth,
                     health: 300,
                     contains: None,
+                    authored_depths: None,
                 })
             }
             SpawnTemplate::Destructible(DestructibleType::Mushroom) => {
@@ -103,6 +106,7 @@ impl SpawnTemplate {
                     depth,
                     health: 120,
                     contains: None,
+                    authored_depths: None,
                 })
             }
             SpawnTemplate::Pickup(PickupType::BigHealthpack) => StageSpawn::Pickup(

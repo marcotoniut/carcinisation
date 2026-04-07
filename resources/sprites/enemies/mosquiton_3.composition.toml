@@ -186,17 +186,32 @@ pivot = { x = 0, y = 0 }
 tags = ["wings"]
 
 [[parts]]
-# Monolithic "legs" layer with visual-only render fragmentation. The exporter
-# splits the layer into left/right halves for atlas dedup while preserving a
-# single logical/gameplay part. Gameplay metadata is inherited from the "leg"
-# definition — no duplication.
-id = "legs_visual"
+id = "leg_l"
 definition_id = "leg"
-name = "Legs Visual"
+name = "Leg Left"
+parent_id = "root"
+source_layer = "leg_l"
+draw_order = 70
+pivot = { x = 0, y = 0 }
+tags = ["left", "legs"]
+
+[[parts]]
+id = "leg_r"
+definition_id = "leg"
+name = "Leg Right"
+parent_id = "root"
+source_layer = "leg_r"
+draw_order = 75
+pivot = { x = 0, y = 0 }
+tags = ["right", "legs"]
+
+[[parts]]
+id = "legs_overlay"
+definition_id = "visual_overlay"
+name = "Legs Overlay"
 parent_id = "root"
 source_layer = "legs"
-split = "mirror_x"
-draw_order = 70
+draw_order = 80
 pivot = { x = 0, y = 0 }
 tags = ["legs"]
 

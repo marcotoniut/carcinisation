@@ -4,6 +4,8 @@ pub mod attack;
 pub mod bundles;
 pub mod components;
 pub mod data;
+pub mod depth_debug;
+pub mod depth_scale;
 pub mod destructible;
 pub mod enemy;
 pub mod messages;
@@ -18,6 +20,8 @@ pub use systems::spawn::check_step_spawn;
 
 use self::{
     attack::AttackPlugin,
+    depth_debug::DepthDebugPlugin,
+    depth_scale::apply_depth_fallback_scale,
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
     enemy::composed::{apply_composed_part_damage, check_composed_damage_flicker_taken},
@@ -111,7 +115,7 @@ impl Plugin for StagePlugin {
         #[cfg(debug_assertions)]
         app.add_systems(Update, debug_visibility_hierarchy);
 
-        app
+        app.add_plugins(DepthDebugPlugin)
             // Core stage state/resources that every sub-system relies on.
             .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()
@@ -119,6 +123,7 @@ impl Plugin for StagePlugin {
             .init_resource::<TimeShouldRun<StageTimeDomain>>()
             .init_resource::<StageProgress>()
             .init_resource::<StageGravity>()
+            .insert_resource(depth_scale::DepthScaleConfig::load_or_default())
             // Message streams for the combat/progression loop.
             .add_message::<DamageMessage>()
             .add_message::<PartDamageMessage>()
@@ -201,6 +206,7 @@ impl Plugin for StagePlugin {
             .add_active_systems::<StagePlugin, _>((
                 update_stage,
                 update_stage_time_should_run.after(update_stage),
+                apply_depth_fallback_scale,
                 (
                     (
                         // Camera

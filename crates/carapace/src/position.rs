@@ -140,21 +140,27 @@ impl From<Vec2> for PxAnchor {
 }
 
 impl PxAnchor {
+    /// Anchor X offset in pixels. Uses rounding for `Custom` anchors so the
+    /// placement error is symmetric (±0.5px) rather than biased downward,
+    /// which matters at small sprite sizes / extreme fallback scales.
     pub(crate) fn x_pos(self, width: u32) -> u32 {
         match self {
             PxAnchor::BottomLeft | PxAnchor::CenterLeft | PxAnchor::TopLeft => 0,
             PxAnchor::BottomCenter | PxAnchor::Center | PxAnchor::TopCenter => width / 2,
             PxAnchor::BottomRight | PxAnchor::CenterRight | PxAnchor::TopRight => width,
-            PxAnchor::Custom(anchor) => (width as f32 * anchor.x) as u32,
+            PxAnchor::Custom(anchor) => (width as f32 * anchor.x).round() as u32,
         }
     }
 
+    /// Anchor Y offset in pixels. Uses rounding for `Custom` anchors so the
+    /// placement error is symmetric (±0.5px) rather than biased downward,
+    /// which matters at small sprite sizes / extreme fallback scales.
     pub(crate) fn y_pos(self, height: u32) -> u32 {
         match self {
             PxAnchor::BottomLeft | PxAnchor::BottomCenter | PxAnchor::BottomRight => 0,
             PxAnchor::CenterLeft | PxAnchor::Center | PxAnchor::CenterRight => height / 2,
             PxAnchor::TopLeft | PxAnchor::TopCenter | PxAnchor::TopRight => height,
-            PxAnchor::Custom(anchor) => (height as f32 * anchor.y) as u32,
+            PxAnchor::Custom(anchor) => (height as f32 * anchor.y).round() as u32,
         }
     }
 

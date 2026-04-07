@@ -86,6 +86,7 @@ fn spawn_queue_drains_all_spawns() {
             elapsed: authored_elapsed(Duration::from_secs(1)),
             coordinates: Vec2::new(200., 0.),
             depth: Depth::Three,
+            authored_depths: None,
         }),
     ];
 
@@ -155,6 +156,7 @@ fn simultaneous_spawns_maintain_authored_order() {
             elapsed: Duration::ZERO,
             coordinates: Vec2::new(100., 0.),
             depth: Depth::Three,
+            authored_depths: None,
         }),
         StageSpawn::Enemy(EnemySpawn {
             enemy_type: EnemyType::Tardigrade,

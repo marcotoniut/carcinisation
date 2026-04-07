@@ -378,6 +378,7 @@ fn spawn_list(
             object_type: ObjectType::BenchBig,
             coordinates: bevy::math::Vec2::ZERO,
             depth: carcinisation::stage::components::placement::Depth::Three,
+            authored_depths: None,
         }));
         changed = true;
     }
@@ -404,17 +405,20 @@ fn spawn_fields(
             changed |= reflected_field(env, ui, "object_type", &mut s.object_type);
             changed |= reflected_field_narrow(env, ui, "coordinates", 140.0, &mut s.coordinates);
             changed |= reflected_field(env, ui, "depth", &mut s.depth);
+            changed |= reflected_collapsing(env, ui, "authored_depths", &mut s.authored_depths);
         }
         StageSpawn::Destructible(s) => {
             changed |= reflected_field(env, ui, "destructible_type", &mut s.destructible_type);
             changed |= reflected_field_narrow(env, ui, "coordinates", 140.0, &mut s.coordinates);
             changed |= reflected_field(env, ui, "depth", &mut s.depth);
             changed |= reflected_field_narrow(env, ui, "health", 80.0, &mut s.health);
+            changed |= reflected_collapsing(env, ui, "authored_depths", &mut s.authored_depths);
         }
         StageSpawn::Pickup(s) => {
             changed |= reflected_field(env, ui, "pickup_type", &mut s.pickup_type);
             changed |= reflected_field_narrow(env, ui, "coordinates", 140.0, &mut s.coordinates);
             changed |= reflected_field(env, ui, "depth", &mut s.depth);
+            changed |= reflected_collapsing(env, ui, "authored_depths", &mut s.authored_depths);
         }
         StageSpawn::Enemy(s) => {
             changed |= reflected_field(env, ui, "enemy_type", &mut s.enemy_type);
@@ -423,6 +427,7 @@ fn spawn_fields(
             changed |= reflected_field_narrow(env, ui, "speed", 80.0, &mut s.speed);
             changed |= reflected_field_narrow(env, ui, "health", 80.0, &mut s.health);
             changed |= reflected_field_narrow(env, ui, "elapsed", 100.0, &mut s.elapsed);
+            changed |= reflected_collapsing(env, ui, "authored_depths", &mut s.authored_depths);
             changed |= reflected_collapsing(env, ui, "steps", &mut s.steps);
         }
     }

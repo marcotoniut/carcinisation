@@ -100,6 +100,10 @@ pub struct PickupSpawn {
     #[serde_as(as = "DurationSecondsWithFrac")]
     pub elapsed: Duration,
     pub depth: Depth,
+    /// Visible depths with hand-made visuals. When `None`, defaults to just
+    /// the spawn's own `depth`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authored_depths: Option<Vec<Depth>>,
 }
 
 impl PickupSpawn {
@@ -135,6 +139,7 @@ impl PickupSpawn {
             coordinates: Vec2::ZERO,
             elapsed: Duration::ZERO,
             depth: Depth::Six,
+            authored_depths: None,
         }
     }
     #[must_use]
@@ -144,6 +149,7 @@ impl PickupSpawn {
             coordinates: Vec2::ZERO,
             elapsed: Duration::ZERO,
             depth: Depth::Six,
+            authored_depths: None,
         }
     }
 }
@@ -164,6 +170,7 @@ impl PickupDropSpawn {
             coordinates,
             depth,
             elapsed: Duration::ZERO,
+            authored_depths: None,
         }
     }
 }
@@ -174,6 +181,10 @@ pub struct ObjectSpawn {
     pub object_type: ObjectType,
     pub coordinates: Vec2,
     pub depth: Depth,
+    /// Visible depths with hand-made visuals. When `None`, defaults to just
+    /// the spawn's own `depth`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authored_depths: Option<Vec<Depth>>,
 }
 
 impl ObjectSpawn {
@@ -206,6 +217,7 @@ impl ObjectSpawn {
             object_type: ObjectType::BenchBig,
             coordinates: Vec2::new(x, y),
             depth: Depth::Six,
+            authored_depths: None,
         }
     }
 
@@ -215,6 +227,7 @@ impl ObjectSpawn {
             object_type: ObjectType::BenchSmall,
             coordinates: Vec2::new(x, y),
             depth: Depth::Six,
+            authored_depths: None,
         }
     }
 
@@ -224,6 +237,7 @@ impl ObjectSpawn {
             object_type: ObjectType::Fibertree,
             coordinates: Vec2::new(x, y),
             depth: Depth::Two,
+            authored_depths: None,
         }
     }
 
@@ -233,6 +247,7 @@ impl ObjectSpawn {
             object_type: ObjectType::RugparkSign,
             coordinates: Vec2::new(x, y),
             depth: Depth::Three,
+            authored_depths: None,
         }
     }
 }
@@ -254,6 +269,10 @@ pub struct EnemySpawn {
     #[serde(default)]
     pub steps: VecDeque<EnemyStep>,
     pub depth: Depth,
+    /// Visible depths with hand-made visuals. When `None`, defaults to just
+    /// the spawn's own `depth`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authored_depths: Option<Vec<Depth>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
@@ -281,6 +300,7 @@ impl EnemyDropSpawn {
             steps: self.steps.clone(),
             contains: self.contains.clone(),
             elapsed: Duration::ZERO,
+            authored_depths: None,
         }
     }
 }
@@ -366,6 +386,7 @@ impl EnemySpawn {
             health: None,
             steps: vec![].into(),
             contains: None,
+            authored_depths: None,
         }
     }
     #[must_use]
@@ -379,6 +400,7 @@ impl EnemySpawn {
             health: None,
             steps: vec![].into(),
             contains: None,
+            authored_depths: None,
         }
     }
     #[must_use]
@@ -445,6 +467,7 @@ impl EnemySpawn {
             speed: speed_multiplier,
             health: None,
             contains: None,
+            authored_depths: None,
         }
     }
 }
@@ -485,6 +508,18 @@ impl StageSpawn {
             StageSpawn::Enemy(EnemySpawn { depth, .. }) => *depth,
             StageSpawn::Object(ObjectSpawn { depth, .. }) => *depth,
             StageSpawn::Pickup(PickupSpawn { depth, .. }) => *depth,
+        }
+    }
+
+    /// Returns the authored depths for this spawn, or `None` if not specified
+    /// (meaning the spawn's own `depth` is the only authored depth).
+    #[must_use]
+    pub fn get_authored_depths(&self) -> Option<&Vec<Depth>> {
+        match self {
+            StageSpawn::Destructible(s) => s.authored_depths.as_ref(),
+            StageSpawn::Enemy(s) => s.authored_depths.as_ref(),
+            StageSpawn::Object(s) => s.authored_depths.as_ref(),
+            StageSpawn::Pickup(s) => s.authored_depths.as_ref(),
         }
     }
 

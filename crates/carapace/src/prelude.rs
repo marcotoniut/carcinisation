@@ -51,7 +51,7 @@ pub use crate::{
     position::{PxAnchor, PxLayer, PxPosition, PxSubPosition, PxVelocity},
     presentation::PxPresentationTransform,
     rect::PxRect,
-    screen::ScreenSize,
+    screen::{PxOverlayCamera, ScreenSize},
     sprite::{
         PxCompositePart, PxCompositePartSource, PxCompositeSprite, PxPartTransform, PxSprite,
         PxSpriteAsset,
