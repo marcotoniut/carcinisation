@@ -201,11 +201,30 @@ fn is_zero_offset(v: &(i8, i8)) -> bool {
 
 // ── Encoder ────────────────────────────────────────────────────────────────
 
+/// Capacity warning thresholds (80% of each limit).
+const U8_WARN: usize = (u8::MAX as f64 * 0.8) as usize; // 204
+const I8_POS_WARN: i32 = (i8::MAX as f64 * 0.8) as i32; // 101
+const U16_WARN: u32 = (u16::MAX as f64 * 0.8) as u32; // 52428
+
 /// Convert a full `CompositionAtlas` into the compact runtime manifest.
 ///
 /// All numeric narrowing is bounds-checked. Dropped-field invariants
 /// (`opacity == 255`, `visible == true`) are enforced with diagnostic errors.
+/// Capacity warnings are logged to stderr via `eprintln!`.
 pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
+    let (result, warnings) = encode_with_diagnostics(atlas)?;
+    for w in &warnings {
+        eprintln!("[WARN] composed_ron::encode: {w}");
+    }
+    Ok(result)
+}
+
+/// Like [`encode`], but returns capacity warnings as a vec instead of
+/// printing them. Useful for testing.
+pub fn encode_with_diagnostics(
+    atlas: &CompositionAtlas,
+) -> Result<(CompactComposedAtlas, Vec<String>)> {
+    let mut warnings: Vec<String> = Vec::new();
     // ── Validate top-level numeric bounds ───────────────────────────────
     ensure!(
         u16::try_from(atlas.canvas.w).is_ok() && u16::try_from(atlas.canvas.h).is_ok(),
@@ -230,6 +249,12 @@ pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
             .map_err(|_| anyhow!("part index {} for '{}' exceeds u8 range", idx, part.id))?;
         part_index.insert(part.id.clone(), idx);
         part_names.push(part.id.clone());
+    }
+    if part_names.len() >= U8_WARN {
+        warnings.push(format!(
+            "part count {} is approaching u8 limit (255)",
+            part_names.len(),
+        ));
     }
 
     // ── Build sprite id → index lookup ─────────────────────────────────
@@ -258,6 +283,12 @@ pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
         sprite_names.push(sprite.id.clone());
         sprite_sizes.push((sprite_width, sprite_height));
     }
+    if sprite_names.len() >= U8_WARN {
+        warnings.push(format!(
+            "sprite count {} is approaching u8 limit (255)",
+            sprite_names.len(),
+        ));
+    }
 
     // ── Build definition lookup for merging ─────────────────────────────
     let def_lookup: std::collections::HashMap<&str, &crate::aseprite::PartDefinition> = atlas
@@ -276,6 +307,12 @@ pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
                 inst.draw_order,
             )
         })?;
+        if draw_order as usize >= U8_WARN {
+            warnings.push(format!(
+                "part '{}' draw_order {} is approaching u8 limit (255)",
+                inst.id, draw_order,
+            ));
+        }
         let pivot_x = i16::try_from(inst.pivot.x).map_err(|_| {
             anyhow!(
                 "part '{}' pivot.x {} exceeds i16 range",
@@ -401,6 +438,14 @@ pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
                             pose.local_offset.y,
                         )
                     })?;
+                    if pose.local_offset.x.abs() >= I8_POS_WARN
+                        || pose.local_offset.y.abs() >= I8_POS_WARN
+                    {
+                        warnings.push(format!(
+                            "animation '{}' frame {} part '{}': offset ({}, {}) is approaching i8 limits",
+                            anim.tag, frame_idx, pose.part_id, pose.local_offset.x, pose.local_offset.y,
+                        ));
+                    }
                     let fragment = u8::try_from(pose.fragment).map_err(|_| {
                         anyhow!(
                             "animation '{}' frame {} part '{}': fragment {} exceeds u8 range",
@@ -470,6 +515,12 @@ pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
                         frame.duration_ms,
                     )
                 })?;
+                if duration_ms as u32 >= U16_WARN {
+                    warnings.push(format!(
+                        "animation '{}' frame {} duration_ms {} is approaching u16 limit (65535)",
+                        anim.tag, frame_idx, duration_ms,
+                    ));
+                }
 
                 frames.push(CompactFrame {
                     duration_ms,
@@ -517,18 +568,21 @@ pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
     let origin_y = i16::try_from(atlas.origin.y)
         .map_err(|_| anyhow!("origin.y {} exceeds i16 range", atlas.origin.y))?;
 
-    Ok(CompactComposedAtlas {
-        entity: atlas.entity.clone(),
-        depth: atlas.depth,
-        canvas: (canvas_w, canvas_h),
-        origin: (origin_x, origin_y),
-        part_names,
-        sprite_names,
-        sprite_sizes,
-        parts,
-        animations,
-        gameplay,
-    })
+    Ok((
+        CompactComposedAtlas {
+            entity: atlas.entity.clone(),
+            depth: atlas.depth,
+            canvas: (canvas_w, canvas_h),
+            origin: (origin_x, origin_y),
+            part_names,
+            sprite_names,
+            sprite_sizes,
+            parts,
+            animations,
+            gameplay,
+        },
+        warnings,
+    ))
 }
 
 fn merge_gameplay(
@@ -844,6 +898,64 @@ mod tests {
         assert!(
             err.to_string().contains("sprite 'sprite_0000' width"),
             "got: {err}"
+        );
+    }
+
+    #[test]
+    fn warns_at_high_part_count() {
+        let mut atlas = tiny_atlas();
+        // Add parts until we reach the 80% threshold (204).
+        for i in 1..=205 {
+            let id = format!("part_{i}");
+            atlas.part_definitions.push(PartDefinition {
+                id: id.clone(),
+                tags: vec![],
+                gameplay: Default::default(),
+            });
+            atlas.parts.push(PartInstance {
+                id: id.clone(),
+                definition_id: id,
+                name: format!("Part {i}"),
+                parent_id: None,
+                source_layer: None,
+                source_region: None,
+                split: None,
+                draw_order: 0,
+                pivot: Point::default(),
+                tags: vec![],
+                visible_by_default: true,
+                gameplay: Default::default(),
+            });
+        }
+
+        let (_compact, warnings) =
+            encode_with_diagnostics(&atlas).expect("should encode with warnings");
+        assert!(
+            warnings.iter().any(|w| w.contains("part count")),
+            "expected part count warning, got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn warns_at_high_offset() {
+        let mut atlas = tiny_atlas();
+        atlas.animations[0].frames[0].parts[0].local_offset = Point { x: 102, y: 0 };
+
+        let (_compact, warnings) =
+            encode_with_diagnostics(&atlas).expect("should encode with warnings");
+        assert!(
+            warnings.iter().any(|w| w.contains("offset")),
+            "expected offset warning, got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn no_warning_below_threshold() {
+        let atlas = tiny_atlas();
+        let (_compact, warnings) = encode_with_diagnostics(&atlas).expect("should encode cleanly");
+        assert!(
+            warnings.is_empty(),
+            "expected no warnings, got: {warnings:?}"
         );
     }
 }
