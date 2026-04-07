@@ -215,6 +215,13 @@ draw_order = 80
 pivot = { x = 0, y = 0 }
 tags = ["legs"]
 
+[[animation_overrides]]
+# Flying animations have single-frame static wings. Source wing flap
+# cycle from idle_fly so wings animate independently of the body.
+tags = ["flying_forward", "flying_backwards", "shoot_fly", "melee_fly"]
+source_tag = "idle_fly"
+part_tags = ["wings"]
+
 [[animation_events]]
 # Tag-local frame index inside `shoot_fly`. This is the first clear discharge
 # pose, so projectile timing is authored by animation playback rather than tied

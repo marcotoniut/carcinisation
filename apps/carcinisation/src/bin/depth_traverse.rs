@@ -27,9 +27,9 @@ use carcinisation::{
         depth_scale::{DepthScaleConfig, apply_depth_fallback_scale},
         enemy::{
             composed::{
-                ComposedAnimationOverride, ComposedAnimationState, ComposedEnemyVisual,
-                CompositionAtlasAsset, CompositionAtlasLoader, ensure_composed_enemy_parts,
-                prepare_composed_atlas_assets, update_composed_enemy_visuals,
+                ComposedAnimationState, ComposedEnemyVisual, CompositionAtlasAsset,
+                CompositionAtlasLoader, ensure_composed_enemy_parts, prepare_composed_atlas_assets,
+                update_composed_enemy_visuals,
             },
             entity::EnemyType,
         },
@@ -65,6 +65,9 @@ const ENDPOINT_PAUSE_SECS: f32 = 2.0;
 
 /// Short pause before/after liftoff and landing transitions.
 const TRANSITION_PAUSE_SECS: f32 = 0.5;
+
+/// How long the liftoff/landing animation pose is held.
+const TRANSITION_ANIM_SECS: f32 = 0.5;
 
 /// Number of passes (half-trips) before switching between walk and fly modes.
 /// 3 = forward, backward, forward — then transition.
@@ -388,18 +391,16 @@ fn advance_walk(
                         // Start landing — play idle_stand as transition pose.
                         // TODO: use a dedicated landing animation when authored.
                         anim.requested_tag = "idle_stand".into();
-                        progress.phase = WalkPhase::Landing { remaining: 0.5 };
+                        progress.phase = WalkPhase::Landing {
+                            remaining: TRANSITION_ANIM_SECS,
+                        };
                     } else {
-                        // Start liftoff.
+                        // Start liftoff. Wing flap is handled by metadata
+                        // part_overrides on flying animations.
                         anim.requested_tag = "liftoff".into();
-                        // HACK: flying anims have static wings (single frame).
-                        // Overlay idle_fly on wings for flap cycle. Should be
-                        // declared in atlas metadata per-animation instead.
-                        anim.set_part_overrides([ComposedAnimationOverride::for_part_tags(
-                            "idle_fly",
-                            ["wings"],
-                        )]);
-                        progress.phase = WalkPhase::Liftoff { remaining: 0.5 };
+                        progress.phase = WalkPhase::Liftoff {
+                            remaining: TRANSITION_ANIM_SECS,
+                        };
                     }
                 } else {
                     progress.phase = WalkPhase::PreTransition { remaining };
@@ -424,8 +425,6 @@ fn advance_walk(
                 if remaining <= 0.0 {
                     progress.airborne = false;
                     anim.requested_tag = "idle_stand".into();
-                    // Clear wing overlay — grounded animations have no flap.
-                    anim.set_part_overrides([]);
                     progress.phase = WalkPhase::PostTransition {
                         remaining: TRANSITION_PAUSE_SECS,
                     };

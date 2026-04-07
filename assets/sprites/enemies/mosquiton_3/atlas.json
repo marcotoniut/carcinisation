@@ -1639,7 +1639,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "walking_forward",
@@ -2300,7 +2301,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "shoot_stand",
@@ -3491,7 +3493,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "melee_stand",
@@ -4337,7 +4340,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "death",
@@ -4515,7 +4519,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "liftoff",
@@ -5009,7 +5014,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "falling",
@@ -5496,7 +5502,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "idle_fly",
@@ -6187,7 +6194,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "flying_forward",
@@ -6364,6 +6372,16 @@
             }
           ]
         }
+      ],
+      "part_overrides": [
+        {
+          "source_tag": "idle_fly",
+          "part_tags": [
+            "wings"
+          ],
+          "part_ids": [],
+          "sprite_only": false
+        }
       ]
     },
     {
@@ -6539,6 +6557,16 @@
               "opacity": 255
             }
           ]
+        }
+      ],
+      "part_overrides": [
+        {
+          "source_tag": "idle_fly",
+          "part_tags": [
+            "wings"
+          ],
+          "part_ids": [],
+          "sprite_only": false
         }
       ]
     },
@@ -6718,7 +6746,8 @@
             }
           ]
         }
-      ]
+      ],
+      "part_overrides": []
     },
     {
       "tag": "shoot_fly",
@@ -7932,6 +7961,16 @@
             }
           ]
         }
+      ],
+      "part_overrides": [
+        {
+          "source_tag": "idle_fly",
+          "part_tags": [
+            "wings"
+          ],
+          "part_ids": [],
+          "sprite_only": false
+        }
       ]
     },
     {
@@ -8803,6 +8842,16 @@
               "fragment": 1
             }
           ]
+        }
+      ],
+      "part_overrides": [
+        {
+          "source_tag": "idle_fly",
+          "part_tags": [
+            "wings"
+          ],
+          "part_ids": [],
+          "sprite_only": false
         }
       ]
     }
