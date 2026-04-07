@@ -646,6 +646,9 @@ struct ComposedTrackPlaybackState {
     frame_started_at_ms: u64,
     ping_pong_forward: bool,
     completed_loops: u32,
+    /// Set once when a finite animation exhausts its repeats, to ensure
+    /// the `AnimationComplete` cue fires exactly once.
+    completion_fired: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -1909,6 +1912,7 @@ fn sync_animation_track_states(
                 frame_started_at_ms: now_ms,
                 ping_pong_forward: animation.direction != CachedAnimationDirection::PingPongReverse,
                 completed_loops: 0,
+                completion_fired: false,
             };
             fired_cues.extend(fired_frame_cues(
                 request.tag.as_str(),
@@ -2369,6 +2373,19 @@ fn advance_track_playback(
         }
 
         let Some(next_frame_index) = advance_track_to_next_frame(track_state, animation) else {
+            // Finite animation exhausted — emit completion cue once.
+            if !track_state.completion_fired {
+                track_state.completion_fired = true;
+                fired_cues.push(FiredAnimationCue {
+                    tag: request.tag.clone(),
+                    frame_index: track_state.frame_index,
+                    source_frame: animation.frames[track_state.frame_index].source_frame,
+                    kind: AnimationEventKind::AnimationComplete,
+                    id: String::new(),
+                    part_id: None,
+                    local_offset: IVec2::ZERO,
+                });
+            }
             track_state.frame_started_at_ms = now_ms;
             break;
         };
@@ -2975,6 +2992,8 @@ mod tests {
         }
     }
 
+    /// Collect authored cue IDs at each timestamp, excluding synthetic
+    /// `AnimationComplete` cues.
     fn cue_ids_at_times(
         visual: &mut ComposedEnemyVisual,
         state: &ComposedAnimationState,
@@ -2989,6 +3008,7 @@ mod tests {
                     .expect("frame resolution should succeed")
                     .fired_cues
                     .into_iter()
+                    .filter(|cue| cue.kind != AnimationEventKind::AnimationComplete)
                     .map(|cue| cue.id)
                     .collect()
             })
@@ -3445,6 +3465,109 @@ mod tests {
         assert!(
             cues[3].is_empty(),
             "non-looping clips should not refire after completion"
+        );
+    }
+
+    fn cue_kinds_at_times(
+        visual: &mut ComposedEnemyVisual,
+        state: &ComposedAnimationState,
+        cache: &CompositionAtlasCache,
+        times_ms: &[u64],
+    ) -> Vec<Vec<AnimationEventKind>> {
+        let tracks = requested_animation_tracks(state);
+        times_ms
+            .iter()
+            .map(|now_ms| {
+                resolve_requested_animation_frame(visual, &tracks, cache, *now_ms)
+                    .expect("frame resolution should succeed")
+                    .fired_cues
+                    .into_iter()
+                    .map(|cue| cue.kind)
+                    .collect()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn finite_animation_fires_completion_cue() {
+        let mut atlas = minimal_mixed_animation_atlas();
+        let shoot = atlas
+            .animations
+            .iter_mut()
+            .find(|a| a.tag == "shoot_fly")
+            .unwrap();
+        shoot.repeats = Some(1);
+
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        // shoot_fly has 2 frames × 100ms. After 200ms the animation is
+        // exhausted and should emit AnimationComplete.
+        let kinds = cue_kinds_at_times(&mut visual, &state, &cache, &[0, 100, 200]);
+        assert!(
+            kinds[2].contains(&AnimationEventKind::AnimationComplete),
+            "expected AnimationComplete cue at t=200, got: {:?}",
+            kinds[2],
+        );
+    }
+
+    #[test]
+    fn infinite_animation_never_fires_completion_cue() {
+        let atlas = minimal_mixed_animation_atlas();
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        // idle_fly has repeats: None (infinite).
+        let state = ComposedAnimationState::new("idle_fly");
+
+        let kinds = cue_kinds_at_times(&mut visual, &state, &cache, &[0, 100, 200, 500, 1000]);
+        for (i, frame_kinds) in kinds.iter().enumerate() {
+            assert!(
+                !frame_kinds.contains(&AnimationEventKind::AnimationComplete),
+                "infinite animation should never fire AnimationComplete, but did at index {i}",
+            );
+        }
+    }
+
+    #[test]
+    fn completion_cue_fires_once_not_every_frame() {
+        let mut atlas = minimal_mixed_animation_atlas();
+        let shoot = atlas
+            .animations
+            .iter_mut()
+            .find(|a| a.tag == "shoot_fly")
+            .unwrap();
+        shoot.repeats = Some(1);
+
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let state = ComposedAnimationState::new("shoot_fly");
+
+        // Advance well past the end — completion should appear exactly once.
+        let kinds = cue_kinds_at_times(&mut visual, &state, &cache, &[0, 100, 200, 400, 800]);
+        let completion_count: usize = kinds
+            .iter()
+            .flatten()
+            .filter(|k| **k == AnimationEventKind::AnimationComplete)
+            .count();
+        assert_eq!(
+            completion_count, 1,
+            "AnimationComplete should fire exactly once, fired {completion_count} times",
         );
     }
 

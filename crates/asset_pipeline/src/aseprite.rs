@@ -240,6 +240,9 @@ pub enum AnimationEventKind {
     HitboxOff,
     EffectSpawn,
     SoundPlay,
+    /// Synthesised at runtime when a finite animation exhausts its repeats.
+    /// Never authored in composition metadata.
+    AnimationComplete,
 }
 
 /// One per-part authored placement in a composed frame.
