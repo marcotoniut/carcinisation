@@ -7,12 +7,12 @@
     "@biomejs/biome": "^2.4.6",
     "@cspell/dict-en-gb": "5.0.24",
     "@modelcontextprotocol/server-filesystem": "^2026.1.14",
-    "@playwright/mcp": "0.0.68",
     "cspell": "9.7.0",
     "tsx": "^4.21.0"
   },
   "scripts": {
     "check:agent": "pnpm --filter @carcinisation/agent-check run check --",
+    "check:agent:generate": "pnpm --filter @carcinisation/agent-check run generate-capabilities",
     "format": "biome format",
     "format:check": "biome check",
     "lint": "biome check",

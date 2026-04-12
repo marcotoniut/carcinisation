@@ -2,23 +2,15 @@
 /** Runs lint, test, and format checks in parallel, writing logs and focus files to `reports/agent/`. */
 
 import path from "node:path"
+import type { TaskConfig } from "./config.js"
+import { DEFAULT_FLAGS, RULES, TASKS } from "./config.js"
 import {
   createFocusFile,
   ensureReportsDir,
   printSummary,
   REPORTS_DIR,
   runCommand,
-} from "./utils"
-
-type TaskConfig = {
-  flag: string
-  name: string
-  command: string
-  logFile: string
-  focusFile: string
-  matchers: RegExp[]
-  phase: "parallel" | "post"
-}
+} from "./utils.js"
 
 type TaskResult = {
   task: TaskConfig
@@ -26,45 +18,6 @@ type TaskResult = {
   logFilePath: string
   focusFilePath?: string
 }
-
-const TASKS: TaskConfig[] = [
-  {
-    flag: "--lint",
-    name: "lint-rs",
-    command: "make lint",
-    logFile: "lint-rs.log",
-    focusFile: "lint-rs.focus.txt",
-    matchers: [/error/i, /warning/i, /clippy/i, /lint/i],
-    phase: "parallel",
-  },
-  {
-    flag: "--test",
-    name: "test",
-    command: "make test",
-    logFile: "test.log",
-    focusFile: "test.focus.txt",
-    matchers: [/fail/i, /FAILED/i, /panic/i, /error/i, /assert/i],
-    phase: "parallel",
-  },
-  {
-    flag: "--lint-web",
-    name: "lint-web",
-    command: "pnpm lint",
-    logFile: "lint-web.log",
-    focusFile: "lint-web.focus.txt",
-    matchers: [/error/i, /warning/i, /biome/i, /lint/i],
-    phase: "parallel",
-  },
-  {
-    flag: "--fmt",
-    name: "fmt-rs",
-    command: "cargo fmt --all -- --check",
-    logFile: "fmt-rs.log",
-    focusFile: "fmt-rs.focus.txt",
-    matchers: [/Diff in/i, /error/i, /warning/i],
-    phase: "post",
-  },
-]
 
 const aliases = new Map<string, string>()
 
@@ -88,7 +41,7 @@ const main = async () => {
       "",
       "Usage:",
       "  pnpm check:agent --lint --test --lint-web --fmt",
-      "  pnpm check:agent --all",
+      `  pnpm check:agent ${DEFAULT_FLAGS.join(" ")}`,
       "",
       "Checks:",
       "  --lint       make lint",
@@ -153,10 +106,10 @@ const main = async () => {
     summaryLines.push(
       "",
       "AGENT INSTRUCTIONS:",
-      "1) Open each focus file first.",
+      `1) ${RULES[0].replaceAll("_", " ")}.`,
       "2) If unclear, open the full log.",
       "3) Fix the issues.",
-      "4) Re-run pnpm check:agent with the same flags.",
+      `4) ${RULES[1].replaceAll("_", " ")}.`,
       "5) If PASS, do not open any logs.",
     )
   }

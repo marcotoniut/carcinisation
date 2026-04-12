@@ -5,7 +5,8 @@
   "description": "Agent quality-gate runner with captured log output",
   "type": "module",
   "scripts": {
-    "check": "tsx src/check.ts"
+    "check": "tsx src/check.ts",
+    "generate-capabilities": "tsx src/generate-capabilities.ts"
   },
   "devDependencies": {
     "@types/node": "25.3.5",

@@ -61,3 +61,7 @@ tools/editor/recent_file_path.txt
 # App config
 *.config.ron
 apps/carcinisation/single-stage.config.ron
+
+# Local Codex config
+.codex/
+.codex/config.toml

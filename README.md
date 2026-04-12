@@ -54,6 +54,15 @@ Troubleshooting: If VS Code reports `Import "PIL" could not be resolved`, re-run
 - `DEVELOPMENT.md` – make targets, asset tooling, palette generation workflow, and day-to-day processes.
 - `AGENTS.md` – AI agent collaboration rules and coordination tips.
 
+## Agent Validation Metadata
+
+`pnpm check:agent:generate` writes two local files under `.direnv/cache/`:
+
+- `check-agent-capabilities.json` – compact agent-facing validation metadata
+- `check-agent-capabilities.pretty.json` – full human-readable task list
+
+The compact file keeps only the default flags, available flags, focus-file map, and rerun rules needed to drive `pnpm check:agent`.
+
 ## Planning Work
 
 - Open a GitHub issue or discussion when planning sizeable architecture or content updates.

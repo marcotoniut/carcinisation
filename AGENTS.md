@@ -3,6 +3,8 @@
 ## Startup
 
 Discover tools/versions/workflows from repo files. Do not assume.
+Before choosing validation, read `.direnv/cache/check-agent-capabilities.json`.
+If it is missing or stale, regenerate it with `pnpm check:agent:generate`.
 
 ## Ownership
 
@@ -29,13 +31,11 @@ Discover tools/versions/workflows from repo files. Do not assume.
 
 ## Validation
 
-For code changes, pass all of:
-
-- `make fmt`
-- `make lint`
-- `make test`
-
-Then run any additional surface-specific checks from project docs.
+Use `pnpm check:agent` flags from `.direnv/cache/check-agent-capabilities.json`.
+For broad code changes, run the default flags from that file.
+If a check fails, open the matching focus file in `reports/agent/` first.
+Re-run `pnpm check:agent` with the same flags after fixing issues.
+Run any additional surface-specific checks from project docs when needed.
 If something is blocked, state exactly what and why.
 
 ## Review Output Format
@@ -61,7 +61,8 @@ Provide options, trade-offs, and a recommendation.
 
 ## Communication
 
-- Be direct and concise.
+- Default to `caveman`.
+- Use normal style when brevity risks misunderstanding.
 - State assumptions explicitly.
 - Ask clarifying questions when ambiguity would change behaviour or scope.
 - Use precise file references when possible.

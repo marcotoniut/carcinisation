@@ -3,9 +3,13 @@
 import { spawn } from "node:child_process"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+export const REPO_ROOT = path.resolve(scriptDir, "../../..")
 
 /** Absolute path to the agent reports directory (`reports/agent/`). */
-export const REPORTS_DIR = path.resolve(process.cwd(), "reports", "agent")
+export const REPORTS_DIR = path.resolve(REPO_ROOT, "reports", "agent")
 
 /** Creates the reports directory if it doesn't already exist. */
 export const ensureReportsDir = async (): Promise<void> => {
@@ -39,6 +43,7 @@ export const runCommand = async (
 
   const child = spawn(command, {
     shell: true,
+    cwd: REPO_ROOT,
     env: { ...process.env },
   })
 

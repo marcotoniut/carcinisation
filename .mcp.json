@@ -6,12 +6,6 @@
       "args": ["exec", "mcp-server-filesystem", "${workspaceFolder}"],
       "env": {}
     },
-    "playwright": {
-      "type": "stdio",
-      "command": "pnpm",
-      "args": ["exec", "playwright-mcp", "--browser", "chrome"],
-      "env": {}
-    },
     "brp": {
       "type": "stdio",
       "command": "bevy_brp_mcp",
