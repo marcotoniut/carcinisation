@@ -33,7 +33,18 @@ pub fn check_no_behavior(
 
         let bundles = current_behavior.get_bundles(stage_time.elapsed(), position, speed.0, *depth);
         match bundles {
-            BehaviorBundle::Idle | BehaviorBundle::Attack | BehaviorBundle::Jump => {}
+            BehaviorBundle::Idle | BehaviorBundle::Attack => {}
+            BehaviorBundle::Jump(jump_movement) => {
+                // Spawn tween children to drive the jump arc movement.
+                current_behavior.spawn_tween_children(
+                    &mut commands,
+                    entity,
+                    position,
+                    speed.0,
+                    *depth,
+                );
+                commands.entity(entity).insert(jump_movement);
+            }
             BehaviorBundle::LinearTween(linear_movement) => {
                 // Insert the LinearTween marker on the enemy
                 commands.entity(entity).insert(linear_movement);

@@ -2183,7 +2183,7 @@
     {
       "tag": "jump",
       "direction": "forward",
-      "repeats": null,
+      "repeats": 1,
       "frames": [
         {
           "source_frame": 15,
@@ -2807,6 +2807,119 @@
               "local_offset": {
                 "x": 17,
                 "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "landing",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 21,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "legs_r",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": -23,
+                "y": -13
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs_l",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": 5,
+                "y": -13
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": -11,
+                "y": -14
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": 1,
+                "y": -14
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 3,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 12,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "pedipalp_r",
+              "sprite_id": "sprite_0006",
+              "local_offset": {
+                "x": 0,
+                "y": 17
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "pedipalp_l",
+              "sprite_id": "sprite_0006",
+              "local_offset": {
+                "x": 17,
+                "y": 17
               },
               "flip_x": true,
               "flip_y": false,

@@ -1,8 +1,12 @@
-//! Mosquiton depth-traverse test.
+//! Composed-enemy depth-traverse test.
 //!
-//! Mosquiton oscillates between depth 9 (horizon) and depth 1 (foreground),
+//! An enemy oscillates between depth 9 (horizon) and depth 1 (foreground),
 //! validating authored depth sprite switching, fallback scaling, floor-line
 //! placement, and visual coherence across the full visible depth range.
+//!
+//! Supports two characters:
+//! - **Mosquiton** (default): walk/fly locomotion with liftoff/landing transitions
+//! - **Spidey**: jump-based locomotion with idle pauses between arcs
 //!
 //! Depth floor lines are drawn by the shared [`DepthDebugPlugin`] overlay
 //! (enabled by default here; toggle with `Ctrl+L` / `Cmd+L`).
@@ -13,7 +17,11 @@
 //! `Ctrl+O` / `Cmd+O` cycles through three horizon profiles (depth 9 floor
 //! at 50%, 15%, or 85% of screen height).
 //!
-//! Run with: `cargo run -p carcinisation --bin depth_traverse`
+//! `1` / `2` switches between Mosquiton and Spidey at runtime.
+//!
+//! Run with:
+//! - `cargo run -p carcinisation --bin depth_traverse`
+//! - `cargo run -p carcinisation --bin depth_traverse -- --character spidey`
 
 use bevy::{asset::AssetMetaCheck, prelude::*};
 #[cfg(feature = "brp")]
@@ -27,6 +35,7 @@ use carcinisation::{
         depth_scale::{DepthScaleConfig, apply_depth_fallback_scale},
         enemy::{
             composed::{
+                ComposedAnimationPlaybackDebug, ComposedAnimationPlaybackDebugEnabled,
                 ComposedAnimationState, ComposedEnemyVisual, CompositionAtlasAsset,
                 CompositionAtlasLoader, ensure_composed_enemy_parts, prepare_composed_atlas_assets,
                 update_composed_enemy_visuals,
@@ -57,6 +66,7 @@ const PERIOD_SECS: f32 = 14.0;
 const DEPTH_MIN: i8 = 1;
 const DEPTH_MAX: i8 = 9;
 const DEPTH_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN + 1) as f32;
+const DEPTH_INTERVAL_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN) as f32;
 
 const VIEWPORT_SCALE: f32 = 4.0;
 
@@ -70,18 +80,33 @@ const TRANSITION_PAUSE_SECS: f32 = 0.5;
 const TRANSITION_ANIM_SECS: f32 = 0.5;
 
 /// Number of passes (half-trips) before switching between walk and fly modes.
-/// 3 = forward, backward, forward — then transition.
+/// 3 = forward, backward, forward -- then transition.
 const PASSES_BEFORE_SWITCH: u32 = 3;
 
 /// Vertical offset (in carapace pixels) the sprite rises during flight.
 /// Scaled by depth scale at runtime for consistent visual gap.
 const FLY_HEIGHT_OFFSET: f32 = 24.0;
 
+/// Idle pause between spidey jumps.
+const SPIDEY_JUMP_IDLE_SECS: f32 = 1.0;
+
+/// Duration of the spidey jump arc animation.
+const SPIDEY_JUMP_ARC_SECS: f32 = 0.8;
+
+/// Peak height of the spidey jump arc at depth scale 1.0.
+///
+/// Scaled by depth so far-depth jumps do not read taller than foreground jumps.
+const SPIDEY_JUMP_ARC_HEIGHT: f32 = 80.0;
+
+/// Duration of the landing freeze frame after a spidey jump.
+const SPIDEY_LANDING_SECS: f32 = 0.3;
+
 // --- Resources ---
 
 /// Active horizon profile. Stores the depth-9 floor Y and drives all floor
 /// mapping through [`floor_y_from_t`] and [`floor_y_for_depth`].
-#[derive(Resource)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
 struct HorizonProfile {
     index: usize,
     floor_depth_9: f32,
@@ -96,24 +121,58 @@ impl Default for HorizonProfile {
     }
 }
 
+/// Which character is currently displayed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Resource, Reflect)]
+#[reflect(Resource)]
+enum SelectedCharacter {
+    #[default]
+    Mosquiton,
+    Spidey,
+}
+
+impl SelectedCharacter {
+    fn enemy_type(self) -> EnemyType {
+        match self {
+            Self::Mosquiton => EnemyType::Mosquiton,
+            Self::Spidey => EnemyType::Spidey,
+        }
+    }
+
+    fn authored_depth(self) -> Depth {
+        match self {
+            Self::Mosquiton => Depth::Three,
+            Self::Spidey => Depth::Three,
+        }
+    }
+
+    fn initial_animation(self) -> &'static str {
+        match self {
+            Self::Mosquiton => "walking_forward",
+            Self::Spidey => "idle",
+        }
+    }
+}
+
 // --- Components ---
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 struct DepthWalker;
 
 /// Oscillation state machine for the depth walk.
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 struct WalkProgress {
     t: f32,
     direction: f32,
     phase: WalkPhase,
-    /// Whether we're currently in flying mode.
+    /// Whether we're currently in flying mode (mosquiton only).
     airborne: bool,
     /// Counts completed passes (half-trips). Each endpoint hit increments by 1.
     half_trips: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 enum WalkPhase {
     /// Moving between endpoints (walking or flying depending on `airborne`).
     Moving,
@@ -128,13 +187,76 @@ enum WalkPhase {
     Landing { remaining: f32 },
     /// Post-transition pause after liftoff/landing, before resuming movement.
     PostTransition { remaining: f32 },
+    /// Spidey: idle pause between jumps.
+    SpideyIdle { remaining: f32 },
+    /// Spidey: mid-jump arc.
+    SpideyJumping {
+        elapsed: f32,
+        start_depth: Depth,
+        target_depth: Depth,
+        start_t: f32,
+        target_t: f32,
+        start_y: f32,
+        target_y: f32,
+    },
+    /// Spidey: landing freeze frame after jump.
+    SpideyLanding { remaining: f32 },
 }
 
 /// Marker for Floor entities managed by this example (so we can update them).
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 struct DepthFloorLine;
 
-// --- Layer (local — the game's Layer is crate-private) ---
+#[derive(Component, Clone, Copy, Debug, Reflect)]
+#[reflect(Component)]
+struct DepthTraverseScaleOverride {
+    /// Extra multiplier stacked above the discrete depth fallback scale while
+    /// Spidey is visually between depth steps.
+    applied: Vec2,
+}
+
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
+struct DepthTraverseDebugState {
+    selected_character: String,
+    phase: String,
+    current_depth: i8,
+    target_depth: i8,
+    jump_elapsed_secs: f32,
+    jump_progress: f32,
+    current_floor_y: f32,
+    current_y: f32,
+    target_y: f32,
+    current_scale: f32,
+    active_animation_tag: String,
+    active_animation_source_frame: usize,
+    active_animation_frame_index: usize,
+    holding_last_frame: bool,
+}
+
+impl Default for DepthTraverseDebugState {
+    fn default() -> Self {
+        Self {
+            selected_character: String::new(),
+            phase: String::new(),
+            current_depth: DEPTH_MAX,
+            target_depth: DEPTH_MAX,
+            jump_elapsed_secs: 0.0,
+            jump_progress: 0.0,
+            current_floor_y: 0.0,
+            current_y: 0.0,
+            target_y: 0.0,
+            current_scale: 1.0,
+            active_animation_tag: String::new(),
+            active_animation_source_frame: 0,
+            active_animation_frame_index: 0,
+            holding_last_frame: false,
+        }
+    }
+}
+
+// --- Layer (local -- the game's Layer is crate-private) ---
 
 #[px_layer]
 enum Layer {
@@ -149,7 +271,7 @@ enum Layer {
 /// before interpolating screen-space floor positions.
 ///
 /// `t` is the linear normalised depth where `0.0` = depth 9 (horizon) and
-/// `1.0` = depth 1 (foreground). The output `t³` strongly compresses distant
+/// `1.0` = depth 1 (foreground). The output `t^3` strongly compresses distant
 /// depths (small `t`) and aggressively spreads near depths (large `t`),
 /// giving a pronounced perspective-like floor layout while keeping the walk
 /// speed linear in time.
@@ -157,7 +279,7 @@ fn perspective_bias(t: f32) -> f32 {
     t * t * t
 }
 
-/// Map a normalised `t ∈ [0, 1]` (0 = horizon, 1 = foreground) to a
+/// Map a normalised `t` in `[0, 1]` (0 = horizon, 1 = foreground) to a
 /// screen-space floor Y through the perspective bias, using the given
 /// depth-9 floor position.
 fn floor_y_from_t(t: f32, floor_depth_9: f32) -> f32 {
@@ -171,15 +293,54 @@ fn floor_y_for_depth(d: i8, floor_depth_9: f32) -> f32 {
     floor_y_from_t(t, floor_depth_9)
 }
 
+fn depth_to_t(depth: Depth) -> f32 {
+    f32::from(DEPTH_MAX - depth.to_i8()) / DEPTH_INTERVAL_COUNT
+}
+
+fn adjacent_depth(current: Depth, direction: f32) -> Depth {
+    if direction > 0.0 {
+        current - 1
+    } else {
+        current + 1
+    }
+}
+
+// --- CLI parsing ---
+
+fn parse_character_from_args() -> SelectedCharacter {
+    let args: Vec<String> = std::env::args().collect();
+    for (i, arg) in args.iter().enumerate() {
+        if arg == "--character"
+            && let Some(value) = args.get(i + 1)
+        {
+            return match value.to_lowercase().as_str() {
+                "spidey" | "spider" => SelectedCharacter::Spidey,
+                "mosquiton" => SelectedCharacter::Mosquiton,
+                _ => {
+                    eprintln!("Unknown character '{}', defaulting to mosquiton", value);
+                    SelectedCharacter::Mosquiton
+                }
+            };
+        }
+    }
+    SelectedCharacter::Mosquiton
+}
+
 // --- Entry point ---
 
 fn main() {
+    let initial_character = parse_character_from_args();
+    let title = match initial_character {
+        SelectedCharacter::Mosquiton => "Depth Traverse - Mosquiton",
+        SelectedCharacter::Spidey => "Depth Traverse - Spidey",
+    };
+
     let mut app = App::new();
     app.add_plugins((
         DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: "Mosquiton Depth Traverse".into(),
+                    title: title.into(),
                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                     resolution: (
                         SCREEN_W as u32 * VIEWPORT_SCALE as u32,
@@ -199,9 +360,20 @@ fn main() {
         PxAnimationPlugin,
         DepthDebugPlugin,
     ))
+    .register_type::<ComposedAnimationPlaybackDebug>()
+    .register_type::<ComposedAnimationPlaybackDebugEnabled>()
+    .register_type::<DepthFloorLine>()
+    .register_type::<DepthTraverseScaleOverride>()
+    .register_type::<DepthTraverseDebugState>()
+    .register_type::<DepthWalker>()
+    .register_type::<HorizonProfile>()
+    .register_type::<SelectedCharacter>()
+    .register_type::<WalkPhase>()
+    .register_type::<WalkProgress>()
     .insert_resource(ClearColor(Color::BLACK))
     .insert_resource(DepthScaleConfig::load_or_default())
     .init_resource::<HorizonProfile>()
+    .insert_resource(initial_character)
     // Start with the depth overlay enabled for this example.
     .insert_resource(DepthDebugOverlay::new(true));
     // BRP support for runtime inspection (carapace/brp_extras adds BrpExtrasPlugin
@@ -221,16 +393,17 @@ fn main() {
             Update,
             (
                 tick_stage_time,
-                (
-                    prepare_composed_atlas_assets,
-                    ensure_composed_enemy_parts,
-                    update_composed_enemy_visuals,
-                )
-                    .chain(),
+                prepare_composed_atlas_assets,
+                ensure_composed_enemy_parts,
                 cycle_horizon_profile,
+                switch_character,
                 advance_walk,
                 apply_depth_fallback_scale,
-            ),
+                apply_spidey_jump_scale_override,
+                update_composed_enemy_visuals,
+                update_depth_traverse_debug_state,
+            )
+                .chain(),
         )
         .run();
 }
@@ -242,7 +415,12 @@ fn tick_stage_time(time: Res<Time>, mut stage_time: ResMut<Time<StageTimeDomain>
     stage_time.advance_by(time.delta());
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>, profile: Res<HorizonProfile>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    profile: Res<HorizonProfile>,
+    selected: Res<SelectedCharacter>,
+) {
     // Primary camera for PxPlugin rendering.
     commands.spawn(Camera2d);
 
@@ -268,25 +446,83 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, profile: Res<Ho
         ));
     }
 
+    spawn_walker(&mut commands, &asset_server, &profile, *selected);
+}
+
+fn spawn_walker(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    profile: &HorizonProfile,
+    character: SelectedCharacter,
+) {
     let initial_depth = Depth::Nine;
+    let initial_phase = match character {
+        SelectedCharacter::Mosquiton => WalkPhase::Moving,
+        SelectedCharacter::Spidey => WalkPhase::SpideyIdle {
+            remaining: SPIDEY_JUMP_IDLE_SECS,
+        },
+    };
 
     commands.spawn((
         DepthWalker,
-        ComposedAnimationState::new("walking_forward"),
-        ComposedEnemyVisual::for_enemy(&asset_server, EnemyType::Mosquiton, Depth::Three),
+        Name::new("DepthTraverseWalker"),
+        ComposedAnimationState::new(character.initial_animation()),
+        ComposedAnimationPlaybackDebugEnabled,
+        ComposedEnemyVisual::for_enemy(
+            asset_server,
+            character.enemy_type(),
+            character.authored_depth(),
+        ),
+        DepthTraverseDebugState::default(),
         PxSubPosition::from(Vec2::new(CENTER_X, profile.floor_depth_9)),
         initial_depth,
-        AuthoredDepths::single(Depth::Three),
+        AuthoredDepths::single(character.authored_depth()),
         Layer::Front,
         PxAnchor::Center,
         WalkProgress {
             t: 0.0,
             direction: 1.0,
-            phase: WalkPhase::Moving,
+            phase: initial_phase,
             airborne: false,
             half_trips: 0,
         },
     ));
+}
+
+/// Switch character with keyboard `1` (Mosquiton) or `2` (Spidey).
+fn switch_character(
+    mut commands: Commands,
+    keys: Res<ButtonInput<KeyCode>>,
+    asset_server: Res<AssetServer>,
+    profile: Res<HorizonProfile>,
+    mut selected: ResMut<SelectedCharacter>,
+    walker_query: Query<Entity, With<DepthWalker>>,
+) {
+    let new_character = if keys.just_pressed(KeyCode::Digit1) {
+        Some(SelectedCharacter::Mosquiton)
+    } else if keys.just_pressed(KeyCode::Digit2) {
+        Some(SelectedCharacter::Spidey)
+    } else {
+        None
+    };
+
+    let Some(new_character) = new_character else {
+        return;
+    };
+
+    if *selected == new_character {
+        return;
+    }
+
+    info!("Switching to {:?}", new_character);
+    *selected = new_character;
+
+    // Despawn existing walker.
+    for entity in &walker_query {
+        commands.entity(entity).despawn();
+    }
+
+    spawn_walker(&mut commands, &asset_server, &profile, new_character);
 }
 
 /// Cycle horizon profile with `Ctrl+O` (`Cmd+O` on macOS).
@@ -312,7 +548,7 @@ fn cycle_horizon_profile(
     profile.floor_depth_9 = HORIZON_FRACTIONS[profile.index] * SCREEN_H;
 
     info!(
-        "Horizon profile {} — depth 9 floor at {:.0}% of screen height",
+        "Horizon profile {} -- depth 9 floor at {:.0}% of screen height",
         profile.index,
         HORIZON_FRACTIONS[profile.index] * 100.0,
     );
@@ -324,17 +560,20 @@ fn cycle_horizon_profile(
 
 /// Advance the oscillation state machine.
 ///
-/// Walk progress `t ∈ [0, 1]` advances linearly over time (0 = depth 9 / horizon,
+/// Walk progress `t` in `[0, 1]` advances linearly over time (0 = depth 9 / horizon,
 /// 1 = depth 1 / foreground). The screen-space floor position is derived from `t`
 /// through [`floor_y_from_t`] which applies the perspective bias.
 ///
-/// After every [`PASSES_BEFORE_SWITCH`] passes the mosquiton transitions
-/// between walking and flying modes via liftoff/landing animations with short
-/// pauses before and after the transition.
+/// Mosquiton: after every [`PASSES_BEFORE_SWITCH`] passes, transitions
+/// between walking and flying modes via liftoff/landing animations.
+///
+/// Spidey: alternates between idle poses and jump arcs, advancing one
+/// depth level per jump.
 fn advance_walk(
     time: Res<Time>,
     profile: Res<HorizonProfile>,
     depth_scale: Res<DepthScaleConfig>,
+    selected: Res<SelectedCharacter>,
     mut query: Query<
         (
             &mut WalkProgress,
@@ -348,95 +587,58 @@ fn advance_walk(
     let dt = time.delta_secs();
 
     for (mut progress, mut depth, mut pos, mut anim) in &mut query {
-        match progress.phase {
-            WalkPhase::Idle { remaining } => {
-                let remaining = remaining - dt;
-                if remaining <= 0.0 {
-                    // Check if we should transition between walk/fly modes.
-                    if progress.half_trips >= PASSES_BEFORE_SWITCH {
-                        progress.half_trips = 0;
-                        let idle_tag = if progress.airborne {
-                            "idle_fly"
-                        } else {
-                            "idle_stand"
-                        };
-                        anim.requested_tag = idle_tag.into();
-                        progress.phase = WalkPhase::PreTransition {
-                            remaining: TRANSITION_PAUSE_SECS,
-                        };
-                    } else {
-                        // Normal endpoint: reverse direction and resume.
-                        progress.direction = -progress.direction;
-                        progress.phase = WalkPhase::Moving;
-                        let move_tag = if progress.airborne {
-                            if progress.direction > 0.0 {
-                                "flying_forward"
-                            } else {
-                                "flying_backwards"
-                            }
-                        } else {
-                            "walking_forward"
-                        };
-                        anim.requested_tag = move_tag.into();
-                    }
-                } else {
-                    progress.phase = WalkPhase::Idle { remaining };
-                }
+        if *selected == SelectedCharacter::Mosquiton {
+            advance_mosquiton(&mut progress, &mut anim, dt);
+
+            let t = progress.t;
+            let bin = (t * DEPTH_COUNT).floor().min(DEPTH_COUNT - 1.0) as i8;
+            let new_depth_i8 = (DEPTH_MAX - bin).max(DEPTH_MIN);
+            let new_depth = Depth::try_from(new_depth_i8).unwrap_or(Depth::Three);
+
+            if *depth != new_depth {
+                *depth = new_depth;
             }
 
-            WalkPhase::PreTransition { remaining } => {
-                let remaining = remaining - dt;
-                if remaining <= 0.0 {
-                    if progress.airborne {
-                        // Start landing — play idle_stand as transition pose.
-                        // TODO: use a dedicated landing animation when authored.
-                        anim.requested_tag = "idle_stand".into();
-                        progress.phase = WalkPhase::Landing {
-                            remaining: TRANSITION_ANIM_SECS,
-                        };
-                    } else {
-                        // Start liftoff. Wing flap is handled by metadata
-                        // part_overrides on flying animations.
-                        anim.requested_tag = "liftoff".into();
-                        progress.phase = WalkPhase::Liftoff {
-                            remaining: TRANSITION_ANIM_SECS,
-                        };
-                    }
-                } else {
-                    progress.phase = WalkPhase::PreTransition { remaining };
-                }
-            }
+            let floor_y = floor_y_from_t(t, profile.floor_depth_9);
+            let y_offset = if progress.airborne {
+                let scale = depth_scale.scale_for(new_depth).unwrap_or(1.0);
+                FLY_HEIGHT_OFFSET * scale
+            } else {
+                0.0
+            };
+            pos.0 = Vec2::new(CENTER_X, floor_y + y_offset);
+        } else {
+            advance_spidey(
+                &mut progress,
+                &mut anim,
+                &profile,
+                &depth_scale,
+                &mut pos,
+                &mut depth,
+                dt,
+            );
+        }
+    }
+}
 
-            WalkPhase::Liftoff { remaining } => {
-                let remaining = remaining - dt;
-                if remaining <= 0.0 {
-                    progress.airborne = true;
-                    anim.requested_tag = "idle_fly".into();
-                    progress.phase = WalkPhase::PostTransition {
+/// Mosquiton walk/fly state machine.
+fn advance_mosquiton(progress: &mut WalkProgress, anim: &mut ComposedAnimationState, dt: f32) {
+    match progress.phase {
+        WalkPhase::Idle { remaining } => {
+            let remaining = remaining - dt;
+            if remaining <= 0.0 {
+                if progress.half_trips >= PASSES_BEFORE_SWITCH {
+                    progress.half_trips = 0;
+                    let idle_tag = if progress.airborne {
+                        "idle_fly"
+                    } else {
+                        "idle_stand"
+                    };
+                    anim.requested_tag = idle_tag.into();
+                    progress.phase = WalkPhase::PreTransition {
                         remaining: TRANSITION_PAUSE_SECS,
                     };
                 } else {
-                    progress.phase = WalkPhase::Liftoff { remaining };
-                }
-            }
-
-            WalkPhase::Landing { remaining } => {
-                let remaining = remaining - dt;
-                if remaining <= 0.0 {
-                    progress.airborne = false;
-                    anim.requested_tag = "idle_stand".into();
-                    progress.phase = WalkPhase::PostTransition {
-                        remaining: TRANSITION_PAUSE_SECS,
-                    };
-                } else {
-                    progress.phase = WalkPhase::Landing { remaining };
-                }
-            }
-
-            WalkPhase::PostTransition { remaining } => {
-                let remaining = remaining - dt;
-                if remaining <= 0.0 {
-                    // Resume movement in current direction.
                     progress.direction = -progress.direction;
                     progress.phase = WalkPhase::Moving;
                     let move_tag = if progress.airborne {
@@ -449,63 +651,531 @@ fn advance_walk(
                         "walking_forward"
                     };
                     anim.requested_tag = move_tag.into();
+                }
+            } else {
+                progress.phase = WalkPhase::Idle { remaining };
+            }
+        }
+
+        WalkPhase::PreTransition { remaining } => {
+            let remaining = remaining - dt;
+            if remaining <= 0.0 {
+                if progress.airborne {
+                    anim.requested_tag = "idle_stand".into();
+                    progress.phase = WalkPhase::Landing {
+                        remaining: TRANSITION_ANIM_SECS,
+                    };
                 } else {
-                    progress.phase = WalkPhase::PostTransition { remaining };
+                    anim.requested_tag = "liftoff".into();
+                    progress.phase = WalkPhase::Liftoff {
+                        remaining: TRANSITION_ANIM_SECS,
+                    };
                 }
-            }
-
-            WalkPhase::Moving => {
-                let speed = 2.0 / PERIOD_SECS;
-                progress.t += progress.direction * speed * dt;
-
-                // Clamp and enter idle at endpoints.
-                if progress.t >= 1.0 {
-                    progress.t = 1.0;
-                    progress.half_trips += 1;
-                    let idle_tag = if progress.airborne {
-                        "idle_fly"
-                    } else {
-                        "idle_stand"
-                    };
-                    progress.phase = WalkPhase::Idle {
-                        remaining: ENDPOINT_PAUSE_SECS,
-                    };
-                    anim.requested_tag = idle_tag.into();
-                } else if progress.t <= 0.0 {
-                    progress.t = 0.0;
-                    progress.half_trips += 1;
-                    let idle_tag = if progress.airborne {
-                        "idle_fly"
-                    } else {
-                        "idle_stand"
-                    };
-                    progress.phase = WalkPhase::Idle {
-                        remaining: ENDPOINT_PAUSE_SECS,
-                    };
-                    anim.requested_tag = idle_tag.into();
-                }
+            } else {
+                progress.phase = WalkPhase::PreTransition { remaining };
             }
         }
 
-        let t = progress.t;
-
-        let bin = (t * DEPTH_COUNT).floor().min(DEPTH_COUNT - 1.0) as i8;
-        let new_depth_i8 = (DEPTH_MAX - bin).max(DEPTH_MIN);
-        let new_depth = Depth::try_from(new_depth_i8).unwrap_or(Depth::Three);
-
-        if *depth != new_depth {
-            *depth = new_depth;
+        WalkPhase::Liftoff { remaining } => {
+            let remaining = remaining - dt;
+            if remaining <= 0.0 {
+                progress.airborne = true;
+                anim.requested_tag = "idle_fly".into();
+                progress.phase = WalkPhase::PostTransition {
+                    remaining: TRANSITION_PAUSE_SECS,
+                };
+            } else {
+                progress.phase = WalkPhase::Liftoff { remaining };
+            }
         }
 
-        let floor_y = floor_y_from_t(t, profile.floor_depth_9);
-        let y_offset = if progress.airborne {
-            // Scale fly height by depth scale ratio so the visual gap
-            // stays proportional to the sprite size at every depth.
-            let scale = depth_scale.scale_for(new_depth).unwrap_or(1.0);
-            FLY_HEIGHT_OFFSET * scale
-        } else {
-            0.0
+        WalkPhase::Landing { remaining } => {
+            let remaining = remaining - dt;
+            if remaining <= 0.0 {
+                progress.airborne = false;
+                anim.requested_tag = "idle_stand".into();
+                progress.phase = WalkPhase::PostTransition {
+                    remaining: TRANSITION_PAUSE_SECS,
+                };
+            } else {
+                progress.phase = WalkPhase::Landing { remaining };
+            }
+        }
+
+        WalkPhase::PostTransition { remaining } => {
+            let remaining = remaining - dt;
+            if remaining <= 0.0 {
+                progress.direction = -progress.direction;
+                progress.phase = WalkPhase::Moving;
+                let move_tag = if progress.airborne {
+                    if progress.direction > 0.0 {
+                        "flying_forward"
+                    } else {
+                        "flying_backwards"
+                    }
+                } else {
+                    "walking_forward"
+                };
+                anim.requested_tag = move_tag.into();
+            } else {
+                progress.phase = WalkPhase::PostTransition { remaining };
+            }
+        }
+
+        WalkPhase::Moving => {
+            let speed = 2.0 / PERIOD_SECS;
+            progress.t += progress.direction * speed * dt;
+
+            if progress.t >= 1.0 {
+                progress.t = 1.0;
+                progress.half_trips += 1;
+                let idle_tag = if progress.airborne {
+                    "idle_fly"
+                } else {
+                    "idle_stand"
+                };
+                progress.phase = WalkPhase::Idle {
+                    remaining: ENDPOINT_PAUSE_SECS,
+                };
+                anim.requested_tag = idle_tag.into();
+            } else if progress.t <= 0.0 {
+                progress.t = 0.0;
+                progress.half_trips += 1;
+                let idle_tag = if progress.airborne {
+                    "idle_fly"
+                } else {
+                    "idle_stand"
+                };
+                progress.phase = WalkPhase::Idle {
+                    remaining: ENDPOINT_PAUSE_SECS,
+                };
+                anim.requested_tag = idle_tag.into();
+            }
+        }
+
+        // Spidey-only phases are unreachable for mosquiton.
+        WalkPhase::SpideyIdle { .. }
+        | WalkPhase::SpideyJumping { .. }
+        | WalkPhase::SpideyLanding { .. } => {}
+    }
+}
+
+/// Spidey jump-based state machine.
+///
+/// Spidey idles, then jumps to the next depth level, landing on the floor
+/// line. The jump arc uses a simple parabolic interpolation.
+fn advance_spidey(
+    progress: &mut WalkProgress,
+    anim: &mut ComposedAnimationState,
+    profile: &HorizonProfile,
+    depth_scale: &DepthScaleConfig,
+    pos: &mut PxSubPosition,
+    depth: &mut Depth,
+    dt: f32,
+) {
+    match progress.phase {
+        WalkPhase::SpideyIdle { remaining } => {
+            let remaining = remaining - dt;
+            if remaining <= 0.0 {
+                if (progress.direction > 0.0 && *depth == Depth::One)
+                    || (progress.direction < 0.0 && *depth == Depth::Nine)
+                {
+                    progress.half_trips += 1;
+                    progress.direction = -progress.direction;
+                }
+
+                let start_depth = *depth;
+                let target_depth = adjacent_depth(start_depth, progress.direction);
+                let start_t = depth_to_t(start_depth);
+                let target_t = depth_to_t(target_depth);
+                let start_y = floor_y_for_depth(start_depth.to_i8(), profile.floor_depth_9);
+                let target_y = floor_y_for_depth(target_depth.to_i8(), profile.floor_depth_9);
+
+                anim.requested_tag = "jump".into();
+                anim.set_hold_last_frame(true);
+                progress.phase = WalkPhase::SpideyJumping {
+                    elapsed: 0.0,
+                    start_depth,
+                    target_depth,
+                    start_t,
+                    target_t,
+                    start_y,
+                    target_y,
+                };
+            } else {
+                progress.phase = WalkPhase::SpideyIdle { remaining };
+            }
+        }
+
+        WalkPhase::SpideyJumping {
+            elapsed,
+            start_depth: _,
+            target_depth,
+            start_t,
+            target_t,
+            start_y,
+            target_y,
+        } => {
+            let elapsed = elapsed + dt;
+            if elapsed >= SPIDEY_JUMP_ARC_SECS {
+                *depth = target_depth;
+                progress.t = target_t;
+                pos.0 = Vec2::new(CENTER_X, target_y);
+                anim.requested_tag = "landing".into();
+                anim.set_hold_last_frame(false);
+
+                progress.phase = WalkPhase::SpideyLanding {
+                    remaining: SPIDEY_LANDING_SECS,
+                };
+            } else {
+                let frac = elapsed / SPIDEY_JUMP_ARC_SECS;
+                if frac >= 0.5 && anim.requested_tag != "landing" {
+                    anim.requested_tag = "landing".into();
+                    anim.set_hold_last_frame(false);
+                }
+
+                let travel_t = start_t + (target_t - start_t) * frac;
+                let y_linear = start_y + (target_y - start_y) * frac;
+                let scale = spidey_jump_arc_scale(depth_scale, *depth, target_depth, frac);
+                let arc = 4.0 * SPIDEY_JUMP_ARC_HEIGHT * scale * frac * (1.0 - frac);
+                pos.0 = Vec2::new(CENTER_X, y_linear + arc);
+                progress.t = travel_t;
+
+                progress.phase = WalkPhase::SpideyJumping {
+                    elapsed,
+                    start_depth: *depth,
+                    target_depth,
+                    start_t,
+                    target_t,
+                    start_y,
+                    target_y,
+                };
+            }
+        }
+
+        WalkPhase::SpideyLanding { remaining } => {
+            let remaining = remaining - dt;
+            if remaining <= 0.0 {
+                anim.requested_tag = "idle".into();
+                anim.set_hold_last_frame(false);
+                progress.phase = WalkPhase::SpideyIdle {
+                    remaining: SPIDEY_JUMP_IDLE_SECS,
+                };
+            } else {
+                progress.phase = WalkPhase::SpideyLanding { remaining };
+            }
+        }
+
+        // Mosquiton-only phases are unreachable for spidey.
+        WalkPhase::Moving
+        | WalkPhase::Idle { .. }
+        | WalkPhase::PreTransition { .. }
+        | WalkPhase::Liftoff { .. }
+        | WalkPhase::Landing { .. }
+        | WalkPhase::PostTransition { .. } => {}
+    }
+}
+
+fn spidey_jump_arc_scale(
+    depth_scale: &DepthScaleConfig,
+    start_depth: Depth,
+    target_depth: Depth,
+    frac: f32,
+) -> f32 {
+    let start_scale = depth_scale.scale_for(start_depth).unwrap_or(1.0);
+    let target_scale = depth_scale.scale_for(target_depth).unwrap_or(start_scale);
+    start_scale + (target_scale - start_scale) * frac.clamp(0.0, 1.0)
+}
+
+fn spidey_depth_ratio(
+    depth_scale: &DepthScaleConfig,
+    authored_depths: &AuthoredDepths,
+    depth: Depth,
+) -> f32 {
+    depth_scale.resolve_fallback(depth, authored_depths)
+}
+
+fn spidey_interpolated_depth_ratio(
+    depth_scale: &DepthScaleConfig,
+    authored_depths: &AuthoredDepths,
+    start_depth: Depth,
+    target_depth: Depth,
+    frac: f32,
+) -> f32 {
+    let start = spidey_depth_ratio(depth_scale, authored_depths, start_depth);
+    let target = spidey_depth_ratio(depth_scale, authored_depths, target_depth);
+    start + (target - start) * frac.clamp(0.0, 1.0)
+}
+
+#[allow(clippy::type_complexity)]
+fn apply_spidey_jump_scale_override(
+    mut commands: Commands,
+    selected: Res<SelectedCharacter>,
+    depth_scale: Res<DepthScaleConfig>,
+    mut query: Query<
+        (
+            Entity,
+            &Depth,
+            &AuthoredDepths,
+            &WalkProgress,
+            Option<&mut PxPresentationTransform>,
+            Option<&DepthTraverseScaleOverride>,
+        ),
+        With<DepthWalker>,
+    >,
+) {
+    if *selected != SelectedCharacter::Spidey {
+        return;
+    }
+
+    for (entity, depth, authored_depths, progress, presentation, previous_override) in &mut query {
+        let discrete_ratio = spidey_depth_ratio(&depth_scale, authored_depths, *depth);
+        let desired_ratio = match progress.phase {
+            WalkPhase::SpideyJumping {
+                elapsed,
+                start_depth,
+                target_depth,
+                ..
+            } => spidey_interpolated_depth_ratio(
+                &depth_scale,
+                authored_depths,
+                start_depth,
+                target_depth,
+                elapsed / SPIDEY_JUMP_ARC_SECS,
+            ),
+            _ => spidey_depth_ratio(&depth_scale, authored_depths, *depth),
         };
-        pos.0 = Vec2::new(CENTER_X, floor_y + y_offset);
+
+        let desired_override = Vec2::splat(desired_ratio / discrete_ratio.max(f32::EPSILON));
+        let previous_scale =
+            previous_override.map_or(Vec2::ONE, |override_scale| override_scale.applied);
+
+        if let Some(mut presentation) = presentation {
+            let sign_x = presentation.scale.x.signum();
+            let sign_y = presentation.scale.y.signum();
+            let base_x = presentation.scale.x.abs() / previous_scale.x;
+            let base_y = presentation.scale.y.abs() / previous_scale.y;
+
+            presentation.scale = Vec2::new(
+                sign_x * base_x * desired_override.x,
+                sign_y * base_y * desired_override.y,
+            );
+        } else if (desired_override - Vec2::ONE).length_squared() >= f32::EPSILON {
+            commands.entity(entity).insert(PxPresentationTransform {
+                scale: desired_override,
+                ..Default::default()
+            });
+        }
+
+        if (desired_override - Vec2::ONE).length_squared() < f32::EPSILON {
+            commands
+                .entity(entity)
+                .remove::<DepthTraverseScaleOverride>();
+        } else {
+            commands.entity(entity).insert(DepthTraverseScaleOverride {
+                applied: desired_override,
+            });
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn update_depth_traverse_debug_state(
+    selected: Res<SelectedCharacter>,
+    profile: Res<HorizonProfile>,
+    depth_scale: Res<DepthScaleConfig>,
+    mut query: Query<
+        (
+            &Depth,
+            &PxSubPosition,
+            &WalkProgress,
+            &ComposedAnimationState,
+            Option<&ComposedAnimationPlaybackDebug>,
+            &mut DepthTraverseDebugState,
+        ),
+        With<DepthWalker>,
+    >,
+) {
+    for (depth, pos, progress, anim, playback, mut debug) in &mut query {
+        let (phase, target_depth, jump_elapsed_secs, jump_progress, target_y) = match progress.phase
+        {
+            WalkPhase::Moving => (
+                "moving".to_string(),
+                depth.to_i8(),
+                0.0,
+                0.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+            WalkPhase::Idle { .. } => (
+                "idle".to_string(),
+                depth.to_i8(),
+                0.0,
+                0.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+            WalkPhase::PreTransition { .. } => (
+                "pre_transition".to_string(),
+                depth.to_i8(),
+                0.0,
+                0.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+            WalkPhase::Liftoff { .. } => (
+                "liftoff".to_string(),
+                depth.to_i8(),
+                0.0,
+                0.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+            WalkPhase::Landing { .. } => (
+                "landing".to_string(),
+                depth.to_i8(),
+                0.0,
+                0.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+            WalkPhase::PostTransition { .. } => (
+                "post_transition".to_string(),
+                depth.to_i8(),
+                0.0,
+                0.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+            WalkPhase::SpideyIdle { .. } => (
+                "spidey_idle".to_string(),
+                depth.to_i8(),
+                0.0,
+                0.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+            WalkPhase::SpideyJumping {
+                elapsed,
+                target_depth,
+                target_y,
+                ..
+            } => {
+                let progress = (elapsed / SPIDEY_JUMP_ARC_SECS).clamp(0.0, 1.0);
+                let phase = if progress < 0.5 {
+                    "spidey_jump_ascent"
+                } else {
+                    "spidey_jump_descent"
+                };
+                (
+                    phase.to_string(),
+                    target_depth.to_i8(),
+                    elapsed,
+                    progress,
+                    target_y,
+                )
+            }
+            WalkPhase::SpideyLanding { .. } => (
+                "spidey_landing_hold".to_string(),
+                depth.to_i8(),
+                SPIDEY_JUMP_ARC_SECS,
+                1.0,
+                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+            ),
+        };
+
+        let current_floor_y = floor_y_for_depth(depth.to_i8(), profile.floor_depth_9);
+        let authored_depths = AuthoredDepths::single(selected.authored_depth());
+        let current_scale = match progress.phase {
+            WalkPhase::SpideyJumping {
+                elapsed,
+                start_depth,
+                target_depth,
+                ..
+            } if *selected == SelectedCharacter::Spidey => spidey_interpolated_depth_ratio(
+                &depth_scale,
+                &authored_depths,
+                start_depth,
+                target_depth,
+                elapsed / SPIDEY_JUMP_ARC_SECS,
+            ),
+            _ => spidey_depth_ratio(&depth_scale, &authored_depths, *depth),
+        };
+        let (active_animation_source_frame, active_animation_frame_index, holding_last_frame) =
+            playback
+                .and_then(|state| state.tracks.last())
+                .map_or((0, 0, false), |track| {
+                    (track.source_frame, track.frame_index, track.hold_last_frame)
+                });
+
+        *debug = DepthTraverseDebugState {
+            selected_character: match *selected {
+                SelectedCharacter::Mosquiton => "mosquiton".to_string(),
+                SelectedCharacter::Spidey => "spidey".to_string(),
+            },
+            phase,
+            current_depth: depth.to_i8(),
+            target_depth,
+            jump_elapsed_secs,
+            jump_progress,
+            current_floor_y,
+            current_y: pos.y,
+            target_y,
+            current_scale,
+            active_animation_tag: anim.requested_tag.clone(),
+            active_animation_source_frame,
+            active_animation_frame_index,
+            holding_last_frame,
+        };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spidey_depth_traverse_uses_eight_distinct_frontward_steps() {
+        let mut depth = Depth::Nine;
+        let mut visited = Vec::new();
+
+        for _ in 0..8 {
+            depth = adjacent_depth(depth, 1.0);
+            visited.push(depth.to_i8());
+        }
+
+        assert_eq!(visited, vec![8, 7, 6, 5, 4, 3, 2, 1]);
+    }
+
+    #[test]
+    fn frontmost_depths_are_visibly_distinct() {
+        let depth_two_y = floor_y_for_depth(2, HORIZON_FRACTIONS[0] * SCREEN_H);
+        let depth_one_y = floor_y_for_depth(1, HORIZON_FRACTIONS[0] * SCREEN_H);
+
+        assert!(
+            (depth_one_y - depth_two_y).abs() > 20.0,
+            "expected a clear front-depth separation, got {}",
+            (depth_one_y - depth_two_y).abs()
+        );
+    }
+
+    #[test]
+    fn spidey_jump_arc_scales_larger_toward_foreground() {
+        let depth_scale = DepthScaleConfig::default();
+
+        let far = spidey_jump_arc_scale(&depth_scale, Depth::Nine, Depth::Eight, 0.5);
+        let near = spidey_jump_arc_scale(&depth_scale, Depth::Two, Depth::One, 0.5);
+
+        assert!(
+            near > far,
+            "expected foreground jump scale to exceed far-depth scale, got near={near} far={far}"
+        );
+    }
+
+    #[test]
+    fn spidey_scale_interpolates_between_depths_during_jump() {
+        let depth_scale = DepthScaleConfig::default();
+        let authored = AuthoredDepths::single(Depth::Three);
+
+        let start = spidey_depth_ratio(&depth_scale, &authored, Depth::Two);
+        let target = spidey_depth_ratio(&depth_scale, &authored, Depth::One);
+        let midpoint =
+            spidey_interpolated_depth_ratio(&depth_scale, &authored, Depth::Two, Depth::One, 0.5);
+
+        assert!(midpoint > start);
+        assert!(midpoint < target);
     }
 }

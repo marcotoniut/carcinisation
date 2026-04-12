@@ -1,81 +1,52 @@
-use crate::{
-    data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
-};
-use bevy::prelude::*;
-use carapace::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
-use std::collections::HashMap;
+//! Canonical Spidey animation tags exported from the composed Aseprite source.
+//!
+//! Spidey is a ground-based arachnid enemy that uses jump locomotion for depth
+//! traversal. The gallery exposes the full authored tag list.
 
-pub struct SpideyAnimations {
-    pub death: HashMap<Depth, AnimationData>,
-    pub idle: HashMap<Depth, AnimationData>,
+use crate::stage::enemy::composed::ComposedAnimationState;
+
+/// Resting idle pose with all legs planted.
+pub const TAG_IDLE: &str = "idle";
+/// Lounging pose - legs sourced from idle via atlas metadata part_overrides.
+pub const TAG_LOUNGE: &str = "lounge";
+/// Ranged attack (web shot) animation.
+pub const TAG_SHOOT: &str = "shoot";
+/// Jump locomotion used for depth traversal.
+pub const TAG_JUMP: &str = "jump";
+/// Landing freeze frame after a jump arc.
+pub const TAG_LANDING: &str = "landing";
+
+/// Full authored tag list exposed in the gallery.
+pub const GALLERY_TAGS: &[&str] = &[TAG_IDLE, TAG_LOUNGE, TAG_SHOOT, TAG_JUMP, TAG_LANDING];
+
+/// Core action tags surfaced as deterministic gallery verification controls.
+pub const GALLERY_ACTION_TAGS: &[&str] = &[TAG_IDLE, TAG_LOUNGE, TAG_SHOOT, TAG_JUMP, TAG_LANDING];
+
+/// Applies the canonical Spidey composed-animation request for a semantic tag.
+///
+/// Spidey has no runtime part overrides -- lounge leg overrides are declared
+/// in the atlas metadata and resolved generically by the composed renderer.
+pub fn apply_spidey_animation_state(
+    animation_state: &mut ComposedAnimationState,
+    requested_tag: &str,
+) {
+    apply_spidey_animation_state_with_hold(animation_state, requested_tag, false);
 }
 
-// Animation fragments
-const FRAGMENT_DEATH: &str = "death";
-const FRAGMENT_IDLE: &str = "idle";
+/// Applies a Spidey animation request and optionally freezes it on the tag's
+/// terminal frame.
+pub fn apply_spidey_animation_state_with_hold(
+    animation_state: &mut ComposedAnimationState,
+    requested_tag: &str,
+    hold_last_frame: bool,
+) {
+    if animation_state.requested_tag != requested_tag {
+        animation_state.requested_tag.clear();
+        animation_state.requested_tag.push_str(requested_tag);
+    }
+    animation_state.set_hold_last_frame(hold_last_frame);
 
-// Enemy
-const FRAGMENT_ENEMY: &str = "spider";
-
-fn concat_strings_and_number(s1: &str, s2: &str, s3: &str, depth: Depth) -> String {
-    format!("{}{}_{}_{}.px_sprite.png", s1, s2, s3, depth.to_i8())
+    if !animation_state.part_overrides.is_empty() {
+        animation_state.set_part_overrides(Vec::new());
+    }
 }
-
-const SPIDEY_DEPTHS: &[Depth] = &[
-    Depth::Two,
-    Depth::Three,
-    Depth::Four,
-    Depth::Five,
-    Depth::Six,
-    Depth::Seven,
-];
-
-pub static SPIDEY_ANIMATIONS: std::sync::LazyLock<SpideyAnimations> =
-    std::sync::LazyLock::new(|| {
-        let idle_frames = 1;
-        let idle_speed = 500;
-
-        let death_frames = 10;
-        let death_speed = 780;
-
-        let mut death = HashMap::new();
-        for &i in SPIDEY_DEPTHS {
-            death.insert(
-                i,
-                AnimationData {
-                    sprite_path: concat_strings_and_number(
-                        PATH_SPRITES_ENEMIES,
-                        FRAGMENT_ENEMY,
-                        FRAGMENT_DEATH,
-                        i,
-                    ),
-                    direction: PxAnimationDirection::Backward,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
-                    frames: death_frames,
-                    speed: death_speed,
-                    ..default()
-                },
-            );
-        }
-
-        let mut idle = HashMap::new();
-        for &i in SPIDEY_DEPTHS {
-            idle.insert(
-                i,
-                AnimationData {
-                    sprite_path: concat_strings_and_number(
-                        PATH_SPRITES_ENEMIES,
-                        FRAGMENT_ENEMY,
-                        FRAGMENT_IDLE,
-                        i,
-                    ),
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
-                    frames: idle_frames,
-                    speed: idle_speed,
-                    ..default()
-                },
-            );
-        }
-
-        SpideyAnimations { death, idle }
-    });

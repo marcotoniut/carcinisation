@@ -2,7 +2,7 @@ use crate::stage::{
     components::placement::Depth,
     enemy::components::{
         CircleAround, LinearTween,
-        behavior::{EnemyCurrentBehavior, EnemyStepTweenChild},
+        behavior::{EnemyCurrentBehavior, EnemyStepTweenChild, JumpTween},
     },
     messages::DepthChangedMessage,
     resources::StageTimeDomain,
@@ -69,6 +69,7 @@ pub fn circle_around(
 /// Updates the parent enemy's `LinearTween.reached_x` flag.
 pub fn check_linear_tween_x_finished(
     mut parent_query: Query<&mut LinearTween, With<EnemyCurrentBehavior>>,
+    mut jump_query: Query<&mut JumpTween, With<EnemyCurrentBehavior>>,
     child_query: Query<
         &ChildOf,
         (
@@ -81,6 +82,9 @@ pub fn check_linear_tween_x_finished(
         if let Ok(mut linear_movement) = parent_query.get_mut(child_of.0) {
             linear_movement.reached_x = true;
         }
+        if let Ok(mut jump_movement) = jump_query.get_mut(child_of.0) {
+            jump_movement.reached_x = true;
+        }
     }
 }
 
@@ -88,6 +92,7 @@ pub fn check_linear_tween_x_finished(
 /// Updates the parent enemy's `LinearTween.reached_y` flag.
 pub fn check_linear_tween_y_finished(
     mut parent_query: Query<&mut LinearTween, With<EnemyCurrentBehavior>>,
+    mut jump_query: Query<&mut JumpTween, With<EnemyCurrentBehavior>>,
     child_query: Query<
         &ChildOf,
         (
@@ -99,6 +104,27 @@ pub fn check_linear_tween_y_finished(
     for child_of in child_query.iter() {
         if let Ok(mut linear_movement) = parent_query.get_mut(child_of.0) {
             linear_movement.reached_y = true;
+        }
+        if let Ok(mut jump_movement) = jump_query.get_mut(child_of.0) {
+            jump_movement.reached_y = true;
+        }
+    }
+}
+
+/// Detects when enemy Z-axis jump tween children reach their target.
+pub fn check_jump_tween_z_finished(
+    mut parent_query: Query<&mut JumpTween, With<EnemyCurrentBehavior>>,
+    child_query: Query<
+        &ChildOf,
+        (
+            With<EnemyStepTweenChild>,
+            Added<LinearValueReached<StageTimeDomain, TargetingValueZ>>,
+        ),
+    >,
+) {
+    for child_of in child_query.iter() {
+        if let Ok(mut jump_movement) = parent_query.get_mut(child_of.0) {
+            jump_movement.reached_z = true;
         }
     }
 }
@@ -116,5 +142,57 @@ pub fn check_linear_tween_finished(
                 .remove::<EnemyCurrentBehavior>()
                 .remove::<LinearTween>();
         }
+    }
+}
+
+/// Removes `EnemyCurrentBehavior` once all jump tween axes are done.
+pub fn check_jump_tween_finished(
+    mut commands: Commands,
+    query: Query<(Entity, &JumpTween), With<EnemyCurrentBehavior>>,
+) {
+    for (entity, jump_movement) in query {
+        if jump_movement.is_finished() {
+            commands
+                .entity(entity)
+                .remove::<EnemyCurrentBehavior>()
+                .remove::<JumpTween>();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stage::enemy::data::steps::{EnemyStep, JumpEnemyStep};
+    use std::time::Duration;
+
+    #[test]
+    fn jump_tween_completion_clears_current_behavior() {
+        let mut app = App::new();
+        app.add_systems(Update, check_jump_tween_finished);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                EnemyCurrentBehavior {
+                    started: Duration::ZERO,
+                    behavior: EnemyStep::Jump(JumpEnemyStep::base()),
+                },
+                JumpTween {
+                    started: Duration::ZERO,
+                    travel_time_secs: 1.0,
+                    reached_x: true,
+                    reached_y: true,
+                    reached_z: true,
+                    expects_z: false,
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let entity_ref = app.world().entity(entity);
+        assert!(entity_ref.get::<EnemyCurrentBehavior>().is_none());
+        assert!(entity_ref.get::<JumpTween>().is_none());
     }
 }

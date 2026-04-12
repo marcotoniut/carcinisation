@@ -14,13 +14,16 @@ use crate::stage::{
     },
     enemy::{
         composed::{ComposedAnimationState, ComposedEnemyVisual},
-        data::mosquiton::TAG_IDLE_FLY,
+        data::{mosquiton::TAG_IDLE_FLY, spidey::TAG_IDLE as SPIDEY_TAG_IDLE},
         entity::EnemyType,
         mosquito::entity::{
             ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS, MosquitoBundle,
             MosquitoDefaultBundle,
         },
         mosquiton::entity::{MosquitonBundle, MosquitonDefaultBundle},
+        spidey::entity::{
+            ENEMY_SPIDEY_BASE_HEALTH, ENEMY_SPIDEY_RADIUS, SpideyBundle, SpideyDefaultBundle,
+        },
         tardigrade::entity::{
             ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS, TardigradeBundle,
             TardigradeDefaultBundle,
@@ -269,11 +272,52 @@ pub fn spawn_enemy(
             }
             entity
         }
-        EnemyType::Kyle | EnemyType::Marauder | EnemyType::Spidey | EnemyType::Spidomonsta => {
-            commands
-                .spawn((name, Enemy, behaviors, authored.clone()))
-                .id()
+        EnemyType::Spidey => {
+            let collider = Collider::new_circle(ENEMY_SPIDEY_RADIUS).with_offset(Vec2::new(0., 2.));
+            let critical_collider = collider.new_scaled(0.4).with_defense(0.4);
+
+            let entity = commands
+                .spawn((
+                    SpideyBundle {
+                        behaviors,
+                        collider_data: ColliderData::from_many(vec![critical_collider, collider]),
+                        composed_animation: ComposedAnimationState::new(SPIDEY_TAG_IDLE),
+                        composed_visual: ComposedEnemyVisual::for_enemy(
+                            asset_server,
+                            EnemyType::Spidey,
+                            *depth,
+                        ),
+                        transform: Transform::default(),
+                        global_transform: GlobalTransform::default(),
+                        visibility: Visibility::Visible,
+                        inherited_visibility: InheritedVisibility::VISIBLE,
+                        depth: *depth,
+                        position: PxSubPosition::from(position),
+                        speed: Speed(*speed),
+                        default: SpideyDefaultBundle {
+                            health: Health(health.unwrap_or(ENEMY_SPIDEY_BASE_HEALTH)),
+                            ..SpideyDefaultBundle::default()
+                        },
+                    },
+                    authored.clone(),
+                ))
+                .id();
+
+            if let Some(health) = health {
+                commands.entity(entity).insert(HealthOverride(*health));
+            }
+
+            if let Some(contains) = contains {
+                commands.entity(entity).insert(SpawnDrop {
+                    contains: *contains.clone(),
+                    entity,
+                });
+            }
+            entity
         }
+        EnemyType::Kyle | EnemyType::Marauder | EnemyType::Spidomonsta => commands
+            .spawn((name, Enemy, behaviors, authored.clone()))
+            .id(),
         EnemyType::Tardigrade => {
             let collider =
                 Collider::new_circle(ENEMY_TARDIGRADE_RADIUS).with_offset(Vec2::new(-3., 2.));

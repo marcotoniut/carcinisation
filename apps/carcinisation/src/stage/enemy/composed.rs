@@ -491,6 +491,11 @@ pub struct ResolvedCollisionVolume {
 #[reflect(Component)]
 pub struct ComposedAnimationState {
     pub requested_tag: String,
+    /// Immediate terminal-frame freeze for pose states such as Spidey ascent.
+    ///
+    /// This is intentionally not "play once, then hold"; authored one-shot
+    /// playback should use a separate mode if needed.
+    pub hold_last_frame: bool,
     pub part_overrides: Vec<ComposedAnimationOverride>,
 }
 
@@ -499,6 +504,7 @@ impl ComposedAnimationState {
     pub fn new(tag: impl Into<String>) -> Self {
         Self {
             requested_tag: tag.into(),
+            hold_last_frame: false,
             part_overrides: Vec::new(),
         }
     }
@@ -521,7 +527,31 @@ impl ComposedAnimationState {
         self.part_overrides.clear();
         self.part_overrides.extend(overrides);
     }
+
+    pub fn set_hold_last_frame(&mut self, hold_last_frame: bool) {
+        self.hold_last_frame = hold_last_frame;
+    }
 }
+
+#[derive(Clone, Debug, Reflect)]
+pub struct ComposedAnimationTrackDebug {
+    pub tag: String,
+    pub frame_index: usize,
+    pub source_frame: usize,
+    pub hold_last_frame: bool,
+    pub completed_loops: u32,
+    pub completion_fired: bool,
+}
+
+#[derive(Component, Clone, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct ComposedAnimationPlaybackDebug {
+    pub tracks: Vec<ComposedAnimationTrackDebug>,
+}
+
+#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct ComposedAnimationPlaybackDebugEnabled;
 
 #[derive(Clone, Debug, PartialEq, Eq, Reflect)]
 /// A higher-priority animation source applied only to matching semantic parts.
@@ -646,6 +676,7 @@ struct RequestedAnimationTrack {
     tag: String,
     selector: Option<ComposedPartSelector>,
     sprite_only: bool,
+    hold_last_frame: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -828,6 +859,8 @@ pub fn update_composed_enemy_visuals(
             &mut PxAnchor,
             &mut Visibility,
             Option<&Dying>,
+            Option<&ComposedAnimationPlaybackDebugEnabled>,
+            Option<&ComposedAnimationPlaybackDebug>,
         ),
         With<ComposedEnemyVisualReady>,
     >,
@@ -849,6 +882,8 @@ pub fn update_composed_enemy_visuals(
         mut anchor,
         mut visibility,
         dying,
+        playback_debug_enabled,
+        playback_debug,
     ) in &mut root_query
     {
         // Freeze animation time for dying entities so they show death face on their last pose frame
@@ -930,6 +965,18 @@ pub fn update_composed_enemy_visuals(
                     y: cue.local_offset.y,
                 },
             });
+        }
+
+        if playback_debug_enabled.is_some() {
+            commands.entity(entity).insert(playback_debug_state(
+                &requested_tracks,
+                &visual.track_states,
+                cache,
+            ));
+        } else if playback_debug.is_some() {
+            commands
+                .entity(entity)
+                .remove::<ComposedAnimationPlaybackDebug>();
         }
 
         let Some((parts, metrics, resolved_parts)) = compose_frame(
@@ -1865,6 +1912,7 @@ fn requested_animation_tracks(
             tag: override_track.tag.clone(),
             selector: Some(override_track.selector.clone()),
             sprite_only: override_track.sprite_only,
+            hold_last_frame: false,
         }
     }));
     // 2. Metadata-declared overrides (medium priority).
@@ -1875,6 +1923,7 @@ fn requested_animation_tracks(
             tag: o.source_tag.clone(),
             selector: Some(o.selector.clone()),
             sprite_only: o.sprite_only,
+            hold_last_frame: false,
         }));
     }
     // 3. Base animation (lowest priority / fallback).
@@ -1882,8 +1931,36 @@ fn requested_animation_tracks(
         tag: animation_state.requested_tag.clone(),
         selector: None,
         sprite_only: false,
+        hold_last_frame: animation_state.hold_last_frame,
     });
     tracks
+}
+
+fn playback_debug_state(
+    requested_tracks: &[RequestedAnimationTrack],
+    track_states: &[ComposedTrackPlaybackState],
+    cache: &CompositionAtlasCache,
+) -> ComposedAnimationPlaybackDebug {
+    let tracks = requested_tracks
+        .iter()
+        .zip(track_states.iter())
+        .filter_map(|(request, track_state)| {
+            let animation = cache.animations.get(request.tag.as_str())?;
+            let source_frame = animation
+                .frames
+                .get(track_state.frame_index)
+                .map_or(0, |frame| frame.source_frame);
+            Some(ComposedAnimationTrackDebug {
+                tag: request.tag.clone(),
+                frame_index: track_state.frame_index,
+                source_frame,
+                hold_last_frame: request.hold_last_frame,
+                completed_loops: track_state.completed_loops,
+                completion_fired: track_state.completion_fired,
+            })
+        })
+        .collect();
+    ComposedAnimationPlaybackDebug { tracks }
 }
 
 /// Resolves the final composed frame from one base animation source plus any
@@ -1958,7 +2035,11 @@ fn sync_animation_track_states(
         if needs_reset {
             let replacement = ComposedTrackPlaybackState {
                 request: request.clone(),
-                frame_index: initial_frame_index(animation),
+                frame_index: if request.hold_last_frame {
+                    terminal_frame_index(animation)
+                } else {
+                    initial_frame_index(animation)
+                },
                 frame_started_at_ms: now_ms,
                 ping_pong_forward: animation.direction != CachedAnimationDirection::PingPongReverse,
                 completed_loops: 0,
@@ -1978,6 +2059,12 @@ fn sync_animation_track_states(
         }
 
         let track_state = &mut track_states[index];
+        if request.hold_last_frame {
+            track_state.frame_index = terminal_frame_index(animation);
+            track_state.frame_started_at_ms = now_ms;
+            track_state.completion_fired = false;
+            continue;
+        }
         fired_cues.extend(advance_track_playback(
             track_state,
             request,
@@ -3055,7 +3142,7 @@ mod tests {
         cache: &CompositionAtlasCache,
         times_ms: &[u64],
     ) -> Vec<Vec<String>> {
-        let tracks = requested_animation_tracks(state, Some(&cache));
+        let tracks = requested_animation_tracks(state, Some(cache));
         times_ms
             .iter()
             .map(|now_ms| {
@@ -3527,13 +3614,52 @@ mod tests {
         );
     }
 
+    #[test]
+    fn hold_last_frame_clamps_base_track_to_terminal_frame() {
+        let mut atlas = minimal_mixed_animation_atlas();
+        let shoot = atlas
+            .animations
+            .iter_mut()
+            .find(|animation| animation.tag == "shoot_fly")
+            .expect("shoot_fly animation should exist");
+        shoot.repeats = Some(1);
+
+        let cache = build_cache(&atlas).expect("mixed atlas should validate");
+        let mut visual = ComposedEnemyVisual {
+            atlas_manifest: Handle::default(),
+            sprite_atlas: Handle::default(),
+            track_states: Vec::new(),
+            last_error: None,
+        };
+        let mut state = ComposedAnimationState::new("shoot_fly");
+        state.set_hold_last_frame(true);
+
+        let tracks = requested_animation_tracks(&state, Some(&cache));
+        let _ = resolve_requested_animation_frame(&mut visual, &tracks, &cache, 0)
+            .expect("frame resolution should succeed");
+
+        let base_track = visual
+            .track_states
+            .last()
+            .expect("base track should be present");
+        assert_eq!(base_track.frame_index, 1);
+
+        let _ = resolve_requested_animation_frame(&mut visual, &tracks, &cache, 500)
+            .expect("held frame should remain resolvable");
+        let base_track = visual
+            .track_states
+            .last()
+            .expect("base track should still be present");
+        assert_eq!(base_track.frame_index, 1);
+    }
+
     fn cue_kinds_at_times(
         visual: &mut ComposedEnemyVisual,
         state: &ComposedAnimationState,
         cache: &CompositionAtlasCache,
         times_ms: &[u64],
     ) -> Vec<Vec<AnimationEventKind>> {
-        let tracks = requested_animation_tracks(state, Some(&cache));
+        let tracks = requested_animation_tracks(state, Some(cache));
         times_ms
             .iter()
             .map(|now_ms| {

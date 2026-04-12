@@ -22,7 +22,9 @@ use crate::{
                     GALLERY_ACTION_TAGS as MOSQUITON_GALLERY_ACTION_TAGS,
                     apply_mosquiton_animation_state,
                 },
-                spidey::SPIDEY_ANIMATIONS,
+                spidey::{
+                    GALLERY_ACTION_TAGS as SPIDEY_GALLERY_ACTION_TAGS, apply_spidey_animation_state,
+                },
                 tardigrade::TARDIGRADE_ANIMATIONS,
             },
             entity::EnemyType,
@@ -72,13 +74,6 @@ fn resolve_animation_data(
             match animation_name {
                 "attack" => &anims.attack,
                 "sucking" => &anims.sucking,
-                "death" => &anims.death,
-                _ => &anims.idle,
-            }
-        }
-        GalleryCharacter::Spidey => {
-            let anims = &*SPIDEY_ANIMATIONS;
-            match animation_name {
                 "death" => &anims.death,
                 _ => &anims.idle,
             }
@@ -207,11 +202,19 @@ pub fn gallery_panel_ui(world: &mut World) {
                 }
             }
 
-            if selected_character == GalleryCharacter::Mosquiton {
+            if matches!(
+                selected_character,
+                GalleryCharacter::Mosquiton | GalleryCharacter::Spidey
+            ) {
+                let action_tags: &[&str] = match selected_character {
+                    GalleryCharacter::Mosquiton => MOSQUITON_GALLERY_ACTION_TAGS,
+                    GalleryCharacter::Spidey => SPIDEY_GALLERY_ACTION_TAGS,
+                    _ => &[],
+                };
                 ui.separator();
                 ui.label("Verification actions:");
                 ui.horizontal_wrapped(|ui| {
-                    for action in MOSQUITON_GALLERY_ACTION_TAGS {
+                    for action in action_tags {
                         if ui.button(*action).clicked() {
                             selected_animation.clear();
                             selected_animation.push_str(action);
@@ -317,7 +320,7 @@ pub fn react_to_gallery_selection_changed(
     );
 
     match character {
-        GalleryCharacter::Mosquito | GalleryCharacter::Tardigrade | GalleryCharacter::Spidey => {
+        GalleryCharacter::Mosquito | GalleryCharacter::Tardigrade => {
             commands.spawn((
                 common,
                 GalleryAnimationOverride {
@@ -332,6 +335,14 @@ pub fn react_to_gallery_selection_changed(
                 ComposedAnimationState::new(&animation),
                 ComposedEnemyVisual::for_enemy(&asset_server, EnemyType::Mosquiton, depth),
                 Name::new("Gallery<Mosquiton>"),
+            ));
+        }
+        GalleryCharacter::Spidey => {
+            commands.spawn((
+                common,
+                ComposedAnimationState::new(&animation),
+                ComposedEnemyVisual::for_enemy(&asset_server, EnemyType::Spidey, depth),
+                Name::new("Gallery<Spidey>"),
             ));
         }
         GalleryCharacter::Marauder | GalleryCharacter::Spidomonsta | GalleryCharacter::Kyle => {}
@@ -406,16 +417,23 @@ pub fn apply_gallery_playback_control(
     }
 }
 
-/// Updates the composed animation tag when the gallery selection changes for Mosquiton.
+/// Updates the composed animation tag when the gallery selection changes for composed characters.
 pub fn update_gallery_composed_animation(
     state: Res<GalleryState>,
     mut query: Query<&mut ComposedAnimationState, With<GalleryDisplayCharacter>>,
 ) {
-    if state.selected_character != GalleryCharacter::Mosquiton {
-        return;
-    }
-    for mut anim_state in &mut query {
-        apply_mosquiton_animation_state(&mut anim_state, &state.selected_animation);
+    match state.selected_character {
+        GalleryCharacter::Mosquiton => {
+            for mut anim_state in &mut query {
+                apply_mosquiton_animation_state(&mut anim_state, &state.selected_animation);
+            }
+        }
+        GalleryCharacter::Spidey => {
+            for mut anim_state in &mut query {
+                apply_spidey_animation_state(&mut anim_state, &state.selected_animation);
+            }
+        }
+        _ => {}
     }
 }
 

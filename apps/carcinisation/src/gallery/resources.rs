@@ -1,7 +1,11 @@
 //! Gallery state and character selection model.
 
 use crate::stage::{
-    components::placement::Depth, enemy::data::mosquiton::GALLERY_TAGS as MOSQUITON_GALLERY_TAGS,
+    components::placement::Depth,
+    enemy::data::{
+        mosquiton::GALLERY_TAGS as MOSQUITON_GALLERY_TAGS,
+        spidey::GALLERY_TAGS as SPIDEY_GALLERY_TAGS,
+    },
 };
 use bevy::prelude::*;
 use strum::IntoEnumIterator;
@@ -65,7 +69,10 @@ impl GalleryCharacter {
                 "sucking".into(),
                 "death".into(),
             ],
-            Self::Spidey => vec!["idle".into(), "death".into()],
+            Self::Spidey => SPIDEY_GALLERY_TAGS
+                .iter()
+                .map(|tag| (*tag).to_string())
+                .collect(),
             Self::Marauder | Self::Spidomonsta | Self::Kyle => vec![],
         }
     }
@@ -76,9 +83,8 @@ impl GalleryCharacter {
         match self {
             Self::Mosquiton => Depth::Three,
             Self::Tardigrade => Depth::Six,
-            Self::Mosquito | Self::Spidey | Self::Marauder | Self::Spidomonsta | Self::Kyle => {
-                Depth::Five
-            }
+            Self::Spidey => Depth::Three,
+            Self::Mosquito | Self::Marauder | Self::Spidomonsta | Self::Kyle => Depth::Five,
         }
     }
 

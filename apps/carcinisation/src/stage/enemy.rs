@@ -7,6 +7,7 @@ pub mod data;
 pub mod entity;
 pub mod mosquito;
 pub mod mosquiton;
+pub mod spidey;
 mod systems;
 pub mod tardigrade;
 
@@ -20,6 +21,7 @@ use self::{
         detect_part_breakage, trigger_mosquiton_authored_attack_cues,
         update_mosquiton_death_effect,
     },
+    spidey::systems::{assign_spidey_animation, despawn_dead_spideys, update_spidey_death_effect},
     systems::{
         animation::on_composed_enemy_depth_changed,
         animation::on_enemy_depth_changed,
@@ -84,6 +86,15 @@ impl Plugin for EnemyPlugin {
                         .chain(),
                     despawn_dead_mosquitons,
                     update_mosquiton_death_effect,
+                ),
+                (
+                    // Spidey
+                    // Composed pipeline (prepare/ensure/update) is registered
+                    // in the Mosquiton block and operates generically on all
+                    // entities with ComposedEnemyVisual.
+                    assign_spidey_animation.after(check_no_behavior),
+                    despawn_dead_spideys,
+                    update_spidey_death_effect,
                 ),
                 (
                     // Tardigrade

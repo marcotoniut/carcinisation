@@ -32,9 +32,10 @@ use crate::{
         enemy::{
             components::{
                 CircleAround, LinearTween,
-                behavior::{EnemyBehaviors, EnemyCurrentBehavior},
+                behavior::{EnemyBehaviors, EnemyCurrentBehavior, JumpTween},
             },
             composed::{
+                ComposedAnimationPlaybackDebug, ComposedAnimationPlaybackDebugEnabled,
                 ComposedAnimationState, ComposedCollisionState, ComposedHealthPools,
                 ComposedPartStates, ComposedResolvedParts, PartGameplayState, PartHitBlinkState,
                 ResolvedCollisionVolume, ResolvedPartCollision, ResolvedPartState,
@@ -48,6 +49,7 @@ use crate::{
                 CurrentEnemyMosquitoStep, EnemyMosquito, EnemyMosquitoAnimation,
                 EnemyMosquitoAttack, EnemyMosquitoAttacking,
             },
+            spidey::entity::{EnemySpidey, EnemySpideyAnimation, EnemySpideyAttacking},
             tardigrade::entity::{
                 EnemyTardigrade, EnemyTardigradeAnimation, EnemyTardigradeAttacking,
             },
@@ -71,6 +73,8 @@ pub fn register_types(app: &mut App) {
         .register_type::<CinematicStageStep>()
         .register_type::<CircleAround>()
         .register_type::<CircleAroundEnemyStep>()
+        .register_type::<ComposedAnimationPlaybackDebug>()
+        .register_type::<ComposedAnimationPlaybackDebugEnabled>()
         .register_type::<ComposedAnimationState>()
         .register_type::<ComposedCollisionState>()
         .register_type::<ComposedHealthPools>()
@@ -98,6 +102,9 @@ pub fn register_types(app: &mut App) {
         .register_type::<EnemyMosquitoAttacking>()
         .register_type::<EnemyMosquitoAttack>()
         .register_type::<EnemyMosquitoAnimation>()
+        .register_type::<EnemySpidey>()
+        .register_type::<EnemySpideyAnimation>()
+        .register_type::<EnemySpideyAttacking>()
         .register_type::<EnemyTardigrade>()
         .register_type::<EnemyTardigradeAnimation>()
         .register_type::<EnemyTardigradeAttacking>()
@@ -107,6 +114,7 @@ pub fn register_types(app: &mut App) {
         .register_type::<IdleEnemyStep>()
         .register_type::<InflictsDamage>()
         .register_type::<JumpEnemyStep>()
+        .register_type::<JumpTween>()
         .register_type::<GBColor>()
         .register_type::<Layer>()
         .register_type::<LinearTween>()

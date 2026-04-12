@@ -313,6 +313,8 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                 Some(PxCompositeMetrics {
                     size: composite.size,
                     origin: composite.origin,
+                    render_size: composite.render_size,
+                    render_origin: composite.render_origin,
                     frame_count: composite.frame_count,
                 })
             };

@@ -24,11 +24,6 @@ pub struct LinearTween {
     pub reached_y: bool,
 }
 
-// Enemies
-
-#[derive(Component)]
-pub struct EnemySpidey;
-
 // Bosses
 
 #[derive(Component)]
