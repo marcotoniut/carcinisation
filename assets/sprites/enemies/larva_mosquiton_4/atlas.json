@@ -1,0 +1,803 @@
+{
+  "schema_version": 3,
+  "entity": "larva_mosquiton",
+  "depth": 4,
+  "source": "enemies/larva_mosquiton_4.aseprite",
+  "canvas": {
+    "w": 65,
+    "h": 65
+  },
+  "origin": {
+    "x": 32,
+    "y": 42
+  },
+  "atlas_image": "source.png",
+  "part_definitions": [
+    {
+      "id": "group_marker",
+      "tags": [
+        "group"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "core",
+      "tags": [
+        "core",
+        "targetable"
+      ],
+      "gameplay": {
+        "targetable": true,
+        "health_pool": "core",
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": [
+          {
+            "id": "core_hurtbox",
+            "role": "collider",
+            "shape": {
+              "shape": "circle",
+              "radius": 10.0,
+              "offset": {
+                "x": 0.0,
+                "y": 0.0
+              }
+            },
+            "tags": [
+              "core"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "body_shell",
+      "tags": [
+        "shell",
+        "targetable"
+      ],
+      "gameplay": {
+        "targetable": true,
+        "health_pool": "core",
+        "armour": 3,
+        "durability": 4,
+        "breakable": null,
+        "collision": [
+          {
+            "id": "body_hurtbox",
+            "role": "collider",
+            "shape": {
+              "shape": "circle",
+              "radius": 14.0,
+              "offset": {
+                "x": 0.0,
+                "y": 0.0
+              }
+            },
+            "tags": [
+              "body",
+              "shell"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "wing",
+      "tags": [
+        "wing",
+        "limb"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "root",
+      "definition_id": "group_marker",
+      "name": "Root",
+      "parent_id": null,
+      "source_layer": null,
+      "draw_order": 0,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "body",
+      "definition_id": "body_shell",
+      "name": "Body",
+      "parent_id": "root",
+      "source_layer": "body",
+      "draw_order": 10,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "core",
+      "definition_id": "core",
+      "name": "Core",
+      "parent_id": "root",
+      "source_layer": "core",
+      "draw_order": 20,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "wing_r",
+      "definition_id": "wing",
+      "name": "Wing Right",
+      "parent_id": "root",
+      "source_layer": "wing_r",
+      "draw_order": 25,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "right",
+        "wings"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "wing_l",
+      "definition_id": "wing",
+      "name": "Wing Left",
+      "parent_id": "root",
+      "source_layer": "wing_l",
+      "draw_order": 30,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "left",
+        "wings"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "collision": []
+      }
+    }
+  ],
+  "sprites": [
+    {
+      "id": "sprite_0000",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 19,
+        "h": 34
+      }
+    },
+    {
+      "id": "sprite_0001",
+      "rect": {
+        "x": 19,
+        "y": 0,
+        "w": 19,
+        "h": 34
+      }
+    },
+    {
+      "id": "sprite_0002",
+      "rect": {
+        "x": 38,
+        "y": 0,
+        "w": 19,
+        "h": 34
+      }
+    },
+    {
+      "id": "sprite_0003",
+      "rect": {
+        "x": 57,
+        "y": 0,
+        "w": 19,
+        "h": 24
+      }
+    },
+    {
+      "id": "sprite_0004",
+      "rect": {
+        "x": 76,
+        "y": 0,
+        "w": 19,
+        "h": 24
+      }
+    },
+    {
+      "id": "sprite_0005",
+      "rect": {
+        "x": 95,
+        "y": 0,
+        "w": 19,
+        "h": 40
+      }
+    },
+    {
+      "id": "sprite_0006",
+      "rect": {
+        "x": 114,
+        "y": 0,
+        "w": 7,
+        "h": 19
+      }
+    },
+    {
+      "id": "sprite_0007",
+      "rect": {
+        "x": 121,
+        "y": 0,
+        "w": 1,
+        "h": 19
+      }
+    },
+    {
+      "id": "sprite_0008",
+      "rect": {
+        "x": 0,
+        "y": 40,
+        "w": 19,
+        "h": 37
+      }
+    },
+    {
+      "id": "sprite_0009",
+      "rect": {
+        "x": 19,
+        "y": 40,
+        "w": 14,
+        "h": 15
+      }
+    },
+    {
+      "id": "sprite_0010",
+      "rect": {
+        "x": 33,
+        "y": 40,
+        "w": 7,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0011",
+      "rect": {
+        "x": 40,
+        "y": 40,
+        "w": 1,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0012",
+      "rect": {
+        "x": 41,
+        "y": 40,
+        "w": 19,
+        "h": 29
+      }
+    },
+    {
+      "id": "sprite_0013",
+      "rect": {
+        "x": 60,
+        "y": 40,
+        "w": 13,
+        "h": 23
+      }
+    },
+    {
+      "id": "sprite_0014",
+      "rect": {
+        "x": 73,
+        "y": 40,
+        "w": 7,
+        "h": 19
+      }
+    },
+    {
+      "id": "sprite_0015",
+      "rect": {
+        "x": 80,
+        "y": 40,
+        "w": 18,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0016",
+      "rect": {
+        "x": 98,
+        "y": 40,
+        "w": 17,
+        "h": 21
+      }
+    },
+    {
+      "id": "sprite_0017",
+      "rect": {
+        "x": 0,
+        "y": 77,
+        "w": 25,
+        "h": 21
+      }
+    },
+    {
+      "id": "sprite_0018",
+      "rect": {
+        "x": 25,
+        "y": 77,
+        "w": 18,
+        "h": 14
+      }
+    }
+  ],
+  "animations": [
+    {
+      "tag": "idle",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 0,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -9,
+                "y": -16
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 1,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": -9,
+                "y": -16
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "hatching",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 2,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": -9,
+                "y": -16
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 3,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": -9,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 4,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": -9,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 5,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": -9,
+                "y": -22
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 6,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0006",
+              "local_offset": {
+                "x": -7,
+                "y": -25
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0007",
+              "local_offset": {
+                "x": 0,
+                "y": -25
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0006",
+              "local_offset": {
+                "x": 1,
+                "y": -25
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0008",
+              "local_offset": {
+                "x": -9,
+                "y": -19
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_r",
+              "sprite_id": "sprite_0009",
+              "local_offset": {
+                "x": -12,
+                "y": -23
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_l",
+              "sprite_id": "sprite_0009",
+              "local_offset": {
+                "x": -1,
+                "y": -23
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 7,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0010",
+              "local_offset": {
+                "x": -7,
+                "y": -40
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0011",
+              "local_offset": {
+                "x": 0,
+                "y": -40
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0010",
+              "local_offset": {
+                "x": 1,
+                "y": -40
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": -9,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -12,
+                "y": -31
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_l",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": 0,
+                "y": -31
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 8,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": -7,
+                "y": -42
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0007",
+              "local_offset": {
+                "x": 0,
+                "y": -42
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 1,
+                "y": -42
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -9,
+                "y": 2
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_r",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": -15,
+                "y": -41
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "wing_l",
+              "sprite_id": "sprite_0017",
+              "local_offset": {
+                "x": -9,
+                "y": -41
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 9,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "core",
+              "sprite_id": "sprite_0018",
+              "local_offset": {
+                "x": -9,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    }
+  ],
+  "gameplay": {
+    "entity_health_pool": "core",
+    "health_pools": [
+      {
+        "id": "core",
+        "max_health": 15
+      }
+    ]
+  }
+}

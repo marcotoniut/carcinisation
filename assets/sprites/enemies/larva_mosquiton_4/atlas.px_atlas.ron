@@ -1,0 +1,235 @@
+(
+    indexed_image: "sprites/enemies/larva_mosquiton_4/atlas.pxi",
+    regions: [
+        (
+            frame_size: (19, 34),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 19,
+                    h: 34,
+                ),
+            ],
+        ),
+        (
+            frame_size: (19, 34),
+            frames: [
+                (
+                    x: 19,
+                    y: 0,
+                    w: 19,
+                    h: 34,
+                ),
+            ],
+        ),
+        (
+            frame_size: (19, 34),
+            frames: [
+                (
+                    x: 38,
+                    y: 0,
+                    w: 19,
+                    h: 34,
+                ),
+            ],
+        ),
+        (
+            frame_size: (19, 24),
+            frames: [
+                (
+                    x: 57,
+                    y: 0,
+                    w: 19,
+                    h: 24,
+                ),
+            ],
+        ),
+        (
+            frame_size: (19, 24),
+            frames: [
+                (
+                    x: 76,
+                    y: 0,
+                    w: 19,
+                    h: 24,
+                ),
+            ],
+        ),
+        (
+            frame_size: (19, 40),
+            frames: [
+                (
+                    x: 95,
+                    y: 0,
+                    w: 19,
+                    h: 40,
+                ),
+            ],
+        ),
+        (
+            frame_size: (7, 19),
+            frames: [
+                (
+                    x: 114,
+                    y: 0,
+                    w: 7,
+                    h: 19,
+                ),
+            ],
+        ),
+        (
+            frame_size: (1, 19),
+            frames: [
+                (
+                    x: 121,
+                    y: 0,
+                    w: 1,
+                    h: 19,
+                ),
+            ],
+        ),
+        (
+            frame_size: (19, 37),
+            frames: [
+                (
+                    x: 0,
+                    y: 40,
+                    w: 19,
+                    h: 37,
+                ),
+            ],
+        ),
+        (
+            frame_size: (14, 15),
+            frames: [
+                (
+                    x: 19,
+                    y: 40,
+                    w: 14,
+                    h: 15,
+                ),
+            ],
+        ),
+        (
+            frame_size: (7, 27),
+            frames: [
+                (
+                    x: 33,
+                    y: 40,
+                    w: 7,
+                    h: 27,
+                ),
+            ],
+        ),
+        (
+            frame_size: (1, 27),
+            frames: [
+                (
+                    x: 40,
+                    y: 40,
+                    w: 1,
+                    h: 27,
+                ),
+            ],
+        ),
+        (
+            frame_size: (19, 29),
+            frames: [
+                (
+                    x: 41,
+                    y: 40,
+                    w: 19,
+                    h: 29,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 23),
+            frames: [
+                (
+                    x: 60,
+                    y: 40,
+                    w: 13,
+                    h: 23,
+                ),
+            ],
+        ),
+        (
+            frame_size: (7, 19),
+            frames: [
+                (
+                    x: 73,
+                    y: 40,
+                    w: 7,
+                    h: 19,
+                ),
+            ],
+        ),
+        (
+            frame_size: (18, 16),
+            frames: [
+                (
+                    x: 80,
+                    y: 40,
+                    w: 18,
+                    h: 16,
+                ),
+            ],
+        ),
+        (
+            frame_size: (17, 21),
+            frames: [
+                (
+                    x: 98,
+                    y: 40,
+                    w: 17,
+                    h: 21,
+                ),
+            ],
+        ),
+        (
+            frame_size: (25, 21),
+            frames: [
+                (
+                    x: 0,
+                    y: 77,
+                    w: 25,
+                    h: 21,
+                ),
+            ],
+        ),
+        (
+            frame_size: (18, 14),
+            frames: [
+                (
+                    x: 25,
+                    y: 77,
+                    w: 18,
+                    h: 14,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "sprite_0000": 0,
+        "sprite_0001": 1,
+        "sprite_0002": 2,
+        "sprite_0003": 3,
+        "sprite_0004": 4,
+        "sprite_0005": 5,
+        "sprite_0006": 6,
+        "sprite_0007": 7,
+        "sprite_0008": 8,
+        "sprite_0009": 9,
+        "sprite_0010": 10,
+        "sprite_0011": 11,
+        "sprite_0012": 12,
+        "sprite_0013": 13,
+        "sprite_0014": 14,
+        "sprite_0015": 15,
+        "sprite_0016": 16,
+        "sprite_0017": 17,
+        "sprite_0018": 18,
+    },
+)

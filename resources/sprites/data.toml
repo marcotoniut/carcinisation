@@ -5,3 +5,27 @@ depth = 3
 palette = "base"
 part_group = "base"
 origin_slice = "origin"
+
+[[sprites]]
+source = "enemies/spidey_3.aseprite"
+entity = "spidey"
+depth = 3
+palette = "base"
+part_group = "base"
+origin_slice = "origin"
+
+[[sprites]]
+source = "enemies/idolastra_3.aseprite"
+entity = "idolastra"
+depth = 3
+palette = "base"
+part_group = "base"
+origin_slice = "origin"
+
+[[sprites]]
+source = "enemies/larva_mosquiton_4.aseprite"
+entity = "larva_mosquiton"
+depth = 4
+palette = "base"
+part_group = "base"
+origin_slice = "origin"

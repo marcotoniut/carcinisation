@@ -1,0 +1,93 @@
+[[part_definitions]]
+id = "group_marker"
+tags = ["group"]
+
+[[part_definitions]]
+id = "core"
+tags = ["core", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+
+[[part_definitions.gameplay.collision]]
+id = "core_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 10.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["core"]
+
+[[part_definitions]]
+id = "body_shell"
+tags = ["shell", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 3
+durability = 4
+
+[[part_definitions.gameplay.collision]]
+id = "body_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 14.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["body", "shell"]
+
+[[part_definitions]]
+id = "wing"
+tags = ["wing", "limb"]
+
+# --- parts ---
+
+[[parts]]
+id = "root"
+definition_id = "group_marker"
+name = "Root"
+draw_order = 0
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "body"
+definition_id = "body_shell"
+name = "Body"
+parent_id = "root"
+source_layer = "body"
+draw_order = 10
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "core"
+definition_id = "core"
+name = "Core"
+parent_id = "root"
+source_layer = "core"
+draw_order = 20
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "wing_r"
+definition_id = "wing"
+name = "Wing Right"
+parent_id = "root"
+source_layer = "wing_r"
+draw_order = 25
+pivot = { x = 0, y = 0 }
+tags = ["right", "wings"]
+
+[[parts]]
+id = "wing_l"
+definition_id = "wing"
+name = "Wing Left"
+parent_id = "root"
+source_layer = "wing_l"
+draw_order = 30
+pivot = { x = 0, y = 0 }
+tags = ["left", "wings"]
+
+# --- gameplay ---
+
+[gameplay]
+entity_health_pool = "core"
+
+[[gameplay.health_pools]]
+id = "core"
+max_health = 15

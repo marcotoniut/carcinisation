@@ -1,0 +1,231 @@
+[[part_definitions]]
+id = "group_marker"
+tags = ["group"]
+
+[[part_definitions]]
+id = "chest"
+tags = ["core", "torso", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 1
+durability = 4
+
+[[part_definitions.gameplay.collision]]
+id = "chest_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 14.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["body", "core"]
+
+[[part_definitions]]
+id = "waist"
+tags = ["core", "torso", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 1
+durability = 4
+
+[[part_definitions.gameplay.collision]]
+id = "waist_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 10.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["body", "core"]
+
+[[part_definitions]]
+id = "abdomen"
+tags = ["core", "torso", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 2
+durability = 6
+
+[[part_definitions.gameplay.collision]]
+id = "abdomen_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 16.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["abdomen", "core"]
+
+[[part_definitions]]
+id = "head"
+tags = ["core", "head", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+
+[[part_definitions.gameplay.collision]]
+id = "head_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 10.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["head", "core"]
+
+[[part_definitions]]
+id = "tail"
+tags = ["tail", "weapon", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 2
+durability = 3
+
+[[part_definitions.gameplay.collision]]
+id = "tail_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 8.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["tail", "appendage"]
+
+[[part_definitions]]
+id = "tail_back_visual"
+tags = ["tail", "visual_only"]
+
+[[part_definitions]]
+id = "arm"
+tags = ["arm", "limb", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 1
+durability = 2
+
+[[part_definitions.gameplay.collision]]
+id = "arm_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 7.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["arm", "appendage"]
+
+[[part_definitions]]
+id = "leg"
+tags = ["leg", "limb", "targetable"]
+
+[part_definitions.gameplay]
+targetable = true
+health_pool = "core"
+armour = 1
+durability = 2
+
+[[part_definitions.gameplay.collision]]
+id = "leg_hurtbox"
+role = "collider"
+shape = { shape = "circle", radius = 8.0, offset = { x = 0.0, y = 0.0 } }
+tags = ["legs", "appendage"]
+
+# --- parts ---
+
+[[parts]]
+id = "root"
+definition_id = "group_marker"
+name = "Root"
+draw_order = 0
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+# Back portion of the tail, drawn behind everything else
+id = "tail_back"
+definition_id = "tail_back_visual"
+name = "Tail Back"
+parent_id = "root"
+source_layer = "tail_back"
+draw_order = 5
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "abdomen"
+definition_id = "abdomen"
+name = "Abdomen"
+parent_id = "root"
+source_layer = "abdomen"
+draw_order = 10
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "waist"
+definition_id = "waist"
+name = "Waist"
+parent_id = "abdomen"
+source_layer = "waist"
+draw_order = 17
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "chest"
+definition_id = "chest"
+name = "Chest"
+parent_id = "root"
+source_layer = "chest"
+draw_order = 20
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+# Front portion of the tail, drawn above body
+id = "tail"
+definition_id = "tail"
+name = "Tail"
+parent_id = "abdomen"
+source_layer = "tail"
+draw_order = 25
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "back_legs"
+definition_id = "leg"
+name = "Back Legs"
+parent_id = "abdomen"
+source_layer = "back_legs"
+draw_order = 15
+pivot = { x = 0, y = 0 }
+tags = ["legs", "back"]
+
+[[parts]]
+id = "front_legs"
+definition_id = "leg"
+name = "Front Legs"
+parent_id = "chest"
+source_layer = "front_legs"
+draw_order = 30
+pivot = { x = 0, y = 0 }
+tags = ["legs", "front"]
+
+[[parts]]
+id = "arm_r"
+definition_id = "arm"
+name = "Arm Right"
+parent_id = "chest"
+source_layer = "arm_r"
+draw_order = 35
+pivot = { x = 0, y = 0 }
+tags = ["right"]
+
+[[parts]]
+id = "arm_l"
+definition_id = "arm"
+name = "Arm Left"
+parent_id = "chest"
+source_layer = "arm_l"
+draw_order = 40
+pivot = { x = 0, y = 0 }
+tags = ["left"]
+
+[[parts]]
+id = "head"
+definition_id = "head"
+name = "Head"
+parent_id = "chest"
+source_layer = "head"
+draw_order = 50
+pivot = { x = 0, y = 0 }
+
+# --- gameplay ---
+
+[gameplay]
+entity_health_pool = "core"
+
+[[gameplay.health_pools]]
+id = "core"
+max_health = 50
