@@ -1,9 +1,8 @@
-use crate::pixel::PxAssets;
 use crate::stage::{
     attack::{
         components::{
-            EnemyAttack, EnemyAttackOriginDepth, EnemyAttackOriginPosition,
-            EnemyHoveringAttackType, bundles::make_hovering_attack_animation_bundle,
+            AttachedToComposedPart, EnemyAttack, EnemyAttackOriginDepth, EnemyAttackOriginPosition,
+            EnemyHoveringAttackType, bundles::make_hovering_attack_atlas_bundle,
         },
         data::blood_shot::{
             BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED, BLOOD_SHOT_ATTACK_LINE_SPEED,
@@ -13,13 +12,13 @@ use crate::stage::{
     components::{
         damage::InflictsDamage,
         interactive::{Health, Hittable},
-        placement::Depth,
+        placement::{AuthoredDepths, Depth},
     },
     player::components::PLAYER_DEPTH,
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxSprite, PxSubPosition};
+use carapace::prelude::{PxAnchor, PxSubPosition};
 use cween::{
     linear::components::{TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle},
     structs::{Constructor, Magnitude},
@@ -61,10 +60,11 @@ pub struct BloodShotTween;
 
 /// Holds a freshly spawned blood shot at its authored cue origin briefly so
 /// the first visible frame reads as emerging from the mouth before travel.
+/// Far target is recomputed at arm time from the current position and speed
+/// direction so attachment-moved projectiles travel correctly.
 #[derive(Component, Clone, Debug)]
 pub struct PendingBloodShotMotion {
     pub armed_at: Duration,
-    pub far_target: Vec2,
     pub speed: Vec2,
 }
 
@@ -84,11 +84,12 @@ pub struct BloodShotBundle {
 
 pub fn spawn_blood_shot_attack(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &AssetServer,
     stage_time: &Res<Time<StageTimeDomain>>,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,
+    attachment: Option<AttachedToComposedPart>,
 ) {
     let attack_type = EnemyHoveringAttackType::BloodShot;
     // TODO should this account for player speed/direction?
@@ -98,8 +99,8 @@ pub fn spawn_blood_shot_attack(
             (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
         );
 
-    let (sprite, animation, collider_data) =
-        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, *depth);
+    let (atlas_sprite, animation, collider_data) =
+        make_hovering_attack_atlas_bundle(asset_server, &attack_type);
 
     let direction = target_pos - current_pos;
     let speed = direction.normalize_or_zero() * BLOOD_SHOT_ATTACK_LINE_SPEED;
@@ -123,22 +124,26 @@ pub fn spawn_blood_shot_attack(
         origin: current_pos,
     });
 
-    entity_commands.insert((sprite, animation));
+    entity_commands.insert((
+        atlas_sprite,
+        animation,
+        PxAnchor::Center,
+        (*depth - 1).to_layer(),
+        AuthoredDepths::single(Depth::One),
+    ));
 
     if !collider_data.0.is_empty() {
         entity_commands.insert(collider_data);
     }
 
-    // Blood shots don't have a fixed target - they travel in a straight line.
-    // Use a very large target position to approximate infinite travel once the
-    // short startup hold finishes.
-    let far_target = current_pos + direction.normalize_or_zero() * 1000.0;
-
     entity_commands.insert(PendingBloodShotMotion {
         armed_at: stage_time.elapsed() + BLOOD_SHOT_ATTACK_STARTUP_HOLD,
-        far_target,
         speed,
     });
+
+    if let Some(attachment) = attachment {
+        entity_commands.insert(attachment);
+    }
 }
 
 pub fn arm_pending_blood_shot_motion(
@@ -151,12 +156,18 @@ pub fn arm_pending_blood_shot_motion(
             continue;
         }
 
+        // Recompute far_target from the current (possibly attachment-moved)
+        // position so the travel direction stays consistent with the actual
+        // release point.
+        let direction = pending.speed.normalize_or_zero();
+        let far_target = position.0 + direction * 1000.0;
+
         spawn_blood_shot_tween_child(
             &mut commands,
             TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
                 entity,
                 position.0.x,
-                pending.far_target.x,
+                far_target.x,
                 pending.speed.x,
             ),
             "Blood Shot Tween X",
@@ -167,7 +178,7 @@ pub fn arm_pending_blood_shot_motion(
             TweenChildBundle::<StageTimeDomain, TargetingValueY>::new(
                 entity,
                 position.0.y,
-                pending.far_target.y,
+                far_target.y,
                 pending.speed.y,
             ),
             "Blood Shot Tween Y",
@@ -184,7 +195,10 @@ pub fn arm_pending_blood_shot_motion(
             "Blood Shot Tween Z",
         );
 
-        commands.entity(entity).remove::<PendingBloodShotMotion>();
+        commands
+            .entity(entity)
+            .remove::<PendingBloodShotMotion>()
+            .remove::<AttachedToComposedPart>();
     }
 }
 
@@ -210,7 +224,6 @@ mod tests {
                 Depth::Three,
                 PendingBloodShotMotion {
                     armed_at: Duration::from_millis(60),
-                    far_target: Vec2::new(100.0, 120.0),
                     speed: Vec2::new(5.0, 6.0),
                 },
             ))
@@ -252,5 +265,59 @@ mod tests {
             ), With<TweenChild>>();
             assert_eq!(child_query.iter(world).count(), 3);
         }
+    }
+
+    #[test]
+    fn arming_removes_attached_to_composed_part() {
+        let mut app = App::new();
+        app.insert_resource(Time::<StageTimeDomain>::default());
+        app.add_systems(Update, arm_pending_blood_shot_motion);
+
+        let dummy_source = app.world_mut().spawn_empty().id();
+
+        let attack = app
+            .world_mut()
+            .spawn((
+                EnemyAttack,
+                PxSubPosition(Vec2::new(10.0, 20.0)),
+                Depth::Three,
+                PendingBloodShotMotion {
+                    armed_at: Duration::from_millis(60),
+                    speed: Vec2::new(5.0, 6.0),
+                },
+                AttachedToComposedPart {
+                    source_entity: dummy_source,
+                    part_id: "head".to_string(),
+                    local_offset: IVec2::new(6, 9),
+                },
+            ))
+            .id();
+
+        // Before hold expires: both components present.
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(Duration::from_millis(59));
+        app.update();
+        assert!(
+            app.world()
+                .entity(attack)
+                .contains::<AttachedToComposedPart>()
+        );
+
+        // After hold expires: both removed.
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(Duration::from_millis(1));
+        app.update();
+        assert!(
+            !app.world()
+                .entity(attack)
+                .contains::<PendingBloodShotMotion>()
+        );
+        assert!(
+            !app.world()
+                .entity(attack)
+                .contains::<AttachedToComposedPart>()
+        );
     }
 }

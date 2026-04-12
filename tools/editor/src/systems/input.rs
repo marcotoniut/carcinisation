@@ -1258,6 +1258,7 @@ mod tests {
                 object_type: ObjectType::BenchBig,
                 coordinates: Vec2::ZERO,
                 depth: Depth::Zero,
+                authored_depths: None,
             })],
             steps: Vec::new(),
             on_start_transition_o: None,

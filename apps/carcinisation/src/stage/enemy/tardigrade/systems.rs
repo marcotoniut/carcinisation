@@ -93,7 +93,7 @@ pub fn despawn_dead_tardigrade(
 /// Panics if the camera entity is missing from the world.
 pub fn check_idle_tardigrade(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<Time<StageTimeDomain>>,
     query: Query<
@@ -127,7 +127,7 @@ pub fn check_idle_tardigrade(
 
                 spawn_boulder_throw_attack(
                     &mut commands,
-                    &mut assets_sprite,
+                    &asset_server,
                     &stage_time,
                     *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                     position.0,

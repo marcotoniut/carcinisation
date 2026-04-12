@@ -56,6 +56,7 @@ pub(crate) type AtlasSpriteEntry<'a> = (
     PxCanvas,
     Option<&'a PxFrame>,
     Option<&'a PxFilter>,
+    Option<crate::presentation::PxPresentationTransform>,
 );
 
 pub(crate) type CompositeSpriteEntry<'a> = (
@@ -317,7 +318,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                 }
             }
 
-            for (sprite, position, anchor, canvas, frame, filter) in atlas_sprites {
+            for (sprite, position, anchor, canvas, frame, filter, presentation) in atlas_sprites {
                 let Some(atlas) = atlas_assets.get(&sprite.atlas) else {
                     continue;
                 };
@@ -325,17 +326,45 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     continue;
                 };
 
-                draw_spatial(
-                    &(atlas, region),
-                    (),
-                    &mut layer_slice,
-                    position,
-                    anchor,
-                    canvas,
-                    frame.copied(),
-                    filter.and_then(|filter| filters.get(&**filter)),
-                    camera,
-                );
+                let resolved_filters = filter.and_then(|filter| filters.get(&**filter));
+
+                if let Some(pt) = presentation
+                    && pt.needs_transformed_blit()
+                {
+                    draw_spatial_transformed(
+                        &(atlas, region),
+                        (),
+                        &mut layer_slice,
+                        position,
+                        anchor,
+                        canvas,
+                        frame.copied(),
+                        resolved_filters,
+                        camera,
+                        pt.clamped_scale(),
+                        pt.sanitised_rotation(),
+                        pt.offset,
+                    );
+                } else {
+                    let adjusted_pos = if let Some(pt) = presentation
+                        && pt.has_offset()
+                    {
+                        PxPosition(*position + pt.offset.round().as_ivec2())
+                    } else {
+                        position
+                    };
+                    draw_spatial(
+                        &(atlas, region),
+                        (),
+                        &mut layer_slice,
+                        adjusted_pos,
+                        anchor,
+                        canvas,
+                        frame.copied(),
+                        resolved_filters,
+                        camera,
+                    );
+                }
             }
 
             for (composite, position, anchor, canvas, frame, filter, presentation) in composites {

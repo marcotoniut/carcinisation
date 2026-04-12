@@ -1,0 +1,32 @@
+(
+    indexed_image: "sprites/attacks/enemy_attacks/atlas.pxi",
+    regions: [
+        // hovering_4
+        (frame_size: (36, 36), frames: [
+            (x: 0, y: 0, w: 36, h: 36),
+            (x: 36, y: 0, w: 36, h: 36),
+            (x: 72, y: 0, w: 36, h: 36),
+            (x: 108, y: 0, w: 36, h: 36),
+        ]),
+        // attack_hit_1
+        (frame_size: (45, 45), frames: [
+            (x: 0, y: 36, w: 45, h: 45),
+        ]),
+        // hovering_2
+        (frame_size: (46, 46), frames: [
+            (x: 0, y: 81, w: 46, h: 46),
+            (x: 46, y: 81, w: 46, h: 46),
+        ]),
+        // attack_hit_2
+        (frame_size: (62, 62), frames: [
+            (x: 0, y: 127, w: 62, h: 62),
+            (x: 62, y: 127, w: 62, h: 62),
+        ]),
+    ],
+    names: {
+        "hovering_4": 0,
+        "attack_hit_1": 1,
+        "hovering_2": 2,
+        "attack_hit_2": 3,
+    },
+)

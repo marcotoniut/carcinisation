@@ -410,6 +410,11 @@ pub struct PartHitBlinkState {
 /// runtime supports transform-only semantic nodes.
 pub struct ComposedResolvedParts {
     parts: Vec<ResolvedPartState>,
+    /// Per-frame offset that converts game-logic positions (used by collision
+    /// detection) into screen-visual positions. The rendering pipeline applies
+    /// anchor placement and composite-origin shifting that game-logic coordinates
+    /// do not include. Apply as: `visual_pos = game_logic_pos + visual_offset`.
+    visual_offset: Vec2,
 }
 
 impl ComposedResolvedParts {
@@ -418,8 +423,24 @@ impl ComposedResolvedParts {
         &self.parts
     }
 
+    /// Offset to convert game-logic part positions to screen-visual positions.
+    #[must_use]
+    pub fn visual_offset(&self) -> Vec2 {
+        self.visual_offset
+    }
+
     fn clear(&mut self) {
         self.parts.clear();
+        self.visual_offset = Vec2::ZERO;
+    }
+
+    /// Test-only constructor for building resolved parts with known data.
+    #[cfg(test)]
+    pub fn with_parts_and_offset(parts: Vec<ResolvedPartState>, visual_offset: Vec2) -> Self {
+        Self {
+            parts,
+            visual_offset,
+        }
     }
 }
 
@@ -469,6 +490,15 @@ impl ResolvedPartState {
         };
 
         self.world_pivot_position + Vec2::new(x, -y)
+    }
+
+    /// Like [`world_point_from_local_offset`](Self::world_point_from_local_offset)
+    /// but returns the screen-visual position by applying the composed entity's
+    /// visual offset. Use this when the resulting position must match where the
+    /// part appears on screen (e.g. projectile spawn origins).
+    #[must_use]
+    pub fn visual_point_from_local_offset(&self, local_offset: IVec2, visual_offset: Vec2) -> Vec2 {
+        self.world_point_from_local_offset(local_offset) + visual_offset
     }
 }
 
@@ -1013,7 +1043,17 @@ pub fn update_composed_enemy_visuals(
             &part_states,
             position.0,
         );
-        *anchor = anchor_for_origin(atlas_asset.atlas.canvas, atlas_asset.atlas.origin);
+        let new_anchor = anchor_for_origin(atlas_asset.atlas.canvas, atlas_asset.atlas.origin);
+        // Compute the visual offset: rendering positions each part at
+        // `base_pos + (part.offset - origin)` where `base_pos = PxPosition -
+        // anchor.pos(size)`. Game-logic uses `PxSubPosition + Vec2(pivot.x,
+        // -pivot.y)`. The difference is the anchor + origin correction.
+        let anchor_x_px = anchor_x_offset(&new_anchor, metrics.size.x);
+        resolved_part_states.visual_offset = Vec2::new(
+            -(anchor_x_px as f32) - metrics.origin.x as f32,
+            -(metrics.origin.y as f32),
+        );
+        *anchor = new_anchor;
         *visibility = Visibility::Visible;
     }
 }
@@ -2343,6 +2383,17 @@ fn anchor_for_origin(canvas_size: (u16, u16), atlas_origin: (i16, i16)) -> PxAnc
 
     let anchor_x = atlas_origin.0 as f32 / canvas_size.0 as f32;
     PxAnchor::Custom(Vec2::new(anchor_x, 0.0))
+}
+
+/// Compute the X pixel offset for a [`PxAnchor`] at the given width.
+/// Mirrors `PxAnchor::x_pos` which is crate-private in `carapace`.
+fn anchor_x_offset(anchor: &PxAnchor, width: u32) -> u32 {
+    match anchor {
+        PxAnchor::BottomLeft | PxAnchor::CenterLeft | PxAnchor::TopLeft => 0,
+        PxAnchor::BottomCenter | PxAnchor::Center | PxAnchor::TopCenter => width / 2,
+        PxAnchor::BottomRight | PxAnchor::CenterRight | PxAnchor::TopRight => width,
+        PxAnchor::Custom(v) => (width as f32 * v.x).round() as u32,
+    }
 }
 
 fn build_collision_state(
@@ -5503,5 +5554,62 @@ mod tests {
             !resolved.poses.contains_key("wings_visual"),
             "wings should not appear without override"
         );
+    }
+
+    #[test]
+    fn visual_offset_formula_matches_render_pipeline() {
+        // anchor_for_origin with canvas (95, 95) and origin (47, 43) produces
+        // PxAnchor::Custom(Vec2(47/95, 0.0)).
+        let anchor = anchor_for_origin((95, 95), (47, 43));
+        // Composite metrics: bounding box with origin at (-32, -27), size (65, 42).
+        let size = UVec2::new(65, 42);
+        let origin = IVec2::new(-32, -27);
+        let anchor_x_px = anchor_x_offset(&anchor, size.x);
+
+        let visual_offset = Vec2::new(-(anchor_x_px as f32) - origin.x as f32, -(origin.y as f32));
+
+        // anchor_x_px = round(47.0/95.0 * 65.0) = round(32.16) = 32
+        assert_eq!(anchor_x_px, 32);
+        // visual_offset.x = -32 - (-32) = 0
+        assert_eq!(visual_offset.x, 0.0);
+        // visual_offset.y = -(-27) = 27
+        assert_eq!(visual_offset.y, 27.0);
+    }
+
+    #[test]
+    fn visual_point_from_local_offset_adds_visual_offset() {
+        let part = ResolvedPartState {
+            part_id: "head".to_string(),
+            parent_id: None,
+            draw_order: 0,
+            sprite_id: "s".to_string(),
+            frame_size: UVec2::new(6, 16),
+            flip_x: false,
+            flip_y: false,
+            world_top_left_position: Vec2::new(35.0, 513.0),
+            world_pivot_position: Vec2::new(35.0, 513.0),
+            tags: vec![],
+            targetable: false,
+            health_pool: None,
+            armour: 0,
+            current_durability: None,
+            max_durability: None,
+            breakable: false,
+            broken: false,
+            blinking: false,
+            collisions: vec![],
+        };
+
+        let offset = IVec2::new(6, 9);
+        let visual_offset = Vec2::new(0.0, 49.0);
+
+        let game_logic = part.world_point_from_local_offset(offset);
+        let visual = part.visual_point_from_local_offset(offset, visual_offset);
+
+        assert_eq!(visual, game_logic + visual_offset);
+        // game_logic = (35+6, 513-9) = (41, 504)
+        assert_eq!(game_logic, Vec2::new(41.0, 504.0));
+        // visual = (41, 504+49) = (41, 553)
+        assert_eq!(visual, Vec2::new(41.0, 553.0));
     }
 }

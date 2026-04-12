@@ -41,7 +41,6 @@ pub static SCREEN_RESOLUTION_F32_H: std::sync::LazyLock<Vec2> =
     std::sync::LazyLock::new(|| SCREEN_RESOLUTION.as_vec2() / 2.0);
 
 pub const PATH_SPRITES_ENEMIES: &str = assert_assets_path!("sprites/enemies/");
-pub const PATH_SPRITES_ATTACKS: &str = assert_assets_path!("sprites/attacks/");
 pub const PATH_SPRITES_OBJECTS: &str = assert_assets_path!("sprites/objects/");
 
 const TYPEFACE_INVERTED_PATH: &str =

@@ -12,9 +12,10 @@ use self::{
     systems::player::check_got_hit,
     systems::{
         check_health_at_0, despawn_dead_attacks, hovering::hovering_damage_on_reached,
-        miss_on_reached, on_enemy_attack_depth_changed,
+        miss_on_reached, on_enemy_attack_depth_changed, update_attached_attack_positions,
     },
 };
+use super::enemy::composed::update_composed_enemy_visuals;
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
@@ -30,7 +31,12 @@ impl Plugin for AttackPlugin {
                 (check_got_hit, check_health_at_0).chain(),
                 #[cfg(debug_assertions)]
                 sync_enemy_attack_debug_positions,
-                arm_pending_blood_shot_motion,
+                (
+                    update_attached_attack_positions,
+                    arm_pending_blood_shot_motion,
+                )
+                    .chain()
+                    .after(update_composed_enemy_visuals),
                 despawn_dead_attacks,
                 on_enemy_attack_depth_changed,
                 miss_on_reached,

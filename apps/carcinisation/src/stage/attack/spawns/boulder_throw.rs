@@ -1,8 +1,7 @@
-use crate::pixel::PxAssets;
 use crate::stage::{
     attack::{
         components::{
-            EnemyAttack, EnemyHoveringAttackType, bundles::make_hovering_attack_animation_bundle,
+            EnemyAttack, EnemyHoveringAttackType, bundles::make_hovering_attack_atlas_bundle,
         },
         data::boulder_throw::{
             BOULDER_THROW_ATTACK_DAMAGE, BOULDER_THROW_ATTACK_DEPTH_SPEED,
@@ -12,13 +11,13 @@ use crate::stage::{
     components::{
         damage::InflictsDamage,
         interactive::{Flickerer, Health, Hittable},
-        placement::Depth,
+        placement::{AuthoredDepths, Depth},
     },
     player::components::PLAYER_DEPTH,
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxSprite, PxSubPosition};
+use carapace::prelude::{PxAnchor, PxSubPosition};
 use cween::{
     linear::components::{
         TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
@@ -87,7 +86,7 @@ pub struct BoulderThrowBundle {
 
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    asset_server: &AssetServer,
     _stage_time: &Res<Time<StageTimeDomain>>,
     target_pos: Vec2,
     current_pos: Vec2,
@@ -100,8 +99,8 @@ pub fn spawn_boulder_throw_attack(
             (1. - rand::random::<f32>()) * BOULDER_THROW_ATTACK_RANDOMNESS,
         );
 
-    let (sprite, animation, collider_data) =
-        make_hovering_attack_animation_bundle(assets_sprite, &attack_type, *depth);
+    let (atlas_sprite, animation, collider_data) =
+        make_hovering_attack_atlas_bundle(asset_server, &attack_type);
 
     let depth_f32 = depth.to_f32();
     let target_depth = PLAYER_DEPTH;
@@ -133,7 +132,13 @@ pub fn spawn_boulder_throw_attack(
         origin: current_pos,
     });
 
-    entity_commands.insert((sprite, animation));
+    entity_commands.insert((
+        atlas_sprite,
+        animation,
+        PxAnchor::Center,
+        (*depth - 1).to_layer(),
+        AuthoredDepths::single(Depth::One),
+    ));
 
     if !collider_data.0.is_empty() {
         entity_commands.insert(collider_data);

@@ -260,6 +260,7 @@ pub(crate) type AtlasSpriteComponents<L> = (
     &'static PxCanvas,
     Option<&'static PxFrame>,
     Option<&'static PxFilter>,
+    Option<&'static crate::presentation::PxPresentationTransform>,
 );
 
 #[cfg(feature = "headed")]
@@ -267,8 +268,11 @@ fn extract_atlas_sprites<L: PxLayer>(
     atlas_sprites: Extract<Query<(AtlasSpriteComponents<L>, &InheritedVisibility, RenderEntity)>>,
     mut cmd: Commands,
 ) {
-    for ((sprite, &position, &anchor, layer, &canvas, frame, filter), visibility, id) in
-        &atlas_sprites
+    for (
+        (sprite, &position, &anchor, layer, &canvas, frame, filter, presentation),
+        visibility,
+        id,
+    ) in &atlas_sprites
     {
         let mut entity = cmd.entity(id);
 
@@ -289,6 +293,12 @@ fn extract_atlas_sprites<L: PxLayer>(
             entity.insert(filter.clone());
         } else {
             entity.remove::<PxFilter>();
+        }
+
+        if let Some(presentation) = presentation {
+            entity.insert(*presentation);
+        } else {
+            entity.remove::<crate::presentation::PxPresentationTransform>();
         }
     }
 }

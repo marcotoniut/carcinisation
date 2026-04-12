@@ -242,10 +242,18 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
                 .push(sprite);
         }
 
-        for (sprite, &position, &anchor, layer, &canvas, animation, filter) in
+        for (sprite, &position, &anchor, layer, &canvas, animation, filter, presentation) in
             self.atlas_sprites.iter_manual(world)
         {
-            let sprite = (sprite, position, anchor, canvas, animation, filter);
+            let sprite = (
+                sprite,
+                position,
+                anchor,
+                canvas,
+                animation,
+                filter,
+                presentation.copied(),
+            );
             #[cfg(feature = "gpu_palette")]
             {
                 layer_set.insert(layer.clone());

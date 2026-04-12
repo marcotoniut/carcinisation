@@ -6,9 +6,8 @@ use crate::{
     components::DespawnMark,
     game::score::components::Score,
     globals::SCREEN_RESOLUTION_F32_H,
-    pixel::PxAssets,
     stage::{
-        attack::spawns::blood_shot::spawn_blood_shot_attack,
+        attack::{components::AttachedToComposedPart, spawns::blood_shot::spawn_blood_shot_attack},
         components::{
             interactive::Dead,
             placement::{Depth, Floor},
@@ -32,7 +31,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxSprite, PxSubPosition};
+use carapace::prelude::PxSubPosition;
 
 const MOSQUITON_BLOOD_SHOT_EVENT_ID: &str = "blood_shot";
 
@@ -161,7 +160,7 @@ pub fn despawn_dead_mosquitons(
 #[allow(clippy::missing_panics_doc)]
 pub fn trigger_mosquiton_authored_attack_cues(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<Time<StageTimeDomain>>,
     mut cue_reader: MessageReader<ComposedAnimationCueMessage>,
@@ -188,27 +187,53 @@ pub fn trigger_mosquiton_authored_attack_cues(
             continue;
         };
 
-        let current_pos = cue
-            .part_id
-            .as_deref()
-            .and_then(|part_id| {
-                resolved_parts
-                    .and_then(|parts| parts.parts().iter().find(|part| part.part_id == part_id))
-            })
-            .map_or(position.0, |part| {
-                part.world_point_from_local_offset(IVec2::new(
-                    cue.local_offset.x,
-                    cue.local_offset.y,
-                ))
-            });
+        let visual_offset = resolved_parts
+            .map(|parts| parts.visual_offset())
+            .unwrap_or(Vec2::ZERO);
+
+        let resolved_part = cue.part_id.as_deref().and_then(|part_id| {
+            resolved_parts
+                .and_then(|parts| parts.parts().iter().find(|part| part.part_id == part_id))
+        });
+
+        let local_offset = IVec2::new(cue.local_offset.x, cue.local_offset.y);
+
+        let current_pos = resolved_part.map_or(position.0 + visual_offset, |part| {
+            part.visual_point_from_local_offset(local_offset, visual_offset)
+        });
+
+        #[cfg(debug_assertions)]
+        {
+            let method = if resolved_part.is_some() {
+                "resolved_part"
+            } else {
+                "FALLBACK_entity_visual_center"
+            };
+            let entity_pos = position.0;
+            let vis_off = visual_offset;
+            let cue_part_id = &cue.part_id;
+            let off_x = cue.local_offset.x;
+            let off_y = cue.local_offset.y;
+            info!(
+                "Blood shot cue: method={method}, origin={current_pos:?}, entity_pos={entity_pos:?}, \
+                 visual_offset={vis_off:?}, part_id={cue_part_id:?}, offset=({off_x},{off_y})",
+            );
+        }
+
+        let attachment = resolved_part.map(|_| AttachedToComposedPart {
+            source_entity: cue.entity,
+            part_id: cue.part_id.clone().unwrap_or_default(),
+            local_offset,
+        });
 
         spawn_blood_shot_attack(
             &mut commands,
-            &mut assets_sprite,
+            &asset_server,
             &stage_time,
             *SCREEN_RESOLUTION_F32_H + camera_pos.0,
             current_pos,
             depth,
+            attachment,
         );
     }
 }

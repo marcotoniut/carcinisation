@@ -585,6 +585,7 @@ mod tests {
                     events: vec![],
                     parts,
                 }],
+                part_overrides: vec![],
             }],
             gameplay: CompositionGameplay::default(),
         }

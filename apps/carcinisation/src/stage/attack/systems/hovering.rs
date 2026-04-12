@@ -1,15 +1,14 @@
 #![allow(clippy::type_complexity)]
 
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
-use crate::pixel::{PxAssets, PxSpriteBundle};
+use crate::stage::attack::components::bundles::make_hit_atlas_bundle;
 use crate::{
     components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
-    layer::Layer,
     stage::{
         attack::components::EnemyHoveringAttackType,
         components::{
             damage::InflictsDamage,
-            placement::{Depth, InView},
+            placement::{AuthoredDepths, Depth, InView},
         },
         messages::DamageMessage,
         player::{components::Player, messages::CameraShakeEvent},
@@ -21,13 +20,12 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
-use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
+use carapace::prelude::{PxAnchor, PxSubPosition};
 use cween::linear::components::{LinearValueReached, TargetingValueZ};
 
 /// @system Deals damage and spawns a hit animation when a hovering attack reaches its target depth.
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
-    assets_sprite: PxAssets<PxSprite>,
     mut damage_event_writer: MessageWriter<DamageMessage>,
     mut player_query: Query<Entity, With<Player>>,
     asset_server: Res<AssetServer>,
@@ -66,25 +64,18 @@ pub fn hovering_damage_on_reached(
             },
         ));
 
-        // Depth is One on reached!
-        let animation_o = attack.get_animations().hit.get(depth);
-        if let Some(animation) = animation_o {
-            commands.spawn((
-                Name::new(format!("Attack - {} - hit", attack.get_name())),
-                PxSubPosition::from(position.0),
-                PxSpriteBundle::<Layer> {
-                    sprite: PxSprite(
-                        assets_sprite
-                            .load_animated(animation.sprite_path.clone(), animation.frames),
-                    ),
-                    layer: depth.to_layer(),
-                    anchor: PxAnchor::Center,
-                    ..default()
-                },
-                animation.make_animation_bundle(),
-                DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.4),
-            ));
-        }
+        let (atlas_sprite, animation_bundle) = make_hit_atlas_bundle(&asset_server, attack);
+
+        commands.spawn((
+            Name::new(format!("Attack - {} - hit", attack.get_name())),
+            PxSubPosition::from(position.0),
+            atlas_sprite,
+            animation_bundle,
+            PxAnchor::Center,
+            depth.to_layer(),
+            AuthoredDepths::single(Depth::One),
+            DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.4),
+        ));
 
         commands.entity(entity).insert(DespawnMark);
 

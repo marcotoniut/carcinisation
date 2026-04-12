@@ -259,10 +259,9 @@ impl Default for AttackDefinitions {
                     repeat_damage: 25,
                 },
                 aim_spread: 0.0,
+                // TODO replace with dedicated explosion sprite
                 sprite: AttackSpriteDefinition {
-                    sprite_path: assert_assets_path!(
-                        "sprites/attacks/blood_attack_hovering_1.px_sprite.png"
-                    ),
+                    sprite_path: assert_assets_path!("sprites/bullet_particles.px_sprite.png"),
                     frames: 4,
                     speed_ms: 500,
                     finish_behavior: PxAnimationFinishBehavior::Despawn,

@@ -132,11 +132,13 @@ mod tests {
                     object_type: ObjectType::BenchBig,
                     coordinates: Vec2::new(10.0, 20.0),
                     depth: Depth::Three,
+                    authored_depths: None,
                 }),
                 StageSpawn::Object(ObjectSpawn {
                     object_type: ObjectType::Fibertree,
                     coordinates: Vec2::new(50.0, 60.0),
                     depth: Depth::Two,
+                    authored_depths: None,
                 }),
             ],
             steps: vec![StageStep::Tween(

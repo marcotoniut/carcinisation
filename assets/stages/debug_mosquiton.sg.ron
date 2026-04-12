@@ -16,7 +16,7 @@ StageData(
             enemy_type: Mosquiton,
             elapsed: 0.0,
             contains: None,
-            coordinates: Vec2(41.535973, 513.9916),
+            coordinates: Vec2(59.56762, 500.18045),
             speed: 0.0,
             health: 150,
             steps: [
@@ -34,9 +34,9 @@ StageData(
             kill_boss: false,
             spawns: [],
             floor_depths: {
+                Five: 30.0,
                 Six: 25.0,
                 Three: 40.0,
-                Five: 30.0,
                 Four: 35.0,
             },
         ),
@@ -62,9 +62,9 @@ StageData(
             ],
             floor_depths: {
                 Three: 40.0,
-                Six: 25.0,
                 Four: 35.0,
                 Five: 30.0,
+                Six: 25.0,
             },
         ),
     ],

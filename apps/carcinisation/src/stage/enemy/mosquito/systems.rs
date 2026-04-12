@@ -238,7 +238,7 @@ pub fn clear_finished_mosquito_attacks(
 /// Panics if the camera entity is missing from the world.
 pub fn check_idle_mosquito(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    asset_server: Res<AssetServer>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     // TODO
     // event_writer: MessageWriter<BloodAttackEvent>,
@@ -281,11 +281,12 @@ pub fn check_idle_mosquito(
         if composed_animation.is_none() {
             spawn_blood_shot_attack(
                 &mut commands,
-                &mut assets_sprite,
+                &asset_server,
                 &stage_time,
                 *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                 position.0,
                 depth,
+                None,
             );
         }
     }

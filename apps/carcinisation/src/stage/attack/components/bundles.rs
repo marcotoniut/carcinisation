@@ -1,37 +1,56 @@
-use super::EnemyHoveringAttackType;
-use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
+use super::{ENEMY_ATTACK_ATLAS_PATH, EnemyHoveringAttackType};
 use crate::{
-    layer::Layer,
-    stage::components::{interactive::ColliderData, placement::Depth},
+    pixel::PxAnimationBundle,
+    stage::components::interactive::{Collider, ColliderData},
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxAnimationDuration, PxSprite};
+use carapace::prelude::{PxAnimationDuration, PxAtlasSprite, PxSpriteAtlasAsset};
 
-/// # Panics
+/// Creates the atlas-based hovering attack visual bundle.
 ///
-/// Panics if there is no hovering animation registered for the given `depth`.
-pub fn make_hovering_attack_animation_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
+/// All sprites are authored at depth 1. Runtime depth scaling is handled by
+/// `AuthoredDepths::single(Depth::One)` + `apply_depth_fallback_scale`.
+pub fn make_hovering_attack_atlas_bundle(
+    asset_server: &AssetServer,
     attack_type: &EnemyHoveringAttackType,
-    depth: Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle, ColliderData) {
-    let animation_o = attack_type.get_animations().hovering.get(&depth);
+) -> (PxAtlasSprite, PxAnimationBundle, ColliderData) {
+    let atlas_handle: Handle<PxSpriteAtlasAsset> = asset_server.load(ENEMY_ATTACK_ATLAS_PATH);
+    let region_id = attack_type.hovering_region_id();
 
-    let animation = animation_o.unwrap();
-    let texture = assets_sprite.load_animated(animation.sprite_path.as_str(), animation.frames);
+    let animations = attack_type.get_animations();
+    // Use the depth-1 hovering animation data for timing/behavior.
+    let hovering_anim = animations.hovering_animation_data();
+
     (
-        PxSpriteBundle::<Layer> {
-            sprite: texture.into(),
-            layer: (depth - 1).to_layer(),
-            anchor: PxAnchor::Center,
-            ..default()
-        },
+        PxAtlasSprite::new(atlas_handle, region_id),
         PxAnimationBundle::from_parts(
-            animation.direction,
-            PxAnimationDuration::millis_per_animation(animation.speed),
-            animation.finish_behavior,
-            animation.frame_transition,
+            hovering_anim.direction,
+            PxAnimationDuration::millis_per_animation(hovering_anim.speed),
+            hovering_anim.finish_behavior,
+            hovering_anim.frame_transition,
         ),
-        animation.collider_data.clone(),
+        ColliderData::from_one(Collider::new_circle(attack_type.base_collider_radius())),
+    )
+}
+
+/// Creates the atlas-based hit animation bundle for a separate hit-effect entity.
+pub fn make_hit_atlas_bundle(
+    asset_server: &AssetServer,
+    attack_type: &EnemyHoveringAttackType,
+) -> (PxAtlasSprite, PxAnimationBundle) {
+    let atlas_handle: Handle<PxSpriteAtlasAsset> = asset_server.load(ENEMY_ATTACK_ATLAS_PATH);
+    let region_id = attack_type.hit_region_id();
+
+    let animations = attack_type.get_animations();
+    let hit_anim = animations.hit_animation_data();
+
+    (
+        PxAtlasSprite::new(atlas_handle, region_id),
+        PxAnimationBundle::from_parts(
+            hit_anim.direction,
+            PxAnimationDuration::millis_per_animation(hit_anim.speed),
+            hit_anim.finish_behavior,
+            hit_anim.frame_transition,
+        ),
     )
 }

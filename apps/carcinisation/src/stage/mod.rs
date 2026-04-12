@@ -46,8 +46,9 @@ use self::{
         debug_visibility_hierarchy, initialise_cinematic_step, initialise_movement_step,
         initialise_stop_step,
         movement::{
-            check_linear_tween_finished, check_linear_tween_x_finished,
-            check_linear_tween_y_finished, circle_around, update_depth,
+            check_jump_tween_finished, check_jump_tween_z_finished, check_linear_tween_finished,
+            check_linear_tween_x_finished, check_linear_tween_y_finished, circle_around,
+            update_depth,
         },
         on_death, on_next_step_cleanup_cinematic_step, on_next_step_cleanup_movement_step,
         on_next_step_cleanup_stop_step, on_stage_cleared, read_step_trigger,
@@ -195,8 +196,12 @@ impl Plugin for StagePlugin {
                         update_depth,
                         circle_around,
                         (
-                            (check_linear_tween_x_finished, check_linear_tween_y_finished),
-                            check_linear_tween_finished,
+                            (
+                                check_linear_tween_x_finished,
+                                check_linear_tween_y_finished,
+                                check_jump_tween_z_finished,
+                            ),
+                            (check_linear_tween_finished, check_jump_tween_finished),
                         )
                             .chain(),
                     )
