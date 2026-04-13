@@ -17,8 +17,8 @@ use crate::{
             composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
             data::{
                 mosquiton::{
-                    MOSQUITON_WING_PART_TAGS, TAG_DEATH_FLY, TAG_FALLING, TAG_IDLE_FLY,
-                    TAG_MELEE_FLY, TAG_SHOOT_FLY, apply_mosquiton_animation_state,
+                    MOSQUITON_WING_PART_TAGS, TAG_DEATH_FLY, TAG_FALL, TAG_IDLE_FLY, TAG_MELEE_FLY,
+                    TAG_SHOOT_FLY, apply_mosquiton_animation_state,
                 },
                 steps::{EnemyStep, JumpEnemyStep},
             },
@@ -72,7 +72,7 @@ pub fn assign_mosquiton_animation(
     {
         let (next_animation, next_tag) = if wings_broken.is_some() {
             // Wings are broken - always use falling animation
-            (EnemyMosquitonAnimation::Falling, TAG_FALLING)
+            (EnemyMosquitonAnimation::Falling, TAG_FALL)
         } else {
             // Normal flight behavior
             match attacking.attack {

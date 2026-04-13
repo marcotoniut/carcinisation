@@ -109,6 +109,9 @@ pub struct CompositionAtlas {
     pub canvas: Size,
     /// Shared world/root anchor authored from the Aseprite origin slice.
     pub origin: Point,
+    /// How the entity position maps to the sprite.
+    #[serde(default)]
+    pub spawn_anchor: crate::composed_ron::SpawnAnchorMode,
     /// Atlas image filename stored alongside this manifest.
     pub atlas_image: String,
     /// Reusable semantic part definitions.
@@ -427,6 +430,7 @@ pub struct Size {
 
 /// Source-of-truth semantic composition metadata loaded alongside the Aseprite file.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CompositionSource {
     #[serde(default)]
     part_definitions: Vec<PartDefinition>,
@@ -438,10 +442,14 @@ struct CompositionSource {
     animation_overrides: Vec<CompositionAnimationOverrideSource>,
     #[serde(default)]
     gameplay: CompositionGameplay,
+    /// How the entity position maps to the sprite. Defaults to `BottomOrigin`.
+    #[serde(default)]
+    spawn_anchor: crate::composed_ron::SpawnAnchorMode,
 }
 
 /// Per-animation part override declared in composition metadata.
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CompositionAnimationOverrideSource {
     /// Which animation tags this override applies to.
     tags: Vec<String>,
@@ -494,6 +502,7 @@ pub enum SplitMode {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CompositionPartSource {
     id: String,
     definition_id: String,
@@ -517,6 +526,7 @@ struct CompositionPartSource {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CompositionAnimationEventSource {
     tag: String,
     frame: usize,
@@ -824,6 +834,7 @@ fn build_piece_atlas(
             h: u32::from(aseprite.size().1),
         },
         origin,
+        spawn_anchor: composition.spawn_anchor,
         atlas_image: String::new(),
         part_definitions: composition.part_definitions.clone(),
         parts,
@@ -2847,6 +2858,7 @@ mod tests {
                     max_health: 10,
                 }],
             },
+            spawn_anchor: Default::default(),
         }
     }
 
@@ -3437,6 +3449,7 @@ mod tests {
             source: "fragment_contract.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: Point::default(),
+            spawn_anchor: Default::default(),
             atlas_image: "source.png".to_string(),
             part_definitions: vec![PartDefinition {
                 id: "legs".to_string(),

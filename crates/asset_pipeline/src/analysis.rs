@@ -739,6 +739,7 @@ mod tests {
             source: "test.aseprite".to_string(),
             canvas: Size { w: 64, h: 64 },
             origin: Point::default(),
+            spawn_anchor: Default::default(),
             atlas_image: "source.png".to_string(),
             part_definitions: part_defs,
             parts,

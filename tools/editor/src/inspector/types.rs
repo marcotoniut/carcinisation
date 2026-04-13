@@ -5,7 +5,7 @@ use crate::{
         CutsceneActConnection, CutsceneActNode, CutsceneImage, CutsceneImageLabel, Draggable,
         LetterboxLabel, SelectedItem, StageSpawnRef,
     },
-    resources::{CutsceneAssetHandle, StageAssetHandle, StageControlsUI},
+    resources::{CutsceneAssetHandle, EditorState, StageAssetHandle, StageControlsUI},
 };
 
 /// Registers editor-specific types with the inspector.
@@ -16,6 +16,7 @@ pub fn register_types(app: &mut App) {
         .register_type::<CutsceneAssetHandle>()
         .register_type::<CutsceneImageLabel>()
         .register_type::<Draggable>()
+        .register_type::<EditorState>()
         .register_type::<LetterboxLabel>()
         .register_type::<SelectedItem>()
         .register_type::<StageAssetHandle>()

@@ -51,7 +51,7 @@ use inspector::InspectorPlugin;
 use placement::PlacementMode;
 #[cfg(feature = "full_editor")]
 use resources::{
-    CloseConfirmation, CutsceneAssetHandle, PendingSceneRebuild, SavedSceneSnapshot,
+    CloseConfirmation, CutsceneAssetHandle, EditorState, PendingSceneRebuild, SavedSceneSnapshot,
     SceneInspectorLayout, ShouldExit, StageAssetHandle, StageControlsUI, ThumbnailCache,
 };
 #[cfg(feature = "full_editor")]
@@ -79,6 +79,7 @@ fn main() {
 
     app.init_resource::<systems::input::DragState>()
         .init_resource::<systems::input::GestureState>()
+        .init_resource::<EditorState>()
         .init_resource::<StageControlsUI>()
         .init_resource::<ThumbnailCache>()
         .init_resource::<PlacementMode>()

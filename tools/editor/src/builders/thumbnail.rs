@@ -48,7 +48,6 @@ struct FragmentPlacement {
 #[derive(Clone, Copy, Debug)]
 struct PreviewMetrics {
     min: IVec2,
-    max: IVec2,
     size: UVec2,
 }
 
@@ -257,9 +256,31 @@ fn compose_preview_frame(
         blit_fragment(&mut composed, atlas_image, placement, metrics.min);
     }
 
+    let anchor = match atlas.spawn_anchor {
+        asset_pipeline::composed_ron::SpawnAnchorMode::Origin => {
+            // Origin mode: entity position = composition origin (0,0).
+            // In the cropped preview image, the origin pixel is at
+            // (-metrics.min.x, metrics.min.y) from bottom-left.
+            // Bevy Anchor is normalised −0.5..0.5 from centre.
+            if metrics.size.x > 0 && metrics.size.y > 0 {
+                Anchor(Vec2::new(
+                    -metrics.min.x as f32 / metrics.size.x as f32 - 0.5,
+                    metrics.min.y as f32 / metrics.size.y as f32 + 0.5,
+                ))
+            } else {
+                Anchor::CENTER
+            }
+        }
+        _ => carcinisation::stage::enemy::composed::bevy_anchor_for_composed(
+            (atlas.canvas.w as u16, atlas.canvas.h as u16),
+            (atlas.origin.x as i16, atlas.origin.y as i16),
+            atlas.spawn_anchor,
+        ),
+    };
+
     Ok(ComposedPreview {
         pixels: composed,
-        anchor: bevy_anchor_from_preview_metrics(metrics),
+        anchor,
     })
 }
 
@@ -318,21 +339,8 @@ fn compute_preview_metrics(placements: &[FragmentPlacement]) -> Option<PreviewMe
     let size = max - min;
     Some(PreviewMetrics {
         min,
-        max,
         size: UVec2::new(size.x.max(0) as u32, size.y.max(0) as u32),
     })
-}
-
-fn bevy_anchor_from_preview_metrics(metrics: PreviewMetrics) -> Anchor {
-    if metrics.size.x == 0 || metrics.size.y == 0 {
-        return Anchor::CENTER;
-    }
-
-    let origin = Vec2::new(
-        -metrics.min.x as f32 / metrics.size.x as f32,
-        metrics.max.y as f32 / metrics.size.y as f32,
-    );
-    Anchor(origin - Vec2::splat(0.5))
 }
 
 fn blit_fragment(
@@ -535,6 +543,7 @@ mod tests {
             source: "test.aseprite".into(),
             canvas: Size { w: 8, h: 8 },
             origin: Point { x: 0, y: 0 },
+            spawn_anchor: Default::default(),
             atlas_image: "atlas.png".into(),
             part_definitions: vec![PartDefinition {
                 id: "root".into(),
@@ -635,11 +644,13 @@ mod tests {
             .expect("split frame should compose");
 
         assert_eq!(preview.pixels.dimensions(), (5, 1));
+        // Anchor derived from atlas metadata: canvas=(8,8), origin=(0,0), BottomOrigin
+        // → PxAnchor::Custom(0.0, 0.0) → Bevy Anchor(-0.5, -0.5) = BottomLeft
         assert!(
             preview
                 .anchor
                 .as_vec()
-                .abs_diff_eq(Vec2::new(-0.1, 0.5), 1e-6),
+                .abs_diff_eq(Vec2::new(-0.5, -0.5), 1e-6),
             "unexpected preview anchor {:?}",
             preview.anchor,
         );
@@ -676,7 +687,9 @@ mod tests {
             .expect("off-origin frame should compose");
 
         assert_eq!(preview.pixels.dimensions(), (1, 1));
-        assert_eq!(preview.anchor, Anchor(Vec2::new(-5.5, 0.5)));
+        // Anchor derived from atlas metadata, not preview bounds.
+        // canvas=(8,8), origin=(0,0), BottomOrigin → Anchor(-0.5, -0.5)
+        assert_eq!(preview.anchor, Anchor(Vec2::new(-0.5, -0.5)));
     }
 
     #[test]
@@ -695,6 +708,44 @@ mod tests {
         assert!(
             preview.pixels.pixels().any(|pixel| pixel[3] != 0),
             "preview should contain visible pixels"
+        );
+    }
+
+    #[test]
+    fn origin_mode_anchor_uses_preview_metrics() {
+        // A 2×1 sprite placed at offset (3, 0) in an Origin-mode atlas.
+        // Preview image is cropped to 2×1, min=(3,0).
+        // Origin (0,0) is 3px left of the cropped image → anchor.x = -3/2 - 0.5 = -2.0
+        let mut atlas_image = RgbaImage::new(3, 1);
+        atlas_image.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        atlas_image.put_pixel(1, 0, Rgba([0, 255, 0, 255]));
+
+        let mut atlas = make_test_atlas(vec![PartPose {
+            part_id: "body".into(),
+            sprite_id: "left".into(),
+            local_offset: Point { x: 3, y: 0 },
+            flip_x: false,
+            flip_y: false,
+            visible: true,
+            opacity: 255,
+            fragment: 0,
+        }]);
+        atlas.spawn_anchor = asset_pipeline::composed_ron::SpawnAnchorMode::Origin;
+        atlas.canvas = Size { w: 16, h: 16 };
+        atlas.origin = Point { x: 5, y: 4 };
+
+        let preview = compose_preview_frame(&atlas, &atlas_image, "idle", 0)
+            .expect("origin-mode preview should compose");
+
+        assert_eq!(preview.pixels.dimensions(), (2, 1));
+        // min = (3, 0), size = (2, 1)
+        // anchor.x = -3/2 - 0.5 = -2.0
+        // anchor.y = 0/1 + 0.5 = 0.5
+        let v = preview.anchor.as_vec();
+        assert!(
+            (v.x - (-2.0)).abs() < 1e-6 && (v.y - 0.5).abs() < 1e-6,
+            "Origin-mode anchor should use metrics, got {:?}",
+            preview.anchor
         );
     }
 }

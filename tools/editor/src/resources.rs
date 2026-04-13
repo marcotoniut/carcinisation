@@ -8,6 +8,13 @@ use carcinisation::{
 use bevy::{prelude::*, sprite::Anchor};
 use serde::{Deserialize, Serialize};
 
+/// Editor-wide mode flags that affect scene presentation but not saved stage data.
+#[derive(Clone, Debug, Default, Reflect, Resource)]
+#[reflect(Resource)]
+pub struct EditorState {
+    pub depth_preview_enabled: bool,
+}
+
 /// Active cutscene asset handle and source path.
 #[derive(Debug, Reflect, Resource)]
 pub struct CutsceneAssetHandle {

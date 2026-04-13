@@ -7,7 +7,7 @@ use carcinisation::stage::components::placement::Depth;
 
 use crate::components::SceneData;
 use crate::placement::{EDITOR_DEPTHS, PlacementMode, PlacementState, SpawnTemplate};
-use crate::resources::StageControlsUI;
+use crate::resources::{EditorState, StageControlsUI};
 use crate::timeline::{StageTimeline, StageTimelineConfig};
 use crate::ui::style::{apply_editor_style, field_label, section_header};
 use std::time::Duration;
@@ -161,6 +161,8 @@ pub fn update_ui(world: &mut World) {
 }
 
 fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
+    let mut editor_state = world.resource::<EditorState>().clone();
+    let original_editor_state = editor_state.clone();
     let mut controls = world.resource::<StageControlsUI>().clone();
     let original = controls.clone();
 
@@ -168,6 +170,9 @@ fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
         .anchor(egui::Align2::LEFT_TOP, [0.0, 30.0])
         .resizable(false)
         .show(ctx, |ui| {
+            section_header(ui, "Mode");
+            ui.checkbox(&mut editor_state.depth_preview_enabled, "Depth Preview");
+
             section_header(ui, "Overlays");
             ui.horizontal(|ui| {
                 ui.checkbox(&mut controls.elapsed_path, "Path");
@@ -201,6 +206,10 @@ fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
                     }
                 });
         });
+
+    if editor_state.depth_preview_enabled != original_editor_state.depth_preview_enabled {
+        *world.resource_mut::<EditorState>() = editor_state;
+    }
 
     // Write back if changed (compare serialised to avoid spurious change detection).
     if controls.elapsed_path != original.elapsed_path

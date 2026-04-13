@@ -41,6 +41,10 @@ pub struct CompactComposedAtlas {
     pub canvas: (u16, u16),
     /// World anchor `(x, y)`.
     pub origin: (i16, i16),
+    /// How the entity position maps to the sprite. Defaults to `BottomOrigin`
+    /// (feet/ground contact) for backwards compatibility.
+    #[serde(default, skip_serializing_if = "SpawnAnchorMode::is_default")]
+    pub spawn_anchor: SpawnAnchorMode,
     /// Part string table. Index into this with `u8` part indices.
     pub part_names: Vec<String>,
     /// Sprite string table. Index into this with `u8` sprite indices.
@@ -143,6 +147,21 @@ pub struct CompactPartSelector {
     pub part_tags: Vec<String>,
 }
 
+/// How the entity's world position relates to the composed sprite.
+///
+/// - `BottomOrigin` — entity position sits at the lowest visible pixel,
+///   X centred on the authored origin. Correct for ground-contact enemies.
+/// - `Origin` — entity position sits at the full authored origin `(x, y)`.
+///   Correct for flying enemies where the origin marks body centre.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SpawnAnchorMode {
+    /// Entity position = bottom of bounding box, X from origin.
+    #[default]
+    BottomOrigin,
+    /// Entity position = authored origin (both X and Y).
+    Origin,
+}
+
 /// Playback direction enum (replaces string).
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CompactDirection {
@@ -221,6 +240,13 @@ pub struct CompactHealthPool {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+impl SpawnAnchorMode {
+    /// Serde helper: returns true when the value equals the default variant.
+    pub fn is_default(&self) -> bool {
+        *self == Self::BottomOrigin
+    }
+}
 
 fn is_zero_u8(v: &u8) -> bool {
     *v == 0
@@ -619,6 +645,7 @@ pub fn encode_with_diagnostics(
             depth: atlas.depth,
             canvas: (canvas_w, canvas_h),
             origin: (origin_x, origin_y),
+            spawn_anchor: atlas.spawn_anchor,
             part_names,
             sprite_names,
             sprite_sizes,
@@ -789,6 +816,7 @@ mod tests {
             source: "test.aseprite".into(),
             canvas: Size { w: 8, h: 8 },
             origin: Point { x: 4, y: 4 },
+            spawn_anchor: Default::default(),
             atlas_image: "source.png".into(),
             part_definitions: vec![PartDefinition {
                 id: "body".into(),

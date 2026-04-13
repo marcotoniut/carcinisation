@@ -1,3 +1,5 @@
+spawn_anchor = "Origin"
+
 [[part_definitions]]
 id = "group_marker"
 tags = ["group"]
@@ -84,10 +86,11 @@ tags = ["wing", "limb", "targetable"]
 
 [part_definitions.gameplay]
 targetable = true
-health_pool = "wings"
-armour = 10
-durability = 2
+health_pool = "core"
+armour = 15
+durability = 60
 breakable = true
+pool_damage_ratio = 0.3
 
 [[part_definitions.gameplay.collision]]
 id = "wings_def_hurtbox"
@@ -218,7 +221,7 @@ tags = ["legs"]
 [[animation_overrides]]
 # Flying animations have single-frame static wings. Source wing flap
 # cycle from idle_fly so wings animate independently of the body.
-tags = ["flying_forward", "flying_backwards", "shoot_fly", "melee_fly"]
+tags = ["fly_forward", "fly_backward", "shoot_fly", "melee_fly"]
 source_tag = "idle_fly"
 part_tags = ["wings"]
 
@@ -242,7 +245,3 @@ entity_health_pool = "core"
 [[gameplay.health_pools]]
 id = "core"
 max_health = 40
-
-[[gameplay.health_pools]]
-id = "wings"
-max_health = 8

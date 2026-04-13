@@ -34,7 +34,9 @@ use asset_pipeline::aseprite::{
     AnimationEventKind, CollisionShape as CompositionCollisionShape, CompositionAtlas,
     PartGameplayMetadata, validate_composition_atlas,
 };
-use asset_pipeline::composed_ron::{CompactComposedAtlas, CompactDirection, CompactPartGameplay};
+use asset_pipeline::composed_ron::{
+    CompactComposedAtlas, CompactDirection, CompactPartGameplay, SpawnAnchorMode,
+};
 use bevy::{
     asset::{Asset, AssetLoader, LoadContext, LoadState, io::Reader},
     prelude::*,
@@ -1095,16 +1097,48 @@ pub fn update_composed_enemy_visuals(
             position.x.round() as i32,
             position.y.round() as i32,
         ));
-        let new_anchor = anchor_for_origin(atlas_asset.atlas.canvas, atlas_asset.atlas.origin);
-        // Compute the visual offset: rendering positions each part at
-        // `base_pos + (part.offset - origin)` where `base_pos = PxPosition -
-        // anchor.pos(size)`. Game-logic uses `PxSubPosition + Vec2(pivot.x,
-        // -pivot.y)`. The difference is the anchor + origin correction.
-        let anchor_x_px = anchor_x_offset(&new_anchor, metrics.size.x);
-        let visual_offset = Vec2::new(
-            -(anchor_x_px as f32) - metrics.origin.x as f32,
-            -(metrics.origin.y as f32),
-        );
+        // Compute anchor and visual offset.
+        //
+        // Rendering positions each part at `base_pos + (part.offset - origin)`
+        // where `base_pos = PxPosition - anchor.pos(size)`. Game-logic uses
+        // `PxSubPosition + Vec2(pivot.x, -pivot.y)`.
+        //
+        // For **Origin** mode the anchor is derived from per-frame metrics
+        // (`-metrics.origin / metrics.size`) so that `anchor.pos(size)` yields
+        // the exact integer `-metrics.origin`. This avoids rounding jitter
+        // that occurs when a constant canvas-based fraction is multiplied by
+        // a frame-variable composite size.
+        //
+        // For **BottomOrigin** mode the anchor Y is 0 (stable), and X uses
+        // the authored canvas fraction (existing behaviour).
+        let (new_anchor, visual_offset) = match atlas_asset.atlas.spawn_anchor {
+            SpawnAnchorMode::BottomOrigin => {
+                let anchor = anchor_for_composed(
+                    atlas_asset.atlas.canvas,
+                    atlas_asset.atlas.origin,
+                    SpawnAnchorMode::BottomOrigin,
+                );
+                let ax = anchor_x_offset(&anchor, metrics.size.x);
+                let offset = Vec2::new(
+                    -(ax as f32) - metrics.origin.x as f32,
+                    -(metrics.origin.y as f32),
+                );
+                (anchor, offset)
+            }
+            SpawnAnchorMode::Origin => {
+                let anchor = if metrics.size.x > 0 && metrics.size.y > 0 {
+                    PxAnchor::Custom(Vec2::new(
+                        (-metrics.origin.x) as f32 / metrics.size.x as f32,
+                        (-metrics.origin.y) as f32 / metrics.size.y as f32,
+                    ))
+                } else {
+                    PxAnchor::Center
+                };
+                // anchor.pos(size) = -metrics.origin (exact), so visual
+                // offset is zero — entity position IS the composition origin.
+                (anchor, Vec2::ZERO)
+            }
+        };
         collision_state.collisions = build_collision_state(
             cache,
             &resolved_frame.poses,
@@ -2474,22 +2508,54 @@ fn compute_composite_metrics(
     })
 }
 
-/// Compute a [`PxAnchor`] for a composed enemy actor.
+/// Resolve placement anchor for a composed enemy given its metadata.
 ///
-/// - **X** uses the authored atlas origin to place the sprite's authored
-///   centre on the world position. For a 95px-wide sprite with origin at
-///   x=47, this gives anchor 47/95 ≈ 0.4947 — placing pixel 47 on the
-///   position instead of the geometric centre (47.5 → rounds to 48).
-/// - **Y** is `0.0` (bottom of the bounding box), so the entity's
-///   [`PxSubPosition`] sits at the lowest visible pixel. This guarantees
-///   no sprite content renders below the floor placement point.
-fn anchor_for_origin(canvas_size: (u16, u16), atlas_origin: (i16, i16)) -> PxAnchor {
+/// - **`BottomOrigin`**: X from authored origin, Y = 0 (bottom).
+///   Entity position sits at lowest visible pixel — correct for ground contact.
+/// - **`Origin`**: Both X and Y from authored origin.
+///   Entity position sits at the authored body centre — correct for flying enemies.
+fn anchor_for_composed(
+    canvas_size: (u16, u16),
+    atlas_origin: (i16, i16),
+    mode: SpawnAnchorMode,
+) -> PxAnchor {
     if canvas_size.0 == 0 || canvas_size.1 == 0 {
         return PxAnchor::Center;
     }
 
     let anchor_x = atlas_origin.0 as f32 / canvas_size.0 as f32;
-    PxAnchor::Custom(Vec2::new(anchor_x, 0.0))
+    let anchor_y = match mode {
+        SpawnAnchorMode::BottomOrigin => 0.0,
+        SpawnAnchorMode::Origin => atlas_origin.1 as f32 / canvas_size.1 as f32,
+    };
+    PxAnchor::Custom(Vec2::new(anchor_x, anchor_y))
+}
+
+/// Convert a composed atlas anchor to a Bevy [`Anchor`].
+///
+/// [`PxAnchor`] uses 0..1 from bottom-left; Bevy `Anchor` uses −0.5..0.5 from centre.
+pub fn bevy_anchor_for_composed(
+    canvas_size: (u16, u16),
+    atlas_origin: (i16, i16),
+    mode: SpawnAnchorMode,
+) -> bevy::sprite::Anchor {
+    let px = anchor_for_composed(canvas_size, atlas_origin, mode);
+    px_anchor_to_bevy(px)
+}
+
+fn px_anchor_to_bevy(px: PxAnchor) -> bevy::sprite::Anchor {
+    match px {
+        PxAnchor::Center => bevy::sprite::Anchor::CENTER,
+        PxAnchor::BottomLeft => bevy::sprite::Anchor::BOTTOM_LEFT,
+        PxAnchor::BottomCenter => bevy::sprite::Anchor::BOTTOM_CENTER,
+        PxAnchor::BottomRight => bevy::sprite::Anchor::BOTTOM_RIGHT,
+        PxAnchor::CenterLeft => bevy::sprite::Anchor::CENTER_LEFT,
+        PxAnchor::CenterRight => bevy::sprite::Anchor::CENTER_RIGHT,
+        PxAnchor::TopLeft => bevy::sprite::Anchor::TOP_LEFT,
+        PxAnchor::TopCenter => bevy::sprite::Anchor::TOP_CENTER,
+        PxAnchor::TopRight => bevy::sprite::Anchor::TOP_RIGHT,
+        PxAnchor::Custom(v) => bevy::sprite::Anchor(Vec2::new(v.x - 0.5, v.y - 0.5)),
+    }
 }
 
 /// Compute the X pixel offset for a [`PxAnchor`] at the given width.
@@ -2500,6 +2566,17 @@ fn anchor_x_offset(anchor: &PxAnchor, width: u32) -> u32 {
         PxAnchor::BottomCenter | PxAnchor::Center | PxAnchor::TopCenter => width / 2,
         PxAnchor::BottomRight | PxAnchor::CenterRight | PxAnchor::TopRight => width,
         PxAnchor::Custom(v) => (width as f32 * v.x).round() as u32,
+    }
+}
+
+/// Compute the Y pixel offset for a [`PxAnchor`] at the given height.
+/// Mirrors `PxAnchor::y_pos` which is crate-private in `carapace`.
+fn anchor_y_offset(anchor: &PxAnchor, height: u32) -> u32 {
+    match anchor {
+        PxAnchor::BottomLeft | PxAnchor::BottomCenter | PxAnchor::BottomRight => 0,
+        PxAnchor::CenterLeft | PxAnchor::Center | PxAnchor::CenterRight => height / 2,
+        PxAnchor::TopLeft | PxAnchor::TopCenter | PxAnchor::TopRight => height,
+        PxAnchor::Custom(v) => (height as f32 * v.y).round() as u32,
     }
 }
 
@@ -3032,6 +3109,7 @@ mod tests {
             source: "example.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: asset_pipeline::aseprite::Point { x: 8, y: 8 },
+            spawn_anchor: Default::default(),
             atlas_image: "source.png".to_string(),
             part_definitions: vec![PartDefinition {
                 id: "body".to_string(),
@@ -3131,6 +3209,7 @@ mod tests {
             source: "mixed.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: Point { x: 8, y: 8 },
+            spawn_anchor: Default::default(),
             atlas_image: "source.png".to_string(),
             part_definitions: vec![
                 PartDefinition {
@@ -4054,13 +4133,17 @@ mod tests {
         // Canvas size is the authored constant, not the per-frame bounds.
         let canvas = (20u16, 10u16);
 
-        // X derived from atlas origin / canvas width, Y = 0.0 (bottom).
-        let PxAnchor::Custom(a) = anchor_for_origin(canvas, (10, 5)) else {
+        // X derived from atlas origin / canvas width, Y = 0.0 (BottomOrigin).
+        let PxAnchor::Custom(a) =
+            anchor_for_composed(canvas, (10, 5), SpawnAnchorMode::BottomOrigin)
+        else {
             panic!("expected custom anchor");
         };
         assert_eq!(a, Vec2::new(0.5, 0.0)); // 10/20 = 0.5
 
-        let PxAnchor::Custom(b) = anchor_for_origin(canvas, (7, 3)) else {
+        let PxAnchor::Custom(b) =
+            anchor_for_composed(canvas, (7, 3), SpawnAnchorMode::BottomOrigin)
+        else {
             panic!("expected custom anchor");
         };
         assert_eq!(b, Vec2::new(0.35, 0.0)); // 7/20 = 0.35
@@ -5427,6 +5510,7 @@ mod tests {
             source: "split_test.aseprite".to_string(),
             canvas: Size { w: 32, h: 16 },
             origin: Point { x: 16, y: 8 },
+            spawn_anchor: Default::default(),
             atlas_image: "source.png".to_string(),
             part_definitions: vec![
                 PartDefinition {
@@ -6002,23 +6086,47 @@ mod tests {
     }
 
     #[test]
-    fn visual_offset_formula_matches_render_pipeline() {
-        // anchor_for_origin with canvas (95, 95) and origin (47, 43) produces
-        // PxAnchor::Custom(Vec2(47/95, 0.0)).
-        let anchor = anchor_for_origin((95, 95), (47, 43));
-        // Composite metrics: bounding box with origin at (-32, -27), size (65, 42).
+    fn visual_offset_formula_matches_render_pipeline_bottom_origin() {
+        let anchor = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::BottomOrigin);
         let size = UVec2::new(65, 42);
         let origin = IVec2::new(-32, -27);
         let anchor_x_px = anchor_x_offset(&anchor, size.x);
+        let anchor_y_px = anchor_y_offset(&anchor, size.y);
 
-        let visual_offset = Vec2::new(-(anchor_x_px as f32) - origin.x as f32, -(origin.y as f32));
+        let visual_offset = Vec2::new(
+            -(anchor_x_px as f32) - origin.x as f32,
+            -(anchor_y_px as f32) - origin.y as f32,
+        );
 
-        // anchor_x_px = round(47.0/95.0 * 65.0) = round(32.16) = 32
         assert_eq!(anchor_x_px, 32);
-        // visual_offset.x = -32 - (-32) = 0
+        assert_eq!(anchor_y_px, 0); // BottomOrigin → Y anchor at bottom
         assert_eq!(visual_offset.x, 0.0);
-        // visual_offset.y = -(-27) = 27
-        assert_eq!(visual_offset.y, 27.0);
+        assert_eq!(visual_offset.y, 27.0); // same as legacy
+    }
+
+    #[test]
+    fn visual_offset_origin_mode_is_zero() {
+        // In Origin mode, anchor is computed per-frame from metrics so that
+        // anchor.pos(size) = -metrics.origin exactly. This means visual_offset = 0.
+        let metrics_origin = IVec2::new(-32, -27);
+        let metrics_size = UVec2::new(65, 42);
+
+        let anchor = PxAnchor::Custom(Vec2::new(
+            (-metrics_origin.x) as f32 / metrics_size.x as f32,
+            (-metrics_origin.y) as f32 / metrics_size.y as f32,
+        ));
+
+        let ax = anchor_x_offset(&anchor, metrics_size.x);
+        let ay = anchor_y_offset(&anchor, metrics_size.y);
+        // Exact roundtrip: fraction * size = original integer
+        assert_eq!(ax as i32, -metrics_origin.x);
+        assert_eq!(ay as i32, -metrics_origin.y);
+
+        let visual_offset = Vec2::new(
+            -(ax as f32) - metrics_origin.x as f32,
+            -(ay as f32) - metrics_origin.y as f32,
+        );
+        assert_eq!(visual_offset, Vec2::ZERO);
     }
 
     #[test]
@@ -6057,5 +6165,146 @@ mod tests {
         assert_eq!(game_logic, Vec2::new(41.0, 504.0));
         // visual = (41, 504+49) = (41, 553)
         assert_eq!(visual, Vec2::new(41.0, 553.0));
+    }
+
+    // ── Spawn anchor tests ────────────────────────────────────────────────
+
+    #[test]
+    fn anchor_for_composed_bottom_origin_matches_legacy() {
+        // BottomOrigin should produce the same result as the old anchor_for_origin.
+        let px = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::BottomOrigin);
+        match px {
+            PxAnchor::Custom(v) => {
+                assert!((v.x - 47.0 / 95.0).abs() < 1e-6);
+                assert!(
+                    (v.y - 0.0).abs() < f32::EPSILON,
+                    "Y should be 0.0 for BottomOrigin"
+                );
+            }
+            _ => panic!("expected Custom anchor"),
+        }
+    }
+
+    #[test]
+    fn anchor_for_composed_origin_uses_both_axes() {
+        let px = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::Origin);
+        match px {
+            PxAnchor::Custom(v) => {
+                assert!((v.x - 47.0 / 95.0).abs() < 1e-6);
+                assert!(
+                    (v.y - 43.0 / 95.0).abs() < 1e-6,
+                    "Y should be origin.y/canvas.h for Origin mode, got {}",
+                    v.y
+                );
+            }
+            _ => panic!("expected Custom anchor"),
+        }
+    }
+
+    #[test]
+    fn anchor_for_composed_degenerate_canvas_returns_center() {
+        let px = anchor_for_composed((0, 95), (47, 43), SpawnAnchorMode::Origin);
+        assert!(matches!(px, PxAnchor::Center));
+    }
+
+    #[test]
+    fn anchor_y_offset_bottom_origin_is_zero() {
+        let anchor = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::BottomOrigin);
+        assert_eq!(anchor_y_offset(&anchor, 42), 0);
+    }
+
+    #[test]
+    fn anchor_y_offset_origin_nonzero() {
+        let anchor = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::Origin);
+        // 43/95 ≈ 0.4526, 0.4526 * 42 ≈ 19.01 → rounds to 19
+        assert_eq!(anchor_y_offset(&anchor, 42), 19);
+    }
+
+    #[test]
+    fn bevy_anchor_conversion_bottom_center() {
+        let bevy = px_anchor_to_bevy(PxAnchor::BottomCenter);
+        assert_eq!(bevy, bevy::sprite::Anchor::BOTTOM_CENTER);
+    }
+
+    #[test]
+    fn bevy_anchor_conversion_custom() {
+        let bevy = px_anchor_to_bevy(PxAnchor::Custom(Vec2::new(0.5, 0.0)));
+        // PxAnchor(0.5, 0.0) = bottom-center → Bevy Anchor(0.0, -0.5)
+        let v = bevy.as_vec();
+        assert!((v.x - 0.0).abs() < 1e-6);
+        assert!((v.y - (-0.5)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn bevy_anchor_for_composed_matches_px_conversion() {
+        let bevy = bevy_anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::Origin);
+        let px = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::Origin);
+        let via_convert = px_anchor_to_bevy(px);
+        assert_eq!(bevy, via_convert);
+    }
+
+    #[test]
+    fn visual_offset_bottom_origin_y_uses_only_metrics_origin() {
+        // With BottomOrigin, anchor_y_px = 0, so visual_offset.y = -(metrics.origin.y)
+        let anchor = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::BottomOrigin);
+        let metrics_origin_y = -27_i32;
+        let anchor_y_px = anchor_y_offset(&anchor, 42);
+        let visual_y = -(anchor_y_px as f32) - metrics_origin_y as f32;
+        assert!((visual_y - 27.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn origin_mode_anchor_stable_across_varying_metrics() {
+        // Verify per-frame metrics-based anchor gives stable rendering.
+        // Different frames may have different composite bounds, but the
+        // composition origin (0,0) always lands at PxPosition.
+        for &(size_x, size_y, origin_x, origin_y) in &[
+            (65u32, 42u32, -32i32, -27i32),
+            (70, 45, -35, -30),
+            (60, 38, -28, -25),
+        ] {
+            let anchor = PxAnchor::Custom(Vec2::new(
+                (-origin_x) as f32 / size_x as f32,
+                (-origin_y) as f32 / size_y as f32,
+            ));
+            let ax = anchor_x_offset(&anchor, size_x) as i32;
+            let ay = anchor_y_offset(&anchor, size_y) as i32;
+            assert_eq!(ax, -origin_x, "X roundtrip failed for size={size_x}");
+            assert_eq!(ay, -origin_y, "Y roundtrip failed for size={size_y}");
+        }
+    }
+
+    #[test]
+    fn default_spawn_anchor_is_bottom_origin() {
+        assert_eq!(SpawnAnchorMode::default(), SpawnAnchorMode::BottomOrigin);
+    }
+
+    #[test]
+    fn spawn_anchor_serde_roundtrip() {
+        let ron_str = "Origin";
+        let mode: SpawnAnchorMode = ron::from_str(ron_str).unwrap();
+        assert_eq!(mode, SpawnAnchorMode::Origin);
+        let ser = ron::to_string(&mode).unwrap();
+        assert_eq!(ser, "Origin");
+    }
+
+    #[test]
+    fn spawn_anchor_missing_field_defaults_to_bottom_origin() {
+        let ron_str = "(entity:\"t\",depth:0,canvas:(1,1),origin:(0,0),\
+            part_names:[],sprite_names:[],sprite_sizes:[],parts:[],\
+            animations:[],gameplay:())";
+        let compact: asset_pipeline::composed_ron::CompactComposedAtlas =
+            ron::from_str(ron_str).expect("minimal RON should deserialize");
+        assert_eq!(compact.spawn_anchor, SpawnAnchorMode::BottomOrigin);
+    }
+
+    #[test]
+    fn exported_mosquiton_has_origin_anchor() {
+        let exported = load_exported_mosquiton();
+        assert_eq!(
+            exported.atlas.spawn_anchor,
+            SpawnAnchorMode::Origin,
+            "exported mosquiton should have Origin anchor"
+        );
     }
 }

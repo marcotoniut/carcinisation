@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::builders::thumbnail::resolve_stage_spawn_thumbnail;
 use crate::constants::EditorColor;
 use crate::inspector::utils::{StageDataUtils, StageSpawnUtils};
-use crate::resources::ThumbnailCache;
+use crate::resources::{EditorState, ThumbnailCache};
 use crate::timeline::{
     StageTimelineConfig, cinematic_duration, stop_duration, tween_travel_duration,
 };
@@ -182,6 +182,7 @@ pub fn spawn_path(
 pub fn spawn_stage(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
+    editor_state: &EditorState,
     stage_controls_ui: &Res<StageControlsUI>,
     stage_data: &StageData,
     image_assets: &mut Assets<Image>,
@@ -243,9 +244,7 @@ pub fn spawn_stage(
         let preview =
             resolve_stage_spawn_thumbnail(spawn, asset_server, image_assets, thumbnail_cache);
 
-        let depth_scale = depth_scale_config
-            .scale_for(spawn.get_depth())
-            .unwrap_or(1.0);
+        let depth_scale = editor_depth_scale(editor_state, depth_scale_config, spawn.get_depth());
         commands.spawn((
             spawn.get_editor_name_component(index),
             StageSpawnLabel,
@@ -285,6 +284,7 @@ pub fn spawn_stage(
                         index,
                         current_position,
                         ghost,
+                        editor_state,
                         depth_scale_config,
                     );
                 }
@@ -307,6 +307,7 @@ pub fn spawn_stage(
                         index,
                         current_position,
                         ghost,
+                        editor_state,
                         depth_scale_config,
                     );
                 }
@@ -358,6 +359,7 @@ fn spawn_step_entities(
     step_index: usize,
     step_origin: Vec2,
     ghost: bool,
+    editor_state: &EditorState,
     depth_scale_config: &DepthScaleConfig,
 ) {
     for (spawn_index, spawn) in spawns.iter().enumerate() {
@@ -372,9 +374,7 @@ fn spawn_step_entities(
             preview.sprite.color = preview.sprite.color.with_alpha(GHOST_ALPHA);
         }
 
-        let depth_scale = depth_scale_config
-            .scale_for(spawn.get_depth())
-            .unwrap_or(1.0);
+        let depth_scale = editor_depth_scale(editor_state, depth_scale_config, spawn.get_depth());
         commands.spawn((
             spawn.get_editor_name_component(step_index),
             StageSpawnLabel,
@@ -390,5 +390,78 @@ fn spawn_step_entities(
                 .with_scale(Vec3::splat(depth_scale)),
             preview.anchor,
         ));
+    }
+}
+
+fn editor_depth_scale(
+    editor_state: &EditorState,
+    depth_scale_config: &DepthScaleConfig,
+    depth: carcinisation::stage::components::placement::Depth,
+) -> f32 {
+    if editor_state.depth_preview_enabled {
+        depth_scale_config.scale_for(depth).unwrap_or(1.0)
+    } else {
+        1.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use carcinisation::stage::components::placement::Depth;
+
+    #[test]
+    fn authoring_mode_keeps_background_and_spawns_at_identity_scale() {
+        let editor_state = EditorState::default();
+        let config = DepthScaleConfig::default();
+
+        assert_eq!(Transform::from_xyz(0.0, 0.0, BACKGROUND_Z).scale, Vec3::ONE);
+        assert_eq!(
+            Transform::from_translation(Vec2::ZERO.extend(0.0))
+                .with_scale(Vec3::splat(editor_depth_scale(
+                    &editor_state,
+                    &config,
+                    Depth::One,
+                )))
+                .scale,
+            Vec3::ONE
+        );
+        assert_eq!(
+            Transform::from_translation(Vec2::ZERO.extend(0.0))
+                .with_scale(Vec3::splat(editor_depth_scale(
+                    &editor_state,
+                    &config,
+                    Depth::Nine,
+                )))
+                .scale,
+            Vec3::ONE
+        );
+    }
+
+    #[test]
+    fn depth_preview_mode_applies_configured_depth_scales() {
+        let editor_state = EditorState {
+            depth_preview_enabled: true,
+        };
+        let config = DepthScaleConfig::default();
+
+        let shallow = editor_depth_scale(&editor_state, &config, Depth::One);
+        let deep = editor_depth_scale(&editor_state, &config, Depth::Nine);
+
+        assert_eq!(shallow, config.scale_for(Depth::One).unwrap());
+        assert_eq!(deep, config.scale_for(Depth::Nine).unwrap());
+        assert_eq!(
+            Transform::from_translation(Vec2::ZERO.extend(0.0))
+                .with_scale(Vec3::splat(shallow))
+                .scale,
+            Vec3::splat(config.scale_for(Depth::One).unwrap())
+        );
+        assert_eq!(
+            Transform::from_translation(Vec2::ZERO.extend(0.0))
+                .with_scale(Vec3::splat(deep))
+                .scale,
+            Vec3::splat(config.scale_for(Depth::Nine).unwrap())
+        );
+        assert_ne!(shallow, deep);
     }
 }

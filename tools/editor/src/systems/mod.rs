@@ -13,7 +13,7 @@ use crate::components::{
     AnimationIndices, AnimationTimer, EditorCamera, PathOverlay, PlacementGhost,
 };
 use crate::file_manager::events::WriteRecentFilePathEvent;
-use crate::resources::StageControlsUI;
+use crate::resources::{EditorState, StageControlsUI};
 use crate::systems::input::{CoordinateOverlay, DragState};
 use crate::{
     builders::{
@@ -139,6 +139,7 @@ pub fn check_stage_data_loaded(
 pub fn on_scene_change(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    editor_state: Res<EditorState>,
     layer_shown_ui: Res<StageControlsUI>,
     loaded_scene: Res<SceneData>,
     scene_item_query: Query<Entity, With<SceneItem>>,
@@ -155,13 +156,17 @@ pub fn on_scene_change(
     // stay alive. rebuild_path_during_drag handles the decorative geometry instead.
     if drag_state.active.as_ref().is_some_and(|d| d.kind.is_path()) {
         // Remember that a rebuild was requested so it happens when the drag ends.
-        if loaded_scene.is_changed() || layer_shown_ui.is_changed() {
+        if loaded_scene.is_changed() || editor_state.is_changed() || layer_shown_ui.is_changed() {
             pending_rebuild.0 = true;
         }
         return;
     }
 
-    if loaded_scene.is_changed() || layer_shown_ui.is_changed() || pending_rebuild.0 {
+    if loaded_scene.is_changed()
+        || editor_state.is_changed()
+        || layer_shown_ui.is_changed()
+        || pending_rebuild.0
+    {
         pending_rebuild.0 = false;
         for entity in scene_item_query.iter() {
             commands.entity(entity).despawn();
@@ -180,6 +185,7 @@ pub fn on_scene_change(
                 spawn_stage(
                     &mut commands,
                     &asset_server,
+                    &editor_state,
                     &layer_shown_ui,
                     &data,
                     &mut image_assets,

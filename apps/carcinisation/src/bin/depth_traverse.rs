@@ -147,7 +147,7 @@ impl SelectedCharacter {
 
     fn initial_animation(self) -> &'static str {
         match self {
-            Self::Mosquiton => "walking_forward",
+            Self::Mosquiton => "walk_forward",
             Self::Spidey => "idle",
         }
     }
@@ -643,12 +643,12 @@ fn advance_mosquiton(progress: &mut WalkProgress, anim: &mut ComposedAnimationSt
                     progress.phase = WalkPhase::Moving;
                     let move_tag = if progress.airborne {
                         if progress.direction > 0.0 {
-                            "flying_forward"
+                            "fly_forward"
                         } else {
-                            "flying_backwards"
+                            "fly_backward"
                         }
                     } else {
-                        "walking_forward"
+                        "walk_forward"
                     };
                     anim.requested_tag = move_tag.into();
                 }
@@ -709,12 +709,12 @@ fn advance_mosquiton(progress: &mut WalkProgress, anim: &mut ComposedAnimationSt
                 progress.phase = WalkPhase::Moving;
                 let move_tag = if progress.airborne {
                     if progress.direction > 0.0 {
-                        "flying_forward"
+                        "fly_forward"
                     } else {
-                        "flying_backwards"
+                        "fly_backward"
                     }
                 } else {
-                    "walking_forward"
+                    "walk_forward"
                 };
                 anim.requested_tag = move_tag.into();
             } else {
