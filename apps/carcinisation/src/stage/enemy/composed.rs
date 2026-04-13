@@ -210,6 +210,20 @@ struct CachedCompositeMetrics {
 struct ResolvedPartTransform {
     top_left: IVec2,
     pivot: IVec2,
+    size: UVec2,
+}
+
+#[derive(Clone, Debug)]
+struct ResolvedPartFragmentTransform {
+    part_id: String,
+    sprite_id: String,
+    draw_order: u32,
+    fragment: u32,
+    render_order: u32,
+    top_left: IVec2,
+    size: UVec2,
+    flip_x: bool,
+    flip_y: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -219,6 +233,9 @@ struct CachedPartGameplay {
     armour: u32,
     durability: Option<u32>,
     breakable: bool,
+    /// Fraction of adjusted damage forwarded to the health pool each hit,
+    /// bypassing durability. `None` = pool only receives overflow.
+    pool_damage_ratio: Option<f32>,
     collisions: Vec<CachedCollisionVolume>,
 }
 
@@ -243,12 +260,13 @@ pub struct ComposedCollisionState {
 pub struct ResolvedPartCollision {
     pub part_id: String,
     pub collider: Collider,
+    /// Pivot in visual space (game-logic position + visual_offset).
     pub pivot_position: Vec2,
 }
 
 impl ComposedCollisionState {
     #[must_use]
-    /// Resolves a world-space point to the visually front-most colliding semantic part.
+    /// Resolves a visual-space point to the visually front-most colliding semantic part.
     pub fn point_collides(&self, point_position: Vec2) -> Option<&ResolvedPartCollision> {
         self.collisions.iter().rev().find(|collision| {
             collision.collider.shape.point_collides(
@@ -410,6 +428,7 @@ pub struct PartHitBlinkState {
 /// runtime supports transform-only semantic nodes.
 pub struct ComposedResolvedParts {
     parts: Vec<ResolvedPartState>,
+    fragments: Vec<ResolvedPartFragmentState>,
     /// Per-frame offset that converts game-logic positions (used by collision
     /// detection) into screen-visual positions. The rendering pipeline applies
     /// anchor placement and composite-origin shifting that game-logic coordinates
@@ -423,6 +442,11 @@ impl ComposedResolvedParts {
         &self.parts
     }
 
+    #[must_use]
+    pub fn fragments(&self) -> &[ResolvedPartFragmentState] {
+        &self.fragments
+    }
+
     /// Offset to convert game-logic part positions to screen-visual positions.
     #[must_use]
     pub fn visual_offset(&self) -> Vec2 {
@@ -431,6 +455,7 @@ impl ComposedResolvedParts {
 
     fn clear(&mut self) {
         self.parts.clear();
+        self.fragments.clear();
         self.visual_offset = Vec2::ZERO;
     }
 
@@ -439,9 +464,43 @@ impl ComposedResolvedParts {
     pub fn with_parts_and_offset(parts: Vec<ResolvedPartState>, visual_offset: Vec2) -> Self {
         Self {
             parts,
+            fragments: vec![],
             visual_offset,
         }
     }
+
+    /// Test-only constructor for building resolved parts/fragments with known data.
+    #[cfg(test)]
+    pub fn with_parts_fragments_and_offset(
+        parts: Vec<ResolvedPartState>,
+        fragments: Vec<ResolvedPartFragmentState>,
+        visual_offset: Vec2,
+    ) -> Self {
+        Self {
+            parts,
+            fragments,
+            visual_offset,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Reflect)]
+/// One resolved render fragment emitted for a composed part.
+pub struct ResolvedPartFragmentState {
+    pub part_id: String,
+    pub sprite_id: String,
+    pub draw_order: u32,
+    /// Authoring fragment index within the logical part.
+    pub fragment: u32,
+    /// Exact order this fragment was emitted to `PxCompositeSprite.parts`.
+    pub render_order: u32,
+    pub frame_size: UVec2,
+    pub flip_x: bool,
+    pub flip_y: bool,
+    /// Game-logic space. Add `visual_offset` for screen-visual position.
+    pub world_top_left_position: Vec2,
+    /// Visual/world hit-test space matching composed rendering.
+    pub visual_top_left_position: Vec2,
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -450,11 +509,17 @@ pub struct ResolvedPartState {
     pub part_id: String,
     pub parent_id: Option<String>,
     pub draw_order: u32,
+    /// Primary sprite fragment id. Split parts can cover more area than this sprite alone.
     pub sprite_id: String,
+    /// Logical part bounds across all active render fragments.
     pub frame_size: UVec2,
     pub flip_x: bool,
     pub flip_y: bool,
+    /// Part pivot position within the logical part bounds (authored top-left/Y-down).
+    pub part_pivot: IVec2,
+    /// Game-logic space. Add `ComposedResolvedParts::visual_offset()` for screen position.
     pub world_top_left_position: Vec2,
+    /// Game-logic space. Add `ComposedResolvedParts::visual_offset()` for screen position.
     pub world_pivot_position: Vec2,
     pub tags: Vec<String>,
     pub targetable: bool,
@@ -478,18 +543,14 @@ impl ResolvedPartState {
     /// semantic features like a mouth or hand, then converts that authored
     /// point into world bottom-left/Y-up space.
     pub fn world_point_from_local_offset(&self, local_offset: IVec2) -> Vec2 {
-        let x = if self.flip_x {
-            self.frame_size.x as f32 - 1.0 - local_offset.x as f32
-        } else {
-            local_offset.x as f32
-        };
-        let y = if self.flip_y {
-            self.frame_size.y as f32 - 1.0 - local_offset.y as f32
-        } else {
-            local_offset.y as f32
-        };
-
-        self.world_pivot_position + Vec2::new(x, -y)
+        self.world_pivot_position
+            + flip_authored_offset(
+                local_offset.as_vec2(),
+                self.frame_size,
+                self.part_pivot,
+                self.flip_x,
+                self.flip_y,
+            )
     }
 
     /// Like [`world_point_from_local_offset`](Self::world_point_from_local_offset)
@@ -1009,7 +1070,7 @@ pub fn update_composed_enemy_visuals(
                 .remove::<ComposedAnimationPlaybackDebug>();
         }
 
-        let Some((parts, metrics, resolved_parts)) = compose_frame(
+        let Some((parts, metrics, resolved_parts, resolved_fragments)) = compose_frame(
             &resolved_frame.poses,
             cache,
             atlas_bindings,
@@ -1034,8 +1095,24 @@ pub fn update_composed_enemy_visuals(
             position.x.round() as i32,
             position.y.round() as i32,
         ));
-        collision_state.collisions =
-            build_collision_state(cache, &resolved_parts, &part_states, position.0);
+        let new_anchor = anchor_for_origin(atlas_asset.atlas.canvas, atlas_asset.atlas.origin);
+        // Compute the visual offset: rendering positions each part at
+        // `base_pos + (part.offset - origin)` where `base_pos = PxPosition -
+        // anchor.pos(size)`. Game-logic uses `PxSubPosition + Vec2(pivot.x,
+        // -pivot.y)`. The difference is the anchor + origin correction.
+        let anchor_x_px = anchor_x_offset(&new_anchor, metrics.size.x);
+        let visual_offset = Vec2::new(
+            -(anchor_x_px as f32) - metrics.origin.x as f32,
+            -(metrics.origin.y as f32),
+        );
+        collision_state.collisions = build_collision_state(
+            cache,
+            &resolved_frame.poses,
+            &resolved_parts,
+            &part_states,
+            position.0,
+            visual_offset,
+        );
         resolved_part_states.parts = build_resolved_part_states(
             cache,
             &resolved_frame.poses,
@@ -1043,16 +1120,9 @@ pub fn update_composed_enemy_visuals(
             &part_states,
             position.0,
         );
-        let new_anchor = anchor_for_origin(atlas_asset.atlas.canvas, atlas_asset.atlas.origin);
-        // Compute the visual offset: rendering positions each part at
-        // `base_pos + (part.offset - origin)` where `base_pos = PxPosition -
-        // anchor.pos(size)`. Game-logic uses `PxSubPosition + Vec2(pivot.x,
-        // -pivot.y)`. The difference is the anchor + origin correction.
-        let anchor_x_px = anchor_x_offset(&new_anchor, metrics.size.x);
-        resolved_part_states.visual_offset = Vec2::new(
-            -(anchor_x_px as f32) - metrics.origin.x as f32,
-            -(metrics.origin.y as f32),
-        );
+        resolved_part_states.fragments =
+            build_resolved_part_fragment_states(&resolved_fragments, position.0, visual_offset);
+        resolved_part_states.visual_offset = visual_offset;
         *anchor = new_anchor;
         *visibility = Visibility::Visible;
     }
@@ -1406,6 +1476,7 @@ fn compact_gameplay_to_cached(gameplay: &CompactPartGameplay) -> CachedPartGamep
         armour: gameplay.armour as u32,
         durability: gameplay.durability.map(|d| d as u32),
         breakable: gameplay.breakable,
+        pool_damage_ratio: gameplay.pool_damage_ratio,
         collisions,
     }
 }
@@ -1788,6 +1859,7 @@ fn merge_gameplay(
         armour: definition.armour.saturating_add(instance.armour),
         durability: instance.durability.or(definition.durability),
         breakable: instance.breakable.or(definition.breakable).unwrap_or(false),
+        pool_damage_ratio: None,
         collisions,
     }
 }
@@ -1835,13 +1907,21 @@ fn apply_part_damage(
         remaining_durability = Some(state.current_durability);
     }
 
+    // When pool_damage_ratio is set, forward a fraction of each hit's
+    // adjusted damage to the health pool regardless of durability.
+    let pool_to_apply = if let Some(ratio) = part.gameplay.pool_damage_ratio {
+        (adjusted_damage as f32 * ratio) as u32
+    } else {
+        remaining_damage
+    };
+
     let pool_id = part.gameplay.health_pool.clone();
-    let remaining_health = if remaining_damage == 0 {
+    let remaining_health = if pool_to_apply == 0 {
         None
     } else if let Some(pool_id) = pool_id.as_deref() {
         Some(
             health_pools
-                .apply_damage(pool_id, remaining_damage)
+                .apply_damage(pool_id, pool_to_apply)
                 .ok_or_else(|| format!("unknown composed health pool '{pool_id}'"))?,
         )
     } else if adjusted_damage == 0 || part.gameplay.durability.is_some() {
@@ -2210,11 +2290,13 @@ fn compose_frame(
     Vec<PxCompositePart>,
     CachedCompositeMetrics,
     HashMap<String, ResolvedPartTransform>,
+    Vec<ResolvedPartFragmentTransform>,
 )> {
     let mut parts = Vec::new();
     let mut metrics_source = Vec::new();
     let mut resolved_pivots = HashMap::new();
     let mut resolved_parts = HashMap::new();
+    let mut resolved_fragments = Vec::new();
 
     for part_id in &cache.visual_parts_in_draw_order {
         let Some(part) = cache.parts_by_id.get(part_id.as_str()) else {
@@ -2244,6 +2326,9 @@ fn compose_frame(
             .filter(|state| state.showing_invert)
             .map(|_| invert_filter.clone());
 
+        let mut logical_min: Option<IVec2> = None;
+        let mut logical_max: Option<IVec2> = None;
+
         // Emit one PxCompositePart per render fragment.
         for pose in fragments {
             let Some(region_id) = atlas_bindings.sprite_regions.get(pose.sprite_id.as_str()) else {
@@ -2266,9 +2351,26 @@ fn compose_frame(
                 }
             };
             let frag_top_left = frag_pivot - part.pivot;
+            let frag_bottom_right = frag_top_left + pose.size.as_ivec2();
+            logical_min = Some(logical_min.map_or(frag_top_left, |min| min.min(frag_top_left)));
+            logical_max =
+                Some(logical_max.map_or(frag_bottom_right, |max| max.max(frag_bottom_right)));
+
             let bottom_left_offset =
                 IVec2::new(frag_top_left.x, -(frag_top_left.y + pose.size.y as i32));
 
+            let render_order = parts.len() as u32;
+            resolved_fragments.push(ResolvedPartFragmentTransform {
+                part_id: part.id.clone(),
+                sprite_id: pose.sprite_id.clone(),
+                draw_order: part.draw_order,
+                fragment: pose.fragment,
+                render_order,
+                top_left: frag_top_left,
+                size: pose.size,
+                flip_x: pose.flip_x,
+                flip_y: pose.flip_y,
+            });
             parts.push(
                 PxCompositePart::atlas_region(atlas_bindings.atlas.clone(), *region_id)
                     .with_offset(bottom_left_offset)
@@ -2278,19 +2380,24 @@ fn compose_frame(
             metrics_source.push((bottom_left_offset, pose.size));
         }
 
-        // Store resolved transform for the logical part (primary fragment).
-        let absolute_top_left = absolute_pivot - part.pivot;
+        // Store resolved transform for the logical part, not only the primary
+        // sprite fragment. Split layers author collisions/events in this space.
+        let absolute_top_left = logical_min.unwrap_or(absolute_pivot - part.pivot);
+        let absolute_bottom_right =
+            logical_max.unwrap_or(absolute_top_left + primary.size.as_ivec2());
+        let logical_size = absolute_bottom_right - absolute_top_left;
         resolved_parts.insert(
             part.id.clone(),
             ResolvedPartTransform {
                 top_left: absolute_top_left,
                 pivot: absolute_pivot,
+                size: UVec2::new(logical_size.x.max(0) as u32, logical_size.y.max(0) as u32),
             },
         );
     }
 
     let metrics = compute_composite_metrics(metrics_source.into_iter())?;
-    Some((parts, metrics, resolved_parts))
+    Some((parts, metrics, resolved_parts, resolved_fragments))
 }
 
 fn resolve_pivot(
@@ -2398,9 +2505,11 @@ fn anchor_x_offset(anchor: &PxAnchor, width: u32) -> u32 {
 
 fn build_collision_state(
     cache: &CompositionAtlasCache,
+    poses: &HashMap<String, Vec<CachedPose>>,
     resolved_parts: &HashMap<String, ResolvedPartTransform>,
     part_states: &ComposedPartStates,
     root_position: Vec2,
+    visual_offset: Vec2,
 ) -> Vec<ResolvedPartCollision> {
     let mut collisions = Vec::new();
 
@@ -2422,12 +2531,27 @@ fn build_collision_state(
         {
             continue;
         }
+        // Use the primary fragment for logical flip state; size comes from the
+        // full resolved part bounds because split layers author in that space.
+        let pose = poses.get(part_id.as_str()).and_then(|v| v.first());
+        let part_pivot = transform.pivot - transform.top_left;
         for collision in &part.gameplay.collisions {
+            let offset = if let Some(pose) = pose {
+                flip_authored_offset(
+                    collision.offset,
+                    transform.size,
+                    part_pivot,
+                    pose.flip_x,
+                    pose.flip_y,
+                )
+            } else {
+                Vec2::new(collision.offset.x, -collision.offset.y)
+            };
             collisions.push(ResolvedPartCollision {
                 part_id: part.id.clone(),
-                collider: Collider::new(collision.shape)
-                    .with_offset(Vec2::new(collision.offset.x, -collision.offset.y)),
-                pivot_position: world_point_from_authored(root_position, transform.pivot),
+                collider: Collider::new(collision.shape).with_offset(offset),
+                pivot_position: world_point_from_authored(root_position, transform.pivot)
+                    + visual_offset,
             });
         }
     }
@@ -2455,6 +2579,7 @@ fn build_resolved_part_states(
         let Some(pose) = poses.get(part_id.as_str()).and_then(|v| v.first()) else {
             continue;
         };
+        let part_pivot = transform.pivot - transform.top_left;
         let part_state = part_states.part(part.id.as_str());
         let collisions = part
             .gameplay
@@ -2462,7 +2587,13 @@ fn build_resolved_part_states(
             .iter()
             .map(|collision| ResolvedCollisionVolume {
                 shape: collision.shape,
-                offset: Vec2::new(collision.offset.x, -collision.offset.y),
+                offset: flip_authored_offset(
+                    collision.offset,
+                    transform.size,
+                    part_pivot,
+                    pose.flip_x,
+                    pose.flip_y,
+                ),
             })
             .collect();
 
@@ -2471,9 +2602,10 @@ fn build_resolved_part_states(
             parent_id: part.parent_id.clone(),
             draw_order: part.draw_order,
             sprite_id: pose.sprite_id.clone(),
-            frame_size: pose.size,
+            frame_size: transform.size,
             flip_x: pose.flip_x,
             flip_y: pose.flip_y,
+            part_pivot,
             world_top_left_position: world_point_from_authored(root_position, transform.top_left),
             world_pivot_position: world_point_from_authored(root_position, transform.pivot),
             tags: part.tags.clone(),
@@ -2498,6 +2630,32 @@ fn build_resolved_part_states(
     }
 
     states
+}
+
+fn build_resolved_part_fragment_states(
+    resolved_fragments: &[ResolvedPartFragmentTransform],
+    root_position: Vec2,
+    visual_offset: Vec2,
+) -> Vec<ResolvedPartFragmentState> {
+    resolved_fragments
+        .iter()
+        .map(|fragment| {
+            let world_top_left_position =
+                world_point_from_authored(root_position, fragment.top_left);
+            ResolvedPartFragmentState {
+                part_id: fragment.part_id.clone(),
+                sprite_id: fragment.sprite_id.clone(),
+                draw_order: fragment.draw_order,
+                fragment: fragment.fragment,
+                render_order: fragment.render_order,
+                frame_size: fragment.size,
+                flip_x: fragment.flip_x,
+                flip_y: fragment.flip_y,
+                world_top_left_position,
+                visual_top_left_position: world_top_left_position + visual_offset,
+            }
+        })
+        .collect()
 }
 
 fn advance_part_hit_blinks(part_states: &mut ComposedPartStates, now_ms: u64) {
@@ -2540,6 +2698,35 @@ fn advance_part_hit_blinks(part_states: &mut ComposedPartStates, now_ms: u64) {
 
 fn world_point_from_authored(root_position: Vec2, point: IVec2) -> Vec2 {
     root_position + Vec2::new(point.x as f32, -(point.y as f32))
+}
+
+/// Transforms a part-local authored offset (relative to the part pivot in
+/// top-left/Y-down space) into a Y-up displacement from the pivot's world
+/// position, accounting for per-frame flip state.
+///
+/// The sprite flips within its bounding box (the pivot pixel position from
+/// top-left stays fixed, only content mirrors). The formula accounts for
+/// non-zero part pivots via the `2 * part_pivot` correction term; when
+/// `part_pivot` is `(0, 0)` this reduces to `frame_size - 1 - offset` on
+/// flipped axes.
+fn flip_authored_offset(
+    offset: Vec2,
+    frame_size: UVec2,
+    part_pivot: IVec2,
+    flip_x: bool,
+    flip_y: bool,
+) -> Vec2 {
+    let x = if flip_x {
+        frame_size.x as f32 - 1.0 - 2.0 * part_pivot.x as f32 - offset.x
+    } else {
+        offset.x
+    };
+    let y = if flip_y {
+        frame_size.y as f32 - 1.0 - 2.0 * part_pivot.y as f32 - offset.y
+    } else {
+        offset.y
+    };
+    Vec2::new(x, -y)
 }
 
 fn advance_track_playback(
@@ -3833,6 +4020,7 @@ mod tests {
             frame_size: UVec2::new(13, 16),
             flip_x: true,
             flip_y: false,
+            part_pivot: IVec2::ZERO,
             world_top_left_position: Vec2::ZERO,
             world_pivot_position: Vec2::new(10.0, 20.0),
             tags: vec![],
@@ -3950,7 +4138,7 @@ mod tests {
             ]),
         };
         let frame = &cache.animations["idle_stand"].frames[0];
-        let (_parts, metrics, resolved_parts) = compose_frame(
+        let (_parts, metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
             &cache,
             &bindings,
@@ -3991,9 +4179,10 @@ mod tests {
             .expect("wings_visual should exist");
         assert!(wings.tags.contains(&"wing".to_string()));
         assert!(wings.tags.contains(&"wings".to_string()));
-        assert_eq!(wings.gameplay.health_pool.as_deref(), Some("wings"));
+        assert_eq!(wings.gameplay.health_pool.as_deref(), Some("core"));
 
-        // At least one visual wing part should be targetable and route to the "wings" pool.
+        // At least one visual wing part should be targetable and route to the "core" pool
+        // with pool_damage_ratio for reduced bleed-through damage.
         let wing_parts: Vec<_> = cache
             .parts_by_id
             .values()
@@ -4005,8 +4194,9 @@ mod tests {
         );
         for wp in &wing_parts {
             assert!(wp.tags.contains(&"targetable".to_string()));
-            assert_eq!(wp.gameplay.health_pool.as_deref(), Some("wings"));
-            assert_eq!(wp.gameplay.durability, Some(2));
+            assert_eq!(wp.gameplay.health_pool.as_deref(), Some("core"));
+            assert_eq!(wp.gameplay.durability, Some(60));
+            assert!(wp.gameplay.pool_damage_ratio.is_some());
         }
 
         // At least one visual leg part should be targetable and route to the "core" pool.
@@ -4274,7 +4464,7 @@ mod tests {
         };
         let frame = &cache.animations["idle_fly"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
-        let (_parts, _metrics, resolved_parts) = compose_frame(
+        let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
             &cache,
             &bindings,
@@ -4283,8 +4473,14 @@ mod tests {
             Entity::from_bits(1),
         )
         .expect("frame should compose");
-        let collisions =
-            build_collision_state(&cache, &resolved_parts, &part_states, Vec2::new(85.0, 68.0));
+        let collisions = build_collision_state(
+            &cache,
+            &frame.poses,
+            &resolved_parts,
+            &part_states,
+            Vec2::new(85.0, 68.0),
+            Vec2::ZERO,
+        );
 
         let head = collisions
             .iter()
@@ -4330,6 +4526,234 @@ mod tests {
                 .iter()
                 .any(|collision| collision.part_id == "arms_overlay"),
             "idle flying overlay arms should remain targetable when separate arm parts are absent"
+        );
+    }
+
+    #[test]
+    fn build_collision_state_applies_visual_offset_to_pivot() {
+        let atlas = load_exported_mosquiton();
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
+        let bindings = ComposedAtlasBindings {
+            atlas: Handle::default(),
+            sprite_regions: atlas
+                .atlas
+                .sprite_names
+                .iter()
+                .enumerate()
+                .map(|(index, name)| (name.clone(), AtlasRegionId(index as u32)))
+                .collect(),
+            sprite_rects: atlas
+                .atlas
+                .sprite_sizes
+                .iter()
+                .zip(atlas.atlas.sprite_names.iter())
+                .map(|(&(w, h), name)| {
+                    (
+                        name.clone(),
+                        AtlasRect {
+                            x: 0,
+                            y: 0,
+                            w: w as u32,
+                            h: h as u32,
+                        },
+                    )
+                })
+                .collect(),
+        };
+        let frame = &cache.animations["idle_fly"].frames[0];
+        let part_states = ComposedPartStates::from_cache(&cache);
+        let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
+            &frame.poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &Handle::default(),
+            Entity::from_bits(1),
+        )
+        .expect("frame should compose");
+
+        let root = Vec2::new(85.0, 68.0);
+        let offset = Vec2::new(0.0, 49.0);
+        let base = build_collision_state(
+            &cache,
+            &frame.poses,
+            &resolved_parts,
+            &part_states,
+            root,
+            Vec2::ZERO,
+        );
+        let shifted = build_collision_state(
+            &cache,
+            &frame.poses,
+            &resolved_parts,
+            &part_states,
+            root,
+            offset,
+        );
+
+        assert!(!base.is_empty(), "should have at least one collision");
+        assert_eq!(base.len(), shifted.len());
+        for (b, s) in base.iter().zip(shifted.iter()) {
+            assert_eq!(s.pivot_position, b.pivot_position + offset);
+            assert_eq!(s.part_id, b.part_id);
+        }
+    }
+
+    #[test]
+    fn resolved_part_state_uses_logical_bounds_for_split_parts() {
+        let atlas = load_exported_mosquiton();
+        let cache =
+            build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
+        let bindings = ComposedAtlasBindings {
+            atlas: Handle::default(),
+            sprite_regions: atlas
+                .atlas
+                .sprite_names
+                .iter()
+                .enumerate()
+                .map(|(index, name)| (name.clone(), AtlasRegionId(index as u32)))
+                .collect(),
+            sprite_rects: atlas
+                .atlas
+                .sprite_sizes
+                .iter()
+                .zip(atlas.atlas.sprite_names.iter())
+                .map(|(&(w, h), name)| {
+                    (
+                        name.clone(),
+                        AtlasRect {
+                            x: 0,
+                            y: 0,
+                            w: w as u32,
+                            h: h as u32,
+                        },
+                    )
+                })
+                .collect(),
+        };
+        let frame = &cache.animations["idle_fly"].frames[0];
+        let part_states = ComposedPartStates::from_cache(&cache);
+        let (_parts, _metrics, resolved_parts, resolved_fragments) = compose_frame(
+            &frame.poses,
+            &cache,
+            &bindings,
+            &part_states,
+            &Handle::default(),
+            Entity::from_bits(1),
+        )
+        .expect("frame should compose");
+        let states = build_resolved_part_states(
+            &cache,
+            &frame.poses,
+            &resolved_parts,
+            &part_states,
+            Vec2::ZERO,
+        );
+
+        let wings_transform = resolved_parts
+            .get("wings_visual")
+            .expect("wings should resolve");
+        assert_eq!(wings_transform.size, UVec2::new(65, 19));
+
+        let wings = states
+            .iter()
+            .find(|part| part.part_id == "wings_visual")
+            .expect("wings state should resolve");
+        assert_eq!(wings.frame_size, UVec2::new(65, 19));
+
+        let wings_pose_count = frame
+            .poses
+            .get("wings_visual")
+            .expect("wings poses should resolve")
+            .len();
+        let wings_fragments = resolved_fragments
+            .iter()
+            .filter(|fragment| fragment.part_id == "wings_visual")
+            .collect::<Vec<_>>();
+        assert_eq!(wings_fragments.len(), wings_pose_count);
+        assert!(
+            wings_fragments.len() > 1,
+            "split wings should preserve fragment-level resolved state"
+        );
+        for (index, fragment) in resolved_fragments.iter().enumerate() {
+            assert_eq!(fragment.render_order, index as u32);
+        }
+
+        let fragment_states = build_resolved_part_fragment_states(
+            &resolved_fragments,
+            Vec2::new(10.0, 20.0),
+            Vec2::new(1.0, 2.0),
+        );
+        assert_eq!(fragment_states.len(), resolved_fragments.len());
+        for (state, fragment) in fragment_states.iter().zip(resolved_fragments.iter()) {
+            assert_eq!(state.part_id, fragment.part_id);
+            assert_eq!(state.sprite_id, fragment.sprite_id);
+            assert_eq!(state.render_order, fragment.render_order);
+            assert_eq!(
+                state.visual_top_left_position,
+                state.world_top_left_position + Vec2::new(1.0, 2.0)
+            );
+        }
+    }
+
+    #[test]
+    fn flip_authored_offset_matches_world_point_from_local_offset() {
+        // Verify the shared helper produces the same displacement as
+        // world_point_from_local_offset for identical inputs, including
+        // non-zero pivot and both flip axes.
+        let frame_size = UVec2::new(32, 19);
+        let local_offset = IVec2::new(10, 5);
+
+        for &pivot in &[IVec2::ZERO, IVec2::new(5, 3)] {
+            for &(fx, fy) in &[(false, false), (true, false), (false, true), (true, true)] {
+                let world_pivot = Vec2::new(100.0, 200.0);
+                let part = ResolvedPartState {
+                    part_id: "test".to_string(),
+                    parent_id: None,
+                    draw_order: 0,
+                    sprite_id: "s".to_string(),
+                    frame_size,
+                    flip_x: fx,
+                    flip_y: fy,
+                    part_pivot: pivot,
+                    world_top_left_position: Vec2::ZERO,
+                    world_pivot_position: world_pivot,
+                    tags: vec![],
+                    targetable: false,
+                    health_pool: None,
+                    armour: 0,
+                    current_durability: None,
+                    max_durability: None,
+                    breakable: false,
+                    broken: false,
+                    blinking: false,
+                    collisions: vec![],
+                };
+
+                let from_method = part.world_point_from_local_offset(local_offset);
+                let from_helper = world_pivot
+                    + flip_authored_offset(local_offset.as_vec2(), frame_size, pivot, fx, fy);
+
+                assert_eq!(
+                    from_method, from_helper,
+                    "mismatch for pivot={pivot:?} flip=({fx},{fy})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn flip_authored_offset_uses_logical_frame_size() {
+        let offset = Vec2::new(20.0, 5.0);
+
+        assert_eq!(
+            flip_authored_offset(offset, UVec2::new(65, 19), IVec2::ZERO, true, false),
+            Vec2::new(44.0, -5.0)
+        );
+        assert_eq!(
+            flip_authored_offset(offset, UVec2::new(32, 19), IVec2::ZERO, true, false),
+            Vec2::new(11.0, -5.0)
         );
     }
 
@@ -4418,7 +4842,7 @@ mod tests {
         };
         let frame = &cache.animations["idle_stand"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
-        let (_parts, _metrics, resolved_parts) = compose_frame(
+        let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
             &cache,
             &bindings,
@@ -4428,7 +4852,14 @@ mod tests {
         )
         .expect("frame should compose");
         let collision_state = ComposedCollisionState {
-            collisions: build_collision_state(&cache, &resolved_parts, &part_states, Vec2::ZERO),
+            collisions: build_collision_state(
+                &cache,
+                &frame.poses,
+                &resolved_parts,
+                &part_states,
+                Vec2::ZERO,
+                Vec2::ZERO,
+            ),
         };
 
         assert_eq!(
@@ -4498,32 +4929,31 @@ mod tests {
     // should not require restructuring the damage routing or health pool model.
 
     #[test]
-    fn wing_damage_routes_to_shared_wings_pool() {
+    fn wing_damage_routes_to_core_pool_with_ratio() {
         let atlas = load_exported_mosquiton();
         let cache = build_runtime_cache_compact(&atlas.atlas).expect("atlas should validate");
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
         let mut part_states = ComposedPartStates::from_cache(&cache);
+        let initial_core = health_pools.pools()["core"];
 
-        // Damage wings_visual — armour=10 (from def), durability=2, breakable=true,
-        // value=15 → 5 effective after armour, 2 absorbed by durability, 3 to "wings" pool (8 → 5).
+        // Damage wings_visual — armour=15, durability=60, pool_damage_ratio=0.3,
+        // health_pool="core". Pistol hit value=30 → adjusted=15 after armour.
+        // Durability absorbs 15 (60→45). Pool receives 15*0.3=4 to core.
         let result = apply_part_damage(
             &cache,
             &mut health_pools,
             &mut part_states,
             "wings_visual",
-            15,
+            30,
         )
         .expect("wings_visual should be targetable");
-        assert_eq!(result.pool_id.as_deref(), Some("wings"));
-        assert_eq!(result.remaining_health, Some(5));
-        assert_eq!(result.remaining_durability, Some(0));
+        assert_eq!(result.pool_id.as_deref(), Some("core"));
+        assert_eq!(result.remaining_health, Some(initial_core - 4));
+        assert_eq!(result.remaining_durability, Some(45));
         assert!(
-            result.broke_part,
-            "wings_visual should break at 0 durability"
+            !result.broke_part,
+            "wings should survive a single hit with durability 60"
         );
-
-        // Wings pool still has health remaining after part broke.
-        assert_eq!(health_pools.pools()["wings"], 5);
     }
 
     #[test]
@@ -4543,9 +4973,10 @@ mod tests {
         );
         assert_eq!(
             wings.gameplay.health_pool.as_deref(),
-            Some("wings"),
-            "wings_visual should route to wings pool"
+            Some("core"),
+            "wings_visual should route to core pool with reduced ratio"
         );
+        assert!(wings.gameplay.pool_damage_ratio.is_some());
         // No separate wing_l/wing_r gameplay parts.
         assert!(!cache.parts_by_id.contains_key("wing_l"));
         assert!(!cache.parts_by_id.contains_key("wing_r"));
@@ -4678,7 +5109,7 @@ mod tests {
             remaining_invert_cycles: COMPOSED_PART_HIT_BLINK_INVERT_CYCLES,
         });
 
-        let (parts, _, _) = compose_frame(
+        let (parts, _, _, _) = compose_frame(
             &cache.animations["idle_stand"].frames[0].poses,
             &cache,
             &bindings,
@@ -4819,7 +5250,7 @@ mod tests {
         };
         let frame = &cache.animations["idle_stand"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
-        let (_parts, _metrics, resolved_parts) = compose_frame(
+        let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
             &cache,
             &bindings,
@@ -4831,7 +5262,14 @@ mod tests {
         let mut part_states = part_states;
         let mut health_pools = ComposedHealthPools::from_cache(&cache);
 
-        let active = build_collision_state(&cache, &resolved_parts, &part_states, Vec2::ZERO);
+        let active = build_collision_state(
+            &cache,
+            &frame.poses,
+            &resolved_parts,
+            &part_states,
+            Vec2::ZERO,
+            Vec2::ZERO,
+        );
         assert_eq!(
             active.len(),
             1,
@@ -4842,7 +5280,14 @@ mod tests {
             .expect("damage should break the part");
         assert!(damage.broke_part);
 
-        let after_break = build_collision_state(&cache, &resolved_parts, &part_states, Vec2::ZERO);
+        let after_break = build_collision_state(
+            &cache,
+            &frame.poses,
+            &resolved_parts,
+            &part_states,
+            Vec2::ZERO,
+            Vec2::ZERO,
+        );
         assert!(
             after_break.is_empty(),
             "broken parts should stop contributing targetable collisions"
@@ -5309,7 +5754,7 @@ mod tests {
             Entity::PLACEHOLDER,
         );
 
-        if let Some((parts, _, _)) = result {
+        if let Some((parts, _, _, _)) = result {
             // Only body should be rendered, not legs_visual fragments.
             assert_eq!(
                 parts.len(),
@@ -5586,6 +6031,7 @@ mod tests {
             frame_size: UVec2::new(6, 16),
             flip_x: false,
             flip_y: false,
+            part_pivot: IVec2::ZERO,
             world_top_left_position: Vec2::new(35.0, 513.0),
             world_pivot_position: Vec2::new(35.0, 513.0),
             tags: vec![],

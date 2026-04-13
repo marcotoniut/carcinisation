@@ -38,7 +38,8 @@ use crate::{
                 ComposedAnimationPlaybackDebug, ComposedAnimationPlaybackDebugEnabled,
                 ComposedAnimationState, ComposedCollisionState, ComposedHealthPools,
                 ComposedPartStates, ComposedResolvedParts, PartGameplayState, PartHitBlinkState,
-                ResolvedCollisionVolume, ResolvedPartCollision, ResolvedPartState,
+                ResolvedCollisionVolume, ResolvedPartCollision, ResolvedPartFragmentState,
+                ResolvedPartState,
             },
             data::steps::{
                 AttackEnemyStep, CircleAroundEnemyStep, EnemyStep, IdleEnemyStep, JumpEnemyStep,
@@ -129,6 +130,7 @@ pub fn register_types(app: &mut App) {
         .register_type::<PlayerAttack>()
         .register_type::<ResolvedCollisionVolume>()
         .register_type::<ResolvedPartCollision>()
+        .register_type::<ResolvedPartFragmentState>()
         .register_type::<ResolvedPartState>()
         .register_type::<SkyboxData>()
         .register_type::<Speed>()

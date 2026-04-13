@@ -345,6 +345,78 @@ pub fn atlas_region_contains_point(
     atlas.pixel_visible(atlas_x, atlas_y)
 }
 
+/// Returns the first world-space point where an attack sprite mask overlaps
+/// visible pixels in one atlas-backed fragment.
+#[must_use]
+pub fn atlas_region_overlaps_sprite_mask(
+    atlas: &AtlasPixelData,
+    region_rect: AtlasRect,
+    region_sprite_rect: IRect,
+    flip: (bool, bool),
+    attack: &SpritePixelData,
+    attack_frame: Option<PxFrameView>,
+    attack_rect: IRect,
+) -> Option<IVec2> {
+    let (flip_x, flip_y) = flip;
+    let min = IVec2::new(
+        region_sprite_rect.min.x.max(attack_rect.min.x),
+        region_sprite_rect.min.y.max(attack_rect.min.y),
+    );
+    let max = IVec2::new(
+        region_sprite_rect.max.x.min(attack_rect.max.x),
+        region_sprite_rect.max.y.min(attack_rect.max.y),
+    );
+
+    if min.x >= max.x || min.y >= max.y {
+        return None;
+    }
+
+    for y in min.y..max.y {
+        let region_local_y = (y - region_sprite_rect.min.y) as u32;
+        let atlas_y = if flip_y {
+            region_rect.y.saturating_add(
+                region_rect
+                    .h
+                    .saturating_sub(1)
+                    .saturating_sub(region_local_y),
+            )
+        } else {
+            region_rect.y.saturating_add(region_local_y)
+        };
+
+        let attack_local_y = (y - attack_rect.min.y) as u32;
+        let attack_y = attack
+            .height
+            .saturating_sub(1)
+            .saturating_sub(attack_local_y);
+
+        for x in min.x..max.x {
+            let region_local_x = (x - region_sprite_rect.min.x) as u32;
+            let atlas_x = if flip_x {
+                region_rect.x.saturating_add(
+                    region_rect
+                        .w
+                        .saturating_sub(1)
+                        .saturating_sub(region_local_x),
+                )
+            } else {
+                region_rect.x.saturating_add(region_local_x)
+            };
+
+            if !atlas.pixel_visible(atlas_x, atlas_y) {
+                continue;
+            }
+
+            let attack_local_x = (x - attack_rect.min.x) as u32;
+            if sprite_pixel_visible(attack, attack_frame, UVec2::new(attack_local_x, attack_y)) {
+                return Some(IVec2::new(x, y));
+            }
+        }
+    }
+
+    None
+}
+
 fn pixel_overlap_fast(
     attack_data: &SpritePixelData,
     attack_frame: usize,
@@ -857,6 +929,69 @@ mod tests {
             false,
             true
         ));
+    }
+
+    #[test]
+    fn atlas_region_overlaps_sprite_mask_returns_hit_point() {
+        let atlas = make_atlas(3, 3, &[(1, 1)]);
+        let region = AtlasRect {
+            x: 0,
+            y: 0,
+            w: 3,
+            h: 3,
+        };
+        let region_rect = IRect {
+            min: IVec2::new(10, 20),
+            max: IVec2::new(13, 23),
+        };
+        let attack = make_mask(3, 3, 1, &[(0, 0, 0)]);
+        let attack_rect = IRect {
+            min: IVec2::new(11, 21),
+            max: IVec2::new(14, 24),
+        };
+
+        assert_eq!(
+            atlas_region_overlaps_sprite_mask(
+                &atlas,
+                region,
+                region_rect,
+                (false, false),
+                &attack,
+                None,
+                attack_rect,
+            ),
+            Some(IVec2::new(11, 21))
+        );
+    }
+
+    #[test]
+    fn atlas_region_overlaps_sprite_mask_respects_flip_x() {
+        let atlas = make_atlas(2, 1, &[(0, 0)]);
+        let region = AtlasRect {
+            x: 0,
+            y: 0,
+            w: 2,
+            h: 1,
+        };
+        let region_rect = IRect {
+            min: IVec2::new(10, 5),
+            max: IVec2::new(12, 6),
+        };
+        let attack = make_mask(2, 1, 1, &[(1, 0, 0)]);
+        let attack_rect = region_rect;
+
+        assert_eq!(
+            atlas_region_overlaps_sprite_mask(
+                &atlas,
+                region,
+                region_rect,
+                (true, false),
+                &attack,
+                None,
+                attack_rect,
+            ),
+            Some(IVec2::new(11, 5))
+        );
     }
 
     #[test]

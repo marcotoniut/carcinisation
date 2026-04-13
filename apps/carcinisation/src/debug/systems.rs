@@ -137,9 +137,10 @@ pub fn draw_composed_parts(
     let camera_pos = camera_query.single().unwrap();
 
     for (collisions, resolved_parts) in query.iter() {
+        let visual_offset = resolved_parts.visual_offset();
         for part in resolved_parts.parts() {
             gizmos.circle_2d(
-                to_viewport_coordinates(part.world_pivot_position - camera_pos.0),
+                to_viewport_coordinates(part.world_pivot_position + visual_offset - camera_pos.0),
                 to_viewport_ratio_x(1.5),
                 Color::YELLOW_GREEN,
             );

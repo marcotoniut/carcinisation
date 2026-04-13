@@ -3,8 +3,9 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use carapace::prelude::*;
 use carcinisation_collision::pixel_mask::{
-    AtlasPixelCollisionCache, PixelCollisionCache, atlas_data, atlas_region_contains_point,
-    mask_contains_point, pixel_overlap, sprite_data, sprite_rect,
+    AtlasPixelCollisionCache, PixelCollisionCache, SpritePixelData, atlas_data,
+    atlas_region_contains_point, atlas_region_overlaps_sprite_mask, mask_contains_point,
+    pixel_overlap, sprite_data, sprite_rect,
 };
 
 use crate::{
@@ -22,7 +23,7 @@ use crate::{
             components::Enemy,
             composed::{
                 ComposedAtlasBindings, ComposedCollisionState, ComposedResolvedParts,
-                ResolvedPartCollision, ResolvedPartState,
+                ResolvedPartCollision, ResolvedPartFragmentState, ResolvedPartState,
             },
         },
         messages::{DamageMessage, PartDamageMessage},
@@ -149,6 +150,10 @@ pub fn check_got_hit(
                 camera.0,
             )
         });
+        let attack_rect_world = attack_rect.map(|rect| IRect {
+            min: rect.min + camera.0,
+            max: rect.max + camera.0,
+        });
 
         let attack_screen = match *attack_canvas {
             PxCanvas::World => attack_position.0 - camera.0,
@@ -189,6 +194,7 @@ pub fn check_got_hit(
             }
 
             let mut hit = None;
+            let mut composed_hit_selection = None;
             let mut evaluated = false;
             let wants_pixel = destructible.is_none() && entity_sprite.is_some();
             let entity_data = if wants_pixel {
@@ -244,7 +250,62 @@ pub fn check_got_hit(
                 }
             }
 
+            // Pixel-authoritative composed hit resolution. When pixel data
+            // is available and evaluated, its verdict is final — no coarse
+            // fallback can override a pixel miss.
+            let mut composed_pixel_evaluated = false;
             if hit.is_none()
+                && composed_resolved_parts.is_some()
+                && composed_atlas_bindings.is_some()
+            {
+                match attack_definition.collision {
+                    AttackCollisionMode::Point => {
+                        composed_pixel_evaluated = true;
+                        evaluated = true;
+                        if let Some(selection) = resolve_composed_hit_at_point(
+                            attack_world,
+                            composed_collision_state,
+                            composed_resolved_parts,
+                            composed_atlas_bindings,
+                            &pixel_assets.atlas_assets,
+                            &mut pixel_assets.atlas_cache,
+                        ) {
+                            hit = Some(selection.hit_position);
+                            composed_hit_selection = Some(selection);
+                        }
+                    }
+                    AttackCollisionMode::SpriteMask => {
+                        if let (Some(attack_data), Some(attack_rect_world)) =
+                            (attack_data.as_deref(), attack_rect_world)
+                        {
+                            composed_pixel_evaluated = true;
+                            evaluated = true;
+                            if let Some(selection) = resolve_composed_hit_with_sprite_mask(
+                                SpriteMaskAttackHit {
+                                    data: attack_data,
+                                    frame: attack_frame.copied(),
+                                    rect_world: attack_rect_world,
+                                },
+                                composed_collision_state,
+                                composed_resolved_parts,
+                                composed_atlas_bindings,
+                                &pixel_assets.atlas_assets,
+                                &mut pixel_assets.atlas_cache,
+                            ) {
+                                hit = Some(selection.hit_position);
+                                composed_hit_selection = Some(selection);
+                            }
+                        }
+                    }
+                    AttackCollisionMode::None => {}
+                }
+            }
+
+            // Coarse-only fallback: used ONLY when pixel data was not
+            // available (assets not loaded, no resolved parts, etc.).
+            // When pixel evaluation ran and missed, that miss is final.
+            if hit.is_none()
+                && !composed_pixel_evaluated
                 && let Some(composed_collision_state) = composed_collision_state
             {
                 evaluated = true;
@@ -328,14 +389,16 @@ pub fn check_got_hit(
                 break;
             }
 
-            let composed_hit = resolve_composed_hit_at_point(
-                hit_position,
-                composed_collision_state,
-                composed_resolved_parts,
-                composed_atlas_bindings,
-                &pixel_assets.atlas_assets,
-                &mut pixel_assets.atlas_cache,
-            );
+            let composed_hit = composed_hit_selection.or_else(|| {
+                resolve_composed_hit_at_point(
+                    hit_position,
+                    composed_collision_state,
+                    composed_resolved_parts,
+                    composed_atlas_bindings,
+                    &pixel_assets.atlas_assets,
+                    &mut pixel_assets.atlas_cache,
+                )
+            });
             let defense = composed_hit.as_ref().map_or_else(
                 || {
                     collider_data
@@ -413,14 +476,21 @@ pub fn check_got_hit(
 struct ComposedHitSelection {
     part_id: String,
     defense: f32,
+    hit_position: Vec2,
 }
 
-/// Selects a semantic part from coarse composed collisions plus optional pixel refinement.
+#[derive(Clone, Copy)]
+struct SpriteMaskAttackHit<'a> {
+    data: &'a SpritePixelData,
+    frame: Option<PxFrameView>,
+    rect_world: IRect,
+}
+
+/// Selects a semantic part from front-to-back fragment pixel hits.
+/// Pixel-authoritative point hit resolution for composed enemies.
 ///
-/// Policy:
-/// - coarse collision volumes decide which parts are even eligible
-/// - pixel-perfect atlas alpha disambiguates overlapping eligible parts
-/// - visual draw order breaks ties and remains the fallback when no pixel hit resolves
+/// Returns a hit only when an opaque fragment pixel is found at `hit_position`.
+/// No coarse fallback — transparent/outside pixels are a miss.
 fn resolve_composed_hit_at_point(
     hit_position: Vec2,
     collision_state: Option<&ComposedCollisionState>,
@@ -429,53 +499,161 @@ fn resolve_composed_hit_at_point(
     atlas_assets: &Assets<PxSpriteAtlasAsset>,
     atlas_cache: &mut AtlasPixelCollisionCache,
 ) -> Option<ComposedHitSelection> {
-    let collision_state = collision_state?;
+    let (resolved_parts, atlas_bindings) = (resolved_parts?, atlas_bindings?);
+    let atlas_pixels = atlas_data(atlas_cache, atlas_assets, atlas_bindings.atlas_handle())?;
+    // Convert hit point to screen convention (negate Y) to match
+    // fragment_sprite_rect's screen-space rects.
+    let screen_point = {
+        let p = hit_position.round().as_ivec2();
+        IVec2::new(p.x, -p.y)
+    };
+    let (selected_part, _fragment, pixel_hit_position) =
+        select_resolved_composed_fragment(resolved_parts, |fragment| {
+            let region_rect = atlas_bindings.sprite_rect(fragment.sprite_id.as_str())?;
+            let sprite_rect = fragment_sprite_rect(fragment);
+            atlas_region_contains_point(
+                atlas_pixels.as_ref(),
+                region_rect,
+                sprite_rect,
+                screen_point,
+                fragment.flip_x,
+                fragment.flip_y,
+            )
+            .then_some(hit_position)
+        })?;
+
+    Some(ComposedHitSelection {
+        part_id: selected_part.part_id.clone(),
+        defense: part_defense_at_point(
+            collision_state,
+            selected_part.part_id.as_str(),
+            pixel_hit_position,
+        ),
+        hit_position: pixel_hit_position,
+    })
+}
+
+fn resolve_composed_hit_with_sprite_mask(
+    attack: SpriteMaskAttackHit<'_>,
+    collision_state: Option<&ComposedCollisionState>,
+    resolved_parts: Option<&ComposedResolvedParts>,
+    atlas_bindings: Option<&ComposedAtlasBindings>,
+    atlas_assets: &Assets<PxSpriteAtlasAsset>,
+    atlas_cache: &mut AtlasPixelCollisionCache,
+) -> Option<ComposedHitSelection> {
+    // Convert the attack rect from world Y-up to screen convention (negate Y)
+    // to match fragment_sprite_rect.
+    let screen_attack_rect = IRect {
+        min: IVec2::new(attack.rect_world.min.x, -attack.rect_world.max.y),
+        max: IVec2::new(attack.rect_world.max.x, -attack.rect_world.min.y),
+    };
     if let (Some(resolved_parts), Some(atlas_bindings)) = (resolved_parts, atlas_bindings)
         && let Some(atlas_pixels) =
             atlas_data(atlas_cache, atlas_assets, atlas_bindings.atlas_handle())
-        && let Some(selected_part) = select_resolved_composed_part(
-            collision_state.collisions(),
-            resolved_parts.parts(),
-            hit_position,
-            |part| {
-                let Some(region_rect) = atlas_bindings.sprite_rect(part.sprite_id.as_str()) else {
-                    return false;
-                };
-                let sprite_rect = IRect {
-                    min: part.world_top_left_position.round().as_ivec2(),
-                    max: part.world_top_left_position.round().as_ivec2()
-                        + part.frame_size.as_ivec2(),
-                };
-                atlas_region_contains_point(
+        && let Some((selected_part, _fragment, pixel_hit_position)) =
+            select_resolved_composed_fragment(resolved_parts, |fragment| {
+                let region_rect = atlas_bindings.sprite_rect(fragment.sprite_id.as_str())?;
+                atlas_region_overlaps_sprite_mask(
                     atlas_pixels.as_ref(),
                     region_rect,
-                    sprite_rect,
-                    hit_position.round().as_ivec2(),
-                    part.flip_x,
-                    part.flip_y,
+                    fragment_sprite_rect(fragment),
+                    (fragment.flip_x, fragment.flip_y),
+                    attack.data,
+                    attack.frame,
+                    screen_attack_rect,
                 )
-            },
-        )
-        && let Some(collision) = part_collision_at_point(
-            collision_state.collisions(),
-            selected_part.part_id.as_str(),
-            hit_position,
-        )
+                .map(|point| {
+                    // Convert overlap point back to world Y-up.
+                    IVec2::new(point.x, -point.y).as_vec2()
+                })
+            })
     {
         return Some(ComposedHitSelection {
             part_id: selected_part.part_id.clone(),
-            defense: collision.collider.defense,
+            defense: part_defense_at_point(
+                collision_state,
+                selected_part.part_id.as_str(),
+                pixel_hit_position,
+            ),
+            hit_position: pixel_hit_position,
         });
     }
 
-    collision_state
-        .point_collides(hit_position)
-        .map(|collision| ComposedHitSelection {
-            part_id: collision.part_id.clone(),
-            defense: collision.collider.defense,
-        })
+    None
 }
 
+fn select_resolved_composed_fragment<F>(
+    resolved_parts: &ComposedResolvedParts,
+    mut pixel_hit: F,
+) -> Option<(&ResolvedPartState, &ResolvedPartFragmentState, Vec2)>
+where
+    F: FnMut(&ResolvedPartFragmentState) -> Option<Vec2>,
+{
+    for fragment in resolved_parts.fragments().iter().rev() {
+        let Some(part) = resolved_parts
+            .parts()
+            .iter()
+            .find(|part| part.part_id == fragment.part_id)
+        else {
+            continue;
+        };
+        if !part.targetable {
+            continue;
+        }
+        if let Some(hit_position) = pixel_hit(fragment) {
+            return Some((part, fragment, hit_position));
+        }
+    }
+
+    None
+}
+
+/// Builds a screen-convention rect for pixel collision testing.
+///
+/// The atlas pixel functions (`atlas_region_contains_point`,
+/// `atlas_region_overlaps_sprite_mask`) expect screen-convention rects
+/// where Y increases downward and `min` is the top-left. This matches
+/// the atlas pixel row order (row 0 = authored top of sprite).
+///
+/// `visual_top_left_position` is in world Y-up space (top = highest Y).
+/// We negate Y to convert to screen space, giving `min.y` = screen top.
+fn fragment_sprite_rect(fragment: &ResolvedPartFragmentState) -> IRect {
+    let top_left = fragment.visual_top_left_position.round().as_ivec2();
+    let size = fragment.frame_size.as_ivec2();
+    // Negate Y: world top-left (x, +y) → screen top-left (x, -y).
+    let screen_top_left = IVec2::new(top_left.x, -top_left.y);
+    IRect {
+        min: screen_top_left,
+        max: screen_top_left + size,
+    }
+}
+
+fn part_defense_at_point(
+    collision_state: Option<&ComposedCollisionState>,
+    part_id: &str,
+    hit_position: Vec2,
+) -> f32 {
+    let Some(collision_state) = collision_state else {
+        return 1.0;
+    };
+    part_collision_at_point(collision_state.collisions(), part_id, hit_position)
+        .or_else(|| {
+            collision_state
+                .collisions()
+                .iter()
+                .rev()
+                .find(|collision| collision.part_id == part_id)
+        })
+        .map_or(1.0, |collision| collision.collider.defense)
+}
+
+/// Test-only helper exercising the coarse-with-pixel-override selection model.
+///
+/// This does NOT match the production pixel-authoritative path (which uses
+/// `select_resolved_composed_fragment` on fragments). It models the legacy
+/// "no pixel data" fallback where coarse colliders decide the hit and pixel
+/// refinement can override but not veto. Retained to test that specific path.
+#[cfg(test)]
 fn select_resolved_composed_part<'a, F>(
     collisions: &[ResolvedPartCollision],
     resolved_parts: &'a [ResolvedPartState],
@@ -545,6 +723,7 @@ mod tests {
                     frame_size: UVec2::new(4, 4),
                     flip_x: *flip_x,
                     flip_y: false,
+                    part_pivot: IVec2::ZERO,
                     world_top_left_position: Vec2::new(-2.0, -2.0),
                     world_pivot_position: Vec2::ZERO,
                     tags: vec![],
@@ -560,6 +739,77 @@ mod tests {
                 },
             )
             .collect()
+    }
+
+    fn resolved_fragments_for(parts: &[(&str, &str, u32, u32)]) -> Vec<ResolvedPartFragmentState> {
+        parts
+            .iter()
+            .map(
+                |(part_id, sprite_id, fragment, render_order)| ResolvedPartFragmentState {
+                    part_id: (*part_id).to_string(),
+                    sprite_id: (*sprite_id).to_string(),
+                    draw_order: 0,
+                    fragment: *fragment,
+                    render_order: *render_order,
+                    frame_size: UVec2::new(4, 4),
+                    flip_x: false,
+                    flip_y: false,
+                    world_top_left_position: Vec2::new(-2.0, -2.0),
+                    visual_top_left_position: Vec2::new(-2.0, -2.0),
+                },
+            )
+            .collect()
+    }
+
+    #[test]
+    fn fragment_selection_uses_exact_render_order() {
+        let parts =
+            resolved_parts_for(&[("body", 20, "body", false), ("shield", 10, "shield", false)]);
+        let fragments =
+            resolved_fragments_for(&[("body", "body", 0, 0), ("shield", "shield", 0, 1)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        let (selected, fragment, _) =
+            select_resolved_composed_fragment(&resolved, |_| Some(Vec2::ZERO))
+                .expect("front-most emitted fragment should win");
+
+        assert_eq!(selected.part_id, "shield");
+        assert_eq!(fragment.render_order, 1);
+    }
+
+    #[test]
+    fn transparent_front_fragment_allows_back_fragment() {
+        let parts =
+            resolved_parts_for(&[("body", 10, "body", false), ("shield", 20, "shield", false)]);
+        let fragments =
+            resolved_fragments_for(&[("body", "body", 0, 0), ("shield", "shield", 0, 1)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        let (selected, _, _) = select_resolved_composed_fragment(&resolved, |fragment| {
+            (fragment.part_id == "body").then_some(Vec2::ZERO)
+        })
+        .expect("back visible fragment should win when front pixel is transparent");
+
+        assert_eq!(selected.part_id, "body");
+    }
+
+    #[test]
+    fn split_logical_part_resolves_via_secondary_fragment() {
+        let parts = resolved_parts_for(&[("wing", 10, "wing_l", false)]);
+        let fragments =
+            resolved_fragments_for(&[("wing", "wing_l", 0, 0), ("wing", "wing_r", 1, 1)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        let (selected, fragment, _) = select_resolved_composed_fragment(&resolved, |fragment| {
+            (fragment.fragment == 1).then_some(Vec2::new(5.0, 0.0))
+        })
+        .expect("secondary fragment should resolve to owning semantic part");
+
+        assert_eq!(selected.part_id, "wing");
+        assert_eq!(fragment.sprite_id, "wing_r");
     }
 
     #[test]
@@ -602,5 +852,247 @@ mod tests {
         .expect("pixel refinement should preserve semantic ids even when sprite ids match");
 
         assert_eq!(selected.part_id, "arm_l");
+    }
+
+    // --- Phase 3 regression tests: pixel-authoritative composed hit ---
+
+    #[test]
+    fn opaque_fragment_pixel_hit_succeeds() {
+        let parts = resolved_parts_for(&[("body", 10, "body_sprite", false)]);
+        let fragments = resolved_fragments_for(&[("body", "body_sprite", 0, 0)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        let result = select_resolved_composed_fragment(&resolved, |_| Some(Vec2::ZERO));
+
+        assert!(result.is_some(), "opaque pixel hit should succeed");
+        assert_eq!(result.unwrap().0.part_id, "body");
+    }
+
+    #[test]
+    fn transparent_pixel_miss_returns_none() {
+        let parts = resolved_parts_for(&[("body", 10, "body_sprite", false)]);
+        let fragments = resolved_fragments_for(&[("body", "body_sprite", 0, 0)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        let result = select_resolved_composed_fragment(&resolved, |_| None);
+
+        assert!(result.is_none(), "transparent pixel should be a miss");
+    }
+
+    #[test]
+    fn point_inside_coarse_but_outside_opaque_pixels_is_miss() {
+        // Coarse collider covers the point, but all fragment pixels are transparent.
+        // With pixel-authoritative resolution, this must be a miss.
+        let parts = resolved_parts_for(&[("body", 10, "body_sprite", false)]);
+        let fragments = resolved_fragments_for(&[("body", "body_sprite", 0, 0)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Pixel check returns None (transparent), simulating coarse hit + pixel miss.
+        let result = select_resolved_composed_fragment(&resolved, |_| None);
+
+        assert!(
+            result.is_none(),
+            "coarse collider must not override pixel miss when fragment data exists"
+        );
+    }
+
+    #[test]
+    fn front_fragment_wins_over_back_fragment_pixel_hit() {
+        let parts = resolved_parts_for(&[
+            ("back", 10, "back_sprite", false),
+            ("front", 20, "front_sprite", false),
+        ]);
+        let fragments = resolved_fragments_for(&[
+            ("back", "back_sprite", 0, 0),
+            ("front", "front_sprite", 0, 1),
+        ]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Both fragments report opaque pixel hit.
+        let result = select_resolved_composed_fragment(&resolved, |_| Some(Vec2::ZERO));
+
+        assert!(result.is_some());
+        assert_eq!(
+            result.unwrap().0.part_id,
+            "front",
+            "front-most fragment should win when both are opaque"
+        );
+    }
+
+    #[test]
+    fn non_targetable_front_fragment_skipped_for_back_hit() {
+        let mut parts = resolved_parts_for(&[
+            ("body", 10, "body_sprite", false),
+            ("overlay", 20, "overlay_sprite", false),
+        ]);
+        parts[1].targetable = false; // overlay is non-targetable
+        let fragments = resolved_fragments_for(&[
+            ("body", "body_sprite", 0, 0),
+            ("overlay", "overlay_sprite", 0, 1),
+        ]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        let result = select_resolved_composed_fragment(&resolved, |_| Some(Vec2::ZERO));
+
+        assert!(result.is_some());
+        assert_eq!(
+            result.unwrap().0.part_id,
+            "body",
+            "non-targetable front fragment should be skipped"
+        );
+    }
+
+    // --- Phase 4 regression tests: SpriteMask pixel-authoritative ---
+    //
+    // These exercise the same `select_resolved_composed_fragment` production
+    // path that `resolve_composed_hit_with_sprite_mask` uses. The closure
+    // simulates mask overlap results (Some = opaque overlap, None = miss).
+
+    #[test]
+    fn mask_overlap_opaque_fragment_hit_succeeds() {
+        let parts = resolved_parts_for(&[("body", 10, "body_sprite", false)]);
+        let fragments = resolved_fragments_for(&[("body", "body_sprite", 0, 0)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Simulate: attack mask overlaps opaque fragment pixels.
+        let result = select_resolved_composed_fragment(&resolved, |_| Some(Vec2::new(1.0, 1.0)));
+
+        assert!(result.is_some(), "opaque mask overlap should be a hit");
+        assert_eq!(result.unwrap().0.part_id, "body");
+    }
+
+    #[test]
+    fn mask_overlap_transparent_only_is_miss() {
+        let parts = resolved_parts_for(&[("body", 10, "body_sprite", false)]);
+        let fragments = resolved_fragments_for(&[("body", "body_sprite", 0, 0)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Simulate: attack mask overlaps fragment but only transparent pixels.
+        let result = select_resolved_composed_fragment(&resolved, |_| None);
+
+        assert!(
+            result.is_none(),
+            "transparent-only mask overlap should be a miss"
+        );
+    }
+
+    #[test]
+    fn mask_split_part_selects_via_overlapping_fragment() {
+        let parts = resolved_parts_for(&[("wing", 10, "wing_l", false)]);
+        let fragments =
+            resolved_fragments_for(&[("wing", "wing_l", 0, 0), ("wing", "wing_r", 1, 1)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Only the secondary fragment (wing_r) has opaque overlap.
+        let result = select_resolved_composed_fragment(&resolved, |fragment| {
+            (fragment.sprite_id == "wing_r").then_some(Vec2::new(3.0, 0.0))
+        });
+
+        assert!(result.is_some());
+        let (part, frag, _) = result.unwrap();
+        assert_eq!(part.part_id, "wing");
+        assert_eq!(frag.sprite_id, "wing_r");
+    }
+
+    #[test]
+    fn mask_frontmost_overlapping_fragment_wins() {
+        let parts = resolved_parts_for(&[
+            ("back", 10, "back_sprite", false),
+            ("front", 20, "front_sprite", false),
+        ]);
+        let fragments = resolved_fragments_for(&[
+            ("back", "back_sprite", 0, 0),
+            ("front", "front_sprite", 0, 1),
+        ]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Both fragments have opaque mask overlap.
+        let result = select_resolved_composed_fragment(&resolved, |_| Some(Vec2::new(1.0, 1.0)));
+
+        assert!(result.is_some());
+        assert_eq!(
+            result.unwrap().0.part_id,
+            "front",
+            "frontmost overlapping fragment should win"
+        );
+    }
+
+    #[test]
+    fn mask_coarse_collider_cannot_resurrect_pixel_miss() {
+        // This test validates the production invariant: when pixel/mask
+        // evaluation runs and finds no opaque overlap, the result is None.
+        // The coarse collider (not tested here directly) is gated by
+        // composed_pixel_evaluated in check_got_hit.
+        let parts = resolved_parts_for(&[("body", 10, "body_sprite", false)]);
+        let fragments = resolved_fragments_for(&[("body", "body_sprite", 0, 0)]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // All fragments transparent → miss.
+        let result = select_resolved_composed_fragment(&resolved, |_| None);
+
+        assert!(
+            result.is_none(),
+            "coarse collider must not resurrect a mask miss when pixel data exists"
+        );
+    }
+
+    // --- Phase 6 tests: front-part blocking / armour semantics ---
+
+    #[test]
+    fn front_armour_part_selected_over_body_behind() {
+        let mut parts = resolved_parts_for(&[
+            ("body", 10, "body_sprite", false),
+            ("armour", 20, "armour_sprite", false),
+        ]);
+        parts[1].armour = 5;
+        let fragments = resolved_fragments_for(&[
+            ("body", "body_sprite", 0, 0),
+            ("armour", "armour_sprite", 0, 1),
+        ]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Both fragments opaque at the hit point.
+        let result = select_resolved_composed_fragment(&resolved, |_| Some(Vec2::ZERO));
+
+        let (selected, _, _) = result.expect("should hit the front armour");
+        assert_eq!(selected.part_id, "armour");
+        assert_ne!(
+            selected.part_id, "body",
+            "body behind opaque armour must not be selected for non-piercing hit"
+        );
+    }
+
+    #[test]
+    fn transparent_front_armour_allows_body_behind() {
+        let mut parts = resolved_parts_for(&[
+            ("body", 10, "body_sprite", false),
+            ("armour", 20, "armour_sprite", false),
+        ]);
+        parts[1].armour = 5;
+        let fragments = resolved_fragments_for(&[
+            ("body", "body_sprite", 0, 0),
+            ("armour", "armour_sprite", 0, 1),
+        ]);
+        let resolved =
+            ComposedResolvedParts::with_parts_fragments_and_offset(parts, fragments, Vec2::ZERO);
+
+        // Armour fragment transparent at hit point, body opaque.
+        let result = select_resolved_composed_fragment(&resolved, |fragment| {
+            (fragment.part_id == "body").then_some(Vec2::ZERO)
+        });
+
+        let (selected, _, _) = result.expect("body should be reachable through transparent armour");
+        assert_eq!(selected.part_id, "body");
     }
 }

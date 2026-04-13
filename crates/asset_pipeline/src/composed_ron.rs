@@ -87,6 +87,11 @@ pub struct CompactPartGameplay {
     pub durability: Option<u8>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub breakable: bool,
+    /// Fraction of adjusted damage forwarded to the health pool each hit,
+    /// regardless of durability absorption. `None` = pool only receives
+    /// overflow after durability is depleted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pool_damage_ratio: Option<f32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub collisions: Vec<CompactCollision>,
 }
@@ -654,6 +659,7 @@ fn merge_gameplay(
         armour,
         durability,
         breakable: inst.breakable.or(def.breakable).unwrap_or(false),
+        pool_damage_ratio: inst.pool_damage_ratio.or(def.pool_damage_ratio),
         collisions: merge_collisions(def, inst),
     })
 }

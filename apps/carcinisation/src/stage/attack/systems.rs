@@ -143,6 +143,7 @@ mod tests {
             frame_size: UVec2::new(6, 16),
             flip_x: false,
             flip_y: false,
+            part_pivot: IVec2::ZERO,
             world_top_left_position: Vec2::new(35.0, 513.0),
             world_pivot_position: Vec2::new(35.0, 513.0),
             tags: vec![],

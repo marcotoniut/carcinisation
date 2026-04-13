@@ -331,6 +331,11 @@ pub struct PartGameplayMetadata {
     /// Current runtime support disables future targeting/collision for the part.
     /// Visual state changes remain authored work and are not automatic yet.
     pub breakable: Option<bool>,
+    /// Fraction of adjusted damage forwarded to the health pool each hit,
+    /// regardless of durability absorption. `None` = pool only receives
+    /// overflow after durability is depleted.
+    #[serde(default)]
+    pub pool_damage_ratio: Option<f32>,
     /// Collision volumes attached to the part.
     ///
     /// The current runtime only consumes targetable `Collider` volumes. Other
@@ -1981,6 +1986,7 @@ fn merged_part_gameplay(
         armour: definition.armour.saturating_add(instance.armour),
         durability: instance.durability.or(definition.durability),
         breakable: instance.breakable.or(definition.breakable),
+        pool_damage_ratio: instance.pool_damage_ratio.or(definition.pool_damage_ratio),
         collision: definition
             .collision
             .iter()
