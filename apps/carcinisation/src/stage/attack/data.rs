@@ -1,5 +1,6 @@
 pub mod blood_shot;
 pub mod boulder_throw;
+pub mod spider_shot;
 
 use crate::data::AnimationData;
 

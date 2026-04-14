@@ -1,0 +1,60 @@
+(
+    indexed_image: "sprites/attacks/spider_shot/atlas.pxi",
+    regions: [
+        (
+            frame_size: (65, 65),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 65,
+                    h: 65,
+                ),
+            ],
+        ),
+        (
+            frame_size: (65, 65),
+            frames: [
+                (
+                    x: 0,
+                    y: 65,
+                    w: 65,
+                    h: 65,
+                ),
+            ],
+        ),
+        (
+            frame_size: (65, 65),
+            frames: [
+                (
+                    x: 0,
+                    y: 130,
+                    w: 65,
+                    h: 65,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "destroy": 1,
+        "hit": 2,
+        "hover": 0,
+    },
+    animations: {
+        "destroy": (
+            duration_ms: 50,
+            direction: "forward",
+            on_finish: "mark",
+        ),
+        "hit": (
+            duration_ms: 50,
+            direction: "forward",
+            on_finish: "mark",
+        ),
+        "hover": (
+            duration_ms: 350,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

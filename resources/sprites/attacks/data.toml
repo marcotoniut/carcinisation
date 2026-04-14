@@ -1,7 +1,11 @@
 [[atlases]]
-source = "blood_shot.aseprite"
+source = "blood_shot_1.aseprite"
 output = "sprites/attacks/blood_shot"
 
 [[atlases]]
-source = "boulder_throw.aseprite"
+source = "boulder_throw_1.aseprite"
 output = "sprites/attacks/boulder_throw"
+
+[[atlases]]
+source = "spider_shot_1.aseprite"
+output = "sprites/attacks/spider_shot"

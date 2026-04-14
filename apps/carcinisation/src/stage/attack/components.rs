@@ -2,7 +2,7 @@ pub mod bundles;
 
 use super::data::{
     HoveringAttackAnimations, blood_shot::BLOOD_ATTACK_ANIMATIONS,
-    boulder_throw::BOULDER_ATTACK_ANIMATIONS,
+    boulder_throw::BOULDER_ATTACK_ANIMATIONS, spider_shot::SPIDER_ATTACK_ANIMATIONS,
 };
 use crate::stage::components::placement::Depth;
 use bevy::prelude::*;
@@ -17,6 +17,8 @@ pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
 pub const BLOOD_SHOT_ATLAS_PATH: &str = "sprites/attacks/blood_shot/atlas.px_atlas.ron";
 /// Asset path for the boulder throw attack sprite atlas.
 pub const BOULDER_THROW_ATLAS_PATH: &str = "sprites/attacks/boulder_throw/atlas.px_atlas.ron";
+/// Asset path for the spider shot attack sprite atlas.
+pub const SPIDER_SHOT_ATLAS_PATH: &str = "sprites/attacks/spider_shot/atlas.px_atlas.ron";
 
 #[derive(Component, Default)]
 pub struct EnemyAttack;
@@ -26,6 +28,7 @@ pub struct EnemyAttack;
 pub enum EnemyHoveringAttackType {
     BloodShot,
     BoulderThrow,
+    SpiderShot,
 }
 
 #[derive(Component, Debug, Reflect)]
@@ -68,16 +71,18 @@ impl EnemyHoveringAttackType {
     #[must_use]
     pub fn get_name(&self) -> String {
         match self {
-            EnemyHoveringAttackType::BloodShot => "Blood Shot".to_string(),
-            EnemyHoveringAttackType::BoulderThrow => "Boulder Throw".to_string(),
+            Self::BloodShot => "Blood Shot".to_string(),
+            Self::BoulderThrow => "Boulder Throw".to_string(),
+            Self::SpiderShot => "Spider Shot".to_string(),
         }
     }
 
     #[must_use]
     pub fn get_animations(&self) -> &'static HoveringAttackAnimations {
         match self {
-            EnemyHoveringAttackType::BloodShot => &BLOOD_ATTACK_ANIMATIONS,
-            EnemyHoveringAttackType::BoulderThrow => &BOULDER_ATTACK_ANIMATIONS,
+            Self::BloodShot => &BLOOD_ATTACK_ANIMATIONS,
+            Self::BoulderThrow => &BOULDER_ATTACK_ANIMATIONS,
+            Self::SpiderShot => &SPIDER_ATTACK_ANIMATIONS,
         }
     }
 
@@ -87,6 +92,7 @@ impl EnemyHoveringAttackType {
         match self {
             Self::BloodShot => BLOOD_SHOT_ATLAS_PATH,
             Self::BoulderThrow => BOULDER_THROW_ATLAS_PATH,
+            Self::SpiderShot => SPIDER_SHOT_ATLAS_PATH,
         }
     }
 
@@ -124,6 +130,7 @@ impl EnemyHoveringAttackType {
         match self {
             Self::BloodShot => 18.,
             Self::BoulderThrow => 23.,
+            Self::SpiderShot => 15.,
         }
     }
 }
