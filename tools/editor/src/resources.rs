@@ -30,15 +30,19 @@ pub struct StageAssetHandle {
 }
 
 /// Cached generated thumbnails used by editor scene previews.
+///
+/// Key: `(EnemyType, Depth, animation_tag)`. The tag disambiguates previews
+/// for multi-state composed enemies.
 #[derive(Debug, Default, Resource)]
 pub struct ThumbnailCache {
-    pub composed_enemies: HashMap<(EnemyType, Depth), CachedThumbnail>,
+    pub composed_enemies: HashMap<(EnemyType, Depth, String), CachedThumbnail>,
 }
 
 #[derive(Clone, Debug)]
 pub struct CachedThumbnail {
     pub image: Handle<Image>,
     pub anchor: Anchor,
+    pub fallback_scale: f32,
 }
 
 /// UI state for editor stage controls and layer visibility.

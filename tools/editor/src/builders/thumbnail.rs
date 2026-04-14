@@ -14,7 +14,7 @@ use carcinisation::stage::{
     components::placement::Depth,
     data::{ObjectType, PickupType, StageSpawn},
     destructible::{components::DestructibleType, data::DestructibleSpawn},
-    enemy::{data::mosquiton::TAG_IDLE_FLY, entity::EnemyType},
+    enemy::entity::EnemyType,
 };
 use image::{Rgba, RgbaImage, imageops};
 
@@ -27,6 +27,9 @@ use crate::{
 pub struct ResolvedThumbnail {
     pub sprite: Sprite,
     pub anchor: Anchor,
+    /// Scale factor to match runtime fallback when the native asset is missing.
+    /// `1.0` when the asset is at the exact requested depth.
+    pub fallback_scale: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -56,6 +59,8 @@ pub fn resolve_stage_spawn_thumbnail(
     asset_server: &AssetServer,
     image_assets: &mut Assets<Image>,
     cache: &mut ThumbnailCache,
+    depth_scale_config: &carcinisation::stage::depth_scale::DepthScaleConfig,
+    animation_tag: Option<&str>,
 ) -> ResolvedThumbnail {
     match spawn {
         StageSpawn::Destructible(DestructibleSpawn {
@@ -70,6 +75,8 @@ pub fn resolve_stage_spawn_thumbnail(
             asset_server,
             image_assets,
             cache,
+            depth_scale_config,
+            animation_tag,
         ),
         StageSpawn::Object(object_spawn) => asset_thumbnail(
             asset_server,
@@ -90,6 +97,7 @@ fn placeholder_thumbnail() -> ResolvedThumbnail {
             Vec2::new(16.0, 16.0),
         ),
         anchor: Anchor::BOTTOM_CENTER,
+        fallback_scale: 1.0,
     }
 }
 
@@ -99,41 +107,79 @@ fn resolve_enemy_thumbnail(
     asset_server: &AssetServer,
     image_assets: &mut Assets<Image>,
     cache: &mut ThumbnailCache,
+    depth_scale_config: &carcinisation::stage::depth_scale::DepthScaleConfig,
+    animation_tag: Option<&str>,
 ) -> ResolvedThumbnail {
-    match enemy_type {
-        EnemyType::Mosquiton => match compose_mosquiton_preview(depth) {
-            Ok(preview) => {
-                let cached = cache
-                    .composed_enemies
-                    .entry((enemy_type, depth))
-                    .or_insert_with(|| CachedThumbnail {
-                        image: image_assets.add(rgba_image_to_bevy_image(&preview.pixels)),
-                        anchor: preview.anchor,
-                    })
-                    .clone();
+    use crate::placement::SpawnTemplate;
 
-                ResolvedThumbnail {
+    let tag = animation_tag
+        .or_else(|| SpawnTemplate::Enemy(enemy_type).default_animation_tag())
+        .unwrap_or("idle");
+    let cache_key = (enemy_type, depth, tag.to_string());
+
+    // Return cached result if available.
+    if let Some(cached) = cache.composed_enemies.get(&cache_key) {
+        return ResolvedThumbnail {
+            sprite: Sprite::from_image(cached.image.clone()),
+            anchor: cached.anchor,
+            fallback_scale: cached.fallback_scale,
+        };
+    }
+
+    // Try composed atlas at exact depth.
+    if let Ok(preview) = compose_enemy_preview(enemy_type, depth, tag) {
+        let cached = CachedThumbnail {
+            image: image_assets.add(rgba_image_to_bevy_image(&preview.pixels)),
+            anchor: preview.anchor,
+            fallback_scale: 1.0,
+        };
+        cache.composed_enemies.insert(cache_key, cached.clone());
+        return ResolvedThumbnail {
+            sprite: Sprite::from_image(cached.image),
+            anchor: cached.anchor,
+            fallback_scale: 1.0,
+        };
+    }
+
+    // Try spritesheet at exact depth.
+    if let Some(thumb) = get_enemy_thumbnail(enemy_type, depth) {
+        return asset_thumbnail(asset_server, thumb);
+    }
+
+    // Fallback: try nearest authored depth with a composed atlas or spritesheet.
+    for delta in 1..9_i8 {
+        for candidate_i8 in [depth.to_i8() - delta, depth.to_i8() + delta] {
+            let Ok(candidate) = Depth::try_from(candidate_i8) else {
+                continue;
+            };
+            if candidate.to_i8() == 0 {
+                continue;
+            }
+            let scale = depth_scale_config
+                .fallback_scale(depth, candidate)
+                .unwrap_or(1.0);
+            if let Ok(preview) = compose_enemy_preview(enemy_type, candidate, tag) {
+                let cached = CachedThumbnail {
+                    image: image_assets.add(rgba_image_to_bevy_image(&preview.pixels)),
+                    anchor: preview.anchor,
+                    fallback_scale: scale,
+                };
+                cache.composed_enemies.insert(cache_key, cached.clone());
+                return ResolvedThumbnail {
                     sprite: Sprite::from_image(cached.image),
                     anchor: cached.anchor,
-                }
+                    fallback_scale: scale,
+                };
             }
-            Err(e) => {
-                bevy::log::warn!("No mosquiton preview for depth {}: {e:#}", depth.to_i8());
-                placeholder_thumbnail()
+            if let Some(thumb) = get_enemy_thumbnail(enemy_type, candidate) {
+                let mut result = asset_thumbnail(asset_server, thumb);
+                result.fallback_scale = scale;
+                return result;
             }
-        },
-        _ => match get_enemy_thumbnail(enemy_type, depth) {
-            Some(thumb) => asset_thumbnail(asset_server, thumb),
-            None => {
-                bevy::log::warn!(
-                    "No thumbnail for {:?} at depth {}",
-                    enemy_type,
-                    depth.to_i8()
-                );
-                placeholder_thumbnail()
-            }
-        },
+        }
     }
+
+    placeholder_thumbnail()
 }
 
 fn asset_thumbnail(
@@ -145,11 +191,21 @@ fn asset_thumbnail(
     ResolvedThumbnail {
         sprite,
         anchor: Anchor::BOTTOM_CENTER,
+        fallback_scale: 1.0,
     }
 }
 
-fn compose_mosquiton_preview(depth: Depth) -> Result<ComposedPreview> {
-    let preview_dir = assets_root().join(format!("sprites/enemies/mosquiton_{}", depth.to_i8()));
+/// Try to compose a preview for any enemy type at the given depth and animation tag.
+fn compose_enemy_preview(
+    enemy_type: EnemyType,
+    depth: Depth,
+    animation_tag: &str,
+) -> Result<ComposedPreview> {
+    let preview_dir = assets_root().join(format!(
+        "sprites/enemies/{}_{}",
+        enemy_type.sprite_base_name(),
+        depth.to_i8()
+    ));
     let atlas_path = preview_dir.join("atlas.json");
     let atlas: CompositionAtlas = serde_json::from_str(
         &fs::read_to_string(&atlas_path)
@@ -162,7 +218,7 @@ fn compose_mosquiton_preview(depth: Depth) -> Result<ComposedPreview> {
         .with_context(|| format!("failed to open {}", atlas_image_path.display()))?
         .to_rgba8();
 
-    compose_preview_frame(&atlas, &atlas_image, TAG_IDLE_FLY, 0)
+    compose_preview_frame(&atlas, &atlas_image, animation_tag, 0)
 }
 
 fn compose_preview_frame(
@@ -694,8 +750,8 @@ mod tests {
 
     #[test]
     fn mosquiton_preview_uses_composed_idle_frame_instead_of_raw_sheet() {
-        let preview =
-            compose_mosquiton_preview(Depth::Three).expect("mosquiton preview should load");
+        let preview = compose_enemy_preview(EnemyType::Mosquiton, Depth::Three, "idle_fly")
+            .expect("mosquiton preview should load");
         let raw_sheet = image::open(assets_root().join("sprites/enemies/mosquiton_3/source.png"))
             .expect("raw sheet should load")
             .to_rgba8();

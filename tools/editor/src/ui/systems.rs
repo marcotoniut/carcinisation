@@ -247,6 +247,7 @@ fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
 
     let mut set_placement: Option<SpawnTemplate> = None;
     let mut set_depth: Option<Depth> = None;
+    let mut set_animation_tag: Option<Option<String>> = None;
 
     egui::Window::new("Spawn Palette")
         .default_pos([200.0, 30.0])
@@ -265,46 +266,81 @@ fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
             let active_template = world
                 .get_resource::<PlacementMode>()
                 .and_then(|pm| pm.active.as_ref().map(|s| s.template.clone()));
+            let current_animation_tag = world
+                .get_resource::<PlacementMode>()
+                .and_then(|pm| pm.active.as_ref().and_then(|s| s.animation_tag.clone()));
 
             ui.horizontal(|ui| {
-                // Left column: depth radio buttons
+                // Left column: depth radio buttons (always enabled)
                 ui.vertical(|ui| {
                     field_label(ui, "Depth");
                     for &depth in EDITOR_DEPTHS {
-                        let enabled = active_template
+                        let has_native = active_template
                             .as_ref()
                             .is_some_and(|t| t.has_sprite_at_depth(depth));
-                        let label = format!("{}", depth.to_i8());
-                        ui.add_enabled_ui(enabled, |ui| {
-                            if ui.radio_value(&mut selected_depth, depth, label).changed() {
-                                set_depth = Some(selected_depth);
-                            }
-                        });
+                        let label = if has_native {
+                            format!("{}", depth.to_i8())
+                        } else {
+                            format!("{}*", depth.to_i8())
+                        };
+                        if ui.radio_value(&mut selected_depth, depth, label).changed() {
+                            set_depth = Some(selected_depth);
+                        }
                     }
                 });
 
                 ui.separator();
 
-                // Right column: spawn type lists
+                // Middle column: spawn type lists
                 ui.vertical(|ui| {
                     palette_section(ui, "Objects", &objects, &mut set_placement);
                     palette_section(ui, "Destructibles", &destructibles, &mut set_placement);
                     palette_section(ui, "Pickups", &pickups, &mut set_placement);
                     palette_section(ui, "Enemies", &enemies, &mut set_placement);
                 });
+
+                // Pose dropdown (only for composed enemies with animation tags)
+                if let Some(ref template) = active_template
+                    && let Some(tags) = template.available_animation_tags()
+                {
+                    ui.separator();
+                    ui.vertical(|ui| {
+                        field_label(ui, "Pose");
+                        let selected_tag = current_animation_tag.clone().unwrap_or_else(|| {
+                            template
+                                .default_animation_tag()
+                                .unwrap_or("idle")
+                                .to_string()
+                        });
+                        egui::ComboBox::from_id_salt("pose_selector")
+                            .selected_text(&selected_tag)
+                            .show_ui(ui, |ui| {
+                                for &tag in tags {
+                                    if ui.selectable_label(selected_tag == tag, tag).clicked() {
+                                        set_animation_tag = Some(Some(tag.to_string()));
+                                    }
+                                }
+                            });
+                    });
+                }
             });
         });
 
     if let Some(template) = set_placement
         && let Some(mut pm) = world.get_resource_mut::<PlacementMode>()
     {
-        // Use current depth if valid for the new template, otherwise fall back to default.
-        let depth = if template.has_sprite_at_depth(current_depth) {
+        // Keep current depth if already placing, otherwise use the template's default.
+        let depth = if pm.active.is_some() {
             current_depth
         } else {
             template.default_depth()
         };
-        pm.active = Some(PlacementState { template, depth });
+        let animation_tag = template.default_animation_tag().map(|t| t.to_string());
+        pm.active = Some(PlacementState {
+            template,
+            depth,
+            animation_tag,
+        });
     }
     if let Some(depth) = set_depth
         && let Some(mut pm) = world.get_resource_mut::<PlacementMode>()
@@ -312,7 +348,15 @@ fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
     {
         state.depth = depth;
     }
+    if let Some(tag) = set_animation_tag
+        && let Some(mut pm) = world.get_resource_mut::<PlacementMode>()
+        && let Some(state) = pm.active.as_mut()
+    {
+        state.animation_tag = tag;
+    }
 }
+
+const PALETTE_BUTTON_WIDTH: f32 = 110.0;
 
 fn palette_section(
     ui: &mut egui::Ui,
@@ -324,7 +368,7 @@ fn palette_section(
         for template in templates {
             if ui
                 .add_sized(
-                    [ui.available_width(), 0.0],
+                    [PALETTE_BUTTON_WIDTH, 0.0],
                     egui::Button::new(template.label()),
                 )
                 .clicked()

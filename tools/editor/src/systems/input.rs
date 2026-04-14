@@ -14,6 +14,7 @@ use bevy::sprite::Anchor;
 use bevy::window::PrimaryWindow;
 use bevy_inspector_egui::bevy_egui::input::EguiWantsInput;
 use bevy_prototype_lyon::prelude::*;
+use carcinisation::stage::components::placement::Depth;
 use std::time::{Duration, Instant};
 
 // ─── Tuning constants ───────────────────────────────────────────────────────
@@ -1158,6 +1159,7 @@ pub fn update_placement_ghost(
     asset_server: Res<AssetServer>,
     mut image_assets: ResMut<Assets<Image>>,
     mut thumbnail_cache: ResMut<crate::resources::ThumbnailCache>,
+    depth_scale_config: Res<carcinisation::stage::depth_scale::DepthScaleConfig>,
 ) {
     use crate::builders::thumbnail::resolve_stage_spawn_thumbnail;
     use crate::components::PlacementGhost;
@@ -1198,6 +1200,8 @@ pub fn update_placement_ghost(
         &asset_server,
         &mut image_assets,
         &mut thumbnail_cache,
+        &depth_scale_config,
+        state.animation_tag.as_deref(),
     );
 
     let mut sprite = thumbnail.sprite;
@@ -1207,8 +1211,36 @@ pub fn update_placement_ghost(
         PlacementGhost,
         sprite,
         thumbnail.anchor,
-        Transform::from_translation(world_position.extend(200.0)),
+        Transform::from_translation(world_position.extend(200.0))
+            .with_scale(Vec3::splat(thumbnail.fallback_scale)),
     ));
+}
+
+/// @system Keys 1-9 set depth while in placement mode.
+pub fn placement_depth_hotkeys(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut placement_mode: ResMut<PlacementMode>,
+) {
+    let Some(state) = placement_mode.active.as_mut() else {
+        return;
+    };
+    let pressed = [
+        (KeyCode::Digit1, Depth::One),
+        (KeyCode::Digit2, Depth::Two),
+        (KeyCode::Digit3, Depth::Three),
+        (KeyCode::Digit4, Depth::Four),
+        (KeyCode::Digit5, Depth::Five),
+        (KeyCode::Digit6, Depth::Six),
+        (KeyCode::Digit7, Depth::Seven),
+        (KeyCode::Digit8, Depth::Eight),
+        (KeyCode::Digit9, Depth::Nine),
+    ];
+    for (key, depth) in pressed {
+        if keys.just_pressed(key) {
+            state.depth = depth;
+            return;
+        }
+    }
 }
 
 #[cfg(test)]

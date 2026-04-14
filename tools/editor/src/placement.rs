@@ -7,6 +7,7 @@ use carcinisation::stage::{
 };
 
 use crate::builders::thumbnail::get_enemy_thumbnail;
+use carcinisation::stage::enemy::data::{mosquiton, spidey};
 
 /// Depths available in the editor spawn palette (excludes 0 = player layer).
 pub const EDITOR_DEPTHS: &[Depth] = &[
@@ -211,6 +212,24 @@ impl SpawnTemplate {
             SpawnTemplate::Enemy(EnemyType::Kyle),
         ]
     }
+
+    /// Available animation tags for composed enemies. `None` for non-composed types.
+    pub fn available_animation_tags(&self) -> Option<&'static [&'static str]> {
+        match self {
+            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::GALLERY_TAGS),
+            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::GALLERY_TAGS),
+            _ => None,
+        }
+    }
+
+    /// Default animation tag for preview. `None` for non-composed types.
+    pub fn default_animation_tag(&self) -> Option<&'static str> {
+        match self {
+            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::TAG_IDLE_FLY),
+            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::TAG_IDLE),
+            _ => None,
+        }
+    }
 }
 
 /// Active placement mode state.
@@ -223,4 +242,6 @@ pub struct PlacementMode {
 pub struct PlacementState {
     pub template: SpawnTemplate,
     pub depth: Depth,
+    /// Selected animation tag for composed-enemy preview. `None` = default idle.
+    pub animation_tag: Option<String>,
 }

@@ -61,7 +61,7 @@ use systems::{
     input::{
         highlight_hovered_path_nodes, on_alt_mouse_motion, on_delete_selected, on_middle_mouse_pan,
         on_mouse_drag, on_mouse_press, on_mouse_release, on_pinch_zoom, on_right_click_drag,
-        on_scroll, tick_gesture_timeout, update_placement_ghost,
+        on_scroll, placement_depth_hotkeys, tick_gesture_timeout, update_placement_ghost,
     },
     maximize_window, on_scene_change, on_unload_scene, rebuild_path_during_drag, setup_camera,
 };
@@ -147,6 +147,7 @@ fn main() {
         .add_systems(Update, rebuild_path_during_drag.after(on_mouse_drag))
         .add_systems(Update, highlight_hovered_path_nodes)
         .add_systems(Update, update_placement_ghost)
+        .add_systems(Update, placement_depth_hotkeys)
         .add_systems(Update, systems::exit_on_window_close_request)
         .add_systems(Update, animate_sprite)
         .run();

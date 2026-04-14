@@ -241,10 +241,17 @@ pub fn spawn_stage(
         .filter(|x| stage_controls_ui.depth_is_visible(x.get_depth()))
         .enumerate()
     {
-        let preview =
-            resolve_stage_spawn_thumbnail(spawn, asset_server, image_assets, thumbnail_cache);
+        let preview = resolve_stage_spawn_thumbnail(
+            spawn,
+            asset_server,
+            image_assets,
+            thumbnail_cache,
+            depth_scale_config,
+            None,
+        );
 
         let depth_scale = editor_depth_scale(editor_state, depth_scale_config, spawn.get_depth());
+        let total_scale = depth_scale * preview.fallback_scale;
         commands.spawn((
             spawn.get_editor_name_component(index),
             StageSpawnLabel,
@@ -257,7 +264,7 @@ pub fn spawn_stage(
                     .get_coordinates()
                     .extend(spawn.get_depth_editor_z_index()),
             )
-            .with_scale(Vec3::splat(depth_scale)),
+            .with_scale(Vec3::splat(total_scale)),
             preview.anchor,
         ));
     }
@@ -367,14 +374,21 @@ fn spawn_step_entities(
             continue;
         }
         let v = step_origin + *spawn.get_coordinates();
-        let mut preview =
-            resolve_stage_spawn_thumbnail(spawn, asset_server, image_assets, thumbnail_cache);
+        let mut preview = resolve_stage_spawn_thumbnail(
+            spawn,
+            asset_server,
+            image_assets,
+            thumbnail_cache,
+            depth_scale_config,
+            None,
+        );
 
         if ghost {
             preview.sprite.color = preview.sprite.color.with_alpha(GHOST_ALPHA);
         }
 
         let depth_scale = editor_depth_scale(editor_state, depth_scale_config, spawn.get_depth());
+        let total_scale = depth_scale * preview.fallback_scale;
         commands.spawn((
             spawn.get_editor_name_component(step_index),
             StageSpawnLabel,
@@ -387,7 +401,7 @@ fn spawn_step_entities(
             SceneItem,
             preview.sprite,
             Transform::from_translation(v.extend(spawn.get_depth_editor_z_index()))
-                .with_scale(Vec3::splat(depth_scale)),
+                .with_scale(Vec3::splat(total_scale)),
             preview.anchor,
         ));
     }
