@@ -1826,4 +1826,44 @@ mod tests {
             stage_data.steps.len()
         );
     }
+
+    #[test]
+    fn depth_hotkey_sets_depth_in_placement_mode() {
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+        app.insert_resource(PlacementMode {
+            active: Some(crate::placement::PlacementState {
+                template: crate::placement::SpawnTemplate::Enemy(
+                    carcinisation::stage::enemy::entity::EnemyType::Mosquiton,
+                ),
+                depth: Depth::Three,
+                animation_tag: None,
+            }),
+        });
+        app.add_systems(Update, placement_depth_hotkeys);
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit7);
+        app.update();
+
+        let pm = app.world().resource::<PlacementMode>();
+        assert_eq!(pm.active.as_ref().unwrap().depth, Depth::Seven);
+    }
+
+    #[test]
+    fn depth_hotkey_noop_without_placement() {
+        let mut app = App::new();
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+        app.insert_resource(PlacementMode { active: None });
+        app.add_systems(Update, placement_depth_hotkeys);
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit5);
+        app.update();
+
+        let pm = app.world().resource::<PlacementMode>();
+        assert!(pm.active.is_none());
+    }
 }

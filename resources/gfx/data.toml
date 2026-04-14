@@ -163,27 +163,6 @@ width = 50
 # path = "sprites/enemies/mosquito_head_shot.px_sprite.png"
 
 [[images]]
-path = "sprites/enemies/spider_idle_7.png"
-target_path = "sprites/enemies/spider_idle_7.px_sprite.png"
-[[images]]
-path = "sprites/enemies/spider_death_7.png"
-target_path = "sprites/enemies/spider_death_7.px_sprite.png"
-[[images]]
-path = "sprites/enemies/spider_boss_attack.png"
-target_path = "sprites/enemies/spider_boss_attack.px_sprite.png"
-[[images]]
-path = "sprites/enemies/spider_boss_death.png"
-target_path = "sprites/enemies/spider_boss_death.px_sprite.png"
-[[images]]
-path = "sprites/enemies/spider_boss.png"
-target_path = "sprites/enemies/spider_boss.px_sprite.png"
-[[images]]
-path = "sprites/enemies/spider_boss_web.png"
-target_path = "sprites/enemies/spider_boss_web.px_sprite.png"
-[[images]]
-path = "sprites/enemies/spider_boss_web_attack.png"
-target_path = "sprites/enemies/spider_boss_web_attack.px_sprite.png"
-[[images]]
 path = "sprites/enemies/worm.png"
 target_path = "sprites/enemies/worm.px_sprite.png"
 [[images]]
