@@ -513,21 +513,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> Option<(Strin
             Depth::Three => Some(("sprites/enemies/mosquiton_3/source.png".into(), None)),
             _ => None,
         },
-        EnemyType::Spidey => {
-            let loc = "sprites/enemies/spider_idle_";
-            let ext = ".px_sprite.png";
-            match depth {
-                Depth::Two => Some((
-                    format!("{loc}2{ext}"),
-                    URect::new(0, 0, 49, 49).as_rect().into(),
-                )),
-                Depth::Seven => Some((
-                    format!("{loc}7{ext}"),
-                    URect::new(0, 0, 35, 35).as_rect().into(),
-                )),
-                _ => None,
-            }
-        }
+        EnemyType::Spidey => None,
         EnemyType::Tardigrade => {
             let loc = "sprites/enemies/tardigrade_idle_";
             let ext = ".px_sprite.png";

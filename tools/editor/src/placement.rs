@@ -152,7 +152,16 @@ impl SpawnTemplate {
             SpawnTemplate::Pickup(_) => {
                 matches!(depth, Depth::Four | Depth::Five | Depth::Six)
             }
-            SpawnTemplate::Enemy(enemy_type) => get_enemy_thumbnail(*enemy_type, depth).is_some(),
+            SpawnTemplate::Enemy(enemy_type) => {
+                // Check composed atlas or spritesheet.
+                let base = crate::constants::assets_root().join(format!(
+                    "sprites/enemies/{}_{}",
+                    enemy_type.sprite_base_name(),
+                    depth.to_i8()
+                ));
+                base.join("atlas.json").exists()
+                    || get_enemy_thumbnail(*enemy_type, depth).is_some()
+            }
         }
     }
 
@@ -170,7 +179,7 @@ impl SpawnTemplate {
             SpawnTemplate::Enemy(EnemyType::Mosquito) => Depth::Three,
             SpawnTemplate::Enemy(EnemyType::Mosquiton) => Depth::Three,
             SpawnTemplate::Enemy(EnemyType::Tardigrade) => Depth::Six,
-            SpawnTemplate::Enemy(EnemyType::Spidey) => Depth::Two,
+            SpawnTemplate::Enemy(EnemyType::Spidey) => Depth::Three,
             SpawnTemplate::Enemy(_) => Depth::Three,
         }
     }
