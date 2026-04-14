@@ -855,6 +855,20 @@ struct PxSpriteAtlasDescriptor {
     regions: Vec<AtlasRegionDescriptor>,
     #[serde(default)]
     names: BTreeMap<String, u32>,
+    /// Per-region animation metadata derived from aseprite tags.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    animations: BTreeMap<String, RegionAnimationDescriptor>,
+}
+
+/// Animation metadata for one atlas region, derived from an aseprite tag.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RegionAnimationDescriptor {
+    /// Total animation cycle duration in milliseconds.
+    pub duration_ms: u64,
+    /// Playback direction: "forward" or "backward".
+    pub direction: String,
+    /// Finish behavior: "loop", "mark", or "despawn".
+    pub on_finish: String,
 }
 
 #[derive(Serialize)]
@@ -897,6 +911,7 @@ fn write_px_atlas_metadata(
             .enumerate()
             .map(|(index, sprite)| (sprite.id.clone(), index as u32))
             .collect(),
+        animations: BTreeMap::new(),
     };
 
     let atlas_path = output_dir.join("atlas.px_atlas.ron");
@@ -911,7 +926,8 @@ fn write_px_atlas_metadata(
 ///
 /// Quantizes authored colours to the nearest runtime palette entry, then
 /// returns one `u8` per pixel: 0 = transparent, 1–N = palette index.
-fn compute_palette_indices(source: &RgbaImage) -> Result<Vec<u8>> {
+/// Map every pixel in `source` to a 4-bit palette index (0 = transparent).
+pub fn compute_palette_indices(source: &RgbaImage) -> Result<Vec<u8>> {
     let palette = load_runtime_palette(Path::new(DEFAULT_RUNTIME_PALETTE_PATH))?;
     let grayscale_mapping = grayscale_ramp_mapping(source, &palette);
 
@@ -2748,6 +2764,264 @@ impl SpriteSpec {
         composition_path.push(format!("{}.composition.toml", stem.to_string_lossy()));
         Ok(composition_path)
     }
+}
+
+// ── Simple tagged-frame atlas export ──────────────────────────────────────
+
+/// Request to build a simple tagged-frame sprite atlas from an aseprite file.
+pub struct SimpleAtlasRequest {
+    pub aseprite_path: PathBuf,
+    pub output_dir: PathBuf,
+    /// Asset-relative path for the PXI reference in the RON descriptor.
+    pub pxi_asset_path: PathBuf,
+}
+
+/// Manifest entry for batch simple-atlas export.
+#[derive(Clone, Debug, Deserialize)]
+pub struct SimpleAtlasEntry {
+    /// Aseprite source file, relative to the manifest directory.
+    pub source: String,
+    /// Asset-relative output directory (also used for PXI asset path).
+    pub output: String,
+}
+
+/// Manifest for batch simple-atlas export.
+#[derive(Debug, Deserialize)]
+pub struct SimpleAtlasManifest {
+    pub atlases: Vec<SimpleAtlasEntry>,
+}
+
+/// Export all simple atlases listed in a manifest file.
+pub fn export_simple_atlas_manifest(manifest_path: &Path, assets_root: &Path) -> Result<()> {
+    let body = fs::read_to_string(manifest_path)
+        .with_context(|| format!("Failed to read {}", manifest_path.display()))?;
+    let manifest: SimpleAtlasManifest = toml::from_str(&body)
+        .with_context(|| format!("Failed to parse {}", manifest_path.display()))?;
+    let manifest_dir = manifest_path.parent().unwrap_or_else(|| Path::new("."));
+
+    for entry in &manifest.atlases {
+        let request = SimpleAtlasRequest {
+            aseprite_path: manifest_dir.join(&entry.source),
+            output_dir: assets_root.join(&entry.output),
+            pxi_asset_path: PathBuf::from(format!("{}/atlas.pxi", entry.output)),
+        };
+        export_simple_atlas(&request)
+            .with_context(|| format!("Failed to export '{}'", entry.source))?;
+    }
+    Ok(())
+}
+
+/// Build a simple sprite atlas: one region per tag, frames packed horizontally.
+/// Frames are trimmed to their opaque bounding box (shared per tag).
+pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
+    let source_bytes = fs::read(&request.aseprite_path)
+        .with_context(|| format!("Failed to read {}", request.aseprite_path.display()))?;
+    let ase = AsepriteFile::load(&source_bytes)
+        .with_context(|| format!("Failed to parse {}", request.aseprite_path.display()))?;
+
+    let (w, h) = (u32::from(ase.size().0), u32::from(ase.size().1));
+    let num_frames = ase.frames().len();
+
+    // Flatten each frame (merge all visible layers).
+    let mut flat_frames: Vec<RgbaImage> = Vec::new();
+    for frame_idx in 0..num_frames {
+        let frame = &ase.frames()[frame_idx];
+        let mut merged = RgbaImage::new(w, h);
+        for cel in &frame.cels {
+            let layer = &ase.file.layers[cel.layer_index];
+            if !layer.flags.contains(LayerFlags::VISIBLE) {
+                continue;
+            }
+            if layer.layer_type != LayerType::Normal {
+                continue;
+            }
+            let img = load_cel_image(&ase, cel)?;
+            let (cx, cy) = (i32::from(cel.origin.0), i32::from(cel.origin.1));
+            for py in 0..img.height() {
+                for px in 0..img.width() {
+                    let src = img.get_pixel(px, py);
+                    if src.0[3] == 0 {
+                        continue;
+                    }
+                    let dx = cx + px as i32;
+                    let dy = cy + py as i32;
+                    if dx >= 0 && dy >= 0 && (dx as u32) < w && (dy as u32) < h {
+                        merged.put_pixel(dx as u32, dy as u32, *src);
+                    }
+                }
+            }
+        }
+        flat_frames.push(merged);
+    }
+
+    // Group frames by tags, capturing animation metadata.
+    struct TagRegion {
+        name: String,
+        frames: Vec<usize>,
+        direction: AnimationDirection,
+        repeat: Option<u16>,
+    }
+    let mut tag_regions: Vec<TagRegion> = Vec::new();
+    for tag in ase.tags().iter() {
+        let frames: Vec<usize> = tag.range.clone().map(usize::from).collect();
+        tag_regions.push(TagRegion {
+            name: tag.name.clone(),
+            frames,
+            direction: tag.direction,
+            repeat: tag.repeat,
+        });
+    }
+    if tag_regions.is_empty() {
+        tag_regions.push(TagRegion {
+            name: "default".to_string(),
+            frames: (0..flat_frames.len()).collect(),
+            direction: AnimationDirection::Forward,
+            repeat: None,
+        });
+    }
+
+    // Trim each tag's frames to the tightest shared bounding box.
+    struct PackedRegion {
+        name: String,
+        frame_size: (u32, u32),
+        rects: Vec<(u32, u32, u32, u32)>,
+    }
+    let mut packed_regions: Vec<PackedRegion> = Vec::new();
+    let mut atlas_strips: Vec<RgbaImage> = Vec::new();
+
+    for tag in &tag_regions {
+        let mut min_x = w;
+        let mut min_y = h;
+        let mut max_x = 0u32;
+        let mut max_y = 0u32;
+        for &fi in &tag.frames {
+            for (px, py, pixel) in flat_frames[fi].enumerate_pixels() {
+                if pixel.0[3] > 0 {
+                    min_x = min_x.min(px);
+                    min_y = min_y.min(py);
+                    max_x = max_x.max(px + 1);
+                    max_y = max_y.max(py + 1);
+                }
+            }
+        }
+        if max_x <= min_x || max_y <= min_y {
+            continue;
+        }
+        let tw = max_x - min_x;
+        let th = max_y - min_y;
+        let num = tag.frames.len() as u32;
+
+        let mut strip = RgbaImage::new(tw * num, th);
+        for (i, &fi) in tag.frames.iter().enumerate() {
+            let src = &flat_frames[fi];
+            for y in 0..th {
+                for x in 0..tw {
+                    strip.put_pixel(i as u32 * tw + x, y, *src.get_pixel(min_x + x, min_y + y));
+                }
+            }
+        }
+        atlas_strips.push(strip);
+        packed_regions.push(PackedRegion {
+            name: tag.name.clone(),
+            frame_size: (tw, th),
+            rects: Vec::new(),
+        });
+    }
+
+    let atlas_w = atlas_strips.iter().map(|s| s.width()).max().unwrap_or(1);
+    let atlas_h: u32 = atlas_strips.iter().map(|s| s.height()).sum();
+    let mut atlas = RgbaImage::new(atlas_w, atlas_h);
+    let mut y_cursor = 0u32;
+    for (i, strip) in atlas_strips.iter().enumerate() {
+        imageops::overlay(&mut atlas, strip, 0, i64::from(y_cursor));
+        let region = &mut packed_regions[i];
+        let (tw, _) = region.frame_size;
+        let num = strip.width() / tw;
+        for f in 0..num {
+            region
+                .rects
+                .push((f * tw, y_cursor, region.frame_size.0, region.frame_size.1));
+        }
+        y_cursor += strip.height();
+    }
+
+    fs::create_dir_all(&request.output_dir)?;
+    atlas
+        .save(request.output_dir.join("atlas.png"))
+        .context("Failed to save atlas PNG")?;
+
+    let indices = compute_palette_indices(&atlas)?;
+    let pxi_bytes = crate::pxi::encode_compressed(atlas.width(), atlas.height(), &indices)
+        .context("Failed to encode PXI")?;
+    fs::write(request.output_dir.join("atlas.pxi"), &pxi_bytes).context("Failed to write PXI")?;
+
+    // Build animation metadata from tag timing.
+    let mut animations = BTreeMap::new();
+    for tag in &tag_regions {
+        let total_ms: u64 = tag
+            .frames
+            .iter()
+            .map(|&fi| u64::from(ase.frames()[fi].duration))
+            .sum();
+        let direction = match tag.direction {
+            AnimationDirection::Reverse => "backward",
+            _ => "forward",
+        };
+        let on_finish = match tag.repeat {
+            None => "loop",
+            Some(_) => "mark",
+        };
+        animations.insert(
+            tag.name.clone(),
+            RegionAnimationDescriptor {
+                duration_ms: total_ms,
+                direction: direction.to_string(),
+                on_finish: on_finish.to_string(),
+            },
+        );
+    }
+
+    let descriptor = PxSpriteAtlasDescriptor {
+        indexed_image: request.pxi_asset_path.clone(),
+        regions: packed_regions
+            .iter()
+            .map(|r| AtlasRegionDescriptor {
+                frame_size: [r.frame_size.0, r.frame_size.1],
+                frames: r
+                    .rects
+                    .iter()
+                    .map(|&(x, y, rw, rh)| AtlasRectDescriptor { x, y, w: rw, h: rh })
+                    .collect(),
+            })
+            .collect(),
+        names: packed_regions
+            .iter()
+            .enumerate()
+            .map(|(i, r)| (r.name.clone(), i as u32))
+            .collect(),
+        animations,
+    };
+    let ron_path = request.output_dir.join("atlas.px_atlas.ron");
+    let body = ron::ser::to_string_pretty(&descriptor, ron::ser::PrettyConfig::default())
+        .context("Failed to serialize atlas RON")?;
+    fs::write(&ron_path, format!("{body}\n")).context("Failed to write RON")?;
+
+    println!(
+        "Simple atlas: {} regions, {}x{} px",
+        packed_regions.len(),
+        atlas.width(),
+        atlas.height(),
+    );
+    for r in &packed_regions {
+        println!(
+            "  {:16} {}x{} x{} frames",
+            r.name,
+            r.frame_size.0,
+            r.frame_size.1,
+            r.rects.len()
+        );
+    }
+    Ok(())
 }
 
 #[cfg(test)]

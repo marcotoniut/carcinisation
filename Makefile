@@ -152,6 +152,12 @@ export-aseprite:
 	fi
 	cargo run -p process-aseprite -- --manifest $(ASEPRITE_MANIFEST) --entity $(ENTITY) --depth $(DEPTH) --output-root $(OUTPUT_ROOT)
 
+ATTACK_MANIFEST ?= resources/sprites/attacks/data.toml
+
+.PHONY: export-attack-atlases
+export-attack-atlases:
+	cargo run -p process-aseprite -- --simple-atlases --manifest $(ATTACK_MANIFEST)
+
 # =============================================================================
 # Web targets
 # =============================================================================

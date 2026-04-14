@@ -13,8 +13,10 @@ pub const SCORE_RANGED_CRITICAL_HIT: u32 = 4;
 pub const SCORE_MELEE_REGULAR_HIT: u32 = 3;
 pub const SCORE_MELEE_CRITICAL_HIT: u32 = 10;
 
-/// Asset path for the shared enemy attack sprite atlas.
-pub const ENEMY_ATTACK_ATLAS_PATH: &str = "sprites/attacks/enemy_attacks/atlas.px_atlas.ron";
+/// Asset path for the blood shot attack sprite atlas.
+pub const BLOOD_SHOT_ATLAS_PATH: &str = "sprites/attacks/blood_shot/atlas.px_atlas.ron";
+/// Asset path for the boulder throw attack sprite atlas.
+pub const BOULDER_THROW_ATLAS_PATH: &str = "sprites/attacks/boulder_throw/atlas.px_atlas.ron";
 
 #[derive(Component, Default)]
 pub struct EnemyAttack;
@@ -79,23 +81,33 @@ impl EnemyHoveringAttackType {
         }
     }
 
-    /// Atlas region ID for the hovering animation.
-    /// Region ordering matches `atlas.px_atlas.ron`: hovering_4=0, attack_hit_1=1, hovering_2=2, attack_hit_2=3.
+    /// Per-attack-type atlas asset path.
     #[must_use]
-    pub fn hovering_region_id(&self) -> AtlasRegionId {
+    pub fn atlas_path(&self) -> &'static str {
         match self {
-            Self::BloodShot => AtlasRegionId(0),
-            Self::BoulderThrow => AtlasRegionId(2),
+            Self::BloodShot => BLOOD_SHOT_ATLAS_PATH,
+            Self::BoulderThrow => BOULDER_THROW_ATLAS_PATH,
         }
     }
 
+    /// Atlas region ID for the hovering animation.
+    /// Region order follows aseprite tag order: hover, [destroy], hit.
+    #[must_use]
+    pub fn hovering_region_id(&self) -> AtlasRegionId {
+        AtlasRegionId(0)
+    }
+
     /// Atlas region ID for the hit animation.
+    /// Region order follows aseprite tag order: hover=0, destroy=1, hit=2.
     #[must_use]
     pub fn hit_region_id(&self) -> AtlasRegionId {
-        match self {
-            Self::BloodShot => AtlasRegionId(1),
-            Self::BoulderThrow => AtlasRegionId(3),
-        }
+        AtlasRegionId(2)
+    }
+
+    /// Atlas region ID for the destroy animation.
+    #[must_use]
+    pub fn destroy_region_id(&self) -> AtlasRegionId {
+        AtlasRegionId(1)
     }
 
     /// Base collision radius at the authored depth (depth 1).

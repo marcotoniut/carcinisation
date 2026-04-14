@@ -20,7 +20,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
+use carapace::prelude::{PxAnchor, PxSprite, PxSpriteAtlasAsset, PxSubPosition};
 use std::time::Duration;
 
 pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
@@ -94,6 +94,7 @@ pub fn despawn_dead_tardigrade(
 pub fn check_idle_tardigrade(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<Time<StageTimeDomain>>,
     query: Query<
@@ -128,6 +129,7 @@ pub fn check_idle_tardigrade(
                 spawn_boulder_throw_attack(
                     &mut commands,
                     &asset_server,
+                    &atlas_assets,
                     &stage_time,
                     *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                     position.0,

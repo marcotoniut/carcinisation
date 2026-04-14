@@ -1,0 +1,90 @@
+(
+    indexed_image: "sprites/attacks/blood_shot/atlas.pxi",
+    regions: [
+        (
+            frame_size: (36, 36),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 36,
+                    h: 36,
+                ),
+                (
+                    x: 36,
+                    y: 0,
+                    w: 36,
+                    h: 36,
+                ),
+                (
+                    x: 72,
+                    y: 0,
+                    w: 36,
+                    h: 36,
+                ),
+                (
+                    x: 108,
+                    y: 0,
+                    w: 36,
+                    h: 36,
+                ),
+            ],
+        ),
+        (
+            frame_size: (38, 38),
+            frames: [
+                (
+                    x: 0,
+                    y: 36,
+                    w: 38,
+                    h: 38,
+                ),
+                (
+                    x: 38,
+                    y: 36,
+                    w: 38,
+                    h: 38,
+                ),
+                (
+                    x: 76,
+                    y: 36,
+                    w: 38,
+                    h: 38,
+                ),
+            ],
+        ),
+        (
+            frame_size: (45, 45),
+            frames: [
+                (
+                    x: 0,
+                    y: 74,
+                    w: 45,
+                    h: 45,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "destroy": 1,
+        "hit": 2,
+        "hover": 0,
+    },
+    animations: {
+        "destroy": (
+            duration_ms: 99,
+            direction: "forward",
+            on_finish: "mark",
+        ),
+        "hit": (
+            duration_ms: 100,
+            direction: "forward",
+            on_finish: "mark",
+        ),
+        "hover": (
+            duration_ms: 700,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

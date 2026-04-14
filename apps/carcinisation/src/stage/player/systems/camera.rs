@@ -8,39 +8,68 @@ use crate::{
 use bevy::prelude::*;
 use carapace::prelude::PxSubPosition;
 
-/// @system Applies random offset during a camera shake, then restores the original position.
+/// Minimum intensity below which the shake is removed.
+const SHAKE_THRESHOLD: f32 = 0.3;
+
+/// @system Applies decaying camera shake each frame.
+///
+/// Each frame: undo previous offset → compute new random offset at current
+/// intensity → apply → decay intensity. When intensity drops below threshold,
+/// remove component and restore clean position.
 pub fn camera_shake(
     mut commands: Commands,
     mut query: Query<(Entity, &mut CameraShake, &mut PxSubPosition)>,
     time: Res<Time<StageTimeDomain>>,
 ) {
+    let dt = time.delta_secs();
+
     for (entity, mut shake, mut position) in &mut query {
-        if shake.shaking {
-            if shake.timer.tick(time.delta()).just_finished() {
-                let random_x = (rand::random::<f32>() - 0.5) * 2.0 * shake.intensity;
-                let random_y = (rand::random::<f32>() - 0.5) * 2.0 * shake.intensity;
-                position.0 = shake.original_position + Vec2::new(random_x, random_y);
-                shake.shaking = false;
-            }
-        } else {
+        // Undo previous frame's offset.
+        position.0 -= shake.current_offset;
+
+        if shake.intensity < SHAKE_THRESHOLD {
+            // Done shaking — clean up.
+            shake.current_offset = Vec2::ZERO;
             commands.entity(entity).remove::<CameraShake>();
-            position.0 = shake.original_position;
+            continue;
         }
+
+        // Random offset with guaranteed minimum displacement to avoid invisible shakes.
+        let angle = rand::random::<f32>() * std::f32::consts::TAU;
+        let magnitude = shake.intensity * (0.5 + 0.5 * rand::random::<f32>());
+        let offset = Vec2::new(angle.cos() * magnitude, angle.sin() * magnitude);
+
+        position.0 += offset;
+        shake.current_offset = offset;
+
+        // Exponential decay.
+        shake.intensity *= (-shake.decay * dt).exp();
     }
 }
 
-/// @trigger Initiates a camera shake on `CameraShakeEvent`.
+/// @trigger Initiates or reinforces a camera shake on `CameraShakeEvent`.
+///
+/// If a shake is already active, the new intensity is added to the current
+/// intensity rather than replacing it. This prevents hits from canceling
+/// ongoing shakes and makes rapid hits compound visually.
 pub fn on_camera_shake(
     _trigger: On<CameraShakeEvent>,
     mut commands: Commands,
-    camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
+    mut camera_query: Query<(Entity, Option<&mut CameraShake>), With<CameraPos>>,
 ) {
-    if let Ok((entity, position)) = camera_query.single() {
-        commands.entity(entity).insert(CameraShake {
-            timer: Timer::from_seconds(0.05, TimerMode::Once),
-            intensity: 3.0,
-            original_position: position.0,
-            shaking: true,
-        });
+    const BASE_INTENSITY: f32 = 3.0;
+    const DECAY_RATE: f32 = 12.0;
+
+    if let Ok((entity, existing_shake)) = camera_query.single_mut() {
+        if let Some(mut shake) = existing_shake {
+            // Reinforce existing shake instead of replacing.
+            shake.intensity += BASE_INTENSITY;
+        } else {
+            commands.entity(entity).insert(CameraShake {
+                intensity: BASE_INTENSITY,
+                decay: DECAY_RATE,
+                current_offset: Vec2::ZERO,
+            });
+        }
     }
 }

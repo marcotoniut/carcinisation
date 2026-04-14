@@ -5,12 +5,12 @@ pub mod player;
 use super::components::EnemyAttackDebugPosition;
 use super::components::{AttachedToComposedPart, EnemyAttack, EnemyHoveringAttackType};
 use crate::{
-    components::DespawnMark,
+    components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
     layer::Layer,
     stage::{
         components::{
             interactive::{Dead, Health},
-            placement::InView,
+            placement::{AuthoredDepths, Depth, InView},
         },
         enemy::composed::ComposedResolvedParts,
         messages::DepthChangedMessage,
@@ -19,7 +19,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::{PxAnchor, PxAtlasSprite, PxSpriteAtlasAsset, PxSubPosition};
 use cween::linear::components::{
     LinearValueReached, TargetingValueX, TargetingValueY, TargetingValueZ,
 };
@@ -81,12 +81,52 @@ pub fn on_enemy_attack_depth_changed(
     }
 }
 
-/// @system Despawns enemy attacks that have been marked dead.
+/// @system Spawns a destroy animation when a hovering attack is killed by the player,
+/// then despawns the attack entity. Falls back to immediate despawn if no destroy
+/// animation is authored.
 pub fn despawn_dead_attacks(
     mut commands: Commands,
-    query: Query<Entity, (Added<Dead>, With<EnemyAttack>)>,
+    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    query: Query<
+        (
+            Entity,
+            Option<&EnemyHoveringAttackType>,
+            &PxSubPosition,
+            &Depth,
+            Option<&PxAtlasSprite>,
+        ),
+        (Added<Dead>, With<EnemyAttack>),
+    >,
 ) {
-    for entity in query.iter() {
+    for (entity, attack_type, position, depth, existing_sprite) in query.iter() {
+        // Reuse the atlas handle from the attack's own sprite — guaranteed loaded
+        // since the attack was already rendering its hover animation.
+        if let Some(attack_type) = attack_type
+            && let Some(sprite) = existing_sprite
+            && let Some(atlas) = atlas_assets.get(&sprite.atlas)
+            && let Some(destroy_region) =
+                atlas.region_id(super::components::bundles::REGION_DESTROY)
+            && let Some(anim) = atlas.animation(super::components::bundles::REGION_DESTROY)
+        {
+            let destroy_sprite = PxAtlasSprite::new(sprite.atlas.clone(), destroy_region);
+            let animation_bundle = crate::pixel::PxAnimationBundle::from_parts(
+                anim.px_direction(),
+                anim.px_duration(),
+                anim.px_finish_behavior(),
+                carapace::prelude::PxFrameTransition::None,
+            );
+            commands.spawn((
+                Name::new(format!("Attack - {} - destroy", attack_type.get_name())),
+                PxSubPosition::from(position.0),
+                destroy_sprite,
+                animation_bundle,
+                PxAnchor::Center,
+                *depth,
+                depth.to_layer(),
+                AuthoredDepths::single(Depth::One),
+                DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.2),
+            ));
+        }
         commands.entity(entity).insert(DespawnMark);
     }
 }

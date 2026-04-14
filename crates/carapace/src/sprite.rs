@@ -1564,6 +1564,7 @@ frame 1
                 ],
             }],
             names: HashMap::default(),
+            animations: HashMap::default(),
         }
     }
 

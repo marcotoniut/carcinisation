@@ -29,7 +29,8 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxAnimationDuration, PxAnimationFinishBehavior, PxSprite, PxSubPosition,
+    PxAnchor, PxAnimationDuration, PxAnimationFinishBehavior, PxSprite, PxSpriteAtlasAsset,
+    PxSubPosition,
 };
 use std::time::Duration;
 
@@ -239,6 +240,7 @@ pub fn clear_finished_mosquito_attacks(
 pub fn check_idle_mosquito(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     // TODO
     // event_writer: MessageWriter<BloodAttackEvent>,
@@ -282,6 +284,7 @@ pub fn check_idle_mosquito(
             spawn_blood_shot_attack(
                 &mut commands,
                 &asset_server,
+                &atlas_assets,
                 &stage_time,
                 *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                 position.0,

@@ -1,0 +1,7 @@
+[[atlases]]
+source = "blood_shot.aseprite"
+output = "sprites/attacks/blood_shot"
+
+[[atlases]]
+source = "boulder_throw.aseprite"
+output = "sprites/attacks/boulder_throw"

@@ -525,7 +525,7 @@
     },
     {
       "id": "legs_overlay",
-      "definition_id": "visual_overlay",
+      "definition_id": "leg",
       "name": "Legs Overlay",
       "parent_id": "root",
       "source_layer": "legs",
@@ -535,6 +535,9 @@
         "y": 0
       },
       "tags": [
+        "leg",
+        "limb",
+        "targetable",
         "legs"
       ],
       "visible_by_default": true,

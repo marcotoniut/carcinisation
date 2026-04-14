@@ -31,7 +31,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::{PxSpriteAtlasAsset, PxSubPosition};
 
 const MOSQUITON_BLOOD_SHOT_EVENT_ID: &str = "blood_shot";
 
@@ -161,6 +161,7 @@ pub fn despawn_dead_mosquitons(
 pub fn trigger_mosquiton_authored_attack_cues(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<Time<StageTimeDomain>>,
     mut cue_reader: MessageReader<ComposedAnimationCueMessage>,
@@ -229,6 +230,7 @@ pub fn trigger_mosquiton_authored_attack_cues(
         spawn_blood_shot_attack(
             &mut commands,
             &asset_server,
+            &atlas_assets,
             &stage_time,
             *SCREEN_RESOLUTION_F32_H + camera_pos.0,
             current_pos,

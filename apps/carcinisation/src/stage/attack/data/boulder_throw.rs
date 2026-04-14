@@ -23,8 +23,16 @@ pub static BOULDER_ATTACK_ANIMATIONS: std::sync::LazyLock<HoveringAttackAnimatio
             ..default()
         };
 
+        let destroy_canonical = AnimationData {
+            finish_behavior: PxAnimationFinishBehavior::Mark,
+            frames: 2,
+            speed: 100,
+            ..default()
+        };
+
         HoveringAttackAnimations {
             hovering_canonical,
             hit_canonical,
+            destroy_canonical: Some(destroy_canonical),
         }
     });

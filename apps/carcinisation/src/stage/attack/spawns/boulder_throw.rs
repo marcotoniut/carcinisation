@@ -17,7 +17,7 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxSubPosition};
+use carapace::prelude::{PxAnchor, PxSpriteAtlasAsset, PxSubPosition};
 use cween::{
     linear::components::{
         TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
@@ -87,6 +87,7 @@ pub struct BoulderThrowBundle {
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
     asset_server: &AssetServer,
+    atlas_assets: &Assets<PxSpriteAtlasAsset>,
     _stage_time: &Res<Time<StageTimeDomain>>,
     target_pos: Vec2,
     current_pos: Vec2,
@@ -100,7 +101,7 @@ pub fn spawn_boulder_throw_attack(
         );
 
     let (atlas_sprite, animation, collider_data) =
-        make_hovering_attack_atlas_bundle(asset_server, &attack_type);
+        make_hovering_attack_atlas_bundle(asset_server, atlas_assets, &attack_type);
 
     let depth_f32 = depth.to_f32();
     let target_depth = PLAYER_DEPTH;

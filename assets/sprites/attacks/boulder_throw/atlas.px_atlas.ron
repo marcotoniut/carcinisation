@@ -1,0 +1,78 @@
+(
+    indexed_image: "sprites/attacks/boulder_throw/atlas.pxi",
+    regions: [
+        (
+            frame_size: (46, 46),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 46,
+                    h: 46,
+                ),
+                (
+                    x: 46,
+                    y: 0,
+                    w: 46,
+                    h: 46,
+                ),
+            ],
+        ),
+        (
+            frame_size: (46, 45),
+            frames: [
+                (
+                    x: 0,
+                    y: 46,
+                    w: 46,
+                    h: 45,
+                ),
+                (
+                    x: 46,
+                    y: 46,
+                    w: 46,
+                    h: 45,
+                ),
+            ],
+        ),
+        (
+            frame_size: (65, 65),
+            frames: [
+                (
+                    x: 0,
+                    y: 91,
+                    w: 65,
+                    h: 65,
+                ),
+                (
+                    x: 65,
+                    y: 91,
+                    w: 65,
+                    h: 65,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "destroy": 1,
+        "hit": 2,
+        "hover": 0,
+    },
+    animations: {
+        "destroy": (
+            duration_ms: 100,
+            direction: "forward",
+            on_finish: "mark",
+        ),
+        "hit": (
+            duration_ms: 100,
+            direction: "forward",
+            on_finish: "mark",
+        ),
+        "hover": (
+            duration_ms: 700,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

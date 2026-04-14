@@ -97,10 +97,17 @@ impl PlayerAttack {
     }
 }
 
+/// Decaying camera shake applied as an offset to the camera position.
+///
+/// Each frame applies a random offset scaled by the current intensity, then
+/// decays the intensity exponentially. When intensity drops below a threshold
+/// the component is removed and the offset is cleaned up.
 #[derive(Component, Reflect)]
 pub struct CameraShake {
-    pub timer: Timer,
+    /// Current shake intensity in pixels. Decays each frame.
     pub intensity: f32,
-    pub original_position: Vec2,
-    pub shaking: bool,
+    /// Decay rate per second. Higher = faster fade.
+    pub decay: f32,
+    /// Accumulated offset applied this frame. Subtracted on cleanup.
+    pub current_offset: Vec2,
 }

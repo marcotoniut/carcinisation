@@ -53,10 +53,15 @@ use super::components::placement::{AuthoredDepths, Depth};
 
 const CONFIG_PATH: &str = "assets/config/depth_scale.ron";
 
-/// Visible depth range for fallback scaling.
-const VISIBLE_DEPTH_MIN: i8 = 1;
+/// Depth range for fallback scaling. Depth 0 is included so that effects
+/// spawned at the player depth (e.g. hit/destroy animations authored at
+/// depth 1) receive correct scaling.
+const VISIBLE_DEPTH_MIN: i8 = 0;
 const VISIBLE_DEPTH_MAX: i8 = 9;
-const DEPTH_COUNT: i8 = VISIBLE_DEPTH_MAX - VISIBLE_DEPTH_MIN + 1;
+/// Number of depths in the original 1-9 range. The geometric ratio is computed
+/// so that depth 1 = MAX_SCALE and depth 9 = MIN_SCALE, same as before.
+/// Depth 0 is extrapolated one step beyond depth 1.
+const DEPTH_STEP_COUNT: i8 = VISIBLE_DEPTH_MAX;
 
 /// Absolute scale at depth 1 (nearest / largest).
 const MAX_SCALE: f32 = 1.0;
@@ -70,12 +75,17 @@ const MIN_SCALE: f32 = 0.04;
 /// Generate the default scale table using a geometric progression.
 ///
 /// `scale[d] = MAX_SCALE * ratio^(d - 1)` where
-/// `ratio = (MIN_SCALE / MAX_SCALE)^(1 / (DEPTH_COUNT - 1))`.
+/// `ratio = (MIN_SCALE / MAX_SCALE)^(1 / (DEPTH_STEP_COUNT - 1))`.
+///
+/// Depth 1 = `MAX_SCALE` (1.0). Depth 0 extrapolates one step closer
+/// (= `MAX_SCALE / ratio`), giving hit/destroy effects authored at depth 1
+/// a slight scale-up when rendered at the player depth.
 fn generate_scale_table() -> HashMap<i8, f32> {
-    let ratio = (MIN_SCALE / MAX_SCALE).powf(1.0 / f32::from(DEPTH_COUNT - 1));
+    let ratio = (MIN_SCALE / MAX_SCALE).powf(1.0 / f32::from(DEPTH_STEP_COUNT - 1));
     (VISIBLE_DEPTH_MIN..=VISIBLE_DEPTH_MAX)
         .map(|d| {
-            let exponent = f32::from(d - VISIBLE_DEPTH_MIN);
+            // Anchor at depth 1 = MAX_SCALE; depth 0 = one step shallower.
+            let exponent = f32::from(d - 1);
             (d, MAX_SCALE * ratio.powf(exponent))
         })
         .collect()
@@ -150,14 +160,10 @@ impl DepthScaleConfig {
 
     /// Look up the configured absolute scale for a depth.
     ///
-    /// Returns `None` for depth 0 or if the depth is not in the config.
+    /// Returns `None` if the depth is not in the config.
     #[must_use]
     pub fn scale_for(&self, depth: Depth) -> Option<f32> {
-        let d = depth.to_i8();
-        if d == 0 {
-            return None;
-        }
-        self.scales.get(&d).copied()
+        self.scales.get(&depth.to_i8()).copied()
     }
 
     /// Compute the fallback scale ratio between two depths.
@@ -177,11 +183,10 @@ impl DepthScaleConfig {
     /// Compute the fallback scale for an entity at `current_depth` given its
     /// [`AuthoredDepths`].
     ///
-    /// Returns `1.0` if the current depth is authored, depth is 0, or no
-    /// reference can be resolved.
+    /// Returns `1.0` if the current depth is authored or no reference can be resolved.
     #[must_use]
     pub fn resolve_fallback(&self, current_depth: Depth, authored: &AuthoredDepths) -> f32 {
-        if current_depth.to_i8() == 0 || authored.is_empty() {
+        if authored.is_empty() {
             return 1.0;
         }
         if authored.contains(current_depth) {
@@ -278,7 +283,7 @@ mod tests {
     #[test]
     fn generated_depth_3_matches_ratio_squared() {
         let config = default_config();
-        let ratio = (MIN_SCALE / MAX_SCALE).powf(1.0 / (DEPTH_COUNT - 1) as f32);
+        let ratio = (MIN_SCALE / MAX_SCALE).powf(1.0 / (DEPTH_STEP_COUNT - 1) as f32);
         let expected = MAX_SCALE * ratio * ratio;
         let s = config.scales[&3];
         assert!(
@@ -494,10 +499,14 @@ mod tests {
     }
 
     #[test]
-    fn depth_zero_returns_one() {
+    fn depth_zero_scales_up_from_authored() {
         let config = default_config();
         let authored = AuthoredDepths::single(Depth::Three);
-        assert!((config.resolve_fallback(Depth::Zero, &authored) - 1.0).abs() < f32::EPSILON);
+        let scale = config.resolve_fallback(Depth::Zero, &authored);
+        assert!(
+            scale > 1.0,
+            "depth 0 should scale up from depth 3, got {scale}"
+        );
     }
 
     #[test]
@@ -510,14 +519,20 @@ mod tests {
     // --- Low-level config tests ---
 
     #[test]
-    fn scale_for_depth_zero_returns_none() {
-        assert!(default_config().scale_for(Depth::Zero).is_none());
+    fn scale_for_depth_zero_returns_value() {
+        let config = default_config();
+        let s = config.scale_for(Depth::Zero).unwrap();
+        let s1 = config.scale_for(Depth::One).unwrap();
+        assert!(
+            s > s1,
+            "depth 0 scale ({s}) should be > depth 1 scale ({s1})"
+        );
     }
 
     #[test]
-    fn scale_for_visible_depths_returns_values() {
+    fn scale_for_all_depths_returns_values() {
         let config = default_config();
-        for d in 1..=9_i8 {
+        for d in 0..=9_i8 {
             let depth = Depth::try_from(d).unwrap();
             assert!(config.scale_for(depth).is_some(), "depth {d}");
         }
@@ -531,10 +546,13 @@ mod tests {
     }
 
     #[test]
-    fn fallback_scale_depth_zero_returns_none() {
+    fn fallback_scale_depth_zero_scales_up() {
         let config = default_config();
-        assert!(config.fallback_scale(Depth::Zero, Depth::Three).is_none());
-        assert!(config.fallback_scale(Depth::Three, Depth::Zero).is_none());
+        let scale = config.fallback_scale(Depth::Zero, Depth::Three).unwrap();
+        assert!(
+            scale > 1.0,
+            "depth 0 from depth 3 should scale up, got {scale}"
+        );
     }
 
     // --- AuthoredDepths construction tests ---

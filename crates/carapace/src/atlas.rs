@@ -57,6 +57,47 @@ struct PxSpriteAtlasDescriptor {
     regions: Vec<AtlasRegionDescriptor>,
     #[serde(default)]
     names: BTreeMap<String, u32>,
+    /// Per-region animation metadata derived from aseprite tags.
+    #[serde(default)]
+    animations: BTreeMap<String, RegionAnimation>,
+}
+
+/// Animation metadata for one atlas region, derived from an aseprite tag at export time.
+#[derive(Clone, Debug, Serialize, Deserialize, bevy_reflect::Reflect)]
+pub struct RegionAnimation {
+    /// Total animation cycle duration in milliseconds.
+    pub duration_ms: u64,
+    /// Playback direction: "forward" or "backward".
+    pub direction: String,
+    /// Finish behavior: "loop", "mark", or "despawn".
+    pub on_finish: String,
+}
+
+impl RegionAnimation {
+    /// Convert direction string to engine type.
+    #[must_use]
+    pub fn px_direction(&self) -> crate::prelude::PxAnimationDirection {
+        match self.direction.as_str() {
+            "backward" | "reverse" => crate::prelude::PxAnimationDirection::Backward,
+            _ => crate::prelude::PxAnimationDirection::Foreward,
+        }
+    }
+
+    /// Convert finish behavior string to engine type.
+    #[must_use]
+    pub fn px_finish_behavior(&self) -> crate::prelude::PxAnimationFinishBehavior {
+        match self.on_finish.as_str() {
+            "loop" => crate::prelude::PxAnimationFinishBehavior::Loop,
+            "despawn" => crate::prelude::PxAnimationFinishBehavior::Despawn,
+            _ => crate::prelude::PxAnimationFinishBehavior::Mark,
+        }
+    }
+
+    /// Convert to animation duration.
+    #[must_use]
+    pub fn px_duration(&self) -> crate::prelude::PxAnimationDuration {
+        crate::prelude::PxAnimationDuration::millis_per_animation(self.duration_ms)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -108,11 +149,14 @@ impl AssetLoader for PxSpriteAtlasLoader {
             names.insert(name.clone(), AtlasRegionId(index));
         }
 
+        let animations = descriptor.animations.into_iter().collect::<HashMap<_, _>>();
+
         Ok(PxSpriteAtlasAsset {
             size,
             data,
             regions,
             names,
+            animations,
         })
     }
 
@@ -150,6 +194,7 @@ pub struct PxSpriteAtlasAsset {
     pub(crate) data: PxImage,
     pub(crate) regions: Vec<AtlasRegion>,
     pub(crate) names: HashMap<String, AtlasRegionId>,
+    pub(crate) animations: HashMap<String, RegionAnimation>,
 }
 
 impl PxSpriteAtlasAsset {
@@ -175,6 +220,12 @@ impl PxSpriteAtlasAsset {
     #[must_use]
     pub fn regions(&self) -> &[AtlasRegion] {
         &self.regions
+    }
+
+    /// Look up animation metadata by region name.
+    #[must_use]
+    pub fn animation(&self, name: &str) -> Option<&RegionAnimation> {
+        self.animations.get(name)
     }
 }
 
@@ -434,6 +485,7 @@ mod tests {
                 ],
             }],
             names: HashMap::default(),
+            animations: HashMap::default(),
         };
 
         let region = &atlas.regions[0];
@@ -584,6 +636,7 @@ mod tests {
             data: PxImage::new(vec![1, 2], 2),
             regions: vec![],
             names: HashMap::default(),
+            animations: HashMap::default(),
         };
         let sprite = PxAtlasSprite::new(Handle::default(), AtlasRegionId(0));
         // No assets resource available in unit tests; call the pure inner logic directly.
@@ -623,6 +676,7 @@ mod tests {
                 ],
             }],
             names: HashMap::default(),
+            animations: HashMap::default(),
         };
         let count = atlas
             .region(AtlasRegionId(0))
@@ -697,6 +751,7 @@ mod tests {
                 ],
             }],
             names: HashMap::default(),
+            animations: HashMap::default(),
         }
     }
 

@@ -210,13 +210,13 @@ tags = ["right", "legs"]
 
 [[parts]]
 id = "legs_overlay"
-definition_id = "visual_overlay"
+definition_id = "leg"
 name = "Legs Overlay"
 parent_id = "root"
 source_layer = "legs"
 draw_order = 80
 pivot = { x = 0, y = 0 }
-tags = ["legs"]
+tags = ["leg", "limb", "targetable", "legs"]
 
 [[animation_overrides]]
 # Flying animations have single-frame static wings. Source wing flap

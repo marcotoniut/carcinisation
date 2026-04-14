@@ -293,6 +293,7 @@ mod tests {
                 frames,
             }],
             names: HashMap::default(),
+            animations: HashMap::default(),
         }
     }
 
