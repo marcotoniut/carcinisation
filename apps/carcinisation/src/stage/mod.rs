@@ -11,6 +11,7 @@ pub mod enemy;
 pub mod messages;
 pub mod pickup;
 pub mod player;
+pub mod projection;
 pub mod resources;
 pub mod restart;
 pub mod sprite_names;

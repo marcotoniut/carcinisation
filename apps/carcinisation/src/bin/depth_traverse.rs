@@ -43,6 +43,7 @@ use carcinisation::{
             entity::EnemyType,
         },
         messages::ComposedAnimationCueMessage,
+        projection::ProjectionProfile,
         resources::StageTimeDomain,
     },
 };
@@ -103,21 +104,32 @@ const SPIDEY_LANDING_SECS: f32 = 0.3;
 
 // --- Resources ---
 
-/// Active horizon profile. Stores the depth-9 floor Y and drives all floor
-/// mapping through [`floor_y_from_t`] and [`floor_y_for_depth`].
+/// Active horizon profile.  Wraps a [`ProjectionProfile`] and an index into
+/// [`HORIZON_FRACTIONS`] for cycling via `Ctrl+O`.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 struct HorizonProfile {
     index: usize,
-    floor_depth_9: f32,
+    #[reflect(ignore)]
+    profile: ProjectionProfile,
 }
 
 impl Default for HorizonProfile {
     fn default() -> Self {
         Self {
             index: 0,
-            floor_depth_9: HORIZON_FRACTIONS[0] * SCREEN_H,
+            profile: ProjectionProfile {
+                horizon_y: HORIZON_FRACTIONS[0] * SCREEN_H,
+                floor_base_y: FLOOR_DEPTH_1,
+                bias_power: 3.0,
+            },
         }
+    }
+}
+
+impl HorizonProfile {
+    fn floor_y_for_depth(&self, d: i8) -> f32 {
+        self.profile.floor_y_for_depth(d)
     }
 }
 
@@ -208,6 +220,16 @@ enum WalkPhase {
 #[reflect(Component)]
 struct DepthFloorLine;
 
+/// Stable Y offset from the composition origin to the bottom of the authored
+/// canvas, in carapace Y-up pixels.  Computed once from atlas metadata when the
+/// composition atlas first loads.  Used to position `Origin`-mode entities so
+/// the canvas bottom aligns with the floor during grounded states.
+///
+/// For `BottomOrigin` entities this is zero (entity position IS the bottom).
+#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
+struct CanvasGroundOffset(f32);
+
 #[derive(Component, Clone, Copy, Debug, Reflect)]
 #[reflect(Component)]
 struct DepthTraverseScaleOverride {
@@ -265,32 +287,15 @@ enum Layer {
     Front,
 }
 
-// --- Perspective mapping ---
+// --- Perspective mapping (delegates to shared ProjectionProfile) ---
 
-/// Cubic ease-in perspective bias applied to the normalised depth parameter
-/// before interpolating screen-space floor positions.
+/// Map a normalised `t` in `[0, 1]` (0 = horizon, 1 = foreground) to floor Y.
 ///
-/// `t` is the linear normalised depth where `0.0` = depth 9 (horizon) and
-/// `1.0` = depth 1 (foreground). The output `t^3` strongly compresses distant
-/// depths (small `t`) and aggressively spreads near depths (large `t`),
-/// giving a pronounced perspective-like floor layout while keeping the walk
-/// speed linear in time.
-fn perspective_bias(t: f32) -> f32 {
-    t * t * t
-}
-
-/// Map a normalised `t` in `[0, 1]` (0 = horizon, 1 = foreground) to a
-/// screen-space floor Y through the perspective bias, using the given
-/// depth-9 floor position.
+/// Kept as a local helper for the continuous-t walk interpolation.  Delegates
+/// to the same cubic bias as [`ProjectionProfile`] with `bias_power = 3.0`.
 fn floor_y_from_t(t: f32, floor_depth_9: f32) -> f32 {
-    let biased = perspective_bias(t);
+    let biased = t * t * t; // cubic, matches ProjectionProfile default bias
     floor_depth_9 + biased * (FLOOR_DEPTH_1 - floor_depth_9)
-}
-
-/// Compute the floor Y position for a discrete depth value.
-fn floor_y_for_depth(d: i8, floor_depth_9: f32) -> f32 {
-    let t = f32::from(DEPTH_MAX - d) / f32::from(DEPTH_MAX - DEPTH_MIN);
-    floor_y_from_t(t, floor_depth_9)
 }
 
 fn depth_to_t(depth: Depth) -> f32 {
@@ -362,6 +367,7 @@ fn main() {
     ))
     .register_type::<ComposedAnimationPlaybackDebug>()
     .register_type::<ComposedAnimationPlaybackDebugEnabled>()
+    .register_type::<CanvasGroundOffset>()
     .register_type::<DepthFloorLine>()
     .register_type::<DepthTraverseScaleOverride>()
     .register_type::<DepthTraverseDebugState>()
@@ -395,6 +401,7 @@ fn main() {
                 tick_stage_time,
                 prepare_composed_atlas_assets,
                 ensure_composed_enemy_parts,
+                compute_canvas_ground_offset,
                 cycle_horizon_profile,
                 switch_character,
                 advance_walk,
@@ -409,6 +416,40 @@ fn main() {
 }
 
 // --- Systems ---
+
+/// Compute the stable ground-contact offset from the atlas canvas metadata.
+///
+/// For `Origin`-mode entities the composition origin sits in the middle of the
+/// canvas, NOT at the bottom.  The distance from the origin to the canvas
+/// bottom (in Y-up pixels) is `canvas_height − origin_y` (where `origin_y` is
+/// in canvas Y-down space).  This offset, applied to the entity position, puts
+/// the canvas bottom on the floor line during grounded states.
+///
+/// For `BottomOrigin` entities the offset stays at zero.
+///
+/// Runs every frame but only writes once (skips entities that already have a
+/// non-zero value, and skips until the atlas asset is loaded).
+fn compute_canvas_ground_offset(
+    atlas_assets: Res<Assets<CompositionAtlasAsset>>,
+    mut query: Query<(&ComposedEnemyVisual, &mut CanvasGroundOffset), With<DepthWalker>>,
+) {
+    use asset_pipeline::composed_ron::SpawnAnchorMode;
+
+    for (visual, mut offset) in &mut query {
+        if offset.0 != 0.0 {
+            continue; // already computed
+        }
+        let Some(atlas_asset) = atlas_assets.get(&visual.atlas_manifest) else {
+            continue; // not loaded yet
+        };
+        let atlas = &atlas_asset.atlas;
+        if atlas.spawn_anchor == SpawnAnchorMode::Origin {
+            // canvas.1 = height, origin.1 = Y from top (canvas Y-down).
+            // Distance from origin to canvas bottom in Y-up = canvas_h − origin_y.
+            offset.0 = f32::from(atlas.canvas.1) - f32::from(atlas.origin.1);
+        }
+    }
+}
 
 /// Tick the stage time domain so composed animations advance.
 fn tick_stage_time(time: Res<Time>, mut stage_time: ResMut<Time<StageTimeDomain>>) {
@@ -439,11 +480,7 @@ fn setup(
     // can draw them.
     for d in DEPTH_MIN..=DEPTH_MAX {
         let depth = Depth::try_from(d).unwrap();
-        commands.spawn((
-            DepthFloorLine,
-            depth,
-            Floor(floor_y_for_depth(d, profile.floor_depth_9)),
-        ));
+        commands.spawn((DepthFloorLine, depth, Floor(profile.floor_y_for_depth(d))));
     }
 
     spawn_walker(&mut commands, &asset_server, &profile, *selected);
@@ -474,7 +511,7 @@ fn spawn_walker(
             character.authored_depth(),
         ),
         DepthTraverseDebugState::default(),
-        PxSubPosition::from(Vec2::new(CENTER_X, profile.floor_depth_9)),
+        PxSubPosition::from(Vec2::new(CENTER_X, profile.profile.horizon_y)),
         initial_depth,
         AuthoredDepths::single(character.authored_depth()),
         Layer::Front,
@@ -486,6 +523,7 @@ fn spawn_walker(
             airborne: false,
             half_trips: 0,
         },
+        CanvasGroundOffset::default(),
     ));
 }
 
@@ -545,7 +583,7 @@ fn cycle_horizon_profile(
     }
 
     profile.index = (profile.index + 1) % HORIZON_FRACTIONS.len();
-    profile.floor_depth_9 = HORIZON_FRACTIONS[profile.index] * SCREEN_H;
+    profile.profile.horizon_y = HORIZON_FRACTIONS[profile.index] * SCREEN_H;
 
     info!(
         "Horizon profile {} -- depth 9 floor at {:.0}% of screen height",
@@ -554,7 +592,7 @@ fn cycle_horizon_profile(
     );
 
     for (depth, mut floor) in &mut floor_query {
-        floor.0 = floor_y_for_depth(depth.to_i8(), profile.floor_depth_9);
+        floor.0 = profile.floor_y_for_depth(depth.to_i8());
     }
 }
 
@@ -580,13 +618,14 @@ fn advance_walk(
             &mut Depth,
             &mut PxSubPosition,
             &mut ComposedAnimationState,
+            &CanvasGroundOffset,
         ),
         With<DepthWalker>,
     >,
 ) {
     let dt = time.delta_secs();
 
-    for (mut progress, mut depth, mut pos, mut anim) in &mut query {
+    for (mut progress, mut depth, mut pos, mut anim, ground_offset) in &mut query {
         if *selected == SelectedCharacter::Mosquiton {
             advance_mosquiton(&mut progress, &mut anim, dt);
 
@@ -599,12 +638,20 @@ fn advance_walk(
                 *depth = new_depth;
             }
 
-            let floor_y = floor_y_from_t(t, profile.floor_depth_9);
+            let floor_y = floor_y_from_t(t, profile.profile.horizon_y);
+            // The fallback scale is the ratio applied by `apply_depth_fallback_scale`
+            // to the sprite's `PxPresentationTransform`.  The sprite grows/shrinks
+            // around the entity position, so the canvas-space offset from origin
+            // to canvas bottom must be scaled by the same factor.
+            let fallback_scale = depth_scale.resolve_fallback(
+                new_depth,
+                &AuthoredDepths::single(SelectedCharacter::Mosquiton.authored_depth()),
+            );
+            let scaled_ground_offset = ground_offset.0 * fallback_scale;
             let y_offset = if progress.airborne {
-                let scale = depth_scale.scale_for(new_depth).unwrap_or(1.0);
-                FLY_HEIGHT_OFFSET * scale
+                scaled_ground_offset + FLY_HEIGHT_OFFSET * fallback_scale
             } else {
-                0.0
+                scaled_ground_offset
             };
             pos.0 = Vec2::new(CENTER_X, floor_y + y_offset);
         } else {
@@ -788,8 +835,8 @@ fn advance_spidey(
                 let target_depth = adjacent_depth(start_depth, progress.direction);
                 let start_t = depth_to_t(start_depth);
                 let target_t = depth_to_t(target_depth);
-                let start_y = floor_y_for_depth(start_depth.to_i8(), profile.floor_depth_9);
-                let target_y = floor_y_for_depth(target_depth.to_i8(), profile.floor_depth_9);
+                let start_y = profile.floor_y_for_depth(start_depth.to_i8());
+                let target_y = profile.floor_y_for_depth(target_depth.to_i8());
 
                 anim.requested_tag = "jump".into();
                 anim.set_hold_last_frame(true);
@@ -1004,49 +1051,49 @@ fn update_depth_traverse_debug_state(
                 depth.to_i8(),
                 0.0,
                 0.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
             WalkPhase::Idle { .. } => (
                 "idle".to_string(),
                 depth.to_i8(),
                 0.0,
                 0.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
             WalkPhase::PreTransition { .. } => (
                 "pre_transition".to_string(),
                 depth.to_i8(),
                 0.0,
                 0.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
             WalkPhase::Liftoff { .. } => (
                 "liftoff".to_string(),
                 depth.to_i8(),
                 0.0,
                 0.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
             WalkPhase::Landing { .. } => (
                 "landing".to_string(),
                 depth.to_i8(),
                 0.0,
                 0.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
             WalkPhase::PostTransition { .. } => (
                 "post_transition".to_string(),
                 depth.to_i8(),
                 0.0,
                 0.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
             WalkPhase::SpideyIdle { .. } => (
                 "spidey_idle".to_string(),
                 depth.to_i8(),
                 0.0,
                 0.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
             WalkPhase::SpideyJumping {
                 elapsed,
@@ -1073,11 +1120,11 @@ fn update_depth_traverse_debug_state(
                 depth.to_i8(),
                 SPIDEY_JUMP_ARC_SECS,
                 1.0,
-                floor_y_for_depth(depth.to_i8(), profile.floor_depth_9),
+                profile.floor_y_for_depth(depth.to_i8()),
             ),
         };
 
-        let current_floor_y = floor_y_for_depth(depth.to_i8(), profile.floor_depth_9);
+        let current_floor_y = profile.floor_y_for_depth(depth.to_i8());
         let authored_depths = AuthoredDepths::single(selected.authored_depth());
         let current_scale = match progress.phase {
             WalkPhase::SpideyJumping {
@@ -1142,8 +1189,13 @@ mod tests {
 
     #[test]
     fn frontmost_depths_are_visibly_distinct() {
-        let depth_two_y = floor_y_for_depth(2, HORIZON_FRACTIONS[0] * SCREEN_H);
-        let depth_one_y = floor_y_for_depth(1, HORIZON_FRACTIONS[0] * SCREEN_H);
+        let profile = ProjectionProfile {
+            horizon_y: HORIZON_FRACTIONS[0] * SCREEN_H,
+            floor_base_y: FLOOR_DEPTH_1,
+            bias_power: 3.0,
+        };
+        let depth_two_y = profile.floor_y_for_depth(2);
+        let depth_one_y = profile.floor_y_for_depth(1);
 
         assert!(
             (depth_one_y - depth_two_y).abs() > 20.0,

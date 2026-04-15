@@ -1,14 +1,26 @@
 //! Lightweight depth-floor debug overlay, toggled with `Ctrl+L` (`Cmd+L` on macOS).
 //!
 //! When enabled, draws:
-//! - **Purple horizontal lines** for visible depth floor positions (1..=9),
-//!   with brightness increasing for shallower depths.
-//! - **Purple diagonal lines** converging toward a vanishing point at the
-//!   horizon, with the same brightness progression.
-//! - **Green lines** at each composed entity's ground contact point.
+//! - **Purple horizontal + diagonal lines**: perspective depth grid (floor
+//!   positions 1..=9 plus converging guide rays).
+//! - **Green horizontal line**: ground contact — the rendered sprite bottom for
+//!   each composed entity.  Should align with the floor when grounded.
+//! - **Light-blue crosshair**: entity pivot / composition origin — the point
+//!   that game logic uses for position, collision, and tween targets.
 //!
-//! Grid lines fade toward the horizon using the same depth-brightness
-//! progression (depth 1 = brightest, depth 9 = dimmest).
+//! # Terminology
+//!
+//! - **Pivot / Origin**: `PxSubPosition` — the entity's world position and the
+//!   composition's authored reference point.
+//! - **Ground Contact**: the bottom of the rendered composite, accounting for
+//!   presentation scale.  Equals pivot for `BottomOrigin` entities; below pivot
+//!   for `Origin` entities.
+//! - **Placement Anchor**: the point aligned with the world.  Grounded states
+//!   align ground contact with the floor; airborne states use the pivot.
+//!
+//! Grid geometry (horizontal lines + guide rays) is computed by the shared
+//! [`build_perspective_grid`] function in [`super::projection`] and rendered
+//! here as Bevy gizmos with a `VIEWPORT_MULTIPLIER` coordinate transform.
 //!
 //! # Usage with `PxPlugin`
 //!
@@ -22,29 +34,25 @@ use carapace::presentation::PxPresentationTransform;
 
 use crate::globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER};
 use crate::stage::components::placement::{Depth, Floor};
+use crate::stage::projection::{GridParams, build_perspective_grid};
 
 const SCREEN_X: f32 = SCREEN_RESOLUTION.x as f32;
 const SCREEN_Y: f32 = SCREEN_RESOLUTION.y as f32;
-const LINE_EXTENSION: f32 = 1000.;
 
-const ANCHOR_LINE_COLOR: Color = Color::srgba(0.15, 0.6, 0.15, 0.7);
+// --- Marker colours ---
 
-// --- Guide ray parameters ---
+/// Ground contact: rendered sprite bottom.
+const GROUND_CONTACT_COLOR: Color = Color::srgba(0.15, 0.7, 0.15, 0.7);
 
-/// Total number of guide rays. Must be odd so the centre ray is exact.
-const GUIDE_RAY_COUNT: u32 = 35;
+/// Pivot / composition origin crosshair.
+const PIVOT_COLOR: Color = Color::srgba(0.4, 0.7, 1.0, 0.6);
 
-/// Major-ray interval: every Nth ray is drawn at full intensity.
-const GUIDE_RAY_MAJOR_EVERY: u32 = 4;
+/// Crosshair arm length as a fraction of the scaled composite width/height.
+const CROSSHAIR_FRACTION: f32 = 0.15;
 
-/// Alpha for horizontal depth lines.
-const HORIZONTAL_ALPHA: f32 = 0.85;
-
-/// Alpha for major guide rays.
-const GUIDE_RAY_MAJOR_ALPHA: f32 = 0.80;
-
-/// Alpha for minor guide rays.
-const GUIDE_RAY_MINOR_ALPHA: f32 = 0.45;
+/// Minimum crosshair arm length in viewport pixels so it stays visible at
+/// horizon depths where the sprite is very small.
+const CROSSHAIR_MIN_PX: f32 = 3.0 * VIEWPORT_MULTIPLIER;
 
 // --- Resources ---
 
@@ -78,7 +86,7 @@ impl Plugin for DepthDebugPlugin {
             (
                 toggle_depth_debug_overlay,
                 draw_depth_grid_background,
-                draw_ground_anchors_foreground,
+                draw_entity_anchors,
             )
                 .chain(),
         );
@@ -111,12 +119,11 @@ fn toggle_depth_debug_overlay(
     }
 }
 
-/// Draw the background perspective grid: horizontal depth lines and diagonal
-/// guide lines converging toward a vanishing point at the horizon centre.
+/// Draw the background perspective grid using the shared geometry builder.
 ///
-/// Both horizontal and diagonal lines use the same depth-based brightness
-/// progression: depth 1 = brightest (1.0), depth 9 = dimmest (0.5).
-/// Alpha is kept low so the sprite visually dominates the grid.
+/// Collects Floor entities, converts to viewport coordinates, then delegates
+/// to [`build_perspective_grid`] for all geometry.  The returned segments are
+/// rendered as Bevy gizmo lines.
 fn draw_depth_grid_background(
     overlay: Res<DepthDebugOverlay>,
     mut gizmos: Gizmos,
@@ -126,139 +133,53 @@ fn draw_depth_grid_background(
         return;
     }
 
+    // Collect floors and convert to viewport space.
     let mut floors: Vec<(i8, f32)> = Vec::new();
-
     for (depth, floor) in query.iter() {
         let d = depth.to_i8();
-        if !(1..=9).contains(&d) {
-            continue;
+        if (1..=9).contains(&d) {
+            floors.push((d, to_viewport_y(floor.0)));
         }
-
-        let wy = to_viewport_y(floor.0);
-        let color = grid_color(depth_brightness(d), HORIZONTAL_ALPHA);
-
-        // Horizontal depth line.
-        gizmos.line_2d(
-            Vec2::new(-LINE_EXTENSION, wy),
-            Vec2::new(LINE_EXTENSION, wy),
-            color,
-        );
-
-        floors.push((d, floor.0));
     }
+    floors.sort_by_key(|&(d, _)| std::cmp::Reverse(d));
 
-    // Single-point angular perspective guide rays with mu-law
-    // edge-concentration.
-    //
-    // Rays span the open angular interval (−π/2, +π/2) relative to
-    // the downward vertical from the VP. A mu-law remap concentrates
-    // rays toward the edges (near-horizontal) to compensate for the
-    // sec²(θ) screen-space divergence of tan-projected angles:
-    //
-    //   u  = 2i/(N−1) − 1                    linear ∈ [−1, 1]
-    //   b  = sign(u) × ln(1 + μ|u|) / ln(1 + μ)   mu-law
-    //   θ  = b × π/2 × N/(N+1)               open interval
-    //
-    // The mu-law derivative b'(u) = μ / ((1+μ|u|)·ln(1+μ)) is large
-    // at the centre (wide angular steps) and small at the edges
-    // (tight angular steps). The edge-to-centre density ratio is
-    // exactly 1 + μ.
-    //
-    // With μ = 35, edges are 36× denser than centre — enough to
-    // substantially compensate for sec²(θ) across the visible range.
-    //
-    // Each ray is clipped to the visible viewport (bottom edge and
-    // nearer side edge).
-    floors.sort_by_key(|&(d, _)| std::cmp::Reverse(d)); // depth 9 first
-
-    if floors.len() < 2 {
-        return;
-    }
-
+    // Viewport bounds in gizmo space.
+    let viewport = Rect::new(
+        to_viewport_x(0.0),
+        to_viewport_y(0.0),
+        to_viewport_x(SCREEN_X),
+        to_viewport_y(SCREEN_Y),
+    );
     let vanish_x = to_viewport_x(SCREEN_X * 0.5);
-    let vanish_y = to_viewport_y(floors[0].1);
 
-    // Viewport bounds for ray clipping.
-    let screen_left = to_viewport_x(0.0);
-    let screen_right = to_viewport_x(SCREEN_X);
-    let screen_bottom = to_viewport_y(0.0);
+    let grid = build_perspective_grid(&floors, viewport, vanish_x, &GridParams::default());
 
-    let n = GUIDE_RAY_COUNT;
-    let centre_idx = n / 2;
+    // Render horizontal depth lines.
+    for seg in &grid.depth_lines {
+        gizmos.line_2d(seg.start, seg.end, seg_color(&seg.start_rgba));
+    }
 
-    // Open-interval max angle: outermost rays approach but never reach ±π/2.
-    let theta_max = std::f32::consts::FRAC_PI_2 * n as f32 / (n as f32 + 1.0);
-    let mu = 35.0_f32;
-    let ln_1_plus_mu = (1.0 + mu).ln();
-
-    for i in 0..n {
-        // Mu-law remap: uniform u → edge-concentrated b.
-        let u = 2.0 * i as f32 / (n - 1) as f32 - 1.0;
-        let b = u.signum() * (1.0 + mu * u.abs()).ln() / ln_1_plus_mu;
-        let theta = b * theta_max;
-
-        // θ = 0 → straight down; positive → right; negative → left.
-        let dx = theta.sin();
-        let dy = -theta.cos();
-
-        let is_major = i == centre_idx || i % GUIDE_RAY_MAJOR_EVERY == 0;
-        let alpha = if is_major {
-            GUIDE_RAY_MAJOR_ALPHA
-        } else {
-            GUIDE_RAY_MINOR_ALPHA
-        };
-
-        // Clip: intersect with the screen bottom and the nearer side edge.
-        let t_bottom = if dy.abs() > f32::EPSILON {
-            (screen_bottom - vanish_y) / dy
-        } else {
-            f32::MAX
-        };
-        let t_side = if dx.abs() > f32::EPSILON {
-            let edge = if dx > 0.0 { screen_right } else { screen_left };
-            (edge - vanish_x) / dx
-        } else {
-            f32::MAX
-        };
-        let t_end = t_bottom.min(t_side);
-        if t_end <= 0.0 {
-            continue;
-        }
-
-        let endpoint = Vec2::new(vanish_x + t_end * dx, vanish_y + t_end * dy);
-
-        // Draw gradient segments between consecutive depth floors.
-        let mut prev = Vec2::new(vanish_x, vanish_y);
-        let mut prev_d = floors[0].0;
-
-        for &(d, floor_carapace) in floors.iter().skip(1) {
-            if dy.abs() < f32::EPSILON {
-                break;
-            }
-            let wy = to_viewport_y(floor_carapace);
-            let t = (wy - vanish_y) / dy;
-            if t <= 0.0 || t > t_end {
-                continue;
-            }
-            let here = Vec2::new(vanish_x + t * dx, wy);
-
-            let c_prev = grid_color(depth_brightness(prev_d), alpha);
-            let c_here = grid_color(depth_brightness(d), alpha);
-            gizmos.line_gradient_2d(prev, here, c_prev, c_here);
-
-            prev = here;
-            prev_d = d;
-        }
-
-        // Final segment to the screen boundary.
-        let c_last = grid_color(depth_brightness(prev_d), alpha);
-        gizmos.line_gradient_2d(prev, endpoint, c_last, c_last);
+    // Render guide ray segments with gradient.
+    for seg in &grid.guide_ray_segments {
+        gizmos.line_gradient_2d(
+            seg.start,
+            seg.end,
+            seg_color(&seg.start_rgba),
+            seg_color(&seg.end_rgba),
+        );
     }
 }
 
-/// Draw a green horizontal line at each composed entity's ground contact,
-/// spanning its scaled width.
-fn draw_ground_anchors_foreground(
+/// Draw per-entity debug markers:
+///
+/// - **Green horizontal line** — ground contact (rendered sprite bottom).
+///   `position.y + composite.origin.y * scale_y`, converted to viewport space.
+///   For `BottomOrigin` entities, coincides with the pivot.
+///
+/// - **Light-blue crosshair** — pivot / composition origin (`PxSubPosition`).
+///   Two perpendicular lines centred on the entity position, sized to ~15 % of
+///   the scaled composite (with a minimum so it stays visible at far depths).
+fn draw_entity_anchors(
     overlay: Res<DepthDebugOverlay>,
     mut gizmos: Gizmos,
     query: Query<(
@@ -277,35 +198,55 @@ fn draw_ground_anchors_foreground(
         }
 
         let scale_x = presentation.map_or(1.0, |pt| pt.scale.x.abs());
+        let scale_y = presentation.map_or(1.0, |pt| pt.scale.y.abs());
+
         let half_w = composite.size.x as f32 * 0.5 * scale_x * VIEWPORT_MULTIPLIER;
         let cx = to_viewport_x(position.0.x);
-        let wy = to_viewport_y(position.0.y);
+        let pivot_wy = to_viewport_y(position.0.y);
 
+        // --- Ground contact (green horizontal line) ---
+        //
+        // composite.origin.y is the bottom of the per-frame bounding box in
+        // Y-up carapace space, relative to the composition origin (negative
+        // when the sprite extends below the origin).  Multiplying by scale_y
+        // gives the rendered distance from entity position to sprite bottom.
+        let contact_y = position.0.y + composite.origin.y as f32 * scale_y;
+        let contact_wy = to_viewport_y(contact_y);
         gizmos.line_2d(
-            Vec2::new(cx - half_w, wy),
-            Vec2::new(cx + half_w, wy),
-            ANCHOR_LINE_COLOR,
+            Vec2::new(cx - half_w, contact_wy),
+            Vec2::new(cx + half_w, contact_wy),
+            GROUND_CONTACT_COLOR,
+        );
+
+        // --- Pivot crosshair (light blue) ---
+        //
+        // Arm length = 15 % of scaled composite dimension, floored to a
+        // minimum so the crosshair stays visible at far depths.
+        let arm_x = (composite.size.x as f32 * scale_x * CROSSHAIR_FRACTION * VIEWPORT_MULTIPLIER)
+            .max(CROSSHAIR_MIN_PX);
+        let arm_y = (composite.size.y as f32 * scale_y * CROSSHAIR_FRACTION * VIEWPORT_MULTIPLIER)
+            .max(CROSSHAIR_MIN_PX);
+
+        // Horizontal arm.
+        gizmos.line_2d(
+            Vec2::new(cx - arm_x, pivot_wy),
+            Vec2::new(cx + arm_x, pivot_wy),
+            PIVOT_COLOR,
+        );
+        // Vertical arm.
+        gizmos.line_2d(
+            Vec2::new(cx, pivot_wy - arm_y),
+            Vec2::new(cx, pivot_wy + arm_y),
+            PIVOT_COLOR,
         );
     }
 }
 
 // --- Helpers ---
 
-/// Depth brightness: 1.0 at depth 1 (brightest), 0.2 at depth 9 (dimmest).
-fn depth_brightness(d: i8) -> f32 {
-    1.0 - f32::from(d - 1) / 8.0 * 0.8
-}
-
-/// Purple grid colour at the given brightness and alpha.
-/// RGB scales with brightness; alpha scales with brightness² so the
-/// fade toward the horizon is more pronounced and perceptually linear.
-fn grid_color(brightness: f32, alpha: f32) -> Color {
-    Color::srgba(
-        0.6 * brightness,
-        0.15 * brightness,
-        0.9 * brightness,
-        alpha * brightness * brightness,
-    )
+/// Convert an RGBA array from the shared grid builder into a Bevy [`Color`].
+fn seg_color(rgba: &[f32; 4]) -> Color {
+    Color::srgba(rgba[0], rgba[1], rgba[2], rgba[3])
 }
 
 /// Convert a carapace pixel X coordinate to Bevy world X for gizmo drawing.
