@@ -10,13 +10,13 @@ StageData(
         path: "backgrounds/spaceship/skybox.png",
         frames: 1,
     ),
-    start_coordinates: Vec2(3.2, 411.1),
+    start_coordinates: Vec2(2.0520172, 410.78137),
     spawns: [
         Enemy(
             enemy_type: Mosquiton,
             elapsed: 0.0,
             contains: None,
-            coordinates: Vec2(59.56762, 500.18045),
+            coordinates: Vec2(38.027084, 533.87756),
             speed: 0.0,
             health: 150,
             steps: [
@@ -34,9 +34,9 @@ StageData(
             kill_boss: false,
             spawns: [],
             floor_depths: {
-                Five: 30.0,
                 Six: 25.0,
                 Three: 40.0,
+                Five: 30.0,
                 Four: 35.0,
             },
         ),
@@ -71,4 +71,9 @@ StageData(
     on_start_transition_o: None,
     on_end_transition_o: None,
     gravity: 800.0,
+    projection: ProjectionProfile(
+        horizon_y: 490.0,
+        floor_base_y: 450.0,
+        bias_power: 3.0,
+    ),
 )

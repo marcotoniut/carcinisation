@@ -710,6 +710,7 @@ const PROJECTION_MIN_GAP: f32 = 1.0;
 /// Minimum allowed bias_power.
 const PROJECTION_MIN_BIAS: f32 = 0.1;
 
+// TODO(projection): add "reset to inherited" shortcut alongside "clear" button
 /// Renders an optional `ProjectionProfile` editor.
 ///
 /// When `None`, shows an "enable" button.  When `Some`, shows DragValue fields
@@ -799,6 +800,7 @@ fn projection_fields(ui: &mut egui::Ui, p: &mut ProjectionProfile) -> bool {
                 .font(egui::FontId::proportional(10.0))
                 .color(crate::ui::style::LABEL_COLOR),
         );
+        // TODO(projection): consider visual preview of depth distribution beside bias slider
         // Logarithmic-feel drag: speed proportional to current value so small
         // values (1-3) get fine control and large values (8-20) move faster.
         let drag_speed = (p.bias_power * 0.02).max(0.01);

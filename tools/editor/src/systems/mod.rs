@@ -152,9 +152,14 @@ pub fn on_scene_change(
     mut pending_rebuild: ResMut<crate::resources::PendingSceneRebuild>,
     depth_scale_config: Res<carcinisation::stage::depth_scale::DepthScaleConfig>,
 ) {
-    // Skip full rebuild during an active path drag — the dragged handle entity must
-    // stay alive. rebuild_path_during_drag handles the decorative geometry instead.
-    if drag_state.active.as_ref().is_some_and(|d| d.kind.is_path()) {
+    // Skip full rebuild during an active path or gizmo drag — the dragged handle
+    // entity must stay alive. rebuild_path_during_drag handles path decorative
+    // geometry; gizmo edits write directly to StageData.
+    if drag_state
+        .active
+        .as_ref()
+        .is_some_and(|d| d.kind.needs_rebuild())
+    {
         // Remember that a rebuild was requested so it happens when the drag ends.
         if loaded_scene.is_changed() || editor_state.is_changed() || layer_shown_ui.is_changed() {
             pending_rebuild.0 = true;

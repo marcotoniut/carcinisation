@@ -21,6 +21,12 @@ use std::time::{Duration, Instant};
 
 const ALT_ZOOM_SENSITIVITY: f32 = 0.003;
 
+/// Hit radius for projection gizmo handles.  Larger than the visible triangle
+/// to make clicking easier at any zoom level.
+// TODO(projection): add hover state (highlight / cursor change) for gizmo handles
+// TODO(projection): add undo support for gizmo edits (same as other drag operations)
+const GIZMO_HIT_RADIUS: f32 = 10.0;
+
 /// Zoom speed for scroll-with-modifier (trackpad) and mouse wheel.
 const SCROLL_ZOOM_SENSITIVITY: f32 = 0.0015;
 /// Mouse wheel zoom is typically coarser (discrete ticks), so scale up.
@@ -146,12 +152,23 @@ pub enum DragKind {
     PathNode,
     /// The start_coordinates node.
     StartNode,
+    /// A projection horizon or floor-base handle.
+    ProjectionGizmo,
 }
 
 impl DragKind {
-    /// Whether this drag kind targets path overlay geometry (needs rebuild on release).
+    /// Whether this drag targets path overlay geometry specifically.
     pub fn is_path(self) -> bool {
         matches!(self, DragKind::PathNode | DragKind::StartNode)
+    }
+
+    /// Whether this drag kind requires a full scene rebuild on release.
+    /// Includes path drags and projection gizmo drags.
+    pub fn needs_rebuild(self) -> bool {
+        matches!(
+            self,
+            DragKind::PathNode | DragKind::StartNode | DragKind::ProjectionGizmo
+        )
     }
 }
 
@@ -188,6 +205,7 @@ pub struct MousePressParams<'w, 's> {
     pub path_node_query: Query<'w, 's, (Entity, &'static GlobalTransform, &'static TweenPathNode)>,
     pub start_node_query:
         Query<'w, 's, (Entity, &'static GlobalTransform), With<StartCoordinatesNode>>,
+    pub gizmo_query: Query<'w, 's, (Entity, &'static GlobalTransform), With<ProjectionGizmo>>,
     pub camera_query: Query<'w, 's, (&'static Camera, &'static Transform), With<EditorCamera>>,
 }
 
@@ -577,6 +595,24 @@ pub fn on_mouse_press(
                 }
             }
 
+            // Check projection gizmo handles (distance test with generous hit area).
+            if !node_picked {
+                let gizmo_hit_radius = GIZMO_HIT_RADIUS * camera_transform.scale.x.max(1.0);
+                for (entity, global_transform) in params.gizmo_query.iter() {
+                    let gizmo_pos = global_transform.translation().truncate();
+                    if gizmo_pos.distance(world_position) <= gizmo_hit_radius {
+                        params.drag_state.active = Some(DragInfo {
+                            entity,
+                            offset: world_position - gizmo_pos,
+                            kind: DragKind::ProjectionGizmo,
+                        });
+                        gesture.owner = GestureTarget::Tool;
+                        node_picked = true;
+                        break;
+                    }
+                }
+            }
+
             if !node_picked {
                 // Alt+click on empty canvas: insert a Tween step at the cursor position
                 // into the nearest path segment.
@@ -637,9 +673,9 @@ pub fn on_mouse_release(
     }
 
     if buttons.just_released(MouseButton::Left) {
-        // If a path node was dragged, request a full scene rebuild for the next frame.
+        // If a path/projection node was dragged, request a full scene rebuild.
         if let Some(ref info) = drag_state.active
-            && info.kind.is_path()
+            && info.kind.needs_rebuild()
         {
             pending_rebuild.0 = true;
         }
@@ -768,9 +804,21 @@ pub fn on_mouse_drag(
         }
 
         // Projection gizmo drag: update horizon_y or floor_base_y.
+        //
+        // Edits the step at the current scrub position.  If the step has no
+        // explicit projection override, one is materialised from the effective
+        // projection (carry-forward / stage default / global default).
+        //
+        // Note: at exact step boundaries, `walk_steps_at_elapsed` returns the
+        // *next* step (strict `>` comparison).  This means the edit targets the
+        // step that starts at the boundary, not the one that ended.
         if let Ok((mut transform, gizmo)) = gizmo_query.get_mut(drag_info.entity) {
-            // Only move vertically — keep the gizmo's X position.
-            transform.translation.y = target_position.y;
+            let new_y = target_position.y;
+
+            // Guard against degenerate values.
+            if !new_y.is_finite() {
+                continue;
+            }
 
             // Determine which step to edit: find the active step at the current
             // scrub position and ensure it has a projection override.
@@ -782,7 +830,6 @@ pub fn on_mouse_drag(
                     stage_data,
                     controls.elapsed_duration,
                 );
-                let new_y = target_position.y;
 
                 // Resolve effective projection BEFORE taking a mutable reference
                 // to the step, to avoid borrow conflicts.
@@ -805,16 +852,22 @@ pub fn on_mouse_drag(
                         }
                     };
 
-                    // Apply clamped value.
+                    // Clamp, then update both data and visual position so the
+                    // gizmo handle never visually exceeds the valid range.
                     const MIN_GAP: f32 = 1.0;
-                    match gizmo {
+                    let clamped_y = match gizmo {
                         ProjectionGizmo::Horizon => {
-                            proj.horizon_y = new_y.max(proj.floor_base_y + MIN_GAP);
+                            let v = new_y.max(proj.floor_base_y + MIN_GAP);
+                            proj.horizon_y = v;
+                            v
                         }
                         ProjectionGizmo::FloorBase => {
-                            proj.floor_base_y = new_y.min(proj.horizon_y - MIN_GAP);
+                            let v = new_y.min(proj.horizon_y - MIN_GAP);
+                            proj.floor_base_y = v;
+                            v
                         }
-                    }
+                    };
+                    transform.translation.y = clamped_y;
                 }
             }
             continue;
@@ -848,8 +901,8 @@ pub fn on_mouse_drag(
             }
         } else {
             // Entity was despawned (e.g. by a concurrent scene rebuild). If it was a
-            // path drag, mark SceneData changed so stale decorative geometry gets cleaned up.
-            if drag_info.kind.is_path()
+            // path or gizmo drag, mark SceneData changed so stale geometry gets cleaned up.
+            if drag_info.kind.needs_rebuild()
                 && let Some(ref mut sd) = scene_data
             {
                 sd.set_changed();
