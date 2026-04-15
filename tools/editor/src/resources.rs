@@ -8,6 +8,10 @@ use carcinisation::{
 use bevy::{prelude::*, sprite::Anchor};
 use serde::{Deserialize, Serialize};
 
+fn default_true() -> bool {
+    true
+}
+
 /// Editor-wide mode flags that affect scene presentation but not saved stage data.
 #[derive(Clone, Debug, Default, Reflect, Resource)]
 #[reflect(Resource)]
@@ -59,6 +63,13 @@ pub struct StageControlsUI {
     pub skybox: bool,
     pub background: bool,
 
+    /// Perspective grid overlay at current scrub position (default: on).
+    #[serde(default = "default_true")]
+    pub projection_grid: bool,
+    /// Horizon/floor-base reference markers (default: on).
+    #[serde(default = "default_true")]
+    pub projection_markers: bool,
+
     pub nine: bool,
     pub eight: bool,
     pub seven: bool,
@@ -79,6 +90,8 @@ impl Default for StageControlsUI {
             elapsed_duration: Duration::from_secs(999),
             skybox: true,
             background: true,
+            projection_grid: true,
+            projection_markers: true,
             nine: true,
             eight: true,
             seven: true,

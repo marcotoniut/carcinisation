@@ -181,6 +181,10 @@ fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
             });
             ui.checkbox(&mut controls.show_all_spawns, "Show all spawns (ghost)");
 
+            section_header(ui, "Projection");
+            ui.checkbox(&mut controls.projection_grid, "Perspective Grid");
+            ui.checkbox(&mut controls.projection_markers, "Horizon / Floor markers");
+
             section_header(ui, "Depth layers");
             let depths: &mut [(&str, &mut bool)] = &mut [
                 ("9", &mut controls.nine),
@@ -216,6 +220,8 @@ fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
         || controls.show_all_spawns != original.show_all_spawns
         || controls.skybox != original.skybox
         || controls.background != original.background
+        || controls.projection_grid != original.projection_grid
+        || controls.projection_markers != original.projection_markers
         || controls.nine != original.nine
         || controls.eight != original.eight
         || controls.seven != original.seven

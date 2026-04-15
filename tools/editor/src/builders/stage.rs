@@ -13,6 +13,9 @@ use bevy_prototype_lyon::{prelude::*, shapes};
 use carcinisation::globals::SCREEN_RESOLUTION;
 use carcinisation::stage::data::{StageData, StageSpawn, StageStep};
 use carcinisation::stage::depth_scale::DepthScaleConfig;
+use carcinisation::stage::projection::{
+    GridParams, build_perspective_grid, evaluate_projection_at,
+};
 
 use crate::components::{
     AnimationIndices, AnimationTimer, Draggable, PathOverlay, SceneItem, StageSpawnLabel,
@@ -23,6 +26,20 @@ use crate::resources::StageControlsUI;
 
 const SKYBOX_Z: f32 = -11.0;
 const BACKGROUND_Z: f32 = -10.0;
+
+// --- Projection overlay constants ---
+const PROJECTION_GRID_Z: f32 = 9.0;
+const PROJECTION_MARKER_Z: f32 = 9.2;
+const PROJECTION_LABEL_Z: f32 = 9.3;
+
+const HORIZON_COLOR: Color = Color::srgba(0.3, 0.5, 1.0, 0.7);
+const FLOOR_BASE_COLOR: Color = Color::srgba(0.7, 0.3, 1.0, 0.7);
+const DEPTH_LABEL_FONT_SIZE: f32 = 10.0;
+const DEPTH_LABEL_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.5);
+const DEPTH_LABEL_X_INSET: f32 = 4.0;
+/// Minimum vertical spacing (world pixels) between depth labels.  Labels
+/// closer than this are culled to prevent overlap near the horizon.
+const DEPTH_LABEL_MIN_SPACING: f32 = 6.0;
 const CAMERA_POSITION_Z: f32 = 9.9;
 const PATH_Z: f32 = 10.0;
 const PATH_NODE_Z: f32 = 10.1;
@@ -175,6 +192,135 @@ pub fn spawn_path(
         Transform::from_xyz(0.0, 0.0, PATH_Z),
         GlobalTransform::default(),
     ));
+}
+
+/// Spawn the perspective grid overlay at the current scrub position.
+///
+/// Reuses the shared [`build_perspective_grid`] geometry builder.  All rendering
+/// is in editor world space (1:1 carapace pixels, no VIEWPORT_MULTIPLIER).
+fn spawn_projection_grid(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    stage_data: &StageData,
+    controls: &StageControlsUI,
+) {
+    let profile = evaluate_projection_at(stage_data, controls.elapsed_duration);
+    let camera_pos = stage_data.calculate_camera_position(controls.elapsed_duration);
+    let screen = SCREEN_RESOLUTION.as_vec2();
+
+    // Compute floor positions from profile, sorted depth-9-first.
+    let mut floors: Vec<(i8, f32)> = (1..=9).map(|d| (d, profile.floor_y_for_depth(d))).collect();
+    floors.sort_by_key(|&(d, _)| std::cmp::Reverse(d));
+
+    // Viewport in editor world space.
+    let viewport = Rect::new(
+        camera_pos.x,
+        camera_pos.y,
+        camera_pos.x + screen.x,
+        camera_pos.y + screen.y,
+    );
+    let vanish_x = camera_pos.x + screen.x * 0.5;
+
+    if controls.projection_grid {
+        let grid = build_perspective_grid(&floors, viewport, vanish_x, &GridParams::default());
+
+        // Horizontal depth lines.
+        for seg in &grid.depth_lines {
+            let color = Color::srgba(
+                seg.start_rgba[0],
+                seg.start_rgba[1],
+                seg.start_rgba[2],
+                seg.start_rgba[3],
+            );
+            let path = ShapePath::new().move_to(seg.start).line_to(seg.end);
+            commands.spawn((
+                SceneItem,
+                PathOverlay,
+                ShapeBuilder::with(&path).stroke((color, 1.0)).build(),
+                Transform::from_xyz(0.0, 0.0, PROJECTION_GRID_Z),
+            ));
+        }
+
+        // Guide ray segments — batch per ray for fewer entities.
+        // Each segment uses the average of start/end colour (lyon doesn't support
+        // per-vertex gradient on strokes; the brightness difference between
+        // adjacent depths is ~0.1, so the approximation is nearly invisible).
+        for seg in &grid.guide_ray_segments {
+            let avg = [
+                (seg.start_rgba[0] + seg.end_rgba[0]) * 0.5,
+                (seg.start_rgba[1] + seg.end_rgba[1]) * 0.5,
+                (seg.start_rgba[2] + seg.end_rgba[2]) * 0.5,
+                (seg.start_rgba[3] + seg.end_rgba[3]) * 0.5,
+            ];
+            let color = Color::srgba(avg[0], avg[1], avg[2], avg[3]);
+            let path = ShapePath::new().move_to(seg.start).line_to(seg.end);
+            commands.spawn((
+                SceneItem,
+                PathOverlay,
+                ShapeBuilder::with(&path).stroke((color, 1.0)).build(),
+                Transform::from_xyz(0.0, 0.0, PROJECTION_GRID_Z),
+            ));
+        }
+
+        // Depth labels at left edge of each floor line.
+        // Near the horizon, cubic bias compresses depths tightly — labels for
+        // d7/d8/d9 can overlap at < 1px spacing.  Cull labels that are too
+        // close to the previous visible label, working from depth 1 (foreground,
+        // most important) toward depth 9 (horizon).
+        {
+            let label_x = viewport.min.x + DEPTH_LABEL_X_INSET;
+            let mut last_label_y = f32::NEG_INFINITY;
+            for d in 1..=9i8 {
+                let y = profile.floor_y_for_depth(d);
+                if (y - last_label_y).abs() < DEPTH_LABEL_MIN_SPACING {
+                    continue; // too close to previous label
+                }
+                last_label_y = y;
+                commands.spawn((
+                    SceneItem,
+                    PathOverlay,
+                    Text2d::new(d.to_string()),
+                    TextFont {
+                        font: asset_server.load(FONT_PATH),
+                        font_size: DEPTH_LABEL_FONT_SIZE,
+                        ..default()
+                    },
+                    TextColor(DEPTH_LABEL_COLOR),
+                    Transform::from_xyz(label_x, y, PROJECTION_LABEL_Z),
+                    Anchor::CENTER_LEFT,
+                ));
+            }
+        }
+    }
+
+    // Horizon and floor-base reference lines.
+    if controls.projection_markers {
+        // Horizon line (blue) — full viewport width.
+        let h_path = ShapePath::new()
+            .move_to(Vec2::new(viewport.min.x, profile.horizon_y))
+            .line_to(Vec2::new(viewport.max.x, profile.horizon_y));
+        commands.spawn((
+            SceneItem,
+            PathOverlay,
+            ShapeBuilder::with(&h_path)
+                .stroke((HORIZON_COLOR, 1.5))
+                .build(),
+            Transform::from_xyz(0.0, 0.0, PROJECTION_MARKER_Z),
+        ));
+
+        // Floor-base line (purple) — full viewport width.
+        let f_path = ShapePath::new()
+            .move_to(Vec2::new(viewport.min.x, profile.floor_base_y))
+            .line_to(Vec2::new(viewport.max.x, profile.floor_base_y));
+        commands.spawn((
+            SceneItem,
+            PathOverlay,
+            ShapeBuilder::with(&f_path)
+                .stroke((FLOOR_BASE_COLOR, 1.5))
+                .build(),
+            Transform::from_xyz(0.0, 0.0, PROJECTION_MARKER_Z),
+        ));
+    }
 }
 
 /// Spawns stage background/skybox, spawns, and optional path overlay.
@@ -346,6 +492,11 @@ pub fn spawn_stage(
         Transform::from_xyz(0.0, -15.0, 0.0),
         Anchor::TOP_LEFT,
     ));
+
+    // Projection grid and markers (before path, so path renders on top).
+    if stage_controls_ui.projection_grid || stage_controls_ui.projection_markers {
+        spawn_projection_grid(commands, asset_server, stage_data, stage_controls_ui);
+    }
 
     if stage_controls_ui.path_is_visible() {
         spawn_path(commands, stage_data, stage_controls_ui, false);
