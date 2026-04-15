@@ -391,6 +391,7 @@ pub fn initialise_movement_step(
             base_speed,
             spawns,
             floor_depths,
+            ..
         },
     )) = query.single()
         && let Ok((camera_entity, position)) = camera_query.single()

@@ -26,8 +26,15 @@
 //! The evaluator signature stays the same — callers always receive a
 //! `ProjectionProfile` regardless of source.
 
+use std::time::Duration;
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+
+use super::{
+    components::{CinematicStageStep, StopStageStep, TweenStageStep},
+    data::{StageData, StageStep},
+};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -78,6 +85,46 @@ impl Default for ProjectionProfile {
 }
 
 impl ProjectionProfile {
+    /// Returns `true` if the profile satisfies all structural invariants:
+    /// `horizon_y > floor_base_y` and `bias_power > 0`.
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        self.validate().is_ok()
+    }
+
+    /// Validate all structural invariants, returning a descriptive error on
+    /// failure.  Works in both debug and release builds.
+    ///
+    /// Checks:
+    /// - `horizon_y` must be finite
+    /// - `floor_base_y` must be finite
+    /// - `horizon_y` must be strictly above `floor_base_y`
+    /// - `bias_power` must be finite and positive
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.horizon_y.is_finite() {
+            return Err(format!("horizon_y ({}) is not finite", self.horizon_y));
+        }
+        if !self.floor_base_y.is_finite() {
+            return Err(format!(
+                "floor_base_y ({}) is not finite",
+                self.floor_base_y
+            ));
+        }
+        if self.horizon_y <= self.floor_base_y {
+            return Err(format!(
+                "horizon_y ({}) must be above floor_base_y ({})",
+                self.horizon_y, self.floor_base_y,
+            ));
+        }
+        if !self.bias_power.is_finite() || self.bias_power <= 0.0 {
+            return Err(format!(
+                "bias_power ({}) must be finite and positive",
+                self.bias_power,
+            ));
+        }
+        Ok(())
+    }
+
     /// Floor Y for a discrete depth (1–9).
     ///
     /// Normalises `d` to `t ∈ [0, 1]` where `0` = depth 9 (horizon) and
@@ -88,6 +135,10 @@ impl ProjectionProfile {
     /// `floor_base_y`).
     #[must_use]
     pub fn floor_y_for_depth(&self, d: i8) -> f32 {
+        debug_assert!(
+            self.is_valid(),
+            "ProjectionProfile::floor_y_for_depth called on invalid profile: {self:?}"
+        );
         let t = f32::from(DEPTH_MAX - d) / DEPTH_RANGE;
         let biased = t.abs().powf(self.bias_power).copysign(t);
         self.horizon_y + biased * (self.floor_base_y - self.horizon_y)
@@ -105,13 +156,252 @@ impl ProjectionProfile {
     }
 
     /// Componentwise linear interpolation between two profiles.
+    ///
+    /// # Bias interpolation limitation
+    ///
+    /// `bias_power` is interpolated linearly, which does NOT produce
+    /// perceptually linear projection transitions — the floor distribution
+    /// curve shape changes non-uniformly as the exponent varies.  This is
+    /// acceptable for V1 where bias values are typically constant across
+    /// neighbouring steps.  Future work may interpolate evaluated floor
+    /// curves directly (sample-then-lerp) instead of lerping parameters.
     #[must_use]
     pub fn lerp(a: &Self, b: &Self, t: f32) -> Self {
-        Self {
+        let result = Self {
             horizon_y: a.horizon_y + (b.horizon_y - a.horizon_y) * t,
             floor_base_y: a.floor_base_y + (b.floor_base_y - a.floor_base_y) * t,
             bias_power: a.bias_power + (b.bias_power - a.bias_power) * t,
+        };
+        debug_assert!(
+            result.is_valid(),
+            "ProjectionProfile::lerp produced invalid profile: {result:?} (a={a:?}, b={b:?}, t={t})"
+        );
+        result
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Step progress + projection evaluation
+// ---------------------------------------------------------------------------
+
+/// Snapshot of stage progression at a given elapsed time.
+///
+/// Returned by [`walk_steps_at_elapsed`] and consumed by both camera position
+/// and projection evaluation — keeping the step-walking logic in one place.
+#[derive(Clone, Debug)]
+pub struct StepProgressInfo {
+    /// Index of the active step in `StageData.steps`.
+    pub step_index: usize,
+    /// Camera position at this moment (interpolated during tweens).
+    pub camera_position: Vec2,
+    /// Tween progress `[0, 1]` within the active step.
+    /// `0.0` at tween start, `1.0` at tween end or for stop/cinematic steps.
+    pub tween_progress: f32,
+    /// Camera position at the start of the active step.
+    pub step_start_position: Vec2,
+}
+
+/// Walk through stage steps up to `elapsed`, returning progress info.
+///
+/// Duration model matches the editor timeline: tween steps contribute
+/// `distance / base_speed`, stop steps contribute `max_duration` (or zero
+/// for infinite / None), cinematic steps contribute cutscene spawn sums.
+#[must_use]
+pub fn walk_steps_at_elapsed(stage_data: &StageData, elapsed: Duration) -> StepProgressInfo {
+    let mut pos = stage_data.start_coordinates;
+    let mut acc = Duration::ZERO;
+
+    for (index, step) in stage_data.steps.iter().enumerate() {
+        let step_start = pos;
+        match step {
+            StageStep::Tween(s) => {
+                let dur = tween_duration(pos, s);
+                if acc + dur > elapsed {
+                    let t = if dur.is_zero() {
+                        1.0
+                    } else {
+                        elapsed.saturating_sub(acc).as_secs_f32() / dur.as_secs_f32()
+                    };
+                    return StepProgressInfo {
+                        step_index: index,
+                        camera_position: pos.lerp(s.coordinates, t),
+                        tween_progress: t,
+                        step_start_position: step_start,
+                    };
+                }
+                pos = s.coordinates;
+                acc += dur;
+            }
+            StageStep::Stop(s) => {
+                let dur = stop_step_duration(s);
+                if acc + dur > elapsed {
+                    return StepProgressInfo {
+                        step_index: index,
+                        camera_position: pos,
+                        tween_progress: 1.0,
+                        step_start_position: step_start,
+                    };
+                }
+                acc += dur;
+            }
+            StageStep::Cinematic(s) => {
+                let dur = cinematic_step_duration(s);
+                if acc + dur > elapsed {
+                    return StepProgressInfo {
+                        step_index: index,
+                        camera_position: pos,
+                        tween_progress: 1.0,
+                        step_start_position: step_start,
+                    };
+                }
+                acc += dur;
+            }
         }
+    }
+
+    // Past the end — return last position.
+    StepProgressInfo {
+        step_index: stage_data.steps.len().saturating_sub(1),
+        camera_position: pos,
+        tween_progress: 1.0,
+        step_start_position: pos,
+    }
+}
+
+/// Resolve the effective projection at a given step index.
+///
+/// Walks backwards from `step_index` to find the nearest step with a
+/// `projection` override.  Falls back to `stage_data.projection`, then
+/// to [`ProjectionProfile::default()`].
+///
+/// Projection is "sticky" — once set, it persists until the next override.
+#[must_use]
+pub fn effective_projection(stage_data: &StageData, step_index: usize) -> ProjectionProfile {
+    // Walk backwards through steps.
+    for i in (0..=step_index.min(stage_data.steps.len().saturating_sub(1))).rev() {
+        let proj = match &stage_data.steps[i] {
+            StageStep::Tween(s) => s.projection.as_ref(),
+            StageStep::Stop(s) => s.projection.as_ref(),
+            StageStep::Cinematic(_) => None,
+        };
+        if let Some(p) = proj {
+            debug_assert!(
+                p.is_valid(),
+                "effective_projection found invalid profile at step {i}: {p:?}"
+            );
+            return *p;
+        }
+    }
+    // Fall back to stage-level, then global default.
+    let result = stage_data.projection.unwrap_or_default();
+    debug_assert!(
+        result.is_valid(),
+        "effective_projection returned invalid profile at step {step_index}: {result:?}"
+    );
+    result
+}
+
+/// Minimum tween duration (in seconds) below which interpolation is skipped
+/// and the target projection is snapped to immediately.  Prevents jitter from
+/// near-zero-length tweens where `t` swings wildly.
+const MIN_INTERPOLATION_DURATION_SECS: f32 = 0.01;
+
+/// Evaluate the interpolated projection at a given elapsed time.
+///
+/// During tween steps, linearly interpolates between two explicitly resolved
+/// profiles:
+/// - `prev` = `effective_projection(step_index - 1)` (or stage/global default
+///   for the first step)
+/// - `curr` = `effective_projection(step_index)`
+///
+/// During stop/cinematic steps, holds `curr` constant.
+///
+/// Tweens shorter than [`MIN_INTERPOLATION_DURATION_SECS`] snap directly to
+/// `curr` to avoid jitter from near-zero denominators.
+///
+/// # V2 extension
+///
+/// TODO: Projection evaluation may later be derived directly from
+/// [`StepProgressInfo`] to ensure strict alignment between camera position
+/// and projection state.  This would allow callers to obtain both camera
+/// position and projection from a single step-walk, avoiding redundant
+/// traversal and guaranteeing consistency.
+#[must_use]
+pub fn evaluate_projection_at(stage_data: &StageData, elapsed: Duration) -> ProjectionProfile {
+    let info = walk_steps_at_elapsed(stage_data, elapsed);
+
+    // Resolve the projection at the current step (sticky carry-forward).
+    let curr = effective_projection(stage_data, info.step_index);
+
+    // Interpolate only during tween steps with meaningful progress.
+    if info.tween_progress < 1.0
+        && let Some(StageStep::Tween(tween)) = stage_data.steps.get(info.step_index)
+    {
+        // Skip interpolation for extremely short tweens.
+        let dur = tween_duration(info.step_start_position, tween);
+        if dur.as_secs_f32() >= MIN_INTERPOLATION_DURATION_SECS {
+            // Resolve the projection that was active before this step.
+            let prev = if info.step_index > 0 {
+                effective_projection(stage_data, info.step_index - 1)
+            } else {
+                stage_data.projection.unwrap_or_default()
+            };
+            return ProjectionProfile::lerp(&prev, &curr, info.tween_progress);
+        }
+    }
+
+    curr
+}
+
+// ---------------------------------------------------------------------------
+// Stage-level projection validation
+// ---------------------------------------------------------------------------
+
+/// Validate all projection profiles in a [`StageData`].
+///
+/// Checks the stage-level default (if present) and every step-level override.
+/// Returns `Ok(())` if all profiles are valid, or an error with the location
+/// and reason of the first invalid profile found.
+///
+/// Call this at stage load time (e.g. `on_stage_startup`) to fail fast on
+/// malformed authored data.  Works in release builds.
+pub fn validate_stage_projections(stage_data: &StageData) -> Result<(), String> {
+    if let Some(ref p) = stage_data.projection {
+        p.validate()
+            .map_err(|e| format!("Invalid stage-level projection: {e}"))?;
+    }
+    for (i, step) in stage_data.steps.iter().enumerate() {
+        let proj = match step {
+            StageStep::Tween(s) => s.projection.as_ref(),
+            StageStep::Stop(s) => s.projection.as_ref(),
+            StageStep::Cinematic(_) => None,
+        };
+        if let Some(p) = proj {
+            p.validate()
+                .map_err(|e| format!("Invalid projection at step {i}: {e}"))?;
+        }
+    }
+    Ok(())
+}
+
+// --- Step duration helpers (shared between runtime and editor) ---
+
+fn tween_duration(current_position: Vec2, step: &TweenStageStep) -> Duration {
+    let distance = step.coordinates.distance(current_position);
+    let speed = step.base_speed.max(0.0001);
+    Duration::from_secs_f32(distance / speed)
+}
+
+fn stop_step_duration(step: &StopStageStep) -> Duration {
+    step.max_duration.unwrap_or(Duration::ZERO)
+}
+
+fn cinematic_step_duration(step: &CinematicStageStep) -> Duration {
+    match step {
+        CinematicStageStep::CutsceneAnimationSpawn(s) => s
+            .spawns
+            .iter()
+            .fold(Duration::ZERO, |acc, sp| acc + sp.duration),
     }
 }
 
@@ -338,6 +628,145 @@ pub fn build_perspective_grid(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- Validation tests ---
+
+    #[test]
+    fn default_profile_is_valid() {
+        assert!(ProjectionProfile::default().is_valid());
+    }
+
+    #[test]
+    fn valid_profile() {
+        let p = ProjectionProfile {
+            horizon_y: 80.0,
+            floor_base_y: 0.0,
+            bias_power: 3.0,
+        };
+        assert!(p.is_valid());
+    }
+
+    #[test]
+    fn invalid_inverted_horizon() {
+        let p = ProjectionProfile {
+            horizon_y: 0.0,
+            floor_base_y: 80.0,
+            bias_power: 3.0,
+        };
+        assert!(!p.is_valid());
+    }
+
+    #[test]
+    fn invalid_zero_bias() {
+        let p = ProjectionProfile {
+            horizon_y: 80.0,
+            floor_base_y: 0.0,
+            bias_power: 0.0,
+        };
+        assert!(!p.is_valid());
+    }
+
+    #[test]
+    fn invalid_nan_values() {
+        let p = ProjectionProfile {
+            horizon_y: f32::NAN,
+            floor_base_y: 0.0,
+            bias_power: 3.0,
+        };
+        assert!(!p.is_valid());
+    }
+
+    // --- validate() error messages ---
+
+    #[test]
+    fn validate_inverted_describes_fields() {
+        let p = ProjectionProfile {
+            horizon_y: 10.0,
+            floor_base_y: 80.0,
+            bias_power: 3.0,
+        };
+        let err = p.validate().unwrap_err();
+        assert!(err.contains("horizon_y"), "should name horizon_y: {err}");
+        assert!(
+            err.contains("floor_base_y"),
+            "should name floor_base_y: {err}"
+        );
+        assert!(err.contains("10"), "should include value: {err}");
+        assert!(err.contains("80"), "should include value: {err}");
+    }
+
+    #[test]
+    fn validate_zero_bias_describes_field() {
+        let p = ProjectionProfile {
+            horizon_y: 80.0,
+            floor_base_y: 0.0,
+            bias_power: 0.0,
+        };
+        let err = p.validate().unwrap_err();
+        assert!(err.contains("bias_power"), "should name field: {err}");
+    }
+
+    #[test]
+    fn validate_nan_horizon_describes_field() {
+        let p = ProjectionProfile {
+            horizon_y: f32::NAN,
+            floor_base_y: 0.0,
+            bias_power: 3.0,
+        };
+        let err = p.validate().unwrap_err();
+        assert!(err.contains("horizon_y"), "should name field: {err}");
+        assert!(err.contains("finite"), "should explain reason: {err}");
+    }
+
+    // --- validate_stage_projections ---
+
+    use super::validate_stage_projections;
+
+    #[test]
+    fn validate_stage_no_projections_ok() {
+        let stage = make_stage(vec![tween_step(100.0, 0.0, 1.0)]);
+        assert!(validate_stage_projections(&stage).is_ok());
+    }
+
+    #[test]
+    fn validate_stage_valid_projections_ok() {
+        let mut stage = make_stage(vec![tween_step_with_projection(
+            100.0,
+            0.0,
+            1.0,
+            profile_a(),
+        )]);
+        stage.projection = Some(profile_b());
+        assert!(validate_stage_projections(&stage).is_ok());
+    }
+
+    #[test]
+    fn validate_stage_invalid_stage_level() {
+        let mut stage = make_stage(vec![tween_step(100.0, 0.0, 1.0)]);
+        stage.projection = Some(ProjectionProfile {
+            horizon_y: 0.0,
+            floor_base_y: 80.0,
+            bias_power: 3.0,
+        });
+        let err = validate_stage_projections(&stage).unwrap_err();
+        assert!(err.contains("stage-level"), "should locate error: {err}");
+    }
+
+    #[test]
+    fn validate_stage_invalid_step_projection() {
+        let bad = ProjectionProfile {
+            horizon_y: 80.0,
+            floor_base_y: 0.0,
+            bias_power: -1.0,
+        };
+        let stage = make_stage(vec![
+            tween_step(100.0, 0.0, 1.0),
+            tween_step_with_projection(200.0, 0.0, 1.0, bad),
+        ]);
+        let err = validate_stage_projections(&stage).unwrap_err();
+        assert!(err.contains("step 1"), "should identify step index: {err}");
+        assert!(err.contains("bias_power"), "should name field: {err}");
+    }
 
     // --- ProjectionProfile evaluator tests ---
 
@@ -614,5 +1043,208 @@ mod tests {
         assert_eq!(grid.depth_lines.len(), 1);
         // Need at least 2 floors for guide rays.
         assert!(grid.guide_ray_segments.is_empty());
+    }
+
+    // --- Step progress + projection evaluation tests ---
+
+    use super::{effective_projection, evaluate_projection_at, walk_steps_at_elapsed};
+    use crate::stage::components::{StopStageStep, TweenStageStep};
+    use crate::stage::data::{SkyboxData, StageData, StageStep};
+
+    fn make_stage(steps: Vec<StageStep>) -> StageData {
+        StageData {
+            name: "test".into(),
+            background_path: String::new(),
+            music_path: String::new(),
+            skybox: SkyboxData {
+                path: String::new(),
+                frames: 1,
+            },
+            start_coordinates: Vec2::ZERO,
+            spawns: vec![],
+            steps,
+            on_start_transition_o: None,
+            on_end_transition_o: None,
+            gravity: None,
+            projection: None,
+        }
+    }
+
+    fn tween_step(x: f32, y: f32, speed: f32) -> StageStep {
+        StageStep::Tween(TweenStageStep {
+            coordinates: Vec2::new(x, y),
+            base_speed: speed,
+            spawns: vec![],
+            floor_depths: None,
+            projection: None,
+        })
+    }
+
+    fn tween_step_with_projection(x: f32, y: f32, speed: f32, p: ProjectionProfile) -> StageStep {
+        StageStep::Tween(TweenStageStep {
+            coordinates: Vec2::new(x, y),
+            base_speed: speed,
+            spawns: vec![],
+            floor_depths: None,
+            projection: Some(p),
+        })
+    }
+
+    fn stop_step(duration_secs: f32) -> StageStep {
+        StageStep::Stop(StopStageStep::new().with_max_duration(duration_secs))
+    }
+
+    fn profile_a() -> ProjectionProfile {
+        ProjectionProfile {
+            horizon_y: 72.0,
+            floor_base_y: -14.0,
+            bias_power: 3.0,
+        }
+    }
+
+    fn profile_b() -> ProjectionProfile {
+        ProjectionProfile {
+            horizon_y: 96.0,
+            floor_base_y: 10.0,
+            bias_power: 3.0,
+        }
+    }
+
+    // --- walk_steps_at_elapsed ---
+
+    #[test]
+    fn walk_at_zero_returns_start() {
+        let stage = make_stage(vec![tween_step(100.0, 0.0, 1.0)]);
+        let info = walk_steps_at_elapsed(&stage, Duration::ZERO);
+        assert_eq!(info.step_index, 0);
+        assert!((info.camera_position - Vec2::ZERO).length() < 0.01);
+        assert!(info.tween_progress < 0.01);
+    }
+
+    #[test]
+    fn walk_mid_tween() {
+        // Tween from (0,0) to (100,0) at speed 1.0 → 100s duration.
+        let stage = make_stage(vec![tween_step(100.0, 0.0, 1.0)]);
+        let info = walk_steps_at_elapsed(&stage, Duration::from_secs(50));
+        assert_eq!(info.step_index, 0);
+        assert!((info.camera_position.x - 50.0).abs() < 0.1);
+        assert!((info.tween_progress - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn walk_past_end_returns_last_position() {
+        let stage = make_stage(vec![tween_step(100.0, 0.0, 1.0)]);
+        let info = walk_steps_at_elapsed(&stage, Duration::from_secs(999));
+        assert!((info.camera_position.x - 100.0).abs() < 0.01);
+        assert!((info.tween_progress - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn walk_stop_step_holds_position() {
+        let stage = make_stage(vec![tween_step(100.0, 0.0, 1.0), stop_step(10.0)]);
+        // 100s tween + 5s into stop.
+        let info = walk_steps_at_elapsed(&stage, Duration::from_secs(105));
+        assert_eq!(info.step_index, 1);
+        assert!((info.camera_position.x - 100.0).abs() < 0.01);
+        assert!((info.tween_progress - 1.0).abs() < 0.01);
+    }
+
+    // --- effective_projection ---
+
+    #[test]
+    fn effective_projection_falls_back_to_default() {
+        let stage = make_stage(vec![tween_step(100.0, 0.0, 1.0)]);
+        let p = effective_projection(&stage, 0);
+        assert_eq!(p, ProjectionProfile::default());
+    }
+
+    #[test]
+    fn effective_projection_uses_stage_default() {
+        let mut stage = make_stage(vec![tween_step(100.0, 0.0, 1.0)]);
+        stage.projection = Some(profile_a());
+        let p = effective_projection(&stage, 0);
+        assert_eq!(p, profile_a());
+    }
+
+    #[test]
+    fn effective_projection_step_overrides_stage() {
+        let mut stage = make_stage(vec![tween_step_with_projection(
+            100.0,
+            0.0,
+            1.0,
+            profile_b(),
+        )]);
+        stage.projection = Some(profile_a());
+        let p = effective_projection(&stage, 0);
+        assert_eq!(p, profile_b());
+    }
+
+    #[test]
+    fn effective_projection_sticky_carry_forward() {
+        let stage = make_stage(vec![
+            tween_step_with_projection(100.0, 0.0, 1.0, profile_a()),
+            tween_step(200.0, 0.0, 1.0), // no projection
+            tween_step(300.0, 0.0, 1.0), // no projection
+        ]);
+        // Step 2 has no projection; should inherit from step 0.
+        let p = effective_projection(&stage, 2);
+        assert_eq!(p, profile_a());
+    }
+
+    #[test]
+    fn effective_projection_later_override_wins() {
+        let stage = make_stage(vec![
+            tween_step_with_projection(100.0, 0.0, 1.0, profile_a()),
+            tween_step(200.0, 0.0, 1.0),
+            tween_step_with_projection(300.0, 0.0, 1.0, profile_b()),
+        ]);
+        assert_eq!(effective_projection(&stage, 0), profile_a());
+        assert_eq!(effective_projection(&stage, 1), profile_a()); // inherited
+        assert_eq!(effective_projection(&stage, 2), profile_b()); // overridden
+    }
+
+    // --- evaluate_projection_at ---
+
+    #[test]
+    fn evaluate_projection_at_constant_when_no_overrides() {
+        let stage = make_stage(vec![
+            tween_step(100.0, 0.0, 1.0),
+            tween_step(200.0, 0.0, 1.0),
+        ]);
+        let p0 = evaluate_projection_at(&stage, Duration::ZERO);
+        let p1 = evaluate_projection_at(&stage, Duration::from_secs(50));
+        let p2 = evaluate_projection_at(&stage, Duration::from_secs(150));
+        // All should be the global default.
+        assert_eq!(p0, ProjectionProfile::default());
+        assert_eq!(p1, ProjectionProfile::default());
+        assert_eq!(p2, ProjectionProfile::default());
+    }
+
+    #[test]
+    fn evaluate_projection_at_interpolates_mid_tween() {
+        // Step 0: profile_a. Step 1: profile_b.
+        // Tween from (0,0) to (100,0) at speed 1 = 100s.
+        // Then tween from (100,0) to (200,0) at speed 1 = 100s.
+        let stage = make_stage(vec![
+            tween_step_with_projection(100.0, 0.0, 1.0, profile_a()),
+            tween_step_with_projection(200.0, 0.0, 1.0, profile_b()),
+        ]);
+        // At 150s: midway through step 1, t=0.5.
+        let p = evaluate_projection_at(&stage, Duration::from_secs(150));
+        let expected = ProjectionProfile::lerp(&profile_a(), &profile_b(), 0.5);
+        assert!((p.horizon_y - expected.horizon_y).abs() < 0.1);
+        assert!((p.floor_base_y - expected.floor_base_y).abs() < 0.1);
+    }
+
+    #[test]
+    fn evaluate_projection_at_holds_during_stop() {
+        let stage = make_stage(vec![
+            tween_step_with_projection(100.0, 0.0, 1.0, profile_a()),
+            stop_step(10.0),
+        ]);
+        // 105s: 100s tween + 5s into stop.
+        let p = evaluate_projection_at(&stage, Duration::from_secs(105));
+        // Stop inherits from step 0 (sticky).
+        assert_eq!(p, profile_a());
     }
 }

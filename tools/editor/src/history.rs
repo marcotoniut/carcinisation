@@ -148,6 +148,7 @@ mod tests {
             on_start_transition_o: None,
             on_end_transition_o: None,
             gravity: None,
+            projection: None,
         }
     }
 

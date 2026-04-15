@@ -1296,6 +1296,7 @@ mod tests {
             on_start_transition_o: None,
             on_end_transition_o: None,
             gravity: None,
+            projection: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1426,10 +1427,12 @@ mod tests {
                 base_speed: 1.0,
                 spawns: Vec::new(),
                 floor_depths: None,
+                projection: None,
             })],
             on_start_transition_o: None,
             on_end_transition_o: None,
             gravity: None,
+            projection: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1681,17 +1684,20 @@ mod tests {
                     base_speed: 1.0,
                     spawns: Vec::new(),
                     floor_depths: None,
+                    projection: None,
                 }),
                 StageStep::Tween(TweenStageStep {
                     coordinates: Vec2::new(200.0, 0.0),
                     base_speed: 1.0,
                     spawns: Vec::new(),
                     floor_depths: None,
+                    projection: None,
                 }),
             ],
             on_start_transition_o: None,
             on_end_transition_o: None,
             gravity: None,
+            projection: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1801,17 +1807,20 @@ mod tests {
                     base_speed: 1.0,
                     spawns: Vec::new(),
                     floor_depths: None,
+                    projection: None,
                 }),
                 StageStep::Tween(TweenStageStep {
                     coordinates: Vec2::new(200.0, 0.0),
                     base_speed: 1.0,
                     spawns: Vec::new(),
                     floor_depths: None,
+                    projection: None,
                 }),
             ],
             on_start_transition_o: None,
             on_end_transition_o: None,
             gravity: None,
+            projection: None,
         };
 
         // Point near the first segment (0,0)→(100,0): should insert at index 0.

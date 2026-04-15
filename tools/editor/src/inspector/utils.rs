@@ -4,10 +4,7 @@ use bevy::{math::Vec2, prelude::Name};
 use carcinisation::stage::{
     data::{EnemySpawn, ObjectSpawn, PickupSpawn, StageData, StageSpawn, StageStep},
     destructible::data::DestructibleSpawn,
-};
-
-use crate::timeline::{
-    StageTimelineConfig, cinematic_duration, stop_duration, tween_travel_duration,
+    projection::walk_steps_at_elapsed,
 };
 
 /// Editor helpers derived from stage data.
@@ -20,41 +17,7 @@ pub trait StageDataUtils {
 
 impl StageDataUtils for StageData {
     fn calculate_camera_position(&self, elapsed: Duration) -> Vec2 {
-        let mut current_position = self.start_coordinates;
-        let mut current_elapsed: Duration = Duration::ZERO;
-        let config = StageTimelineConfig::SLIDER;
-
-        for step in &self.steps {
-            match step {
-                StageStep::Tween(s) => {
-                    let time_to_move = tween_travel_duration(current_position, s);
-
-                    if current_elapsed + time_to_move > elapsed {
-                        let t = elapsed.saturating_sub(current_elapsed).as_secs_f32()
-                            / time_to_move.as_secs_f32();
-                        return current_position.lerp(s.coordinates, t);
-                    }
-
-                    current_position = s.coordinates;
-                    current_elapsed += time_to_move;
-                }
-                StageStep::Stop(s) => {
-                    let duration = stop_duration(s, config);
-                    if current_elapsed + duration > elapsed {
-                        return current_position;
-                    }
-                    current_elapsed += duration;
-                }
-                StageStep::Cinematic(s) => {
-                    let duration = cinematic_duration(s, config);
-                    if current_elapsed + duration > elapsed {
-                        return current_position;
-                    }
-                    current_elapsed += duration;
-                }
-            }
-        }
-        current_position
+        walk_steps_at_elapsed(self, elapsed).camera_position
     }
 
     fn dynamic_spawn_count(&self) -> usize {

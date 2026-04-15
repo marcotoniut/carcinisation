@@ -10,6 +10,7 @@ use crate::{
         data::{StageData, StageSpawn},
         messages::StageStartupEvent,
         player::messages::PlayerStartupEvent,
+        projection::validate_stage_projections,
         resources::StageGravity,
         ui::hud::spawn::spawn_hud,
     },
@@ -33,6 +34,11 @@ pub fn on_stage_startup(
     volume_settings: Res<VolumeSettings>,
 ) {
     let data = trigger.event().data.as_ref();
+
+    if let Err(e) = validate_stage_projections(data) {
+        panic!("Stage '{}' failed projection validation: {e}", data.name);
+    }
+
     activate::<StagePlugin>(&mut commands);
 
     commands.insert_resource::<StageData>(data.clone());

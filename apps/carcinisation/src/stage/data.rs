@@ -6,6 +6,7 @@ use super::{
     components::{CinematicStageStep, StopStageStep, TweenStageStep, placement::Depth},
     destructible::data::DestructibleSpawn,
     enemy::{data::steps::EnemyStep, entity::EnemyType},
+    projection::ProjectionProfile,
 };
 use crate::{
     globals::{SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32_H},
@@ -574,4 +575,9 @@ pub struct StageData {
     /// If not specified, defaults to standard gravity (800.0).
     #[serde(default)]
     pub gravity: Option<f32>,
+    /// Default projection profile for this stage.  Individual steps can
+    /// override with their own projection.  When `None`, falls back to
+    /// [`ProjectionProfile::default()`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection: Option<ProjectionProfile>,
 }

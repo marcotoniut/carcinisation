@@ -5,7 +5,10 @@ pub mod interactive;
 pub mod placement;
 
 use self::placement::Depth;
-use super::data::{ContainerSpawn, StageSpawn};
+use super::{
+    data::{ContainerSpawn, StageSpawn},
+    projection::ProjectionProfile,
+};
 use crate::cutscene::data::CutsceneAnimationsSpawn;
 use bevy::prelude::*;
 use derive_new::new;
@@ -94,6 +97,12 @@ pub struct TweenStageStep {
     #[new(default)]
     #[serde(default)]
     pub floor_depths: Option<HashMap<Depth, f32>>,
+    /// Step-specific projection override.  When present, replaces the stage
+    /// default for this step.  During tween steps, runtime interpolates from
+    /// the previous effective profile to this one.
+    #[new(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection: Option<ProjectionProfile>,
     // TODO
     // pub is_checkpoint: bool,
     // pub music_fade: bool,
@@ -134,6 +143,13 @@ impl TweenStageStep {
         self.floor_depths = Some(value);
         self
     }
+
+    /// Overrides the projection profile for this tween step.
+    #[must_use]
+    pub fn with_projection(mut self, value: ProjectionProfile) -> Self {
+        self.projection = Some(value);
+        self
+    }
 }
 
 #[serde_as]
@@ -156,6 +172,10 @@ pub struct StopStageStep {
     #[new(default)]
     #[serde(default)]
     pub floor_depths: Option<HashMap<Depth, f32>>,
+    /// Step-specific projection override.  See [`TweenStageStep::projection`].
+    #[new(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection: Option<ProjectionProfile>,
     // TODO
     // pub is_checkpoint: bool,
     // pub music_fade: bool,
@@ -195,6 +215,13 @@ impl StopStageStep {
     #[must_use]
     pub fn with_floor_depths(mut self, value: HashMap<Depth, f32>) -> Self {
         self.floor_depths = Some(value);
+        self
+    }
+
+    /// Overrides the projection profile for this stop step.
+    #[must_use]
+    pub fn with_projection(mut self, value: ProjectionProfile) -> Self {
+        self.projection = Some(value);
         self
     }
 }
