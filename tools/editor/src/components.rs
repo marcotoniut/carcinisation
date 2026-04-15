@@ -105,3 +105,10 @@ pub struct TweenPathNode {
 /// Maps a viewport handle to StageData::start_coordinates for interactive editing.
 #[derive(Component, Copy, Clone, Debug)]
 pub struct StartCoordinatesNode;
+
+/// Marks a draggable handle that edits a projection profile field.
+#[derive(Component, Copy, Clone, Debug)]
+pub enum ProjectionGizmo {
+    Horizon,
+    FloorBase,
+}

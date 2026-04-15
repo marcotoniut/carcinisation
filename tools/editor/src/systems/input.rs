@@ -1,6 +1,6 @@
 use crate::components::{
-    Draggable, EditorCamera, SceneData, SelectedItem, SelectionOutline, StageSpawnRef,
-    StartCoordinatesNode, TweenPathNode,
+    Draggable, EditorCamera, ProjectionGizmo, SceneData, SelectedItem, SelectionOutline,
+    StageSpawnRef, StartCoordinatesNode, TweenPathNode,
 };
 use crate::constants::{CAMERA_MOVE_BOUNDARY, CAMERA_ZOOM_MAX, CAMERA_ZOOM_MIN};
 use crate::history::SpawnLocation;
@@ -111,7 +111,12 @@ type SelectedTransformQuery<'w, 's> = Query<
     'w,
     's,
     &'static mut Transform,
-    (With<SelectedItem>, With<Draggable>, Without<EditorCamera>),
+    (
+        With<SelectedItem>,
+        With<Draggable>,
+        Without<EditorCamera>,
+        Without<ProjectionGizmo>,
+    ),
 >;
 type SelectedDragQuery<'w, 's> = Query<
     'w,
@@ -122,6 +127,7 @@ type SelectedDragQuery<'w, 's> = Query<
         Without<EditorCamera>,
         Without<TweenPathNode>,
         Without<StartCoordinatesNode>,
+        Without<ProjectionGizmo>,
     ),
 >;
 
@@ -653,7 +659,11 @@ pub fn on_mouse_drag(
     mut selected_query: SelectedDragQuery,
     mut path_node_query: Query<
         (&mut Transform, &TweenPathNode),
-        (Without<EditorCamera>, Without<StartCoordinatesNode>),
+        (
+            Without<EditorCamera>,
+            Without<StartCoordinatesNode>,
+            Without<ProjectionGizmo>,
+        ),
     >,
     mut start_node_query: Query<
         &mut Transform,
@@ -661,9 +671,21 @@ pub fn on_mouse_drag(
             With<StartCoordinatesNode>,
             Without<EditorCamera>,
             Without<TweenPathNode>,
+            Without<ProjectionGizmo>,
+        ),
+    >,
+    mut gizmo_query: Query<
+        (&mut Transform, &ProjectionGizmo),
+        (
+            Without<EditorCamera>,
+            Without<TweenPathNode>,
+            Without<StartCoordinatesNode>,
+            Without<StageSpawnRef>,
+            Without<SelectedItem>,
         ),
     >,
     mut scene_data: Option<ResMut<SceneData>>,
+    controls: Option<Res<crate::resources::StageControlsUI>>,
     mut drag_state: ResMut<DragState>,
     camera_query: Query<(&Camera, &Transform), With<EditorCamera>>,
     window_query: Query<Entity, With<PrimaryWindow>>,
@@ -741,6 +763,59 @@ pub fn on_mouse_drag(
                     None,
                     asset_server,
                 );
+            }
+            continue;
+        }
+
+        // Projection gizmo drag: update horizon_y or floor_base_y.
+        if let Ok((mut transform, gizmo)) = gizmo_query.get_mut(drag_info.entity) {
+            // Only move vertically — keep the gizmo's X position.
+            transform.translation.y = target_position.y;
+
+            // Determine which step to edit: find the active step at the current
+            // scrub position and ensure it has a projection override.
+            if let Some(scene_data) = scene_data.as_mut()
+                && let Some(ref controls) = controls
+                && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
+            {
+                let info = carcinisation::stage::projection::walk_steps_at_elapsed(
+                    stage_data,
+                    controls.elapsed_duration,
+                );
+                let new_y = target_position.y;
+
+                // Resolve effective projection BEFORE taking a mutable reference
+                // to the step, to avoid borrow conflicts.
+                let eff = carcinisation::stage::projection::effective_projection(
+                    stage_data,
+                    info.step_index,
+                );
+
+                // Get or create the projection override on the active step.
+                if let Some(step) = stage_data.steps.get_mut(info.step_index) {
+                    let proj = match step {
+                        carcinisation::stage::data::StageStep::Tween(s) => {
+                            s.projection.get_or_insert(eff)
+                        }
+                        carcinisation::stage::data::StageStep::Stop(s) => {
+                            s.projection.get_or_insert(eff)
+                        }
+                        carcinisation::stage::data::StageStep::Cinematic(_) => {
+                            continue;
+                        }
+                    };
+
+                    // Apply clamped value.
+                    const MIN_GAP: f32 = 1.0;
+                    match gizmo {
+                        ProjectionGizmo::Horizon => {
+                            proj.horizon_y = new_y.max(proj.floor_base_y + MIN_GAP);
+                        }
+                        ProjectionGizmo::FloorBase => {
+                            proj.floor_base_y = new_y.min(proj.horizon_y - MIN_GAP);
+                        }
+                    }
+                }
             }
             continue;
         }

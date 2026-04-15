@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::ecs::world::CommandQueue;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::{EguiContext, PrimaryEguiContext};
@@ -5,7 +7,9 @@ use bevy_inspector_egui::egui::{self, Align2};
 use bevy_inspector_egui::reflect_inspector::{Context, InspectorUi};
 use bevy_inspector_egui::restricted_world_view::RestrictedWorldView;
 
-use carcinisation::stage::projection::ProjectionProfile;
+use carcinisation::stage::projection::{
+    ProjectionProfile, evaluate_projection_at, walk_steps_at_elapsed,
+};
 
 use crate::components::{SceneData, ScenePath, SelectedItem};
 use crate::file_manager::actions::{request_file_picker, save_scene};
@@ -89,7 +93,10 @@ pub fn inspector_ui(world: &mut World) {
                             ui.set_min_width(ui.available_width());
                             match scene_data.as_ref() {
                                 Some(SceneData::Stage(_)) => {
-                                    stage_inspector(world, ui);
+                                    let elapsed = world
+                                        .get_resource::<crate::resources::StageControlsUI>()
+                                        .map_or(Duration::ZERO, |c| c.elapsed_duration);
+                                    stage_inspector(world, ui, elapsed);
                                 }
                                 Some(SceneData::Cutscene(_)) => {
                                     bevy_inspector_egui::bevy_inspector::ui_for_resource::<
@@ -233,7 +240,7 @@ pub fn inspector_ui(world: &mut World) {
 ///
 /// Uses `RestrictedWorldView` to split off SceneData so that individual fields
 /// can be reflected without triggering spurious change detection.
-fn stage_inspector(world: &mut World, ui: &mut egui::Ui) {
+fn stage_inspector(world: &mut World, ui: &mut egui::Ui, elapsed: Duration) {
     let type_registry = world.resource::<AppTypeRegistry>().0.clone();
     let type_registry = type_registry.read();
 
@@ -291,6 +298,23 @@ fn stage_inspector(world: &mut World, ui: &mut egui::Ui) {
 
     ui.add_space(4.0);
     changed |= projection_override_fields(ui, "stage_projection", &mut stage.projection);
+
+    // Effective projection summary at current scrub position.
+    {
+        let info = walk_steps_at_elapsed(stage, elapsed);
+        let source = projection_source_label(stage, info.step_index);
+        let eff = evaluate_projection_at(stage, elapsed);
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(format!(
+                    "active: {source}  h={:.1} f={:.1} b={:.2}",
+                    eff.horizon_y, eff.floor_base_y, eff.bias_power,
+                ))
+                .font(egui::FontId::proportional(9.5))
+                .color(egui::Color32::from_rgb(130, 160, 190)),
+            );
+        });
+    }
 
     ui.add_space(6.0);
     section_header(ui, &format!("Spawns ({})", stage.spawns.len()));
@@ -454,17 +478,26 @@ fn step_list(
     let len = steps.len();
 
     for (i, step) in steps.iter_mut().enumerate() {
-        let label = match step {
-            StageStep::Stop(_) => format!("[{i}] Stop"),
-            StageStep::Tween(_) => format!("[{i}] Tween"),
-            StageStep::Cinematic(_) => format!("[{i}] Cinematic"),
+        let kind = match step {
+            StageStep::Stop(_) => "Stop",
+            StageStep::Tween(_) => "Tween",
+            StageStep::Cinematic(_) => "Cinematic",
         };
+        let has_proj = step_has_projection(step);
 
         let id = ui.make_persistent_id(format!("step_{i}"));
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
             .show_header(ui, |ui| {
                 list_item_controls(ui, i, len, &mut action);
-                ui.label(&label);
+                ui.label(format!("[{i}] {kind}"));
+                if has_proj {
+                    ui.label(
+                        egui::RichText::new("P")
+                            .font(egui::FontId::proportional(9.0))
+                            .color(egui::Color32::from_rgb(180, 140, 255))
+                            .strong(),
+                    );
+                }
             })
             .body(|ui| {
                 ui.push_id(i, |ui| {
@@ -629,6 +662,47 @@ fn apply_list_action<T>(vec: &mut Vec<T>, action: ListAction) {
     }
 }
 
+// ─── Projection helpers ─────────────────────────────────────────────────────
+
+/// Human-readable label describing where the effective projection comes from.
+fn projection_source_label(
+    stage: &carcinisation::stage::data::StageData,
+    step_index: usize,
+) -> String {
+    use carcinisation::stage::data::StageStep;
+
+    let limit = step_index.min(stage.steps.len().saturating_sub(1));
+    for i in (0..=limit).rev() {
+        let has_proj = match &stage.steps[i] {
+            StageStep::Tween(s) => s.projection.is_some(),
+            StageStep::Stop(s) => s.projection.is_some(),
+            StageStep::Cinematic(_) => false,
+        };
+        if has_proj {
+            return if i == step_index {
+                format!("step {i} override")
+            } else {
+                format!("inherited from step {i}")
+            };
+        }
+    }
+    if stage.projection.is_some() {
+        "stage default".into()
+    } else {
+        "global default".into()
+    }
+}
+
+/// Returns `true` if the step has an explicit projection override.
+fn step_has_projection(step: &carcinisation::stage::data::StageStep) -> bool {
+    use carcinisation::stage::data::StageStep;
+    match step {
+        StageStep::Tween(s) => s.projection.is_some(),
+        StageStep::Stop(s) => s.projection.is_some(),
+        StageStep::Cinematic(_) => false,
+    }
+}
+
 // ─── Projection editing ─────────────────────────────────────────────────────
 
 /// Minimum gap between horizon_y and floor_base_y.
@@ -725,10 +799,14 @@ fn projection_fields(ui: &mut egui::Ui, p: &mut ProjectionProfile) -> bool {
                 .font(egui::FontId::proportional(10.0))
                 .color(crate::ui::style::LABEL_COLOR),
         );
+        // Logarithmic-feel drag: speed proportional to current value so small
+        // values (1-3) get fine control and large values (8-20) move faster.
+        let drag_speed = (p.bias_power * 0.02).max(0.01);
         let r = ui.add(
             egui::DragValue::new(&mut p.bias_power)
-                .speed(0.05)
-                .range(PROJECTION_MIN_BIAS..=20.0),
+                .speed(drag_speed)
+                .range(PROJECTION_MIN_BIAS..=20.0)
+                .max_decimals(2),
         );
         changed |= r.changed();
     });

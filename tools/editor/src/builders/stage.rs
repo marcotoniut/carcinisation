@@ -18,8 +18,8 @@ use carcinisation::stage::projection::{
 };
 
 use crate::components::{
-    AnimationIndices, AnimationTimer, Draggable, PathOverlay, SceneItem, StageSpawnLabel,
-    StageSpawnRef, StartCoordinatesNode, TweenPathNode,
+    AnimationIndices, AnimationTimer, Draggable, PathOverlay, ProjectionGizmo, SceneItem,
+    StageSpawnLabel, StageSpawnRef, StartCoordinatesNode, TweenPathNode,
 };
 use crate::constants::FONT_PATH;
 use crate::resources::StageControlsUI;
@@ -34,6 +34,10 @@ const PROJECTION_LABEL_Z: f32 = 9.3;
 
 const HORIZON_COLOR: Color = Color::srgba(0.3, 0.5, 1.0, 0.7);
 const FLOOR_BASE_COLOR: Color = Color::srgba(0.7, 0.3, 1.0, 0.7);
+const PROJECTION_GIZMO_Z: f32 = 9.4;
+const GIZMO_HANDLE_SIZE: f32 = 6.0;
+const GIZMO_HANDLE_INSET: f32 = 3.0;
+
 const DEPTH_LABEL_FONT_SIZE: f32 = 10.0;
 const DEPTH_LABEL_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.5);
 const DEPTH_LABEL_X_INSET: f32 = 4.0;
@@ -320,6 +324,45 @@ fn spawn_projection_grid(
                 .stroke((FLOOR_BASE_COLOR, 1.5))
                 .build(),
             Transform::from_xyz(0.0, 0.0, PROJECTION_MARKER_Z),
+        ));
+
+        // Gizmo handles: small draggable arrows at the right edge of the viewport.
+        let handle_x = viewport.max.x - GIZMO_HANDLE_INSET;
+
+        // Horizon handle (blue).
+        let h_handle = shapes::Polygon {
+            points: vec![
+                Vec2::new(-GIZMO_HANDLE_SIZE, -GIZMO_HANDLE_SIZE * 0.5),
+                Vec2::new(0.0, 0.0),
+                Vec2::new(-GIZMO_HANDLE_SIZE, GIZMO_HANDLE_SIZE * 0.5),
+            ],
+            closed: true,
+        };
+        commands.spawn((
+            SceneItem,
+            PathOverlay,
+            Draggable,
+            ProjectionGizmo::Horizon,
+            ShapeBuilder::with(&h_handle).fill(HORIZON_COLOR).build(),
+            Transform::from_xyz(handle_x, profile.horizon_y, PROJECTION_GIZMO_Z),
+        ));
+
+        // Floor-base handle (purple).
+        let f_handle = shapes::Polygon {
+            points: vec![
+                Vec2::new(-GIZMO_HANDLE_SIZE, -GIZMO_HANDLE_SIZE * 0.5),
+                Vec2::new(0.0, 0.0),
+                Vec2::new(-GIZMO_HANDLE_SIZE, GIZMO_HANDLE_SIZE * 0.5),
+            ],
+            closed: true,
+        };
+        commands.spawn((
+            SceneItem,
+            PathOverlay,
+            Draggable,
+            ProjectionGizmo::FloorBase,
+            ShapeBuilder::with(&f_handle).fill(FLOOR_BASE_COLOR).build(),
+            Transform::from_xyz(handle_x, profile.floor_base_y, PROJECTION_GIZMO_Z),
         ));
     }
 }
