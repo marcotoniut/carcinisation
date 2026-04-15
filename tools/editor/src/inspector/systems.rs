@@ -5,6 +5,8 @@ use bevy_inspector_egui::egui::{self, Align2};
 use bevy_inspector_egui::reflect_inspector::{Context, InspectorUi};
 use bevy_inspector_egui::restricted_world_view::RestrictedWorldView;
 
+use carcinisation::stage::projection::ProjectionProfile;
+
 use crate::components::{SceneData, ScenePath, SelectedItem};
 use crate::file_manager::actions::{request_file_picker, save_scene};
 use crate::resources::SceneInspectorLayout;
@@ -287,6 +289,9 @@ fn stage_inspector(world: &mut World, ui: &mut egui::Ui) {
         &mut stage.on_end_transition_o,
     );
 
+    ui.add_space(4.0);
+    changed |= projection_override_fields(ui, "stage_projection", &mut stage.projection);
+
     ui.add_space(6.0);
     section_header(ui, &format!("Spawns ({})", stage.spawns.len()));
     changed |= spawn_list(&mut env, ui, &mut stage.spawns);
@@ -527,6 +532,7 @@ fn step_fields(
                 changed |= spawn_list(env, ui, &mut s.spawns);
             }
             changed |= reflected_collapsing(env, ui, "floor_depths", &mut s.floor_depths);
+            changed |= projection_override_fields(ui, "stop_projection", &mut s.projection);
         }
         StageStep::Tween(s) => {
             changed |= reflected_field_narrow(env, ui, "coordinates", 140.0, &mut s.coordinates);
@@ -540,6 +546,7 @@ fn step_fields(
                 changed |= spawn_list(env, ui, &mut s.spawns);
             }
             changed |= reflected_collapsing(env, ui, "floor_depths", &mut s.floor_depths);
+            changed |= projection_override_fields(ui, "tween_projection", &mut s.projection);
         }
         StageStep::Cinematic(s) => {
             changed |= reflected_field(env, ui, "cinematic", s);
@@ -620,4 +627,111 @@ fn apply_list_action<T>(vec: &mut Vec<T>, action: ListAction) {
         }
         _ => {}
     }
+}
+
+// ─── Projection editing ─────────────────────────────────────────────────────
+
+/// Minimum gap between horizon_y and floor_base_y.
+const PROJECTION_MIN_GAP: f32 = 1.0;
+/// Minimum allowed bias_power.
+const PROJECTION_MIN_BIAS: f32 = 0.1;
+
+/// Renders an optional `ProjectionProfile` editor.
+///
+/// When `None`, shows an "enable" button.  When `Some`, shows DragValue fields
+/// for horizon_y, floor_base_y, and bias_power with live clamping that prevents
+/// invalid states.
+///
+/// Returns `true` if any value changed.
+fn projection_override_fields(
+    ui: &mut egui::Ui,
+    id_salt: &str,
+    projection: &mut Option<ProjectionProfile>,
+) -> bool {
+    let mut changed = false;
+
+    ui.push_id(id_salt, |ui| {
+        let is_set = projection.is_some();
+        let mut clear_requested = false;
+
+        if is_set {
+            ui.horizontal(|ui| {
+                field_label(ui, "projection");
+                if ui.small_button("clear").clicked() {
+                    clear_requested = true;
+                }
+            });
+        } else {
+            ui.horizontal(|ui| {
+                field_label(ui, "projection");
+                if ui.small_button("set").clicked() {
+                    *projection = Some(ProjectionProfile::default());
+                    changed = true;
+                }
+            });
+        }
+
+        if clear_requested {
+            *projection = None;
+            changed = true;
+        } else if let Some(p) = projection {
+            changed |= projection_fields(ui, p);
+        }
+    });
+
+    changed
+}
+
+/// Renders DragValue editors for an existing `ProjectionProfile`.
+///
+/// Clamping enforces invariants live:
+/// - `horizon_y` is clamped to at least `floor_base_y + MIN_GAP`
+/// - `floor_base_y` is clamped to at most `horizon_y - MIN_GAP`
+/// - `bias_power` is clamped to `[MIN_BIAS, ..]`
+fn projection_fields(ui: &mut egui::Ui, p: &mut ProjectionProfile) -> bool {
+    let mut changed = false;
+
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new("horizon_y")
+                .font(egui::FontId::proportional(10.0))
+                .color(crate::ui::style::LABEL_COLOR),
+        );
+        let r = ui.add(
+            egui::DragValue::new(&mut p.horizon_y)
+                .speed(0.5)
+                .range((p.floor_base_y + PROJECTION_MIN_GAP)..=f32::MAX),
+        );
+        changed |= r.changed();
+    });
+
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new("floor_base_y")
+                .font(egui::FontId::proportional(10.0))
+                .color(crate::ui::style::LABEL_COLOR),
+        );
+        let r = ui.add(
+            egui::DragValue::new(&mut p.floor_base_y)
+                .speed(0.5)
+                .range(f32::MIN..=(p.horizon_y - PROJECTION_MIN_GAP)),
+        );
+        changed |= r.changed();
+    });
+
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new("bias_power")
+                .font(egui::FontId::proportional(10.0))
+                .color(crate::ui::style::LABEL_COLOR),
+        );
+        let r = ui.add(
+            egui::DragValue::new(&mut p.bias_power)
+                .speed(0.05)
+                .range(PROJECTION_MIN_BIAS..=20.0),
+        );
+        changed |= r.changed();
+    });
+
+    changed
 }

@@ -39,7 +39,8 @@ const DEPTH_LABEL_COLOR: Color = Color::srgba(1.0, 1.0, 1.0, 0.5);
 const DEPTH_LABEL_X_INSET: f32 = 4.0;
 /// Minimum vertical spacing (world pixels) between depth labels.  Labels
 /// closer than this are culled to prevent overlap near the horizon.
-const DEPTH_LABEL_MIN_SPACING: f32 = 6.0;
+/// Proportional to font size so label legibility scales with text size.
+const DEPTH_LABEL_MIN_SPACING: f32 = DEPTH_LABEL_FONT_SIZE * 0.7;
 const CAMERA_POSITION_Z: f32 = 9.9;
 const PATH_Z: f32 = 10.0;
 const PATH_NODE_Z: f32 = 10.1;
