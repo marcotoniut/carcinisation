@@ -112,6 +112,12 @@ pub struct CompositionAtlas {
     /// How the entity position maps to the sprite.
     #[serde(default)]
     pub spawn_anchor: crate::composed_ron::SpawnAnchorMode,
+    /// Authored ground contact offset (Y-down from origin). See [`CompactComposedAtlas`].
+    #[serde(default)]
+    pub ground_anchor_y: Option<i16>,
+    /// Authored airborne pivot offset (Y-down from origin). See [`CompactComposedAtlas`].
+    #[serde(default)]
+    pub air_anchor_y: Option<i16>,
     /// Atlas image filename stored alongside this manifest.
     pub atlas_image: String,
     /// Reusable semantic part definitions.
@@ -445,6 +451,12 @@ struct CompositionSource {
     /// How the entity position maps to the sprite. Defaults to `BottomOrigin`.
     #[serde(default)]
     spawn_anchor: crate::composed_ron::SpawnAnchorMode,
+    /// Authored ground contact offset (Y-down from origin, positive = below).
+    #[serde(default)]
+    ground_anchor_y: Option<i16>,
+    /// Authored airborne pivot offset (Y-down from origin).
+    #[serde(default)]
+    air_anchor_y: Option<i16>,
 }
 
 /// Per-animation part override declared in composition metadata.
@@ -676,6 +688,12 @@ pub fn export_sprite(request: &ExportRequest) -> Result<()> {
 
     let compact =
         crate::composed_ron::encode(&metadata).context("Failed to encode compact composed RON")?;
+    // Log per-animation ground anchor overrides.
+    for anim in &compact.animations {
+        if let Some(ground) = anim.ground_anchor_y {
+            eprintln!("    {}: ground_anchor_y={ground} (override)", anim.tag);
+        }
+    }
     let composed_ron_path = output_dir.join(RUNTIME_COMPOSED_RON_NAME);
     let composed_ron_body = crate::composed_ron::to_ron(&compact)
         .context("Failed to serialize compact composed RON")?;
@@ -824,7 +842,7 @@ fn build_piece_atlas(
     }
 
     let (atlas_image, atlas_sprites) = pack_sprites(&sprite_interner.sprites)?;
-    let metadata = CompositionAtlas {
+    let mut metadata = CompositionAtlas {
         schema_version: CURRENT_SCHEMA_VERSION,
         entity: sprite.entity.clone(),
         depth: sprite.depth,
@@ -835,6 +853,8 @@ fn build_piece_atlas(
         },
         origin,
         spawn_anchor: composition.spawn_anchor,
+        ground_anchor_y: composition.ground_anchor_y,
+        air_anchor_y: composition.air_anchor_y,
         atlas_image: String::new(),
         part_definitions: composition.part_definitions.clone(),
         parts,
@@ -843,6 +863,19 @@ fn build_piece_atlas(
         gameplay: composition.gameplay.clone(),
     };
 
+    let had_ground = metadata.ground_anchor_y.is_some();
+    let had_air = metadata.air_anchor_y.is_some();
+    derive_anchor_offsets(&mut metadata);
+    // Log derived values so developers can verify without inspecting the RON.
+    if !had_ground || !had_air {
+        let ground_src = if had_ground { "authored" } else { "derived" };
+        let air_src = if had_air { "authored" } else { "derived" };
+        eprintln!(
+            "  anchors: ground={} ({ground_src}), air={} ({air_src})",
+            metadata.ground_anchor_y.unwrap_or(0),
+            metadata.air_anchor_y.unwrap_or(0),
+        );
+    }
     validate_composition_atlas(&metadata)?;
 
     Ok((atlas_image, metadata, sprite_interner.stats))
@@ -1506,8 +1539,102 @@ fn validate_composition_source_contracts(source: &CompositionSource) -> Result<(
     Ok(())
 }
 
-/// Validates an exported composed-asset manifest at the load boundary.
+/// Derive missing anchor offsets from animation frame data.
 ///
+/// When `ground_anchor_y` is `None`, scans all visible poses across every
+/// animation frame and takes the maximum `(offset_y + sprite_height)` — the
+/// lowest rendered pixel in canvas Y-down space, relative to the composition
+/// origin.  This is where the feet sit.
+///
+/// When `air_anchor_y` is `None`, finds the first part whose definition is
+/// tagged both `"core"` and `"torso"` (the body part), then computes its
+/// sprite vertical centre from the first visible pose.
+///
+/// Authored values in the composition TOML always take precedence; this
+/// function only fills in `None` fields.
+fn derive_anchor_offsets(atlas: &mut CompositionAtlas) {
+    use crate::composed_ron::SpawnAnchorMode;
+
+    if atlas.spawn_anchor != SpawnAnchorMode::Origin {
+        return; // BottomOrigin entities don't need anchor offsets.
+    }
+
+    // Build sprite-id → height lookup.
+    let sprite_height: HashMap<&str, i32> = atlas
+        .sprites
+        .iter()
+        .map(|s| (s.id.as_str(), s.rect.h as i32))
+        .collect();
+
+    // --- Ground anchor: lowest visible pixel across all frames ---
+    if atlas.ground_anchor_y.is_none() {
+        let mut max_bottom: Option<i32> = None;
+        for anim in &atlas.animations {
+            for frame in &anim.frames {
+                for pose in &frame.parts {
+                    if !pose.visible {
+                        continue;
+                    }
+                    if let Some(&h) = sprite_height.get(pose.sprite_id.as_str()) {
+                        let bottom = pose.local_offset.y + h;
+                        max_bottom = Some(max_bottom.map_or(bottom, |prev| prev.max(bottom)));
+                    }
+                }
+            }
+        }
+        if let Some(bottom) = max_bottom {
+            atlas.ground_anchor_y = i16::try_from(bottom).ok();
+        }
+    }
+
+    // --- Air anchor: body part visual centre ---
+    if atlas.air_anchor_y.is_none() {
+        // Find the body part id: definition tagged both "core" and "torso".
+        let body_def_id: Option<&str> = atlas.part_definitions.iter().find_map(|def| {
+            let has_core = def.tags.iter().any(|t| t == "core");
+            let has_torso = def.tags.iter().any(|t| t == "torso");
+            if has_core && has_torso {
+                Some(def.id.as_str())
+            } else {
+                None
+            }
+        });
+
+        let Some(body_def_id) = body_def_id else {
+            eprintln!(
+                "warning: {} depth {}: no part definition tagged [\"core\", \"torso\"] — \
+                 air_anchor_y will default to 0 (at origin)",
+                atlas.entity, atlas.depth,
+            );
+            return;
+        };
+
+        // Find part instances that match this definition.
+        let body_part_ids: Vec<&str> = atlas
+            .parts
+            .iter()
+            .filter(|p| p.definition_id == body_def_id)
+            .map(|p| p.id.as_str())
+            .collect();
+
+        // Find the first visible pose for any body part instance.
+        'outer: for anim in &atlas.animations {
+            for frame in &anim.frames {
+                for pose in &frame.parts {
+                    if !pose.visible || !body_part_ids.contains(&pose.part_id.as_str()) {
+                        continue;
+                    }
+                    if let Some(&h) = sprite_height.get(pose.sprite_id.as_str()) {
+                        let centre = pose.local_offset.y + h / 2;
+                        atlas.air_anchor_y = i16::try_from(centre).ok();
+                        break 'outer;
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// This function is intentionally strict: if a schema concept is not yet
 /// supported by the runtime, validation should reject it rather than allow a
 /// silent partial load.
@@ -3133,6 +3260,8 @@ mod tests {
                 }],
             },
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
         }
     }
 
@@ -3724,6 +3853,8 @@ mod tests {
             canvas: Size { w: 16, h: 16 },
             origin: Point::default(),
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
             atlas_image: "source.png".to_string(),
             part_definitions: vec![PartDefinition {
                 id: "legs".to_string(),

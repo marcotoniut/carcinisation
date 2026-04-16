@@ -23,7 +23,7 @@ use crate::pixel::PxAssets;
 use crate::stage::{
     components::{
         interactive::{Dead, Flickerer, Health},
-        placement::Depth,
+        placement::{AnchorOffsets, Depth},
     },
     enemy::{components::composed_state::Dying, entity::EnemyType},
     messages::{ComposedAnimationCueMessage, PartDamageMessage},
@@ -156,6 +156,10 @@ struct CachedAnimation {
     frames: Vec<CachedAnimationFrame>,
     /// Part-scoped overrides declared in the atlas metadata.
     part_overrides: Vec<CachedAnimationOverride>,
+    /// Per-animation ground anchor override (canvas Y-down from origin).
+    /// When `Some`, overrides the entity-level `ground_anchor_y` for
+    /// placement while this animation is active.
+    ground_anchor_y: Option<i16>,
 }
 
 #[derive(Clone, Debug)]
@@ -748,6 +752,15 @@ pub struct ComposedEnemyVisual {
     pub sprite_atlas: Handle<PxSpriteAtlasAsset>,
     track_states: Vec<ComposedTrackPlaybackState>,
     last_error: Option<String>,
+    /// Set once [`AnchorOffsets`] has been inserted from atlas metadata.
+    anchor_offsets_inserted: bool,
+    /// Entity-level ground anchor (set once, used as default when an
+    /// animation has no per-animation override).
+    entity_ground_anchor: f32,
+    /// Last animation tag for which the ground anchor was resolved.
+    /// Avoids rewriting `AnchorOffsets` every frame when the animation
+    /// hasn't changed.
+    last_resolved_anchor_tag: Option<String>,
 }
 
 impl ComposedEnemyVisual {
@@ -760,6 +773,9 @@ impl ComposedEnemyVisual {
             sprite_atlas: asset_server.load(composed_enemy_sprite_atlas_path(&base_path)),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         }
     }
 }
@@ -1139,6 +1155,47 @@ pub fn update_composed_enemy_visuals(
                 (anchor, Vec2::ZERO)
             }
         };
+
+        // --- Anchor offset lifecycle ---
+        //
+        // First frame: compute entity-level defaults, then immediately
+        // resolve the current animation's override so the very first
+        // AnchorOffsets insert has the correct per-animation value.
+        //
+        // Subsequent frames: only re-resolve when the animation tag changes.
+        if !visual.anchor_offsets_inserted {
+            match atlas_asset.atlas.spawn_anchor {
+                SpawnAnchorMode::Origin => {
+                    visual.entity_ground_anchor = atlas_asset
+                        .atlas
+                        .ground_anchor_y
+                        .map(f32::from)
+                        .unwrap_or_else(|| {
+                            f32::from(atlas_asset.atlas.canvas.1)
+                                - f32::from(atlas_asset.atlas.origin.1)
+                        });
+                }
+                SpawnAnchorMode::BottomOrigin => {}
+            };
+            visual.anchor_offsets_inserted = true;
+            // Fall through to the override resolution below.
+        }
+
+        if visual.last_resolved_anchor_tag.as_deref() != Some(&animation_state.requested_tag) {
+            let resolved_ground = cache
+                .animations
+                .get(&animation_state.requested_tag)
+                .and_then(|a| a.ground_anchor_y)
+                .map(f32::from)
+                .unwrap_or(visual.entity_ground_anchor);
+            let air = atlas_asset.atlas.air_anchor_y.map(f32::from).unwrap_or(0.0);
+            commands.entity(entity).insert(AnchorOffsets {
+                ground: resolved_ground,
+                air,
+            });
+            visual.last_resolved_anchor_tag = Some(animation_state.requested_tag.clone());
+        }
+
         collision_state.collisions = build_collision_state(
             cache,
             &resolved_frame.poses,
@@ -1474,6 +1531,7 @@ fn build_runtime_cache_compact(
                 repeats: animation.repeats,
                 frames: cached_frames,
                 part_overrides,
+                ground_anchor_y: animation.ground_anchor_y,
             },
         );
     }
@@ -1766,6 +1824,8 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
                 repeats: animation.repeats,
                 frames: cached_frames,
                 part_overrides,
+                // JSON path has no per-animation anchor overrides.
+                ground_anchor_y: None,
             },
         );
     }
@@ -3110,6 +3170,8 @@ mod tests {
             canvas: Size { w: 16, h: 16 },
             origin: asset_pipeline::aseprite::Point { x: 8, y: 8 },
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
             atlas_image: "source.png".to_string(),
             part_definitions: vec![PartDefinition {
                 id: "body".to_string(),
@@ -3210,6 +3272,8 @@ mod tests {
             canvas: Size { w: 16, h: 16 },
             origin: Point { x: 8, y: 8 },
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
             atlas_image: "source.png".to_string(),
             part_definitions: vec![
                 PartDefinition {
@@ -3571,6 +3635,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 
@@ -3596,6 +3663,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let mut state = ComposedAnimationState::new("shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
@@ -3614,6 +3684,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let idle_tracks =
             requested_animation_tracks(&ComposedAnimationState::new("idle_fly"), Some(&cache));
@@ -3628,6 +3701,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let shoot_tracks =
             requested_animation_tracks(&ComposedAnimationState::new("shoot_fly"), Some(&cache));
@@ -3661,6 +3737,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let mut state = ComposedAnimationState::new("melee_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
@@ -3679,6 +3758,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let idle_tracks =
             requested_animation_tracks(&ComposedAnimationState::new("idle_fly"), Some(&cache));
@@ -3693,6 +3775,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let melee_tracks =
             requested_animation_tracks(&ComposedAnimationState::new("melee_fly"), Some(&cache));
@@ -3734,6 +3819,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let mut state = ComposedAnimationState::new("shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
@@ -3762,6 +3850,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let mut state = ComposedAnimationState::new("shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
@@ -3795,6 +3886,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let mut state = ComposedAnimationState::new("idle_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
@@ -3823,6 +3917,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let mut state = ComposedAnimationState::new("shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
@@ -3850,6 +3947,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 
@@ -3874,6 +3974,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 
@@ -3896,6 +3999,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 
@@ -3919,6 +4025,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 
@@ -3947,6 +4056,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let mut state = ComposedAnimationState::new("shoot_fly");
         state.set_hold_last_frame(true);
@@ -4006,6 +4118,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 
@@ -4028,6 +4143,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         // idle_fly has repeats: None (infinite).
         let state = ComposedAnimationState::new("idle_fly");
@@ -4057,6 +4175,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 
@@ -4082,6 +4203,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("idle_fly");
 
@@ -5402,6 +5526,9 @@ mod tests {
                     sprite_atlas: Handle::default(),
                     track_states: Vec::new(),
                     last_error: None,
+                    anchor_offsets_inserted: false,
+                    entity_ground_anchor: 0.0,
+                    last_resolved_anchor_tag: None,
                 },
                 ComposedHealthPools::from_cache(&cache),
                 ComposedPartStates::from_cache(&cache),
@@ -5467,6 +5594,9 @@ mod tests {
                     sprite_atlas: Handle::default(),
                     track_states: Vec::new(),
                     last_error: None,
+                    anchor_offsets_inserted: false,
+                    entity_ground_anchor: 0.0,
+                    last_resolved_anchor_tag: None,
                 },
                 ComposedHealthPools::from_cache(&cache),
                 ComposedPartStates::from_cache(&cache),
@@ -5511,6 +5641,8 @@ mod tests {
             canvas: Size { w: 32, h: 16 },
             origin: Point { x: 16, y: 8 },
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
             atlas_image: "source.png".to_string(),
             part_definitions: vec![
                 PartDefinition {
@@ -5928,6 +6060,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
 
         // Base animation is idle_stand. Sprite-only override pulls sprites
@@ -6000,6 +6135,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         // No code-side overrides — metadata should do it.
         let state = ComposedAnimationState::new("shoot_fly");
@@ -6066,6 +6204,9 @@ mod tests {
             sprite_atlas: Handle::default(),
             track_states: Vec::new(),
             last_error: None,
+            anchor_offsets_inserted: false,
+            entity_ground_anchor: 0.0,
+            last_resolved_anchor_tag: None,
         };
         let state = ComposedAnimationState::new("shoot_fly");
 

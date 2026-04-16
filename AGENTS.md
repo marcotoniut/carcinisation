@@ -49,6 +49,12 @@ If something is blocked, state exactly what and why.
 
 - Do not add Co-Authored-By lines to commits.
 
+## Artifacts
+
+- Planning docs, investigation notes, and build reports go in `tmp/`, never in tracked source directories.
+- Do not copy pipeline-only outputs (e.g. `analysis.json`) into `assets/`.
+- `tmp/` is gitignored; treat it as ephemeral.
+
 ## Hygiene
 
 - Stop any watchers/dev servers/helper processes you started.

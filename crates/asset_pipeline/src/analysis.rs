@@ -740,6 +740,8 @@ mod tests {
             canvas: Size { w: 64, h: 64 },
             origin: Point::default(),
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
             atlas_image: "source.png".to_string(),
             part_definitions: part_defs,
             parts,

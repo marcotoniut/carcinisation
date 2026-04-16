@@ -12,6 +12,8 @@
     "y": 43
   },
   "spawn_anchor": "Origin",
+  "ground_anchor_y": 49,
+  "air_anchor_y": 8,
   "atlas_image": "source.png",
   "part_definitions": [
     {

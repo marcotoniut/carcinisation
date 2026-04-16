@@ -3,8 +3,10 @@
 //! When enabled, draws:
 //! - **Purple horizontal + diagonal lines**: perspective depth grid (floor
 //!   positions 1..=9 plus converging guide rays).
-//! - **Green horizontal line**: ground contact — the rendered sprite bottom for
-//!   each composed entity.  Should align with the floor when grounded.
+//! - **Green horizontal line**: active placement anchor.  Shows the ground
+//!   contact point when grounded, or the airborne body pivot when the
+//!   [`Airborne`] marker is present.  Falls back to the per-frame composite
+//!   bounding-box bottom when no anchor data is present.
 //! - **Light-blue crosshair**: entity pivot / composition origin — the point
 //!   that game logic uses for position, collision, and tween targets.
 //!
@@ -12,11 +14,10 @@
 //!
 //! - **Pivot / Origin**: `PxSubPosition` — the entity's world position and the
 //!   composition's authored reference point.
-//! - **Ground Contact**: the bottom of the rendered composite, accounting for
-//!   presentation scale.  Equals pivot for `BottomOrigin` entities; below pivot
-//!   for `Origin` entities.
+//! - **Active Anchor**: ground contact (`entity_y − ground × scale`) when
+//!   grounded; body-centre pivot (`entity_y − air × scale`) when [`Airborne`].
 //! - **Placement Anchor**: the point aligned with the world.  Grounded states
-//!   align ground contact with the floor; airborne states use the pivot.
+//!   align ground contact with the floor; airborne states use the body pivot.
 //!
 //! Grid geometry (horizontal lines + guide rays) is computed by the shared
 //! [`build_perspective_grid`] function in [`super::projection`] and rendered
@@ -33,7 +34,7 @@ use carapace::prelude::{PxCompositeSprite, PxSubPosition};
 use carapace::presentation::PxPresentationTransform;
 
 use crate::globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER};
-use crate::stage::components::placement::{Depth, Floor};
+use crate::stage::components::placement::{Airborne, AnchorOffsets, Depth, Floor};
 use crate::stage::projection::{GridParams, build_perspective_grid};
 
 const SCREEN_X: f32 = SCREEN_RESOLUTION.x as f32;
@@ -41,8 +42,8 @@ const SCREEN_Y: f32 = SCREEN_RESOLUTION.y as f32;
 
 // --- Marker colours ---
 
-/// Ground contact: rendered sprite bottom.
-const GROUND_CONTACT_COLOR: Color = Color::srgba(0.15, 0.7, 0.15, 0.7);
+/// Active placement anchor (ground contact when grounded, body pivot when airborne).
+const ANCHOR_COLOR: Color = Color::srgba(0.15, 0.7, 0.15, 0.7);
 
 /// Pivot / composition origin crosshair.
 const PIVOT_COLOR: Color = Color::srgba(0.4, 0.7, 1.0, 0.6);
@@ -172,9 +173,11 @@ fn draw_depth_grid_background(
 
 /// Draw per-entity debug markers:
 ///
-/// - **Green horizontal line** — ground contact (rendered sprite bottom).
-///   `position.y + composite.origin.y * scale_y`, converted to viewport space.
-///   For `BottomOrigin` entities, coincides with the pivot.
+/// - **Green horizontal line** — active placement anchor.  Uses
+///   [`Airborne`] presence to select the right offset from
+///   [`AnchorOffsets`]: ground when grounded, air when airborne.
+///   Falls back to the per-frame bounding-box bottom when no anchor
+///   data is present.
 ///
 /// - **Light-blue crosshair** — pivot / composition origin (`PxSubPosition`).
 ///   Two perpendicular lines centred on the entity position, sized to ~15 % of
@@ -186,13 +189,15 @@ fn draw_entity_anchors(
         &PxSubPosition,
         &PxCompositeSprite,
         Option<&PxPresentationTransform>,
+        Option<&AnchorOffsets>,
+        Has<Airborne>,
     )>,
 ) {
     if !overlay.enabled {
         return;
     }
 
-    for (position, composite, presentation) in query.iter() {
+    for (position, composite, presentation, anchor_offsets, is_airborne) in query.iter() {
         if composite.size.x == 0 {
             continue;
         }
@@ -204,18 +209,18 @@ fn draw_entity_anchors(
         let cx = to_viewport_x(position.0.x);
         let pivot_wy = to_viewport_y(position.0.y);
 
-        // --- Ground contact (green horizontal line) ---
-        //
-        // composite.origin.y is the bottom of the per-frame bounding box in
-        // Y-up carapace space, relative to the composition origin (negative
-        // when the sprite extends below the origin).  Multiplying by scale_y
-        // gives the rendered distance from entity position to sprite bottom.
-        let contact_y = position.0.y + composite.origin.y as f32 * scale_y;
-        let contact_wy = to_viewport_y(contact_y);
+        // --- Active anchor (green horizontal line) ---
+        let anchor_y = if let Some(offsets) = anchor_offsets {
+            position.0.y - offsets.active_offset(is_airborne) * scale_y
+        } else {
+            // Fallback: per-frame bounding-box bottom.
+            position.0.y + composite.origin.y as f32 * scale_y
+        };
+        let anchor_wy = to_viewport_y(anchor_y);
         gizmos.line_2d(
-            Vec2::new(cx - half_w, contact_wy),
-            Vec2::new(cx + half_w, contact_wy),
-            GROUND_CONTACT_COLOR,
+            Vec2::new(cx - half_w, anchor_wy),
+            Vec2::new(cx + half_w, anchor_wy),
+            ANCHOR_COLOR,
         );
 
         // --- Pivot crosshair (light blue) ---

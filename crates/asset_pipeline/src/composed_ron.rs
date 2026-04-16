@@ -45,6 +45,15 @@ pub struct CompactComposedAtlas {
     /// (feet/ground contact) for backwards compatibility.
     #[serde(default, skip_serializing_if = "SpawnAnchorMode::is_default")]
     pub spawn_anchor: SpawnAnchorMode,
+    /// Y offset from composition origin to ground contact point, in canvas
+    /// Y-down pixels (positive = below origin).  When `None`, the runtime
+    /// falls back to the legacy proxy: `canvas_height − origin_y`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ground_anchor_y: Option<i16>,
+    /// Y offset from composition origin to airborne pivot, in canvas Y-down
+    /// pixels.  `None` defaults to `0` (at origin / body centre).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub air_anchor_y: Option<i16>,
     /// Part string table. Index into this with `u8` part indices.
     pub part_names: Vec<String>,
     /// Sprite string table. Index into this with `u8` sprite indices.
@@ -124,6 +133,12 @@ pub struct CompactAnimation {
     /// (lowest priority).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub part_overrides: Vec<CompactAnimationOverride>,
+    /// Per-animation ground anchor override.  When present, the runtime uses
+    /// this instead of the entity-level `ground_anchor_y` while this animation
+    /// is active.  Emitted by the export pipeline when the animation's lowest
+    /// visible pixel differs from the entity-level default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ground_anchor_y: Option<i16>,
 }
 
 /// A part-scoped animation override declared in the atlas metadata.
@@ -599,12 +614,26 @@ pub fn encode_with_diagnostics(
                 })
                 .collect();
 
+            // Per-animation ground anchor: derive from frame data if entity
+            // has an entity-level ground anchor to compare against.
+            let anim_ground = if atlas.spawn_anchor == SpawnAnchorMode::Origin {
+                derive_animation_ground_anchor(
+                    anim,
+                    &sprite_index,
+                    &sprite_sizes,
+                    atlas.ground_anchor_y,
+                )
+            } else {
+                None
+            };
+
             Ok(CompactAnimation {
                 tag: anim.tag.clone(),
                 direction,
                 repeats: anim.repeats,
                 frames,
                 part_overrides,
+                ground_anchor_y: anim_ground,
             })
         })
         .collect::<Result<Vec<_>>>()?;
@@ -646,6 +675,8 @@ pub fn encode_with_diagnostics(
             canvas: (canvas_w, canvas_h),
             origin: (origin_x, origin_y),
             spawn_anchor: atlas.spawn_anchor,
+            ground_anchor_y: atlas.ground_anchor_y,
+            air_anchor_y: atlas.air_anchor_y,
             part_names,
             sprite_names,
             sprite_sizes,
@@ -655,6 +686,38 @@ pub fn encode_with_diagnostics(
         },
         warnings,
     ))
+}
+
+/// Derive per-animation ground anchor.  Returns `Some(value)` only when the
+/// animation's lowest visible pixel differs from the entity-level default.
+fn derive_animation_ground_anchor(
+    anim: &crate::aseprite::Animation,
+    sprite_index: &std::collections::HashMap<String, u8>,
+    sprite_sizes: &[(u16, u16)],
+    entity_ground: Option<i16>,
+) -> Option<i16> {
+    let entity_default = entity_ground?;
+    let mut max_bottom: Option<i32> = None;
+    for frame in &anim.frames {
+        for pose in &frame.parts {
+            if !pose.visible {
+                continue;
+            }
+            let Some(&idx) = sprite_index.get(&pose.sprite_id) else {
+                continue;
+            };
+            if let Some(&(_, h)) = sprite_sizes.get(idx as usize) {
+                let bottom = pose.local_offset.y + i32::from(h);
+                max_bottom = Some(max_bottom.map_or(bottom, |prev| prev.max(bottom)));
+            }
+        }
+    }
+    let anim_ground = i16::try_from(max_bottom?).ok()?;
+    if anim_ground == entity_default {
+        None // same as default — no override needed
+    } else {
+        Some(anim_ground)
+    }
 }
 
 fn merge_gameplay(
@@ -817,6 +880,8 @@ mod tests {
             canvas: Size { w: 8, h: 8 },
             origin: Point { x: 4, y: 4 },
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
             atlas_image: "source.png".into(),
             part_definitions: vec![PartDefinition {
                 id: "body".into(),

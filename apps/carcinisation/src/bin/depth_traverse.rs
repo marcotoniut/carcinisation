@@ -30,7 +30,7 @@ use carapace::{animation::PxAnimationPlugin, prelude::*};
 use carcinisation::{
     globals::SCREEN_RESOLUTION,
     stage::{
-        components::placement::{AuthoredDepths, Depth, Floor},
+        components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth, Floor},
         depth_debug::{DepthDebugOverlay, DepthDebugPlugin},
         depth_scale::{DepthScaleConfig, apply_depth_fallback_scale},
         enemy::{
@@ -84,8 +84,10 @@ const TRANSITION_ANIM_SECS: f32 = 0.5;
 /// 3 = forward, backward, forward -- then transition.
 const PASSES_BEFORE_SWITCH: u32 = 3;
 
-/// Vertical offset (in carapace pixels) the sprite rises during flight.
-/// Scaled by depth scale at runtime for consistent visual gap.
+/// How far the body centre rises above its grounded height during flight
+/// (in carapace pixels).  Added to `ground − air` to yield the flight
+/// altitude at which the air anchor hovers above the floor.  Scaled by
+/// depth-fallback scale at runtime.
 const FLY_HEIGHT_OFFSET: f32 = 24.0;
 
 /// Idle pause between spidey jumps.
@@ -219,16 +221,6 @@ enum WalkPhase {
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 struct DepthFloorLine;
-
-/// Stable Y offset from the composition origin to the bottom of the authored
-/// canvas, in carapace Y-up pixels.  Computed once from atlas metadata when the
-/// composition atlas first loads.  Used to position `Origin`-mode entities so
-/// the canvas bottom aligns with the floor during grounded states.
-///
-/// For `BottomOrigin` entities this is zero (entity position IS the bottom).
-#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
-#[reflect(Component)]
-struct CanvasGroundOffset(f32);
 
 #[derive(Component, Clone, Copy, Debug, Reflect)]
 #[reflect(Component)]
@@ -367,7 +359,8 @@ fn main() {
     ))
     .register_type::<ComposedAnimationPlaybackDebug>()
     .register_type::<ComposedAnimationPlaybackDebugEnabled>()
-    .register_type::<CanvasGroundOffset>()
+    .register_type::<Airborne>()
+    .register_type::<AnchorOffsets>()
     .register_type::<DepthFloorLine>()
     .register_type::<DepthTraverseScaleOverride>()
     .register_type::<DepthTraverseDebugState>()
@@ -401,13 +394,12 @@ fn main() {
                 tick_stage_time,
                 prepare_composed_atlas_assets,
                 ensure_composed_enemy_parts,
-                compute_canvas_ground_offset,
+                update_composed_enemy_visuals,
                 cycle_horizon_profile,
                 switch_character,
                 advance_walk,
                 apply_depth_fallback_scale,
                 apply_spidey_jump_scale_override,
-                update_composed_enemy_visuals,
                 update_depth_traverse_debug_state,
             )
                 .chain(),
@@ -416,40 +408,6 @@ fn main() {
 }
 
 // --- Systems ---
-
-/// Compute the stable ground-contact offset from the atlas canvas metadata.
-///
-/// For `Origin`-mode entities the composition origin sits in the middle of the
-/// canvas, NOT at the bottom.  The distance from the origin to the canvas
-/// bottom (in Y-up pixels) is `canvas_height − origin_y` (where `origin_y` is
-/// in canvas Y-down space).  This offset, applied to the entity position, puts
-/// the canvas bottom on the floor line during grounded states.
-///
-/// For `BottomOrigin` entities the offset stays at zero.
-///
-/// Runs every frame but only writes once (skips entities that already have a
-/// non-zero value, and skips until the atlas asset is loaded).
-fn compute_canvas_ground_offset(
-    atlas_assets: Res<Assets<CompositionAtlasAsset>>,
-    mut query: Query<(&ComposedEnemyVisual, &mut CanvasGroundOffset), With<DepthWalker>>,
-) {
-    use asset_pipeline::composed_ron::SpawnAnchorMode;
-
-    for (visual, mut offset) in &mut query {
-        if offset.0 != 0.0 {
-            continue; // already computed
-        }
-        let Some(atlas_asset) = atlas_assets.get(&visual.atlas_manifest) else {
-            continue; // not loaded yet
-        };
-        let atlas = &atlas_asset.atlas;
-        if atlas.spawn_anchor == SpawnAnchorMode::Origin {
-            // canvas.1 = height, origin.1 = Y from top (canvas Y-down).
-            // Distance from origin to canvas bottom in Y-up = canvas_h − origin_y.
-            offset.0 = f32::from(atlas.canvas.1) - f32::from(atlas.origin.1);
-        }
-    }
-}
 
 /// Tick the stage time domain so composed animations advance.
 fn tick_stage_time(time: Res<Time>, mut stage_time: ResMut<Time<StageTimeDomain>>) {
@@ -523,7 +481,6 @@ fn spawn_walker(
             airborne: false,
             half_trips: 0,
         },
-        CanvasGroundOffset::default(),
     ));
 }
 
@@ -596,6 +553,7 @@ fn cycle_horizon_profile(
     }
 }
 
+#[allow(clippy::type_complexity)]
 /// Advance the oscillation state machine.
 ///
 /// Walk progress `t` in `[0, 1]` advances linearly over time (0 = depth 9 / horizon,
@@ -608,26 +566,35 @@ fn cycle_horizon_profile(
 /// Spidey: alternates between idle poses and jump arcs, advancing one
 /// depth level per jump.
 fn advance_walk(
+    mut commands: Commands,
     time: Res<Time>,
     profile: Res<HorizonProfile>,
     depth_scale: Res<DepthScaleConfig>,
     selected: Res<SelectedCharacter>,
     mut query: Query<
         (
+            Entity,
             &mut WalkProgress,
             &mut Depth,
             &mut PxSubPosition,
             &mut ComposedAnimationState,
-            &CanvasGroundOffset,
+            Option<&AnchorOffsets>,
+            Has<Airborne>,
         ),
         With<DepthWalker>,
     >,
 ) {
     let dt = time.delta_secs();
 
-    for (mut progress, mut depth, mut pos, mut anim, ground_offset) in &mut query {
+    for (entity, mut progress, mut depth, mut pos, mut anim, anchors, is_airborne) in &mut query {
         if *selected == SelectedCharacter::Mosquiton {
             advance_mosquiton(&mut progress, &mut anim, dt);
+
+            // AnchorOffsets is inserted by update_composed_enemy_visuals
+            // once the atlas loads.  Until then, skip positioning.
+            let Some(anchors) = anchors else {
+                continue;
+            };
 
             let t = progress.t;
             let bin = (t * DEPTH_COUNT).floor().min(DEPTH_COUNT - 1.0) as i8;
@@ -638,22 +605,35 @@ fn advance_walk(
                 *depth = new_depth;
             }
 
+            // Sync the Airborne marker with the state machine.
+            if progress.airborne && !is_airborne {
+                commands.entity(entity).insert(Airborne);
+            } else if !progress.airborne && is_airborne {
+                commands.entity(entity).remove::<Airborne>();
+            }
+
             let floor_y = floor_y_from_t(t, profile.profile.horizon_y);
-            // The fallback scale is the ratio applied by `apply_depth_fallback_scale`
-            // to the sprite's `PxPresentationTransform`.  The sprite grows/shrinks
-            // around the entity position, so the canvas-space offset from origin
-            // to canvas bottom must be scaled by the same factor.
             let fallback_scale = depth_scale.resolve_fallback(
                 new_depth,
                 &AuthoredDepths::single(SelectedCharacter::Mosquiton.authored_depth()),
             );
-            let scaled_ground_offset = ground_offset.0 * fallback_scale;
-            let y_offset = if progress.airborne {
-                scaled_ground_offset + FLY_HEIGHT_OFFSET * fallback_scale
+
+            // State-based anchor selection.
+            //
+            // NOTE: both branches are still floor-relative — the airborne
+            // reference is derived from floor_y, not from an independent
+            // target.  This is correct for the depth_traverse demo where
+            // the entity tracks the floor at every depth.
+            if progress.airborne {
+                // Airborne: air anchor (body centre) at flight altitude.
+                let body_height_grounded = anchors.ground - anchors.air;
+                let flight_altitude = body_height_grounded + FLY_HEIGHT_OFFSET;
+                let airborne_ref = floor_y + flight_altitude * fallback_scale;
+                pos.0 = Vec2::new(CENTER_X, airborne_ref + anchors.air * fallback_scale);
             } else {
-                scaled_ground_offset
+                // Grounded: ground anchor sits on the floor.
+                pos.0 = Vec2::new(CENTER_X, floor_y + anchors.ground * fallback_scale);
             };
-            pos.0 = Vec2::new(CENTER_X, floor_y + y_offset);
         } else {
             advance_spidey(
                 &mut progress,

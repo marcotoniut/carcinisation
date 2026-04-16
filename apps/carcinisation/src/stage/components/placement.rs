@@ -189,6 +189,58 @@ impl AuthoredDepths {
 #[derive(Component, Debug, Clone, Copy, Reflect)]
 pub struct Floor(pub f32);
 
+/// State-based anchor offsets for composed entities.
+///
+/// Both values are distances **downward from the composition origin** in
+/// canvas pixels (positive = below origin).  Each defines a semantically
+/// meaningful local reference point on the sprite.
+///
+/// Inserted by [`update_composed_enemy_visuals`] when the atlas is first
+/// resolved.  Not present before that — consumers should query with
+/// `Option<&AnchorOffsets>`.  For `BottomOrigin` entities both values are
+/// zero (entity position IS the ground contact).
+///
+/// # Placement
+///
+/// - **Grounded states** (walk, idle on land):
+///   `entity_y = floor_y + ground × scale`
+///   — the ground anchor sits on the floor.
+/// - **Airborne states** (fly, hover):
+///   `entity_y = airborne_ref_y + air × scale`
+///   — the air anchor sits at the flight reference point.
+///
+/// How `airborne_ref_y` is determined is up to the caller.  In
+/// `depth_traverse` it is still floor-relative (`floor_y + altitude ×
+/// scale`); a future stage runner could supply an independent target.
+#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct AnchorOffsets {
+    /// Distance from composition origin to ground contact point (positive =
+    /// below origin).  Grounded states place this point on the floor.
+    pub ground: f32,
+    /// Distance from composition origin to airborne pivot (positive = below
+    /// origin).  Derived from the body part centre (e.g. collision hurtbox
+    /// centre Y offset).
+    pub air: f32,
+}
+
+impl AnchorOffsets {
+    /// Returns the active anchor offset based on whether the entity is airborne.
+    #[must_use]
+    pub fn active_offset(&self, airborne: bool) -> f32 {
+        if airborne { self.air } else { self.ground }
+    }
+}
+
+/// Marker for entities that are currently airborne.
+///
+/// When present, placement and debug systems use [`AnchorOffsets::air`]
+/// instead of [`AnchorOffsets::ground`].  Movement systems add this
+/// marker on liftoff and remove it on landing.
+#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct Airborne;
+
 #[derive(Component, Debug, Clone, Copy, Reflect)]
 pub struct Speed(pub f32);
 
