@@ -1,0 +1,6 @@
+BoulderThrowConfig(
+    depth_speed: -1.6,
+    line_y_acceleration: -55.0,
+    damage: 45,
+    randomness: 35.0,
+)

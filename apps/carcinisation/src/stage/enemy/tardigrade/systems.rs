@@ -6,7 +6,10 @@ use crate::{
     globals::SCREEN_RESOLUTION_F32_H,
     layer::Layer,
     stage::{
-        attack::spawns::boulder_throw::spawn_boulder_throw_attack,
+        attack::{
+            data::boulder_throw::BoulderThrowConfig,
+            spawns::boulder_throw::spawn_boulder_throw_attack,
+        },
         components::{
             interactive::Dead,
             placement::{Depth, InView},
@@ -91,10 +94,12 @@ pub fn despawn_dead_tardigrade(
 /// # Panics
 ///
 /// Panics if the camera entity is missing from the world.
+#[allow(clippy::too_many_arguments)]
 pub fn check_idle_tardigrade(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    boulder_config: Res<BoulderThrowConfig>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<Time<StageTimeDomain>>,
     query: Query<
@@ -131,6 +136,7 @@ pub fn check_idle_tardigrade(
                     &asset_server,
                     &atlas_assets,
                     &stage_time,
+                    &boulder_config,
                     *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                     position.0,
                     depth,

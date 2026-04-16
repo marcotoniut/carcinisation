@@ -4,10 +4,7 @@ use crate::stage::{
             AttachedToComposedPart, EnemyAttack, EnemyAttackOriginDepth, EnemyAttackOriginPosition,
             EnemyHoveringAttackType, bundles::make_hovering_attack_atlas_bundle,
         },
-        data::blood_shot::{
-            BLOOD_SHOT_ATTACK_DAMAGE, BLOOD_SHOT_ATTACK_DEPTH_SPEED, BLOOD_SHOT_ATTACK_LINE_SPEED,
-            BLOOD_SHOT_ATTACK_RANDOMNESS, BLOOD_SHOT_ATTACK_STARTUP_HOLD,
-        },
+        data::blood_shot::BloodShotConfig,
     },
     components::{
         damage::InflictsDamage,
@@ -88,6 +85,7 @@ pub fn spawn_blood_shot_attack(
     asset_server: &AssetServer,
     atlas_assets: &Assets<PxSpriteAtlasAsset>,
     stage_time: &Res<Time<StageTimeDomain>>,
+    config: &BloodShotConfig,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,
@@ -97,22 +95,22 @@ pub fn spawn_blood_shot_attack(
     // TODO should this account for player speed/direction?
     let target_pos = target_pos
         + Vec2::new(
-            (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
-            (1. - rand::random::<f32>()) * BLOOD_SHOT_ATTACK_RANDOMNESS,
+            (1. - rand::random::<f32>()) * config.randomness,
+            (1. - rand::random::<f32>()) * config.randomness,
         );
 
     let (atlas_sprite, animation, collider_data) =
         make_hovering_attack_atlas_bundle(asset_server, atlas_assets, &attack_type);
 
     let direction = target_pos - current_pos;
-    let speed = direction.normalize_or_zero() * BLOOD_SHOT_ATTACK_LINE_SPEED;
+    let speed = direction.normalize_or_zero() * config.line_speed;
 
     let mut entity_commands = commands.spawn(BloodShotBundle {
         enemy_attack_origin_position: EnemyAttackOriginPosition(current_pos),
         enemy_attack_origin_depth: EnemyAttackOriginDepth(*depth),
         enemy_hovering_attack_type: EnemyHoveringAttackType::BloodShot,
         depth: *depth,
-        inflicts_damage: InflictsDamage(BLOOD_SHOT_ATTACK_DAMAGE),
+        inflicts_damage: InflictsDamage(config.damage),
         position: PxSubPosition(current_pos),
         targeting_value_x: current_pos.x.into(),
         targeting_value_y: current_pos.y.into(),
@@ -139,7 +137,7 @@ pub fn spawn_blood_shot_attack(
     }
 
     entity_commands.insert(PendingBloodShotMotion {
-        armed_at: stage_time.elapsed() + BLOOD_SHOT_ATTACK_STARTUP_HOLD,
+        armed_at: stage_time.elapsed() + config.startup_hold(),
         speed,
     });
 
@@ -151,6 +149,7 @@ pub fn spawn_blood_shot_attack(
 pub fn arm_pending_blood_shot_motion(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
+    config: Res<BloodShotConfig>,
     query: Query<(Entity, &PendingBloodShotMotion, &PxSubPosition, &Depth), With<EnemyAttack>>,
 ) {
     for (entity, pending, position, depth) in &query {
@@ -192,7 +191,7 @@ pub fn arm_pending_blood_shot_motion(
                 entity,
                 depth.to_f32(),
                 PLAYER_DEPTH.to_f32(),
-                BLOOD_SHOT_ATTACK_DEPTH_SPEED,
+                config.depth_speed,
             ),
             "Blood Shot Tween Z",
         );
@@ -216,6 +215,7 @@ mod tests {
     fn pending_blood_shot_motion_arms_only_after_hold() {
         let mut app = App::new();
         app.insert_resource(Time::<StageTimeDomain>::default());
+        app.insert_resource(BloodShotConfig::load());
         app.add_systems(Update, arm_pending_blood_shot_motion);
 
         let attack = app
@@ -273,6 +273,7 @@ mod tests {
     fn arming_removes_attached_to_composed_part() {
         let mut app = App::new();
         app.insert_resource(Time::<StageTimeDomain>::default());
+        app.insert_resource(BloodShotConfig::load());
         app.add_systems(Update, arm_pending_blood_shot_motion);
 
         let dummy_source = app.world_mut().spawn_empty().id();

@@ -1,0 +1,7 @@
+BloodShotConfig(
+    depth_speed: -5.0,
+    line_speed: 55.0,
+    damage: 20,
+    randomness: 20.0,
+    startup_hold_ms: 60,
+)

@@ -8,6 +8,10 @@ mod systems;
 #[cfg(debug_assertions)]
 use self::systems::sync_enemy_attack_debug_positions;
 use self::{
+    data::{
+        blood_shot::BloodShotConfig, boulder_throw::BoulderThrowConfig,
+        spider_shot::SpiderShotConfig,
+    },
     spawns::blood_shot::arm_pending_blood_shot_motion,
     systems::player::check_got_hit,
     systems::{
@@ -25,6 +29,9 @@ pub struct AttackPlugin;
 
 impl Plugin for AttackPlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(BloodShotConfig::load());
+        app.insert_resource(BoulderThrowConfig::load());
+        app.insert_resource(SpiderShotConfig::load());
         app.add_active_systems::<AttackPlugin, _>(
             // Only advance attack behaviour when the plugin is explicitly active.
             (

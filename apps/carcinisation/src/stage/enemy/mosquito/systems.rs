@@ -10,7 +10,7 @@ use crate::{
     globals::SCREEN_RESOLUTION_F32_H,
     layer::Layer,
     stage::{
-        attack::spawns::blood_shot::spawn_blood_shot_attack,
+        attack::{data::blood_shot::BloodShotConfig, spawns::blood_shot::spawn_blood_shot_attack},
         components::{
             interactive::Dead,
             placement::{Depth, InView},
@@ -241,6 +241,7 @@ pub fn check_idle_mosquito(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    blood_shot_config: Res<BloodShotConfig>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     // TODO
     // event_writer: MessageWriter<BloodAttackEvent>,
@@ -286,6 +287,7 @@ pub fn check_idle_mosquito(
                 &asset_server,
                 &atlas_assets,
                 &stage_time,
+                &blood_shot_config,
                 *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                 position.0,
                 depth,

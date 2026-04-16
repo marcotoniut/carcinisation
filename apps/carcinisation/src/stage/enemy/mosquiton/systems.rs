@@ -7,7 +7,10 @@ use crate::{
     game::score::components::Score,
     globals::SCREEN_RESOLUTION_F32_H,
     stage::{
-        attack::{components::AttachedToComposedPart, spawns::blood_shot::spawn_blood_shot_attack},
+        attack::{
+            components::AttachedToComposedPart, data::blood_shot::BloodShotConfig,
+            spawns::blood_shot::spawn_blood_shot_attack,
+        },
         components::{
             interactive::Dead,
             placement::{Depth, Floor},
@@ -157,11 +160,12 @@ pub fn despawn_dead_mosquitons(
 /// The composed runtime owns authored timing and dispatch. Species systems own
 /// the gameplay reaction so cue kinds stay generic rather than hardcoded into
 /// the renderer.
-#[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_panics_doc, clippy::too_many_arguments)]
 pub fn trigger_mosquiton_authored_attack_cues(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    blood_shot_config: Res<BloodShotConfig>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
     stage_time: Res<Time<StageTimeDomain>>,
     mut cue_reader: MessageReader<ComposedAnimationCueMessage>,
@@ -232,6 +236,7 @@ pub fn trigger_mosquiton_authored_attack_cues(
             &asset_server,
             &atlas_assets,
             &stage_time,
+            &blood_shot_config,
             *SCREEN_RESOLUTION_F32_H + camera_pos.0,
             current_pos,
             depth,

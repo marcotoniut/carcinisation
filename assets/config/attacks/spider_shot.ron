@@ -1,0 +1,6 @@
+SpiderShotConfig(
+    depth_speed: -1.8,
+    line_speed: 20.0,
+    damage: 15,
+    randomness: 25.0,
+)

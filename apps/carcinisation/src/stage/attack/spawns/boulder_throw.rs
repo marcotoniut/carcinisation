@@ -3,10 +3,7 @@ use crate::stage::{
         components::{
             EnemyAttack, EnemyHoveringAttackType, bundles::make_hovering_attack_atlas_bundle,
         },
-        data::boulder_throw::{
-            BOULDER_THROW_ATTACK_DAMAGE, BOULDER_THROW_ATTACK_DEPTH_SPEED,
-            BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION, BOULDER_THROW_ATTACK_RANDOMNESS,
-        },
+        data::boulder_throw::BoulderThrowConfig,
     },
     components::{
         damage::InflictsDamage,
@@ -84,11 +81,13 @@ pub struct BoulderThrowBundle {
     pub default: BoulderThrowDefaultBundle,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
     asset_server: &AssetServer,
     atlas_assets: &Assets<PxSpriteAtlasAsset>,
     _stage_time: &Res<Time<StageTimeDomain>>,
+    config: &BoulderThrowConfig,
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,
@@ -96,8 +95,8 @@ pub fn spawn_boulder_throw_attack(
     let attack_type = EnemyHoveringAttackType::BoulderThrow;
     let target_pos = target_pos
         + Vec2::new(
-            (1. - rand::random::<f32>()) * BOULDER_THROW_ATTACK_RANDOMNESS,
-            (1. - rand::random::<f32>()) * BOULDER_THROW_ATTACK_RANDOMNESS,
+            (1. - rand::random::<f32>()) * config.randomness,
+            (1. - rand::random::<f32>()) * config.randomness,
         );
 
     let (atlas_sprite, animation, collider_data) =
@@ -106,7 +105,7 @@ pub fn spawn_boulder_throw_attack(
     let depth_f32 = depth.to_f32();
     let target_depth = PLAYER_DEPTH;
 
-    let speed_z = BOULDER_THROW_ATTACK_DEPTH_SPEED;
+    let speed_z = config.depth_speed;
     let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
 
     let d = target_pos - current_pos;
@@ -114,12 +113,12 @@ pub fn spawn_boulder_throw_attack(
     let speed_x = d.x / t;
 
     // TODO: remember that boulder throws in outer space wouldn't have as much gravity, if any
-    let value = d.y - 0.5 * BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION * t.powi(2);
+    let value = d.y - 0.5 * config.line_y_acceleration * t.powi(2);
     let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
 
     let mut entity_commands = commands.spawn(BoulderThrowBundle {
         depth: *depth,
-        inflicts_damage: InflictsDamage(BOULDER_THROW_ATTACK_DAMAGE),
+        inflicts_damage: InflictsDamage(config.damage),
         position: PxSubPosition(current_pos),
         targeting_value_x: current_pos.x.into(),
         targeting_value_y: current_pos.y.into(),
@@ -167,7 +166,7 @@ pub fn spawn_boulder_throw_attack(
             current_pos.y,
             target_pos.y,
             speed_y,
-            BOULDER_THROW_ATTACK_LINE_Y_ACCELERATION,
+            config.line_y_acceleration,
         ),
         "Boulder Throw Tween Y",
     );
@@ -179,7 +178,7 @@ pub fn spawn_boulder_throw_attack(
             boulder_entity,
             depth_f32,
             target_depth.to_f32(),
-            BOULDER_THROW_ATTACK_DEPTH_SPEED,
+            config.depth_speed,
         ),
         "Boulder Throw Tween Z",
     );
