@@ -7,6 +7,7 @@ use crate::{
         attack::components::EnemyHoveringAttackType,
         components::{
             damage::InflictsDamage,
+            interactive::Dead,
             placement::{AuthoredDepths, Depth, InView},
         },
         messages::DamageMessage,
@@ -40,6 +41,7 @@ pub fn hovering_damage_on_reached(
         (
             Added<LinearValueReached<StageTimeDomain, TargetingValueZ>>,
             With<InView>,
+            Without<Dead>,
         ),
     >,
     asset_server: Res<AssetServer>,

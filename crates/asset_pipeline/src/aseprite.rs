@@ -1600,37 +1600,36 @@ fn derive_anchor_offsets(atlas: &mut CompositionAtlas) {
             }
         });
 
-        let Some(body_def_id) = body_def_id else {
+        if let Some(body_def_id) = body_def_id {
+            // Find part instances that match this definition.
+            let body_part_ids: Vec<&str> = atlas
+                .parts
+                .iter()
+                .filter(|p| p.definition_id == body_def_id)
+                .map(|p| p.id.as_str())
+                .collect();
+
+            // Find the first visible pose for any body part instance.
+            'outer: for anim in &atlas.animations {
+                for frame in &anim.frames {
+                    for pose in &frame.parts {
+                        if !pose.visible || !body_part_ids.contains(&pose.part_id.as_str()) {
+                            continue;
+                        }
+                        if let Some(&h) = sprite_height.get(pose.sprite_id.as_str()) {
+                            let centre = pose.local_offset.y + h / 2;
+                            atlas.air_anchor_y = i16::try_from(centre).ok();
+                            break 'outer;
+                        }
+                    }
+                }
+            }
+        } else {
             eprintln!(
                 "warning: {} depth {}: no part definition tagged [\"core\", \"torso\"] — \
                  air_anchor_y will default to 0 (at origin)",
                 atlas.entity, atlas.depth,
             );
-            return;
-        };
-
-        // Find part instances that match this definition.
-        let body_part_ids: Vec<&str> = atlas
-            .parts
-            .iter()
-            .filter(|p| p.definition_id == body_def_id)
-            .map(|p| p.id.as_str())
-            .collect();
-
-        // Find the first visible pose for any body part instance.
-        'outer: for anim in &atlas.animations {
-            for frame in &anim.frames {
-                for pose in &frame.parts {
-                    if !pose.visible || !body_part_ids.contains(&pose.part_id.as_str()) {
-                        continue;
-                    }
-                    if let Some(&h) = sprite_height.get(pose.sprite_id.as_str()) {
-                        let centre = pose.local_offset.y + h / 2;
-                        atlas.air_anchor_y = i16::try_from(centre).ok();
-                        break 'outer;
-                    }
-                }
-            }
         }
     }
 }

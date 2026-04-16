@@ -219,8 +219,7 @@ pub struct AnchorOffsets {
     /// below origin).  Grounded states place this point on the floor.
     pub ground: f32,
     /// Distance from composition origin to airborne pivot (positive = below
-    /// origin).  Derived from the body part centre (e.g. collision hurtbox
-    /// centre Y offset).
+    /// origin).  Derived from the body sprite visual centre during export.
     pub air: f32,
 }
 

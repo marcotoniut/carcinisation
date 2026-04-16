@@ -1163,6 +1163,22 @@ pub fn update_composed_enemy_visuals(
         // AnchorOffsets insert has the correct per-animation value.
         //
         // Subsequent frames: only re-resolve when the animation tag changes.
+        //
+        // The insert uses deferred commands, so consumers reading
+        // Option<&AnchorOffsets> in the same frame see the *previous*
+        // frame's value.  Two cases where this matters:
+        //
+        // 1. First atlas load: AnchorOffsets is absent for one frame.
+        //    advance_walk skips positioning (entity is still invisible
+        //    because this system hasn't set Visibility::Visible yet).
+        //    No visual artefact.
+        //
+        // 2. Animation tag change: the old animation's ground anchor is
+        //    used for one frame.  The difference is small (e.g. 3px
+        //    between walk_forward=45 and liftoff=42) and occurs during
+        //    transition animations where vertical motion is expected.
+        //    No gameplay effect — only a brief cosmetic shift masked
+        //    by the animation itself.
         if !visual.anchor_offsets_inserted {
             match atlas_asset.atlas.spawn_anchor {
                 SpawnAnchorMode::Origin => {

@@ -394,12 +394,12 @@ fn main() {
                 tick_stage_time,
                 prepare_composed_atlas_assets,
                 ensure_composed_enemy_parts,
-                update_composed_enemy_visuals,
                 cycle_horizon_profile,
                 switch_character,
                 advance_walk,
                 apply_depth_fallback_scale,
                 apply_spidey_jump_scale_override,
+                update_composed_enemy_visuals,
                 update_depth_traverse_debug_state,
             )
                 .chain(),
@@ -606,6 +606,13 @@ fn advance_walk(
             }
 
             // Sync the Airborne marker with the state machine.
+            //
+            // Uses deferred commands, so Has<Airborne> lags progress.airborne
+            // by one frame.  This is safe: placement (below) reads
+            // progress.airborne directly, so entity_y is always correct.
+            // The only consumer of the marker is depth_debug's green line,
+            // which shows the old anchor for one transition frame — a
+            // cosmetic-only artefact, not a gameplay or positioning issue.
             if progress.airborne && !is_airborne {
                 commands.entity(entity).insert(Airborne);
             } else if !progress.airborne && is_airborne {

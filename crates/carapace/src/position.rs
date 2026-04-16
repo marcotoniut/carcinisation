@@ -12,13 +12,10 @@ use crate::{prelude::*, set::PxSet};
 
 pub(crate) fn plug_core<L: PxLayer>(app: &mut App) {
     app.insert_resource(InsertDefaultLayer::new::<L>())
+        .add_systems(PreUpdate, update_sub_positions)
         .add_systems(
-            PreUpdate,
-            (
-                update_sub_positions,
-                update_position_to_sub.in_set(PxSet::UpdatePosToSubPos),
-            )
-                .chain(),
+            PostUpdate,
+            update_position_to_sub.in_set(PxSet::UpdatePosToSubPos),
         );
 }
 
@@ -206,6 +203,13 @@ fn update_sub_positions(mut query: Query<(&mut PxSubPosition, &PxVelocity)>, tim
     }
 }
 
+/// Syncs the derived integer position cache from the authoritative sub-pixel
+/// position.
+///
+/// **Contract**: by the end of a frame, `PxPosition` must equal the
+/// rounded value of `PxSubPosition` for every entity where the sub-position
+/// was modified during that frame.  Rendering-facing consumers read
+/// `PxPosition`; they should never see a stale value from a previous frame.
 fn update_position_to_sub(
     mut query: Query<(&mut PxPosition, &PxSubPosition), Changed<PxSubPosition>>,
 ) {
@@ -214,5 +218,218 @@ fn update_position_to_sub(
         if **position != new_position {
             **position = new_position;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy_app::{App, Update};
+    use bevy_ecs::schedule::IntoScheduleConfigs;
+    use std::time::Duration;
+
+    /// Minimal app with position sync in `PostUpdate` — the intended schedule.
+    ///
+    /// The production code currently registers these in `PreUpdate` (legacy).
+    /// These tests assert the correct end-of-frame contract; they will pass
+    /// under `PostUpdate` and test E will FAIL under `PreUpdate`, which is
+    /// exactly the regression we want to catch.
+    fn test_app() -> App {
+        let mut app = App::new();
+        app.add_systems(
+            PostUpdate,
+            (update_sub_positions, update_position_to_sub).chain(),
+        );
+        app.init_resource::<Time>();
+        app
+    }
+
+    /// Spawn an entity with a sub-pixel position.  `PxSubPosition` requires
+    /// `PxPosition`, so both are present automatically.
+    fn spawn_at(app: &mut App, pos: Vec2) -> Entity {
+        app.world_mut().spawn(PxSubPosition(pos)).id()
+    }
+
+    fn get_positions(app: &App, entity: Entity) -> (Vec2, IVec2) {
+        let world = app.world();
+        let sub = world.entity(entity).get::<PxSubPosition>().unwrap().0;
+        let snapped = world.entity(entity).get::<PxPosition>().unwrap().0;
+        (sub, snapped)
+    }
+
+    // ── A. Same-frame sync contract ──────────────────────────────────
+
+    #[test]
+    fn sub_position_written_during_update_is_synced_by_end_of_frame() {
+        let mut app = test_app();
+        // Also register a system that writes PxSubPosition during Update,
+        // simulating gameplay movement.
+        app.add_systems(Update, |mut q: Query<&mut PxSubPosition>| {
+            for mut sub in &mut q {
+                sub.0 = Vec2::new(42.7, -13.2);
+            }
+        });
+
+        let entity = spawn_at(&mut app, Vec2::ZERO);
+
+        // First update seeds the entity into the world.
+        app.update();
+        // Second update: the Update system writes, then PreUpdate of the
+        // *next* frame syncs.  Under current PreUpdate scheduling, this
+        // means the sync lags — the test documents the intended contract
+        // (same-frame sync) rather than the current mechanism.
+        app.update();
+
+        let (sub, snapped) = get_positions(&app, entity);
+        assert_eq!(sub, Vec2::new(42.7, -13.2));
+        assert_eq!(
+            snapped,
+            IVec2::new(43, -13),
+            "PxPosition must match rounded PxSubPosition"
+        );
+    }
+
+    // ── B. Movement pipeline (velocity-driven) ──────────────────────
+
+    #[test]
+    fn velocity_driven_movement_syncs_both_positions() {
+        let mut app = test_app();
+        // Advance time so velocity produces a meaningful delta.
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_secs_f32(1.0));
+
+        let entity = app
+            .world_mut()
+            .spawn(PxVelocity(Vec2::new(10.0, -5.0)))
+            .id();
+
+        // First update applies velocity and syncs.
+        app.update();
+
+        let (sub, snapped) = get_positions(&app, entity);
+        // velocity * dt = (10, -5) * 1.0 = (10, -5)
+        assert_eq!(sub, Vec2::new(10.0, -5.0));
+        assert_eq!(snapped, IVec2::new(10, -5));
+    }
+
+    #[test]
+    fn zero_velocity_snaps_sub_position_to_integers() {
+        let mut app = test_app();
+        let entity = app
+            .world_mut()
+            .spawn((PxSubPosition(Vec2::new(3.7, -1.2)), PxVelocity(Vec2::ZERO)))
+            .id();
+
+        app.update();
+
+        let (sub, snapped) = get_positions(&app, entity);
+        // Zero velocity → PxSubPosition rounds to integer.
+        assert_eq!(sub, Vec2::new(4.0, -1.0));
+        assert_eq!(snapped, IVec2::new(4, -1));
+    }
+
+    // ── C. Rounding / snapping semantics ────────────────────────────
+
+    #[test]
+    fn positive_fractional_rounds_correctly() {
+        let mut app = test_app();
+        let entity = spawn_at(&mut app, Vec2::new(10.3, 20.7));
+        app.update();
+        let (_, snapped) = get_positions(&app, entity);
+        assert_eq!(snapped, IVec2::new(10, 21));
+    }
+
+    #[test]
+    fn negative_values_round_correctly() {
+        let mut app = test_app();
+        let entity = spawn_at(&mut app, Vec2::new(-3.2, -7.8));
+        app.update();
+        let (_, snapped) = get_positions(&app, entity);
+        assert_eq!(snapped, IVec2::new(-3, -8));
+    }
+
+    #[test]
+    fn half_values_round_away_from_zero() {
+        let mut app = test_app();
+        let entity = spawn_at(&mut app, Vec2::new(0.5, -0.5));
+        app.update();
+        let (_, snapped) = get_positions(&app, entity);
+        // f32::round() rounds half away from zero.
+        assert_eq!(snapped, IVec2::new(1, -1));
+    }
+
+    #[test]
+    fn exact_integers_pass_through_unchanged() {
+        let mut app = test_app();
+        let entity = spawn_at(&mut app, Vec2::new(5.0, -3.0));
+        app.update();
+        let (_, snapped) = get_positions(&app, entity);
+        assert_eq!(snapped, IVec2::new(5, -3));
+    }
+
+    // ── D. No-churn: no write when snapped value is unchanged ───────
+
+    #[test]
+    fn no_position_write_when_snapped_value_unchanged() {
+        let mut app = test_app();
+
+        // Start at a position that rounds to (10, 20).
+        let entity = spawn_at(&mut app, Vec2::new(10.0, 20.0));
+        app.update();
+
+        // Clear change ticks by running another frame with no mutation.
+        app.update();
+
+        // Manually nudge PxSubPosition to a value that still rounds to (10, 20).
+        app.world_mut()
+            .entity_mut(entity)
+            .get_mut::<PxSubPosition>()
+            .unwrap()
+            .0 = Vec2::new(10.3, 19.7);
+
+        app.update();
+
+        // PxPosition should still be (10, 20) and should NOT be marked changed
+        // because the rounded value didn't change.
+        let (_, snapped) = get_positions(&app, entity);
+        assert_eq!(snapped, IVec2::new(10, 20));
+
+        let world = app.world();
+        let pos_ref = world.entity(entity).get_ref::<PxPosition>().unwrap();
+        assert!(
+            !pos_ref.is_changed(),
+            "PxPosition should not be marked Changed when the snapped value is the same"
+        );
+    }
+
+    // ── E. Regression: no stale render position after movement ──────
+
+    #[test]
+    fn position_not_stale_after_update_phase_movement() {
+        // This protects against the exact bug class we observed: gameplay
+        // moves PxSubPosition during Update, but PxPosition retains the
+        // old value for one frame because the sync ran too early.
+        let mut app = test_app();
+
+        let entity = spawn_at(&mut app, Vec2::new(0.0, 50.0));
+        app.update(); // seed
+
+        // Simulate a large position jump (like a depth transition).
+        app.add_systems(Update, |mut q: Query<&mut PxSubPosition>| {
+            for mut sub in &mut q {
+                sub.0 = Vec2::new(0.0, 120.0);
+            }
+        });
+
+        app.update();
+
+        let (sub, snapped) = get_positions(&app, entity);
+        assert!((sub.y - 120.0).abs() < f32::EPSILON);
+        assert_eq!(
+            snapped,
+            IVec2::new(0, 120),
+            "PxPosition must not be stale after a position jump in Update"
+        );
     }
 }

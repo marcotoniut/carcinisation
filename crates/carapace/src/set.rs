@@ -7,12 +7,13 @@ use crate::prelude::*;
 #[derive(Clone, Debug, Eq, Hash, PartialEq, SystemSet)]
 pub enum PxSet {
     // `PreUpdate`
-    /// The [`PxPosition`] is updated to match [`PxSubPosition`]. In [`CoreSet::PreUpdate`].
-    UpdatePosToSubPos,
     /// [`crate::cursor::PxCursorPosition`] is updated. In [`CoreSet::PreUpdate`].
     UpdateCursorPosition,
 
     // `PostUpdate`
+    /// The [`PxPosition`] is synced from [`PxSubPosition`]. In `PostUpdate`,
+    /// after all gameplay writes during `Update` are complete.
+    UpdatePosToSubPos,
     /// Animations are completed. In [`CoreSet::PostUpdate`].
     FinishAnimations,
     /// Update particle emitters. In [`CoreSet::PostUpdate`].
