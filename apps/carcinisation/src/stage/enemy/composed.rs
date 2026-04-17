@@ -212,6 +212,22 @@ struct CachedCompositeMetrics {
     size: UVec2,
 }
 
+/// Frame-derived render data written by [`update_composed_enemy_visuals`] in
+/// Update and consumed by [`apply_composed_enemy_visuals`] in PostUpdate.
+///
+/// This component exists to keep gameplay derivation (animation, collision,
+/// anchors) in Update while deferring presentation writes (PxCompositeSprite,
+/// PxAnchor, Visibility) to PostUpdate. It carries only what the PostUpdate
+/// writer needs — no persistent gameplay state.
+#[derive(Component, Default)]
+pub struct ComposedFrameOutput {
+    parts: Vec<PxCompositePart>,
+    origin: IVec2,
+    size: UVec2,
+    anchor: PxAnchor,
+    visible: bool,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct ResolvedPartTransform {
     top_left: IVec2,
@@ -915,6 +931,7 @@ pub fn ensure_composed_enemy_parts(
                         initial_health_pools,
                         ComposedPartStates::from_cache(cache),
                         ComposedResolvedParts::default(),
+                        ComposedFrameOutput::default(),
                         PxCompositeSprite::default(),
                         PxAnchor::Center,
                         depth.to_layer(),
@@ -962,9 +979,7 @@ pub fn update_composed_enemy_visuals(
             &mut ComposedCollisionState,
             &mut ComposedPartStates,
             &mut ComposedResolvedParts,
-            &mut PxCompositeSprite,
-            &mut PxAnchor,
-            &mut Visibility,
+            &mut ComposedFrameOutput,
             Option<&Dying>,
             Option<&ComposedAnimationPlaybackDebugEnabled>,
             Option<&ComposedAnimationPlaybackDebug>,
@@ -984,9 +999,7 @@ pub fn update_composed_enemy_visuals(
         mut collision_state,
         mut part_states,
         mut resolved_part_states,
-        mut composite,
-        mut anchor,
-        mut visibility,
+        mut frame_output,
         dying,
         playback_debug_enabled,
         playback_debug,
@@ -1005,8 +1018,7 @@ pub fn update_composed_enemy_visuals(
                 entity,
                 &mut collision_state,
                 &mut resolved_part_states,
-                &mut composite,
-                &mut visibility,
+                &mut frame_output,
                 "composed atlas manifest became unavailable after the visual was marked ready",
             );
             continue;
@@ -1017,8 +1029,7 @@ pub fn update_composed_enemy_visuals(
                 entity,
                 &mut collision_state,
                 &mut resolved_part_states,
-                &mut composite,
-                &mut visibility,
+                &mut frame_output,
                 "composed atlas cache became unavailable after the visual was marked ready",
             );
             continue;
@@ -1044,8 +1055,7 @@ pub fn update_composed_enemy_visuals(
                 hide_composite(
                     &mut collision_state,
                     &mut resolved_part_states,
-                    &mut composite,
-                    &mut visibility,
+                    &mut frame_output,
                 );
                 continue;
             }
@@ -1096,16 +1106,11 @@ pub fn update_composed_enemy_visuals(
             hide_composite(
                 &mut collision_state,
                 &mut resolved_part_states,
-                &mut composite,
-                &mut visibility,
+                &mut frame_output,
             );
             continue;
         };
 
-        composite.parts = parts;
-        composite.origin = metrics.origin;
-        composite.size = metrics.size;
-        composite.frame_count = 1;
         // Compute anchor and visual offset.
         //
         // Rendering positions each part at `base_pos + (part.offset - origin)`
@@ -1223,8 +1228,46 @@ pub fn update_composed_enemy_visuals(
         resolved_part_states.fragments =
             build_resolved_part_fragment_states(&resolved_fragments, position.0, visual_offset);
         resolved_part_states.visual_offset = visual_offset;
-        *anchor = new_anchor;
-        *visibility = Visibility::Visible;
+        frame_output.parts = parts;
+        frame_output.origin = metrics.origin;
+        frame_output.size = metrics.size;
+        frame_output.anchor = new_anchor;
+        frame_output.visible = true;
+    }
+}
+
+/// Applies frame-derived render data to presentation components.
+///
+/// Runs in PostUpdate so all gameplay mutations (position, depth, animation)
+/// are settled before presentation is written. This is the sole writer of
+/// `PxCompositeSprite`, `PxAnchor`, and `Visibility` for composed enemies.
+pub fn apply_composed_enemy_visuals(
+    mut query: Query<
+        (
+            &mut ComposedFrameOutput,
+            &mut PxCompositeSprite,
+            &mut PxAnchor,
+            &mut Visibility,
+        ),
+        With<ComposedEnemyVisualReady>,
+    >,
+) {
+    for (mut output, mut composite, mut anchor, mut visibility) in &mut query {
+        if output.visible {
+            composite.parts = std::mem::take(&mut output.parts);
+            composite.origin = output.origin;
+            composite.size = output.size;
+            composite.frame_count = 1;
+            *anchor = output.anchor;
+            *visibility = Visibility::Visible;
+        } else {
+            composite.parts.clear();
+            composite.origin = IVec2::ZERO;
+            composite.size = UVec2::ZERO;
+            composite.frame_count = 0;
+            *visibility = Visibility::Hidden;
+        }
+        output.visible = false;
     }
 }
 
@@ -3077,16 +3120,12 @@ fn fired_frame_cues(
 fn hide_composite(
     collision_state: &mut ComposedCollisionState,
     resolved_part_states: &mut ComposedResolvedParts,
-    composite: &mut PxCompositeSprite,
-    visibility: &mut Visibility,
+    frame_output: &mut ComposedFrameOutput,
 ) {
     collision_state.clear();
     resolved_part_states.clear();
-    composite.parts.clear();
-    composite.origin = IVec2::ZERO;
-    composite.size = UVec2::ZERO;
-    composite.frame_count = 0;
-    *visibility = Visibility::Hidden;
+    frame_output.parts.clear();
+    frame_output.visible = false;
 }
 
 fn fail_ready_composed_enemy(
@@ -3094,15 +3133,14 @@ fn fail_ready_composed_enemy(
     entity: Entity,
     collision_state: &mut ComposedCollisionState,
     resolved_part_states: &mut ComposedResolvedParts,
-    composite: &mut PxCompositeSprite,
-    visibility: &mut Visibility,
+    frame_output: &mut ComposedFrameOutput,
     reason: &str,
 ) {
     error!(
         "Composed enemy {:?} failed after becoming ready: {}",
         entity, reason
     );
-    hide_composite(collision_state, resolved_part_states, composite, visibility);
+    hide_composite(collision_state, resolved_part_states, frame_output);
     commands
         .entity(entity)
         .remove::<ComposedEnemyVisualReady>()

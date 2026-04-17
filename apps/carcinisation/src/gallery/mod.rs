@@ -17,8 +17,8 @@ use crate::{
     core::time::tick_time,
     stage::{
         enemy::composed::{
-            ensure_composed_enemy_parts, prepare_composed_atlas_assets,
-            update_composed_enemy_visuals,
+            apply_composed_enemy_visuals, ensure_composed_enemy_parts,
+            prepare_composed_atlas_assets, update_composed_enemy_visuals,
         },
         player::PlayerPlugin,
         resources::StageTimeDomain,
@@ -44,6 +44,7 @@ impl Plugin for GalleryPlugin {
                 FixedUpdate,
                 tick_time::<Fixed, StageTimeDomain>,
             )
+            .add_active_systems_in::<GalleryPlugin, _>(PostUpdate, apply_composed_enemy_visuals)
             .add_active_systems::<GalleryPlugin, _>((
                 react_to_gallery_selection_changed,
                 apply_gallery_animation,

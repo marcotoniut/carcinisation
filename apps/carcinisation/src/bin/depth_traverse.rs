@@ -37,8 +37,8 @@ use carcinisation::{
             composed::{
                 ComposedAnimationPlaybackDebug, ComposedAnimationPlaybackDebugEnabled,
                 ComposedAnimationState, ComposedEnemyVisual, CompositionAtlasAsset,
-                CompositionAtlasLoader, ensure_composed_enemy_parts, prepare_composed_atlas_assets,
-                update_composed_enemy_visuals,
+                CompositionAtlasLoader, apply_composed_enemy_visuals, ensure_composed_enemy_parts,
+                prepare_composed_atlas_assets, update_composed_enemy_visuals,
             },
             entity::EnemyType,
         },
@@ -397,12 +397,15 @@ fn main() {
                 cycle_horizon_profile,
                 switch_character,
                 advance_walk,
-                apply_depth_fallback_scale,
                 apply_spidey_jump_scale_override,
                 update_composed_enemy_visuals,
                 update_depth_traverse_debug_state,
             )
                 .chain(),
+        )
+        .add_systems(
+            PostUpdate,
+            (apply_depth_fallback_scale, apply_composed_enemy_visuals),
         )
         .run();
 }

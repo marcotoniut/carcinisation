@@ -47,7 +47,7 @@ impl Plugin for AttackPlugin {
                 // These run after check_health_at_0 so the Dead insertion is
                 // flushed and Without<Dead> / Added<Dead> filters are reliable.
                 despawn_dead_attacks.after(check_health_at_0),
-                on_enemy_attack_depth_changed,
+                on_enemy_attack_depth_changed.after(check_health_at_0),
                 miss_on_reached,
                 hovering_damage_on_reached.after(check_health_at_0),
             ),
