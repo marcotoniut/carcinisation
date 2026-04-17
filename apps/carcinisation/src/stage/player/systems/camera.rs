@@ -16,6 +16,12 @@ const SHAKE_THRESHOLD: f32 = 0.3;
 /// Each frame: undo previous offset → compute new random offset at current
 /// intensity → apply → decay intensity. When intensity drops below threshold,
 /// remove component and restore clean position.
+///
+/// Registered at stage scope (not player scope) because the camera outlives
+/// the player — the decay system must keep running after death so the
+/// component self-removes. When stage time is frozen (Death/GameOver),
+/// `dt = 0` halts decay, so `on_death` and `handle_stage_restart` clear
+/// the component explicitly.
 pub fn camera_shake(
     mut commands: Commands,
     mut query: Query<(Entity, &mut CameraShake, &mut PxSubPosition)>,

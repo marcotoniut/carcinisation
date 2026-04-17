@@ -41,7 +41,7 @@ use crate::{
     stage::{StagePlugin, player::crosshair::CrosshairSettings},
     systems::{
         camera::move_camera,
-        movement::{update_position_x, update_position_y},
+        movement::{PositionSyncSystems, update_position_x, update_position_y},
         on_post_startup,
         setup::{init_gb_input, set_fixed_timestep, set_framespace, spawn_camera},
     },
@@ -218,9 +218,16 @@ pub fn build_app(options: AppLaunchOptions) -> App {
             .add_systems(PostStartup, on_post_startup);
     }
 
+    app.configure_sets(Update, PositionSyncSystems);
     app.add_plugins(StagePlugin)
         .add_plugins(GamePlugin)
-        .add_systems(Update, (move_camera, update_position_x, update_position_y))
+        .add_systems(
+            Update,
+            (
+                move_camera,
+                (update_position_x, update_position_y).in_set(PositionSyncSystems),
+            ),
+        )
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>);
 
     #[cfg(feature = "gallery")]

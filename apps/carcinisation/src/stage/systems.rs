@@ -20,7 +20,7 @@ use super::{
     destructible::components::Destructible,
     enemy::components::Enemy,
     messages::{NextStepEvent, StageClearedEvent, StageDeathEvent},
-    player::components::Player,
+    player::components::{CameraShake, Player},
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain},
 };
 use crate::components::VolumeSettings;
@@ -301,9 +301,17 @@ pub fn on_death(
     music_query: Query<Entity, With<Music>>,
     object_query: Query<Entity, With<Object>>,
     player_query: Query<Entity, With<Player>>,
+    mut camera_query: Query<(Entity, &CameraShake, &mut PxSubPosition), With<CameraPos>>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {
+    // Kill any in-progress camera shake so it doesn't persist through the
+    // death/game-over screen (stage time is frozen, decay won't run).
+    if let Ok((cam, shake, mut pos)) = camera_query.single_mut() {
+        pos.0 -= shake.current_offset;
+        commands.entity(cam).remove::<CameraShake>();
+    }
+
     mark_for_despawn_by_query(&mut commands, &attack_query);
     mark_for_despawn_by_query(&mut commands, &destructible_query);
     mark_for_despawn_by_query(&mut commands, &enemy_query);

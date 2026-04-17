@@ -73,6 +73,11 @@ Provide options, trade-offs, and a recommendation.
 - Ask clarifying questions when ambiguity would change behaviour or scope.
 - Use precise file references when possible.
 
+## Correctness
+
+- Fix root causes, not symptoms. Do not patch around a problem when the correct solution is fixing the underlying design.
+- Prefer principled solutions over expedient hacks, even when the hack is smaller.
+
 ## Failure
 
 - Prefer explicit failure over silent fallback.

@@ -44,10 +44,12 @@ impl Plugin for AttackPlugin {
                 )
                     .chain()
                     .after(update_composed_enemy_visuals),
-                despawn_dead_attacks,
+                // These run after check_health_at_0 so the Dead insertion is
+                // flushed and Without<Dead> / Added<Dead> filters are reliable.
+                despawn_dead_attacks.after(check_health_at_0),
                 on_enemy_attack_depth_changed,
                 miss_on_reached,
-                hovering_damage_on_reached,
+                hovering_damage_on_reached.after(check_health_at_0),
             ),
         );
     }

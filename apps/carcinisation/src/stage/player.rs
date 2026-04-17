@@ -5,14 +5,14 @@ pub mod bundles;
 pub mod components;
 pub mod crosshair;
 pub mod messages;
-mod systems;
+pub(crate) mod systems;
 
 use self::{
     attacks::{AttackDefinitions, AttackInputState, AttackLoadout},
     crosshair::{Crosshair, CrosshairSettings},
     messages::{CameraShakeEvent, PlayerShutdownEvent, PlayerStartupEvent},
     systems::{
-        camera::{camera_shake, on_camera_shake},
+        camera::on_camera_shake,
         confine_player_movement, despawn_expired_attacks, detect_player_attack,
         messages::{on_player_shutdown, on_player_startup},
         player_movement, tick_attack_lifetimes,
@@ -52,7 +52,6 @@ impl Plugin for PlayerPlugin {
                 tick_attack_lifetimes,
                 despawn_expired_attacks,
                 detect_player_attack,
-                camera_shake,
                 player_movement.in_set(MovementSystems),
                 confine_player_movement.in_set(ConfinementSystems),
             ));

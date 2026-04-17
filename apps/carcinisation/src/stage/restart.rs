@@ -3,6 +3,8 @@ use std::sync::Arc;
 use activable::activate;
 use bevy::prelude::*;
 
+use carapace::prelude::PxSubPosition;
+
 use crate::{
     components::Music,
     globals::mark_for_despawn_by_query,
@@ -14,9 +16,10 @@ use crate::{
         destructible::components::Destructible,
         enemy::components::Enemy,
         messages::{StageRestart, StageStartupEvent},
-        player::components::Player,
+        player::components::{CameraShake, Player},
         resources::{StageActionTimer, StageProgress, StageTimeDomain, reset_stage_progression},
     },
+    systems::camera::CameraPos,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -30,6 +33,7 @@ pub fn handle_stage_restart(
     music_query: Query<Entity, With<Music>>,
     object_query: Query<Entity, With<Object>>,
     player_query: Query<Entity, With<Player>>,
+    mut camera_query: Query<(Entity, &CameraShake, &mut PxSubPosition), With<CameraPos>>,
     mut stage_progress: ResMut<StageProgress>,
     mut stage_state: ResMut<NextState<StageProgressState>>,
     mut stage_time: ResMut<Time<StageTimeDomain>>,
@@ -37,6 +41,12 @@ pub fn handle_stage_restart(
     mut restart_reader: MessageReader<StageRestart>,
 ) {
     for _ in restart_reader.read() {
+        // Kill any in-progress camera shake so it doesn't bleed into the new attempt.
+        if let Ok((cam, shake, mut pos)) = camera_query.single_mut() {
+            pos.0 -= shake.current_offset;
+            commands.entity(cam).remove::<CameraShake>();
+        }
+
         // Reset progression/resources before rebuilding.
         reset_stage_progression(
             &mut stage_progress,

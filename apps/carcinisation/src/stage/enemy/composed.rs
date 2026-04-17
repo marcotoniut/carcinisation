@@ -46,7 +46,7 @@ use carapace::{
     filter::{PxFilter, PxFilterAsset},
     prelude::{
         AtlasRect, AtlasRegionId, PxAnchor, PxCanvas, PxCompositePart, PxCompositeSprite,
-        PxPosition, PxSpriteAtlasAsset, PxSubPosition,
+        PxSpriteAtlasAsset, PxSubPosition,
     },
 };
 use carcinisation_collision::{Collider, ColliderShape};
@@ -916,7 +916,6 @@ pub fn ensure_composed_enemy_parts(
                         ComposedPartStates::from_cache(cache),
                         ComposedResolvedParts::default(),
                         PxCompositeSprite::default(),
-                        PxPosition::default(),
                         PxAnchor::Center,
                         depth.to_layer(),
                         PxCanvas::World,
@@ -964,7 +963,6 @@ pub fn update_composed_enemy_visuals(
             &mut ComposedPartStates,
             &mut ComposedResolvedParts,
             &mut PxCompositeSprite,
-            &mut PxPosition,
             &mut PxAnchor,
             &mut Visibility,
             Option<&Dying>,
@@ -987,7 +985,6 @@ pub fn update_composed_enemy_visuals(
         mut part_states,
         mut resolved_part_states,
         mut composite,
-        mut px_position,
         mut anchor,
         mut visibility,
         dying,
@@ -1109,10 +1106,6 @@ pub fn update_composed_enemy_visuals(
         composite.origin = metrics.origin;
         composite.size = metrics.size;
         composite.frame_count = 1;
-        *px_position = PxPosition(IVec2::new(
-            position.x.round() as i32,
-            position.y.round() as i32,
-        ));
         // Compute anchor and visual offset.
         //
         // Rendering positions each part at `base_pos + (part.offset - origin)`

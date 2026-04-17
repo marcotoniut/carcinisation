@@ -34,6 +34,7 @@ use self::{
         assign_tardigrade_animation, check_idle_tardigrade, despawn_dead_tardigrade,
     },
 };
+use crate::systems::movement::PositionSyncSystems;
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use composed::{
@@ -83,7 +84,8 @@ impl Plugin for EnemyPlugin {
                         detect_part_breakage,
                         trigger_mosquiton_authored_attack_cues,
                     )
-                        .chain(),
+                        .chain()
+                        .after(PositionSyncSystems),
                     despawn_dead_mosquitons,
                     update_mosquiton_death_effect,
                 ),

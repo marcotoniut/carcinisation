@@ -4,6 +4,13 @@ use cween::linear::components::{TargetingValueX, TargetingValueY};
 
 use crate::systems::camera::CameraPos;
 
+/// Systems that sync tween-driven `TargetingValueX`/`Y` into `PxSubPosition`.
+///
+/// Any system that reads `PxSubPosition` after tween integration (e.g.
+/// `update_composed_enemy_visuals`) should declare `.after(PositionSyncSystems)`.
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct PositionSyncSystems;
+
 /// @system Syncs `TargetingValueX` to PxSubPosition.x
 /// Movement children update `TargetingValueX` via aggregation, this syncs to the visual position.
 pub fn update_position_x(

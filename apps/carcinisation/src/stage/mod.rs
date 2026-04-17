@@ -33,7 +33,7 @@ use self::{
     pickup::systems::health::{
         mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
     },
-    player::PlayerPlugin,
+    player::{PlayerPlugin, systems::camera::camera_shake},
     resources::{StageActionTimer, StageGravity, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
     systems::{
@@ -209,14 +209,15 @@ impl Plugin for StagePlugin {
                         .after(LinearTweenSystems),
                 ),
             )
+            .add_active_systems_in::<StagePlugin, _>(PostUpdate, apply_depth_fallback_scale)
             .add_active_systems::<StagePlugin, _>((
                 update_stage,
                 update_stage_time_should_run.after(update_stage),
-                apply_depth_fallback_scale,
                 (
                     (
                         // Camera
                         initialise_camera_from_stage,
+                        camera_shake,
                         check_in_view,
                         check_outside_view,
                         update_camera_pos_x,

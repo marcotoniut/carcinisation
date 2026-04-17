@@ -67,11 +67,10 @@ pub fn miss_on_reached(
 /// With the atlas-based approach, visual scaling is handled automatically by
 /// `apply_depth_fallback_scale` via `AuthoredDepths`. This system only needs
 /// to update the render layer so the entity draws on the correct depth plane.
-// TODO there's a bug that can happen when DepthChanged is sent on a Dead entity
 pub fn on_enemy_attack_depth_changed(
     mut commands: Commands,
     mut event_reader: MessageReader<DepthChangedMessage>,
-    query: Query<Entity, With<EnemyHoveringAttackType>>,
+    query: Query<Entity, (With<EnemyHoveringAttackType>, Without<Dead>)>,
 ) {
     for event in event_reader.read() {
         if event.depth > PLAYER_DEPTH && query.contains(event.entity) {
