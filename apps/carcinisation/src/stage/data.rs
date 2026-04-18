@@ -558,6 +558,15 @@ pub enum StageStep {
     Stop(StopStageStep),
 }
 
+/// Authored mid-stage checkpoint for continue-after-death.
+#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
+pub struct StageCheckpoint {
+    /// Which step index to resume from on continue.
+    pub step_index: usize,
+    /// Camera position when restarting from this checkpoint.
+    pub start_coordinates: Vec2,
+}
+
 #[derive(Asset, Clone, Debug, Deserialize, Reflect, Resource, Serialize)]
 pub struct StageData {
     pub name: String,
@@ -580,4 +589,73 @@ pub struct StageData {
     /// [`ProjectionProfile::default()`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub projection: Option<ProjectionProfile>,
+    /// Optional mid-stage checkpoint for continue-after-death.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkpoint: Option<StageCheckpoint>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stage_data_without_checkpoint_deserializes() {
+        let ron = r#"
+            #![enable(unwrap_newtypes)]
+            #![enable(implicit_some)]
+            #![enable(unwrap_variant_newtypes)]
+            #![enable(explicit_struct_names)]
+            StageData(
+                name: "test",
+                background_path: "",
+                music_path: "",
+                skybox: SkyboxData(path: "", frames: 1),
+                start_coordinates: Vec2(0.0, 0.0),
+                spawns: [],
+                steps: [],
+            )
+        "#;
+        let data: StageData = ron::from_str(ron).expect("should parse without checkpoint");
+        assert!(data.checkpoint.is_none());
+    }
+
+    #[test]
+    fn stage_data_with_checkpoint_deserializes() {
+        let ron = r#"
+            #![enable(unwrap_newtypes)]
+            #![enable(implicit_some)]
+            #![enable(unwrap_variant_newtypes)]
+            #![enable(explicit_struct_names)]
+            StageData(
+                name: "test",
+                background_path: "",
+                music_path: "",
+                skybox: SkyboxData(path: "", frames: 1),
+                start_coordinates: Vec2(0.0, 0.0),
+                spawns: [],
+                steps: [
+                    Stop(max_duration: 5.0, kill_all: false, kill_boss: false, spawns: [], floor_depths: None),
+                    Stop(max_duration: 5.0, kill_all: false, kill_boss: false, spawns: [], floor_depths: None),
+                ],
+                checkpoint: StageCheckpoint(
+                    step_index: 1,
+                    start_coordinates: Vec2(100.0, 50.0),
+                ),
+            )
+        "#;
+        let data: StageData = ron::from_str(ron).expect("should parse with checkpoint");
+        let cp = data.checkpoint.expect("checkpoint should be Some");
+        assert_eq!(cp.step_index, 1);
+        assert_eq!(cp.start_coordinates, Vec2::new(100.0, 50.0));
+    }
+
+    #[test]
+    fn park_stage_ron_deserializes() {
+        let ron_bytes = include_str!("../../../../assets/stages/park.sg.ron");
+        let data: StageData =
+            ron::from_str(ron_bytes).expect("park.sg.ron should deserialize successfully");
+        assert_eq!(data.name, "Park");
+        let cp = data.checkpoint.expect("park should have a checkpoint");
+        assert_eq!(cp.step_index, 4);
+    }
 }

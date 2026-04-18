@@ -1425,6 +1425,7 @@ mod tests {
             on_end_transition_o: None,
             gravity: None,
             projection: None,
+            checkpoint: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1561,6 +1562,7 @@ mod tests {
             on_end_transition_o: None,
             gravity: None,
             projection: None,
+            checkpoint: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1826,6 +1828,7 @@ mod tests {
             on_end_transition_o: None,
             gravity: None,
             projection: None,
+            checkpoint: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1949,6 +1952,7 @@ mod tests {
             on_end_transition_o: None,
             gravity: None,
             projection: None,
+            checkpoint: None,
         };
 
         // Point near the first segment (0,0)→(100,0): should insert at index 0.

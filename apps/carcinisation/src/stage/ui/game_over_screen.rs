@@ -9,6 +9,7 @@ use self::{
     messages::GameOverScreenShutdownMessage,
     systems::{check_press_continue_input, handle_game_over_screen_continue},
 };
+use super::StageUiPlugin;
 use crate::{
     components::GBColor,
     game::score::components::Score,
@@ -28,8 +29,6 @@ use carapace::prelude::{
 };
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
-pub const HALF_SCREEN_SIZE: i32 = 70;
-
 pub fn render_game_over_screen(
     mut commands: Commands,
     assets_typeface: PxAssets<PxTypeface>,
@@ -43,7 +42,6 @@ pub fn render_game_over_screen(
 
         commands.spawn((
             GameOverScreen,
-            InheritedVisibility::VISIBLE,
             Name::new("GameOver Screen"),
             Visibility::Visible,
             children![
@@ -132,13 +130,15 @@ impl Plugin for GameOverScreenPlugin {
         app.add_message::<GameOverScreenShutdownMessage>()
             .add_plugins(InputManagerPlugin::<GameOverScreenInput>::default())
             .add_systems(Startup, init_input)
-            .add_active_systems::<GameOverScreenPlugin, _>((
+            .add_active_systems::<StageUiPlugin, _>((
                 render_game_over_screen,
                 despawn_game_over_screen,
             ))
-            .add_active_systems_in::<GameOverScreenPlugin, _>(
+            .add_active_systems_in::<StageUiPlugin, _>(
                 PostUpdate,
-                (check_press_continue_input, handle_game_over_screen_continue).chain(),
+                (check_press_continue_input, handle_game_over_screen_continue)
+                    .chain()
+                    .run_if(in_state(StageProgressState::GameOver)),
             );
     }
 }

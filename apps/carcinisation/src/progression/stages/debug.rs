@@ -31,6 +31,7 @@ pub static STAGE_DEBUG_DATA: std::sync::LazyLock<Arc<StageData>> = std::sync::La
         on_end_transition_o: None,
         gravity: None,
         projection: None,
+        checkpoint: None,
     }
     .into()
 });

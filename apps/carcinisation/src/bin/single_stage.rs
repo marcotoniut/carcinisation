@@ -134,5 +134,6 @@ fn trigger_game_startup(mut commands: Commands) {
 fn trigger_stage_startup(loaded: Res<LoadedSingleStage>, mut commands: Commands) {
     commands.trigger(StageStartupEvent {
         data: loaded.stage_data.clone(),
+        from_checkpoint: false,
     });
 }

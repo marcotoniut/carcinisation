@@ -59,12 +59,40 @@ pub fn reset_stage_progression(
     stage_state: &mut NextState<super::StageProgressState>,
     stage_time: &mut Time<StageTimeDomain>,
     stage_action_timer: &mut StageActionTimer,
+    start_index: usize,
 ) {
-    stage_progress.index = 0;
+    stage_progress.index = start_index;
     stage_state.set(super::StageProgressState::Initial);
     *stage_time = Time::default();
     stage_action_timer.timer.reset();
     stage_action_timer.stop();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reset_stage_progression_uses_start_index() {
+        let mut progress = StageProgress { index: 5 };
+        let mut state = NextState::<super::super::StageProgressState>::default();
+        let mut time = Time::<StageTimeDomain>::default();
+        let mut timer = StageActionTimer::default();
+
+        reset_stage_progression(&mut progress, &mut state, &mut time, &mut timer, 3);
+        assert_eq!(progress.index, 3);
+    }
+
+    #[test]
+    fn reset_stage_progression_zero_starts_fresh() {
+        let mut progress = StageProgress { index: 7 };
+        let mut state = NextState::<super::super::StageProgressState>::default();
+        let mut time = Time::<StageTimeDomain>::default();
+        let mut timer = StageActionTimer::default();
+
+        reset_stage_progression(&mut progress, &mut state, &mut time, &mut timer, 0);
+        assert_eq!(progress.index, 0);
+    }
 }
 
 #[derive(Resource, Clone, Copy, Debug, Reflect)]

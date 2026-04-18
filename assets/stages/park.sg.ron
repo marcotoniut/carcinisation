@@ -534,4 +534,8 @@ StageData(
     on_start_transition_o: None,
     on_end_transition_o: None,
     gravity: None,
+    checkpoint: StageCheckpoint(
+        step_index: 4,
+        start_coordinates: Vec2(313.86188, 0.16482544),
+    ),
 )

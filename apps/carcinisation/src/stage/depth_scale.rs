@@ -49,6 +49,8 @@ use bevy::prelude::*;
 use carapace::prelude::PxPresentationTransform;
 use serde::{Deserialize, Serialize};
 
+use crate::components::DespawnMark;
+
 use super::components::placement::{AuthoredDepths, Depth};
 
 const CONFIG_PATH: &str = "assets/config/depth_scale.ron";
@@ -212,13 +214,16 @@ pub struct DepthFallbackScale(pub Vec2);
 pub fn apply_depth_fallback_scale(
     config: Res<DepthScaleConfig>,
     mut commands: Commands,
-    mut query: Query<(
-        Entity,
-        &Depth,
-        &AuthoredDepths,
-        Option<&mut PxPresentationTransform>,
-        Option<&DepthFallbackScale>,
-    )>,
+    mut query: Query<
+        (
+            Entity,
+            &Depth,
+            &AuthoredDepths,
+            Option<&mut PxPresentationTransform>,
+            Option<&DepthFallbackScale>,
+        ),
+        Without<DespawnMark>,
+    >,
 ) {
     for (entity, &current_depth, authored, presentation_opt, prev_fallback) in &mut query {
         let ratio = config.resolve_fallback(current_depth, authored);

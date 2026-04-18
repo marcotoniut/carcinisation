@@ -11,7 +11,7 @@ use crate::{
         resources::CutsceneProgress,
     },
     globals::mark_for_despawn_by_query,
-    letterbox::{components::LetterboxEntity, messages::LetterboxMoveEvent},
+    letterbox::messages::LetterboxMoveEvent,
 };
 use activable::{activate, deactivate};
 use bevy::prelude::*;
@@ -33,12 +33,16 @@ pub fn on_cutscene_startup(trigger: On<CutsceneStartupEvent>, mut commands: Comm
 }
 
 /// @trigger Cleans up cutscene entities and disables the plugin.
+///
+/// Letterbox entities are NOT despawned here — they are owned by
+/// `LetterboxPlugin` and persist across cutscene boundaries.  The
+/// `hide()` command moves them off-screen; their lifecycle is managed
+/// by the letterbox plugin's own activation/deactivation.
 pub fn on_cutscene_shutdown(
     _trigger: On<CutsceneShutdownEvent>,
     mut commands: Commands,
     cinematic_query: Query<Entity, With<Cinematic>>,
     cutscene_entity_query: Query<Entity, With<CutsceneEntity>>,
-    letterbox_query: Query<Entity, With<LetterboxEntity>>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_shutdown(DEBUG_MODULE);
@@ -48,5 +52,4 @@ pub fn on_cutscene_shutdown(
 
     mark_for_despawn_by_query(&mut commands, &cutscene_entity_query);
     mark_for_despawn_by_query(&mut commands, &cinematic_query);
-    mark_for_despawn_by_query(&mut commands, &letterbox_query);
 }

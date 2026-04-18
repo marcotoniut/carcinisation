@@ -6,6 +6,7 @@ use crate::stage::{
         data::boulder_throw::BoulderThrowConfig,
     },
     components::{
+        StageEntity,
         damage::InflictsDamage,
         interactive::{Flickerer, Health, Hittable},
         placement::{AuthoredDepths, Depth},
@@ -47,6 +48,7 @@ fn spawn_boulder_throw_tween_child_accelerated<P>(
 pub struct BoulderThrowDefaultBundle {
     pub enemy_attack: EnemyAttack,
     pub enemy_attack_type: EnemyHoveringAttackType,
+    pub stage_entity: StageEntity,
     pub flickerer: Flickerer,
     pub health: Health,
     pub hittable: Hittable,
@@ -57,6 +59,7 @@ impl Default for BoulderThrowDefaultBundle {
     fn default() -> Self {
         Self {
             enemy_attack: EnemyAttack,
+            stage_entity: StageEntity,
             flickerer: Flickerer,
             health: Health(100),
             hittable: Hittable,

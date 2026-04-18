@@ -1,4 +1,5 @@
 use super::{input::DeathScreenInput, messages::DeathScreenRestartMessage};
+use crate::stage::messages::StageRestart;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
@@ -9,5 +10,17 @@ pub fn check_press_continue_input(
 ) {
     if input.just_pressed(&DeathScreenInput::Restart) {
         screen_shutdown_event_writer.write(DeathScreenRestartMessage);
+    }
+}
+
+/// @system Translates a death-screen continue press into a checkpoint restart.
+pub fn handle_death_screen_continue(
+    mut event_reader: MessageReader<DeathScreenRestartMessage>,
+    mut restart_writer: MessageWriter<StageRestart>,
+) {
+    for _ in event_reader.read() {
+        restart_writer.write(StageRestart {
+            from_checkpoint: true,
+        });
     }
 }

@@ -586,6 +586,8 @@ mod tests {
             canvas: Size { w: 8, h: 8 },
             origin: Point { x: 0, y: 0 },
             spawn_anchor: Default::default(),
+            ground_anchor_y: None,
+            air_anchor_y: None,
             atlas_image: "atlas.png".into(),
             part_definitions: vec![PartDefinition {
                 id: "root".into(),

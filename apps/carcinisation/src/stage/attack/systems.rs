@@ -9,6 +9,7 @@ use crate::{
     layer::Layer,
     stage::{
         components::{
+            StageEntity,
             interactive::{Dead, Health},
             placement::{AuthoredDepths, Depth, InView},
         },
@@ -124,6 +125,7 @@ pub fn despawn_dead_attacks(
                 depth.to_layer(),
                 AuthoredDepths::single(Depth::One),
                 DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.2),
+                StageEntity,
             ));
         }
         commands.entity(entity).insert(DespawnMark);

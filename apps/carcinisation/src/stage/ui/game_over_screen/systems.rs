@@ -4,13 +4,15 @@ use crate::{
         GamePlugin,
         data::STARTING_LIVES,
         resources::{GameProgress, Lives},
+        score::components::Score,
     },
     main_menu::MainMenuPlugin,
     stage::{
         StagePlugin, StageProgressState,
+        components::{Stage, StageEntity},
         data::StageData,
-        messages::StageRestart,
-        resources::{StageActionTimer, StageProgress, StageTimeDomain, reset_stage_progression},
+        resources::StageProgress,
+        restart::despawn_stage_entities,
     },
 };
 use activable::{activate, deactivate};
@@ -27,7 +29,10 @@ pub fn check_press_continue_input(
     }
 }
 
-/// @system Restarts the stage or returns to the main menu depending on remaining lives.
+/// @system Returns to the main menu on game over confirmation.
+///
+/// Resets lives, progress, and plugin activation state so a fresh run
+/// starts from the beginning.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_game_over_screen_continue(
     mut event_reader: MessageReader<GameOverScreenShutdownMessage>,
@@ -36,27 +41,20 @@ pub fn handle_game_over_screen_continue(
     mut stage_progress: ResMut<StageProgress>,
     mut game_progress: ResMut<GameProgress>,
     mut lives: ResMut<Lives>,
-    mut stage_time: ResMut<Time<StageTimeDomain>>,
-    mut stage_action_timer: ResMut<StageActionTimer>,
-    mut stage_restart_writer: MessageWriter<StageRestart>,
+    mut score: ResMut<Score>,
+    stage_query: Query<Entity, With<Stage>>,
+    stage_entity_query: Query<Entity, With<StageEntity>>,
 ) {
     if event_reader.read().next().is_some() {
-        if lives.0 > 0 {
-            reset_stage_progression(
-                &mut stage_progress,
-                &mut stage_state,
-                &mut stage_time,
-                &mut stage_action_timer,
-            );
-            stage_restart_writer.write(StageRestart);
-            return;
-        }
-
         stage_progress.index = 0;
-
         game_progress.index = 0;
         lives.0 = STARTING_LIVES;
+        score.value = 0;
         stage_state.set(StageProgressState::Initial);
+
+        // Despawn all stage-owned entities (HUD, background, music, etc.)
+        // before deactivating plugins and returning to the main menu.
+        despawn_stage_entities(&mut commands, &stage_query, &stage_entity_query);
 
         deactivate::<StagePlugin>(&mut commands);
         deactivate::<GamePlugin>(&mut commands);

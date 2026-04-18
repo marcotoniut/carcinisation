@@ -12,6 +12,7 @@ use crate::{
     stage::{
         attack::{data::blood_shot::BloodShotConfig, spawns::blood_shot::spawn_blood_shot_attack},
         components::{
+            StageEntity,
             interactive::Dead,
             placement::{Depth, InView},
         },
@@ -199,6 +200,7 @@ pub fn despawn_dead_mosquitoes(
                     animation.frame_transition,
                 ),
                 DelayedDespawnOnPxAnimationFinished(ENEMY_MOSQUITO_DEATH_LINGER),
+                StageEntity,
             ));
         }
 

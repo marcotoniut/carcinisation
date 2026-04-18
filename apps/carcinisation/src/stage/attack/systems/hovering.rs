@@ -6,6 +6,7 @@ use crate::{
     stage::{
         attack::components::EnemyHoveringAttackType,
         components::{
+            StageEntity,
             damage::InflictsDamage,
             interactive::Dead,
             placement::{AuthoredDepths, Depth, InView},
@@ -99,6 +100,7 @@ pub fn hovering_damage_on_reached(
             depth.to_layer(),
             AuthoredDepths::single(Depth::One),
             DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.4),
+            StageEntity,
         ));
 
         commands.entity(entity).insert(DespawnMark);

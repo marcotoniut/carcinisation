@@ -9,7 +9,6 @@ pub mod spawn;
 use super::{
     StageProgressState,
     attack::components::EnemyAttack,
-    bundles::{BackgroundBundle, SkyboxBundle},
     components::{
         CinematicStageStep, CurrentStageStep, Stage, StageElapsedStarted, StageEntity,
         StopStageStep, TweenStageStep,
@@ -24,7 +23,6 @@ use super::{
     resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain},
 };
 use crate::components::VolumeSettings;
-use crate::pixel::PxAssets;
 use crate::{
     components::{DespawnMark, Music},
     core::time::TimeShouldRun,
@@ -39,7 +37,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
-use carapace::prelude::{PxSprite, PxSubPosition};
+use carapace::prelude::PxSubPosition;
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TweenChildBundle, extra::LinearTween2DReachCheck,
 };
@@ -77,34 +75,6 @@ pub fn update_stage_time_should_run(
             *game_state.get(),
             GameProgressState::Running | GameProgressState::Cutscene
         );
-}
-
-// REVIEW
-/// @system Spawns the core stage bundle and kicks off gameplay.
-pub fn spawn_current_stage_bundle(
-    mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut state: ResMut<NextState<GameProgressState>>,
-    stage_data: Res<StageData>,
-) {
-    commands
-        .spawn((
-            Stage,
-            Name::new("Stage"),
-            Visibility::Visible,
-            InheritedVisibility::VISIBLE,
-        ))
-        .with_children(|p0| {
-            p0.spawn(BackgroundBundle::new(
-                assets_sprite.load(stage_data.background_path.clone()),
-            ));
-            p0.spawn(SkyboxBundle::new(
-                &mut assets_sprite,
-                stage_data.skybox.clone(),
-            ));
-        });
-
-    *state = NextState::PendingIfNeq(GameProgressState::Running);
 }
 
 // TODO combine the two and use just_finished
@@ -233,6 +203,31 @@ mod tests {
             GameProgressState::Running
         ));
     }
+
+    /// Helper encoding the same routing logic as `on_death`.
+    fn death_routes_to_continue(lives: u8, has_checkpoint: bool) -> bool {
+        lives > 0 && has_checkpoint
+    }
+
+    #[test]
+    fn death_with_lives_and_checkpoint_routes_to_continue() {
+        assert!(death_routes_to_continue(2, true));
+    }
+
+    #[test]
+    fn death_with_lives_but_no_checkpoint_routes_to_game_over() {
+        assert!(!death_routes_to_continue(2, false));
+    }
+
+    #[test]
+    fn death_with_no_lives_and_checkpoint_routes_to_game_over() {
+        assert!(!death_routes_to_continue(0, true));
+    }
+
+    #[test]
+    fn death_with_no_lives_and_no_checkpoint_routes_to_game_over() {
+        assert!(!death_routes_to_continue(0, false));
+    }
 }
 
 /// @trigger Handles cleanup and celebration when the stage is cleared.
@@ -286,7 +281,11 @@ pub fn check_stage_death(
     }
 }
 
-/// @trigger Responds to `StageDeathEvent`, transitioning to Game Over or restarting.
+/// @trigger Responds to `StageDeathEvent`, transitioning to Death (continue) or Game Over.
+///
+/// Routes to `StageProgressState::Death` only when the player still has lives
+/// **and** the stage defines an authored checkpoint.  Otherwise routes to
+/// `StageProgressState::GameOver`.
 #[allow(clippy::too_many_arguments)]
 pub fn on_death(
     _trigger: On<StageDeathEvent>,
@@ -295,22 +294,19 @@ pub fn on_death(
     mut game_over_event_writer: MessageWriter<GameOverEvent>,
     lives: Res<Lives>,
     score: Res<Score>,
+    stage_data: Res<StageData>,
     attack_query: Query<Entity, With<EnemyAttack>>,
     destructible_query: Query<Entity, With<Destructible>>,
     enemy_query: Query<Entity, With<Enemy>>,
     music_query: Query<Entity, With<Music>>,
     object_query: Query<Entity, With<Object>>,
     player_query: Query<Entity, With<Player>>,
-    mut camera_query: Query<(Entity, &CameraShake, &mut PxSubPosition), With<CameraPos>>,
+    mut camera_query: Query<(Entity, Option<&CameraShake>, &mut PxSubPosition), With<CameraPos>>,
+    camera_tween_query: Query<Entity, With<CameraStepTween>>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {
-    // Kill any in-progress camera shake so it doesn't persist through the
-    // death/game-over screen (stage time is frozen, decay won't run).
-    if let Ok((cam, shake, mut pos)) = camera_query.single_mut() {
-        pos.0 -= shake.current_offset;
-        commands.entity(cam).remove::<CameraShake>();
-    }
+    camera::cleanup_camera_stage_state(&mut commands, &mut camera_query, &camera_tween_query);
 
     mark_for_despawn_by_query(&mut commands, &attack_query);
     mark_for_despawn_by_query(&mut commands, &destructible_query);
@@ -327,11 +323,11 @@ pub fn on_death(
     );
     commands.spawn((player, settings, system_bundle, music_tag, StageEntity));
 
-    if 0 == lives.0 {
+    if lives.0 > 0 && stage_data.checkpoint.is_some() {
+        next_state.set(StageProgressState::Death);
+    } else {
         game_over_event_writer.write(GameOverEvent { score: score.value });
         next_state.set(StageProgressState::GameOver);
-    } else {
-        next_state.set(StageProgressState::Death);
     }
 }
 

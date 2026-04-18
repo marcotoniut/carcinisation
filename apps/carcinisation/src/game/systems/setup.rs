@@ -125,7 +125,10 @@ pub fn progress(
                 });
             }
             GameStep::Stage(StageGameStep { data }) => {
-                stage_startup_event_writer.write(StageStartupEvent { data: data.clone() });
+                stage_startup_event_writer.write(StageStartupEvent {
+                    data: data.clone(),
+                    from_checkpoint: false,
+                });
             }
             GameStep::StageAsset(StageAssetGameStep(src)) => {
                 commands.insert_resource(StageAssetHandle {
@@ -172,6 +175,7 @@ pub fn check_stage_data_loaded(
         commands.trigger(StageStartupEvent {
             // TODO do I need Arc for this? Can it not be handled by a simple pointer reference?
             data: Arc::new(data.clone()),
+            from_checkpoint: false,
         });
     } else {
         #[cfg(debug_assertions)]

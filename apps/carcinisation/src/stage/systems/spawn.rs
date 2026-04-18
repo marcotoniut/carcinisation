@@ -136,6 +136,7 @@ pub fn spawn_pickup(
                 .spawn((
                     spawn.get_name(),
                     Hittable,
+                    StageEntity,
                     PxSpriteBundle::<Layer> {
                         sprite: sprite.into(),
                         anchor: PxAnchor::Center,
@@ -159,6 +160,7 @@ pub fn spawn_pickup(
                 .spawn((
                     spawn.get_name(),
                     Hittable,
+                    StageEntity,
                     PxSpriteBundle::<Layer> {
                         sprite: sprite.into(),
                         anchor: PxAnchor::BottomCenter,

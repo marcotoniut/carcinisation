@@ -58,13 +58,7 @@ use self::{
         tick_stage_step_timer, toggle_game, update_cinematic_step, update_stage,
         update_stage_time_should_run,
     },
-    ui::{
-        StageUiPlugin,
-        cleared_screen::{despawn_cleared_screen, render_cleared_screen},
-        death_screen::{despawn_death_screen, render_death_screen},
-        game_over_screen::{despawn_game_over_screen, render_game_over_screen},
-        pause_menu::pause_menu_renderer,
-    },
+    ui::{StageUiPlugin, pause_menu::pause_menu_renderer},
 };
 #[cfg(debug_assertions)]
 use crate::core::time::TimeMultiplier;
@@ -144,7 +138,7 @@ impl Plugin for StagePlugin {
             .add_message::<StageClearedEvent>()
             .add_observer(on_stage_cleared)
             .add_observer(on_trigger_write_event::<StageClearedEvent>)
-            // TODO .add_observer(on_startup_from_checkpoint))
+            // Checkpoint resume is handled via the `from_checkpoint` flag on `StageStartupEvent`.
             .on_active::<StagePlugin, _>((
                 activate_system::<AttackPlugin>,
                 activate_system::<DestructiblePlugin>,
@@ -265,16 +259,11 @@ impl Plugin for StagePlugin {
                         .chain(),
                 ),
             ))
+            // Screen render/despawn systems are owned by their respective
+            // plugins (DeathScreenPlugin, GameOverScreenPlugin,
+            // ClearedScreenPlugin) and gated via StageUiPlugin.  Do NOT
+            // re-register them here — that would cause double execution.
             .add_active_systems::<StagePlugin, _>((
-                // Cleared screen
-                render_cleared_screen,
-                despawn_cleared_screen,
-                // Death screen
-                render_death_screen,
-                despawn_death_screen,
-                // Game Over screen
-                render_game_over_screen,
-                despawn_game_over_screen,
                 // Pause menu
                 pause_menu_renderer,
                 toggle_game.run_if(in_state(StageProgressState::Running)),

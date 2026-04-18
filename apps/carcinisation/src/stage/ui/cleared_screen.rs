@@ -43,6 +43,7 @@ pub fn render_cleared_screen(
         commands.spawn((
             ClearedScreen,
             Name::new("Screen Cleared"),
+            Visibility::Visible,
             children![
                 (
                     PxSubPosition(*SCREEN_RESOLUTION_F32_H),
@@ -129,6 +130,9 @@ impl Plugin for ClearedScreenPlugin {
             .add_plugins(InputManagerPlugin::<ClearScreenInput>::default())
             .add_systems(Startup, init_input)
             .add_active_systems::<StageUiPlugin, _>((render_cleared_screen, despawn_cleared_screen))
-            .add_active_systems_in::<StageUiPlugin, _>(PostUpdate, check_press_continue_input);
+            .add_active_systems_in::<StageUiPlugin, _>(
+                PostUpdate,
+                check_press_continue_input.run_if(in_state(StageProgressState::Cleared)),
+            );
     }
 }

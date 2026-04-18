@@ -7,6 +7,7 @@ use crate::stage::{
         data::blood_shot::BloodShotConfig,
     },
     components::{
+        StageEntity,
         damage::InflictsDamage,
         interactive::{Health, Hittable},
         placement::{AuthoredDepths, Depth},
@@ -36,6 +37,7 @@ fn spawn_blood_shot_tween_child<P>(
 pub struct BloodShotDefaultBundle {
     pub name: Name,
     pub enemy_attack: EnemyAttack,
+    pub stage_entity: StageEntity,
     pub health: Health,
     pub hittable: Hittable,
 }
@@ -45,6 +47,7 @@ impl Default for BloodShotDefaultBundle {
         Self {
             name: Name::new("Attack<BloodShot>"),
             enemy_attack: EnemyAttack,
+            stage_entity: StageEntity,
             health: Health(1),
             hittable: Hittable,
         }

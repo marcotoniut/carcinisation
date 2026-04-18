@@ -12,8 +12,10 @@ use super::{
 };
 
 #[derive(Message)]
-/// Requests a full stage reset.
-pub struct StageRestart;
+/// Requests a full stage reset, optionally resuming from a checkpoint.
+pub struct StageRestart {
+    pub from_checkpoint: bool,
+}
 
 #[derive(Event, Message)]
 /// Signals that the scripted sequence should advance to the next step.
@@ -37,6 +39,9 @@ pub struct StageSpawnEvent {
 /// Fired when the stage first loads with the associated serialized data.
 pub struct StageStartupEvent {
     pub data: Arc<StageData>,
+    /// When `true`, resume from the stage's authored checkpoint instead of
+    /// starting from the beginning.
+    pub from_checkpoint: bool,
 }
 
 #[derive(new, Message)]

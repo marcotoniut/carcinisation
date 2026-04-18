@@ -7,7 +7,7 @@ use self::{
     components::{CurrentScoreText, DeathScreen, InfoText, UIBackground},
     input::{DeathScreenInput, init_input},
     messages::DeathScreenRestartMessage,
-    systems::check_press_continue_input,
+    systems::{check_press_continue_input, handle_death_screen_continue},
 };
 use super::StageUiPlugin;
 use crate::{
@@ -43,6 +43,7 @@ pub fn render_death_screen(
         commands.spawn((
             DeathScreen,
             Name::new("Death Screen"),
+            Visibility::Visible,
             children![
                 (
                     PxSubPosition(*SCREEN_RESOLUTION_F32_H),
@@ -116,7 +117,7 @@ pub fn despawn_death_screen(
     stage_state: Res<State<StageProgressState>>,
     query: Query<Entity, With<DeathScreen>>,
 ) {
-    if stage_state.is_changed() && *stage_state.get() != StageProgressState::GameOver {
+    if stage_state.is_changed() && *stage_state.get() != StageProgressState::Death {
         mark_for_despawn_by_query(&mut commands, &query);
     }
 }
@@ -130,6 +131,11 @@ impl Plugin for DeathScreenPlugin {
             .add_plugins(InputManagerPlugin::<DeathScreenInput>::default())
             .add_systems(Startup, init_input)
             .add_active_systems::<StageUiPlugin, _>((render_death_screen, despawn_death_screen))
-            .add_active_systems_in::<StageUiPlugin, _>(PostUpdate, check_press_continue_input);
+            .add_active_systems_in::<StageUiPlugin, _>(
+                PostUpdate,
+                (check_press_continue_input, handle_death_screen_continue)
+                    .chain()
+                    .run_if(in_state(StageProgressState::Death)),
+            );
     }
 }

@@ -9,18 +9,31 @@ use crate::{
         MainMenuScreen,
         components::{MainMenu, MainMenuEntity, MainMenuMusic},
     },
-    systems::spawn::make_music_bundle,
+    systems::{camera::CameraPos, spawn::make_music_bundle},
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
+use carapace::prelude::PxSubPosition;
 
 #[cfg(debug_assertions)]
 const DEBUG_MODULE: &str = "MainMenu";
 
 /// @system Enters the press-start screen when the main menu activates.
-pub fn on_main_menu_startup(mut screen_state: ResMut<NextState<MainMenuScreen>>) {
+///
+/// Resets the camera to the origin so the world-space menu background
+/// (rendered at 0,0) is visible.  Without this, returning from a stage
+/// leaves the camera at its last gameplay position and the background
+/// ends up off-screen.
+pub fn on_main_menu_startup(
+    mut screen_state: ResMut<NextState<MainMenuScreen>>,
+    mut camera_query: Query<&mut PxSubPosition, With<CameraPos>>,
+) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
+
+    if let Ok(mut cam) = camera_query.single_mut() {
+        cam.0 = Vec2::ZERO;
+    }
 
     screen_state.set(MainMenuScreen::PressStart);
 }

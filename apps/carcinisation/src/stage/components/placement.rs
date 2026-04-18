@@ -254,6 +254,6 @@ pub fn spawn_floor_depths<S: std::hash::BuildHasher>(
     floor_depths: &HashMap<Depth, f32, S>,
 ) {
     for (depth, y) in floor_depths {
-        commands.spawn((Floor(*y), *depth));
+        commands.spawn((Floor(*y), *depth, super::StageEntity));
     }
 }

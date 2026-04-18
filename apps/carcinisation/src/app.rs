@@ -228,6 +228,18 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                 (update_position_x, update_position_y).in_set(PositionSyncSystems),
             ),
         )
+        // NOTE:
+        // Systems in PostUpdate that mutate gameplay entities via Commands must
+        // avoid entities marked with `DespawnMark`.
+        //
+        // Reason:
+        // `despawn_entities::<DespawnMark>` runs in the same schedule. Deferred
+        // inserts targeting entities that are despawned in the same frame will
+        // panic.
+        //
+        // Pattern:
+        // - Use `Without<DespawnMark>` in queries
+        // - Or use a defensive insert (e.g. try_insert) if appropriate
         .add_systems(PostUpdate, despawn_entities::<DespawnMark>);
 
     #[cfg(feature = "gallery")]
