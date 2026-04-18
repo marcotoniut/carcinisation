@@ -2,23 +2,23 @@
 
 ## Startup
 
-Discover tools/versions/workflows from repo files. Do not assume.
-Before choosing validation, read `.direnv/cache/check-agent-capabilities.json`.
-If it is missing or stale, regenerate it with `pnpm check:agent:generate`.
+Read repo files for tools, versions, workflows. No guesses.
+Read `.direnv/cache/check-agent-capabilities.json` before validation.
+If missing or stale, run `pnpm check:agent:generate`.
 
 ## Ownership
 
-- One driver edits files at a time.
+- One driver edits at a time.
 - Support agents read/review only.
-- Handoff is required before changing driver.
+- Handoff before driver change.
 
 ## Stage Loop
 
 1. Scope: goal, owner, touched surfaces.
-2. Implement: small, focused diffs.
-3. Validate: run required checks for touched surfaces.
+2. Implement: small focused diffs.
+3. Validate: required checks for touched surfaces.
 4. Handoff: include the required block below.
-5. Review: reviewer decides approval.
+5. Review: reviewer approves or rejects.
 
 ## Required Handoff Block
 
@@ -32,11 +32,19 @@ If it is missing or stale, regenerate it with `pnpm check:agent:generate`.
 ## Validation
 
 Use `pnpm check:agent` flags from `.direnv/cache/check-agent-capabilities.json`.
-For broad code changes, run the default flags from that file.
-If a check fails, open the matching focus file in `reports/agent/` first.
-Re-run `pnpm check:agent` with the same flags after fixing issues.
+`defaultFlags` = baseline broad checks, not every check.
+Iteration: prefer `surfaceProfiles.<surface>.quick`.
+Before handoff/review: prefer `surfaceProfiles.<surface>.full`.
+Run `surfaceProfiles.<surface>.advisory` only when requested or paying down quality debt.
+CLI also supports `--surface <surface> --profile <quick|full|advisory>`.
+Use `--fail-fast` during iteration when first failure is enough.
+For machine output, use `pnpm --silent check:agent ... --json`.
+Without `--silent`, `pnpm` adds wrapper lines around JSON.
+Use `--list` to inspect checks, defaults, and surface/profile mappings.
+If a check fails, open matching `reports/agent/*.focus.txt` first.
+After fixes, rerun same flags.
 Run any additional surface-specific checks from project docs when needed.
-If something is blocked, state exactly what and why.
+If blocked, state what and why.
 
 ## Review Output Format
 
@@ -51,9 +59,9 @@ If something is blocked, state exactly what and why.
 
 ## Artifacts
 
-- Planning docs, investigation notes, and build reports go in `tmp/`, never in tracked source directories.
-- Do not copy pipeline-only outputs (e.g. `analysis.json`) into `assets/`.
-- `tmp/` is gitignored; treat it as ephemeral.
+- Planning docs, investigation notes, build reports go in `tmp/`, never tracked source dirs.
+- Do not copy pipeline-only outputs (for example `analysis.json`) into `assets/`.
+- `tmp/` is gitignored and ephemeral.
 
 ## Hygiene
 
@@ -62,21 +70,21 @@ If something is blocked, state exactly what and why.
 
 ## Escalate When Unclear
 
-Escalate instead of guessing when behaviour, architecture, boundaries, compatibility, or validation expectations are unclear.
-Provide options, trade-offs, and a recommendation.
+Escalate instead of guessing on behavior, architecture, boundaries, compatibility, or validation expectations.
+Give options, trade-offs, and recommendation.
 
 ## Communication
 
 - Default to `caveman`.
-- Use normal style when brevity risks misunderstanding.
+- Use normal style when brevity risks confusion.
 - State assumptions explicitly.
-- Ask clarifying questions when ambiguity would change behaviour or scope.
-- Use precise file references when possible.
+- Ask when ambiguity changes behavior or scope.
+- Use precise file refs when possible.
 
 ## Correctness
 
-- Fix root causes, not symptoms. Do not patch around a problem when the correct solution is fixing the underlying design.
-- Prefer principled solutions over expedient hacks, even when the hack is smaller.
+- Fix root cause, not symptom. Do not patch around design bugs.
+- Prefer principled fix over expedient hack.
 
 ## Failure
 

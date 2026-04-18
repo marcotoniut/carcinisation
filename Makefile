@@ -223,6 +223,10 @@ clippy:
 	@echo "⚠️  Use 'make lint' instead (runs workspace-wide fmt+clippy)"
 	@$(MAKE) lint
 
+.PHONY: clippy-pedantic
+clippy-pedantic:
+	cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic
+
 .PHONY: fix
 fix:
 	cargo fix --lib --tests --allow-dirty

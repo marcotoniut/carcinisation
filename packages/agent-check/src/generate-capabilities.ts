@@ -1,15 +1,29 @@
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { DEFAULT_FLAGS, RULES, TASKS } from "./config.js"
-import { REPORTS_DIR } from "./utils.js"
+import type { ValidationSurface } from "./config.js"
+import {
+  DEFAULT_FLAGS,
+  RULES,
+  SURFACE_FLAGS,
+  SURFACE_PROFILES,
+  TASKS,
+} from "./config.js"
 
 type CompactPayload = {
   version: number
-  reportsDir: string
   defaultFlags: string[]
   flags: string[]
   focusFiles: Record<string, string>
+  surfaceFlags: Record<ValidationSurface, string[]>
+  surfaceProfiles: Record<
+    ValidationSurface,
+    {
+      quick: string[]
+      full: string[]
+      advisory: string[]
+    }
+  >
   rules: string[]
 }
 
@@ -52,12 +66,27 @@ const parseArgs = (): { outPath: string } => {
 
 const buildCompactPayload = (): CompactPayload => ({
   version: 1,
-  reportsDir: REPORTS_DIR,
   defaultFlags: [...DEFAULT_FLAGS],
   flags: TASKS.map((task) => task.flag),
   focusFiles: Object.fromEntries(
     TASKS.map((task) => [task.flag, task.focusFile]),
   ),
+  surfaceFlags: Object.fromEntries(
+    Object.entries(SURFACE_FLAGS).map(([surface, flags]) => [
+      surface,
+      [...flags],
+    ]),
+  ) as Record<ValidationSurface, string[]>,
+  surfaceProfiles: Object.fromEntries(
+    Object.entries(SURFACE_PROFILES).map(([surface, profiles]) => [
+      surface,
+      {
+        quick: [...profiles.quick],
+        full: [...profiles.full],
+        advisory: [...profiles.advisory],
+      },
+    ]),
+  ) as CompactPayload["surfaceProfiles"],
   rules: [...RULES],
 })
 

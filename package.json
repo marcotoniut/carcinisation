@@ -11,7 +11,7 @@
     "tsx": "^4.21.0"
   },
   "scripts": {
-    "check:agent": "pnpm --filter @carcinisation/agent-check run check --",
+    "check:agent": "pnpm --silent --filter @carcinisation/agent-check run check --",
     "check:agent:generate": "pnpm --filter @carcinisation/agent-check run generate-capabilities",
     "format": "biome format",
     "format:check": "biome check",

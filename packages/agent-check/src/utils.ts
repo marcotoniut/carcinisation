@@ -16,9 +16,26 @@ export const ensureReportsDir = async (): Promise<void> => {
   await mkdir(REPORTS_DIR, { recursive: true })
 }
 
+export type FocusStyle =
+  | "matched-lines"
+  | "rustc"
+  | "cargo-test"
+  | "biome"
+  | "diff"
+  | "rust-or-diff"
+
 type FocusOptions = {
   logFilePath: string
   focusFilePath: string
+  focusStyle: FocusStyle
+  matchers: RegExp[]
+  maxLines?: number
+  tailLines?: number
+}
+
+type BuildFocusOptions = {
+  content: string
+  focusStyle: FocusStyle
   matchers: RegExp[]
   maxLines?: number
   tailLines?: number
@@ -63,10 +80,242 @@ export const runCommand = async (
   return { exitCode, stdout, stderr, logFilePath }
 }
 
-/** Extracts lines matching the given patterns from a log file into a shorter focus file. */
+const dedupePreservingOrder = (lines: string[]): string[] => {
+  const seen = new Set<string>()
+  const unique: string[] = []
+
+  for (const line of lines) {
+    if (seen.has(line)) continue
+    seen.add(line)
+    unique.push(line)
+  }
+
+  return unique
+}
+
+const summarizeRustDiagnostics = (lines: string[]): string[] => {
+  const summaries: string[] = []
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const diagnostic = lines[i]?.match(/^(error|warning):\s+(.*)$/)
+    if (!diagnostic) continue
+
+    const severity = diagnostic[1]
+    const message = diagnostic[2].trim()
+    let location: string | undefined
+    let lintId: string | undefined
+    let helpText: string | undefined
+
+    for (
+      let j = i + 1;
+      j < lines.length && !/^(error|warning):\s+/.test(lines[j] ?? "");
+      j += 1
+    ) {
+      const line = lines[j] ?? ""
+      const locationMatch = line.match(/^\s*-->\s+(.+:\d+:\d+)/)
+      if (locationMatch) {
+        location ??= locationMatch[1]
+      }
+
+      const clippyMatch = line.match(/\bclippy::([a-z0-9-]+)/i)
+      if (clippyMatch) {
+        lintId ??= `clippy::${clippyMatch[1]}`
+      }
+
+      const rustcUrlMatch = line.match(/#([a-z0-9_]+)\s*$/i)
+      if (rustcUrlMatch && lintId === undefined) {
+        lintId = `clippy::${rustcUrlMatch[1].replaceAll("_", "-")}`
+      }
+
+      const helpMatch = line.match(/^\s*= help:\s+(.*)$/)
+      if (
+        helpMatch &&
+        helpText === undefined &&
+        !helpMatch[1].startsWith("for further information visit")
+      ) {
+        helpText = helpMatch[1]
+      }
+    }
+
+    const parts = [`${severity}: ${message}`]
+    if (location) parts.unshift(location)
+    if (lintId) parts.push(`[${lintId}]`)
+    if (helpText) parts.push(`help: ${helpText}`)
+    summaries.push(parts.join(" | "))
+  }
+
+  return dedupePreservingOrder(summaries)
+}
+
+const summarizeBiomeDiagnostics = (lines: string[]): string[] => {
+  const summaries: string[] = []
+  const headerPattern = /^(\S+(?::\d+:\d+)?)\s+(.+?)\s+━+$/u
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const header = lines[i]?.match(headerPattern)
+    if (!header) continue
+
+    const location = header[1]
+    const category = header[2].replace(/\s+FIXABLE$/u, "").trim()
+    let message = ""
+
+    for (
+      let j = i + 1;
+      j < lines.length && !headerPattern.test(lines[j] ?? "");
+      j += 1
+    ) {
+      const line = lines[j] ?? ""
+      const messageMatch = line.match(/^\s*[×!]\s+(.*)$/u)
+      if (messageMatch) {
+        message = messageMatch[1].trim()
+        break
+      }
+    }
+
+    summaries.push(
+      message
+        ? `${location} | ${category} | ${message}`
+        : `${location} | ${category}`,
+    )
+  }
+
+  const finalCount = lines.find((line) => /^Found \d+ error/.test(line))
+  return finalCount
+    ? [...dedupePreservingOrder(summaries), finalCount]
+    : dedupePreservingOrder(summaries)
+}
+
+const summarizeCargoTest = (lines: string[]): string[] => {
+  const summaries: string[] = []
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const header = lines[i]?.match(/^----\s+(.+?)\s+stdout\s+----$/)
+    if (!header) continue
+
+    const testName = header[1]
+    let location: string | undefined
+    let message: string | undefined
+
+    for (
+      let j = i + 1;
+      j < lines.length && !/^----\s+.+?\s+stdout\s+----$/.test(lines[j] ?? "");
+      j += 1
+    ) {
+      const line = lines[j] ?? ""
+      const panicMatch = line.match(/^thread '.*' panicked at (.+)$/)
+      if (panicMatch) {
+        const detail = panicMatch[1]
+        const locationMatch = detail.match(/(.+:\d+:\d+):\s*(.*)$/)
+        if (locationMatch) {
+          location = locationMatch[1]
+          if (locationMatch[2].trim().length > 0) {
+            message = locationMatch[2].trim()
+          }
+        } else if (detail.trim().length > 0) {
+          message = detail.trim()
+        }
+        continue
+      }
+
+      if (
+        message === undefined &&
+        line.trim().length > 0 &&
+        !line.startsWith("note:") &&
+        !line.startsWith("stack backtrace:")
+      ) {
+        message = line.trim()
+      }
+    }
+
+    const parts = [testName]
+    if (location) parts.push(location)
+    if (message) parts.push(message)
+    summaries.push(parts.join(" | "))
+  }
+
+  const finalResult = lines.find((line) => /^test result: FAILED/.test(line))
+  if (finalResult) summaries.push(finalResult.trim())
+
+  return dedupePreservingOrder(summaries)
+}
+
+const summarizeDiffs = (lines: string[]): string[] =>
+  dedupePreservingOrder(lines.filter((line) => /^Diff in /.test(line)))
+
+const fallbackMatchedLines = ({
+  lines,
+  matchers,
+  maxLines,
+  tailLines,
+}: {
+  lines: string[]
+  matchers: RegExp[]
+  maxLines: number
+  tailLines: number
+}): string[] => {
+  const matched = lines.filter((line) =>
+    matchers.some((matcher) => matcher.test(line)),
+  )
+
+  if (matched.length > 0) {
+    return matched.slice(0, maxLines)
+  }
+
+  return lines.slice(Math.max(lines.length - tailLines, 0))
+}
+
+export const buildFocusLines = ({
+  content,
+  focusStyle,
+  matchers,
+  maxLines = 50,
+  tailLines = 50,
+}: BuildFocusOptions): string[] => {
+  const lines = content.split(/\r?\n/)
+  let focusLines: string[] = []
+
+  switch (focusStyle) {
+    case "rustc":
+      focusLines = summarizeRustDiagnostics(lines)
+      break
+    case "cargo-test":
+      focusLines = summarizeCargoTest(lines)
+      if (focusLines.length === 0) {
+        focusLines = summarizeRustDiagnostics(lines)
+      }
+      break
+    case "biome":
+      focusLines = summarizeBiomeDiagnostics(lines)
+      break
+    case "diff":
+      focusLines = summarizeDiffs(lines)
+      break
+    case "rust-or-diff":
+      focusLines = summarizeDiffs(lines)
+      if (focusLines.length === 0) {
+        focusLines = summarizeRustDiagnostics(lines)
+      }
+      break
+    case "matched-lines":
+      break
+  }
+
+  if (focusLines.length === 0) {
+    focusLines = fallbackMatchedLines({ lines, matchers, maxLines, tailLines })
+  }
+
+  if (focusLines.length === 0) {
+    return ["(no output captured)"]
+  }
+
+  return focusLines.slice(0, maxLines)
+}
+
+/** Extracts target-specific failure lines from a log file into a shorter focus file. */
 export const createFocusFile = async ({
   logFilePath,
   focusFilePath,
+  focusStyle,
   matchers,
   maxLines = 50,
   tailLines = 50,
@@ -79,24 +328,13 @@ export const createFocusFile = async ({
     return
   }
 
-  const lines = content.split(/\r?\n/)
-  const matched: string[] = []
-
-  for (const line of lines) {
-    if (matchers.some((matcher) => matcher.test(line))) {
-      matched.push(line)
-    }
-  }
-
-  let focusLines =
-    matched.length > 0
-      ? matched.slice(0, maxLines)
-      : lines.slice(Math.max(lines.length - tailLines, 0))
-
-  if (focusLines.length === 0) {
-    focusLines = ["(no output captured)"]
-  }
-
+  const focusLines = buildFocusLines({
+    content,
+    focusStyle,
+    matchers,
+    maxLines,
+    tailLines,
+  })
   await writeFile(focusFilePath, `${focusLines.join("\n")}\n`, "utf8")
 }
 

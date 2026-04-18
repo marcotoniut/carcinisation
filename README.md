@@ -61,7 +61,11 @@ Troubleshooting: If VS Code reports `Import "PIL" could not be resolved`, re-run
 - `check-agent-capabilities.json` – compact agent-facing validation metadata
 - `check-agent-capabilities.pretty.json` – full human-readable task list
 
-The compact file keeps only the default flags, available flags, focus-file map, and rerun rules needed to drive `pnpm check:agent`.
+The compact file keeps only the default flags, available flags, focus-file map, surface/profile recommendations, and rerun rules needed to drive `pnpm check:agent`.
+Use `defaultFlags` for baseline broad validation.
+Use `surfaceProfiles.<surface>.quick` while iterating, `surfaceProfiles.<surface>.full` before handoff/review, and `surfaceProfiles.<surface>.advisory` only for opt-in quality debt work.
+The CLI can also resolve those profiles directly via `pnpm check:agent --surface <surface> --profile <quick|full|advisory>`.
+`pnpm check:agent --list` shows the available checks and mappings, `--fail-fast` stops after the first failing check, and `pnpm --silent check:agent ... --json` emits machine-readable results without `pnpm` wrapper noise.
 
 ## Planning Work
 
