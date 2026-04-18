@@ -327,6 +327,9 @@ pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
 /// Renders the sprite at native size into a scratch buffer, then blits it
 /// to the destination with the combined scale/rotation transform around the
 /// anchor point, using nearest-neighbour sampling.
+///
+/// Returns immediately if the source has zero-area frame size (unresolved
+/// asset or degenerate geometry). No scratch buffer is allocated in that case.
 pub(crate) fn draw_spatial_transformed<'a, A: Frames + Spatial>(
     spatial: &A,
     param: <A as Frames>::Param,
@@ -392,6 +395,13 @@ pub(crate) fn blit_transformed(
     rotation: f32,
     offset: Vec2,
 ) {
+    // Zero-area native_size means "nothing to draw" (e.g., unresolved asset,
+    // collapsed transform result). Skip without allocating — this is the normal
+    // empty-output path, not an error.
+    if native_size.x == 0 || native_size.y == 0 {
+        return;
+    }
+
     let src_w = native_size.x as f32;
     let src_h = native_size.y as f32;
 
@@ -656,14 +666,62 @@ mod tests {
     }
 
     #[test]
-    fn zero_size_scratch_draws_nothing() {
-        let scratch = PxImage::empty(UVec2::ZERO);
+    fn zero_native_size_draws_nothing() {
+        // Zero-area native_size triggers an early return in blit_transformed.
+        // The scratch buffer is never accessed, so we use a minimal valid 1×1
+        // image — PxImage requires width > 0.
+        let scratch = PxImage::new(vec![1], 1);
         let mut dest = PxImage::empty(UVec2::new(8, 8));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::ZERO,
+            &mut dest_slice,
+            PxPosition(IVec2::new(4, 4)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            0.0,
+            Vec2::ZERO,
+        );
+
+        assert_eq!(count_nonzero(&dest), 0);
+    }
+
+    #[test]
+    fn zero_width_native_size_draws_nothing() {
+        // Only one dimension is zero — still early-returns.
+        let scratch = PxImage::new(vec![1], 1);
+        let mut dest = PxImage::empty(UVec2::new(8, 8));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(0, 4),
+            &mut dest_slice,
+            PxPosition(IVec2::new(4, 4)),
+            PxAnchor::Center,
+            PxCanvas::Camera,
+            PxCamera(IVec2::ZERO),
+            Vec2::ONE,
+            0.0,
+            Vec2::ZERO,
+        );
+
+        assert_eq!(count_nonzero(&dest), 0);
+    }
+
+    #[test]
+    fn zero_height_native_size_draws_nothing() {
+        let scratch = PxImage::new(vec![1], 1);
+        let mut dest = PxImage::empty(UVec2::new(8, 8));
+        let mut dest_slice = dest.slice_all_mut();
+
+        blit_transformed(
+            &scratch,
+            UVec2::new(4, 0),
             &mut dest_slice,
             PxPosition(IVec2::new(4, 4)),
             PxAnchor::Center,

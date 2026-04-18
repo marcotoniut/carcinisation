@@ -503,15 +503,12 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     let base_in_scratch = (metrics.origin - metrics.render_origin).as_vec2();
                     let base_anchor = anchor.pos(metrics.size).as_vec2();
                     let render_anchor_px = base_in_scratch + base_anchor;
-                    let render_anchor = if metrics.render_size.x == 0 || metrics.render_size.y == 0
-                    {
-                        anchor
-                    } else {
-                        PxAnchor::Custom(Vec2::new(
-                            render_anchor_px.x / metrics.render_size.x as f32,
-                            render_anchor_px.y / metrics.render_size.y as f32,
-                        ))
-                    };
+                    // render_size is guaranteed non-zero here (zero-area
+                    // composites are skipped above).
+                    let render_anchor = PxAnchor::Custom(Vec2::new(
+                        render_anchor_px.x / metrics.render_size.x as f32,
+                        render_anchor_px.y / metrics.render_size.y as f32,
+                    ));
                     blit_transformed(
                         &scratch,
                         metrics.render_size,

@@ -3,6 +3,23 @@ use serde::{Deserialize, Serialize};
 
 use crate::{math::RectExt, palette::Palette, prelude::*};
 
+/// Palette-indexed raster buffer with a valid row layout.
+///
+/// # Layout invariant
+///
+/// - `width` is always > 0 (row stride for index arithmetic).
+/// - Storage is row-aligned: when non-empty, `image.len()` is a multiple of
+///   `width`.
+/// - Height may be 0 (empty data with a valid width). This is a valid layout
+///   — it simply contains no rows.
+/// - Width 0 is unconditionally invalid; it would cause division-by-zero in
+///   [`height()`](Self::height), [`size()`](Self::size), and
+///   [`get_pixel()`](Self::get_pixel).
+///
+/// Zero-area *render* states (unresolved composites, assets not yet loaded)
+/// are represented in render metrics ([`UVec2`] size fields on composites) —
+/// not by manufacturing a degenerate `PxImage`. The renderer skips zero-area
+/// metrics at the draw boundary.
 #[derive(Serialize, Deserialize, Clone, Reflect, Debug)]
 pub(crate) struct PxImage {
     image: Vec<u8>,
@@ -10,15 +27,46 @@ pub(crate) struct PxImage {
 }
 
 impl PxImage {
+    /// Construct from raw palette-index data.
+    ///
+    /// Caller must satisfy the layout invariant: `width` > 0, and when `image`
+    /// is non-empty its length must be a multiple of `width`. An empty `image`
+    /// vec with a positive width is valid (zero rows, height 0).
+    ///
+    /// # Panics (debug)
+    ///
+    /// - `width` is 0.
+    /// - `image` is non-empty and its length is not a multiple of `width`.
     pub(crate) fn new(image: Vec<u8>, width: usize) -> Self {
+        debug_assert!(width > 0, "PxImage: width must be > 0 (got width 0)");
+        debug_assert!(
+            image.is_empty() || image.len().is_multiple_of(width),
+            "PxImage: data length ({}) must be a multiple of width ({width})",
+            image.len(),
+        );
         Self { image, width }
     }
 
+    /// Allocate a zeroed raster of the given size (both dimensions must be > 0).
+    ///
+    /// # Panics (debug)
+    ///
+    /// Either dimension is 0.
     pub(crate) fn empty(size: UVec2) -> Self {
+        debug_assert!(
+            size.x > 0 && size.y > 0,
+            "PxImage::empty: dimensions must be > 0 (got {size})",
+        );
         Self {
             image: vec![0; (size.x * size.y) as usize],
             width: size.x as usize,
         }
+    }
+
+    /// Whether this image has no pixel data.
+    #[allow(unused)]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.image.is_empty()
     }
 
     pub(crate) fn empty_from_image(image: &Image) -> Self {
@@ -143,7 +191,7 @@ impl PxImage {
     }
 
     pub(crate) fn trim_right(&mut self) {
-        if self.width == 0 || self.image.is_empty() {
+        if self.image.is_empty() {
             return;
         }
 
@@ -405,5 +453,61 @@ mod tests {
         assert_eq!(px.size(), UVec2::new(2, 1));
         assert_eq!(px.pixel(IVec2::new(0, 0)), 0);
         assert_eq!(px.pixel(IVec2::new(1, 0)), 1);
+    }
+
+    // -- Positive-width invariant tests --
+    //
+    // PxImage requires width > 0 unconditionally. Zero-area render states are
+    // represented in composite metrics, not in PxImage itself.
+
+    #[test]
+    #[should_panic(expected = "width must be > 0")]
+    fn new_rejects_zero_width_with_data() {
+        let _ = PxImage::new(vec![1, 2, 3], 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "width must be > 0")]
+    fn new_rejects_zero_width_with_empty_data() {
+        let _ = PxImage::new(vec![], 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "must be a multiple")]
+    fn new_rejects_misaligned_data() {
+        let _ = PxImage::new(vec![1, 2, 3], 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "dimensions must be > 0")]
+    fn empty_rejects_zero_width() {
+        let _ = PxImage::empty(UVec2::new(0, 10));
+    }
+
+    #[test]
+    #[should_panic(expected = "dimensions must be > 0")]
+    fn empty_rejects_zero_height() {
+        let _ = PxImage::empty(UVec2::new(10, 0));
+    }
+
+    #[test]
+    fn zero_height_with_valid_width_satisfies_layout_invariant() {
+        // Empty data + positive width is a valid layout: zero rows, height 0.
+        // The layout invariant (width > 0, row-aligned) holds — no panic.
+        let img = PxImage::new(vec![], 1);
+        assert!(img.is_empty());
+        assert_eq!(img.width(), 1);
+        assert_eq!(img.height(), 0);
+        assert_eq!(img.area(), 0);
+        assert_eq!(img.size(), UVec2::new(1, 0));
+    }
+
+    #[test]
+    fn valid_image_reports_correct_dimensions() {
+        let img = PxImage::empty(UVec2::new(4, 3));
+        assert_eq!(img.width(), 4);
+        assert_eq!(img.height(), 3);
+        assert_eq!(img.size(), UVec2::new(4, 3));
+        assert!(!img.is_empty());
     }
 }
