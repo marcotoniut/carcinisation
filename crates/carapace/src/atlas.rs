@@ -855,28 +855,24 @@ mod tests {
                 .unwrap_or_else(|| panic!("sprite '{name}' should exist in atlas name table"));
             assert_eq!(
                 resolved_index, expected_index,
-                "sprite '{}' should resolve to region {}",
-                name, expected_index
+                "sprite '{name}' should resolve to region {expected_index}"
             );
 
             let expected_region = &descriptor.regions[index];
             let actual_region = &descriptor.regions[resolved_index as usize];
             assert_eq!(
                 actual_region.frame_size,
-                [w as u32, h as u32],
-                "sprite '{}' frame_size should match compact sprite size",
-                name
+                [u32::from(w), u32::from(h)],
+                "sprite '{name}' frame_size should match compact sprite size"
             );
             assert_eq!(
                 actual_region.frames.len(),
                 1,
-                "sprite '{}' should use exactly one atlas frame",
-                name
+                "sprite '{name}' should use exactly one atlas frame"
             );
             assert_eq!(
                 actual_region.frames[0], expected_region.frames[0],
-                "sprite '{}' should preserve atlas rect identity",
-                name
+                "sprite '{name}' should preserve atlas rect identity"
             );
         }
     }

@@ -119,7 +119,7 @@ pub struct CompactCollision {
 /// One animation sequence.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompactAnimation {
-    /// Animation tag name (e.g. "idle_stand", "shoot_fly").
+    /// Animation tag name (e.g. "`idle_stand`", "`shoot_fly`").
     pub tag: String,
     /// Playback direction.
     pub direction: CompactDirection,
@@ -258,15 +258,18 @@ pub struct CompactHealthPool {
 
 impl SpawnAnchorMode {
     /// Serde helper: returns true when the value equals the default variant.
+    #[must_use]
     pub fn is_default(&self) -> bool {
         *self == Self::BottomOrigin
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde skip_serializing_if requires &T
 fn is_zero_u8(v: &u8) -> bool {
     *v == 0
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde skip_serializing_if requires &T
 fn is_zero_offset(v: &(i8, i8)) -> bool {
     v.0 == 0 && v.1 == 0
 }
@@ -274,8 +277,19 @@ fn is_zero_offset(v: &(i8, i8)) -> bool {
 // ── Encoder ────────────────────────────────────────────────────────────────
 
 /// Capacity warning thresholds (80% of each limit).
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
 const U8_WARN: usize = (u8::MAX as f64 * 0.8) as usize; // 204
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 const I8_POS_WARN: i32 = (i8::MAX as f64 * 0.8) as i32; // 101
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
 const U16_WARN: u32 = (u16::MAX as f64 * 0.8) as u32; // 52428
 
 /// Convert a full `CompositionAtlas` into the compact runtime manifest.
@@ -283,6 +297,11 @@ const U16_WARN: u32 = (u16::MAX as f64 * 0.8) as u32; // 52428
 /// All numeric narrowing is bounds-checked. Dropped-field invariants
 /// (`opacity == 255`, `visible == true`) are enforced with diagnostic errors.
 /// Capacity warnings are logged to stderr via `eprintln!`.
+///
+/// # Errors
+///
+/// Returns an error if any numeric value overflows its compact representation
+/// or if a dropped-field invariant is violated.
 pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
     let (result, warnings) = encode_with_diagnostics(atlas)?;
     for w in &warnings {
@@ -293,6 +312,15 @@ pub fn encode(atlas: &CompositionAtlas) -> Result<CompactComposedAtlas> {
 
 /// Like [`encode`], but returns capacity warnings as a vec instead of
 /// printing them. Useful for testing.
+///
+/// # Errors
+///
+/// Same as [`encode`].
+///
+/// # Panics
+///
+/// Panics if a sprite rectangle has zero width or height.
+#[allow(clippy::too_many_lines)]
 pub fn encode_with_diagnostics(
     atlas: &CompositionAtlas,
 ) -> Result<(CompactComposedAtlas, Vec<String>)> {
@@ -316,7 +344,7 @@ pub fn encode_with_diagnostics(
     let mut part_index = std::collections::HashMap::<String, u8>::new();
     for part in &atlas.parts {
         let idx = part_names.len();
-        ensure!(idx <= u8::MAX as usize, "too many parts (>255)");
+        ensure!(u8::try_from(idx).is_ok(), "too many parts (>255)");
         let idx = u8::try_from(idx)
             .map_err(|_| anyhow!("part index {} for '{}' exceeds u8 range", idx, part.id))?;
         part_index.insert(part.id.clone(), idx);
@@ -334,7 +362,7 @@ pub fn encode_with_diagnostics(
     let mut sprite_names = Vec::with_capacity(atlas.sprites.len());
     let mut sprite_sizes = Vec::with_capacity(atlas.sprites.len());
     for (i, sprite) in atlas.sprites.iter().enumerate() {
-        ensure!(i <= u8::MAX as usize, "too many sprites (>255)");
+        ensure!(u8::try_from(i).is_ok(), "too many sprites (>255)");
         let sprite_idx = u8::try_from(i)
             .map_err(|_| anyhow!("sprite index {} for '{}' exceeds u8 range", i, sprite.id))?;
         let sprite_width = u16::try_from(sprite.rect.w).map_err(|_| {
@@ -587,7 +615,7 @@ pub fn encode_with_diagnostics(
                         frame.duration_ms,
                     )
                 })?;
-                if duration_ms as u32 >= U16_WARN {
+                if u32::from(duration_ms) >= U16_WARN {
                     warnings.push(format!(
                         "animation '{}' frame {} duration_ms {} is approaching u16 limit (65535)",
                         anim.tag, frame_idx, duration_ms,
@@ -734,12 +762,11 @@ fn merge_gameplay(
         def.armour
     };
     let armour = u8::try_from(armour)
-        .map_err(|_| anyhow!("part '{}' armour {} exceeds u8 range", part_id, armour))?;
+        .map_err(|_| anyhow!("part '{part_id}' armour {armour} exceeds u8 range"))?;
     let durability = inst.durability.or(def.durability);
     let durability = durability
         .map(|d| {
-            u8::try_from(d)
-                .map_err(|_| anyhow!("part '{}' durability {} exceeds u8 range", part_id, d))
+            u8::try_from(d).map_err(|_| anyhow!("part '{part_id}' durability {d} exceeds u8 range"))
         })
         .transpose()?;
 
@@ -774,6 +801,10 @@ fn merge_collisions(
 }
 
 /// Serialize a compact atlas to RON string (compact, non-pretty).
+///
+/// # Errors
+///
+/// Returns an error if RON serialisation fails.
 pub fn to_ron(compact: &CompactComposedAtlas) -> Result<String> {
     Ok(ron::to_string(compact)?)
 }
@@ -781,7 +812,7 @@ pub fn to_ron(compact: &CompactComposedAtlas) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::aseprite::CompositionAtlas;
+    use crate::aseprite::{CompositionAtlas, PartGameplayMetadata};
     use std::{fs, path::PathBuf};
 
     fn load_test_atlas() -> CompositionAtlas {
@@ -879,14 +910,14 @@ mod tests {
             source: "test.aseprite".into(),
             canvas: Size { w: 8, h: 8 },
             origin: Point { x: 4, y: 4 },
-            spawn_anchor: Default::default(),
+            spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "source.png".into(),
             part_definitions: vec![PartDefinition {
                 id: "body".into(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             parts: vec![PartInstance {
                 id: "body".into(),
@@ -900,7 +931,7 @@ mod tests {
                 pivot: Point::default(),
                 tags: vec![],
                 visible_by_default: true,
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             sprites: vec![AtlasSprite {
                 id: "sprite_0000".into(),
@@ -1033,7 +1064,7 @@ mod tests {
     #[test]
     fn rejects_sprite_dimensions_exceeding_u16() {
         let mut atlas = tiny_atlas();
-        atlas.sprites[0].rect.w = u16::MAX as u32 + 1;
+        atlas.sprites[0].rect.w = u32::from(u16::MAX) + 1;
 
         let err = encode(&atlas).unwrap_err();
         assert!(
@@ -1051,7 +1082,7 @@ mod tests {
             atlas.part_definitions.push(PartDefinition {
                 id: id.clone(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             });
             atlas.parts.push(PartInstance {
                 id: id.clone(),
@@ -1065,7 +1096,7 @@ mod tests {
                 pivot: Point::default(),
                 tags: vec![],
                 visible_by_default: true,
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             });
         }
 

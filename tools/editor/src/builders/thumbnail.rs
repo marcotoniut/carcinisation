@@ -221,6 +221,7 @@ fn compose_enemy_preview(
     compose_preview_frame(&atlas, &atlas_image, animation_tag, 0)
 }
 
+#[allow(clippy::too_many_lines)]
 fn compose_preview_frame(
     atlas: &CompositionAtlas,
     atlas_image: &RgbaImage,
@@ -289,13 +290,13 @@ fn compose_preview_frame(
                     .with_context(|| {
                         format!("failed to resolve parent preview pivot for '{}'", part.id)
                     })?
-                    + ivec2_from_point(&pose.local_offset)
+                    + ivec2_from_point(pose.local_offset)
             } else {
-                ivec2_from_point(&pose.local_offset)
+                ivec2_from_point(pose.local_offset)
             };
             placements.push(FragmentPlacement {
                 rect: sprite.rect.clone(),
-                top_left: fragment_pivot - ivec2_from_point(&part.pivot),
+                top_left: fragment_pivot - ivec2_from_point(part.pivot),
                 size,
                 flip_x: pose.flip_x,
                 flip_y: pose.flip_y,
@@ -327,11 +328,13 @@ fn compose_preview_frame(
                 Anchor::CENTER
             }
         }
-        _ => carcinisation::stage::enemy::composed::bevy_anchor_for_composed(
-            (atlas.canvas.w as u16, atlas.canvas.h as u16),
-            (atlas.origin.x as i16, atlas.origin.y as i16),
-            atlas.spawn_anchor,
-        ),
+        asset_pipeline::composed_ron::SpawnAnchorMode::BottomOrigin => {
+            carcinisation::stage::enemy::composed::bevy_anchor_for_composed(
+                (atlas.canvas.w as u16, atlas.canvas.h as u16),
+                (atlas.origin.x as i16, atlas.origin.y as i16),
+                atlas.spawn_anchor,
+            )
+        }
     };
 
     Ok(ComposedPreview {
@@ -352,9 +355,9 @@ fn resolve_part_pivot<'a>(
     let primary = poses_by_part.get(part.id.as_str())?.first()?;
     let resolved = if part.parent_id.is_some() {
         let parent_pivot = resolve_parent_pivot(part, parts_by_id, poses_by_part, resolved_pivots)?;
-        parent_pivot + ivec2_from_point(&primary.local_offset)
+        parent_pivot + ivec2_from_point(primary.local_offset)
     } else {
-        ivec2_from_point(&primary.local_offset)
+        ivec2_from_point(primary.local_offset)
     };
     resolved_pivots.insert(part.id.as_str(), resolved);
     Some(resolved)
@@ -440,9 +443,9 @@ fn blend_pixel(dst: Rgba<u8>, src: Rgba<u8>) -> Rgba<u8> {
         return src;
     }
 
-    let alpha = src[3] as f32 / 255.0;
+    let alpha = f32::from(src[3]) / 255.0;
     let inv_alpha = 1.0 - alpha;
-    let dst_alpha = dst[3] as f32 / 255.0;
+    let dst_alpha = f32::from(dst[3]) / 255.0;
     let out_alpha = alpha + dst_alpha * inv_alpha;
     if out_alpha <= f32::EPSILON {
         return Rgba([0, 0, 0, 0]);
@@ -450,8 +453,9 @@ fn blend_pixel(dst: Rgba<u8>, src: Rgba<u8>) -> Rgba<u8> {
 
     let mut out = [0u8; 4];
     for index in 0..3 {
-        let blended =
-            (src[index] as f32 * alpha + dst[index] as f32 * dst_alpha * inv_alpha) / out_alpha;
+        let blended = (f32::from(src[index]) * alpha
+            + f32::from(dst[index]) * dst_alpha * inv_alpha)
+            / out_alpha;
         out[index] = blended.round().clamp(0.0, 255.0) as u8;
     }
     out[3] = (out_alpha * 255.0).round().clamp(0.0, 255.0) as u8;
@@ -472,7 +476,7 @@ fn rgba_image_to_bevy_image(image: &RgbaImage) -> Image {
     )
 }
 
-fn ivec2_from_point(point: &asset_pipeline::aseprite::Point) -> IVec2 {
+fn ivec2_from_point(point: asset_pipeline::aseprite::Point) -> IVec2 {
     IVec2::new(point.x, point.y)
 }
 
@@ -513,7 +517,6 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> Option<(Strin
             Depth::Three => Some(("sprites/enemies/mosquiton_3/source.png".into(), None)),
             _ => None,
         },
-        EnemyType::Spidey => None,
         EnemyType::Tardigrade => {
             let loc = "sprites/enemies/tardigrade_idle_";
             let ext = ".px_sprite.png";
@@ -533,7 +536,7 @@ pub fn get_enemy_thumbnail(enemy_type: EnemyType, depth: Depth) -> Option<(Strin
                 _ => None,
             }
         }
-        EnemyType::Marauder | EnemyType::Spidomonsta | EnemyType::Kyle => None,
+        EnemyType::Spidey | EnemyType::Marauder | EnemyType::Spidomonsta | EnemyType::Kyle => None,
     }
 }
 
@@ -585,7 +588,7 @@ mod tests {
             source: "test.aseprite".into(),
             canvas: Size { w: 8, h: 8 },
             origin: Point { x: 0, y: 0 },
-            spawn_anchor: Default::default(),
+            spawn_anchor: asset_pipeline::composed_ron::SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "atlas.png".into(),

@@ -213,11 +213,11 @@ struct CachedCompositeMetrics {
 }
 
 /// Frame-derived render data written by [`update_composed_enemy_visuals`] in
-/// Update and consumed by [`apply_composed_enemy_visuals`] in PostUpdate.
+/// Update and consumed by [`apply_composed_enemy_visuals`] in `PostUpdate`.
 ///
 /// This component exists to keep gameplay derivation (animation, collision,
-/// anchors) in Update while deferring presentation writes (PxCompositeSprite,
-/// PxAnchor, Visibility) to PostUpdate. It carries only what the PostUpdate
+/// anchors) in Update while deferring presentation writes (`PxCompositeSprite`,
+/// `PxAnchor`, Visibility) to `PostUpdate`. It carries only what the `PostUpdate`
 /// writer needs — no persistent gameplay state.
 #[derive(Component, Default)]
 pub struct ComposedFrameOutput {
@@ -282,7 +282,7 @@ pub struct ComposedCollisionState {
 pub struct ResolvedPartCollision {
     pub part_id: String,
     pub collider: Collider,
-    /// Pivot in visual space (game-logic position + visual_offset).
+    /// Pivot in visual space (game-logic position + `visual_offset`).
     pub pivot_position: Vec2,
 }
 
@@ -429,6 +429,7 @@ pub struct PartGameplayState {
 
 impl PartGameplayState {
     /// Returns `true` if any of the given tags matches this part's semantic tags.
+    #[must_use]
     pub fn has_any_tag(&self, tags: &[&str]) -> bool {
         tags.iter().any(|t| self.tags.iter().any(|pt| pt == t))
     }
@@ -483,6 +484,7 @@ impl ComposedResolvedParts {
 
     /// Test-only constructor for building resolved parts with known data.
     #[cfg(test)]
+    #[must_use]
     pub fn with_parts_and_offset(parts: Vec<ResolvedPartState>, visual_offset: Vec2) -> Self {
         Self {
             parts,
@@ -493,6 +495,7 @@ impl ComposedResolvedParts {
 
     /// Test-only constructor for building resolved parts/fragments with known data.
     #[cfg(test)]
+    #[must_use]
     pub fn with_parts_fragments_and_offset(
         parts: Vec<ResolvedPartState>,
         fragments: Vec<ResolvedPartFragmentState>,
@@ -1180,17 +1183,16 @@ pub fn update_composed_enemy_visuals(
         if !visual.anchor_offsets_inserted {
             match atlas_asset.atlas.spawn_anchor {
                 SpawnAnchorMode::Origin => {
-                    visual.entity_ground_anchor = atlas_asset
-                        .atlas
-                        .ground_anchor_y
-                        .map(f32::from)
-                        .unwrap_or_else(|| {
+                    visual.entity_ground_anchor = atlas_asset.atlas.ground_anchor_y.map_or_else(
+                        || {
                             f32::from(atlas_asset.atlas.canvas.1)
                                 - f32::from(atlas_asset.atlas.origin.1)
-                        });
+                        },
+                        f32::from,
+                    );
                 }
                 SpawnAnchorMode::BottomOrigin => {}
-            };
+            }
             visual.anchor_offsets_inserted = true;
             // Fall through to the override resolution below.
         }
@@ -1200,9 +1202,8 @@ pub fn update_composed_enemy_visuals(
                 .animations
                 .get(&animation_state.requested_tag)
                 .and_then(|a| a.ground_anchor_y)
-                .map(f32::from)
-                .unwrap_or(visual.entity_ground_anchor);
-            let air = atlas_asset.atlas.air_anchor_y.map(f32::from).unwrap_or(0.0);
+                .map_or(visual.entity_ground_anchor, f32::from);
+            let air = atlas_asset.atlas.air_anchor_y.map_or(0.0, f32::from);
             commands.entity(entity).insert(AnchorOffsets {
                 ground: resolved_ground,
                 air,
@@ -1238,7 +1239,7 @@ pub fn update_composed_enemy_visuals(
 
 /// Applies frame-derived render data to presentation components.
 ///
-/// Runs in PostUpdate so all gameplay mutations (position, depth, animation)
+/// Runs in `PostUpdate` so all gameplay mutations (position, depth, animation)
 /// are settled before presentation is written. This is the sole writer of
 /// `PxCompositeSprite`, `PxAnchor`, and `Visibility` for composed enemies.
 pub fn apply_composed_enemy_visuals(
@@ -1437,14 +1438,14 @@ fn build_runtime_cache_compact(
             .part_names
             .get(idx as usize)
             .map(String::as_str)
-            .ok_or_else(|| format!("part index {} out of range", idx))
+            .ok_or_else(|| format!("part index {idx} out of range"))
     };
     let sprite_name = |idx: u8| -> Result<&str, String> {
         atlas
             .sprite_names
             .get(idx as usize)
             .map(String::as_str)
-            .ok_or_else(|| format!("sprite index {} out of range", idx))
+            .ok_or_else(|| format!("sprite index {idx} out of range"))
     };
 
     let mut parts_by_id = HashMap::with_capacity(atlas.parts.len());
@@ -1463,8 +1464,8 @@ fn build_runtime_cache_compact(
                 id: id.clone(),
                 parent_id,
                 is_visual: part.visual,
-                draw_order: part.draw_order as u32,
-                pivot: IVec2::new(part.pivot.0 as i32, part.pivot.1 as i32),
+                draw_order: u32::from(part.draw_order),
+                pivot: IVec2::new(i32::from(part.pivot.0), i32::from(part.pivot.1)),
                 tags: part.tags.clone(),
                 gameplay,
             },
@@ -1483,7 +1484,7 @@ fn build_runtime_cache_compact(
     let sprite_sizes: Vec<UVec2> = atlas
         .sprite_sizes
         .iter()
-        .map(|&(w, h)| UVec2::new(w as u32, h as u32))
+        .map(|&(w, h)| UVec2::new(u32::from(w), u32::from(h)))
         .collect();
 
     let mut animations = HashMap::with_capacity(atlas.animations.len());
@@ -1515,12 +1516,12 @@ fn build_runtime_cache_compact(
 
                 let cached = CachedPose {
                     sprite_id: sid,
-                    local_offset: IVec2::new(pose.o.0 as i32, pose.o.1 as i32),
+                    local_offset: IVec2::new(i32::from(pose.o.0), i32::from(pose.o.1)),
                     size,
                     flip_x: pose.fx,
                     flip_y: pose.fy,
                     visible: true, // compact format omits always-true visible
-                    fragment: pose.frag as u32,
+                    fragment: u32::from(pose.frag),
                 };
                 poses.entry(pid).or_default().push(cached);
             }
@@ -1542,7 +1543,7 @@ fn build_runtime_cache_compact(
 
             cached_frames.push(CachedAnimationFrame {
                 source_frame: frame_idx,
-                duration_ms: frame.duration_ms as u32,
+                duration_ms: u32::from(frame.duration_ms),
                 events: frame
                     .events
                     .iter()
@@ -1555,7 +1556,10 @@ fn build_runtime_cache_compact(
                             kind: event.kind,
                             id: event.id.clone(),
                             part_id: event_part_id,
-                            local_offset: IVec2::new(event.offset.0 as i32, event.offset.1 as i32),
+                            local_offset: IVec2::new(
+                                i32::from(event.offset.0),
+                                i32::from(event.offset.1),
+                            ),
                         })
                     })
                     .collect::<Result<Vec<_>, String>>()?,
@@ -1592,7 +1596,7 @@ fn build_runtime_cache_compact(
         .gameplay
         .health_pools
         .iter()
-        .map(|pool| (pool.id.clone(), pool.max_health as u32))
+        .map(|pool| (pool.id.clone(), u32::from(pool.max_health)))
         .collect();
 
     Ok(CompositionAtlasCache {
@@ -1617,8 +1621,8 @@ fn compact_gameplay_to_cached(gameplay: &CompactPartGameplay) -> CachedPartGamep
     CachedPartGameplay {
         targetable: gameplay.targetable,
         health_pool: gameplay.health_pool.clone(),
-        armour: gameplay.armour as u32,
-        durability: gameplay.durability.map(|d| d as u32),
+        armour: u32::from(gameplay.armour),
+        durability: gameplay.durability.map(u32::from),
         breakable: gameplay.breakable,
         pool_damage_ratio: gameplay.pool_damage_ratio,
         collisions,
@@ -1648,26 +1652,20 @@ fn build_atlas_bindings_compact(
         .zip(atlas.sprite_sizes.iter())
         .enumerate()
     {
-        let expected_region_id = AtlasRegionId(u32::try_from(i).map_err(|_| {
-            format!(
-                "compact sprite index {} for '{}' exceeds u32 range",
-                i, name
-            )
-        })?);
+        let expected_region_id = AtlasRegionId(
+            u32::try_from(i)
+                .map_err(|_| format!("compact sprite index {i} for '{name}' exceeds u32 range"))?,
+        );
         let region_id = sprite_atlas
             .region_id(name)
-            .ok_or_else(|| format!("sprite atlas is missing region '{}'", name))?;
+            .ok_or_else(|| format!("sprite atlas is missing region '{name}'"))?;
         let expected_region = sprite_atlas.region(expected_region_id).ok_or_else(|| {
             format!(
-                "sprite atlas is missing expected region {:?} for compact sprite '{}'",
-                expected_region_id, name
+                "sprite atlas is missing expected region {expected_region_id:?} for compact sprite '{name}'"
             )
         })?;
         let region = sprite_atlas.region(region_id).ok_or_else(|| {
-            format!(
-                "sprite atlas resolved region {:?} for '{}' but it does not exist",
-                region_id, name
-            )
+            format!("sprite atlas resolved region {region_id:?} for '{name}' but it does not exist")
         })?;
         if region.frame_count() != 1 {
             return Err(format!(
@@ -1676,22 +1674,18 @@ fn build_atlas_bindings_compact(
                 region.frame_count()
             ));
         }
-        if region.frame_size != UVec2::new(w as u32, h as u32) {
+        if region.frame_size != UVec2::new(u32::from(w), u32::from(h)) {
             return Err(format!(
                 "sprite atlas region '{}' has frame_size {:?}, expected {}x{}",
                 name, region.frame_size, w, h
             ));
         }
         let frame = region.frame(0).ok_or_else(|| {
-            format!(
-                "sprite atlas region '{}' is missing its first frame rectangle",
-                name
-            )
+            format!("sprite atlas region '{name}' is missing its first frame rectangle")
         })?;
         let expected_frame = expected_region.frame(0).ok_or_else(|| {
             format!(
-                "sprite atlas expected region {:?} for '{}' is missing its first frame rectangle",
-                expected_region_id, name
+                "sprite atlas expected region {expected_region_id:?} for '{name}' is missing its first frame rectangle"
             )
         })?;
         if region_id != expected_region_id || frame != expected_frame {
@@ -1701,10 +1695,10 @@ fn build_atlas_bindings_compact(
             ));
         }
         if sprite_regions.insert(name.clone(), region_id).is_some() {
-            return Err(format!("duplicate compact sprite binding '{}'", name));
+            return Err(format!("duplicate compact sprite binding '{name}'"));
         }
         if sprite_rects.insert(name.clone(), frame).is_some() {
-            return Err(format!("duplicate compact sprite rect binding '{}'", name));
+            return Err(format!("duplicate compact sprite rect binding '{name}'"));
         }
     }
 
@@ -2140,8 +2134,7 @@ fn validate_cached_fragment_sequence(
 
     if fragments.first().map(|pose| pose.fragment) != Some(0) {
         return Err(format!(
-            "animation '{}' frame {} part '{}' is missing primary fragment 0",
-            animation_tag, source_frame, part_id
+            "animation '{animation_tag}' frame {source_frame} part '{part_id}' is missing primary fragment 0"
         ));
     }
 
@@ -2635,10 +2628,10 @@ fn anchor_for_composed(
         return PxAnchor::Center;
     }
 
-    let anchor_x = atlas_origin.0 as f32 / canvas_size.0 as f32;
+    let anchor_x = f32::from(atlas_origin.0) / f32::from(canvas_size.0);
     let anchor_y = match mode {
         SpawnAnchorMode::BottomOrigin => 0.0,
-        SpawnAnchorMode::Origin => atlas_origin.1 as f32 / canvas_size.1 as f32,
+        SpawnAnchorMode::Origin => f32::from(atlas_origin.1) / f32::from(canvas_size.1),
     };
     PxAnchor::Custom(Vec2::new(anchor_x, anchor_y))
 }
@@ -2646,6 +2639,7 @@ fn anchor_for_composed(
 /// Convert a composed atlas anchor to a Bevy [`Anchor`].
 ///
 /// [`PxAnchor`] uses 0..1 from bottom-left; Bevy `Anchor` uses −0.5..0.5 from centre.
+#[must_use]
 pub fn bevy_anchor_for_composed(
     canvas_size: (u16, u16),
     atlas_origin: (i16, i16),
@@ -3216,7 +3210,7 @@ mod tests {
             source: "example.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: asset_pipeline::aseprite::Point { x: 8, y: 8 },
-            spawn_anchor: Default::default(),
+            spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "source.png".to_string(),
@@ -3318,7 +3312,7 @@ mod tests {
             source: "mixed.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: Point { x: 8, y: 8 },
-            spawn_anchor: Default::default(),
+            spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "source.png".to_string(),
@@ -3601,7 +3595,7 @@ mod tests {
         let mut ids = HashSet::new();
         for part in &atlas.atlas.parts {
             let name = &atlas.atlas.part_names[part.id as usize];
-            assert!(ids.insert(name.clone()), "duplicate part id '{}'", name,);
+            assert!(ids.insert(name.clone()), "duplicate part id '{name}'",);
         }
     }
 
@@ -4709,8 +4703,8 @@ mod tests {
                         AtlasRect {
                             x: 0,
                             y: 0,
-                            w: w as u32,
-                            h: h as u32,
+                            w: u32::from(w),
+                            h: u32::from(h),
                         },
                     )
                 })
@@ -4808,8 +4802,8 @@ mod tests {
                         AtlasRect {
                             x: 0,
                             y: 0,
-                            w: w as u32,
-                            h: h as u32,
+                            w: u32::from(w),
+                            h: u32::from(h),
                         },
                     )
                 })
@@ -4879,8 +4873,8 @@ mod tests {
                         AtlasRect {
                             x: 0,
                             y: 0,
-                            w: w as u32,
-                            h: h as u32,
+                            w: u32::from(w),
+                            h: u32::from(h),
                         },
                     )
                 })
@@ -5677,7 +5671,7 @@ mod tests {
     // Split (render fragment) invariant tests — T-1 through T-5
     // ---------------------------------------------------------------
 
-    /// Build a minimal atlas with one split part (legs_visual) producing two
+    /// Build a minimal atlas with one split part (`legs_visual`) producing two
     /// render fragments, plus a non-split body part.
     fn split_atlas() -> CompositionAtlas {
         CompositionAtlas {
@@ -5687,7 +5681,7 @@ mod tests {
             source: "split_test.aseprite".to_string(),
             canvas: Size { w: 32, h: 16 },
             origin: Point { x: 16, y: 8 },
-            spawn_anchor: Default::default(),
+            spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "source.png".to_string(),
@@ -6274,6 +6268,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::similar_names, clippy::float_cmp)]
     fn visual_offset_formula_matches_render_pipeline_bottom_origin() {
         let anchor = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::BottomOrigin);
         let size = UVec2::new(65, 42);

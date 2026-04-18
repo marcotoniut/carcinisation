@@ -93,6 +93,8 @@ const SYMMETRY_THRESHOLD: f64 = 0.85;
 ///
 /// When `atlas_image` is provided, pixel-level horizontal symmetry is computed
 /// for each visual part's sprites. When `None`, symmetry scores are omitted.
+#[must_use]
+#[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
 pub fn build_report(
     atlas: &CompositionAtlas,
     interner_stats: &InternerStats,
@@ -310,7 +312,8 @@ pub fn build_report(
             flip_y_hits: interner_stats.flip_y_hits,
             flip_xy_hits: interner_stats.flip_xy_hits,
             hit_rate: if interner_stats.total_interns > 0 {
-                1.0 - (interner_stats.new_sprites as f64 / interner_stats.total_interns as f64)
+                1.0 - (f64::from(interner_stats.new_sprites)
+                    / f64::from(interner_stats.total_interns))
             } else {
                 0.0
             },
@@ -354,6 +357,7 @@ fn count_logical_part_references(atlas: &CompositionAtlas) -> usize {
 ///
 /// This is advisory only — used to identify split candidates, never to
 /// drive automatic decisions.
+#[allow(clippy::cast_precision_loss)]
 fn compute_symmetry_score(
     unique_sprite_ids: &[&str],
     atlas: &CompositionAtlas,
@@ -400,7 +404,7 @@ fn compute_symmetry_score(
 
         if total > 0 {
             let score = matching as f64 / total as f64;
-            let weight = (w * h) as f64; // Weight by area so larger sprites matter more.
+            let weight = f64::from(w * h); // Weight by area so larger sprites matter more.
             total_score += score * weight;
             total_weight += weight;
         }
@@ -495,6 +499,10 @@ pub fn print_report(report: &AnalysisReport) {
 }
 
 /// Write the analysis report as a JSON sidecar file.
+///
+/// # Errors
+///
+/// Returns an error if JSON serialisation or file I/O fails.
 pub fn write_json_report(report: &AnalysisReport, output_dir: &Path) -> anyhow::Result<()> {
     let path = output_dir.join("analysis.json");
     let json = serde_json::to_string_pretty(report)?;
@@ -505,13 +513,14 @@ pub fn write_json_report(report: &AnalysisReport, output_dir: &Path) -> anyhow::
 /// Near-miss dedup diagnostic: compares all unique sprites within each semantic
 /// part pair to find cases where flip dedup *almost* works but fails.
 ///
-/// For each candidate pair (e.g., arm_l vs arm_r), compares every sprite A from
+/// For each candidate pair (e.g., `arm_l` vs `arm_r`), compares every sprite A from
 /// one part against flip(B) for every sprite B from the other. Reports:
 /// - dimension mismatches
 /// - pixel-level diffs for same-dimension pairs
 ///
 /// This is a diagnostic tool, not a runtime feature. Call it after export to
 /// understand why certain parts are not deduplicating.
+#[allow(clippy::too_many_lines, clippy::cast_possible_wrap)]
 pub fn print_dedup_diagnostic(atlas: &CompositionAtlas, atlas_image: &RgbaImage) {
     use image::imageops;
 
@@ -658,8 +667,7 @@ pub fn print_dedup_diagnostic(atlas: &CompositionAtlas, atlas_image: &RgbaImage)
         }
 
         eprintln!(
-            "  summary: {} dim mismatch, {} exact (BUG), {} near (<= 10px), {} large diff",
-            dim_mismatches, exact_matches, near_matches, large_diffs
+            "  summary: {dim_mismatches} dim mismatch, {exact_matches} exact (BUG), {near_matches} near (<= 10px), {large_diffs} large diff"
         );
     }
     eprintln!();
@@ -670,8 +678,10 @@ mod tests {
     use super::*;
     use crate::aseprite::{
         AnimationFrame, AtlasSprite, CompositionAtlas, CompositionGameplay, InternerStats,
-        PartDefinition, PartInstance, PartPose, Point, Rect, Size, SourceRegion, SplitHalf,
+        PartDefinition, PartGameplayMetadata, PartInstance, PartPose, Point, Rect, Size,
+        SourceRegion, SplitHalf,
     };
+    use crate::composed_ron::SpawnAnchorMode;
 
     fn make_sprite(id: &str, w: u32, h: u32) -> AtlasSprite {
         AtlasSprite {
@@ -693,7 +703,7 @@ mod tests {
             pivot: Point::default(),
             tags: vec![],
             visible_by_default: true,
-            gameplay: Default::default(),
+            gameplay: PartGameplayMetadata::default(),
         }
     }
 
@@ -739,7 +749,7 @@ mod tests {
             source: "test.aseprite".to_string(),
             canvas: Size { w: 64, h: 64 },
             origin: Point::default(),
-            spawn_anchor: Default::default(),
+            spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "source.png".to_string(),
@@ -759,7 +769,7 @@ mod tests {
             vec![PartDefinition {
                 id: "body".to_string(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             vec![
                 vec![make_pose("body", "s0")],
@@ -808,12 +818,12 @@ mod tests {
                 PartDefinition {
                     id: "wing".to_string(),
                     tags: vec!["wing".to_string()],
-                    gameplay: Default::default(),
+                    gameplay: PartGameplayMetadata::default(),
                 },
                 PartDefinition {
                     id: "wing_marker".to_string(),
                     tags: vec!["wing".to_string()],
-                    gameplay: Default::default(),
+                    gameplay: PartGameplayMetadata::default(),
                 },
             ],
             vec![vec![make_pose("wings_visual", "s0")]],
@@ -839,7 +849,7 @@ mod tests {
             vec![PartDefinition {
                 id: "wing_marker".to_string(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             vec![],
         );
@@ -876,7 +886,7 @@ mod tests {
             vec![PartDefinition {
                 id: "wing".to_string(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             vec![vec![make_pose("wings", "s0")]],
         );
@@ -913,7 +923,7 @@ mod tests {
             vec![PartDefinition {
                 id: "body".to_string(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             vec![vec![make_pose("body", "s0")]],
         );
@@ -937,7 +947,7 @@ mod tests {
             vec![PartDefinition {
                 id: "body".to_string(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             vec![
                 vec![make_pose("body", "s0")],
@@ -972,7 +982,7 @@ mod tests {
             vec![PartDefinition {
                 id: "wing".to_string(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             vec![vec![make_pose("wing_l", "s0")]],
         );
@@ -997,7 +1007,7 @@ mod tests {
             vec![PartDefinition {
                 id: "body".to_string(),
                 tags: vec![],
-                gameplay: Default::default(),
+                gameplay: PartGameplayMetadata::default(),
             }],
             vec![vec![
                 make_pose("body", "s0"),

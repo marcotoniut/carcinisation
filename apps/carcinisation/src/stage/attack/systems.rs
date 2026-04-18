@@ -171,6 +171,7 @@ mod tests {
     use crate::stage::enemy::composed::{ComposedResolvedParts, ResolvedPartState};
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn attachment_tracks_composed_part_visual_position() {
         let mut app = App::new();
         app.add_systems(Update, update_attached_attack_positions);

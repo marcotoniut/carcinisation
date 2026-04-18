@@ -205,7 +205,7 @@ pub fn on_scene_change(
 
 /// @system Rebuilds the non-interactive path overlay entities (polyline, arrows, camera rect)
 /// during an active path-node drag. The dragged node handle is kept alive — only the
-/// decorative geometry is torn down and rebuilt from the latest StageData coordinates.
+/// decorative geometry is torn down and rebuilt from the latest `StageData` coordinates.
 #[allow(clippy::needless_pass_by_value, clippy::type_complexity)]
 pub fn rebuild_path_during_drag(
     mut commands: Commands,

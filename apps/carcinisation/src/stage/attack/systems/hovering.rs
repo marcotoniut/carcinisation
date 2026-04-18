@@ -24,6 +24,8 @@ use bevy::{
 use carapace::prelude::{PxAnchor, PxAtlasSprite, PxSpriteAtlasAsset, PxSubPosition};
 use cween::linear::components::{LinearValueReached, TargetingValueZ};
 
+use crate::stage::attack::components::bundles::REGION_HIT;
+
 /// @system Deals damage and spawns a hit animation when a hovering attack reaches its target depth.
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
@@ -69,10 +71,10 @@ pub fn hovering_damage_on_reached(
         ));
 
         // Reuse the atlas handle from the attack's own sprite when available.
-        use crate::stage::attack::components::bundles::REGION_HIT;
-        let atlas_handle = existing_sprite
-            .map(|s| s.atlas.clone())
-            .unwrap_or_else(|| asset_server.load(attack.atlas_path()));
+        let atlas_handle = existing_sprite.map_or_else(
+            || asset_server.load(attack.atlas_path()),
+            |s| s.atlas.clone(),
+        );
         let hit_region = atlas_assets
             .get(&atlas_handle)
             .and_then(|a| a.region_id(REGION_HIT))

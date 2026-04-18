@@ -100,6 +100,10 @@ impl ProjectionProfile {
     /// - `floor_base_y` must be finite
     /// - `horizon_y` must be strictly above `floor_base_y`
     /// - `bias_power` must be finite and positive
+    ///
+    /// # Errors
+    ///
+    /// Returns a descriptive `String` if any invariant is violated.
     pub fn validate(&self) -> Result<(), String> {
         if !self.horizon_y.is_finite() {
             return Err(format!("horizon_y ({}) is not finite", self.horizon_y));
@@ -365,6 +369,11 @@ pub fn evaluate_projection_at(stage_data: &StageData, elapsed: Duration) -> Proj
 ///
 /// Call this at stage load time (e.g. `on_stage_startup`) to fail fast on
 /// malformed authored data.  Works in release builds.
+///
+/// # Errors
+///
+/// Returns a descriptive `String` identifying the first invalid projection
+/// profile and the reason it failed validation.
 pub fn validate_stage_projections(stage_data: &StageData) -> Result<(), String> {
     if let Some(ref p) = stage_data.projection {
         p.validate()
@@ -508,6 +517,7 @@ pub fn grid_color_rgba(brightness: f32, alpha: f32) -> [f32; 4] {
 /// Direct extraction of `depth_debug.rs::draw_depth_grid_background` (the
 /// mu-law guide ray algorithm).  See that module's doc comments for the full
 /// mathematical derivation.
+#[must_use]
 pub fn build_perspective_grid(
     floors: &[(i8, f32)],
     viewport: Rect,

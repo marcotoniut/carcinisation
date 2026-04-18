@@ -81,9 +81,8 @@ impl GalleryCharacter {
     #[must_use]
     pub const fn default_depth(self) -> Depth {
         match self {
-            Self::Mosquiton => Depth::Three,
+            Self::Mosquiton | Self::Spidey => Depth::Three,
             Self::Tardigrade => Depth::Six,
-            Self::Spidey => Depth::Three,
             Self::Mosquito | Self::Marauder | Self::Spidomonsta | Self::Kyle => Depth::Five,
         }
     }

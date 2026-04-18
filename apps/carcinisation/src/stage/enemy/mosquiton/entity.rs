@@ -45,7 +45,7 @@ pub enum EnemyMosquitonAnimation {
 /// - The entity transitions to ground-based movement
 ///
 /// Inserted when **all** parts tagged `"wings"` are broken (joined-wing rule).
-/// Individual wing parts (wing_l, wing_r) share a "wings" health pool and are
+/// Individual wing parts (`wing_l`, `wing_r`) share a "wings" health pool and are
 /// independently targetable, but the fall trigger requires the full subsystem
 /// to be destroyed.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]

@@ -55,7 +55,7 @@ use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
 ///
 /// If the spawn specifies explicit authored depths, uses those.
 /// Otherwise defaults to the spawn's own depth as the only authored depth.
-fn authored_depths_from_spawn(depth: Depth, explicit: &Option<Vec<Depth>>) -> AuthoredDepths {
+fn authored_depths_from_spawn(depth: Depth, explicit: Option<&Vec<Depth>>) -> AuthoredDepths {
     match explicit {
         Some(depths) => AuthoredDepths::new(depths.clone()),
         None => AuthoredDepths::single(depth),
@@ -126,7 +126,7 @@ pub fn spawn_pickup(
         ..
     } = spawn;
     let position = PxSubPosition::from(offset + *coordinates);
-    let authored = authored_depths_from_spawn(spawn.depth, &spawn.authored_depths);
+    let authored = authored_depths_from_spawn(spawn.depth, spawn.authored_depths.as_ref());
     match pickup_type {
         PickupType::BigHealthpack => {
             let sprite = assets_sprite.load(assert_assets_path!(
@@ -179,6 +179,7 @@ pub fn spawn_pickup(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn spawn_enemy(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -198,7 +199,7 @@ pub fn spawn_enemy(
     let name = spawn.enemy_type.get_name();
     let position = offset + *coordinates;
     let behaviors = EnemyBehaviors::new(steps.clone());
-    let authored = authored_depths_from_spawn(*depth, &spawn.authored_depths);
+    let authored = authored_depths_from_spawn(*depth, spawn.authored_depths.as_ref());
     match enemy_type {
         EnemyType::Mosquito => {
             let collider: Collider =
@@ -360,7 +361,7 @@ pub fn spawn_destructible(
         &spawn.depth,
     );
     let animation_bundle = animation_bundle_o.unwrap();
-    let authored = authored_depths_from_spawn(spawn.depth, &spawn.authored_depths);
+    let authored = authored_depths_from_spawn(spawn.depth, spawn.authored_depths.as_ref());
 
     commands
         .spawn((
@@ -392,7 +393,7 @@ pub fn spawn_object(
             assert_assets_path!("sprites/objects/rugpark_sign.px_sprite.png")
         }
     });
-    let authored = authored_depths_from_spawn(spawn.depth, &spawn.authored_depths);
+    let authored = authored_depths_from_spawn(spawn.depth, spawn.authored_depths.as_ref());
     commands
         .spawn((
             spawn.get_name(),

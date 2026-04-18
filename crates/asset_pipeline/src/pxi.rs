@@ -64,19 +64,13 @@ fn pack_nibbles(width: u32, height: u32, indices: &[u8]) -> Result<Vec<u8>> {
         pixel_count,
     );
     ensure!(
-        width <= u16::MAX as u32 && height <= u16::MAX as u32,
-        "dimensions {}×{} exceed u16 range",
-        width,
-        height,
+        u16::try_from(width).is_ok() && u16::try_from(height).is_ok(),
+        "dimensions {width}×{height} exceed u16 range",
     );
 
     for (i, &idx) in indices.iter().enumerate() {
         if idx > 15 {
-            bail!(
-                "palette index {} at pixel {} exceeds 4-bit range (0..=15)",
-                idx,
-                i,
-            );
+            bail!("palette index {idx} at pixel {i} exceeds 4-bit range (0..=15)",);
         }
     }
 
@@ -91,6 +85,7 @@ fn pack_nibbles(width: u32, height: u32, indices: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Write the 10-byte PXI header.
+#[allow(clippy::cast_possible_truncation)] // dimensions validated by callers
 fn write_header(buf: &mut Vec<u8>, format: u8, width: u32, height: u32) {
     buf.extend_from_slice(&MAGIC);
     buf.push(VERSION);
@@ -100,6 +95,10 @@ fn write_header(buf: &mut Vec<u8>, format: u8, width: u32, height: u32) {
 }
 
 /// Encode palette indices as raw (uncompressed) PXI.
+///
+/// # Errors
+///
+/// Returns an error if the indices length doesn't match width × height.
 pub fn encode(width: u32, height: u32, indices: &[u8]) -> Result<Vec<u8>> {
     let packed = pack_nibbles(width, height, indices)?;
     let mut buf = Vec::with_capacity(HEADER_SIZE + packed.len());
@@ -109,6 +108,11 @@ pub fn encode(width: u32, height: u32, indices: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Encode palette indices as deflate-compressed PXI.
+///
+/// # Errors
+///
+/// Returns an error if the indices length doesn't match width × height
+/// or if deflate compression fails.
 pub fn encode_compressed(width: u32, height: u32, indices: &[u8]) -> Result<Vec<u8>> {
     let packed = pack_nibbles(width, height, indices)?;
     let mut buf = Vec::with_capacity(HEADER_SIZE + packed.len());

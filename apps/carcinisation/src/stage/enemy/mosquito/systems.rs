@@ -309,7 +309,7 @@ mod tests {
         let cooldown = Duration::from_secs_f32(super::ENEMY_MOSQUITO_ATTACK_SPEED);
         assert!(!mosquito_attack_cooldown_ready(
             Duration::ZERO,
-            cooldown - Duration::from_millis(1)
+            cooldown.checked_sub(Duration::from_millis(1)).unwrap()
         ));
         assert!(mosquito_attack_cooldown_ready(Duration::ZERO, cooldown));
     }
@@ -319,8 +319,9 @@ mod tests {
         let last_attack_started = Duration::from_secs(5);
         assert!(!mosquito_attack_cooldown_ready(
             last_attack_started,
-            last_attack_started + Duration::from_secs_f32(super::ENEMY_MOSQUITO_ATTACK_SPEED)
-                - Duration::from_millis(1),
+            (last_attack_started + Duration::from_secs_f32(super::ENEMY_MOSQUITO_ATTACK_SPEED))
+                .checked_sub(Duration::from_millis(1))
+                .unwrap(),
         ));
         assert!(mosquito_attack_cooldown_ready(
             last_attack_started,
@@ -347,7 +348,9 @@ mod tests {
 
         assert!(!super::mosquito_attack_presentation_finished(
             attack_started,
-            attack_started + presentation_duration - Duration::from_nanos(1),
+            (attack_started + presentation_duration)
+                .checked_sub(Duration::from_nanos(1))
+                .unwrap(),
         ));
         assert!(super::mosquito_attack_presentation_finished(
             attack_started,

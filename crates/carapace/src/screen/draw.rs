@@ -394,6 +394,12 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     continue;
                 };
 
+                // Nothing to render for zero-area composites (metrics not yet
+                // populated, e.g. assets still loading).
+                if metrics.render_size.x == 0 || metrics.render_size.y == 0 {
+                    continue;
+                }
+
                 let needs_scaled = presentation.is_some_and(|pt| pt.needs_transformed_blit());
 
                 if needs_scaled {
@@ -521,7 +527,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                 } else {
                     // Unscaled path: draw parts directly to layer. Apply offset if present.
                     let offset_adjust = presentation
-                        .filter(|pt| pt.has_offset())
+                        .filter(super::super::presentation::PxPresentationTransform::has_offset)
                         .map_or(IVec2::ZERO, |pt| pt.offset.round().as_ivec2());
                     let base_pos = *position + offset_adjust - anchor.pos(metrics.size).as_ivec2();
                     let master = frame.copied();

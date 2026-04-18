@@ -348,6 +348,7 @@ mod tests {
     use super::{parse_bool_flag, parse_normalized_sound_level};
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn accepts_values_inside_range() {
         assert_eq!(parse_normalized_sound_level("0").unwrap(), 0.0);
         assert_eq!(parse_normalized_sound_level("0.5").unwrap(), 0.5);

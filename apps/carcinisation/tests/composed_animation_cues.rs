@@ -55,7 +55,7 @@ fn shoot_fly_cue_elapsed(atlas: &CompositionAtlas) -> Duration {
             return Duration::from_millis(elapsed_ms);
         }
 
-        elapsed_ms += frame.duration_ms as u64;
+        elapsed_ms += u64::from(frame.duration_ms);
     }
 
     panic!("shoot_fly must author a blood_shot projectile cue");
@@ -104,9 +104,7 @@ fn mosquiton_blood_shot_cue_is_authored_within_presentation_window() {
 
     assert!(
         cue_elapsed < ENEMY_MOSQUITO_RANGED_PRESENTATION,
-        "blood_shot cue is authored at {:?}, outside presentation window {:?}",
-        cue_elapsed,
-        ENEMY_MOSQUITO_RANGED_PRESENTATION
+        "blood_shot cue is authored at {cue_elapsed:?}, outside presentation window {ENEMY_MOSQUITO_RANGED_PRESENTATION:?}"
     );
 }
 

@@ -15,6 +15,8 @@
     clippy::cast_precision_loss,
     // Signed-to-unsigned casts for indexing where values are contextually non-negative.
     clippy::cast_sign_loss,
+    // Pixel coordinates are often compared with == (exact match intended).
+    clippy::float_cmp,
     // Bevy system signatures expand to 8+ params via `Extract<Query<...>>` tuples.
     clippy::too_many_arguments,
     // Layout and rendering functions are inherently complex.
@@ -25,6 +27,10 @@
     clippy::needless_pass_by_value,
     // Tracing span guards use `let _span = ...` to keep the span alive until drop.
     clippy::no_effect_underscore_binding,
+    // Short pixel-coordinate variable names (e.g. x0, x1) are conventional in graphics code.
+    clippy::similar_names,
+    // Bevy observers use `_trigger` prefixed params that are read via trait methods.
+    clippy::used_underscore_binding,
 )]
 #![cfg_attr(not(feature = "headed"), allow(unused_imports))]
 #![warn(missing_docs)]

@@ -15,6 +15,7 @@ pub const REGION_HIT: &str = "hit";
 ///
 /// Animation parameters are read from the atlas metadata when available,
 /// falling back to sensible defaults if the atlas is not yet loaded.
+#[must_use]
 pub fn make_hovering_attack_atlas_bundle(
     asset_server: &AssetServer,
     atlas_assets: &Assets<PxSpriteAtlasAsset>,
@@ -33,6 +34,7 @@ pub fn make_hovering_attack_atlas_bundle(
 
 /// Creates the atlas-based destroy animation bundle. Returns `None` if the
 /// atlas has no "destroy" region.
+#[must_use]
 pub fn make_destroy_atlas_bundle(
     asset_server: &AssetServer,
     atlas_assets: &Assets<PxSpriteAtlasAsset>,
@@ -57,6 +59,7 @@ pub fn make_destroy_atlas_bundle(
 }
 
 /// Creates the atlas-based hit animation bundle for a separate hit-effect entity.
+#[must_use]
 pub fn make_hit_atlas_bundle(
     asset_server: &AssetServer,
     atlas_assets: &Assets<PxSpriteAtlasAsset>,
@@ -88,26 +91,28 @@ fn make_animation_bundle(
     atlas_assets
         .get(handle)
         .and_then(|a| a.animation(name))
-        .map(|a| {
-            PxAnimationBundle::from_parts(
-                a.px_direction(),
-                a.px_duration(),
-                a.px_finish_behavior(),
-                PxFrameTransition::None,
-            )
-        })
-        .unwrap_or_else(|| {
-            // HACK: Atlas not loaded yet — safe fallback. Loop prevents the
-            // default Despawn finish behavior from killing the entity on the
-            // first frame. The correct fix is to decouple spawn from atlas
-            // readiness: either pre-load attack atlases during stage setup, or
-            // use a reactive system that patches animation parameters once the
-            // atlas becomes available (via AssetEvent::LoadedWithDependencies).
-            PxAnimationBundle::from_parts(
-                carapace::prelude::PxAnimationDirection::Foreward,
-                carapace::prelude::PxAnimationDuration::millis_per_animation(1000),
-                carapace::prelude::PxAnimationFinishBehavior::Loop,
-                PxFrameTransition::None,
-            )
-        })
+        .map_or_else(
+            || {
+                // HACK: Atlas not loaded yet — safe fallback. Loop prevents the
+                // default Despawn finish behavior from killing the entity on the
+                // first frame. The correct fix is to decouple spawn from atlas
+                // readiness: either pre-load attack atlases during stage setup, or
+                // use a reactive system that patches animation parameters once the
+                // atlas becomes available (via AssetEvent::LoadedWithDependencies).
+                PxAnimationBundle::from_parts(
+                    carapace::prelude::PxAnimationDirection::Foreward,
+                    carapace::prelude::PxAnimationDuration::millis_per_animation(1000),
+                    carapace::prelude::PxAnimationFinishBehavior::Loop,
+                    PxFrameTransition::None,
+                )
+            },
+            |a| {
+                PxAnimationBundle::from_parts(
+                    a.px_direction(),
+                    a.px_duration(),
+                    a.px_finish_behavior(),
+                    PxFrameTransition::None,
+                )
+            },
+        )
 }

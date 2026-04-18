@@ -1305,8 +1305,8 @@ mod tests {
         draw_composite_into(image, composite, master, sprites, atlases, false);
     }
 
-    /// Draw a composite into an image using the render-envelope (render_origin
-    /// / render_size) for placement, as the real renderer does when per-part
+    /// Draw a composite into an image using the render-envelope (`render_origin`
+    /// / `render_size`) for placement, as the real renderer does when per-part
     /// transforms are present.
     fn draw_composite_render(
         image: &mut PxImage,

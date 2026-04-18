@@ -1,12 +1,19 @@
 //! Carcinisation game library — exposes data types and plugins for the runtime, editor, and tooling.
 #![allow(
     dead_code,
+    // Bevy system params (`Res<T>`, `Query<T>`, `Commands`) must be taken by value.
+    clippy::needless_pass_by_value,
+    // Bevy system signatures expand to 8+ params via query/resource tuples.
+    clippy::too_many_arguments,
+    // Bevy ECS queries produce deeply nested generics.
+    clippy::type_complexity,
+    // Numeric casts pervasive in pixel-coordinate/game math.
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
     clippy::cast_precision_loss,
     clippy::cast_sign_loss,
-    clippy::needless_pass_by_value,
-    clippy::type_complexity
+    // Module paths like `enemy::components::Enemy` are clearer with repetition.
+    clippy::module_name_repetitions,
 )]
 
 mod assets;

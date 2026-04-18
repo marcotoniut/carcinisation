@@ -1,3 +1,18 @@
+#![allow(
+    // Bevy ECS patterns.
+    clippy::needless_pass_by_value,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    // Numeric casts pervasive in coordinate math.
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    // Bevy Reflect derive generates `_field` bindings that are then used,
+    // which clippy flags as `used_underscore_binding`.  #[allow] on the enum
+    // does not propagate to the generated impl block.
+    clippy::used_underscore_binding,
+)]
 //! Composed-enemy depth-traverse test.
 //!
 //! An enemy oscillates between depth 9 (horizon) and depth 1 (foreground),
@@ -154,8 +169,7 @@ impl SelectedCharacter {
 
     fn authored_depth(self) -> Depth {
         match self {
-            Self::Mosquiton => Depth::Three,
-            Self::Spidey => Depth::Three,
+            Self::Mosquiton | Self::Spidey => Depth::Three,
         }
     }
 
@@ -314,7 +328,7 @@ fn parse_character_from_args() -> SelectedCharacter {
                 "spidey" | "spider" => SelectedCharacter::Spidey,
                 "mosquiton" => SelectedCharacter::Mosquiton,
                 _ => {
-                    eprintln!("Unknown character '{}', defaulting to mosquiton", value);
+                    eprintln!("Unknown character '{value}', defaulting to mosquiton");
                     SelectedCharacter::Mosquiton
                 }
             };
@@ -643,7 +657,7 @@ fn advance_walk(
             } else {
                 // Grounded: ground anchor sits on the floor.
                 pos.0 = Vec2::new(CENTER_X, floor_y + anchors.ground * fallback_scale);
-            };
+            }
         } else {
             advance_spidey(
                 &mut progress,
@@ -659,6 +673,7 @@ fn advance_walk(
 }
 
 /// Mosquiton walk/fly state machine.
+#[allow(clippy::too_many_lines)]
 fn advance_mosquiton(progress: &mut WalkProgress, anim: &mut ComposedAnimationState, dt: f32) {
     match progress.phase {
         WalkPhase::Idle { remaining } => {
@@ -1016,7 +1031,7 @@ fn apply_spidey_jump_scale_override(
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_lines)]
 fn update_depth_traverse_debug_state(
     selected: Res<SelectedCharacter>,
     profile: Res<HorizonProfile>,

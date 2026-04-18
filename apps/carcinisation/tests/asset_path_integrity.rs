@@ -21,7 +21,7 @@
 //! **Mosquito sprites** (24 files):
 //! - `sprites/enemies/mosquito_{animation}_{depth}.px_sprite.png`
 //! - Depths: 3, 4, 5, 6, 7, 8
-//! - Animations: death, fly, idle, melee_attack
+//! - Animations: death, fly, idle, `melee_attack`
 //!
 //! **Tardigrade sprites** (12 files):
 //! - `sprites/enemies/tardigrade_{animation}_{depth}.png`
@@ -129,7 +129,7 @@ fn all_tardigrade_sprites_exist() {
 ///
 /// Mosquiton uses composed sprite rendering with multi-part animations authored
 /// in Aseprite. Requires atlas.composed.ron (runtime), atlas.json (debug),
-/// source.png, atlas.pxi, and atlas.px_atlas.ron.
+/// source.png, atlas.pxi, and `atlas.px_atlas.ron`.
 #[test]
 fn mosquiton_composed_atlas_exists() {
     let base = "sprites/enemies/mosquiton_3";
@@ -306,9 +306,9 @@ fn tardigrade_sprites_cover_full_depth_range() {
     }
 }
 
-/// Validates mosquito sprite paths follow .px_sprite.png convention.
+/// Validates mosquito sprite paths follow .`px_sprite.png` convention.
 ///
-/// Legacy mosquito sprites use carapace's .px_sprite.png suffix for
+/// Legacy mosquito sprites use carapace's .`px_sprite.png` suffix for
 /// animated sprite sheets. Ensures no path typos use wrong extension.
 #[test]
 fn mosquito_sprites_use_px_sprite_extension() {
@@ -345,9 +345,9 @@ fn mosquito_sprites_use_px_sprite_extension() {
     }
 }
 
-/// Validates tardigrade sprite paths follow .px_sprite.png convention.
+/// Validates tardigrade sprite paths follow .`px_sprite.png` convention.
 ///
-/// Tardigrade sprites use .px_sprite.png extension (same as mosquitoes).
+/// Tardigrade sprites use .`px_sprite.png` extension (same as mosquitoes).
 /// Ensures naming convention consistency.
 #[test]
 fn tardigrade_sprites_use_px_sprite_extension() {

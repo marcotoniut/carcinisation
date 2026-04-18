@@ -49,8 +49,7 @@ fn get_spawner_queue_len(app: &mut App) -> usize {
         .query::<&StageStepSpawner>()
         .iter(app.world())
         .next()
-        .map(|spawner| spawner.spawns.len())
-        .unwrap_or(0)
+        .map_or(0, |spawner| spawner.spawns.len())
 }
 
 fn get_spawner_elapsed(app: &mut App) -> Duration {
@@ -58,8 +57,7 @@ fn get_spawner_elapsed(app: &mut App) -> Duration {
         .query::<&StageStepSpawner>()
         .iter(app.world())
         .next()
-        .map(|spawner| spawner.elapsed)
-        .unwrap_or(Duration::ZERO)
+        .map_or(Duration::ZERO, |spawner| spawner.elapsed)
 }
 
 #[test]

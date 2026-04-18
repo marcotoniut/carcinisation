@@ -237,6 +237,7 @@ fn stage_controls_window(world: &mut World, ctx: &egui::Context) {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
     let placing_label = world
         .get_resource::<PlacementMode>()
@@ -341,7 +342,9 @@ fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
         } else {
             template.default_depth()
         };
-        let animation_tag = template.default_animation_tag().map(|t| t.to_string());
+        let animation_tag = template
+            .default_animation_tag()
+            .map(std::string::ToString::to_string);
         pm.active = Some(PlacementState {
             template,
             depth,

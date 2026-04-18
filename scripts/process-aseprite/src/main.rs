@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(|s| s.as_str()) {
+    match args.first().map(std::string::String::as_str) {
         Some("--simple-atlas") => {
             let request = parse_simple_atlas_args(&args[1..])?;
             export_simple_atlas(&request)

@@ -49,9 +49,8 @@ pub fn assign_spidey_animation(
         } else {
             match behavior.behavior {
                 EnemyStep::Jump(JumpEnemyStep { .. }) => {
-                    let jump_progress = jump_tween
-                        .map(|jump| jump.progress_at(stage_time.elapsed()))
-                        .unwrap_or(0.0);
+                    let jump_progress =
+                        jump_tween.map_or(0.0, |jump| jump.progress_at(stage_time.elapsed()));
                     if jump_progress < 0.5 {
                         (EnemySpideyAnimation::Jump, TAG_JUMP, true)
                     } else {

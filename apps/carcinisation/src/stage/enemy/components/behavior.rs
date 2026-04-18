@@ -39,6 +39,7 @@ pub enum BehaviorBundle {
 
 #[derive(Component, Clone, Copy, Debug, Reflect)]
 #[reflect(Component)]
+#[allow(clippy::struct_excessive_bools)] // each bool tracks an independent axis-reached flag
 pub struct JumpTween {
     pub started: Duration,
     pub travel_time_secs: f32,
@@ -168,8 +169,9 @@ impl EnemyCurrentBehavior {
         }
     }
 
-    /// Spawns tween child entities for movement behaviors (LinearTween and Jump).
+    /// Spawns tween child entities for movement behaviors (`LinearTween` and Jump).
     /// Returns a vector of child entity IDs.
+    #[allow(clippy::too_many_lines)]
     pub fn spawn_tween_children(
         &self,
         commands: &mut Commands,

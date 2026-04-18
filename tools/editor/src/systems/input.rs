@@ -150,7 +150,7 @@ pub enum DragKind {
     Spawn,
     /// A camera-path tween node.
     PathNode,
-    /// The start_coordinates node.
+    /// The `start_coordinates` node.
     StartNode,
     /// A projection horizon or floor-base handle.
     ProjectionGizmo,
@@ -430,7 +430,11 @@ pub fn on_right_click_drag(
 
 /// @system Left click selects the top-most draggable entity under the cursor,
 /// or places a spawn if placement mode is active.
-#[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::too_many_arguments,
+    clippy::too_many_lines
+)]
 pub fn on_mouse_press(
     buttons: Res<ButtonInput<MouseButton>>,
     keyboard_buttons: Res<ButtonInput<KeyCode>>,
@@ -648,7 +652,7 @@ pub fn on_mouse_press(
 }
 
 /// @system Clears drag state, gesture ownership, and coordinate overlay on mouse release.
-/// If a path node was being dragged, marks SceneData changed to trigger a clean rebuild.
+/// If a path node was being dragged, marks `SceneData` changed to trigger a clean rebuild.
 #[allow(clippy::needless_pass_by_value)]
 pub fn on_mouse_release(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -688,7 +692,7 @@ pub fn on_mouse_release(
 
 /// @system Drag selected entities with the left mouse button, showing coordinate overlay.
 #[allow(clippy::needless_pass_by_value, clippy::too_many_arguments)]
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_lines)]
 pub fn on_mouse_drag(
     mut cursor_moved_events: MessageReader<CursorMoved>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -854,6 +858,7 @@ pub fn on_mouse_drag(
 
                     // Clamp, then update both data and visual position so the
                     // gizmo handle never visually exceeds the valid range.
+                    #[allow(clippy::items_after_statements)]
                     const MIN_GAP: f32 = 1.0;
                     let clamped_y = match gizmo {
                         ProjectionGizmo::Horizon => {
@@ -888,7 +893,8 @@ pub fn on_mouse_drag(
                 if let Some(ref asset_server) = asset_server {
                     let depth = {
                         let loc = SpawnLocation::from_ref(spawn_ref);
-                        crate::history::resolve_spawn(stage_data, &loc).map(|s| s.get_depth())
+                        crate::history::resolve_spawn(stage_data, &loc)
+                            .map(carcinisation::stage::data::StageSpawn::get_depth)
                     };
                     update_coordinate_overlay(
                         &mut commands,
@@ -1571,7 +1577,7 @@ mod tests {
         app
     }
 
-    /// Spawns the test window, camera, and a TweenPathNode handle. Returns (window_entity, node_entity).
+    /// Spawns the test window, camera, and a `TweenPathNode` handle. Returns (`window_entity`, `node_entity`).
     fn spawn_path_node_test_entities(app: &mut App) -> (Entity, Entity) {
         let window_entity = app
             .world_mut()
@@ -1783,6 +1789,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn alt_click_inserts_tween_at_correct_path_position() {
         use carcinisation::stage::components::TweenStageStep;
         use carcinisation::stage::data::StageStep;

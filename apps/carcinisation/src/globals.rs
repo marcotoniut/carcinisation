@@ -48,6 +48,7 @@ const TYPEFACE_INVERTED_PATH: &str =
 const TYPEFACE_CHARACTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?";
 
 /// Loads the standard inverted typeface used by all UI overlays.
+#[must_use]
 pub fn load_inverted_typeface(
     assets: &crate::pixel::PxAssets<'_, '_, carapace::prelude::PxTypeface>,
 ) -> Handle<carapace::prelude::PxTypeface> {

@@ -1,3 +1,17 @@
+#![allow(
+    // Bevy ECS patterns.
+    clippy::needless_pass_by_value,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    // Numeric casts pervasive in coordinate/pixel math.
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    // Editor modules mirror game module names.
+    clippy::module_name_repetitions,
+)]
+
 #[cfg(feature = "full_editor")]
 mod builders;
 #[cfg(feature = "full_editor")]

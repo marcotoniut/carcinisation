@@ -96,13 +96,13 @@ pub struct PlacementGhost;
 #[derive(Component, Debug)]
 pub struct PathOverlay;
 
-/// Maps a viewport handle to a Tween step in StageData for interactive path editing.
+/// Maps a viewport handle to a Tween step in `StageData` for interactive path editing.
 #[derive(Component, Copy, Clone, Debug)]
 pub struct TweenPathNode {
     pub step_index: usize,
 }
 
-/// Maps a viewport handle to StageData::start_coordinates for interactive editing.
+/// Maps a viewport handle to `StageData::start_coordinates` for interactive editing.
 #[derive(Component, Copy, Clone, Debug)]
 pub struct StartCoordinatesNode;
 

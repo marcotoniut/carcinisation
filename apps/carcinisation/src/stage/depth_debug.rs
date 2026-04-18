@@ -182,6 +182,7 @@ fn draw_depth_grid_background(
 /// - **Light-blue crosshair** — pivot / composition origin (`PxSubPosition`).
 ///   Two perpendicular lines centred on the entity position, sized to ~15 % of
 ///   the scaled composite (with a minimum so it stays visible at far depths).
+#[allow(clippy::float_cmp, clippy::similar_names)]
 fn draw_entity_anchors(
     overlay: Res<DepthDebugOverlay>,
     mut gizmos: Gizmos,

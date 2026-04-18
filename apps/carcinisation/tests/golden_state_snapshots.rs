@@ -1,6 +1,6 @@
 //! Behavior step variant validation.
 //!
-//! Validates that all EnemyStep enum variants are handled correctly in queue
+//! Validates that all `EnemyStep` enum variants are handled correctly in queue
 //! drain operations by testing a sequence containing every variant type.
 
 use bevy::math::Vec2;

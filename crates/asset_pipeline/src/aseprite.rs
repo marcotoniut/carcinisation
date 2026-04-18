@@ -582,7 +582,7 @@ struct SpriteInterner {
 /// Tracks deduplication statistics during sprite interning.
 #[derive(Clone, Debug, Default)]
 pub struct InternerStats {
-    /// Total intern() calls.
+    /// Total `intern()` calls.
     pub total_interns: u32,
     /// Calls that produced a new unique sprite.
     pub new_sprites: u32,
@@ -614,6 +614,7 @@ fn default_true() -> bool {
     true
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde skip_serializing_if requires &T
 fn is_zero_u32(v: &u32) -> bool {
     *v == 0
 }
@@ -2981,6 +2982,7 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     }
 
     // Group frames by tags, capturing animation metadata.
+    #[allow(clippy::items_after_statements)]
     struct TagRegion {
         name: String,
         frames: Vec<usize>,
@@ -2988,7 +2990,7 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
         repeat: Option<u16>,
     }
     let mut tag_regions: Vec<TagRegion> = Vec::new();
-    for tag in ase.tags().iter() {
+    for tag in ase.tags() {
         let frames: Vec<usize> = tag.range.clone().map(usize::from).collect();
         tag_regions.push(TagRegion {
             name: tag.name.clone(),
@@ -3007,6 +3009,7 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     }
 
     // Trim each tag's frames to the tightest shared bounding box.
+    #[allow(clippy::items_after_statements)]
     struct PackedRegion {
         name: String,
         frame_size: (u32, u32),
@@ -3054,8 +3057,12 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
         });
     }
 
-    let atlas_w = atlas_strips.iter().map(|s| s.width()).max().unwrap_or(1);
-    let atlas_h: u32 = atlas_strips.iter().map(|s| s.height()).sum();
+    let atlas_w = atlas_strips
+        .iter()
+        .map(image::ImageBuffer::width)
+        .max()
+        .unwrap_or(1);
+    let atlas_h: u32 = atlas_strips.iter().map(image::ImageBuffer::height).sum();
     let mut atlas = RgbaImage::new(atlas_w, atlas_h);
     let mut y_cursor = 0u32;
     for (i, strip) in atlas_strips.iter().enumerate() {
@@ -3161,6 +3168,7 @@ mod tests {
         normalize_part_id, trim_transparent_bounds, validate_composition_atlas,
         validate_composition_source, validate_manifest,
     };
+    use crate::composed_ron::SpawnAnchorMode;
     use image::{ImageBuffer, Rgba, RgbaImage};
     use std::{collections::HashMap, path::PathBuf};
 
@@ -3258,7 +3266,7 @@ mod tests {
                     max_health: 10,
                 }],
             },
-            spawn_anchor: Default::default(),
+            spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
         }
@@ -3324,7 +3332,7 @@ mod tests {
     /// With centre exclusion:
     ///   left  = [A B]   (2 px)
     ///   right = [B A]   (2 px)
-    ///   right == H-flip of left → interner returns same sprite_id with flip_x
+    ///   right == H-flip of left → interner returns same `sprite_id` with `flip_x`
     ///
     /// Without centre exclusion:
     ///   left  = [A B]   (2 px)
@@ -3851,7 +3859,7 @@ mod tests {
             source: "fragment_contract.aseprite".to_string(),
             canvas: Size { w: 16, h: 16 },
             origin: Point::default(),
-            spawn_anchor: Default::default(),
+            spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "source.png".to_string(),
@@ -4009,10 +4017,10 @@ mod tests {
 
         // Mirrored right half
         let right_x = cx + u32::from(odd);
-        let right_img = if !half_usage.flip_x {
-            image::imageops::flip_horizontal(&half_sprite)
-        } else {
+        let right_img = if half_usage.flip_x {
             half_sprite.clone()
+        } else {
+            image::imageops::flip_horizontal(&half_sprite)
         };
         fragments.push((right_img, right_x, true));
 

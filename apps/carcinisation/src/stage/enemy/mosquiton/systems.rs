@@ -192,9 +192,10 @@ pub fn trigger_mosquiton_authored_attack_cues(
             continue;
         };
 
-        let visual_offset = resolved_parts
-            .map(|parts| parts.visual_offset())
-            .unwrap_or(Vec2::ZERO);
+        let visual_offset = resolved_parts.map_or(
+            Vec2::ZERO,
+            super::super::composed::ComposedResolvedParts::visual_offset,
+        );
 
         let resolved_part = cue.part_id.as_deref().and_then(|part_id| {
             resolved_parts

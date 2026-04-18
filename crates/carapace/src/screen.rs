@@ -38,7 +38,7 @@ use crate::{
     prelude::*,
 };
 
-/// Marker component for cameras that should **not** run the PxPlugin render
+/// Marker component for cameras that should **not** run the `PxPlugin` render
 /// pass. Attach this to a `Camera2d` to let Bevy gizmos render on top of
 /// pixel-art output without being overwritten by the fullscreen quad.
 ///

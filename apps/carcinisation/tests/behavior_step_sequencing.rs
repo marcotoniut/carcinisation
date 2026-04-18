@@ -1,9 +1,10 @@
+#![allow(clippy::items_after_statements)]
 //! Behavior step sequencing and cleanup invariant tests.
 //!
 //! Validates `EnemyBehaviors` queue semantics and tween child lifecycle:
-//! - Steps execute in authored order (VecDeque pop_front)
+//! - Steps execute in authored order (`VecDeque` `pop_front`)
 //! - Empty queue returns default step (Idle)
-//! - Tween children spawn for LinearTween steps
+//! - Tween children spawn for `LinearTween` steps
 //! - Tween children cleanup when behavior completes
 //!
 //! # Why These Tests Exist
@@ -11,7 +12,7 @@
 //! `EnemyBehaviors` is a `VecDeque<EnemyStep>` that pops from the front. If step
 //! sequencing breaks, authored behaviors execute out of order—breaking enemy patterns.
 //!
-//! Tween children (`EnemyStepTweenChild`) drive LinearTween movement but their lifecycle
+//! Tween children (`EnemyStepTweenChild`) drive `LinearTween` movement but their lifecycle
 //! is implicit. If cleanup fails, orphaned entities accumulate, causing memory leaks and
 //! potentially interfering with subsequent behaviors.
 
@@ -38,8 +39,7 @@ fn empty_behavior_queue_returns_default_idle() {
 
     assert!(
         matches!(step, EnemyStep::Idle(_)),
-        "Empty queue should return default Idle step, got {:?}",
-        step
+        "Empty queue should return default Idle step, got {step:?}"
     );
 }
 
@@ -85,10 +85,10 @@ fn behavior_queue_executes_in_fifo_order() {
     );
 }
 
-/// Validates spawn_tween_children returns expected child count.
+/// Validates `spawn_tween_children` returns expected child count.
 ///
 /// This test uses deterministic checking: tween children should be spawned for
-/// LinearTween steps only.
+/// `LinearTween` steps only.
 #[test]
 fn linear_tween_spawns_two_or_three_children() {
     let mut app = App::new();
@@ -260,7 +260,7 @@ fn tween_children_have_correct_marker_component() {
 
 /// Validates tween children lifecycle within a behavior sequence.
 ///
-/// **NOTE**: This test cannot directly verify cleanup without the full EnemyPlugin
+/// **NOTE**: This test cannot directly verify cleanup without the full `EnemyPlugin`
 /// due to privacy constraints on the cleanup system. The cleanup system
 /// (`cleanup_orphaned_tween_children`) is registered in production and validated
 /// by the test suite passing without memory leaks.

@@ -7,7 +7,7 @@ use crate::stage::enemy::composed::ComposedAnimationState;
 
 /// Resting idle pose with all legs planted.
 pub const TAG_IDLE: &str = "idle";
-/// Lounging pose - legs sourced from idle via atlas metadata part_overrides.
+/// Lounging pose - legs sourced from idle via atlas metadata `part_overrides`.
 pub const TAG_LOUNGE: &str = "lounge";
 /// Ranged attack (web shot) animation.
 pub const TAG_SHOOT: &str = "shoot";

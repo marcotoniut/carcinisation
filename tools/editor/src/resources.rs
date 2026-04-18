@@ -140,13 +140,13 @@ impl StageControlsUI {
 }
 
 /// Holds a RON snapshot of the scene at last save/load.
-/// Comparing the current SceneData serialization against this detects unsaved changes
+/// Comparing the current `SceneData` serialization against this detects unsaved changes
 /// without relying on change-detection flags.
 #[derive(Resource, Default, Debug)]
 pub struct SavedSceneSnapshot(pub Option<String>);
 
 impl SavedSceneSnapshot {
-    /// Captures the current SceneData as a RON string.
+    /// Captures the current `SceneData` as a RON string.
     pub fn capture(scene_data: &crate::components::SceneData) -> Self {
         let ron_str = match scene_data {
             crate::components::SceneData::Cutscene(data) => Self::to_ron(data),

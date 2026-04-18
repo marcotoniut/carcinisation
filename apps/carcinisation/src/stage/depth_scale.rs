@@ -61,7 +61,7 @@ const CONFIG_PATH: &str = "assets/config/depth_scale.ron";
 const VISIBLE_DEPTH_MIN: i8 = 0;
 const VISIBLE_DEPTH_MAX: i8 = 9;
 /// Number of depths in the original 1-9 range. The geometric ratio is computed
-/// so that depth 1 = MAX_SCALE and depth 9 = MIN_SCALE, same as before.
+/// so that depth 1 = `MAX_SCALE` and depth 9 = `MIN_SCALE`, same as before.
 /// Depth 0 is extrapolated one step beyond depth 1.
 const DEPTH_STEP_COUNT: i8 = VISIBLE_DEPTH_MAX;
 
@@ -116,8 +116,8 @@ impl Default for DepthScaleConfig {
 impl DepthScaleConfig {
     /// Load from the RON config file, falling back to generated defaults on error.
     pub fn load_or_default() -> Self {
-        match fs::read_to_string(CONFIG_PATH) {
-            Ok(body) => match ron::from_str::<Self>(&body) {
+        if let Ok(body) = fs::read_to_string(CONFIG_PATH) {
+            match ron::from_str::<Self>(&body) {
                 Ok(config) => {
                     if let Err(e) = config.validate() {
                         warn!(
@@ -131,11 +131,10 @@ impl DepthScaleConfig {
                     warn!("failed to parse {CONFIG_PATH}: {e}, using generated defaults");
                     Self::default()
                 }
-            },
-            Err(_) => {
-                info!("{CONFIG_PATH} not found, using generated defaults");
-                Self::default()
             }
+        } else {
+            info!("{CONFIG_PATH} not found, using generated defaults");
+            Self::default()
         }
     }
 
@@ -288,7 +287,7 @@ mod tests {
     #[test]
     fn generated_depth_3_matches_ratio_squared() {
         let config = default_config();
-        let ratio = (MIN_SCALE / MAX_SCALE).powf(1.0 / (DEPTH_STEP_COUNT - 1) as f32);
+        let ratio = (MIN_SCALE / MAX_SCALE).powf(1.0 / f32::from(DEPTH_STEP_COUNT - 1));
         let expected = MAX_SCALE * ratio * ratio;
         let s = config.scales[&3];
         assert!(

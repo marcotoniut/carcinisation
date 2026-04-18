@@ -101,16 +101,12 @@ fn decode(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), Box<dyn Error + Send + Sy
 
     let version = bytes[4];
     if version != VERSION {
-        return Err(format!(
-            "PXI version {} is not supported (expected {})",
-            version, VERSION
-        )
-        .into());
+        return Err(format!("PXI version {version} is not supported (expected {VERSION})").into());
     }
 
     let format = bytes[5];
-    let width = u16::from_le_bytes([bytes[6], bytes[7]]) as u32;
-    let height = u16::from_le_bytes([bytes[8], bytes[9]]) as u32;
+    let width = u32::from(u16::from_le_bytes([bytes[6], bytes[7]]));
+    let height = u32::from(u16::from_le_bytes([bytes[8], bytes[9]]));
     let pixel_count = (width * height) as usize;
     let expected_packed_len = pixel_count.div_ceil(2);
     let payload = &bytes[HEADER_SIZE..];
@@ -156,8 +152,7 @@ fn decode(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), Box<dyn Error + Send + Sy
         }
         _ => {
             return Err(format!(
-                "PXI format {} is not supported (expected 0 = raw or 1 = deflate)",
-                format
+                "PXI format {format} is not supported (expected 0 = raw or 1 = deflate)"
             )
             .into());
         }
@@ -367,7 +362,7 @@ mod tests {
         let data = make_pxi_raw(width, height, &packed);
 
         let (w, h, decoded) = decode(&data).unwrap();
-        assert_eq!((w, h), (width as u32, height as u32));
+        assert_eq!((w, h), (u32::from(width), u32::from(height)));
         assert_eq!(decoded, indices);
     }
 
@@ -386,7 +381,7 @@ mod tests {
         let data = make_pxi_deflate(width, height, &packed);
 
         let (w, h, decoded) = decode(&data).unwrap();
-        assert_eq!((w, h), (width as u32, height as u32));
+        assert_eq!((w, h), (u32::from(width), u32::from(height)));
         assert_eq!(decoded, indices);
     }
 

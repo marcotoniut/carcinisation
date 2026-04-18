@@ -235,10 +235,10 @@ pub fn inspector_ui(world: &mut World) {
     }
 }
 
-/// Renders a hybrid inspector for StageData: manual top-level layout with
+/// Renders a hybrid inspector for `StageData`: manual top-level layout with
 /// reflection-driven editors for each field's value.
 ///
-/// Uses `RestrictedWorldView` to split off SceneData so that individual fields
+/// Uses `RestrictedWorldView` to split off `SceneData` so that individual fields
 /// can be reflected without triggering spurious change detection.
 fn stage_inspector(world: &mut World, ui: &mut egui::Ui, elapsed: Duration) {
     let type_registry = world.resource::<AppTypeRegistry>().0.clone();
@@ -705,16 +705,16 @@ fn step_has_projection(step: &carcinisation::stage::data::StageStep) -> bool {
 
 // ─── Projection editing ─────────────────────────────────────────────────────
 
-/// Minimum gap between horizon_y and floor_base_y.
+/// Minimum gap between `horizon_y` and `floor_base_y`.
 const PROJECTION_MIN_GAP: f32 = 1.0;
-/// Minimum allowed bias_power.
+/// Minimum allowed `bias_power`.
 const PROJECTION_MIN_BIAS: f32 = 0.1;
 
 // TODO(projection): add "reset to inherited" shortcut alongside "clear" button
 /// Renders an optional `ProjectionProfile` editor.
 ///
-/// When `None`, shows an "enable" button.  When `Some`, shows DragValue fields
-/// for horizon_y, floor_base_y, and bias_power with live clamping that prevents
+/// When `None`, shows an "enable" button.  When `Some`, shows `DragValue` fields
+/// for `horizon_y`, `floor_base_y`, and `bias_power` with live clamping that prevents
 /// invalid states.
 ///
 /// Returns `true` if any value changed.
@@ -757,7 +757,7 @@ fn projection_override_fields(
     changed
 }
 
-/// Renders DragValue editors for an existing `ProjectionProfile`.
+/// Renders `DragValue` editors for an existing `ProjectionProfile`.
 ///
 /// Clamping enforces invariants live:
 /// - `horizon_y` is clamped to at least `floor_base_y + MIN_GAP`

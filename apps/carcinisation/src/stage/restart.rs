@@ -37,6 +37,10 @@ pub fn despawn_stage_entities(
     mark_for_despawn_by_query(commands, stage_entity_query);
 }
 
+/// # Panics
+///
+/// Panics if `StageRestart::from_checkpoint` is `true` but the stage data has
+/// no checkpoint defined.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_stage_restart(
     mut commands: Commands,

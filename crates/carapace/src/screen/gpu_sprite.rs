@@ -680,7 +680,7 @@ normalized -0.2 -> 3
             sprite_handle(1),
         ];
 
-        let indices = first_seen_indices_by_asset_id(handles.iter().map(|handle| handle.id()));
+        let indices = first_seen_indices_by_asset_id(handles.iter().map(bevy_asset::Handle::id));
 
         assert_eq!(
             indices,

@@ -56,6 +56,7 @@ pub const PATH_NODE_HOVER_SCALE: f32 = 1.5;
 /// Spawns the camera path overlay. When `skip_nodes` is true, only decorative geometry
 /// (polyline, arrows, camera rect) is created — node handles are omitted to avoid
 /// duplicating the actively dragged handle.
+#[allow(clippy::too_many_lines)]
 pub fn spawn_path(
     commands: &mut Commands,
     stage_data: &StageData,
@@ -202,7 +203,8 @@ pub fn spawn_path(
 /// Spawn the perspective grid overlay at the current scrub position.
 ///
 /// Reuses the shared [`build_perspective_grid`] geometry builder.  All rendering
-/// is in editor world space (1:1 carapace pixels, no VIEWPORT_MULTIPLIER).
+/// is in editor world space (1:1 carapace pixels, no `VIEWPORT_MULTIPLIER`).
+#[allow(clippy::too_many_lines)]
 fn spawn_projection_grid(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -648,6 +650,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::float_cmp)]
     fn depth_preview_mode_applies_configured_depth_scales() {
         let editor_state = EditorState {
             depth_preview_enabled: true,

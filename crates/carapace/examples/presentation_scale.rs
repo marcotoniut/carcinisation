@@ -33,9 +33,9 @@ fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
     IVec2::new(top_left_offset.x, -(top_left_offset.y + part_height))
 }
 
-/// Builds a mosquiton composite from idle_stand frame 0.
+/// Builds a mosquiton composite from `idle_stand` frame 0.
 ///
-/// Atlas region mapping (from atlas.composed.ron idle_stand poses):
+/// Atlas region mapping (from atlas.composed.ron `idle_stand` poses):
 ///   0 = body left half (11x25)
 ///   1 = body centre strip (1x25)
 ///   2 = head left half (6x30)

@@ -168,19 +168,16 @@ impl SpawnTemplate {
     /// Returns the default depth for this template.
     pub fn default_depth(&self) -> Depth {
         match self {
-            SpawnTemplate::Object(ObjectType::BenchBig | ObjectType::BenchSmall) => Depth::Eight,
             SpawnTemplate::Object(ObjectType::Fibertree) => Depth::Two,
-            SpawnTemplate::Object(ObjectType::RugparkSign) => Depth::Three,
-            SpawnTemplate::Destructible(DestructibleType::Lamp) => Depth::Three,
-            SpawnTemplate::Destructible(DestructibleType::Trashcan) => Depth::Six,
-            SpawnTemplate::Destructible(DestructibleType::Crystal) => Depth::Five,
             SpawnTemplate::Destructible(DestructibleType::Mushroom) => Depth::Four,
-            SpawnTemplate::Pickup(_) => Depth::Six,
-            SpawnTemplate::Enemy(EnemyType::Mosquito) => Depth::Three,
-            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Depth::Three,
-            SpawnTemplate::Enemy(EnemyType::Tardigrade) => Depth::Six,
-            SpawnTemplate::Enemy(EnemyType::Spidey) => Depth::Three,
-            SpawnTemplate::Enemy(_) => Depth::Three,
+            SpawnTemplate::Destructible(DestructibleType::Crystal) => Depth::Five,
+            SpawnTemplate::Destructible(DestructibleType::Trashcan)
+            | SpawnTemplate::Pickup(_)
+            | SpawnTemplate::Enemy(EnemyType::Tardigrade) => Depth::Six,
+            SpawnTemplate::Object(ObjectType::BenchBig | ObjectType::BenchSmall) => Depth::Eight,
+            SpawnTemplate::Object(ObjectType::RugparkSign)
+            | SpawnTemplate::Destructible(DestructibleType::Lamp)
+            | SpawnTemplate::Enemy(_) => Depth::Three,
         }
     }
 
