@@ -249,6 +249,14 @@ pub struct InView;
 #[derive(Component, Debug)]
 pub struct LinearUpdateDisabled;
 
+/// Despawn all existing floor marker entities to prevent stale floors from
+/// previous steps polluting gameplay queries (collision, falling, debug).
+pub fn despawn_floor_entities(commands: &mut Commands, query: &Query<Entity, With<Floor>>) {
+    for entity in query.iter() {
+        commands.entity(entity).try_despawn();
+    }
+}
+
 pub fn spawn_floor_depths<S: std::hash::BuildHasher>(
     commands: &mut Commands,
     floor_depths: &HashMap<Depth, f32, S>,

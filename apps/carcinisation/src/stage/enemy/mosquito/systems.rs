@@ -254,6 +254,7 @@ pub fn check_idle_mosquito(
             &EnemyCurrentBehavior,
             &mut EnemyMosquitoAttacking,
             Option<&ComposedAnimationState>,
+            Option<&EnemyMosquiton>,
             &PxSubPosition,
             &Depth,
         ),
@@ -261,8 +262,19 @@ pub fn check_idle_mosquito(
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();
-    for (entity, behavior, attacking, composed_animation, position, depth) in &mut query {
-        if attacking.attack.is_some() || !matches!(behavior.behavior, EnemyStep::Idle { .. }) {
+    for (entity, behavior, attacking, composed_animation, mosquiton, position, depth) in &mut query
+    {
+        if attacking.attack.is_some()
+            || !matches!(
+                behavior.behavior,
+                EnemyStep::Idle { .. } | EnemyStep::Attack { .. } | EnemyStep::Circle { .. }
+            )
+        {
+            continue;
+        }
+
+        // Mosquitons beyond max ranged depth are restricted from blood shots.
+        if mosquiton.is_some() && !EnemyMosquiton::can_ranged_attack(depth) {
             continue;
         }
         let cooldown_anchor = attacking.last_attack_started.max(behavior.started);
@@ -293,6 +305,7 @@ pub fn check_idle_mosquito(
                 *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                 position.0,
                 depth,
+                1.0, // Legacy mosquitoes have per-depth sprites, no fallback scaling.
                 None,
             );
         }

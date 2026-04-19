@@ -5,7 +5,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use derive_new::new;
 
-use super::data::StageSpawn;
+use super::{data::StageSpawn, projection::ProjectionProfile};
 
 #[derive(Resource, Default, Clone, Copy, Debug)]
 /// Marker used to scope Bevy's `Time` to the active stage.
@@ -164,3 +164,11 @@ impl Default for StageGravity {
         Self::standard()
     }
 }
+
+/// The currently effective stage projection profile.
+///
+/// Updated each frame from stage data + elapsed time so spawn and placement
+/// systems can derive floor-relative positions without re-walking the step
+/// timeline.
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct ActiveProjection(pub ProjectionProfile);

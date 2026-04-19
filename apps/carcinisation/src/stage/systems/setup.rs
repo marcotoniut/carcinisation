@@ -10,7 +10,7 @@ use crate::{
         data::{StageData, StageSpawn},
         messages::StageStartupEvent,
         player::messages::PlayerStartupEvent,
-        projection::validate_stage_projections,
+        projection::{effective_projection, validate_stage_projections},
         resources::StageGravity,
         ui::hud::spawn::spawn_hud,
     },
@@ -97,6 +97,23 @@ pub fn on_stage_startup(
         &mut filters,
     );
 
+    let initial_projection = effective_projection(data, 0);
+
+    // Spawn default floor entities from the initial projection so the depth
+    // debug overlay and falling physics have data immediately.  Steps with
+    // explicit `floor_depths` will despawn and replace these.
+    {
+        use std::collections::HashMap;
+        let default_floors: HashMap<crate::stage::components::placement::Depth, f32> = (1..=9_i8)
+            .filter_map(|d| {
+                crate::stage::components::placement::Depth::try_from(d)
+                    .ok()
+                    .map(|depth| (depth, initial_projection.floor_y_for_depth(d)))
+            })
+            .collect();
+        crate::stage::components::placement::spawn_floor_depths(&mut commands, &default_floors);
+    }
+
     for spawn in &data.spawns {
         // Skip gameplay entities when resuming from checkpoint — they
         // belong to the pre-checkpoint portion of the stage.  Objects
@@ -116,7 +133,13 @@ pub fn on_stage_startup(
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);
             }
             StageSpawn::Enemy(spawn) => {
-                spawn_enemy(&mut commands, &asset_server, Vec2::ZERO, spawn);
+                spawn_enemy(
+                    &mut commands,
+                    &asset_server,
+                    Vec2::ZERO,
+                    spawn,
+                    &initial_projection,
+                );
             }
             StageSpawn::Pickup(spawn) => {
                 spawn_pickup(&mut commands, &mut assets_sprite, Vec2::ZERO, spawn);

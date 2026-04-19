@@ -15,6 +15,8 @@ pub const TAG_MELEE_FLY: &str = "melee_fly";
 pub const TAG_DEATH_FLY: &str = "death_fly";
 /// Falling animation used when wings are destroyed.
 pub const TAG_FALL: &str = "fall";
+/// Grounded idle used after a wing-loss landing.
+pub const TAG_IDLE_STAND: &str = "idle_stand";
 
 pub const MOSQUITON_WING_PART_TAGS: &[&str] = &["wings"];
 const MOSQUITON_HEAD_PART_TAGS: &[&str] = &["head"];

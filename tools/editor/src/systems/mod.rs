@@ -151,6 +151,7 @@ pub fn on_scene_change(
     drag_state: Res<DragState>,
     mut pending_rebuild: ResMut<crate::resources::PendingSceneRebuild>,
     depth_scale_config: Res<carcinisation::stage::depth_scale::DepthScaleConfig>,
+    placement_mode: Res<crate::placement::PlacementMode>,
 ) {
     // Skip full rebuild during an active path or gizmo drag — the dragged handle
     // entity must stay alive. rebuild_path_during_drag handles path decorative
@@ -187,7 +188,9 @@ pub fn on_scene_change(
                 spawn_cutscene(&mut commands, &asset_server, &data);
             }
             SceneData::Stage(data) => {
+                let placement_depth = placement_mode.active.as_ref().map(|s| s.depth);
                 spawn_stage(
+                    placement_depth,
                     &mut commands,
                     &asset_server,
                     &editor_state,

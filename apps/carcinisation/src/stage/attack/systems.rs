@@ -150,7 +150,7 @@ pub fn update_attached_attack_positions(
             // until arm_pending_blood_shot_motion fires and detaches.
             continue;
         };
-        let visual_offset = resolved_parts.visual_offset();
+        let scaled_offset = resolved_parts.scaled_visual_offset();
         let Some(part) = resolved_parts
             .parts()
             .iter()
@@ -158,7 +158,7 @@ pub fn update_attached_attack_positions(
         else {
             continue;
         };
-        let visual_pos = part.visual_point_from_local_offset(attached.local_offset, visual_offset);
+        let visual_pos = part.visual_point_from_local_offset(attached.local_offset, scaled_offset);
         position.0 = visual_pos;
         tx.0 = visual_pos.x;
         ty.0 = visual_pos.y;

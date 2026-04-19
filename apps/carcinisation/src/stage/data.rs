@@ -274,6 +274,13 @@ pub struct EnemySpawn {
     /// the spawn's own `depth`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authored_depths: Option<Vec<Depth>>,
+    /// Altitude above the floor plane at this enemy's depth.
+    ///
+    /// When present, the spawn's screen Y is derived from the stage projection:
+    /// `floor_y_for_depth(depth) + altitude`.  The `coordinates.y` field is
+    /// ignored.  When `None`, `coordinates` is used as-is (legacy behaviour).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub altitude: Option<f32>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
@@ -302,6 +309,7 @@ impl EnemyDropSpawn {
             contains: self.contains.clone(),
             elapsed: Duration::ZERO,
             authored_depths: None,
+            altitude: None,
         }
     }
 }
@@ -374,6 +382,11 @@ impl EnemySpawn {
         self.steps.extend(vec![value]);
         self
     }
+    #[must_use]
+    pub fn with_altitude(mut self, value: f32) -> Self {
+        self.altitude = Some(value);
+        self
+    }
 
     // Enemies
     #[must_use]
@@ -388,6 +401,7 @@ impl EnemySpawn {
             steps: vec![].into(),
             contains: None,
             authored_depths: None,
+            altitude: None,
         }
     }
     #[must_use]
@@ -402,6 +416,7 @@ impl EnemySpawn {
             steps: vec![].into(),
             contains: None,
             authored_depths: None,
+            altitude: None,
         }
     }
     #[must_use]
@@ -469,6 +484,7 @@ impl EnemySpawn {
             health: None,
             contains: None,
             authored_depths: None,
+            altitude: None,
         }
     }
 }
@@ -657,5 +673,72 @@ mod tests {
         assert_eq!(data.name, "Park");
         let cp = data.checkpoint.expect("park should have a checkpoint");
         assert_eq!(cp.step_index, 4);
+    }
+
+    #[test]
+    fn park_mosquiton_spawns_use_altitude() {
+        let ron_bytes = include_str!("../../../../assets/stages/park.sg.ron");
+        let data: StageData = ron::from_str(ron_bytes).unwrap();
+        let mut count = 0;
+        // Check static spawns.
+        for spawn in &data.spawns {
+            if let StageSpawn::Enemy(es) = spawn
+                && es.enemy_type == EnemyType::Mosquiton
+            {
+                assert!(
+                    es.altitude.is_some(),
+                    "static mosquiton should have altitude"
+                );
+                count += 1;
+            }
+        }
+        // Check step spawns.
+        for step in &data.steps {
+            let spawns = match step {
+                StageStep::Tween(s) => &s.spawns,
+                StageStep::Stop(s) => &s.spawns,
+                StageStep::Cinematic(_) => continue,
+            };
+            for spawn in spawns {
+                if let StageSpawn::Enemy(es) = spawn
+                    && es.enemy_type == EnemyType::Mosquiton
+                {
+                    assert!(es.altitude.is_some(), "step mosquiton should have altitude");
+                    let alt = es.altitude.unwrap();
+                    assert!(
+                        (25.0..=60.0).contains(&alt),
+                        "altitude {alt} out of sensible range for depth {:?}",
+                        es.depth,
+                    );
+                    count += 1;
+                }
+            }
+        }
+        assert!(count >= 20, "expected many mosquitons, found {count}");
+    }
+
+    #[test]
+    fn enemy_spawn_with_altitude_roundtrips() {
+        let spawn = EnemySpawn::mosquiton_base()
+            .with_altitude(25.0)
+            .with_coordinates(Vec2::new(50.0, 0.0));
+        assert_eq!(spawn.altitude, Some(25.0));
+
+        let ron = ron::to_string(&spawn).unwrap();
+        let back: EnemySpawn = ron::from_str(&ron).unwrap();
+        assert_eq!(back.altitude, Some(25.0));
+        assert!((back.coordinates.x - 50.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn enemy_spawn_without_altitude_omits_from_ron() {
+        let spawn = EnemySpawn::mosquiton_base();
+        assert!(spawn.altitude.is_none());
+
+        let ron = ron::to_string(&spawn).unwrap();
+        assert!(
+            !ron.contains("altitude"),
+            "altitude: None should be skipped in serialization"
+        );
     }
 }

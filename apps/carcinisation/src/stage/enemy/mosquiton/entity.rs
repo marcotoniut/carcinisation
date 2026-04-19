@@ -1,7 +1,7 @@
 use crate::stage::{
     components::{
         StageEntity,
-        interactive::{ColliderData, Flickerer, Health, Hittable},
+        interactive::{Flickerer, Health, Hittable},
         placement::{Depth, Speed},
     },
     enemy::{
@@ -20,7 +20,21 @@ pub use composed_state::{BrokenParts, Dying};
 #[derive(Component, Clone, Debug, Default, Reflect)]
 pub struct EnemyMosquiton;
 
+/// Maximum depth at which a mosquiton can perform ranged (blood shot) attacks.
+/// Beyond this depth, mosquitons are too far to aim effectively.
+pub const MOSQUITON_MAX_RANGED_DEPTH: Depth = Depth::Seven;
+
 impl EnemyMosquiton {
+    /// Whether a mosquiton at the given depth can use ranged (blood shot) attacks.
+    ///
+    /// Mosquitons beyond [`MOSQUITON_MAX_RANGED_DEPTH`] are restricted to
+    /// non-ranged behaviour only.  This keeps deep-background mosquitons as
+    /// ambient threats without projectile spam from offscreen-feeling distances.
+    #[must_use]
+    pub fn can_ranged_attack(depth: &Depth) -> bool {
+        depth.to_i8() <= MOSQUITON_MAX_RANGED_DEPTH.to_i8()
+    }
+
     #[must_use]
     pub fn kill_score(&self) -> u32 {
         10
@@ -100,7 +114,6 @@ impl Default for MosquitonDefaultBundle {
 #[derive(Bundle, Debug)]
 pub struct MosquitonBundle {
     pub behaviors: EnemyBehaviors,
-    pub collider_data: ColliderData,
     pub composed_animation: ComposedAnimationState,
     pub composed_visual: ComposedEnemyVisual,
     pub transform: Transform,
@@ -111,4 +124,46 @@ pub struct MosquitonBundle {
     pub position: PxSubPosition,
     pub speed: Speed,
     pub default: MosquitonDefaultBundle,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn depth_7_allows_ranged_attack() {
+        assert!(EnemyMosquiton::can_ranged_attack(&Depth::Seven));
+    }
+
+    #[test]
+    fn depth_8_blocks_ranged_attack() {
+        assert!(!EnemyMosquiton::can_ranged_attack(&Depth::Eight));
+    }
+
+    #[test]
+    fn depth_9_blocks_ranged_attack() {
+        assert!(!EnemyMosquiton::can_ranged_attack(&Depth::Nine));
+    }
+
+    #[test]
+    fn all_shallow_depths_allow_ranged_attack() {
+        for d in 0..=7_i8 {
+            let depth = Depth::try_from(d).unwrap();
+            assert!(
+                EnemyMosquiton::can_ranged_attack(&depth),
+                "depth {d} should allow ranged attack"
+            );
+        }
+    }
+
+    #[test]
+    fn all_deep_depths_block_ranged_attack() {
+        for d in 8..=9_i8 {
+            let depth = Depth::try_from(d).unwrap();
+            assert!(
+                !EnemyMosquiton::can_ranged_attack(&depth),
+                "depth {d} should block ranged attack"
+            );
+        }
+    }
 }

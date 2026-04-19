@@ -887,7 +887,12 @@ pub fn on_mouse_drag(
             if let Some(scene_data) = scene_data.as_mut()
                 && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
             {
-                update_spawn_from_drag(spawn_ref, target_position, stage_data);
+                let projection = {
+                    let controls = controls.as_ref();
+                    let elapsed = controls.map_or(Duration::ZERO, |c| c.elapsed_duration);
+                    carcinisation::stage::projection::evaluate_projection_at(stage_data, elapsed)
+                };
+                update_spawn_from_drag(spawn_ref, target_position, stage_data, &projection);
 
                 // Update coordinate overlay
                 if let Some(ref asset_server) = asset_server {
@@ -1196,6 +1201,7 @@ fn update_spawn_from_drag(
     spawn_ref: &StageSpawnRef,
     world_position: Vec2,
     stage_data: &mut carcinisation::stage::data::StageData,
+    projection: &carcinisation::stage::projection::ProjectionProfile,
 ) {
     let location = SpawnLocation::from_ref(spawn_ref);
     if let Some(spawn) = crate::history::resolve_spawn_mut(stage_data, &location) {
@@ -1203,6 +1209,18 @@ fn update_spawn_from_drag(
             StageSpawnRef::Static { .. } => world_position,
             StageSpawnRef::Step { step_origin, .. } => world_position - step_origin,
         };
+
+        // For altitude-based enemy spawns, update altitude from Y rather than
+        // storing a raw coordinate that would be ignored at runtime.
+        if let carcinisation::stage::data::StageSpawn::Enemy(es) = spawn
+            && es.altitude.is_some()
+        {
+            let floor_y = projection.floor_y_for_depth(es.depth.to_i8());
+            es.altitude = Some(coords.y - floor_y);
+            es.coordinates.x = coords.x;
+            return;
+        }
+
         spawn.set_coordinates(coords);
     }
 }
@@ -1324,6 +1342,19 @@ pub fn update_placement_ghost(
     let state = placement_mode.active.as_ref().unwrap();
     let temp_spawn = state.template.instantiate(world_position, state.depth);
 
+    // For altitude-based flying enemies, derive ghost Y from the projection
+    // floor line rather than raw cursor Y. X still follows cursor.
+    let ghost_position = if let carcinisation::stage::data::StageSpawn::Enemy(ref es) = temp_spawn
+        && es.enemy_type.composed_authored_depth().is_some()
+    {
+        let profile = carcinisation::stage::projection::ProjectionProfile::default();
+        let floor_y = profile.floor_y_for_depth(state.depth.to_i8());
+        let altitude = (world_position.y - floor_y).max(0.0);
+        Vec2::new(world_position.x, floor_y + altitude)
+    } else {
+        world_position
+    };
+
     // Despawn stale ghost entities (we recreate every frame for simplicity).
     for entity in ghost_query.iter() {
         commands.entity(entity).despawn();
@@ -1345,7 +1376,7 @@ pub fn update_placement_ghost(
         PlacementGhost,
         sprite,
         thumbnail.anchor,
-        Transform::from_translation(world_position.extend(200.0))
+        Transform::from_translation(ghost_position.extend(200.0))
             .with_scale(Vec3::splat(thumbnail.fallback_scale)),
     ));
 }

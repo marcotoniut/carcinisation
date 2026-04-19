@@ -65,3 +65,5 @@ apps/carcinisation/single-stage.config.ron
 # Local Codex config
 .codex/
 .codex/config.toml
+# Bevy trace_chrome output
+trace-*.json

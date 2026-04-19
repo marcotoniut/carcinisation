@@ -3,7 +3,7 @@ use crate::input::GBInput;
 use super::camera::CameraPos;
 use bevy::{prelude::*, time::Fixed};
 use bevy_framepace::Limiter;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::{PxOverlayCamera, PxSubPosition};
 use leafwing_input_manager::prelude::{ActionState, InputMap};
 
 /// @system Caps the frame limiter to the target Game Boy refresh rate.
@@ -16,9 +16,22 @@ pub fn set_fixed_timestep(mut fixed_time: ResMut<Time<Fixed>>) {
     fixed_time.set_timestep_hz(59.727_500_569_606);
 }
 
-/// @system Spawns the 2D camera and a `CameraPos` tracking entity.
+/// @system Spawns the 2D camera, an overlay camera for gizmos, and a
+/// `CameraPos` tracking entity.
+///
+/// The overlay camera (order 1, `PxOverlayCamera`) renders Bevy gizmos on
+/// top of the pixel-art post-process output.  Without it, gizmos draw
+/// beneath the fullscreen PxPlugin quad and are invisible.
 pub fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 1,
+            ..default()
+        },
+        PxOverlayCamera,
+    ));
     commands.spawn((PxSubPosition::default(), CameraPos));
 }
 

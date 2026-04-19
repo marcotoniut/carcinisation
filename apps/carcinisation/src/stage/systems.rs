@@ -13,14 +13,17 @@ use super::{
         CinematicStageStep, CurrentStageStep, Stage, StageElapsedStarted, StageEntity,
         StopStageStep, TweenStageStep,
         interactive::{Dead, Object},
-        placement::spawn_floor_depths,
+        placement::{Floor, despawn_floor_entities, spawn_floor_depths},
     },
     data::{GAME_BASE_SPEED, StageData, StageStep},
     destructible::components::Destructible,
     enemy::components::Enemy,
     messages::{NextStepEvent, StageClearedEvent, StageDeathEvent},
     player::components::{CameraShake, Player},
-    resources::{StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain},
+    projection::effective_projection,
+    resources::{
+        ActiveProjection, StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain,
+    },
 };
 use crate::components::VolumeSettings;
 use crate::{
@@ -97,21 +100,40 @@ pub fn check_stage_step_timer(timer: Res<StageActionTimer>, mut commands: Comman
     commands.trigger(NextStepEvent);
 }
 
+/// @system Keeps [`ActiveProjection`] in sync with the current step.
+///
+/// `StageData` is removed when the stage is torn down, so the resource is
+/// optional — the system simply no-ops after cleanup.
+pub fn update_active_projection(
+    stage_data: Option<Res<StageData>>,
+    stage_progress: Res<StageProgress>,
+    mut active: ResMut<ActiveProjection>,
+) {
+    let Some(stage_data) = stage_data else {
+        return;
+    };
+    active.0 = effective_projection(&stage_data, stage_progress.index);
+}
+
 /// @system Evaluates the current stage progress and transitions between states.
+///
+/// `StageData` is optional because it is removed during teardown (game-over
+/// continue path).  The system no-ops when absent.
 pub fn update_stage(
     mut commands: Commands,
     state: Res<State<StageProgressState>>,
     stage_query: Query<Entity, With<Stage>>,
     mut next_state: ResMut<NextState<StageProgressState>>,
     stage_progress: ResMut<StageProgress>,
-    stage_data: Res<StageData>,
+    stage_data: Option<Res<StageData>>,
 ) {
     match state.to_owned() {
         StageProgressState::Initial => {
             next_state.set(StageProgressState::Running);
         }
         StageProgressState::Running => {
-            if let Some(action) = stage_data.steps.get(stage_progress.index)
+            if let Some(ref stage_data) = stage_data
+                && let Some(action) = stage_data.steps.get(stage_progress.index)
                 && DEBUG_STAGESTEP
             {
                 let curr_action = match action {
@@ -227,6 +249,53 @@ mod tests {
     #[test]
     fn death_with_no_lives_and_no_checkpoint_routes_to_game_over() {
         assert!(!death_routes_to_continue(0, false));
+    }
+
+    /// Systems that read `StageData` as `Option<Res<>>` must not panic when
+    /// the resource is removed during teardown.
+    #[test]
+    fn update_active_projection_survives_stage_data_removal() {
+        use crate::stage::resources::ActiveProjection;
+
+        let mut world = World::new();
+        let stage_data = StageData {
+            name: "test".into(),
+            background_path: String::new(),
+            music_path: String::new(),
+            skybox: crate::stage::data::SkyboxData {
+                path: String::new(),
+                frames: 1,
+            },
+            start_coordinates: Vec2::ZERO,
+            spawns: vec![],
+            steps: vec![],
+            on_start_transition_o: None,
+            on_end_transition_o: None,
+            gravity: None,
+            projection: None,
+            checkpoint: None,
+        };
+
+        world.insert_resource(stage_data);
+        world.insert_resource(StageProgress { index: 0 });
+        world.insert_resource(ActiveProjection::default());
+
+        // Normal: runs fine with StageData present.
+        let mut system_state: SystemState<(
+            Option<Res<StageData>>,
+            Res<StageProgress>,
+            ResMut<ActiveProjection>,
+        )> = SystemState::new(&mut world);
+        let (data, progress, active) = system_state.get_mut(&mut world);
+        update_active_projection(data, progress, active);
+        system_state.apply(&mut world);
+
+        // Teardown: StageData removed — should no-op, not panic.
+        world.remove_resource::<StageData>();
+        let (data, progress, active) = system_state.get_mut(&mut world);
+        assert!(data.is_none());
+        update_active_projection(data, progress, active);
+        system_state.apply(&mut world);
     }
 }
 
@@ -387,6 +456,7 @@ pub fn initialise_movement_step(
     mut commands: Commands,
     query: Query<(Entity, &TweenStageStep), (With<Stage>, Added<TweenStageStep>)>,
     camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
+    floor_query: Query<Entity, With<Floor>>,
 ) {
     if let Ok((
         _,
@@ -442,6 +512,7 @@ pub fn initialise_movement_step(
             .insert(StageStepSpawner::new(spawns.clone()));
 
         if let Some(floor_depths) = floor_depths {
+            despawn_floor_entities(&mut commands, &floor_query);
             spawn_floor_depths(&mut commands, floor_depths);
         }
     }
@@ -451,6 +522,7 @@ pub fn initialise_movement_step(
 pub fn initialise_stop_step(
     mut commands: Commands,
     query: Query<(Entity, &StopStageStep), (With<Stage>, Added<StopStageStep>)>,
+    floor_query: Query<Entity, With<Floor>>,
 ) {
     if let Ok((
         entity,
@@ -466,6 +538,7 @@ pub fn initialise_stop_step(
             .insert(StageStepSpawner::new(spawns.clone()));
 
         if let Some(floor_depths) = floor_depths {
+            despawn_floor_entities(&mut commands, &floor_query);
             spawn_floor_depths(&mut commands, floor_depths);
         }
     }

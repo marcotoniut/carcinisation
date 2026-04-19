@@ -16,6 +16,7 @@ use carcinisation::stage::depth_scale::DepthScaleConfig;
 use carcinisation::stage::projection::{
     GridParams, build_perspective_grid, evaluate_projection_at,
 };
+use carcinisation::stage::spawn_placement::resolve_enemy_position_local;
 
 use crate::components::{
     AnimationIndices, AnimationTimer, Draggable, PathOverlay, ProjectionGizmo, SceneItem,
@@ -26,6 +27,20 @@ use crate::resources::StageControlsUI;
 
 const SKYBOX_Z: f32 = -11.0;
 const BACKGROUND_Z: f32 = -10.0;
+
+/// Resolve editor coordinates for a spawn, using projection-aware placement
+/// for enemy spawns with an altitude field.
+fn resolve_spawn_coordinates(
+    spawn: &StageSpawn,
+    projection: &carcinisation::stage::projection::ProjectionProfile,
+) -> Vec2 {
+    match spawn {
+        StageSpawn::Enemy(es) if es.altitude.is_some() => {
+            resolve_enemy_position_local(es, projection)
+        }
+        _ => *spawn.get_coordinates(),
+    }
+}
 
 // --- Projection overlay constants ---
 const PROJECTION_GRID_Z: f32 = 9.0;
@@ -210,6 +225,7 @@ fn spawn_projection_grid(
     asset_server: &AssetServer,
     stage_data: &StageData,
     controls: &StageControlsUI,
+    active_placement_depth: Option<carcinisation::stage::components::placement::Depth>,
 ) {
     let profile = evaluate_projection_at(stage_data, controls.elapsed_duration);
     let camera_pos = stage_data.calculate_camera_position(controls.elapsed_duration);
@@ -367,11 +383,29 @@ fn spawn_projection_grid(
             Transform::from_xyz(handle_x, profile.floor_base_y, PROJECTION_GIZMO_Z),
         ));
     }
+
+    // Floor indicator for the active placement depth.
+    if let Some(depth) = active_placement_depth {
+        let floor_y = profile.floor_y_for_depth(depth.to_i8());
+        let indicator_color = Color::srgba(0.2, 0.9, 0.4, 0.6);
+        let path = ShapePath::new()
+            .move_to(Vec2::new(viewport.min.x, floor_y))
+            .line_to(Vec2::new(viewport.max.x, floor_y));
+        commands.spawn((
+            SceneItem,
+            PathOverlay,
+            ShapeBuilder::with(&path)
+                .stroke((indicator_color, 1.5))
+                .build(),
+            Transform::from_xyz(0.0, 0.0, PROJECTION_MARKER_Z + 0.1),
+        ));
+    }
 }
 
 /// Spawns stage background/skybox, spawns, and optional path overlay.
 #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub fn spawn_stage(
+    active_placement_depth: Option<carcinisation::stage::components::placement::Depth>,
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     editor_state: &EditorState,
@@ -427,6 +461,7 @@ pub fn spawn_stage(
         ));
     }
 
+    let initial_projection = evaluate_projection_at(stage_data, Duration::ZERO);
     for (index, spawn) in stage_data
         .spawns
         .iter()
@@ -444,6 +479,7 @@ pub fn spawn_stage(
 
         let depth_scale = editor_depth_scale(editor_state, depth_scale_config, spawn.get_depth());
         let total_scale = depth_scale * preview.fallback_scale;
+        let coords = resolve_spawn_coordinates(spawn, &initial_projection);
         commands.spawn((
             spawn.get_editor_name_component(index),
             StageSpawnLabel,
@@ -451,12 +487,8 @@ pub fn spawn_stage(
             Draggable,
             SceneItem,
             preview.sprite,
-            Transform::from_translation(
-                spawn
-                    .get_coordinates()
-                    .extend(spawn.get_depth_editor_z_index()),
-            )
-            .with_scale(Vec3::splat(total_scale)),
+            Transform::from_translation(coords.extend(spawn.get_depth_editor_z_index()))
+                .with_scale(Vec3::splat(total_scale)),
             preview.anchor,
         ));
     }
@@ -473,6 +505,7 @@ pub fn spawn_stage(
                 let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
                 let ghost = !step_started && stage_controls_ui.show_all_spawns;
                 if step_started || ghost {
+                    let step_projection = evaluate_projection_at(stage_data, current_elapsed);
                     spawn_step_entities(
                         commands,
                         asset_server,
@@ -485,6 +518,7 @@ pub fn spawn_stage(
                         ghost,
                         editor_state,
                         depth_scale_config,
+                        &step_projection,
                     );
                 }
 
@@ -496,6 +530,7 @@ pub fn spawn_stage(
                 let step_started = stage_controls_ui.elapsed_duration >= current_elapsed;
                 let ghost = !step_started && stage_controls_ui.show_all_spawns;
                 if step_started || ghost {
+                    let step_projection = evaluate_projection_at(stage_data, current_elapsed);
                     spawn_step_entities(
                         commands,
                         asset_server,
@@ -508,6 +543,7 @@ pub fn spawn_stage(
                         ghost,
                         editor_state,
                         depth_scale_config,
+                        &step_projection,
                     );
                 }
                 current_elapsed += stop_duration(s, timeline_config);
@@ -541,7 +577,13 @@ pub fn spawn_stage(
 
     // Projection grid and markers (before path, so path renders on top).
     if stage_controls_ui.projection_grid || stage_controls_ui.projection_markers {
-        spawn_projection_grid(commands, asset_server, stage_data, stage_controls_ui);
+        spawn_projection_grid(
+            commands,
+            asset_server,
+            stage_data,
+            stage_controls_ui,
+            active_placement_depth,
+        );
     }
 
     if stage_controls_ui.path_is_visible() {
@@ -565,12 +607,13 @@ fn spawn_step_entities(
     ghost: bool,
     editor_state: &EditorState,
     depth_scale_config: &DepthScaleConfig,
+    projection: &carcinisation::stage::projection::ProjectionProfile,
 ) {
     for (spawn_index, spawn) in spawns.iter().enumerate() {
         if !stage_controls_ui.depth_is_visible(spawn.get_depth()) {
             continue;
         }
-        let v = step_origin + *spawn.get_coordinates();
+        let v = step_origin + resolve_spawn_coordinates(spawn, projection);
         let mut preview = resolve_stage_spawn_thumbnail(
             spawn,
             asset_server,

@@ -86,9 +86,12 @@ pub fn check_outside_view(
 /// replaces the existing `StageData` resource via `insert_resource`, which
 /// triggers `Changed` but not `Added`.
 pub fn initialise_camera_from_stage(
-    stage_data: Res<StageData>,
+    stage_data: Option<Res<StageData>>,
     mut camera_query: Query<&mut PxSubPosition, With<CameraPos>>,
 ) {
+    let Some(stage_data) = stage_data else {
+        return;
+    };
     if stage_data.is_changed()
         && let Ok(mut cam_pos) = camera_query.single_mut()
     {

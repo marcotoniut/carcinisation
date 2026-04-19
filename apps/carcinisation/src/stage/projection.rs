@@ -281,8 +281,11 @@ pub fn walk_steps_at_elapsed(stage_data: &StageData, elapsed: Duration) -> StepP
 /// Projection is "sticky" — once set, it persists until the next override.
 #[must_use]
 pub fn effective_projection(stage_data: &StageData, step_index: usize) -> ProjectionProfile {
+    if stage_data.steps.is_empty() {
+        return stage_data.projection.unwrap_or_default();
+    }
     // Walk backwards through steps.
-    for i in (0..=step_index.min(stage_data.steps.len().saturating_sub(1))).rev() {
+    for i in (0..=step_index.min(stage_data.steps.len() - 1)).rev() {
         let proj = match &stage_data.steps[i] {
             StageStep::Tween(s) => s.projection.as_ref(),
             StageStep::Stop(s) => s.projection.as_ref(),
@@ -482,18 +485,14 @@ pub fn depth_brightness(d: i8) -> f32 {
 
 /// Grid colour RGBA from brightness and alpha.
 ///
-/// Purple base `(0.6, 0.15, 0.9)` modulated by brightness.
-/// Alpha modulated by `brightness²` for perceptual fade toward the horizon.
-///
-/// Extracted from `depth_debug.rs::grid_color`.
+/// Bright lavender `(0.75, 0.5, 1.0)` with a floor of 40% so even deep
+/// lines remain clearly visible against dark backgrounds.  Alpha uses
+/// `brightness^0.8` for a very gentle fade — prioritises readability.
 #[must_use]
 pub fn grid_color_rgba(brightness: f32, alpha: f32) -> [f32; 4] {
-    [
-        0.6 * brightness,
-        0.15 * brightness,
-        0.9 * brightness,
-        alpha * brightness * brightness,
-    ]
+    // Remap brightness so it never drops below 0.4 (visible on dark scenes).
+    let b = 0.4 + 0.6 * brightness;
+    [0.75 * b, 0.5 * b, 1.0 * b, alpha * brightness.powf(0.8)]
 }
 
 /// Build the full perspective grid geometry from floor positions and viewport.
@@ -903,20 +902,20 @@ mod tests {
     #[test]
     fn grid_color_rgba_at_full_brightness() {
         let c = grid_color_rgba(1.0, 1.0);
-        assert!((c[0] - 0.6).abs() < f32::EPSILON);
-        assert!((c[1] - 0.15).abs() < f32::EPSILON);
-        assert!((c[2] - 0.9).abs() < f32::EPSILON);
+        // b = 0.4 + 0.6 * 1.0 = 1.0
+        assert!((c[0] - 0.75).abs() < f32::EPSILON);
+        assert!((c[1] - 0.5).abs() < f32::EPSILON);
+        assert!((c[2] - 1.0).abs() < f32::EPSILON);
         assert!((c[3] - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]
-    fn grid_color_rgba_brightness_squared_alpha() {
-        let brightness = 0.5;
-        let alpha = 0.8;
-        let c = grid_color_rgba(brightness, alpha);
-        // Alpha should be alpha * brightness^2.
-        let expected_alpha = alpha * brightness * brightness;
-        assert!((c[3] - expected_alpha).abs() < f32::EPSILON);
+    fn grid_color_rgba_deep_depth_still_visible() {
+        // Depth 9: brightness 0.2 → b = 0.4 + 0.6*0.2 = 0.52
+        let c = grid_color_rgba(0.2, 0.85);
+        assert!(c[0] > 0.3, "R should be visible, got {}", c[0]);
+        assert!(c[2] > 0.5, "B should be visible, got {}", c[2]);
+        assert!(c[3] > 0.1, "alpha should be readable, got {}", c[3]);
     }
 
     // --- build_perspective_grid tests ---

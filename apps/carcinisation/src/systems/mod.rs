@@ -122,6 +122,11 @@ pub fn debug_trigger_game_startup(mut commands: Commands) {
 }
 
 /// @system Activates the main-menu plugin after initial startup.
-pub fn on_post_startup(mut commands: Commands) {
-    activate::<MainMenuPlugin>(&mut commands);
+pub fn on_post_startup(mut commands: Commands, dev_flags: Res<crate::resources::DevFlags>) {
+    if dev_flags.skip_menu {
+        info!("CARCINISATION_SKIP_MENU: skipping main menu, starting game directly");
+        commands.trigger(GameStartupEvent);
+    } else {
+        activate::<MainMenuPlugin>(&mut commands);
+    }
 }

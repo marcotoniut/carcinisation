@@ -19,9 +19,25 @@ use bevy::prelude::*;
 const DEBUG_MODULE: &str = "Cutscene";
 
 /// @trigger Boots a cutscene, loading data and enabling systems.
-pub fn on_cutscene_startup(trigger: On<CutsceneStartupEvent>, mut commands: Commands) {
+///
+/// When `DevFlags::skip_cutscenes` is set, immediately triggers shutdown
+/// instead of playing the cutscene.
+pub fn on_cutscene_startup(
+    trigger: On<CutsceneStartupEvent>,
+    mut commands: Commands,
+    dev_flags: Res<crate::resources::DevFlags>,
+) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
+
+    if dev_flags.skip_cutscenes {
+        info!("CARCINISATION_SKIP_CUTSCENES: auto-skipping cutscene");
+        // Activate and immediately shut down so the game progression
+        // system sees the plugin cycle and advances to the next step.
+        activate::<CutscenePlugin>(&mut commands);
+        commands.trigger(CutsceneShutdownEvent);
+        return;
+    }
 
     let e = trigger.event();
     activate::<CutscenePlugin>(&mut commands);

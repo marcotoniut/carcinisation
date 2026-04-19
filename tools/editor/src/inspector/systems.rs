@@ -453,6 +453,7 @@ fn spawn_fields(
             changed |= reflected_field(env, ui, "enemy_type", &mut s.enemy_type);
             changed |= reflected_field_narrow(env, ui, "coordinates", 140.0, &mut s.coordinates);
             changed |= reflected_field(env, ui, "depth", &mut s.depth);
+            changed |= reflected_field_narrow(env, ui, "altitude", 100.0, &mut s.altitude);
             changed |= reflected_field_narrow(env, ui, "speed", 80.0, &mut s.speed);
             changed |= reflected_field_narrow(env, ui, "health", 80.0, &mut s.health);
             changed |= reflected_field_narrow(env, ui, "elapsed", 100.0, &mut s.elapsed);

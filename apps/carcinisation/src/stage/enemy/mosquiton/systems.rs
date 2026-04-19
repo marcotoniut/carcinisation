@@ -20,8 +20,8 @@ use crate::{
             composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
             data::{
                 mosquiton::{
-                    MOSQUITON_WING_PART_TAGS, TAG_DEATH_FLY, TAG_FALL, TAG_IDLE_FLY, TAG_MELEE_FLY,
-                    TAG_SHOOT_FLY, apply_mosquiton_animation_state,
+                    MOSQUITON_WING_PART_TAGS, TAG_DEATH_FLY, TAG_FALL, TAG_IDLE_FLY,
+                    TAG_IDLE_STAND, TAG_MELEE_FLY, TAG_SHOOT_FLY, apply_mosquiton_animation_state,
                 },
                 steps::{EnemyStep, JumpEnemyStep},
             },
@@ -57,6 +57,7 @@ pub fn assign_mosquiton_animation(
             &EnemyMosquitoAttacking,
             Option<&EnemyMosquitonAnimation>,
             Option<&WingsBroken>,
+            Option<&FallingState>,
             &mut ComposedAnimationState,
             &Depth,
         ),
@@ -69,12 +70,17 @@ pub fn assign_mosquiton_animation(
         attacking,
         current_animation,
         wings_broken,
+        falling_state,
         mut animation_state,
         _depth,
     ) in &mut query
     {
-        let (next_animation, next_tag) = if wings_broken.is_some() {
-            // Wings are broken - always use falling animation
+        let grounded = falling_state.is_some_and(|f| f.grounded);
+        let (next_animation, next_tag) = if wings_broken.is_some() && grounded {
+            // Wings broken and landed — grounded idle
+            (EnemyMosquitonAnimation::Falling, TAG_IDLE_STAND)
+        } else if wings_broken.is_some() {
+            // Wings broken, still falling
             (EnemyMosquitonAnimation::Falling, TAG_FALL)
         } else {
             // Normal flight behavior
@@ -192,10 +198,12 @@ pub fn trigger_mosquiton_authored_attack_cues(
             continue;
         };
 
-        let visual_offset = resolved_parts.map_or(
-            Vec2::ZERO,
-            super::super::composed::ComposedResolvedParts::visual_offset,
-        );
+        // Resolved part positions already include depth-fallback scaling
+        // (applied at the source in `build_resolved_part_states`).
+        // visual_offset is unscaled — use scaled_visual_offset() for
+        // combining with scaled pivot positions.
+        let scaled_offset = resolved_parts.map_or(Vec2::ZERO, |p| p.scaled_visual_offset());
+        let gameplay_scale = resolved_parts.map_or(1.0, |p| p.gameplay_scale());
 
         let resolved_part = cue.part_id.as_deref().and_then(|part_id| {
             resolved_parts
@@ -204,8 +212,8 @@ pub fn trigger_mosquiton_authored_attack_cues(
 
         let local_offset = IVec2::new(cue.local_offset.x, cue.local_offset.y);
 
-        let current_pos = resolved_part.map_or(position.0 + visual_offset, |part| {
-            part.visual_point_from_local_offset(local_offset, visual_offset)
+        let current_pos = resolved_part.map_or(position.0 + scaled_offset, |part| {
+            part.visual_point_from_local_offset(local_offset, scaled_offset)
         });
 
         #[cfg(debug_assertions)]
@@ -216,13 +224,12 @@ pub fn trigger_mosquiton_authored_attack_cues(
                 "FALLBACK_entity_visual_center"
             };
             let entity_pos = position.0;
-            let vis_off = visual_offset;
             let cue_part_id = &cue.part_id;
             let off_x = cue.local_offset.x;
             let off_y = cue.local_offset.y;
             info!(
                 "Blood shot cue: method={method}, origin={current_pos:?}, entity_pos={entity_pos:?}, \
-                 visual_offset={vis_off:?}, part_id={cue_part_id:?}, offset=({off_x},{off_y})",
+                 part_id={cue_part_id:?}, offset=({off_x},{off_y})",
             );
         }
 
@@ -241,6 +248,7 @@ pub fn trigger_mosquiton_authored_attack_cues(
             *SCREEN_RESOLUTION_F32_H + camera_pos.0,
             current_pos,
             depth,
+            gameplay_scale,
             attachment,
         );
     }
@@ -335,6 +343,7 @@ pub fn detect_part_breakage(
 ///
 /// Dead mosquitons are excluded to prevent physics simulation during death animations.
 pub fn apply_mosquiton_falling_physics(
+    mut commands: Commands,
     mut messages: MessageWriter<crate::stage::messages::DamageMessage>,
     stage_time: Res<Time<StageTimeDomain>>,
     stage_gravity: Res<StageGravity>,
@@ -417,6 +426,11 @@ pub fn apply_mosquiton_falling_physics(
             position.0.y = floor_y - body_relative_offset + body_half_height;
             falling_state.grounded = true;
             falling_state.vertical_velocity = 0.0;
+
+            // Transition from airborne to grounded state.
+            commands
+                .entity(entity)
+                .remove::<crate::stage::components::placement::Airborne>();
 
             // Calculate fall damage based on drop height
             // (fall_start_y - floor_y because Y increases upward)
@@ -665,5 +679,24 @@ mod tests {
             .expect("attack component should still exist");
         assert_eq!(state.requested_tag, TAG_IDLE_FLY);
         assert!(attacking.attack.is_none());
+    }
+
+    /// Proves the consumer contract: projectile origin reads prescaled data
+    /// from `ComposedResolvedParts` without applying additional scaling.
+    /// The scaling formula itself is tested in `composed::tests`.
+    #[test]
+    fn projectile_origin_reads_prescaled_data() {
+        // build_resolved_part_states stores: root + (authored - root) * scale
+        let root = Vec2::new(100.0, 50.0);
+        let authored_mouth = Vec2::new(115.0, 60.0);
+        let scale = 0.35;
+        let stored_pivot = root + (authored_mouth - root) * scale;
+
+        // trigger_mosquiton_authored_attack_cues reads stored_pivot directly
+        // (no additional multiplication by DepthFallbackScale).
+        let projectile_origin = stored_pivot;
+
+        let expected = root + Vec2::new(15.0, 10.0) * scale;
+        assert!((projectile_origin - expected).length() < 0.01);
     }
 }

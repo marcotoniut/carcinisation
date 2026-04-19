@@ -5,7 +5,7 @@ use crate::stage::{
     components::{
         SpawnDrop, StageEntity,
         interactive::{Collider, ColliderData, Dead},
-        placement::{AuthoredDepths, Depth},
+        placement::{Airborne, AuthoredDepths, Depth},
     },
     data::ContainerSpawn,
     destructible::{
@@ -21,16 +21,15 @@ use crate::stage::{
             MosquitoDefaultBundle,
         },
         mosquiton::entity::{MosquitonBundle, MosquitonDefaultBundle},
-        spidey::entity::{
-            ENEMY_SPIDEY_BASE_HEALTH, ENEMY_SPIDEY_RADIUS, SpideyBundle, SpideyDefaultBundle,
-        },
+        spidey::entity::{ENEMY_SPIDEY_BASE_HEALTH, SpideyBundle, SpideyDefaultBundle},
         tardigrade::entity::{
             ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS, TardigradeBundle,
             TardigradeDefaultBundle,
         },
     },
     player::{attacks::AttackHitTracker, components::PlayerAttack},
-    resources::{StageStepSpawner, StageTimeDomain},
+    resources::{ActiveProjection, StageStepSpawner, StageTimeDomain},
+    spawn_placement,
 };
 use crate::{
     layer::Layer,
@@ -54,11 +53,23 @@ use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
 /// Build an [`AuthoredDepths`] component from spawn data.
 ///
 /// If the spawn specifies explicit authored depths, uses those.
+/// For composed enemies (e.g. Mosquiton, Spidey), defaults to the canonical
+/// authored depth from [`EnemyType::composed_authored_depth`] — assets exist
+/// only at that depth, and other depths use fallback scaling.
 /// Otherwise defaults to the spawn's own depth as the only authored depth.
-fn authored_depths_from_spawn(depth: Depth, explicit: Option<&Vec<Depth>>) -> AuthoredDepths {
+fn authored_depths_from_spawn(
+    depth: Depth,
+    enemy_type: Option<EnemyType>,
+    explicit: Option<&Vec<Depth>>,
+) -> AuthoredDepths {
     match explicit {
         Some(depths) => AuthoredDepths::new(depths.clone()),
-        None => AuthoredDepths::single(depth),
+        None => {
+            let base = enemy_type
+                .and_then(|et| et.composed_authored_depth())
+                .unwrap_or(depth);
+            AuthoredDepths::single(base)
+        }
     }
 }
 
@@ -94,6 +105,7 @@ pub fn on_stage_spawn(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     asset_server: Res<AssetServer>,
+    active_projection: Res<ActiveProjection>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
 ) {
     match &trigger.event().spawn {
@@ -102,7 +114,13 @@ pub fn on_stage_spawn(
         }
         StageSpawn::Enemy(x) => {
             let camera_pos = camera_query.single().unwrap();
-            spawn_enemy(&mut commands, &asset_server, camera_pos.0, x);
+            spawn_enemy(
+                &mut commands,
+                &asset_server,
+                camera_pos.0,
+                x,
+                &active_projection.0,
+            );
         }
         StageSpawn::Object(x) => {
             spawn_object(&mut commands, &mut assets_sprite, x);
@@ -126,7 +144,7 @@ pub fn spawn_pickup(
         ..
     } = spawn;
     let position = PxSubPosition::from(offset + *coordinates);
-    let authored = authored_depths_from_spawn(spawn.depth, spawn.authored_depths.as_ref());
+    let authored = authored_depths_from_spawn(spawn.depth, None, spawn.authored_depths.as_ref());
     match pickup_type {
         PickupType::BigHealthpack => {
             let sprite = assets_sprite.load(assert_assets_path!(
@@ -185,10 +203,10 @@ pub fn spawn_enemy(
     asset_server: &AssetServer,
     offset: Vec2,
     spawn: &EnemySpawn,
+    projection: &crate::stage::projection::ProjectionProfile,
 ) -> Entity {
     let EnemySpawn {
         enemy_type,
-        coordinates,
         speed,
         health,
         steps,
@@ -197,9 +215,10 @@ pub fn spawn_enemy(
         ..
     } = spawn;
     let name = spawn.enemy_type.get_name();
-    let position = offset + *coordinates;
+    let position = spawn_placement::resolve_enemy_position(spawn, offset, projection);
     let behaviors = EnemyBehaviors::new(steps.clone());
-    let authored = authored_depths_from_spawn(*depth, spawn.authored_depths.as_ref());
+    let authored =
+        authored_depths_from_spawn(*depth, Some(*enemy_type), spawn.authored_depths.as_ref());
     match enemy_type {
         EnemyType::Mosquito => {
             let collider: Collider =
@@ -232,20 +251,17 @@ pub fn spawn_enemy(
             entity
         }
         EnemyType::Mosquiton => {
-            let collider: Collider =
-                Collider::new_circle(ENEMY_MOSQUITO_RADIUS).with_offset(Vec2::new(0., 2.));
-            let critical_collider = collider.new_scaled(0.4).with_defense(0.4);
-
             let entity = commands
                 .spawn((
                     MosquitonBundle {
                         behaviors,
-                        collider_data: ColliderData::from_many(vec![critical_collider, collider]),
                         composed_animation: ComposedAnimationState::new(TAG_IDLE_FLY),
                         composed_visual: ComposedEnemyVisual::for_enemy(
                             asset_server,
                             EnemyType::Mosquiton,
-                            *depth,
+                            EnemyType::Mosquiton
+                                .composed_authored_depth()
+                                .unwrap_or(*depth),
                         ),
                         transform: Transform::default(),
                         global_transform: GlobalTransform::default(),
@@ -263,6 +279,11 @@ pub fn spawn_enemy(
                 ))
                 .id();
 
+            // Flying mosquitons (altitude-based) start airborne.
+            if spawn.altitude.is_some() {
+                commands.entity(entity).insert(Airborne);
+            }
+
             if let Some(health) = health {
                 commands.entity(entity).insert(HealthOverride(*health));
             }
@@ -276,19 +297,17 @@ pub fn spawn_enemy(
             entity
         }
         EnemyType::Spidey => {
-            let collider = Collider::new_circle(ENEMY_SPIDEY_RADIUS).with_offset(Vec2::new(0., 2.));
-            let critical_collider = collider.new_scaled(0.4).with_defense(0.4);
-
             let entity = commands
                 .spawn((
                     SpideyBundle {
                         behaviors,
-                        collider_data: ColliderData::from_many(vec![critical_collider, collider]),
                         composed_animation: ComposedAnimationState::new(SPIDEY_TAG_IDLE),
                         composed_visual: ComposedEnemyVisual::for_enemy(
                             asset_server,
                             EnemyType::Spidey,
-                            *depth,
+                            EnemyType::Spidey
+                                .composed_authored_depth()
+                                .unwrap_or(*depth),
                         ),
                         transform: Transform::default(),
                         global_transform: GlobalTransform::default(),
@@ -361,7 +380,7 @@ pub fn spawn_destructible(
         &spawn.depth,
     );
     let animation_bundle = animation_bundle_o.unwrap();
-    let authored = authored_depths_from_spawn(spawn.depth, spawn.authored_depths.as_ref());
+    let authored = authored_depths_from_spawn(spawn.depth, None, spawn.authored_depths.as_ref());
 
     commands
         .spawn((
@@ -393,7 +412,7 @@ pub fn spawn_object(
             assert_assets_path!("sprites/objects/rugpark_sign.px_sprite.png")
         }
     });
-    let authored = authored_depths_from_spawn(spawn.depth, spawn.authored_depths.as_ref());
+    let authored = authored_depths_from_spawn(spawn.depth, None, spawn.authored_depths.as_ref());
     commands
         .spawn((
             spawn.get_name(),
@@ -417,6 +436,7 @@ pub fn check_dead_drop(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     asset_server: Res<AssetServer>,
+    active_projection: Res<ActiveProjection>,
     mut attack_query: Query<&mut AttackHitTracker, With<PlayerAttack>>,
     query: Query<(&SpawnDrop, &PxSubPosition, &Depth), Added<Dead>>,
 ) {
@@ -433,6 +453,7 @@ pub fn check_dead_drop(
                 &asset_server,
                 Vec2::ZERO,
                 &spawn.from_spawn(position.0, *depth),
+                &active_projection.0,
             ),
         };
 
