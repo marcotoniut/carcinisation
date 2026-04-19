@@ -24,12 +24,12 @@
 //! - **Spidey**: jump-based locomotion with idle pauses between arcs
 //!
 //! Depth floor lines are drawn by the shared [`DepthDebugPlugin`] overlay
-//! (enabled by default here; toggle with `Ctrl+L` / `Cmd+L`).
+//! (enabled by default here; toggle with `Ctrl+P` / `Cmd+P`).
 //!
 //! A [`PxOverlayCamera`] is used so Bevy gizmos render on top of `PxPlugin`'s
 //! pixel-art output.
 //!
-//! `Ctrl+O` / `Cmd+O` cycles through three horizon profiles (depth 9 floor
+//! `Ctrl+I` / `Cmd+I` cycles through three horizon profiles (depth 9 floor
 //! at 50%, 15%, or 85% of screen height).
 //!
 //! `1` / `2` switches between Mosquiton and Spidey at runtime.
@@ -41,7 +41,7 @@
 use bevy::{asset::AssetMetaCheck, prelude::*};
 #[cfg(feature = "brp")]
 use bevy_brp_extras::BrpExtrasPlugin;
-use carapace::{animation::PxAnimationPlugin, prelude::*};
+use carapace::{animation::PxAnimationPlugin, prelude::*, set::PxSet};
 use carcinisation::{
     globals::SCREEN_RESOLUTION,
     stage::{
@@ -419,7 +419,10 @@ fn main() {
         )
         .add_systems(
             PostUpdate,
-            (apply_depth_fallback_scale, apply_composed_enemy_visuals),
+            (
+                apply_depth_fallback_scale,
+                apply_composed_enemy_visuals.in_set(PxSet::CompositePresentationWrites),
+            ),
         )
         .run();
 }
@@ -537,7 +540,7 @@ fn switch_character(
     spawn_walker(&mut commands, &asset_server, &profile, new_character);
 }
 
-/// Cycle horizon profile with `Ctrl+O` (`Cmd+O` on macOS).
+/// Cycle horizon profile with `Ctrl+I` (`Cmd+I` on macOS).
 ///
 /// When the profile changes, all [`DepthFloorLine`] entities are updated to
 /// reflect the new depth-9 floor position.
@@ -552,7 +555,7 @@ fn cycle_horizon_profile(
         KeyCode::SuperLeft,
         KeyCode::SuperRight,
     ]);
-    if !modifier_held || !keys.just_pressed(KeyCode::KeyO) {
+    if !modifier_held || !keys.just_pressed(KeyCode::KeyI) {
         return;
     }
 

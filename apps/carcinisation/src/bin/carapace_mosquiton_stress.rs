@@ -18,7 +18,9 @@
 //! - `cargo run -p carcinisation --bin carapace_mosquiton_stress`
 //! - `cargo run -p carcinisation --bin carapace_mosquiton_stress --features brp`
 //!
-//! Press `P` to toggle perspective projection on and off.
+//! - `Cmd+I` / `Ctrl+I` to toggle perspective / linear projection.
+//! - `Cmd+P` / `Ctrl+P` to toggle the depth perspective grid overlay.
+//! - `Cmd+O` / `Ctrl+O` to toggle entity anchor markers.
 
 use bevy::{
     asset::{AssetMetaCheck, AssetPlugin},
@@ -32,13 +34,15 @@ use carapace::{prelude::*, set::PxSet};
 use carcinisation::{
     globals::SCREEN_RESOLUTION,
     stage::{
-        components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth},
+        components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth, Floor},
+        depth_debug::DepthDebugPlugin,
         depth_scale::{DepthScaleConfig, apply_depth_fallback_scale},
         enemy::{
             composed::{
-                ComposedAnimationState, ComposedEnemyVisual, CompositionAtlasAsset,
-                CompositionAtlasLoader, apply_composed_enemy_visuals, ensure_composed_enemy_parts,
-                prepare_composed_atlas_assets, update_composed_enemy_visuals,
+                ComposedAnimationState, ComposedEnemyVisual, ComposedResolvedParts,
+                CompositionAtlasAsset, CompositionAtlasLoader, apply_composed_enemy_visuals,
+                ensure_composed_enemy_parts, prepare_composed_atlas_assets,
+                update_composed_enemy_visuals,
             },
             data::mosquiton::{TAG_IDLE_STAND, apply_mosquiton_animation_state},
             entity::EnemyType,
@@ -59,7 +63,10 @@ const DEPTH_MAX: i8 = 9;
 const DEPTH_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN + 1) as f32;
 const DEPTH_INTERVAL_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN) as f32;
 const HORIZON_Y: f32 = 0.55 * SCREEN_H;
-const DEPTH_ZERO_Y: f32 = -0.30 * SCREEN_H;
+/// Floor Y for depth 1 (foreground). This is `floor_base_y` in the
+/// `ProjectionProfile` — `floor_y_for_depth(1)` returns this value directly
+/// because `t = 1.0` at depth 1.
+const FLOOR_DEPTH_1: f32 = -0.10 * SCREEN_H;
 const PERSPECTIVE_BIAS: f32 = 3.0;
 const LINEAR_BIAS: f32 = 1.0;
 const AIRBORNE_DUTY_CYCLE: f32 = 0.65;
@@ -120,6 +127,10 @@ impl StressProjection {
     }
 }
 
+/// Marker for Floor entities so we can update them when the projection changes.
+#[derive(Component)]
+struct StressFloorLine;
+
 #[px_layer]
 enum Layer {
     Nine,
@@ -159,6 +170,7 @@ fn main() {
             }),
         PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png"),
         LogDiagnosticsPlugin::default(),
+        DepthDebugPlugin,
     ));
 
     #[cfg(feature = "brp")]
@@ -173,7 +185,7 @@ fn main() {
         .add_message::<ComposedAnimationCueMessage>()
         .init_asset::<CompositionAtlasAsset>()
         .register_asset_loader(CompositionAtlasLoader)
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, setup_stats_text))
         .add_systems(
             Update,
             (
@@ -185,6 +197,7 @@ fn main() {
                 prepare_composed_atlas_assets,
                 ensure_composed_enemy_parts,
                 update_composed_enemy_visuals,
+                update_stats_text,
             )
                 .chain(),
         )
@@ -210,8 +223,26 @@ fn setup(
 ) {
     commands.spawn(Camera2d);
 
+    // Overlay camera: renders gizmos on top of PxPlugin output.
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 1,
+            ..default()
+        },
+        PxOverlayCamera,
+    ));
+
+    // Spawn Floor entities for depths 1..=9 so DepthDebugPlugin can draw the grid.
+    let profile = projection.active();
+    for d in 1i8..=9 {
+        let depth = Depth::try_from(d).unwrap();
+        commands.spawn((StressFloorLine, depth, Floor(profile.floor_y_for_depth(d))));
+    }
+
     info!(
-        "Spawning {MOSQUITON_COUNT} Mosquitons across depths 0-9 (press P to toggle perspective)"
+        "Spawning {MOSQUITON_COUNT} Mosquitons across depths 0-9 \
+         (Cmd+I = projection, Cmd+P = grid, Cmd+O = anchors)"
     );
 
     for index in 0..MOSQUITON_COUNT {
@@ -252,15 +283,34 @@ fn setup(
     }
 }
 
-fn toggle_perspective(keys: Res<ButtonInput<KeyCode>>, mut projection: ResMut<StressProjection>) {
-    if keys.just_pressed(KeyCode::KeyP) {
-        projection.perspective_enabled = !projection.perspective_enabled;
-        let mode = if projection.perspective_enabled {
-            "enabled"
-        } else {
-            "disabled"
-        };
-        info!("Mosquiton stress perspective {mode}");
+/// Toggle perspective / linear projection with `Cmd+I` / `Ctrl+I`.
+fn toggle_perspective(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut projection: ResMut<StressProjection>,
+    mut floor_query: Query<(&Depth, &mut Floor), With<StressFloorLine>>,
+) {
+    let modifier_held = keys.any_pressed([
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+    ]);
+    if !modifier_held || !keys.just_pressed(KeyCode::KeyI) {
+        return;
+    }
+
+    projection.perspective_enabled = !projection.perspective_enabled;
+    let mode = if projection.perspective_enabled {
+        "enabled"
+    } else {
+        "disabled"
+    };
+    info!("Mosquiton stress perspective {mode}");
+
+    // Update Floor entities so the DepthDebugPlugin grid follows the active projection.
+    let profile = projection.active();
+    for (depth, mut floor) in &mut floor_query {
+        floor.0 = profile.floor_y_for_depth(depth.to_i8());
     }
 }
 
@@ -385,6 +435,93 @@ fn traverse_depths(
     }
 }
 
+/// Marker for the stats text UI node.
+#[derive(Component)]
+struct StatsText;
+
+/// Rolling FPS tracker with a 60-frame window, updated every 100 ms.
+#[derive(Component)]
+struct FpsTracker {
+    frames: Vec<f32>,
+    current_fps: f32,
+    current_ms: f32,
+    last_update: f32,
+}
+
+impl Default for FpsTracker {
+    fn default() -> Self {
+        Self {
+            frames: Vec::with_capacity(60),
+            current_fps: 0.0,
+            current_ms: 0.0,
+            last_update: 0.0,
+        }
+    }
+}
+
+fn setup_stats_text(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.spawn((
+        StatsText,
+        FpsTracker::default(),
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(5.0),
+            top: Val::Px(5.0),
+            ..default()
+        },
+        children![(
+            TextColor(Color::srgb(0.2, 1.0, 0.2)),
+            Text::new("FPS: --\nMS: --\nPTS: --"),
+            TextLayout::new_with_justify(Justify::Right),
+            TextFont {
+                font: asset_server.load("fonts/Pixeboy.ttf"),
+                font_size: 14.0,
+                ..default()
+            },
+        )],
+    ));
+}
+
+fn update_stats_text(
+    time: Res<Time>,
+    parts_query: Query<&ComposedResolvedParts>,
+    mut parent_query: Query<(&Children, &mut FpsTracker), With<StatsText>>,
+    mut text_query: Query<&mut Text>,
+) {
+    let elapsed = time.elapsed_secs();
+    let dt = time.delta_secs();
+
+    for (children, mut tracker) in &mut parent_query {
+        if dt > 0.0 {
+            tracker.frames.push(dt);
+            if tracker.frames.len() > 60 {
+                tracker.frames.remove(0);
+            }
+        }
+
+        if elapsed - tracker.last_update > 0.1 && !tracker.frames.is_empty() {
+            let avg_dt = tracker.frames.iter().sum::<f32>() / tracker.frames.len() as f32;
+            tracker.current_fps = 1.0 / avg_dt;
+            tracker.current_ms = avg_dt * 1000.0;
+            tracker.last_update = elapsed;
+        }
+
+        let total_fragments: usize = parts_query.iter().map(|p| p.fragments().len()).sum();
+        let new_text = format!(
+            "FPS: {:.0}\nMS: {:.1}\nPTS: {}",
+            tracker.current_fps, tracker.current_ms, total_fragments
+        );
+
+        for child in children.iter() {
+            if let Ok(mut text) = text_query.get_mut(child)
+                && text.0 != new_text
+            {
+                text.0.clone_from(&new_text);
+            }
+        }
+    }
+}
+
 fn layer_for_depth(depth: Depth) -> Layer {
     match depth {
         Depth::Nine => Layer::Nine,
@@ -482,13 +619,9 @@ fn depth_to_t(depth: Depth) -> f32 {
 }
 
 fn projection_profile(bias_power: f32) -> ProjectionProfile {
-    let depth_zero_t = f32::from(DEPTH_MAX) / DEPTH_INTERVAL_COUNT;
-    let biased_zero_t = depth_zero_t.powf(bias_power);
-    let floor_base_y = HORIZON_Y + (DEPTH_ZERO_Y - HORIZON_Y) / biased_zero_t;
-
     ProjectionProfile {
         horizon_y: HORIZON_Y,
-        floor_base_y,
+        floor_base_y: FLOOR_DEPTH_1,
         bias_power,
     }
 }

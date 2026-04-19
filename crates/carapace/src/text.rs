@@ -171,6 +171,15 @@ pub(crate) struct PxSeparator {
 /// For animated typefaces, add additional frames to the right of characters, marking the end
 /// of an animation with a fully transparent character or the end of the image.
 /// See the images in `assets/typeface/` for examples.
+///
+/// # Future: proportional font support
+///
+/// The layout pipeline already handles variable-width glyphs (auto-trimmed on
+/// load), but two small additions would cover remaining edge cases:
+///   - A per-typeface `spacing: u32` field (currently hardcoded to 1px in the
+///     layout loop) to allow fonts with tighter or wider inter-character gaps.
+///   - A per-glyph `bearing_x: i32` on `PxSpriteAsset` (default 0) to shift
+///     individual glyphs without baking padding into the source image.
 #[derive(Asset, Clone, Reflect, Debug)]
 pub struct PxTypeface {
     pub(crate) height: u32,

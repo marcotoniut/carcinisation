@@ -1,14 +1,12 @@
-//! Lightweight depth-floor debug overlay, toggled with `Ctrl+L` (`Cmd+L` on macOS).
+//! Lightweight depth-floor debug overlays.
 //!
-//! When enabled, draws:
-//! - **Purple horizontal + diagonal lines**: perspective depth grid (floor
-//!   positions 1..=9 plus converging guide rays).
-//! - **Green horizontal line**: active placement anchor.  Shows the ground
-//!   contact point when grounded, or the airborne body pivot when the
-//!   [`Airborne`] marker is present.  Falls back to the per-frame composite
-//!   bounding-box bottom when no anchor data is present.
-//! - **Light-blue crosshair**: entity pivot / composition origin — the point
-//!   that game logic uses for position, collision, and tween targets.
+//! Two independent toggles:
+//!
+//! - **`Ctrl+P` / `Cmd+P`** — Perspective grid: purple horizontal floor lines
+//!   (depths 1..=9) plus converging guide rays toward a vanishing point.
+//! - **`Ctrl+O` / `Cmd+O`** — Entity anchors: green horizontal line at the
+//!   active placement anchor, light-blue crosshair at the pivot / composition
+//!   origin.
 //!
 //! # Terminology
 //!
@@ -57,7 +55,7 @@ const CROSSHAIR_MIN_PX: f32 = 3.0 * VIEWPORT_MULTIPLIER;
 
 // --- Resources ---
 
-/// Resource controlling whether the depth debug overlay is drawn.
+/// Controls whether the perspective depth grid is drawn (`P` to toggle).
 #[derive(Resource, Debug, Clone, Copy, Default)]
 pub struct DepthDebugOverlay {
     pub enabled: bool,
@@ -70,33 +68,47 @@ impl DepthDebugOverlay {
     }
 }
 
+/// Controls whether per-entity anchor markers are drawn (`Cmd+O` to toggle).
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct EntityAnchorOverlay {
+    pub enabled: bool,
+}
+
+impl EntityAnchorOverlay {
+    #[must_use]
+    pub const fn new(enabled: bool) -> Self {
+        Self { enabled }
+    }
+}
+
 // --- Plugin ---
 
-/// Lightweight plugin that draws a depth perspective grid and contact lines.
+/// Lightweight plugin that draws a depth perspective grid and entity anchors.
 ///
-/// Toggle with `Ctrl+L` (`Cmd+L` on macOS). Default state: off.
-///
-/// Insert [`DepthDebugOverlay::new(true)`] as a resource before adding the
-/// plugin to start with the overlay enabled (useful for examples).
+/// - `Ctrl+P` / `Cmd+P` toggles the perspective grid. Set
+///   `CARCINISATION_SHOW_PERSPECTIVE=true` to start enabled.
+/// - `Ctrl+O` / `Cmd+O` toggles per-entity anchor markers.
 pub struct DepthDebugPlugin;
 
 impl Plugin for DepthDebugPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<DepthDebugOverlay>().add_systems(
-            Update,
-            (
-                toggle_depth_debug_overlay,
-                draw_depth_grid_background,
-                draw_entity_anchors,
-            )
-                .chain(),
-        );
+        app.init_resource::<DepthDebugOverlay>()
+            .init_resource::<EntityAnchorOverlay>()
+            .add_systems(
+                Update,
+                (
+                    toggle_depth_debug_overlay,
+                    toggle_entity_anchor_overlay,
+                    draw_depth_grid_background,
+                    draw_entity_anchors,
+                ),
+            );
     }
 }
 
 // --- Systems ---
 
-/// Toggle overlay with Ctrl+L (Cmd+L on macOS).
+/// Toggle perspective grid with `Cmd+P` / `Ctrl+P`.
 fn toggle_depth_debug_overlay(
     keys: Res<ButtonInput<KeyCode>>,
     mut overlay: ResMut<DepthDebugOverlay>,
@@ -107,10 +119,34 @@ fn toggle_depth_debug_overlay(
         KeyCode::SuperLeft,
         KeyCode::SuperRight,
     ]);
-    if modifier_held && keys.just_pressed(KeyCode::KeyL) {
+    if modifier_held && keys.just_pressed(KeyCode::KeyP) {
         overlay.enabled = !overlay.enabled;
         info!(
-            "Depth debug overlay {}",
+            "Perspective grid {}",
+            if overlay.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        );
+    }
+}
+
+/// Toggle per-entity anchor markers with `Cmd+O` / `Ctrl+O`.
+fn toggle_entity_anchor_overlay(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut overlay: ResMut<EntityAnchorOverlay>,
+) {
+    let modifier_held = keys.any_pressed([
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+    ]);
+    if modifier_held && keys.just_pressed(KeyCode::KeyO) {
+        overlay.enabled = !overlay.enabled;
+        info!(
+            "Entity anchor overlay {}",
             if overlay.enabled {
                 "enabled"
             } else {
@@ -184,7 +220,7 @@ fn draw_depth_grid_background(
 ///   the scaled composite (with a minimum so it stays visible at far depths).
 #[allow(clippy::float_cmp, clippy::similar_names)]
 fn draw_entity_anchors(
-    overlay: Res<DepthDebugOverlay>,
+    overlay: Res<EntityAnchorOverlay>,
     mut gizmos: Gizmos,
     query: Query<(
         &PxSubPosition,
@@ -266,4 +302,83 @@ fn to_viewport_x(x: f32) -> f32 {
 /// Convert a carapace pixel Y coordinate to Bevy world Y for gizmo drawing.
 fn to_viewport_y(y: f32) -> f32 {
     VIEWPORT_MULTIPLIER * (y - SCREEN_Y * 0.5)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_grid_toggle_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<DepthDebugOverlay>();
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+        app.add_systems(Update, toggle_depth_debug_overlay);
+        app
+    }
+
+    fn make_anchor_toggle_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<EntityAnchorOverlay>();
+        app.insert_resource(ButtonInput::<KeyCode>::default());
+        app.add_systems(Update, toggle_entity_anchor_overlay);
+        app
+    }
+
+    #[test]
+    fn cmd_p_toggles_perspective_grid() {
+        let mut app = make_grid_toggle_app();
+
+        assert!(!app.world().resource::<DepthDebugOverlay>().enabled);
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::SuperLeft);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyP);
+        app.update();
+
+        assert!(app.world().resource::<DepthDebugOverlay>().enabled);
+    }
+
+    #[test]
+    fn plain_p_does_not_toggle_perspective_grid() {
+        let mut app = make_grid_toggle_app();
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyP);
+        app.update();
+
+        assert!(!app.world().resource::<DepthDebugOverlay>().enabled);
+    }
+
+    #[test]
+    fn cmd_o_toggles_entity_anchors() {
+        let mut app = make_anchor_toggle_app();
+
+        assert!(!app.world().resource::<EntityAnchorOverlay>().enabled);
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::SuperLeft);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyO);
+        app.update();
+
+        assert!(app.world().resource::<EntityAnchorOverlay>().enabled);
+    }
+
+    #[test]
+    fn plain_o_does_not_toggle_entity_anchors() {
+        let mut app = make_anchor_toggle_app();
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyO);
+        app.update();
+
+        assert!(!app.world().resource::<EntityAnchorOverlay>().enabled);
+    }
 }

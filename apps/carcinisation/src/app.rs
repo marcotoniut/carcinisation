@@ -26,7 +26,7 @@ use carcinisation_core::components::{DespawnMark, VolumeSettings};
 use dotenvy::dotenv_override;
 
 #[cfg(debug_assertions)]
-use crate::debug::{DebugGodMode, DebugPlugin};
+use crate::debug::{DebugColliderOverlay, DebugGodMode, DebugPlugin};
 #[cfg(feature = "gallery")]
 use crate::gallery::GalleryPlugin;
 use crate::{
@@ -38,7 +38,7 @@ use crate::{
     letterbox::LetterboxPlugin,
     main_menu::MainMenuPlugin,
     resources::DifficultySelected,
-    stage::{StagePlugin, player::crosshair::CrosshairSettings},
+    stage::{StagePlugin, depth_debug::DepthDebugOverlay, player::crosshair::CrosshairSettings},
     systems::{
         camera::move_camera,
         movement::{PositionSyncSystems, update_position_x, update_position_y},
@@ -62,6 +62,14 @@ pub enum StartFlow {
 const INITIAL_SOUND_LEVEL_ENV: &str = "CARCINISATION_INITIAL_SOUND";
 #[cfg(not(target_arch = "wasm32"))]
 const INITIAL_GOD_MODE_ENV: &str = "CARCINISATION_GOD_MODE";
+#[cfg(not(target_arch = "wasm32"))]
+const SKIP_MENU_ENV: &str = "CARCINISATION_SKIP_MENU";
+#[cfg(not(target_arch = "wasm32"))]
+const SKIP_CUTSCENES_ENV: &str = "CARCINISATION_SKIP_CUTSCENES";
+#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+const SHOW_COLLIDERS_ENV: &str = "CARCINISATION_SHOW_COLLIDERS";
+#[cfg(not(target_arch = "wasm32"))]
+const SHOW_PERSPECTIVE_ENV: &str = "CARCINISATION_SHOW_PERSPECTIVE";
 
 impl StartFlow {
     const fn includes_start_flow(self) -> bool {
@@ -177,10 +185,16 @@ pub fn build_app(options: AppLaunchOptions) -> App {
 
     app.init_resource::<DifficultySelected>()
         .insert_resource(initial_volume_settings())
+        .insert_resource(load_dev_flags())
         .add_plugins(InputManagerPlugin::<GBInput>::default());
 
+    app.insert_resource(DepthDebugOverlay::new(load_show_perspective()));
+
     #[cfg(debug_assertions)]
-    app.insert_resource(DebugGodMode::new(load_initial_god_mode(options.start_flow)));
+    {
+        app.insert_resource(DebugGodMode::new(load_initial_god_mode(options.start_flow)));
+        app.insert_resource(DebugColliderOverlay::new(load_show_colliders()));
+    }
 
     if !options.headless {
         #[cfg(feature = "brp")]
@@ -309,6 +323,58 @@ fn load_initial_god_mode(start_flow: StartFlow) -> bool {
             warn!("{INITIAL_GOD_MODE_ENV} must be valid UTF-8; defaulting based on launch flow");
             matches!(start_flow, StartFlow::StageOnly)
         }
+    }
+}
+
+#[cfg(all(debug_assertions, target_arch = "wasm32"))]
+fn load_show_colliders() -> bool {
+    false
+}
+
+#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+fn load_show_colliders() -> bool {
+    let _ = dotenv_override();
+    env::var(SHOW_COLLIDERS_ENV)
+        .ok()
+        .and_then(|v| parse_bool_flag(&v).ok())
+        .unwrap_or(false)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_show_perspective() -> bool {
+    false
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_show_perspective() -> bool {
+    let _ = dotenv_override();
+    env::var(SHOW_PERSPECTIVE_ENV)
+        .ok()
+        .and_then(|v| parse_bool_flag(&v).ok())
+        .unwrap_or(false)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_dev_flags() -> crate::resources::DevFlags {
+    crate::resources::DevFlags::default()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn load_dev_flags() -> crate::resources::DevFlags {
+    let _ = dotenv_override();
+
+    let skip_menu = env::var(SKIP_MENU_ENV)
+        .ok()
+        .and_then(|v| parse_bool_flag(&v).ok())
+        .unwrap_or(false);
+    let skip_cutscenes = env::var(SKIP_CUTSCENES_ENV)
+        .ok()
+        .and_then(|v| parse_bool_flag(&v).ok())
+        .unwrap_or(false);
+
+    crate::resources::DevFlags {
+        skip_menu,
+        skip_cutscenes,
     }
 }
 
