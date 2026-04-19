@@ -3,13 +3,17 @@
 pub mod attacks;
 pub mod bundles;
 pub mod components;
+pub mod config;
 pub mod crosshair;
+pub mod intent;
 pub mod messages;
 pub(crate) mod systems;
 
 use self::{
     attacks::{AttackDefinitions, AttackInputState, AttackLoadout},
+    config::PlayerConfig,
     crosshair::{Crosshair, CrosshairSettings},
+    intent::{PlayerIntent, SelectChordState, resolve_player_intent},
     messages::{CameraShakeEvent, PlayerShutdownEvent, PlayerStartupEvent},
     systems::{
         camera::on_camera_shake,
@@ -38,9 +42,12 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<AttackDefinitions>()
+        app.insert_resource(PlayerConfig::load())
+            .init_resource::<AttackDefinitions>()
             .init_resource::<AttackInputState>()
             .init_resource::<AttackLoadout>()
+            .init_resource::<PlayerIntent>()
+            .init_resource::<SelectChordState>()
             .configure_sets(Update, MovementSystems.before(ConfinementSystems))
             .add_message::<CameraShakeEvent>()
             .add_observer(on_camera_shake)
@@ -49,10 +56,13 @@ impl Plugin for PlayerPlugin {
             .add_message::<PlayerShutdownEvent>()
             .add_observer(on_player_shutdown)
             .add_active_systems::<PlayerPlugin, _>((
+                resolve_player_intent,
                 tick_attack_lifetimes,
                 despawn_expired_attacks,
-                detect_player_attack,
-                player_movement.in_set(MovementSystems),
+                detect_player_attack.after(resolve_player_intent),
+                player_movement
+                    .in_set(MovementSystems)
+                    .after(resolve_player_intent),
                 confine_player_movement.in_set(ConfinementSystems),
             ));
     }

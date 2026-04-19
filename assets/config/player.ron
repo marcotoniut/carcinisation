@@ -1,0 +1,4 @@
+PlayerConfig(
+    base_speed: 175.0,
+    slow_modifier: 0.6,
+)

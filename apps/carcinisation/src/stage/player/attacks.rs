@@ -13,22 +13,6 @@ pub enum AttackId {
     BombExplosion,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum AttackButton {
-    A,
-    B,
-}
-
-impl AttackButton {
-    #[must_use]
-    pub fn gb_input(self) -> crate::input::GBInput {
-        match self {
-            AttackButton::A => crate::input::GBInput::A,
-            AttackButton::B => crate::input::GBInput::B,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AttackCategory {
     Melee,
@@ -85,6 +69,13 @@ pub struct AttackDefinition {
     pub damage: u32,
     pub duration_secs: f32,
     pub collision: AttackCollisionMode,
+    /// Pixel offsets from the attack centre to test for `Point` collision.
+    ///
+    /// Each offset is tested in order; the first opaque-pixel hit wins.
+    /// An empty list means "centre only" (single-point, legacy behaviour).
+    /// A cross pattern `[(0,0),(1,0),(-1,0),(0,1),(0,-1)]` covers the
+    /// centre plus four cardinal neighbours.
+    pub hit_offsets: Vec<IVec2>,
     pub spawn_on_expire: Option<AttackId>,
     pub detonates_on_hit: bool,
     pub input_policy: AttackInputPolicy,
@@ -127,6 +118,7 @@ impl Default for AttackDefinitions {
                 damage: 70,
                 duration_secs: 0.6,
                 collision: AttackCollisionMode::SpriteMask,
+                hit_offsets: vec![],
                 spawn_on_expire: None,
                 detonates_on_hit: false,
                 input_policy: AttackInputPolicy::Release,
@@ -160,6 +152,8 @@ impl Default for AttackDefinitions {
                 damage: 30,
                 duration_secs: 0.06,
                 collision: AttackCollisionMode::Point,
+                // 5-point cross: centre + 4 cardinal neighbours.
+                hit_offsets: vec![IVec2::ZERO, IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y],
                 spawn_on_expire: None,
                 detonates_on_hit: false,
                 input_policy: AttackInputPolicy::Release,
@@ -190,6 +184,7 @@ impl Default for AttackDefinitions {
                 damage: 20,
                 duration_secs: 0.06,
                 collision: AttackCollisionMode::Point,
+                hit_offsets: vec![],
                 spawn_on_expire: None,
                 detonates_on_hit: false,
                 input_policy: AttackInputPolicy::Hold {
@@ -223,6 +218,7 @@ impl Default for AttackDefinitions {
                 damage: 0,
                 duration_secs: 0.9,
                 collision: AttackCollisionMode::SpriteMask,
+                hit_offsets: vec![],
                 spawn_on_expire: Some(AttackId::BombExplosion),
                 detonates_on_hit: true,
                 input_policy: AttackInputPolicy::Release,
@@ -251,6 +247,7 @@ impl Default for AttackDefinitions {
                 damage: 60,
                 duration_secs: 0.5,
                 collision: AttackCollisionMode::SpriteMask,
+                hit_offsets: vec![],
                 spawn_on_expire: None,
                 detonates_on_hit: false,
                 input_policy: AttackInputPolicy::Release,
@@ -308,72 +305,57 @@ impl AttackCycle {
 
 #[derive(Resource, Debug)]
 pub struct AttackLoadout {
-    pub a: AttackCycle,
-    pub b: AttackCycle,
+    cycle: AttackCycle,
 }
 
 impl AttackLoadout {
     #[must_use]
-    pub fn current(&self, button: AttackButton) -> AttackId {
-        match button {
-            AttackButton::A => self.a.current(),
-            AttackButton::B => self.b.current(),
-        }
+    pub fn current(&self) -> AttackId {
+        self.cycle.current()
     }
 
-    pub fn cycle(&mut self, button: AttackButton) -> AttackId {
-        match button {
-            AttackButton::A => self.a.cycle(),
-            AttackButton::B => self.b.cycle(),
-        }
+    pub fn cycle(&mut self) -> AttackId {
+        self.cycle.cycle()
     }
 }
 
 impl Default for AttackLoadout {
     fn default() -> Self {
         Self {
-            a: AttackCycle::new(vec![AttackId::Pincer, AttackId::Bomb]),
-            b: AttackCycle::new(vec![AttackId::Pistol]),
+            cycle: AttackCycle::new(vec![AttackId::Pistol, AttackId::Bomb]),
         }
     }
 }
 
 #[derive(Resource, Default, Debug)]
 pub struct AttackInputState {
-    pub active_button: Option<AttackButton>,
+    pub armed: bool,
     pub pressed_at: f32,
     pub pressed_world_position: Option<Vec2>,
     pub last_hold_fire_at: Option<f32>,
     pub hold_fired: bool,
-    pub cycled: bool,
 }
 
 impl AttackInputState {
-    pub fn arm(&mut self, button: AttackButton, now: f32, world_position: Option<Vec2>) {
-        self.active_button = Some(button);
+    pub fn arm(&mut self, now: f32, world_position: Option<Vec2>) {
+        self.armed = true;
         self.pressed_at = now;
         self.pressed_world_position = world_position;
         self.last_hold_fire_at = None;
         self.hold_fired = false;
-        self.cycled = false;
     }
 
     pub fn clear(&mut self) {
-        self.active_button = None;
+        self.armed = false;
         self.last_hold_fire_at = None;
         self.hold_fired = false;
         self.pressed_at = 0.0;
         self.pressed_world_position = None;
-        self.cycled = false;
     }
 
     pub fn mark_hold_fired(&mut self, now: f32) {
         self.hold_fired = true;
         self.last_hold_fire_at = Some(now);
-    }
-
-    pub fn mark_cycled(&mut self) {
-        self.cycled = true;
     }
 }
 
@@ -471,11 +453,11 @@ mod tests {
 
     #[test]
     fn attack_cycle_wraps() {
-        let mut cycle = AttackCycle::new(vec![AttackId::Pincer, AttackId::Bomb]);
+        let mut cycle = AttackCycle::new(vec![AttackId::Pistol, AttackId::Bomb]);
 
-        assert_eq!(cycle.current(), AttackId::Pincer);
+        assert_eq!(cycle.current(), AttackId::Pistol);
         assert_eq!(cycle.cycle(), AttackId::Bomb);
-        assert_eq!(cycle.cycle(), AttackId::Pincer);
+        assert_eq!(cycle.cycle(), AttackId::Pistol);
     }
 
     #[test]
@@ -504,5 +486,55 @@ mod tests {
         assert!(!tracker.can_hit(target, policy));
         tracker.tick(0.02);
         assert!(tracker.can_hit(target, policy));
+    }
+
+    #[test]
+    fn pistol_has_5_point_cross_hit_offsets() {
+        let defs = AttackDefinitions::default();
+        let pistol = defs.get(AttackId::Pistol);
+        assert_eq!(
+            pistol.hit_offsets.len(),
+            5,
+            "pistol should have 5 hit points"
+        );
+        assert!(
+            pistol.hit_offsets.contains(&IVec2::ZERO),
+            "centre point must be included"
+        );
+        assert!(pistol.hit_offsets.contains(&IVec2::X), "right");
+        assert!(pistol.hit_offsets.contains(&IVec2::NEG_X), "left");
+        assert!(pistol.hit_offsets.contains(&IVec2::Y), "up");
+        assert!(pistol.hit_offsets.contains(&IVec2::NEG_Y), "down");
+    }
+
+    #[test]
+    fn non_pistol_attacks_have_empty_offsets() {
+        let defs = AttackDefinitions::default();
+        for &id in &[
+            AttackId::Pincer,
+            AttackId::MachineGun,
+            AttackId::Bomb,
+            AttackId::BombExplosion,
+        ] {
+            let def = defs.get(id);
+            assert!(
+                def.hit_offsets.is_empty(),
+                "{:?} should have empty hit_offsets",
+                id
+            );
+        }
+    }
+
+    #[test]
+    fn pistol_cross_offsets_are_adjacent_pixels() {
+        let defs = AttackDefinitions::default();
+        let pistol = defs.get(AttackId::Pistol);
+        for offset in &pistol.hit_offsets {
+            let manhattan = offset.x.abs() + offset.y.abs();
+            assert!(
+                manhattan <= 1,
+                "offset {offset:?} should be within 1 Manhattan distance"
+            );
+        }
     }
 }

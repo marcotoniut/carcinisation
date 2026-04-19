@@ -2,11 +2,11 @@ pub mod camera;
 pub mod messages;
 
 use super::attacks::{
-    AttackButton, AttackDefinitions, AttackId, AttackInputPolicy, AttackInputState, AttackLifetime,
-    AttackLoadout,
+    AttackDefinitions, AttackId, AttackInputPolicy, AttackInputState, AttackLifetime, AttackLoadout,
 };
-use super::components::{PLAYER_SIZE, PLAYER_SPEED, Player, PlayerAttack};
-use crate::input::GBInput;
+use super::components::{PLAYER_SIZE, Player, PlayerAttack};
+use super::config::PlayerConfig;
+use super::intent::PlayerIntent;
 use crate::pixel::PxAssets;
 use crate::stage::player::attacks::AttackEffectState;
 use crate::stage::player::messages::CameraShakeEvent;
@@ -22,7 +22,6 @@ use cween::linear::components::{
     TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
     TweenChildBundle,
 };
-use leafwing_input_manager::prelude::ActionState;
 
 const BOMB_THROW_INITIAL_SPEED_Y: f32 = 80.0;
 const BOMB_THROW_MIN_DURATION_SECS: f32 = 0.05;
@@ -60,37 +59,37 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
     }
 }
 
-/// @system Moves the player according to directional input.
+/// @system Moves the player according to resolved intent (direction + slow modifier).
 pub fn player_movement(
-    gb_input: Res<ActionState<GBInput>>,
-    // TODO should this system refer to a Cursor component instead?
+    intent: Res<PlayerIntent>,
+    config: Res<PlayerConfig>,
     mut query: Query<&mut PxSubPosition, With<Player>>,
     time: Res<Time<StageTimeDomain>>,
 ) {
+    if intent.move_direction == Vec2::ZERO {
+        return;
+    }
+    let speed = if intent.slow_modifier {
+        config.base_speed * config.slow_modifier
+    } else {
+        config.base_speed
+    };
     for mut position in &mut query {
-        // TODO review what's more expensive, querying or input subroutine, although, most of the times
-        // a player will exist, so it's probably more that the former is redundant
-        let mut direction = Vec2::new(
-            (i32::from(gb_input.pressed(&GBInput::Right))
-                - i32::from(gb_input.pressed(&GBInput::Left))) as f32,
-            (i32::from(gb_input.pressed(&GBInput::Up))
-                - i32::from(gb_input.pressed(&GBInput::Down))) as f32,
-        );
-
-        if direction.length() > 0.0 {
-            direction = direction.normalize_or_zero();
-            position.0 += direction * PLAYER_SPEED * time.delta().as_secs_f32();
-        }
+        position.0 += intent.move_direction * speed * time.delta().as_secs_f32();
     }
 }
 
-/// @system Reads attack inputs (press/hold/release) and spawns player attacks.
+/// @system Reads resolved [`PlayerIntent`] and spawns player attacks.
+///
+/// Melee (Pincer) is triggered directly by the Select+A chord.
+/// Ranged attacks follow the arm → hold/release cycle driven by the A button.
+/// Item select cycles the ranged loadout.
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn detect_player_attack(
     mut commands: Commands,
     mut assets_sprite: PxAssets<PxSprite>,
     asset_server: Res<AssetServer>,
-    gb_input: Res<ActionState<GBInput>>,
+    intent: Res<PlayerIntent>,
     player_attack_query: Query<Entity, With<PlayerAttack>>,
     player_query: Query<&PxSubPosition, With<Player>>,
     camera: Res<PxCamera>,
@@ -102,34 +101,49 @@ pub fn detect_player_attack(
 ) {
     let now = time.elapsed_secs();
     let attack_active = player_attack_query.iter().next().is_some();
-
     let player_position = player_query.single().ok();
     let camera_offset = camera.0.as_vec2();
 
-    if input_state.active_button.is_none() {
-        if gb_input.just_pressed(&GBInput::A) {
-            let world_position = player_position.map(|position| position.0 + camera_offset);
-            input_state.arm(AttackButton::A, now, world_position);
-        } else if gb_input.just_pressed(&GBInput::B) {
-            let world_position = player_position.map(|position| position.0 + camera_offset);
-            input_state.arm(AttackButton::B, now, world_position);
+    // --- Item select (Select resolved without A) ---
+    if intent.item_select_triggered {
+        loadout.cycle();
+    }
+
+    // --- Melee (Select+A chord) ---
+    if intent.melee_triggered {
+        if !attack_active && let Some(position) = player_position {
+            let definition = attack_definitions.get(AttackId::Pincer);
+            let player_attack = PlayerAttack {
+                position: position.0,
+                attack_id: AttackId::Pincer,
+            };
+            let (attack_bundle, sound_bundle) = player_attack.make_bundles(
+                definition,
+                &mut assets_sprite,
+                asset_server.as_ref(),
+                volume_settings.as_ref(),
+            );
+            commands.spawn(attack_bundle);
+            if let Some(sound_bundle) = sound_bundle {
+                commands.spawn(sound_bundle);
+            }
         }
-    }
-
-    if gb_input.just_pressed(&GBInput::Select)
-        && let Some(button) = input_state.active_button
-    {
-        loadout.cycle(button);
-        input_state.mark_cycled();
-    }
-
-    let Some(button) = input_state.active_button else {
+        // The A press was consumed by melee — clear any armed ranged state.
+        input_state.clear();
         return;
-    };
+    }
 
-    let button_input = button.gb_input();
-    let still_pressed = gb_input.pressed(&button_input);
-    let attack_id = loadout.current(button);
+    // --- Ranged shoot (A button via intent) ---
+    if !input_state.armed && intent.shoot_just_pressed {
+        let world_position = player_position.map(|p| p.0 + camera_offset);
+        input_state.arm(now, world_position);
+    }
+
+    if !input_state.armed {
+        return;
+    }
+
+    let attack_id = loadout.current();
     let definition = attack_definitions.get(attack_id);
 
     let mut spawn_attack = |spawn_position: Vec2, origin_position: Vec2| {
@@ -215,7 +229,8 @@ pub fn detect_player_attack(
         }
     };
 
-    if still_pressed
+    // Hold-fire (e.g. MachineGun).
+    if intent.shoot_held
         && !attack_active
         && let AttackInputPolicy::Hold {
             warmup_secs,
@@ -235,12 +250,12 @@ pub fn detect_player_attack(
         }
     }
 
-    if gb_input.just_released(&button_input) {
-        let should_fire = !input_state.cycled
-            && match definition.input_policy {
-                AttackInputPolicy::Release => true,
-                AttackInputPolicy::Hold { .. } => !input_state.hold_fired,
-            };
+    // Release-fire (Pistol, Bomb).
+    if intent.shoot_just_released {
+        let should_fire = match definition.input_policy {
+            AttackInputPolicy::Release => true,
+            AttackInputPolicy::Hold { .. } => !input_state.hold_fired,
+        };
 
         if should_fire
             && !attack_active
@@ -257,7 +272,7 @@ pub fn detect_player_attack(
         }
 
         input_state.clear();
-    } else if !still_pressed {
+    } else if !intent.shoot_held && input_state.armed {
         input_state.clear();
     }
 }

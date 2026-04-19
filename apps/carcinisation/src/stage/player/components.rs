@@ -18,7 +18,6 @@ use carapace::prelude::{PxAnimationDirection, PxAnimationDuration, PxSprite, PxS
 #[derive(Component)]
 pub struct Player;
 
-pub const PLAYER_SPEED: f32 = 125.;
 pub const PLAYER_SIZE: f32 = 0.;
 pub const PLAYER_MAX_HEALTH: u32 = 100;
 pub const PLAYER_DEPTH: Depth = Depth::Zero;
