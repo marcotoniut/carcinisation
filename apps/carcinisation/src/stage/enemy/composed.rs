@@ -45,8 +45,8 @@ use bevy::{
 use carapace::{
     filter::{PxFilter, PxFilterAsset},
     prelude::{
-        AtlasRect, AtlasRegionId, PxAnchor, PxCanvas, PxCompositePart, PxCompositeSprite,
-        PxSpriteAtlasAsset, PxSubPosition,
+        AtlasRect, AtlasRegionId, PxAnchor, PxAuthoritativeCompositeMetrics, PxCanvas,
+        PxCompositePart, PxCompositeSprite, PxSpriteAtlasAsset, PxSubPosition,
     },
 };
 use carcinisation_collision::{Collider, ColliderShape};
@@ -271,6 +271,20 @@ struct CachedCollisionVolume {
 #[reflect(Component)]
 /// Resolved collision state for the active composed frame.
 ///
+/// # Role in the collision pipeline
+///
+/// These are **coarse fallback** colliders.  For atlas-backed composed enemies
+/// (e.g. Mosquiton), the primary hit detection path is **pixel-authoritative**
+/// (tests actual opaque atlas pixels).  These analytic shapes are only consulted
+/// when pixel data is unavailable.  They are always used for **defence-value
+/// lookup** (damage multiplier per part).
+///
+/// # Space: gameplay-scaled (presentation space)
+///
+/// Pivot positions, collider shapes, and offsets are all pre-multiplied by
+/// `gameplay_scale` (depth-fallback ratio).  Hit detection reads these
+/// values directly — no additional scaling needed.
+///
 /// Entries are stored in ascending draw order; [`Self::point_collides`] walks
 /// them in reverse so the visually front-most colliding part wins.
 pub struct ComposedCollisionState {
@@ -442,7 +456,7 @@ pub struct PartHitBlinkState {
     pub remaining_invert_cycles: u8,
 }
 
-#[derive(Component, Clone, Debug, Default, Reflect)]
+#[derive(Component, Clone, Debug, Reflect)]
 #[reflect(Component)]
 /// Debug/inspection view of the resolved visual parts in the active frame.
 ///
@@ -452,14 +466,47 @@ pub struct PartHitBlinkState {
 pub struct ComposedResolvedParts {
     parts: Vec<ResolvedPartState>,
     fragments: Vec<ResolvedPartFragmentState>,
-    /// Per-frame offset that converts game-logic positions (used by collision
-    /// detection) into screen-visual positions. The rendering pipeline applies
-    /// anchor placement and composite-origin shifting that game-logic coordinates
-    /// do not include. Apply as: `visual_pos = game_logic_pos + visual_offset`.
+    /// Render-anchor offset in **authored (unscaled)** space.
+    ///
+    /// Bridges the gap between the entity's `PxSubPosition` (game-logic
+    /// position) and the visual composition origin produced by the render
+    /// anchor.  Zero for `Origin`-mode entities (e.g. Mosquiton), non-zero
+    /// for `BottomOrigin`-mode (e.g. Spidey).
+    ///
+    /// **Space contract:** always authored/unscaled.  When combining with
+    /// gameplay-scaled positions (like `world_pivot_position`), multiply
+    /// by [`gameplay_scale`](Self::gameplay_scale) first:
+    /// `scaled_pivot + visual_offset * gameplay_scale`.
     visual_offset: Vec2,
+    /// Depth-fallback scale baked into resolved part positions and collision
+    /// shapes this frame.
+    ///
+    /// `world_pivot_position`, `world_top_left_position`, collision pivots,
+    /// collider shapes, and collider offsets are all multiplied by this
+    /// factor relative to `root_position` (entity's `PxSubPosition`).
+    ///
+    /// `visual_offset` is **not** pre-scaled — consumers must apply
+    /// `visual_offset * gameplay_scale` when combining with scaled positions.
+    gameplay_scale: f32,
+}
+
+impl Default for ComposedResolvedParts {
+    fn default() -> Self {
+        Self {
+            parts: Vec::new(),
+            fragments: Vec::new(),
+            visual_offset: Vec2::ZERO,
+            gameplay_scale: 1.0,
+        }
+    }
 }
 
 impl ComposedResolvedParts {
+    #[must_use]
+    pub fn gameplay_scale(&self) -> f32 {
+        self.gameplay_scale
+    }
+
     #[must_use]
     pub fn parts(&self) -> &[ResolvedPartState] {
         &self.parts
@@ -470,10 +517,21 @@ impl ComposedResolvedParts {
         &self.fragments
     }
 
-    /// Offset to convert game-logic part positions to screen-visual positions.
+    /// Render-anchor offset in **authored (unscaled)** space.
+    ///
+    /// Prefer [`scaled_visual_offset()`](Self::scaled_visual_offset) for
+    /// gameplay use.  This raw accessor exists for the internal collision
+    /// builder which combines it with other authored offsets before scaling.
     #[must_use]
-    pub fn visual_offset(&self) -> Vec2 {
+    pub(crate) fn visual_offset(&self) -> Vec2 {
         self.visual_offset
+    }
+
+    /// Visual offset pre-multiplied by gameplay scale, ready to combine
+    /// with scaled positions like `world_pivot_position`.
+    #[must_use]
+    pub fn scaled_visual_offset(&self) -> Vec2 {
+        self.visual_offset * self.gameplay_scale
     }
 
     fn clear(&mut self) {
@@ -490,6 +548,7 @@ impl ComposedResolvedParts {
             parts,
             fragments: vec![],
             visual_offset,
+            gameplay_scale: 1.0,
         }
     }
 
@@ -505,12 +564,19 @@ impl ComposedResolvedParts {
             parts,
             fragments,
             visual_offset,
+            gameplay_scale: 1.0,
         }
     }
 }
 
 #[derive(Clone, Debug, Reflect)]
 /// One resolved render fragment emitted for a composed part.
+///
+/// # Space: gameplay-scaled (presentation space)
+///
+/// Fragment positions and sizes are scaled by `gameplay_scale` so that
+/// pixel-authoritative hit detection (which tests real-world attack points
+/// against fragment rects) operates in a consistent coordinate space.
 pub struct ResolvedPartFragmentState {
     pub part_id: String,
     pub sprite_id: String,
@@ -522,9 +588,10 @@ pub struct ResolvedPartFragmentState {
     pub frame_size: UVec2,
     pub flip_x: bool,
     pub flip_y: bool,
-    /// Game-logic space. Add `visual_offset` for screen-visual position.
+    /// Gameplay-scaled position: `root + (authored - root) * gameplay_scale`.
     pub world_top_left_position: Vec2,
-    /// Visual/world hit-test space matching composed rendering.
+    /// Gameplay-scaled position + scaled visual_offset.
+    /// Used by `fragment_sprite_rect` for pixel-authoritative hit testing.
     pub visual_top_left_position: Vec2,
 }
 
@@ -542,9 +609,11 @@ pub struct ResolvedPartState {
     pub flip_y: bool,
     /// Part pivot position within the logical part bounds (authored top-left/Y-down).
     pub part_pivot: IVec2,
-    /// Game-logic space. Add `ComposedResolvedParts::visual_offset()` for screen position.
+    /// Gameplay-scaled position: `root + (authored - root) * gameplay_scale`.
+    /// Add `scaled_visual_offset()` for final screen position.
     pub world_top_left_position: Vec2,
-    /// Game-logic space. Add `ComposedResolvedParts::visual_offset()` for screen position.
+    /// Gameplay-scaled position: `root + (authored - root) * gameplay_scale`.
+    /// Add `scaled_visual_offset()` for final screen position.
     pub world_pivot_position: Vec2,
     pub tags: Vec<String>,
     pub targetable: bool,
@@ -579,9 +648,11 @@ impl ResolvedPartState {
     }
 
     /// Like [`world_point_from_local_offset`](Self::world_point_from_local_offset)
-    /// but returns the screen-visual position by applying the composed entity's
-    /// visual offset. Use this when the resulting position must match where the
-    /// part appears on screen (e.g. projectile spawn origins).
+    /// but adds a visual offset.
+    ///
+    /// **Caller must pre-scale** `visual_offset` by `gameplay_scale` when
+    /// `world_pivot_position` is in gameplay-scaled space (the normal case
+    /// since `build_resolved_part_states` bakes in the scale).
     #[must_use]
     pub fn visual_point_from_local_offset(&self, local_offset: IVec2, visual_offset: Vec2) -> Vec2 {
         self.world_point_from_local_offset(local_offset) + visual_offset
@@ -763,6 +834,11 @@ impl ComposedAtlasBindings {
     pub fn sprite_rect(&self, sprite_id: &str) -> Option<AtlasRect> {
         self.sprite_rects.get(sprite_id).copied()
     }
+
+    /// Iterate over all `(sprite_id, rect)` pairs for boundary cache building.
+    pub fn sprite_rects_iter(&self) -> impl Iterator<Item = (&String, AtlasRect)> {
+        self.sprite_rects.iter().map(|(k, v)| (k, *v))
+    }
 }
 
 #[derive(Component, Clone, Debug)]
@@ -935,6 +1011,7 @@ pub fn ensure_composed_enemy_parts(
                         ComposedPartStates::from_cache(cache),
                         ComposedResolvedParts::default(),
                         ComposedFrameOutput::default(),
+                        PxAuthoritativeCompositeMetrics,
                         PxCompositeSprite::default(),
                         PxAnchor::Center,
                         depth.to_layer(),
@@ -966,6 +1043,24 @@ pub fn ensure_composed_enemy_parts(
     }
 }
 
+/// Resolves the current animation frame and produces gameplay-spatial data.
+///
+/// # Spatial contract
+///
+/// This system is the **single scaling source** for composed enemy gameplay
+/// data.  It reads [`DepthFallbackScale`] and bakes the ratio into:
+///
+/// - [`ComposedResolvedParts`]: part pivot/top-left positions AND fragment
+///   positions/sizes scaled relative to `PxSubPosition` (entity root).
+///   `visual_offset` remains unscaled — use
+///   [`scaled_visual_offset()`](ComposedResolvedParts::scaled_visual_offset).
+///   Fragment scaling is critical: pixel-authoritative hit detection builds
+///   screen-space rects from fragment positions.
+/// - [`ComposedCollisionState`]: collider shapes, offsets, and pivot positions
+///   all pre-scaled.
+///
+/// Downstream consumers (projectile origin, hit detection, attachment tracking)
+/// read these pre-scaled values directly — no per-consumer scale correction.
 pub fn update_composed_enemy_visuals(
     mut commands: Commands,
     atlas_assets: Res<Assets<CompositionAtlasAsset>>,
@@ -986,6 +1081,7 @@ pub fn update_composed_enemy_visuals(
             Option<&Dying>,
             Option<&ComposedAnimationPlaybackDebugEnabled>,
             Option<&ComposedAnimationPlaybackDebug>,
+            Option<&super::super::depth_scale::DepthFallbackScale>,
         ),
         With<ComposedEnemyVisualReady>,
     >,
@@ -1006,8 +1102,10 @@ pub fn update_composed_enemy_visuals(
         dying,
         playback_debug_enabled,
         playback_debug,
+        depth_fallback_scale,
     ) in &mut root_query
     {
+        let gameplay_scale = depth_fallback_scale.map_or(1.0, |s| s.0.x);
         // Freeze animation time for dying entities so they show death face on their last pose frame
         let animation_time_ms = if let Some(dying) = dying {
             dying.started.as_millis() as u64
@@ -1218,6 +1316,7 @@ pub fn update_composed_enemy_visuals(
             &part_states,
             position.0,
             visual_offset,
+            gameplay_scale,
         );
         resolved_part_states.parts = build_resolved_part_states(
             cache,
@@ -1225,9 +1324,15 @@ pub fn update_composed_enemy_visuals(
             &resolved_parts,
             &part_states,
             position.0,
+            gameplay_scale,
         );
-        resolved_part_states.fragments =
-            build_resolved_part_fragment_states(&resolved_fragments, position.0, visual_offset);
+        resolved_part_states.gameplay_scale = gameplay_scale;
+        resolved_part_states.fragments = build_resolved_part_fragment_states(
+            &resolved_fragments,
+            position.0,
+            visual_offset,
+            gameplay_scale,
+        );
         resolved_part_states.visual_offset = visual_offset;
         frame_output.parts = parts;
         frame_output.origin = metrics.origin;
@@ -1256,16 +1361,12 @@ pub fn apply_composed_enemy_visuals(
     for (mut output, mut composite, mut anchor, mut visibility) in &mut query {
         if output.visible {
             composite.parts = std::mem::take(&mut output.parts);
-            composite.origin = output.origin;
-            composite.size = output.size;
-            composite.frame_count = 1;
+            composite.set_native_metrics(output.origin, output.size, 1);
             *anchor = output.anchor;
             *visibility = Visibility::Visible;
         } else {
             composite.parts.clear();
-            composite.origin = IVec2::ZERO;
-            composite.size = UVec2::ZERO;
-            composite.frame_count = 0;
+            composite.set_native_metrics(IVec2::ZERO, UVec2::ZERO, 0);
             *visibility = Visibility::Hidden;
         }
         output.visible = false;
@@ -2693,6 +2794,7 @@ fn build_collision_state(
     part_states: &ComposedPartStates,
     root_position: Vec2,
     visual_offset: Vec2,
+    gameplay_scale: f32,
 ) -> Vec<ResolvedPartCollision> {
     let mut collisions = Vec::new();
 
@@ -2730,11 +2832,18 @@ fn build_collision_state(
             } else {
                 Vec2::new(collision.offset.x, -collision.offset.y)
             };
+            // Scale the collider shape, offset, and pivot displacement
+            // by the depth-fallback ratio so collision bounds match the
+            // visual presentation at every depth.
+            let authored_pivot =
+                world_point_from_authored(root_position, transform.pivot) + visual_offset;
+            let scaled_pivot = root_position + (authored_pivot - root_position) * gameplay_scale;
             collisions.push(ResolvedPartCollision {
                 part_id: part.id.clone(),
-                collider: Collider::new(collision.shape).with_offset(offset),
-                pivot_position: world_point_from_authored(root_position, transform.pivot)
-                    + visual_offset,
+                collider: Collider::new(collision.shape)
+                    .new_scaled(gameplay_scale)
+                    .with_offset(offset * gameplay_scale),
+                pivot_position: scaled_pivot,
             });
         }
     }
@@ -2748,6 +2857,7 @@ fn build_resolved_part_states(
     resolved_parts: &HashMap<String, ResolvedPartTransform>,
     part_states: &ComposedPartStates,
     root_position: Vec2,
+    gameplay_scale: f32,
 ) -> Vec<ResolvedPartState> {
     let mut states = Vec::new();
 
@@ -2780,6 +2890,8 @@ fn build_resolved_part_states(
             })
             .collect();
 
+        let authored_top_left = world_point_from_authored(root_position, transform.top_left);
+        let authored_pivot = world_point_from_authored(root_position, transform.pivot);
         states.push(ResolvedPartState {
             part_id: part.id.clone(),
             parent_id: part.parent_id.clone(),
@@ -2789,8 +2901,9 @@ fn build_resolved_part_states(
             flip_x: pose.flip_x,
             flip_y: pose.flip_y,
             part_pivot,
-            world_top_left_position: world_point_from_authored(root_position, transform.top_left),
-            world_pivot_position: world_point_from_authored(root_position, transform.pivot),
+            world_top_left_position: root_position
+                + (authored_top_left - root_position) * gameplay_scale,
+            world_pivot_position: root_position + (authored_pivot - root_position) * gameplay_scale,
             tags: part.tags.clone(),
             targetable: part.gameplay.targetable && !part_state.is_some_and(|state| state.broken),
             health_pool: part.gameplay.health_pool.clone(),
@@ -2819,23 +2932,31 @@ fn build_resolved_part_fragment_states(
     resolved_fragments: &[ResolvedPartFragmentTransform],
     root_position: Vec2,
     visual_offset: Vec2,
+    gameplay_scale: f32,
 ) -> Vec<ResolvedPartFragmentState> {
     resolved_fragments
         .iter()
         .map(|fragment| {
-            let world_top_left_position =
-                world_point_from_authored(root_position, fragment.top_left);
+            let authored_top_left = world_point_from_authored(root_position, fragment.top_left);
+            let scaled_top_left =
+                root_position + (authored_top_left - root_position) * gameplay_scale;
+            let scaled_visual_top_left = scaled_top_left + visual_offset * gameplay_scale;
+            // Frame size also scales so the rect matches the visual.
+            let scaled_frame_size = UVec2::new(
+                (fragment.size.x as f32 * gameplay_scale).round() as u32,
+                (fragment.size.y as f32 * gameplay_scale).round() as u32,
+            );
             ResolvedPartFragmentState {
                 part_id: fragment.part_id.clone(),
                 sprite_id: fragment.sprite_id.clone(),
                 draw_order: fragment.draw_order,
                 fragment: fragment.fragment,
                 render_order: fragment.render_order,
-                frame_size: fragment.size,
+                frame_size: scaled_frame_size,
                 flip_x: fragment.flip_x,
                 flip_y: fragment.flip_y,
-                world_top_left_position,
-                visual_top_left_position: world_top_left_position + visual_offset,
+                world_top_left_position: scaled_top_left,
+                visual_top_left_position: scaled_visual_top_left,
             }
         })
         .collect()
@@ -4728,6 +4849,7 @@ mod tests {
             &part_states,
             Vec2::new(85.0, 68.0),
             Vec2::ZERO,
+            1.0,
         );
 
         let head = collisions
@@ -4830,6 +4952,7 @@ mod tests {
             &part_states,
             root,
             Vec2::ZERO,
+            1.0,
         );
         let shifted = build_collision_state(
             &cache,
@@ -4838,6 +4961,7 @@ mod tests {
             &part_states,
             root,
             offset,
+            1.0,
         );
 
         assert!(!base.is_empty(), "should have at least one collision");
@@ -4897,6 +5021,7 @@ mod tests {
             &resolved_parts,
             &part_states,
             Vec2::ZERO,
+            1.0,
         );
 
         let wings_transform = resolved_parts
@@ -4932,6 +5057,7 @@ mod tests {
             &resolved_fragments,
             Vec2::new(10.0, 20.0),
             Vec2::new(1.0, 2.0),
+            1.0,
         );
         assert_eq!(fragment_states.len(), resolved_fragments.len());
         for (state, fragment) in fragment_states.iter().zip(resolved_fragments.iter()) {
@@ -5107,6 +5233,7 @@ mod tests {
                 &part_states,
                 Vec2::ZERO,
                 Vec2::ZERO,
+                1.0,
             ),
         };
 
@@ -5517,6 +5644,7 @@ mod tests {
             &part_states,
             Vec2::ZERO,
             Vec2::ZERO,
+            1.0,
         );
         assert_eq!(
             active.len(),
@@ -5535,6 +5663,7 @@ mod tests {
             &part_states,
             Vec2::ZERO,
             Vec2::ZERO,
+            1.0,
         );
         assert!(
             after_break.is_empty(),
@@ -6489,5 +6618,165 @@ mod tests {
             SpawnAnchorMode::Origin,
             "exported mosquiton should have Origin anchor"
         );
+    }
+
+    // --- Gameplay-scale spatial contract tests ---
+    //
+    // Verify that the scaling formula `root + (authored - root) * scale`
+    // is applied consistently to both resolved parts and collision.
+
+    #[test]
+    fn world_point_from_authored_basic() {
+        let root = Vec2::new(100.0, 50.0);
+        let pt = IVec2::new(10, 5);
+        let result = world_point_from_authored(root, pt);
+        // Y is flipped: root.y + (-5) = 45
+        assert!((result.x - 110.0).abs() < f32::EPSILON);
+        assert!((result.y - 45.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn gameplay_scale_shrinks_part_offset() {
+        let root = Vec2::new(100.0, 50.0);
+        let authored = world_point_from_authored(root, IVec2::new(20, 10));
+        let scale = 0.5;
+        let scaled = root + (authored - root) * scale;
+        // Offset (20, -10) * 0.5 = (10, -5) → (110, 45)
+        assert!((scaled.x - 110.0).abs() < 0.01);
+        assert!((scaled.y - 45.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn gameplay_scale_1_preserves_positions() {
+        let root = Vec2::new(100.0, 50.0);
+        let authored = world_point_from_authored(root, IVec2::new(20, 10));
+        let scaled = root + (authored - root) * 1.0;
+        assert!((scaled - authored).length() < f32::EPSILON);
+    }
+
+    #[test]
+    fn collision_shape_scales_with_gameplay_scale() {
+        use carcinisation_collision::shapes::{Collider, ColliderShape};
+
+        let collider = Collider::new(ColliderShape::Circle(10.0));
+        let scaled = collider.new_scaled(0.5);
+        match scaled.shape {
+            ColliderShape::Circle(r) => assert!((r - 5.0).abs() < f32::EPSILON),
+            _ => panic!("expected circle"),
+        }
+    }
+
+    #[test]
+    fn collision_pivot_and_part_pivot_use_same_formula() {
+        let root = Vec2::new(100.0, 50.0);
+        let authored_pivot = IVec2::new(15, 8);
+        let scale = 0.4;
+
+        // Part position (build_resolved_part_states)
+        let authored_world = world_point_from_authored(root, authored_pivot);
+        let part_scaled = root + (authored_world - root) * scale;
+
+        // Collision pivot (build_collision_state)
+        let collision_scaled = root + (authored_world - root) * scale;
+
+        assert!(
+            (part_scaled - collision_scaled).length() < f32::EPSILON,
+            "collision and part pivots should be identical"
+        );
+    }
+
+    #[test]
+    fn deep_depth_scale_produces_tight_collision() {
+        use carcinisation_collision::shapes::{Collider, ColliderShape};
+
+        let root = Vec2::new(100.0, 80.0);
+        let authored_pivot = world_point_from_authored(root, IVec2::new(5, -3));
+        let scale = 0.35; // approximately depth 7 with authored depth 3
+
+        let scaled_pivot = root + (authored_pivot - root) * scale;
+        let collider = Collider::new(ColliderShape::Circle(8.0))
+            .new_scaled(scale)
+            .with_offset(Vec2::new(0.0, 2.0) * scale);
+
+        // The collision centre should be close to entity
+        let collision_center = scaled_pivot + collider.offset;
+        let dist = (collision_center - root).length();
+        assert!(
+            dist < 10.0,
+            "scaled collision center should be tight around root, got dist={dist}"
+        );
+
+        // And the radius should be small
+        match collider.shape {
+            ColliderShape::Circle(r) => {
+                assert!(r < 4.0, "scaled radius should be small, got {r}");
+            }
+            _ => panic!("expected circle"),
+        }
+    }
+
+    #[test]
+    fn fragment_positions_scale_with_gameplay_scale() {
+        let root = Vec2::new(100.0, 50.0);
+        let authored_offset = IVec2::new(10, -5); // authored top-left offset
+        let visual_offset = Vec2::ZERO; // Origin mode
+        let scale = 0.5;
+
+        let authored_pos = world_point_from_authored(root, authored_offset);
+        let expected_scaled = root + (authored_pos - root) * scale;
+
+        let fragment = ResolvedPartFragmentTransform {
+            part_id: "body".into(),
+            sprite_id: "body_0".into(),
+            draw_order: 0,
+            fragment: 0,
+            render_order: 0,
+            size: UVec2::new(20, 30),
+            top_left: authored_offset,
+            flip_x: false,
+            flip_y: false,
+        };
+        let states = build_resolved_part_fragment_states(&[fragment], root, visual_offset, scale);
+        assert_eq!(states.len(), 1);
+        let state = &states[0];
+
+        // Position scaled correctly
+        assert!(
+            (state.world_top_left_position - expected_scaled).length() < 0.01,
+            "fragment position should be scaled: got {:?}, expected {:?}",
+            state.world_top_left_position,
+            expected_scaled,
+        );
+
+        // Frame size scaled correctly
+        assert_eq!(state.frame_size.x, 10, "width 20 * 0.5 = 10");
+        assert_eq!(state.frame_size.y, 15, "height 30 * 0.5 = 15");
+    }
+
+    #[test]
+    fn fragment_positions_unscaled_at_authored_depth() {
+        let root = Vec2::new(100.0, 50.0);
+        let authored_offset = IVec2::new(10, -5);
+
+        let authored_pos = world_point_from_authored(root, authored_offset);
+
+        let fragment = ResolvedPartFragmentTransform {
+            part_id: "body".into(),
+            sprite_id: "body_0".into(),
+            draw_order: 0,
+            fragment: 0,
+            render_order: 0,
+            size: UVec2::new(20, 30),
+            top_left: authored_offset,
+            flip_x: false,
+            flip_y: false,
+        };
+        let states = build_resolved_part_fragment_states(&[fragment], root, Vec2::ZERO, 1.0);
+
+        assert!(
+            (states[0].world_top_left_position - authored_pos).length() < f32::EPSILON,
+            "at scale 1.0, fragment should be at authored position"
+        );
+        assert_eq!(states[0].frame_size, UVec2::new(20, 30));
     }
 }

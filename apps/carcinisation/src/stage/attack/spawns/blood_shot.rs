@@ -9,7 +9,7 @@ use crate::stage::{
     components::{
         StageEntity,
         damage::InflictsDamage,
-        interactive::{Health, Hittable},
+        interactive::{ColliderData, Health, Hittable},
         placement::{AuthoredDepths, Depth},
     },
     player::components::PLAYER_DEPTH,
@@ -92,6 +92,7 @@ pub fn spawn_blood_shot_attack(
     target_pos: Vec2,
     current_pos: Vec2,
     depth: &Depth,
+    gameplay_scale: f32,
     attachment: Option<AttachedToComposedPart>,
 ) {
     let attack_type = EnemyHoveringAttackType::BloodShot;
@@ -136,7 +137,17 @@ pub fn spawn_blood_shot_attack(
     ));
 
     if !collider_data.0.is_empty() {
-        entity_commands.insert(collider_data);
+        // Scale the collider by the spawning enemy's gameplay scale so
+        // that blood shots from deep-depth (small) enemies have
+        // proportionally smaller hit areas.
+        let scaled_collider = ColliderData(
+            collider_data
+                .0
+                .into_iter()
+                .map(|c| c.new_scaled(gameplay_scale))
+                .collect(),
+        );
+        entity_commands.insert(scaled_collider);
     }
 
     entity_commands.insert(PendingBloodShotMotion {

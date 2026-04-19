@@ -3,13 +3,15 @@
 #[cfg(debug_assertions)]
 pub mod plugin;
 #[cfg(debug_assertions)]
-mod systems;
+pub mod systems;
 pub mod types;
 
 #[cfg(debug_assertions)]
+pub use self::systems::DebugColliderOverlay;
+#[cfg(debug_assertions)]
 use self::{
     systems::{
-        debug_damage_composed_parts, draw_colliders, draw_composed_parts, draw_floor_lines,
+        debug_damage_composed_parts, draw_colliders, draw_floor_lines,
         log_composed_health_pool_changes,
     },
     types::register_types,
@@ -89,14 +91,22 @@ impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         register_types(app);
         app.init_resource::<DebugComposedDamageProbe>()
+            .init_resource::<systems::DebugColliderOverlay>()
             .add_systems(Startup, activate_system::<DebugPlugin>)
             .add_active_systems::<DebugPlugin, _>((
-                draw_floor_lines,
-                draw_colliders,
-                draw_composed_parts,
-                systems::toggle_debug_god_mode,
-                debug_damage_composed_parts,
-                log_composed_health_pool_changes,
+                (
+                    draw_floor_lines,
+                    draw_colliders,
+                    systems::draw_pixel_mask_outlines,
+                ),
+                (
+                    systems::toggle_debug_god_mode,
+                    systems::toggle_collider_overlay,
+                ),
+                (
+                    debug_damage_composed_parts,
+                    log_composed_health_pool_changes,
+                ),
             ));
     }
 }

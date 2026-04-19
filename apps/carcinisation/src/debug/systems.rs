@@ -7,12 +7,19 @@ use super::{
 use crate::{
     globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
     stage::{
+        attack::components::EnemyAttack,
+        collision::{CollisionTarget, MaskCollisionAssets, visit_target_debug_collider},
         components::{
             interactive::{ColliderData, ColliderShape},
             placement::{Depth, Floor},
         },
+        destructible::components::Destructible,
         enemy::{
-            composed::{ComposedCollisionState, ComposedHealthPools, ComposedResolvedParts},
+            components::Enemy,
+            composed::{
+                ComposedAtlasBindings, ComposedCollisionState, ComposedHealthPools,
+                ComposedResolvedParts,
+            },
             mosquiton::entity::EnemyMosquiton,
         },
         messages::PartDamageMessage,
@@ -20,7 +27,10 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::*;
+use carcinisation_collision::{
+    WorldMaskInstance, extract_mask_boundary, mask_edge_to_world_points,
+};
 
 pub const LINE_EXTENSION: f32 = 1000.;
 
@@ -29,6 +39,35 @@ const SCREEN_Y: f32 = SCREEN_RESOLUTION.y as f32;
 const DEBUG_HEAD_DAMAGE: u32 = 3;
 const DEBUG_BODY_DAMAGE: u32 = 5;
 const DEBUG_ARM_DAMAGE: u32 = 4;
+const MASK_BASE_HUE_DEG: f32 = 132.0;
+const BOX_BASE_HUE_DEG: f32 = 190.0;
+const RADIAL_BASE_HUE_DEG: f32 = 62.0;
+const BASE_SATURATION: f32 = 0.9;
+const BASE_LIGHTNESS: f32 = 0.58;
+const COLLIDER_ALPHA: f32 = 0.7;
+const ENEMY_HUE_OFFSET_PERCENT: f32 = 0.0;
+const PROJECTILE_HUE_OFFSET_PERCENT: f32 = 0.10;
+const DESTRUCTIBLE_HUE_OFFSET_PERCENT: f32 = -0.08;
+const ENEMY_SATURATION_DELTA: f32 = 0.0;
+const PROJECTILE_SATURATION_DELTA: f32 = 0.05;
+const DESTRUCTIBLE_SATURATION_DELTA: f32 = -0.18;
+const ENEMY_LIGHTNESS_DELTA: f32 = 0.0;
+const PROJECTILE_LIGHTNESS_DELTA: f32 = 0.10;
+const DESTRUCTIBLE_LIGHTNESS_DELTA: f32 = -0.10;
+
+#[derive(Clone, Copy)]
+enum DebugColliderEntityClass {
+    Enemy,
+    Projectile,
+    Destructible,
+}
+
+#[derive(Clone, Copy)]
+enum DebugColliderVisualKind {
+    Mask,
+    Box,
+    Radial,
+}
 
 /// @system Toggles debug god mode with `Shift+G`.
 ///
@@ -43,8 +82,15 @@ pub fn toggle_debug_god_mode(
         return;
     };
 
-    let shift_held = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
-    if shift_held && keys.just_pressed(KeyCode::KeyG) {
+    let modifier_held = keys.any_pressed([
+        KeyCode::ShiftLeft,
+        KeyCode::ShiftRight,
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+    ]);
+    if modifier_held && keys.just_pressed(KeyCode::KeyG) {
         god_mode.enabled = !god_mode.enabled;
         info!(
             "Debug god mode {}",
@@ -97,76 +143,155 @@ pub fn draw_floor_lines(mut gizmos: Gizmos, query: Query<(&Depth, &Floor)>) {
     }
 }
 
-/// @system Visualises collider shapes in the viewport-relative coordinate space.
-pub fn draw_colliders(
-    mut gizmos: Gizmos,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
-    query: Query<(&ColliderData, &PxSubPosition)>,
+/// Toggle collider debug overlay with Cmd+O.
+pub fn toggle_collider_overlay(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut overlay: ResMut<DebugColliderOverlay>,
 ) {
-    let camera_pos = camera_query.single().unwrap();
-
-    for (data, position) in query.iter() {
-        let absolute_position = position.0 - camera_pos.0;
-        for data in &data.0 {
-            match data.shape {
-                ColliderShape::Circle(radius) => {
-                    gizmos.circle_2d(
-                        to_viewport_coordinates(absolute_position + data.offset),
-                        to_viewport_ratio_x(radius),
-                        Color::ALICE_BLUE,
-                    );
-                }
-                ColliderShape::Box(size) => {
-                    gizmos.rect_2d(
-                        to_viewport_coordinates(absolute_position + data.offset),
-                        to_viewport_ratio(size),
-                        Color::FUCHSIA,
-                    );
-                }
+    let modifier_held = keys.any_pressed([
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+    ]);
+    if modifier_held && keys.just_pressed(KeyCode::KeyO) {
+        overlay.enabled = !overlay.enabled;
+        info!(
+            "Collider debug overlay {}",
+            if overlay.enabled {
+                "enabled"
+            } else {
+                "disabled"
             }
-        }
+        );
     }
 }
 
-/// @system Visualises resolved composed-part pivots and collision shapes in world space.
-pub fn draw_composed_parts(
+/// Controls visibility of all collision debug gizmos:
+/// - `ColliderData` circles/boxes for simple entities (Mosquito, Tardigrade, etc.)
+/// - Pixel mask outlines for composed enemies (Mosquiton, Spidey)
+///
+/// Toggle at runtime with Cmd+O. Set `CARCINISATION_SHOW_COLLIDERS=true`
+/// in `.env` to start enabled.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct DebugColliderOverlay {
+    pub enabled: bool,
+}
+
+impl DebugColliderOverlay {
+    #[must_use]
+    pub const fn new(enabled: bool) -> Self {
+        Self { enabled }
+    }
+}
+
+/// @system Visualises entity-level collider shapes (ColliderData).
+///
+/// Gated by [`DebugColliderOverlay`].
+pub(crate) fn draw_colliders(
     mut gizmos: Gizmos,
+    overlay: Res<DebugColliderOverlay>,
     camera_query: Query<&PxSubPosition, With<CameraPos>>,
-    query: Query<(&ComposedCollisionState, &ComposedResolvedParts)>,
+    mut collision_assets: MaskCollisionAssets<'_, '_>,
+    query: Query<
+        (
+            &PxPosition,
+            &PxSubPosition,
+            &PxAnchor,
+            &PxCanvas,
+            Option<&PxFrameView>,
+            Option<&ColliderData>,
+            Option<&PxSprite>,
+            Option<&PxAtlasSprite>,
+            Option<&PxPresentationTransform>,
+            Option<&ComposedCollisionState>,
+            Option<&ComposedResolvedParts>,
+            Option<&ComposedAtlasBindings>,
+            Option<&Enemy>,
+            Option<&EnemyAttack>,
+            Option<&Destructible>,
+        ),
+        Or<(With<ColliderData>, With<ComposedCollisionState>)>,
+    >,
 ) {
+    if !overlay.enabled {
+        return;
+    }
     let camera_pos = camera_query.single().unwrap();
+    let camera_world = camera_pos.0.round().as_ivec2();
+    collision_assets.refresh();
 
-    for (collisions, resolved_parts) in query.iter() {
-        let visual_offset = resolved_parts.visual_offset();
-        for part in resolved_parts.parts() {
-            gizmos.circle_2d(
-                to_viewport_coordinates(part.world_pivot_position + visual_offset - camera_pos.0),
-                to_viewport_ratio_x(1.5),
-                Color::YELLOW_GREEN,
-            );
-        }
+    for (
+        position,
+        sub_position,
+        anchor,
+        canvas,
+        frame,
+        collider_data,
+        sprite,
+        atlas_sprite,
+        presentation,
+        composed_collision_state,
+        resolved_parts,
+        bindings,
+        enemy,
+        enemy_attack,
+        destructible,
+    ) in query.iter()
+    {
+        let entity_class = debug_collider_entity_class(enemy, enemy_attack, destructible);
+        let target = CollisionTarget {
+            position,
+            sub_position,
+            anchor,
+            canvas,
+            frame,
+            sprite,
+            atlas_sprite,
+            presentation,
+            collider_data,
+            composed_collision_state,
+            composed_resolved_parts: resolved_parts,
+            composed_atlas_bindings: bindings,
+            enemy,
+            destructible,
+        };
 
-        for collision in collisions.collisions() {
-            let center = collision.pivot_position + collision.collider.offset - camera_pos.0;
-            match collision.collider.shape {
+        visit_target_debug_collider(
+            target,
+            camera_world,
+            &mut collision_assets,
+            |_| {},
+            |origin, collider| match collider.shape {
                 ColliderShape::Circle(radius) => {
-                    gizmos.circle_2d(
-                        to_viewport_coordinates(center),
-                        to_viewport_ratio_x(radius),
-                        Color::srgb(1.0, 0.55, 0.0),
+                    draw_circle_collider_2d(
+                        &mut gizmos,
+                        origin + collider.offset,
+                        radius,
+                        debug_collider_color(entity_class, DebugColliderVisualKind::Radial),
+                        |point| to_viewport_coordinates(point - camera_pos.0),
+                        to_viewport_ratio_x,
                     );
                 }
                 ColliderShape::Box(size) => {
-                    gizmos.rect_2d(
-                        to_viewport_coordinates(center),
-                        to_viewport_ratio(size),
-                        Color::srgb(0.1, 0.9, 0.9),
+                    draw_rect_collider_2d(
+                        &mut gizmos,
+                        origin + collider.offset,
+                        size,
+                        debug_collider_color(entity_class, DebugColliderVisualKind::Box),
+                        |point| to_viewport_coordinates(point - camera_pos.0),
+                        to_viewport_ratio,
                     );
                 }
-            }
-        }
+            },
+        );
     }
 }
+
+// draw_composed_parts removed: composed enemies use pixel-mask collision
+// exclusively. The pixel mask outline (Cmd+M) shows the real collision
+// shape. Analytic shapes on composed enemies are only for legacy
+// compatibility and have no gameplay effect.
 
 /// @system In debug builds, triggers deterministic Mosquiton part damage probes.
 ///
@@ -366,6 +491,161 @@ fn take_debug_probe_request(
     } else {
         None
     }
+}
+
+// ── Pixel mask outline debug drawing ──────────────────────────────
+
+/// @system Draws pixel mask outlines for simple and composed mask-driven targets.
+///
+/// Uses the same shared mask placement as gameplay hit detection so debug
+/// outlines reflect the real authoritative collision shape.
+pub(crate) fn draw_pixel_mask_outlines(
+    mut gizmos: Gizmos,
+    overlay: Res<DebugColliderOverlay>,
+    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    mut collision_assets: MaskCollisionAssets<'_, '_>,
+    query: Query<
+        (
+            &PxSubPosition,
+            Option<&ColliderData>,
+            Option<&ComposedCollisionState>,
+            &PxPosition,
+            &PxAnchor,
+            &PxCanvas,
+            Option<&PxFrameView>,
+            Option<&PxSprite>,
+            Option<&PxAtlasSprite>,
+            Option<&PxPresentationTransform>,
+            Option<&ComposedResolvedParts>,
+            Option<&ComposedAtlasBindings>,
+            Option<&Enemy>,
+            Option<&EnemyAttack>,
+            Option<&Destructible>,
+        ),
+        Or<(With<ColliderData>, With<ComposedCollisionState>)>,
+    >,
+) {
+    if !overlay.enabled {
+        return;
+    }
+    let camera_pos = camera_query.single().unwrap();
+    let camera_world = camera_pos.0.round().as_ivec2();
+    collision_assets.refresh();
+
+    for (
+        sub_position,
+        collider_data,
+        composed_collision_state,
+        position,
+        anchor,
+        canvas,
+        frame,
+        sprite,
+        atlas_sprite,
+        presentation,
+        resolved_parts,
+        bindings,
+        enemy,
+        enemy_attack,
+        destructible,
+    ) in query.iter()
+    {
+        let entity_class = debug_collider_entity_class(enemy, enemy_attack, destructible);
+        let target = CollisionTarget {
+            position,
+            sub_position,
+            anchor,
+            canvas,
+            frame,
+            sprite,
+            atlas_sprite,
+            presentation,
+            collider_data,
+            composed_collision_state,
+            composed_resolved_parts: resolved_parts,
+            composed_atlas_bindings: bindings,
+            enemy,
+            destructible,
+        };
+
+        visit_target_debug_collider(
+            target,
+            camera_world,
+            &mut collision_assets,
+            |mask| {
+                draw_mask_outline_instance(
+                    &mut gizmos,
+                    camera_pos.0,
+                    debug_collider_color(entity_class, DebugColliderVisualKind::Mask),
+                    mask,
+                )
+            },
+            |_, _| {},
+        );
+    }
+}
+
+fn draw_mask_outline_instance(
+    gizmos: &mut Gizmos<'_, '_>,
+    camera_pos: Vec2,
+    color: Color,
+    mask: WorldMaskInstance<'_>,
+) {
+    let source_size = mask.source.frame_size();
+    let segments = extract_mask_boundary(mask.source, mask.frame)
+        .into_iter()
+        .map(|edge| mask_edge_to_world_points(mask.world, source_size, edge));
+    draw_world_mask_outline_2d(gizmos, segments, color, |point| {
+        to_viewport_coordinates(point - camera_pos)
+    });
+}
+
+fn debug_collider_entity_class(
+    enemy: Option<&Enemy>,
+    enemy_attack: Option<&EnemyAttack>,
+    destructible: Option<&Destructible>,
+) -> DebugColliderEntityClass {
+    if enemy_attack.is_some() {
+        DebugColliderEntityClass::Projectile
+    } else if destructible.is_some() {
+        DebugColliderEntityClass::Destructible
+    } else {
+        let _ = enemy;
+        DebugColliderEntityClass::Enemy
+    }
+}
+
+fn debug_collider_color(
+    entity_class: DebugColliderEntityClass,
+    kind: DebugColliderVisualKind,
+) -> Color {
+    let base_hue = match kind {
+        DebugColliderVisualKind::Mask => MASK_BASE_HUE_DEG,
+        DebugColliderVisualKind::Box => BOX_BASE_HUE_DEG,
+        DebugColliderVisualKind::Radial => RADIAL_BASE_HUE_DEG,
+    };
+    let (hue_offset_percent, saturation_delta, lightness_delta) = match entity_class {
+        DebugColliderEntityClass::Enemy => (
+            ENEMY_HUE_OFFSET_PERCENT,
+            ENEMY_SATURATION_DELTA,
+            ENEMY_LIGHTNESS_DELTA,
+        ),
+        DebugColliderEntityClass::Projectile => (
+            PROJECTILE_HUE_OFFSET_PERCENT,
+            PROJECTILE_SATURATION_DELTA,
+            PROJECTILE_LIGHTNESS_DELTA,
+        ),
+        DebugColliderEntityClass::Destructible => (
+            DESTRUCTIBLE_HUE_OFFSET_PERCENT,
+            DESTRUCTIBLE_SATURATION_DELTA,
+            DESTRUCTIBLE_LIGHTNESS_DELTA,
+        ),
+    };
+
+    let hue = (base_hue + hue_offset_percent * 360.0).rem_euclid(360.0);
+    let saturation = (BASE_SATURATION + saturation_delta).clamp(0.0, 1.0);
+    let lightness = (BASE_LIGHTNESS + lightness_delta).clamp(0.0, 1.0);
+    Color::hsla(hue, saturation, lightness, COLLIDER_ALPHA)
 }
 
 #[cfg(test)]

@@ -18,6 +18,7 @@ headed = [
     "bevy_core_pipeline",
     "bevy_picking",
     "bevy_input_focus",
+    "bevy_gizmos",
 ]
 default = ["headed"]
 gpu_palette = ["headed"]
@@ -44,6 +45,7 @@ bevy_derive = { version = "0.18.0", default-features = false }
 bevy_app = { version = "0.18.0", default-features = false }
 bevy_ecs = { version = "0.18.0", default-features = false }
 bevy_time = { version = "0.18.0", default-features = false }
+bevy_diagnostic = { version = "0.18.0", default-features = false }
 bevy_asset = { version = "0.18.0", default-features = false }
 bevy_reflect = { version = "0.18.0", default-features = false }
 bevy_input = { version = "0.18.0", default-features = false }
@@ -54,6 +56,7 @@ bevy_shader = { version = "0.18.0", default-features = false, optional = true }
 bevy_core_pipeline = { version = "0.18.0", default-features = false, optional = true }
 bevy_picking = { version = "0.18.0", default-features = false, optional = true }
 bevy_input_focus = { version = "0.18.0", default-features = false, optional = true }
+bevy_gizmos = { version = "0.18.0", default-features = false, optional = true }
 bevy_brp_extras = { version = "0.18.6", default-features = false, optional = true }
 bytemuck = { version = "1.25.0", features = ["derive"] }
 flate2 = "1.1"

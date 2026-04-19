@@ -1,7 +1,7 @@
 use crate::stage::{
     components::{
         StageEntity,
-        interactive::{ColliderData, Flickerer, Health, Hittable},
+        interactive::{Flickerer, Health, Hittable},
         placement::{Depth, Speed},
     },
     enemy::{
@@ -70,7 +70,6 @@ impl Default for SpideyDefaultBundle {
 #[derive(Bundle, Debug)]
 pub struct SpideyBundle {
     pub behaviors: EnemyBehaviors,
-    pub collider_data: ColliderData,
     pub composed_animation: ComposedAnimationState,
     pub composed_visual: ComposedEnemyVisual,
     pub transform: Transform,

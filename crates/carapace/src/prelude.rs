@@ -24,6 +24,10 @@ pub(crate) use bevy_window::prelude::*;
 
 pub(crate) const OK: Result = Ok(());
 
+#[cfg(feature = "headed")]
+pub use crate::debug_draw::{
+    draw_circle_collider_2d, draw_rect_collider_2d, draw_world_mask_outline_2d,
+};
 pub use crate::frame::{
     PxFrame, PxFrameBinding, PxFrameControl, PxFrameCount, PxFrameSelector, PxFrameTransition,
     PxFrameView,
@@ -53,8 +57,8 @@ pub use crate::{
     rect::PxRect,
     screen::{PxOverlayCamera, ScreenSize},
     sprite::{
-        PxCompositePart, PxCompositePartSource, PxCompositeSprite, PxPartTransform, PxSprite,
-        PxSpriteAsset,
+        PxAuthoritativeCompositeMetrics, PxCompositePart, PxCompositePartSource, PxCompositeSprite,
+        PxPartTransform, PxSprite, PxSpriteAsset,
     },
     text::{PxText, PxTypeface},
     ui::{

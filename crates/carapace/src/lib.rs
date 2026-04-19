@@ -40,6 +40,8 @@ pub mod atlas;
 pub mod blink;
 mod camera;
 pub mod cursor;
+#[cfg(feature = "headed")]
+pub mod debug_draw;
 pub mod filter;
 pub mod frame;
 mod image;

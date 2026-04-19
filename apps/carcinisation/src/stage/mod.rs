@@ -2,6 +2,7 @@
 
 pub mod attack;
 pub mod bundles;
+pub mod collision;
 pub mod components;
 pub mod data;
 pub mod depth_debug;
@@ -14,6 +15,7 @@ pub mod player;
 pub mod projection;
 pub mod resources;
 pub mod restart;
+pub mod spawn_placement;
 pub mod sprite_names;
 mod systems;
 pub mod ui;
@@ -55,8 +57,8 @@ use self::{
         on_next_step_cleanup_stop_step, on_stage_cleared, read_step_trigger,
         setup::on_stage_startup,
         spawn::{check_dead_drop, on_stage_spawn},
-        tick_stage_step_timer, toggle_game, update_cinematic_step, update_stage,
-        update_stage_time_should_run,
+        tick_stage_step_timer, toggle_game, update_active_projection, update_cinematic_step,
+        update_stage, update_stage_time_should_run,
     },
     ui::{StageUiPlugin, pause_menu::pause_menu_renderer},
 };
@@ -119,6 +121,7 @@ impl Plugin for StagePlugin {
             .init_resource::<TimeShouldRun<StageTimeDomain>>()
             .init_resource::<StageProgress>()
             .init_resource::<StageGravity>()
+            .init_resource::<resources::ActiveProjection>()
             .insert_resource(depth_scale::DepthScaleConfig::load_or_default())
             // Message streams for the combat/progression loop.
             .add_message::<DamageMessage>()
@@ -206,6 +209,7 @@ impl Plugin for StagePlugin {
             .add_active_systems_in::<StagePlugin, _>(PostUpdate, apply_depth_fallback_scale)
             .add_active_systems::<StagePlugin, _>((
                 update_stage,
+                update_active_projection.after(update_stage),
                 update_stage_time_should_run.after(update_stage),
                 (
                     (

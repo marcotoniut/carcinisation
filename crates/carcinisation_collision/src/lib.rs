@@ -9,6 +9,8 @@ pub use shapes::{Collider, ColliderData, ColliderShape};
 
 #[cfg(feature = "pixel-mask")]
 pub use pixel_mask::{
-    PixelCollisionCache, SpritePixelData, mask_contains_point, pixel_overlap, sprite_data,
-    sprite_rect,
+    AtlasMaskFrames, AtlasPixelCollisionCache, AtlasPixelData, MaskEdge, PixelCollisionCache,
+    PixelMaskSource, SpritePixelData, WorldMaskInstance, WorldMaskRect, atlas_data,
+    extract_mask_boundary, mask_edge_to_world_points, sprite_data, world_mask_contains_point,
+    world_mask_overlap, world_mask_rect_from_spatial, world_mask_rect_from_top_left,
 };
