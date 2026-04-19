@@ -9,10 +9,7 @@ use crate::{
     stage::{
         attack::components::EnemyAttack,
         collision::{CollisionTarget, MaskCollisionAssets, visit_target_debug_collider},
-        components::{
-            interactive::{ColliderData, ColliderShape},
-            placement::{Depth, Floor},
-        },
+        components::{interactive::ColliderData, placement::Depth},
         destructible::components::Destructible,
         enemy::{
             components::Enemy,
@@ -22,14 +19,16 @@ use crate::{
             },
             mosquiton::entity::EnemyMosquiton,
         },
+        floors::{ActiveFloors, FloorSurface},
         messages::PartDamageMessage,
+        player::components::PlayerAttack,
     },
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
 use carapace::prelude::*;
 use carcinisation_collision::{
-    WorldMaskInstance, extract_mask_boundary, mask_edge_to_world_points,
+    ColliderShape, WorldMaskInstance, extract_mask_boundary, mask_edge_to_world_points,
 };
 
 pub const LINE_EXTENSION: f32 = 1000.;
@@ -46,19 +45,23 @@ const BASE_SATURATION: f32 = 0.9;
 const BASE_LIGHTNESS: f32 = 0.58;
 const COLLIDER_ALPHA: f32 = 0.7;
 const ENEMY_HUE_OFFSET_PERCENT: f32 = 0.0;
-const PROJECTILE_HUE_OFFSET_PERCENT: f32 = 0.10;
+const PROJECTILE_HUE_OFFSET_PERCENT: f32 = 0.0;
 const DESTRUCTIBLE_HUE_OFFSET_PERCENT: f32 = -0.08;
+const PLAYER_SHOT_HUE_DEG: f32 = 340.0;
+const PLAYER_SHOT_SATURATION: f32 = 0.85;
+const PLAYER_SHOT_LIGHTNESS: f32 = 0.65;
 const ENEMY_SATURATION_DELTA: f32 = 0.0;
-const PROJECTILE_SATURATION_DELTA: f32 = 0.05;
+const PROJECTILE_SATURATION_DELTA: f32 = -0.15;
 const DESTRUCTIBLE_SATURATION_DELTA: f32 = -0.18;
 const ENEMY_LIGHTNESS_DELTA: f32 = 0.0;
-const PROJECTILE_LIGHTNESS_DELTA: f32 = 0.10;
+const PROJECTILE_LIGHTNESS_DELTA: f32 = 0.20;
 const DESTRUCTIBLE_LIGHTNESS_DELTA: f32 = -0.10;
 
 #[derive(Clone, Copy)]
 enum DebugColliderEntityClass {
     Enemy,
     Projectile,
+    PlayerShot,
     Destructible,
 }
 
@@ -131,9 +134,19 @@ pub fn to_viewport_coordinates(position: Vec2) -> Vec2 {
 }
 
 /// @system Renders the configured floor heights as horizontal gizmo lines.
-pub fn draw_floor_lines(mut gizmos: Gizmos, query: Query<(&Depth, &Floor)>) {
-    for (_, floor) in query.iter() {
-        let floor_y = to_viewport_coordinate_y(floor.0);
+pub fn draw_floor_lines(mut gizmos: Gizmos, floors: Option<Res<ActiveFloors>>) {
+    let Some(floors) = floors else {
+        return;
+    };
+
+    for (depth, surface) in &floors.lanes {
+        if depth == &Depth::Zero {
+            continue;
+        }
+        let FloorSurface::Solid { y } = surface else {
+            continue;
+        };
+        let floor_y = to_viewport_coordinate_y(*y);
         // TODO calculate position in the real camera SCREEN_RES vs the virtual one
         gizmos.line(
             Vec3::new(-LINE_EXTENSION, floor_y, 0.),
@@ -197,19 +210,23 @@ pub(crate) fn draw_colliders(
         (
             &PxPosition,
             &PxSubPosition,
-            &PxAnchor,
-            &PxCanvas,
-            Option<&PxFrameView>,
+            (&PxAnchor, &PxCanvas),
+            (
+                Option<&PxFrameView>,
+                Option<&PxSprite>,
+                Option<&PxAtlasSprite>,
+                Option<&PxPresentationTransform>,
+            ),
             Option<&ColliderData>,
-            Option<&PxSprite>,
-            Option<&PxAtlasSprite>,
-            Option<&PxPresentationTransform>,
             Option<&ComposedCollisionState>,
             Option<&ComposedResolvedParts>,
             Option<&ComposedAtlasBindings>,
-            Option<&Enemy>,
-            Option<&EnemyAttack>,
-            Option<&Destructible>,
+            (
+                Option<&Enemy>,
+                Option<&EnemyAttack>,
+                Option<&Destructible>,
+                Option<&PlayerAttack>,
+            ),
         ),
         Or<(With<ColliderData>, With<ComposedCollisionState>)>,
     >,
@@ -224,67 +241,110 @@ pub(crate) fn draw_colliders(
     for (
         position,
         sub_position,
-        anchor,
-        canvas,
-        frame,
+        (anchor, canvas),
+        (frame, sprite, atlas_sprite, presentation),
         collider_data,
-        sprite,
-        atlas_sprite,
-        presentation,
         composed_collision_state,
         resolved_parts,
         bindings,
-        enemy,
-        enemy_attack,
-        destructible,
+        (enemy, enemy_attack, destructible, player_attack),
     ) in query.iter()
     {
-        let entity_class = debug_collider_entity_class(enemy, enemy_attack, destructible);
-        let target = CollisionTarget {
-            position,
-            sub_position,
-            anchor,
-            canvas,
-            frame,
-            sprite,
-            atlas_sprite,
-            presentation,
-            collider_data,
-            composed_collision_state,
-            composed_resolved_parts: resolved_parts,
-            composed_atlas_bindings: bindings,
-            enemy,
-            destructible,
+        let entity_class =
+            debug_collider_entity_class(enemy, enemy_attack, destructible, player_attack);
+
+        // Camera-canvas entities are already in screen space; world-canvas
+        // entities need the camera offset subtracted for viewport mapping.
+        let cam_offset = match *canvas {
+            PxCanvas::Camera => Vec2::ZERO,
+            PxCanvas::World => camera_pos.0,
         };
 
-        visit_target_debug_collider(
-            target,
-            camera_world,
-            &mut collision_assets,
-            |_| {},
-            |origin, collider| match collider.shape {
-                ColliderShape::Circle(radius) => {
-                    draw_circle_collider_2d(
-                        &mut gizmos,
-                        origin + collider.offset,
-                        radius,
-                        debug_collider_color(entity_class, DebugColliderVisualKind::Radial),
-                        |point| to_viewport_coordinates(point - camera_pos.0),
-                        to_viewport_ratio_x,
-                    );
+        // Player attacks with geometric colliders (Point cross, Radial circle)
+        // must bypass the mask-first visitor — their visual sprite is not the
+        // collision shape.
+        let has_geometric_player_colliders = player_attack.is_some()
+            && collider_data.is_some_and(|d| {
+                d.0.iter()
+                    .any(|c| !matches!(c.shape, ColliderShape::SpriteMask))
+            });
+
+        if has_geometric_player_colliders {
+            if let Some(data) = collider_data {
+                for collider in &data.0 {
+                    match collider.shape {
+                        ColliderShape::Circle(radius) => {
+                            draw_circle_collider_2d(
+                                &mut gizmos,
+                                sub_position.0 + collider.offset,
+                                radius,
+                                debug_collider_color(entity_class, DebugColliderVisualKind::Radial),
+                                |point| to_viewport_coordinates(point - cam_offset),
+                                to_viewport_ratio_x,
+                            );
+                        }
+                        ColliderShape::Box(size) => {
+                            draw_rect_collider_2d(
+                                &mut gizmos,
+                                sub_position.0 + collider.offset,
+                                size,
+                                debug_collider_color(entity_class, DebugColliderVisualKind::Box),
+                                |point| to_viewport_coordinates(point - cam_offset),
+                                to_viewport_ratio,
+                            );
+                        }
+                        ColliderShape::SpriteMask => {}
+                    }
                 }
-                ColliderShape::Box(size) => {
-                    draw_rect_collider_2d(
-                        &mut gizmos,
-                        origin + collider.offset,
-                        size,
-                        debug_collider_color(entity_class, DebugColliderVisualKind::Box),
-                        |point| to_viewport_coordinates(point - camera_pos.0),
-                        to_viewport_ratio,
-                    );
-                }
-            },
-        );
+            }
+        } else {
+            let target = CollisionTarget {
+                position,
+                sub_position,
+                anchor,
+                canvas,
+                frame,
+                sprite,
+                atlas_sprite,
+                presentation,
+                collider_data,
+                composed_collision_state,
+                composed_resolved_parts: resolved_parts,
+                composed_atlas_bindings: bindings,
+                enemy,
+                destructible,
+            };
+
+            visit_target_debug_collider(
+                target,
+                camera_world,
+                &mut collision_assets,
+                |_| {},
+                |origin, collider| match collider.shape {
+                    ColliderShape::Circle(radius) => {
+                        draw_circle_collider_2d(
+                            &mut gizmos,
+                            origin + collider.offset,
+                            radius,
+                            debug_collider_color(entity_class, DebugColliderVisualKind::Radial),
+                            |point| to_viewport_coordinates(point - cam_offset),
+                            to_viewport_ratio_x,
+                        );
+                    }
+                    ColliderShape::Box(size) => {
+                        draw_rect_collider_2d(
+                            &mut gizmos,
+                            origin + collider.offset,
+                            size,
+                            debug_collider_color(entity_class, DebugColliderVisualKind::Box),
+                            |point| to_viewport_coordinates(point - cam_offset),
+                            to_viewport_ratio,
+                        );
+                    }
+                    ColliderShape::SpriteMask => {}
+                },
+            );
+        }
     }
 }
 
@@ -510,17 +570,21 @@ pub(crate) fn draw_pixel_mask_outlines(
             Option<&ColliderData>,
             Option<&ComposedCollisionState>,
             &PxPosition,
-            &PxAnchor,
-            &PxCanvas,
-            Option<&PxFrameView>,
-            Option<&PxSprite>,
-            Option<&PxAtlasSprite>,
-            Option<&PxPresentationTransform>,
+            (&PxAnchor, &PxCanvas),
+            (
+                Option<&PxFrameView>,
+                Option<&PxSprite>,
+                Option<&PxAtlasSprite>,
+                Option<&PxPresentationTransform>,
+            ),
             Option<&ComposedResolvedParts>,
             Option<&ComposedAtlasBindings>,
-            Option<&Enemy>,
-            Option<&EnemyAttack>,
-            Option<&Destructible>,
+            (
+                Option<&Enemy>,
+                Option<&EnemyAttack>,
+                Option<&Destructible>,
+                Option<&PlayerAttack>,
+            ),
         ),
         Or<(With<ColliderData>, With<ComposedCollisionState>)>,
     >,
@@ -537,20 +601,25 @@ pub(crate) fn draw_pixel_mask_outlines(
         collider_data,
         composed_collision_state,
         position,
-        anchor,
-        canvas,
-        frame,
-        sprite,
-        atlas_sprite,
-        presentation,
+        (anchor, canvas),
+        (frame, sprite, atlas_sprite, presentation),
         resolved_parts,
         bindings,
-        enemy,
-        enemy_attack,
-        destructible,
+        (enemy, enemy_attack, destructible, player_attack),
     ) in query.iter()
     {
-        let entity_class = debug_collider_entity_class(enemy, enemy_attack, destructible);
+        // Player attacks with geometric colliders have no mask to outline.
+        let has_geometric_player_colliders = player_attack.is_some()
+            && collider_data.is_some_and(|d| {
+                d.0.iter()
+                    .any(|c| !matches!(c.shape, ColliderShape::SpriteMask))
+            });
+        if has_geometric_player_colliders {
+            continue;
+        }
+
+        let entity_class =
+            debug_collider_entity_class(enemy, enemy_attack, destructible, player_attack);
         let target = CollisionTarget {
             position,
             sub_position,
@@ -604,8 +673,11 @@ fn debug_collider_entity_class(
     enemy: Option<&Enemy>,
     enemy_attack: Option<&EnemyAttack>,
     destructible: Option<&Destructible>,
+    player_attack: Option<&PlayerAttack>,
 ) -> DebugColliderEntityClass {
-    if enemy_attack.is_some() {
+    if player_attack.is_some() {
+        DebugColliderEntityClass::PlayerShot
+    } else if enemy_attack.is_some() {
         DebugColliderEntityClass::Projectile
     } else if destructible.is_some() {
         DebugColliderEntityClass::Destructible
@@ -624,6 +696,15 @@ fn debug_collider_color(
         DebugColliderVisualKind::Box => BOX_BASE_HUE_DEG,
         DebugColliderVisualKind::Radial => RADIAL_BASE_HUE_DEG,
     };
+    if matches!(entity_class, DebugColliderEntityClass::PlayerShot) {
+        return Color::hsla(
+            PLAYER_SHOT_HUE_DEG,
+            PLAYER_SHOT_SATURATION,
+            PLAYER_SHOT_LIGHTNESS,
+            COLLIDER_ALPHA,
+        );
+    }
+
     let (hue_offset_percent, saturation_delta, lightness_delta) = match entity_class {
         DebugColliderEntityClass::Enemy => (
             ENEMY_HUE_OFFSET_PERCENT,
@@ -640,6 +721,7 @@ fn debug_collider_color(
             DESTRUCTIBLE_SATURATION_DELTA,
             DESTRUCTIBLE_LIGHTNESS_DELTA,
         ),
+        DebugColliderEntityClass::PlayerShot => unreachable!(),
     };
 
     let hue = (base_hue + hue_offset_percent * 360.0).rem_euclid(360.0);
