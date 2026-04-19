@@ -27,13 +27,13 @@ impl From<GBInput> for KeyCode {
     fn from(x: GBInput) -> Self {
         match x {
             GBInput::A => KeyCode::KeyX,
-            GBInput::B => KeyCode::KeyZ,
+            GBInput::B => KeyCode::ShiftLeft,
             GBInput::Up => KeyCode::ArrowUp,
             GBInput::Down => KeyCode::ArrowDown,
             GBInput::Left => KeyCode::ArrowLeft,
             GBInput::Right => KeyCode::ArrowRight,
             GBInput::Start => KeyCode::Enter,
-            GBInput::Select => KeyCode::ShiftRight,
+            GBInput::Select => KeyCode::KeyZ,
             // DEBUG
             GBInput::DUp => KeyCode::KeyW,
             GBInput::DDown => KeyCode::KeyS,
