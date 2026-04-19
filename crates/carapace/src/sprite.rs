@@ -1,9 +1,12 @@
 //! Sprites
 
-use std::{error::Error, path::PathBuf};
+use std::{error::Error, path::PathBuf, time::Instant};
 
 use bevy_asset::{AssetEvent, AssetId, AssetLoader, LoadContext, io::Reader};
 use bevy_derive::{Deref, DerefMut};
+use bevy_diagnostic::{
+    DEFAULT_MAX_HISTORY_LENGTH, Diagnostic, DiagnosticPath, Diagnostics, RegisterDiagnostic,
+};
 #[cfg(feature = "gpu_palette")]
 use bevy_ecs::system::lifetimeless::SRes;
 use bevy_image::{CompressedImageFormats, ImageLoader, ImageLoaderSettings};
@@ -38,9 +41,31 @@ use crate::{
     set::PxSet,
 };
 
+const COMPOSITE_METRICS_ON_CHANGE_COUNT: DiagnosticPath =
+    DiagnosticPath::const_new("carapace/composite_metrics_on_change_count");
+const COMPOSITE_METRICS_ON_CHANGE_PARTS: DiagnosticPath =
+    DiagnosticPath::const_new("carapace/composite_metrics_on_change_parts");
+const COMPOSITE_METRICS_ON_CHANGE_TIME: DiagnosticPath =
+    DiagnosticPath::const_new("carapace/composite_metrics_on_change_time");
+
 pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
     app.init_asset::<PxSpriteAsset>()
-        .register_asset_loader(PxSpriteLoader::new(palette_path));
+        .register_asset_loader(PxSpriteLoader::new(palette_path))
+        .register_diagnostic(
+            Diagnostic::new(COMPOSITE_METRICS_ON_CHANGE_COUNT)
+                .with_suffix(" composites")
+                .with_max_history_length(DEFAULT_MAX_HISTORY_LENGTH),
+        )
+        .register_diagnostic(
+            Diagnostic::new(COMPOSITE_METRICS_ON_CHANGE_PARTS)
+                .with_suffix(" parts")
+                .with_max_history_length(DEFAULT_MAX_HISTORY_LENGTH),
+        )
+        .register_diagnostic(
+            Diagnostic::new(COMPOSITE_METRICS_ON_CHANGE_TIME)
+                .with_suffix(" ms")
+                .with_max_history_length(DEFAULT_MAX_HISTORY_LENGTH),
+        );
 
     app.add_systems(
         PostUpdate,
@@ -49,6 +74,7 @@ pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
             update_composite_metrics_on_assets,
             sync_composite_frame_count_on_animation_added,
         )
+            .after(PxSet::CompositePresentationWrites)
             .before(PxSet::FinishAnimations),
     );
 }
@@ -330,6 +356,16 @@ pub struct PxCompositeSprite {
     pub frame_count: usize,
 }
 
+/// Opt-in marker for composites whose writer keeps cached metrics in sync.
+///
+/// When present, change-driven metric sync trusts the cached `origin`, `size`,
+/// `render_origin`, `render_size`, and `frame_count` already stored on
+/// [`PxCompositeSprite`] instead of rescanning `parts`. Asset-driven sync still
+/// recomputes metrics so hot-reloaded sprite or atlas size changes remain
+/// correct.
+#[derive(Component, Default, Clone, Copy, Debug)]
+pub struct PxAuthoritativeCompositeMetrics;
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PxCompositeMetrics {
     /// Base placement size (from untransformed / native part bounds).
@@ -495,6 +531,18 @@ impl PxCompositeSprite {
             render_origin: IVec2::ZERO,
             frame_count: 0,
         }
+    }
+
+    /// Set cached metrics for a composite whose parts use only native bounds.
+    ///
+    /// This is correct when no part transform expands the render envelope,
+    /// which means the render bounds match the base bounds exactly.
+    pub fn set_native_metrics(&mut self, origin: IVec2, size: UVec2, frame_count: usize) {
+        self.origin = origin;
+        self.size = size;
+        self.render_origin = origin;
+        self.render_size = size;
+        self.frame_count = frame_count;
     }
 
     /// Recompute cached metrics from current parts.
@@ -1097,14 +1145,40 @@ fn sync_composite_metrics(
 fn update_composite_metrics_on_change(
     sprites: Res<Assets<PxSpriteAsset>>,
     atlases: Res<Assets<PxSpriteAtlasAsset>>,
+    mut diagnostics: Diagnostics,
     mut composites: Query<
-        (&mut PxCompositeSprite, Option<&mut PxFrameCount>),
+        (
+            &mut PxCompositeSprite,
+            Option<&mut PxFrameCount>,
+            Has<PxAuthoritativeCompositeMetrics>,
+        ),
         Changed<PxCompositeSprite>,
     >,
 ) {
-    for (mut composite, count) in &mut composites {
+    let started = Instant::now();
+    let mut composite_count = 0usize;
+    let mut part_count = 0usize;
+
+    for (mut composite, mut count, authoritative_metrics) in &mut composites {
+        if authoritative_metrics {
+            if let Some(count) = count.as_mut() {
+                count.0 = composite.frame_count;
+            }
+            continue;
+        }
+
+        composite_count += 1;
+        part_count += composite.parts.len();
         sync_composite_metrics(&mut composite, &sprites, &atlases, count);
     }
+
+    diagnostics.add_measurement(&COMPOSITE_METRICS_ON_CHANGE_COUNT, || {
+        composite_count as f64
+    });
+    diagnostics.add_measurement(&COMPOSITE_METRICS_ON_CHANGE_PARTS, || part_count as f64);
+    diagnostics.add_measurement(&COMPOSITE_METRICS_ON_CHANGE_TIME, || {
+        started.elapsed().as_secs_f64() * 1000.0
+    });
 }
 
 fn update_composite_metrics_on_assets(
@@ -1259,9 +1333,21 @@ mod tests {
         },
         image::PxImage,
     };
+    use bevy_app::{App, Update};
     use bevy_asset::Assets;
+    use bevy_diagnostic::DiagnosticsPlugin;
     use bevy_platform::collections::HashMap;
+    #[cfg(feature = "headed")]
+    use bevy_render::extract_component::ExtractComponent;
+    use bevy_time::Time;
     use insta::assert_snapshot;
+
+    #[cfg_attr(feature = "headed", derive(ExtractComponent))]
+    #[derive(Component, next::Next, Ord, PartialOrd, Eq, PartialEq, Clone, Default, Debug)]
+    enum TestLayer {
+        #[default]
+        Base,
+    }
 
     fn pixels(image: &PxImage) -> Vec<u8> {
         let size = image.size();
@@ -1290,6 +1376,56 @@ mod tests {
             }
         }
         out
+    }
+
+    #[test]
+    fn authoritative_metrics_skip_change_rescan() {
+        let mut app = App::new();
+        app.add_plugins(DiagnosticsPlugin::default())
+            .insert_resource(Assets::<PxSpriteAsset>::default())
+            .insert_resource(Assets::<PxSpriteAtlasAsset>::default())
+            .init_resource::<Time>();
+        crate::position::plug_core::<TestLayer>(&mut app);
+        app.add_systems(Update, update_composite_metrics_on_change);
+
+        let sprite = app
+            .world_mut()
+            .resource_mut::<Assets<PxSpriteAsset>>()
+            .add(PxSpriteAsset {
+                data: PxImage::new(vec![1; 4], 2),
+                frame_size: 4,
+            });
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                PxAuthoritativeCompositeMetrics,
+                PxCompositeSprite {
+                    parts: vec![PxCompositePart::new(sprite)],
+                    ..Default::default()
+                },
+                PxFrameCount(0),
+            ))
+            .id();
+
+        {
+            let mut entity_mut = app.world_mut().entity_mut(entity);
+            let mut composite = entity_mut.get_mut::<PxCompositeSprite>().unwrap();
+            composite.set_native_metrics(IVec2::new(7, -6), UVec2::new(9, 7), 1);
+        }
+
+        app.update();
+
+        let entity_ref = app.world().entity(entity);
+        let composite = entity_ref.get::<PxCompositeSprite>().unwrap();
+        let frame_count = entity_ref.get::<PxFrameCount>().unwrap();
+
+        assert_eq!(composite.origin, IVec2::new(7, -6));
+        assert_eq!(composite.size, UVec2::new(9, 7));
+        assert_eq!(composite.render_origin, IVec2::new(7, -6));
+        assert_eq!(composite.render_size, UVec2::new(9, 7));
+        assert_eq!(composite.frame_count, 1);
+        assert_eq!(frame_count.0, 1);
     }
 
     /// Draw a composite into an image at base (non-render-envelope) size.
