@@ -9,6 +9,8 @@ default-run = "carcinisation"
 default = []
 gallery = []
 brp = ["dep:bevy_brp_extras", "carapace/brp_extras"]
+trace_chrome = ["bevy/trace_chrome", "carapace/profiling_spans"]
+trace_tracy = ["bevy/trace_tracy", "carapace/profiling_spans"]
 
 [dependencies]
 # Workspace crates

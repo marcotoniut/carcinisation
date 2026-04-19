@@ -14,6 +14,9 @@ pub enum PxSet {
     /// The [`PxPosition`] is synced from [`PxSubPosition`]. In `PostUpdate`,
     /// after all gameplay writes during `Update` are complete.
     UpdatePosToSubPos,
+    /// Game-side composite presentation writes must finish before `carapace`
+    /// syncs composite metrics. In `PostUpdate`.
+    CompositePresentationWrites,
     /// Animations are completed. In [`CoreSet::PostUpdate`].
     FinishAnimations,
     /// Update particle emitters. In [`CoreSet::PostUpdate`].

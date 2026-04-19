@@ -27,6 +27,7 @@ use crate::{
 use activable::{Activable, ActivableAppExt, activate_system, deactivate_system};
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPrimaryContextPass;
+use carapace::set::PxSet;
 
 /// Registers the gallery scene: egui panel, animation viewers, and player integration.
 #[derive(Activable)]
@@ -44,7 +45,10 @@ impl Plugin for GalleryPlugin {
                 FixedUpdate,
                 tick_time::<Fixed, StageTimeDomain>,
             )
-            .add_active_systems_in::<GalleryPlugin, _>(PostUpdate, apply_composed_enemy_visuals)
+            .add_active_systems_in::<GalleryPlugin, _>(
+                PostUpdate,
+                apply_composed_enemy_visuals.in_set(PxSet::CompositePresentationWrites),
+            )
             .add_active_systems::<GalleryPlugin, _>((
                 react_to_gallery_selection_changed,
                 apply_gallery_animation,
