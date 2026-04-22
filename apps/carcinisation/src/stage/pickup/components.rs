@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use carapace::prelude::PxFilter;
+use carapace::prelude::CxFilter;
 use std::time::Duration;
 
 #[derive(Component, Debug, Clone, Reflect)]
@@ -28,8 +28,8 @@ pub struct PickupFeedbackGlitter {
     pub toggle_interval: Duration,
     pub next_toggle_at: Duration,
     pub filter_on: bool,
-    pub glitter_filter: PxFilter,
-    pub original_filter: Option<PxFilter>,
+    pub glitter_filter: CxFilter,
+    pub original_filter: Option<CxFilter>,
 }
 
 impl PickupFeedbackGlitter {
@@ -38,8 +38,8 @@ impl PickupFeedbackGlitter {
         start_at: Duration,
         end_at: Duration,
         toggle_interval: Duration,
-        glitter_filter: PxFilter,
-        original_filter: Option<PxFilter>,
+        glitter_filter: CxFilter,
+        original_filter: Option<CxFilter>,
     ) -> Self {
         Self {
             start_at,

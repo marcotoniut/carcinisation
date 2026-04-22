@@ -26,7 +26,7 @@
 //! Depth floor lines are drawn by the shared [`DepthDebugPlugin`] overlay
 //! (enabled by default here; toggle with `Ctrl+P` / `Cmd+P`).
 //!
-//! A [`PxOverlayCamera`] is used so Bevy gizmos render on top of `PxPlugin`'s
+//! A [`CxOverlayCamera`] is used so Bevy gizmos render on top of `CxPlugin`'s
 //! pixel-art output.
 //!
 //! `Ctrl+I` / `Cmd+I` cycles through three horizon profiles (depth 9 floor
@@ -41,11 +41,11 @@
 use bevy::{asset::AssetMetaCheck, prelude::*};
 #[cfg(feature = "brp")]
 use bevy_brp_extras::BrpExtrasPlugin;
-use carapace::{animation::PxAnimationPlugin, prelude::*, set::PxSet};
+use carapace::{animation::CxAnimationPlugin, prelude::*, set::CxSet};
 use carcinisation::{
     globals::SCREEN_RESOLUTION,
     stage::{
-        components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth, Floor},
+        components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth},
         depth_debug::{DepthDebugOverlay, DepthDebugPlugin},
         depth_scale::{DepthScaleConfig, apply_depth_fallback_scale},
         enemy::{
@@ -58,8 +58,9 @@ use carcinisation::{
             entity::EnemyType,
         },
         messages::ComposedAnimationCueMessage,
-        projection::ProjectionProfile,
-        resources::StageTimeDomain,
+        parallax::{NoParallax, compose_presentation_offsets, update_parallax_offset},
+        projection::{ProjectionProfile, compute_visual_x, pan_lateral_view},
+        resources::{ActiveProjection, DebugPanConfig, ProjectionView, StageTimeDomain},
     },
 };
 
@@ -122,7 +123,7 @@ const SPIDEY_LANDING_SECS: f32 = 0.3;
 // --- Resources ---
 
 /// Active horizon profile.  Wraps a [`ProjectionProfile`] and an index into
-/// [`HORIZON_FRACTIONS`] for cycling via `Ctrl+O`.
+/// [`HORIZON_FRACTIONS`] for cycling via `Ctrl+I`.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 struct HorizonProfile {
@@ -231,11 +232,6 @@ enum WalkPhase {
     SpideyLanding { remaining: f32 },
 }
 
-/// Marker for Floor entities managed by this example (so we can update them).
-#[derive(Component, Reflect)]
-#[reflect(Component)]
-struct DepthFloorLine;
-
 #[derive(Component, Clone, Copy, Debug, Reflect)]
 #[reflect(Component)]
 struct DepthTraverseScaleOverride {
@@ -291,17 +287,6 @@ enum Layer {
     #[default]
     Back,
     Front,
-}
-
-// --- Perspective mapping (delegates to shared ProjectionProfile) ---
-
-/// Map a normalised `t` in `[0, 1]` (0 = horizon, 1 = foreground) to floor Y.
-///
-/// Kept as a local helper for the continuous-t walk interpolation.  Delegates
-/// to the same cubic bias as [`ProjectionProfile`] with `bias_power = 3.0`.
-fn floor_y_from_t(t: f32, floor_depth_9: f32) -> f32 {
-    let biased = t * t * t; // cubic, matches ProjectionProfile default bias
-    floor_depth_9 + biased * (FLOOR_DEPTH_1 - floor_depth_9)
 }
 
 fn depth_to_t(depth: Depth) -> f32 {
@@ -367,25 +352,28 @@ fn main() {
                 meta_check: AssetMetaCheck::Never,
                 ..default()
             }),
-        PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png"),
-        PxAnimationPlugin,
+        CxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png"),
+        CxAnimationPlugin,
         DepthDebugPlugin,
     ))
     .register_type::<ComposedAnimationPlaybackDebug>()
     .register_type::<ComposedAnimationPlaybackDebugEnabled>()
     .register_type::<Airborne>()
     .register_type::<AnchorOffsets>()
-    .register_type::<DepthFloorLine>()
     .register_type::<DepthTraverseScaleOverride>()
     .register_type::<DepthTraverseDebugState>()
     .register_type::<DepthWalker>()
     .register_type::<HorizonProfile>()
+    .register_type::<ProjectionView>()
     .register_type::<SelectedCharacter>()
     .register_type::<WalkPhase>()
     .register_type::<WalkProgress>()
     .insert_resource(ClearColor(Color::BLACK))
     .insert_resource(DepthScaleConfig::load_or_default())
     .init_resource::<HorizonProfile>()
+    .insert_resource(ActiveProjection(HorizonProfile::default().profile))
+    .insert_resource(ProjectionView::default())
+    .init_resource::<DebugPanConfig>()
     .insert_resource(initial_character)
     // Start with the depth overlay enabled for this example.
     .insert_resource(DepthDebugOverlay::new(true));
@@ -409,9 +397,16 @@ fn main() {
                 prepare_composed_atlas_assets,
                 ensure_composed_enemy_parts,
                 cycle_horizon_profile,
+                pan_lateral_view,
                 switch_character,
                 advance_walk,
                 apply_spidey_jump_scale_override,
+                // Depth-fallback scale + parallax must resolve BEFORE
+                // update_composed_enemy_visuals so collision state reads
+                // the current frame's collision_offset, not the previous.
+                apply_depth_fallback_scale,
+                update_parallax_offset,
+                compose_presentation_offsets,
                 update_composed_enemy_visuals,
                 update_depth_traverse_debug_state,
             )
@@ -419,10 +414,7 @@ fn main() {
         )
         .add_systems(
             PostUpdate,
-            (
-                apply_depth_fallback_scale,
-                apply_composed_enemy_visuals.in_set(PxSet::CompositePresentationWrites),
-            ),
+            apply_composed_enemy_visuals.in_set(CxSet::CompositePresentationWrites),
         )
         .run();
 }
@@ -440,26 +432,19 @@ fn setup(
     profile: Res<HorizonProfile>,
     selected: Res<SelectedCharacter>,
 ) {
-    // Primary camera for PxPlugin rendering.
+    // Primary camera for CxPlugin rendering.
     commands.spawn(Camera2d);
 
-    // Overlay camera: renders gizmos on top of PxPlugin output.
-    // PxOverlayCamera tells PxRenderNode to skip this camera.
+    // Overlay camera: renders gizmos on top of CxPlugin output.
+    // CxOverlayCamera tells CxRenderNode to skip this camera.
     commands.spawn((
         Camera2d,
         Camera {
             order: 1,
             ..default()
         },
-        PxOverlayCamera,
+        CxOverlayCamera,
     ));
-
-    // Spawn Floor entities for depths 1..=9 so the shared DepthDebugPlugin
-    // can draw them.
-    for d in DEPTH_MIN..=DEPTH_MAX {
-        let depth = Depth::try_from(d).unwrap();
-        commands.spawn((DepthFloorLine, depth, Floor(profile.floor_y_for_depth(d))));
-    }
 
     spawn_walker(&mut commands, &asset_server, &profile, *selected);
 }
@@ -489,11 +474,11 @@ fn spawn_walker(
             character.authored_depth(),
         ),
         DepthTraverseDebugState::default(),
-        PxSubPosition::from(Vec2::new(CENTER_X, profile.profile.horizon_y)),
+        WorldPos::from(Vec2::new(CENTER_X, profile.profile.horizon_y)),
         initial_depth,
         AuthoredDepths::single(character.authored_depth()),
         Layer::Front,
-        PxAnchor::Center,
+        CxAnchor::Center,
         WalkProgress {
             t: 0.0,
             direction: 1.0,
@@ -501,6 +486,11 @@ fn spawn_walker(
             airborne: false,
             half_trips: 0,
         },
+        // depth_traverse walkers write projection-adjusted X directly to
+        // WorldPos (they track the perspective grid). NoParallax
+        // prevents the parallax system from double-shifting them.
+        NoParallax,
+        CxPresentationTransform::default(),
     ));
 }
 
@@ -542,12 +532,12 @@ fn switch_character(
 
 /// Cycle horizon profile with `Ctrl+I` (`Cmd+I` on macOS).
 ///
-/// When the profile changes, all [`DepthFloorLine`] entities are updated to
+/// When the profile changes, the shared projection debug overlay updates to
 /// reflect the new depth-9 floor position.
 fn cycle_horizon_profile(
     keys: Res<ButtonInput<KeyCode>>,
     mut profile: ResMut<HorizonProfile>,
-    mut floor_query: Query<(&Depth, &mut Floor), With<DepthFloorLine>>,
+    mut active_projection: ResMut<ActiveProjection>,
 ) {
     let modifier_held = keys.any_pressed([
         KeyCode::ControlLeft,
@@ -567,10 +557,7 @@ fn cycle_horizon_profile(
         profile.index,
         HORIZON_FRACTIONS[profile.index] * 100.0,
     );
-
-    for (depth, mut floor) in &mut floor_query {
-        floor.0 = profile.floor_y_for_depth(depth.to_i8());
-    }
+    active_projection.0 = profile.profile;
 }
 
 #[allow(clippy::type_complexity)]
@@ -578,7 +565,9 @@ fn cycle_horizon_profile(
 ///
 /// Walk progress `t` in `[0, 1]` advances linearly over time (0 = depth 9 / horizon,
 /// 1 = depth 1 / foreground). The screen-space floor position is derived from `t`
-/// through [`floor_y_from_t`] which applies the perspective bias.
+/// through [`ProjectionProfile::floor_y_for_progress`]. The same floor-relative
+/// depth weight also drives the lateral view displacement, so the walker stays
+/// attached to the projected ground-plane family.
 ///
 /// Mosquiton: after every [`PASSES_BEFORE_SWITCH`] passes, transitions
 /// between walking and flying modes via liftoff/landing animations.
@@ -589,6 +578,7 @@ fn advance_walk(
     mut commands: Commands,
     time: Res<Time>,
     profile: Res<HorizonProfile>,
+    projection_view: Res<ProjectionView>,
     depth_scale: Res<DepthScaleConfig>,
     selected: Res<SelectedCharacter>,
     mut query: Query<
@@ -596,7 +586,7 @@ fn advance_walk(
             Entity,
             &mut WalkProgress,
             &mut Depth,
-            &mut PxSubPosition,
+            &mut WorldPos,
             &mut ComposedAnimationState,
             Option<&AnchorOffsets>,
             Has<Airborne>,
@@ -639,7 +629,7 @@ fn advance_walk(
                 commands.entity(entity).remove::<Airborne>();
             }
 
-            let floor_y = floor_y_from_t(t, profile.profile.horizon_y);
+            let floor_y = profile.profile.floor_y_for_progress(t);
             let fallback_scale = depth_scale.resolve_fallback(
                 new_depth,
                 &AuthoredDepths::single(SelectedCharacter::Mosquiton.authored_depth()),
@@ -651,21 +641,29 @@ fn advance_walk(
             // reference is derived from floor_y, not from an independent
             // target.  This is correct for the depth_traverse demo where
             // the entity tracks the floor at every depth.
+            // X projection uses the depth lane's floor_y, not the entity's
+            // visual Y. Flight altitude, anchor offsets, and other vertical
+            // displacements must not alter lateral position.
+            let lane_x = compute_visual_x(CENTER_X, floor_y, &profile.profile, &projection_view);
+
             if progress.airborne {
                 // Airborne: air anchor (body centre) at flight altitude.
                 let body_height_grounded = anchors.ground - anchors.air;
                 let flight_altitude = body_height_grounded + FLY_HEIGHT_OFFSET;
                 let airborne_ref = floor_y + flight_altitude * fallback_scale;
-                pos.0 = Vec2::new(CENTER_X, airborne_ref + anchors.air * fallback_scale);
+                let visual_y = airborne_ref + anchors.air * fallback_scale;
+                pos.0 = Vec2::new(lane_x, visual_y);
             } else {
                 // Grounded: ground anchor sits on the floor.
-                pos.0 = Vec2::new(CENTER_X, floor_y + anchors.ground * fallback_scale);
+                let visual_y = floor_y + anchors.ground * fallback_scale;
+                pos.0 = Vec2::new(lane_x, visual_y);
             }
         } else {
             advance_spidey(
                 &mut progress,
                 &mut anim,
                 &profile,
+                &projection_view,
                 &depth_scale,
                 &mut pos,
                 &mut depth,
@@ -823,8 +821,9 @@ fn advance_spidey(
     progress: &mut WalkProgress,
     anim: &mut ComposedAnimationState,
     profile: &HorizonProfile,
+    projection_view: &ProjectionView,
     depth_scale: &DepthScaleConfig,
-    pos: &mut PxSubPosition,
+    pos: &mut WorldPos,
     depth: &mut Depth,
     dt: f32,
 ) {
@@ -860,6 +859,8 @@ fn advance_spidey(
             } else {
                 progress.phase = WalkPhase::SpideyIdle { remaining };
             }
+            let floor_y = profile.floor_y_for_depth(depth.to_i8());
+            pos.0.x = compute_visual_x(CENTER_X, floor_y, &profile.profile, projection_view);
         }
 
         WalkPhase::SpideyJumping {
@@ -875,7 +876,10 @@ fn advance_spidey(
             if elapsed >= SPIDEY_JUMP_ARC_SECS {
                 *depth = target_depth;
                 progress.t = target_t;
-                pos.0 = Vec2::new(CENTER_X, target_y);
+                pos.0 = Vec2::new(
+                    compute_visual_x(CENTER_X, target_y, &profile.profile, projection_view),
+                    target_y,
+                );
                 anim.requested_tag = "landing".into();
                 anim.set_hold_last_frame(false);
 
@@ -893,7 +897,15 @@ fn advance_spidey(
                 let y_linear = start_y + (target_y - start_y) * frac;
                 let scale = spidey_jump_arc_scale(depth_scale, *depth, target_depth, frac);
                 let arc = 4.0 * SPIDEY_JUMP_ARC_HEIGHT * scale * frac * (1.0 - frac);
-                pos.0 = Vec2::new(CENTER_X, y_linear + arc);
+                let visual_y = y_linear + arc;
+                // X interpolates between start and target floor positions
+                // (not derived from visual_y, which includes the arc and
+                // would cause lateral rubber-banding under camera pan).
+                let start_x =
+                    compute_visual_x(CENTER_X, start_y, &profile.profile, projection_view);
+                let target_x =
+                    compute_visual_x(CENTER_X, target_y, &profile.profile, projection_view);
+                pos.0 = Vec2::new(start_x + (target_x - start_x) * frac, visual_y);
                 progress.t = travel_t;
 
                 progress.phase = WalkPhase::SpideyJumping {
@@ -919,6 +931,8 @@ fn advance_spidey(
             } else {
                 progress.phase = WalkPhase::SpideyLanding { remaining };
             }
+            let floor_y = profile.floor_y_for_depth(depth.to_i8());
+            pos.0.x = compute_visual_x(CENTER_X, floor_y, &profile.profile, projection_view);
         }
 
         // Mosquiton-only phases are unreachable for spidey.
@@ -973,7 +987,7 @@ fn apply_spidey_jump_scale_override(
             &Depth,
             &AuthoredDepths,
             &WalkProgress,
-            Option<&mut PxPresentationTransform>,
+            Option<&mut CxPresentationTransform>,
             Option<&DepthTraverseScaleOverride>,
         ),
         With<DepthWalker>,
@@ -1016,7 +1030,7 @@ fn apply_spidey_jump_scale_override(
                 sign_y * base_y * desired_override.y,
             );
         } else if (desired_override - Vec2::ONE).length_squared() >= f32::EPSILON {
-            commands.entity(entity).insert(PxPresentationTransform {
+            commands.entity(entity).insert(CxPresentationTransform {
                 scale: desired_override,
                 ..Default::default()
             });
@@ -1042,7 +1056,7 @@ fn update_depth_traverse_debug_state(
     mut query: Query<
         (
             &Depth,
-            &PxSubPosition,
+            &WorldPos,
             &WalkProgress,
             &ComposedAnimationState,
             Option<&ComposedAnimationPlaybackDebug>,

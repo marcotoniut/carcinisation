@@ -1,10 +1,60 @@
-//! Bevy plugin for limited color palette pixel art games. Handles sprites, filters (defined
-//! through images; apply to layers or individual entities), simple UI (text, buttons, and sprites
-//! locked to the camera), tilemaps, animations (for sprites, filters, tilesets, and text;
-//! supports dithering!), custom layers, particles (with pre-simulation!), palette changing,
-//! typefaces, an in-game cursor, camera, lines, and more to come!
+//! Bevy plugin for limited-colour-palette pixel-art games.
+//!
+//! Provides sprites, palette-indexed filters, tilemaps, animations (with dithered
+//! frame transitions), composites, particles, text, a simple UI system, an
+//! in-game cursor, camera, line drawing, and more.
+//!
+//! # Position pipeline
+//!
+//! Every positioned entity flows through three stages:
+//!
+//! ```text
+//! WorldPos          (Vec2  — authoritative world-space gameplay position)
+//!   → CxPosition      (IVec2 — derived integer cache, rounded each frame)
+//!   → CxPresentationTransform  (visual & collision offsets, layered separately)
+//!       ├─ visual_offset      — rendering reads this
+//!       └─ collision_offset   — hit-detection reads this
+//! ```
+//!
+//! Simulation systems (movement, AI, spawn placement) read and write
+//! [`WorldPos`].  [`CxPosition`] is a read-only cache for the renderer —
+//! never write it directly.  [`CxPresentationTransform`] carries per-entity
+//! visual displacement (parallax, knockback) without altering the gameplay
+//! position.
+//!
+//! # Coordinate spaces
+//!
+//! | Space | Origin | Unit | Who reads it |
+//! |-------|--------|------|-------------|
+//! | **World** | Stage origin (bottom-left of level) | Pixel (f32 or i32) | Simulation, physics, AI |
+//! | **Visual** | World position + presentation offsets | Pixel | Rendering, collision hit-detection |
+//! | **Screen** | Bottom-left of the rendered canvas | Pixel (u32) | Cursor, UI layout, picking |
+//!
+//! Types document which space they belong to.  When in doubt, check
+//! [`CxRenderSpace`]: `World` = drawn relative to world origin;
+//! `Camera` = drawn at a fixed screen position.
+//!
+//! # Anchor origin convention
+//!
+//! [`CxAnchor`] uses **bottom-left origin** (Y-up):
+//! `(0, 0)` = bottom-left, `(1, 1)` = top-right.  This matches Bevy's and
+//! most 2D engines' world-space convention.
+//!
+//! [`PartTransform`]`.pivot` uses **top-left origin**
+//! (Y-down): `(0, 0)` = top-left, `(1, 1)` = bottom-right.  This matches
+//! image/texture convention where row 0 is the top of the raster buffer.
+//!
+//! The difference is intentional — anchors position entities in world space
+//! (Y-up), while pivots address pixels within a raster part (Y-down).  An
+//! internal `PartTransform::anchor()` method converts between the two
+//! conventions.
 
-// TODO Remove `Px` prefix where possible
+//! # The `Cx` prefix
+//!
+//! `Cx` stays on collision-prone or generic public types. Descriptive
+//! low-risk names may remain unprefixed when they still read cleanly in
+//! `use carapace::prelude::*;`. `Cx` is retired as the public namespace
+//! policy. Read `Cx` as "carapace" rather than "pixel".
 
 #![allow(
     // Pixel/graphics math requires pervasive narrowing casts (`as usize`, `as u32`, `as f32`).
@@ -47,7 +97,6 @@ pub mod frame;
 mod image;
 #[cfg(feature = "line")]
 mod line;
-mod map;
 pub mod math;
 pub mod palette;
 #[cfg(feature = "particle")]
@@ -66,6 +115,7 @@ pub mod screen;
 pub mod set;
 pub mod sprite;
 mod text;
+mod tilemap;
 mod ui;
 
 use std::{
@@ -75,7 +125,7 @@ use std::{
 
 #[cfg(all(feature = "brp_extras", feature = "headed"))]
 use bevy_brp_extras::BrpExtrasPlugin;
-use position::PxLayer;
+use position::CxLayer;
 use prelude::*;
 
 /// Registers only ECS-side types, resources, assets, and systems — without any render pipeline,
@@ -88,22 +138,22 @@ use prelude::*;
 ///
 /// ```ignore
 /// // Headless (tests, servers):
-/// app.add_plugins(PxHeadlessPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
+/// app.add_plugins(CxHeadlessPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
 ///
 /// // Headed (normal game):
-/// app.add_plugins(PxPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
+/// app.add_plugins(CxPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
 /// ```
 #[derive(Debug)]
-pub struct PxHeadlessPlugin<L: PxLayer> {
-    screen_size: ScreenSize,
+pub struct CxHeadlessPlugin<L: CxLayer> {
+    screen_size: CxScreenSize,
     palette_path: PathBuf,
     _l: PhantomData<L>,
 }
 
-impl<L: PxLayer> PxHeadlessPlugin<L> {
-    /// Create a [`PxHeadlessPlugin`]. `screen_size` is the size of the screen in pixels.
+impl<L: CxLayer> CxHeadlessPlugin<L> {
+    /// Create a [`CxHeadlessPlugin`]. `screen_size` is the size of the screen in pixels.
     /// `palette_path` is the path from `assets/` to your game's palette.
-    pub fn new(screen_size: impl Into<ScreenSize>, palette_path: impl Into<PathBuf>) -> Self {
+    pub fn new(screen_size: impl Into<CxScreenSize>, palette_path: impl Into<PathBuf>) -> Self {
         Self {
             screen_size: screen_size.into(),
             palette_path: palette_path.into(),
@@ -112,7 +162,7 @@ impl<L: PxLayer> PxHeadlessPlugin<L> {
     }
 }
 
-impl<L: PxLayer> Plugin for PxHeadlessPlugin<L> {
+impl<L: CxLayer> Plugin for CxHeadlessPlugin<L> {
     fn build(&self, app: &mut App) {
         build_headless::<L>(app, self.screen_size, &self.palette_path);
     }
@@ -121,21 +171,21 @@ impl<L: PxLayer> Plugin for PxHeadlessPlugin<L> {
 /// Add to your [`App`] to enable `carapace` with full rendering support. The type parameter
 /// is your custom layer type used for z-ordering. You can make one using [`px_layer`].
 ///
-/// For headless usage (tests, servers), use [`PxHeadlessPlugin`] instead.
+/// For headless usage (tests, servers), use [`CxHeadlessPlugin`] instead.
 ///
-/// Add [`animation::PxAnimationPlugin`] if you want the built-in animation systems.
+/// Add [`animation::CxAnimationPlugin`] if you want the built-in animation systems.
 #[derive(Debug)]
-pub struct PxPlugin<L: PxLayer> {
-    screen_size: ScreenSize,
+pub struct CxPlugin<L: CxLayer> {
+    screen_size: CxScreenSize,
     palette_path: PathBuf,
     _l: PhantomData<L>,
 }
 
-impl<L: PxLayer> PxPlugin<L> {
-    /// Create a [`PxPlugin`]. `screen_size` is the size of the screen in pixels.
+impl<L: CxLayer> CxPlugin<L> {
+    /// Create a [`CxPlugin`]. `screen_size` is the size of the screen in pixels.
     /// `palette_path` is the path from `assets/` to your game's palette. This palette will be used
     /// to load assets, even if you change it later.
-    pub fn new(screen_size: impl Into<ScreenSize>, palette_path: impl Into<PathBuf>) -> Self {
+    pub fn new(screen_size: impl Into<CxScreenSize>, palette_path: impl Into<PathBuf>) -> Self {
         Self {
             screen_size: screen_size.into(),
             palette_path: palette_path.into(),
@@ -145,18 +195,18 @@ impl<L: PxLayer> PxPlugin<L> {
 
     /// Register only ECS-side types without the render pipeline.
     ///
-    /// Prefer [`PxHeadlessPlugin`] for new code — it provides the same behavior through
+    /// Prefer [`CxHeadlessPlugin`] for new code — it provides the same behavior through
     /// the standard `Plugin` interface:
     ///
     /// ```ignore
-    /// app.add_plugins(PxHeadlessPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
+    /// app.add_plugins(CxHeadlessPlugin::<MyLayer>::new(screen_size, "palette/base.png"));
     /// ```
     pub fn build_headless(&self, app: &mut App) {
         build_headless::<L>(app, self.screen_size, &self.palette_path);
     }
 }
 
-impl<L: PxLayer> Plugin for PxPlugin<L> {
+impl<L: CxLayer> Plugin for CxPlugin<L> {
     fn build(&self, app: &mut App) {
         #[cfg(all(feature = "brp_extras", feature = "headed"))]
         register_brp_extras_plugin(app);
@@ -189,15 +239,15 @@ impl<L: PxLayer> Plugin for PxPlugin<L> {
         let palette_path = self.palette_path.clone();
         atlas::plug::<L>(app, palette_path.clone());
         filter::plug::<L>(app, palette_path.clone());
-        map::plug::<L>(app, palette_path.clone());
+        tilemap::plug::<L>(app, palette_path.clone());
         sprite::plug::<L>(app, palette_path.clone());
         text::plug::<L>(app, palette_path);
     }
 }
 
-/// Shared headless registration sequence used by both [`PxHeadlessPlugin`] and
-/// [`PxPlugin::build_headless`].
-fn build_headless<L: PxLayer>(app: &mut App, screen_size: ScreenSize, palette_path: &Path) {
+/// Shared headless registration sequence used by both [`CxHeadlessPlugin`] and
+/// [`CxPlugin::build_headless`].
+fn build_headless<L: CxLayer>(app: &mut App, screen_size: CxScreenSize, palette_path: &Path) {
     #[cfg(feature = "reflect")]
     reflect::register_types(app);
 
@@ -214,7 +264,7 @@ fn build_headless<L: PxLayer>(app: &mut App, screen_size: ScreenSize, palette_pa
     let palette_path = palette_path.to_path_buf();
     atlas::plug_core(app, palette_path.clone());
     filter::plug_core::<L>(app, palette_path.clone());
-    map::plug_core(app, palette_path.clone());
+    tilemap::plug_core(app, palette_path.clone());
     sprite::plug_core(app, palette_path.clone());
     text::plug_core(app, palette_path);
 

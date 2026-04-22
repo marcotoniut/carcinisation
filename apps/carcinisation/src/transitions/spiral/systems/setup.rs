@@ -1,6 +1,6 @@
 use crate::{
     globals::{SCREEN_RESOLUTION, mark_for_despawn_by_query},
-    pixel::PxAssets,
+    pixel::CxAssets,
     transitions::{
         data::{TransitionVenetianData, TransitionVenetianDataState},
         spiral::{
@@ -14,7 +14,7 @@ use crate::{
 };
 use activable::{activate, deactivate};
 use bevy::prelude::*;
-use carapace::prelude::PxFilter;
+use carapace::prelude::CxFilter;
 
 /// @trigger Initialises a venetian-blind transition effect.
 #[allow(dead_code)]
@@ -22,7 +22,7 @@ pub fn on_transition_startup(
     trigger: On<TransitionVenetianStartupEvent>,
     mut commands: Commands,
     mut timer: ResMut<TransitionUpdateTimer>,
-    filters: PxAssets<PxFilter>,
+    filters: CxAssets<CxFilter>,
     existing: Query<Entity, With<TransitionVenetian>>,
 ) {
     activate::<TransitionVenetianPlugin>(&mut commands);
@@ -37,7 +37,7 @@ pub fn on_transition_startup(
     if matches!(data.state, TransitionVenetianDataState::Opening) {
         counter.value = screen_height_with_buffer(&data);
 
-        let filter = PxFilter(filters.load("filter/color2.px_filter.png"));
+        let filter = CxFilter(filters.load("filter/color2.px_filter.png"));
         for row in 0..=SCREEN_RESOLUTION.y {
             spawn_transition_venetian_row(&mut commands, filter.clone(), row);
         }

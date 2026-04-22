@@ -14,20 +14,20 @@ use bevy_render::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    animation::AnimatedAssetComponent, image::PxImage, palette::Palette, position::DefaultLayer,
-    position::PxLayer, prelude::*,
+    animation::AnimatedAssetComponent, image::CxImage, palette::Palette, position::CxLayer,
+    position::DefaultLayer, prelude::*,
 };
 
 pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
-    app.init_asset::<PxTypeface>()
-        .register_asset_loader(PxTypefaceLoader::new(palette_path));
+    app.init_asset::<CxTypeface>()
+        .register_asset_loader(CxTypefaceLoader::new(palette_path));
 }
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
-        RenderAssetPlugin::<PxTypeface>::default(),
-        SyncComponentPlugin::<PxText>::default(),
+        RenderAssetPlugin::<CxTypeface>::default(),
+        SyncComponentPlugin::<CxText>::default(),
     ));
 
     plug_core(app, palette_path);
@@ -38,7 +38,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
 }
 
 #[derive(Serialize, Deserialize)]
-struct PxTypefaceLoaderSettings {
+struct CxTypefaceLoaderSettings {
     default_frames: u32,
     characters: String,
     character_frames: HashMap<char, u32>,
@@ -46,7 +46,7 @@ struct PxTypefaceLoaderSettings {
     image_loader_settings: ImageLoaderSettings,
 }
 
-impl Default for PxTypefaceLoaderSettings {
+impl Default for CxTypefaceLoaderSettings {
     fn default() -> Self {
         Self {
             default_frames: 1,
@@ -59,27 +59,27 @@ impl Default for PxTypefaceLoaderSettings {
 }
 
 #[derive(TypePath)]
-struct PxTypefaceLoader {
+struct CxTypefaceLoader {
     palette_path: PathBuf,
 }
 
-impl PxTypefaceLoader {
+impl CxTypefaceLoader {
     fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
 }
 
-impl AssetLoader for PxTypefaceLoader {
-    type Asset = PxTypeface;
-    type Settings = PxTypefaceLoaderSettings;
+impl AssetLoader for CxTypefaceLoader {
+    type Asset = CxTypeface;
+    type Settings = CxTypefaceLoaderSettings;
     type Error = Box<dyn Error + Send + Sync>;
 
     async fn load(
         &self,
         reader: &mut dyn Reader,
-        settings: &PxTypefaceLoaderSettings,
+        settings: &CxTypefaceLoaderSettings,
         load_context: &mut LoadContext<'_>,
-    ) -> Result<PxTypeface, Self::Error> {
+    ) -> Result<CxTypeface, Self::Error> {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, &settings.image_loader_settings, load_context)
             .await?;
@@ -90,7 +90,7 @@ impl AssetLoader for PxTypefaceLoader {
             .await
             .map_err(|err| err.to_string())?;
         let palette = palette.get();
-        let indices = PxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
+        let indices = CxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
         let height = indices.height();
         let character_count = settings.characters.chars().count();
 
@@ -114,8 +114,8 @@ impl AssetLoader for PxTypefaceLoader {
 
                     (
                         character,
-                        PxSpriteAsset {
-                            data: PxImage::from_parts_vert(image.split_horz(image_width / frames))
+                        CxSpriteAsset {
+                            data: CxImage::from_parts_vert(image.split_horz(image_width / frames))
                                 .unwrap(),
                             frame_size: image_area / frames,
                         },
@@ -132,7 +132,7 @@ impl AssetLoader for PxTypefaceLoader {
             }
         });
 
-        Ok(PxTypeface {
+        Ok(CxTypeface {
             height: if image.texture_descriptor.size.height == 0 {
                 0
             } else if settings.characters.is_empty() {
@@ -150,7 +150,7 @@ impl AssetLoader for PxTypefaceLoader {
             separators: settings
                 .separator_widths
                 .iter()
-                .map(|(&separator, &width)| (separator, PxSeparator { width }))
+                .map(|(&separator, &width)| (separator, CxSeparator { width }))
                 .collect(),
             max_frame_count,
         })
@@ -162,12 +162,12 @@ impl AssetLoader for PxTypefaceLoader {
 }
 
 #[derive(Clone, Debug, Reflect)]
-pub(crate) struct PxSeparator {
+pub(crate) struct CxSeparator {
     pub(crate) width: u32,
 }
 
-/// A typeface. Create a [`Handle<PxTypeface>`] with a [`PxAssets<PxTypeface>`]
-/// and an image file. The image file contains a column of characters, ordered from bottom to top.
+/// A typeface. Create a [`Handle<CxTypeface>`] through your asset wrapper
+/// and provide an image file. The image file contains a column of characters, ordered from bottom to top.
 /// For animated typefaces, add additional frames to the right of characters, marking the end
 /// of an animation with a fully transparent character or the end of the image.
 /// See the images in `assets/typeface/` for examples.
@@ -178,17 +178,17 @@ pub(crate) struct PxSeparator {
 /// load), but two small additions would cover remaining edge cases:
 ///   - A per-typeface `spacing: u32` field (currently hardcoded to 1px in the
 ///     layout loop) to allow fonts with tighter or wider inter-character gaps.
-///   - A per-glyph `bearing_x: i32` on `PxSpriteAsset` (default 0) to shift
+///   - A per-glyph `bearing_x: i32` on `CxSpriteAsset` (default 0) to shift
 ///     individual glyphs without baking padding into the source image.
 #[derive(Asset, Clone, Reflect, Debug)]
-pub struct PxTypeface {
+pub struct CxTypeface {
     pub(crate) height: u32,
-    pub(crate) characters: HashMap<char, PxSpriteAsset>,
-    pub(crate) separators: HashMap<char, PxSeparator>,
+    pub(crate) characters: HashMap<char, CxSpriteAsset>,
+    pub(crate) separators: HashMap<char, CxSeparator>,
     pub(crate) max_frame_count: usize,
 }
 
-impl PxTypeface {
+impl CxTypeface {
     /// Check whether the typeface contains the given character, including separators
     #[must_use]
     pub fn contains(&self, character: char) -> bool {
@@ -197,7 +197,7 @@ impl PxTypeface {
 }
 
 #[cfg(feature = "headed")]
-impl RenderAsset for PxTypeface {
+impl RenderAsset for CxTypeface {
     type SourceAsset = Self;
     type Param = ();
 
@@ -213,21 +213,21 @@ impl RenderAsset for PxTypeface {
 
 /// Spawns text to be rendered on-screen
 #[derive(Component, Default, Clone, Debug, Reflect)]
-#[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
+#[require(CxPosition, CxAnchor, DefaultLayer, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxText {
+pub struct CxText {
     /// The contents of the text
     pub value: String,
     /// The typeface
-    pub typeface: Handle<PxTypeface>,
+    pub typeface: Handle<CxTypeface>,
     /// The indices of characters after which a line break will be inserted. Should be strictly
     /// ascending. This is automatically computed for UI.
     pub line_breaks: Vec<u32>,
 }
 
-impl PxText {
-    /// Creates a [`PxText`] with no line breaks
-    pub fn new(value: impl Into<String>, typeface: Handle<PxTypeface>) -> Self {
+impl CxText {
+    /// Creates a [`CxText`] with no line breaks
+    pub fn new(value: impl Into<String>, typeface: Handle<CxTypeface>) -> Self {
         Self {
             value: value.into(),
             typeface,
@@ -236,30 +236,30 @@ impl PxText {
     }
 }
 
-impl AnimatedAssetComponent for PxText {
-    type Asset = PxTypeface;
+impl AnimatedAssetComponent for CxText {
+    type Asset = CxTypeface;
 
     fn handle(&self) -> &Handle<Self::Asset> {
         &self.typeface
     }
 
-    fn max_frame_count(typeface: &PxTypeface) -> usize {
+    fn max_frame_count(typeface: &CxTypeface) -> usize {
         typeface.max_frame_count
     }
 }
 
 pub(crate) type TextComponents<L> = (
-    &'static PxText,
-    &'static PxPosition,
-    &'static PxAnchor,
+    &'static CxText,
+    &'static CxPosition,
+    &'static CxAnchor,
     &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
+    &'static CxRenderSpace,
+    Option<&'static CxFrameView>,
+    Option<&'static CxFilter>,
 );
 
 #[cfg(feature = "headed")]
-fn extract_texts<L: PxLayer>(
+fn extract_texts<L: CxLayer>(
     texts: Extract<Query<(TextComponents<L>, &InheritedVisibility, RenderEntity)>>,
     mut cmd: Commands,
 ) {
@@ -276,13 +276,13 @@ fn extract_texts<L: PxLayer>(
         if let Some(frame) = frame {
             entity.insert(*frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
 
         if let Some(filter) = filter {
             entity.insert(filter.clone());
         } else {
-            entity.remove::<PxFilter>();
+            entity.remove::<CxFilter>();
         }
     }
 }
@@ -290,9 +290,9 @@ fn extract_texts<L: PxLayer>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{camera::PxCamera, frame::draw_spatial, image::PxImage, sprite::PxSpriteAsset};
+    use crate::{camera::CxCamera, frame::draw_spatial, image::CxImage, sprite::CxSpriteAsset};
 
-    fn pixels(image: &PxImage) -> Vec<u8> {
+    fn pixels(image: &CxImage) -> Vec<u8> {
         let size = image.size();
         let mut out = Vec::with_capacity((size.x * size.y) as usize);
         for y in 0..size.y as i32 {
@@ -304,11 +304,11 @@ mod tests {
     }
 
     fn draw_text(
-        image: &mut PxImage,
+        image: &mut CxImage,
         text: &str,
-        typeface: &PxTypeface,
-        pos: PxPosition,
-        alignment: PxAnchor,
+        typeface: &CxTypeface,
+        pos: CxPosition,
+        alignment: CxAnchor,
     ) {
         let mut slice = image.slice_all_mut();
         let line_break_count = 0_u32;
@@ -344,12 +344,12 @@ mod tests {
                 char,
                 (),
                 &mut slice,
-                PxPosition(top_left + ivec2(x as i32, -y)),
-                PxAnchor::TopLeft,
-                PxCanvas::Camera,
+                CxPosition(top_left + ivec2(x as i32, -y)),
+                CxAnchor::TopLeft,
+                CxRenderSpace::Camera,
                 None,
                 [],
-                PxCamera::default(),
+                CxCamera::default(),
             );
         }
     }
@@ -359,25 +359,25 @@ mod tests {
         let mut characters = HashMap::new();
         characters.insert(
             'A',
-            PxSpriteAsset {
-                data: PxImage::new(vec![2], 1),
+            CxSpriteAsset {
+                data: CxImage::new(vec![2], 1),
                 frame_size: 1,
             },
         );
-        let typeface = PxTypeface {
+        let typeface = CxTypeface {
             height: 1,
             characters,
             separators: HashMap::new(),
             max_frame_count: 1,
         };
 
-        let mut image = PxImage::new(vec![1; 12], 4);
+        let mut image = CxImage::new(vec![1; 12], 4);
         draw_text(
             &mut image,
             "AA",
             &typeface,
-            PxPosition(IVec2::new(0, 1)),
-            PxAnchor::BottomLeft,
+            CxPosition(IVec2::new(0, 1)),
+            CxAnchor::BottomLeft,
         );
 
         let expected = vec![1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1];

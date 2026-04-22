@@ -7,20 +7,20 @@ use bevy::{
     prelude::{Handle, Res},
 };
 use carapace::{
-    filter::{PxFilter, PxFilterAsset},
-    prelude::{PxSprite, PxSpriteAsset, PxTypeface},
+    filter::{CxFilter, CxFilterAsset},
+    prelude::{CxSprite, CxSpriteAsset, CxTypeface},
 };
 #[cfg(not(target_family = "wasm"))]
 use std::fs;
 use std::{collections::HashMap, marker::PhantomData, path::PathBuf};
 
-pub type PxAsset<T> = T;
-pub type PxSpriteData = PxSpriteAsset;
-pub type PxFilterData = PxFilterAsset;
-pub type PxTypefaceData = PxTypeface;
+pub type CxAsset<T> = T;
+pub type CxSpriteData = CxSpriteAsset;
+pub type CxFilterData = CxFilterAsset;
+pub type CxTypefaceData = CxTypeface;
 
 #[derive(SystemParam)]
-pub struct PxAssets<'w, 's, T: 'static> {
+pub struct CxAssets<'w, 's, T: 'static> {
     asset_server: Res<'w, AssetServer>,
     _marker: PhantomData<&'s T>,
 }
@@ -29,8 +29,8 @@ fn into_asset_path(path: impl Into<String>) -> AssetPath<'static> {
     AssetPath::from(path.into())
 }
 
-impl PxAssets<'_, '_, PxSprite> {
-    pub fn load(&self, path: impl Into<String>) -> Handle<PxAsset<PxSpriteData>> {
+impl CxAssets<'_, '_, CxSprite> {
+    pub fn load(&self, path: impl Into<String>) -> Handle<CxAsset<CxSpriteData>> {
         self.asset_server.load(into_asset_path(path))
     }
 
@@ -38,30 +38,30 @@ impl PxAssets<'_, '_, PxSprite> {
         &self,
         path: impl Into<String>,
         frames: usize,
-    ) -> Handle<PxAsset<PxSpriteData>> {
+    ) -> Handle<CxAsset<CxSpriteData>> {
         let path = path.into();
         ensure_sprite_meta(&path, frames);
         self.asset_server.load(into_asset_path(path))
     }
 }
 
-impl PxAssets<'_, '_, PxFilter> {
-    pub fn load(&self, path: impl Into<String>) -> Handle<PxAsset<PxFilterData>> {
+impl CxAssets<'_, '_, CxFilter> {
+    pub fn load(&self, path: impl Into<String>) -> Handle<CxAsset<CxFilterData>> {
         self.asset_server.load(into_asset_path(path))
     }
 
-    pub fn load_color(&self, color: GBColor) -> Handle<PxFilterAsset> {
+    pub fn load_color(&self, color: GBColor) -> Handle<CxFilterAsset> {
         self.asset_server.load(color.get_filter_path())
     }
 }
 
-impl PxAssets<'_, '_, PxTypeface> {
+impl CxAssets<'_, '_, CxTypeface> {
     pub fn load(
         &self,
         path: impl Into<String>,
         characters: &str,
         separators: impl IntoIterator<Item = (char, u32)>,
-    ) -> Handle<PxAsset<PxTypefaceData>> {
+    ) -> Handle<CxAsset<CxTypefaceData>> {
         let characters = characters.to_string();
         let separator_map: HashMap<char, u32> = separators.into_iter().collect();
         let path = path.into();
@@ -136,7 +136,7 @@ fn sprite_meta_contents(frames: usize) -> String {
         r#"(
     meta_format_version: "1.0",
     asset: Load(
-        loader: "carapace::sprite::PxSpriteLoader",
+        loader: "carapace::sprite::CxSpriteLoader",
         settings: (
             frame_count: {frames},
             image_loader_settings: (
@@ -175,7 +175,7 @@ fn typeface_meta_contents<S: std::hash::BuildHasher>(
         r#"(
     meta_format_version: "1.0",
     asset: Load(
-        loader: "carapace::text::PxTypefaceLoader",
+        loader: "carapace::text::CxTypefaceLoader",
         settings: (
             default_frames: 1,
             characters: "{escaped_chars}",

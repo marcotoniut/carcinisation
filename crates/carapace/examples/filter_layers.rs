@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(64, 32), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::new(64, 32), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -24,7 +24,7 @@ fn main() {
 
 #[derive(Resource)]
 struct GameAssets {
-    invert: Handle<PxFilterAsset>,
+    invert: Handle<CxFilterAsset>,
 }
 
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
@@ -37,21 +37,21 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     let mage = assets.load("sprite/mage.px_sprite.png");
 
     // Spawn some sprites on different layers
-    commands.spawn((PxSprite(mage.clone()), PxPosition(IVec2::new(8, 16))));
+    commands.spawn((CxSprite(mage.clone()), CxPosition(IVec2::new(8, 16))));
 
     commands.spawn((
-        PxSprite(mage.clone()),
-        PxPosition(IVec2::new(24, 16)),
+        CxSprite(mage.clone()),
+        CxPosition(IVec2::new(24, 16)),
         Layer::Middle(-1),
     ));
 
     commands.spawn((
-        PxSprite(mage.clone()),
-        PxPosition(IVec2::new(40, 16)),
+        CxSprite(mage.clone()),
+        CxPosition(IVec2::new(40, 16)),
         Layer::Middle(1),
     ));
 
-    commands.spawn((PxSprite(mage), PxPosition(IVec2::new(56, 16)), Layer::Front));
+    commands.spawn((CxSprite(mage), CxPosition(IVec2::new(56, 16)), Layer::Front));
 }
 
 #[derive(Deref, DerefMut)]
@@ -66,7 +66,7 @@ impl Default for CurrentFilter {
 fn change_filter(
     mut commands: Commands,
     mut current_filter: Local<CurrentFilter>,
-    filters: Query<Entity, With<PxFilter>>,
+    filters: Query<Entity, With<CxFilter>>,
     assets: Res<GameAssets>,
     keys: Res<ButtonInput<KeyCode>>,
 ) {
@@ -78,16 +78,16 @@ fn change_filter(
         }
 
         commands.spawn((
-            PxFilter(assets.invert.clone()),
+            CxFilter(assets.invert.clone()),
             match **current_filter {
                 // Filters the Middle(-1) layer specifically
-                0 => PxFilterLayers::single_clip(Layer::Middle(-1)),
+                0 => CxFilterLayers::single_clip(Layer::Middle(-1)),
                 // Filters the screen's image after rendering Middle(0)
-                1 => PxFilterLayers::single_over(Layer::Middle(0)),
+                1 => CxFilterLayers::single_over(Layer::Middle(0)),
                 // Filters the Back and Front layers specifically
-                2 => PxFilterLayers::Many(vec![Layer::Back, Layer::Front]),
+                2 => CxFilterLayers::Many(vec![Layer::Back, Layer::Front]),
                 // Filters all Middle(n) layers where n >= 0 (using layer ordering)
-                3 => PxFilterLayers::Range(Layer::Middle(0)..=Layer::Middle(i32::MAX)),
+                3 => CxFilterLayers::Range(Layer::Middle(0)..=Layer::Middle(i32::MAX)),
                 _ => unreachable!(),
             },
         ));

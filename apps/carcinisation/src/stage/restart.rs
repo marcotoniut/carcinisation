@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use activable::activate;
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 
 use crate::{
     components::Music,
@@ -52,7 +52,7 @@ pub fn handle_stage_restart(
     music_query: Query<Entity, With<Music>>,
     object_query: Query<Entity, With<Object>>,
     player_query: Query<Entity, With<Player>>,
-    mut camera_query: Query<(Entity, Option<&CameraShake>, &mut PxSubPosition), With<CameraPos>>,
+    mut camera_query: Query<(Entity, Option<&CameraShake>, &mut WorldPos), With<CameraPos>>,
     camera_tween_query: Query<Entity, With<CameraStepTween>>,
     mut stage_progress: ResMut<StageProgress>,
     mut stage_state: ResMut<NextState<StageProgressState>>,

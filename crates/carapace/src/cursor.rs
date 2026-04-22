@@ -7,29 +7,29 @@ use bevy_render::extract_resource::{ExtractResource, ExtractResourcePlugin};
 use bevy_window::{CursorOptions, PrimaryWindow};
 
 use crate::{
-    filter::PxFilterAsset,
+    filter::CxFilterAsset,
     prelude::*,
-    screen::{Screen, screen_scale},
-    set::PxSet,
+    screen::{CxScreen, screen_scale},
+    set::CxSet,
 };
 
 pub(crate) fn plug_core(app: &mut App) {
-    app.init_resource::<PxCursor>()
-        .init_resource::<PxCursorPosition>();
+    app.init_resource::<CxCursor>()
+        .init_resource::<CxCursorPosition>();
 }
 
 pub(crate) fn plug(app: &mut App) {
     plug_core(app);
     #[cfg(feature = "headed")]
     app.add_plugins((
-        ExtractResourcePlugin::<PxCursor>::default(),
-        ExtractResourcePlugin::<PxCursorPosition>::default(),
+        ExtractResourcePlugin::<CxCursor>::default(),
+        ExtractResourcePlugin::<CxCursorPosition>::default(),
         ExtractResourcePlugin::<CursorState>::default(),
     ));
     #[cfg(feature = "headed")]
     app.add_systems(
         PreUpdate,
-        update_cursor_position.in_set(PxSet::UpdateCursorPosition),
+        update_cursor_position.in_set(CxSet::UpdateCursorPosition),
     )
     .add_systems(PostUpdate, change_cursor);
 }
@@ -37,7 +37,7 @@ pub(crate) fn plug(app: &mut App) {
 /// Resource that defines whether to use an in-game cursor
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
 #[derive(Resource, Clone, Default, Debug, Reflect)]
-pub enum PxCursor {
+pub enum CxCursor {
     /// Use the operating system's cursor
     #[default]
     Os,
@@ -45,28 +45,28 @@ pub enum PxCursor {
     /// consider using `bevy_framepace`.
     Filter {
         /// Filter to use when not clicking
-        idle: Handle<PxFilterAsset>,
+        idle: Handle<CxFilterAsset>,
         /// Filter to use when left clicking
-        left_click: Handle<PxFilterAsset>,
+        left_click: Handle<CxFilterAsset>,
         /// Filter to use when right clicking
-        right_click: Handle<PxFilterAsset>,
+        right_click: Handle<CxFilterAsset>,
     },
 }
 
 /// Resource marking the cursor's position. Measured in pixels from the bottom-left of the screen.
 /// Contains [`None`] if the cursor is off-screen. The cursor's world position
-/// is the contained value plus [`PxCamera`]'s contained value.
+/// is the contained value plus [`CxCamera`]'s contained value.
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
 #[derive(Resource, Deref, DerefMut, Clone, Default, Debug, Reflect)]
-pub struct PxCursorPosition(pub Option<UVec2>);
+pub struct CxCursorPosition(pub Option<UVec2>);
 
 #[cfg(feature = "headed")]
 fn update_cursor_position(
     mut move_events: MessageReader<CursorMoved>,
     mut leave_events: MessageReader<CursorLeft>,
     cameras: Query<(&Camera, &GlobalTransform)>,
-    screen: Res<Screen>,
-    mut position: ResMut<PxCursorPosition>,
+    screen: Res<CxScreen>,
+    mut position: ResMut<CxCursorPosition>,
     windows: Query<&Window>,
 ) {
     if leave_events.read().last().is_some() {
@@ -107,8 +107,8 @@ fn update_cursor_position(
 #[cfg(feature = "headed")]
 fn change_cursor(
     mut windows: Query<&mut CursorOptions, With<PrimaryWindow>>,
-    cursor: Res<PxCursor>,
-    cursor_pos: Res<PxCursorPosition>,
+    cursor: Res<CxCursor>,
+    cursor_pos: Res<CxCursorPosition>,
 ) {
     if !cursor.is_changed() && !cursor_pos.is_changed() {
         return;
@@ -120,8 +120,8 @@ fn change_cursor(
 
     options.visible = cursor_pos.is_none()
         || match *cursor {
-            PxCursor::Os => true,
-            PxCursor::Filter { .. } => false,
+            CxCursor::Os => true,
+            CxCursor::Filter { .. } => false,
         };
 }
 

@@ -16,23 +16,23 @@ use bevy_render::{
 
 use crate::prelude::*;
 
-use super::{SCREEN_SHADER_HANDLE, Screen};
+use super::{CxScreen, SCREEN_SHADER_HANDLE};
 
 #[cfg(feature = "headed")]
 #[derive(ShaderType)]
-pub(crate) struct PxUniform {
+pub(crate) struct CxUniform {
     pub(crate) palette: [Vec3; 256],
     pub(crate) fit_factor: Vec2,
 }
 
 #[cfg(feature = "headed")]
 #[derive(Resource, Deref, DerefMut, Default)]
-pub(crate) struct PxUniformBuffer(DynamicUniformBuffer<PxUniform>);
+pub(crate) struct CxUniformBuffer(DynamicUniformBuffer<CxUniform>);
 
 #[cfg(feature = "headed")]
 pub(crate) fn prepare_uniform(
-    mut buffer: ResMut<PxUniformBuffer>,
-    screen: Res<Screen>,
+    mut buffer: ResMut<CxUniformBuffer>,
+    screen: Res<CxScreen>,
     device: Res<RenderDevice>,
     queue: Res<RenderQueue>,
 ) {
@@ -42,7 +42,7 @@ pub(crate) fn prepare_uniform(
 
     let aspect_ratio_ratio =
         screen.computed_size.x as f32 / screen.computed_size.y as f32 / screen.window_aspect_ratio;
-    writer.write(&PxUniform {
+    writer.write(&CxUniform {
         palette: screen.palette,
         fit_factor: if aspect_ratio_ratio > 1. {
             Vec2::new(1., 1. / aspect_ratio_ratio)
@@ -54,13 +54,13 @@ pub(crate) fn prepare_uniform(
 
 #[cfg(feature = "headed")]
 #[derive(Resource)]
-pub(crate) struct PxPipeline {
+pub(crate) struct CxPipeline {
     pub(crate) layout: BindGroupLayout,
     pub(crate) id: CachedRenderPipelineId,
 }
 
 #[cfg(feature = "headed")]
-impl FromWorld for PxPipeline {
+impl FromWorld for CxPipeline {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<RenderDevice>();
 
@@ -70,7 +70,7 @@ impl FromWorld for PxPipeline {
                 ShaderStages::FRAGMENT,
                 (
                     texture_2d(TextureSampleType::Uint),
-                    uniform_buffer::<PxUniform>(false).visibility(ShaderStages::VERTEX_FRAGMENT),
+                    uniform_buffer::<CxUniform>(false).visibility(ShaderStages::VERTEX_FRAGMENT),
                 ),
             ),
         );
@@ -112,12 +112,12 @@ impl FromWorld for PxPipeline {
 
 #[cfg(feature = "headed")]
 #[derive(Resource)]
-pub(crate) struct PxRenderBuffer {
-    inner: RwLock<PxRenderBufferInner>,
+pub(crate) struct CxRenderBuffer {
+    inner: RwLock<CxRenderBufferInner>,
 }
 
 #[cfg(feature = "headed")]
-pub(crate) struct PxRenderBufferInner {
+pub(crate) struct CxRenderBufferInner {
     pub(crate) size: UVec2,
     pub(crate) image: Option<Image>,
     pub(crate) texture: Option<Texture>,
@@ -128,10 +128,10 @@ pub(crate) struct PxRenderBufferInner {
 }
 
 #[cfg(feature = "headed")]
-impl Default for PxRenderBuffer {
+impl Default for CxRenderBuffer {
     fn default() -> Self {
         Self {
-            inner: RwLock::new(PxRenderBufferInner {
+            inner: RwLock::new(CxRenderBufferInner {
                 size: UVec2::ZERO,
                 image: None,
                 texture: None,
@@ -145,7 +145,7 @@ impl Default for PxRenderBuffer {
 }
 
 #[cfg(feature = "headed")]
-impl PxRenderBuffer {
+impl CxRenderBuffer {
     pub(crate) fn ensure_size(&self, device: &RenderDevice, size: UVec2) {
         let mut inner = self.inner.write().unwrap();
         if size == inner.size && inner.image.is_some() && inner.texture.is_some() {
@@ -216,11 +216,11 @@ impl PxRenderBuffer {
         }
     }
 
-    pub(crate) fn read_inner(&self) -> std::sync::RwLockReadGuard<'_, PxRenderBufferInner> {
+    pub(crate) fn read_inner(&self) -> std::sync::RwLockReadGuard<'_, CxRenderBufferInner> {
         self.inner.read().unwrap()
     }
 
-    pub(crate) fn write_inner(&self) -> std::sync::RwLockWriteGuard<'_, PxRenderBufferInner> {
+    pub(crate) fn write_inner(&self) -> std::sync::RwLockWriteGuard<'_, CxRenderBufferInner> {
         self.inner.write().unwrap()
     }
 }

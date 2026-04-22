@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -26,14 +26,14 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     let mage = assets.load("sprite/mage.px_sprite.png");
 
-    commands.spawn((PxSprite(mage), PxPosition(IVec2::splat(16))));
+    commands.spawn((CxSprite(mage), CxPosition(IVec2::splat(16))));
 
     // Apply a filter only within a rectangular region.
     commands.spawn((
-        PxRect(UVec2::new(12, 10)),
-        PxPosition(IVec2::new(10, 22)),
-        PxFilterLayers::single_over(Layer),
-        PxFilter(assets.load("filter/invert.px_filter.png")),
+        CxFilterRect(UVec2::new(12, 10)),
+        CxPosition(IVec2::new(10, 22)),
+        CxFilterLayers::single_over(Layer),
+        CxFilter(assets.load("filter/invert.px_filter.png")),
     ));
 }
 

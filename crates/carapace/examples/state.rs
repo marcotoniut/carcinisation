@@ -1,6 +1,6 @@
 #![allow(clippy::needless_pass_by_value)]
 // In this game, you can press space to cast a spell.
-// This example uses local ECS components plus PxAnimationFinished as a small state machine.
+// This example uses local ECS components plus CxAnimationFinished as a small state machine.
 
 use bevy::prelude::*;
 use carapace::prelude::*;
@@ -17,8 +17,8 @@ fn main() {
                 ..default()
             }),
             InputManagerPlugin::<Action>::default(),
-            PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
-            PxAnimationPlugin,
+            CxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
+            CxAnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -37,12 +37,12 @@ struct Cast;
 
 #[derive(Resource, Clone)]
 struct Sprites {
-    idle: Handle<PxSpriteAsset>,
-    cast: Handle<PxSpriteAsset>,
+    idle: Handle<CxSpriteAsset>,
+    cast: Handle<CxSpriteAsset>,
 }
 
 type CastFinishQuery<'w, 's> =
-    Query<'w, 's, (Entity, &'static mut PxSprite), (With<Cast>, With<PxAnimationFinished>)>;
+    Query<'w, 's, (Entity, &'static mut CxSprite), (With<Cast>, With<CxAnimationFinished>)>;
 
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
@@ -53,8 +53,8 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     };
 
     commands.spawn((
-        PxSprite(sprites.idle.clone()),
-        PxPosition(IVec2::splat(8)),
+        CxSprite(sprites.idle.clone()),
+        CxPosition(IVec2::splat(8)),
         InputMap::default().with(Action::Cast, KeyCode::Space),
         Idle,
     ));
@@ -74,10 +74,10 @@ fn begin_cast(
 
         commands.entity(entity).insert((
             Cast,
-            PxSprite(sprites.cast.clone()),
-            PxAnimation {
-                duration: PxAnimationDuration::millis_per_animation(2000),
-                on_finish: PxAnimationFinishBehavior::Done,
+            CxSprite(sprites.cast.clone()),
+            CxAnimation {
+                duration: CxAnimationDuration::millis_per_animation(2000),
+                on_finish: CxAnimationFinishBehavior::Done,
                 ..default()
             },
         ));
@@ -87,10 +87,10 @@ fn begin_cast(
 
 fn finish_cast(sprites: Res<Sprites>, mut commands: Commands, mut query: CastFinishQuery) {
     for (entity, mut sprite) in &mut query {
-        *sprite = PxSprite(sprites.idle.clone());
+        *sprite = CxSprite(sprites.idle.clone());
         commands
             .entity(entity)
-            .remove::<(Cast, PxAnimation, PxAnimationFinished)>()
+            .remove::<(Cast, CxAnimation, CxAnimationFinished)>()
             .insert(Idle);
     }
 }

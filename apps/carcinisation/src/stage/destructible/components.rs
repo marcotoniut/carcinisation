@@ -1,11 +1,11 @@
 use super::data::destructibles::DestructibleAnimationData;
-use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
 use crate::{
     layer::Layer,
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use carapace::prelude::PxSprite;
+use carapace::prelude::CxSprite;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -28,11 +28,11 @@ pub enum DestructibleState {
 }
 
 pub fn make_animation_bundle<S: std::hash::BuildHasher>(
-    assets_sprite: &mut PxAssets<PxSprite>,
+    assets_sprite: &mut CxAssets<CxSprite>,
     animation_map: &HashMap<Depth, DestructibleAnimationData, S>,
     destructible_state: &DestructibleState,
     depth: &Depth,
-) -> Option<(PxSpriteBundle<Layer>, PxAnimationBundle, ColliderData)> {
+) -> Option<(CxSpriteBundle<Layer>, CxAnimationBundle, ColliderData)> {
     animation_map
         .get(depth)
         .map(|data| data.by_state(destructible_state))
@@ -40,7 +40,7 @@ pub fn make_animation_bundle<S: std::hash::BuildHasher>(
             let sprite = assets_sprite
                 .load_animated(animation_data.sprite_path.clone(), animation_data.frames);
             (
-                PxSpriteBundle::<Layer> {
+                CxSpriteBundle::<Layer> {
                     sprite: sprite.into(),
                     layer: depth.to_layer(),
                     anchor: animation_data.anchor,

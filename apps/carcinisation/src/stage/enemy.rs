@@ -37,7 +37,7 @@ use self::{
 use crate::systems::movement::PositionSyncSystems;
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use carapace::set::PxSet;
+use carapace::set::CxSet;
 use composed::{
     CompositionAtlasAsset, CompositionAtlasLoader, apply_composed_enemy_visuals,
     ensure_composed_enemy_parts, prepare_composed_atlas_assets, update_composed_enemy_visuals,
@@ -53,7 +53,7 @@ impl Plugin for EnemyPlugin {
             .register_asset_loader(CompositionAtlasLoader);
         app.add_active_systems_in::<EnemyPlugin, _>(
             PostUpdate,
-            apply_composed_enemy_visuals.in_set(PxSet::CompositePresentationWrites),
+            apply_composed_enemy_visuals.in_set(CxSet::CompositePresentationWrites),
         );
         app.add_active_systems::<EnemyPlugin, _>(
             // Behaviour/animation updates only run while the enemy subsystem is active.

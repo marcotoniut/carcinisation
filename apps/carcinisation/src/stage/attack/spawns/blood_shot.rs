@@ -16,7 +16,9 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxSpriteAtlasAsset, PxSubPosition};
+use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos};
+
+use crate::stage::parallax::ParallaxOffset;
 use cween::{
     linear::components::{TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle},
     structs::{Constructor, Magnitude},
@@ -75,7 +77,7 @@ pub struct BloodShotBundle {
     pub enemy_hovering_attack_type: EnemyHoveringAttackType,
     pub depth: Depth,
     pub inflicts_damage: InflictsDamage,
-    pub position: PxSubPosition,
+    pub position: WorldPos,
     pub targeting_value_x: TargetingValueX,
     pub targeting_value_y: TargetingValueY,
     pub targeting_value_z: TargetingValueZ,
@@ -86,7 +88,7 @@ pub struct BloodShotBundle {
 pub fn spawn_blood_shot_attack(
     commands: &mut Commands,
     asset_server: &AssetServer,
-    atlas_assets: &Assets<PxSpriteAtlasAsset>,
+    atlas_assets: &Assets<CxSpriteAtlasAsset>,
     stage_time: &Res<Time<StageTimeDomain>>,
     config: &BloodShotConfig,
     target_pos: Vec2,
@@ -115,7 +117,7 @@ pub fn spawn_blood_shot_attack(
         enemy_hovering_attack_type: EnemyHoveringAttackType::BloodShot,
         depth: *depth,
         inflicts_damage: InflictsDamage(config.damage),
-        position: PxSubPosition(current_pos),
+        position: WorldPos(current_pos),
         targeting_value_x: current_pos.x.into(),
         targeting_value_y: current_pos.y.into(),
         targeting_value_z: depth.to_f32().into(),
@@ -131,9 +133,11 @@ pub fn spawn_blood_shot_attack(
     entity_commands.insert((
         atlas_sprite,
         animation,
-        PxAnchor::Center,
+        CxAnchor::Center,
         (*depth - 1).to_layer(),
         AuthoredDepths::single(Depth::One),
+        ParallaxOffset::default(),
+        CxPresentationTransform::default(),
     ));
 
     if !collider_data.0.is_empty() {
@@ -164,7 +168,7 @@ pub fn arm_pending_blood_shot_motion(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
     config: Res<BloodShotConfig>,
-    query: Query<(Entity, &PendingBloodShotMotion, &PxSubPosition, &Depth), With<EnemyAttack>>,
+    query: Query<(Entity, &PendingBloodShotMotion, &WorldPos, &Depth), With<EnemyAttack>>,
 ) {
     for (entity, pending, position, depth) in &query {
         if stage_time.elapsed() < pending.armed_at {
@@ -236,7 +240,7 @@ mod tests {
             .world_mut()
             .spawn((
                 EnemyAttack,
-                PxSubPosition(Vec2::new(10.0, 20.0)),
+                WorldPos(Vec2::new(10.0, 20.0)),
                 Depth::Three,
                 PendingBloodShotMotion {
                     armed_at: Duration::from_millis(60),
@@ -296,7 +300,7 @@ mod tests {
             .world_mut()
             .spawn((
                 EnemyAttack,
-                PxSubPosition(Vec2::new(10.0, 20.0)),
+                WorldPos(Vec2::new(10.0, 20.0)),
                 Depth::Three,
                 PendingBloodShotMotion {
                     armed_at: Duration::from_millis(60),

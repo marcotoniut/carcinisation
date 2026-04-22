@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(48, 32), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::new(48, 32), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -30,26 +30,26 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // CPU sprite on the back layer (left).
     commands.spawn((
-        PxSprite(mage_cast),
-        PxPosition(IVec2::new(2, 10)),
-        PxAnchor::BottomLeft,
+        CxSprite(mage_cast),
+        CxPosition(IVec2::new(2, 10)),
+        CxAnchor::BottomLeft,
         Layer::Back,
     ));
 
     // GPU palette sprite in the middle layer (center).
     commands.spawn((
-        PxSprite(runner),
-        PxGpuSprite,
-        PxPosition(IVec2::new(18, 10)),
-        PxAnchor::BottomLeft,
+        CxSprite(runner),
+        CxGpuSprite,
+        CxPosition(IVec2::new(18, 10)),
+        CxAnchor::BottomLeft,
         Layer::Middle,
     ));
 
     // CPU sprite on the front layer (right) to demonstrate depth ordering.
     commands.spawn((
-        PxSprite(mage),
-        PxPosition(IVec2::new(34, 10)),
-        PxAnchor::BottomLeft,
+        CxSprite(mage),
+        CxPosition(IVec2::new(34, 10)),
+        CxAnchor::BottomLeft,
         Layer::Front,
     ));
 }

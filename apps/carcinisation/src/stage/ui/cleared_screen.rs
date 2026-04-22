@@ -19,20 +19,20 @@ use crate::{
 };
 use crate::{
     globals::SCREEN_RESOLUTION_H,
-    pixel::{PxAssets, PxRectBundle, PxTextBundle},
+    pixel::{CxAssets, CxFilterRectBundle, CxTextBundle},
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSubPosition, PxText,
-    PxTypeface,
+    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxText,
+    CxTypeface, WorldPos,
 };
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
 pub fn render_cleared_screen(
     mut commands: Commands,
-    assets_typeface: PxAssets<PxTypeface>,
-    filters: PxAssets<PxFilter>,
+    assets_typeface: CxAssets<CxTypeface>,
+    filters: CxAssets<CxFilter>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
 ) {
@@ -46,25 +46,25 @@ pub fn render_cleared_screen(
             Visibility::Visible,
             children![
                 (
-                    PxSubPosition(*SCREEN_RESOLUTION_F32_H),
-                    PxRectBundle::<Layer> {
-                        rect: PxRect(UVec2::new(120, 90)),
-                        position: PxPosition::from(*SCREEN_RESOLUTION_H),
-                        anchor: PxAnchor::Center,
-                        canvas: PxCanvas::Camera,
-                        layers: PxFilterLayers::single_over(Layer::UIBackground),
-                        filter: PxFilter(filters.load_color(GBColor::White)),
+                    WorldPos(*SCREEN_RESOLUTION_F32_H),
+                    CxFilterRectBundle::<Layer> {
+                        rect: CxFilterRect(UVec2::new(120, 90)),
+                        position: CxPosition::from(*SCREEN_RESOLUTION_H),
+                        anchor: CxAnchor::Center,
+                        canvas: CxRenderSpace::Camera,
+                        layers: CxFilterLayers::single_over(Layer::UIBackground),
+                        filter: CxFilter(filters.load_color(GBColor::White)),
                         visibility: Visibility::Visible,
                     },
                     UIBackground,
                 ),
                 (
-                    PxTextBundle::<Layer> {
+                    CxTextBundle::<Layer> {
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 90).into(),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
+                        anchor: CxAnchor::BottomCenter,
+                        canvas: CxRenderSpace::Camera,
                         layer: Layer::UI,
-                        text: PxText {
+                        text: CxText {
                             value: "Stage  Cleared".to_string(),
                             typeface: typeface.clone(),
                             ..Default::default()
@@ -75,12 +75,12 @@ pub fn render_cleared_screen(
                     Name::new("InfoText_Stage_Cleared"),
                 ),
                 (
-                    PxTextBundle::<Layer> {
+                    CxTextBundle::<Layer> {
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 60).into(),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
+                        anchor: CxAnchor::BottomCenter,
+                        canvas: CxRenderSpace::Camera,
                         layer: Layer::UI,
-                        text: PxText {
+                        text: CxText {
                             value: "Score:".to_string(),
                             typeface: typeface.clone(),
                             ..Default::default()
@@ -91,12 +91,12 @@ pub fn render_cleared_screen(
                     Name::new("InfoText_Score"),
                 ),
                 (
-                    PxTextBundle::<Layer> {
+                    CxTextBundle::<Layer> {
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 50).into(),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
+                        anchor: CxAnchor::BottomCenter,
+                        canvas: CxRenderSpace::Camera,
                         layer: Layer::UI,
-                        text: PxText {
+                        text: CxText {
                             value: score_text.clone(),
                             typeface: typeface.clone(),
                             ..Default::default()

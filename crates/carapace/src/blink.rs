@@ -1,4 +1,4 @@
-//! Contains the [`Blink`] component.
+//! Contains the [`CxBlink`] component.
 
 use std::time::Duration;
 
@@ -11,13 +11,13 @@ pub(crate) fn plug(app: &mut App) {
     app.add_systems(PostUpdate, blink);
 }
 
-/// Toggles `Visibility` whenever the timer finishes
+/// Toggles [`Visibility`] on a repeating timer.
 #[derive(Component, Deref, DerefMut, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct Blink(Timer);
+pub struct CxBlink(Timer);
 
-impl Blink {
-    /// Creates a `Blink` with the given period
+impl CxBlink {
+    /// Creates a `CxBlink` with the given period
     #[must_use]
     pub fn new(period: Duration) -> Self {
         Self(Timer::new(period, TimerMode::Repeating))
@@ -25,7 +25,7 @@ impl Blink {
 }
 
 #[cfg(feature = "headed")]
-fn blink(mut blinks: Query<(&mut Blink, &mut Visibility)>, time: Res<Time>) {
+fn blink(mut blinks: Query<(&mut CxBlink, &mut Visibility)>, time: Res<Time>) {
     for (mut blink, mut visibility) in &mut blinks {
         blink.tick(time.delta());
 

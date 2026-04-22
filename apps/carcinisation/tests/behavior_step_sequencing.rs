@@ -17,7 +17,7 @@
 //! potentially interfering with subsequent behaviors.
 
 use bevy::{math::Vec2, prelude::*};
-use carapace::position::PxSubPosition;
+use carapace::position::WorldPos;
 use carcinisation::stage::{
     components::placement::{Depth, Speed},
     enemy::{
@@ -97,7 +97,7 @@ fn linear_tween_spawns_two_or_three_children() {
         .world_mut()
         .spawn((
             Name::new("Test Enemy"),
-            PxSubPosition(Vec2::ZERO),
+            WorldPos(Vec2::ZERO),
             Speed(10.0),
             Depth::Three,
         ))
@@ -116,7 +116,7 @@ fn linear_tween_spawns_two_or_three_children() {
     let children_2d = behavior_2d.spawn_tween_children(
         &mut app.world_mut().commands(),
         enemy_entity,
-        &PxSubPosition(Vec2::ZERO),
+        &WorldPos(Vec2::ZERO),
         10.0,
         Depth::Three,
     );
@@ -150,7 +150,7 @@ fn linear_tween_spawns_two_or_three_children() {
     let children_3d = behavior_3d.spawn_tween_children(
         &mut app.world_mut().commands(),
         enemy_entity,
-        &PxSubPosition(Vec2::ZERO),
+        &WorldPos(Vec2::ZERO),
         10.0,
         Depth::Three,
     );
@@ -186,7 +186,7 @@ fn idle_step_spawns_no_tween_children() {
         .world_mut()
         .spawn((
             Name::new("Test Enemy"),
-            PxSubPosition(Vec2::ZERO),
+            WorldPos(Vec2::ZERO),
             Speed(10.0),
             Depth::Three,
         ))
@@ -200,7 +200,7 @@ fn idle_step_spawns_no_tween_children() {
     let children = behavior.spawn_tween_children(
         &mut app.world_mut().commands(),
         enemy_entity,
-        &PxSubPosition(Vec2::ZERO),
+        &WorldPos(Vec2::ZERO),
         10.0,
         Depth::Three,
     );
@@ -223,7 +223,7 @@ fn tween_children_have_correct_marker_component() {
         .world_mut()
         .spawn((
             Name::new("Test Enemy"),
-            PxSubPosition(Vec2::ZERO),
+            WorldPos(Vec2::ZERO),
             Speed(10.0),
             Depth::Three,
         ))
@@ -241,7 +241,7 @@ fn tween_children_have_correct_marker_component() {
     let tween_children = behavior.spawn_tween_children(
         &mut app.world_mut().commands(),
         enemy_entity,
-        &PxSubPosition(Vec2::ZERO),
+        &WorldPos(Vec2::ZERO),
         10.0,
         Depth::Three,
     );
@@ -276,7 +276,7 @@ fn tween_children_lifecycle_contract() {
         .spawn((
             Name::new("Test Enemy"),
             Enemy,
-            PxSubPosition(Vec2::ZERO),
+            WorldPos(Vec2::ZERO),
             Speed(10.0),
             Depth::Three,
         ))
@@ -295,7 +295,7 @@ fn tween_children_lifecycle_contract() {
     let tween_children = behavior.spawn_tween_children(
         &mut app.world_mut().commands(),
         enemy_entity,
-        &PxSubPosition(Vec2::ZERO),
+        &WorldPos(Vec2::ZERO),
         10.0,
         Depth::Three,
     );

@@ -12,7 +12,7 @@ use crate::stage::{
     },
 };
 use bevy::prelude::*;
-use carapace::position::PxSubPosition;
+use carapace::position::WorldPos;
 
 // Re-export generic composed enemy state components for backwards compatibility
 pub use composed_state::{BrokenParts, Dying};
@@ -121,7 +121,7 @@ pub struct MosquitonBundle {
     pub visibility: Visibility,
     pub inherited_visibility: InheritedVisibility,
     pub depth: Depth,
-    pub position: PxSubPosition,
+    pub position: WorldPos,
     pub speed: Speed,
     pub default: MosquitonDefaultBundle,
 }

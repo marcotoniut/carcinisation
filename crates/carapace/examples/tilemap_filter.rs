@@ -15,7 +15,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -25,7 +25,7 @@ fn main() {
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let mut tiles = PxTiles::new(UVec2::splat(4));
+    let mut tiles = CxTiles::new(UVec2::splat(4));
     let dim = assets.load("filter/dim.px_filter.png");
     let mut rng = rng();
 
@@ -36,9 +36,9 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
                 Some(
                     commands
                         .spawn((
-                            PxTile::from(rng.random_range(0..4)),
+                            CxTile::from(rng.random_range(0..4)),
                             // Insert a filter on the tile
-                            PxFilter(dim.clone()),
+                            CxFilter(dim.clone()),
                         ))
                         .id(),
                 ),
@@ -49,12 +49,12 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // Spawn the map
     commands.spawn((
-        PxMap {
+        CxTilemap {
             tiles,
             tileset: assets.load("tileset/tileset.px_tileset.png"),
         },
         // Insert a filter on the map. This filter applies to all tiles in the map.
-        PxFilter(assets.load("filter/invert.px_filter.png")),
+        CxFilter(assets.load("filter/invert.px_filter.png")),
     ));
 }
 

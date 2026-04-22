@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -27,14 +27,14 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     let body = assets.load("sprite/mage.px_sprite.png");
     let atlas = assets.load("atlas/example.px_atlas.ron");
 
-    let composite = PxCompositeSprite::new(vec![
-        PxCompositePart::new(body),
-        PxCompositePart::atlas_region(atlas, AtlasRegionId(0))
+    let composite = CxCompositeSprite::new(vec![
+        CxCompositePart::new(body),
+        CxCompositePart::atlas_region(atlas, AtlasRegionId(0))
             .with_offset(IVec2::new(4, 6))
             .with_flip(true, false),
     ]);
 
-    commands.spawn((composite, PxPosition(IVec2::splat(8))));
+    commands.spawn((composite, CxPosition(IVec2::splat(8))));
 }
 
 #[px_layer]

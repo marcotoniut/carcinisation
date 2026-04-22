@@ -2,22 +2,19 @@ use super::{
     components::{Destructible, DestructibleState, DestructibleType, make_animation_bundle},
     data::destructibles::DESTRUCTIBLE_ANIMATIONS,
 };
-use crate::pixel::PxAssets;
+use crate::pixel::CxAssets;
 use crate::stage::components::{
     interactive::{Dead, Flickerer, Hittable},
     placement::Depth,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxSprite, PxSubPosition};
+use carapace::prelude::{CxSprite, WorldPos};
 
 /// @system Replaces a destroyed destructible's sprite with its broken animation.
 pub fn check_dead_destructible(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
-    query: Query<
-        (Entity, &DestructibleType, &PxSubPosition, &Depth),
-        (With<Destructible>, Added<Dead>),
-    >,
+    mut assets_sprite: CxAssets<CxSprite>,
+    query: Query<(Entity, &DestructibleType, &WorldPos, &Depth), (With<Destructible>, Added<Dead>)>,
 ) {
     for (entity, destructible_type, position, depth) in query.iter() {
         // TODO Should I do a bundle?
@@ -34,7 +31,7 @@ pub fn check_dead_destructible(
         if let Some(animation_bundle) = animation_bundle_o {
             entity_commands
                 .insert(animation_bundle)
-                .insert(PxSubPosition::from(position.0));
+                .insert(WorldPos::from(position.0));
         }
     }
 }

@@ -23,7 +23,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(64), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(64), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -34,8 +34,8 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
     commands.spawn((
         Layer,
-        PxUiRoot,
-        PxText::new(
+        CxUiRoot,
+        CxText::new(
             "BRP screenshot target",
             assets.load("typeface/typeface.px_typeface.png"),
         ),

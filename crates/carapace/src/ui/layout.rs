@@ -2,30 +2,34 @@ use crate::{
     position::Spatial,
     prelude::*,
     profiling::{px_end_span, px_trace, px_trace_span},
-    screen::Screen,
+    screen::CxScreen,
 };
 
-use super::widgets::{PxGrid, PxMargin, PxMinSize, PxRow, PxRowSlot, PxScroll, PxStack};
+use super::widgets::{CxGrid, CxMargin, CxMinSize, CxRow, CxRowSlot, CxScroll, CxStack};
 
 // If layouting ends up being too slow, make a tree of min sizes up front and lookup in that
-fn calc_min_size<L: PxLayer>(
+fn calc_min_size<L: CxLayer>(
     ui: Entity,
     uis: Query<(
         AnyOf<(
-            (&PxMinSize, Option<&Children>),
-            (&PxMargin, Option<&Children>),
-            (&PxRow, Option<&Children>),
-            (&PxGrid, Option<&Children>),
-            (&PxStack, Option<&Children>),
-            (Option<(&PxScroll, &Children)>, &PxRect, &PxFilterLayers<L>),
-            &PxSprite,
-            &PxText,
+            (&CxMinSize, Option<&Children>),
+            (&CxMargin, Option<&Children>),
+            (&CxRow, Option<&Children>),
+            (&CxGrid, Option<&Children>),
+            (&CxStack, Option<&Children>),
+            (
+                Option<(&CxScroll, &Children)>,
+                &CxFilterRect,
+                &CxFilterLayers<L>,
+            ),
+            &CxSprite,
+            &CxText,
         )>,
         Option<&L>,
-        Option<(&PxPosition, &PxCanvas)>,
+        Option<(&CxPosition, &CxRenderSpace)>,
     )>,
-    typefaces: &Assets<PxTypeface>,
-    sprites: &Assets<PxSpriteAsset>,
+    typefaces: &Assets<CxTypeface>,
+    sprites: &Assets<CxSpriteAsset>,
 ) -> UVec2 {
     fn dim(vec: UVec2, y: bool) -> u32 {
         if y { vec.y } else { vec.x }
@@ -36,7 +40,7 @@ fn calc_min_size<L: PxLayer>(
     }
 
     let Ok(((min_size, margin, row, grid, stack, rect, sprite, text), _, _)) = uis.get(ui) else {
-        // This includes `PxSpace`. Surprise, the `PxSpace` component doesn't do anything at all.
+        // This includes `CxSpace`. Surprise, the `CxSpace` component doesn't do anything at all.
         // It's just easier to spawn in UI.
         return UVec2::ZERO;
     };
@@ -48,7 +52,7 @@ fn calc_min_size<L: PxLayer>(
                 calc_min_size(content, uis.as_readonly(), typefaces, sprites).max(**min_size)
             }
             Some([_, _, ..]) => {
-                warn!("`PxMinSize` has multiple children");
+                warn!("`CxMinSize` has multiple children");
                 **min_size
             }
         };
@@ -63,7 +67,7 @@ fn calc_min_size<L: PxLayer>(
                 calc_min_size(content, uis.as_readonly(), typefaces, sprites) + margin
             }
             Some([_, _, ..]) => {
-                warn!("`PxMargin` has multiple children");
+                warn!("`CxMargin` has multiple children");
                 margin
             }
         };
@@ -169,7 +173,7 @@ fn calc_min_size<L: PxLayer>(
         };
 
         if children.next().is_some() {
-            warn!("`PxScroll` has more than 3 children");
+            warn!("`CxScroll` has more than 3 children");
         }
 
         let horz = scroll.horizontal;
@@ -218,32 +222,32 @@ fn calc_min_size<L: PxLayer>(
     unreachable!()
 }
 
-fn layout_inner<L: PxLayer>(
+fn layout_inner<L: CxLayer>(
     target_rect: IRect,
     target_layer: &L,
-    target_canvas: PxCanvas,
+    target_canvas: CxRenderSpace,
     ui: Entity,
     mut uis: Query<(
         AnyOf<(
-            (&PxMinSize, Option<&Children>),
-            (&PxMargin, Option<&Children>),
-            (&PxRow, Option<&Children>),
-            (&PxGrid, Option<&Children>),
-            (&PxStack, Option<&Children>),
+            (&CxMinSize, Option<&Children>),
+            (&CxMargin, Option<&Children>),
+            (&CxRow, Option<&Children>),
+            (&CxGrid, Option<&Children>),
+            (&CxStack, Option<&Children>),
             (
-                Option<(&mut PxScroll, &Children)>,
-                &mut PxRect,
-                &mut PxFilterLayers<L>,
+                Option<(&mut CxScroll, &Children)>,
+                &mut CxFilterRect,
+                &mut CxFilterLayers<L>,
             ),
-            &PxSprite,
-            &mut PxText,
+            &CxSprite,
+            &mut CxText,
         )>,
         Option<&mut L>,
-        Option<(&mut PxPosition, &mut PxCanvas)>,
+        Option<(&mut CxPosition, &mut CxRenderSpace)>,
     )>,
-    row_slots: Query<&PxRowSlot>,
-    typefaces: &Assets<PxTypeface>,
-    sprites: &Assets<PxSpriteAsset>,
+    row_slots: Query<&CxRowSlot>,
+    typefaces: &Assets<CxTypeface>,
+    sprites: &Assets<CxSpriteAsset>,
 ) -> Result<Option<L>> {
     fn dim(vec: IVec2, y: bool) -> i32 {
         if y { vec.y } else { vec.x }
@@ -276,7 +280,7 @@ fn layout_inner<L: PxLayer>(
                 sprites,
             ),
             Some([_, _, ..]) => {
-                warn!("`PxMinSize` has multiple children");
+                warn!("`CxMinSize` has multiple children");
                 Ok(None)
             }
         };
@@ -299,7 +303,7 @@ fn layout_inner<L: PxLayer>(
                 sprites,
             ),
             Some([_, _, ..]) => {
-                warn!("`PxMargin` has multiple children");
+                warn!("`CxMargin` has multiple children");
                 Ok(None)
             }
         };
@@ -553,7 +557,7 @@ fn layout_inner<L: PxLayer>(
             let bar = children.get(1).copied();
             let bg = children.get(2).copied();
             if children.get(3).is_some() {
-                warn!("`PxScroll` has more than 3 children");
+                warn!("`CxScroll` has more than 3 children");
                 return Ok(None);
             }
             let horz = scroll.horizontal;
@@ -620,14 +624,14 @@ fn layout_inner<L: PxLayer>(
                 layer = Some(last_content_layer.clone());
 
                 (
-                    PxFilterLayers::Range(target_layer.clone()..=last_content_layer.clone()),
+                    CxFilterLayers::Range(target_layer.clone()..=last_content_layer.clone()),
                     last_content_layer
                         .clone()
                         .next()
                         .unwrap_or(last_content_layer),
                 )
             } else {
-                (PxFilterLayers::Many(Vec::new()), target_layer.clone())
+                (CxFilterLayers::Many(Vec::new()), target_layer.clone())
             };
 
             let mut bar_rect = target_rect;
@@ -710,12 +714,12 @@ fn layout_inner<L: PxLayer>(
 
         let rect_layer = target_layer.clone();
         match *layers {
-            PxFilterLayers::Single { ref mut layer, .. } => *layer = rect_layer,
-            PxFilterLayers::Range(ref mut layers) => {
+            CxFilterLayers::Single { ref mut layer, .. } => *layer = rect_layer,
+            CxFilterLayers::Range(ref mut layers) => {
                 *layers = layers.start().clone()..=rect_layer;
             }
-            ref mut layers @ PxFilterLayers::Many(_) => {
-                *layers = PxFilterLayers::single_over(rect_layer);
+            ref mut layers @ CxFilterLayers::Many(_) => {
+                *layers = CxFilterLayers::single_over(rect_layer);
             }
         }
 
@@ -753,7 +757,7 @@ fn layout_inner<L: PxLayer>(
         *canvas = target_canvas;
 
         let mut text = text.unwrap();
-        let PxText {
+        let CxText {
             ref mut value,
             ref typeface,
             ref mut line_breaks,
@@ -822,32 +826,32 @@ fn layout_inner<L: PxLayer>(
     unreachable!();
 }
 
-pub(crate) fn layout<L: PxLayer>(
+pub(crate) fn layout<L: CxLayer>(
     mut uis: ParamSet<(
-        Query<(&L, &PxCanvas, Entity), With<PxUiRoot>>,
+        Query<(&L, &CxRenderSpace, Entity), With<CxUiRoot>>,
         Query<(
             AnyOf<(
-                (&PxMinSize, Option<&Children>),
-                (&PxMargin, Option<&Children>),
-                (&PxRow, Option<&Children>),
-                (&PxGrid, Option<&Children>),
-                (&PxStack, Option<&Children>),
+                (&CxMinSize, Option<&Children>),
+                (&CxMargin, Option<&Children>),
+                (&CxRow, Option<&Children>),
+                (&CxGrid, Option<&Children>),
+                (&CxStack, Option<&Children>),
                 (
-                    Option<(&mut PxScroll, &Children)>,
-                    &mut PxRect,
-                    &mut PxFilterLayers<L>,
+                    Option<(&mut CxScroll, &Children)>,
+                    &mut CxFilterRect,
+                    &mut CxFilterLayers<L>,
                 ),
-                &PxSprite,
-                &mut PxText,
+                &CxSprite,
+                &mut CxText,
             )>,
             Option<&mut L>,
-            Option<(&mut PxPosition, &mut PxCanvas)>,
+            Option<(&mut CxPosition, &mut CxRenderSpace)>,
         )>,
     )>,
-    row_slots: Query<&PxRowSlot>,
-    typefaces: Res<Assets<PxTypeface>>,
-    sprites: Res<Assets<PxSpriteAsset>>,
-    screen: Res<Screen>,
+    row_slots: Query<&CxRowSlot>,
+    typefaces: Res<Assets<CxTypeface>>,
+    sprites: Res<Assets<CxSpriteAsset>>,
+    screen: Res<CxScreen>,
 ) -> Result {
     let _layout_span = px_trace_span!(
         "carapace::ui::layout",
@@ -882,24 +886,24 @@ pub(crate) fn layout<L: PxLayer>(
 }
 
 pub(crate) fn layout_needs_recompute(
-    roots: Query<(), With<PxUiRoot>>,
+    roots: Query<(), With<CxUiRoot>>,
     changed_structure: Query<
         (),
         Or<(
-            Changed<PxUiRoot>,
+            Changed<CxUiRoot>,
             Changed<Children>,
-            Changed<PxMinSize>,
-            Changed<PxMargin>,
-            Changed<PxRow>,
-            Changed<PxGrid>,
-            Changed<PxStack>,
-            Changed<PxRowSlot>,
+            Changed<CxMinSize>,
+            Changed<CxMargin>,
+            Changed<CxRow>,
+            Changed<CxGrid>,
+            Changed<CxStack>,
+            Changed<CxRowSlot>,
         )>,
     >,
-    changed_content: Query<(), Or<(Changed<PxScroll>, Changed<PxSprite>, Changed<PxText>)>>,
-    typefaces: Option<Res<Assets<PxTypeface>>>,
-    sprites: Option<Res<Assets<PxSpriteAsset>>>,
-    screen: Option<Res<Screen>>,
+    changed_content: Query<(), Or<(Changed<CxScroll>, Changed<CxSprite>, Changed<CxText>)>>,
+    typefaces: Option<Res<Assets<CxTypeface>>>,
+    sprites: Option<Res<Assets<CxSpriteAsset>>>,
+    screen: Option<Res<CxScreen>>,
 ) -> bool {
     if roots.is_empty() {
         return false;

@@ -5,15 +5,16 @@ use crate::prelude::*;
 // TODO Many of these aren't necessary anymore
 /// Sets used by this crate
 #[derive(Clone, Debug, Eq, Hash, PartialEq, SystemSet)]
-pub enum PxSet {
+pub enum CxSet {
     // `PreUpdate`
-    /// [`crate::cursor::PxCursorPosition`] is updated. In [`CoreSet::PreUpdate`].
+    /// [`crate::cursor::CxCursorPosition`] is updated. In [`CoreSet::PreUpdate`].
     UpdateCursorPosition,
 
     // `PostUpdate`
-    /// The [`PxPosition`] is synced from [`PxSubPosition`]. In `PostUpdate`,
-    /// after all gameplay writes during `Update` are complete.
-    UpdatePosToSubPos,
+    /// [`CxPosition`] (integer cache) is synced from [`WorldPos`]
+    /// (authoritative world-space float). In `PostUpdate`, after all gameplay
+    /// writes during `Update` are complete.
+    SyncPosFromWorld,
     /// Game-side composite presentation writes must finish before `carapace`
     /// syncs composite metrics. In `PostUpdate`.
     CompositePresentationWrites,

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Reflect, Serialize)]
@@ -24,7 +24,7 @@ pub trait MovementVec2Position: Send + Sync + 'static {
     fn add(&mut self, value: Vec2);
 }
 
-impl MovementVec2Position for PxSubPosition {
+impl MovementVec2Position for WorldPos {
     fn get(&self) -> Vec2 {
         self.0
     }

@@ -19,7 +19,7 @@ use crate::{
             },
             mosquiton::entity::EnemyMosquiton,
         },
-        floors::{ActiveFloors, FloorSurface},
+        floors::{ActiveFloors, Surface},
         messages::PartDamageMessage,
         player::components::PlayerAttack,
     },
@@ -139,20 +139,22 @@ pub fn draw_floor_lines(mut gizmos: Gizmos, floors: Option<Res<ActiveFloors>>) {
         return;
     };
 
-    for (depth, surface) in &floors.lanes {
+    for (depth, surfaces) in &floors.by_depth {
         if depth == &Depth::Zero {
             continue;
         }
-        let FloorSurface::Solid { y } = surface else {
-            continue;
-        };
-        let floor_y = to_viewport_coordinate_y(*y);
-        // TODO calculate position in the real camera SCREEN_RES vs the virtual one
-        gizmos.line(
-            Vec3::new(-LINE_EXTENSION, floor_y, 0.),
-            Vec3::new(LINE_EXTENSION, floor_y, 0.),
-            Color::YELLOW_GREEN,
-        );
+        for surface in surfaces {
+            let Surface::Solid { y } = surface else {
+                continue;
+            };
+            let floor_y = to_viewport_coordinate_y(*y);
+            // TODO calculate position in the real camera SCREEN_RES vs the virtual one
+            gizmos.line(
+                Vec3::new(-LINE_EXTENSION, floor_y, 0.),
+                Vec3::new(LINE_EXTENSION, floor_y, 0.),
+                Color::YELLOW_GREEN,
+            );
+        }
     }
 }
 
@@ -204,18 +206,18 @@ impl DebugColliderOverlay {
 pub(crate) fn draw_colliders(
     mut gizmos: Gizmos,
     overlay: Res<DebugColliderOverlay>,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    camera_query: Query<&WorldPos, With<CameraPos>>,
     mut collision_assets: MaskCollisionAssets<'_, '_>,
     query: Query<
         (
-            &PxPosition,
-            &PxSubPosition,
-            (&PxAnchor, &PxCanvas),
+            &CxPosition,
+            &WorldPos,
+            (&CxAnchor, &CxRenderSpace),
             (
-                Option<&PxFrameView>,
-                Option<&PxSprite>,
-                Option<&PxAtlasSprite>,
-                Option<&PxPresentationTransform>,
+                Option<&CxFrameView>,
+                Option<&CxSprite>,
+                Option<&CxAtlasSprite>,
+                Option<&CxPresentationTransform>,
             ),
             Option<&ColliderData>,
             Option<&ComposedCollisionState>,
@@ -240,7 +242,7 @@ pub(crate) fn draw_colliders(
 
     for (
         position,
-        sub_position,
+        world_pos,
         (anchor, canvas),
         (frame, sprite, atlas_sprite, presentation),
         collider_data,
@@ -256,8 +258,8 @@ pub(crate) fn draw_colliders(
         // Camera-canvas entities are already in screen space; world-canvas
         // entities need the camera offset subtracted for viewport mapping.
         let cam_offset = match *canvas {
-            PxCanvas::Camera => Vec2::ZERO,
-            PxCanvas::World => camera_pos.0,
+            CxRenderSpace::Camera => Vec2::ZERO,
+            CxRenderSpace::World => camera_pos.0,
         };
 
         // Player attacks with geometric colliders (Point cross, Radial circle)
@@ -276,7 +278,7 @@ pub(crate) fn draw_colliders(
                         ColliderShape::Circle(radius) => {
                             draw_circle_collider_2d(
                                 &mut gizmos,
-                                sub_position.0 + collider.offset,
+                                world_pos.0 + collider.offset,
                                 radius,
                                 debug_collider_color(entity_class, DebugColliderVisualKind::Radial),
                                 |point| to_viewport_coordinates(point - cam_offset),
@@ -286,7 +288,7 @@ pub(crate) fn draw_colliders(
                         ColliderShape::Box(size) => {
                             draw_rect_collider_2d(
                                 &mut gizmos,
-                                sub_position.0 + collider.offset,
+                                world_pos.0 + collider.offset,
                                 size,
                                 debug_collider_color(entity_class, DebugColliderVisualKind::Box),
                                 |point| to_viewport_coordinates(point - cam_offset),
@@ -300,7 +302,7 @@ pub(crate) fn draw_colliders(
         } else {
             let target = CollisionTarget {
                 position,
-                sub_position,
+                world_pos,
                 anchor,
                 canvas,
                 frame,
@@ -562,20 +564,20 @@ fn take_debug_probe_request(
 pub(crate) fn draw_pixel_mask_outlines(
     mut gizmos: Gizmos,
     overlay: Res<DebugColliderOverlay>,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    camera_query: Query<&WorldPos, With<CameraPos>>,
     mut collision_assets: MaskCollisionAssets<'_, '_>,
     query: Query<
         (
-            &PxSubPosition,
+            &WorldPos,
             Option<&ColliderData>,
             Option<&ComposedCollisionState>,
-            &PxPosition,
-            (&PxAnchor, &PxCanvas),
+            &CxPosition,
+            (&CxAnchor, &CxRenderSpace),
             (
-                Option<&PxFrameView>,
-                Option<&PxSprite>,
-                Option<&PxAtlasSprite>,
-                Option<&PxPresentationTransform>,
+                Option<&CxFrameView>,
+                Option<&CxSprite>,
+                Option<&CxAtlasSprite>,
+                Option<&CxPresentationTransform>,
             ),
             Option<&ComposedResolvedParts>,
             Option<&ComposedAtlasBindings>,
@@ -597,7 +599,7 @@ pub(crate) fn draw_pixel_mask_outlines(
     collision_assets.refresh();
 
     for (
-        sub_position,
+        world_pos,
         collider_data,
         composed_collision_state,
         position,
@@ -622,7 +624,7 @@ pub(crate) fn draw_pixel_mask_outlines(
             debug_collider_entity_class(enemy, enemy_attack, destructible, player_attack);
         let target = CollisionTarget {
             position,
-            sub_position,
+            world_pos,
             anchor,
             canvas,
             frame,

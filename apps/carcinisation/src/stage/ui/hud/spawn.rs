@@ -1,5 +1,5 @@
 use super::components::{HealthIcon, HealthText, Hud, UIBackground};
-use crate::pixel::{PxAssets, PxRectBundle, PxSpriteBundle, PxTextBundle};
+use crate::pixel::{CxAssets, CxFilterRectBundle, CxSpriteBundle, CxTextBundle};
 use crate::{
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION, load_inverted_typeface},
     layer::Layer,
@@ -8,8 +8,8 @@ use crate::{
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
-    PxText, PxTypeface,
+    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxSprite, CxText,
+    CxTypeface, WorldPos,
 };
 use carcinisation_core::components::GBColor;
 
@@ -24,9 +24,9 @@ const HUD_SCORE_MR: i32 = 15;
 
 pub fn spawn_hud(
     commands: &mut Commands,
-    typefaces: &mut PxAssets<PxTypeface>,
-    assets_sprite: &mut PxAssets<PxSprite>,
-    filters: &mut PxAssets<PxFilter>,
+    typefaces: &mut CxAssets<CxTypeface>,
+    assets_sprite: &mut CxAssets<CxSprite>,
+    filters: &mut CxAssets<CxFilter>,
 ) -> Entity {
     let typeface = load_inverted_typeface(typefaces);
     commands
@@ -38,13 +38,13 @@ pub fn spawn_hud(
             InheritedVisibility::VISIBLE,
             children![
                 (
-                    PxRectBundle::<Layer> {
-                        anchor: PxAnchor::BottomLeft,
-                        canvas: PxCanvas::Camera,
-                        filter: PxFilter(filters.load_color(GBColor::White)),
-                        layers: PxFilterLayers::single_over(Layer::HudBackground),
+                    CxFilterRectBundle::<Layer> {
+                        anchor: CxAnchor::BottomLeft,
+                        canvas: CxRenderSpace::Camera,
+                        filter: CxFilter(filters.load_color(GBColor::White)),
+                        layers: CxFilterLayers::single_over(Layer::HudBackground),
                         position: IVec2::ZERO.into(),
-                        rect: PxRect(UVec2::new(SCREEN_RESOLUTION.x, HUD_HEIGHT)),
+                        rect: CxFilterRect(UVec2::new(SCREEN_RESOLUTION.x, HUD_HEIGHT)),
                         visibility: Visibility::Visible,
                     },
                     // TODO Technically not a UiBackground
@@ -57,29 +57,29 @@ pub fn spawn_hud(
                     InheritedVisibility::VISIBLE,
                     children![
                         (
-                            PxSpriteBundle::<Layer> {
-                                anchor: PxAnchor::BottomLeft,
-                                canvas: PxCanvas::Camera,
+                            CxSpriteBundle::<Layer> {
+                                anchor: CxAnchor::BottomLeft,
+                                canvas: CxRenderSpace::Camera,
                                 layer: Layer::Hud,
                                 // TODO could add a macro at the level of assets_sprite that extends assert_assets_path!
-                                sprite: PxSprite(assets_sprite.load(assert_assets_path!(
+                                sprite: CxSprite(assets_sprite.load(assert_assets_path!(
                                     "sprites/pickups/health_6.px_sprite.png"
                                 ))),
                                 ..default()
                             },
-                            PxSubPosition::from(Vec2::new(HUD_HEALTH_ICON_X, LAYOUT_Y as f32)),
+                            WorldPos::from(Vec2::new(HUD_HEALTH_ICON_X, LAYOUT_Y as f32)),
                             HealthIcon,
                             Name::new("HealthIcon")
                         ),
                         (
-                            PxTextBundle::<Layer> {
-                                position: PxPosition::from(
+                            CxTextBundle::<Layer> {
+                                position: CxPosition::from(
                                     IVec2::new(HUD_HEALTH_TEXT_X, LAYOUT_Y,)
                                 ),
-                                anchor: PxAnchor::BottomRight,
-                                canvas: PxCanvas::Camera,
+                                anchor: CxAnchor::BottomRight,
+                                canvas: CxRenderSpace::Camera,
                                 layer: Layer::Hud,
-                                text: PxText {
+                                text: CxText {
                                     typeface: typeface.clone(),
                                     ..Default::default()
                                 },
@@ -95,15 +95,15 @@ pub fn spawn_hud(
                     Visibility::Visible,
                     InheritedVisibility::VISIBLE,
                     children![(
-                        PxTextBundle::<Layer> {
-                            position: PxPosition::from(IVec2::new(
+                        CxTextBundle::<Layer> {
+                            position: CxPosition::from(IVec2::new(
                                 SCREEN_RESOLUTION.x as i32 - HUD_SCORE_MR,
                                 LAYOUT_Y,
                             )),
-                            anchor: PxAnchor::BottomRight,
-                            canvas: PxCanvas::Camera,
+                            anchor: CxAnchor::BottomRight,
+                            canvas: CxRenderSpace::Camera,
                             layer: Layer::Hud,
-                            text: PxText {
+                            text: CxText {
                                 typeface: typeface.clone(),
                                 ..Default::default()
                             },

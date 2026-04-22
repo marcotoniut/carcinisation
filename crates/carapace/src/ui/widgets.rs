@@ -4,28 +4,28 @@ use crate::{position::DefaultLayer, prelude::*};
 
 /// Marks the root entity of a UI tree.
 #[derive(Component)]
-#[require(PxCanvas, DefaultLayer)]
-pub struct PxUiRoot;
+#[require(CxRenderSpace, DefaultLayer)]
+pub struct CxUiRoot;
 
 /// Sets a minimum size for a UI node.
 #[derive(Component, Deref, DerefMut, Default, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxMinSize(pub UVec2);
+pub struct CxMinSize(pub UVec2);
 
 /// Adds pixel margin around a UI node.
 #[derive(Component, Deref, DerefMut, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxMargin(pub u32);
+pub struct CxMargin(pub u32);
 
-impl Default for PxMargin {
+impl Default for CxMargin {
     fn default() -> Self {
         Self(1)
     }
 }
 
-/// Per-child layout options for [`PxRow`].
+/// Per-child layout options for [`CxRow`].
 #[derive(Component, Default, Clone)]
-pub struct PxRowSlot {
+pub struct CxRowSlot {
     /// If true, the slot expands to fill available space.
     pub stretch: bool,
 }
@@ -33,42 +33,45 @@ pub struct PxRowSlot {
 /// Row/column layout container for UI children.
 #[derive(Component, Default, Clone, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxRow {
+pub struct CxRow {
     /// If true, lay out children vertically; otherwise horizontally.
     pub vertical: bool,
     /// Space between children in pixels.
     pub space_between: u32,
 }
 
-/// Row sizing config used by [`PxGrid`].
+/// Row sizing config used by [`CxGrid`].
 #[derive(Default, Clone, Reflect)]
-pub struct PxGridRow {
+pub struct CxGridRow {
     /// If true, the row expands to fill available space.
     pub stretch: bool,
 }
 
-/// Row/column definitions for [`PxGrid`].
+/// Track definitions for [`CxGrid`] — used for both rows and columns.
+///
+/// Each track entry ([`CxGridRow`]) specifies a sizing strategy for one
+/// row or column.
 #[derive(Default, Clone, Reflect)]
-pub struct PxGridRows {
-    /// Row definitions.
-    pub rows: Vec<PxGridRow>,
-    /// Space between rows/columns in pixels.
+pub struct CxGridTracks {
+    /// Track definitions (one per row or column).
+    pub rows: Vec<CxGridRow>,
+    /// Space between tracks in pixels.
     pub space_between: u32,
 }
 
 /// Grid layout container for UI children.
 #[derive(Component, Clone)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxGrid {
+pub struct CxGrid {
     /// Number of columns in the grid.
     pub width: u32,
     /// Row sizing rules.
-    pub rows: PxGridRows,
+    pub rows: CxGridTracks,
     /// Column sizing rules.
-    pub columns: PxGridRows,
+    pub columns: CxGridTracks,
 }
 
-impl Default for PxGrid {
+impl Default for CxGrid {
     fn default() -> Self {
         Self {
             width: 2,
@@ -81,12 +84,12 @@ impl Default for PxGrid {
 /// Stack layout container; children overlap in insertion order.
 #[derive(Component, Clone, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxStack;
+pub struct CxStack;
 
 /// Scroll container that masks and offsets child content.
 #[derive(Component, Default, Clone, Copy, Reflect)]
-#[require(PxInvertMask, PxRect)]
-pub struct PxScroll {
+#[require(CxInvertMask, CxFilterRect)]
+pub struct CxScroll {
     /// If true, scroll horizontally; otherwise vertically.
     pub horizontal: bool,
     /// Current scroll offset in pixels.

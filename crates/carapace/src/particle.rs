@@ -11,9 +11,9 @@ use bevy_ecs::system::EntityCommands;
 use bevy_platform::time::Instant;
 
 use crate::{
-    position::{DefaultLayer, PxLayer},
+    position::{CxLayer, DefaultLayer},
     prelude::*,
-    set::PxSet,
+    set::CxSet,
 };
 
 // https://github.com/bevyengine/bevy/issues/8483
@@ -21,7 +21,7 @@ use crate::{
 // If a day isn't sufficient for your use case, file an issue!
 const TIME_OFFSET: Duration = Duration::from_secs(60 * 60 * 24);
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App) {
     app.add_systems(
         PostUpdate,
         (
@@ -31,7 +31,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
                 (simulate_emitters::<L>, insert_emitter_time),
                 (ApplyDeferred, update_emitters::<L>)
                     .chain()
-                    .in_set(PxSet::UpdateEmitters),
+                    .in_set(CxSet::UpdateEmitters),
             )
                 .chain(),
             despawn_particles,
@@ -41,29 +41,29 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
 
 fn validate_emitters(
     mut commands: Commands,
-    emitters: Query<(Entity, &PxEmitter), Or<(Added<PxEmitter>, Changed<PxEmitter>)>>,
+    emitters: Query<(Entity, &CxEmitter), Or<(Added<CxEmitter>, Changed<CxEmitter>)>>,
 ) {
     for (entity, emitter) in &emitters {
         if emitter.sprites.is_empty() {
             error!(
-                "`PxEmitter` on entity {entity:?} has no sprites; removing invalid `PxEmitter` component"
+                "`CxEmitter` on entity {entity:?} has no sprites; removing invalid `CxEmitter` component"
             );
-            commands.entity(entity).remove::<PxEmitter>();
+            commands.entity(entity).remove::<CxEmitter>();
         }
     }
 }
 
 /// A particle's lifetime
 #[derive(Clone, Component, Copy, Debug, Deref, DerefMut, Reflect)]
-pub struct PxParticleLifetime(pub Duration);
+pub struct ParticleLifetime(pub Duration);
 
-impl Default for PxParticleLifetime {
+impl Default for ParticleLifetime {
     fn default() -> Self {
         Self(Duration::from_secs(1))
     }
 }
 
-impl From<Duration> for PxParticleLifetime {
+impl From<Duration> for ParticleLifetime {
     fn from(duration: Duration) -> Self {
         Self(duration)
     }
@@ -71,20 +71,20 @@ impl From<Duration> for PxParticleLifetime {
 
 /// Spawn frequency range for an emitter
 #[derive(Debug)]
-pub struct PxEmitterFrequency {
+pub struct CxEmitterFrequency {
     min: Duration,
     max: Duration,
     next: Option<Duration>,
 }
 
-impl Default for PxEmitterFrequency {
+impl Default for CxEmitterFrequency {
     fn default() -> Self {
         Self::single(Duration::from_secs(1))
     }
 }
 
-impl PxEmitterFrequency {
-    /// Create a new [`PxEmitterFrequency`] with frequency bounds
+impl CxEmitterFrequency {
+    /// Create a new [`CxEmitterFrequency`] with frequency bounds
     #[must_use]
     pub fn new(min: Duration, max: Duration) -> Self {
         Self {
@@ -94,7 +94,7 @@ impl PxEmitterFrequency {
         }
     }
 
-    /// Create a [`PxEmitterFrequency`] with a certain frequency
+    /// Create a [`CxEmitterFrequency`] with a certain frequency
     #[must_use]
     pub fn single(duration: Duration) -> Self {
         Self {
@@ -124,12 +124,12 @@ impl PxEmitterFrequency {
 
 /// Determines whether the emitter is pre-simulated
 #[derive(Debug, Default, Eq, PartialEq)]
-pub enum PxEmitterSimulation {
+pub enum CxEmitterSimulation {
     /// The emitter is not pre-simulated
     #[default]
     None,
     /// The emitter is pre-simulated. This means that the emitter will spawn particles
-    /// as soon as the `PxEmitterBundle` is spawned, with values as if they had been spawned
+    /// as soon as the `CxEmitter` is spawned, with values as if they had been spawned
     /// earlier. This is useful when an emitter comes into view,
     /// and you want it to look like it had been emitting particles all along.
     Simulate,
@@ -137,22 +137,22 @@ pub enum PxEmitterSimulation {
 
 /// Creates a particle emitter
 #[derive(Component)]
-#[require(PxAnchor, DefaultLayer, PxCanvas, PxParticleLifetime, PxVelocity)]
-pub struct PxEmitter {
+#[require(CxAnchor, DefaultLayer, CxRenderSpace, ParticleLifetime, CxVelocity)]
+pub struct CxEmitter {
     /// Possible sprites for an emitter's particles
-    pub sprites: Vec<Handle<PxSpriteAsset>>,
+    pub sprites: Vec<Handle<CxSpriteAsset>>,
     /// Location range for an emitter's particles
     pub range: IRect,
-    /// A [`PxEmitterFrequency`]
-    pub frequency: PxEmitterFrequency,
-    /// A [`PxEmitterSimulation`]
-    pub simulation: PxEmitterSimulation,
+    /// A [`CxEmitterFrequency`]
+    pub frequency: CxEmitterFrequency,
+    /// A [`CxEmitterSimulation`]
+    pub simulation: CxEmitterSimulation,
     /// This function is run on each particle that spawns. It is run
     /// after all of the other components are added, so you can use this to override components.
     pub on_spawn: Box<dyn Fn(&mut EntityCommands) + Send + Sync>,
 }
 
-impl Default for PxEmitter {
+impl Default for CxEmitter {
     fn default() -> Self {
         Self {
             sprites: Vec::new(),
@@ -164,9 +164,9 @@ impl Default for PxEmitter {
     }
 }
 
-impl Debug for PxEmitter {
+impl Debug for CxEmitter {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        f.debug_struct("PxEmitter")
+        f.debug_struct("CxEmitter")
             .field("sprites", &self.sprites)
             .field("range", &self.range)
             .field("frequency", &self.frequency)
@@ -177,18 +177,18 @@ impl Debug for PxEmitter {
 }
 
 #[derive(Component, Debug, Deref, DerefMut)]
-struct PxEmitterStart(Instant);
+struct CxEmitterStart(Instant);
 
 #[derive(Component, Debug, Deref, DerefMut)]
-struct PxParticleStart(Instant);
+struct CxParticleStart(Instant);
 
-impl Default for PxParticleStart {
+impl Default for CxParticleStart {
     fn default() -> Self {
         Self(Instant::now())
     }
 }
 
-impl From<Instant> for PxParticleStart {
+impl From<Instant> for CxParticleStart {
     fn from(duration: Instant) -> Self {
         Self(duration)
     }
@@ -196,31 +196,31 @@ impl From<Instant> for PxParticleStart {
 
 #[allow(dead_code)]
 #[derive(Bundle, Default)]
-struct PxParticleBundle {
-    position: PxSubPosition,
-    velocity: PxVelocity,
-    start: PxParticleStart,
-    lifetime: PxParticleLifetime,
+struct CxParticleBundle {
+    position: WorldPos,
+    velocity: CxVelocity,
+    start: CxParticleStart,
+    lifetime: ParticleLifetime,
 }
 
-fn simulate_emitters<L: PxLayer>(
+fn simulate_emitters<L: CxLayer>(
     mut commands: Commands,
     emitters: Query<
         (
-            &PxEmitter,
-            &PxAnchor,
+            &CxEmitter,
+            &CxAnchor,
             &L,
-            &PxCanvas,
-            &PxParticleLifetime,
-            &PxVelocity,
+            &CxRenderSpace,
+            &ParticleLifetime,
+            &CxVelocity,
         ),
-        Added<PxEmitter>,
+        Added<CxEmitter>,
     >,
     time: Res<Time<Real>>,
     mut rng: ResMut<GlobalRng>,
 ) {
     for (emitter, anchor, layer, canvas, lifetime, velocity) in &emitters {
-        if emitter.simulation != PxEmitterSimulation::Simulate {
+        if emitter.simulation != CxEmitterSimulation::Simulate {
             continue;
         }
 
@@ -236,17 +236,17 @@ fn simulate_emitters<L: PxLayer>(
                 + **velocity * (current_time - simulated_time).as_secs_f32();
 
             (emitter.on_spawn)(&mut commands.spawn((
-                PxSprite(rng.sample(&emitter.sprites).unwrap().clone()),
-                PxPosition::from(IVec2::new(
+                CxSprite(rng.sample(&emitter.sprites).unwrap().clone()),
+                CxPosition::from(IVec2::new(
                     position.x.round() as i32,
                     position.y.round() as i32,
                 )),
                 *anchor,
                 layer.clone(),
                 *canvas,
-                PxSubPosition::from(position),
+                WorldPos::from(position),
                 *velocity,
-                PxParticleStart::from(simulated_time),
+                CxParticleStart::from(simulated_time),
                 *lifetime,
                 Name::new("Particle"),
             )));
@@ -269,28 +269,28 @@ fn simulate_emitters<L: PxLayer>(
 
 fn insert_emitter_time(
     mut commands: Commands,
-    emitters: Query<Entity, Added<PxEmitter>>,
+    emitters: Query<Entity, Added<CxEmitter>>,
     time: Res<Time<Real>>,
     mut rng: ResMut<GlobalRng>,
 ) {
     for emitter in &emitters {
         commands.entity(emitter).insert((
-            PxEmitterStart(time.last_update().unwrap_or_else(|| time.startup()) + TIME_OFFSET),
+            CxEmitterStart(time.last_update().unwrap_or_else(|| time.startup()) + TIME_OFFSET),
             RngComponent::from(&mut rng),
         ));
     }
 }
 
-fn update_emitters<L: PxLayer>(
+fn update_emitters<L: CxLayer>(
     mut commands: Commands,
     mut emitters: Query<(
-        &mut PxEmitter,
-        &PxAnchor,
+        &mut CxEmitter,
+        &CxAnchor,
         &L,
-        &PxCanvas,
-        &PxParticleLifetime,
-        &PxVelocity,
-        &mut PxEmitterStart,
+        &CxRenderSpace,
+        &ParticleLifetime,
+        &CxVelocity,
+        &mut CxEmitterStart,
         &mut RngComponent,
     )>,
     time: Res<Time<Real>>,
@@ -311,14 +311,14 @@ fn update_emitters<L: PxLayer>(
         );
 
         (emitter.on_spawn)(&mut commands.spawn((
-            PxSprite(rng.sample(&emitter.sprites).unwrap().clone()),
-            PxPosition::from(position),
+            CxSprite(rng.sample(&emitter.sprites).unwrap().clone()),
+            CxPosition::from(position),
             *anchor,
             layer.clone(),
             *canvas,
-            PxSubPosition::from(position.as_vec2()),
+            WorldPos::from(position.as_vec2()),
             *velocity,
-            PxParticleStart::from(
+            CxParticleStart::from(
                 time.last_update().unwrap_or_else(|| time.startup()) + TIME_OFFSET,
             ),
             *lifetime,
@@ -329,7 +329,7 @@ fn update_emitters<L: PxLayer>(
 
 fn despawn_particles(
     mut commands: Commands,
-    particles: Query<(Entity, &PxParticleLifetime, &PxParticleStart)>,
+    particles: Query<(Entity, &ParticleLifetime, &CxParticleStart)>,
     time: Res<Time<Real>>,
 ) {
     for (particle, lifetime, start) in &particles {
@@ -359,7 +359,7 @@ mod tests {
 
     fn test_world() -> World {
         let mut world = World::new();
-        // `PxEmitter` requires `DefaultLayer`; tests set layer explicitly.
+        // `CxEmitter` requires `DefaultLayer`; tests set layer explicitly.
         world.insert_resource(crate::position::InsertDefaultLayer::noop());
         world.init_resource::<Time<Real>>();
         world.init_resource::<GlobalRng>();
@@ -386,12 +386,12 @@ mod tests {
     fn invalid_emitter_with_empty_sprites_produces_no_particles() {
         let mut world = test_world();
 
-        let emitter = world.spawn(PxEmitter::default()).id();
+        let emitter = world.spawn(CxEmitter::default()).id();
         world.entity_mut(emitter).insert(TestLayer::default());
 
         run_emitter_step(&mut world);
 
-        let particles = world.query::<&PxParticleStart>().iter(&world).count();
+        let particles = world.query::<&CxParticleStart>().iter(&world).count();
         assert_eq!(particles, 0);
     }
 
@@ -400,10 +400,10 @@ mod tests {
         let mut world = test_world();
 
         let emitter = world
-            .spawn(PxEmitter {
+            .spawn(CxEmitter {
                 sprites: vec![default()],
-                frequency: PxEmitterFrequency::single(Duration::ZERO),
-                simulation: PxEmitterSimulation::None,
+                frequency: CxEmitterFrequency::single(Duration::ZERO),
+                simulation: CxEmitterSimulation::None,
                 ..default()
             })
             .id();
@@ -411,7 +411,7 @@ mod tests {
 
         run_emitter_step(&mut world);
 
-        let particles = world.query::<&PxParticleStart>().iter(&world).count();
+        let particles = world.query::<&CxParticleStart>().iter(&world).count();
         assert!(particles >= 1);
     }
 }

@@ -10,94 +10,94 @@ use bytemuck::cast_slice_mut;
 #[cfg(feature = "line")]
 use crate::line::draw_line;
 use crate::{
-    atlas::PxSpriteAtlasAsset,
-    cursor::{CursorState, PxCursorPosition},
-    filter::{PxFilterAsset, draw_filter},
+    atlas::CxSpriteAtlasAsset,
+    cursor::{CursorState, CxCursorPosition},
+    filter::{CxFilterAsset, draw_filter},
     frame::{
         Frames, blit_transformed, draw_spatial, draw_spatial_transformed, resolve_frame_binding,
     },
-    image::{PxImage, PxImageSliceMut},
-    map::{PxTile, PxTileset},
+    image::{CxImage, CxImageSliceMut},
     position::Spatial,
     prelude::*,
     sprite::{
-        PxCompositeMetrics, PxCompositePartDrawable, PxCompositePartMetrics, PxCompositeSprite,
-        PxSpriteAsset, log_composite_part_resolve_error,
+        CxCompositeMetrics, CxCompositePartDrawable, CxCompositePartMetrics, CxCompositeSprite,
+        CxSpriteAsset, log_composite_part_resolve_error,
     },
-    text::PxTypeface,
+    text::CxTypeface,
+    tilemap::{CxTile, CxTileset},
 };
 
 #[cfg(feature = "headed")]
-use super::pipeline::{PxRenderBuffer, PxRenderBufferInner};
-use crate::map::TileComponents;
+use super::pipeline::{CxRenderBuffer, CxRenderBufferInner};
+use crate::tilemap::TileComponents;
 
 pub(crate) type MapEntry<'a> = (
-    &'a PxMap,
-    PxPosition,
-    PxCanvas,
-    Option<&'a PxFrame>,
-    Option<&'a PxFilter>,
+    &'a CxTilemap,
+    CxPosition,
+    CxRenderSpace,
+    Option<&'a CxFrameView>,
+    Option<&'a CxFilter>,
 );
 
 pub(crate) type SpriteEntry<'a> = (
-    &'a PxSprite,
-    PxPosition,
-    PxAnchor,
-    PxCanvas,
-    Option<&'a PxFrame>,
-    Option<&'a PxFilter>,
-    Option<crate::presentation::PxPresentationTransform>,
+    &'a CxSprite,
+    CxPosition,
+    CxAnchor,
+    CxRenderSpace,
+    Option<&'a CxFrameView>,
+    Option<&'a CxFilter>,
+    Option<crate::presentation::CxPresentationTransform>,
 );
 
 pub(crate) type AtlasSpriteEntry<'a> = (
-    &'a PxAtlasSprite,
-    PxPosition,
-    PxAnchor,
-    PxCanvas,
-    Option<&'a PxFrame>,
-    Option<&'a PxFilter>,
-    Option<crate::presentation::PxPresentationTransform>,
+    &'a CxAtlasSprite,
+    CxPosition,
+    CxAnchor,
+    CxRenderSpace,
+    Option<&'a CxFrameView>,
+    Option<&'a CxFilter>,
+    Option<crate::presentation::CxPresentationTransform>,
 );
 
 pub(crate) type CompositeSpriteEntry<'a> = (
-    &'a PxCompositeSprite,
-    PxPosition,
-    PxAnchor,
-    PxCanvas,
-    Option<&'a PxFrame>,
-    Option<&'a PxFilter>,
-    Option<crate::presentation::PxPresentationTransform>,
+    &'a CxCompositeSprite,
+    CxPosition,
+    CxAnchor,
+    CxRenderSpace,
+    Option<&'a CxFrameView>,
+    Option<&'a CxFilter>,
+    Option<crate::presentation::CxPresentationTransform>,
 );
 
 pub(crate) type TextEntry<'a> = (
-    &'a PxText,
-    PxPosition,
-    PxAnchor,
-    PxCanvas,
-    Option<&'a PxFrame>,
-    Option<&'a PxFilter>,
+    &'a CxText,
+    CxPosition,
+    CxAnchor,
+    CxRenderSpace,
+    Option<&'a CxFrameView>,
+    Option<&'a CxFilter>,
 );
 
 pub(crate) type RectEntry<'a> = (
-    PxRect,
-    &'a PxFilter,
-    PxPosition,
-    PxAnchor,
-    PxCanvas,
-    Option<&'a PxFrame>,
+    CxFilterRect,
+    &'a CxFilter,
+    CxPosition,
+    CxAnchor,
+    CxRenderSpace,
+    Option<&'a CxFrameView>,
     bool,
 );
 
 #[cfg(feature = "line")]
 pub(crate) type LineEntry<'a> = (
-    &'a PxLine,
-    &'a PxFilter,
-    PxCanvas,
-    Option<&'a PxFrame>,
+    &'a CxLine,
+    &'a CxFilter,
+    CxRenderSpace,
+    Option<&'a CxFrameView>,
     bool,
 );
 
-pub(crate) type FilterEntry<'a> = (&'a PxFilter, Option<&'a PxFrame>);
+pub(crate) type FilterEntry<'a> = (&'a CxFilter, Option<&'a CxFrameView>);
 
 #[cfg(feature = "line")]
 #[derive(Default)]
@@ -161,23 +161,23 @@ impl<'a> LayerContents<'a> {
 pub(crate) type LayerContentsMap<'a, L> = BTreeMap<L, LayerContents<'a>>;
 
 #[cfg(feature = "headed")]
-pub(crate) fn draw_layers<'w, L: PxLayer>(
+pub(crate) fn draw_layers<'w, L: CxLayer>(
     world: &'w World,
-    render_buffer: &PxRenderBuffer,
-    camera: PxCamera,
+    render_buffer: &CxRenderBuffer,
+    camera: CxCamera,
     layer_contents: LayerContentsMap<'w, L>,
     tiles: &QueryState<TileComponents>,
     #[cfg(feature = "gpu_palette")] layer_order: &[L],
 ) {
-    let tilesets = world.resource::<RenderAssets<PxTileset>>();
-    let atlas_assets = world.resource::<RenderAssets<PxSpriteAtlasAsset>>();
-    let sprite_assets = world.resource::<RenderAssets<PxSpriteAsset>>();
-    let typefaces = world.resource::<RenderAssets<PxTypeface>>();
-    let filters = world.resource::<RenderAssets<PxFilterAsset>>();
+    let tilesets = world.resource::<RenderAssets<CxTileset>>();
+    let atlas_assets = world.resource::<RenderAssets<CxSpriteAtlasAsset>>();
+    let sprite_assets = world.resource::<RenderAssets<CxSpriteAsset>>();
+    let typefaces = world.resource::<RenderAssets<CxTypeface>>();
+    let filters = world.resource::<RenderAssets<CxFilterAsset>>();
 
     {
         let mut inner = render_buffer.write_inner();
-        let PxRenderBufferInner {
+        let CxRenderBufferInner {
             image,
             #[cfg(feature = "gpu_palette")]
             depth_image,
@@ -194,8 +194,8 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
             let height = image.height() as usize;
             (image.width() as usize, height, height as i32)
         };
-        let mut layer_image = PxImage::empty_from_image(image);
-        let mut image_slice = PxImageSliceMut::from_image_mut(image).unwrap();
+        let mut layer_image = CxImage::empty_from_image(image);
+        let mut image_slice = CxImageSliceMut::from_image_mut(image).unwrap();
 
         #[allow(unused_variables)]
         for (layer, contents) in layer_contents {
@@ -237,7 +237,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             continue;
                         };
 
-                        let Ok((&PxTile { texture }, tile_filter)) = tiles.get_manual(world, tile)
+                        let Ok((&CxTile { texture }, tile_filter)) = tiles.get_manual(world, tile)
                         else {
                             continue;
                         };
@@ -255,7 +255,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             (),
                             &mut layer_slice,
                             (*position + pos.as_ivec2() * tileset.tile_size().as_ivec2()).into(),
-                            PxAnchor::BottomLeft,
+                            CxAnchor::BottomLeft,
                             canvas,
                             frame.copied(),
                             [
@@ -293,14 +293,14 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         camera,
                         pt.clamped_scale(),
                         pt.sanitised_rotation(),
-                        pt.offset,
+                        pt.visual_offset,
                     );
                 } else {
                     // Unscaled path: offset-only adjustment (if any), no scratch buffer.
                     let adjusted_pos = if let Some(pt) = presentation
                         && pt.has_offset()
                     {
-                        PxPosition(*position + pt.offset.round().as_ivec2())
+                        CxPosition(*position + pt.visual_offset.round().as_ivec2())
                     } else {
                         position
                     };
@@ -343,13 +343,13 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         camera,
                         pt.clamped_scale(),
                         pt.sanitised_rotation(),
-                        pt.offset,
+                        pt.visual_offset,
                     );
                 } else {
                     let adjusted_pos = if let Some(pt) = presentation
                         && pt.has_offset()
                     {
-                        PxPosition(*position + pt.offset.round().as_ivec2())
+                        CxPosition(*position + pt.visual_offset.round().as_ivec2())
                     } else {
                         position
                     };
@@ -376,13 +376,13 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                                 |handle| atlas_assets.get(handle),
                             )
                             .ok()
-                            .map(|resolved| PxCompositePartMetrics {
+                            .map(|resolved| CxCompositePartMetrics {
                                 size: resolved.frame_size(),
                                 frame_count: resolved.frame_count(),
                             })
                     })
                 } else {
-                    Some(PxCompositeMetrics {
+                    Some(CxCompositeMetrics {
                         size: composite.size,
                         origin: composite.origin,
                         render_size: composite.render_size,
@@ -408,7 +408,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
 
                     // Compose all parts into a scratch buffer sized to the render
                     // envelope (may be larger than base size for transformed parts).
-                    let mut scratch = crate::image::PxImage::empty(metrics.render_size);
+                    let mut scratch = crate::image::CxImage::empty(metrics.render_size);
                     let mut scratch_slice = scratch.slice_all_mut();
                     let master = frame.copied();
                     let master_count = metrics.frame_count;
@@ -434,7 +434,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         let part_filter =
                             part.filter.as_ref().and_then(|handle| filters.get(handle));
                         let entity_filter = filter.and_then(|filter| filters.get(&**filter));
-                        let drawable = PxCompositePartDrawable {
+                        let drawable = CxCompositePartDrawable {
                             resolved,
                             flip_x: part.flip_x,
                             flip_y: part.flip_y,
@@ -451,7 +451,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             }
 
                             // Render part into a mini scratch at native size.
-                            let mut mini = PxImage::empty(part_size);
+                            let mut mini = CxImage::empty(part_size);
                             let mut mini_slice = mini.slice_all_mut();
                             crate::frame::draw_frame(
                                 &drawable,
@@ -471,10 +471,10 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                                 &mini,
                                 part_size,
                                 &mut scratch_slice,
-                                PxPosition(pivot_pos.round().as_ivec2()),
+                                CxPosition(pivot_pos.round().as_ivec2()),
                                 t.anchor(),
-                                PxCanvas::Camera,
-                                PxCamera(IVec2::ZERO),
+                                CxRenderSpace::Camera,
+                                CxCamera(IVec2::ZERO),
                                 t.clamped_scale(),
                                 t.sanitised_rotation(),
                                 Vec2::ZERO,
@@ -486,11 +486,11 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                                 (),
                                 &mut scratch_slice,
                                 part_pos.into(),
-                                PxAnchor::BottomLeft,
-                                PxCanvas::Camera,
+                                CxAnchor::BottomLeft,
+                                CxRenderSpace::Camera,
                                 part_frame,
                                 [part_filter, entity_filter].into_iter().flatten(),
-                                PxCamera(IVec2::ZERO),
+                                CxCamera(IVec2::ZERO),
                             );
                         }
                     }
@@ -505,7 +505,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                     let render_anchor_px = base_in_scratch + base_anchor;
                     // render_size is guaranteed non-zero here (zero-area
                     // composites are skipped above).
-                    let render_anchor = PxAnchor::Custom(Vec2::new(
+                    let render_anchor = CxAnchor::Custom(Vec2::new(
                         render_anchor_px.x / metrics.render_size.x as f32,
                         render_anchor_px.y / metrics.render_size.y as f32,
                     ));
@@ -519,13 +519,13 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         camera,
                         scale,
                         pt.sanitised_rotation(),
-                        pt.offset,
+                        pt.visual_offset,
                     );
                 } else {
                     // Unscaled path: draw parts directly to layer. Apply offset if present.
                     let offset_adjust = presentation
-                        .filter(super::super::presentation::PxPresentationTransform::has_offset)
-                        .map_or(IVec2::ZERO, |pt| pt.offset.round().as_ivec2());
+                        .filter(super::super::presentation::CxPresentationTransform::has_offset)
+                        .map_or(IVec2::ZERO, |pt| pt.visual_offset.round().as_ivec2());
                     let base_pos = *position + offset_adjust - anchor.pos(metrics.size).as_ivec2();
                     let master = frame.copied();
                     let master_count = metrics.frame_count;
@@ -551,7 +551,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         let part_filter =
                             part.filter.as_ref().and_then(|handle| filters.get(handle));
                         let entity_filter = filter.and_then(|filter| filters.get(&**filter));
-                        let drawable = PxCompositePartDrawable {
+                        let drawable = CxCompositePartDrawable {
                             resolved,
                             flip_x: part.flip_x,
                             flip_y: part.flip_y,
@@ -568,7 +568,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                             }
 
                             // Render part into a mini scratch at native size.
-                            let mut mini = PxImage::empty(part_size);
+                            let mut mini = CxImage::empty(part_size);
                             let mut mini_slice = mini.slice_all_mut();
                             crate::frame::draw_frame(
                                 &drawable,
@@ -588,7 +588,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                                 &mini,
                                 part_size,
                                 &mut layer_slice,
-                                PxPosition(pivot_pos.round().as_ivec2()),
+                                CxPosition(pivot_pos.round().as_ivec2()),
                                 t.anchor(),
                                 canvas,
                                 camera,
@@ -603,7 +603,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                                 (),
                                 &mut layer_slice,
                                 part_pos.into(),
-                                PxAnchor::BottomLeft,
+                                CxAnchor::BottomLeft,
                                 canvas,
                                 part_frame,
                                 [part_filter, entity_filter].into_iter().flatten(),
@@ -661,8 +661,8 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
                         char,
                         (),
                         &mut layer_slice,
-                        PxPosition(top_left + ivec2(x as i32, -(y as i32))),
-                        PxAnchor::TopLeft,
+                        CxPosition(top_left + ivec2(x as i32, -(y as i32))),
+                        CxAnchor::TopLeft,
                         canvas,
                         frame.copied(),
                         filter.and_then(|filter| filters.get(&**filter)),
@@ -778,27 +778,27 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
 
     let cursor = world.resource::<CursorState>();
 
-    if let PxCursor::Filter {
+    if let CxCursor::Filter {
         idle,
         left_click,
         right_click,
     } = world.resource()
-        && let Some(cursor_pos) = **world.resource::<PxCursorPosition>()
-        && let Some(PxFilterAsset(filter)) = filters.get(match cursor {
+        && let Some(cursor_pos) = **world.resource::<CxCursorPosition>()
+        && let Some(CxFilterAsset(filter)) = filters.get(match cursor {
             CursorState::Idle => idle,
             CursorState::Left => left_click,
             CursorState::Right => right_click,
         })
     {
         let mut inner = render_buffer.write_inner();
-        let PxRenderBufferInner {
+        let CxRenderBufferInner {
             image,
             #[cfg(feature = "gpu_palette")]
             depth_image,
             ..
         } = &mut *inner;
         let image = image.as_mut().unwrap();
-        let mut cursor_image = PxImageSliceMut::from_image_mut(image).unwrap();
+        let mut cursor_image = CxImageSliceMut::from_image_mut(image).unwrap();
         let cursor_pos = IVec2::new(
             cursor_pos.x as i32,
             cursor_image.height() as i32 - 1 - cursor_pos.y as i32,
@@ -807,7 +807,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
             if let Some(new_pixel) = filter.get_pixel(IVec2::new(i32::from(*pixel), 0)) {
                 *pixel = new_pixel;
             } else {
-                error!("`PxCursor` filter is the wrong size");
+                error!("`CxCursor` filter is the wrong size");
             }
         }
         #[cfg(feature = "gpu_palette")]
@@ -826,7 +826,7 @@ pub(crate) fn draw_layers<'w, L: PxLayer>(
 }
 
 #[cfg(feature = "gpu_palette")]
-fn layer_index_for<L: PxLayer>(layers: &[L], layer: &L) -> Option<u16> {
+fn layer_index_for<L: CxLayer>(layers: &[L], layer: &L) -> Option<u16> {
     let index = layers.binary_search(layer).ok()?;
     let base = (index + 1).checked_mul(2)?;
     u16::try_from(base).ok()
@@ -844,16 +844,16 @@ fn update_depth_from_layer(depth: &mut [u16], layer_data: &[u8], depth_value: u1
 #[cfg(feature = "gpu_palette")]
 fn spatial_bounds(
     size: UVec2,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
-    camera: PxCamera,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
+    camera: CxCamera,
     image_height: i32,
 ) -> IRect {
     let position = *position - anchor.pos(size).as_ivec2();
     let position = match canvas {
-        PxCanvas::World => position - *camera,
-        PxCanvas::Camera => position,
+        CxRenderSpace::World => position - *camera,
+        CxRenderSpace::Camera => position,
     };
     let position = IVec2::new(position.x, image_height - position.y);
     let size = size.as_ivec2();
@@ -901,9 +901,9 @@ fn update_depth_line(
     depth: &mut [u16],
     width: usize,
     height: usize,
-    line: &PxLine,
-    canvas: PxCanvas,
-    camera: PxCamera,
+    line: &CxLine,
+    canvas: CxRenderSpace,
+    camera: CxCamera,
     invert: bool,
     depth_value: u16,
 ) {
@@ -911,8 +911,8 @@ fn update_depth_line(
     use line_drawing::Bresenham;
 
     let offset = match canvas {
-        PxCanvas::World => -*camera,
-        PxCanvas::Camera => IVec2::ZERO,
+        CxRenderSpace::World => -*camera,
+        CxRenderSpace::Camera => IVec2::ZERO,
     };
 
     let mut poses = HashSet::new();

@@ -1,9 +1,9 @@
 //! `carapace`'s UI system. The building blocks of UI are here, but they are all just pieces.
-//! For example, there is a [`PxTextField`] component, but if you spawn it on its own, the text
+//! For example, there is a [`CxTextField`] component, but if you spawn it on its own, the text
 //! field won't have a background, and you won't even be able to type in it. Instead, you should
 //! make your own helper functions that compose UI components together. For a text field, you could
-//! use a [`PxStack`] with a white [`PxRect`] background and a [`PxTextField`], and add an observer
-//! on [`PxRect`] that sets [`InputFocus`] to the text field.
+//! use a [`CxStack`] with a white [`CxFilterRect`] background and a [`CxTextField`], and add an observer
+//! on [`CxFilterRect`] that sets [`InputFocus`] to the text field.
 //!
 //! For more information, browse this module and see the `ui` example.
 
@@ -19,15 +19,15 @@ use bevy_input::{InputSystems, keyboard::KeyboardInput, mouse::MouseWheel};
 #[cfg(feature = "headed")]
 use bevy_input_focus::InputFocus;
 
-use crate::{prelude::*, set::PxSet};
+use crate::{prelude::*, set::CxSet};
 
-pub use input::{PxCaret, PxKeyField, PxKeyFieldUpdate, PxTextField, PxTextFieldUpdate};
+pub use input::{CxCaret, CxKeyField, CxKeyFieldUpdate, CxTextField, CxTextFieldUpdate};
 pub use widgets::{
-    PxGrid, PxGridRow, PxGridRows, PxMargin, PxMinSize, PxRow, PxRowSlot, PxScroll, PxStack,
-    PxUiRoot,
+    CxGrid, CxGridRow, CxGridTracks, CxMargin, CxMinSize, CxRow, CxRowSlot, CxScroll, CxStack,
+    CxUiRoot,
 };
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App) {
     #[cfg(feature = "headed")]
     app.add_systems(
         PreUpdate,
@@ -53,9 +53,9 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App) {
     app.add_systems(
         PostUpdate,
         (
-            input::caret_blink.run_if(any_with_component::<PxTextField>),
+            input::caret_blink.run_if(any_with_component::<CxTextField>),
             layout::layout::<L>
-                .before(PxSet::Picking)
+                .before(CxSet::Picking)
                 .run_if(layout::layout_needs_recompute),
         )
             .chain(),
@@ -101,8 +101,8 @@ mod tests {
         let mut world = World::new();
         world.insert_resource(LayoutRuns::default());
         world.insert_resource(crate::position::InsertDefaultLayer::noop());
-        world.insert_resource(Assets::<PxTypeface>::default());
-        world.insert_resource(Assets::<PxSpriteAsset>::default());
+        world.insert_resource(Assets::<CxTypeface>::default());
+        world.insert_resource(Assets::<CxSpriteAsset>::default());
         world
     }
 
@@ -122,15 +122,15 @@ mod tests {
         let mut schedule = Schedule::default();
         schedule.add_systems(
             (
-                input::caret_blink.run_if(any_with_component::<PxTextField>),
+                input::caret_blink.run_if(any_with_component::<CxTextField>),
                 layout::layout::<TestLayer>
-                    .before(PxSet::Picking)
+                    .before(CxSet::Picking)
                     .run_if(layout::layout_needs_recompute),
             )
                 .chain(),
         );
 
-        // Regression guard: this should not panic even with no `Time`/`Screen` resources because
+        // Regression guard: this should not panic even with no `Time`/`CxScreen` resources because
         // both systems are skipped when there are no matching UI entities.
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| schedule.run(&mut world)));
         assert!(
@@ -150,15 +150,15 @@ mod tests {
 
         let entity = world
             .spawn((
-                PxTextField {
+                CxTextField {
                     cached_text: "abc".to_string(),
                     caret_char: '|',
-                    caret: Some(PxCaret {
+                    caret: Some(CxCaret {
                         state: true,
                         timer: Timer::new(Duration::from_millis(1), TimerMode::Repeating),
                     }),
                 },
-                PxText {
+                CxText {
                     value: "abc|".to_string(),
                     typeface: default(),
                     line_breaks: Vec::new(),
@@ -167,11 +167,11 @@ mod tests {
             .id();
 
         let mut schedule = Schedule::default();
-        schedule.add_systems(input::caret_blink.run_if(any_with_component::<PxTextField>));
+        schedule.add_systems(input::caret_blink.run_if(any_with_component::<CxTextField>));
         schedule.run(&mut world);
 
-        let field = world.get::<PxTextField>(entity).unwrap();
-        let text = world.get::<PxText>(entity).unwrap();
+        let field = world.get::<CxTextField>(entity).unwrap();
+        let text = world.get::<CxText>(entity).unwrap();
         assert!(!field.caret.as_ref().unwrap().state);
         assert_eq!(text.value, "abc");
     }
@@ -180,7 +180,7 @@ mod tests {
     fn layout_run_condition_skips_after_initial_unchanged_frame() {
         let mut world = setup_layout_world();
 
-        let root = world.spawn(PxUiRoot).id();
+        let root = world.spawn(CxUiRoot).id();
         world.flush();
 
         let mut schedule = Schedule::default();
@@ -197,7 +197,7 @@ mod tests {
             "layout should not re-run when tracked UI inputs have not changed"
         );
 
-        world.entity_mut(root).insert(PxMinSize(UVec2::splat(8)));
+        world.entity_mut(root).insert(CxMinSize(UVec2::splat(8)));
         schedule.run(&mut world);
         assert_eq!(
             world.resource::<LayoutRuns>().0,
@@ -206,7 +206,7 @@ mod tests {
         );
 
         world.clear_trackers();
-        world.entity_mut(root).insert(PxText {
+        world.entity_mut(root).insert(CxText {
             value: "hello".into(),
             typeface: default(),
             line_breaks: Vec::new(),
@@ -224,18 +224,18 @@ mod tests {
         let mut world = setup_layout_world();
         world.init_resource::<Time>();
 
-        world.spawn(PxUiRoot);
+        world.spawn(CxUiRoot);
         let field = world
             .spawn((
-                PxTextField {
+                CxTextField {
                     cached_text: "abc".to_string(),
                     caret_char: '|',
-                    caret: Some(PxCaret {
+                    caret: Some(CxCaret {
                         state: true,
                         timer: Timer::new(Duration::from_millis(500), TimerMode::Repeating),
                     }),
                 },
-                PxText {
+                CxText {
                     value: "abc|".to_string(),
                     typeface: default(),
                     line_breaks: Vec::new(),
@@ -255,7 +255,7 @@ mod tests {
             .advance_by(Duration::from_millis(100));
         caret_schedule.run(&mut world);
 
-        let text = world.get::<PxText>(field).unwrap();
+        let text = world.get::<CxText>(field).unwrap();
         assert_eq!(
             text.value, "abc|",
             "caret timer tick should not mutate text"
@@ -274,17 +274,17 @@ mod tests {
         let mut world = setup_layout_world();
         world.init_resource::<Time>();
 
-        world.spawn(PxUiRoot);
+        world.spawn(CxUiRoot);
         world.spawn((
-            PxTextField {
+            CxTextField {
                 cached_text: "abc".to_string(),
                 caret_char: '|',
-                caret: Some(PxCaret {
+                caret: Some(CxCaret {
                     state: true,
                     timer: Timer::new(Duration::from_millis(500), TimerMode::Repeating),
                 }),
             },
-            PxText {
+            CxText {
                 value: "abc|".to_string(),
                 typeface: default(),
                 line_breaks: Vec::new(),

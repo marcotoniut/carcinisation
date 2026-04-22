@@ -12,7 +12,7 @@ use crate::{
     cutscene::data::CutsceneLayer,
     globals::SCREEN_RESOLUTION,
     layer::Layer,
-    pixel::{PxAssets, PxRectBundle},
+    pixel::{CxAssets, CxFilterRectBundle},
 };
 use bevy::prelude::*;
 use carapace::prelude::*;
@@ -21,7 +21,7 @@ use cween::linear::components::{LinearTweenBundle, TargetingValueY};
 const DEBUG_MODULE: &str = "Letterbox";
 
 /// @system Spawns the top/bottom letterbox entities when entering the active state.
-pub fn on_letterbox_startup(mut commands: Commands, filters: PxAssets<PxFilter>) {
+pub fn on_letterbox_startup(mut commands: Commands, filters: CxAssets<CxFilter>) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
@@ -31,14 +31,14 @@ pub fn on_letterbox_startup(mut commands: Commands, filters: PxAssets<PxFilter>)
         Name::new("LetterboxTop"),
         LetterboxEntity,
         LetterboxTop,
-        PxSubPosition(Vec2::new(0., SCREEN_RESOLUTION_F32.y)),
-        PxRectBundle::<Layer> {
-            anchor: PxAnchor::BottomLeft,
-            canvas: PxCanvas::Camera,
-            filter: PxFilter(filters.load_color(color)),
-            layers: PxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
-            position: PxPosition::from(IVec2::new(0, SCREEN_RESOLUTION.y as i32)),
-            rect: PxRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
+        WorldPos(Vec2::new(0., SCREEN_RESOLUTION_F32.y)),
+        CxFilterRectBundle::<Layer> {
+            anchor: CxAnchor::BottomLeft,
+            canvas: CxRenderSpace::Camera,
+            filter: CxFilter(filters.load_color(color)),
+            layers: CxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
+            position: CxPosition::from(IVec2::new(0, SCREEN_RESOLUTION.y as i32)),
+            rect: CxFilterRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
             visibility: Visibility::Visible,
         },
     ));
@@ -47,14 +47,14 @@ pub fn on_letterbox_startup(mut commands: Commands, filters: PxAssets<PxFilter>)
         Name::new("LetterboxBottom"),
         LetterboxEntity,
         LetterboxBottom,
-        PxSubPosition(Vec2::ZERO),
-        PxRectBundle::<Layer> {
-            anchor: PxAnchor::TopLeft,
-            canvas: PxCanvas::Camera,
-            filter: PxFilter(filters.load_color(color)),
-            layers: PxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
-            position: PxPosition::from(IVec2::new(0, 0)),
-            rect: PxRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
+        WorldPos(Vec2::ZERO),
+        CxFilterRectBundle::<Layer> {
+            anchor: CxAnchor::TopLeft,
+            canvas: CxRenderSpace::Camera,
+            filter: CxFilter(filters.load_color(color)),
+            layers: CxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
+            position: CxPosition::from(IVec2::new(0, 0)),
+            rect: CxFilterRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
             visibility: Visibility::Visible,
         },
     ));
@@ -79,8 +79,8 @@ pub fn on_letterbox_shutdown(
 pub fn on_move(
     trigger: On<LetterboxMoveEvent>,
     mut commands: Commands,
-    top_query: Query<(Entity, &PxSubPosition), With<LetterboxTop>>,
-    bottom_query: Query<(Entity, &PxSubPosition), With<LetterboxBottom>>,
+    top_query: Query<(Entity, &WorldPos), With<LetterboxTop>>,
+    bottom_query: Query<(Entity, &WorldPos), With<LetterboxBottom>>,
 ) {
     let e = trigger.event();
     let visibility = if e.target == 0.0 {
@@ -104,7 +104,7 @@ pub fn on_move(
 /// Inserts linear movement towards `target`, preserving direction.
 pub fn insert_linear_movement(
     commands: &mut Commands,
-    (entity, position): (Entity, &PxSubPosition),
+    (entity, position): (Entity, &WorldPos),
     target: f32,
     speed: f32,
 ) {
@@ -130,13 +130,13 @@ mod tests {
         world.spawn((
             LetterboxEntity,
             LetterboxTop,
-            PxSubPosition(Vec2::new(0., 144.)),
+            WorldPos(Vec2::new(0., 144.)),
             Visibility::Visible,
         ));
         world.spawn((
             LetterboxEntity,
             LetterboxBottom,
-            PxSubPosition(Vec2::ZERO),
+            WorldPos(Vec2::ZERO),
             Visibility::Visible,
         ));
     }

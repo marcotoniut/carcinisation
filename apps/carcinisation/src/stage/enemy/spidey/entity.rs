@@ -11,7 +11,7 @@ use crate::stage::{
     },
 };
 use bevy::prelude::*;
-use carapace::position::PxSubPosition;
+use carapace::position::WorldPos;
 
 pub const ENEMY_SPIDEY_RADIUS: f32 = 8.0;
 pub const ENEMY_SPIDEY_BASE_HEALTH: u32 = 20;
@@ -77,7 +77,7 @@ pub struct SpideyBundle {
     pub visibility: Visibility,
     pub inherited_visibility: InheritedVisibility,
     pub depth: Depth,
-    pub position: PxSubPosition,
+    pub position: WorldPos,
     pub speed: Speed,
     pub default: SpideyDefaultBundle,
 }

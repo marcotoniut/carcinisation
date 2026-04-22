@@ -1,5 +1,5 @@
 #![allow(clippy::needless_pass_by_value)]
-// Demonstrates PxPresentationTransform scaling on a composite sprite (Mosquiton).
+// Demonstrates CxPresentationTransform scaling on a composite sprite (Mosquiton).
 //
 // Left: static reference at native size.
 // Right: oscillates smoothly between 50% and 200% over 4 seconds.
@@ -17,7 +17,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(128, 128), "palette/base.png"),
+            CxPlugin::<Layer>::new(UVec2::new(128, 128), "palette/base.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -44,48 +44,48 @@ fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
 ///   5 = wings (18x33)
 ///   6 = wing centre strip (1x9)
 ///   7 = legs (15x28)
-fn mosquiton_composite(assets: &Res<AssetServer>) -> PxCompositeSprite {
-    let atlas: Handle<PxSpriteAtlasAsset> = assets.load("sprite/mosquiton/atlas.px_atlas.ron");
+fn mosquiton_composite(assets: &Res<AssetServer>) -> CxCompositeSprite {
+    let atlas: Handle<CxSpriteAtlasAsset> = assets.load("sprite/mosquiton/atlas.px_atlas.ron");
 
     // Draw order matches the composed manifest: wings → body → head → arms → legs.
-    PxCompositeSprite::new(vec![
+    CxCompositeSprite::new(vec![
         // Wings: left, centre strip, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
             .with_offset(bottom_left(IVec2::new(-18, -1), 33)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(6))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(6))
             .with_offset(bottom_left(IVec2::new(0, 3), 9)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, -1), 33)),
         // Body: left, centre strip, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
             .with_offset(bottom_left(IVec2::new(-11, -4), 25)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(1))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(1))
             .with_offset(bottom_left(IVec2::new(0, -4), 25)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, -4), 25)),
         // Head: left, centre strip, right (flipped)
         // Head is parented to body, so offsets are body_pivot + head_local_offset:
         // body pivot = (-11, -4), head offsets = (5,6), (11,6), (12,6)
         // absolute = (-6, 2), (0, 2), (1, 2)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
             .with_offset(bottom_left(IVec2::new(-6, 2), 30)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(3))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(3))
             .with_offset(bottom_left(IVec2::new(0, 2), 30)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, 2), 30)),
         // Arms overlay: left, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
             .with_offset(bottom_left(IVec2::new(-24, 5), 28)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, 5), 28)),
         // Legs: left, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(7))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(7))
             .with_offset(bottom_left(IVec2::new(-19, 17), 28)),
-        PxCompositePart::atlas_region(atlas, AtlasRegionId(7))
+        CxCompositePart::atlas_region(atlas, AtlasRegionId(7))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(5, 17), 28)),
     ])
@@ -97,15 +97,15 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     // Left: static reference at native size on the back layer.
     commands.spawn((
         mosquiton_composite(&assets),
-        PxPosition(IVec2::new(32, 64)),
+        CxPosition(IVec2::new(32, 64)),
         Layer::Back,
     ));
 
     // Right: oscillating scale between 50% and 200%, on the front layer.
     commands.spawn((
         mosquiton_composite(&assets),
-        PxPosition(IVec2::new(96, 64)),
-        PxPresentationTransform::default(),
+        CxPosition(IVec2::new(96, 64)),
+        CxPresentationTransform::default(),
         Oscillating,
         Layer::Front,
     ));
@@ -114,7 +114,7 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 /// Oscillates scale between 50% and 200% over a 4-second sine wave period.
 fn oscillate_scale(
     time: Res<Time>,
-    mut query: Query<&mut PxPresentationTransform, With<Oscillating>>,
+    mut query: Query<&mut CxPresentationTransform, With<Oscillating>>,
 ) {
     let t = time.elapsed_secs();
     let phase = (t / 4.0) * std::f32::consts::TAU;

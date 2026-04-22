@@ -15,24 +15,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     animation::AnimatedAssetComponent,
-    image::PxImage,
+    image::CxImage,
     palette::Palette,
-    position::{DefaultLayer, PxLayer, Spatial},
+    position::{CxLayer, DefaultLayer, Spatial},
     prelude::*,
-    sprite::PxSpriteAsset,
+    sprite::CxSpriteAsset,
 };
 
 pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
-    app.init_asset::<PxTileset>()
-        .register_asset_loader(PxTilesetLoader::new(palette_path));
+    app.init_asset::<CxTileset>()
+        .register_asset_loader(CxTilesetLoader::new(palette_path));
 }
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
-        RenderAssetPlugin::<PxTileset>::default(),
-        SyncComponentPlugin::<PxMap>::default(),
-        SyncComponentPlugin::<PxTile>::default(),
+        RenderAssetPlugin::<CxTileset>::default(),
+        SyncComponentPlugin::<CxTilemap>::default(),
+        SyncComponentPlugin::<CxTile>::default(),
     ));
 
     plug_core(app, palette_path);
@@ -43,12 +43,12 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
 }
 
 #[derive(Serialize, Deserialize)]
-struct PxTilesetLoaderSettings {
+struct CxTilesetLoaderSettings {
     tile_size: UVec2,
     image_loader_settings: ImageLoaderSettings,
 }
 
-impl Default for PxTilesetLoaderSettings {
+impl Default for CxTilesetLoaderSettings {
     fn default() -> Self {
         Self {
             tile_size: UVec2::ONE,
@@ -58,11 +58,11 @@ impl Default for PxTilesetLoaderSettings {
 }
 
 #[derive(TypePath)]
-struct PxTilesetLoader {
+struct CxTilesetLoader {
     palette_path: PathBuf,
 }
 
-impl PxTilesetLoader {
+impl CxTilesetLoader {
     fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
@@ -81,7 +81,10 @@ fn tileset_pixel_pos(
         + UVec2::new(tile_pos % tile_size.x, tile_pos / tile_size.x)
 }
 
-fn remap_map_tiles(map: &PxMap, mut resolve: impl FnMut(Entity) -> Option<Entity>) -> PxMap {
+fn remap_map_tiles(
+    map: &CxTilemap,
+    mut resolve: impl FnMut(Entity) -> Option<Entity>,
+) -> CxTilemap {
     let mut map = map.clone();
     for opt_tile in &mut map.tiles.tiles {
         if let Some(tile) = *opt_tile {
@@ -99,17 +102,17 @@ fn remap_map_tiles(map: &PxMap, mut resolve: impl FnMut(Entity) -> Option<Entity
     map
 }
 
-impl AssetLoader for PxTilesetLoader {
-    type Asset = PxTileset;
-    type Settings = PxTilesetLoaderSettings;
+impl AssetLoader for CxTilesetLoader {
+    type Asset = CxTileset;
+    type Settings = CxTilesetLoaderSettings;
     type Error = Box<dyn Error + Send + Sync>;
 
     async fn load(
         &self,
         reader: &mut dyn Reader,
-        settings: &PxTilesetLoaderSettings,
+        settings: &CxTilesetLoaderSettings,
         load_context: &mut LoadContext<'_>,
-    ) -> Result<PxTileset, Self::Error> {
+    ) -> Result<CxTileset, Self::Error> {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, &settings.image_loader_settings, load_context)
             .await?;
@@ -120,7 +123,7 @@ impl AssetLoader for PxTilesetLoader {
             .await
             .map_err(|err| err.to_string())?;
         let palette = palette.get();
-        let indices = PxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
+        let indices = CxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
         let tile_size = settings.tile_size;
         let tile_area = tile_size.x * tile_size.y;
         let mut tileset = Vec::default();
@@ -153,8 +156,8 @@ impl AssetLoader for PxTilesetLoader {
                     max_frame_count = frame_count;
                 }
 
-                tileset.push(PxSpriteAsset {
-                    data: PxImage::new(
+                tileset.push(CxSpriteAsset {
+                    data: CxImage::new(
                         replace(&mut tile, Vec::with_capacity(tile_area as usize)),
                         tile_size.x as usize,
                     ),
@@ -163,7 +166,7 @@ impl AssetLoader for PxTilesetLoader {
             }
         }
 
-        Ok(PxTileset {
+        Ok(CxTileset {
             tileset,
             tile_size,
             max_frame_count,
@@ -175,20 +178,20 @@ impl AssetLoader for PxTilesetLoader {
     }
 }
 
-/// A tileset for a tilemap. Create a [`Handle<PxTileset>`] with a [`PxAssets<PxTileset>`]
-/// and an image file. The image file contains a column of tiles, ordered from bottom to top.
+/// A tileset for a tilemap. Create a [`Handle<CxTileset>`] through your asset wrapper
+/// and provide an image file. The image file contains a column of tiles, ordered from bottom to top.
 /// For animated tilesets, add additional frames to the right of tiles, marking the end
 /// of an animation with a fully transparent tile or the end of the image.
 /// See `assets/tileset/tileset.png` for an example.
 #[derive(Asset, Clone, Reflect, Debug)]
-pub struct PxTileset {
-    pub(crate) tileset: Vec<PxSpriteAsset>,
+pub struct CxTileset {
+    pub(crate) tileset: Vec<CxSpriteAsset>,
     tile_size: UVec2,
     max_frame_count: usize,
 }
 
 #[cfg(feature = "headed")]
-impl RenderAsset for PxTileset {
+impl RenderAsset for CxTileset {
     type SourceAsset = Self;
     type Param = ();
 
@@ -202,7 +205,7 @@ impl RenderAsset for PxTileset {
     }
 }
 
-impl PxTileset {
+impl CxTileset {
     /// The size of tiles in the tileset
     #[must_use]
     pub fn tile_size(&self) -> UVec2 {
@@ -212,14 +215,14 @@ impl PxTileset {
 
 /// The tiles in a tilemap
 #[derive(Clone, Debug)]
-pub struct PxTiles {
+pub struct CxTiles {
     tiles: Vec<Option<Entity>>,
     tile_poses: EntityHashMap<usize>,
     width: usize,
 }
 
-impl PxTiles {
-    /// Creates a [`PxMap`]
+impl CxTiles {
+    /// Creates a [`CxTilemap`]
     #[must_use]
     pub fn new(size: UVec2) -> Self {
         Self {
@@ -282,7 +285,7 @@ impl PxTiles {
     }
 }
 
-impl Default for PxTiles {
+impl Default for CxTiles {
     fn default() -> Self {
         Self::new(UVec2::ONE)
     }
@@ -291,7 +294,7 @@ impl Default for PxTiles {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{camera::PxCamera, frame::draw_spatial, image::PxImage, sprite::PxSpriteAsset};
+    use crate::{camera::CxCamera, frame::draw_spatial, image::CxImage, sprite::CxSpriteAsset};
     use bevy_ecs::entity::Entity;
     #[cfg(feature = "headed")]
     use bevy_ecs::schedule::Schedule;
@@ -301,7 +304,7 @@ mod tests {
     #[cfg(feature = "headed")]
     use bevy_render::sync_world::RenderEntity;
 
-    fn pixels(image: &PxImage) -> Vec<u8> {
+    fn pixels(image: &CxImage) -> Vec<u8> {
         let size = image.size();
         let mut out = Vec::with_capacity((size.x * size.y) as usize);
         for y in 0..size.y as i32 {
@@ -314,14 +317,14 @@ mod tests {
 
     #[test]
     fn map_draws_tiles_in_order() {
-        let tileset = PxTileset {
+        let tileset = CxTileset {
             tileset: vec![
-                PxSpriteAsset {
-                    data: PxImage::new(vec![2], 1),
+                CxSpriteAsset {
+                    data: CxImage::new(vec![2], 1),
                     frame_size: 1,
                 },
-                PxSpriteAsset {
-                    data: PxImage::new(vec![3], 1),
+                CxSpriteAsset {
+                    data: CxImage::new(vec![3], 1),
                     frame_size: 1,
                 },
             ],
@@ -329,17 +332,17 @@ mod tests {
             max_frame_count: 1,
         };
 
-        let mut tiles = PxTiles::new(UVec2::new(2, 1));
+        let mut tiles = CxTiles::new(UVec2::new(2, 1));
         let tile_a = Entity::from_raw_u32(1).unwrap();
         let tile_b = Entity::from_raw_u32(2).unwrap();
         tiles.set(Some(tile_a), UVec2::new(0, 0));
         tiles.set(Some(tile_b), UVec2::new(1, 0));
 
         let mut tile_components = HashMap::new();
-        tile_components.insert(tile_a, PxTile { texture: 0 });
-        tile_components.insert(tile_b, PxTile { texture: 1 });
+        tile_components.insert(tile_a, CxTile { texture: 0 });
+        tile_components.insert(tile_b, CxTile { texture: 1 });
 
-        let mut image = PxImage::new(vec![1; 2], 2);
+        let mut image = CxImage::new(vec![1; 2], 2);
         let mut slice = image.slice_all_mut();
 
         for x in 0..2 {
@@ -353,12 +356,12 @@ mod tests {
                 tile_asset,
                 (),
                 &mut slice,
-                PxPosition(pos.as_ivec2()),
-                PxAnchor::BottomLeft,
-                PxCanvas::Camera,
+                CxPosition(pos.as_ivec2()),
+                CxAnchor::BottomLeft,
+                CxRenderSpace::Camera,
                 None,
                 [],
-                PxCamera::default(),
+                CxCamera::default(),
             );
         }
 
@@ -384,11 +387,11 @@ mod tests {
         let src_b = Entity::from_raw_u32(11).unwrap();
         let dst_a = Entity::from_raw_u32(20).unwrap();
 
-        let mut tiles = PxTiles::new(UVec2::new(2, 1));
+        let mut tiles = CxTiles::new(UVec2::new(2, 1));
         tiles.set(Some(src_a), UVec2::new(0, 0));
         tiles.set(Some(src_b), UVec2::new(1, 0));
 
-        let map = PxMap {
+        let map = CxTilemap {
             tiles,
             tileset: default(),
         };
@@ -438,23 +441,23 @@ mod tests {
             let mut main_world = render_world.resource_mut::<MainWorld>();
             main_world.insert_resource(crate::position::InsertDefaultLayer::noop());
             main_world
-                .spawn((PxTile { texture: 0 }, RenderEntity::from(render_tile_old)))
+                .spawn((CxTile { texture: 0 }, RenderEntity::from(render_tile_old)))
                 .id()
         };
 
-        let mut tiles = PxTiles::new(UVec2::ONE);
+        let mut tiles = CxTiles::new(UVec2::ONE);
         tiles.set(Some(src_tile), UVec2::ZERO);
 
         {
             let mut main_world = render_world.resource_mut::<MainWorld>();
             main_world.spawn((
-                PxMap {
+                CxTilemap {
                     tiles,
                     tileset: default(),
                 },
-                PxPosition::default(),
+                CxPosition::default(),
                 TestLayer::default(),
-                PxCanvas::Camera,
+                CxRenderSpace::Camera,
                 InheritedVisibility::VISIBLE,
                 RenderEntity::from(render_map),
             ));
@@ -464,7 +467,7 @@ mod tests {
         schedule.add_systems(extract_maps::<TestLayer>);
         schedule.run(&mut render_world);
 
-        let map_after_first_extract = render_world.get::<PxMap>(render_map).unwrap();
+        let map_after_first_extract = render_world.get::<CxTilemap>(render_map).unwrap();
         assert_eq!(
             map_after_first_extract.tiles.get(UVec2::ZERO),
             Some(render_tile_old)
@@ -480,7 +483,7 @@ mod tests {
 
         schedule.run(&mut render_world);
 
-        let map_after_second_extract = render_world.get::<PxMap>(render_map).unwrap();
+        let map_after_second_extract = render_world.get::<CxTilemap>(render_map).unwrap();
         assert_eq!(
             map_after_second_extract.tiles.get(UVec2::ZERO),
             Some(render_tile_new)
@@ -502,24 +505,24 @@ mod tests {
             let mut main_world = render_world.resource_mut::<MainWorld>();
             main_world.insert_resource(crate::position::InsertDefaultLayer::noop());
             main_world
-                .spawn((PxTile { texture: 0 }, RenderEntity::from(render_tile)))
+                .spawn((CxTile { texture: 0 }, RenderEntity::from(render_tile)))
                 .id()
         };
 
-        let mut tiles = PxTiles::new(UVec2::ONE);
+        let mut tiles = CxTiles::new(UVec2::ONE);
         tiles.set(Some(src_tile), UVec2::ZERO);
 
         let map_entity = {
             let mut main_world = render_world.resource_mut::<MainWorld>();
             main_world
                 .spawn((
-                    PxMap {
+                    CxTilemap {
                         tiles,
                         tileset: default(),
                     },
-                    PxPosition::default(),
+                    CxPosition::default(),
                     TestLayer::default(),
-                    PxCanvas::Camera,
+                    CxRenderSpace::Camera,
                     InheritedVisibility::VISIBLE,
                     RenderEntity::from(render_map_old),
                 ))
@@ -530,7 +533,7 @@ mod tests {
         schedule.add_systems(extract_maps::<TestLayer>);
         schedule.run(&mut render_world);
 
-        assert!(render_world.get::<PxMap>(render_map_old).is_some());
+        assert!(render_world.get::<CxTilemap>(render_map_old).is_some());
 
         {
             let mut main_world = render_world.resource_mut::<MainWorld>();
@@ -543,79 +546,79 @@ mod tests {
         schedule.run(&mut render_world);
 
         assert!(
-            render_world.get::<PxMap>(render_map_new).is_some(),
-            "new render entity should receive extracted PxMap when map RenderEntity changes"
+            render_world.get::<CxTilemap>(render_map_new).is_some(),
+            "new render entity should receive extracted CxTilemap when map RenderEntity changes"
         );
     }
 }
 
-impl<'a> Spatial for (&'a PxTiles, &'a PxTileset) {
+impl<'a> Spatial for (&'a CxTiles, &'a CxTileset) {
     fn frame_size(&self) -> UVec2 {
         let (tiles, tileset) = self;
         tiles.size() * tileset.tile_size
     }
 }
 
-/// Creates a tilemap
+/// A tilemap component. Contains tile data and a tileset handle.
 #[derive(Component, Default, Clone, Debug)]
-#[require(PxPosition, DefaultLayer, PxCanvas)]
+#[require(CxPosition, DefaultLayer, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxMap {
+pub struct CxTilemap {
     /// The map's tiles
-    pub tiles: PxTiles,
+    pub tiles: CxTiles,
     /// The map's tileset
-    pub tileset: Handle<PxTileset>,
+    pub tileset: Handle<CxTileset>,
 }
 
-impl AnimatedAssetComponent for PxMap {
-    type Asset = PxTileset;
+impl AnimatedAssetComponent for CxTilemap {
+    type Asset = CxTileset;
 
     fn handle(&self) -> &Handle<Self::Asset> {
         &self.tileset
     }
 
-    fn max_frame_count(tileset: &PxTileset) -> usize {
+    fn max_frame_count(tileset: &CxTileset) -> usize {
         tileset.max_frame_count
     }
 }
 
-/// A tile. Must be added to tiles added to [`PxMap`].
+/// A tile. Must be added to tiles added to [`CxTilemap`].
 #[derive(Component, Clone, Default, Debug, Reflect)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxTile {
+pub struct CxTile {
     /// The index to the tile texture in the tileset
     pub texture: u32,
 }
 
-impl From<u32> for PxTile {
+impl From<u32> for CxTile {
     fn from(value: u32) -> Self {
         Self { texture: value }
     }
 }
 
 pub(crate) type MapComponents<L> = (
-    &'static PxMap,
-    &'static PxPosition,
+    &'static CxTilemap,
+    &'static CxPosition,
     &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
+    &'static CxRenderSpace,
+    Option<&'static CxFrameView>,
+    Option<&'static CxFilter>,
 );
 
 #[cfg(feature = "headed")]
-fn extract_maps<L: PxLayer>(
+fn extract_maps<L: CxLayer>(
     maps: Extract<Query<(MapComponents<L>, &InheritedVisibility, RenderEntity)>>,
     changed_maps: Extract<
         Query<
-            (&PxMap, &InheritedVisibility, RenderEntity),
+            (&CxTilemap, &InheritedVisibility, RenderEntity),
             Or<(
-                Changed<PxMap>,
+                Changed<CxTilemap>,
                 Changed<InheritedVisibility>,
                 Changed<RenderEntity>,
             )>,
         >,
     >,
-    changed_tiles: Extract<Query<(), (With<PxTile>, Changed<RenderEntity>)>>,
+    changed_tiles: Extract<Query<(), (With<CxTile>, Changed<RenderEntity>)>>,
     render_entities: Extract<Query<RenderEntity>>,
     mut cmd: Commands,
 ) {
@@ -653,18 +656,18 @@ fn extract_maps<L: PxLayer>(
         if let Some(frame) = frame {
             entity.insert(*frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
 
         if let Some(filter) = filter {
             entity.insert(filter.clone());
         } else {
-            entity.remove::<PxFilter>();
+            entity.remove::<CxFilter>();
         }
     }
 }
 
-pub(crate) type TileComponents = (&'static PxTile, Option<&'static PxFilter>);
+pub(crate) type TileComponents = (&'static CxTile, Option<&'static CxFilter>);
 
 #[cfg(feature = "headed")]
 fn extract_tiles(
@@ -683,7 +686,7 @@ fn extract_tiles(
         if let Some(filter) = filter {
             entity.insert(filter.clone());
         } else {
-            entity.remove::<PxFilter>();
+            entity.remove::<CxFilter>();
         }
     }
 }

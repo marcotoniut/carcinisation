@@ -20,57 +20,57 @@ use bevy_render::{
 use crate::{
     animation::AnimatedAssetComponent,
     frame::{Frames, draw_frame},
-    image::{PxImage, PxImageSliceMut},
+    image::{CxImage, CxImageSliceMut},
     palette::Palette,
-    position::PxLayer,
+    position::CxLayer,
     prelude::*,
 };
 
 /// A built-in filter asset that leaves pixels unchanged.
-pub const TRANSPARENT_FILTER: Handle<PxFilterAsset> =
+pub const TRANSPARENT_FILTER: Handle<CxFilterAsset> =
     uuid_handle!("798C57A4-A83C-5DD6-8FA6-1426E31A84CA");
 
-pub(crate) fn plug_core<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
-    app.init_asset::<PxFilterAsset>()
-        .register_asset_loader(PxFilterLoader::new(palette_path));
-    app.insert_resource(InsertDefaultPxFilterLayers::new::<L>());
+pub(crate) fn plug_core<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
+    app.init_asset::<CxFilterAsset>()
+        .register_asset_loader(CxFilterLoader::new(palette_path));
+    app.insert_resource(InsertDefaultCxFilterLayers::new::<L>());
 
     // R-A workaround
     let _ = Assets::insert(
-        &mut app.world_mut().resource_mut::<Assets<PxFilterAsset>>(),
+        &mut app.world_mut().resource_mut::<Assets<CxFilterAsset>>(),
         TRANSPARENT_FILTER.id(),
-        PxFilterAsset(PxImage::empty(uvec2(16, 16))),
+        CxFilterAsset(CxImage::empty(uvec2(16, 16))),
     );
 }
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
-        RenderAssetPlugin::<PxFilterAsset>::default(),
-        SyncComponentPlugin::<PxFilterLayers<L>>::default(),
+        RenderAssetPlugin::<CxFilterAsset>::default(),
+        SyncComponentPlugin::<CxFilterLayers<L>>::default(),
     ));
 
     plug_core::<L>(app, palette_path);
 
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)
-        .insert_resource(InsertDefaultPxFilterLayers::new::<L>())
+        .insert_resource(InsertDefaultCxFilterLayers::new::<L>())
         .add_systems(ExtractSchedule, extract_filters::<L>);
 }
 
 #[derive(TypePath)]
-struct PxFilterLoader {
+struct CxFilterLoader {
     palette_path: PathBuf,
 }
 
-impl PxFilterLoader {
+impl CxFilterLoader {
     fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
 }
 
-impl AssetLoader for PxFilterLoader {
-    type Asset = PxFilterAsset;
+impl AssetLoader for CxFilterLoader {
+    type Asset = CxFilterAsset;
     type Settings = ImageLoaderSettings;
     type Error = Box<dyn Error + Send + Sync>;
 
@@ -79,7 +79,7 @@ impl AssetLoader for PxFilterLoader {
         reader: &mut dyn Reader,
         settings: &ImageLoaderSettings,
         load_context: &mut LoadContext<'_>,
-    ) -> Result<PxFilterAsset, Self::Error> {
+    ) -> Result<CxFilterAsset, Self::Error> {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, settings, load_context)
             .await?;
@@ -90,7 +90,7 @@ impl AssetLoader for PxFilterLoader {
             .await
             .map_err(|err| err.to_string())?;
         let palette = palette.get();
-        let indices = PxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
+        let indices = CxImage::palette_indices(palette, &image).map_err(|err| err.to_string())?;
 
         let mut filter = Vec::with_capacity(indices.area());
         let frame_size = palette.size;
@@ -135,7 +135,7 @@ impl AssetLoader for PxFilterLoader {
             filter.push(index);
         }
 
-        Ok(PxFilterAsset(PxImage::new(filter, frame_area as usize)))
+        Ok(CxFilterAsset(CxImage::new(filter, frame_area as usize)))
     }
 
     fn extensions(&self) -> &[&str] {
@@ -143,21 +143,34 @@ impl AssetLoader for PxFilterLoader {
     }
 }
 
-/// Maps colors of an image to different colors. Filter a single sprite, text, or tilemap
-/// by adding a [`PxFilter`] to it, or filter entire layers
-/// by spawning a [`PxFilterLayers`]. Create a [`Handle<PxFilterAsset>`] with a
-/// [`PxAssets<PxFilter>`]
-/// and an image file. The image should have pixels in the same positions as the palette.
-/// The position of each pixel describes the mapping of colors. The image must only contain colors
-/// that are also in the palette. For animated filters, arrange a number of filters
-/// from the top-left corner, moving rightwards, wrapping downwards when it gets to the edge
-/// of the image. For examples, see the `assets/` directory in this repository. `fade_to_black.png`
-/// is an animated filter.
+/// Palette-index remapping table (a "palette swap" / "colour remap").
+///
+/// Each pixel in the source image encodes a mapping: the pixel's position
+/// corresponds to an input palette index, and its colour value is the
+/// output index.  At render time, every palette index passing through the
+/// filter is remapped via this table.
+///
+/// To apply a filter to a single entity, add [`CxFilter`] (a handle
+/// wrapper).  To apply one to entire layers, spawn a [`CxFilterLayers`].
+///
+/// # Animated filters
+///
+/// For animated filters, tile multiple remapping frames in the source
+/// image from the top-left corner, moving rightwards and wrapping
+/// downwards.  See `assets/fade_to_black.png` for an example.
+///
+/// # Loading
+///
+/// Create a handle through your asset wrapper. The source image must
+/// contain only colours present in the active palette.
+#[doc(alias = "palette swap")]
+#[doc(alias = "palette remap")]
+#[doc(alias = "colour remap")]
 #[derive(Asset, Clone, Reflect, Debug)]
-pub struct PxFilterAsset(pub(crate) PxImage);
+pub struct CxFilterAsset(pub(crate) CxImage);
 
 #[cfg(feature = "headed")]
-impl RenderAsset for PxFilterAsset {
+impl RenderAsset for CxFilterAsset {
     type SourceAsset = Self;
     type Param = ();
 
@@ -171,7 +184,7 @@ impl RenderAsset for PxFilterAsset {
     }
 }
 
-impl Frames for PxFilterAsset {
+impl Frames for CxFilterAsset {
     type Param = ();
 
     fn frame_count(&self) -> usize {
@@ -182,7 +195,7 @@ impl Frames for PxFilterAsset {
     fn draw(
         &self,
         (): (),
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         _: impl Fn(u8) -> u8,
     ) {
@@ -198,25 +211,25 @@ impl Frames for PxFilterAsset {
     }
 }
 
-impl PxFilterAsset {
+impl CxFilterAsset {
     pub(crate) fn as_fn(&self) -> impl '_ + Fn(u8) -> u8 {
         let Self(filter) = self;
         |pixel| filter.pixel(IVec2::new(i32::from(pixel), 0))
     }
 }
 
-/// Applies a [`PxFilterAsset`] to the entity
+/// Applies a [`CxFilterAsset`] (palette-index remap) to the entity.
 #[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect)]
-pub struct PxFilter(pub Handle<PxFilterAsset>);
+pub struct CxFilter(pub Handle<CxFilterAsset>);
 
-impl AnimatedAssetComponent for PxFilter {
-    type Asset = PxFilterAsset;
+impl AnimatedAssetComponent for CxFilter {
+    type Asset = CxFilterAsset;
 
-    fn handle(&self) -> &Handle<PxFilterAsset> {
+    fn handle(&self) -> &Handle<CxFilterAsset> {
         self
     }
 
-    fn max_frame_count(asset: &PxFilterAsset) -> usize {
+    fn max_frame_count(asset: &CxFilterAsset) -> usize {
         asset.frame_count()
     }
 }
@@ -224,9 +237,9 @@ impl AnimatedAssetComponent for PxFilter {
 /// Determines which layers a filter appies to. Range and Many filters always clip to entity
 /// pixels; use `Single` with `clip: false` to filter the composed layer instead.
 #[derive(Component, Clone)]
-#[require(PxFilter)]
+#[require(CxFilter)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub enum PxFilterLayers<L: PxLayer> {
+pub enum CxFilterLayers<L: CxLayer> {
     /// Filter applies to a single layer
     Single {
         /// Layer the filter appies to
@@ -243,47 +256,47 @@ pub enum PxFilterLayers<L: PxLayer> {
     Many(Vec<L>),
 }
 
-impl<L: PxLayer> Default for PxFilterLayers<L> {
+impl<L: CxLayer> Default for CxFilterLayers<L> {
     fn default() -> Self {
         Self::single_clip(default())
     }
 }
 
-impl<L: PxLayer> From<RangeInclusive<L>> for PxFilterLayers<L> {
+impl<L: CxLayer> From<RangeInclusive<L>> for CxFilterLayers<L> {
     fn from(range: RangeInclusive<L>) -> Self {
         Self::Range(range)
     }
 }
 
-impl<L: PxLayer> PxFilterLayers<L> {
-    /// Creates a [`PxFilterLayers::Single`] with the given layer, with clip enabled
+impl<L: CxLayer> CxFilterLayers<L> {
+    /// Creates a [`CxFilterLayers::Single`] with the given layer, with clip enabled
     pub fn single_clip(layer: L) -> Self {
         Self::Single { layer, clip: true }
     }
 
-    /// Creates a [`PxFilterLayers::Single`] with the given layer, with clip disabled
+    /// Creates a [`CxFilterLayers::Single`] with the given layer, with clip disabled
     pub fn single_over(layer: L) -> Self {
         Self::Single { layer, clip: false }
     }
 
-    /// Creates a [`PxFilterLayers::Range`] that clips to entity pixels.
+    /// Creates a [`CxFilterLayers::Range`] that clips to entity pixels.
     pub fn range_clip(range: RangeInclusive<L>) -> Self {
         Self::Range(range)
     }
 
-    /// Creates a [`PxFilterLayers::Many`] that clips to entity pixels.
+    /// Creates a [`CxFilterLayers::Many`] that clips to entity pixels.
     pub fn many_clip(layers: impl Into<Vec<L>>) -> Self {
         Self::Many(layers.into())
     }
 }
 
 #[derive(Resource, Deref)]
-struct InsertDefaultPxFilterLayers(Box<dyn Fn(bool, &mut EntityWorldMut) + Send + Sync>);
+struct InsertDefaultCxFilterLayers(Box<dyn Fn(bool, &mut EntityWorldMut) + Send + Sync>);
 
-impl InsertDefaultPxFilterLayers {
-    fn new<L: PxLayer>() -> Self {
+impl InsertDefaultCxFilterLayers {
+    fn new<L: CxLayer>() -> Self {
         Self(Box::new(|clip, entity| {
-            entity.insert_if_new(PxFilterLayers::Single {
+            entity.insert_if_new(CxFilterLayers::Single {
                 layer: L::default(),
                 clip,
             });
@@ -294,12 +307,12 @@ impl InsertDefaultPxFilterLayers {
 fn insert_default_px_filter_layers(mut world: DeferredWorld, ctx: HookContext) {
     world.commands().queue(move |world: &mut World| {
         let insert_default_px_filter_layers = world
-            .remove_resource::<InsertDefaultPxFilterLayers>()
+            .remove_resource::<InsertDefaultCxFilterLayers>()
             .unwrap();
         if let Ok(mut entity) = world.get_entity_mut(ctx.entity)
-            && let Some(default) = entity.get::<DefaultPxFilterLayers>()
+            && let Some(default) = entity.get::<DefaultCxFilterLayers>()
         {
-            insert_default_px_filter_layers(default.clip, entity.remove::<DefaultPxFilterLayers>());
+            insert_default_px_filter_layers(default.clip, entity.remove::<DefaultCxFilterLayers>());
         }
         world.insert_resource(insert_default_px_filter_layers);
     });
@@ -307,11 +320,11 @@ fn insert_default_px_filter_layers(mut world: DeferredWorld, ctx: HookContext) {
 
 #[derive(Component)]
 #[component(on_add = insert_default_px_filter_layers)]
-pub(crate) struct DefaultPxFilterLayers {
+pub(crate) struct DefaultCxFilterLayers {
     pub(crate) clip: bool,
 }
 
-impl Default for DefaultPxFilterLayers {
+impl Default for DefaultCxFilterLayers {
     fn default() -> Self {
         Self { clip: true }
     }
@@ -319,20 +332,20 @@ impl Default for DefaultPxFilterLayers {
 
 /// Marks that a filter should apply outside a shape rather than inside it.
 #[derive(Component, Default, Reflect)]
-pub struct PxInvertMask;
+pub struct CxInvertMask;
 
 pub(crate) type FilterComponents<L> = (
-    &'static PxFilter,
-    &'static PxFilterLayers<L>,
-    Option<&'static PxFrame>,
+    &'static CxFilter,
+    &'static CxFilterLayers<L>,
+    Option<&'static CxFrameView>,
 );
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{frame::draw_frame, image::PxImage};
+    use crate::{frame::draw_frame, image::CxImage};
 
-    fn pixels(image: &PxImage) -> Vec<u8> {
+    fn pixels(image: &CxImage) -> Vec<u8> {
         let size = image.size();
         let mut out = Vec::with_capacity((size.x * size.y) as usize);
         for y in 0..size.y as i32 {
@@ -345,8 +358,8 @@ mod tests {
 
     #[test]
     fn filter_maps_palette_indices() {
-        let filter = PxFilterAsset(PxImage::new(vec![0, 2, 3, 1], 4));
-        let mut image = PxImage::new(vec![1, 2, 1, 2], 2);
+        let filter = CxFilterAsset(CxImage::new(vec![0, 2, 3, 1], 4));
+        let mut image = CxImage::new(vec![1, 2, 1, 2], 2);
         let mut slice = image.slice_all_mut();
 
         draw_frame(&filter, (), &mut slice, None, []);
@@ -357,9 +370,9 @@ mod tests {
 }
 
 #[cfg(feature = "headed")]
-fn extract_filters<L: PxLayer>(
+fn extract_filters<L: CxLayer>(
     filters: Extract<
-        Query<(FilterComponents<L>, &InheritedVisibility, RenderEntity), Without<PxCanvas>>,
+        Query<(FilterComponents<L>, &InheritedVisibility, RenderEntity), Without<CxRenderSpace>>,
     >,
     mut cmd: Commands,
 ) {
@@ -367,7 +380,7 @@ fn extract_filters<L: PxLayer>(
         let mut entity = cmd.entity(id);
 
         if !visibility.get() {
-            entity.remove::<PxFilterLayers<L>>();
+            entity.remove::<CxFilterLayers<L>>();
             continue;
         }
 
@@ -376,15 +389,15 @@ fn extract_filters<L: PxLayer>(
         if let Some(frame) = frame {
             entity.insert(*frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
     }
 }
 
 pub(crate) fn draw_filter(
-    filter: &PxFilterAsset,
-    frame: Option<PxFrame>,
-    image: &mut PxImageSliceMut,
+    filter: &CxFilterAsset,
+    frame: Option<CxFrameView>,
+    image: &mut CxImageSliceMut,
 ) {
     draw_frame(filter, (), image, frame, []);
 }

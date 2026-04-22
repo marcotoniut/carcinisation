@@ -2,7 +2,7 @@ pub mod components;
 
 use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::globals::{SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H};
-use crate::pixel::{PxAssets, PxRectBundle, PxTextBundle};
+use crate::pixel::{CxAssets, CxFilterRectBundle, CxTextBundle};
 use crate::{
     game::{GameProgressState, score::components::Score},
     globals::{load_inverted_typeface, mark_for_despawn_by_query},
@@ -10,17 +10,17 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
-    PxText, PxTypeface,
+    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxSprite, CxText,
+    CxTypeface, WorldPos,
 };
 use carcinisation_core::components::GBColor;
 
 // TODO if state is changed (split unpause from pause?)
 pub fn pause_menu_renderer(
     mut commands: Commands,
-    mut typefaces: PxAssets<PxTypeface>,
-    mut assets_sprite: PxAssets<PxSprite>,
-    filters: PxAssets<PxFilter>,
+    mut typefaces: CxAssets<CxTypeface>,
+    mut assets_sprite: CxAssets<CxSprite>,
+    filters: CxAssets<CxFilter>,
     score: Res<Score>,
     query: Query<Entity, With<PauseMenu>>,
     state: Res<State<GameProgressState>>,
@@ -44,9 +44,9 @@ pub fn pause_menu_renderer(
 
 pub fn spawn_pause_menu_bundle(
     commands: &mut Commands,
-    typefaces: &mut PxAssets<PxTypeface>,
-    _assets_sprite: &mut PxAssets<PxSprite>,
-    filters: &PxAssets<PxFilter>,
+    typefaces: &mut CxAssets<CxTypeface>,
+    _assets_sprite: &mut CxAssets<CxSprite>,
+    filters: &CxAssets<CxFilter>,
     score: Res<Score>,
 ) -> Entity {
     let typeface = load_inverted_typeface(typefaces);
@@ -57,25 +57,25 @@ pub fn spawn_pause_menu_bundle(
             Name::new("PauseMenu"),
             children![
                 (
-                    PxSubPosition(*SCREEN_RESOLUTION_F32_H),
-                    PxRectBundle::<Layer> {
-                        anchor: PxAnchor::Center,
-                        canvas: PxCanvas::Camera,
-                        filter: PxFilter(filters.load_color(GBColor::White)),
-                        layers: PxFilterLayers::single_over(Layer::UIBackground),
-                        position: PxPosition::from(*SCREEN_RESOLUTION_H),
-                        rect: PxRect(UVec2::new(80, 60)),
+                    WorldPos(*SCREEN_RESOLUTION_F32_H),
+                    CxFilterRectBundle::<Layer> {
+                        anchor: CxAnchor::Center,
+                        canvas: CxRenderSpace::Camera,
+                        filter: CxFilter(filters.load_color(GBColor::White)),
+                        layers: CxFilterLayers::single_over(Layer::UIBackground),
+                        position: CxPosition::from(*SCREEN_RESOLUTION_H),
+                        rect: CxFilterRect(UVec2::new(80, 60)),
                         visibility: Visibility::Visible,
                     },
                     UIBackground,
                 ),
                 (
-                    PxTextBundle::<Layer> {
+                    CxTextBundle::<Layer> {
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 90).into(),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
+                        anchor: CxAnchor::BottomCenter,
+                        canvas: CxRenderSpace::Camera,
                         layer: Layer::UI,
-                        text: PxText {
+                        text: CxText {
                             value: "Paused".to_string(),
                             typeface: typeface.clone(),
                             ..Default::default()
@@ -86,12 +86,12 @@ pub fn spawn_pause_menu_bundle(
                     Name::new("InfoText_Pause"),
                 ),
                 (
-                    PxTextBundle::<Layer> {
+                    CxTextBundle::<Layer> {
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 60).into(),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
+                        anchor: CxAnchor::BottomCenter,
+                        canvas: CxRenderSpace::Camera,
                         layer: Layer::UI,
-                        text: PxText {
+                        text: CxText {
                             value: "Score:".to_string(),
                             typeface: typeface.clone(),
                             ..Default::default()
@@ -102,12 +102,12 @@ pub fn spawn_pause_menu_bundle(
                     Name::new("InfoText_Score"),
                 ),
                 (
-                    PxTextBundle::<Layer> {
+                    CxTextBundle::<Layer> {
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 50).into(),
-                        anchor: PxAnchor::BottomCenter,
-                        canvas: PxCanvas::Camera,
+                        anchor: CxAnchor::BottomCenter,
+                        canvas: CxRenderSpace::Camera,
                         layer: Layer::UI,
-                        text: PxText {
+                        text: CxText {
                             value: score_text.clone(),
                             typeface: typeface.clone(),
                             ..Default::default()

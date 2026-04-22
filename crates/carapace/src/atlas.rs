@@ -22,23 +22,23 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     frame::Frames,
-    image::{PxImage, PxImageSliceMut},
-    position::{DefaultLayer, PxLayer, Spatial},
+    image::{CxImage, CxImageSliceMut},
+    position::{CxLayer, DefaultLayer, Spatial},
     prelude::*,
 };
 
 pub(crate) fn plug_core(app: &mut App, _palette_path: PathBuf) {
-    app.init_asset::<crate::pxi::PxIndexedImage>()
-        .register_asset_loader(crate::pxi::PxiLoader)
-        .init_asset::<PxSpriteAtlasAsset>()
-        .register_asset_loader(PxSpriteAtlasLoader);
+    app.init_asset::<crate::pxi::CxIndexedImage>()
+        .register_asset_loader(crate::pxi::CxiLoader)
+        .init_asset::<CxSpriteAtlasAsset>()
+        .register_asset_loader(CxSpriteAtlasLoader);
 }
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
-        RenderAssetPlugin::<PxSpriteAtlasAsset>::default(),
-        SyncComponentPlugin::<PxAtlasSprite>::default(),
+        RenderAssetPlugin::<CxSpriteAtlasAsset>::default(),
+        SyncComponentPlugin::<CxAtlasSprite>::default(),
     ));
 
     plug_core(app, palette_path);
@@ -49,7 +49,7 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
 }
 
 #[derive(Serialize, Deserialize)]
-struct PxSpriteAtlasDescriptor {
+struct CxSpriteAtlasDescriptor {
     /// Path to the compact indexed runtime image (.pxi), relative to the game
     /// asset root. Contains pre-computed palette indices — no PNG decode or
     /// palette lookup needed.
@@ -76,27 +76,27 @@ pub struct RegionAnimation {
 impl RegionAnimation {
     /// Convert direction string to engine type.
     #[must_use]
-    pub fn px_direction(&self) -> crate::prelude::PxAnimationDirection {
+    pub fn px_direction(&self) -> crate::prelude::CxAnimationDirection {
         match self.direction.as_str() {
-            "backward" | "reverse" => crate::prelude::PxAnimationDirection::Backward,
-            _ => crate::prelude::PxAnimationDirection::Foreward,
+            "backward" | "reverse" => crate::prelude::CxAnimationDirection::Backward,
+            _ => crate::prelude::CxAnimationDirection::Forward,
         }
     }
 
     /// Convert finish behavior string to engine type.
     #[must_use]
-    pub fn px_finish_behavior(&self) -> crate::prelude::PxAnimationFinishBehavior {
+    pub fn px_finish_behavior(&self) -> crate::prelude::CxAnimationFinishBehavior {
         match self.on_finish.as_str() {
-            "loop" => crate::prelude::PxAnimationFinishBehavior::Loop,
-            "despawn" => crate::prelude::PxAnimationFinishBehavior::Despawn,
-            _ => crate::prelude::PxAnimationFinishBehavior::Mark,
+            "loop" => crate::prelude::CxAnimationFinishBehavior::Loop,
+            "despawn" => crate::prelude::CxAnimationFinishBehavior::Despawn,
+            _ => crate::prelude::CxAnimationFinishBehavior::Mark,
         }
     }
 
     /// Convert to animation duration.
     #[must_use]
-    pub fn px_duration(&self) -> crate::prelude::PxAnimationDuration {
-        crate::prelude::PxAnimationDuration::millis_per_animation(self.duration_ms)
+    pub fn px_duration(&self) -> crate::prelude::CxAnimationDuration {
+        crate::prelude::CxAnimationDuration::millis_per_animation(self.duration_ms)
     }
 }
 
@@ -107,10 +107,10 @@ struct AtlasRegionDescriptor {
 }
 
 #[derive(TypePath)]
-struct PxSpriteAtlasLoader;
+struct CxSpriteAtlasLoader;
 
-impl AssetLoader for PxSpriteAtlasLoader {
-    type Asset = PxSpriteAtlasAsset;
+impl AssetLoader for CxSpriteAtlasLoader {
+    type Asset = CxSpriteAtlasAsset;
     type Settings = ();
     type Error = Box<dyn Error + Send + Sync>;
 
@@ -119,16 +119,16 @@ impl AssetLoader for PxSpriteAtlasLoader {
         reader: &mut dyn Reader,
         (): &(),
         load_context: &mut LoadContext<'_>,
-    ) -> Result<PxSpriteAtlasAsset, Self::Error> {
+    ) -> Result<CxSpriteAtlasAsset, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
-        let descriptor: PxSpriteAtlasDescriptor =
+        let descriptor: CxSpriteAtlasDescriptor =
             ron::de::from_bytes(&bytes).map_err(|err| err.to_string())?;
 
         let indexed = load_context
             .loader()
             .immediate()
-            .load::<crate::pxi::PxIndexedImage>(descriptor.indexed_image.clone())
+            .load::<crate::pxi::CxIndexedImage>(descriptor.indexed_image.clone())
             .await
             .map_err(|err| format!("failed to load indexed image: {err}"))?;
         let data = indexed.get().image.clone();
@@ -151,7 +151,7 @@ impl AssetLoader for PxSpriteAtlasLoader {
 
         let animations = descriptor.animations.into_iter().collect::<HashMap<_, _>>();
 
-        Ok(PxSpriteAtlasAsset {
+        Ok(CxSpriteAtlasAsset {
             size,
             data,
             regions,
@@ -166,7 +166,7 @@ impl AssetLoader for PxSpriteAtlasLoader {
 }
 
 #[cfg(feature = "headed")]
-impl RenderAsset for PxSpriteAtlasAsset {
+impl RenderAsset for CxSpriteAtlasAsset {
     type SourceAsset = Self;
     type Param = ();
 
@@ -189,15 +189,15 @@ impl RenderAsset for PxSpriteAtlasAsset {
 ///
 /// Rects use atlas image coordinates with the origin at the top-left.
 #[derive(Asset, Clone, Reflect, Debug)]
-pub struct PxSpriteAtlasAsset {
+pub struct CxSpriteAtlasAsset {
     pub(crate) size: UVec2,
-    pub(crate) data: PxImage,
+    pub(crate) data: CxImage,
     pub(crate) regions: Vec<AtlasRegion>,
     pub(crate) names: HashMap<String, AtlasRegionId>,
     pub(crate) animations: HashMap<String, RegionAnimation>,
 }
 
-impl PxSpriteAtlasAsset {
+impl CxSpriteAtlasAsset {
     /// Atlas pixel dimensions.
     #[must_use]
     pub fn size(&self) -> UVec2 {
@@ -229,7 +229,7 @@ impl PxSpriteAtlasAsset {
     }
 }
 
-/// Identifier for a region within a [`PxSpriteAtlasAsset`].
+/// Identifier for a region within a [`CxSpriteAtlasAsset`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Reflect)]
 pub struct AtlasRegionId(pub u32);
 
@@ -286,36 +286,36 @@ impl AtlasRegion {
 
 /// A sprite that draws from a region within an atlas.
 #[derive(Component, Default, Clone, Debug)]
-#[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
+#[require(CxPosition, CxAnchor, DefaultLayer, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxAtlasSprite {
+pub struct CxAtlasSprite {
     /// Atlas asset handle.
-    pub atlas: Handle<PxSpriteAtlasAsset>,
+    pub atlas: Handle<CxSpriteAtlasAsset>,
     /// Selected region within the atlas.
     pub region: AtlasRegionId,
 }
 
-impl PxAtlasSprite {
+impl CxAtlasSprite {
     /// Create a new atlas sprite pointing at a region.
     #[must_use]
-    pub fn new(atlas: Handle<PxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
+    pub fn new(atlas: Handle<CxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
         Self { atlas, region }
     }
 }
 
 pub(crate) type AtlasSpriteComponents<L> = (
-    &'static PxAtlasSprite,
-    &'static PxPosition,
-    &'static PxAnchor,
+    &'static CxAtlasSprite,
+    &'static CxPosition,
+    &'static CxAnchor,
     &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
-    Option<&'static crate::presentation::PxPresentationTransform>,
+    &'static CxRenderSpace,
+    Option<&'static CxFrameView>,
+    Option<&'static CxFilter>,
+    Option<&'static crate::presentation::CxPresentationTransform>,
 );
 
 #[cfg(feature = "headed")]
-fn extract_atlas_sprites<L: PxLayer>(
+fn extract_atlas_sprites<L: CxLayer>(
     atlas_sprites: Extract<Query<(AtlasSpriteComponents<L>, &InheritedVisibility, RenderEntity)>>,
     mut cmd: Commands,
 ) {
@@ -337,19 +337,19 @@ fn extract_atlas_sprites<L: PxLayer>(
         if let Some(frame) = frame {
             entity.insert(*frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
 
         if let Some(filter) = filter {
             entity.insert(filter.clone());
         } else {
-            entity.remove::<PxFilter>();
+            entity.remove::<CxFilter>();
         }
 
         if let Some(presentation) = presentation {
             entity.insert(*presentation);
         } else {
-            entity.remove::<crate::presentation::PxPresentationTransform>();
+            entity.remove::<crate::presentation::CxPresentationTransform>();
         }
     }
 }
@@ -396,7 +396,7 @@ fn build_region(
     })
 }
 
-impl Frames for (&PxSpriteAtlasAsset, &AtlasRegion) {
+impl Frames for (&CxSpriteAtlasAsset, &AtlasRegion) {
     type Param = ();
 
     fn frame_count(&self) -> usize {
@@ -406,7 +406,7 @@ impl Frames for (&PxSpriteAtlasAsset, &AtlasRegion) {
     fn draw(
         &self,
         (): (),
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         filter: impl Fn(u8) -> u8,
     ) {
@@ -434,7 +434,7 @@ impl Frames for (&PxSpriteAtlasAsset, &AtlasRegion) {
     }
 }
 
-impl Spatial for (&PxSpriteAtlasAsset, &AtlasRegion) {
+impl Spatial for (&CxSpriteAtlasAsset, &AtlasRegion) {
     fn frame_size(&self) -> UVec2 {
         self.1.frame_size
     }
@@ -443,15 +443,15 @@ impl Spatial for (&PxSpriteAtlasAsset, &AtlasRegion) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::camera::PxCamera;
-    use crate::frame::{PxFrameSelector, PxFrameView, draw_frame, draw_spatial};
-    use crate::image::PxImage;
+    use crate::camera::CxCamera;
+    use crate::frame::{CxFrameSelector, CxFrameView, draw_frame, draw_spatial};
+    use crate::image::CxImage;
     use asset_pipeline::composed_ron::CompactComposedAtlas;
     use bevy_math::IVec2;
     use bevy_platform::collections::HashMap;
     use std::{fs, path::PathBuf};
 
-    fn pixels(image: &PxImage) -> Vec<u8> {
+    fn pixels(image: &CxImage) -> Vec<u8> {
         let size = image.size();
         let mut out = Vec::with_capacity((size.x * size.y) as usize);
         for y in 0..size.y as i32 {
@@ -464,9 +464,9 @@ mod tests {
 
     #[test]
     fn atlas_region_draws_selected_frame() {
-        let atlas = PxSpriteAtlasAsset {
+        let atlas = CxSpriteAtlasAsset {
             size: UVec2::new(4, 1),
-            data: PxImage::new(vec![1, 2, 3, 4], 4),
+            data: CxImage::new(vec![1, 2, 3, 4], 4),
             regions: vec![AtlasRegion {
                 frame_size: UVec2::new(2, 1),
                 frames: vec![
@@ -489,14 +489,14 @@ mod tests {
         };
 
         let region = &atlas.regions[0];
-        let mut image = PxImage::new(vec![0; 2], 2);
+        let mut image = CxImage::new(vec![0; 2], 2);
         let mut slice = image.slice_all_mut();
 
         draw_frame(
             &(&atlas, region),
             (),
             &mut slice,
-            Some(PxFrameView::from(PxFrameSelector::Index(1.))),
+            Some(CxFrameView::from(CxFrameSelector::Index(1.))),
             [],
         );
 
@@ -631,14 +631,14 @@ mod tests {
 
     #[test]
     fn atlas_region_frame_count_missing_region_returns_zero() {
-        let atlas = PxSpriteAtlasAsset {
+        let atlas = CxSpriteAtlasAsset {
             size: UVec2::new(2, 1),
-            data: PxImage::new(vec![1, 2], 2),
+            data: CxImage::new(vec![1, 2], 2),
             regions: vec![],
             names: HashMap::default(),
             animations: HashMap::default(),
         };
-        let sprite = PxAtlasSprite::new(Handle::default(), AtlasRegionId(0));
+        let sprite = CxAtlasSprite::new(Handle::default(), AtlasRegionId(0));
         // No assets resource available in unit tests; call the pure inner logic directly.
         // region(id) returns None => frame_count should be 0.
         let count = atlas
@@ -649,9 +649,9 @@ mod tests {
 
     #[test]
     fn atlas_region_frame_count_valid_region() {
-        let atlas = PxSpriteAtlasAsset {
+        let atlas = CxSpriteAtlasAsset {
             size: UVec2::new(6, 1),
-            data: PxImage::new(vec![1, 2, 3, 4, 5, 6], 6),
+            data: CxImage::new(vec![1, 2, 3, 4, 5, 6], 6),
             regions: vec![AtlasRegion {
                 frame_size: UVec2::new(2, 1),
                 frames: vec![
@@ -684,7 +684,7 @@ mod tests {
         assert_eq!(count, 3);
     }
 
-    // Loader name validation (mirrors the names-map check in PxSpriteAtlasLoader::load).
+    // Loader name validation (mirrors the names-map check in CxSpriteAtlasLoader::load).
     // The loader calls build_region then validates names; we test the validation logic directly.
 
     fn validate_names(
@@ -725,14 +725,14 @@ mod tests {
     // draw_spatial integration: exercises the atlas → draw_spatial path that draw_layers
     // uses for AtlasSpriteEntry, without requiring GPU infrastructure.
 
-    fn make_atlas_2x2_two_frames() -> PxSpriteAtlasAsset {
+    fn make_atlas_2x2_two_frames() -> CxSpriteAtlasAsset {
         // 4×2 atlas: left half is frame 0 (pixels 1,2,3,4), right half is frame 1 (5,6,7,8).
         // Layout (row-major, top-left origin):
         //   1 2 5 6
         //   3 4 7 8
-        PxSpriteAtlasAsset {
+        CxSpriteAtlasAsset {
             size: UVec2::new(4, 2),
-            data: PxImage::new(vec![1, 2, 5, 6, 3, 4, 7, 8], 4),
+            data: CxImage::new(vec![1, 2, 5, 6, 3, 4, 7, 8], 4),
             regions: vec![AtlasRegion {
                 frame_size: UVec2::new(2, 2),
                 frames: vec![
@@ -760,19 +760,19 @@ mod tests {
         let atlas = make_atlas_2x2_two_frames();
         let region = &atlas.regions[0];
         // 4×4 canvas, camera at origin, sprite at (0,0) bottom-left anchored.
-        let mut image = PxImage::new(vec![0; 16], 4);
+        let mut image = CxImage::new(vec![0; 16], 4);
         let mut slice = image.slice_all_mut();
 
         draw_spatial(
             &(&atlas, region),
             (),
             &mut slice,
-            PxPosition(IVec2::new(0, 2)), // bottom-left of a 2×2 sprite at y=2 puts top at row 0
-            PxAnchor::BottomLeft,
-            PxCanvas::Camera,
+            CxPosition(IVec2::new(0, 2)), // bottom-left of a 2×2 sprite at y=2 puts top at row 0
+            CxAnchor::BottomLeft,
+            CxRenderSpace::Camera,
             None, // frame 0
             [],
-            PxCamera(IVec2::ZERO),
+            CxCamera(IVec2::ZERO),
         );
 
         assert_eq!(
@@ -785,19 +785,19 @@ mod tests {
     fn draw_spatial_atlas_frame1_selected() {
         let atlas = make_atlas_2x2_two_frames();
         let region = &atlas.regions[0];
-        let mut image = PxImage::new(vec![0; 16], 4);
+        let mut image = CxImage::new(vec![0; 16], 4);
         let mut slice = image.slice_all_mut();
 
         draw_spatial(
             &(&atlas, region),
             (),
             &mut slice,
-            PxPosition(IVec2::new(0, 2)),
-            PxAnchor::BottomLeft,
-            PxCanvas::Camera,
-            Some(PxFrameView::from(PxFrameSelector::Index(1.))),
+            CxPosition(IVec2::new(0, 2)),
+            CxAnchor::BottomLeft,
+            CxRenderSpace::Camera,
+            Some(CxFrameView::from(CxFrameSelector::Index(1.))),
             [],
-            PxCamera(IVec2::ZERO),
+            CxCamera(IVec2::ZERO),
         );
 
         assert_eq!(
@@ -813,7 +813,7 @@ mod tests {
         ron::from_str(&body).expect("atlas.composed.ron should deserialize")
     }
 
-    fn load_exported_mosquiton_px_descriptor() -> PxSpriteAtlasDescriptor {
+    fn load_exported_mosquiton_px_descriptor() -> CxSpriteAtlasDescriptor {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../assets/sprites/enemies/mosquiton_3/atlas.px_atlas.ron");
         let body = fs::read_to_string(path).expect("atlas.px_atlas.ron should exist");

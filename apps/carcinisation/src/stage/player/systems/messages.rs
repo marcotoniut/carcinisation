@@ -1,6 +1,6 @@
 #[cfg(debug_assertions)]
 use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
-use crate::pixel::PxAssets;
+use crate::pixel::CxAssets;
 use crate::{
     globals::mark_for_despawn_by_query,
     stage::player::{
@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use carapace::prelude::PxSprite;
+use carapace::prelude::CxSprite;
 
 const DEBUG_MODULE: &str = "Player";
 
@@ -19,7 +19,7 @@ const DEBUG_MODULE: &str = "Player";
 pub fn on_player_startup(
     _trigger: On<PlayerStartupEvent>,
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
     crosshair_settings: Res<CrosshairSettings>,
 ) {
     #[cfg(debug_assertions)]

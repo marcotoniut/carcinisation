@@ -29,41 +29,41 @@ pub use crate::debug_draw::{
     draw_circle_collider_2d, draw_rect_collider_2d, draw_world_mask_outline_2d,
 };
 pub use crate::frame::{
-    PxFrame, PxFrameBinding, PxFrameControl, PxFrameCount, PxFrameSelector, PxFrameTransition,
-    PxFrameView,
+    CxFrameBinding, CxFrameControl, CxFrameCount, CxFrameSelector, CxFrameTransition, CxFrameView,
 };
 #[cfg(feature = "line")]
-pub use crate::line::PxLine;
+pub use crate::line::CxLine;
 #[cfg(feature = "particle")]
-pub use crate::particle::{PxEmitter, PxEmitterFrequency, PxEmitterSimulation, PxParticleLifetime};
+pub use crate::particle::{CxEmitter, CxEmitterFrequency, CxEmitterSimulation, ParticleLifetime};
 #[cfg(feature = "headed")]
-pub use crate::picking::PxPixelPick;
+pub use crate::picking::CxPick;
 #[cfg(feature = "gpu_palette")]
-pub use crate::sprite::{PxGpuComposite, PxGpuSprite};
+pub use crate::sprite::{CxGpuComposite, CxGpuSprite};
 pub use crate::{
-    PxHeadlessPlugin, PxPlugin,
+    CxHeadlessPlugin, CxPlugin,
     animation::{
-        PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-        PxAnimationFinished, PxAnimationPlugin,
+        CxAnimation, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
+        CxAnimationFinished, CxAnimationPlugin,
     },
-    atlas::{AtlasRect, AtlasRegion, AtlasRegionId, PxAtlasSprite, PxSpriteAtlasAsset},
-    camera::{PxCamera, PxCanvas},
-    cursor::{PxCursor, PxCursorPosition},
-    filter::{PxFilter, PxFilterAsset, PxFilterLayers, PxInvertMask},
-    map::{PxMap, PxTile, PxTiles, PxTileset},
+    atlas::{AtlasRect, AtlasRegion, AtlasRegionId, CxAtlasSprite, CxSpriteAtlasAsset},
+    blink::CxBlink,
+    camera::{CxCamera, CxRenderSpace},
+    cursor::{CxCursor, CxCursorPosition},
+    filter::{CxFilter, CxFilterAsset, CxFilterLayers, CxInvertMask},
     math::{Diagonal, Orthogonal},
-    position::{PxAnchor, PxLayer, PxPosition, PxSubPosition, PxVelocity},
-    presentation::PxPresentationTransform,
-    rect::PxRect,
-    screen::{PxOverlayCamera, ScreenSize},
+    position::{CxAnchor, CxLayer, CxPosition, CxVelocity, WorldPos},
+    presentation::CxPresentationTransform,
+    rect::CxFilterRect,
+    screen::{CxOverlayCamera, CxScreenSize},
     sprite::{
-        PxAuthoritativeCompositeMetrics, PxCompositePart, PxCompositePartSource, PxCompositeSprite,
-        PxPartTransform, PxSprite, PxSpriteAsset,
+        CxAuthoritativeCompositeMetrics, CxCompositePart, CxCompositePartSource, CxCompositeSprite,
+        CxSprite, CxSpriteAsset, PartTransform,
     },
-    text::{PxText, PxTypeface},
+    text::{CxText, CxTypeface},
+    tilemap::{CxTile, CxTilemap, CxTiles, CxTileset},
     ui::{
-        PxCaret, PxGrid, PxGridRow, PxGridRows, PxKeyField, PxKeyFieldUpdate, PxMargin, PxMinSize,
-        PxRow, PxRowSlot, PxScroll, PxStack, PxTextField, PxTextFieldUpdate, PxUiRoot,
+        CxCaret, CxGrid, CxGridRow, CxGridTracks, CxKeyField, CxKeyFieldUpdate, CxMargin,
+        CxMinSize, CxRow, CxRowSlot, CxScroll, CxStack, CxTextField, CxTextFieldUpdate, CxUiRoot,
     },
 };
 

@@ -1,5 +1,5 @@
 #![allow(clippy::needless_pass_by_value)]
-// Demonstrates PxPresentationTransform flip / mirroring via negative scale.
+// Demonstrates CxPresentationTransform flip / mirroring via negative scale.
 //
 // Uses the mage sprite (8x16, visually asymmetric) so flips are clearly visible.
 //
@@ -22,7 +22,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(64, 64), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::new(64, 64), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -32,36 +32,36 @@ fn main() {
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let mage: Handle<PxSpriteAsset> = assets.load("sprite/mage.px_sprite.png");
+    let mage: Handle<CxSpriteAsset> = assets.load("sprite/mage.px_sprite.png");
 
     // Top-left: unflipped reference.
     commands.spawn((
-        PxSprite(mage.clone()),
-        PxPosition(IVec2::new(16, 48)),
+        CxSprite(mage.clone()),
+        CxPosition(IVec2::new(16, 48)),
         Layer::Back,
     ));
 
     // Top-right: horizontal flip.
     commands.spawn((
-        PxSprite(mage.clone()),
-        PxPosition(IVec2::new(48, 48)),
-        PxPresentationTransform::flipped(true, false),
+        CxSprite(mage.clone()),
+        CxPosition(IVec2::new(48, 48)),
+        CxPresentationTransform::flipped(true, false),
         Layer::Front,
     ));
 
     // Bottom-left: vertical flip.
     commands.spawn((
-        PxSprite(mage.clone()),
-        PxPosition(IVec2::new(16, 16)),
-        PxPresentationTransform::flipped(false, true),
+        CxSprite(mage.clone()),
+        CxPosition(IVec2::new(16, 16)),
+        CxPresentationTransform::flipped(false, true),
         Layer::Front,
     ));
 
     // Bottom-right: both axes flipped + 45° rotation.
     commands.spawn((
-        PxSprite(mage),
-        PxPosition(IVec2::new(48, 16)),
-        PxPresentationTransform {
+        CxSprite(mage),
+        CxPosition(IVec2::new(48, 16)),
+        CxPresentationTransform {
             scale: Vec2::new(-1.0, -1.0),
             rotation: std::f32::consts::FRAC_PI_4,
             ..Default::default()

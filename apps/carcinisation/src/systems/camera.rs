@@ -1,5 +1,5 @@
 use bevy::{prelude::*, time::Time};
-use carapace::prelude::{PxCamera, PxSubPosition};
+use carapace::prelude::{CxCamera, WorldPos};
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::input::GBInput;
@@ -11,10 +11,10 @@ const CAMERA_MOVEMENT_SPEED: f32 = 30.;
 
 /// @system DEBUG — moves the camera via debug arrow keys.
 pub fn move_camera(
-    mut camera_pos_query: Query<&mut PxSubPosition, With<CameraPos>>,
+    mut camera_pos_query: Query<&mut WorldPos, With<CameraPos>>,
     gb_input: Res<ActionState<GBInput>>,
     time: Res<Time>,
-    mut camera: ResMut<PxCamera>,
+    mut camera: ResMut<CxCamera>,
 ) {
     if let Ok(mut camera_pos) = camera_pos_query.single_mut() {
         **camera_pos += IVec2::new(

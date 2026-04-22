@@ -2,7 +2,7 @@ pub mod destructibles;
 
 use super::components::DestructibleType;
 use crate::{
-    pixel::PxAnimationBundle,
+    pixel::CxAnimationBundle,
     stage::{
         components::{interactive::ColliderData, placement::Depth},
         data::ContainerSpawn,
@@ -10,8 +10,8 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxFrameTransition,
+    CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
+    CxFrameTransition,
 };
 use serde::{Deserialize, Serialize};
 
@@ -179,10 +179,10 @@ impl DestructibleSpawn {
 }
 
 pub struct AnimationData {
-    pub anchor: PxAnchor,
+    pub anchor: CxAnchor,
     pub collider_data: ColliderData,
-    pub direction: PxAnimationDirection,
-    pub finish_behavior: PxAnimationFinishBehavior,
+    pub direction: CxAnimationDirection,
+    pub finish_behavior: CxAnimationFinishBehavior,
     pub frames: usize,
     pub speed: u64,
     pub sprite_path: String,
@@ -190,12 +190,12 @@ pub struct AnimationData {
 
 impl AnimationData {
     #[must_use]
-    pub fn make_animation_bundle(&self) -> PxAnimationBundle {
-        PxAnimationBundle::from_parts(
+    pub fn make_animation_bundle(&self) -> CxAnimationBundle {
+        CxAnimationBundle::from_parts(
             self.direction,
-            PxAnimationDuration::millis_per_animation(self.speed),
+            CxAnimationDuration::millis_per_animation(self.speed),
             self.finish_behavior,
-            PxFrameTransition::default(),
+            CxFrameTransition::default(),
         )
     }
 }
@@ -203,10 +203,10 @@ impl AnimationData {
 impl Default for AnimationData {
     fn default() -> Self {
         AnimationData {
-            anchor: PxAnchor::BottomCenter,
+            anchor: CxAnchor::BottomCenter,
             collider_data: ColliderData::new(),
-            direction: PxAnimationDirection::Foreward,
-            finish_behavior: PxAnimationFinishBehavior::Mark,
+            direction: CxAnimationDirection::Forward,
+            finish_behavior: CxAnimationFinishBehavior::Mark,
             frames: 0,
             speed: 0,
             sprite_path: String::new(),

@@ -3,90 +3,90 @@
 
 use bevy::prelude::{Bundle, Component, Visibility};
 use carapace::prelude::{
-    PxAnchor, PxAnimation, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior,
-    PxCanvas, PxFilter, PxFilterLayers, PxFrame, PxFrameControl, PxFrameTransition, PxLayer,
-    PxLine, PxPosition, PxRect, PxSprite, PxText,
+    CxAnchor, CxAnimation, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
+    CxFilter, CxFilterLayers, CxFilterRect, CxFrameControl, CxFrameTransition, CxFrameView,
+    CxLayer, CxLine, CxPosition, CxRenderSpace, CxSprite, CxText,
 };
 
-/// Equivalent of the legacy `PxSpriteBundle`, rebuilt on top of the 0.8 component set.
+/// Equivalent of the legacy `CxSpriteBundle`, rebuilt on top of the 0.8 component set.
 #[derive(Bundle, Default)]
-pub struct PxSpriteBundle<L: Component + PxLayer + Default + Clone> {
-    pub sprite: PxSprite,
-    pub position: PxPosition,
-    pub anchor: PxAnchor,
+pub struct CxSpriteBundle<L: Component + CxLayer + Default + Clone> {
+    pub sprite: CxSprite,
+    pub position: CxPosition,
+    pub anchor: CxAnchor,
     pub layer: L,
-    pub canvas: PxCanvas,
+    pub canvas: CxRenderSpace,
     pub visibility: Visibility,
 }
 
-/// Equivalent of the legacy `PxTextBundle`, rebuilt on top of the 0.8 component set.
+/// Equivalent of the legacy `CxTextBundle`, rebuilt on top of the 0.8 component set.
 #[derive(Bundle, Default)]
-pub struct PxTextBundle<L: Component + PxLayer + Default + Clone> {
-    pub text: PxText,
-    pub position: PxPosition,
-    pub anchor: PxAnchor,
+pub struct CxTextBundle<L: Component + CxLayer + Default + Clone> {
+    pub text: CxText,
+    pub position: CxPosition,
+    pub anchor: CxAnchor,
     pub layer: L,
-    pub canvas: PxCanvas,
+    pub canvas: CxRenderSpace,
     pub visibility: Visibility,
 }
 
-/// Equivalent of the legacy `PxLineBundle`, rebuilt on top of the 0.8 component set.
+/// Equivalent of the legacy `CxLineBundle`, rebuilt on top of the 0.8 component set.
 #[derive(Bundle, Default)]
-pub struct PxLineBundle<L: Component + PxLayer + Default + Clone> {
-    pub line: PxLine,
-    pub layers: PxFilterLayers<L>,
-    pub filter: PxFilter,
-    pub canvas: PxCanvas,
+pub struct CxLineBundle<L: Component + CxLayer + Default + Clone> {
+    pub line: CxLine,
+    pub layers: CxFilterLayers<L>,
+    pub filter: CxFilter,
+    pub canvas: CxRenderSpace,
     pub visibility: Visibility,
 }
 
-/// Convenience bundle for `PxRect` with its required components.
+/// Convenience bundle for `CxFilterRect` with its required components.
 #[derive(Bundle, Default)]
-pub struct PxRectBundle<L: Component + PxLayer + Default + Clone> {
-    pub rect: PxRect,
-    pub position: PxPosition,
-    pub anchor: PxAnchor,
-    pub canvas: PxCanvas,
-    pub layers: PxFilterLayers<L>,
-    pub filter: PxFilter,
+pub struct CxFilterRectBundle<L: Component + CxLayer + Default + Clone> {
+    pub rect: CxFilterRect,
+    pub position: CxPosition,
+    pub anchor: CxAnchor,
+    pub canvas: CxRenderSpace,
+    pub layers: CxFilterLayers<L>,
+    pub filter: CxFilter,
     pub visibility: Visibility,
 }
 
-/// Minimal shim around `PxAnimation` to preserve the old bundle name.
+/// Minimal shim around `CxAnimation` to preserve the old bundle name.
 #[derive(Bundle, Default, Clone)]
-pub struct PxAnimationBundle {
-    pub animation: PxAnimation,
-    pub frame: PxFrame,
-    pub frame_control: PxFrameControl,
+pub struct CxAnimationBundle {
+    pub animation: CxAnimation,
+    pub frame: CxFrameView,
+    pub frame_control: CxFrameControl,
 }
 
-impl PxAnimationBundle {
+impl CxAnimationBundle {
     pub fn from_parts(
-        direction: PxAnimationDirection,
-        duration: PxAnimationDuration,
-        on_finish: PxAnimationFinishBehavior,
-        frame_transition: PxFrameTransition,
+        direction: CxAnimationDirection,
+        duration: CxAnimationDuration,
+        on_finish: CxAnimationFinishBehavior,
+        frame_transition: CxFrameTransition,
     ) -> Self {
         Self {
-            animation: PxAnimation {
+            animation: CxAnimation {
                 direction,
                 duration,
                 on_finish,
                 ..Default::default()
             },
-            frame: PxFrame {
+            frame: CxFrameView {
                 transition: frame_transition,
                 ..Default::default()
             },
-            frame_control: PxFrameControl::default(),
+            frame_control: CxFrameControl::default(),
         }
     }
 
-    pub fn animation(&self) -> &PxAnimation {
+    pub fn animation(&self) -> &CxAnimation {
         &self.animation
     }
 
-    pub fn animation_mut(&mut self) -> &mut PxAnimation {
+    pub fn animation_mut(&mut self) -> &mut CxAnimation {
         &mut self.animation
     }
 }

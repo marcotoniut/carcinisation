@@ -4,29 +4,32 @@ use bevy_math::{ivec2, uvec2};
 use bevy_render::{Extract, RenderApp, sync_world::RenderEntity};
 
 use crate::{
-    filter::DefaultPxFilterLayers, frame::Frames, image::PxImageSliceMut, position::Spatial,
+    filter::DefaultCxFilterLayers, frame::Frames, image::CxImageSliceMut, position::Spatial,
     prelude::*,
 };
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App) {
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, extract_rects::<L>);
 }
 
-/// A rectangle in which a filter is applied
+/// A rectangular region in which a [`CxFilter`] is applied.
+///
+/// This is a filter-application region, not a general-purpose geometry
+/// primitive.  The size defines the pixel area affected by the filter.
 #[derive(Component, Deref, DerefMut, Clone, Copy, Reflect)]
-#[require(PxFilter, DefaultPxFilterLayers, PxPosition, PxAnchor, PxCanvas)]
+#[require(CxFilter, DefaultCxFilterLayers, CxPosition, CxAnchor, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxRect(pub UVec2);
+pub struct CxFilterRect(pub UVec2);
 
-impl Default for PxRect {
+impl Default for CxFilterRect {
     fn default() -> Self {
         Self(UVec2::ONE)
     }
 }
 
-impl Frames for (PxRect, &PxFilterAsset) {
+impl Frames for (CxFilterRect, &CxFilterAsset) {
     type Param = bool;
 
     fn frame_count(&self) -> usize {
@@ -36,11 +39,11 @@ impl Frames for (PxRect, &PxFilterAsset) {
     fn draw(
         &self,
         invert: bool,
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         filter_fn: impl Fn(u8) -> u8,
     ) {
-        let (_, PxFilterAsset(filter)) = self;
+        let (_, CxFilterAsset(filter)) = self;
 
         if invert {
             let image_width = image.image_width() as i32;
@@ -105,25 +108,25 @@ impl Frames for (PxRect, &PxFilterAsset) {
     }
 }
 
-impl Spatial for (PxRect, &PxFilterAsset) {
+impl Spatial for (CxFilterRect, &CxFilterAsset) {
     fn frame_size(&self) -> UVec2 {
         *self.0
     }
 }
 
 pub(crate) type RectComponents<L> = (
-    &'static PxRect,
-    &'static PxFilter,
-    &'static PxFilterLayers<L>,
-    &'static PxPosition,
-    &'static PxAnchor,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Has<PxInvertMask>,
+    &'static CxFilterRect,
+    &'static CxFilter,
+    &'static CxFilterLayers<L>,
+    &'static CxPosition,
+    &'static CxAnchor,
+    &'static CxRenderSpace,
+    Option<&'static CxFrameView>,
+    Has<CxInvertMask>,
 );
 
 #[cfg(feature = "headed")]
-fn extract_rects<L: PxLayer>(
+fn extract_rects<L: CxLayer>(
     rects: Extract<Query<(RectComponents<L>, &InheritedVisibility, RenderEntity)>>,
     mut cmd: Commands,
 ) {
@@ -131,7 +134,7 @@ fn extract_rects<L: PxLayer>(
         let mut entity = cmd.entity(id);
 
         if !visibility.get() {
-            entity.remove::<PxFilterLayers<L>>();
+            entity.remove::<CxFilterLayers<L>>();
             continue;
         }
 
@@ -140,13 +143,13 @@ fn extract_rects<L: PxLayer>(
         if let Some(&frame) = frame {
             entity.insert(frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
 
         if invert {
-            entity.insert(PxInvertMask);
+            entity.insert(CxInvertMask);
         } else {
-            entity.remove::<PxInvertMask>();
+            entity.remove::<CxInvertMask>();
         }
     }
 }
@@ -154,13 +157,13 @@ fn extract_rects<L: PxLayer>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{filter::PxFilterAsset, frame::draw_frame, image::PxImage};
+    use crate::{filter::CxFilterAsset, frame::draw_frame, image::CxImage};
 
-    fn filter_asset() -> PxFilterAsset {
-        PxFilterAsset(PxImage::new(vec![0, 2, 0, 0], 4))
+    fn filter_asset() -> CxFilterAsset {
+        CxFilterAsset(CxImage::new(vec![0, 2, 0, 0], 4))
     }
 
-    fn pixels(image: &PxImage) -> Vec<u8> {
+    fn pixels(image: &CxImage) -> Vec<u8> {
         let size = image.size();
         let mut out = Vec::with_capacity((size.x * size.y) as usize);
         for y in 0..size.y as i32 {
@@ -173,13 +176,13 @@ mod tests {
 
     #[test]
     fn rect_draws_inside_only() {
-        let mut image = PxImage::new(vec![1; 16], 4);
+        let mut image = CxImage::new(vec![1; 16], 4);
         let mut slice = image.slice_all_mut();
         let mut rect_slice = slice.slice_mut(IRect {
             min: ivec2(1, 1),
             max: ivec2(3, 3),
         });
-        let rect = PxRect(UVec2::new(2, 2));
+        let rect = CxFilterRect(UVec2::new(2, 2));
         let filter = filter_asset();
 
         draw_frame(&(rect, &filter), false, &mut rect_slice, None, []);
@@ -190,13 +193,13 @@ mod tests {
 
     #[test]
     fn rect_invert_draws_outside_only() {
-        let mut image = PxImage::new(vec![1; 16], 4);
+        let mut image = CxImage::new(vec![1; 16], 4);
         let mut slice = image.slice_all_mut();
         let mut rect_slice = slice.slice_mut(IRect {
             min: ivec2(1, 1),
             max: ivec2(3, 3),
         });
-        let rect = PxRect(UVec2::new(2, 2));
+        let rect = CxFilterRect(UVec2::new(2, 2));
         let filter = filter_asset();
 
         draw_frame(&(rect, &filter), true, &mut rect_slice, None, []);

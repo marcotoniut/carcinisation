@@ -10,13 +10,13 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 
 /// @system Assigns the next behavior step to enemies with no active behavior.
 pub fn check_no_behavior(
     mut commands: Commands,
     mut query: Query<
-        (Entity, &mut EnemyBehaviors, &PxSubPosition, &Speed, &Depth),
+        (Entity, &mut EnemyBehaviors, &WorldPos, &Speed, &Depth),
         (With<Enemy>, Without<EnemyCurrentBehavior>),
     >,
     stage_time: Res<Time<StageTimeDomain>>,

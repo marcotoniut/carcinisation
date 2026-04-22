@@ -14,8 +14,8 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(51, 35), "palette/palette_1.palette.png"),
-            PxAnimationPlugin,
+            CxPlugin::<Layer>::new(UVec2::new(51, 35), "palette/palette_1.palette.png"),
+            CxAnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -30,92 +30,92 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // Despawn at the end
     commands.spawn((
-        PxSprite(runner.clone()),
-        PxAnchor::BottomLeft,
-        PxAnimation::default(),
+        CxSprite(runner.clone()),
+        CxAnchor::BottomLeft,
+        CxAnimation::default(),
     ));
 
-    // Add the `PxAnimationFinished` component at the end
+    // Add the `CxAnimationFinished` component at the end
     commands.spawn((
-        PxSprite(runner.clone()),
-        PxPosition(IVec2::new(13, 0)),
-        PxAnchor::BottomLeft,
-        PxAnimation {
-            on_finish: PxAnimationFinishBehavior::Mark,
+        CxSprite(runner.clone()),
+        CxPosition(IVec2::new(13, 0)),
+        CxAnchor::BottomLeft,
+        CxAnimation {
+            on_finish: CxAnimationFinishBehavior::Mark,
             ..default()
         },
     ));
 
     // Loop
     commands.spawn((
-        PxSprite(runner.clone()),
-        PxPosition(IVec2::new(26, 0)),
-        PxAnchor::BottomLeft,
-        PxAnimation {
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxSprite(runner.clone()),
+        CxPosition(IVec2::new(26, 0)),
+        CxAnchor::BottomLeft,
+        CxAnimation {
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Backward
     commands.spawn((
-        PxSprite(runner.clone()),
-        PxPosition(IVec2::new(39, 0)),
-        PxAnchor::BottomLeft,
-        PxAnimation {
-            direction: PxAnimationDirection::Backward,
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxSprite(runner.clone()),
+        CxPosition(IVec2::new(39, 0)),
+        CxAnchor::BottomLeft,
+        CxAnimation {
+            direction: CxAnimationDirection::Backward,
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Faster
     commands.spawn((
-        PxSprite(runner.clone()),
-        PxPosition(IVec2::new(13, 18)),
-        PxAnchor::BottomLeft,
-        PxAnimation {
-            duration: PxAnimationDuration::millis_per_animation(500),
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxSprite(runner.clone()),
+        CxPosition(IVec2::new(13, 18)),
+        CxAnchor::BottomLeft,
+        CxAnimation {
+            duration: CxAnimationDuration::millis_per_animation(500),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Slower
     commands.spawn((
-        PxSprite(runner.clone()),
-        PxPosition(IVec2::new(0, 18)),
-        PxAnchor::BottomLeft,
-        PxAnimation {
-            duration: PxAnimationDuration::millis_per_animation(2000),
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxSprite(runner.clone()),
+        CxPosition(IVec2::new(0, 18)),
+        CxAnchor::BottomLeft,
+        CxAnimation {
+            duration: CxAnimationDuration::millis_per_animation(2000),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Duration per frame
     commands.spawn((
-        PxSprite(runner.clone()),
-        PxPosition(IVec2::new(26, 18)),
-        PxAnchor::BottomLeft,
-        PxAnimation {
-            duration: PxAnimationDuration::millis_per_frame(1000),
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxSprite(runner.clone()),
+        CxPosition(IVec2::new(26, 18)),
+        CxAnchor::BottomLeft,
+        CxAnimation {
+            duration: CxAnimationDuration::millis_per_frame(1000),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Dither between frames
     commands.spawn((
-        PxSprite(runner),
-        PxPosition(IVec2::new(39, 18)),
-        PxAnchor::BottomLeft,
-        PxAnimation {
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxSprite(runner),
+        CxPosition(IVec2::new(39, 18)),
+        CxAnchor::BottomLeft,
+        CxAnimation {
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
-        PxFrame {
-            transition: PxFrameTransition::Dither,
+        CxFrameView {
+            transition: CxFrameTransition::Dither,
             ..default()
         },
     ));

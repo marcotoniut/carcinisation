@@ -4,15 +4,15 @@ use carapace::prelude::*;
 use crate::{
     components::{DespawnMark, VolumeSettings},
     game::score::components::Score,
-    pixel::PxAssets,
+    pixel::CxAssets,
     stage::{
         attack::components::{
             SCORE_MELEE_CRITICAL_HIT, SCORE_MELEE_REGULAR_HIT, SCORE_RANGED_CRITICAL_HIT,
             SCORE_RANGED_REGULAR_HIT,
         },
         collision::{
-            CollisionTarget, MaskCollisionAssets, build_attack_mask, resolve_target_mask_hit,
-            resolve_target_point_hit,
+            CollisionTarget, MaskCollisionAssets, TargetCollisionHit, TargetCollisionResult,
+            build_attack_mask, resolve_target_mask_hit, resolve_target_point_hit,
         },
         components::{
             interactive::{ColliderData, Hittable},
@@ -51,9 +51,9 @@ const MELEE_DEPTH_MAX: crate::stage::components::placement::Depth =
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn check_got_hit(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
-    camera: Res<PxCamera>,
+    camera: Res<CxCamera>,
     mut collision_assets: MaskCollisionAssets<'_, '_>,
     mut event_writer: MessageWriter<DamageMessage>,
     mut part_event_writer: MessageWriter<PartDamageMessage>,
@@ -63,11 +63,11 @@ pub fn check_got_hit(
     mut attack_query: Query<(
         Entity,
         &PlayerAttack,
-        &PxPosition,
-        &PxAnchor,
-        &PxCanvas,
-        Option<&PxFrameView>,
-        &PxSprite,
+        &CxPosition,
+        &CxAnchor,
+        &CxRenderSpace,
+        Option<&CxFrameView>,
+        &CxSprite,
         &mut AttackHitTracker,
         &mut AttackEffectState,
         Option<&Depth>,
@@ -75,14 +75,14 @@ pub fn check_got_hit(
     hittable_query: Query<
         (
             Entity,
-            &PxPosition,
-            &PxSubPosition,
-            (&PxAnchor, &PxCanvas),
+            &CxPosition,
+            &WorldPos,
+            (&CxAnchor, &CxRenderSpace),
             (
-                Option<&PxFrameView>,
-                Option<&PxSprite>,
-                Option<&PxAtlasSprite>,
-                Option<&PxPresentationTransform>,
+                Option<&CxFrameView>,
+                Option<&CxSprite>,
+                Option<&CxAtlasSprite>,
+                Option<&CxPresentationTransform>,
             ),
             Option<&ColliderData>,
             Option<&ComposedCollisionState>,
@@ -120,8 +120,8 @@ pub fn check_got_hit(
         }
 
         let attack_world = match *attack_canvas {
-            PxCanvas::World => attack_position.0,
-            PxCanvas::Camera => attack_position.0 + camera_world,
+            CxRenderSpace::World => attack_position.0,
+            CxRenderSpace::Camera => attack_position.0 + camera_world,
         }
         .as_vec2();
 
@@ -164,7 +164,7 @@ pub fn check_got_hit(
         for (
             entity,
             entity_position,
-            entity_sub_position,
+            entity_world_pos,
             (entity_anchor, entity_canvas),
             (entity_frame, entity_sprite, entity_atlas_sprite, entity_presentation),
             collider_data,
@@ -189,7 +189,7 @@ pub fn check_got_hit(
 
             let target = CollisionTarget {
                 position: entity_position,
-                sub_position: entity_sub_position,
+                world_pos: entity_world_pos,
                 anchor: entity_anchor,
                 canvas: entity_canvas,
                 frame: entity_frame,
@@ -219,6 +219,31 @@ pub fn check_got_hit(
                     camera_world,
                     &mut collision_assets,
                 ),
+                AttackCollisionMode::Radial { radius } => {
+                    // Visual-space position: include collision_offset so the
+                    // radial check aligns with what the player sees.
+                    let target_pos = entity_world_pos.0
+                        + entity_presentation.map_or(Vec2::ZERO, |p| p.collision_offset);
+                    let distance = attack_world.distance(target_pos);
+                    if distance <= radius {
+                        TargetCollisionResult {
+                            evaluated: true,
+                            hit: Some(TargetCollisionHit {
+                                hit_position: target_pos,
+                                defense: target
+                                    .collider_data
+                                    .and_then(|data| data.point_collides(target_pos, attack_world))
+                                    .map_or(1.0, |c| c.defense),
+                                semantic_part: None,
+                            }),
+                        }
+                    } else {
+                        TargetCollisionResult {
+                            evaluated: true,
+                            hit: None,
+                        }
+                    }
+                }
                 AttackCollisionMode::None => continue,
             };
 

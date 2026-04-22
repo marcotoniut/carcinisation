@@ -7,59 +7,62 @@
 use crate::prelude::*;
 
 pub(crate) fn register_types(app: &mut App) {
-    use crate::{blink::Blink, map::PxTile, text::PxText};
+    use crate::{blink::CxBlink, text::CxText, tilemap::CxTile};
+
+    use crate::presentation::CxPresentationTransform;
 
     // Position & camera
-    app.register_type::<PxPosition>()
-        .register_type::<PxAnchor>()
-        .register_type::<PxSubPosition>()
-        .register_type::<PxVelocity>()
-        .register_type::<PxCamera>()
-        .register_type::<PxCanvas>()
+    app.register_type::<CxPosition>()
+        .register_type::<CxAnchor>()
+        .register_type::<WorldPos>()
+        .register_type::<CxVelocity>()
+        .register_type::<CxCamera>()
+        .register_type::<CxRenderSpace>()
+        .register_type::<CxPresentationTransform>()
         // Sprite
-        .register_type::<PxSprite>()
-        .register_type::<PxSpriteAsset>()
+        .register_type::<CxSprite>()
+        .register_type::<CxSpriteAsset>()
         // Text
-        .register_type::<PxText>()
+        .register_type::<CxText>()
         // Filter
-        .register_type::<PxFilter>()
-        .register_type::<PxFilterAsset>()
-        .register_type::<PxInvertMask>()
+        .register_type::<CxFilter>()
+        .register_type::<CxFilterAsset>()
+        .register_type::<CxInvertMask>()
         // Frame
-        .register_type::<PxFrameSelector>()
-        .register_type::<PxFrameTransition>()
-        .register_type::<PxFrameBinding>()
-        .register_type::<PxFrameView>()
-        .register_type::<PxFrameCount>()
-        .register_type::<PxFrameControl>()
+        .register_type::<CxFrameSelector>()
+        .register_type::<CxFrameTransition>()
+        .register_type::<CxFrameBinding>()
+        .register_type::<CxFrameView>()
+        .register_type::<CxFrameCount>()
+        .register_type::<CxFrameControl>()
         // Animation
-        .register_type::<PxAnimationDirection>()
-        .register_type::<PxAnimationDuration>()
-        .register_type::<PxAnimationFinishBehavior>()
-        .register_type::<PxAnimationFinished>()
+        .register_type::<CxAnimationDirection>()
+        .register_type::<CxAnimationDuration>()
+        .register_type::<CxAnimationFinishBehavior>()
+        .register_type::<CxAnimationFinished>()
         // Map
-        .register_type::<PxTile>()
-        .register_type::<PxTileset>()
+        .register_type::<CxTile>()
+        .register_type::<CxTileset>()
         // Other
-        .register_type::<Blink>()
-        .register_type::<PxCursor>()
-        .register_type::<PxCursorPosition>()
-        .register_type::<PxRect>()
+        .register_type::<CxBlink>()
+        .register_type::<CxCursor>()
+        .register_type::<CxCursorPosition>()
+        .register_type::<CxFilterRect>()
         // Atlas
-        .register_type::<PxSpriteAtlasAsset>()
+        .register_type::<CxSpriteAtlasAsset>()
         .register_type::<AtlasRect>()
         .register_type::<AtlasRegion>()
         .register_type::<AtlasRegionId>()
         // UI
-        .register_type::<PxMinSize>()
-        .register_type::<PxMargin>()
-        .register_type::<PxRow>()
-        .register_type::<PxStack>()
-        .register_type::<PxScroll>();
+        .register_type::<CxMinSize>()
+        .register_type::<CxMargin>()
+        .register_type::<CxRow>()
+        .register_type::<CxStack>()
+        .register_type::<CxScroll>();
 
     // Feature-gated types
     #[cfg(feature = "line")]
-    app.register_type::<PxLine>();
+    app.register_type::<CxLine>();
     #[cfg(feature = "particle")]
-    app.register_type::<PxParticleLifetime>();
+    app.register_type::<ParticleLifetime>();
 }

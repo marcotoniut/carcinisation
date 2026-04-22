@@ -5,7 +5,7 @@ pub mod player;
 use super::components::EnemyAttackDebugPosition;
 use super::components::{AttachedToComposedPart, EnemyAttack, EnemyHoveringAttackType};
 use crate::{
-    components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
+    components::{DelayedDespawnOnCxAnimationFinished, DespawnMark},
     layer::Layer,
     stage::{
         components::{
@@ -20,7 +20,11 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxAtlasSprite, PxSpriteAtlasAsset, PxSubPosition};
+use carapace::prelude::{
+    CxAnchor, CxAtlasSprite, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos,
+};
+
+use crate::stage::parallax::ParallaxOffset;
 use cween::linear::components::{
     LinearValueReached, TargetingValueX, TargetingValueY, TargetingValueZ,
 };
@@ -39,7 +43,7 @@ pub fn check_health_at_0(mut commands: Commands, query: Query<(Entity, &Health),
 /// component so BRP can inspect exact projectile centers in live gameplay.
 #[cfg(debug_assertions)]
 pub fn sync_enemy_attack_debug_positions(
-    mut query: Query<(&PxSubPosition, &mut EnemyAttackDebugPosition), With<EnemyAttack>>,
+    mut query: Query<(&WorldPos, &mut EnemyAttackDebugPosition), With<EnemyAttack>>,
 ) {
     for (position, mut debug_position) in &mut query {
         debug_position.current = position.0;
@@ -86,14 +90,14 @@ pub fn on_enemy_attack_depth_changed(
 /// animation is authored.
 pub fn despawn_dead_attacks(
     mut commands: Commands,
-    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
     query: Query<
         (
             Entity,
             Option<&EnemyHoveringAttackType>,
-            &PxSubPosition,
+            &WorldPos,
             &Depth,
-            Option<&PxAtlasSprite>,
+            Option<&CxAtlasSprite>,
         ),
         (Added<Dead>, With<EnemyAttack>),
     >,
@@ -108,24 +112,26 @@ pub fn despawn_dead_attacks(
                 atlas.region_id(super::components::bundles::REGION_DESTROY)
             && let Some(anim) = atlas.animation(super::components::bundles::REGION_DESTROY)
         {
-            let destroy_sprite = PxAtlasSprite::new(sprite.atlas.clone(), destroy_region);
-            let animation_bundle = crate::pixel::PxAnimationBundle::from_parts(
+            let destroy_sprite = CxAtlasSprite::new(sprite.atlas.clone(), destroy_region);
+            let animation_bundle = crate::pixel::CxAnimationBundle::from_parts(
                 anim.px_direction(),
                 anim.px_duration(),
                 anim.px_finish_behavior(),
-                carapace::prelude::PxFrameTransition::None,
+                carapace::prelude::CxFrameTransition::None,
             );
             commands.spawn((
                 Name::new(format!("Attack - {} - destroy", attack_type.get_name())),
-                PxSubPosition::from(position.0),
+                WorldPos::from(position.0),
                 destroy_sprite,
                 animation_bundle,
-                PxAnchor::Center,
+                CxAnchor::Center,
                 *depth,
                 depth.to_layer(),
                 AuthoredDepths::single(Depth::One),
-                DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.2),
+                DelayedDespawnOnCxAnimationFinished::from_secs_f32(0.2),
                 StageEntity,
+                ParallaxOffset::default(),
+                CxPresentationTransform::default(),
             ));
         }
         commands.entity(entity).insert(DespawnMark);
@@ -139,7 +145,7 @@ pub fn update_attached_attack_positions(
     composed_query: Query<&ComposedResolvedParts>,
     mut attack_query: Query<(
         &AttachedToComposedPart,
-        &mut PxSubPosition,
+        &mut WorldPos,
         &mut TargetingValueX,
         &mut TargetingValueY,
     )>,
@@ -216,7 +222,7 @@ mod tests {
                     part_id: "head".to_string(),
                     local_offset: IVec2::new(6, 9),
                 },
-                PxSubPosition(Vec2::ZERO),
+                WorldPos(Vec2::ZERO),
                 TargetingValueX(0.0),
                 TargetingValueY(0.0),
             ))
@@ -225,7 +231,7 @@ mod tests {
         app.update();
 
         let world = app.world();
-        let pos = world.entity(attack).get::<PxSubPosition>().unwrap();
+        let pos = world.entity(attack).get::<WorldPos>().unwrap();
         let tx = world.entity(attack).get::<TargetingValueX>().unwrap();
         let ty = world.entity(attack).get::<TargetingValueY>().unwrap();
 

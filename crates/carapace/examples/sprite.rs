@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -26,8 +26,8 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // Spawn a sprite
     commands.spawn((
-        PxSprite(assets.load("sprite/mage.px_sprite.png")),
-        PxPosition(IVec2::splat(8)),
+        CxSprite(assets.load("sprite/mage.px_sprite.png")),
+        CxPosition(IVec2::splat(8)),
     ));
 }
 

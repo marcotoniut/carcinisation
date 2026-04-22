@@ -1,4 +1,8 @@
-//! Position, layers, velocity, anchors, etc.
+//! World-space positions, layers, velocity, and anchors.
+//!
+//! [`WorldPos`] is the authoritative float gameplay position. [`CxPosition`]
+//! is the derived integer cache, synced each frame. Visual/presentation offsets
+//! are handled separately by [`CxPresentationTransform`](crate::presentation).
 
 use std::fmt::Debug;
 
@@ -8,18 +12,18 @@ use bevy_ecs::{component::Mutable, lifecycle::HookContext, world::DeferredWorld}
 use bevy_render::{RenderApp, extract_component::ExtractComponent};
 use next::Next;
 
-use crate::{prelude::*, set::PxSet};
+use crate::{prelude::*, set::CxSet};
 
-pub(crate) fn plug_core<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug_core<L: CxLayer>(app: &mut App) {
     app.insert_resource(InsertDefaultLayer::new::<L>())
-        .add_systems(PreUpdate, update_sub_positions)
+        .add_systems(PreUpdate, update_world_positions)
         .add_systems(
             PostUpdate,
-            update_position_to_sub.in_set(PxSet::UpdatePosToSubPos),
+            sync_position_from_world.in_set(CxSet::SyncPosFromWorld),
         );
 }
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App) {
     plug_core::<L>(app);
     #[cfg(feature = "headed")]
     app.sub_app_mut(RenderApp)
@@ -36,12 +40,16 @@ impl<T: Spatial> Spatial for &'_ T {
     }
 }
 
-/// The position of an entity
+/// Integer position cache, derived from [`WorldPos`] by rounding each frame.
+///
+/// Read by the rendering pipeline. For gameplay logic, prefer reading/writing
+/// [`WorldPos`] directly.
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
 #[derive(Component, Deref, DerefMut, Clone, Copy, Default, Reflect, Debug)]
-pub struct PxPosition(pub IVec2);
+#[reflect(Component)]
+pub struct CxPosition(pub IVec2);
 
-impl From<IVec2> for PxPosition {
+impl From<IVec2> for CxPosition {
     fn from(position: IVec2) -> Self {
         Self(position)
     }
@@ -55,17 +63,17 @@ impl From<IVec2> for PxPosition {
 // TODO: For games with fixed enum layers, an opt-in `DenseLayer` trait that maps variants to
 // `usize` would allow the collect phase in `screen/node.rs` to use pre-sized `Vec` storage
 // instead of `BTreeMap`, eliminating tree operations entirely. This should be kept opt-in so
-// the default `PxLayer` API remains ergonomic for parameterized layer types like `Layer(i32)`.
+// the default `CxLayer` API remains ergonomic for parameterized layer types like `Layer(i32)`.
 #[cfg(feature = "headed")]
-pub trait PxLayer:
+pub trait CxLayer:
     ExtractComponent + Component<Mutability = Mutable> + Next + Ord + Clone + Default + Debug
 {
 }
 
 #[cfg(not(feature = "headed"))]
-pub trait PxLayer: Component<Mutability = Mutable> + Next + Ord + Clone + Default + Debug {}
+pub trait CxLayer: Component<Mutability = Mutable> + Next + Ord + Clone + Default + Debug {}
 
-impl<#[cfg(feature = "headed")] L: ExtractComponent, #[cfg(not(feature = "headed"))] L> PxLayer
+impl<#[cfg(feature = "headed")] L: ExtractComponent, #[cfg(not(feature = "headed"))] L> CxLayer
     for L
 where
     L: Component<Mutability = Mutable> + Next + Ord + Clone + Default + Debug,
@@ -76,7 +84,7 @@ where
 pub(crate) struct InsertDefaultLayer(Box<dyn Fn(&mut EntityWorldMut) + Send + Sync>);
 
 impl InsertDefaultLayer {
-    fn new<L: PxLayer>() -> Self {
+    fn new<L: CxLayer>() -> Self {
         Self(Box::new(|entity| {
             entity.insert_if_new(L::default());
         }))
@@ -103,10 +111,19 @@ fn insert_default_layer(mut world: DeferredWorld, ctx: HookContext) {
     });
 }
 
-/// How a sprite is positioned relative to its [`PxPosition`]. It defaults to [`PxAnchor::Center`].
+/// How a sprite is positioned relative to its [`CxPosition`]. Defaults to
+/// [`CxAnchor::Center`].
+///
+/// Uses **bottom-left origin** (Y-up): `Custom(Vec2::ZERO)` = bottom-left,
+/// `Custom(Vec2::ONE)` = top-right.  This matches world-space convention.
+///
+/// Note: `PartTransform::pivot` uses
+/// **top-left origin** (Y-down) because it addresses pixels within a raster
+/// buffer.  See the [crate-level docs](crate#anchor-origin-convention) for
+/// the rationale.
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
 #[derive(Component, Clone, Copy, Default, Debug, Reflect)]
-pub enum PxAnchor {
+pub enum CxAnchor {
     /// Center
     #[default]
     Center,
@@ -130,22 +147,22 @@ pub enum PxAnchor {
     Custom(Vec2),
 }
 
-impl From<Vec2> for PxAnchor {
+impl From<Vec2> for CxAnchor {
     fn from(vec: Vec2) -> Self {
         Self::Custom(vec)
     }
 }
 
-impl PxAnchor {
+impl CxAnchor {
     /// Anchor X offset in pixels. Uses rounding for `Custom` anchors so the
     /// placement error is symmetric (±0.5px) rather than biased downward,
     /// which matters at small sprite sizes / extreme fallback scales.
     pub(crate) fn x_pos(self, width: u32) -> u32 {
         match self {
-            PxAnchor::BottomLeft | PxAnchor::CenterLeft | PxAnchor::TopLeft => 0,
-            PxAnchor::BottomCenter | PxAnchor::Center | PxAnchor::TopCenter => width / 2,
-            PxAnchor::BottomRight | PxAnchor::CenterRight | PxAnchor::TopRight => width,
-            PxAnchor::Custom(anchor) => (width as f32 * anchor.x).round() as u32,
+            CxAnchor::BottomLeft | CxAnchor::CenterLeft | CxAnchor::TopLeft => 0,
+            CxAnchor::BottomCenter | CxAnchor::Center | CxAnchor::TopCenter => width / 2,
+            CxAnchor::BottomRight | CxAnchor::CenterRight | CxAnchor::TopRight => width,
+            CxAnchor::Custom(anchor) => (width as f32 * anchor.x).round() as u32,
         }
     }
 
@@ -154,10 +171,10 @@ impl PxAnchor {
     /// which matters at small sprite sizes / extreme fallback scales.
     pub(crate) fn y_pos(self, height: u32) -> u32 {
         match self {
-            PxAnchor::BottomLeft | PxAnchor::BottomCenter | PxAnchor::BottomRight => 0,
-            PxAnchor::CenterLeft | PxAnchor::Center | PxAnchor::CenterRight => height / 2,
-            PxAnchor::TopLeft | PxAnchor::TopCenter | PxAnchor::TopRight => height,
-            PxAnchor::Custom(anchor) => (height as f32 * anchor.y).round() as u32,
+            CxAnchor::BottomLeft | CxAnchor::BottomCenter | CxAnchor::BottomRight => 0,
+            CxAnchor::CenterLeft | CxAnchor::Center | CxAnchor::CenterRight => height / 2,
+            CxAnchor::TopLeft | CxAnchor::TopCenter | CxAnchor::TopRight => height,
+            CxAnchor::Custom(anchor) => (height as f32 * anchor.y).round() as u32,
         }
     }
 
@@ -166,55 +183,69 @@ impl PxAnchor {
     }
 }
 
-// TODO Remove
-/// Float-based position. Add to entities that have [`PxPosition`], but also need
-/// a sub-pixel position. Use [`PxPosition`] unless a sub-pixel position is necessary.
+/// Authoritative world-space gameplay position in floating-point form.
+///
+/// This is the **source of truth** for an entity's position in the game world.
+/// Movement systems, AI, physics, and spawn placement all read and write this
+/// component. [`CxPosition`] is a derived integer cache, rounded from this
+/// value each frame by an internal sync system.
+///
+/// # Position pipeline
+///
+/// ```text
+/// WorldPos (f32, authoritative)
+///     → CxPosition (i32, derived cache — rounded each frame)
+///     → CxPresentationTransform (visual/collision offsets — layered separately)
+/// ```
+///
+/// **World-space only.** Never write projection-adjusted, parallax-adjusted, or
+/// visual-space coordinates here. All visual displacement lives in
+/// [`CxPresentationTransform`](crate::presentation).
 #[derive(Component, Debug, Default, Deref, DerefMut, Reflect)]
-#[require(PxPosition)]
-pub struct PxSubPosition(pub Vec2);
+#[reflect(Component)]
+#[require(CxPosition)]
+pub struct WorldPos(pub Vec2);
 
-impl From<Vec2> for PxSubPosition {
+impl From<Vec2> for WorldPos {
     fn from(vec: Vec2) -> Self {
         Self(vec)
     }
 }
 
-/// Velocity. Entities with this and [`PxSubPosition`] will move at this velocity over time.
+/// Velocity. Entities with this and [`WorldPos`] will move at this velocity over time.
 #[derive(Clone, Component, Copy, Debug, Default, Deref, DerefMut, Reflect)]
-#[require(PxSubPosition)]
-pub struct PxVelocity(pub Vec2);
+#[require(WorldPos)]
+pub struct CxVelocity(pub Vec2);
 
-impl From<Vec2> for PxVelocity {
+impl From<Vec2> for CxVelocity {
     fn from(vec: Vec2) -> Self {
         Self(vec)
     }
 }
 
-fn update_sub_positions(mut query: Query<(&mut PxSubPosition, &PxVelocity)>, time: Res<Time>) {
-    for (mut sub_position, velocity) in &mut query {
+fn update_world_positions(mut query: Query<(&mut WorldPos, &CxVelocity)>, time: Res<Time>) {
+    for (mut world_pos, velocity) in &mut query {
         if **velocity == Vec2::ZERO {
-            let new_position = Vec2::new(sub_position.x.round(), sub_position.y.round());
-            if **sub_position != new_position {
-                **sub_position = new_position;
+            let new_position = Vec2::new(world_pos.x.round(), world_pos.y.round());
+            if **world_pos != new_position {
+                **world_pos = new_position;
             }
         } else {
-            **sub_position += **velocity * time.delta_secs();
+            **world_pos += **velocity * time.delta_secs();
         }
     }
 }
 
-/// Syncs the derived integer position cache from the authoritative sub-pixel
+/// Syncs the derived integer position cache from the authoritative world
 /// position.
 ///
-/// **Contract**: by the end of a frame, `PxPosition` must equal the
-/// rounded value of `PxSubPosition` for every entity where the sub-position
+/// **Contract**: by the end of a frame, `CxPosition` must equal the
+/// rounded value of `WorldPos` for every entity where the world position
 /// was modified during that frame.  Rendering-facing consumers read
-/// `PxPosition`; they should never see a stale value from a previous frame.
-fn update_position_to_sub(
-    mut query: Query<(&mut PxPosition, &PxSubPosition), Changed<PxSubPosition>>,
-) {
-    for (mut position, sub_position) in &mut query {
-        let new_position = IVec2::new(sub_position.x.round() as i32, sub_position.y.round() as i32);
+/// `CxPosition`; they should never see a stale value from a previous frame.
+fn sync_position_from_world(mut query: Query<(&mut CxPosition, &WorldPos), Changed<WorldPos>>) {
+    for (mut position, world_pos) in &mut query {
+        let new_position = IVec2::new(world_pos.x.round() as i32, world_pos.y.round() as i32);
         if **position != new_position {
             **position = new_position;
         }
@@ -238,33 +269,33 @@ mod tests {
         let mut app = App::new();
         app.add_systems(
             PostUpdate,
-            (update_sub_positions, update_position_to_sub).chain(),
+            (update_world_positions, sync_position_from_world).chain(),
         );
         app.init_resource::<Time>();
         app
     }
 
-    /// Spawn an entity with a sub-pixel position.  `PxSubPosition` requires
-    /// `PxPosition`, so both are present automatically.
+    /// Spawn an entity with a world position.  `WorldPos` requires
+    /// `CxPosition`, so both are present automatically.
     fn spawn_at(app: &mut App, pos: Vec2) -> Entity {
-        app.world_mut().spawn(PxSubPosition(pos)).id()
+        app.world_mut().spawn(WorldPos(pos)).id()
     }
 
     fn get_positions(app: &App, entity: Entity) -> (Vec2, IVec2) {
         let world = app.world();
-        let sub = world.entity(entity).get::<PxSubPosition>().unwrap().0;
-        let snapped = world.entity(entity).get::<PxPosition>().unwrap().0;
+        let sub = world.entity(entity).get::<WorldPos>().unwrap().0;
+        let snapped = world.entity(entity).get::<CxPosition>().unwrap().0;
         (sub, snapped)
     }
 
     // ── A. Same-frame sync contract ──────────────────────────────────
 
     #[test]
-    fn sub_position_written_during_update_is_synced_by_end_of_frame() {
+    fn world_pos_written_during_update_is_synced_by_end_of_frame() {
         let mut app = test_app();
-        // Also register a system that writes PxSubPosition during Update,
+        // Also register a system that writes WorldPos during Update,
         // simulating gameplay movement.
-        app.add_systems(Update, |mut q: Query<&mut PxSubPosition>| {
+        app.add_systems(Update, |mut q: Query<&mut WorldPos>| {
             for mut sub in &mut q {
                 sub.0 = Vec2::new(42.7, -13.2);
             }
@@ -285,7 +316,7 @@ mod tests {
         assert_eq!(
             snapped,
             IVec2::new(43, -13),
-            "PxPosition must match rounded PxSubPosition"
+            "CxPosition must match rounded WorldPos"
         );
     }
 
@@ -301,7 +332,7 @@ mod tests {
 
         let entity = app
             .world_mut()
-            .spawn(PxVelocity(Vec2::new(10.0, -5.0)))
+            .spawn(CxVelocity(Vec2::new(10.0, -5.0)))
             .id();
 
         // First update applies velocity and syncs.
@@ -314,17 +345,17 @@ mod tests {
     }
 
     #[test]
-    fn zero_velocity_snaps_sub_position_to_integers() {
+    fn zero_velocity_snaps_world_pos_to_integers() {
         let mut app = test_app();
         let entity = app
             .world_mut()
-            .spawn((PxSubPosition(Vec2::new(3.7, -1.2)), PxVelocity(Vec2::ZERO)))
+            .spawn((WorldPos(Vec2::new(3.7, -1.2)), CxVelocity(Vec2::ZERO)))
             .id();
 
         app.update();
 
         let (sub, snapped) = get_positions(&app, entity);
-        // Zero velocity → PxSubPosition rounds to integer.
+        // Zero velocity → WorldPos rounds to integer.
         assert_eq!(sub, Vec2::new(4.0, -1.0));
         assert_eq!(snapped, IVec2::new(4, -1));
     }
@@ -381,25 +412,25 @@ mod tests {
         // Clear change ticks by running another frame with no mutation.
         app.update();
 
-        // Manually nudge PxSubPosition to a value that still rounds to (10, 20).
+        // Manually nudge WorldPos to a value that still rounds to (10, 20).
         app.world_mut()
             .entity_mut(entity)
-            .get_mut::<PxSubPosition>()
+            .get_mut::<WorldPos>()
             .unwrap()
             .0 = Vec2::new(10.3, 19.7);
 
         app.update();
 
-        // PxPosition should still be (10, 20) and should NOT be marked changed
+        // CxPosition should still be (10, 20) and should NOT be marked changed
         // because the rounded value didn't change.
         let (_, snapped) = get_positions(&app, entity);
         assert_eq!(snapped, IVec2::new(10, 20));
 
         let world = app.world();
-        let pos_ref = world.entity(entity).get_ref::<PxPosition>().unwrap();
+        let pos_ref = world.entity(entity).get_ref::<CxPosition>().unwrap();
         assert!(
             !pos_ref.is_changed(),
-            "PxPosition should not be marked Changed when the snapped value is the same"
+            "CxPosition should not be marked Changed when the snapped value is the same"
         );
     }
 
@@ -408,7 +439,7 @@ mod tests {
     #[test]
     fn position_not_stale_after_update_phase_movement() {
         // This protects against the exact bug class we observed: gameplay
-        // moves PxSubPosition during Update, but PxPosition retains the
+        // moves WorldPos during Update, but CxPosition retains the
         // old value for one frame because the sync ran too early.
         let mut app = test_app();
 
@@ -416,7 +447,7 @@ mod tests {
         app.update(); // seed
 
         // Simulate a large position jump (like a depth transition).
-        app.add_systems(Update, |mut q: Query<&mut PxSubPosition>| {
+        app.add_systems(Update, |mut q: Query<&mut WorldPos>| {
             for mut sub in &mut q {
                 sub.0 = Vec2::new(0.0, 120.0);
             }
@@ -429,7 +460,7 @@ mod tests {
         assert_eq!(
             snapped,
             IVec2::new(0, 120),
-            "PxPosition must not be stale after a position jump in Update"
+            "CxPosition must not be stale after a position jump in Update"
         );
     }
 }

@@ -7,7 +7,7 @@ use super::attacks::{
 use super::components::{PLAYER_SIZE, Player, PlayerAttack};
 use super::config::PlayerConfig;
 use super::intent::PlayerIntent;
-use crate::pixel::PxAssets;
+use crate::pixel::CxAssets;
 use crate::stage::player::attacks::AttackEffectState;
 use crate::stage::player::messages::CameraShakeEvent;
 use crate::stage::resources::StageTimeDomain;
@@ -17,7 +17,7 @@ use crate::{
     stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxCamera, PxSprite, PxSubPosition};
+use carapace::prelude::{CxCamera, CxSprite, WorldPos};
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
     TweenChildBundle,
@@ -33,7 +33,7 @@ const BOMB_THROW_END_DEPTH: Depth = Depth::Six;
 pub struct BombThrowTween;
 
 /// @system Clamps the player position to the visible screen bounds.
-pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<Player>>) {
+pub fn confine_player_movement(mut player_query: Query<&mut WorldPos, With<Player>>) {
     if let Ok(mut position) = player_query.single_mut() {
         let half_player_size = PLAYER_SIZE / 2.0;
         let x_min = 0.0 + half_player_size;
@@ -63,7 +63,7 @@ pub fn confine_player_movement(mut player_query: Query<&mut PxSubPosition, With<
 pub fn player_movement(
     intent: Res<PlayerIntent>,
     config: Res<PlayerConfig>,
-    mut query: Query<&mut PxSubPosition, With<Player>>,
+    mut query: Query<&mut WorldPos, With<Player>>,
     time: Res<Time<StageTimeDomain>>,
 ) {
     if intent.move_direction == Vec2::ZERO {
@@ -87,12 +87,12 @@ pub fn player_movement(
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn detect_player_attack(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
     intent: Res<PlayerIntent>,
     player_attack_query: Query<Entity, With<PlayerAttack>>,
-    player_query: Query<&PxSubPosition, With<Player>>,
-    camera: Res<PxCamera>,
+    player_query: Query<&WorldPos, With<Player>>,
+    camera: Res<CxCamera>,
     volume_settings: Res<VolumeSettings>,
     time: Res<Time<StageTimeDomain>>,
     attack_definitions: Res<AttackDefinitions>,
@@ -290,7 +290,7 @@ pub fn tick_attack_lifetimes(
 /// @system Despawns attacks whose lifetime has expired, triggering follow-up effects.
 pub fn despawn_expired_attacks(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
     attack_definitions: Res<AttackDefinitions>,
@@ -300,7 +300,7 @@ pub fn despawn_expired_attacks(
             &PlayerAttack,
             &AttackLifetime,
             &mut AttackEffectState,
-            &PxSubPosition,
+            &WorldPos,
         ),
         With<PlayerAttack>,
     >,

@@ -1,11 +1,11 @@
-struct PxUniform {
+struct CxUniform {
     palette: array<vec3<f32>, 256>,
     fit_factor: vec2<f32>,
 };
 
 @group(0) @binding(0) var texture: texture_2d<u32>;
 @group(0) @binding(1) var depth_texture: texture_2d<u32>;
-@group(0) @binding(2) var<uniform> uniform: PxUniform;
+@group(0) @binding(2) var<uniform> uniform: CxUniform;
 
 struct VertexIn {
     @location(0) position: vec2<f32>,

@@ -1,28 +1,59 @@
-//! Frame selection and drawing helpers.
+//! Frame selection, lifecycle, and drawing helpers.
+//!
+//! # Frame lifecycle
+//!
+//! ```text
+//! Gameplay / Animation / Manual code
+//!     │
+//!     ▼  writes
+//! ┌────────────────┐
+//! │ CxFrameControl │  ← writable input component
+//! │  .selector     │    (CxAnimation writes here each tick;
+//! │  .transition   │     user code may also write directly)
+//! └───────┬────────┘
+//!         │  Changed<CxFrameControl> detected
+//!         ▼
+//!   sync_frame_view  (PostUpdate, after FinishAnimations)
+//!         │
+//!         ▼  derived copy
+//! ┌────────────────┐
+//! │  CxFrameView   │  ← read-only output component
+//! │  .selector     │    (rendering, picking, extract queries
+//! │  .transition   │     all read this — never write it)
+//! └────────────────┘
+//! ```
+//!
+//! **Bootstrap**: when [`CxAnimation`] is first added to an entity,
+//! `seed_animation_control` copies the existing `CxFrameView` into
+//! `CxFrameControl` so that user-specified initial frame state (e.g. a
+//! dither transition) seeds the animation correctly.
+//!
+//! **Rule of thumb**: gameplay writes [`CxFrameControl`]; rendering reads
+//! [`CxFrameView`].
 
 use crate::{
-    animation::PxAnimation, filter::PxFilterAsset, image::PxImageSliceMut, position::Spatial,
-    prelude::*, set::PxSet,
+    animation::CxAnimation, filter::CxFilterAsset, image::CxImageSliceMut, position::Spatial,
+    prelude::*, set::CxSet,
 };
 
 pub(crate) fn plug(app: &mut App) {
     app.add_systems(
         PostUpdate,
-        seed_animation_control.before(PxSet::FinishAnimations),
+        seed_animation_control.before(CxSet::FinishAnimations),
     )
-    .add_systems(PostUpdate, sync_frame_view.after(PxSet::FinishAnimations));
+    .add_systems(PostUpdate, sync_frame_view.after(CxSet::FinishAnimations));
 }
 
 /// Selects a frame by absolute index or normalized progress.
 #[derive(Clone, Copy, Reflect)]
-pub enum PxFrameSelector {
+pub enum CxFrameSelector {
     /// Direct frame index (may be fractional for transitions).
     Index(f32),
     /// Normalized progress from 0.0 to 1.0.
     Normalized(f32),
 }
 
-impl Default for PxFrameSelector {
+impl Default for CxFrameSelector {
     fn default() -> Self {
         Self::Normalized(0.)
     }
@@ -30,7 +61,7 @@ impl Default for PxFrameSelector {
 
 /// Method the animation uses to interpolate between frames.
 #[derive(Clone, Copy, Debug, Default, Reflect)]
-pub enum PxFrameTransition {
+pub enum CxFrameTransition {
     /// Frames are not interpolated.
     #[default]
     None,
@@ -40,7 +71,7 @@ pub enum PxFrameTransition {
 
 /// Maps a master frame selection to a part-specific frame selection.
 #[derive(Clone, Debug, Default, Reflect)]
-pub enum PxFrameBinding {
+pub enum CxFrameBinding {
     /// Use the master's normalized progress.
     #[default]
     Inherit,
@@ -52,24 +83,32 @@ pub enum PxFrameBinding {
     Scale(f32),
 }
 
-/// Per-entity frame view consumed by drawables.
+/// Resolved frame state consumed by rendering, picking, and extract queries.
+///
+/// This is the **read-only output** of the frame lifecycle.  Do not write
+/// to it directly — write [`CxFrameControl`] instead and let
+/// `sync_frame_view` propagate the change.
 #[derive(Component, Default, Clone, Copy, Reflect)]
-pub struct PxFrameView {
+pub struct CxFrameView {
     /// Frame selection mode.
-    pub selector: PxFrameSelector,
+    pub selector: CxFrameSelector,
     /// Frame interpolation mode.
-    pub transition: PxFrameTransition,
+    pub transition: CxFrameTransition,
 }
 
 /// Cached frame count for the entity's active frame source.
 #[derive(Component, Default, Clone, Copy, Debug, Reflect)]
-pub struct PxFrameCount(pub usize);
+pub struct CxFrameCount(pub usize);
 
-/// Backwards-compatible alias for the frame view.
-pub type PxFrame = PxFrameView;
+/// Deprecated alias for [`CxFrameView`].
+///
+/// Prefer `CxFrameView` directly — this alias obscures the
+/// [`CxFrameControl`] → [`CxFrameView`] lifecycle.
+#[deprecated(since = "0.9.0", note = "Use `CxFrameView` directly.")]
+pub type CxFrame = CxFrameView;
 
-impl From<PxFrameSelector> for PxFrameView {
-    fn from(value: PxFrameSelector) -> Self {
+impl From<CxFrameSelector> for CxFrameView {
+    fn from(value: CxFrameSelector) -> Self {
         Self {
             selector: value,
             ..default()
@@ -77,17 +116,21 @@ impl From<PxFrameSelector> for PxFrameView {
     }
 }
 
-/// Per-entity frame control input (e.g., for animation or manual control).
+/// Writable frame input — the animation system or user code writes here.
+///
+/// This is the **input** side of the frame lifecycle.  Changes are
+/// propagated to [`CxFrameView`] by `sync_frame_view` each frame.
+/// Rendering systems should read [`CxFrameView`], not this component.
 #[derive(Component, Default, Clone, Copy, Reflect)]
-pub struct PxFrameControl {
+pub struct CxFrameControl {
     /// Frame selection mode.
-    pub selector: PxFrameSelector,
+    pub selector: CxFrameSelector,
     /// Frame interpolation mode.
-    pub transition: PxFrameTransition,
+    pub transition: CxFrameTransition,
 }
 
-impl From<PxFrameSelector> for PxFrameControl {
-    fn from(value: PxFrameSelector) -> Self {
+impl From<CxFrameSelector> for CxFrameControl {
+    fn from(value: CxFrameSelector) -> Self {
         Self {
             selector: value,
             ..default()
@@ -95,8 +138,8 @@ impl From<PxFrameSelector> for PxFrameControl {
     }
 }
 
-impl From<PxFrameView> for PxFrameControl {
-    fn from(value: PxFrameView) -> Self {
+impl From<CxFrameView> for CxFrameControl {
+    fn from(value: CxFrameView) -> Self {
         Self {
             selector: value.selector,
             transition: value.transition,
@@ -104,8 +147,8 @@ impl From<PxFrameView> for PxFrameControl {
     }
 }
 
-impl From<PxFrameControl> for PxFrameView {
-    fn from(value: PxFrameControl) -> Self {
+impl From<CxFrameControl> for CxFrameView {
+    fn from(value: CxFrameControl) -> Self {
         Self {
             selector: value.selector,
             transition: value.transition,
@@ -115,7 +158,7 @@ impl From<PxFrameControl> for PxFrameView {
 
 fn sync_frame_view(
     mut commands: Commands,
-    mut frames: Query<(Entity, &PxFrameControl, Option<&mut PxFrameView>), Changed<PxFrameControl>>,
+    mut frames: Query<(Entity, &CxFrameControl, Option<&mut CxFrameView>), Changed<CxFrameControl>>,
 ) {
     for (entity, control, view) in &mut frames {
         match view {
@@ -123,14 +166,14 @@ fn sync_frame_view(
                 *view = (*control).into();
             }
             None => {
-                commands.entity(entity).insert(PxFrameView::from(*control));
+                commands.entity(entity).insert(CxFrameView::from(*control));
             }
         }
     }
 }
 
 fn seed_animation_control(
-    mut animations: Query<(&PxFrameView, &mut PxFrameControl), Added<PxAnimation>>,
+    mut animations: Query<(&CxFrameView, &mut CxFrameControl), Added<CxAnimation>>,
 ) {
     for (view, mut control) in &mut animations {
         *control = (*view).into();
@@ -144,7 +187,7 @@ pub(crate) trait Frames {
     fn draw(
         &self,
         param: Self::Param,
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         filter: impl Fn(u8) -> u8,
     );
@@ -169,15 +212,15 @@ const DITHERING: [u16; 16] = [
     0b1111_1111_1111_0111,
 ];
 
-pub(crate) fn animate(frame: PxFrameView, frame_count: usize) -> impl Fn(UVec2) -> usize {
+pub(crate) fn animate(frame: CxFrameView, frame_count: usize) -> impl Fn(UVec2) -> usize {
     let index = match frame.selector {
-        PxFrameSelector::Normalized(frame) => frame * (frame_count - 1) as f32,
-        PxFrameSelector::Index(frame) => frame,
+        CxFrameSelector::Normalized(frame) => frame * (frame_count - 1) as f32,
+        CxFrameSelector::Index(frame) => frame,
     };
 
     let dithering = match frame.transition {
-        PxFrameTransition::Dither => DITHERING[(index.fract() * 16.) as usize % 16],
-        PxFrameTransition::None => 0,
+        CxFrameTransition::Dither => DITHERING[(index.fract() * 16.) as usize % 16],
+        CxFrameTransition::None => 0,
     };
     let index = index.floor() as usize;
 
@@ -188,27 +231,27 @@ pub(crate) fn animate(frame: PxFrameView, frame_count: usize) -> impl Fn(UVec2) 
     }
 }
 
-fn frame_index_f32(frame: PxFrameView, frame_count: usize) -> f32 {
+fn frame_index_f32(frame: CxFrameView, frame_count: usize) -> f32 {
     match frame.selector {
-        PxFrameSelector::Normalized(progress) => {
+        CxFrameSelector::Normalized(progress) => {
             if frame_count <= 1 {
                 0.
             } else {
                 progress.clamp(0., 1.) * (frame_count - 1) as f32
             }
         }
-        PxFrameSelector::Index(index) => index.max(0.),
+        CxFrameSelector::Index(index) => index.max(0.),
     }
 }
 
-fn frame_index(frame: PxFrameView, frame_count: usize) -> usize {
+fn frame_index(frame: CxFrameView, frame_count: usize) -> usize {
     frame_index_f32(frame, frame_count).floor() as usize
 }
 
-fn frame_progress(frame: PxFrameView, frame_count: usize) -> f32 {
+fn frame_progress(frame: CxFrameView, frame_count: usize) -> f32 {
     match frame.selector {
-        PxFrameSelector::Normalized(progress) => progress.clamp(0., 1.),
-        PxFrameSelector::Index(index) => {
+        CxFrameSelector::Normalized(progress) => progress.clamp(0., 1.),
+        CxFrameSelector::Index(index) => {
             if frame_count <= 1 {
                 0.
             } else {
@@ -219,45 +262,45 @@ fn frame_progress(frame: PxFrameView, frame_count: usize) -> f32 {
 }
 
 pub(crate) fn resolve_frame_binding(
-    master: Option<PxFrameView>,
+    master: Option<CxFrameView>,
     master_count: usize,
     part_count: usize,
-    binding: &PxFrameBinding,
-) -> Option<PxFrameView> {
+    binding: &CxFrameBinding,
+) -> Option<CxFrameView> {
     let master = master?;
     if part_count == 0 {
         return None;
     }
 
     match binding {
-        PxFrameBinding::Inherit => Some(PxFrameView {
-            selector: PxFrameSelector::Normalized(frame_progress(master, master_count)),
+        CxFrameBinding::Inherit => Some(CxFrameView {
+            selector: CxFrameSelector::Normalized(frame_progress(master, master_count)),
             transition: master.transition,
         }),
-        PxFrameBinding::Map(map) => {
+        CxFrameBinding::Map(map) => {
             if map.is_empty() {
                 return None;
             }
             let index = frame_index(master, map.len());
             let mapped = map.get(index).copied().unwrap_or(0) as f32;
-            Some(PxFrameView {
-                selector: PxFrameSelector::Index(mapped),
+            Some(CxFrameView {
+                selector: CxFrameSelector::Index(mapped),
                 transition: master.transition,
             })
         }
-        PxFrameBinding::Offset(offset) => {
+        CxFrameBinding::Offset(offset) => {
             let index = frame_index(master, master_count) as i32 + offset;
             let index = index.rem_euclid(part_count as i32) as f32;
-            Some(PxFrameView {
-                selector: PxFrameSelector::Index(index),
+            Some(CxFrameView {
+                selector: CxFrameSelector::Index(index),
                 transition: master.transition,
             })
         }
-        PxFrameBinding::Scale(scale) => {
+        CxFrameBinding::Scale(scale) => {
             let progress = frame_progress(master, master_count) * *scale;
             let progress = progress - progress.floor();
-            Some(PxFrameView {
-                selector: PxFrameSelector::Normalized(progress),
+            Some(CxFrameView {
+                selector: CxFrameSelector::Normalized(progress),
                 transition: master.transition,
             })
         }
@@ -267,9 +310,9 @@ pub(crate) fn resolve_frame_binding(
 pub(crate) fn draw_frame<'a, A: Frames>(
     animation: &A,
     param: A::Param,
-    image: &mut PxImageSliceMut,
-    frame: Option<PxFrameView>,
-    filters: impl IntoIterator<Item = &'a PxFilterAsset>,
+    image: &mut CxImageSliceMut,
+    frame: Option<CxFrameView>,
+    filters: impl IntoIterator<Item = &'a CxFilterAsset>,
 ) {
     let frame_count = animation.frame_count();
     if frame_count == 0 {
@@ -295,21 +338,21 @@ pub(crate) fn draw_frame<'a, A: Frames>(
 pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
     spatial: &A,
     param: <A as Frames>::Param,
-    image: &mut PxImageSliceMut,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
-    frame: Option<PxFrameView>,
-    filters: impl IntoIterator<Item = &'a PxFilterAsset>,
-    camera: PxCamera,
+    image: &mut CxImageSliceMut,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
+    frame: Option<CxFrameView>,
+    filters: impl IntoIterator<Item = &'a CxFilterAsset>,
+    camera: CxCamera,
 ) {
     // Coordinate convention: image space has origin at top-left.
     // World/camera positions are bottom-left, so Y is flipped here.
     let size = spatial.frame_size();
     let position = *position - anchor.pos(size).as_ivec2();
     let position = match canvas {
-        PxCanvas::World => position - *camera,
-        PxCanvas::Camera => position,
+        CxRenderSpace::World => position - *camera,
+        CxRenderSpace::Camera => position,
     };
     let position = IVec2::new(position.x, image.height() as i32 - position.y);
     let size = size.as_ivec2();
@@ -333,13 +376,13 @@ pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
 pub(crate) fn draw_spatial_transformed<'a, A: Frames + Spatial>(
     spatial: &A,
     param: <A as Frames>::Param,
-    image: &mut PxImageSliceMut,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
-    frame: Option<PxFrameView>,
-    filters: impl IntoIterator<Item = &'a PxFilterAsset>,
-    camera: PxCamera,
+    image: &mut CxImageSliceMut,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
+    frame: Option<CxFrameView>,
+    filters: impl IntoIterator<Item = &'a CxFilterAsset>,
+    camera: CxCamera,
     scale: Vec2,
     rotation: f32,
     offset: Vec2,
@@ -350,7 +393,7 @@ pub(crate) fn draw_spatial_transformed<'a, A: Frames + Spatial>(
     }
 
     // Render at native size into a scratch buffer.
-    let mut scratch = crate::image::PxImage::empty(native_size);
+    let mut scratch = crate::image::CxImage::empty(native_size);
     let mut scratch_slice = scratch.slice_all_mut();
     draw_frame(spatial, param, &mut scratch_slice, frame, filters);
 
@@ -384,13 +427,13 @@ pub(crate) fn draw_spatial_transformed<'a, A: Frames + Spatial>(
 /// 4. Add anchor offset in source space → source pixel coordinate.
 /// 5. Nearest-neighbour sample from scratch buffer.
 pub(crate) fn blit_transformed(
-    scratch: &crate::image::PxImage,
+    scratch: &crate::image::CxImage,
     native_size: UVec2,
-    image: &mut PxImageSliceMut,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
-    camera: PxCamera,
+    image: &mut CxImageSliceMut,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
+    camera: CxCamera,
     scale: Vec2,
     rotation: f32,
     offset: Vec2,
@@ -406,7 +449,7 @@ pub(crate) fn blit_transformed(
     let src_h = native_size.y as f32;
 
     // Anchor in source image space (top-left origin).
-    // PxAnchor::pos returns (x, y) with y=0 at bottom, so flip y for image space.
+    // CxAnchor::pos returns (x, y) with y=0 at bottom, so flip y for image space.
     let anchor_world = anchor.pos(native_size).as_vec2();
     let anchor_src = Vec2::new(anchor_world.x, src_h - anchor_world.y);
 
@@ -454,8 +497,8 @@ pub(crate) fn blit_transformed(
     // Anchor position in image space (top-left origin).
     let world_pos = *position + offset.round().as_ivec2();
     let world_pos = match canvas {
-        PxCanvas::World => world_pos - *camera,
-        PxCanvas::Camera => world_pos,
+        CxRenderSpace::World => world_pos - *camera,
+        CxRenderSpace::Camera => world_pos,
     };
     let anchor_img = IVec2::new(world_pos.x, image.height() as i32 - world_pos.y);
 
@@ -510,15 +553,15 @@ pub(crate) fn blit_transformed(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::image::PxImage;
+    use crate::image::CxImage;
 
     /// Helper: create a scratch image filled with a single palette index.
-    fn solid_scratch(w: u32, h: u32, color: u8) -> PxImage {
-        PxImage::new(vec![color; (w * h) as usize], w as usize)
+    fn solid_scratch(w: u32, h: u32, color: u8) -> CxImage {
+        CxImage::new(vec![color; (w * h) as usize], w as usize)
     }
 
     /// Helper: count non-zero pixels in an image.
-    fn count_nonzero(img: &PxImage) -> usize {
+    fn count_nonzero(img: &CxImage) -> usize {
         let size = img.size();
         (0..size.y as i32)
             .flat_map(|y| (0..size.x as i32).map(move |x| IVec2::new(x, y)))
@@ -532,20 +575,20 @@ mod tests {
     /// Uses a padded destination with the source centred, then extracts the
     /// tight bounding box of non-zero pixels.
     fn blit_grid(src: &[u8], w: u32, h: u32, scale: Vec2, rotation: f32) -> Vec<Vec<u8>> {
-        let scratch = PxImage::new(src.to_vec(), w as usize);
+        let scratch = CxImage::new(src.to_vec(), w as usize);
         let pad = ((w.max(h) as f32) * scale.x.abs().max(scale.y.abs())).ceil() as u32 + 4;
         let dest_side = pad * 2;
-        let mut dest = PxImage::empty(UVec2::splat(dest_side));
+        let mut dest = CxImage::empty(UVec2::splat(dest_side));
         let mut dest_slice = dest.slice_all_mut();
         let center = dest_side as i32 / 2;
         blit_transformed(
             &scratch,
             UVec2::new(w, h),
             &mut dest_slice,
-            PxPosition(IVec2::new(center, center)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(center, center)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             scale,
             rotation,
             Vec2::ZERO,
@@ -563,17 +606,17 @@ mod tests {
     #[test]
     fn identity_scale_no_rotation_preserves_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest = CxImage::empty(UVec2::new(16, 16));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(8, 8)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(8, 8)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             0.0,
             Vec2::ZERO,
@@ -585,17 +628,17 @@ mod tests {
     #[test]
     fn scale_2x_approximately_quadruples_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest = PxImage::empty(UVec2::new(32, 32));
+        let mut dest = CxImage::empty(UVec2::new(32, 32));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(16, 16)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(16, 16)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::splat(2.0),
             0.0,
             Vec2::ZERO,
@@ -614,17 +657,17 @@ mod tests {
     fn rotation_90_approximately_preserves_pixel_count() {
         // Use a larger sprite to reduce rounding noise at boundaries.
         let scratch = solid_scratch(8, 8, 1);
-        let mut dest = PxImage::empty(UVec2::new(32, 32));
+        let mut dest = CxImage::empty(UVec2::new(32, 32));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(8, 8),
             &mut dest_slice,
-            PxPosition(IVec2::new(16, 16)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(16, 16)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             std::f32::consts::FRAC_PI_2, // 90°
             Vec2::ZERO,
@@ -644,17 +687,17 @@ mod tests {
         // A 4x4 square at 45° should fill ~22-23 pixels (rotated diamond),
         // more than the original 16, confirming bounding box expansion works.
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest = CxImage::empty(UVec2::new(16, 16));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(8, 8)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(8, 8)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             std::f32::consts::FRAC_PI_4, // 45°
             Vec2::ZERO,
@@ -669,19 +712,19 @@ mod tests {
     fn zero_native_size_draws_nothing() {
         // Zero-area native_size triggers an early return in blit_transformed.
         // The scratch buffer is never accessed, so we use a minimal valid 1×1
-        // image — PxImage requires width > 0.
-        let scratch = PxImage::new(vec![1], 1);
-        let mut dest = PxImage::empty(UVec2::new(8, 8));
+        // image — CxImage requires width > 0.
+        let scratch = CxImage::new(vec![1], 1);
+        let mut dest = CxImage::empty(UVec2::new(8, 8));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::ZERO,
             &mut dest_slice,
-            PxPosition(IVec2::new(4, 4)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(4, 4)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             0.0,
             Vec2::ZERO,
@@ -693,18 +736,18 @@ mod tests {
     #[test]
     fn zero_width_native_size_draws_nothing() {
         // Only one dimension is zero — still early-returns.
-        let scratch = PxImage::new(vec![1], 1);
-        let mut dest = PxImage::empty(UVec2::new(8, 8));
+        let scratch = CxImage::new(vec![1], 1);
+        let mut dest = CxImage::empty(UVec2::new(8, 8));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(0, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(4, 4)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(4, 4)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             0.0,
             Vec2::ZERO,
@@ -715,18 +758,18 @@ mod tests {
 
     #[test]
     fn zero_height_native_size_draws_nothing() {
-        let scratch = PxImage::new(vec![1], 1);
-        let mut dest = PxImage::empty(UVec2::new(8, 8));
+        let scratch = CxImage::new(vec![1], 1);
+        let mut dest = CxImage::empty(UVec2::new(8, 8));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 0),
             &mut dest_slice,
-            PxPosition(IVec2::new(4, 4)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(4, 4)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             0.0,
             Vec2::ZERO,
@@ -738,8 +781,8 @@ mod tests {
     #[test]
     fn offset_shifts_without_changing_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest_a = PxImage::empty(UVec2::new(16, 16));
-        let mut dest_b = PxImage::empty(UVec2::new(16, 16));
+        let mut dest_a = CxImage::empty(UVec2::new(16, 16));
+        let mut dest_b = CxImage::empty(UVec2::new(16, 16));
         let mut slice_a = dest_a.slice_all_mut();
         let mut slice_b = dest_b.slice_all_mut();
 
@@ -748,10 +791,10 @@ mod tests {
             &scratch,
             UVec2::new(4, 4),
             &mut slice_a,
-            PxPosition(IVec2::new(8, 8)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(8, 8)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             0.0,
             Vec2::ZERO,
@@ -762,10 +805,10 @@ mod tests {
             &scratch,
             UVec2::new(4, 4),
             &mut slice_b,
-            PxPosition(IVec2::new(8, 8)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(8, 8)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             0.0,
             Vec2::new(2.0, -1.0),
@@ -777,17 +820,17 @@ mod tests {
     #[test]
     fn horizontal_flip_preserves_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest = CxImage::empty(UVec2::new(16, 16));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(8, 8)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(8, 8)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::new(-1.0, 1.0), // horizontal flip
             0.0,
             Vec2::ZERO,
@@ -799,17 +842,17 @@ mod tests {
     #[test]
     fn vertical_flip_preserves_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest = CxImage::empty(UVec2::new(16, 16));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(8, 8)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(8, 8)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::new(1.0, -1.0), // vertical flip
             0.0,
             Vec2::ZERO,
@@ -822,35 +865,35 @@ mod tests {
     fn horizontal_flip_mirrors_content() {
         // Asymmetric source: left column = 1, right column = 2.
         // Layout in row-major: [row0: 1, 2], [row1: 1, 2]
-        let scratch = PxImage::new(vec![1, 2, 1, 2], 2);
+        let scratch = CxImage::new(vec![1, 2, 1, 2], 2);
 
         // Unflipped reference.
-        let mut dest_normal = PxImage::empty(UVec2::new(8, 8));
+        let mut dest_normal = CxImage::empty(UVec2::new(8, 8));
         let mut slice_normal = dest_normal.slice_all_mut();
         blit_transformed(
             &scratch,
             UVec2::new(2, 2),
             &mut slice_normal,
-            PxPosition(IVec2::new(4, 4)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(4, 4)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::ONE,
             0.0,
             Vec2::ZERO,
         );
 
         // Flipped.
-        let mut dest_flip = PxImage::empty(UVec2::new(8, 8));
+        let mut dest_flip = CxImage::empty(UVec2::new(8, 8));
         let mut slice_flip = dest_flip.slice_all_mut();
         blit_transformed(
             &scratch,
             UVec2::new(2, 2),
             &mut slice_flip,
-            PxPosition(IVec2::new(4, 4)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(4, 4)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::new(-1.0, 1.0),
             0.0,
             Vec2::ZERO,
@@ -874,17 +917,17 @@ mod tests {
     #[test]
     fn flip_with_rotation_preserves_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest = PxImage::empty(UVec2::new(16, 16));
+        let mut dest = CxImage::empty(UVec2::new(16, 16));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(8, 8)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(8, 8)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::new(-1.0, -1.0),       // both axes flipped
             std::f32::consts::FRAC_PI_2, // + 90° rotation
             Vec2::ZERO,
@@ -901,17 +944,17 @@ mod tests {
     #[test]
     fn negative_scale_2x_flip_approximately_quadruples_pixel_count() {
         let scratch = solid_scratch(4, 4, 1);
-        let mut dest = PxImage::empty(UVec2::new(32, 32));
+        let mut dest = CxImage::empty(UVec2::new(32, 32));
         let mut dest_slice = dest.slice_all_mut();
 
         blit_transformed(
             &scratch,
             UVec2::new(4, 4),
             &mut dest_slice,
-            PxPosition(IVec2::new(16, 16)),
-            PxAnchor::Center,
-            PxCanvas::Camera,
-            PxCamera(IVec2::ZERO),
+            CxPosition(IVec2::new(16, 16)),
+            CxAnchor::Center,
+            CxRenderSpace::Camera,
+            CxCamera(IVec2::ZERO),
             Vec2::splat(-2.0), // 2x scale + flip both axes
             0.0,
             Vec2::ZERO,

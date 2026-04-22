@@ -3,33 +3,33 @@
 use super::data::SkyboxData;
 use crate::{
     layer::Layer,
-    pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle},
+    pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle},
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxCanvas,
-    PxFrameTransition, PxSprite, PxSubPosition,
+    CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
+    CxFrameTransition, CxRenderSpace, CxSprite, WorldPos,
 };
-use carapace::sprite::PxSpriteAsset;
+use carapace::sprite::CxSpriteAsset;
 
 #[derive(Bundle)]
 /// Pixel background sprite anchored to the bottom-left of the world.
 pub struct BackgroundBundle {
     pub name: Name,
-    pub position: PxSubPosition,
-    pub sprite: PxSpriteBundle<Layer>,
+    pub position: WorldPos,
+    pub sprite: CxSpriteBundle<Layer>,
 }
 
 impl BackgroundBundle {
     /// Creates a background sprite bundle using the provided pixel sprite handle.
     #[must_use]
-    pub fn new(sprite: Handle<PxSpriteAsset>) -> Self {
+    pub fn new(sprite: Handle<CxSpriteAsset>) -> Self {
         Self {
             name: Name::new("Background"),
             position: Vec2::ZERO.into(),
-            sprite: PxSpriteBundle::<Layer> {
+            sprite: CxSpriteBundle::<Layer> {
                 sprite: sprite.into(),
-                anchor: PxAnchor::BottomLeft,
+                anchor: CxAnchor::BottomLeft,
                 layer: Layer::Background,
                 ..default()
             },
@@ -40,30 +40,30 @@ impl BackgroundBundle {
 #[derive(Bundle)]
 /// Animated skybox that plays on the camera canvas.
 pub struct SkyboxBundle {
-    pub animation: PxAnimationBundle,
+    pub animation: CxAnimationBundle,
     pub name: Name,
-    pub position: PxSubPosition,
-    pub sprite: PxSpriteBundle<Layer>,
+    pub position: WorldPos,
+    pub sprite: CxSpriteBundle<Layer>,
 }
 
 impl SkyboxBundle {
     /// Builds the skybox bundle from serialized skybox data.
-    pub fn new(assets_sprite: &mut PxAssets<PxSprite>, skybox_data: SkyboxData) -> Self {
+    pub fn new(assets_sprite: &mut CxAssets<CxSprite>, skybox_data: SkyboxData) -> Self {
         let sprite = assets_sprite.load_animated(skybox_data.path, skybox_data.frames);
 
         Self {
-            animation: PxAnimationBundle::from_parts(
-                PxAnimationDirection::default(),
-                PxAnimationDuration::millis_per_animation(2000),
-                PxAnimationFinishBehavior::Loop,
-                PxFrameTransition::default(),
+            animation: CxAnimationBundle::from_parts(
+                CxAnimationDirection::default(),
+                CxAnimationDuration::millis_per_animation(2000),
+                CxAnimationFinishBehavior::Loop,
+                CxFrameTransition::default(),
             ),
             name: Name::new("Skybox"),
             position: Vec2::ZERO.into(),
-            sprite: PxSpriteBundle::<Layer> {
+            sprite: CxSpriteBundle::<Layer> {
                 sprite: sprite.into(),
-                anchor: PxAnchor::BottomLeft,
-                canvas: PxCanvas::Camera,
+                anchor: CxAnchor::BottomLeft,
+                canvas: CxRenderSpace::Camera,
                 layer: Layer::Skybox,
                 ..default()
             },

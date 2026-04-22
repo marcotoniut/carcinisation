@@ -1,4 +1,4 @@
-use crate::pixel::{PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAssets, CxSpriteBundle};
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -18,7 +18,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxCanvas, PxFilter, PxSprite, PxSubPosition};
+use carapace::prelude::{CxAnchor, CxFilter, CxRenderSpace, CxSprite, WorldPos};
 use cween::linear::components::{
     LinearValueReached, TargetingValueX, TargetingValueY, TweenChildAcceleratedBundle,
 };
@@ -87,8 +87,8 @@ impl Default for PickupFeedbackDefaultBundle {
 
 #[derive(Bundle)]
 pub struct PickupFeedbackBundle {
-    position: PxSubPosition,
-    sprite: PxSpriteBundle<Layer>,
+    position: WorldPos,
+    sprite: CxSpriteBundle<Layer>,
     targeting_value_x: TargetingValueX,
     targeting_value_y: TargetingValueY,
     default: PickupFeedbackDefaultBundle,
@@ -103,17 +103,17 @@ pub struct PickupFeedbackBundle {
 pub fn pickup_health(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &HealthRecovery, &PxSubPosition), Added<Dead>>,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    query: Query<(Entity, &HealthRecovery, &WorldPos), Added<Dead>>,
+    camera_query: Query<&WorldPos, With<CameraPos>>,
     mut player_query: Query<&mut Health, With<Player>>,
-    hud_icon_query: Query<(Entity, Option<&PxFilter>), With<HealthIcon>>,
-    hud_text_query: Query<(Entity, Option<&PxFilter>), With<HealthText>>,
+    hud_icon_query: Query<(Entity, Option<&CxFilter>), With<HealthIcon>>,
+    hud_text_query: Query<(Entity, Option<&CxFilter>), With<HealthText>>,
     stage_time: Res<Time<StageTimeDomain>>,
-    assets_sprite: PxAssets<PxSprite>,
-    filters: PxAssets<PxFilter>,
+    assets_sprite: CxAssets<CxSprite>,
+    filters: CxAssets<CxFilter>,
 ) {
     let camera_pos = camera_query.single().unwrap();
-    let glitter_filter = PxFilter(filters.load(assert_assets_path!("filter/color3.px_filter.png")));
+    let glitter_filter = CxFilter(filters.load(assert_assets_path!("filter/color3.px_filter.png")));
     if let Ok(mut health) = player_query.single_mut() {
         for (entity, recovery, position) in query.iter() {
             commands.entity(entity).insert(DespawnMark);
@@ -150,11 +150,11 @@ pub fn pickup_health(
             let feedback_entity = commands
                 .spawn(PickupFeedbackBundle {
                     position: current.into(),
-                    sprite: PxSpriteBundle::<Layer> {
+                    sprite: CxSpriteBundle::<Layer> {
                         sprite: sprite.into(),
                         // TODO the position should be stuck to the floor beneath the dropper
-                        anchor: PxAnchor::Center,
-                        canvas: PxCanvas::Camera,
+                        anchor: CxAnchor::Center,
+                        canvas: CxRenderSpace::Camera,
                         layer: Layer::HudUnderlay,
                         ..default()
                     },
@@ -229,7 +229,7 @@ pub fn update_pickup_feedback_glitter(
                 if let Some(original_filter) = glitter.original_filter.clone() {
                     entity_commands.insert(original_filter);
                 } else {
-                    entity_commands.remove::<PxFilter>();
+                    entity_commands.remove::<CxFilter>();
                 }
             }
             entity_commands.remove::<PickupFeedbackGlitter>();
@@ -242,7 +242,7 @@ pub fn update_pickup_feedback_glitter(
                 if let Some(original_filter) = glitter.original_filter.clone() {
                     entity_commands.insert(original_filter);
                 } else {
-                    entity_commands.remove::<PxFilter>();
+                    entity_commands.remove::<CxFilter>();
                 }
             } else {
                 entity_commands.insert(glitter.glitter_filter.clone());

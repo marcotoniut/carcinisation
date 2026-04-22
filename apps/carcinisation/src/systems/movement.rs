@@ -1,21 +1,21 @@
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 use cween::linear::components::{TargetingValueX, TargetingValueY};
 
 use crate::systems::camera::CameraPos;
 
-/// Systems that sync tween-driven `TargetingValueX`/`Y` into `PxSubPosition`.
+/// Systems that sync tween-driven `TargetingValueX`/`Y` into `WorldPos`.
 ///
-/// Any system that reads `PxSubPosition` after tween integration (e.g.
+/// Any system that reads `WorldPos` after tween integration (e.g.
 /// `update_composed_enemy_visuals`) should declare `.after(PositionSyncSystems)`.
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct PositionSyncSystems;
 
-/// @system Syncs `TargetingValueX` to PxSubPosition.x
+/// @system Syncs `TargetingValueX` to WorldPos.x
 /// Movement children update `TargetingValueX` via aggregation, this syncs to the visual position.
 pub fn update_position_x(
     mut query: Query<
-        (&TargetingValueX, &mut PxSubPosition),
+        (&TargetingValueX, &mut WorldPos),
         (Changed<TargetingValueX>, Without<CameraPos>),
     >,
 ) {
@@ -24,11 +24,11 @@ pub fn update_position_x(
     }
 }
 
-/// @system Syncs `TargetingValueY` to PxSubPosition.y
+/// @system Syncs `TargetingValueY` to WorldPos.y
 /// Movement children update `TargetingValueY` via aggregation, this syncs to the visual position.
 pub fn update_position_y(
     mut query: Query<
-        (&TargetingValueY, &mut PxSubPosition),
+        (&TargetingValueY, &mut WorldPos),
         (Changed<TargetingValueY>, Without<CameraPos>),
     >,
 ) {

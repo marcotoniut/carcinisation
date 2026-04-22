@@ -39,14 +39,14 @@
 //!
 //! # Integration
 //!
-//! The fallback scale is multiplied into the entity's [`PxPresentationTransform`]
+//! The fallback scale is multiplied into the entity's [`CxPresentationTransform`]
 //! scale, preserving sign (flip semantics) and stacking with any existing
 //! presentation effects. It does not affect gameplay, collision, or anchoring.
 
 use std::{collections::HashMap, fs};
 
 use bevy::prelude::*;
-use carapace::prelude::PxPresentationTransform;
+use carapace::prelude::CxPresentationTransform;
 use serde::{Deserialize, Serialize};
 
 use crate::components::DespawnMark;
@@ -209,7 +209,7 @@ pub struct DepthFallbackScale(pub Vec2);
 /// [`AuthoredDepths`] and a current [`Depth`].
 ///
 /// Runs in `Update`. Multiplies the fallback ratio into the entity's
-/// [`PxPresentationTransform`] scale, stacking with any existing effects.
+/// [`CxPresentationTransform`] scale, stacking with any existing effects.
 pub fn apply_depth_fallback_scale(
     config: Res<DepthScaleConfig>,
     mut commands: Commands,
@@ -218,7 +218,7 @@ pub fn apply_depth_fallback_scale(
             Entity,
             &Depth,
             &AuthoredDepths,
-            Option<&mut PxPresentationTransform>,
+            Option<&mut CxPresentationTransform>,
             Option<&DepthFallbackScale>,
         ),
         Without<DespawnMark>,
@@ -252,9 +252,15 @@ pub fn apply_depth_fallback_scale(
                 sign_y * base_y * new_fallback.y,
             );
         } else if (ratio - 1.0).abs() >= f32::EPSILON {
-            commands.entity(entity).insert(PxPresentationTransform {
+            // No existing transform on this entity yet. Insert with identity
+            // rotation and zero offsets — the composition system
+            // (compose_presentation_offsets) will write the correct
+            // presentation offsets later in Update.
+            commands.entity(entity).insert(CxPresentationTransform {
                 scale: new_fallback,
-                ..Default::default()
+                rotation: 0.0,
+                visual_offset: Vec2::ZERO,
+                collision_offset: Vec2::ZERO,
             });
         }
 
@@ -593,6 +599,58 @@ mod tests {
         assert!(
             (scale - expected).abs() < 0.001,
             "expected ~{expected:.3}, got {scale}"
+        );
+    }
+
+    // --- apply_depth_fallback_scale offset preservation ---
+
+    #[test]
+    fn apply_depth_fallback_scale_preserves_offset_on_mutation() {
+        use bevy::prelude::*;
+
+        let mut app = App::new();
+        app.insert_resource(default_config());
+        app.add_systems(Update, apply_depth_fallback_scale);
+
+        // Spawn an entity at depth 5 authored for depth 3 — will need a fallback
+        // scale. Pre-set a non-zero offset to verify it's preserved.
+        let offset = Vec2::new(7.0, -3.0);
+        let entity = app
+            .world_mut()
+            .spawn((
+                Depth::Five,
+                AuthoredDepths::single(Depth::Three),
+                CxPresentationTransform {
+                    scale: Vec2::ONE,
+                    rotation: 0.0,
+                    visual_offset: offset,
+                    collision_offset: offset,
+                },
+            ))
+            .id();
+
+        app.update();
+
+        let pt = app
+            .world()
+            .entity(entity)
+            .get::<CxPresentationTransform>()
+            .expect("should have CxPresentationTransform");
+
+        // Scale should have changed (fallback applied).
+        assert!(
+            pt.has_scale(),
+            "fallback scale should have been applied, got {:?}",
+            pt.scale
+        );
+        // Offsets must be unchanged.
+        assert_eq!(
+            pt.visual_offset, offset,
+            "apply_depth_fallback_scale must not clobber visual_offset"
+        );
+        assert_eq!(
+            pt.collision_offset, offset,
+            "apply_depth_fallback_scale must not clobber collision_offset"
         );
     }
 }

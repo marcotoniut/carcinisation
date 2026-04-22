@@ -1,6 +1,6 @@
 //! Entity spawning systems for enemies, pickups, destructibles, and objects.
 
-use crate::pixel::{PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAssets, CxSpriteBundle};
 use crate::stage::{
     components::{
         SpawnDrop, StageEntity,
@@ -27,8 +27,10 @@ use crate::stage::{
             TardigradeDefaultBundle,
         },
     },
+    floors::ActiveFloors,
+    parallax::ParallaxOffset,
     player::{attacks::AttackHitTracker, components::PlayerAttack},
-    resources::{ActiveProjection, StageStepSpawner, StageTimeDomain},
+    resources::{StageStepSpawner, StageTimeDomain},
     spawn_placement,
 };
 use crate::{
@@ -48,7 +50,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxSprite, PxSubPosition};
+use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSprite, WorldPos};
 
 /// Build an [`AuthoredDepths`] component from spawn data.
 ///
@@ -103,10 +105,10 @@ pub fn check_step_spawn(
 pub fn on_stage_spawn(
     trigger: On<StageSpawnEvent>,
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
-    active_projection: Res<ActiveProjection>,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    active_floors: Res<ActiveFloors>,
+    camera_query: Query<&WorldPos, With<CameraPos>>,
 ) {
     match &trigger.event().spawn {
         StageSpawn::Destructible(x) => {
@@ -119,7 +121,7 @@ pub fn on_stage_spawn(
                 &asset_server,
                 camera_pos.0,
                 x,
-                &active_projection.0,
+                &active_floors,
             );
         }
         StageSpawn::Object(x) => {
@@ -134,7 +136,7 @@ pub fn on_stage_spawn(
 
 pub fn spawn_pickup(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    assets_sprite: &mut CxAssets<CxSprite>,
     offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
@@ -143,7 +145,7 @@ pub fn spawn_pickup(
         coordinates,
         ..
     } = spawn;
-    let position = PxSubPosition::from(offset + *coordinates);
+    let position = WorldPos::from(offset + *coordinates);
     let authored = authored_depths_from_spawn(spawn.depth, None, spawn.authored_depths.as_ref());
     match pickup_type {
         PickupType::BigHealthpack => {
@@ -155,9 +157,9 @@ pub fn spawn_pickup(
                     spawn.get_name(),
                     Hittable,
                     StageEntity,
-                    PxSpriteBundle::<Layer> {
+                    CxSpriteBundle::<Layer> {
                         sprite: sprite.into(),
-                        anchor: PxAnchor::Center,
+                        anchor: CxAnchor::Center,
                         layer: spawn.depth.to_layer(),
                         ..default()
                     },
@@ -167,6 +169,8 @@ pub fn spawn_pickup(
                     Health(1),
                     ColliderData::from_one(Collider::new_box(Vec2::new(12., 8.))),
                     HealthRecovery(100),
+                    ParallaxOffset::default(),
+                    CxPresentationTransform::default(),
                 ))
                 .id()
         }
@@ -179,9 +183,9 @@ pub fn spawn_pickup(
                     spawn.get_name(),
                     Hittable,
                     StageEntity,
-                    PxSpriteBundle::<Layer> {
+                    CxSpriteBundle::<Layer> {
                         sprite: sprite.into(),
-                        anchor: PxAnchor::BottomCenter,
+                        anchor: CxAnchor::BottomCenter,
                         layer: spawn.depth.to_layer(),
                         ..default()
                     },
@@ -191,6 +195,8 @@ pub fn spawn_pickup(
                     Health(1),
                     ColliderData::from_one(Collider::new_box(Vec2::new(7., 5.))),
                     HealthRecovery(30),
+                    ParallaxOffset::default(),
+                    CxPresentationTransform::default(),
                 ))
                 .id()
         }
@@ -203,7 +209,7 @@ pub fn spawn_enemy(
     asset_server: &AssetServer,
     offset: Vec2,
     spawn: &EnemySpawn,
-    projection: &crate::stage::projection::ProjectionProfile,
+    floors: &ActiveFloors,
 ) -> Entity {
     let EnemySpawn {
         enemy_type,
@@ -215,7 +221,7 @@ pub fn spawn_enemy(
         ..
     } = spawn;
     let name = spawn.enemy_type.get_name();
-    let position = spawn_placement::resolve_enemy_position(spawn, offset, projection);
+    let position = spawn_placement::resolve_enemy_position(spawn, offset, floors);
     let behaviors = EnemyBehaviors::new(steps.clone());
     let authored =
         authored_depths_from_spawn(*depth, Some(*enemy_type), spawn.authored_depths.as_ref());
@@ -231,7 +237,7 @@ pub fn spawn_enemy(
                         depth: *depth,
                         speed: Speed(*speed),
                         behaviors,
-                        position: PxSubPosition::from(position),
+                        position: WorldPos::from(position),
                         collider_data: ColliderData::from_many(vec![critical_collider, collider]),
                         default: MosquitoDefaultBundle {
                             health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
@@ -239,6 +245,8 @@ pub fn spawn_enemy(
                         },
                     },
                     authored.clone(),
+                    ParallaxOffset::default(),
+                    CxPresentationTransform::default(),
                 ))
                 .id();
 
@@ -268,7 +276,7 @@ pub fn spawn_enemy(
                         visibility: Visibility::Visible,
                         inherited_visibility: InheritedVisibility::VISIBLE,
                         depth: *depth,
-                        position: PxSubPosition::from(position),
+                        position: WorldPos::from(position),
                         speed: Speed(*speed),
                         default: MosquitonDefaultBundle {
                             health: Health(health.unwrap_or(ENEMY_MOSQUITO_BASE_HEALTH)),
@@ -276,6 +284,8 @@ pub fn spawn_enemy(
                         },
                     },
                     authored.clone(),
+                    ParallaxOffset::default(),
+                    CxPresentationTransform::default(),
                 ))
                 .id();
 
@@ -314,7 +324,7 @@ pub fn spawn_enemy(
                         visibility: Visibility::Visible,
                         inherited_visibility: InheritedVisibility::VISIBLE,
                         depth: *depth,
-                        position: PxSubPosition::from(position),
+                        position: WorldPos::from(position),
                         speed: Speed(*speed),
                         default: SpideyDefaultBundle {
                             health: Health(health.unwrap_or(ENEMY_SPIDEY_BASE_HEALTH)),
@@ -322,6 +332,8 @@ pub fn spawn_enemy(
                         },
                     },
                     authored.clone(),
+                    ParallaxOffset::default(),
+                    CxPresentationTransform::default(),
                 ))
                 .id();
 
@@ -351,7 +363,7 @@ pub fn spawn_enemy(
                         depth: *depth,
                         speed: Speed(*speed),
                         behaviors,
-                        position: PxSubPosition::from(position),
+                        position: WorldPos::from(position),
                         collider_data: ColliderData::from_many(vec![critical_collider, collider]),
                         default: TardigradeDefaultBundle {
                             health: Health(health.unwrap_or(ENEMY_TARDIGRADE_BASE_HEALTH)),
@@ -359,6 +371,8 @@ pub fn spawn_enemy(
                         },
                     },
                     authored,
+                    ParallaxOffset::default(),
+                    CxPresentationTransform::default(),
                 ))
                 .id()
         }
@@ -369,7 +383,7 @@ pub fn spawn_enemy(
 // TODO move to Destructible mod?
 pub fn spawn_destructible(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    assets_sprite: &mut CxAssets<CxSprite>,
     spawn: &DestructibleSpawn,
 ) -> Entity {
     let animations_map = &DESTRUCTIBLE_ANIMATIONS.get_animation_data(&spawn.destructible_type);
@@ -393,15 +407,17 @@ pub fn spawn_destructible(
             Health(spawn.health),
             spawn.destructible_type,
             animation_bundle,
-            PxSubPosition::from(spawn.coordinates),
+            WorldPos::from(spawn.coordinates),
             StageEntity,
+            ParallaxOffset::default(),
+            CxPresentationTransform::default(),
         ))
         .id()
 }
 
 pub fn spawn_object(
     commands: &mut Commands,
-    assets_sprite: &mut PxAssets<PxSprite>,
+    assets_sprite: &mut CxAssets<CxSprite>,
     spawn: &ObjectSpawn,
 ) -> Entity {
     let sprite = assets_sprite.load(match spawn.object_type {
@@ -417,16 +433,18 @@ pub fn spawn_object(
         .spawn((
             spawn.get_name(),
             Object,
-            PxSpriteBundle::<Layer> {
+            CxSpriteBundle::<Layer> {
                 sprite: sprite.into(),
-                anchor: PxAnchor::BottomCenter,
+                anchor: CxAnchor::BottomCenter,
                 layer: spawn.depth.to_layer(),
                 ..default()
             },
             spawn.depth,
             authored,
-            PxSubPosition::from(spawn.coordinates),
+            WorldPos::from(spawn.coordinates),
             StageEntity,
+            ParallaxOffset::default(),
+            CxPresentationTransform::default(),
         ))
         .id()
 }
@@ -434,11 +452,11 @@ pub fn spawn_object(
 /// @system Spawns contained items when a carrier entity dies.
 pub fn check_dead_drop(
     mut commands: Commands,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
-    active_projection: Res<ActiveProjection>,
+    active_floors: Res<ActiveFloors>,
     mut attack_query: Query<&mut AttackHitTracker, With<PlayerAttack>>,
-    query: Query<(&SpawnDrop, &PxSubPosition, &Depth), Added<Dead>>,
+    query: Query<(&SpawnDrop, &WorldPos, &Depth), Added<Dead>>,
 ) {
     for (spawn_drop, position, depth) in &mut query.iter() {
         let entity = match spawn_drop.contains.clone() {
@@ -453,7 +471,7 @@ pub fn check_dead_drop(
                 &asset_server,
                 Vec2::ZERO,
                 &spawn.from_spawn(position.0, *depth),
-                &active_projection.0,
+                &active_floors,
             ),
         };
 

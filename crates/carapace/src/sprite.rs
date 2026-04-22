@@ -31,14 +31,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     animation::AnimatedAssetComponent,
-    atlas::{AtlasRegion, AtlasRegionId, PxSpriteAtlasAsset},
-    filter::PxFilterAsset,
-    frame::{Frames, PxFrameBinding, PxFrameCount},
-    image::{PxImage, PxImageSliceMut},
+    atlas::{AtlasRegion, AtlasRegionId, CxSpriteAtlasAsset},
+    filter::CxFilterAsset,
+    frame::{CxFrameBinding, CxFrameCount, Frames},
+    image::{CxImage, CxImageSliceMut},
     palette::Palette,
-    position::{DefaultLayer, PxLayer, Spatial},
+    position::{CxLayer, DefaultLayer, Spatial},
     prelude::*,
-    set::PxSet,
+    set::CxSet,
 };
 
 const COMPOSITE_METRICS_ON_CHANGE_COUNT: DiagnosticPath =
@@ -49,8 +49,8 @@ const COMPOSITE_METRICS_ON_CHANGE_TIME: DiagnosticPath =
     DiagnosticPath::const_new("carapace/composite_metrics_on_change_time");
 
 pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
-    app.init_asset::<PxSpriteAsset>()
-        .register_asset_loader(PxSpriteLoader::new(palette_path))
+    app.init_asset::<CxSpriteAsset>()
+        .register_asset_loader(CxSpriteLoader::new(palette_path))
         .register_diagnostic(
             Diagnostic::new(COMPOSITE_METRICS_ON_CHANGE_COUNT)
                 .with_suffix(" composites")
@@ -74,24 +74,24 @@ pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
             update_composite_metrics_on_assets,
             sync_composite_frame_count_on_animation_added,
         )
-            .after(PxSet::CompositePresentationWrites)
-            .before(PxSet::FinishAnimations),
+            .after(CxSet::CompositePresentationWrites)
+            .before(CxSet::FinishAnimations),
     );
 }
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
-        RenderAssetPlugin::<PxSpriteAsset>::default(),
-        SyncComponentPlugin::<PxSprite>::default(),
-        SyncComponentPlugin::<PxCompositeSprite>::default(),
+        RenderAssetPlugin::<CxSpriteAsset>::default(),
+        SyncComponentPlugin::<CxSprite>::default(),
+        SyncComponentPlugin::<CxCompositeSprite>::default(),
     ));
 
     #[cfg(all(feature = "headed", feature = "gpu_palette"))]
     app.add_plugins((
-        RenderAssetPlugin::<PxSpriteGpu>::default(),
-        SyncComponentPlugin::<PxGpuSprite>::default(),
-        SyncComponentPlugin::<PxGpuComposite>::default(),
+        RenderAssetPlugin::<CxSpriteGpu>::default(),
+        SyncComponentPlugin::<CxGpuSprite>::default(),
+        SyncComponentPlugin::<CxGpuComposite>::default(),
     ));
 
     plug_core(app, palette_path);
@@ -108,12 +108,12 @@ pub(crate) fn plug<L: PxLayer>(app: &mut App, palette_path: PathBuf) {
 }
 
 #[derive(Serialize, Deserialize)]
-struct PxSpriteLoaderSettings {
+struct CxSpriteLoaderSettings {
     frame_count: usize,
     image_loader_settings: ImageLoaderSettings,
 }
 
-impl Default for PxSpriteLoaderSettings {
+impl Default for CxSpriteLoaderSettings {
     fn default() -> Self {
         Self {
             frame_count: 1,
@@ -123,27 +123,27 @@ impl Default for PxSpriteLoaderSettings {
 }
 
 #[derive(TypePath)]
-struct PxSpriteLoader {
+struct CxSpriteLoader {
     palette_path: PathBuf,
 }
 
-impl PxSpriteLoader {
+impl CxSpriteLoader {
     fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
 }
 
-impl AssetLoader for PxSpriteLoader {
-    type Asset = PxSpriteAsset;
-    type Settings = PxSpriteLoaderSettings;
+impl AssetLoader for CxSpriteLoader {
+    type Asset = CxSpriteAsset;
+    type Settings = CxSpriteLoaderSettings;
     type Error = Box<dyn Error + Send + Sync>;
 
     async fn load(
         &self,
         reader: &mut dyn Reader,
-        settings: &PxSpriteLoaderSettings,
+        settings: &CxSpriteLoaderSettings,
         load_context: &mut LoadContext<'_>,
-    ) -> Result<PxSpriteAsset, Self::Error> {
+    ) -> Result<CxSpriteAsset, Self::Error> {
         let image = ImageLoader::new(CompressedImageFormats::NONE)
             .load(reader, &settings.image_loader_settings, load_context)
             .await?;
@@ -154,9 +154,9 @@ impl AssetLoader for PxSpriteLoader {
             .await
             .map_err(|err| err.to_string())?;
         let data =
-            PxImage::palette_indices(palette.get(), &image).map_err(|err| err.to_string())?;
+            CxImage::palette_indices(palette.get(), &image).map_err(|err| err.to_string())?;
 
-        Ok(PxSpriteAsset {
+        Ok(CxSpriteAsset {
             frame_size: data.area() / settings.frame_count,
             data,
         })
@@ -167,26 +167,26 @@ impl AssetLoader for PxSpriteLoader {
     }
 }
 
-/// A sprite. Create a [`Handle<PxSpriteAsset>`] with a [`PxAssets<PxSprite>`] and an image.
+/// A sprite. Use your asset wrapper to create a [`Handle<CxSpriteAsset>`] and supply an image.
 /// If the sprite is animated, the frames should be laid out from top to bottom.
 /// See `assets/sprite/runner.png` for an example of an animated sprite.
 #[derive(Asset, Serialize, Deserialize, Clone, Reflect, Debug)]
-pub struct PxSpriteAsset {
-    pub(crate) data: PxImage,
+pub struct CxSpriteAsset {
+    pub(crate) data: CxImage,
     pub(crate) frame_size: usize,
 }
 
 #[cfg(feature = "gpu_palette")]
 #[derive(Clone)]
-pub(crate) struct PxSpriteGpu {
+pub(crate) struct CxSpriteGpu {
     pub(crate) size: UVec2,
     pub(crate) frame_size: usize,
     pub(crate) texture: Texture,
 }
 
 #[cfg(feature = "gpu_palette")]
-impl RenderAsset for PxSpriteGpu {
-    type SourceAsset = PxSpriteAsset;
+impl RenderAsset for CxSpriteGpu {
+    type SourceAsset = CxSpriteAsset;
     type Param = (SRes<RenderDevice>, SRes<RenderQueue>);
 
     fn prepare_asset(
@@ -232,7 +232,7 @@ impl RenderAsset for PxSpriteGpu {
 }
 
 #[cfg(feature = "headed")]
-impl RenderAsset for PxSpriteAsset {
+impl RenderAsset for CxSpriteAsset {
     type SourceAsset = Self;
     type Param = ();
 
@@ -246,7 +246,7 @@ impl RenderAsset for PxSpriteAsset {
     }
 }
 
-impl Frames for PxSpriteAsset {
+impl Frames for CxSpriteAsset {
     type Param = ();
 
     fn frame_count(&self) -> usize {
@@ -256,7 +256,7 @@ impl Frames for PxSpriteAsset {
     fn draw(
         &self,
         (): (),
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         filter: impl Fn(u8) -> u8,
     ) {
@@ -279,7 +279,7 @@ impl Frames for PxSpriteAsset {
     }
 }
 
-impl Spatial for PxSpriteAsset {
+impl Spatial for CxSpriteAsset {
     fn frame_size(&self) -> UVec2 {
         UVec2::new(
             self.data.width() as u32,
@@ -288,7 +288,7 @@ impl Spatial for PxSpriteAsset {
     }
 }
 
-impl Frames for PxResolvedCompositePart<'_> {
+impl Frames for CxResolvedCompositePart<'_> {
     type Param = ();
 
     fn frame_count(&self) -> usize {
@@ -301,7 +301,7 @@ impl Frames for PxResolvedCompositePart<'_> {
     fn draw(
         &self,
         (): (),
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         filter: impl Fn(u8) -> u8,
     ) {
@@ -312,7 +312,7 @@ impl Frames for PxResolvedCompositePart<'_> {
     }
 }
 
-impl Spatial for PxResolvedCompositePart<'_> {
+impl Spatial for CxResolvedCompositePart<'_> {
     fn frame_size(&self) -> UVec2 {
         match self {
             Self::Sprite(sprite) => sprite.frame_size(),
@@ -323,12 +323,12 @@ impl Spatial for PxResolvedCompositePart<'_> {
 
 /// A sprite
 #[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect)]
-#[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
+#[require(CxPosition, CxAnchor, DefaultLayer, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxSprite(pub Handle<PxSpriteAsset>);
+pub struct CxSprite(pub Handle<CxSpriteAsset>);
 
-impl From<Handle<PxSpriteAsset>> for PxSprite {
-    fn from(value: Handle<PxSpriteAsset>) -> Self {
+impl From<Handle<CxSpriteAsset>> for CxSprite {
+    fn from(value: Handle<CxSpriteAsset>) -> Self {
         Self(value)
     }
 }
@@ -336,14 +336,14 @@ impl From<Handle<PxSpriteAsset>> for PxSprite {
 /// A sprite composed of multiple sprite or atlas-backed parts.
 ///
 /// The CPU renderer supports all composite part sources and per-part flips. The optional
-/// [`PxGpuComposite`] path is a narrower optimization subset: it currently supports only
+/// [`CxGpuComposite`] path is a narrower optimization subset: it currently supports only
 /// sprite-backed parts with no per-part filter and no flips.
 #[derive(Component, Default, Clone, Debug)]
-#[require(PxPosition, PxAnchor, DefaultLayer, PxCanvas)]
+#[require(CxPosition, CxAnchor, DefaultLayer, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
-pub struct PxCompositeSprite {
+pub struct CxCompositeSprite {
     /// Parts that make up the composite sprite.
-    pub parts: Vec<PxCompositePart>,
+    pub parts: Vec<CxCompositePart>,
     /// Cached base placement size (from native part bounds).
     pub size: UVec2,
     /// Cached base placement origin (min corner of native part bounds).
@@ -360,14 +360,14 @@ pub struct PxCompositeSprite {
 ///
 /// When present, change-driven metric sync trusts the cached `origin`, `size`,
 /// `render_origin`, `render_size`, and `frame_count` already stored on
-/// [`PxCompositeSprite`] instead of rescanning `parts`. Asset-driven sync still
+/// [`CxCompositeSprite`] instead of rescanning `parts`. Asset-driven sync still
 /// recomputes metrics so hot-reloaded sprite or atlas size changes remain
 /// correct.
 #[derive(Component, Default, Clone, Copy, Debug)]
-pub struct PxAuthoritativeCompositeMetrics;
+pub struct CxAuthoritativeCompositeMetrics;
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PxCompositeMetrics {
+pub(crate) struct CxCompositeMetrics {
     /// Base placement size (from untransformed / native part bounds).
     /// Used for anchor computation and entity-level placement.
     pub size: UVec2,
@@ -383,41 +383,41 @@ pub(crate) struct PxCompositeMetrics {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PxCompositePartMetrics {
+pub(crate) struct CxCompositePartMetrics {
     pub size: UVec2,
     pub frame_count: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum PxResolvedCompositePart<'a> {
-    Sprite(&'a PxSpriteAsset),
+pub(crate) enum CxResolvedCompositePart<'a> {
+    Sprite(&'a CxSpriteAsset),
     AtlasRegion {
-        atlas: &'a PxSpriteAtlasAsset,
+        atlas: &'a CxSpriteAtlasAsset,
         region: &'a AtlasRegion,
     },
 }
 
 #[derive(Clone, Debug)]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum PxCompositePartResolveError {
-    MissingSpriteAsset(Handle<PxSpriteAsset>),
-    MissingAtlasAsset(Handle<PxSpriteAtlasAsset>),
+pub(crate) enum CxCompositePartResolveError {
+    MissingSpriteAsset(Handle<CxSpriteAsset>),
+    MissingAtlasAsset(Handle<CxSpriteAtlasAsset>),
     MissingAtlasRegion {
-        atlas: Handle<PxSpriteAtlasAsset>,
+        atlas: Handle<CxSpriteAtlasAsset>,
         region: AtlasRegionId,
     },
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PxCompositePartDrawable<'a> {
-    pub resolved: PxResolvedCompositePart<'a>,
+pub(crate) struct CxCompositePartDrawable<'a> {
+    pub resolved: CxResolvedCompositePart<'a>,
     pub flip_x: bool,
     pub flip_y: bool,
 }
 
-impl PxResolvedCompositePart<'_> {
-    pub(crate) fn metrics(&self) -> PxCompositePartMetrics {
-        PxCompositePartMetrics {
+impl CxResolvedCompositePart<'_> {
+    pub(crate) fn metrics(&self) -> CxCompositePartMetrics {
+        CxCompositePartMetrics {
             size: self.frame_size(),
             frame_count: self.frame_count(),
         }
@@ -471,7 +471,7 @@ impl PxResolvedCompositePart<'_> {
     }
 }
 
-impl Frames for PxCompositePartDrawable<'_> {
+impl Frames for CxCompositePartDrawable<'_> {
     type Param = ();
 
     fn frame_count(&self) -> usize {
@@ -481,7 +481,7 @@ impl Frames for PxCompositePartDrawable<'_> {
     fn draw(
         &self,
         (): (),
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         filter: impl Fn(u8) -> u8,
     ) {
@@ -513,16 +513,16 @@ impl Frames for PxCompositePartDrawable<'_> {
     }
 }
 
-impl Spatial for PxCompositePartDrawable<'_> {
+impl Spatial for CxCompositePartDrawable<'_> {
     fn frame_size(&self) -> UVec2 {
         self.resolved.frame_size()
     }
 }
 
-impl PxCompositeSprite {
+impl CxCompositeSprite {
     /// Create a composite sprite from parts.
     #[must_use]
-    pub fn new(parts: Vec<PxCompositePart>) -> Self {
+    pub fn new(parts: Vec<CxCompositePart>) -> Self {
         Self {
             parts,
             size: UVec2::ZERO,
@@ -555,9 +555,9 @@ impl PxCompositeSprite {
     ///
     /// This separation ensures that expanding the render envelope for animated parts
     /// does not shift the composite's anchor or world placement.
-    pub(crate) fn metrics_with<F>(&self, mut get: F) -> Option<PxCompositeMetrics>
+    pub(crate) fn metrics_with<F>(&self, mut get: F) -> Option<CxCompositeMetrics>
     where
-        F: FnMut(&PxCompositePartSource) -> Option<PxCompositePartMetrics>,
+        F: FnMut(&CxCompositePartSource) -> Option<CxCompositePartMetrics>,
     {
         let mut any = false;
         // Base bounds: native part extents only.
@@ -612,7 +612,7 @@ impl PxCompositeSprite {
 
         let base_size = base_max - base_min;
         let render_size = render_max - render_min;
-        Some(PxCompositeMetrics {
+        Some(CxCompositeMetrics {
             origin: base_min,
             size: UVec2::new(base_size.x.max(0) as u32, base_size.y.max(0) as u32),
             render_origin: render_min,
@@ -624,28 +624,28 @@ impl PxCompositeSprite {
     /// Recompute cached size/origin/frame count from current parts using sprite assets only.
     ///
     /// Atlas-backed parts are ignored by this compatibility helper. Use
-    /// [`PxCompositeSprite::recompute_metrics_with_atlases`] when a composite may contain atlas
+    /// [`CxCompositeSprite::recompute_metrics_with_atlases`] when a composite may contain atlas
     /// regions.
-    pub fn recompute_metrics(&mut self, sprites: &Assets<PxSpriteAsset>) {
+    pub fn recompute_metrics(&mut self, sprites: &Assets<CxSpriteAsset>) {
         if self
             .parts
             .iter()
-            .any(|part| matches!(part.source, PxCompositePartSource::AtlasRegion { .. }))
+            .any(|part| matches!(part.source, CxCompositePartSource::AtlasRegion { .. }))
         {
             warn!(
-                "PxCompositeSprite::recompute_metrics() ignores atlas-backed parts; \
+                "CxCompositeSprite::recompute_metrics() ignores atlas-backed parts; \
                  use recompute_metrics_with_atlases() for atlas-backed composites"
             );
         }
-        let atlases = Assets::<PxSpriteAtlasAsset>::default();
+        let atlases = Assets::<CxSpriteAtlasAsset>::default();
         self.recompute_metrics_with_atlases(sprites, &atlases);
     }
 
     /// Recompute cached size/origin/frame count from current parts using sprite and atlas assets.
     pub fn recompute_metrics_with_atlases(
         &mut self,
-        sprites: &Assets<PxSpriteAsset>,
-        atlases: &Assets<PxSpriteAtlasAsset>,
+        sprites: &Assets<CxSpriteAsset>,
+        atlases: &Assets<CxSpriteAtlasAsset>,
     ) {
         let metrics = self.metrics_with(|source| {
             source
@@ -672,35 +672,35 @@ impl PxCompositeSprite {
 /// Source for a composite part.
 ///
 /// Composite parts stay source-agnostic at the engine layer: a part can draw either a standalone
-/// [`PxSpriteAsset`] or a region within a [`PxSpriteAtlasAsset`], referenced by atlas handle and
+/// [`CxSpriteAsset`] or a region within a [`CxSpriteAtlasAsset`], referenced by atlas handle and
 /// [`AtlasRegionId`].
 ///
-/// For most call sites, prefer [`PxCompositePart::new`] or [`PxCompositePart::atlas_region`] and
+/// For most call sites, prefer [`CxCompositePart::new`] or [`CxCompositePart::atlas_region`] and
 /// then configure the part with builder-style helpers. Use this enum directly when you need to
 /// construct or store the source separately from the part.
 #[derive(Clone, Debug)]
-pub enum PxCompositePartSource {
+pub enum CxCompositePartSource {
     /// Draw from a standalone sprite asset.
-    Sprite(Handle<PxSpriteAsset>),
+    Sprite(Handle<CxSpriteAsset>),
     /// Draw from a named region within a sprite atlas asset.
     AtlasRegion {
         /// Atlas asset handle.
-        atlas: Handle<PxSpriteAtlasAsset>,
+        atlas: Handle<CxSpriteAtlasAsset>,
         /// Region identifier within the atlas.
         region: AtlasRegionId,
     },
 }
 
-impl PxCompositePartSource {
+impl CxCompositePartSource {
     /// Create a composite part source from a standalone sprite.
     #[must_use]
-    pub fn sprite(sprite: Handle<PxSpriteAsset>) -> Self {
+    pub fn sprite(sprite: Handle<CxSpriteAsset>) -> Self {
         Self::Sprite(sprite)
     }
 
     /// Create a composite part source from an atlas region.
     #[must_use]
-    pub fn atlas_region(atlas: Handle<PxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
+    pub fn atlas_region(atlas: Handle<CxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
         Self::AtlasRegion { atlas, region }
     }
 
@@ -708,25 +708,25 @@ impl PxCompositePartSource {
         &self,
         mut get_sprite: FS,
         mut get_atlas: FA,
-    ) -> Result<PxResolvedCompositePart<'a>, PxCompositePartResolveError>
+    ) -> Result<CxResolvedCompositePart<'a>, CxCompositePartResolveError>
     where
-        FS: FnMut(&Handle<PxSpriteAsset>) -> Option<&'a PxSpriteAsset>,
-        FA: FnMut(&Handle<PxSpriteAtlasAsset>) -> Option<&'a PxSpriteAtlasAsset>,
+        FS: FnMut(&Handle<CxSpriteAsset>) -> Option<&'a CxSpriteAsset>,
+        FA: FnMut(&Handle<CxSpriteAtlasAsset>) -> Option<&'a CxSpriteAtlasAsset>,
     {
         match self {
             Self::Sprite(sprite) => get_sprite(sprite)
-                .map(PxResolvedCompositePart::Sprite)
-                .ok_or_else(|| PxCompositePartResolveError::MissingSpriteAsset(sprite.clone())),
+                .map(CxResolvedCompositePart::Sprite)
+                .ok_or_else(|| CxCompositePartResolveError::MissingSpriteAsset(sprite.clone())),
             Self::AtlasRegion { atlas, region } => {
                 let atlas_asset = get_atlas(atlas)
-                    .ok_or_else(|| PxCompositePartResolveError::MissingAtlasAsset(atlas.clone()))?;
+                    .ok_or_else(|| CxCompositePartResolveError::MissingAtlasAsset(atlas.clone()))?;
                 let region_asset = atlas_asset.region(*region).ok_or_else(|| {
-                    PxCompositePartResolveError::MissingAtlasRegion {
+                    CxCompositePartResolveError::MissingAtlasRegion {
                         atlas: atlas.clone(),
                         region: *region,
                     }
                 })?;
-                Ok(PxResolvedCompositePart::AtlasRegion {
+                Ok(CxResolvedCompositePart::AtlasRegion {
                     atlas: atlas_asset,
                     region: region_asset,
                 })
@@ -737,10 +737,10 @@ impl PxCompositePartSource {
 
 /// Per-part render-only transform applied during composite composition.
 ///
-/// This is distinct from entity-level [`PxPresentationTransform`](crate::presentation::PxPresentationTransform):
-/// - `PxPartTransform` transforms an individual part **during** composition into the
+/// This is distinct from entity-level [`CxPresentationTransform`](crate::presentation::CxPresentationTransform):
+/// - `PartTransform` transforms an individual part **during** composition into the
 ///   composite scratch buffer (articulation / procedural motion inside the composite).
-/// - `PxPresentationTransform` transforms the **composed result** when blitting to the
+/// - `CxPresentationTransform` transforms the **composed result** when blitting to the
 ///   final layer (whole-entity visual effects).
 ///
 /// There is **no transform inheritance** between parts — each part's transform is
@@ -748,12 +748,18 @@ impl PxCompositePartSource {
 ///
 /// # Pivot
 ///
-/// `pivot` is in normalised part-local coordinates with **top-left origin**:
+/// `pivot` is in normalised part-local coordinates with **top-left origin**
+/// (Y-down), matching image/raster convention where row 0 is the top:
 /// - `(0.0, 0.0)` = top-left of the part
 /// - `(0.5, 0.5)` = centre (default)
 /// - `(1.0, 1.0)` = bottom-right
 ///
 /// The pivot controls the origin for scale and rotation.
+///
+/// This differs from [`CxAnchor`], which uses **bottom-left origin** (Y-up)
+/// for world-space positioning.  See the
+/// [crate-level docs](crate#anchor-origin-convention) for the rationale.
+/// An internal `anchor()` method converts between the two.
 ///
 /// # Scale
 ///
@@ -790,7 +796,7 @@ impl PxCompositePartSource {
 /// `part.transform` defines **how** the part looks around its local pivot.
 /// The transform does not implicitly orbit or remap the part's placement.
 #[derive(Clone, Copy, Debug)]
-pub struct PxPartTransform {
+pub struct PartTransform {
     /// Non-uniform scale factor. `Vec2::ONE` = native size. Negative = flip.
     pub scale: Vec2,
     /// Rotation in radians, counter-clockwise around the pivot.
@@ -800,7 +806,7 @@ pub struct PxPartTransform {
     pub pivot: Vec2,
 }
 
-impl Default for PxPartTransform {
+impl Default for PartTransform {
     fn default() -> Self {
         Self {
             scale: Vec2::ONE,
@@ -810,7 +816,7 @@ impl Default for PxPartTransform {
     }
 }
 
-impl PxPartTransform {
+impl PartTransform {
     /// Returns true if this transform would have no visual effect.
     #[must_use]
     pub fn is_identity(&self) -> bool {
@@ -844,10 +850,10 @@ impl PxPartTransform {
         crate::presentation::sanitise_rotation(self.rotation)
     }
 
-    /// Converts the top-left-origin pivot to a [`PxAnchor::Custom`] (bottom-left origin).
+    /// Converts the top-left-origin pivot to a [`CxAnchor::Custom`] (bottom-left origin).
     #[must_use]
-    pub(crate) fn anchor(&self) -> PxAnchor {
-        PxAnchor::Custom(Vec2::new(self.pivot.x, 1.0 - self.pivot.y))
+    pub(crate) fn anchor(&self) -> CxAnchor {
+        CxAnchor::Custom(Vec2::new(self.pivot.x, 1.0 - self.pivot.y))
     }
 
     /// Computes the bounding box of this part for the **current** transform values.
@@ -978,9 +984,9 @@ impl PxPartTransform {
 
 /// A single part of a composite sprite.
 #[derive(Clone, Debug)]
-pub struct PxCompositePart {
+pub struct CxCompositePart {
     /// Source asset used for this part.
-    pub source: PxCompositePartSource,
+    pub source: CxCompositePartSource,
     /// Offset in composite-local pixel space from the part's bottom-left corner.
     ///
     /// This is an engine-space, bottom-left-oriented offset. If your asset pipeline or runtime
@@ -988,9 +994,9 @@ pub struct PxCompositePart {
     /// part.
     pub offset: IVec2,
     /// Frame binding to the composite's master frame.
-    pub frame: PxFrameBinding,
+    pub frame: CxFrameBinding,
     /// Optional filter applied before the composite's filter.
-    pub filter: Option<Handle<PxFilterAsset>>,
+    pub filter: Option<Handle<CxFilterAsset>>,
     /// Mirror the part horizontally at draw time.
     pub flip_x: bool,
     /// Mirror the part vertically at draw time.
@@ -1000,23 +1006,23 @@ pub struct PxCompositePart {
     /// When present and non-identity, the part is rendered into a mini scratch buffer
     /// and blitted with the transform during composition. `None` or identity uses the
     /// direct fast path.
-    pub transform: Option<PxPartTransform>,
+    pub transform: Option<PartTransform>,
 }
 
-impl PxCompositePart {
+impl CxCompositePart {
     /// Create a composite part with default binding and zero offset.
     #[must_use]
-    pub fn new(sprite: Handle<PxSpriteAsset>) -> Self {
-        Self::from_source(PxCompositePartSource::Sprite(sprite))
+    pub fn new(sprite: Handle<CxSpriteAsset>) -> Self {
+        Self::from_source(CxCompositePartSource::Sprite(sprite))
     }
 
     /// Create a composite part from any supported source.
     #[must_use]
-    pub fn from_source(source: PxCompositePartSource) -> Self {
+    pub fn from_source(source: CxCompositePartSource) -> Self {
         Self {
             source,
             offset: IVec2::ZERO,
-            frame: PxFrameBinding::default(),
+            frame: CxFrameBinding::default(),
             filter: None,
             flip_x: false,
             flip_y: false,
@@ -1026,8 +1032,8 @@ impl PxCompositePart {
 
     /// Create a composite part that draws from an atlas region.
     #[must_use]
-    pub fn atlas_region(atlas: Handle<PxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
-        Self::from_source(PxCompositePartSource::AtlasRegion { atlas, region })
+    pub fn atlas_region(atlas: Handle<CxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
+        Self::from_source(CxCompositePartSource::AtlasRegion { atlas, region })
     }
 
     /// Set the part offset relative to the composite origin.
@@ -1039,14 +1045,14 @@ impl PxCompositePart {
 
     /// Set how this part binds to the composite master frame.
     #[must_use]
-    pub fn with_frame_binding(mut self, frame: PxFrameBinding) -> Self {
+    pub fn with_frame_binding(mut self, frame: CxFrameBinding) -> Self {
         self.frame = frame;
         self
     }
 
     /// Set an optional per-part filter.
     #[must_use]
-    pub fn with_filter(mut self, filter: Option<Handle<PxFilterAsset>>) -> Self {
+    pub fn with_filter(mut self, filter: Option<Handle<CxFilterAsset>>) -> Self {
         self.filter = filter;
         self
     }
@@ -1064,7 +1070,7 @@ impl PxCompositePart {
     /// When set and non-identity, the part is rendered into a mini scratch buffer
     /// and blitted with the transform during composition.
     #[must_use]
-    pub fn with_transform(mut self, transform: PxPartTransform) -> Self {
+    pub fn with_transform(mut self, transform: PartTransform) -> Self {
         self.transform = Some(transform);
         self
     }
@@ -1072,16 +1078,16 @@ impl PxCompositePart {
 
 pub(crate) fn log_composite_part_resolve_error(
     part_index: usize,
-    error: &PxCompositePartResolveError,
+    error: &CxCompositePartResolveError,
 ) {
     match error {
-        PxCompositePartResolveError::MissingSpriteAsset(handle) => {
+        CxCompositePartResolveError::MissingSpriteAsset(handle) => {
             error!("skipping composite part {part_index}: missing sprite asset {handle:?}");
         }
-        PxCompositePartResolveError::MissingAtlasAsset(handle) => {
+        CxCompositePartResolveError::MissingAtlasAsset(handle) => {
             error!("skipping composite part {part_index}: missing atlas asset {handle:?}");
         }
-        PxCompositePartResolveError::MissingAtlasRegion { atlas, region } => {
+        CxCompositePartResolveError::MissingAtlasRegion { atlas, region } => {
             error!(
                 "skipping composite part {part_index}: missing atlas region {:?} in atlas {atlas:?}",
                 region
@@ -1093,15 +1099,15 @@ pub(crate) fn log_composite_part_resolve_error(
 /// Marker to render a sprite via the experimental GPU palette path.
 #[cfg(feature = "gpu_palette")]
 #[derive(Component, Default, Clone, Copy, Debug)]
-#[require(PxSprite)]
-pub struct PxGpuSprite;
+#[require(CxSprite)]
+pub struct CxGpuSprite;
 
 /// Marker to render a composite sprite via the experimental GPU palette path.
 ///
-/// This is an optimization subset of [`PxCompositeSprite`], not a separate composite feature set.
+/// This is an optimization subset of [`CxCompositeSprite`], not a separate composite feature set.
 /// A composite is GPU-eligible only when every part:
 ///
-/// - uses [`PxCompositePartSource::Sprite`]
+/// - uses [`CxCompositePartSource::Sprite`]
 /// - has no per-part filter
 /// - has `flip_x == false`
 /// - has `flip_y == false`
@@ -1109,32 +1115,32 @@ pub struct PxGpuSprite;
 /// Composites outside that subset fall back to the CPU renderer.
 #[cfg(feature = "gpu_palette")]
 #[derive(Component, Default, Clone, Copy, Debug)]
-#[require(PxCompositeSprite)]
-pub struct PxGpuComposite;
+#[require(CxCompositeSprite)]
+pub struct CxGpuComposite;
 
-impl AnimatedAssetComponent for PxSprite {
-    type Asset = PxSpriteAsset;
+impl AnimatedAssetComponent for CxSprite {
+    type Asset = CxSpriteAsset;
 
     fn handle(&self) -> &Handle<Self::Asset> {
         self
     }
 
-    fn max_frame_count(sprite: &PxSpriteAsset) -> usize {
+    fn max_frame_count(sprite: &CxSpriteAsset) -> usize {
         sprite.frame_count()
     }
 }
 
-impl Spatial for PxCompositeSprite {
+impl Spatial for CxCompositeSprite {
     fn frame_size(&self) -> UVec2 {
         self.size
     }
 }
 
 fn sync_composite_metrics(
-    composite: &mut PxCompositeSprite,
-    sprites: &Assets<PxSpriteAsset>,
-    atlases: &Assets<PxSpriteAtlasAsset>,
-    mut count: Option<Mut<PxFrameCount>>,
+    composite: &mut CxCompositeSprite,
+    sprites: &Assets<CxSpriteAsset>,
+    atlases: &Assets<CxSpriteAtlasAsset>,
+    mut count: Option<Mut<CxFrameCount>>,
 ) {
     composite.recompute_metrics_with_atlases(sprites, atlases);
     if let Some(count) = count.as_mut() {
@@ -1143,16 +1149,16 @@ fn sync_composite_metrics(
 }
 
 fn update_composite_metrics_on_change(
-    sprites: Res<Assets<PxSpriteAsset>>,
-    atlases: Res<Assets<PxSpriteAtlasAsset>>,
+    sprites: Res<Assets<CxSpriteAsset>>,
+    atlases: Res<Assets<CxSpriteAtlasAsset>>,
     mut diagnostics: Diagnostics,
     mut composites: Query<
         (
-            &mut PxCompositeSprite,
-            Option<&mut PxFrameCount>,
-            Has<PxAuthoritativeCompositeMetrics>,
+            &mut CxCompositeSprite,
+            Option<&mut CxFrameCount>,
+            Has<CxAuthoritativeCompositeMetrics>,
         ),
-        Changed<PxCompositeSprite>,
+        Changed<CxCompositeSprite>,
     >,
 ) {
     let started = Instant::now();
@@ -1182,11 +1188,11 @@ fn update_composite_metrics_on_change(
 }
 
 fn update_composite_metrics_on_assets(
-    sprites: Res<Assets<PxSpriteAsset>>,
-    atlases: Res<Assets<PxSpriteAtlasAsset>>,
-    mut sprite_events: MessageReader<AssetEvent<PxSpriteAsset>>,
-    mut atlas_events: MessageReader<AssetEvent<PxSpriteAtlasAsset>>,
-    mut composites: Query<(&mut PxCompositeSprite, Option<&mut PxFrameCount>)>,
+    sprites: Res<Assets<CxSpriteAsset>>,
+    atlases: Res<Assets<CxSpriteAtlasAsset>>,
+    mut sprite_events: MessageReader<AssetEvent<CxSpriteAsset>>,
+    mut atlas_events: MessageReader<AssetEvent<CxSpriteAtlasAsset>>,
+    mut composites: Query<(&mut CxCompositeSprite, Option<&mut CxFrameCount>)>,
 ) {
     if sprite_events.read().next().is_none() && atlas_events.read().next().is_none() {
         return;
@@ -1198,9 +1204,9 @@ fn update_composite_metrics_on_assets(
 }
 
 fn sync_composite_frame_count_on_animation_added(
-    sprites: Res<Assets<PxSpriteAsset>>,
-    atlases: Res<Assets<PxSpriteAtlasAsset>>,
-    mut composites: Query<(&mut PxCompositeSprite, &mut PxFrameCount), Added<PxAnimation>>,
+    sprites: Res<Assets<CxSpriteAsset>>,
+    atlases: Res<Assets<CxSpriteAtlasAsset>>,
+    mut composites: Query<(&mut CxCompositeSprite, &mut CxFrameCount), Added<CxAnimation>>,
 ) {
     for (mut composite, count) in &mut composites {
         sync_composite_metrics(&mut composite, &sprites, &atlases, Some(count));
@@ -1208,29 +1214,29 @@ fn sync_composite_frame_count_on_animation_added(
 }
 
 pub(crate) type SpriteComponents<L> = (
-    &'static PxSprite,
-    &'static PxPosition,
-    &'static PxAnchor,
+    &'static CxSprite,
+    &'static CxPosition,
+    &'static CxAnchor,
     &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
-    Option<&'static crate::presentation::PxPresentationTransform>,
+    &'static CxRenderSpace,
+    Option<&'static CxFrameView>,
+    Option<&'static CxFilter>,
+    Option<&'static crate::presentation::CxPresentationTransform>,
 );
 
 pub(crate) type CompositeSpriteComponents<L> = (
-    &'static PxCompositeSprite,
-    &'static PxPosition,
-    &'static PxAnchor,
+    &'static CxCompositeSprite,
+    &'static CxPosition,
+    &'static CxAnchor,
     &'static L,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Option<&'static PxFilter>,
-    Option<&'static crate::presentation::PxPresentationTransform>,
+    &'static CxRenderSpace,
+    Option<&'static CxFrameView>,
+    Option<&'static CxFilter>,
+    Option<&'static crate::presentation::CxPresentationTransform>,
 );
 
 #[cfg(feature = "headed")]
-fn extract_sprites<L: PxLayer>(
+fn extract_sprites<L: CxLayer>(
     // TODO Maybe calculate `ViewVisibility`
     sprites: Extract<Query<(SpriteComponents<L>, &InheritedVisibility, RenderEntity)>>,
     mut cmd: Commands,
@@ -1254,25 +1260,25 @@ fn extract_sprites<L: PxLayer>(
         if let Some(frame) = frame {
             entity.insert(*frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
 
         if let Some(filter) = filter {
             entity.insert(filter.clone());
         } else {
-            entity.remove::<PxFilter>();
+            entity.remove::<CxFilter>();
         }
 
         if let Some(&presentation) = presentation {
             entity.insert(presentation);
         } else {
-            entity.remove::<crate::presentation::PxPresentationTransform>();
+            entity.remove::<crate::presentation::CxPresentationTransform>();
         }
     }
 }
 
 #[cfg(feature = "headed")]
-fn extract_composite_sprites<L: PxLayer>(
+fn extract_composite_sprites<L: CxLayer>(
     // TODO Maybe calculate `ViewVisibility`
     sprites: Extract<
         Query<(
@@ -1302,19 +1308,19 @@ fn extract_composite_sprites<L: PxLayer>(
         if let Some(frame) = frame {
             entity.insert(*frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
 
         if let Some(filter) = filter {
             entity.insert(filter.clone());
         } else {
-            entity.remove::<PxFilter>();
+            entity.remove::<CxFilter>();
         }
 
         if let Some(&presentation) = presentation {
             entity.insert(presentation);
         } else {
-            entity.remove::<crate::presentation::PxPresentationTransform>();
+            entity.remove::<crate::presentation::CxPresentationTransform>();
         }
     }
 }
@@ -1325,13 +1331,13 @@ mod tests {
 
     use super::*;
     use crate::{
-        atlas::{AtlasRect, PxSpriteAtlasAsset},
-        camera::PxCamera,
+        atlas::{AtlasRect, CxSpriteAtlasAsset},
+        camera::CxCamera,
         frame::{
-            PxFrameSelector, PxFrameView, blit_transformed, draw_frame, draw_spatial,
+            CxFrameSelector, CxFrameView, blit_transformed, draw_frame, draw_spatial,
             resolve_frame_binding,
         },
-        image::PxImage,
+        image::CxImage,
     };
     use bevy_app::{App, Update};
     use bevy_asset::Assets;
@@ -1349,7 +1355,7 @@ mod tests {
         Base,
     }
 
-    fn pixels(image: &PxImage) -> Vec<u8> {
+    fn pixels(image: &CxImage) -> Vec<u8> {
         let size = image.size();
         let mut out = Vec::with_capacity((size.x * size.y) as usize);
         for y in 0..size.y as i32 {
@@ -1360,7 +1366,7 @@ mod tests {
         out
     }
 
-    fn image_grid(image: &PxImage) -> String {
+    fn image_grid(image: &CxImage) -> String {
         let size = image.size();
         let mut out = String::new();
         for y in 0..size.y as i32 {
@@ -1381,44 +1387,44 @@ mod tests {
     #[test]
     fn authoritative_metrics_skip_change_rescan() {
         let mut app = App::new();
-        app.add_plugins(DiagnosticsPlugin::default())
-            .insert_resource(Assets::<PxSpriteAsset>::default())
-            .insert_resource(Assets::<PxSpriteAtlasAsset>::default())
+        app.add_plugins(DiagnosticsPlugin)
+            .insert_resource(Assets::<CxSpriteAsset>::default())
+            .insert_resource(Assets::<CxSpriteAtlasAsset>::default())
             .init_resource::<Time>();
         crate::position::plug_core::<TestLayer>(&mut app);
         app.add_systems(Update, update_composite_metrics_on_change);
 
         let sprite = app
             .world_mut()
-            .resource_mut::<Assets<PxSpriteAsset>>()
-            .add(PxSpriteAsset {
-                data: PxImage::new(vec![1; 4], 2),
+            .resource_mut::<Assets<CxSpriteAsset>>()
+            .add(CxSpriteAsset {
+                data: CxImage::new(vec![1; 4], 2),
                 frame_size: 4,
             });
 
         let entity = app
             .world_mut()
             .spawn((
-                PxAuthoritativeCompositeMetrics,
-                PxCompositeSprite {
-                    parts: vec![PxCompositePart::new(sprite)],
+                CxAuthoritativeCompositeMetrics,
+                CxCompositeSprite {
+                    parts: vec![CxCompositePart::new(sprite)],
                     ..Default::default()
                 },
-                PxFrameCount(0),
+                CxFrameCount(0),
             ))
             .id();
 
         {
             let mut entity_mut = app.world_mut().entity_mut(entity);
-            let mut composite = entity_mut.get_mut::<PxCompositeSprite>().unwrap();
+            let mut composite = entity_mut.get_mut::<CxCompositeSprite>().unwrap();
             composite.set_native_metrics(IVec2::new(7, -6), UVec2::new(9, 7), 1);
         }
 
         app.update();
 
         let entity_ref = app.world().entity(entity);
-        let composite = entity_ref.get::<PxCompositeSprite>().unwrap();
-        let frame_count = entity_ref.get::<PxFrameCount>().unwrap();
+        let composite = entity_ref.get::<CxCompositeSprite>().unwrap();
+        let frame_count = entity_ref.get::<CxFrameCount>().unwrap();
 
         assert_eq!(composite.origin, IVec2::new(7, -6));
         assert_eq!(composite.size, UVec2::new(9, 7));
@@ -1432,11 +1438,11 @@ mod tests {
     /// Parts with a per-part transform are rendered via a mini scratch +
     /// `blit_transformed`, matching the real renderer's logic.
     fn draw_composite(
-        image: &mut PxImage,
-        composite: &PxCompositeSprite,
-        master: Option<PxFrameView>,
-        sprites: &Assets<PxSpriteAsset>,
-        atlases: &Assets<PxSpriteAtlasAsset>,
+        image: &mut CxImage,
+        composite: &CxCompositeSprite,
+        master: Option<CxFrameView>,
+        sprites: &Assets<CxSpriteAsset>,
+        atlases: &Assets<CxSpriteAtlasAsset>,
     ) {
         draw_composite_into(image, composite, master, sprites, atlases, false);
     }
@@ -1445,21 +1451,21 @@ mod tests {
     /// / `render_size`) for placement, as the real renderer does when per-part
     /// transforms are present.
     fn draw_composite_render(
-        image: &mut PxImage,
-        composite: &PxCompositeSprite,
-        master: Option<PxFrameView>,
-        sprites: &Assets<PxSpriteAsset>,
-        atlases: &Assets<PxSpriteAtlasAsset>,
+        image: &mut CxImage,
+        composite: &CxCompositeSprite,
+        master: Option<CxFrameView>,
+        sprites: &Assets<CxSpriteAsset>,
+        atlases: &Assets<CxSpriteAtlasAsset>,
     ) {
         draw_composite_into(image, composite, master, sprites, atlases, true);
     }
 
     fn draw_composite_into(
-        image: &mut PxImage,
-        composite: &PxCompositeSprite,
-        master: Option<PxFrameView>,
-        sprites: &Assets<PxSpriteAsset>,
-        atlases: &Assets<PxSpriteAtlasAsset>,
+        image: &mut CxImage,
+        composite: &CxCompositeSprite,
+        master: Option<CxFrameView>,
+        sprites: &Assets<CxSpriteAsset>,
+        atlases: &Assets<CxSpriteAtlasAsset>,
         use_render_envelope: bool,
     ) {
         let mut slice = image.slice_all_mut();
@@ -1468,7 +1474,7 @@ mod tests {
         } else {
             (composite.origin, composite.size)
         };
-        let base_pos = IVec2::ZERO - PxAnchor::BottomLeft.pos(size).as_ivec2();
+        let base_pos = IVec2::ZERO - CxAnchor::BottomLeft.pos(size).as_ivec2();
 
         for part in &composite.parts {
             let resolved = part
@@ -1481,7 +1487,7 @@ mod tests {
                 resolved.frame_count(),
                 &part.frame,
             );
-            let drawable = PxCompositePartDrawable {
+            let drawable = CxCompositePartDrawable {
                 resolved,
                 flip_x: part.flip_x,
                 flip_y: part.flip_y,
@@ -1496,7 +1502,7 @@ mod tests {
                     continue;
                 }
                 // Render part into a mini scratch at native size.
-                let mut mini = PxImage::empty(part_size);
+                let mut mini = CxImage::empty(part_size);
                 let mut mini_slice = mini.slice_all_mut();
                 draw_frame(&drawable, (), &mut mini_slice, part_frame, []);
 
@@ -1509,10 +1515,10 @@ mod tests {
                     &mini,
                     part_size,
                     &mut slice,
-                    crate::position::PxPosition(pivot_pos.round().as_ivec2()),
+                    crate::position::CxPosition(pivot_pos.round().as_ivec2()),
                     t.anchor(),
-                    PxCanvas::Camera,
-                    PxCamera(IVec2::ZERO),
+                    CxRenderSpace::Camera,
+                    CxCamera(IVec2::ZERO),
                     t.clamped_scale(),
                     t.sanitised_rotation(),
                     Vec2::ZERO,
@@ -1524,11 +1530,11 @@ mod tests {
                     (),
                     &mut slice,
                     part_pos.into(),
-                    PxAnchor::BottomLeft,
-                    PxCanvas::Camera,
+                    CxAnchor::BottomLeft,
+                    CxRenderSpace::Camera,
                     part_frame,
                     [],
-                    PxCamera::default(),
+                    CxCamera::default(),
                 );
             }
         }
@@ -1536,23 +1542,23 @@ mod tests {
 
     #[test]
     fn sprite_draws_nonzero_pixels() {
-        let sprite = PxSpriteAsset {
-            data: PxImage::new(vec![0, 2, 3, 0], 2),
+        let sprite = CxSpriteAsset {
+            data: CxImage::new(vec![0, 2, 3, 0], 2),
             frame_size: 4,
         };
-        let mut image = PxImage::new(vec![1; 4], 2);
+        let mut image = CxImage::new(vec![1; 4], 2);
         let mut slice = image.slice_all_mut();
 
         draw_spatial(
             &sprite,
             (),
             &mut slice,
-            PxPosition(IVec2::ZERO),
-            PxAnchor::BottomLeft,
-            PxCanvas::Camera,
+            CxPosition(IVec2::ZERO),
+            CxAnchor::BottomLeft,
+            CxRenderSpace::Camera,
             None,
             [],
-            PxCamera::default(),
+            CxCamera::default(),
         );
 
         let expected = vec![1, 2, 3, 1];
@@ -1563,29 +1569,29 @@ mod tests {
     fn composite_sprite_snapshot() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let sprite_a = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4], 2),
+        let sprite_a = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
         });
-        let sprite_b = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![5, 6, 7, 8], 2),
+        let sprite_b = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![5, 6, 7, 8], 2),
             frame_size: 4,
         });
 
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart {
-                source: PxCompositePartSource::Sprite(sprite_a),
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart {
+                source: CxCompositePartSource::Sprite(sprite_a),
                 offset: IVec2::ZERO,
-                frame: PxFrameBinding::default(),
+                frame: CxFrameBinding::default(),
                 filter: None,
                 flip_x: false,
                 flip_y: false,
                 transform: None,
             },
-            PxCompositePart {
-                source: PxCompositePartSource::Sprite(sprite_b),
+            CxCompositePart {
+                source: CxCompositePartSource::Sprite(sprite_b),
                 offset: IVec2::new(2, 0),
-                frame: PxFrameBinding::default(),
+                frame: CxFrameBinding::default(),
                 filter: None,
                 flip_x: false,
                 flip_y: false,
@@ -1594,7 +1600,7 @@ mod tests {
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
-        let mut image = PxImage::new(vec![0; 8], 4);
+        let mut image = CxImage::new(vec![0; 8], 4);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
 
         assert_snapshot!(
@@ -1610,29 +1616,29 @@ mod tests {
     fn composite_animation_snapshot() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let sprite_a = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4, 9, 10, 11, 12], 2),
+        let sprite_a = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4, 9, 10, 11, 12], 2),
             frame_size: 4,
         });
-        let sprite_b = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![5, 6, 7, 8, 13, 14, 15, 16], 2),
+        let sprite_b = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![5, 6, 7, 8, 13, 14, 15, 16], 2),
             frame_size: 4,
         });
 
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart {
-                source: PxCompositePartSource::Sprite(sprite_a),
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart {
+                source: CxCompositePartSource::Sprite(sprite_a),
                 offset: IVec2::ZERO,
-                frame: PxFrameBinding::default(),
+                frame: CxFrameBinding::default(),
                 filter: None,
                 flip_x: false,
                 flip_y: false,
                 transform: None,
             },
-            PxCompositePart {
-                source: PxCompositePartSource::Sprite(sprite_b),
+            CxCompositePart {
+                source: CxCompositePartSource::Sprite(sprite_b),
                 offset: IVec2::new(2, 0),
-                frame: PxFrameBinding::Offset(1),
+                frame: CxFrameBinding::Offset(1),
                 filter: None,
                 flip_x: false,
                 flip_y: false,
@@ -1641,20 +1647,20 @@ mod tests {
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
-        let mut image_frame_0 = PxImage::new(vec![0; 8], 4);
+        let mut image_frame_0 = CxImage::new(vec![0; 8], 4);
         draw_composite(
             &mut image_frame_0,
             &composite,
-            Some(PxFrameView::from(PxFrameSelector::Index(0.))),
+            Some(CxFrameView::from(CxFrameSelector::Index(0.))),
             &sprites,
             &atlases,
         );
 
-        let mut image_frame_1 = PxImage::new(vec![0; 8], 4);
+        let mut image_frame_1 = CxImage::new(vec![0; 8], 4);
         draw_composite(
             &mut image_frame_1,
             &composite,
-            Some(PxFrameView::from(PxFrameSelector::Index(1.))),
+            Some(CxFrameView::from(CxFrameSelector::Index(1.))),
             &sprites,
             &atlases,
         );
@@ -1678,10 +1684,10 @@ frame 1
         );
     }
 
-    fn two_frame_atlas() -> PxSpriteAtlasAsset {
-        PxSpriteAtlasAsset {
+    fn two_frame_atlas() -> CxSpriteAtlasAsset {
+        CxSpriteAtlasAsset {
             size: UVec2::new(4, 2),
-            data: PxImage::new(vec![1, 2, 5, 6, 3, 4, 7, 8], 4),
+            data: CxImage::new(vec![1, 2, 5, 6, 3, 4, 7, 8], 4),
             regions: vec![AtlasRegion {
                 frame_size: UVec2::new(2, 2),
                 frames: vec![
@@ -1708,29 +1714,29 @@ frame 1
     fn composite_metrics_support_mixed_sources() {
         let mut sprites = Assets::default();
         let mut atlases = Assets::default();
-        let sprite = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2], 2),
+        let sprite = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2], 2),
             frame_size: 2,
         });
         let atlas = atlases.add(two_frame_atlas());
 
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart {
-                source: PxCompositePartSource::Sprite(sprite),
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart {
+                source: CxCompositePartSource::Sprite(sprite),
                 offset: IVec2::new(-1, 1),
-                frame: PxFrameBinding::default(),
+                frame: CxFrameBinding::default(),
                 filter: None,
                 flip_x: false,
                 flip_y: false,
                 transform: None,
             },
-            PxCompositePart {
-                source: PxCompositePartSource::AtlasRegion {
+            CxCompositePart {
+                source: CxCompositePartSource::AtlasRegion {
                     atlas,
                     region: AtlasRegionId(0),
                 },
                 offset: IVec2::new(1, -1),
-                frame: PxFrameBinding::default(),
+                frame: CxFrameBinding::default(),
                 filter: None,
                 flip_x: false,
                 flip_y: false,
@@ -1751,13 +1757,13 @@ frame 1
         let mut atlases = Assets::default();
         let atlas = atlases.add(two_frame_atlas());
 
-        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
-            source: PxCompositePartSource::AtlasRegion {
+        let mut composite = CxCompositeSprite::new(vec![CxCompositePart {
+            source: CxCompositePartSource::AtlasRegion {
                 atlas,
                 region: AtlasRegionId(0),
             },
             offset: IVec2::ZERO,
-            frame: PxFrameBinding::Offset(1),
+            frame: CxFrameBinding::Offset(1),
             filter: None,
             flip_x: false,
             flip_y: false,
@@ -1765,11 +1771,11 @@ frame 1
         }]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
-        let mut image = PxImage::new(vec![0; 4], 2);
+        let mut image = CxImage::new(vec![0; 4], 2);
         draw_composite(
             &mut image,
             &composite,
-            Some(PxFrameView::from(PxFrameSelector::Index(0.))),
+            Some(CxFrameView::from(CxFrameSelector::Index(0.))),
             &sprites,
             &atlases,
         );
@@ -1781,25 +1787,25 @@ frame 1
     fn composite_part_flip_semantics() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let sprite = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4], 2),
+        let sprite = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
         });
 
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart {
-                source: PxCompositePartSource::Sprite(sprite.clone()),
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart {
+                source: CxCompositePartSource::Sprite(sprite.clone()),
                 offset: IVec2::ZERO,
-                frame: PxFrameBinding::default(),
+                frame: CxFrameBinding::default(),
                 filter: None,
                 flip_x: true,
                 flip_y: false,
                 transform: None,
             },
-            PxCompositePart {
-                source: PxCompositePartSource::Sprite(sprite),
+            CxCompositePart {
+                source: CxCompositePartSource::Sprite(sprite),
                 offset: IVec2::new(2, 0),
-                frame: PxFrameBinding::default(),
+                frame: CxFrameBinding::default(),
                 filter: None,
                 flip_x: false,
                 flip_y: true,
@@ -1808,7 +1814,7 @@ frame 1
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
-        let mut image = PxImage::new(vec![0; 8], 4);
+        let mut image = CxImage::new(vec![0; 8], 4);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
 
         // Left part: h-flipped [2,1 / 4,3]. Right part: v-flipped [3,4 / 1,2].
@@ -1817,41 +1823,41 @@ frame 1
 
     #[test]
     fn composite_part_source_reports_missing_atlas_asset() {
-        let result = PxCompositePartSource::atlas_region(Handle::default(), AtlasRegionId(3))
+        let result = CxCompositePartSource::atlas_region(Handle::default(), AtlasRegionId(3))
             .resolve(
-                |_: &Handle<PxSpriteAsset>| None,
-                |_: &Handle<PxSpriteAtlasAsset>| None,
+                |_: &Handle<CxSpriteAsset>| None,
+                |_: &Handle<CxSpriteAtlasAsset>| None,
             );
 
         assert!(matches!(
             result,
-            Err(PxCompositePartResolveError::MissingAtlasAsset(_))
+            Err(CxCompositePartResolveError::MissingAtlasAsset(_))
         ));
     }
 
     #[test]
     fn composite_part_source_reports_missing_atlas_region() {
         let atlas = two_frame_atlas();
-        let result = PxCompositePartSource::atlas_region(Handle::default(), AtlasRegionId(3))
+        let result = CxCompositePartSource::atlas_region(Handle::default(), AtlasRegionId(3))
             .resolve(
-                |_: &Handle<PxSpriteAsset>| None,
-                |_: &Handle<PxSpriteAtlasAsset>| Some(&atlas),
+                |_: &Handle<CxSpriteAsset>| None,
+                |_: &Handle<CxSpriteAtlasAsset>| Some(&atlas),
             );
 
         assert!(matches!(
             result,
-            Err(PxCompositePartResolveError::MissingAtlasRegion {
+            Err(CxCompositePartResolveError::MissingAtlasRegion {
                 region: AtlasRegionId(3),
                 ..
             })
         ));
     }
 
-    // --- PxPartTransform tests ---
+    // --- PartTransform tests ---
 
     #[test]
     fn part_transform_default_is_identity() {
-        let t = PxPartTransform::default();
+        let t = PartTransform::default();
         assert!(t.is_identity());
         assert!(!t.has_scale());
         assert!(!t.has_rotation());
@@ -1860,7 +1866,7 @@ frame 1
 
     #[test]
     fn part_transform_scale_detected() {
-        let t = PxPartTransform {
+        let t = PartTransform {
             scale: Vec2::new(2.0, 1.0),
             ..Default::default()
         };
@@ -1870,7 +1876,7 @@ frame 1
 
     #[test]
     fn part_transform_rotation_detected() {
-        let t = PxPartTransform {
+        let t = PartTransform {
             rotation: 0.5,
             ..Default::default()
         };
@@ -1880,7 +1886,7 @@ frame 1
 
     #[test]
     fn part_transform_clamped_scale_preserves_sign() {
-        let t = PxPartTransform {
+        let t = PartTransform {
             scale: Vec2::new(-2.0, -0.001),
             ..Default::default()
         };
@@ -1892,7 +1898,7 @@ frame 1
 
     #[test]
     fn part_transform_sanitised_rotation_handles_nan() {
-        let t = PxPartTransform {
+        let t = PartTransform {
             rotation: f32::NAN,
             ..Default::default()
         };
@@ -1901,22 +1907,22 @@ frame 1
 
     #[test]
     fn part_transform_anchor_converts_pivot() {
-        // Centre pivot → PxAnchor centre
-        let t = PxPartTransform::default();
+        // Centre pivot → CxAnchor centre
+        let t = PartTransform::default();
         let anchor = t.anchor();
         let pos = anchor.pos(UVec2::new(10, 10));
         assert_eq!(pos, UVec2::new(5, 5));
 
-        // Top-left pivot (0, 0) → PxAnchor Custom(0, 1) = top-left
-        let t = PxPartTransform {
+        // Top-left pivot (0, 0) → CxAnchor Custom(0, 1) = top-left
+        let t = PartTransform {
             pivot: Vec2::new(0.0, 0.0),
             ..Default::default()
         };
         let pos = t.anchor().pos(UVec2::new(10, 10));
         assert_eq!(pos, UVec2::new(0, 10));
 
-        // Bottom-right pivot (1, 1) → PxAnchor Custom(1, 0) = bottom-right
-        let t = PxPartTransform {
+        // Bottom-right pivot (1, 1) → CxAnchor Custom(1, 0) = bottom-right
+        let t = PartTransform {
             pivot: Vec2::new(1.0, 1.0),
             ..Default::default()
         };
@@ -1926,7 +1932,7 @@ frame 1
 
     #[test]
     fn transformed_bounds_identity_matches_native() {
-        let t = PxPartTransform::default();
+        let t = PartTransform::default();
         let (min, max) = t.transformed_bounds(IVec2::new(5, 10), UVec2::new(4, 6));
         assert_eq!(min, IVec2::new(5, 10));
         assert_eq!(max, IVec2::new(9, 16));
@@ -1934,7 +1940,7 @@ frame 1
 
     #[test]
     fn transformed_bounds_2x_scale_expands() {
-        let t = PxPartTransform {
+        let t = PartTransform {
             scale: Vec2::splat(2.0),
             ..Default::default()
         };
@@ -1949,7 +1955,7 @@ frame 1
 
     #[test]
     fn transformed_bounds_rotation_expands() {
-        let t = PxPartTransform {
+        let t = PartTransform {
             rotation: std::f32::consts::FRAC_PI_4, // 45°
             ..Default::default()
         };
@@ -1963,11 +1969,11 @@ frame 1
 
     #[test]
     fn transformed_bounds_negative_scale_same_as_positive() {
-        let pos = PxPartTransform {
+        let pos = PartTransform {
             scale: Vec2::splat(2.0),
             ..Default::default()
         };
-        let neg = PxPartTransform {
+        let neg = PartTransform {
             scale: Vec2::splat(-2.0),
             ..Default::default()
         };
@@ -1981,13 +1987,13 @@ frame 1
     fn metrics_expand_render_size_for_transformed_part() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let sprite = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1; 4], 2),
+        let sprite = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1; 4], 2),
             frame_size: 4,
         });
 
         // Untransformed composite: just 2x2 at origin.
-        let composite_plain = PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone())]);
+        let composite_plain = CxCompositeSprite::new(vec![CxCompositePart::new(sprite.clone())]);
         let metrics_plain = composite_plain
             .metrics_with(|source| {
                 source
@@ -1999,8 +2005,8 @@ frame 1
 
         // Transformed composite: 2x scale on the same part.
         let composite_scaled =
-            PxCompositeSprite::new(vec![PxCompositePart::new(sprite).with_transform(
-                PxPartTransform {
+            CxCompositeSprite::new(vec![CxCompositePart::new(sprite).with_transform(
+                PartTransform {
                     scale: Vec2::splat(2.0),
                     ..Default::default()
                 },
@@ -2045,7 +2051,7 @@ frame 1
         let angles = [0.0, 0.3, 0.7, 1.5, std::f32::consts::PI, 4.0, 6.0];
         let mut results = Vec::new();
         for angle in &angles {
-            let t = PxPartTransform {
+            let t = PartTransform {
                 rotation: *angle,
                 pivot: Vec2::new(1.0, 0.1),
                 ..Default::default()
@@ -2065,11 +2071,11 @@ frame 1
 
     #[test]
     fn worst_case_bounds_uses_scale_magnitude_not_sign() {
-        let pos = PxPartTransform {
+        let pos = PartTransform {
             scale: Vec2::splat(2.0),
             ..Default::default()
         };
-        let neg = PxPartTransform {
+        let neg = PartTransform {
             scale: Vec2::splat(-2.0),
             ..Default::default()
         };
@@ -2080,7 +2086,7 @@ frame 1
 
     #[test]
     fn worst_case_bounds_expands_beyond_native() {
-        let t = PxPartTransform {
+        let t = PartTransform {
             scale: Vec2::splat(2.0),
             ..Default::default()
         };
@@ -2096,7 +2102,7 @@ frame 1
         let size = UVec2::new(18, 33);
         let offset = IVec2::new(-5, 3);
 
-        let t_wc = PxPartTransform {
+        let t_wc = PartTransform {
             scale: Vec2::new(1.5, 1.2),
             pivot: Vec2::new(0.8, 0.2),
             ..Default::default()
@@ -2106,7 +2112,7 @@ frame 1
         // Sample many rotations — each current-frame bounds must fit inside worst-case.
         for i in 0..36 {
             let angle = (i as f32 / 36.0) * std::f32::consts::TAU;
-            let t = PxPartTransform {
+            let t = PartTransform {
                 rotation: angle,
                 scale: Vec2::new(1.5, 1.2),
                 pivot: Vec2::new(0.8, 0.2),
@@ -2126,12 +2132,12 @@ frame 1
     fn metrics_stable_across_rotation_changes() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let sprite = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1; 4], 2),
+        let sprite = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1; 4], 2),
             frame_size: 4,
         });
 
-        let resolve = |source: &PxCompositePartSource| {
+        let resolve = |source: &CxCompositePartSource| {
             source
                 .resolve(|h| sprites.get(h), |h| atlases.get(h))
                 .ok()
@@ -2141,8 +2147,8 @@ frame 1
         // All composites have a non-identity scale so they take the
         // worst_case_bounds path, with different rotation values.
         let composite_a =
-            PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone()).with_transform(
-                PxPartTransform {
+            CxCompositeSprite::new(vec![CxCompositePart::new(sprite.clone()).with_transform(
+                PartTransform {
                     rotation: 0.1, // non-zero so is_identity() is false
                     ..Default::default()
                 },
@@ -2150,8 +2156,8 @@ frame 1
         let metrics_a = composite_a.metrics_with(resolve).unwrap();
 
         let composite_b =
-            PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone()).with_transform(
-                PxPartTransform {
+            CxCompositeSprite::new(vec![CxCompositePart::new(sprite.clone()).with_transform(
+                PartTransform {
                     rotation: std::f32::consts::FRAC_PI_4,
                     ..Default::default()
                 },
@@ -2159,8 +2165,8 @@ frame 1
         let metrics_b = composite_b.metrics_with(resolve).unwrap();
 
         let composite_c =
-            PxCompositeSprite::new(vec![PxCompositePart::new(sprite).with_transform(
-                PxPartTransform {
+            CxCompositeSprite::new(vec![CxCompositePart::new(sprite).with_transform(
+                PartTransform {
                     rotation: std::f32::consts::PI,
                     ..Default::default()
                 },
@@ -2191,12 +2197,12 @@ frame 1
     fn base_metrics_unaffected_by_part_transform() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let sprite = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1; 4], 2),
+        let sprite = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1; 4], 2),
             frame_size: 4,
         });
 
-        let resolve = |source: &PxCompositePartSource| {
+        let resolve = |source: &CxCompositePartSource| {
             source
                 .resolve(|h| sprites.get(h), |h| atlases.get(h))
                 .ok()
@@ -2204,13 +2210,13 @@ frame 1
         };
 
         // Composite without any transform.
-        let plain = PxCompositeSprite::new(vec![PxCompositePart::new(sprite.clone())]);
+        let plain = CxCompositeSprite::new(vec![CxCompositePart::new(sprite.clone())]);
         let m_plain = plain.metrics_with(resolve).unwrap();
 
         // Same composite with a big rotation + scale transform.
         let transformed =
-            PxCompositeSprite::new(vec![PxCompositePart::new(sprite).with_transform(
-                PxPartTransform {
+            CxCompositeSprite::new(vec![CxCompositePart::new(sprite).with_transform(
+                PartTransform {
                     scale: Vec2::splat(3.0),
                     rotation: 1.0,
                     ..Default::default()
@@ -2242,23 +2248,23 @@ frame 1
     //
     // This makes any orientation mistake immediately visible.
 
-    /// Shorthand: build a 2x2 `PxSpriteAsset` with 4 distinct palette indices.
-    fn sprite_2x2(sprites: &mut Assets<PxSpriteAsset>) -> Handle<PxSpriteAsset> {
-        sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4], 2),
+    /// Shorthand: build a 2x2 `CxSpriteAsset` with 4 distinct palette indices.
+    fn sprite_2x2(sprites: &mut Assets<CxSpriteAsset>) -> Handle<CxSpriteAsset> {
+        sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
         })
     }
 
     /// Shorthand: draw a one-part composite and return the pixel grid string.
     fn composite_one_part_grid(
-        part: PxCompositePart,
-        sprites: &Assets<PxSpriteAsset>,
-        atlases: &Assets<PxSpriteAtlasAsset>,
+        part: CxCompositePart,
+        sprites: &Assets<CxSpriteAsset>,
+        atlases: &Assets<CxSpriteAtlasAsset>,
     ) -> String {
-        let mut composite = PxCompositeSprite::new(vec![part]);
+        let mut composite = CxCompositeSprite::new(vec![part]);
         composite.recompute_metrics_with_atlases(sprites, atlases);
-        let mut image = PxImage::new(
+        let mut image = CxImage::new(
             vec![0; (composite.size.x * composite.size.y) as usize],
             composite.size.x as usize,
         );
@@ -2274,9 +2280,9 @@ frame 1
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
         let grid = composite_one_part_grid(
-            PxCompositePart {
+            CxCompositePart {
                 flip_x: true,
-                ..PxCompositePart::new(s)
+                ..CxCompositePart::new(s)
             },
             &sprites,
             &atlases,
@@ -2291,9 +2297,9 @@ frame 1
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
         let grid = composite_one_part_grid(
-            PxCompositePart {
+            CxCompositePart {
                 flip_y: true,
-                ..PxCompositePart::new(s)
+                ..CxCompositePart::new(s)
             },
             &sprites,
             &atlases,
@@ -2308,10 +2314,10 @@ frame 1
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
         let grid = composite_one_part_grid(
-            PxCompositePart {
+            CxCompositePart {
                 flip_x: true,
                 flip_y: true,
-                ..PxCompositePart::new(s)
+                ..CxCompositePart::new(s)
             },
             &sprites,
             &atlases,
@@ -2326,23 +2332,23 @@ frame 1
     fn composite_two_parts_side_by_side_exact() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let a = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4], 2),
+        let a = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
         });
-        let b = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![5, 6, 7, 8], 2),
+        let b = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![5, 6, 7, 8], 2),
             frame_size: 4,
         });
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart::new(a),
-            PxCompositePart {
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart::new(a),
+            CxCompositePart {
                 offset: IVec2::new(2, 0),
-                ..PxCompositePart::new(b)
+                ..CxCompositePart::new(b)
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
-        let mut image = PxImage::new(vec![0; 8], 4);
+        let mut image = CxImage::new(vec![0; 8], 4);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
         assert_eq!(image_grid(&image), "01 02 05 06\n03 04 07 08");
     }
@@ -2352,18 +2358,18 @@ frame 1
         let mut sprites = Assets::default();
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
-        let mut composite = PxCompositeSprite::new(vec![
+        let mut composite = CxCompositeSprite::new(vec![
             // Left: unflipped.
-            PxCompositePart::new(s.clone()),
+            CxCompositePart::new(s.clone()),
             // Right: h-flipped.
-            PxCompositePart {
+            CxCompositePart {
                 offset: IVec2::new(2, 0),
                 flip_x: true,
-                ..PxCompositePart::new(s)
+                ..CxCompositePart::new(s)
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
-        let mut image = PxImage::new(vec![0; 8], 4);
+        let mut image = CxImage::new(vec![0; 8], 4);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
         // Left: 1 2 / 3 4, Right (h-flip): 2 1 / 4 3
         assert_eq!(image_grid(&image), "01 02 02 01\n03 04 04 03");
@@ -2374,25 +2380,25 @@ frame 1
         // Part B is placed at x=-2, overlapping to the left of part A.
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let a = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4], 2),
+        let a = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
         });
-        let b = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![5, 6, 7, 8], 2),
+        let b = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![5, 6, 7, 8], 2),
             frame_size: 4,
         });
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart::new(a),
-            PxCompositePart {
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart::new(a),
+            CxCompositePart {
                 offset: IVec2::new(-2, 0),
-                ..PxCompositePart::new(b)
+                ..CxCompositePart::new(b)
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
         // Composite should be 4 wide: B at x=-2, A at x=0.
         assert_eq!(composite.size, UVec2::new(4, 2));
-        let mut image = PxImage::new(vec![0; 8], 4);
+        let mut image = CxImage::new(vec![0; 8], 4);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
         // B occupies columns 0-1, A occupies columns 2-3.
         // A draws second, so it overwrites any overlap (no overlap here).
@@ -2403,24 +2409,24 @@ frame 1
     fn composite_vertical_offset_exact() {
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let a = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4], 2),
+        let a = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
         });
-        let b = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![5, 6, 7, 8], 2),
+        let b = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![5, 6, 7, 8], 2),
             frame_size: 4,
         });
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart::new(a),
-            PxCompositePart {
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart::new(a),
+            CxCompositePart {
                 offset: IVec2::new(0, -2), // below part A in engine-space (Y-up)
-                ..PxCompositePart::new(b)
+                ..CxCompositePart::new(b)
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
         assert_eq!(composite.size, UVec2::new(2, 4));
-        let mut image = PxImage::new(vec![0; 8], 2);
+        let mut image = CxImage::new(vec![0; 8], 2);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
         // Engine Y-up → image Y-down: A is on top, B on bottom.
         assert_eq!(image_grid(&image), "01 02\n03 04\n05 06\n07 08");
@@ -2432,20 +2438,20 @@ frame 1
         // overwrite non-zero pixels of the first.
         let mut sprites = Assets::default();
         let atlases = Assets::default();
-        let a = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![1, 2, 3, 4], 2),
+        let a = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![1, 2, 3, 4], 2),
             frame_size: 4,
         });
-        let b = sprites.add(PxSpriteAsset {
-            data: PxImage::new(vec![5, 0, 0, 8], 2), // only corners non-zero
+        let b = sprites.add(CxSpriteAsset {
+            data: CxImage::new(vec![5, 0, 0, 8], 2), // only corners non-zero
             frame_size: 4,
         });
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart::new(a),
-            PxCompositePart::new(b), // same offset, drawn second
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart::new(a),
+            CxCompositePart::new(b), // same offset, drawn second
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
-        let mut image = PxImage::new(vec![0; 4], 2);
+        let mut image = CxImage::new(vec![0; 4], 2);
         draw_composite(&mut image, &composite, None, &sprites, &atlases);
         // B's non-zero pixels (5, 8) overwrite A's (1, 4). A's (2, 3) survive.
         assert_eq!(image_grid(&image), "05 02\n03 08");
@@ -2460,17 +2466,17 @@ frame 1
         let mut sprites = Assets::default();
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
-        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
+        let mut composite = CxCompositeSprite::new(vec![CxCompositePart {
             flip_x: true,
-            transform: Some(PxPartTransform {
+            transform: Some(PartTransform {
                 scale: Vec2::new(-1.0, 1.0),
                 ..Default::default()
             }),
-            ..PxCompositePart::new(s)
+            ..CxCompositePart::new(s)
         }]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
         // Draw using the render envelope since there's a transform.
-        let mut image = PxImage::new(
+        let mut image = CxImage::new(
             vec![0; (composite.render_size.x * composite.render_size.y) as usize],
             composite.render_size.x as usize,
         );
@@ -2487,16 +2493,16 @@ frame 1
         let mut sprites = Assets::default();
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
-        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
+        let mut composite = CxCompositeSprite::new(vec![CxCompositePart {
             flip_y: true,
-            transform: Some(PxPartTransform {
+            transform: Some(PartTransform {
                 scale: Vec2::new(1.0, -1.0),
                 ..Default::default()
             }),
-            ..PxCompositePart::new(s)
+            ..CxCompositePart::new(s)
         }]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
-        let mut image = PxImage::new(
+        let mut image = CxImage::new(
             vec![0; (composite.render_size.x * composite.render_size.y) as usize],
             composite.render_size.x as usize,
         );
@@ -2513,22 +2519,22 @@ frame 1
         let mut sprites = Assets::default();
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
-        let mut composite = PxCompositeSprite::new(vec![
-            PxCompositePart {
-                transform: Some(PxPartTransform {
+        let mut composite = CxCompositeSprite::new(vec![
+            CxCompositePart {
+                transform: Some(PartTransform {
                     rotation: std::f32::consts::PI,
                     ..Default::default()
                 }),
-                ..PxCompositePart::new(s.clone())
+                ..CxCompositePart::new(s.clone())
             },
-            PxCompositePart {
+            CxCompositePart {
                 offset: IVec2::new(2, 0),
-                ..PxCompositePart::new(s)
+                ..CxCompositePart::new(s)
             },
         ]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
-        let mut image = PxImage::new(
+        let mut image = CxImage::new(
             vec![0; (composite.render_size.x * composite.render_size.y) as usize],
             composite.render_size.x as usize,
         );
@@ -2573,12 +2579,12 @@ frame 1
         let mut sprites = Assets::default();
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
-        let mut composite = PxCompositeSprite::new(vec![PxCompositePart {
-            transform: Some(PxPartTransform {
+        let mut composite = CxCompositeSprite::new(vec![CxCompositePart {
+            transform: Some(PartTransform {
                 scale: Vec2::splat(2.0),
                 ..Default::default()
             }),
-            ..PxCompositePart::new(s)
+            ..CxCompositePart::new(s)
         }]);
         composite.recompute_metrics_with_atlases(&sprites, &atlases);
 
@@ -2593,7 +2599,7 @@ frame 1
             composite.size,
         );
 
-        let mut image = PxImage::new(
+        let mut image = CxImage::new(
             vec![0; (composite.render_size.x * composite.render_size.y) as usize],
             composite.render_size.x as usize,
         );
@@ -2626,18 +2632,18 @@ frame 1
         let atlases = Assets::default();
         let s = sprite_2x2(&mut sprites);
 
-        let resolve = |source: &PxCompositePartSource| {
+        let resolve = |source: &CxCompositePartSource| {
             source
                 .resolve(|h| sprites.get(h), |h| atlases.get(h))
                 .ok()
                 .map(|r| r.metrics())
         };
 
-        let plain = PxCompositeSprite::new(vec![PxCompositePart::new(s.clone())]);
-        let flipped = PxCompositeSprite::new(vec![PxCompositePart {
+        let plain = CxCompositeSprite::new(vec![CxCompositePart::new(s.clone())]);
+        let flipped = CxCompositeSprite::new(vec![CxCompositePart {
             flip_x: true,
             flip_y: true,
-            ..PxCompositePart::new(s)
+            ..CxCompositePart::new(s)
         }]);
 
         let m_plain = plain.metrics_with(resolve).unwrap();
@@ -2699,17 +2705,17 @@ frame 1
 
 // /// Spawns a sprite generated from an [`Image`]
 // #[derive(Bundle, Debug, Default)]
-// pub struct ImageToSpriteBundle<L: PxLayer> {
-//     /// A [`Handle<PxSprite>`] component
+// pub struct ImageToSpriteBundle<L: CxLayer> {
+//     /// A [`Handle<CxSprite>`] component
 //     pub image: ImageToSprite,
-//     /// A [`PxPosition`] component
-//     pub position: PxPosition,
-//     /// A [`PxAnchor`] component
-//     pub anchor: PxAnchor,
+//     /// A [`CxPosition`] component
+//     pub position: CxPosition,
+//     /// A [`CxAnchor`] component
+//     pub anchor: CxAnchor,
 //     /// A layer component
 //     pub layer: L,
-//     /// A [`PxCanvas`] component
-//     pub canvas: PxCanvas,
+//     /// A [`CxRenderSpace`] component
+//     pub canvas: CxRenderSpace,
 //     /// A [`Visibility`] component
 //     pub visibility: Visibility,
 //     /// An [`InheritedVisibility`] component
@@ -2873,14 +2879,14 @@ frame 1
 
 // pub(crate) type ImageToSpriteComponents<L> = (
 //     &'static ImageToSprite,
-//     &'static PxPosition,
-//     &'static PxAnchor,
+//     &'static CxPosition,
+//     &'static CxAnchor,
 //     &'static L,
-//     &'static PxCanvas,
-//     Option<&'static Handle<PxFilter>>,
+//     &'static CxRenderSpace,
+//     Option<&'static Handle<CxFilter>>,
 // );
 //
-// fn extract_image_to_sprites<L: PxLayer>(
+// fn extract_image_to_sprites<L: CxLayer>(
 //     image_to_sprites: Extract<Query<(ImageToSpriteComponents<L>, &InheritedVisibility)>>,
 //     mut cmd: Commands,
 // ) {

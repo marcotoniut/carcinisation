@@ -18,7 +18,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(
+            CxPlugin::<Layer>::new(
                 UVec2::splat(64),
                 // This is the palette that assets will be loaded with
                 // It is also the palette that assets will be displayed with, until changed
@@ -54,9 +54,9 @@ fn spawn_mage(keys: Res<ButtonInput<KeyCode>>, assets: Res<AssetServer>, mut com
             // Usually, this sprite would be added in `init` to avoid duplicating data,
             // but it's here instead to show that loading assets is independent
             // of the current palette
-            PxSprite(assets.load("sprite/mage.px_sprite.png")),
-            PxPosition(IVec2::new(rng.random_range(0..56), rng.random_range(0..48))),
-            PxAnchor::BottomLeft,
+            CxSprite(assets.load("sprite/mage.px_sprite.png")),
+            CxPosition(IVec2::new(rng.random_range(0..56), rng.random_range(0..48))),
+            CxAnchor::BottomLeft,
         ));
     }
 }

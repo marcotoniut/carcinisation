@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -26,22 +26,22 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // Centered
     commands.spawn((
-        PxSprite(assets.load("sprite/mage.px_sprite.png")),
-        PxPosition(IVec2::new(8, 16)),
+        CxSprite(assets.load("sprite/mage.px_sprite.png")),
+        CxPosition(IVec2::new(8, 16)),
     ));
 
     // Bottom Left
     commands.spawn((
-        PxSprite(assets.load("sprite/mage.px_sprite.png")),
-        PxPosition(IVec2::splat(16)),
-        PxAnchor::BottomLeft,
+        CxSprite(assets.load("sprite/mage.px_sprite.png")),
+        CxPosition(IVec2::splat(16)),
+        CxAnchor::BottomLeft,
     ));
 
     // Custom. Values range from 0 to 1, with the origin at the bottom left corner.
     commands.spawn((
-        PxSprite(assets.load("sprite/mage.px_sprite.png")),
-        PxPosition(IVec2::new(24, 16)),
-        PxAnchor::Custom(Vec2::new(0.2, 0.8)),
+        CxSprite(assets.load("sprite/mage.px_sprite.png")),
+        CxPosition(IVec2::new(24, 16)),
+        CxAnchor::Custom(Vec2::new(0.2, 0.8)),
     ));
 }
 

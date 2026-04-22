@@ -10,30 +10,32 @@
 //!
 //! # Terminology
 //!
-//! - **Pivot / Origin**: `PxSubPosition` — the entity's world position and the
+//! - **Pivot / Origin**: `WorldPos` — the entity's world position and the
 //!   composition's authored reference point.
 //! - **Active Anchor**: ground contact (`entity_y − ground × scale`) when
 //!   grounded; body-centre pivot (`entity_y − air × scale`) when [`Airborne`].
 //! - **Placement Anchor**: the point aligned with the world.  Grounded states
 //!   align ground contact with the floor; airborne states use the body pivot.
 //!
-//! Grid geometry (horizontal lines + guide rays) is computed by the shared
-//! [`build_perspective_grid`] function in [`super::projection`] and rendered
-//! here as Bevy gizmos with a `VIEWPORT_MULTIPLIER` coordinate transform.
+//! Grid geometry (horizontal lines + guide rays) is computed from the active
+//! projection profile via the shared [`build_perspective_grid`] function in
+//! [`super::projection`] and rendered here as Bevy gizmos with a
+//! `VIEWPORT_MULTIPLIER` coordinate transform.
 //!
-//! # Usage with `PxPlugin`
+//! # Usage with `CxPlugin`
 //!
-//! `PxPlugin` renders a fullscreen post-process quad that overwrites Bevy
-//! gizmos. Spawn a `Camera2d` with [`PxOverlayCamera`] and `order: 1` so
+//! `CxPlugin` renders a fullscreen post-process quad that overwrites Bevy
+//! gizmos. Spawn a `Camera2d` with [`CxOverlayCamera`] and `order: 1` so
 //! gizmos render on top. See the `depth_traverse` binary for a working example.
 
 use bevy::prelude::*;
-use carapace::prelude::{PxCompositeSprite, PxSubPosition};
-use carapace::presentation::PxPresentationTransform;
+use carapace::prelude::{CxCompositeSprite, WorldPos};
+use carapace::presentation::CxPresentationTransform;
 
 use crate::globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER};
-use crate::stage::components::placement::{Airborne, AnchorOffsets, Depth, Floor};
+use crate::stage::components::placement::{Airborne, AnchorOffsets};
 use crate::stage::projection::{GridParams, build_perspective_grid};
+use crate::stage::resources::{ActiveProjection, ProjectionView};
 
 const SCREEN_X: f32 = SCREEN_RESOLUTION.x as f32;
 const SCREEN_Y: f32 = SCREEN_RESOLUTION.y as f32;
@@ -156,29 +158,27 @@ fn toggle_entity_anchor_overlay(
     }
 }
 
-/// Draw the background perspective grid using the shared geometry builder.
+/// Draw the background projection grid using the active projection profile.
 ///
-/// Collects Floor entities, converts to viewport coordinates, then delegates
-/// to [`build_perspective_grid`] for all geometry.  The returned segments are
-/// rendered as Bevy gizmo lines.
+/// The grid is a pure projection overlay. It is derived from
+/// [`ActiveProjection`] and does not consume gameplay floor state.
 fn draw_depth_grid_background(
     overlay: Res<DepthDebugOverlay>,
+    projection: Option<Res<ActiveProjection>>,
+    projection_view: Option<Res<ProjectionView>>,
     mut gizmos: Gizmos,
-    query: Query<(&Depth, &Floor)>,
 ) {
     if !overlay.enabled {
         return;
     }
+    let Some(projection) = projection else {
+        return;
+    };
 
-    // Collect floors and convert to viewport space.
-    let mut floors: Vec<(i8, f32)> = Vec::new();
-    for (depth, floor) in query.iter() {
-        let d = depth.to_i8();
-        if (1..=9).contains(&d) {
-            floors.push((d, to_viewport_y(floor.0)));
-        }
-    }
-    floors.sort_by_key(|&(d, _)| std::cmp::Reverse(d));
+    let floors: Vec<(i8, f32)> = (1..=9_i8)
+        .rev()
+        .map(|depth| (depth, to_viewport_y(projection.0.floor_y_for_depth(depth))))
+        .collect();
 
     // Viewport bounds in gizmo space.
     let viewport = Rect::new(
@@ -188,8 +188,12 @@ fn draw_depth_grid_background(
         to_viewport_y(SCREEN_Y),
     );
     let vanish_x = to_viewport_x(SCREEN_X * 0.5);
+    let mut grid_params = GridParams::default();
+    if let Some(view) = projection_view {
+        grid_params.lateral_view_offset = view.lateral_view_offset * VIEWPORT_MULTIPLIER;
+    }
 
-    let grid = build_perspective_grid(&floors, viewport, vanish_x, &GridParams::default());
+    let grid = build_perspective_grid(&floors, viewport, vanish_x, &grid_params);
 
     // Render horizontal depth lines.
     for seg in &grid.depth_lines {
@@ -215,7 +219,7 @@ fn draw_depth_grid_background(
 ///   Falls back to the per-frame bounding-box bottom when no anchor
 ///   data is present.
 ///
-/// - **Light-blue crosshair** — pivot / composition origin (`PxSubPosition`).
+/// - **Light-blue crosshair** — pivot / composition origin (`WorldPos`).
 ///   Two perpendicular lines centred on the entity position, sized to ~15 % of
 ///   the scaled composite (with a minimum so it stays visible at far depths).
 #[allow(clippy::float_cmp, clippy::similar_names)]
@@ -223,9 +227,9 @@ fn draw_entity_anchors(
     overlay: Res<EntityAnchorOverlay>,
     mut gizmos: Gizmos,
     query: Query<(
-        &PxSubPosition,
-        &PxCompositeSprite,
-        Option<&PxPresentationTransform>,
+        &WorldPos,
+        &CxCompositeSprite,
+        Option<&CxPresentationTransform>,
         Option<&AnchorOffsets>,
         Has<Airborne>,
     )>,
@@ -293,7 +297,7 @@ fn seg_color(rgba: &[f32; 4]) -> Color {
 
 /// Convert a carapace pixel X coordinate to Bevy world X for gizmo drawing.
 ///
-/// `PxPlugin` renders a fullscreen quad — the pixel-art centre always maps to
+/// `CxPlugin` renders a fullscreen quad — the pixel-art centre always maps to
 /// viewport origin (0, 0). No additional offset is needed.
 fn to_viewport_x(x: f32) -> f32 {
     VIEWPORT_MULTIPLIER * (x - SCREEN_X * 0.5)

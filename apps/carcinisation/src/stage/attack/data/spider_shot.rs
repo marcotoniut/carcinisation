@@ -1,6 +1,6 @@
 use crate::{data::AnimationData, stage::attack::data::HoveringAttackAnimations};
 use bevy::prelude::*;
-use carapace::prelude::PxAnimationFinishBehavior;
+use carapace::prelude::CxAnimationFinishBehavior;
 use serde::Deserialize;
 
 // ---------------------------------------------------------------------------
@@ -75,21 +75,21 @@ pub static SPIDER_ATTACK_ANIMATIONS: std::sync::LazyLock<HoveringAttackAnimation
         // TODO: These are fallback values. Animation params are now data-driven
         // from the atlas RON. These only apply if the atlas is not loaded yet.
         let hovering_canonical = AnimationData {
-            finish_behavior: PxAnimationFinishBehavior::Loop,
+            finish_behavior: CxAnimationFinishBehavior::Loop,
             frames: 1,
             speed: 300,
             ..default()
         };
 
         let hit_canonical = AnimationData {
-            finish_behavior: PxAnimationFinishBehavior::Mark,
+            finish_behavior: CxAnimationFinishBehavior::Mark,
             frames: 1,
             speed: 100,
             ..default()
         };
 
         let destroy_canonical = AnimationData {
-            finish_behavior: PxAnimationFinishBehavior::Mark,
+            finish_behavior: CxAnimationFinishBehavior::Mark,
             frames: 1,
             speed: 100,
             ..default()

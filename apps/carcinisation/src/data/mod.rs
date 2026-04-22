@@ -1,17 +1,17 @@
 //! Shared animation data helpers for stage/enemy definitions.
 
-use crate::{pixel::PxAnimationBundle, stage::components::interactive::ColliderData};
+use crate::{pixel::CxAnimationBundle, stage::components::interactive::ColliderData};
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxFrameTransition,
+    CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior, CxFrameTransition,
 };
 
 /// Serialized animation metadata used by stage/enemy bundles.
 pub struct AnimationData {
     pub collider_data: ColliderData,
-    pub direction: PxAnimationDirection,
-    pub finish_behavior: PxAnimationFinishBehavior,
-    pub frame_transition: PxFrameTransition,
+    pub direction: CxAnimationDirection,
+    pub finish_behavior: CxAnimationFinishBehavior,
+    pub frame_transition: CxFrameTransition,
     pub frames: usize,
     pub speed: u64,
     pub sprite_path: String,
@@ -19,10 +19,10 @@ pub struct AnimationData {
 
 impl AnimationData {
     /// Converts this metadata into a ready-to-use animation bundle.
-    pub fn make_animation_bundle(&self) -> PxAnimationBundle {
-        PxAnimationBundle::from_parts(
+    pub fn make_animation_bundle(&self) -> CxAnimationBundle {
+        CxAnimationBundle::from_parts(
             self.direction,
-            PxAnimationDuration::millis_per_animation(self.speed),
+            CxAnimationDuration::millis_per_animation(self.speed),
             self.finish_behavior,
             self.frame_transition,
         )
@@ -33,9 +33,9 @@ impl Default for AnimationData {
     fn default() -> Self {
         AnimationData {
             collider_data: ColliderData::new(),
-            direction: PxAnimationDirection::Foreward,
-            finish_behavior: PxAnimationFinishBehavior::Mark,
-            frame_transition: PxFrameTransition::None,
+            direction: CxAnimationDirection::Forward,
+            finish_behavior: CxAnimationFinishBehavior::Mark,
+            frame_transition: CxFrameTransition::None,
             frames: 0,
             speed: 0,
             sprite_path: String::new(),

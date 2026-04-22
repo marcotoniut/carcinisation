@@ -29,12 +29,12 @@ This crate is vendored as a workspace member. Add it as a path dependency:
 carapace = { path = "../carapace", features = ["line", "reflect"] }
 ```
 
-Then add `PxPlugin` to your app:
+Then add `CxPlugin` to your app:
 
 ```rust
 use carapace::prelude::*;
 
-app.add_plugins(PxPlugin::<Layer>::new(UVec2::new(320, 180), "palette/palette.palette.png"));
+app.add_plugins(CxPlugin::<Layer>::new(UVec2::new(320, 180), "palette/palette.palette.png"));
 ```
 
 See the `examples/` directory for usage patterns.

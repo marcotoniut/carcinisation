@@ -5,7 +5,7 @@ pub mod spawn;
 
 use crate::{
     components::{
-        AudioSystemType, DelayedDespawnOnPxAnimationFinished, DespawnAfterDelay, DespawnMark,
+        AudioSystemType, DelayedDespawnOnCxAnimationFinished, DespawnAfterDelay, DespawnMark,
         VolumeSettings,
     },
     game::messages::GameStartupEvent,
@@ -13,7 +13,7 @@ use crate::{
 };
 use activable::activate;
 use bevy::prelude::*;
-use carapace::prelude::PxAnimationFinished;
+use carapace::prelude::CxAnimationFinished;
 
 /*
  * DEBUG
@@ -89,8 +89,8 @@ pub fn update_sfx_volume(
 pub fn delay_despawn<D: Default + Send + Sync + 'static>(
     mut commands: Commands,
     mut query: Query<
-        (Entity, &DelayedDespawnOnPxAnimationFinished),
-        (With<PxAnimationFinished>, Without<DespawnAfterDelay>),
+        (Entity, &DelayedDespawnOnCxAnimationFinished),
+        (With<CxAnimationFinished>, Without<DespawnAfterDelay>),
     >,
     time: Res<Time<D>>,
 ) {

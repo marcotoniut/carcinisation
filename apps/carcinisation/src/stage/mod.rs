@@ -1,4 +1,20 @@
 //! Stage gameplay orchestration: spawns enemies, drives progression, and renders UI overlays.
+//!
+//! # Position spaces
+//!
+//! Entities participate in two position spaces:
+//!
+//! - **World space.** `WorldPos` (and derived `CxPosition`). Read by
+//!   simulation — physics, AI, spawn placement. Never write projection-adjusted,
+//!   parallax-adjusted, or any visual-space coordinate into `WorldPos`.
+//!
+//! - **Visual space.** World position plus `CxPresentationTransform.visual_offset`
+//!   (for rendering) or `.collision_offset` (for collision). Read by rendering,
+//!   collision hit-detection, debug overlays.
+//!
+//! All visual displacement (parallax, projection, future knockback/hit-flash)
+//! lives in `CxPresentationTransform` and is applied by the composition system
+//! in `PostUpdate`. Simulation systems write world-space only.
 
 pub mod attack;
 pub mod bundles;
@@ -9,7 +25,9 @@ pub mod depth_debug;
 pub mod depth_scale;
 pub mod destructible;
 pub mod enemy;
+pub mod floors;
 pub mod messages;
+pub mod parallax;
 pub mod pickup;
 pub mod player;
 pub mod projection;
@@ -23,7 +41,6 @@ pub use systems::spawn::check_step_spawn;
 
 use self::{
     attack::AttackPlugin,
-    depth_debug::DepthDebugPlugin,
     depth_scale::apply_depth_fallback_scale,
     destructible::DestructiblePlugin,
     enemy::EnemyPlugin,
@@ -31,6 +48,10 @@ use self::{
     messages::{
         ComposedAnimationCueMessage, DamageMessage, DepthChangedMessage, NextStepEvent,
         PartDamageMessage, StageClearedEvent, StageDeathEvent, StageSpawnEvent, StageStartupEvent,
+    },
+    parallax::{
+        ActiveParallaxAttenuation, compose_presentation_offsets,
+        update_active_parallax_attenuation, update_parallax_offset,
     },
     pickup::systems::health::{
         mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
@@ -41,7 +62,7 @@ use self::{
     systems::{
         camera::{
             check_in_view, check_outside_view, initialise_camera_from_stage, update_camera_pos_x,
-            update_camera_pos_y,
+            update_camera_pos_y, update_lateral_view_offset,
         },
         check_movement_step_reached, check_stage_death, check_stage_step_timer,
         check_staged_cleared, check_stop_step_finished_by_duration,
@@ -57,8 +78,9 @@ use self::{
         on_next_step_cleanup_stop_step, on_stage_cleared, read_step_trigger,
         setup::on_stage_startup,
         spawn::{check_dead_drop, on_stage_spawn},
-        tick_stage_step_timer, toggle_game, update_active_projection, update_cinematic_step,
-        update_stage, update_stage_time_should_run,
+        tick_stage_step_timer, toggle_game, update_active_floor_layout, update_active_floors,
+        update_active_projection, update_cinematic_step, update_stage,
+        update_stage_time_should_run,
     },
     ui::{StageUiPlugin, pause_menu::pause_menu_renderer},
 };
@@ -70,12 +92,12 @@ use crate::{
         time::{TimeShouldRun, tick_time},
     },
     game::GameProgressState,
-    systems::{check_despawn_after_delay, delay_despawn},
+    systems::{check_despawn_after_delay, delay_despawn, movement::PositionSyncSystems},
 };
 use activable::{Activable, ActivableAppExt, activate_system, deactivate_system};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 use cween::{
     linear::{
         LinearTween2DPlugin, LinearTweenPlugin, LinearTweenSystems,
@@ -92,6 +114,13 @@ pub struct LoadingSystems;
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Systems that build out level entities once resources are available.
 pub struct BuildingSystems;
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+/// Systems that produce collision-readable state: presentation offsets and
+/// composed collision volumes.  Any system that reads
+/// `CxPresentationTransform.collision_offset` or `ComposedCollisionState` for
+/// hit detection should run `.after(CollisionStateSystems)`.
+pub struct CollisionStateSystems;
 
 /// Registers all stage-related plugins, assets, events, and frame drives.
 #[derive(Activable)]
@@ -113,7 +142,10 @@ impl Plugin for StagePlugin {
         #[cfg(debug_assertions)]
         app.add_systems(Update, debug_visibility_hierarchy);
 
-        app.add_plugins(DepthDebugPlugin)
+        #[cfg(debug_assertions)]
+        app.add_plugins(depth_debug::DepthDebugPlugin);
+
+        app
             // Core stage state/resources that every sub-system relies on.
             .init_state::<StageProgressState>()
             .init_resource::<StageActionTimer>()
@@ -121,8 +153,15 @@ impl Plugin for StagePlugin {
             .init_resource::<TimeShouldRun<StageTimeDomain>>()
             .init_resource::<StageProgress>()
             .init_resource::<StageGravity>()
+            .init_resource::<floors::ActiveSurfaceLayout>()
+            .init_resource::<floors::ActiveFloors>()
             .init_resource::<resources::ActiveProjection>()
+            .init_resource::<resources::ProjectionView>()
+            .init_resource::<ActiveParallaxAttenuation>()
+            .register_type::<ActiveParallaxAttenuation>()
+            .register_type::<parallax::ParallaxOffset>()
             .insert_resource(depth_scale::DepthScaleConfig::load_or_default())
+            .configure_sets(Update, CollisionStateSystems)
             // Message streams for the combat/progression loop.
             .add_message::<DamageMessage>()
             .add_message::<PartDamageMessage>()
@@ -166,7 +205,7 @@ impl Plugin for StagePlugin {
                 activate_system::<PlayerPlugin>,
             )
             // Shared movement helpers (linear/pursue) reused by multiple enemy types.
-            .add_plugins(PursueMovementPlugin::<StageTimeDomain, PxSubPosition>::default())
+            .add_plugins(PursueMovementPlugin::<StageTimeDomain, WorldPos>::default())
             .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueX>::default())
             .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueY>::default())
             .add_plugins(LinearTweenPlugin::<StageTimeDomain, TargetingValueZ>::default())
@@ -206,11 +245,34 @@ impl Plugin for StagePlugin {
                         .after(LinearTweenSystems),
                 ),
             )
-            .add_active_systems_in::<StagePlugin, _>(PostUpdate, apply_depth_fallback_scale)
+            // Depth-fallback scale + parallax composition run in Update
+            // (after PositionSyncSystems) so that update_composed_enemy_visuals
+            // reads the current frame's collision_offset. Previously these ran
+            // in PostUpdate, causing collision state to lag rendering by one
+            // frame during lateral camera pan.
+            .add_active_systems::<StagePlugin, _>(
+                (
+                    apply_depth_fallback_scale.in_set(CollisionStateSystems),
+                    update_parallax_offset
+                        .after(apply_depth_fallback_scale)
+                        .after(update_lateral_view_offset),
+                    compose_presentation_offsets
+                        .after(update_parallax_offset)
+                        .after(apply_depth_fallback_scale)
+                        .in_set(CollisionStateSystems),
+                )
+                    .after(PositionSyncSystems),
+            )
             .add_active_systems::<StagePlugin, _>((
                 update_stage,
                 update_active_projection.after(update_stage),
+                update_active_parallax_attenuation.after(update_stage),
+                update_active_floor_layout.after(update_stage),
+                update_active_floors.after(update_stage),
                 update_stage_time_should_run.after(update_stage),
+                update_lateral_view_offset
+                    .after(update_camera_pos_x)
+                    .after(update_active_projection),
                 (
                     (
                         // Camera

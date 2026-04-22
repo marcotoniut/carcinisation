@@ -1,32 +1,32 @@
 use bevy_picking::backend::prelude::*;
 
 use crate::{
-    atlas::PxSpriteAtlasAsset,
-    cursor::PxCursorPosition,
-    frame::{Frames, PxFrameControl, PxFrameView, animate, resolve_frame_binding},
+    atlas::CxSpriteAtlasAsset,
+    cursor::CxCursorPosition,
+    frame::{CxFrameControl, CxFrameView, Frames, animate, resolve_frame_binding},
     math::RectExt,
     position::Spatial,
     prelude::*,
     profiling::{px_end_span, px_profile, px_trace_span},
-    screen::Screen,
-    set::PxSet,
-    sprite::{PxResolvedCompositePart, PxSpriteAsset},
+    screen::CxScreen,
+    set::CxSet,
+    sprite::{CxResolvedCompositePart, CxSpriteAsset},
 };
 
 /// Enable pixel-perfect picking for a sprite.
 #[derive(Component, Default, Clone, Copy, Debug)]
-pub struct PxPixelPick;
+pub struct CxPick;
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App) {
     app.add_systems(
         PostUpdate,
-        pick::<L>.in_set(PxSet::Picking).run_if(pick_needs_run),
+        pick::<L>.in_set(CxSet::Picking).run_if(pick_needs_run),
     );
 }
 
 fn pick_needs_run(
-    cursor: Res<PxCursorPosition>,
-    screen: Res<Screen>,
+    cursor: Res<CxCursorPosition>,
+    screen: Res<CxScreen>,
     cameras: Query<(), With<Camera>>,
     pointers: Query<&PointerId>,
 ) -> bool {
@@ -39,7 +39,7 @@ fn pick_needs_run(
             .any(|pointer| matches!(pointer, PointerId::Mouse))
 }
 
-fn layer_depth<L: PxLayer>(layer_depths: &mut Vec<(L, f32)>, layer: &L) -> f32 {
+fn layer_depth<L: CxLayer>(layer_depths: &mut Vec<(L, f32)>, layer: &L) -> f32 {
     match layer_depths.binary_search_by(|(existing, _)| existing.cmp(layer)) {
         Ok(index) => layer_depths[index].1,
         Err(index) => {
@@ -60,15 +60,15 @@ fn layer_depth<L: PxLayer>(layer_depths: &mut Vec<(L, f32)>, layer: &L) -> f32 {
 
 fn spatial_rect(
     size: UVec2,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
     cam_pos: IVec2,
 ) -> IRect {
     let position = *position - anchor.pos(size).as_ivec2();
     let position = match canvas {
-        PxCanvas::World => position - cam_pos,
-        PxCanvas::Camera => position,
+        CxRenderSpace::World => position - cam_pos,
+        CxRenderSpace::Camera => position,
     };
 
     IRect {
@@ -78,9 +78,9 @@ fn spatial_rect(
 }
 
 fn sprite_pixel_visible<'a>(
-    sprite: PxResolvedCompositePart<'_>,
-    frame: Option<PxFrameView>,
-    filters: impl IntoIterator<Item = &'a PxFilterAsset>,
+    sprite: CxResolvedCompositePart<'_>,
+    frame: Option<CxFrameView>,
+    filters: impl IntoIterator<Item = &'a CxFilterAsset>,
     local_pos: UVec2,
     flip_x: bool,
     flip_y: bool,
@@ -122,54 +122,54 @@ fn sprite_pixel_visible<'a>(
 
 // TODO Pick other entities in a generic way
 // TODO Other pointers support
-fn pick<L: PxLayer>(
+fn pick<L: CxLayer>(
     mut hits: MessageWriter<PointerHits>,
     pointers: Query<&PointerId>,
     rects: Query<(
-        &PxRect,
-        &PxFilterLayers<L>,
-        &PxPosition,
-        &PxAnchor,
-        &PxCanvas,
+        &CxFilterRect,
+        &CxFilterLayers<L>,
+        &CxPosition,
+        &CxAnchor,
+        &CxRenderSpace,
         &InheritedVisibility,
         Entity,
     )>,
     sprites: Query<
         (
-            &PxSprite,
-            &PxPosition,
-            &PxAnchor,
+            &CxSprite,
+            &CxPosition,
+            &CxAnchor,
             &L,
-            &PxCanvas,
-            Option<&PxFrameView>,
-            Option<&PxFrameControl>,
-            Option<&PxFilter>,
+            &CxRenderSpace,
+            Option<&CxFrameView>,
+            Option<&CxFrameControl>,
+            Option<&CxFilter>,
             &InheritedVisibility,
             Entity,
         ),
-        With<PxPixelPick>,
+        With<CxPick>,
     >,
     composites: Query<
         (
-            &PxCompositeSprite,
-            &PxPosition,
-            &PxAnchor,
+            &CxCompositeSprite,
+            &CxPosition,
+            &CxAnchor,
             &L,
-            &PxCanvas,
-            Option<&PxFrameView>,
-            Option<&PxFrameControl>,
-            Option<&PxFilter>,
+            &CxRenderSpace,
+            Option<&CxFrameView>,
+            Option<&CxFrameControl>,
+            Option<&CxFilter>,
             &InheritedVisibility,
             Entity,
         ),
-        With<PxPixelPick>,
+        With<CxPick>,
     >,
-    sprite_assets: Res<Assets<PxSpriteAsset>>,
-    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
-    filters: Res<Assets<PxFilterAsset>>,
-    cursor: Res<PxCursorPosition>,
-    px_camera: Res<PxCamera>,
-    screen: Res<Screen>,
+    sprite_assets: Res<Assets<CxSpriteAsset>>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
+    filters: Res<Assets<CxFilterAsset>>,
+    cursor: Res<CxCursorPosition>,
+    px_camera: Res<CxCamera>,
+    screen: Res<CxScreen>,
     cameras: Query<(&Camera, Entity)>,
     mut depth_cache: Local<Vec<(L, f32)>>,
 ) {
@@ -178,7 +178,7 @@ fn pick<L: PxLayer>(
         width = screen.computed_size.x,
         height = screen.computed_size.y
     );
-    // Note: PxPixelPick enables per-pixel picking; rects remain rectangle-based.
+    // Note: CxPick enables per-pixel picking; rects remain rectangle-based.
     let Some(cursor) = **cursor else {
         return;
     };
@@ -220,10 +220,10 @@ fn pick<L: PxLayer>(
             }
 
             let layer = match layer {
-                PxFilterLayers::Single { layer, .. } => Some(layer),
-                PxFilterLayers::Many(layers) => layers.iter().max(),
+                CxFilterLayers::Single { layer, .. } => Some(layer),
+                CxFilterLayers::Many(layers) => layers.iter().max(),
                 // TODO Can't pick rects with this variant
-                PxFilterLayers::Range(range) => Some(range.end()),
+                CxFilterLayers::Range(range) => Some(range.end()),
             };
             let Some(layer) = layer else {
                 continue;
@@ -273,7 +273,7 @@ fn pick<L: PxLayer>(
 
             let frame = frame_view
                 .copied()
-                .or_else(|| frame_control.copied().map(PxFrameView::from));
+                .or_else(|| frame_control.copied().map(CxFrameView::from));
 
             let local = cursor - rect.min;
             let local_x = local.x as u32;
@@ -283,7 +283,7 @@ fn pick<L: PxLayer>(
             let local_pos = UVec2::new(local_x, local_y);
             let filter = filter.and_then(|filter| filters.get(&**filter));
             if !sprite_pixel_visible(
-                PxResolvedCompositePart::Sprite(sprite),
+                CxResolvedCompositePart::Sprite(sprite),
                 frame,
                 filter.into_iter(),
                 local_pos,
@@ -321,13 +321,13 @@ fn pick<L: PxLayer>(
                             |handle| atlas_assets.get(handle),
                         )
                         .ok()
-                        .map(|resolved| crate::sprite::PxCompositePartMetrics {
+                        .map(|resolved| crate::sprite::CxCompositePartMetrics {
                             size: resolved.frame_size(),
                             frame_count: resolved.frame_count(),
                         })
                 })
             } else {
-                Some(crate::sprite::PxCompositeMetrics {
+                Some(crate::sprite::CxCompositeMetrics {
                     size: composite.size,
                     origin: composite.origin,
                     render_size: composite.render_size,
@@ -347,7 +347,7 @@ fn pick<L: PxLayer>(
             let depth = layer_depth(&mut depth_cache, layer);
             let frame = frame_view
                 .copied()
-                .or_else(|| frame_control.copied().map(PxFrameView::from));
+                .or_else(|| frame_control.copied().map(CxFrameView::from));
             let master_count = metrics.frame_count;
             let local = cursor - rect.min;
             let entity_filter = filter.and_then(|filter| filters.get(&**filter));
@@ -417,9 +417,9 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
 
-    use crate::frame::{PxFrameSelector, PxFrameTransition};
-    use crate::image::PxImage;
-    use crate::screen::Screen;
+    use crate::frame::{CxFrameSelector, CxFrameTransition};
+    use crate::image::CxImage;
+    use crate::screen::CxScreen;
     use bevy_ecs::{message::Messages, schedule::Schedule, system::RunSystemOnce};
 
     #[derive(
@@ -466,17 +466,17 @@ mod tests {
 
     #[test]
     fn pixel_pick_uses_local_pos_for_dither() {
-        let sprite = PxSpriteAsset {
-            data: PxImage::new(vec![0, 0, 0, 0, 1, 0, 0, 0], 2),
+        let sprite = CxSpriteAsset {
+            data: CxImage::new(vec![0, 0, 0, 0, 1, 0, 0, 0], 2),
             frame_size: 4,
         };
-        let frame = PxFrameView {
-            selector: PxFrameSelector::Index(0.5),
-            transition: PxFrameTransition::Dither,
+        let frame = CxFrameView {
+            selector: CxFrameSelector::Index(0.5),
+            transition: CxFrameTransition::Dither,
         };
 
         let hit_a = sprite_pixel_visible(
-            PxResolvedCompositePart::Sprite(&sprite),
+            CxResolvedCompositePart::Sprite(&sprite),
             Some(frame),
             [],
             UVec2::new(0, 0),
@@ -484,7 +484,7 @@ mod tests {
             false,
         );
         let hit_b = sprite_pixel_visible(
-            PxResolvedCompositePart::Sprite(&sprite),
+            CxResolvedCompositePart::Sprite(&sprite),
             Some(frame),
             [],
             UVec2::new(1, 0),
@@ -542,12 +542,12 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<Messages<PointerHits>>();
         world.insert_resource(PickSummary::default());
-        world.insert_resource(Assets::<PxSpriteAsset>::default());
-        world.insert_resource(Assets::<PxSpriteAtlasAsset>::default());
-        world.insert_resource(Assets::<PxFilterAsset>::default());
-        world.insert_resource(PxCursorPosition(Some(UVec2::new(1, 1))));
-        world.insert_resource(PxCamera::default());
-        world.insert_resource(Screen::test_resource(UVec2::new(16, 16)));
+        world.insert_resource(Assets::<CxSpriteAsset>::default());
+        world.insert_resource(Assets::<CxSpriteAtlasAsset>::default());
+        world.insert_resource(Assets::<CxFilterAsset>::default());
+        world.insert_resource(CxCursorPosition(Some(UVec2::new(1, 1))));
+        world.insert_resource(CxCamera::default());
+        world.insert_resource(CxScreen::test_resource(UVec2::new(16, 16)));
 
         world.spawn(PointerId::Mouse);
         world.spawn(Camera::default());
@@ -564,15 +564,15 @@ mod tests {
     #[test]
     fn pick_run_condition_requires_visible_cursor_and_mouse_pointer() {
         let mut world = World::new();
-        world.insert_resource(PxCursorPosition(None));
-        world.insert_resource(Screen::test_resource(UVec2::new(16, 16)));
+        world.insert_resource(CxCursorPosition(None));
+        world.insert_resource(CxScreen::test_resource(UVec2::new(16, 16)));
         world.spawn(Camera::default());
         world.spawn(PointerId::Mouse);
 
         let runs = world.run_system_once(pick_needs_run).unwrap();
         assert!(!runs, "pick should skip when cursor is off-screen");
 
-        *world.resource_mut::<PxCursorPosition>() = PxCursorPosition(Some(UVec2::new(1, 1)));
+        *world.resource_mut::<CxCursorPosition>() = CxCursorPosition(Some(UVec2::new(1, 1)));
         let runs = world.run_system_once(pick_needs_run).unwrap();
         assert!(
             runs,
@@ -583,8 +583,8 @@ mod tests {
     #[test]
     fn pick_run_condition_skips_without_camera() {
         let mut world = World::new();
-        world.insert_resource(PxCursorPosition(Some(UVec2::new(1, 1))));
-        world.insert_resource(Screen::test_resource(UVec2::new(16, 16)));
+        world.insert_resource(CxCursorPosition(Some(UVec2::new(1, 1))));
+        world.insert_resource(CxScreen::test_resource(UVec2::new(16, 16)));
         world.spawn(PointerId::Mouse);
 
         let runs = world.run_system_once(pick_needs_run).unwrap();

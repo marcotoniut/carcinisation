@@ -1,11 +1,11 @@
 use crate::{
     globals::SCREEN_RESOLUTION,
     layer::Layer,
-    pixel::{PxAssets, PxLineBundle},
+    pixel::{CxAssets, CxLineBundle},
     transitions::data::TransitionVenetianData,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxCanvas, PxFilter, PxFilterLayers};
+use carapace::prelude::{CxFilter, CxFilterLayers, CxRenderSpace};
 
 use super::{
     components::{TransitionVenetian, TransitionVenetianRow},
@@ -14,16 +14,16 @@ use super::{
 };
 
 #[allow(dead_code)]
-pub fn spawn_transition_venetian_row(commands: &mut Commands, filter: PxFilter, row: u32) {
+pub fn spawn_transition_venetian_row(commands: &mut Commands, filter: CxFilter, row: u32) {
     commands.spawn((
-        PxLineBundle::<Layer> {
-            canvas: PxCanvas::Camera,
+        CxLineBundle::<Layer> {
+            canvas: CxRenderSpace::Camera,
             line: [
                 (0, row as i32).into(),
                 (SCREEN_RESOLUTION.x as i32, row as i32).into(),
             ]
             .into(),
-            layers: PxFilterLayers::single_over(Layer::Transition),
+            layers: CxFilterLayers::single_over(Layer::Transition),
             filter,
             visibility: Visibility::Visible,
         },
@@ -38,7 +38,7 @@ pub fn update_transition(
     mut commands: Commands,
     timer: Res<TransitionUpdateTimer>,
     counter: Option<ResMut<TransitionCounter>>,
-    filters: PxAssets<PxFilter>,
+    filters: CxAssets<CxFilter>,
     transition_line_query: Query<(Entity, &TransitionVenetianRow)>,
     data: Option<Res<TransitionVenetianData>>,
 ) {
@@ -52,7 +52,7 @@ pub fn update_transition(
         return;
     }
 
-    let filter = PxFilter(filters.load("filter/color2.px_filter.png"));
+    let filter = CxFilter(filters.load("filter/color2.px_filter.png"));
     let closing_limit = SCREEN_RESOLUTION.y;
     let buffer_limit = closing_limit + data.buffer_rows;
     let opening_limit = buffer_limit + SCREEN_RESOLUTION.y;

@@ -12,7 +12,7 @@ use crate::stage::{
     },
 };
 use bevy::prelude::*;
-use carapace::position::PxSubPosition;
+use carapace::position::WorldPos;
 use derive_new::new;
 
 pub const ENEMY_TARDIGRADE_RADIUS: f32 = 9.0;
@@ -78,7 +78,7 @@ pub struct TardigradeBundle {
     pub behaviors: EnemyBehaviors,
     pub collider_data: ColliderData,
     pub depth: Depth,
-    pub position: PxSubPosition,
+    pub position: WorldPos,
     pub speed: Speed,
     pub default: TardigradeDefaultBundle,
 }

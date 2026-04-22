@@ -22,11 +22,11 @@ use self::{
         player_movement, tick_attack_lifetimes,
     },
 };
-use crate::pixel::{PxAsset, PxAssets, PxSpriteData};
+use crate::pixel::{CxAsset, CxAssets, CxSpriteData};
 use activable::{Activable, ActivableAppExt};
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carapace::prelude::PxSprite;
+use carapace::prelude::CxSprite;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 /// Player movement systems run before confinement to ensure corrected positions.
@@ -70,7 +70,7 @@ impl Plugin for PlayerPlugin {
 
 /// Convenience holder for the chosen crosshair sprite and metadata.
 pub struct CrosshairInfo {
-    pub sprite: Handle<PxAsset<PxSpriteData>>,
+    pub sprite: Handle<CxAsset<CxSpriteData>>,
     pub crosshair: Crosshair,
 }
 
@@ -78,7 +78,7 @@ impl CrosshairInfo {
     /** REVIEW if these are needed */
     /// Returns the underlying sprite handle (consumes the wrapper).
     #[must_use]
-    pub fn get_sprite(crosshair: CrosshairInfo) -> Handle<PxAsset<PxSpriteData>> {
+    pub fn get_sprite(crosshair: CrosshairInfo) -> Handle<CxAsset<CxSpriteData>> {
         crosshair.sprite
     }
 
@@ -91,7 +91,7 @@ impl CrosshairInfo {
 
     /// Loads the sprite matching the configured index and returns the combined info.
     pub fn crosshair_sprite(
-        asset_server: &mut PxAssets<PxSprite>,
+        asset_server: &mut CxAssets<CxSprite>,
         crosshair_settings: &Res<CrosshairSettings>,
     ) -> CrosshairInfo {
         let sprite;

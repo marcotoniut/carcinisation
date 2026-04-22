@@ -1,6 +1,6 @@
 #[cfg(debug_assertions)]
 use crate::debug::DebugGodMode;
-use crate::pixel::PxAssets;
+use crate::pixel::CxAssets;
 use crate::stage::{
     components::{
         damage::{DamageFlicker, InvertFilter},
@@ -13,7 +13,7 @@ use crate::stage::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carapace::prelude::PxFilter;
+use carapace::prelude::CxFilter;
 use std::time::Duration;
 
 pub const DAMAGE_FLICKER_COUNT: u8 = 4;
@@ -75,7 +75,7 @@ pub fn add_invert_filter(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
     mut query: Query<(Entity, &mut DamageFlicker), Without<InvertFilter>>,
-    filters: PxAssets<PxFilter>,
+    filters: CxAssets<CxFilter>,
 ) {
     let regular_duration = *DAMAGE_REGULAR_DURATION;
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
@@ -83,7 +83,7 @@ pub fn add_invert_filter(
             damage_flicker.phase_start = stage_time.elapsed();
             commands.entity(entity).insert((
                 InvertFilter,
-                PxFilter(filters.load(assert_assets_path!("filter/invert.px_filter.png"))),
+                CxFilter(filters.load(assert_assets_path!("filter/invert.px_filter.png"))),
             ));
         }
     }
@@ -101,7 +101,7 @@ pub fn remove_invert_filter(
             let mut entity_commands = commands.entity(entity);
             entity_commands
                 .remove::<InvertFilter>()
-                .remove::<PxFilter>();
+                .remove::<CxFilter>();
             if damage_flicker.count > 0 {
                 damage_flicker.count -= 1;
                 damage_flicker.phase_start = stage_time.elapsed();

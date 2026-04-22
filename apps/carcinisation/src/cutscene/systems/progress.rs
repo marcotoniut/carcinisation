@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::components::VolumeSettings;
-use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
 use crate::{
     components::{Cleared, CutsceneElapsedStarted, Music, Tag},
     cutscene::{
@@ -21,8 +21,8 @@ use crate::{
 };
 use bevy::{audio::PlaybackMode, prelude::*};
 use carapace::prelude::{
-    PxAnchor, PxAnimationDirection, PxAnimationDuration, PxAnimationFinishBehavior, PxCanvas,
-    PxFrameTransition, PxSprite, PxSubPosition,
+    CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
+    CxFrameTransition, CxRenderSpace, CxSprite, WorldPos,
 };
 
 /// @system Applies the next cutscene act when none is currently active.
@@ -111,7 +111,7 @@ pub fn process_cutscene_animations_spawn(
         (Entity, &CutsceneAnimationsSpawn),
         (With<Cinematic>, Added<CutsceneAnimationsSpawn>),
     >,
-    assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: CxAssets<CxSprite>,
     existing_graphics: Query<(Entity, &Layer), With<CutsceneGraphic>>,
 ) {
     for (entity, spawns) in query.iter() {
@@ -134,20 +134,20 @@ pub fn process_cutscene_animations_spawn(
             let mut entity_commands = commands.spawn((
                 CutsceneEntity,
                 CutsceneGraphic,
-                PxSpriteBundle::<Layer> {
+                CxSpriteBundle::<Layer> {
                     sprite: sprite.into(),
-                    anchor: PxAnchor::BottomLeft,
+                    anchor: CxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
-                    canvas: PxCanvas::Camera,
+                    canvas: CxRenderSpace::Camera,
                     ..default()
                 },
-                PxAnimationBundle::from_parts(
-                    PxAnimationDirection::default(),
-                    PxAnimationDuration::millis_per_animation(spawn.duration.as_millis() as u64),
-                    PxAnimationFinishBehavior::Loop,
-                    PxFrameTransition::default(),
+                CxAnimationBundle::from_parts(
+                    CxAnimationDirection::default(),
+                    CxAnimationDuration::millis_per_animation(spawn.duration.as_millis() as u64),
+                    CxAnimationFinishBehavior::Loop,
+                    CxFrameTransition::default(),
                 ),
-                PxSubPosition::from(spawn.coordinates),
+                WorldPos::from(spawn.coordinates),
             ));
 
             if let Some(tag) = &spawn.tag_o {
@@ -167,7 +167,7 @@ pub fn process_cutscene_animations_spawn(
 pub fn process_cutscene_images_spawn(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneImagesSpawn), (With<Cinematic>, Added<CutsceneImagesSpawn>)>,
-    assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: CxAssets<CxSprite>,
     existing_graphics: Query<(Entity, &Layer), With<CutsceneGraphic>>,
 ) {
     for (entity, spawns) in query.iter() {
@@ -190,14 +190,14 @@ pub fn process_cutscene_images_spawn(
             let mut entity_commands = commands.spawn((
                 CutsceneEntity,
                 CutsceneGraphic,
-                PxSpriteBundle::<Layer> {
+                CxSpriteBundle::<Layer> {
                     sprite: sprite.into(),
-                    anchor: PxAnchor::BottomLeft,
+                    anchor: CxAnchor::BottomLeft,
                     layer: spawn.layer.clone(),
-                    canvas: PxCanvas::Camera,
+                    canvas: CxRenderSpace::Camera,
                     ..default()
                 },
-                PxSubPosition::from(spawn.coordinates),
+                WorldPos::from(spawn.coordinates),
             ));
 
             if let Some(tag) = &spawn.tag_o {

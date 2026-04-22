@@ -15,7 +15,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(96, 96), "palette/base.png"),
+            CxPlugin::<Layer>::new(UVec2::new(96, 96), "palette/base.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -31,7 +31,7 @@ fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let atlas: Handle<PxSpriteAtlasAsset> = assets.load("sprite/mosquiton/atlas.px_atlas.ron");
+    let atlas: Handle<CxSpriteAtlasAsset> = assets.load("sprite/mosquiton/atlas.px_atlas.ron");
 
     // Idle stand frame 0 — thirteen atlas-backed fragments composited in draw order.
     // Self-symmetric sprites (body, head, arms_overlay) are auto-canonicalised:
@@ -48,49 +48,49 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     //   5 = wings (18x33)
     //   6 = wing centre strip (1x9)
     //   7 = legs (15x28)
-    let composite = PxCompositeSprite::new(vec![
+    let composite = CxCompositeSprite::new(vec![
         // Wings: left, centre strip, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
             .with_offset(bottom_left(IVec2::new(-18, -1), 33)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(6))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(6))
             .with_offset(bottom_left(IVec2::new(0, 3), 9)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, -1), 33)),
         // Body: left, centre strip, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
             .with_offset(bottom_left(IVec2::new(-11, -4), 25)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(1))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(1))
             .with_offset(bottom_left(IVec2::new(0, -4), 25)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, -4), 25)),
         // Head: left, centre strip, right (flipped)
         // Head is parented to body — offsets resolved as body_pivot + head_local:
         // body pivot = (-11, -4), head offsets = (5,6), (11,6), (12,6)
         // absolute = (-6, 2), (0, 2), (1, 2)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
             .with_offset(bottom_left(IVec2::new(-6, 2), 30)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(3))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(3))
             .with_offset(bottom_left(IVec2::new(0, 2), 30)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, 2), 30)),
         // Arms overlay: left, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
             .with_offset(bottom_left(IVec2::new(-24, 5), 28)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, 5), 28)),
         // Legs: left, right (flipped)
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(7))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(7))
             .with_offset(bottom_left(IVec2::new(-19, 17), 28)),
-        PxCompositePart::atlas_region(atlas, AtlasRegionId(7))
+        CxCompositePart::atlas_region(atlas, AtlasRegionId(7))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(5, 17), 28)),
     ]);
 
-    commands.spawn((composite, PxPosition(IVec2::new(48, 48))));
+    commands.spawn((composite, CxPosition(IVec2::new(48, 48))));
 }
 
 #[px_layer]

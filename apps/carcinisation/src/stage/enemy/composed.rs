@@ -19,7 +19,7 @@
     clippy::cast_precision_loss
 )]
 
-use crate::pixel::PxAssets;
+use crate::pixel::CxAssets;
 use crate::stage::{
     components::{
         interactive::{Dead, Flickerer, Health},
@@ -43,10 +43,10 @@ use bevy::{
     reflect::{Reflect, TypePath},
 };
 use carapace::{
-    filter::{PxFilter, PxFilterAsset},
+    filter::{CxFilter, CxFilterAsset},
     prelude::{
-        AtlasRect, AtlasRegionId, PxAnchor, PxAuthoritativeCompositeMetrics, PxCanvas,
-        PxCompositePart, PxCompositeSprite, PxSpriteAtlasAsset, PxSubPosition,
+        AtlasRect, AtlasRegionId, CxAnchor, CxAuthoritativeCompositeMetrics, CxCompositePart,
+        CxCompositeSprite, CxPresentationTransform, CxRenderSpace, CxSpriteAtlasAsset, WorldPos,
     },
 };
 use carcinisation_collision::{Collider, ColliderShape};
@@ -216,15 +216,15 @@ struct CachedCompositeMetrics {
 /// Update and consumed by [`apply_composed_enemy_visuals`] in `PostUpdate`.
 ///
 /// This component exists to keep gameplay derivation (animation, collision,
-/// anchors) in Update while deferring presentation writes (`PxCompositeSprite`,
-/// `PxAnchor`, Visibility) to `PostUpdate`. It carries only what the `PostUpdate`
+/// anchors) in Update while deferring presentation writes (`CxCompositeSprite`,
+/// `CxAnchor`, Visibility) to `PostUpdate`. It carries only what the `PostUpdate`
 /// writer needs — no persistent gameplay state.
 #[derive(Component, Default)]
 pub struct ComposedFrameOutput {
-    parts: Vec<PxCompositePart>,
+    parts: Vec<CxCompositePart>,
     origin: IVec2,
     size: UVec2,
-    anchor: PxAnchor,
+    anchor: CxAnchor,
     visible: bool,
 }
 
@@ -419,6 +419,30 @@ impl ComposedPartStates {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut PartGameplayState)> {
         self.parts.iter_mut()
     }
+
+    /// Test-only constructor for building part states with known breakage and tags.
+    #[cfg(test)]
+    #[must_use]
+    pub fn test_with_parts(parts: Vec<(&str, bool, Vec<&str>)>) -> Self {
+        let parts = parts
+            .into_iter()
+            .map(|(id, broken, tags)| {
+                (
+                    id.to_string(),
+                    PartGameplayState {
+                        current_durability: 0,
+                        max_durability: 100,
+                        breakable: true,
+                        broken,
+                        visible: !broken,
+                        hit_blink: None,
+                        tags: tags.into_iter().map(String::from).collect(),
+                    },
+                )
+            })
+            .collect();
+        Self { parts }
+    }
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -468,7 +492,7 @@ pub struct ComposedResolvedParts {
     fragments: Vec<ResolvedPartFragmentState>,
     /// Render-anchor offset in **authored (unscaled)** space.
     ///
-    /// Bridges the gap between the entity's `PxSubPosition` (game-logic
+    /// Bridges the gap between the entity's `WorldPos` (game-logic
     /// position) and the visual composition origin produced by the render
     /// anchor.  Zero for `Origin`-mode entities (e.g. Mosquiton), non-zero
     /// for `BottomOrigin`-mode (e.g. Spidey).
@@ -483,7 +507,7 @@ pub struct ComposedResolvedParts {
     ///
     /// `world_pivot_position`, `world_top_left_position`, collision pivots,
     /// collider shapes, and collider offsets are all multiplied by this
-    /// factor relative to `root_position` (entity's `PxSubPosition`).
+    /// factor relative to `root_position` (entity's `WorldPos`).
     ///
     /// `visual_offset` is **not** pre-scaled — consumers must apply
     /// `visual_offset * gameplay_scale` when combining with scaled positions.
@@ -583,7 +607,7 @@ pub struct ResolvedPartFragmentState {
     pub draw_order: u32,
     /// Authoring fragment index within the logical part.
     pub fragment: u32,
-    /// Exact order this fragment was emitted to `PxCompositeSprite.parts`.
+    /// Exact order this fragment was emitted to `CxCompositeSprite.parts`.
     pub render_order: u32,
     pub frame_size: UVec2,
     pub flip_x: bool,
@@ -819,14 +843,14 @@ impl ComposedPartSelector {
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct ComposedAtlasBindings {
-    atlas: Handle<PxSpriteAtlasAsset>,
+    atlas: Handle<CxSpriteAtlasAsset>,
     sprite_regions: HashMap<String, AtlasRegionId>,
     sprite_rects: HashMap<String, AtlasRect>,
 }
 
 impl ComposedAtlasBindings {
     #[must_use]
-    pub fn atlas_handle(&self) -> &Handle<PxSpriteAtlasAsset> {
+    pub fn atlas_handle(&self) -> &Handle<CxSpriteAtlasAsset> {
         &self.atlas
     }
 
@@ -844,7 +868,7 @@ impl ComposedAtlasBindings {
 #[derive(Component, Clone, Debug)]
 pub struct ComposedEnemyVisual {
     pub atlas_manifest: Handle<CompositionAtlasAsset>,
-    pub sprite_atlas: Handle<PxSpriteAtlasAsset>,
+    pub sprite_atlas: Handle<CxSpriteAtlasAsset>,
     track_states: Vec<ComposedTrackPlaybackState>,
     last_error: Option<String>,
     /// Set once [`AnchorOffsets`] has been inserted from atlas metadata.
@@ -948,7 +972,7 @@ pub fn ensure_composed_enemy_parts(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     atlas_assets: Res<Assets<CompositionAtlasAsset>>,
-    sprite_atlases: Res<Assets<PxSpriteAtlasAsset>>,
+    sprite_atlases: Res<Assets<CxSpriteAtlasAsset>>,
     mut query: Query<
         (
             Entity,
@@ -1011,11 +1035,11 @@ pub fn ensure_composed_enemy_parts(
                         ComposedPartStates::from_cache(cache),
                         ComposedResolvedParts::default(),
                         ComposedFrameOutput::default(),
-                        PxAuthoritativeCompositeMetrics,
-                        PxCompositeSprite::default(),
-                        PxAnchor::Center,
+                        CxAuthoritativeCompositeMetrics,
+                        CxCompositeSprite::default(),
+                        CxAnchor::Center,
                         depth.to_layer(),
-                        PxCanvas::World,
+                        CxRenderSpace::World,
                         Visibility::Hidden,
                         ComposedEnemyVisualReady,
                     ));
@@ -1051,7 +1075,7 @@ pub fn ensure_composed_enemy_parts(
 /// data.  It reads [`DepthFallbackScale`] and bakes the ratio into:
 ///
 /// - [`ComposedResolvedParts`]: part pivot/top-left positions AND fragment
-///   positions/sizes scaled relative to `PxSubPosition` (entity root).
+///   positions/sizes scaled relative to `WorldPos` (entity root).
 ///   `visual_offset` remains unscaled — use
 ///   [`scaled_visual_offset()`](ComposedResolvedParts::scaled_visual_offset).
 ///   Fragment scaling is critical: pixel-authoritative hit detection builds
@@ -1066,22 +1090,25 @@ pub fn update_composed_enemy_visuals(
     atlas_assets: Res<Assets<CompositionAtlasAsset>>,
     stage_time: Res<Time<StageTimeDomain>>,
     mut cue_writer: MessageWriter<ComposedAnimationCueMessage>,
-    filters: PxAssets<PxFilter>,
+    filters: CxAssets<CxFilter>,
     mut root_query: Query<
         (
             Entity,
             &mut ComposedEnemyVisual,
             &ComposedAnimationState,
-            &PxSubPosition,
+            &WorldPos,
             &ComposedAtlasBindings,
             &mut ComposedCollisionState,
             &mut ComposedPartStates,
             &mut ComposedResolvedParts,
             &mut ComposedFrameOutput,
-            Option<&Dying>,
-            Option<&ComposedAnimationPlaybackDebugEnabled>,
-            Option<&ComposedAnimationPlaybackDebug>,
-            Option<&super::super::depth_scale::DepthFallbackScale>,
+            (
+                Option<&Dying>,
+                Option<&ComposedAnimationPlaybackDebugEnabled>,
+                Option<&ComposedAnimationPlaybackDebug>,
+                Option<&super::super::depth_scale::DepthFallbackScale>,
+                Option<&CxPresentationTransform>,
+            ),
         ),
         With<ComposedEnemyVisualReady>,
     >,
@@ -1099,13 +1126,11 @@ pub fn update_composed_enemy_visuals(
         mut part_states,
         mut resolved_part_states,
         mut frame_output,
-        dying,
-        playback_debug_enabled,
-        playback_debug,
-        depth_fallback_scale,
+        (dying, playback_debug_enabled, playback_debug, depth_fallback_scale, presentation),
     ) in &mut root_query
     {
         let gameplay_scale = depth_fallback_scale.map_or(1.0, |s| s.0.x);
+        let collision_offset = presentation.map_or(Vec2::ZERO, |pt| pt.collision_offset);
         // Freeze animation time for dying entities so they show death face on their last pose frame
         let animation_time_ms = if let Some(dying) = dying {
             dying.started.as_millis() as u64
@@ -1215,8 +1240,8 @@ pub fn update_composed_enemy_visuals(
         // Compute anchor and visual offset.
         //
         // Rendering positions each part at `base_pos + (part.offset - origin)`
-        // where `base_pos = PxPosition - anchor.pos(size)`. Game-logic uses
-        // `PxSubPosition + Vec2(pivot.x, -pivot.y)`.
+        // where `base_pos = CxPosition - anchor.pos(size)`. Game-logic uses
+        // `WorldPos + Vec2(pivot.x, -pivot.y)`.
         //
         // For **Origin** mode the anchor is derived from per-frame metrics
         // (`-metrics.origin / metrics.size`) so that `anchor.pos(size)` yields
@@ -1242,12 +1267,12 @@ pub fn update_composed_enemy_visuals(
             }
             SpawnAnchorMode::Origin => {
                 let anchor = if metrics.size.x > 0 && metrics.size.y > 0 {
-                    PxAnchor::Custom(Vec2::new(
+                    CxAnchor::Custom(Vec2::new(
                         (-metrics.origin.x) as f32 / metrics.size.x as f32,
                         (-metrics.origin.y) as f32 / metrics.size.y as f32,
                     ))
                 } else {
-                    PxAnchor::Center
+                    CxAnchor::Center
                 };
                 // anchor.pos(size) = -metrics.origin (exact), so visual
                 // offset is zero — entity position IS the composition origin.
@@ -1317,6 +1342,7 @@ pub fn update_composed_enemy_visuals(
             position.0,
             visual_offset,
             gameplay_scale,
+            collision_offset,
         );
         resolved_part_states.parts = build_resolved_part_states(
             cache,
@@ -1332,6 +1358,7 @@ pub fn update_composed_enemy_visuals(
             position.0,
             visual_offset,
             gameplay_scale,
+            collision_offset,
         );
         resolved_part_states.visual_offset = visual_offset;
         frame_output.parts = parts;
@@ -1346,13 +1373,13 @@ pub fn update_composed_enemy_visuals(
 ///
 /// Runs in `PostUpdate` so all gameplay mutations (position, depth, animation)
 /// are settled before presentation is written. This is the sole writer of
-/// `PxCompositeSprite`, `PxAnchor`, and `Visibility` for composed enemies.
+/// `CxCompositeSprite`, `CxAnchor`, and `Visibility` for composed enemies.
 pub fn apply_composed_enemy_visuals(
     mut query: Query<
         (
             &mut ComposedFrameOutput,
-            &mut PxCompositeSprite,
-            &mut PxAnchor,
+            &mut CxCompositeSprite,
+            &mut CxAnchor,
             &mut Visibility,
         ),
         With<ComposedEnemyVisualReady>,
@@ -1732,8 +1759,8 @@ fn compact_gameplay_to_cached(gameplay: &CompactPartGameplay) -> CachedPartGamep
 
 fn build_atlas_bindings_compact(
     atlas: &CompactComposedAtlas,
-    sprite_atlas: &PxSpriteAtlasAsset,
-    atlas_handle: Handle<PxSpriteAtlasAsset>,
+    sprite_atlas: &CxSpriteAtlasAsset,
+    atlas_handle: Handle<CxSpriteAtlasAsset>,
 ) -> Result<ComposedAtlasBindings, String> {
     validate_compact_sprite_tables(atlas)?;
     if sprite_atlas.regions().len() != atlas.sprite_names.len() {
@@ -1996,8 +2023,8 @@ fn build_runtime_cache(atlas: &CompositionAtlas) -> Result<CompositionAtlasCache
 #[allow(dead_code)]
 fn build_atlas_bindings(
     atlas: &CompositionAtlas,
-    sprite_atlas: &PxSpriteAtlasAsset,
-    atlas_handle: Handle<PxSpriteAtlasAsset>,
+    sprite_atlas: &CxSpriteAtlasAsset,
+    atlas_handle: Handle<CxSpriteAtlasAsset>,
 ) -> Result<ComposedAtlasBindings, String> {
     let mut sprite_regions = HashMap::with_capacity(atlas.sprites.len());
     let mut sprite_rects = HashMap::with_capacity(atlas.sprites.len());
@@ -2524,10 +2551,10 @@ fn compose_frame(
     cache: &CompositionAtlasCache,
     atlas_bindings: &ComposedAtlasBindings,
     part_states: &ComposedPartStates,
-    invert_filter: &Handle<PxFilterAsset>,
+    invert_filter: &Handle<CxFilterAsset>,
     entity: Entity,
 ) -> Option<(
-    Vec<PxCompositePart>,
+    Vec<CxCompositePart>,
     CachedCompositeMetrics,
     HashMap<String, ResolvedPartTransform>,
     Vec<ResolvedPartFragmentTransform>,
@@ -2569,7 +2596,7 @@ fn compose_frame(
         let mut logical_min: Option<IVec2> = None;
         let mut logical_max: Option<IVec2> = None;
 
-        // Emit one PxCompositePart per render fragment.
+        // Emit one CxCompositePart per render fragment.
         for pose in fragments {
             let Some(region_id) = atlas_bindings.sprite_regions.get(pose.sprite_id.as_str()) else {
                 error!(
@@ -2612,7 +2639,7 @@ fn compose_frame(
                 flip_y: pose.flip_y,
             });
             parts.push(
-                PxCompositePart::atlas_region(atlas_bindings.atlas.clone(), *region_id)
+                CxCompositePart::atlas_region(atlas_bindings.atlas.clone(), *region_id)
                     .with_offset(bottom_left_offset)
                     .with_filter(hit_filter.clone())
                     .with_flip(pose.flip_x, pose.flip_y),
@@ -2724,9 +2751,9 @@ fn anchor_for_composed(
     canvas_size: (u16, u16),
     atlas_origin: (i16, i16),
     mode: SpawnAnchorMode,
-) -> PxAnchor {
+) -> CxAnchor {
     if canvas_size.0 == 0 || canvas_size.1 == 0 {
-        return PxAnchor::Center;
+        return CxAnchor::Center;
     }
 
     let anchor_x = f32::from(atlas_origin.0) / f32::from(canvas_size.0);
@@ -2734,12 +2761,12 @@ fn anchor_for_composed(
         SpawnAnchorMode::BottomOrigin => 0.0,
         SpawnAnchorMode::Origin => f32::from(atlas_origin.1) / f32::from(canvas_size.1),
     };
-    PxAnchor::Custom(Vec2::new(anchor_x, anchor_y))
+    CxAnchor::Custom(Vec2::new(anchor_x, anchor_y))
 }
 
 /// Convert a composed atlas anchor to a Bevy [`Anchor`].
 ///
-/// [`PxAnchor`] uses 0..1 from bottom-left; Bevy `Anchor` uses −0.5..0.5 from centre.
+/// [`CxAnchor`] uses 0..1 from bottom-left; Bevy `Anchor` uses −0.5..0.5 from centre.
 #[must_use]
 pub fn bevy_anchor_for_composed(
     canvas_size: (u16, u16),
@@ -2750,40 +2777,40 @@ pub fn bevy_anchor_for_composed(
     px_anchor_to_bevy(px)
 }
 
-fn px_anchor_to_bevy(px: PxAnchor) -> bevy::sprite::Anchor {
+fn px_anchor_to_bevy(px: CxAnchor) -> bevy::sprite::Anchor {
     match px {
-        PxAnchor::Center => bevy::sprite::Anchor::CENTER,
-        PxAnchor::BottomLeft => bevy::sprite::Anchor::BOTTOM_LEFT,
-        PxAnchor::BottomCenter => bevy::sprite::Anchor::BOTTOM_CENTER,
-        PxAnchor::BottomRight => bevy::sprite::Anchor::BOTTOM_RIGHT,
-        PxAnchor::CenterLeft => bevy::sprite::Anchor::CENTER_LEFT,
-        PxAnchor::CenterRight => bevy::sprite::Anchor::CENTER_RIGHT,
-        PxAnchor::TopLeft => bevy::sprite::Anchor::TOP_LEFT,
-        PxAnchor::TopCenter => bevy::sprite::Anchor::TOP_CENTER,
-        PxAnchor::TopRight => bevy::sprite::Anchor::TOP_RIGHT,
-        PxAnchor::Custom(v) => bevy::sprite::Anchor(Vec2::new(v.x - 0.5, v.y - 0.5)),
+        CxAnchor::Center => bevy::sprite::Anchor::CENTER,
+        CxAnchor::BottomLeft => bevy::sprite::Anchor::BOTTOM_LEFT,
+        CxAnchor::BottomCenter => bevy::sprite::Anchor::BOTTOM_CENTER,
+        CxAnchor::BottomRight => bevy::sprite::Anchor::BOTTOM_RIGHT,
+        CxAnchor::CenterLeft => bevy::sprite::Anchor::CENTER_LEFT,
+        CxAnchor::CenterRight => bevy::sprite::Anchor::CENTER_RIGHT,
+        CxAnchor::TopLeft => bevy::sprite::Anchor::TOP_LEFT,
+        CxAnchor::TopCenter => bevy::sprite::Anchor::TOP_CENTER,
+        CxAnchor::TopRight => bevy::sprite::Anchor::TOP_RIGHT,
+        CxAnchor::Custom(v) => bevy::sprite::Anchor(Vec2::new(v.x - 0.5, v.y - 0.5)),
     }
 }
 
-/// Compute the X pixel offset for a [`PxAnchor`] at the given width.
-/// Mirrors `PxAnchor::x_pos` which is crate-private in `carapace`.
-fn anchor_x_offset(anchor: &PxAnchor, width: u32) -> u32 {
+/// Compute the X pixel offset for a [`CxAnchor`] at the given width.
+/// Mirrors `CxAnchor::x_pos` which is crate-private in `carapace`.
+fn anchor_x_offset(anchor: &CxAnchor, width: u32) -> u32 {
     match anchor {
-        PxAnchor::BottomLeft | PxAnchor::CenterLeft | PxAnchor::TopLeft => 0,
-        PxAnchor::BottomCenter | PxAnchor::Center | PxAnchor::TopCenter => width / 2,
-        PxAnchor::BottomRight | PxAnchor::CenterRight | PxAnchor::TopRight => width,
-        PxAnchor::Custom(v) => (width as f32 * v.x).round() as u32,
+        CxAnchor::BottomLeft | CxAnchor::CenterLeft | CxAnchor::TopLeft => 0,
+        CxAnchor::BottomCenter | CxAnchor::Center | CxAnchor::TopCenter => width / 2,
+        CxAnchor::BottomRight | CxAnchor::CenterRight | CxAnchor::TopRight => width,
+        CxAnchor::Custom(v) => (width as f32 * v.x).round() as u32,
     }
 }
 
-/// Compute the Y pixel offset for a [`PxAnchor`] at the given height.
-/// Mirrors `PxAnchor::y_pos` which is crate-private in `carapace`.
-fn anchor_y_offset(anchor: &PxAnchor, height: u32) -> u32 {
+/// Compute the Y pixel offset for a [`CxAnchor`] at the given height.
+/// Mirrors `CxAnchor::y_pos` which is crate-private in `carapace`.
+fn anchor_y_offset(anchor: &CxAnchor, height: u32) -> u32 {
     match anchor {
-        PxAnchor::BottomLeft | PxAnchor::BottomCenter | PxAnchor::BottomRight => 0,
-        PxAnchor::CenterLeft | PxAnchor::Center | PxAnchor::CenterRight => height / 2,
-        PxAnchor::TopLeft | PxAnchor::TopCenter | PxAnchor::TopRight => height,
-        PxAnchor::Custom(v) => (height as f32 * v.y).round() as u32,
+        CxAnchor::BottomLeft | CxAnchor::BottomCenter | CxAnchor::BottomRight => 0,
+        CxAnchor::CenterLeft | CxAnchor::Center | CxAnchor::CenterRight => height / 2,
+        CxAnchor::TopLeft | CxAnchor::TopCenter | CxAnchor::TopRight => height,
+        CxAnchor::Custom(v) => (height as f32 * v.y).round() as u32,
     }
 }
 
@@ -2795,6 +2822,7 @@ fn build_collision_state(
     root_position: Vec2,
     visual_offset: Vec2,
     gameplay_scale: f32,
+    collision_offset: Vec2,
 ) -> Vec<ResolvedPartCollision> {
     let mut collisions = Vec::new();
 
@@ -2843,7 +2871,9 @@ fn build_collision_state(
                 collider: Collider::new(collision.shape)
                     .new_scaled(gameplay_scale)
                     .with_offset(offset * gameplay_scale),
-                pivot_position: scaled_pivot,
+                // Visual-space position: include collision_offset so hitboxes
+                // align with the sprite's rendered position during parallax.
+                pivot_position: scaled_pivot + collision_offset,
             });
         }
     }
@@ -2933,6 +2963,7 @@ fn build_resolved_part_fragment_states(
     root_position: Vec2,
     visual_offset: Vec2,
     gameplay_scale: f32,
+    collision_offset: Vec2,
 ) -> Vec<ResolvedPartFragmentState> {
     resolved_fragments
         .iter()
@@ -2956,7 +2987,9 @@ fn build_resolved_part_fragment_states(
                 flip_x: fragment.flip_x,
                 flip_y: fragment.flip_y,
                 world_top_left_position: scaled_top_left,
-                visual_top_left_position: scaled_visual_top_left,
+                // Visual-space position: include collision_offset so pixel-mask
+                // hit detection aligns with the sprite's rendered position.
+                visual_top_left_position: scaled_visual_top_left + collision_offset,
             }
         })
         .collect()
@@ -4420,14 +4453,14 @@ mod tests {
         let canvas = (20u16, 10u16);
 
         // X derived from atlas origin / canvas width, Y = 0.0 (BottomOrigin).
-        let PxAnchor::Custom(a) =
+        let CxAnchor::Custom(a) =
             anchor_for_composed(canvas, (10, 5), SpawnAnchorMode::BottomOrigin)
         else {
             panic!("expected custom anchor");
         };
         assert_eq!(a, Vec2::new(0.5, 0.0)); // 10/20 = 0.5
 
-        let PxAnchor::Custom(b) =
+        let CxAnchor::Custom(b) =
             anchor_for_composed(canvas, (7, 3), SpawnAnchorMode::BottomOrigin)
         else {
             panic!("expected custom anchor");
@@ -4850,6 +4883,7 @@ mod tests {
             Vec2::new(85.0, 68.0),
             Vec2::ZERO,
             1.0,
+            Vec2::ZERO,
         );
 
         let head = collisions
@@ -4953,6 +4987,7 @@ mod tests {
             root,
             Vec2::ZERO,
             1.0,
+            Vec2::ZERO,
         );
         let shifted = build_collision_state(
             &cache,
@@ -4962,6 +4997,7 @@ mod tests {
             root,
             offset,
             1.0,
+            Vec2::ZERO,
         );
 
         assert!(!base.is_empty(), "should have at least one collision");
@@ -5058,6 +5094,7 @@ mod tests {
             Vec2::new(10.0, 20.0),
             Vec2::new(1.0, 2.0),
             1.0,
+            Vec2::ZERO,
         );
         assert_eq!(fragment_states.len(), resolved_fragments.len());
         for (state, fragment) in fragment_states.iter().zip(resolved_fragments.iter()) {
@@ -5234,6 +5271,7 @@ mod tests {
                 Vec2::ZERO,
                 Vec2::ZERO,
                 1.0,
+                Vec2::ZERO,
             ),
         };
 
@@ -5645,6 +5683,7 @@ mod tests {
             Vec2::ZERO,
             Vec2::ZERO,
             1.0,
+            Vec2::ZERO,
         );
         assert_eq!(
             active.len(),
@@ -5664,6 +5703,7 @@ mod tests {
             Vec2::ZERO,
             Vec2::ZERO,
             1.0,
+            Vec2::ZERO,
         );
         assert!(
             after_break.is_empty(),
@@ -6104,8 +6144,8 @@ mod tests {
             state.visible = false;
         }
 
-        let atlas_handle = Handle::<PxSpriteAtlasAsset>::default();
-        let filter_handle = Handle::<PxFilterAsset>::default();
+        let atlas_handle = Handle::<CxSpriteAtlasAsset>::default();
+        let filter_handle = Handle::<CxFilterAsset>::default();
         let bindings = ComposedAtlasBindings {
             atlas: atlas_handle,
             sprite_regions: atlas
@@ -6423,7 +6463,7 @@ mod tests {
         let metrics_origin = IVec2::new(-32, -27);
         let metrics_size = UVec2::new(65, 42);
 
-        let anchor = PxAnchor::Custom(Vec2::new(
+        let anchor = CxAnchor::Custom(Vec2::new(
             (-metrics_origin.x) as f32 / metrics_size.x as f32,
             (-metrics_origin.y) as f32 / metrics_size.y as f32,
         ));
@@ -6486,7 +6526,7 @@ mod tests {
         // BottomOrigin should produce the same result as the old anchor_for_origin.
         let px = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::BottomOrigin);
         match px {
-            PxAnchor::Custom(v) => {
+            CxAnchor::Custom(v) => {
                 assert!((v.x - 47.0 / 95.0).abs() < 1e-6);
                 assert!(
                     (v.y - 0.0).abs() < f32::EPSILON,
@@ -6501,7 +6541,7 @@ mod tests {
     fn anchor_for_composed_origin_uses_both_axes() {
         let px = anchor_for_composed((95, 95), (47, 43), SpawnAnchorMode::Origin);
         match px {
-            PxAnchor::Custom(v) => {
+            CxAnchor::Custom(v) => {
                 assert!((v.x - 47.0 / 95.0).abs() < 1e-6);
                 assert!(
                     (v.y - 43.0 / 95.0).abs() < 1e-6,
@@ -6516,7 +6556,7 @@ mod tests {
     #[test]
     fn anchor_for_composed_degenerate_canvas_returns_center() {
         let px = anchor_for_composed((0, 95), (47, 43), SpawnAnchorMode::Origin);
-        assert!(matches!(px, PxAnchor::Center));
+        assert!(matches!(px, CxAnchor::Center));
     }
 
     #[test]
@@ -6534,14 +6574,14 @@ mod tests {
 
     #[test]
     fn bevy_anchor_conversion_bottom_center() {
-        let bevy = px_anchor_to_bevy(PxAnchor::BottomCenter);
+        let bevy = px_anchor_to_bevy(CxAnchor::BottomCenter);
         assert_eq!(bevy, bevy::sprite::Anchor::BOTTOM_CENTER);
     }
 
     #[test]
     fn bevy_anchor_conversion_custom() {
-        let bevy = px_anchor_to_bevy(PxAnchor::Custom(Vec2::new(0.5, 0.0)));
-        // PxAnchor(0.5, 0.0) = bottom-center → Bevy Anchor(0.0, -0.5)
+        let bevy = px_anchor_to_bevy(CxAnchor::Custom(Vec2::new(0.5, 0.0)));
+        // CxAnchor(0.5, 0.0) = bottom-center → Bevy Anchor(0.0, -0.5)
         let v = bevy.as_vec();
         assert!((v.x - 0.0).abs() < 1e-6);
         assert!((v.y - (-0.5)).abs() < 1e-6);
@@ -6569,13 +6609,13 @@ mod tests {
     fn origin_mode_anchor_stable_across_varying_metrics() {
         // Verify per-frame metrics-based anchor gives stable rendering.
         // Different frames may have different composite bounds, but the
-        // composition origin (0,0) always lands at PxPosition.
+        // composition origin (0,0) always lands at CxPosition.
         for &(size_x, size_y, origin_x, origin_y) in &[
             (65u32, 42u32, -32i32, -27i32),
             (70, 45, -35, -30),
             (60, 38, -28, -25),
         ] {
-            let anchor = PxAnchor::Custom(Vec2::new(
+            let anchor = CxAnchor::Custom(Vec2::new(
                 (-origin_x) as f32 / size_x as f32,
                 (-origin_y) as f32 / size_y as f32,
             ));
@@ -6736,7 +6776,13 @@ mod tests {
             flip_x: false,
             flip_y: false,
         };
-        let states = build_resolved_part_fragment_states(&[fragment], root, visual_offset, scale);
+        let states = build_resolved_part_fragment_states(
+            &[fragment],
+            root,
+            visual_offset,
+            scale,
+            Vec2::ZERO,
+        );
         assert_eq!(states.len(), 1);
         let state = &states[0];
 
@@ -6771,7 +6817,8 @@ mod tests {
             flip_x: false,
             flip_y: false,
         };
-        let states = build_resolved_part_fragment_states(&[fragment], root, Vec2::ZERO, 1.0);
+        let states =
+            build_resolved_part_fragment_states(&[fragment], root, Vec2::ZERO, 1.0, Vec2::ZERO);
 
         assert!(
             (states[0].world_top_left_position - authored_pos).length() < f32::EPSILON,

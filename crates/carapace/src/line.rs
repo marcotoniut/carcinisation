@@ -5,24 +5,24 @@ use bevy_render::{Extract, RenderApp, sync_world::RenderEntity};
 use line_drawing::Bresenham;
 
 use crate::{
-    filter::DefaultPxFilterLayers,
+    filter::DefaultCxFilterLayers,
     frame::{Frames, draw_frame},
-    image::PxImageSliceMut,
-    position::{PxLayer, Spatial},
+    image::CxImageSliceMut,
+    position::{CxLayer, Spatial},
     prelude::*,
 };
 
-pub(crate) fn plug<L: PxLayer>(app: &mut App) {
+pub(crate) fn plug<L: CxLayer>(app: &mut App) {
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, extract_lines::<L>);
 }
 
 /// Point list for a line
 #[derive(Component, Deref, DerefMut, Clone, Default, Debug, Reflect)]
-#[require(DefaultPxFilterLayers, PxCanvas)]
-pub struct PxLine(pub Vec<IVec2>);
+#[require(DefaultCxFilterLayers, CxRenderSpace)]
+pub struct CxLine(pub Vec<IVec2>);
 
-impl Spatial for PxLine {
+impl Spatial for CxLine {
     fn frame_size(&self) -> UVec2 {
         if self.is_empty() {
             return UVec2::ZERO;
@@ -39,22 +39,22 @@ impl Spatial for PxLine {
     }
 }
 
-impl Frames for (&PxLine, &PxFilterAsset) {
+impl Frames for (&CxLine, &CxFilterAsset) {
     type Param = (IVec2, bool);
 
     fn frame_count(&self) -> usize {
-        let (_, PxFilterAsset(filter)) = self;
+        let (_, CxFilterAsset(filter)) = self;
         filter.area() / filter.width()
     }
 
     fn draw(
         &self,
         (offset, invert): Self::Param,
-        image: &mut PxImageSliceMut,
+        image: &mut CxImageSliceMut,
         frame: impl Fn(UVec2) -> usize,
         _: impl Fn(u8) -> u8,
     ) {
-        let (line, PxFilterAsset(filter)) = self;
+        let (line, CxFilterAsset(filter)) = self;
         let slice_offset = image.offset();
         let image_width = image.image_width() as i32;
         let image_height = image.image_height() as i32;
@@ -135,22 +135,22 @@ impl Frames for (&PxLine, &PxFilterAsset) {
     }
 }
 
-impl<T: IntoIterator<Item = IVec2>> From<T> for PxLine {
+impl<T: IntoIterator<Item = IVec2>> From<T> for CxLine {
     fn from(line: T) -> Self {
         Self(line.into_iter().collect())
     }
 }
 
 pub(crate) type LineComponents<L> = (
-    &'static PxLine,
-    &'static PxFilter,
-    &'static PxFilterLayers<L>,
-    &'static PxCanvas,
-    Option<&'static PxFrame>,
-    Has<PxInvertMask>,
+    &'static CxLine,
+    &'static CxFilter,
+    &'static CxFilterLayers<L>,
+    &'static CxRenderSpace,
+    Option<&'static CxFrameView>,
+    Has<CxInvertMask>,
 );
 
-fn extract_lines<L: PxLayer>(
+fn extract_lines<L: CxLayer>(
     lines: Extract<Query<(LineComponents<L>, &InheritedVisibility, RenderEntity)>>,
     mut cmd: Commands,
 ) {
@@ -158,7 +158,7 @@ fn extract_lines<L: PxLayer>(
         let mut entity = cmd.entity(id);
 
         if !visibility.get() {
-            entity.remove::<PxFilterLayers<L>>();
+            entity.remove::<CxFilterLayers<L>>();
             continue;
         }
 
@@ -167,33 +167,33 @@ fn extract_lines<L: PxLayer>(
         if let Some(&frame) = frame {
             entity.insert(frame);
         } else {
-            entity.remove::<PxFrame>();
+            entity.remove::<CxFrameView>();
         }
 
         if invert {
-            entity.insert(PxInvertMask);
+            entity.insert(CxInvertMask);
         } else {
-            entity.remove::<PxInvertMask>();
+            entity.remove::<CxInvertMask>();
         }
     }
 }
 
 pub(crate) fn draw_line(
-    line: &PxLine,
-    filter: &PxFilterAsset,
+    line: &CxLine,
+    filter: &CxFilterAsset,
     invert: bool,
-    image: &mut PxImageSliceMut,
-    canvas: PxCanvas,
-    frame: Option<PxFrame>,
-    camera: PxCamera,
+    image: &mut CxImageSliceMut,
+    canvas: CxRenderSpace,
+    frame: Option<CxFrameView>,
+    camera: CxCamera,
 ) {
     // TODO Make an `animated_line` example
     draw_frame(
         &(line, filter),
         (
             match canvas {
-                PxCanvas::World => -*camera,
-                PxCanvas::Camera => IVec2::ZERO,
+                CxRenderSpace::World => -*camera,
+                CxRenderSpace::Camera => IVec2::ZERO,
             },
             invert,
         ),
@@ -206,13 +206,13 @@ pub(crate) fn draw_line(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{camera::PxCamera, filter::PxFilterAsset, image::PxImage};
+    use crate::{camera::CxCamera, filter::CxFilterAsset, image::CxImage};
 
-    fn filter_asset() -> PxFilterAsset {
-        PxFilterAsset(PxImage::new(vec![0, 2, 0, 0], 4))
+    fn filter_asset() -> CxFilterAsset {
+        CxFilterAsset(CxImage::new(vec![0, 2, 0, 0], 4))
     }
 
-    fn pixels(image: &PxImage) -> Vec<u8> {
+    fn pixels(image: &CxImage) -> Vec<u8> {
         let size = image.size();
         let mut out = Vec::with_capacity((size.x * size.y) as usize);
         for y in 0..size.y as i32 {
@@ -225,19 +225,19 @@ mod tests {
 
     #[test]
     fn line_draws_only_line_pixels() {
-        let mut image = PxImage::new(vec![1; 25], 5);
+        let mut image = CxImage::new(vec![1; 25], 5);
         let mut slice = image.slice_all_mut();
         let filter = filter_asset();
-        let line = PxLine(vec![IVec2::new(1, 1), IVec2::new(3, 1)]);
+        let line = CxLine(vec![IVec2::new(1, 1), IVec2::new(3, 1)]);
 
         draw_line(
             &line,
             &filter,
             false,
             &mut slice,
-            PxCanvas::Camera,
+            CxRenderSpace::Camera,
             None,
-            PxCamera::default(),
+            CxCamera::default(),
         );
 
         let expected = vec![
@@ -249,19 +249,19 @@ mod tests {
 
     #[test]
     fn line_invert_draws_outside_only() {
-        let mut image = PxImage::new(vec![1; 25], 5);
+        let mut image = CxImage::new(vec![1; 25], 5);
         let mut slice = image.slice_all_mut();
         let filter = filter_asset();
-        let line = PxLine(vec![IVec2::new(1, 1), IVec2::new(3, 1)]);
+        let line = CxLine(vec![IVec2::new(1, 1), IVec2::new(3, 1)]);
 
         draw_line(
             &line,
             &filter,
             true,
             &mut slice,
-            PxCanvas::Camera,
+            CxRenderSpace::Camera,
             None,
-            PxCamera::default(),
+            CxCamera::default(),
         );
 
         let expected = vec![

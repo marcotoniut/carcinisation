@@ -13,7 +13,7 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use carapace::prelude::PxAnimationFinishBehavior;
+use carapace::prelude::CxAnimationFinishBehavior;
 use derive_new::new;
 use std::collections::HashMap;
 
@@ -92,7 +92,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                         ),
                         frames: lamp_base_frames,
                         speed: lamp_base_speed,
-                        finish_behavior: PxAnimationFinishBehavior::Loop,
+                        finish_behavior: CxAnimationFinishBehavior::Loop,
                         collider_data: match i {
                             LampDepth::Three => ColliderData::from_one(
                                 Collider::new_box(Vec2::new(17.0, 19.0))
@@ -110,7 +110,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                         ),
                         frames: lamp_broken_frames,
                         speed: lamp_broken_speed,
-                        finish_behavior: PxAnimationFinishBehavior::Mark,
+                        finish_behavior: CxAnimationFinishBehavior::Mark,
                         ..default()
                     },
                 },
@@ -138,7 +138,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                         ),
                         frames: trashcan_frames,
                         speed: trashcan_speed,
-                        finish_behavior: PxAnimationFinishBehavior::Loop,
+                        finish_behavior: CxAnimationFinishBehavior::Loop,
                         collider_data: match i {
                             TrashcanDepth::Six => ColliderData::from_one(
                                 Collider::new_box(Vec2::new(8.0, 11.0))
@@ -160,7 +160,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                         ),
                         frames: trashcan_broken_frames,
                         speed: trashcan_broken_speed,
-                        finish_behavior: PxAnimationFinishBehavior::Mark,
+                        finish_behavior: CxAnimationFinishBehavior::Mark,
                         ..default()
                     },
                 },
@@ -187,7 +187,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                             ),
                             frames: mushroom_frames,
                             speed: mushroom_speed,
-                            finish_behavior: PxAnimationFinishBehavior::Loop,
+                            finish_behavior: CxAnimationFinishBehavior::Loop,
                             collider_data: match i {
                                 MushroomDepth::Four => ColliderData::from_many(vec![
                                     Collider::new_box(Vec2::new(15., 70.))
@@ -206,7 +206,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                             ),
                             frames: mushroom_broken_frames,
                             speed: mushroom_broken_speed,
-                            finish_behavior: PxAnimationFinishBehavior::Mark,
+                            finish_behavior: CxAnimationFinishBehavior::Mark,
                             ..default()
                         },
                     },
@@ -234,7 +234,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                             ),
                             frames: crystal_frames,
                             speed: crystal_speed,
-                            finish_behavior: PxAnimationFinishBehavior::Loop,
+                            finish_behavior: CxAnimationFinishBehavior::Loop,
                             collider_data: match i {
                                 CrystalDepth::Five => ColliderData::from_one(
                                     Collider::new_box(Vec2::new(40., 60.))
@@ -252,7 +252,7 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                             ),
                             frames: crystal_broken_frames,
                             speed: crystal_broken_speed,
-                            finish_behavior: PxAnimationFinishBehavior::Mark,
+                            finish_behavior: CxAnimationFinishBehavior::Mark,
                             ..default()
                         },
                     },

@@ -6,7 +6,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 
 /// Minimum intensity below which the shake is removed.
 const SHAKE_THRESHOLD: f32 = 0.3;
@@ -24,7 +24,7 @@ const SHAKE_THRESHOLD: f32 = 0.3;
 /// the component explicitly.
 pub fn camera_shake(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut CameraShake, &mut PxSubPosition)>,
+    mut query: Query<(Entity, &mut CameraShake, &mut WorldPos)>,
     time: Res<Time<StageTimeDomain>>,
 ) {
     let dt = time.delta_secs();

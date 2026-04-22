@@ -1,21 +1,43 @@
 //! Visual-only presentation transforms applied at render time.
 //!
-//! [`PxPresentationTransform`] provides per-entity scaling, rotation, and offset
-//! that affect rendering **without** modifying gameplay position, collision, or anchoring.
+//! [`CxPresentationTransform`] provides per-entity scaling, rotation, and offset
+//! that affect rendering and visual-space collision **without** modifying the
+//! gameplay position (`WorldPos`).
 //!
-//! # Render-only
+//! # Position spaces
 //!
-//! This component is consumed exclusively by the CPU rendering pipeline in
-//! [`draw_spatial_transformed`](crate::frame::draw_spatial_transformed) and the
-//! composite transform path in [`draw_layers`](crate::screen::draw::draw_layers).
-//! Gameplay systems should never read or depend on it.
+//! See [crate-level docs](crate#coordinate-spaces) for the full space
+//! definitions.  In brief:
+//!
+//! - **World space** — `WorldPos` (and derived `CxPosition`). Read by
+//!   simulation: physics, AI, spawn placement. Unaffected by presentation.
+//!
+//! - **Visual space** — world position plus composed presentation offsets.
+//!   Read by rendering, collision hit-detection, debug overlays — anything
+//!   that must align with what the player sees.
+//!
+//! Simulation logic reads `WorldPos`; anything that must align with what
+//! the player sees reads the appropriate offset field on this component.
+//!
+//! # Offset categories
+//!
+//! Presentation offsets come in two categories:
+//!
+//! - **Collision-affecting.** Spatial displacement the player perceives.
+//!   Parallax (depth-weighted camera-pan shift) is this category. Future
+//!   knockback recoil is likely this category. Contributes to both
+//!   `visual_offset` and `collision_offset`.
+//!
+//! - **Visual-only.** Decorative feedback that doesn't correspond to spatial
+//!   displacement. Hit-flash jiggle is this category. Contributes to
+//!   `visual_offset` only.
 //!
 //! # Composites
 //!
 //! For composite sprites, parts are first assembled at native size into a scratch
 //! buffer. The presentation transform is then applied to the **composed result**.
 //!
-//! Individual parts may have their own [`PxPartTransform`](crate::sprite::PxPartTransform),
+//! Individual parts may have their own [`PartTransform`](crate::sprite::PartTransform),
 //! but that is a separate concept applied **during** composition, not after.
 //!
 //! # Flipping / mirroring
@@ -40,8 +62,8 @@
 //! # GPU palette path
 //!
 //! The `gpu_palette` render path does **not** currently support presentation
-//! transforms. Entities with this component that also carry `PxGpuSprite` /
-//! `PxGpuComposite` will render at native size on the GPU path.
+//! transforms. Entities with this component that also carry `CxGpuSprite` /
+//! `CxGpuComposite` will render at native size on the GPU path.
 
 use crate::prelude::*;
 
@@ -54,53 +76,81 @@ pub(crate) const MIN_SCALE: f32 = 0.01;
 #[cfg(debug_assertions)]
 const MAX_SCALE_DEBUG_WARN: f32 = 10.0;
 
-/// Visual-only transform applied at render time.
+/// Presentation transform applied at render time and read by visual-space
+/// operations (rendering, collision hit-detection, debug overlays).
 ///
-/// Does **not** affect gameplay position, collision, or anchoring.
+/// Does **not** affect world-space gameplay position. Simulation systems
+/// (physics, AI, spawn placement) must read `WorldPos` directly.
+///
 /// When absent or at default values, the rendering path is completely unchanged
 /// (no scratch buffer allocated, no extra sampling).
+///
+/// # Four invariants
+///
+/// 1. **World-space vs visual-space.** `WorldPos` is world space, read by
+///    simulation. This component carries the visual-space displacement. Do not
+///    use for simulation logic.
+///
+/// 2. **Two offset categories.** `visual_offset` = sum of ALL presentation
+///    offset contributors. `collision_offset` = sum of collision-affecting
+///    contributors only. Rendering reads `visual_offset`; collision state
+///    computation reads `collision_offset`. Visual-only effects (hit-flash,
+///    cosmetic animation) contribute only to `visual_offset`.
+///
+/// 3. **Fully recomputed each frame** by `compose_presentation_offsets`. Do not
+///    accumulate. The composition system writes fresh values every tick (or
+///    skips the write when contributors haven't changed).
+///
+/// 4. **Single writer for composed offset fields.** `compose_presentation_offsets`
+///    is the sole system that writes `visual_offset` or `collision_offset`.
+///    Future effects register a contributor component and add themselves to
+///    the composition sum — they do not write these fields directly.
 ///
 /// # Scale
 ///
 /// `scale` controls per-axis nearest-neighbour scaling around the entity's
-/// anchor point. `Vec2::ONE` means native size.
-///
-/// **Negative values** produce render-only mirroring (horizontal and/or
-/// vertical flip). The sign is preserved; only the magnitude is clamped
-/// to `[MIN_SCALE, ∞)`. NaN is treated as `MIN_SCALE`.
+/// anchor point. `Vec2::ONE` means native size. Negative values produce
+/// render-only mirroring. NaN is treated as `MIN_SCALE`.
 ///
 /// # Rotation
 ///
 /// `rotation` is in radians, counter-clockwise, applied around the anchor
-/// point. The destination bounding box expands automatically to avoid clipping.
-/// Pixel art at non-90° angles will show expected nearest-neighbour artefacts.
-/// NaN is treated as 0.0.
-///
-/// # Offset
-///
-/// `offset` is an additional pixel displacement applied after scale/rotation,
-/// useful for shake or recoil effects.
+/// point. NaN is treated as 0.0.
 #[derive(Component, Clone, Copy, Debug, Reflect)]
-pub struct PxPresentationTransform {
+#[reflect(Component)]
+pub struct CxPresentationTransform {
     /// Non-uniform scale factor. `Vec2::ONE` = native size. Negative = flip.
     pub scale: Vec2,
     /// Rotation in radians, counter-clockwise around the anchor point.
     pub rotation: f32,
-    /// Additional pixel offset applied after scale/rotation.
-    pub offset: Vec2,
+    /// Sum of ALL presentation offset contributors. Read by the rendering
+    /// pipeline for final visual position. Always a superset of
+    /// `collision_offset` (`visual_offset = collision_offset + visual-only`
+    /// contributors).
+    pub visual_offset: Vec2,
+    /// Sum of collision-affecting presentation offset contributors only.
+    /// Read by collision state computation to align hitboxes with the
+    /// visible sprite position. Visual-only effects (hit-flash, cosmetic
+    /// animation) do NOT contribute here.
+    ///
+    /// When a visual-only offset contributor is added (e.g., hit-jiggle),
+    /// it contributes to `visual_offset` but not to `collision_offset`.
+    /// Until then, both fields are equal.
+    pub collision_offset: Vec2,
 }
 
-impl Default for PxPresentationTransform {
+impl Default for CxPresentationTransform {
     fn default() -> Self {
         Self {
             scale: Vec2::ONE,
             rotation: 0.0,
-            offset: Vec2::ZERO,
+            visual_offset: Vec2::ZERO,
+            collision_offset: Vec2::ZERO,
         }
     }
 }
 
-impl PxPresentationTransform {
+impl CxPresentationTransform {
     /// Uniform scale only, no rotation or offset.
     #[must_use]
     pub fn scaled(factor: f32) -> Self {
@@ -153,10 +203,10 @@ impl PxPresentationTransform {
         self.rotation.abs() >= f32::EPSILON
     }
 
-    /// Returns true if offset differs meaningfully from `Vec2::ZERO`.
+    /// Returns true if `visual_offset` differs meaningfully from `Vec2::ZERO`.
     #[must_use]
     pub fn has_offset(&self) -> bool {
-        self.offset.length_squared() >= f32::EPSILON
+        self.visual_offset.length_squared() >= f32::EPSILON
     }
 
     /// Returns true if this transform requires the scratch-buffer path
@@ -182,7 +232,7 @@ impl PxPresentationTransform {
         {
             if s.x.abs() > MAX_SCALE_DEBUG_WARN || s.y.abs() > MAX_SCALE_DEBUG_WARN {
                 warn!(
-                    "PxPresentationTransform scale ({:.2}, {:.2}) exceeds {MAX_SCALE_DEBUG_WARN}x — \
+                    "CxPresentationTransform scale ({:.2}, {:.2}) exceeds {MAX_SCALE_DEBUG_WARN}x — \
                      this allocates a large scratch buffer and is likely unintentional",
                     s.x, s.y,
                 );
@@ -191,7 +241,7 @@ impl PxPresentationTransform {
                 || (self.scale.y.abs() < MIN_SCALE && !self.scale.y.is_nan())
             {
                 warn!(
-                    "PxPresentationTransform scale ({:.2}, {:.2}) has near-zero axis — \
+                    "CxPresentationTransform scale ({:.2}, {:.2}) has near-zero axis — \
                      magnitude clamped to minimum {MIN_SCALE}",
                     self.scale.x, self.scale.y,
                 );
@@ -207,7 +257,7 @@ impl PxPresentationTransform {
         let r = sanitise_rotation(self.rotation);
         #[cfg(debug_assertions)]
         if self.rotation.is_nan() {
-            warn!("PxPresentationTransform rotation is NaN — treated as 0.0");
+            warn!("CxPresentationTransform rotation is NaN — treated as 0.0");
         }
         r
     }
@@ -215,8 +265,8 @@ impl PxPresentationTransform {
 
 /// Sanitises a rotation value: NaN → 0.0.
 ///
-/// Shared by both entity-level [`PxPresentationTransform`] and part-level
-/// [`PxPartTransform`](crate::sprite::PxPartTransform).
+/// Shared by both entity-level [`CxPresentationTransform`] and part-level
+/// [`PartTransform`](crate::sprite::PartTransform).
 pub(crate) fn sanitise_rotation(rotation: f32) -> f32 {
     if rotation.is_nan() { 0.0 } else { rotation }
 }
@@ -227,8 +277,8 @@ pub(crate) fn sanitise_rotation(rotation: f32) -> f32 {
 /// - Magnitude below `MIN_SCALE` → sign × `MIN_SCALE`
 /// - Otherwise → unchanged
 ///
-/// Shared by both entity-level [`PxPresentationTransform`] and part-level
-/// [`PxPartTransform`](crate::sprite::PxPartTransform).
+/// Shared by both entity-level [`CxPresentationTransform`] and part-level
+/// [`PartTransform`](crate::sprite::PartTransform).
 pub(crate) fn clamp_scale_axis(v: f32) -> f32 {
     if v.is_nan() {
         MIN_SCALE
@@ -245,7 +295,7 @@ mod tests {
 
     #[test]
     fn default_is_identity() {
-        let pt = PxPresentationTransform::default();
+        let pt = CxPresentationTransform::default();
         assert!(pt.is_identity());
         assert!(!pt.has_scale());
         assert!(!pt.has_rotation());
@@ -255,7 +305,7 @@ mod tests {
 
     #[test]
     fn scaled_constructor() {
-        let pt = PxPresentationTransform::scaled(2.0);
+        let pt = CxPresentationTransform::scaled(2.0);
         assert!(pt.has_scale());
         assert!(!pt.has_rotation());
         assert!(pt.needs_transformed_blit());
@@ -264,23 +314,23 @@ mod tests {
 
     #[test]
     fn flipped_constructor() {
-        let pt = PxPresentationTransform::flipped(true, false);
+        let pt = CxPresentationTransform::flipped(true, false);
         assert!(pt.has_scale());
         assert!((pt.scale.x - (-1.0)).abs() < f32::EPSILON);
         assert!((pt.scale.y - 1.0).abs() < f32::EPSILON);
         assert!(pt.needs_transformed_blit());
 
-        let both = PxPresentationTransform::flipped(true, true);
+        let both = CxPresentationTransform::flipped(true, true);
         assert!((both.scale.x - (-1.0)).abs() < f32::EPSILON);
         assert!((both.scale.y - (-1.0)).abs() < f32::EPSILON);
 
-        let none = PxPresentationTransform::flipped(false, false);
+        let none = CxPresentationTransform::flipped(false, false);
         assert!(none.is_identity());
     }
 
     #[test]
     fn rotated_constructor() {
-        let pt = PxPresentationTransform::rotated(0.5);
+        let pt = CxPresentationTransform::rotated(0.5);
         assert!(!pt.has_scale());
         assert!(pt.has_rotation());
         assert!(pt.needs_transformed_blit());
@@ -288,8 +338,9 @@ mod tests {
 
     #[test]
     fn offset_only_does_not_need_blit() {
-        let pt = PxPresentationTransform {
-            offset: Vec2::new(3.0, -2.0),
+        let pt = CxPresentationTransform {
+            visual_offset: Vec2::new(3.0, -2.0),
+            collision_offset: Vec2::new(3.0, -2.0),
             ..Default::default()
         };
         assert!(pt.has_offset());
@@ -299,7 +350,7 @@ mod tests {
 
     #[test]
     fn clamped_scale_floors_magnitude_preserves_sign() {
-        let pt = PxPresentationTransform {
+        let pt = CxPresentationTransform {
             scale: Vec2::new(0.001, -0.001),
             ..Default::default()
         };
@@ -310,7 +361,7 @@ mod tests {
 
     #[test]
     fn clamped_scale_preserves_negative() {
-        let pt = PxPresentationTransform {
+        let pt = CxPresentationTransform {
             scale: Vec2::new(-2.0, -5.0),
             ..Default::default()
         };
@@ -321,7 +372,7 @@ mod tests {
 
     #[test]
     fn clamped_scale_handles_nan() {
-        let pt = PxPresentationTransform {
+        let pt = CxPresentationTransform {
             scale: Vec2::new(f32::NAN, 1.0),
             ..Default::default()
         };
@@ -332,7 +383,7 @@ mod tests {
 
     #[test]
     fn clamped_scale_passes_through_valid() {
-        let pt = PxPresentationTransform::scaled(3.5);
+        let pt = CxPresentationTransform::scaled(3.5);
         let s = pt.clamped_scale();
         assert!((s.x - 3.5).abs() < f32::EPSILON);
         assert!((s.y - 3.5).abs() < f32::EPSILON);
@@ -340,13 +391,13 @@ mod tests {
 
     #[test]
     fn sanitised_rotation_passes_valid() {
-        let pt = PxPresentationTransform::rotated(1.23);
+        let pt = CxPresentationTransform::rotated(1.23);
         assert!((pt.sanitised_rotation() - 1.23).abs() < f32::EPSILON);
     }
 
     #[test]
     fn sanitised_rotation_handles_nan() {
-        let pt = PxPresentationTransform {
+        let pt = CxPresentationTransform {
             rotation: f32::NAN,
             ..Default::default()
         };

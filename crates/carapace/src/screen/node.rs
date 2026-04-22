@@ -20,25 +20,25 @@ use bevy_render::{
 #[cfg(feature = "line")]
 use crate::line::LineComponents;
 #[cfg(feature = "gpu_palette")]
-use crate::sprite::{PxGpuComposite, PxGpuSprite};
+use crate::sprite::{CxGpuComposite, CxGpuSprite};
 use crate::{
     atlas::AtlasSpriteComponents,
     filter::FilterComponents,
-    map::{MapComponents, TileComponents},
-    position::PxLayer,
+    position::CxLayer,
     prelude::*,
     profiling::{px_end_span, px_trace, px_trace_span},
     rect::RectComponents,
     sprite::{CompositeSpriteComponents, SpriteComponents},
     text::TextComponents,
+    tilemap::{MapComponents, TileComponents},
 };
 
 #[cfg(feature = "gpu_palette")]
-use super::{PxLayerOrder, gpu_composite_supported, gpu_sprite_supported};
+use super::{CxLayerOrder, gpu_composite_supported, gpu_sprite_supported};
 use super::{
-    Screen,
+    CxScreen,
     draw::{self, LayerContentsMap},
-    pipeline::{PxPipeline, PxRenderBuffer, PxUniformBuffer},
+    pipeline::{CxPipeline, CxRenderBuffer, CxUniformBuffer},
 };
 
 /// Resolves filter layer targets against a pre-built ordered layer index.
@@ -46,15 +46,15 @@ use super::{
 /// Uses binary search (`partition_point`) for `Range` variants, giving `O(log L + K)` cost
 /// instead of the previous `O(L)` full-scan approach. The `ordered_layers` slice must be
 /// sorted (which it is, since it comes from `BTreeMap::keys`).
-fn resolve_filter_layers<L: PxLayer>(
+fn resolve_filter_layers<L: CxLayer>(
     out: &mut Vec<(L, bool)>,
-    layers: &PxFilterLayers<L>,
+    layers: &CxFilterLayers<L>,
     ordered_layers: &[L],
 ) {
     out.clear();
     match layers {
-        PxFilterLayers::Single { layer, clip } => out.push((layer.clone(), *clip)),
-        PxFilterLayers::Range(range) => {
+        CxFilterLayers::Single { layer, clip } => out.push((layer.clone(), *clip)),
+        CxFilterLayers::Range(range) => {
             let start = ordered_layers.partition_point(|l| l < range.start());
             let end = start + ordered_layers[start..].partition_point(|l| l <= range.end());
             out.extend(
@@ -63,7 +63,7 @@ fn resolve_filter_layers<L: PxLayer>(
                     .map(|layer| (layer.clone(), true)),
             );
         }
-        PxFilterLayers::Many(layers) => {
+        CxFilterLayers::Many(layers) => {
             out.extend(layers.iter().map(|layer| (layer.clone(), true)));
         }
     }
@@ -72,44 +72,44 @@ fn resolve_filter_layers<L: PxLayer>(
 /// Pre-registers layers referenced by `Single` and `Many` filter targets so they are present
 /// in the layer map before the ordered index is built. `Range` targets are not pre-registered
 /// because they resolve against the discovered set.
-fn preregister_filter_layer<L: PxLayer>(
-    layers: &PxFilterLayers<L>,
+fn preregister_filter_layer<L: CxLayer>(
+    layers: &CxFilterLayers<L>,
     layer_contents: &mut LayerContentsMap<'_, L>,
 ) {
     match layers {
-        PxFilterLayers::Single { layer, .. } => {
+        CxFilterLayers::Single { layer, .. } => {
             layer_contents.entry(layer.clone()).or_default();
         }
-        PxFilterLayers::Many(ls) => {
+        CxFilterLayers::Many(ls) => {
             for l in ls {
                 layer_contents.entry(l.clone()).or_default();
             }
         }
-        PxFilterLayers::Range(_) => {}
+        CxFilterLayers::Range(_) => {}
     }
 }
 
-pub(crate) struct PxRenderNode<L: PxLayer> {
+pub(crate) struct CxRenderNode<L: CxLayer> {
     maps: QueryState<MapComponents<L>>,
     tiles: QueryState<TileComponents>,
     // image_to_sprites: QueryState<ImageToSpriteComponents<L>>,
     #[cfg(feature = "gpu_palette")]
-    sprites: QueryState<(SpriteComponents<L>, Has<PxGpuSprite>)>,
+    sprites: QueryState<(SpriteComponents<L>, Has<CxGpuSprite>)>,
     #[cfg(not(feature = "gpu_palette"))]
     sprites: QueryState<SpriteComponents<L>>,
     atlas_sprites: QueryState<AtlasSpriteComponents<L>>,
     #[cfg(feature = "gpu_palette")]
-    composites: QueryState<(CompositeSpriteComponents<L>, Has<PxGpuComposite>)>,
+    composites: QueryState<(CompositeSpriteComponents<L>, Has<CxGpuComposite>)>,
     #[cfg(not(feature = "gpu_palette"))]
     composites: QueryState<CompositeSpriteComponents<L>>,
     texts: QueryState<TextComponents<L>>,
     rects: QueryState<RectComponents<L>>,
     #[cfg(feature = "line")]
     lines: QueryState<LineComponents<L>>,
-    filters: QueryState<FilterComponents<L>, Without<PxCanvas>>,
+    filters: QueryState<FilterComponents<L>, Without<CxRenderSpace>>,
 }
 
-impl<L: PxLayer> FromWorld for PxRenderNode<L> {
+impl<L: CxLayer> FromWorld for CxRenderNode<L> {
     fn from_world(world: &mut World) -> Self {
         Self {
             maps: world.query(),
@@ -134,8 +134,8 @@ impl<L: PxLayer> FromWorld for PxRenderNode<L> {
 }
 
 #[cfg(feature = "headed")]
-impl<L: PxLayer> ViewNode for PxRenderNode<L> {
-    type ViewQuery = (&'static ViewTarget, Has<crate::screen::PxOverlayCamera>);
+impl<L: CxLayer> ViewNode for CxRenderNode<L> {
+    type ViewQuery = (&'static ViewTarget, Has<crate::screen::CxOverlayCamera>);
 
     fn update(&mut self, world: &mut World) {
         self.maps.update_archetypes(world);
@@ -163,8 +163,8 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             return Ok(());
         }
         // Compose each layer into a CPU buffer, then blit to the GPU texture once per frame.
-        let &camera = world.resource::<PxCamera>();
-        let screen = world.resource::<Screen>();
+        let &camera = world.resource::<CxCamera>();
+        let screen = world.resource::<CxScreen>();
         let _run_span = px_trace_span!(
             "carapace::screen_node::run",
             width = screen.computed_size.x,
@@ -172,7 +172,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         );
 
         let device = world.resource::<RenderDevice>();
-        let render_buffer = world.resource::<PxRenderBuffer>();
+        let render_buffer = world.resource::<CxRenderBuffer>();
         render_buffer.ensure_size(device, screen.computed_size);
         render_buffer.clear();
 
@@ -419,7 +419,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
         #[cfg(feature = "gpu_palette")]
         let layer_order: Vec<L> = layer_set.into_iter().collect();
         #[cfg(feature = "gpu_palette")]
-        let layer_order_res = world.resource::<PxLayerOrder<L>>();
+        let layer_order_res = world.resource::<CxLayerOrder<L>>();
         #[cfg(feature = "gpu_palette")]
         layer_order_res.set(layer_order);
         #[cfg(feature = "gpu_palette")]
@@ -444,7 +444,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             draw::draw_layers(world, render_buffer, camera, layer_contents, &self.tiles);
         }
 
-        let Some(uniform_binding) = world.resource::<PxUniformBuffer>().binding() else {
+        let Some(uniform_binding) = world.resource::<CxUniformBuffer>().binding() else {
             return Ok(());
         };
 
@@ -498,7 +498,7 @@ impl<L: PxLayer> ViewNode for PxRenderNode<L> {
             ..default()
         });
 
-        let px_pipeline = world.resource::<PxPipeline>();
+        let px_pipeline = world.resource::<CxPipeline>();
         let Some(pipeline) = world
             .resource::<PipelineCache>()
             .get_render_pipeline(px_pipeline.id)
@@ -577,7 +577,7 @@ mod tests {
         let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Single {
+            &CxFilterLayers::Single {
                 layer: TestLayer::Mid,
                 clip: false,
             },
@@ -591,7 +591,7 @@ mod tests {
         let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Range(TestLayer::Mid..=TestLayer::Front),
+            &CxFilterLayers::Range(TestLayer::Mid..=TestLayer::Front),
             &[TestLayer::Back, TestLayer::Mid, TestLayer::Front],
         );
         assert_eq!(out, vec![(TestLayer::Mid, true), (TestLayer::Front, true)]);
@@ -602,7 +602,7 @@ mod tests {
         let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Range(TestLayer::Mid..=TestLayer::Front),
+            &CxFilterLayers::Range(TestLayer::Mid..=TestLayer::Front),
             &[TestLayer::Back],
         );
         assert!(out.is_empty());
@@ -615,7 +615,7 @@ mod tests {
         let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Range(WideLayer::L2..=WideLayer::L6),
+            &CxFilterLayers::Range(WideLayer::L2..=WideLayer::L6),
             &[WideLayer::L1, WideLayer::L3, WideLayer::L5, WideLayer::L7],
         );
         assert_eq!(out, vec![(WideLayer::L3, true), (WideLayer::L5, true)]);
@@ -626,7 +626,7 @@ mod tests {
         let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Many(vec![TestLayer::Front, TestLayer::Back, TestLayer::Mid]),
+            &CxFilterLayers::Many(vec![TestLayer::Front, TestLayer::Back, TestLayer::Mid]),
             &[],
         );
         assert_eq!(
@@ -644,7 +644,7 @@ mod tests {
         let mut out = Vec::new();
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Range(TestLayer::Back..=TestLayer::Front),
+            &CxFilterLayers::Range(TestLayer::Back..=TestLayer::Front),
             &[TestLayer::Back, TestLayer::Mid, TestLayer::Front],
         );
         assert_eq!(out.len(), 3);
@@ -652,7 +652,7 @@ mod tests {
         // Second call must not retain stale data from the first.
         resolve_filter_layers(
             &mut out,
-            &PxFilterLayers::Single {
+            &CxFilterLayers::Single {
                 layer: TestLayer::Mid,
                 clip: false,
             },
@@ -673,7 +673,7 @@ mod tests {
 
         // A Single target introduces L2.
         preregister_filter_layer(
-            &PxFilterLayers::Single {
+            &CxFilterLayers::Single {
                 layer: WideLayer::L2,
                 clip: true,
             },
@@ -682,12 +682,12 @@ mod tests {
 
         // A Many target introduces L4 and L6.
         preregister_filter_layer(
-            &PxFilterLayers::Many(vec![WideLayer::L4, WideLayer::L6]),
+            &CxFilterLayers::Many(vec![WideLayer::L4, WideLayer::L6]),
             &mut lc,
         );
 
         // A Range pre-registers nothing (by design).
-        let range = PxFilterLayers::Range(WideLayer::L1..=WideLayer::L5);
+        let range = CxFilterLayers::Range(WideLayer::L1..=WideLayer::L5);
         preregister_filter_layer(&range, &mut lc);
 
         // Build ordered index after all pre-registration.

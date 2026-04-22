@@ -1,11 +1,13 @@
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
-use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
 use crate::{
     layer::Layer,
     stage::{
+        components::interactive::ColliderData,
         components::placement::Depth,
         player::attacks::{
-            AttackDefinition, AttackEffectState, AttackHitTracker, AttackId, AttackLifetime,
+            AttackCollisionMode, AttackDefinition, AttackEffectState, AttackHitTracker, AttackId,
+            AttackLifetime,
         },
     },
 };
@@ -13,7 +15,7 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
-use carapace::prelude::{PxAnimationDirection, PxAnimationDuration, PxSprite, PxSubPosition};
+use carapace::prelude::{CxAnimationDirection, CxAnimationDuration, CxSprite, WorldPos};
 
 #[derive(Component)]
 pub struct Player;
@@ -33,37 +35,38 @@ impl PlayerAttack {
     pub fn make_bundles(
         &self,
         definition: &AttackDefinition,
-        assets_sprite: &mut PxAssets<PxSprite>,
+        assets_sprite: &mut CxAssets<CxSprite>,
         asset_server: &AssetServer,
         volume_settings: &VolumeSettings,
     ) -> (
         (
             Self,
-            PxSpriteBundle<Layer>,
-            PxAnimationBundle,
-            PxSubPosition,
+            CxSpriteBundle<Layer>,
+            CxAnimationBundle,
+            WorldPos,
             AttackHitTracker,
             AttackEffectState,
             AttackLifetime,
+            ColliderData,
             Name,
         ),
         Option<(AudioPlayer, PlaybackSettings, AudioSystemBundle)>,
     ) {
-        let position = PxSubPosition::from(self.position);
+        let position = WorldPos::from(self.position);
         let name = Name::new(format!("PlayerAttack<{}>", definition.name));
 
         let sprite =
             assets_sprite.load_animated(definition.sprite.sprite_path, definition.sprite.frames);
-        let sprite_bundle = PxSpriteBundle::<Layer> {
+        let sprite_bundle = CxSpriteBundle::<Layer> {
             sprite: sprite.into(),
             anchor: definition.sprite.anchor,
             canvas: definition.sprite.canvas,
             layer: definition.sprite.layer.clone(),
             ..default()
         };
-        let animation_bundle = PxAnimationBundle::from_parts(
-            PxAnimationDirection::default(),
-            PxAnimationDuration::millis_per_animation(definition.sprite.speed_ms),
+        let animation_bundle = CxAnimationBundle::from_parts(
+            CxAnimationDirection::default(),
+            CxAnimationDuration::millis_per_animation(definition.sprite.speed_ms),
             definition.sprite.finish_behavior,
             definition.sprite.frame_transition,
         );
@@ -80,6 +83,38 @@ impl PlayerAttack {
             (audio_player, playback_settings, audio_system_bundle)
         });
 
+        let collider_data = match definition.collision {
+            AttackCollisionMode::SpriteMask => {
+                ColliderData::from_one(carcinisation_collision::Collider::new(
+                    carcinisation_collision::ColliderShape::SpriteMask,
+                ))
+            }
+            AttackCollisionMode::Point => {
+                let offsets = if definition.hit_offsets.is_empty() {
+                    &[IVec2::ZERO][..]
+                } else {
+                    definition.hit_offsets.as_slice()
+                };
+                ColliderData::from_many(
+                    offsets
+                        .iter()
+                        .map(|o| {
+                            carcinisation_collision::Collider::new(
+                                carcinisation_collision::ColliderShape::Circle(0.5),
+                            )
+                            .with_offset(o.as_vec2())
+                        })
+                        .collect(),
+                )
+            }
+            AttackCollisionMode::Radial { radius } => {
+                ColliderData::from_one(carcinisation_collision::Collider::new(
+                    carcinisation_collision::ColliderShape::Circle(radius),
+                ))
+            }
+            AttackCollisionMode::None => ColliderData::default(),
+        };
+
         (
             (
                 *self,
@@ -89,6 +124,7 @@ impl PlayerAttack {
                 AttackHitTracker::default(),
                 AttackEffectState::default(),
                 AttackLifetime::new(definition.duration_secs),
+                collider_data,
                 name,
             ),
             sound_bundle,

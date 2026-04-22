@@ -1,5 +1,5 @@
 #![allow(clippy::needless_pass_by_value)]
-// Demonstrates PxPresentationTransform with scale and rotation combined.
+// Demonstrates CxPresentationTransform with scale and rotation combined.
 //
 // Left: static reference at native size.
 // Right: continuous rotation (one full turn per 4 seconds) + scale pulse (50%..200%).
@@ -17,7 +17,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(128, 128), "palette/base.png"),
+            CxPlugin::<Layer>::new(UVec2::new(128, 128), "palette/base.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -32,39 +32,39 @@ fn bottom_left(top_left_offset: IVec2, part_height: i32) -> IVec2 {
     IVec2::new(top_left_offset.x, -(top_left_offset.y + part_height))
 }
 
-fn mosquiton_composite(assets: &Res<AssetServer>) -> PxCompositeSprite {
-    let atlas: Handle<PxSpriteAtlasAsset> = assets.load("sprite/mosquiton/atlas.px_atlas.ron");
+fn mosquiton_composite(assets: &Res<AssetServer>) -> CxCompositeSprite {
+    let atlas: Handle<CxSpriteAtlasAsset> = assets.load("sprite/mosquiton/atlas.px_atlas.ron");
 
-    PxCompositeSprite::new(vec![
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
+    CxCompositeSprite::new(vec![
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
             .with_offset(bottom_left(IVec2::new(-18, -1), 33)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(6))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(6))
             .with_offset(bottom_left(IVec2::new(0, 3), 9)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(5))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, -1), 33)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
             .with_offset(bottom_left(IVec2::new(-11, -4), 25)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(1))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(1))
             .with_offset(bottom_left(IVec2::new(0, -4), 25)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(0))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, -4), 25)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
             .with_offset(bottom_left(IVec2::new(-6, 2), 30)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(3))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(3))
             .with_offset(bottom_left(IVec2::new(0, 2), 30)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(2))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, 2), 30)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
             .with_offset(bottom_left(IVec2::new(-24, 5), 28)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(4))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(1, 5), 28)),
-        PxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(7))
+        CxCompositePart::atlas_region(atlas.clone(), AtlasRegionId(7))
             .with_offset(bottom_left(IVec2::new(-19, 17), 28)),
-        PxCompositePart::atlas_region(atlas, AtlasRegionId(7))
+        CxCompositePart::atlas_region(atlas, AtlasRegionId(7))
             .with_flip(true, false)
             .with_offset(bottom_left(IVec2::new(5, 17), 28)),
     ])
@@ -76,22 +76,22 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     // Left: static reference on the back layer.
     commands.spawn((
         mosquiton_composite(&assets),
-        PxPosition(IVec2::new(32, 64)),
+        CxPosition(IVec2::new(32, 64)),
         Layer::Back,
     ));
 
     // Right: continuous spin + scale pulse, on the front layer.
     commands.spawn((
         mosquiton_composite(&assets),
-        PxPosition(IVec2::new(96, 64)),
-        PxPresentationTransform::default(),
+        CxPosition(IVec2::new(96, 64)),
+        CxPresentationTransform::default(),
         Spinning,
         Layer::Front,
     ));
 }
 
 /// Continuous rotation (1 full turn per 4 seconds) + scale oscillation (50%..200%).
-fn spin_and_pulse(time: Res<Time>, mut query: Query<&mut PxPresentationTransform, With<Spinning>>) {
+fn spin_and_pulse(time: Res<Time>, mut query: Query<&mut CxPresentationTransform, With<Spinning>>) {
     let t = time.elapsed_secs();
 
     // Continuous rotation: one full turn every 4 seconds.

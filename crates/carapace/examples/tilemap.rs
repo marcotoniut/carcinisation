@@ -15,7 +15,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -25,20 +25,20 @@ fn main() {
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let mut tiles = PxTiles::new(UVec2::splat(4));
+    let mut tiles = CxTiles::new(UVec2::splat(4));
     let mut rng = rng();
 
     for x in 0..4 {
         for y in 0..4 {
             tiles.set(
-                Some(commands.spawn(PxTile::from(rng.random_range(0..4))).id()),
+                Some(commands.spawn(CxTile::from(rng.random_range(0..4))).id()),
                 UVec2::new(x, y),
             );
         }
     }
 
     // Spawn the map
-    commands.spawn(PxMap {
+    commands.spawn(CxTilemap {
         tiles,
         tileset: assets.load("tileset/tileset.px_tileset.png"),
     });

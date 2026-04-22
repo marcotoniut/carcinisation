@@ -1,6 +1,6 @@
 use crate::{data::AnimationData, stage::attack::data::HoveringAttackAnimations};
 use bevy::prelude::*;
-use carapace::prelude::PxAnimationFinishBehavior;
+use carapace::prelude::CxAnimationFinishBehavior;
 use serde::Deserialize;
 
 // ---------------------------------------------------------------------------
@@ -68,21 +68,21 @@ impl BoulderThrowConfig {
 pub static BOULDER_ATTACK_ANIMATIONS: std::sync::LazyLock<HoveringAttackAnimations> =
     std::sync::LazyLock::new(|| {
         let hovering_canonical = AnimationData {
-            finish_behavior: PxAnimationFinishBehavior::Loop,
+            finish_behavior: CxAnimationFinishBehavior::Loop,
             frames: 2,
             speed: 300,
             ..default()
         };
 
         let hit_canonical = AnimationData {
-            finish_behavior: PxAnimationFinishBehavior::Mark,
+            finish_behavior: CxAnimationFinishBehavior::Mark,
             frames: 2,
             speed: 200,
             ..default()
         };
 
         let destroy_canonical = AnimationData {
-            finish_behavior: PxAnimationFinishBehavior::Mark,
+            finish_behavior: CxAnimationFinishBehavior::Mark,
             frames: 2,
             speed: 100,
             ..default()

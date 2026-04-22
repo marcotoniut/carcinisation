@@ -18,15 +18,15 @@ use crate::{math::RectExt, palette::Palette, prelude::*};
 ///
 /// Zero-area *render* states (unresolved composites, assets not yet loaded)
 /// are represented in render metrics ([`UVec2`] size fields on composites) —
-/// not by manufacturing a degenerate `PxImage`. The renderer skips zero-area
+/// not by manufacturing a degenerate `CxImage`. The renderer skips zero-area
 /// metrics at the draw boundary.
 #[derive(Serialize, Deserialize, Clone, Reflect, Debug)]
-pub(crate) struct PxImage {
+pub(crate) struct CxImage {
     image: Vec<u8>,
     width: usize,
 }
 
-impl PxImage {
+impl CxImage {
     /// Construct from raw palette-index data.
     ///
     /// Caller must satisfy the layout invariant: `width` > 0, and when `image`
@@ -38,10 +38,10 @@ impl PxImage {
     /// - `width` is 0.
     /// - `image` is non-empty and its length is not a multiple of `width`.
     pub(crate) fn new(image: Vec<u8>, width: usize) -> Self {
-        debug_assert!(width > 0, "PxImage: width must be > 0 (got width 0)");
+        debug_assert!(width > 0, "CxImage: width must be > 0 (got width 0)");
         debug_assert!(
             image.is_empty() || image.len().is_multiple_of(width),
-            "PxImage: data length ({}) must be a multiple of width ({width})",
+            "CxImage: data length ({}) must be a multiple of width ({width})",
             image.len(),
         );
         Self { image, width }
@@ -55,7 +55,7 @@ impl PxImage {
     pub(crate) fn empty(size: UVec2) -> Self {
         debug_assert!(
             size.x > 0 && size.y > 0,
-            "PxImage::empty: dimensions must be > 0 (got {size})",
+            "CxImage::empty: dimensions must be > 0 (got {size})",
         );
         Self {
             image: vec![0; (size.x * size.y) as usize],
@@ -144,16 +144,16 @@ impl PxImage {
     }
 
     #[expect(unused)]
-    pub(crate) fn slice_mut(&mut self, slice: IRect) -> PxImageSliceMut<'_> {
-        PxImageSliceMut {
+    pub(crate) fn slice_mut(&mut self, slice: IRect) -> CxImageSliceMut<'_> {
+        CxImageSliceMut {
             slice,
             image: self.image.chunks_exact_mut(self.width).collect(),
             width: self.width,
         }
     }
 
-    pub(crate) fn slice_all_mut(&mut self) -> PxImageSliceMut<'_> {
-        PxImageSliceMut {
+    pub(crate) fn slice_all_mut(&mut self) -> CxImageSliceMut<'_> {
+        CxImageSliceMut {
             slice: IRect {
                 min: IVec2::splat(0),
                 max: IVec2::new(self.width as i32, (self.image.len() / self.width) as i32),
@@ -229,7 +229,7 @@ impl PxImage {
     }
 }
 
-pub(crate) struct PxImageSliceMut<'a> {
+pub(crate) struct CxImageSliceMut<'a> {
     // TODO Currently, this is the entire image. Trim it down to the slice that this should have
     // access to.
     image: Vec<&'a mut [u8]>,
@@ -237,7 +237,7 @@ pub(crate) struct PxImageSliceMut<'a> {
     slice: IRect,
 }
 
-impl<'a> PxImageSliceMut<'a> {
+impl<'a> CxImageSliceMut<'a> {
     pub(crate) fn from_image_mut(image: &'a mut Image) -> Result<Self> {
         Ok(Self {
             slice: IRect {
@@ -329,8 +329,8 @@ impl<'a> PxImageSliceMut<'a> {
         self.slice.min
     }
 
-    pub(crate) fn slice_mut(&mut self, slice: IRect) -> PxImageSliceMut<'_> {
-        PxImageSliceMut {
+    pub(crate) fn slice_mut(&mut self, slice: IRect) -> CxImageSliceMut<'_> {
+        CxImageSliceMut {
             image: self.image.iter_mut().map(|row| &mut **row).collect(),
             width: self.width,
             slice: IRect {
@@ -340,7 +340,7 @@ impl<'a> PxImageSliceMut<'a> {
         }
     }
 
-    pub(crate) fn draw(&mut self, image: &PxImage) {
+    pub(crate) fn draw(&mut self, image: &CxImage) {
         self.for_each_mut(|i, _, pixel| {
             let new_pixel = image.image[i];
             if new_pixel != 0 {
@@ -353,7 +353,7 @@ impl<'a> PxImageSliceMut<'a> {
 // --- Test-only helpers ---
 
 #[cfg(test)]
-impl PxImage {
+impl CxImage {
     /// Extract the tight bounding box of non-zero pixels as a row-major 2D grid.
     ///
     /// Useful for verifying exact pixel layouts in tiny-matrix tests without
@@ -419,7 +419,7 @@ mod tests {
         let palette = make_palette();
         // Transparent pixel → index 0 regardless of RGB.
         let img = rgba_image(1, 1, &[[99, 0, 0, 0]]);
-        let px = PxImage::palette_indices(&palette, &img).unwrap();
+        let px = CxImage::palette_indices(&palette, &img).unwrap();
         assert_eq!(px.pixel(IVec2::ZERO), 0);
     }
 
@@ -428,7 +428,7 @@ mod tests {
         let palette = make_palette();
         // Red opaque → index 1.
         let img = rgba_image(1, 1, &[[255, 0, 0, 255]]);
-        let px = PxImage::palette_indices(&palette, &img).unwrap();
+        let px = CxImage::palette_indices(&palette, &img).unwrap();
         assert_eq!(px.pixel(IVec2::ZERO), 1);
     }
 
@@ -437,7 +437,7 @@ mod tests {
         let palette = make_palette();
         // Green is not in the palette.
         let img = rgba_image(1, 1, &[[0, 255, 0, 255]]);
-        let err = PxImage::palette_indices(&palette, &img).unwrap_err();
+        let err = CxImage::palette_indices(&palette, &img).unwrap_err();
         assert!(
             err.to_string().contains("wasn't in the palette"),
             "got: {err}"
@@ -449,7 +449,7 @@ mod tests {
         let palette = make_palette();
         // 2×1 image: transparent then red.
         let img = rgba_image(2, 1, &[[0, 0, 0, 0], [255, 0, 0, 255]]);
-        let px = PxImage::palette_indices(&palette, &img).unwrap();
+        let px = CxImage::palette_indices(&palette, &img).unwrap();
         assert_eq!(px.size(), UVec2::new(2, 1));
         assert_eq!(px.pixel(IVec2::new(0, 0)), 0);
         assert_eq!(px.pixel(IVec2::new(1, 0)), 1);
@@ -457,44 +457,44 @@ mod tests {
 
     // -- Positive-width invariant tests --
     //
-    // PxImage requires width > 0 unconditionally. Zero-area render states are
-    // represented in composite metrics, not in PxImage itself.
+    // CxImage requires width > 0 unconditionally. Zero-area render states are
+    // represented in composite metrics, not in CxImage itself.
 
     #[test]
     #[should_panic(expected = "width must be > 0")]
     fn new_rejects_zero_width_with_data() {
-        let _ = PxImage::new(vec![1, 2, 3], 0);
+        let _ = CxImage::new(vec![1, 2, 3], 0);
     }
 
     #[test]
     #[should_panic(expected = "width must be > 0")]
     fn new_rejects_zero_width_with_empty_data() {
-        let _ = PxImage::new(vec![], 0);
+        let _ = CxImage::new(vec![], 0);
     }
 
     #[test]
     #[should_panic(expected = "must be a multiple")]
     fn new_rejects_misaligned_data() {
-        let _ = PxImage::new(vec![1, 2, 3], 2);
+        let _ = CxImage::new(vec![1, 2, 3], 2);
     }
 
     #[test]
     #[should_panic(expected = "dimensions must be > 0")]
     fn empty_rejects_zero_width() {
-        let _ = PxImage::empty(UVec2::new(0, 10));
+        let _ = CxImage::empty(UVec2::new(0, 10));
     }
 
     #[test]
     #[should_panic(expected = "dimensions must be > 0")]
     fn empty_rejects_zero_height() {
-        let _ = PxImage::empty(UVec2::new(10, 0));
+        let _ = CxImage::empty(UVec2::new(10, 0));
     }
 
     #[test]
     fn zero_height_with_valid_width_satisfies_layout_invariant() {
         // Empty data + positive width is a valid layout: zero rows, height 0.
         // The layout invariant (width > 0, row-aligned) holds — no panic.
-        let img = PxImage::new(vec![], 1);
+        let img = CxImage::new(vec![], 1);
         assert!(img.is_empty());
         assert_eq!(img.width(), 1);
         assert_eq!(img.height(), 0);
@@ -504,7 +504,7 @@ mod tests {
 
     #[test]
     fn valid_image_reports_correct_dimensions() {
-        let img = PxImage::empty(UVec2::new(4, 3));
+        let img = CxImage::empty(UVec2::new(4, 3));
         assert_eq!(img.width(), 4);
         assert_eq!(img.height(), 3);
         assert_eq!(img.size(), UVec2::new(4, 3));

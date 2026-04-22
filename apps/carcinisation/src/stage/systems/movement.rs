@@ -1,14 +1,17 @@
 use crate::stage::{
     components::placement::Depth,
-    enemy::components::{
-        CircleAround, LinearTween,
-        behavior::{EnemyCurrentBehavior, EnemyStepTweenChild, JumpTween},
+    enemy::{
+        components::{
+            CircleAround, LinearTween,
+            behavior::{EnemyCurrentBehavior, EnemyStepTweenChild, JumpTween},
+        },
+        mosquiton::entity::WingsBroken,
     },
     messages::DepthChangedMessage,
     resources::StageTimeDomain,
 };
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 use cween::{
     linear::components::{LinearValueReached, TargetingValueX, TargetingValueY, TargetingValueZ},
     structs::TweenDirection,
@@ -49,9 +52,14 @@ pub fn update_depth(
 }
 
 /// @system Orbits entities around a centre point using elapsed time.
+///
+/// `Without<WingsBroken>` is a defensive backstop: the primary cleanup
+/// removes `CircleAround` at the wing-break transition point in
+/// `detect_part_breakage`, but this filter prevents orbit writes if that
+/// cleanup ever regresses.
 pub fn circle_around(
     time: Res<Time<StageTimeDomain>>,
-    mut query: Query<(&CircleAround, &mut PxSubPosition)>,
+    mut query: Query<(&CircleAround, &mut WorldPos), Without<WingsBroken>>,
 ) {
     for (circle_around, mut position) in &mut query {
         let elapsed_seconds = time.elapsed().as_secs_f32();

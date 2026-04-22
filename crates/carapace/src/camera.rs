@@ -8,27 +8,38 @@ use bevy_render::{
 use crate::prelude::*;
 
 pub(crate) fn plug_core(app: &mut App) {
-    app.init_resource::<PxCamera>();
+    app.init_resource::<CxCamera>();
 }
 
 pub(crate) fn plug(app: &mut App) {
     plug_core(app);
     #[cfg(feature = "headed")]
-    app.add_plugins(ExtractResourcePlugin::<PxCamera>::default());
+    app.add_plugins(ExtractResourcePlugin::<CxCamera>::default());
 }
 
-/// Resource that represents the camera's position
+/// The camera's integer position in world space.
+///
+/// Offsets all [`CxRenderSpace::World`] entities when rendering.  Screen-space
+/// entities ([`CxRenderSpace::Camera`]) are unaffected.
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
 #[derive(Resource, Deref, DerefMut, Clone, Copy, Default, Debug, Reflect)]
-pub struct PxCamera(pub IVec2);
+pub struct CxCamera(pub IVec2);
 
-/// Determines whether the entity is locked to the camera
+/// Coordinate space selector for a drawable entity.
+///
+/// Controls how an entity's [`CxPosition`](crate::position::CxPosition) is
+/// interpreted during rendering:
+///
+/// - [`World`](Self::World) — position is in **world space**, offset by the
+///   camera.  Terrain, enemies, pickups, and other gameplay entities use this.
+/// - [`Camera`](Self::Camera) — position is in **screen space**, fixed
+///   relative to the viewport.  HUD, menus, and overlays use this.
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
 #[derive(Component, Clone, Copy, Default, Reflect, Debug)]
-pub enum PxCanvas {
-    /// The entity is drawn relative to the world, like terrain
+pub enum CxRenderSpace {
+    /// Drawn relative to the world origin, offset by the camera.
     #[default]
     World,
-    /// The entity is drawn relative to the camera, like UI
+    /// Drawn at a fixed screen position, unaffected by camera movement.
     Camera,
 }

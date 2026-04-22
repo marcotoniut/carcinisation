@@ -6,7 +6,7 @@ use crate::stage::enemy::data::steps::{
 };
 use crate::stage::{data::GAME_BASE_SPEED, resources::StageTimeDomain};
 use bevy::prelude::*;
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
     TweenChildBundle,
@@ -86,7 +86,7 @@ struct JumpMotion {
     z_velocity: Option<f32>,
 }
 
-fn jump_motion(step: JumpEnemyStep, current_position: &PxSubPosition, depth: Depth) -> JumpMotion {
+fn jump_motion(step: JumpEnemyStep, current_position: &WorldPos, depth: Depth) -> JumpMotion {
     let target_x = step.coordinates.x;
     let target_y = step.coordinates.y;
     let dx = target_x - current_position.0.x;
@@ -132,7 +132,7 @@ impl EnemyCurrentBehavior {
     pub fn get_bundles(
         &self,
         time_offset: Duration,
-        current_position: &PxSubPosition,
+        current_position: &WorldPos,
         _speed: f32,
         depth: Depth,
     ) -> BehaviorBundle {
@@ -176,7 +176,7 @@ impl EnemyCurrentBehavior {
         &self,
         commands: &mut Commands,
         enemy_entity: Entity,
-        current_position: &PxSubPosition,
+        current_position: &WorldPos,
         speed: f32,
         depth: Depth,
     ) -> Vec<Entity> {

@@ -15,7 +15,9 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxSpriteAtlasAsset, PxSubPosition};
+use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos};
+
+use crate::stage::parallax::ParallaxOffset;
 use cween::{
     linear::components::{
         TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
@@ -77,7 +79,7 @@ pub struct BoulderThrowTween;
 pub struct BoulderThrowBundle {
     pub depth: Depth,
     pub inflicts_damage: InflictsDamage,
-    pub position: PxSubPosition,
+    pub position: WorldPos,
     pub targeting_value_x: TargetingValueX,
     pub targeting_value_y: TargetingValueY,
     pub targeting_value_z: TargetingValueZ,
@@ -88,7 +90,7 @@ pub struct BoulderThrowBundle {
 pub fn spawn_boulder_throw_attack(
     commands: &mut Commands,
     asset_server: &AssetServer,
-    atlas_assets: &Assets<PxSpriteAtlasAsset>,
+    atlas_assets: &Assets<CxSpriteAtlasAsset>,
     _stage_time: &Res<Time<StageTimeDomain>>,
     config: &BoulderThrowConfig,
     target_pos: Vec2,
@@ -122,7 +124,7 @@ pub fn spawn_boulder_throw_attack(
     let mut entity_commands = commands.spawn(BoulderThrowBundle {
         depth: *depth,
         inflicts_damage: InflictsDamage(config.damage),
-        position: PxSubPosition(current_pos),
+        position: WorldPos(current_pos),
         targeting_value_x: current_pos.x.into(),
         targeting_value_y: current_pos.y.into(),
         targeting_value_z: depth_f32.into(),
@@ -138,9 +140,11 @@ pub fn spawn_boulder_throw_attack(
     entity_commands.insert((
         atlas_sprite,
         animation,
-        PxAnchor::Center,
+        CxAnchor::Center,
         (*depth - 1).to_layer(),
         AuthoredDepths::single(Depth::One),
+        ParallaxOffset::default(),
+        CxPresentationTransform::default(),
     ));
 
     if !collider_data.0.is_empty() {

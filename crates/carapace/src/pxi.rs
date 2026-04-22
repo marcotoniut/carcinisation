@@ -1,6 +1,6 @@
 //! PXI — compact indexed atlas image loader.
 //!
-//! Decodes `.pxi` files into [`PxIndexedImage`] assets. Supports both raw
+//! Decodes `.pxi` files into [`CxIndexedImage`] assets. Supports both raw
 //! and deflate-compressed 4bpp payloads. See `asset_pipeline::pxi` for the
 //! encoder and full format documentation.
 //!
@@ -26,7 +26,7 @@ use bevy_asset::{AssetLoader, io::Reader};
 use bevy_reflect::TypePath;
 use flate2::bufread::DeflateDecoder;
 
-use crate::image::PxImage;
+use crate::image::CxImage;
 use crate::prelude::*;
 
 /// File magic identifying a PXI file.
@@ -49,16 +49,16 @@ const HEADER_SIZE: usize = 10;
 /// Contains palette indices ready for direct use by the rendering pipeline,
 /// without any PNG decode or palette lookup.
 #[derive(Asset, Clone, Reflect, Debug)]
-pub(crate) struct PxIndexedImage {
-    pub(crate) image: PxImage,
+pub(crate) struct CxIndexedImage {
+    pub(crate) image: CxImage,
 }
 
 /// Asset loader for `.pxi` files.
 #[derive(TypePath)]
-pub(crate) struct PxiLoader;
+pub(crate) struct CxiLoader;
 
-impl AssetLoader for PxiLoader {
-    type Asset = PxIndexedImage;
+impl AssetLoader for CxiLoader {
+    type Asset = CxIndexedImage;
     type Settings = ();
     type Error = Box<dyn Error + Send + Sync>;
 
@@ -67,12 +67,12 @@ impl AssetLoader for PxiLoader {
         reader: &mut dyn Reader,
         (): &(),
         _load_context: &mut bevy_asset::LoadContext<'_>,
-    ) -> Result<PxIndexedImage, Self::Error> {
+    ) -> Result<CxIndexedImage, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
         let (width, _height, indices) = decode(&bytes)?;
-        Ok(PxIndexedImage {
-            image: PxImage::new(indices, width as usize),
+        Ok(CxIndexedImage {
+            image: CxImage::new(indices, width as usize),
         })
     }
 

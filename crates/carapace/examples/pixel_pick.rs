@@ -18,7 +18,7 @@ fn main() {
             }),
             ..default()
         }),
-        PxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
+        CxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
     ));
 
     app.insert_resource(ClearColor(Color::BLACK))
@@ -34,19 +34,19 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     let sprite = assets.load("sprite/mage.px_sprite.png");
 
     commands.spawn((
-        PxSprite(sprite),
-        PxPixelPick,
-        PxPosition(IVec2::new(8, 8)),
-        PxAnchor::BottomLeft,
-        PxCanvas::Camera,
+        CxSprite(sprite),
+        CxPick,
+        CxPosition(IVec2::new(8, 8)),
+        CxAnchor::BottomLeft,
+        CxRenderSpace::Camera,
     ));
 }
 
 fn highlight_on_click(
     mut clicks: MessageReader<Pointer<Click>>,
-    cursor: Res<PxCursorPosition>,
-    camera: Res<PxCamera>,
-    sprites: Query<(&Layer, &PxCanvas), With<PxPixelPick>>,
+    cursor: Res<CxCursorPosition>,
+    camera: Res<CxCamera>,
+    sprites: Query<(&Layer, &CxRenderSpace), With<CxPick>>,
     mut commands: Commands,
     mut picked: ResMut<PickedPixel>,
     assets: Res<AssetServer>,
@@ -66,7 +66,7 @@ fn highlight_on_click(
         };
 
         let mut highlight_pos = cursor;
-        if matches!(canvas, PxCanvas::World) {
+        if matches!(canvas, CxRenderSpace::World) {
             highlight_pos += **camera;
         }
 
@@ -75,9 +75,9 @@ fn highlight_on_click(
         } else {
             let entity = commands
                 .spawn((
-                    PxRect(UVec2::ONE),
-                    PxAnchor::BottomLeft,
-                    PxFilter(assets.load("filter/invert.px_filter.png")),
+                    CxFilterRect(UVec2::ONE),
+                    CxAnchor::BottomLeft,
+                    CxFilter(assets.load("filter/invert.px_filter.png")),
                     Pickable::IGNORE,
                 ))
                 .id();
@@ -86,10 +86,10 @@ fn highlight_on_click(
         };
 
         commands.entity(entity).insert((
-            PxPosition(highlight_pos),
+            CxPosition(highlight_pos),
             layer.clone(),
             *canvas,
-            PxFilterLayers::single_clip(layer.clone()),
+            CxFilterLayers::single_clip(layer.clone()),
         ));
     }
 }

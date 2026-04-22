@@ -3,5 +3,7 @@
 pub mod assets;
 pub mod bundle;
 
-pub use assets::{PxAsset, PxAssets, PxSpriteData};
-pub use bundle::{PxAnimationBundle, PxLineBundle, PxRectBundle, PxSpriteBundle, PxTextBundle};
+pub use assets::{CxAsset, CxAssets, CxSpriteData};
+pub use bundle::{
+    CxAnimationBundle, CxFilterRectBundle, CxLineBundle, CxSpriteBundle, CxTextBundle,
+};

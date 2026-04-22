@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -26,15 +26,15 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // Spawn a sprite
     commands.spawn((
-        PxSprite(assets.load("sprite/mage.px_sprite.png")),
-        PxPosition(IVec2::new(8, 16)),
+        CxSprite(assets.load("sprite/mage.px_sprite.png")),
+        CxPosition(IVec2::new(8, 16)),
     ));
 
     // Spawn a sprite with a filter
     commands.spawn((
-        PxSprite(assets.load("sprite/mage.px_sprite.png")),
-        PxPosition(IVec2::new(24, 16)),
-        PxFilter(assets.load("filter/invert.px_filter.png")),
+        CxSprite(assets.load("sprite/mage.px_sprite.png")),
+        CxPosition(IVec2::new(24, 16)),
+        CxFilter(assets.load("filter/invert.px_filter.png")),
     ));
 }
 

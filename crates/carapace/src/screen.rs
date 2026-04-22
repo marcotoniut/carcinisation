@@ -1,6 +1,6 @@
 //! Screen and rendering
 //!
-//! Data flow: gather render-world components by layer, draw into a CPU `PxImage`,
+//! Data flow: gather render-world components by layer, draw into a CPU `CxImage`,
 //! then upload to a reusable `R8Uint` texture and present via a fullscreen quad.
 //! This is the single compositing path for sprites, text, tilemaps, rects, lines, and filters.
 
@@ -30,15 +30,15 @@ use bevy_render::{
 use bevy_window::{PrimaryWindow, WindowResized};
 
 #[cfg(feature = "gpu_palette")]
-use crate::filter::PxFilter;
+use crate::filter::CxFilter;
 
 use crate::{
     palette::{Palette, PaletteHandle},
-    position::PxLayer,
+    position::CxLayer,
     prelude::*,
 };
 
-/// Marker component for cameras that should **not** run the `PxPlugin` render
+/// Marker component for cameras that should **not** run the `CxPlugin` render
 /// pass. Attach this to a `Camera2d` to let Bevy gizmos render on top of
 /// pixel-art output without being overwritten by the fullscreen quad.
 ///
@@ -48,7 +48,7 @@ use crate::{
 /// commands.spawn((
 ///     Camera2d,
 ///     Camera { order: 1, clear_color: ClearColorConfig::None, ..default() },
-///     PxOverlayCamera,
+///     CxOverlayCamera,
 /// ));
 /// ```
 #[cfg(feature = "headed")]
@@ -61,14 +61,14 @@ use crate::{
     Reflect,
     bevy_render::extract_component::ExtractComponent,
 )]
-pub struct PxOverlayCamera;
+pub struct CxOverlayCamera;
 
 #[cfg(feature = "gpu_palette")]
-use gpu_sprite::{PxGpuSpriteBuffer, PxGpuSpriteNode, PxGpuSpritePipeline};
+use gpu_sprite::{CxGpuSpriteBuffer, CxGpuSpriteNode, CxGpuSpritePipeline};
 #[cfg(feature = "headed")]
-use node::PxRenderNode;
+use node::CxRenderNode;
 #[cfg(feature = "headed")]
-use pipeline::{PxPipeline, PxRenderBuffer, PxUniformBuffer, prepare_uniform};
+use pipeline::{CxPipeline, CxRenderBuffer, CxUniformBuffer, prepare_uniform};
 
 #[cfg(feature = "headed")]
 const SCREEN_SHADER_HANDLE: Handle<Shader> = uuid_handle!("48CE4F2C-8B78-5954-08A8-461F62E10E84");
@@ -78,12 +78,12 @@ const GPU_SPRITE_SHADER_HANDLE: Handle<Shader> =
 
 #[cfg(feature = "gpu_palette")]
 #[derive(Resource, Default)]
-pub(crate) struct PxLayerOrder<L: PxLayer> {
+pub(crate) struct CxLayerOrder<L: CxLayer> {
     inner: RwLock<Vec<L>>,
 }
 
 #[cfg(feature = "gpu_palette")]
-impl<L: PxLayer> PxLayerOrder<L> {
+impl<L: CxLayer> CxLayerOrder<L> {
     pub(crate) fn set(&self, layers: Vec<L>) {
         let mut inner = self.inner.write().unwrap();
         if *inner != layers {
@@ -96,13 +96,13 @@ impl<L: PxLayer> PxLayerOrder<L> {
     }
 }
 
-pub(crate) struct Plug<L: PxLayer> {
-    size: ScreenSize,
+pub(crate) struct Plug<L: CxLayer> {
+    size: CxScreenSize,
     _l: PhantomData<L>,
 }
 
-impl<L: PxLayer> Plug<L> {
-    pub(crate) fn new(size: ScreenSize) -> Self {
+impl<L: CxLayer> Plug<L> {
+    pub(crate) fn new(size: CxScreenSize) -> Self {
         Self {
             size,
             _l: PhantomData,
@@ -111,20 +111,20 @@ impl<L: PxLayer> Plug<L> {
 }
 
 /// Register ECS-side screen systems (palette init + palette update).
-/// The startup system that creates the [`Screen`] resource is **not** included —
+/// The startup system that creates the [`CxScreen`] resource is **not** included —
 /// callers pick [`insert_screen`] (headed) or [`insert_screen_headless`] (headless).
 pub(crate) fn plug_core(app: &mut App) {
     app.add_systems(Update, init_screen)
         .add_systems(PostUpdate, update_screen_palette);
 }
 
-impl<L: PxLayer> Plugin for Plug<L> {
+impl<L: CxLayer> Plugin for Plug<L> {
     fn build(&self, app: &mut App) {
         #[cfg(feature = "headed")]
         {
             use bevy_render::extract_component::ExtractComponentPlugin;
-            app.add_plugins(ExtractResourcePlugin::<Screen>::default());
-            app.add_plugins(ExtractComponentPlugin::<PxOverlayCamera>::default());
+            app.add_plugins(ExtractResourcePlugin::<CxScreen>::default());
+            app.add_plugins(ExtractComponentPlugin::<CxOverlayCamera>::default());
         }
 
         plug_core(app);
@@ -151,19 +151,19 @@ impl<L: PxLayer> Plugin for Plug<L> {
         #[cfg(feature = "headed")]
         {
             let render_app = app.sub_app_mut(RenderApp);
-            render_app.add_render_graph_node::<ViewNodeRunner<PxRenderNode<L>>>(Core2d, PxRender);
+            render_app.add_render_graph_node::<ViewNodeRunner<CxRenderNode<L>>>(Core2d, CxRender);
             #[cfg(feature = "gpu_palette")]
-            render_app.add_render_graph_node::<ViewNodeRunner<PxGpuSpriteNode<L>>>(
+            render_app.add_render_graph_node::<ViewNodeRunner<CxGpuSpriteNode<L>>>(
                 Core2d,
-                PxGpuSpriteRender,
+                CxGpuSpriteRender,
             );
             #[cfg(feature = "gpu_palette")]
             render_app.add_render_graph_edges(
                 Core2d,
                 (
                     Node2d::Tonemapping,
-                    PxRender,
-                    PxGpuSpriteRender,
+                    CxRender,
+                    CxGpuSpriteRender,
                     Node2d::EndMainPassPostProcessing,
                 ),
             );
@@ -172,13 +172,13 @@ impl<L: PxLayer> Plugin for Plug<L> {
                 Core2d,
                 (
                     Node2d::Tonemapping,
-                    PxRender,
+                    CxRender,
                     Node2d::EndMainPassPostProcessing,
                 ),
             );
 
             render_app
-                .init_resource::<PxUniformBuffer>()
+                .init_resource::<CxUniformBuffer>()
                 .add_systems(Render, prepare_uniform.in_set(RenderSystems::Prepare));
         }
     }
@@ -186,19 +186,19 @@ impl<L: PxLayer> Plugin for Plug<L> {
     fn finish(&self, app: &mut App) {
         #[cfg(feature = "headed")]
         app.sub_app_mut(RenderApp)
-            .init_resource::<PxPipeline>()
-            .init_resource::<PxRenderBuffer>();
+            .init_resource::<CxPipeline>()
+            .init_resource::<CxRenderBuffer>();
         #[cfg(feature = "gpu_palette")]
         app.sub_app_mut(RenderApp)
-            .init_resource::<PxGpuSpritePipeline>()
-            .init_resource::<PxGpuSpriteBuffer>()
-            .init_resource::<PxLayerOrder<L>>();
+            .init_resource::<CxGpuSpritePipeline>()
+            .init_resource::<CxGpuSpriteBuffer>()
+            .init_resource::<CxLayerOrder<L>>();
     }
 }
 
-/// Size of the image which `carapace` draws to
+/// Render-target size strategy for the pixel canvas.
 #[derive(Clone, Copy, Debug)]
-pub enum ScreenSize {
+pub enum CxScreenSize {
     /// The screen will have the given dimensions, which is scaled up to fit the window, preserving
     /// the given dimensions' aspect ratio
     Fixed(UVec2),
@@ -207,15 +207,15 @@ pub enum ScreenSize {
     MinPixels(u32),
 }
 
-impl From<UVec2> for ScreenSize {
+impl From<UVec2> for CxScreenSize {
     fn from(value: UVec2) -> Self {
         Self::Fixed(value)
     }
 }
 
-impl ScreenSize {
+impl CxScreenSize {
     fn compute(self, window_size: Vec2) -> UVec2 {
-        use ScreenSize::{Fixed, MinPixels};
+        use CxScreenSize::{Fixed, MinPixels};
 
         match self {
             Fixed(size) => size,
@@ -230,18 +230,18 @@ impl ScreenSize {
     }
 }
 
-/// Metadata for the image that `carapace` draws to
+/// Resource holding render-target metadata: size, computed dimensions, and palette cache.
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
 #[derive(Resource, Clone, Debug)]
-pub struct Screen {
-    pub(crate) size: ScreenSize,
+pub struct CxScreen {
+    pub(crate) size: CxScreenSize,
     pub(crate) computed_size: UVec2,
     window_aspect_ratio: f32,
     pub(crate) palette: [Vec3; 256],
     // pub(crate) palette_tree: ImmutableKdTree<f32, 3>,
 }
 
-impl Screen {
+impl CxScreen {
     /// Computed size of the screen
     #[must_use]
     pub fn size(&self) -> UVec2 {
@@ -251,7 +251,7 @@ impl Screen {
     #[cfg(test)]
     pub(crate) fn test_resource(computed_size: UVec2) -> Self {
         Self {
-            size: ScreenSize::Fixed(computed_size),
+            size: CxScreenSize::Fixed(computed_size),
             computed_size,
             window_aspect_ratio: 1.0,
             palette: [Vec3::ZERO; 256],
@@ -260,22 +260,22 @@ impl Screen {
 }
 
 #[cfg(feature = "gpu_palette")]
-pub(crate) fn gpu_sprite_supported(frame: Option<PxFrame>, filter: Option<&PxFilter>) -> bool {
+pub(crate) fn gpu_sprite_supported(frame: Option<CxFrameView>, filter: Option<&CxFilter>) -> bool {
     if filter.is_some() {
         return false;
     }
 
     match frame {
-        Some(frame) => !matches!(frame.transition, PxFrameTransition::Dither),
+        Some(frame) => !matches!(frame.transition, CxFrameTransition::Dither),
         None => true,
     }
 }
 
 #[cfg(feature = "gpu_palette")]
 pub(crate) fn gpu_composite_supported(
-    composite: &PxCompositeSprite,
-    frame: Option<PxFrame>,
-    filter: Option<&PxFilter>,
+    composite: &CxCompositeSprite,
+    frame: Option<CxFrameView>,
+    filter: Option<&CxFilter>,
 ) -> bool {
     if !gpu_sprite_supported(frame, filter) {
         return false;
@@ -285,7 +285,7 @@ pub(crate) fn gpu_composite_supported(
         part.filter.is_none()
             && !part.flip_x
             && !part.flip_y
-            && matches!(part.source, crate::sprite::PxCompositePartSource::Sprite(_))
+            && matches!(part.source, crate::sprite::CxCompositePartSource::Sprite(_))
     })
 }
 
@@ -304,7 +304,7 @@ type Windows<'w, 's> = Query<'w, 's, &'static Window, With<PrimaryWindow>>;
 #[cfg(not(feature = "headed"))]
 type Windows<'w, 's> = Query<'w, 's, ()>;
 
-fn insert_screen(size: ScreenSize) -> impl Fn(Windows, Commands) -> Result {
+fn insert_screen(size: CxScreenSize) -> impl Fn(Windows, Commands) -> Result {
     move |windows, mut commands| {
         #[cfg(feature = "headed")]
         let (computed_size, window_aspect_ratio) = {
@@ -318,7 +318,7 @@ fn insert_screen(size: ScreenSize) -> impl Fn(Windows, Commands) -> Result {
         #[cfg(not(feature = "headed"))]
         let (computed_size, window_aspect_ratio) = (size.compute(Vec2::new(500., 500.)), 1.);
 
-        commands.insert_resource(Screen {
+        commands.insert_resource(CxScreen {
             size,
             computed_size,
             window_aspect_ratio,
@@ -331,11 +331,11 @@ fn insert_screen(size: ScreenSize) -> impl Fn(Windows, Commands) -> Result {
 }
 
 /// Headless variant of [`insert_screen`] that uses a default window size (no actual window
-/// required). For use with [`PxPlugin::build_headless`](crate::PxPlugin::build_headless).
-pub(crate) fn insert_screen_headless(size: ScreenSize) -> impl Fn(Commands) {
+/// required). For use with [`CxPlugin::build_headless`](crate::CxPlugin::build_headless).
+pub(crate) fn insert_screen_headless(size: CxScreenSize) -> impl Fn(Commands) {
     move |mut commands| {
         let (computed_size, window_aspect_ratio) = (size.compute(Vec2::new(500., 500.)), 1.);
-        commands.insert_resource(Screen {
+        commands.insert_resource(CxScreen {
             size,
             computed_size,
             window_aspect_ratio,
@@ -348,7 +348,7 @@ fn init_screen(
     mut initialized: Local<bool>,
     palette: Res<PaletteHandle>,
     palettes: Res<Assets<Palette>>,
-    mut screen: ResMut<Screen>,
+    mut screen: ResMut<CxScreen>,
 ) {
     if *initialized {
         return;
@@ -370,7 +370,7 @@ fn init_screen(
 }
 
 #[cfg(feature = "headed")]
-fn resize_screen(mut window_resized: MessageReader<WindowResized>, mut screen: ResMut<Screen>) {
+fn resize_screen(mut window_resized: MessageReader<WindowResized>, mut screen: ResMut<CxScreen>) {
     if let Some(window_resized) = window_resized.read().last() {
         screen.computed_size = screen
             .size
@@ -381,16 +381,16 @@ fn resize_screen(mut window_resized: MessageReader<WindowResized>, mut screen: R
 
 #[cfg(feature = "headed")]
 #[derive(RenderLabel, Hash, Eq, PartialEq, Clone, Debug)]
-struct PxRender;
+struct CxRender;
 
 #[cfg(feature = "gpu_palette")]
 #[derive(RenderLabel, Hash, Eq, PartialEq, Clone, Debug)]
-struct PxGpuSpriteRender;
+struct CxGpuSpriteRender;
 
 fn update_screen_palette(
     mut waiting_for_load: Local<bool>,
     palette_handle: Res<PaletteHandle>,
-    mut screen: ResMut<Screen>,
+    mut screen: ResMut<CxScreen>,
     palette: Res<PaletteHandle>,
     palettes: Res<Assets<Palette>>,
 ) {

@@ -1,10 +1,10 @@
 use super::EnemyHoveringAttackType;
 use crate::{
-    pixel::PxAnimationBundle,
+    pixel::CxAnimationBundle,
     stage::components::interactive::{Collider, ColliderData},
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAtlasSprite, PxFrameTransition, PxSpriteAtlasAsset};
+use carapace::prelude::{CxAtlasSprite, CxFrameTransition, CxSpriteAtlasAsset};
 
 /// Region name constants matching aseprite tag names.
 pub const REGION_HOVER: &str = "hover";
@@ -18,15 +18,15 @@ pub const REGION_HIT: &str = "hit";
 #[must_use]
 pub fn make_hovering_attack_atlas_bundle(
     asset_server: &AssetServer,
-    atlas_assets: &Assets<PxSpriteAtlasAsset>,
+    atlas_assets: &Assets<CxSpriteAtlasAsset>,
     attack_type: &EnemyHoveringAttackType,
-) -> (PxAtlasSprite, PxAnimationBundle, ColliderData) {
-    let atlas_handle: Handle<PxSpriteAtlasAsset> = asset_server.load(attack_type.atlas_path());
+) -> (CxAtlasSprite, CxAnimationBundle, ColliderData) {
+    let atlas_handle: Handle<CxSpriteAtlasAsset> = asset_server.load(attack_type.atlas_path());
     let region_id = resolve_region_id(atlas_assets, &atlas_handle, REGION_HOVER);
     let anim = make_animation_bundle(atlas_assets, &atlas_handle, REGION_HOVER);
 
     (
-        PxAtlasSprite::new(atlas_handle, region_id),
+        CxAtlasSprite::new(atlas_handle, region_id),
         anim,
         ColliderData::from_one(Collider::new_circle(attack_type.base_collider_radius())),
     )
@@ -37,44 +37,44 @@ pub fn make_hovering_attack_atlas_bundle(
 #[must_use]
 pub fn make_destroy_atlas_bundle(
     asset_server: &AssetServer,
-    atlas_assets: &Assets<PxSpriteAtlasAsset>,
+    atlas_assets: &Assets<CxSpriteAtlasAsset>,
     attack_type: &EnemyHoveringAttackType,
-) -> Option<(PxAtlasSprite, PxAnimationBundle)> {
-    let atlas_handle: Handle<PxSpriteAtlasAsset> = asset_server.load(attack_type.atlas_path());
+) -> Option<(CxAtlasSprite, CxAnimationBundle)> {
+    let atlas_handle: Handle<CxSpriteAtlasAsset> = asset_server.load(attack_type.atlas_path());
     let atlas = atlas_assets.get(&atlas_handle)?;
     let region_id = atlas.region_id(REGION_DESTROY)?;
     let anim = atlas
         .animation(REGION_DESTROY)
         .map(|a| {
-            PxAnimationBundle::from_parts(
+            CxAnimationBundle::from_parts(
                 a.px_direction(),
                 a.px_duration(),
                 a.px_finish_behavior(),
-                PxFrameTransition::None,
+                CxFrameTransition::None,
             )
         })
         .unwrap_or_default();
 
-    Some((PxAtlasSprite::new(atlas_handle, region_id), anim))
+    Some((CxAtlasSprite::new(atlas_handle, region_id), anim))
 }
 
 /// Creates the atlas-based hit animation bundle for a separate hit-effect entity.
 #[must_use]
 pub fn make_hit_atlas_bundle(
     asset_server: &AssetServer,
-    atlas_assets: &Assets<PxSpriteAtlasAsset>,
+    atlas_assets: &Assets<CxSpriteAtlasAsset>,
     attack_type: &EnemyHoveringAttackType,
-) -> (PxAtlasSprite, PxAnimationBundle) {
-    let atlas_handle: Handle<PxSpriteAtlasAsset> = asset_server.load(attack_type.atlas_path());
+) -> (CxAtlasSprite, CxAnimationBundle) {
+    let atlas_handle: Handle<CxSpriteAtlasAsset> = asset_server.load(attack_type.atlas_path());
     let region_id = resolve_region_id(atlas_assets, &atlas_handle, REGION_HIT);
     let anim = make_animation_bundle(atlas_assets, &atlas_handle, REGION_HIT);
 
-    (PxAtlasSprite::new(atlas_handle, region_id), anim)
+    (CxAtlasSprite::new(atlas_handle, region_id), anim)
 }
 
 fn resolve_region_id(
-    atlas_assets: &Assets<PxSpriteAtlasAsset>,
-    handle: &Handle<PxSpriteAtlasAsset>,
+    atlas_assets: &Assets<CxSpriteAtlasAsset>,
+    handle: &Handle<CxSpriteAtlasAsset>,
     name: &str,
 ) -> carapace::prelude::AtlasRegionId {
     atlas_assets
@@ -84,10 +84,10 @@ fn resolve_region_id(
 }
 
 fn make_animation_bundle(
-    atlas_assets: &Assets<PxSpriteAtlasAsset>,
-    handle: &Handle<PxSpriteAtlasAsset>,
+    atlas_assets: &Assets<CxSpriteAtlasAsset>,
+    handle: &Handle<CxSpriteAtlasAsset>,
     name: &str,
-) -> PxAnimationBundle {
+) -> CxAnimationBundle {
     atlas_assets
         .get(handle)
         .and_then(|a| a.animation(name))
@@ -99,19 +99,19 @@ fn make_animation_bundle(
                 // readiness: either pre-load attack atlases during stage setup, or
                 // use a reactive system that patches animation parameters once the
                 // atlas becomes available (via AssetEvent::LoadedWithDependencies).
-                PxAnimationBundle::from_parts(
-                    carapace::prelude::PxAnimationDirection::Foreward,
-                    carapace::prelude::PxAnimationDuration::millis_per_animation(1000),
-                    carapace::prelude::PxAnimationFinishBehavior::Loop,
-                    PxFrameTransition::None,
+                CxAnimationBundle::from_parts(
+                    carapace::prelude::CxAnimationDirection::Forward,
+                    carapace::prelude::CxAnimationDuration::millis_per_animation(1000),
+                    carapace::prelude::CxAnimationFinishBehavior::Loop,
+                    CxFrameTransition::None,
                 )
             },
             |a| {
-                PxAnimationBundle::from_parts(
+                CxAnimationBundle::from_parts(
                     a.px_direction(),
                     a.px_duration(),
                     a.px_finish_behavior(),
-                    PxFrameTransition::None,
+                    CxFrameTransition::None,
                 )
             },
         )

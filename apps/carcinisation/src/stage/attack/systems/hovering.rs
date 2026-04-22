@@ -2,7 +2,7 @@
 
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
 use crate::{
-    components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
+    components::{DelayedDespawnOnCxAnimationFinished, DespawnMark},
     stage::{
         attack::components::EnemyHoveringAttackType,
         components::{
@@ -21,7 +21,11 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
-use carapace::prelude::{PxAnchor, PxAtlasSprite, PxSpriteAtlasAsset, PxSubPosition};
+use carapace::prelude::{
+    CxAnchor, CxAtlasSprite, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos,
+};
+
+use crate::stage::parallax::ParallaxOffset;
 use cween::linear::components::{LinearValueReached, TargetingValueZ};
 
 use crate::stage::attack::components::bundles::REGION_HIT;
@@ -31,15 +35,15 @@ pub fn hovering_damage_on_reached(
     mut commands: Commands,
     mut damage_event_writer: MessageWriter<DamageMessage>,
     mut player_query: Query<Entity, With<Player>>,
-    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
     depth_query: Query<
         (
             Entity,
             &EnemyHoveringAttackType,
             &InflictsDamage,
-            &PxSubPosition,
+            &WorldPos,
             &Depth,
-            Option<&PxAtlasSprite>,
+            Option<&CxAtlasSprite>,
         ),
         (
             Added<LinearValueReached<StageTimeDomain, TargetingValueZ>>,
@@ -83,26 +87,28 @@ pub fn hovering_damage_on_reached(
             .get(&atlas_handle)
             .and_then(|a| a.animation(REGION_HIT))
             .map(|a| {
-                crate::pixel::PxAnimationBundle::from_parts(
+                crate::pixel::CxAnimationBundle::from_parts(
                     a.px_direction(),
                     a.px_duration(),
                     a.px_finish_behavior(),
-                    carapace::prelude::PxFrameTransition::None,
+                    carapace::prelude::CxFrameTransition::None,
                 )
             })
             .unwrap_or_default();
 
         commands.spawn((
             Name::new(format!("Attack - {} - hit", attack.get_name())),
-            PxSubPosition::from(position.0),
-            PxAtlasSprite::new(atlas_handle, hit_region),
+            WorldPos::from(position.0),
+            CxAtlasSprite::new(atlas_handle, hit_region),
             hit_anim,
-            PxAnchor::Center,
+            CxAnchor::Center,
             *depth,
             depth.to_layer(),
             AuthoredDepths::single(Depth::One),
-            DelayedDespawnOnPxAnimationFinished::from_secs_f32(0.4),
+            DelayedDespawnOnCxAnimationFinished::from_secs_f32(0.4),
             StageEntity,
+            ParallaxOffset::default(),
+            CxPresentationTransform::default(),
         ));
 
         commands.entity(entity).insert(DespawnMark);

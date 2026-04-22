@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use carapace::position::PxSubPosition;
+use carapace::position::WorldPos;
 use derive_new::new;
 use std::time::Duration;
 
@@ -87,7 +87,7 @@ pub struct MosquitoBundle {
     pub behaviors: EnemyBehaviors,
     pub collider_data: ColliderData,
     pub depth: Depth,
-    pub position: PxSubPosition,
+    pub position: WorldPos,
     pub speed: Speed,
     pub default: MosquitoDefaultBundle,
 }

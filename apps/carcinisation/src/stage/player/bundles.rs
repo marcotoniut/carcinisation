@@ -3,24 +3,24 @@ use super::{
     components::{PLAYER_MAX_HEALTH, Player},
     crosshair::CrosshairSettings,
 };
-use crate::pixel::{PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAssets, CxSpriteBundle};
 use crate::{
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION, SCREEN_RESOLUTION_H},
     layer::Layer,
     stage::components::{StageEntity, interactive::Health},
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxCanvas, PxSprite, PxSubPosition};
+use carapace::prelude::{CxAnchor, CxRenderSpace, CxSprite, WorldPos};
 
 pub fn make_player_bundle(
-    asset_server: &mut PxAssets<PxSprite>,
+    asset_server: &mut CxAssets<CxSprite>,
     crosshair_settings: &Res<CrosshairSettings>,
 ) -> (
     Name,
     Player,
     Health,
-    PxSpriteBundle<Layer>,
-    PxSubPosition,
+    CxSpriteBundle<Layer>,
+    WorldPos,
     StageEntity,
 ) {
     let crosshair_info = CrosshairInfo::crosshair_sprite(asset_server, crosshair_settings);
@@ -29,14 +29,14 @@ pub fn make_player_bundle(
         Name::new("Player"),
         Player,
         Health(PLAYER_MAX_HEALTH),
-        PxSpriteBundle::<Layer> {
-            canvas: PxCanvas::Camera,
+        CxSpriteBundle::<Layer> {
+            canvas: CxRenderSpace::Camera,
             sprite: sprite.into(),
             layer: Layer::Front,
-            anchor: PxAnchor::Center,
+            anchor: CxAnchor::Center,
             ..default()
         },
-        PxSubPosition::from(Vec2::new(
+        WorldPos::from(Vec2::new(
             SCREEN_RESOLUTION_H.x as f32,
             (HUD_HEIGHT as f32) + (SCREEN_RESOLUTION.y / 2) as f32,
         )),

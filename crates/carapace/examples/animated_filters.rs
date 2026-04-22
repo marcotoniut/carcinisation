@@ -14,8 +14,8 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::new(51, 35), "palette/palette_1.palette.png"),
-            PxAnimationPlugin,
+            CxPlugin::<Layer>::new(UVec2::new(51, 35), "palette/palette_1.palette.png"),
+            CxAnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -30,9 +30,9 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     // Spawn a bunch of sprites on different layers
     for layer in 0..8 {
         commands.spawn((
-            PxSprite(mage.clone()),
-            PxPosition(IVec2::new(layer % 4 * 13, layer / 4 * 18)),
-            PxAnchor::BottomLeft,
+            CxSprite(mage.clone()),
+            CxPosition(IVec2::new(layer % 4 * 13, layer / 4 * 18)),
+            CxAnchor::BottomLeft,
             Layer(layer),
         ));
     }
@@ -42,85 +42,85 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // Despawn at the end
     commands.spawn((
-        PxFilter(fade_to_black.clone()),
-        PxFilterLayers::single_clip(Layer(0)),
-        PxAnimation::default(),
+        CxFilter(fade_to_black.clone()),
+        CxFilterLayers::single_clip(Layer(0)),
+        CxAnimation::default(),
     ));
 
-    // Add the `PxAnimationFinished` component at the end
+    // Add the `CxAnimationFinished` component at the end
     commands.spawn((
-        PxFilter(fade_to_black.clone()),
-        PxFilterLayers::single_clip(Layer(1)),
-        PxAnimation {
-            on_finish: PxAnimationFinishBehavior::Mark,
+        CxFilter(fade_to_black.clone()),
+        CxFilterLayers::single_clip(Layer(1)),
+        CxAnimation {
+            on_finish: CxAnimationFinishBehavior::Mark,
             ..default()
         },
     ));
 
     // Loop
     commands.spawn((
-        PxFilter(fade_to_black.clone()),
-        PxFilterLayers::single_clip(Layer(2)),
-        PxAnimation {
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxFilter(fade_to_black.clone()),
+        CxFilterLayers::single_clip(Layer(2)),
+        CxAnimation {
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Backward
     commands.spawn((
-        PxFilter(fade_to_black.clone()),
-        PxFilterLayers::single_clip(Layer(3)),
-        PxAnimation {
-            direction: PxAnimationDirection::Backward,
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxFilter(fade_to_black.clone()),
+        CxFilterLayers::single_clip(Layer(3)),
+        CxAnimation {
+            direction: CxAnimationDirection::Backward,
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Faster
     commands.spawn((
-        PxFilter(fade_to_black.clone()),
-        PxFilterLayers::single_clip(Layer(5)),
-        PxAnimation {
-            duration: PxAnimationDuration::millis_per_animation(500),
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxFilter(fade_to_black.clone()),
+        CxFilterLayers::single_clip(Layer(5)),
+        CxAnimation {
+            duration: CxAnimationDuration::millis_per_animation(500),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Slower
     commands.spawn((
-        PxFilter(fade_to_black.clone()),
-        PxFilterLayers::single_clip(Layer(4)),
-        PxAnimation {
-            duration: PxAnimationDuration::millis_per_animation(2000),
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxFilter(fade_to_black.clone()),
+        CxFilterLayers::single_clip(Layer(4)),
+        CxAnimation {
+            duration: CxAnimationDuration::millis_per_animation(2000),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Duration per frame
     commands.spawn((
-        PxFilter(fade_to_black.clone()),
-        PxFilterLayers::single_clip(Layer(6)),
-        PxAnimation {
-            duration: PxAnimationDuration::millis_per_frame(1000),
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxFilter(fade_to_black.clone()),
+        CxFilterLayers::single_clip(Layer(6)),
+        CxAnimation {
+            duration: CxAnimationDuration::millis_per_frame(1000),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     // Dither between frames
     commands.spawn((
-        PxFilter(fade_to_black),
-        PxFilterLayers::single_clip(Layer(7)),
-        PxAnimation {
-            on_finish: PxAnimationFinishBehavior::Loop,
+        CxFilter(fade_to_black),
+        CxFilterLayers::single_clip(Layer(7)),
+        CxAnimation {
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
-        PxFrame {
-            transition: PxFrameTransition::Dither,
+        CxFrameView {
+            transition: CxFrameTransition::Dither,
             ..default()
         },
     ));

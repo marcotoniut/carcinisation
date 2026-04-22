@@ -15,8 +15,8 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
-            PxAnimationPlugin,
+            CxPlugin::<Layer>::new(UVec2::splat(16), "palette/palette_1.palette.png"),
+            CxAnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -26,13 +26,13 @@ fn main() {
 fn init(assets: Res<AssetServer>, mut commands: Commands) {
     commands.spawn(Camera2d);
 
-    let mut tiles = PxTiles::new(UVec2::new(2, 4));
+    let mut tiles = CxTiles::new(UVec2::new(2, 4));
     let mut rng = rng();
 
     for x in 0..2 {
         for y in 0..4 {
             tiles.set(
-                Some(commands.spawn(PxTile::from(rng.random_range(0..4))).id()),
+                Some(commands.spawn(CxTile::from(rng.random_range(0..4))).id()),
                 UVec2::new(x, y),
             );
         }
@@ -42,31 +42,31 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     // Spawn the map
     commands.spawn((
-        PxMap {
+        CxTilemap {
             tiles: tiles.clone(),
             tileset: tileset.clone(),
         },
-        PxAnimation {
+        CxAnimation {
             // Use millis_per_animation to have each tile loop at the same time
-            duration: PxAnimationDuration::millis_per_frame(250),
-            on_finish: PxAnimationFinishBehavior::Loop,
+            duration: CxAnimationDuration::millis_per_frame(250),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
     ));
 
     commands.spawn((
-        PxPosition(IVec2::new(8, 0)),
-        PxFrame {
-            transition: PxFrameTransition::Dither,
+        CxPosition(IVec2::new(8, 0)),
+        CxFrameView {
+            transition: CxFrameTransition::Dither,
             ..default()
         },
-        PxAnimation {
+        CxAnimation {
             // Use millis_per_animation to have each tile loop at the same time
-            duration: PxAnimationDuration::millis_per_frame(250),
-            on_finish: PxAnimationFinishBehavior::Loop,
+            duration: CxAnimationDuration::millis_per_frame(250),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
-        PxMap { tiles, tileset },
+        CxTilemap { tiles, tileset },
     ));
 }
 

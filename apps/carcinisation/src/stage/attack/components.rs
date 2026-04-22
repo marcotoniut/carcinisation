@@ -43,7 +43,7 @@ pub struct EnemyAttackOriginDepth(pub Depth);
 
 /// BRP/debug-friendly snapshot of a live attack's world-space position data.
 ///
-/// `PxSubPosition` is not reflectable, so debug builds mirror the current
+/// `WorldPos` is not reflectable, so debug builds mirror the current
 /// center position here to make exact projectile-vs-cue comparisons possible.
 #[cfg(debug_assertions)]
 #[derive(Component, Debug, Reflect)]

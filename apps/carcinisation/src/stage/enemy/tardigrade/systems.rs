@@ -1,5 +1,5 @@
 use super::entity::{EnemyTardigrade, EnemyTardigradeAnimation};
-use crate::pixel::{PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAssets, CxSpriteBundle};
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -11,6 +11,7 @@ use crate::{
             spawns::boulder_throw::spawn_boulder_throw_attack,
         },
         components::{
+            StageEntity,
             interactive::Dead,
             placement::{Depth, InView},
         },
@@ -23,7 +24,11 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxSprite, PxSpriteAtlasAsset, PxSubPosition};
+use carapace::prelude::{
+    CxAnchor, CxPresentationTransform, CxSprite, CxSpriteAtlasAsset, WorldPos,
+};
+
+use crate::stage::parallax::ParallaxOffset;
 use std::time::Duration;
 
 pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
@@ -32,10 +37,10 @@ pub const ENEMY_TARDIGRADE_ATTACK_SPEED: f32 = 3.;
 pub fn assign_tardigrade_animation(
     mut commands: Commands,
     query: Query<
-        (Entity, &EnemyCurrentBehavior, &PxSubPosition, &Depth),
+        (Entity, &EnemyCurrentBehavior, &WorldPos, &Depth),
         (With<EnemyTardigrade>, Without<EnemyTardigradeAnimation>),
     >,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
 ) {
     for (entity, _current_behavior, position, depth) in &mut query.iter() {
         let bundle_o = TARDIGRADE_ANIMATIONS.idle.get(depth).map(|animation| {
@@ -47,7 +52,7 @@ pub fn assign_tardigrade_animation(
 
         if let Some((animation, (sprite_bundle, animation_bundle))) = bundle_o {
             commands.entity(entity).insert((
-                PxSubPosition(position.0),
+                WorldPos(position.0),
                 animation,
                 sprite_bundle,
                 animation_bundle,
@@ -59,9 +64,9 @@ pub fn assign_tardigrade_animation(
 /// @system Spawns a death animation and awards score when a tardigrade dies.
 pub fn despawn_dead_tardigrade(
     mut commands: Commands,
-    assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: CxAssets<CxSprite>,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyTardigrade, &PxSubPosition, &Depth), Added<Dead>>,
+    query: Query<(Entity, &EnemyTardigrade, &WorldPos, &Depth), Added<Dead>>,
 ) {
     for (entity, tardigrade, position, depth) in query.iter() {
         commands.entity(entity).insert(DespawnMark);
@@ -74,14 +79,18 @@ pub fn despawn_dead_tardigrade(
 
             commands.spawn((
                 Name::new("Dead - Tardigrade"),
-                PxSubPosition::from(position.0),
-                PxSpriteBundle::<Layer> {
+                WorldPos::from(position.0),
+                CxSpriteBundle::<Layer> {
                     sprite: texture.into(),
                     layer: depth.to_layer(),
-                    anchor: PxAnchor::Center,
+                    anchor: CxAnchor::Center,
                     ..default()
                 },
                 animation.make_animation_bundle(),
+                *depth,
+                StageEntity,
+                ParallaxOffset::default(),
+                CxPresentationTransform::default(),
             ));
         }
 
@@ -98,16 +107,16 @@ pub fn despawn_dead_tardigrade(
 pub fn check_idle_tardigrade(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
     boulder_config: Res<BoulderThrowConfig>,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    camera_query: Query<&WorldPos, With<CameraPos>>,
     stage_time: Res<Time<StageTimeDomain>>,
     query: Query<
         (
             Entity,
             &EnemyTardigrade,
             &mut EnemyTardigradeAttacking,
-            &PxSubPosition,
+            &WorldPos,
             &Depth,
         ),
         With<InView>,

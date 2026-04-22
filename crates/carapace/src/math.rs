@@ -10,7 +10,7 @@ pub trait RectExt {
     fn contains_exclusive(self, point: IVec2) -> bool;
 
     /// Creates a rectangle from a position, size, and anchor
-    fn pos_size_anchor(pos: IVec2, size: UVec2, anchor: PxAnchor) -> Self;
+    fn pos_size_anchor(pos: IVec2, size: UVec2, anchor: CxAnchor) -> Self;
 
     /// Subtracts an [`IVec2`] from the rectangle's points
     #[must_use]
@@ -22,7 +22,7 @@ impl RectExt for IRect {
         point.cmpge(self.min).all() && point.cmplt(self.max).all()
     }
 
-    fn pos_size_anchor(pos: IVec2, size: UVec2, anchor: PxAnchor) -> Self {
+    fn pos_size_anchor(pos: IVec2, size: UVec2, anchor: CxAnchor) -> Self {
         let min = pos - anchor.pos(size).as_ivec2();
 
         Self {

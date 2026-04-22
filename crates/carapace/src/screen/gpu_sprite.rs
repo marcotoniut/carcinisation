@@ -25,19 +25,20 @@ use bevy_render::{
 use bytemuck::{Pod, Zeroable};
 
 use crate::{
-    frame::{PxFrameView, resolve_frame_binding},
+    frame::{CxFrameView, resolve_frame_binding},
     prelude::*,
     profiling::{px_end_span, px_trace, px_trace_span},
     sprite::{
-        CompositeSpriteComponents, PxCompositeMetrics, PxCompositePartMetrics,
-        PxCompositePartSource, PxGpuComposite, PxGpuSprite, PxSpriteAsset, PxSpriteGpu,
+        CompositeSpriteComponents, CxCompositeMetrics, CxCompositePartMetrics,
+        CxCompositePartSource, CxGpuComposite, CxGpuSprite, CxSpriteAsset, CxSpriteGpu,
         SpriteComponents,
     },
 };
 
 use super::{
-    GPU_SPRITE_SHADER_HANDLE, PxLayerOrder, Screen, gpu_composite_supported, gpu_sprite_supported,
-    pipeline::{PxRenderBuffer, PxUniform, PxUniformBuffer},
+    CxLayerOrder, CxScreen, GPU_SPRITE_SHADER_HANDLE, gpu_composite_supported,
+    gpu_sprite_supported,
+    pipeline::{CxRenderBuffer, CxUniform, CxUniformBuffer},
 };
 
 #[repr(C)]
@@ -76,12 +77,12 @@ impl SpriteVertex {
     }
 }
 
-pub(crate) struct PxGpuSpriteNode<L: PxLayer> {
-    sprites: QueryState<SpriteComponents<L>, With<PxGpuSprite>>,
-    composites: QueryState<CompositeSpriteComponents<L>, With<PxGpuComposite>>,
+pub(crate) struct CxGpuSpriteNode<L: CxLayer> {
+    sprites: QueryState<SpriteComponents<L>, With<CxGpuSprite>>,
+    composites: QueryState<CompositeSpriteComponents<L>, With<CxGpuComposite>>,
 }
 
-impl<L: PxLayer> FromWorld for PxGpuSpriteNode<L> {
+impl<L: CxLayer> FromWorld for CxGpuSpriteNode<L> {
     fn from_world(world: &mut World) -> Self {
         Self {
             sprites: world.query_filtered(),
@@ -91,12 +92,12 @@ impl<L: PxLayer> FromWorld for PxGpuSpriteNode<L> {
 }
 
 #[derive(Resource)]
-pub(crate) struct PxGpuSpritePipeline {
+pub(crate) struct CxGpuSpritePipeline {
     pub(crate) layout: BindGroupLayout,
     pub(crate) id: CachedRenderPipelineId,
 }
 
-impl FromWorld for PxGpuSpritePipeline {
+impl FromWorld for CxGpuSpritePipeline {
     fn from_world(world: &mut World) -> Self {
         let render_device = world.resource::<bevy_render::renderer::RenderDevice>();
 
@@ -107,7 +108,7 @@ impl FromWorld for PxGpuSpritePipeline {
                 (
                     texture_2d(TextureSampleType::Uint),
                     texture_2d(TextureSampleType::Uint),
-                    uniform_buffer::<PxUniform>(false).visibility(ShaderStages::VERTEX_FRAGMENT),
+                    uniform_buffer::<CxUniform>(false).visibility(ShaderStages::VERTEX_FRAGMENT),
                 ),
             ),
         );
@@ -148,19 +149,19 @@ impl FromWorld for PxGpuSpritePipeline {
 }
 
 #[derive(Resource)]
-pub(crate) struct PxGpuSpriteBuffer {
-    inner: RwLock<PxGpuSpriteBufferInner>,
+pub(crate) struct CxGpuSpriteBuffer {
+    inner: RwLock<CxGpuSpriteBufferInner>,
 }
 
-struct PxGpuSpriteBufferInner {
+struct CxGpuSpriteBufferInner {
     buffer: Option<Buffer>,
     capacity: usize,
 }
 
-impl Default for PxGpuSpriteBuffer {
+impl Default for CxGpuSpriteBuffer {
     fn default() -> Self {
         Self {
-            inner: RwLock::new(PxGpuSpriteBufferInner {
+            inner: RwLock::new(CxGpuSpriteBufferInner {
                 buffer: None,
                 capacity: 0,
             }),
@@ -168,7 +169,7 @@ impl Default for PxGpuSpriteBuffer {
     }
 }
 
-impl PxGpuSpriteBuffer {
+impl CxGpuSpriteBuffer {
     fn write(
         &self,
         device: &RenderDevice,
@@ -201,21 +202,21 @@ impl PxGpuSpriteBuffer {
 }
 
 struct SpriteItem {
-    sprite: Handle<PxSpriteAsset>,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
-    frame: Option<PxFrameView>,
+    sprite: Handle<CxSpriteAsset>,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
+    frame: Option<CxFrameView>,
 }
 
 struct SpriteDraw<'a> {
     range: Range<u32>,
-    sprite: &'a PxSpriteGpu,
-    handle: Handle<PxSpriteAsset>,
+    sprite: &'a CxSpriteGpu,
+    handle: Handle<CxSpriteAsset>,
 }
 
-impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
-    type ViewQuery = (&'static ViewTarget, Has<crate::screen::PxOverlayCamera>);
+impl<L: CxLayer> ViewNode for CxGpuSpriteNode<L> {
+    type ViewQuery = (&'static ViewTarget, Has<crate::screen::CxOverlayCamera>);
 
     fn update(&mut self, world: &mut World) {
         self.sprites.update_archetypes(world);
@@ -232,11 +233,11 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         if is_overlay {
             return Ok(());
         }
-        let Some(uniform_binding) = world.resource::<PxUniformBuffer>().binding() else {
+        let Some(uniform_binding) = world.resource::<CxUniformBuffer>().binding() else {
             return Ok(());
         };
 
-        let screen = world.resource::<Screen>();
+        let screen = world.resource::<CxScreen>();
         let _run_span = px_trace_span!(
             "carapace::gpu_sprite_node::run",
             width = screen.computed_size.x,
@@ -246,16 +247,16 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
             return Ok(());
         }
 
-        let layer_order = world.resource::<PxLayerOrder<L>>();
+        let layer_order = world.resource::<CxLayerOrder<L>>();
         let layer_order = layer_order.read();
 
         let fit_factor = fit_factor(screen);
         let screen_size = Vec2::new(screen.computed_size.x as f32, screen.computed_size.y as f32);
         let screen_height = screen.computed_size.y as i32;
-        let camera = *world.resource::<PxCamera>();
+        let camera = *world.resource::<CxCamera>();
 
         let depth_view = {
-            let render_buffer = world.resource::<PxRenderBuffer>();
+            let render_buffer = world.resource::<CxRenderBuffer>();
             let inner = render_buffer.read_inner();
             let Some(depth_texture) = inner.depth_texture.as_ref() else {
                 return Ok(());
@@ -263,7 +264,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
             depth_texture.create_view(&TextureViewDescriptor::default())
         };
 
-        let sprite_assets = world.resource::<RenderAssets<PxSpriteGpu>>();
+        let sprite_assets = world.resource::<RenderAssets<CxSpriteGpu>>();
         let mut sprites_by_layer: BTreeMap<L, Vec<SpriteItem>> = BTreeMap::new();
         let _collect_span = px_trace_span!("carapace::gpu_sprite_node::collect");
 
@@ -295,7 +296,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
 
             let metrics = if composite.size.x == 0 || composite.size.y == 0 {
                 composite.metrics_with(|source| {
-                    let PxCompositePartSource::Sprite(handle) = source else {
+                    let CxCompositePartSource::Sprite(handle) = source else {
                         return None;
                     };
                     let sprite = sprite_assets.get(handle)?;
@@ -304,13 +305,13 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                         Some(height) => UVec2::new(sprite.size.x, height),
                         None => return None,
                     };
-                    Some(PxCompositePartMetrics {
+                    Some(CxCompositePartMetrics {
                         size: part_size,
                         frame_count: part_count,
                     })
                 })
             } else {
-                Some(PxCompositeMetrics {
+                Some(CxCompositeMetrics {
                     size: composite.size,
                     origin: composite.origin,
                     render_size: composite.render_size,
@@ -327,7 +328,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
             let master_count = metrics.frame_count;
 
             for part in &composite.parts {
-                let PxCompositePartSource::Sprite(sprite_handle) = &part.source else {
+                let CxCompositePartSource::Sprite(sprite_handle) = &part.source else {
                     continue;
                 };
                 let Some(sprite_gpu) = sprite_assets.get(sprite_handle) else {
@@ -344,8 +345,8 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
                     .or_default()
                     .push(SpriteItem {
                         sprite: sprite_handle.clone(),
-                        position: PxPosition(part_pos),
-                        anchor: PxAnchor::BottomLeft,
+                        position: CxPosition(part_pos),
+                        anchor: CxAnchor::BottomLeft,
                         canvas,
                         frame: part_frame,
                     });
@@ -396,7 +397,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
 
                 let size = UVec2::new(sprite_gpu.size.x, frame_height);
                 let mut position = *item.position - item.anchor.pos(size).as_ivec2();
-                if matches!(item.canvas, PxCanvas::World) {
+                if matches!(item.canvas, CxRenderSpace::World) {
                     position -= *camera;
                 }
 
@@ -474,13 +475,13 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
         let render_queue = world.resource::<RenderQueue>();
         let Some(vertex_buffer) =
             world
-                .resource::<PxGpuSpriteBuffer>()
+                .resource::<CxGpuSpriteBuffer>()
                 .write(render_device, render_queue, &vertices)
         else {
             return Ok(());
         };
 
-        let px_pipeline = world.resource::<PxGpuSpritePipeline>();
+        let px_pipeline = world.resource::<CxGpuSpritePipeline>();
         let Some(pipeline) = world
             .resource::<PipelineCache>()
             .get_render_pipeline(px_pipeline.id)
@@ -490,7 +491,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
 
         let post_process = target.post_process_write();
 
-        let mut bind_groups: HashMap<Handle<PxSpriteAsset>, BindGroup> =
+        let mut bind_groups: HashMap<Handle<CxSpriteAsset>, BindGroup> =
             HashMap::with_capacity(draws.len());
         // Build one bind group per distinct sprite texture, preserving first-seen draw order.
         for draw_index in first_seen_indices_by_asset_id(draws.iter().map(|draw| draw.handle.id()))
@@ -543,7 +544,7 @@ impl<L: PxLayer> ViewNode for PxGpuSpriteNode<L> {
     }
 }
 
-fn frame_height(sprite: &PxSpriteGpu) -> Option<u32> {
+fn frame_height(sprite: &CxSpriteGpu) -> Option<u32> {
     let width = sprite.size.x as usize;
     if width == 0 || sprite.frame_size == 0 || !sprite.frame_size.is_multiple_of(width) {
         return None;
@@ -562,7 +563,7 @@ fn frame_height(sprite: &PxSpriteGpu) -> Option<u32> {
 /// - Space: `O(u)` where `u` is number of unique asset ids
 fn first_seen_indices_by_asset_id<I>(asset_ids: I) -> Vec<usize>
 where
-    I: IntoIterator<Item = bevy_asset::AssetId<PxSpriteAsset>>,
+    I: IntoIterator<Item = bevy_asset::AssetId<CxSpriteAsset>>,
 {
     let asset_ids = asset_ids.into_iter();
     let (lower_bound, _) = asset_ids.size_hint();
@@ -578,7 +579,7 @@ where
     first_seen_indices
 }
 
-fn frame_count(sprite: &PxSpriteGpu) -> usize {
+fn frame_count(sprite: &CxSpriteGpu) -> usize {
     let area = sprite.size.x as usize * sprite.size.y as usize;
     if sprite.frame_size == 0 {
         return 0;
@@ -587,12 +588,12 @@ fn frame_count(sprite: &PxSpriteGpu) -> usize {
     area / sprite.frame_size
 }
 
-fn layer_index_for<L: PxLayer>(layers: &[L], layer: &L) -> Option<u32> {
+fn layer_index_for<L: CxLayer>(layers: &[L], layer: &L) -> Option<u32> {
     let index = layers.binary_search(layer).ok()?;
     u32::try_from((index + 1) * 2).ok()
 }
 
-fn frame_index(frame: Option<PxFrameView>, frame_count: usize) -> usize {
+fn frame_index(frame: Option<CxFrameView>, frame_count: usize) -> usize {
     if frame_count == 0 {
         return 0;
     }
@@ -602,15 +603,15 @@ fn frame_index(frame: Option<PxFrameView>, frame_count: usize) -> usize {
     };
 
     let index = match frame.selector {
-        PxFrameSelector::Normalized(value) => value * (frame_count.saturating_sub(1)) as f32,
-        PxFrameSelector::Index(value) => value,
+        CxFrameSelector::Normalized(value) => value * (frame_count.saturating_sub(1)) as f32,
+        CxFrameSelector::Index(value) => value,
     };
 
     let index = index.floor() as i32;
     index.rem_euclid(frame_count as i32) as usize
 }
 
-fn fit_factor(screen: &Screen) -> Vec2 {
+fn fit_factor(screen: &CxScreen) -> Vec2 {
     let aspect_ratio_ratio =
         screen.computed_size.x as f32 / screen.computed_size.y as f32 / screen.window_aspect_ratio;
     if aspect_ratio_ratio > 1.0 {
@@ -640,17 +641,17 @@ mod tests {
     fn frame_index_wraps() {
         let frame_count = 4;
         let cases = [
-            ("index 0.0", PxFrameSelector::Index(0.0)),
-            ("index 5.2", PxFrameSelector::Index(5.2)),
-            ("index -1.0", PxFrameSelector::Index(-1.0)),
-            ("normalized 1.8", PxFrameSelector::Normalized(1.8)),
-            ("normalized -0.2", PxFrameSelector::Normalized(-0.2)),
+            ("index 0.0", CxFrameSelector::Index(0.0)),
+            ("index 5.2", CxFrameSelector::Index(5.2)),
+            ("index -1.0", CxFrameSelector::Index(-1.0)),
+            ("normalized 1.8", CxFrameSelector::Normalized(1.8)),
+            ("normalized -0.2", CxFrameSelector::Normalized(-0.2)),
         ];
         let mut out = String::from("frame_count=4\n");
         for (label, selector) in cases {
-            let frame = PxFrameView {
+            let frame = CxFrameView {
                 selector,
-                transition: PxFrameTransition::None,
+                transition: CxFrameTransition::None,
             };
             let index = frame_index(Some(frame), frame_count);
             let _ = writeln!(&mut out, "{label} -> {index}");
@@ -668,7 +669,7 @@ normalized -0.2 -> 3
 
     #[test]
     fn bind_group_selection_uses_first_seen_sprite_handles() {
-        fn sprite_handle(id: u128) -> Handle<PxSpriteAsset> {
+        fn sprite_handle(id: u128) -> Handle<CxSpriteAsset> {
             Handle::Uuid(Uuid::from_u128(id), std::marker::PhantomData)
         }
 

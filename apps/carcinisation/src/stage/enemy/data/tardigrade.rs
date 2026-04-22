@@ -2,7 +2,7 @@ use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
+use carapace::prelude::{CxAnimationDirection, CxAnimationFinishBehavior};
 use std::collections::HashMap;
 
 pub struct TardigradeAnimations {
@@ -52,8 +52,8 @@ pub static TARDIGRADE_ANIMATIONS: std::sync::LazyLock<TardigradeAnimations> =
                         FRAGMENT_DEATH,
                         i,
                     ),
-                    direction: PxAnimationDirection::Backward,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
+                    direction: CxAnimationDirection::Backward,
+                    finish_behavior: CxAnimationFinishBehavior::Despawn,
                     frames: death_frames,
                     speed: death_speed,
                     ..default()
@@ -72,7 +72,7 @@ pub static TARDIGRADE_ANIMATIONS: std::sync::LazyLock<TardigradeAnimations> =
                         FRAGMENT_SUCKING,
                         i,
                     ),
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
+                    finish_behavior: CxAnimationFinishBehavior::Loop,
                     frames: sucking_frames,
                     speed: sucking_speed,
                     ..default()
@@ -91,7 +91,7 @@ pub static TARDIGRADE_ANIMATIONS: std::sync::LazyLock<TardigradeAnimations> =
                         FRAGMENT_IDLE,
                         i,
                     ),
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
+                    finish_behavior: CxAnimationFinishBehavior::Loop,
                     frames: idle_frames,
                     speed: idle_speed,
                     ..default()
@@ -110,7 +110,7 @@ pub static TARDIGRADE_ANIMATIONS: std::sync::LazyLock<TardigradeAnimations> =
                         FRAGMENT_ATTACK,
                         i,
                     ),
-                    finish_behavior: PxAnimationFinishBehavior::Mark,
+                    finish_behavior: CxAnimationFinishBehavior::Mark,
                     frames: attack_frames,
                     speed: attack_speed,
                     ..default()

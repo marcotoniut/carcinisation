@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -26,13 +26,13 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     let mage = assets.load("sprite/mage.px_sprite.png");
 
-    commands.spawn((PxSprite(mage), PxPosition(IVec2::splat(16))));
+    commands.spawn((CxSprite(mage), CxPosition(IVec2::splat(16))));
 
     // Spawn a line. Layering and animation work the same as filters.
     commands.spawn((
-        PxLine::from([(3, 22).into(), (31, 10).into()]),
-        PxFilterLayers::single_over(Layer),
-        PxFilter(assets.load("filter/invert.px_filter.png")),
+        CxLine::from([(3, 22).into(), (31, 10).into()]),
+        CxFilterLayers::single_over(Layer),
+        CxFilter(assets.load("filter/invert.px_filter.png")),
     ));
 }
 

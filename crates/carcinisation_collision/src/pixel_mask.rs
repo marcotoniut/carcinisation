@@ -11,7 +11,7 @@ use bevy::reflect::{Reflect, ReflectRef};
 use carapace::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
-// Ordered 4x4 dithering threshold map used by PxFrameTransition::Dither.
+// Ordered 4x4 dithering threshold map used by CxFrameTransition::Dither.
 // Converts fractional frame progress into a stable per-pixel mask for collisions.
 const DITHERING: [u16; 16] = [
     0b0000_0000_0000_0000,
@@ -34,7 +34,7 @@ const DITHERING: [u16; 16] = [
 
 #[derive(Default)]
 pub struct PixelCollisionCache {
-    sprites: HashMap<AssetId<PxSpriteAsset>, Arc<SpritePixelData>>,
+    sprites: HashMap<AssetId<CxSpriteAsset>, Arc<SpritePixelData>>,
 }
 
 impl PixelCollisionCache {
@@ -45,7 +45,7 @@ impl PixelCollisionCache {
 
 #[derive(Default)]
 pub struct AtlasPixelCollisionCache {
-    atlases: HashMap<AssetId<PxSpriteAtlasAsset>, Arc<AtlasPixelData>>,
+    atlases: HashMap<AssetId<CxSpriteAtlasAsset>, Arc<AtlasPixelData>>,
 }
 
 impl AtlasPixelCollisionCache {
@@ -108,13 +108,13 @@ pub struct WorldMaskRect {
 #[derive(Clone, Copy)]
 pub struct WorldMaskInstance<'a> {
     pub source: PixelMaskSource<'a>,
-    pub frame: Option<PxFrameView>,
+    pub frame: Option<CxFrameView>,
     pub world: WorldMaskRect,
 }
 
 impl SpritePixelData {
-    fn from_asset(asset: &PxSpriteAsset) -> Option<Self> {
-        // PxSpriteAsset hides pixel buffers; use reflection to build a collision snapshot.
+    fn from_asset(asset: &CxSpriteAsset) -> Option<Self> {
+        // CxSpriteAsset hides pixel buffers; use reflection to build a collision snapshot.
         let ReflectRef::Struct(sprite_struct) = (asset as &dyn Reflect).reflect_ref() else {
             return None;
         };
@@ -186,7 +186,7 @@ impl SpritePixelData {
 }
 
 impl AtlasPixelData {
-    fn from_asset(asset: &PxSpriteAtlasAsset) -> Option<Self> {
+    fn from_asset(asset: &CxSpriteAtlasAsset) -> Option<Self> {
         let ReflectRef::Struct(atlas_struct) = (asset as &dyn Reflect).reflect_ref() else {
             return None;
         };
@@ -271,11 +271,11 @@ impl<'a> PixelMaskSource<'a> {
 #[must_use]
 pub fn world_mask_rect_from_spatial(
     source_size: UVec2,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
     camera: IVec2,
-    presentation: Option<PxPresentationTransform>,
+    presentation: Option<CxPresentationTransform>,
 ) -> Option<WorldMaskRect> {
     if source_size.x == 0 || source_size.y == 0 {
         return None;
@@ -293,7 +293,7 @@ pub fn world_mask_rect_from_spatial(
         scaled_dimension(source_size.y, scale.y.abs()),
     );
     let mut position = *position + offset.round().as_ivec2();
-    if matches!(canvas, PxCanvas::Camera) {
+    if matches!(canvas, CxRenderSpace::Camera) {
         position += camera;
     }
     let min = position - anchor_offset(anchor, display_size).as_ivec2();
@@ -403,7 +403,7 @@ pub fn world_mask_overlap(a: WorldMaskInstance<'_>, b: WorldMaskInstance<'_>) ->
 #[must_use]
 pub fn extract_mask_boundary(
     source: PixelMaskSource<'_>,
-    frame: Option<PxFrameView>,
+    frame: Option<CxFrameView>,
 ) -> Vec<MaskEdge> {
     let size = source.frame_size();
     let mut edges = Vec::new();
@@ -480,8 +480,8 @@ pub fn mask_edge_to_world_points(
 #[must_use]
 pub fn sprite_data(
     cache: &mut PixelCollisionCache,
-    assets: &Assets<PxSpriteAsset>,
-    handle: &Handle<PxSpriteAsset>,
+    assets: &Assets<CxSpriteAsset>,
+    handle: &Handle<CxSpriteAsset>,
 ) -> Option<Arc<SpritePixelData>> {
     let id = handle.id();
     match cache.sprites.entry(id) {
@@ -499,8 +499,8 @@ pub fn sprite_data(
 #[must_use]
 pub fn atlas_data(
     cache: &mut AtlasPixelCollisionCache,
-    assets: &Assets<PxSpriteAtlasAsset>,
-    handle: &Handle<PxSpriteAtlasAsset>,
+    assets: &Assets<CxSpriteAtlasAsset>,
+    handle: &Handle<CxSpriteAtlasAsset>,
 ) -> Option<Arc<AtlasPixelData>> {
     let id = handle.id();
     match cache.atlases.entry(id) {
@@ -518,15 +518,15 @@ pub fn atlas_data(
 #[must_use]
 pub fn sprite_rect(
     size: UVec2,
-    position: PxPosition,
-    anchor: PxAnchor,
-    canvas: PxCanvas,
+    position: CxPosition,
+    anchor: CxAnchor,
+    canvas: CxRenderSpace,
     camera: IVec2,
 ) -> IRect {
     let position = *position - anchor_offset(anchor, size).as_ivec2();
     let position = match canvas {
-        PxCanvas::World => position - camera,
-        PxCanvas::Camera => position,
+        CxRenderSpace::World => position - camera,
+        CxRenderSpace::Camera => position,
     };
 
     IRect {
@@ -538,18 +538,18 @@ pub fn sprite_rect(
 #[must_use]
 pub fn pixel_overlap(
     attack_data: &SpritePixelData,
-    attack_frame: Option<PxFrameView>,
+    attack_frame: Option<CxFrameView>,
     attack_rect: IRect,
     enemy_data: &SpritePixelData,
-    enemy_frame: Option<PxFrameView>,
+    enemy_frame: Option<CxFrameView>,
     enemy_rect: IRect,
 ) -> Option<IVec2> {
     let attack_dither = attack_frame
         .as_ref()
-        .is_some_and(|frame| matches!(frame.transition, PxFrameTransition::Dither));
+        .is_some_and(|frame| matches!(frame.transition, CxFrameTransition::Dither));
     let enemy_dither = enemy_frame
         .as_ref()
-        .is_some_and(|frame| matches!(frame.transition, PxFrameTransition::Dither));
+        .is_some_and(|frame| matches!(frame.transition, CxFrameTransition::Dither));
     if !attack_dither
         && !enemy_dither
         && let (Some(attack_index), Some(enemy_index)) = (
@@ -581,7 +581,7 @@ pub fn pixel_overlap(
 #[must_use]
 pub fn mask_contains_point(
     sprite: &SpritePixelData,
-    frame: Option<PxFrameView>,
+    frame: Option<CxFrameView>,
     sprite_rect: IRect,
     point: IVec2,
 ) -> bool {
@@ -651,7 +651,7 @@ pub fn atlas_region_overlaps_sprite_mask(
     region_sprite_rect: IRect,
     flip: (bool, bool),
     attack: &SpritePixelData,
-    attack_frame: Option<PxFrameView>,
+    attack_frame: Option<CxFrameView>,
     attack_rect: IRect,
 ) -> Option<IVec2> {
     let (flip_x, flip_y) = flip;
@@ -791,10 +791,10 @@ fn shifted_row_word(row: &[u64], shift: i32, word_index: usize) -> u64 {
 
 fn pixel_overlap_slow(
     attack_data: &SpritePixelData,
-    attack_frame: Option<PxFrameView>,
+    attack_frame: Option<CxFrameView>,
     attack_rect: IRect,
     enemy_data: &SpritePixelData,
-    enemy_frame: Option<PxFrameView>,
+    enemy_frame: Option<CxFrameView>,
     enemy_rect: IRect,
 ) -> Option<IVec2> {
     let min = IVec2::new(
@@ -841,13 +841,13 @@ fn pixel_overlap_slow(
 
 fn sprite_pixel_visible(
     sprite: &SpritePixelData,
-    frame: Option<PxFrameView>,
+    frame: Option<CxFrameView>,
     local_pos: UVec2,
 ) -> bool {
     pixel_source_visible(PixelMaskSource::Sprite(sprite), frame, local_pos)
 }
 
-fn frame_index_for_static(frame: Option<PxFrameView>, frame_count: usize) -> Option<usize> {
+fn frame_index_for_static(frame: Option<CxFrameView>, frame_count: usize) -> Option<usize> {
     if frame_count == 0 {
         return None;
     }
@@ -857,20 +857,20 @@ fn frame_index_for_static(frame: Option<PxFrameView>, frame_count: usize) -> Opt
     };
 
     let index = match frame.selector {
-        PxFrameSelector::Normalized(value) => {
+        CxFrameSelector::Normalized(value) => {
             if frame_count <= 1 {
                 0.
             } else {
                 value * (frame_count - 1) as f32
             }
         }
-        PxFrameSelector::Index(value) => value,
+        CxFrameSelector::Index(value) => value,
     };
 
     Some(index.floor() as usize % frame_count)
 }
 
-fn frame_index_for_pos(frame: Option<PxFrameView>, frame_count: usize, pos: UVec2) -> usize {
+fn frame_index_for_pos(frame: Option<CxFrameView>, frame_count: usize, pos: UVec2) -> usize {
     let Some(frame) = frame else {
         return 0;
     };
@@ -880,19 +880,19 @@ fn frame_index_for_pos(frame: Option<PxFrameView>, frame_count: usize, pos: UVec
     }
 
     let index = match frame.selector {
-        PxFrameSelector::Normalized(value) => {
+        CxFrameSelector::Normalized(value) => {
             if frame_count <= 1 {
                 0.
             } else {
                 value * (frame_count - 1) as f32
             }
         }
-        PxFrameSelector::Index(value) => value,
+        CxFrameSelector::Index(value) => value,
     };
 
     let dithering = match frame.transition {
-        PxFrameTransition::Dither => DITHERING[(index.fract() * 16.) as usize % 16],
-        PxFrameTransition::None => 0,
+        CxFrameTransition::Dither => DITHERING[(index.fract() * 16.) as usize % 16],
+        CxFrameTransition::None => 0,
     };
     let base = index.floor() as usize;
     let bit = 0b1000_0000_0000_0000u16 >> (pos.x % 4 + pos.y % 4 * 4);
@@ -901,25 +901,25 @@ fn frame_index_for_pos(frame: Option<PxFrameView>, frame_count: usize, pos: UVec
     (base + offset) % frame_count
 }
 
-fn anchor_offset(anchor: PxAnchor, size: UVec2) -> UVec2 {
+fn anchor_offset(anchor: CxAnchor, size: UVec2) -> UVec2 {
     let x = match anchor {
-        PxAnchor::BottomLeft | PxAnchor::CenterLeft | PxAnchor::TopLeft => 0,
-        PxAnchor::BottomCenter | PxAnchor::Center | PxAnchor::TopCenter => size.x / 2,
-        PxAnchor::BottomRight | PxAnchor::CenterRight | PxAnchor::TopRight => size.x,
-        PxAnchor::Custom(value) => (size.x as f32 * value.x).round() as u32,
+        CxAnchor::BottomLeft | CxAnchor::CenterLeft | CxAnchor::TopLeft => 0,
+        CxAnchor::BottomCenter | CxAnchor::Center | CxAnchor::TopCenter => size.x / 2,
+        CxAnchor::BottomRight | CxAnchor::CenterRight | CxAnchor::TopRight => size.x,
+        CxAnchor::Custom(value) => (size.x as f32 * value.x).round() as u32,
     };
     let y = match anchor {
-        PxAnchor::BottomLeft | PxAnchor::BottomCenter | PxAnchor::BottomRight => 0,
-        PxAnchor::CenterLeft | PxAnchor::Center | PxAnchor::CenterRight => size.y / 2,
-        PxAnchor::TopLeft | PxAnchor::TopCenter | PxAnchor::TopRight => size.y,
-        PxAnchor::Custom(value) => (size.y as f32 * value.y).round() as u32,
+        CxAnchor::BottomLeft | CxAnchor::BottomCenter | CxAnchor::BottomRight => 0,
+        CxAnchor::CenterLeft | CxAnchor::Center | CxAnchor::CenterRight => size.y / 2,
+        CxAnchor::TopLeft | CxAnchor::TopCenter | CxAnchor::TopRight => size.y,
+        CxAnchor::Custom(value) => (size.y as f32 * value.y).round() as u32,
     };
     UVec2::new(x, y)
 }
 
 fn pixel_source_visible(
     source: PixelMaskSource<'_>,
-    frame: Option<PxFrameView>,
+    frame: Option<CxFrameView>,
     local_pos: UVec2,
 ) -> bool {
     match source {
@@ -932,7 +932,7 @@ fn pixel_source_visible(
 
 fn sprite_source_pixel_visible(
     sprite: &SpritePixelData,
-    frame: Option<PxFrameView>,
+    frame: Option<CxFrameView>,
     local_pos: UVec2,
 ) -> bool {
     if sprite.width == 0 || sprite.height == 0 {
@@ -956,7 +956,7 @@ fn sprite_source_pixel_visible(
 fn atlas_source_pixel_visible(
     atlas: &AtlasPixelData,
     frames: AtlasMaskFrames<'_>,
-    frame: Option<PxFrameView>,
+    frame: Option<CxFrameView>,
     local_pos: UVec2,
 ) -> bool {
     let frame_size = frames.frame_size();
@@ -1153,7 +1153,7 @@ mod tests {
 
     fn mask_overlaps_box(
         mask: &SpritePixelData,
-        frame: Option<PxFrameView>,
+        frame: Option<CxFrameView>,
         mask_rect: IRect,
         box_center: Vec2,
         half: Vec2,
@@ -1192,7 +1192,7 @@ mod tests {
 
     fn mask_overlaps_circle(
         mask: &SpritePixelData,
-        frame: Option<PxFrameView>,
+        frame: Option<CxFrameView>,
         mask_rect: IRect,
         center: Vec2,
         radius: f32,
@@ -1650,9 +1650,9 @@ mod tests {
     fn world_mask_rect_from_spatial_keeps_world_canvas_in_world_space() {
         let rect = world_mask_rect_from_spatial(
             UVec2::new(4, 2),
-            PxPosition(IVec2::new(20, 30)),
-            PxAnchor::BottomLeft,
-            PxCanvas::World,
+            CxPosition(IVec2::new(20, 30)),
+            CxAnchor::BottomLeft,
+            CxRenderSpace::World,
             IVec2::new(7, 9),
             None,
         )
@@ -1675,9 +1675,9 @@ mod tests {
     fn world_mask_rect_from_spatial_offsets_camera_canvas_by_camera() {
         let rect = world_mask_rect_from_spatial(
             UVec2::new(4, 2),
-            PxPosition(IVec2::new(20, 30)),
-            PxAnchor::BottomLeft,
-            PxCanvas::Camera,
+            CxPosition(IVec2::new(20, 30)),
+            CxAnchor::BottomLeft,
+            CxRenderSpace::Camera,
             IVec2::new(7, 9),
             None,
         )
@@ -1696,11 +1696,11 @@ mod tests {
     fn world_mask_rect_from_spatial_matches_scaled_anchor_and_flip() {
         let rect = world_mask_rect_from_spatial(
             UVec2::new(4, 2),
-            PxPosition(IVec2::new(100, 50)),
-            PxAnchor::Center,
-            PxCanvas::World,
+            CxPosition(IVec2::new(100, 50)),
+            CxAnchor::Center,
+            CxRenderSpace::World,
             IVec2::new(12, 34),
-            Some(PxPresentationTransform {
+            Some(CxPresentationTransform {
                 scale: Vec2::new(-1.5, 2.0),
                 rotation: 0.0,
                 offset: Vec2::new(1.2, -0.7),

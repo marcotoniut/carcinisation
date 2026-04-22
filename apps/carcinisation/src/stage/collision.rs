@@ -3,9 +3,9 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use carapace::prelude::*;
 use carcinisation_collision::{
-    AtlasMaskFrames, AtlasPixelCollisionCache, AtlasPixelData, Collider, PixelCollisionCache,
-    PixelMaskSource, SpritePixelData, WorldMaskInstance, atlas_data, sprite_data,
-    world_mask_contains_point, world_mask_overlap, world_mask_rect_from_spatial,
+    AtlasMaskFrames, AtlasPixelCollisionCache, AtlasPixelData, Collider, ColliderShape,
+    PixelCollisionCache, PixelMaskSource, SpritePixelData, WorldMaskInstance, atlas_data,
+    sprite_data, world_mask_contains_point, world_mask_overlap, world_mask_rect_from_spatial,
     world_mask_rect_from_top_left,
 };
 use std::sync::Arc;
@@ -24,10 +24,10 @@ use crate::stage::{
 
 #[derive(SystemParam)]
 pub(crate) struct MaskCollisionAssets<'w, 's> {
-    sprite_assets: Res<'w, Assets<PxSpriteAsset>>,
-    atlas_assets: Res<'w, Assets<PxSpriteAtlasAsset>>,
-    sprite_asset_events: MessageReader<'w, 's, AssetEvent<PxSpriteAsset>>,
-    atlas_asset_events: MessageReader<'w, 's, AssetEvent<PxSpriteAtlasAsset>>,
+    sprite_assets: Res<'w, Assets<CxSpriteAsset>>,
+    atlas_assets: Res<'w, Assets<CxSpriteAtlasAsset>>,
+    sprite_asset_events: MessageReader<'w, 's, AssetEvent<CxSpriteAsset>>,
+    atlas_asset_events: MessageReader<'w, 's, AssetEvent<CxSpriteAtlasAsset>>,
     sprite_cache: Local<'s, PixelCollisionCache>,
     atlas_cache: Local<'s, AtlasPixelCollisionCache>,
 }
@@ -44,14 +44,14 @@ impl<'w, 's> MaskCollisionAssets<'w, 's> {
 
     pub fn sprite_pixels(
         &mut self,
-        handle: &Handle<PxSpriteAsset>,
+        handle: &Handle<CxSpriteAsset>,
     ) -> Option<Arc<SpritePixelData>> {
         sprite_data(&mut self.sprite_cache, &self.sprite_assets, handle)
     }
 
     pub fn atlas_pixels(
         &mut self,
-        handle: &Handle<PxSpriteAtlasAsset>,
+        handle: &Handle<CxSpriteAtlasAsset>,
     ) -> Option<Arc<AtlasPixelData>> {
         atlas_data(&mut self.atlas_cache, &self.atlas_assets, handle)
     }
@@ -59,14 +59,14 @@ impl<'w, 's> MaskCollisionAssets<'w, 's> {
 
 #[derive(Clone, Copy)]
 pub(crate) struct CollisionTarget<'a> {
-    pub position: &'a PxPosition,
-    pub sub_position: &'a PxSubPosition,
-    pub anchor: &'a PxAnchor,
-    pub canvas: &'a PxCanvas,
-    pub frame: Option<&'a PxFrameView>,
-    pub sprite: Option<&'a PxSprite>,
-    pub atlas_sprite: Option<&'a PxAtlasSprite>,
-    pub presentation: Option<&'a PxPresentationTransform>,
+    pub position: &'a CxPosition,
+    pub world_pos: &'a WorldPos,
+    pub anchor: &'a CxAnchor,
+    pub canvas: &'a CxRenderSpace,
+    pub frame: Option<&'a CxFrameView>,
+    pub sprite: Option<&'a CxSprite>,
+    pub atlas_sprite: Option<&'a CxAtlasSprite>,
+    pub presentation: Option<&'a CxPresentationTransform>,
     pub collider_data: Option<&'a ColliderData>,
     pub composed_collision_state: Option<&'a ComposedCollisionState>,
     pub composed_resolved_parts: Option<&'a ComposedResolvedParts>,
@@ -102,7 +102,7 @@ struct ComposedHitSelection {
 
 pub(crate) fn build_attack_mask<'a>(
     attack_data: &'a SpritePixelData,
-    attack_frame: Option<PxFrameView>,
+    attack_frame: Option<CxFrameView>,
     rect_world: IRect,
 ) -> AttackMask<'a> {
     AttackMask {
@@ -177,20 +177,26 @@ where
         }
     }
 
-    if let Some(collider_data) = target.collider_data {
-        let mut drew_mask = false;
-        visit_simple_target_masks(target, camera_world, assets, |mask| {
-            drew_mask = true;
-            visit_mask(mask);
-        });
-        if drew_mask {
-            return true;
-        }
+    let mut drew_mask = false;
+    visit_simple_target_masks(target, camera_world, assets, |mask| {
+        drew_mask = true;
+        visit_mask(mask);
+    });
+    if drew_mask {
+        return true;
+    }
 
+    if let Some(collider_data) = target.collider_data {
         for collider in &collider_data.0 {
-            visit_primitive(target.sub_position.0, collider);
+            if matches!(collider.shape, ColliderShape::SpriteMask) {
+                continue;
+            }
+            visit_primitive(target.world_pos.0, collider);
         }
-        return !collider_data.0.is_empty();
+        return collider_data
+            .0
+            .iter()
+            .any(|c| !matches!(c.shape, ColliderShape::SpriteMask));
     }
 
     false
@@ -250,7 +256,7 @@ fn resolve_target_hit(
         && let Some(collider_data) = target.collider_data
     {
         let hit = collider_data
-            .point_collides(target.sub_position.0, hit_position)
+            .point_collides(target.world_pos.0, hit_position)
             .map(|collider| TargetCollisionHit {
                 hit_position,
                 defense: collider.defense,
@@ -303,7 +309,7 @@ fn probe_simple_mask(
                 hit_position: world.as_vec2(),
                 defense: target
                     .collider_data
-                    .and_then(|data| data.point_collides(target.sub_position.0, world.as_vec2()))
+                    .and_then(|data| data.point_collides(target.world_pos.0, world.as_vec2()))
                     .map_or(1.0, |collider| collider.defense),
                 semantic_part: None,
             })
@@ -313,7 +319,7 @@ fn probe_simple_mask(
                 hit_position: point.as_vec2(),
                 defense: target
                     .collider_data
-                    .and_then(|data| data.point_collides(target.sub_position.0, point.as_vec2()))
+                    .and_then(|data| data.point_collides(target.world_pos.0, point.as_vec2()))
                     .map_or(1.0, |collider| collider.defense),
                 semantic_part: None,
             })
@@ -543,7 +549,7 @@ fn center_of_world_rect(rect: IRect) -> Vec2 {
 
 fn atlas_region_size(
     assets: &MaskCollisionAssets<'_, '_>,
-    sprite: &PxAtlasSprite,
+    sprite: &CxAtlasSprite,
 ) -> Option<UVec2> {
     assets
         .atlas_assets

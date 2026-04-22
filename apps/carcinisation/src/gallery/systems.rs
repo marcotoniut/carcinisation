@@ -10,7 +10,7 @@ use crate::{
     game::GameProgressState,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
     layer::Layer,
-    pixel::{PxAssets, PxRectBundle},
+    pixel::{CxAssets, CxFilterRectBundle},
     stage::{
         components::placement::{Depth, InView},
         enemy::{
@@ -37,11 +37,11 @@ use activable::activate;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::{EguiContext, PrimaryEguiContext, egui};
 use carapace::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxRect, PxSprite, PxSubPosition, PxTypeface,
+    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxRenderSpace, CxSprite, CxTypeface, WorldPos,
 };
 use carapace::{
-    animation::PxAnimation,
-    frame::{PxFrameControl, PxFrameCount, PxFrameSelector},
+    animation::CxAnimation,
+    frame::{CxFrameControl, CxFrameCount, CxFrameSelector},
 };
 use carcinisation_core::components::{DespawnMark, GBColor};
 
@@ -88,9 +88,9 @@ pub fn on_gallery_startup(
     _trigger: On<GalleryStartupEvent>,
     mut commands: Commands,
     mut next_game_state: ResMut<NextState<GameProgressState>>,
-    mut typefaces: PxAssets<PxTypeface>,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut filters: PxAssets<PxFilter>,
+    mut typefaces: CxAssets<CxTypeface>,
+    mut assets_sprite: CxAssets<CxSprite>,
+    mut filters: CxAssets<CxFilter>,
 ) {
     activate::<GalleryPlugin>(&mut commands);
     activate::<HudPlugin>(&mut commands);
@@ -100,13 +100,13 @@ pub fn on_gallery_startup(
     // Spawn a GB-white background covering the playable area above the HUD.
     commands.spawn((
         GalleryEntity,
-        PxRectBundle::<Layer> {
-            anchor: PxAnchor::BottomLeft,
-            canvas: PxCanvas::Camera,
-            filter: PxFilter(filters.load_color(GBColor::White)),
-            layers: PxFilterLayers::single_over(Layer::Skybox),
+        CxFilterRectBundle::<Layer> {
+            anchor: CxAnchor::BottomLeft,
+            canvas: CxRenderSpace::Camera,
+            filter: CxFilter(filters.load_color(GBColor::White)),
+            layers: CxFilterLayers::single_over(Layer::Skybox),
             position: IVec2::new(0, HUD_HEIGHT as i32).into(),
-            rect: PxRect(UVec2::new(
+            rect: CxFilterRect(UVec2::new(
                 SCREEN_RESOLUTION.x,
                 SCREEN_RESOLUTION.y - HUD_HEIGHT,
             )),
@@ -314,7 +314,7 @@ pub fn react_to_gallery_selection_changed(
     let common = (
         GalleryEntity,
         GalleryDisplayCharacter,
-        PxSubPosition::from(GALLERY_DISPLAY_POSITION),
+        WorldPos::from(GALLERY_DISPLAY_POSITION),
         depth,
         InView,
     );
@@ -349,12 +349,12 @@ pub fn react_to_gallery_selection_changed(
     }
 }
 
-/// Assigns `PxSprite` animation bundles to gallery entities with `GalleryAnimationOverride`.
+/// Assigns `CxSprite` animation bundles to gallery entities with `GalleryAnimationOverride`.
 pub fn apply_gallery_animation(
     mut commands: Commands,
     state: Res<GalleryState>,
     query: Query<(Entity, &GalleryAnimationOverride, &Depth), Added<GalleryAnimationOverride>>,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
 ) {
     for (entity, override_comp, depth) in &query {
         let Some(data) = resolve_animation_data(
@@ -368,14 +368,14 @@ pub fn apply_gallery_animation(
         let (sprite_bundle, animation_bundle) =
             make_enemy_animation_bundle(&mut assets_sprite, data, depth);
         commands.entity(entity).insert((
-            PxSubPosition::from(GALLERY_DISPLAY_POSITION),
+            WorldPos::from(GALLERY_DISPLAY_POSITION),
             sprite_bundle,
             animation_bundle,
         ));
     }
 }
 
-/// Controls animation playback: pauses by removing `PxAnimation`, resumes by re-inserting it,
+/// Controls animation playback: pauses by removing `CxAnimation`, resumes by re-inserting it,
 /// and sets the frame index when paused.
 pub fn apply_gallery_playback_control(
     mut commands: Commands,
@@ -383,9 +383,9 @@ pub fn apply_gallery_playback_control(
     mut query: Query<
         (
             Entity,
-            Option<&PxAnimation>,
-            &mut PxFrameControl,
-            &PxFrameCount,
+            Option<&CxAnimation>,
+            &mut CxFrameControl,
+            &CxFrameCount,
         ),
         With<GalleryDisplayCharacter>,
     >,
@@ -394,22 +394,22 @@ pub fn apply_gallery_playback_control(
         state.frame_count = frame_count.0;
 
         if state.paused {
-            // Remove PxAnimation so update_animations doesn't overwrite our frame.
+            // Remove CxAnimation so update_animations doesn't overwrite our frame.
             if animation.is_some() {
-                commands.entity(entity).remove::<PxAnimation>();
+                commands.entity(entity).remove::<CxAnimation>();
             }
             state.selected_frame = state.selected_frame.min(frame_count.0.saturating_sub(1));
-            frame_control.selector = PxFrameSelector::Index(state.selected_frame as f32);
+            frame_control.selector = CxFrameSelector::Index(state.selected_frame as f32);
         } else if animation.is_none() {
-            // Re-insert PxAnimation to resume playback.
-            commands.entity(entity).insert(PxAnimation::default());
+            // Re-insert CxAnimation to resume playback.
+            commands.entity(entity).insert(CxAnimation::default());
         }
 
         // Track current frame for the UI.
         if !state.paused {
-            if let PxFrameSelector::Index(idx) = frame_control.selector {
+            if let CxFrameSelector::Index(idx) = frame_control.selector {
                 state.selected_frame = idx as usize;
-            } else if let PxFrameSelector::Normalized(n) = frame_control.selector {
+            } else if let CxFrameSelector::Normalized(n) = frame_control.selector {
                 state.selected_frame =
                     (n * frame_count.0.saturating_sub(1) as f32).round() as usize;
             }

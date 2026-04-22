@@ -1,11 +1,11 @@
 use crate::{
     data::AnimationData,
     layer::Layer,
-    pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle},
+    pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle},
     stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnchor, PxSprite};
+use carapace::prelude::{CxAnchor, CxSprite};
 
 /**
  * TODO
@@ -14,17 +14,17 @@ use carapace::prelude::{PxAnchor, PxSprite};
  * - this function could be agnostic
  */
 pub fn make_enemy_animation_bundle(
-    assets_sprite: &mut PxAssets<PxSprite>,
+    assets_sprite: &mut CxAssets<CxSprite>,
     data: &AnimationData,
     depth: &Depth,
-) -> (PxSpriteBundle<Layer>, PxAnimationBundle) {
+) -> (CxSpriteBundle<Layer>, CxAnimationBundle) {
     let texture = assets_sprite.load_animated(data.sprite_path.clone(), data.frames);
 
     (
-        PxSpriteBundle::<Layer> {
+        CxSpriteBundle::<Layer> {
             sprite: texture.into(),
             layer: depth.to_layer(),
-            anchor: PxAnchor::Center,
+            anchor: CxAnchor::Center,
             ..default()
         },
         data.make_animation_bundle(),

@@ -2,7 +2,7 @@ use crate::{
     data::AnimationData, globals::PATH_SPRITES_ENEMIES, stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use carapace::prelude::{PxAnimationDirection, PxAnimationFinishBehavior};
+use carapace::prelude::{CxAnimationDirection, CxAnimationFinishBehavior};
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
@@ -62,8 +62,8 @@ pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<MosquitoAnimations> =
                         FRAGMENT_DEATH,
                         i,
                     ),
-                    direction: PxAnimationDirection::Backward,
-                    finish_behavior: PxAnimationFinishBehavior::Despawn,
+                    direction: CxAnimationDirection::Backward,
+                    finish_behavior: CxAnimationFinishBehavior::Despawn,
                     frames: death_frames,
                     speed: death_speed,
                     ..default()
@@ -82,7 +82,7 @@ pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<MosquitoAnimations> =
                         FRAGMENT_FLY,
                         i,
                     ),
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
+                    finish_behavior: CxAnimationFinishBehavior::Loop,
                     frames: fly_frames,
                     speed: fly_speed,
                     ..default()
@@ -101,7 +101,7 @@ pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<MosquitoAnimations> =
                         FRAGMENT_IDLE,
                         i,
                     ),
-                    finish_behavior: PxAnimationFinishBehavior::Loop,
+                    finish_behavior: CxAnimationFinishBehavior::Loop,
                     frames: idle_frames,
                     speed: idle_speed,
                     ..default()
@@ -120,7 +120,7 @@ pub static MOSQUITO_ANIMATIONS: std::sync::LazyLock<MosquitoAnimations> =
                         FRAGMENT_MELEE,
                         i,
                     ),
-                    finish_behavior: PxAnimationFinishBehavior::Mark,
+                    finish_behavior: CxAnimationFinishBehavior::Mark,
                     frames: melee_attack_frames,
                     speed: melee_attack_speed,
                     ..default()

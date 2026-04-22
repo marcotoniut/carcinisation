@@ -18,9 +18,10 @@
 //! - `cargo run -p carcinisation --bin carapace_mosquiton_stress`
 //! - `cargo run -p carcinisation --bin carapace_mosquiton_stress --features brp`
 //!
-//! - `Cmd+I` / `Ctrl+I` to toggle perspective / linear projection.
+//! - `Cmd+I` / `Ctrl+I` to cycle horizon profiles.
 //! - `Cmd+P` / `Ctrl+P` to toggle the depth perspective grid overlay.
 //! - `Cmd+O` / `Ctrl+O` to toggle entity anchor markers.
+//! - `Shift+Left/Right` to pan the lateral view offset.
 
 use bevy::{
     asset::{AssetMetaCheck, AssetPlugin},
@@ -30,11 +31,11 @@ use bevy::{
 };
 #[cfg(feature = "brp")]
 use bevy_brp_extras::BrpExtrasPlugin;
-use carapace::{prelude::*, set::PxSet};
+use carapace::{prelude::*, set::CxSet};
 use carcinisation::{
     globals::SCREEN_RESOLUTION,
     stage::{
-        components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth, Floor},
+        components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth},
         depth_debug::DepthDebugPlugin,
         depth_scale::{DepthScaleConfig, apply_depth_fallback_scale},
         enemy::{
@@ -48,8 +49,8 @@ use carcinisation::{
             entity::EnemyType,
         },
         messages::ComposedAnimationCueMessage,
-        projection::ProjectionProfile,
-        resources::StageTimeDomain,
+        projection::{ProjectionProfile, compute_visual_x, pan_lateral_view},
+        resources::{ActiveProjection, DebugPanConfig, ProjectionView, StageTimeDomain},
     },
 };
 
@@ -58,20 +59,50 @@ const SCREEN_SCALE: u32 = 4;
 const AUTHORED_DEPTH: Depth = Depth::Three;
 const SCREEN_W: f32 = SCREEN_RESOLUTION.x as f32;
 const SCREEN_H: f32 = SCREEN_RESOLUTION.y as f32;
-const DEPTH_MIN: i8 = 0;
-const DEPTH_MAX: i8 = 9;
-const DEPTH_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN + 1) as f32;
-const DEPTH_INTERVAL_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN) as f32;
-const HORIZON_Y: f32 = 0.55 * SCREEN_H;
+const HORIZON_FRACTIONS: [f32; 3] = [0.5, 0.15, 0.85];
 /// Floor Y for depth 1 (foreground). This is `floor_base_y` in the
 /// `ProjectionProfile` — `floor_y_for_depth(1)` returns this value directly
 /// because `t = 1.0` at depth 1.
 const FLOOR_DEPTH_1: f32 = -0.10 * SCREEN_H;
 const PERSPECTIVE_BIAS: f32 = 3.0;
-const LINEAR_BIAS: f32 = 1.0;
 const AIRBORNE_DUTY_CYCLE: f32 = 0.65;
 const LIFTOFF_SECS: f32 = 0.5;
 const LANDING_SECS: f32 = 0.5;
+
+/// Stress-only continuous traversal mapping.
+///
+/// The stress scene bins the swarm across depths 0..=9 so a tiny foreground
+/// slice can reach depth 0, while the shared [`ProjectionProfile`] still owns
+/// the actual floor curve for depths 1..=9 and its depth-0 extrapolation.
+struct StressDepthTraversal;
+
+impl StressDepthTraversal {
+    const DEPTH_MIN: i8 = 0;
+    const DEPTH_MAX: i8 = 9;
+    const DEPTH_COUNT: f32 = (Self::DEPTH_MAX - Self::DEPTH_MIN + 1) as f32;
+    const DEPTH_INTERVAL_COUNT: f32 = (Self::DEPTH_MAX - Self::DEPTH_MIN) as f32;
+
+    fn wave_t(elapsed: f32, motion: &SwarmMotion) -> f32 {
+        let max_t = Self::progress_for_depth(motion.max_foreground_depth);
+        let oscillation = ((elapsed * motion.traverse_speed + motion.traverse_phase)
+            * std::f32::consts::TAU)
+            .sin()
+            .abs();
+        max_t * oscillation
+    }
+
+    fn depth_for_progress(progress: f32) -> Depth {
+        let bin = (progress * Self::DEPTH_COUNT)
+            .floor()
+            .min(Self::DEPTH_COUNT - 1.0) as i8;
+        let depth_i8 = (Self::DEPTH_MAX - bin).max(Self::DEPTH_MIN);
+        Depth::try_from(depth_i8).unwrap_or(Depth::Nine)
+    }
+
+    fn progress_for_depth(depth: Depth) -> f32 {
+        f32::from(Self::DEPTH_MAX - depth.to_i8()) / Self::DEPTH_INTERVAL_COUNT
+    }
+}
 
 #[derive(Component, Clone, Copy, Debug)]
 struct SwarmMotion {
@@ -101,35 +132,19 @@ enum LocomotionState {
 }
 
 #[derive(Resource, Clone, Copy, Debug)]
-struct StressProjection {
-    perspective_enabled: bool,
-    perspective: ProjectionProfile,
-    linear: ProjectionProfile,
+struct StressHorizonProfile {
+    index: usize,
+    profile: ProjectionProfile,
 }
 
-impl Default for StressProjection {
+impl Default for StressHorizonProfile {
     fn default() -> Self {
         Self {
-            perspective_enabled: true,
-            perspective: projection_profile(PERSPECTIVE_BIAS),
-            linear: projection_profile(LINEAR_BIAS),
+            index: 0,
+            profile: projection_profile(HORIZON_FRACTIONS[0] * SCREEN_H),
         }
     }
 }
-
-impl StressProjection {
-    fn active(self) -> ProjectionProfile {
-        if self.perspective_enabled {
-            self.perspective
-        } else {
-            self.linear
-        }
-    }
-}
-
-/// Marker for Floor entities so we can update them when the projection changes.
-#[derive(Component)]
-struct StressFloorLine;
 
 #[px_layer]
 enum Layer {
@@ -168,7 +183,7 @@ fn main() {
                 meta_check: AssetMetaCheck::Never,
                 ..default()
             }),
-        PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png"),
+        CxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png"),
         LogDiagnosticsPlugin::default(),
         DepthDebugPlugin,
     ));
@@ -180,7 +195,10 @@ fn main() {
 
     app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(DepthScaleConfig::load_or_default())
-        .init_resource::<StressProjection>()
+        .init_resource::<StressHorizonProfile>()
+        .insert_resource(ActiveProjection(StressHorizonProfile::default().profile))
+        .init_resource::<ProjectionView>()
+        .init_resource::<DebugPanConfig>()
         .init_resource::<Time<StageTimeDomain>>()
         .add_message::<ComposedAnimationCueMessage>()
         .init_asset::<CompositionAtlasAsset>()
@@ -190,7 +208,8 @@ fn main() {
             Update,
             (
                 tick_stage_time,
-                toggle_perspective,
+                cycle_horizon_profile,
+                pan_lateral_view,
                 update_locomotion,
                 animate_swarm,
                 traverse_depths,
@@ -205,7 +224,7 @@ fn main() {
             PostUpdate,
             (
                 apply_depth_fallback_scale,
-                apply_composed_enemy_visuals.in_set(PxSet::CompositePresentationWrites),
+                apply_composed_enemy_visuals.in_set(CxSet::CompositePresentationWrites),
             ),
         )
         .run();
@@ -218,46 +237,39 @@ fn tick_stage_time(time: Res<Time>, mut stage_time: ResMut<Time<StageTimeDomain>
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    projection: Res<StressProjection>,
+    profile: Res<StressHorizonProfile>,
     depth_scale: Res<DepthScaleConfig>,
 ) {
     commands.spawn(Camera2d);
 
-    // Overlay camera: renders gizmos on top of PxPlugin output.
+    // Overlay camera: renders gizmos on top of CxPlugin output.
     commands.spawn((
         Camera2d,
         Camera {
             order: 1,
             ..default()
         },
-        PxOverlayCamera,
+        CxOverlayCamera,
     ));
-
-    // Spawn Floor entities for depths 1..=9 so DepthDebugPlugin can draw the grid.
-    let profile = projection.active();
-    for d in 1i8..=9 {
-        let depth = Depth::try_from(d).unwrap();
-        commands.spawn((StressFloorLine, depth, Floor(profile.floor_y_for_depth(d))));
-    }
 
     info!(
         "Spawning {MOSQUITON_COUNT} Mosquitons across depths 0-9 \
-         (Cmd+I = projection, Cmd+P = grid, Cmd+O = anchors)"
+         (Cmd+I = horizon, Cmd+P = grid, Cmd+O = anchors)"
     );
 
     for index in 0..MOSQUITON_COUNT {
         let motion = motion_for(index);
         let locomotion = initial_locomotion(0.0, &motion);
-        let initial_t = depth_wave(0.0, &motion);
-        let depth = depth_from_t(initial_t);
+        let initial_progress = StressDepthTraversal::wave_t(0.0, &motion);
+        let depth = StressDepthTraversal::depth_for_progress(initial_progress);
         let initial_x = motion.center_x + (motion.x_phase).sin() * motion.x_amplitude;
         let initial_y = entity_y_for(
-            initial_t,
+            initial_progress,
             depth,
             &motion,
             locomotion.state,
             None,
-            projection.active(),
+            profile.profile,
             &depth_scale,
         );
         let initial_tag = animation_tag_for(locomotion.state, initial_x, motion.center_x);
@@ -268,11 +280,11 @@ fn setup(
             Name::new(format!("Stress<Mosquiton#{index}>")),
             animation,
             ComposedEnemyVisual::for_enemy(&asset_server, EnemyType::Mosquiton, AUTHORED_DEPTH),
-            PxSubPosition::from(Vec2::new(initial_x, initial_y)),
+            WorldPos::from(Vec2::new(initial_x, initial_y)),
             AuthoredDepths::single(AUTHORED_DEPTH),
             depth,
             layer_for_depth(depth),
-            PxAnchor::Center,
+            CxAnchor::Center,
             motion,
             locomotion,
         ));
@@ -283,11 +295,11 @@ fn setup(
     }
 }
 
-/// Toggle perspective / linear projection with `Cmd+I` / `Ctrl+I`.
-fn toggle_perspective(
+/// Cycle horizon profile with `Cmd+I` / `Ctrl+I`.
+fn cycle_horizon_profile(
     keys: Res<ButtonInput<KeyCode>>,
-    mut projection: ResMut<StressProjection>,
-    mut floor_query: Query<(&Depth, &mut Floor), With<StressFloorLine>>,
+    mut profile: ResMut<StressHorizonProfile>,
+    mut active_projection: ResMut<ActiveProjection>,
 ) {
     let modifier_held = keys.any_pressed([
         KeyCode::ControlLeft,
@@ -299,22 +311,18 @@ fn toggle_perspective(
         return;
     }
 
-    projection.perspective_enabled = !projection.perspective_enabled;
-    let mode = if projection.perspective_enabled {
-        "enabled"
-    } else {
-        "disabled"
-    };
-    info!("Mosquiton stress perspective {mode}");
+    profile.index = (profile.index + 1) % HORIZON_FRACTIONS.len();
+    profile.profile.horizon_y = HORIZON_FRACTIONS[profile.index] * SCREEN_H;
 
-    // Update Floor entities so the DepthDebugPlugin grid follows the active projection.
-    let profile = projection.active();
-    for (depth, mut floor) in &mut floor_query {
-        floor.0 = profile.floor_y_for_depth(depth.to_i8());
-    }
+    info!(
+        "Stress horizon profile {} -- depth 9 floor at {:.0}% of screen height",
+        profile.index,
+        HORIZON_FRACTIONS[profile.index] * 100.0,
+    );
+    active_projection.0 = profile.profile;
 }
 
-fn animate_swarm(time: Res<Time>, mut query: Query<(&SwarmMotion, &mut PxSubPosition)>) {
+fn animate_swarm(time: Res<Time>, mut query: Query<(&SwarmMotion, &mut WorldPos)>) {
     let t = time.elapsed_secs();
 
     for (motion, mut position) in &mut query {
@@ -332,7 +340,7 @@ fn update_locomotion(
         &SwarmMotion,
         &mut SwarmLocomotion,
         &mut ComposedAnimationState,
-        &PxSubPosition,
+        &WorldPos,
     )>,
 ) {
     let elapsed = time.elapsed_secs();
@@ -404,34 +412,39 @@ fn update_locomotion(
 
 fn traverse_depths(
     time: Res<Time>,
-    projection: Res<StressProjection>,
+    profile: Res<StressHorizonProfile>,
+    projection_view: Res<ProjectionView>,
     depth_scale: Res<DepthScaleConfig>,
     mut query: Query<(
         &SwarmMotion,
         &SwarmLocomotion,
         &mut Depth,
         &mut Layer,
-        &mut PxSubPosition,
+        &mut WorldPos,
         Option<&AnchorOffsets>,
     )>,
 ) {
     let elapsed = time.elapsed_secs();
 
     for (motion, locomotion, mut depth, mut layer, mut position, anchors) in &mut query {
-        let t = depth_wave(elapsed, motion);
-        let new_depth = depth_from_t(t);
+        let progress = StressDepthTraversal::wave_t(elapsed, motion);
+        let new_depth = StressDepthTraversal::depth_for_progress(progress);
 
         *depth = new_depth;
         *layer = layer_for_depth(new_depth);
         position.0.y = entity_y_for(
-            t,
+            progress,
             new_depth,
             motion,
             locomotion.state,
             anchors,
-            projection.active(),
+            profile.profile,
             &depth_scale,
         );
+        // Stress test has no parallax system — projection-bake X from
+        // the depth lane's floor Y (not the entity's transient visual Y).
+        let floor_y = profile.profile.floor_y_for_progress(progress);
+        position.0.x = compute_visual_x(position.0.x, floor_y, &profile.profile, &projection_view);
     }
 }
 
@@ -599,39 +612,16 @@ fn lift_ratio(state: LocomotionState) -> f32 {
     }
 }
 
-fn depth_wave(elapsed: f32, motion: &SwarmMotion) -> f32 {
-    let max_t = depth_to_t(motion.max_foreground_depth);
-    let oscillation = ((elapsed * motion.traverse_speed + motion.traverse_phase)
-        * std::f32::consts::TAU)
-        .sin()
-        .abs();
-    max_t * oscillation
-}
-
-fn depth_from_t(t: f32) -> Depth {
-    let bin = (t * DEPTH_COUNT).floor().min(DEPTH_COUNT - 1.0) as i8;
-    let depth_i8 = (DEPTH_MAX - bin).max(DEPTH_MIN);
-    Depth::try_from(depth_i8).unwrap_or(Depth::Nine)
-}
-
-fn depth_to_t(depth: Depth) -> f32 {
-    f32::from(DEPTH_MAX - depth.to_i8()) / DEPTH_INTERVAL_COUNT
-}
-
-fn projection_profile(bias_power: f32) -> ProjectionProfile {
+fn projection_profile(horizon_y: f32) -> ProjectionProfile {
     ProjectionProfile {
-        horizon_y: HORIZON_Y,
+        horizon_y,
         floor_base_y: FLOOR_DEPTH_1,
-        bias_power,
+        bias_power: PERSPECTIVE_BIAS,
     }
 }
 
-fn floor_y_from_t(t: f32, profile: ProjectionProfile) -> f32 {
-    profile.horizon_y + t.powf(profile.bias_power) * (profile.floor_base_y - profile.horizon_y)
-}
-
 fn entity_y_for(
-    t: f32,
+    progress: f32,
     depth: Depth,
     motion: &SwarmMotion,
     state: LocomotionState,
@@ -641,7 +631,7 @@ fn entity_y_for(
 ) -> f32 {
     let fallback_scale =
         depth_scale.resolve_fallback(depth, &AuthoredDepths::single(AUTHORED_DEPTH));
-    let floor_y = floor_y_from_t(t, profile);
+    let floor_y = profile.floor_y_for_progress(progress);
     let anchor_ground = anchors.map_or(0.0, |anchor| anchor.ground);
     let grounded_y = floor_y + anchor_ground * fallback_scale;
     grounded_y + motion.flight_altitude * fallback_scale * lift_ratio(state)

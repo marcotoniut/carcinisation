@@ -13,14 +13,14 @@ use super::{
         CinematicStageStep, CurrentStageStep, Stage, StageElapsedStarted, StageEntity,
         StopStageStep, TweenStageStep,
         interactive::{Dead, Object},
-        placement::{Floor, despawn_floor_entities, spawn_floor_depths},
     },
     data::{GAME_BASE_SPEED, StageData, StageStep},
     destructible::components::Destructible,
     enemy::components::Enemy,
+    floors::{ActiveFloors, ActiveSurfaceLayout, effective_floor_layout, evaluate_floors_at},
     messages::{NextStepEvent, StageClearedEvent, StageDeathEvent},
     player::components::{CameraShake, Player},
-    projection::effective_projection,
+    projection::evaluate_projection_at,
     resources::{
         ActiveProjection, StageActionTimer, StageProgress, StageStepSpawner, StageTimeDomain,
     },
@@ -40,7 +40,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TweenChildBundle, extra::LinearTween2DReachCheck,
 };
@@ -102,17 +102,48 @@ pub fn check_stage_step_timer(timer: Res<StageActionTimer>, mut commands: Comman
 
 /// @system Keeps [`ActiveProjection`] in sync with the current step.
 ///
+/// Uses [`evaluate_projection_at`] so the projection interpolates smoothly
+/// during tween steps rather than snapping at step boundaries.
+///
 /// `StageData` is removed when the stage is torn down, so the resource is
 /// optional — the system simply no-ops after cleanup.
 pub fn update_active_projection(
     stage_data: Option<Res<StageData>>,
-    stage_progress: Res<StageProgress>,
+    stage_time: Res<Time<StageTimeDomain>>,
     mut active: ResMut<ActiveProjection>,
 ) {
     let Some(stage_data) = stage_data else {
         return;
     };
-    active.0 = effective_projection(&stage_data, stage_progress.index);
+    active.0 = evaluate_projection_at(&stage_data, stage_time.elapsed());
+}
+
+/// @system Keeps the active authored floor layout in sync with the current step.
+pub fn update_active_floor_layout(
+    stage_data: Option<Res<StageData>>,
+    stage_progress: Res<StageProgress>,
+    mut active_layout: ResMut<ActiveSurfaceLayout>,
+) {
+    let Some(stage_data) = stage_data else {
+        return;
+    };
+    active_layout.0 = effective_floor_layout(&stage_data, stage_progress.index);
+}
+
+/// @system Resolves authoritative floor surfaces for the active stage state.
+///
+/// Uses [`evaluate_floors_at`] so floors interpolate smoothly during tween
+/// steps.  The function derives projection state internally to stay coherent
+/// with the interpolated step progress.
+pub fn update_active_floors(
+    stage_data: Option<Res<StageData>>,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut floors: ResMut<ActiveFloors>,
+) {
+    let Some(stage_data) = stage_data else {
+        return;
+    };
+    *floors = evaluate_floors_at(&stage_data, stage_time.elapsed());
 }
 
 /// @system Evaluates the current stage progress and transitions between states.
@@ -274,27 +305,28 @@ mod tests {
             gravity: None,
             projection: None,
             checkpoint: None,
+            parallax_attenuation: None,
         };
 
         world.insert_resource(stage_data);
-        world.insert_resource(StageProgress { index: 0 });
+        world.insert_resource(Time::<StageTimeDomain>::default());
         world.insert_resource(ActiveProjection::default());
 
         // Normal: runs fine with StageData present.
         let mut system_state: SystemState<(
             Option<Res<StageData>>,
-            Res<StageProgress>,
+            Res<Time<StageTimeDomain>>,
             ResMut<ActiveProjection>,
         )> = SystemState::new(&mut world);
-        let (data, progress, active) = system_state.get_mut(&mut world);
-        update_active_projection(data, progress, active);
+        let (data, time, active) = system_state.get_mut(&mut world);
+        update_active_projection(data, time, active);
         system_state.apply(&mut world);
 
         // Teardown: StageData removed — should no-op, not panic.
         world.remove_resource::<StageData>();
-        let (data, progress, active) = system_state.get_mut(&mut world);
+        let (data, time, active) = system_state.get_mut(&mut world);
         assert!(data.is_none());
-        update_active_projection(data, progress, active);
+        update_active_projection(data, time, active);
         system_state.apply(&mut world);
     }
 }
@@ -370,7 +402,7 @@ pub fn on_death(
     music_query: Query<Entity, With<Music>>,
     object_query: Query<Entity, With<Object>>,
     player_query: Query<Entity, With<Player>>,
-    mut camera_query: Query<(Entity, Option<&CameraShake>, &mut PxSubPosition), With<CameraPos>>,
+    mut camera_query: Query<(Entity, Option<&CameraShake>, &mut WorldPos), With<CameraPos>>,
     camera_tween_query: Query<Entity, With<CameraStepTween>>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
@@ -455,8 +487,7 @@ pub struct CameraStepTween;
 pub fn initialise_movement_step(
     mut commands: Commands,
     query: Query<(Entity, &TweenStageStep), (With<Stage>, Added<TweenStageStep>)>,
-    camera_query: Query<(Entity, &PxSubPosition), With<CameraPos>>,
-    floor_query: Query<Entity, With<Floor>>,
+    camera_query: Query<(Entity, &WorldPos), With<CameraPos>>,
 ) {
     if let Ok((
         _,
@@ -464,7 +495,6 @@ pub fn initialise_movement_step(
             coordinates,
             base_speed,
             spawns,
-            floor_depths,
             ..
         },
     )) = query.single()
@@ -510,11 +540,6 @@ pub fn initialise_movement_step(
                 TargetingValueY,
             >::new())
             .insert(StageStepSpawner::new(spawns.clone()));
-
-        if let Some(floor_depths) = floor_depths {
-            despawn_floor_entities(&mut commands, &floor_query);
-            spawn_floor_depths(&mut commands, floor_depths);
-        }
     }
 }
 
@@ -522,25 +547,11 @@ pub fn initialise_movement_step(
 pub fn initialise_stop_step(
     mut commands: Commands,
     query: Query<(Entity, &StopStageStep), (With<Stage>, Added<StopStageStep>)>,
-    floor_query: Query<Entity, With<Floor>>,
 ) {
-    if let Ok((
-        entity,
-        StopStageStep {
-            spawns,
-            floor_depths,
-            ..
-        },
-    )) = query.single()
-    {
+    if let Ok((entity, StopStageStep { spawns, .. })) = query.single() {
         commands
             .entity(entity)
             .insert(StageStepSpawner::new(spawns.clone()));
-
-        if let Some(floor_depths) = floor_depths {
-            despawn_floor_entities(&mut commands, &floor_query);
-            spawn_floor_depths(&mut commands, floor_depths);
-        }
     }
 }
 

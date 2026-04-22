@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::Volume, prelude::*};
-use carapace::filter::PxFilterAsset;
+use carapace::filter::CxFilterAsset;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Component)]
@@ -45,13 +45,13 @@ impl GBColor {
     }
 }
 
-pub trait PxSpriteColorLoader {
+pub trait CxSpriteColorLoader {
     /// Runs `f` on `self`
-    fn load_color(&self, color: GBColor) -> Handle<PxFilterAsset>;
+    fn load_color(&self, color: GBColor) -> Handle<CxFilterAsset>;
 }
 
-impl PxSpriteColorLoader for AssetServer {
-    fn load_color(&self, color: GBColor) -> Handle<PxFilterAsset> {
+impl CxSpriteColorLoader for AssetServer {
+    fn load_color(&self, color: GBColor) -> Handle<CxFilterAsset> {
         self.load(color.get_filter_path())
     }
 }
@@ -72,9 +72,9 @@ pub struct DespawnMark;
 pub struct Music;
 
 #[derive(Component)]
-pub struct DelayedDespawnOnPxAnimationFinished(pub Duration);
+pub struct DelayedDespawnOnCxAnimationFinished(pub Duration);
 
-impl DelayedDespawnOnPxAnimationFinished {
+impl DelayedDespawnOnCxAnimationFinished {
     #[must_use]
     pub fn from_secs_f32(secs: f32) -> Self {
         Self(Duration::from_secs_f32(secs))

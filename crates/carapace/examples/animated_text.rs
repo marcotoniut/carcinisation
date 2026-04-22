@@ -14,8 +14,8 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(64), "palette/palette_1.palette.png"),
-            PxAnimationPlugin,
+            CxPlugin::<Layer>::new(UVec2::splat(64), "palette/palette_1.palette.png"),
+            CxAnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -24,21 +24,21 @@ fn main() {
 
 fn text(
     value: impl Into<String>,
-    transition: PxFrameTransition,
+    transition: CxFrameTransition,
     assets: &AssetServer,
 ) -> impl Bundle {
     (
-        PxText::new(
+        CxText::new(
             value,
             assets.load("typeface/animated_typeface.px_typeface.png"),
         ),
-        PxAnimation {
+        CxAnimation {
             // Use millis_per_animation to have each character loop at the same time
-            duration: PxAnimationDuration::millis_per_frame(333),
-            on_finish: PxAnimationFinishBehavior::Loop,
+            duration: CxAnimationDuration::millis_per_frame(333),
+            on_finish: CxAnimationFinishBehavior::Loop,
             ..default()
         },
-        PxFrame {
+        CxFrameView {
             transition,
             ..default()
         },
@@ -50,17 +50,17 @@ fn init(assets: Res<AssetServer>, mut cmd: Commands) {
 
     cmd.spawn((
         Layer,
-        PxUiRoot,
-        PxRow {
+        CxUiRoot,
+        CxRow {
             vertical: true,
             ..default()
         },
         children![
-            text("LOOPED ANIMATION ⭐🙂⭐", PxFrameTransition::None, &assets),
-            PxRowSlot { stretch: true },
+            text("LOOPED ANIMATION ⭐🙂⭐", CxFrameTransition::None, &assets),
+            CxRowSlot { stretch: true },
             text(
                 "DITHERED ANIMATION 🙂⭐🙂",
-                PxFrameTransition::Dither,
+                CxFrameTransition::Dither,
                 &assets
             ),
         ],

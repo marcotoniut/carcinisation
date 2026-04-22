@@ -47,7 +47,7 @@ use crate::{
     },
     transitions::spiral::TransitionVenetianPlugin,
 };
-use carapace::animation::PxAnimationPlugin;
+use carapace::animation::CxAnimationPlugin;
 use carapace::prelude::*;
 use leafwing_input_manager::prelude::InputManagerPlugin;
 
@@ -209,11 +209,11 @@ pub fn build_app(options: AppLaunchOptions) -> App {
 
     app.insert_resource(ClearColor(Color::BLACK))
         .insert_resource(CrosshairSettings(DEFAULT_CROSSHAIR_INDEX))
-        .add_plugins(PxAnimationPlugin)
+        .add_plugins(CxAnimationPlugin)
         .add_plugins(TransitionVenetianPlugin)
         .add_plugins(LetterboxPlugin);
 
-    let px_plugin = PxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png");
+    let px_plugin = CxPlugin::<Layer>::new(SCREEN_RESOLUTION, "palette/base.png");
     if options.headless {
         px_plugin.build_headless(&mut app);
     } else {

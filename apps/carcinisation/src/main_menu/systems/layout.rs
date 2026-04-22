@@ -12,15 +12,15 @@ use crate::{
     layer::Layer,
     main_menu::{MainMenuScreen, resources::DifficultySelection},
     pixel::{
-        PxAssets,
-        bundle::{PxRectBundle, PxSpriteBundle, PxTextBundle},
+        CxAssets,
+        bundle::{CxFilterRectBundle, CxSpriteBundle, CxTextBundle},
     },
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxCanvas, PxFilter, PxFilterLayers, PxPosition, PxRect, PxSprite, PxSubPosition,
-    PxText, PxTypeface,
+    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxSprite, CxText,
+    CxTypeface, WorldPos,
 };
 use strum::IntoEnumIterator;
 
@@ -35,9 +35,9 @@ pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
         let background_sprite =
             asset_server.load(assert_assets_path!("ui/main_menu/background.px_sprite.png"));
         p0.spawn((
-            PxSpriteBundle::<Layer> {
-                sprite: PxSprite(background_sprite),
-                anchor: PxAnchor::BottomLeft,
+            CxSpriteBundle::<Layer> {
+                sprite: CxSprite(background_sprite),
+                anchor: CxAnchor::BottomLeft,
                 layer: Layer::Hud,
                 ..default()
             },
@@ -47,18 +47,18 @@ pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 /// @system Spawns the "Press Start" text when entering that screen state.
-pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: PxAssets<PxTypeface>) {
+pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: CxAssets<CxTypeface>) {
     let typeface = load_inverted_typeface(&assets_typeface);
 
     commands.spawn((
         MainMenuEntity,
         PressStartScreenEntity,
-        PxTextBundle::<Layer> {
-            position: PxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 10)),
-            anchor: PxAnchor::BottomCenter,
-            canvas: PxCanvas::Camera,
+        CxTextBundle::<Layer> {
+            position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 10)),
+            anchor: CxAnchor::BottomCenter,
+            canvas: CxRenderSpace::Camera,
             layer: Layer::UI,
-            text: PxText {
+            text: CxText {
                 value: "Press Start".to_string(),
                 typeface: typeface.clone(),
                 ..Default::default()
@@ -80,8 +80,8 @@ pub fn exit_press_start_screen(
 /// @system Builds the difficulty selection UI when that screen activates.
 pub fn enter_game_difficulty_screen(
     mut commands: Commands,
-    assets_typeface: PxAssets<PxTypeface>,
-    filters: PxAssets<PxFilter>,
+    assets_typeface: CxAssets<CxTypeface>,
+    filters: CxAssets<CxFilter>,
     selection: Res<DifficultySelection>,
 ) {
     let color = GBColor::White;
@@ -90,16 +90,16 @@ pub fn enter_game_difficulty_screen(
     commands.spawn((
         MainMenuEntity,
         DifficultySelectScreenEntity,
-        // TODO should not be using PxSubposition here
-        PxSubPosition(*SCREEN_RESOLUTION_F32_H),
-        PxRectBundle::<Layer> {
-            anchor: PxAnchor::Center,
-            canvas: PxCanvas::Camera,
-            filter: PxFilter(filters.load_color(color)),
-            layers: PxFilterLayers::single_over(Layer::UIBackground),
-            position: PxPosition::from(*SCREEN_RESOLUTION_H),
+        // TODO should not be using WorldPos here
+        WorldPos(*SCREEN_RESOLUTION_F32_H),
+        CxFilterRectBundle::<Layer> {
+            anchor: CxAnchor::Center,
+            canvas: CxRenderSpace::Camera,
+            filter: CxFilter(filters.load_color(color)),
+            layers: CxFilterLayers::single_over(Layer::UIBackground),
+            position: CxPosition::from(*SCREEN_RESOLUTION_H),
             // TODO use more memory by making this rect into a global?
-            rect: PxRect(UVec2::new(
+            rect: CxFilterRect(UVec2::new(
                 SCREEN_RESOLUTION.x - 50,
                 SCREEN_RESOLUTION.y - 50,
             )),
@@ -117,12 +117,12 @@ pub fn enter_game_difficulty_screen(
         commands.spawn((
             MainMenuEntity,
             DifficultySelectScreenEntity,
-            PxTextBundle::<Layer> {
-                position: PxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, y)),
-                anchor: PxAnchor::Center,
-                canvas: PxCanvas::Camera,
+            CxTextBundle::<Layer> {
+                position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, y)),
+                anchor: CxAnchor::Center,
+                canvas: CxRenderSpace::Camera,
                 layer: Layer::UI,
-                text: PxText {
+                text: CxText {
                     value: name.to_string(),
                     typeface: typeface.clone(),
                     ..Default::default()
@@ -138,12 +138,12 @@ pub fn enter_game_difficulty_screen(
             MainMenuEntity,
             DifficultySelectScreenEntity,
             DifficultySelectionIndicator,
-            PxTextBundle::<Layer> {
-                position: PxPosition::from(difficulty_arrow_position(selection_index)),
-                anchor: PxAnchor::CenterRight,
-                canvas: PxCanvas::Camera,
+            CxTextBundle::<Layer> {
+                position: CxPosition::from(difficulty_arrow_position(selection_index)),
+                anchor: CxAnchor::CenterRight,
+                canvas: CxRenderSpace::Camera,
                 layer: Layer::UI,
-                text: PxText {
+                text: CxText {
                     value: ">".to_string(),
                     typeface,
                     ..Default::default()
@@ -167,7 +167,7 @@ pub fn exit_game_difficulty_screen(
 pub fn update_difficulty_selection_indicator(
     selection: Res<DifficultySelection>,
     screen: Res<State<MainMenuScreen>>,
-    mut indicator_query: Query<&mut PxPosition, With<DifficultySelectionIndicator>>,
+    mut indicator_query: Query<&mut CxPosition, With<DifficultySelectionIndicator>>,
 ) {
     if **screen != MainMenuScreen::DifficultySelect || !selection.is_changed() {
         return;
@@ -176,7 +176,7 @@ pub fn update_difficulty_selection_indicator(
     if let (Ok(mut position), Some(selection_index)) =
         (indicator_query.single_mut(), difficulty_index(selection.0))
     {
-        *position = PxPosition::from(difficulty_arrow_position(selection_index));
+        *position = CxPosition::from(difficulty_arrow_position(selection_index));
     }
 }
 

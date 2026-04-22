@@ -13,7 +13,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
-use carapace::prelude::PxSubPosition;
+use carapace::prelude::WorldPos;
 
 #[cfg(debug_assertions)]
 const DEBUG_MODULE: &str = "MainMenu";
@@ -26,7 +26,7 @@ const DEBUG_MODULE: &str = "MainMenu";
 /// ends up off-screen.
 pub fn on_main_menu_startup(
     mut screen_state: ResMut<NextState<MainMenuScreen>>,
-    mut camera_query: Query<&mut PxSubPosition, With<CameraPos>>,
+    mut camera_query: Query<&mut WorldPos, With<CameraPos>>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);

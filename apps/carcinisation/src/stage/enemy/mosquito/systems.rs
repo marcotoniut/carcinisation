@@ -1,11 +1,11 @@
 use super::entity::{
     EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
 };
-use crate::pixel::{PxAnimationBundle, PxAssets, PxSpriteBundle};
+use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
 use crate::stage::enemy::composed::ComposedAnimationState;
 use crate::stage::enemy::mosquiton::entity::EnemyMosquiton;
 use crate::{
-    components::{DelayedDespawnOnPxAnimationFinished, DespawnMark},
+    components::{DelayedDespawnOnCxAnimationFinished, DespawnMark},
     game::score::components::Score,
     globals::SCREEN_RESOLUTION_F32_H,
     layer::Layer,
@@ -30,9 +30,11 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    PxAnchor, PxAnimationDuration, PxAnimationFinishBehavior, PxSprite, PxSpriteAtlasAsset,
-    PxSubPosition,
+    CxAnchor, CxAnimationDuration, CxAnimationFinishBehavior, CxPresentationTransform, CxSprite,
+    CxSpriteAtlasAsset, WorldPos,
 };
+
+use crate::stage::parallax::ParallaxOffset;
 use std::time::Duration;
 
 pub const ENEMY_MOSQUITO_ATTACK_SPEED: f32 = 3.;
@@ -66,7 +68,7 @@ pub fn assign_mosquito_animation(
         (
             Entity,
             &EnemyCurrentBehavior,
-            &PxSubPosition,
+            &WorldPos,
             &EnemyMosquitoAttacking,
             &Depth,
         ),
@@ -76,7 +78,7 @@ pub fn assign_mosquito_animation(
             Without<EnemyMosquiton>,
         ),
     >,
-    mut assets_sprite: PxAssets<PxSprite>,
+    mut assets_sprite: CxAssets<CxSprite>,
 ) {
     for (entity, behavior, position, attacking, depth) in &mut query.iter() {
         let step = behavior.behavior;
@@ -154,7 +156,7 @@ pub fn assign_mosquito_animation(
 
         if let Some((animation, (sprite_bundle, animation_bundle))) = bundle_o {
             commands.entity(entity).insert((
-                PxSubPosition(position.0),
+                WorldPos(position.0),
                 animation,
                 sprite_bundle,
                 animation_bundle,
@@ -166,10 +168,10 @@ pub fn assign_mosquito_animation(
 /// @system Spawns a death animation and awards score when a mosquito dies.
 pub fn despawn_dead_mosquitoes(
     mut commands: Commands,
-    assets_sprite: PxAssets<PxSprite>,
+    assets_sprite: CxAssets<CxSprite>,
     mut score: ResMut<Score>,
     query: Query<
-        (Entity, &EnemyMosquito, &PxSubPosition, &Depth),
+        (Entity, &EnemyMosquito, &WorldPos, &Depth),
         (Added<Dead>, Without<EnemyMosquiton>),
     >,
 ) {
@@ -186,21 +188,24 @@ pub fn despawn_dead_mosquitoes(
             // than immediately despawning with the source animation.
             commands.spawn((
                 Name::new("Dead - Mosquito"),
-                PxSubPosition::from(position.0),
-                PxSpriteBundle::<Layer> {
+                WorldPos::from(position.0),
+                CxSpriteBundle::<Layer> {
                     sprite: texture.into(),
                     layer: depth.to_layer(),
-                    anchor: PxAnchor::Center,
+                    anchor: CxAnchor::Center,
                     ..default()
                 },
-                PxAnimationBundle::from_parts(
+                CxAnimationBundle::from_parts(
                     animation.direction,
-                    PxAnimationDuration::millis_per_animation(animation.speed),
-                    PxAnimationFinishBehavior::Mark,
+                    CxAnimationDuration::millis_per_animation(animation.speed),
+                    CxAnimationFinishBehavior::Mark,
                     animation.frame_transition,
                 ),
-                DelayedDespawnOnPxAnimationFinished(ENEMY_MOSQUITO_DEATH_LINGER),
+                DelayedDespawnOnCxAnimationFinished(ENEMY_MOSQUITO_DEATH_LINGER),
                 StageEntity,
+                *depth,
+                ParallaxOffset::default(),
+                CxPresentationTransform::default(),
             ));
         }
 
@@ -242,9 +247,9 @@ pub fn clear_finished_mosquito_attacks(
 pub fn check_idle_mosquito(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    atlas_assets: Res<Assets<PxSpriteAtlasAsset>>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
     blood_shot_config: Res<BloodShotConfig>,
-    camera_query: Query<&PxSubPosition, With<CameraPos>>,
+    camera_query: Query<&WorldPos, With<CameraPos>>,
     // TODO
     // event_writer: MessageWriter<BloodAttackEvent>,
     stage_time: Res<Time<StageTimeDomain>>,
@@ -255,7 +260,7 @@ pub fn check_idle_mosquito(
             &mut EnemyMosquitoAttacking,
             Option<&ComposedAnimationState>,
             Option<&EnemyMosquiton>,
-            &PxSubPosition,
+            &WorldPos,
             &Depth,
         ),
         (With<InView>, With<EnemyMosquito>),

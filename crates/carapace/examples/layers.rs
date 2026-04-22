@@ -14,7 +14,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            PxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
+            CxPlugin::<Layer>::new(UVec2::splat(32), "palette/palette_1.palette.png"),
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, init)
@@ -27,21 +27,21 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
     let mage = assets.load("sprite/mage.px_sprite.png");
 
     // Spawn some sprites on different layers
-    commands.spawn((PxSprite(mage.clone()), PxPosition(IVec2::new(10, 22))));
+    commands.spawn((CxSprite(mage.clone()), CxPosition(IVec2::new(10, 22))));
 
     commands.spawn((
-        PxSprite(mage.clone()),
-        PxPosition(IVec2::new(14, 18)),
+        CxSprite(mage.clone()),
+        CxPosition(IVec2::new(14, 18)),
         Layer::Middle(-1),
     ));
 
     commands.spawn((
-        PxSprite(mage.clone()),
-        PxPosition(IVec2::new(18, 14)),
+        CxSprite(mage.clone()),
+        CxPosition(IVec2::new(18, 14)),
         Layer::Middle(1),
     ));
 
-    commands.spawn((PxSprite(mage), PxPosition(IVec2::new(22, 10)), Layer::Front));
+    commands.spawn((CxSprite(mage), CxPosition(IVec2::new(22, 10)), Layer::Front));
 }
 
 // Layers are in render order: back to front

@@ -2,7 +2,7 @@ use super::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 use crate::{
     components::VolumeSettings,
     game::GameProgressState,
-    pixel::PxAssets,
+    pixel::CxAssets,
     stage::{
         StagePlugin,
         bundles::{BackgroundBundle, SkyboxBundle},
@@ -19,7 +19,7 @@ use crate::{
 };
 use activable::activate;
 use bevy::{audio::PlaybackMode, prelude::*};
-use carapace::prelude::{PxFilter, PxSprite, PxTypeface};
+use carapace::prelude::{CxFilter, CxSprite, CxTypeface};
 
 /// @trigger Builds the stage world: spawns HUD, enemies, pickups, background, and music.
 ///
@@ -31,9 +31,9 @@ pub fn on_stage_startup(
     trigger: On<StageStartupEvent>,
     mut commands: Commands,
     mut next_game_state: ResMut<NextState<GameProgressState>>,
-    mut assets_sprite: PxAssets<PxSprite>,
-    mut filters: PxAssets<PxFilter>,
-    mut typefaces: PxAssets<PxTypeface>,
+    mut assets_sprite: CxAssets<CxSprite>,
+    mut filters: CxAssets<CxFilter>,
+    mut typefaces: CxAssets<CxTypeface>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {

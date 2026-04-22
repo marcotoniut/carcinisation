@@ -6,7 +6,7 @@ use crate::stage::{
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use carapace::prelude::PxText;
+use carapace::prelude::CxText;
 
 #[derive(Activable)]
 pub struct HudPlugin;
@@ -18,7 +18,7 @@ impl Plugin for HudPlugin {
 }
 
 pub fn update_health_text(
-    mut query: Query<&mut PxText, With<HealthText>>,
+    mut query: Query<&mut CxText, With<HealthText>>,
     player_query: Query<&Health, With<Player>>,
 ) {
     let Ok(health) = player_query.single() else {

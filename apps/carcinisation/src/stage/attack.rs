@@ -19,7 +19,7 @@ use self::{
         miss_on_reached, on_enemy_attack_depth_changed, update_attached_attack_positions,
     },
 };
-use super::enemy::composed::update_composed_enemy_visuals;
+use super::CollisionStateSystems;
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 
@@ -35,7 +35,12 @@ impl Plugin for AttackPlugin {
         app.add_active_systems::<AttackPlugin, _>(
             // Only advance attack behaviour when the plugin is explicitly active.
             (
-                (check_got_hit, check_health_at_0).chain(),
+                // check_got_hit reads CxPresentationTransform.collision_offset and
+                // ComposedCollisionState for hit detection — both are produced by
+                // systems in CollisionStateSystems.
+                (check_got_hit, check_health_at_0)
+                    .chain()
+                    .after(CollisionStateSystems),
                 #[cfg(debug_assertions)]
                 sync_enemy_attack_debug_positions,
                 (
@@ -43,7 +48,7 @@ impl Plugin for AttackPlugin {
                     arm_pending_blood_shot_motion,
                 )
                     .chain()
-                    .after(update_composed_enemy_visuals),
+                    .after(CollisionStateSystems),
                 // These run after check_health_at_0 so the Dead insertion is
                 // flushed and Without<Dead> / Added<Dead> filters are reliable.
                 despawn_dead_attacks.after(check_health_at_0),
