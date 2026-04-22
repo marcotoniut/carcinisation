@@ -8,6 +8,12 @@ use derive_new::new;
 pub enum ColliderShape {
     Box(Vec2),
     Circle(f32),
+    /// Collision is resolved through the pixel-mask pipeline.
+    ///
+    /// Geometric tests (`point_collides`, `overlaps`) always return `false`
+    /// for this variant — the real collision check happens via
+    /// `world_mask_contains_point` / `world_mask_overlap`.
+    SpriteMask,
 }
 
 impl ColliderShape {
@@ -21,6 +27,7 @@ impl ColliderShape {
             ColliderShape::Circle(radius) => {
                 collider_position.distance_squared(point_position) <= *radius * *radius
             }
+            ColliderShape::SpriteMask => false,
         }
     }
 
@@ -32,6 +39,7 @@ impl ColliderShape {
         other_position: Vec2,
     ) -> bool {
         match (self, other) {
+            (ColliderShape::SpriteMask, _) | (_, ColliderShape::SpriteMask) => false,
             (ColliderShape::Circle(a), ColliderShape::Circle(b)) => {
                 let radius = a + b;
                 self_position.distance_squared(other_position) <= radius * radius
@@ -88,6 +96,7 @@ impl Collider {
             ColliderShape::Circle(ref mut radius) => {
                 *radius *= scale;
             }
+            ColliderShape::SpriteMask => {}
         }
         new
     }

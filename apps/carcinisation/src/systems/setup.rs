@@ -21,7 +21,7 @@ pub fn set_fixed_timestep(mut fixed_time: ResMut<Time<Fixed>>) {
 ///
 /// The overlay camera (order 1, `CxOverlayCamera`) renders Bevy gizmos on
 /// top of the pixel-art post-process output.  Without it, gizmos draw
-/// beneath the fullscreen CxPlugin quad and are invisible.
+/// beneath the fullscreen `CxPlugin` quad and are invisible.
 pub fn spawn_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
     commands.spawn((

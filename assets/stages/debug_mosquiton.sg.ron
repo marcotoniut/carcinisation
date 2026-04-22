@@ -33,12 +33,12 @@ StageData(
             kill_all: false,
             kill_boss: false,
             spawns: [],
-            floor_depths: {
-                Six: 25.0,
-                Three: 40.0,
-                Five: 30.0,
-                Four: 35.0,
-            },
+            surfaces: [
+                SurfaceSpec(depths: RangeInclusive(start: Three, end: Three), mode: Anchored(40.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Four, end: Four), mode: Anchored(35.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Five, end: Five), mode: Anchored(30.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Six, end: Six), mode: Anchored(25.0)),
+            ],
         ),
         Stop(
             max_duration: 99999.0,
@@ -60,12 +60,12 @@ StageData(
                     depth: Three,
                 ),
             ],
-            floor_depths: {
-                Three: 40.0,
-                Four: 35.0,
-                Five: 30.0,
-                Six: 25.0,
-            },
+            surfaces: [
+                SurfaceSpec(depths: RangeInclusive(start: Three, end: Three), mode: Anchored(40.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Four, end: Four), mode: Anchored(35.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Five, end: Five), mode: Anchored(30.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Six, end: Six), mode: Anchored(25.0)),
+            ],
         ),
     ],
     on_start_transition_o: None,

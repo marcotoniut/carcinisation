@@ -1,0 +1,160 @@
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+#![enable(explicit_struct_names)]
+StageData(
+    name: "Debug Parallax Lab",
+    background_path: "backgrounds/rugpark/background.png",
+    music_path: "audio/music/stage_1.ogg",
+    skybox: SkyboxData(
+        path: "backgrounds/rugpark/skybox.png",
+        frames: 2,
+    ),
+    start_coordinates: Vec2(0.0, 0.0),
+    spawns: [],
+    steps: [
+        Stop(
+            max_duration: 99999.0,
+            kill_all: false,
+            kill_boss: false,
+            spawns: [
+                Enemy(
+                    enemy_type: Mosquiton,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(36.0, 0.0),
+                    speed: 1.0,
+                    health: 250,
+                    steps: [
+                        Idle(
+                            duration: 99999.0,
+                        ),
+                    ],
+                    depth: Three,
+                    altitude: 52.0,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(68.0, 30.0),
+                    speed: 1.0,
+                    health: 250,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Positive,
+                            duration: 99999.0,
+                            radius: 10.0,
+                        ),
+                    ],
+                    depth: Four,
+                ),
+                Enemy(
+                    enemy_type: Mosquiton,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(92.0, 0.0),
+                    speed: 1.0,
+                    health: 250,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 99999.0,
+                            radius: 9.0,
+                        ),
+                    ],
+                    depth: Five,
+                    altitude: 40.0,
+                ),
+                Enemy(
+                    enemy_type: Spidey,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(48.0, 72.0),
+                    speed: 1.0,
+                    health: 250,
+                    steps: [
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Positive,
+                            duration: 99999.0,
+                            radius: 8.0,
+                        ),
+                    ],
+                    depth: Six,
+                ),
+                Enemy(
+                    enemy_type: Mosquito,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(122.0, 90.0),
+                    speed: 1.0,
+                    health: 250,
+                    steps: [
+                        LinearTween(
+                            depth_movement_o: -2,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 32.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 2,
+                            direction: Vec2(1.0, 0.2),
+                            trayectory: 32.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
+                    ],
+                    depth: Seven,
+                ),
+                Enemy(
+                    enemy_type: Tardigrade,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(104.0, 110.0),
+                    speed: 1.0,
+                    health: 250,
+                    steps: [
+                        LinearTween(
+                            depth_movement_o: None,
+                            direction: Vec2(-1.0, 0.0),
+                            trayectory: 24.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
+                        LinearTween(
+                            depth_movement_o: None,
+                            direction: Vec2(1.0, 0.0),
+                            trayectory: 24.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
+                    ],
+                    depth: Eight,
+                ),
+            ],
+            surfaces: [
+                SurfaceSpec(depths: RangeInclusive(start: Three, end: Three), mode: Anchored(0.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Four, end: Four), mode: Anchored(30.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Five, end: Five), mode: Anchored(50.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Six, end: Six), mode: Anchored(70.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Seven, end: Seven), mode: Anchored(90.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Eight, end: Eight), mode: Anchored(110.0)),
+            ],
+            parallax_attenuation: 1.0,
+        ),
+    ],
+    on_start_transition_o: None,
+    on_end_transition_o: None,
+    gravity: 800.0,
+    projection: None,
+    checkpoint: None,
+    parallax_attenuation: 1.0,
+)

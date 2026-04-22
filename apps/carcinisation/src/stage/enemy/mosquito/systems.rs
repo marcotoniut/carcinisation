@@ -261,13 +261,23 @@ pub fn check_idle_mosquito(
             Option<&ComposedAnimationState>,
             Option<&EnemyMosquiton>,
             &WorldPos,
+            Option<&CxPresentationTransform>,
             &Depth,
         ),
         (With<InView>, With<EnemyMosquito>),
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();
-    for (entity, behavior, attacking, composed_animation, mosquiton, position, depth) in &mut query
+    for (
+        entity,
+        behavior,
+        attacking,
+        composed_animation,
+        mosquiton,
+        position,
+        presentation,
+        depth,
+    ) in &mut query
     {
         if attacking.attack.is_some()
             || !matches!(
@@ -309,9 +319,9 @@ pub fn check_idle_mosquito(
                 &blood_shot_config,
                 *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                 position.0,
+                presentation,
                 depth,
                 1.0, // Legacy mosquitoes have per-depth sprites, no fallback scaling.
-                None,
             );
         }
     }

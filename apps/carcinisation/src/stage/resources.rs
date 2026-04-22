@@ -172,3 +172,56 @@ impl Default for StageGravity {
 /// timeline.
 #[derive(Resource, Clone, Copy, Debug, Default)]
 pub struct ActiveProjection(pub ProjectionProfile);
+
+/// View-space controls for projection overlays.
+///
+/// This is intentionally separate from [`ProjectionProfile`]: the profile owns
+/// the vertical depth-to-screen mapping, while this resource owns lateral
+/// presentation tweaks such as lateral view displacement used by debug
+/// overlays and visual experiments.
+#[derive(Resource, Clone, Copy, Debug, Reflect)]
+#[reflect(Resource)]
+pub struct ProjectionView {
+    /// Horizontal view displacement in carapace pixels at foreground depth.
+    ///
+    /// Positive values shift the viewpoint to the right, which makes projected
+    /// ground lines and entities slide left. The vanishing point remains fixed
+    /// at screen centre; only the reprojection changes.
+    pub lateral_view_offset: f32,
+    /// Camera X at stage entry. Runtime computes `lateral_view_offset` as
+    /// `camera.x - lateral_anchor_x`.
+    ///
+    /// On checkpoint resume, re-captured from the checkpoint's start position,
+    /// not the stage origin. See `on_stage_startup` for the entry-path
+    /// dependence rationale and the alternative considered.
+    pub lateral_anchor_x: f32,
+}
+
+impl Default for ProjectionView {
+    fn default() -> Self {
+        Self {
+            lateral_view_offset: 0.0,
+            lateral_anchor_x: 0.0,
+        }
+    }
+}
+
+/// Debug-only pan tuning for the `Shift+Arrow` lateral view control
+/// used by example binaries. Not registered in the game binary.
+#[derive(Resource, Clone, Copy, Debug, Reflect)]
+#[reflect(Resource)]
+pub struct DebugPanConfig {
+    /// Pan speed in carapace pixels per second.
+    pub speed: f32,
+    /// Maximum absolute lateral offset (clamped symmetrically).
+    pub limit: f32,
+}
+
+impl Default for DebugPanConfig {
+    fn default() -> Self {
+        Self {
+            speed: 150.0,
+            limit: 250.0,
+        }
+    }
+}

@@ -261,10 +261,9 @@ mod tests {
 
     /// Minimal app with position sync in `PostUpdate` — the intended schedule.
     ///
-    /// The production code currently registers these in `PreUpdate` (legacy).
-    /// These tests assert the correct end-of-frame contract; they will pass
-    /// under `PostUpdate` and test E will FAIL under `PreUpdate`, which is
-    /// exactly the regression we want to catch.
+    /// Production uses the same `PostUpdate` schedule. These tests guard the
+    /// end-of-frame contract and would fail again if sync regressed back to an
+    /// earlier stage.
     fn test_app() -> App {
         let mut app = App::new();
         app.add_systems(

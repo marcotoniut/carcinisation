@@ -16,7 +16,7 @@ use self::{
     systems::player::check_got_hit,
     systems::{
         check_health_at_0, despawn_dead_attacks, hovering::hovering_damage_on_reached,
-        miss_on_reached, on_enemy_attack_depth_changed, update_attached_attack_positions,
+        miss_on_reached, on_enemy_attack_depth_changed,
     },
 };
 use super::CollisionStateSystems;
@@ -43,12 +43,7 @@ impl Plugin for AttackPlugin {
                     .after(CollisionStateSystems),
                 #[cfg(debug_assertions)]
                 sync_enemy_attack_debug_positions,
-                (
-                    update_attached_attack_positions,
-                    arm_pending_blood_shot_motion,
-                )
-                    .chain()
-                    .after(CollisionStateSystems),
+                arm_pending_blood_shot_motion.after(CollisionStateSystems),
                 // These run after check_health_at_0 so the Dead insertion is
                 // flushed and Without<Dead> / Added<Dead> filters are reliable.
                 despawn_dead_attacks.after(check_health_at_0),

@@ -219,6 +219,11 @@ struct CachedCompositeMetrics {
 /// anchors) in Update while deferring presentation writes (`CxCompositeSprite`,
 /// `CxAnchor`, Visibility) to `PostUpdate`. It carries only what the `PostUpdate`
 /// writer needs — no persistent gameplay state.
+///
+/// `visible = true` means "the next `PostUpdate` pass may reveal this entity".
+/// By the time that happens, spawn-time priming and `Update`-phase presentation
+/// systems must already have produced the correct scale/offset basis. Reveal is
+/// only publication of a ready frame; it is never a repair step.
 #[derive(Component, Default)]
 pub struct ComposedFrameOutput {
     parts: Vec<CxCompositePart>,
@@ -226,6 +231,29 @@ pub struct ComposedFrameOutput {
     size: UVec2,
     anchor: CxAnchor,
     visible: bool,
+}
+
+impl ComposedFrameOutput {
+    /// Build a frame payload that is immediately eligible for reveal.
+    ///
+    /// This only packages already-resolved frame data. It does not compute or
+    /// repair presentation state; callers must ensure the entity's presentation
+    /// basis is already correct before this is applied.
+    #[must_use]
+    pub(crate) fn visible_frame(
+        parts: Vec<CxCompositePart>,
+        origin: IVec2,
+        size: UVec2,
+        anchor: CxAnchor,
+    ) -> Self {
+        Self {
+            parts,
+            origin,
+            size,
+            anchor,
+            visible: true,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -614,7 +642,7 @@ pub struct ResolvedPartFragmentState {
     pub flip_y: bool,
     /// Gameplay-scaled position: `root + (authored - root) * gameplay_scale`.
     pub world_top_left_position: Vec2,
-    /// Gameplay-scaled position + scaled visual_offset.
+    /// Gameplay-scaled position + scaled `visual_offset`.
     /// Used by `fragment_sprite_rect` for pixel-authoritative hit testing.
     pub visual_top_left_position: Vec2,
 }
@@ -936,6 +964,15 @@ struct ResolvedAnimationFrame {
     fired_cues: Vec<FiredAnimationCue>,
 }
 
+/// Marker for composed roots whose atlas bindings/runtime state are ready.
+///
+/// "Ready" does not mean "already visible". The root remains hidden until
+/// [`update_composed_enemy_visuals`] has produced a valid [`ComposedFrameOutput`]
+/// and [`apply_composed_enemy_visuals`] reveals it in `PostUpdate`.
+///
+/// Ready therefore means "eligible to resolve frames", not "safe to reveal".
+/// Reveal is only valid after presentation basis is already correct in that
+/// same frame.
 #[derive(Component, Debug)]
 pub struct ComposedEnemyVisualReady;
 
@@ -1028,6 +1065,9 @@ pub fn ensure_composed_enemy_parts(
                     {
                         health.0 = *current;
                     }
+                    // Bind runtime data first, but keep the root hidden until
+                    // the current frame has been fully resolved. This never
+                    // exists to "buy time" for presentation repair.
                     commands.entity(entity).insert((
                         bindings,
                         ComposedCollisionState::default(),
@@ -1038,6 +1078,7 @@ pub fn ensure_composed_enemy_parts(
                         CxAuthoritativeCompositeMetrics,
                         CxCompositeSprite::default(),
                         CxAnchor::Center,
+                        AnchorOffsets::default(),
                         depth.to_layer(),
                         CxRenderSpace::World,
                         Visibility::Hidden,
@@ -1102,6 +1143,7 @@ pub fn update_composed_enemy_visuals(
             &mut ComposedPartStates,
             &mut ComposedResolvedParts,
             &mut ComposedFrameOutput,
+            Option<&mut AnchorOffsets>,
             (
                 Option<&Dying>,
                 Option<&ComposedAnimationPlaybackDebugEnabled>,
@@ -1126,6 +1168,7 @@ pub fn update_composed_enemy_visuals(
         mut part_states,
         mut resolved_part_states,
         mut frame_output,
+        anchor_offsets,
         (dying, playback_debug_enabled, playback_debug, depth_fallback_scale, presentation),
     ) in &mut root_query
     {
@@ -1284,25 +1327,14 @@ pub fn update_composed_enemy_visuals(
         //
         // First frame: compute entity-level defaults, then immediately
         // resolve the current animation's override so the very first
-        // AnchorOffsets insert has the correct per-animation value.
+        // AnchorOffsets value matches the active tag.
         //
         // Subsequent frames: only re-resolve when the animation tag changes.
         //
-        // The insert uses deferred commands, so consumers reading
-        // Option<&AnchorOffsets> in the same frame see the *previous*
-        // frame's value.  Two cases where this matters:
-        //
-        // 1. First atlas load: AnchorOffsets is absent for one frame.
-        //    advance_walk skips positioning (entity is still invisible
-        //    because this system hasn't set Visibility::Visible yet).
-        //    No visual artefact.
-        //
-        // 2. Animation tag change: the old animation's ground anchor is
-        //    used for one frame.  The difference is small (e.g. 3px
-        //    between walk_forward=45 and liftoff=42) and occurs during
-        //    transition animations where vertical motion is expected.
-        //    No gameplay effect — only a brief cosmetic shift masked
-        //    by the animation itself.
+        // AnchorOffsets is pre-inserted when the composed visual becomes ready,
+        // so tag changes can update the component immediately in this same
+        // system run. That avoids one-frame stale anchor reads during sharp
+        // transitions such as mosquiton wing-break -> fall.
         if !visual.anchor_offsets_inserted {
             match atlas_asset.atlas.spawn_anchor {
                 SpawnAnchorMode::Origin => {
@@ -1327,10 +1359,15 @@ pub fn update_composed_enemy_visuals(
                 .and_then(|a| a.ground_anchor_y)
                 .map_or(visual.entity_ground_anchor, f32::from);
             let air = atlas_asset.atlas.air_anchor_y.map_or(0.0, f32::from);
-            commands.entity(entity).insert(AnchorOffsets {
+            let new_offsets = AnchorOffsets {
                 ground: resolved_ground,
                 air,
-            });
+            };
+            if let Some(mut anchor_offsets) = anchor_offsets {
+                *anchor_offsets = new_offsets;
+            } else {
+                commands.entity(entity).insert(new_offsets);
+            }
             visual.last_resolved_anchor_tag = Some(animation_state.requested_tag.clone());
         }
 
@@ -1374,6 +1411,15 @@ pub fn update_composed_enemy_visuals(
 /// Runs in `PostUpdate` so all gameplay mutations (position, depth, animation)
 /// are settled before presentation is written. This is the sole writer of
 /// `CxCompositeSprite`, `CxAnchor`, and `Visibility` for composed enemies.
+///
+/// Reveal happens only from `ComposedFrameOutput`; this system never repairs
+/// or recomputes presentation state. If a composed root becomes visible here,
+/// its scale/offset basis must already be correct from spawn priming plus the
+/// `Update`-phase presentation systems.
+///
+/// Invariant: visibility flips only after presentation is already correct. If
+/// this system would need to "fix" presentation to make reveal safe, the
+/// caller is already wrong.
 pub fn apply_composed_enemy_visuals(
     mut query: Query<
         (

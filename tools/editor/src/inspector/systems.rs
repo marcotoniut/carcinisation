@@ -565,7 +565,7 @@ fn step_fields(
                 field_label(ui, &format!("spawns ({})", s.spawns.len()));
                 changed |= spawn_list(env, ui, &mut s.spawns);
             }
-            changed |= reflected_collapsing(env, ui, "floor_depths", &mut s.floor_depths);
+            changed |= reflected_collapsing(env, ui, "surfaces", &mut s.surfaces);
             changed |= projection_override_fields(ui, "stop_projection", &mut s.projection);
         }
         StageStep::Tween(s) => {
@@ -579,7 +579,7 @@ fn step_fields(
                 field_label(ui, &format!("spawns ({})", s.spawns.len()));
                 changed |= spawn_list(env, ui, &mut s.spawns);
             }
-            changed |= reflected_collapsing(env, ui, "floor_depths", &mut s.floor_depths);
+            changed |= reflected_collapsing(env, ui, "surfaces", &mut s.surfaces);
             changed |= projection_override_fields(ui, "tween_projection", &mut s.projection);
         }
         StageStep::Cinematic(s) => {

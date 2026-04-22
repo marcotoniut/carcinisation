@@ -274,11 +274,11 @@ pub struct EnemySpawn {
     /// the spawn's own `depth`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authored_depths: Option<Vec<Depth>>,
-    /// Altitude above the floor plane at this enemy's depth.
+    /// Altitude above the resolved gameplay floor at this enemy's depth.
     ///
-    /// When present, the spawn's screen Y is derived from the stage projection:
-    /// `floor_y_for_depth(depth) + altitude`.  The `coordinates.y` field is
-    /// ignored.  When `None`, `coordinates` is used as-is (legacy behaviour).
+    /// When present, the spawn's screen Y is derived from the active floor
+    /// topology: `floor_y(depth) + altitude`. The `coordinates.y` field is
+    /// ignored. When `None`, `coordinates` is used as-is (legacy behaviour).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub altitude: Option<f32>,
 }
@@ -608,6 +608,10 @@ pub struct StageData {
     /// Optional mid-stage checkpoint for continue-after-death.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checkpoint: Option<StageCheckpoint>,
+    /// Default parallax attenuation for this stage.  Individual steps can
+    /// override.  When `None`, falls back to `1.0` (full parallax).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parallax_attenuation: Option<f32>,
 }
 
 #[cfg(test)]
@@ -650,8 +654,8 @@ mod tests {
                 start_coordinates: Vec2(0.0, 0.0),
                 spawns: [],
                 steps: [
-                    Stop(max_duration: 5.0, kill_all: false, kill_boss: false, spawns: [], floor_depths: None),
-                    Stop(max_duration: 5.0, kill_all: false, kill_boss: false, spawns: [], floor_depths: None),
+                    Stop(max_duration: 5.0, kill_all: false, kill_boss: false, spawns: [], surfaces: None),
+                    Stop(max_duration: 5.0, kill_all: false, kill_boss: false, spawns: [], surfaces: None),
                 ],
                 checkpoint: StageCheckpoint(
                     step_index: 1,

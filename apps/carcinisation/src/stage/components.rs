@@ -4,9 +4,9 @@ pub mod damage;
 pub mod interactive;
 pub mod placement;
 
-use self::placement::Depth;
 use super::{
     data::{ContainerSpawn, StageSpawn},
+    floors::SurfaceSpec,
     projection::ProjectionProfile,
 };
 use crate::cutscene::data::CutsceneAnimationsSpawn;
@@ -14,7 +14,7 @@ use bevy::prelude::*;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use serde_with::{DurationSecondsWithFrac, serde_as};
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 #[derive(Component, Debug, Default)]
 /// Marker for entities that belong to the current stage run.
@@ -94,15 +94,31 @@ pub struct TweenStageStep {
     #[new(default)]
     #[serde(default)]
     pub spawns: Vec<StageSpawn>,
+    /// Surface declarations for this step.
+    ///
+    /// `None` = inherit from the most recent step that declared surfaces.
+    /// `Some(vec![])` = explicitly no surfaces (topology removal).
+    /// `Some(vec![...])` = declare surfaces for this step.
     #[new(default)]
-    #[serde(default)]
-    pub floor_depths: Option<HashMap<Depth, f32>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surfaces: Option<Vec<SurfaceSpec>>,
     /// Step-specific projection override.  When present, replaces the stage
     /// default for this step.  During tween steps, runtime interpolates from
     /// the previous effective profile to this one.
     #[new(default)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub projection: Option<ProjectionProfile>,
+    /// Parallax attenuation multiplier for this step.
+    ///
+    /// `0.0` = no parallax, `1.0` = full parallax.  `None` = inherit from
+    /// the most recent step that set a value (sticky carry-forward), falling
+    /// back to [`StageData::parallax_attenuation`], then to `1.0`.
+    ///
+    /// During tween steps, runtime interpolates linearly from the previous
+    /// effective value to this one.
+    #[new(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parallax_attenuation: Option<f32>,
     // TODO
     // pub is_checkpoint: bool,
     // pub music_fade: bool,
@@ -137,10 +153,10 @@ impl TweenStageStep {
         self
     }
 
-    /// Specifies optional per-depth floor offsets.
+    /// Sets the surface declarations for this tween step.
     #[must_use]
-    pub fn with_floor_depths(mut self, value: HashMap<Depth, f32>) -> Self {
-        self.floor_depths = Some(value);
+    pub fn with_surfaces(mut self, value: Vec<SurfaceSpec>) -> Self {
+        self.surfaces = Some(value);
         self
     }
 
@@ -148,6 +164,13 @@ impl TweenStageStep {
     #[must_use]
     pub fn with_projection(mut self, value: ProjectionProfile) -> Self {
         self.projection = Some(value);
+        self
+    }
+
+    /// Overrides the parallax attenuation for this tween step.
+    #[must_use]
+    pub fn with_parallax_attenuation(mut self, value: f32) -> Self {
+        self.parallax_attenuation = Some(value);
         self
     }
 }
@@ -169,13 +192,18 @@ pub struct StopStageStep {
     #[new(default)]
     #[serde(default)]
     pub spawns: Vec<StageSpawn>,
+    /// Surface declarations for this step. See [`TweenStageStep::surfaces`].
     #[new(default)]
-    #[serde(default)]
-    pub floor_depths: Option<HashMap<Depth, f32>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surfaces: Option<Vec<SurfaceSpec>>,
     /// Step-specific projection override.  See [`TweenStageStep::projection`].
     #[new(default)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub projection: Option<ProjectionProfile>,
+    /// Parallax attenuation for this step.  See [`TweenStageStep::parallax_attenuation`].
+    #[new(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parallax_attenuation: Option<f32>,
     // TODO
     // pub is_checkpoint: bool,
     // pub music_fade: bool,
@@ -211,10 +239,10 @@ impl StopStageStep {
         self
     }
 
-    /// Overrides per-depth floor offsets for the stop step.
+    /// Sets the surface declarations for this stop step.
     #[must_use]
-    pub fn with_floor_depths(mut self, value: HashMap<Depth, f32>) -> Self {
-        self.floor_depths = Some(value);
+    pub fn with_surfaces(mut self, value: Vec<SurfaceSpec>) -> Self {
+        self.surfaces = Some(value);
         self
     }
 
@@ -222,6 +250,13 @@ impl StopStageStep {
     #[must_use]
     pub fn with_projection(mut self, value: ProjectionProfile) -> Self {
         self.projection = Some(value);
+        self
+    }
+
+    /// Overrides the parallax attenuation for this stop step.
+    #[must_use]
+    pub fn with_parallax_attenuation(mut self, value: f32) -> Self {
+        self.parallax_attenuation = Some(value);
         self
     }
 }

@@ -24,6 +24,10 @@
 //! To add a new contributor: add a new offset component, include it as
 //! `Option<&NewOffset>` in the compose query, and add its value to the
 //! correct accumulator based on its category.
+//!
+//! Spawn-time composed priming uses the same pure parallax math as the runtime
+//! system. `update_parallax_offset` maintains that basis after spawn; it must
+//! never be required to make a first visible frame correct.
 
 use std::time::Duration;
 
@@ -33,7 +37,7 @@ use carapace::prelude::{CxPresentationTransform, WorldPos};
 use super::{
     components::placement::Depth,
     data::{StageData, StageStep},
-    projection::{projection_weight, tween_duration, walk_steps_at_elapsed},
+    projection::{ProjectionProfile, projection_weight, tween_duration, walk_steps_at_elapsed},
     resources::{ActiveProjection, ProjectionView, StageTimeDomain},
 };
 
@@ -135,7 +139,8 @@ pub fn update_active_parallax_attenuation(
 ///
 /// Recomputed every frame by [`update_parallax_offset`].  The value is
 /// consumed by [`compose_presentation_offsets`] and must not be read for
-/// gameplay logic.
+/// gameplay logic. This is an input contributor, not a second presentation
+/// truth source: [`CxPresentationTransform`] remains the only composed output.
 #[derive(Component, Debug, Clone, Copy, Default, Reflect)]
 #[reflect(Component)]
 pub struct ParallaxOffset(pub Vec2);
@@ -191,14 +196,34 @@ pub fn update_parallax_offset(
     }
 
     for (sub_pos, mut parallax, depth) in &mut query {
-        // Depth lane → stable floor Y; no Depth → transient entity Y.
-        let reference_y = depth.map_or(sub_pos.0.y, |d| profile.floor_y_for_depth(d.to_i8()));
-        let weight = projection_weight(profile, reference_y).clamp(0.0, 1.0);
-        let new_offset = Vec2::new(-lateral * weight * att, 0.0);
+        let new_offset = parallax_offset_for(profile, lateral, att, sub_pos.0, depth.copied());
         if parallax.0 != new_offset {
             parallax.0 = new_offset;
         }
     }
+}
+
+/// Computes the current collision-affecting parallax offset for an entity.
+///
+/// This is shared by the per-frame system and spawn-time initialisation so a
+/// newly spawned visible entity can start on the same basis the runtime will
+/// continue to use next frame.
+#[must_use]
+pub fn parallax_offset_for(
+    profile: &ProjectionProfile,
+    lateral_view_offset: f32,
+    attenuation: f32,
+    world_pos: Vec2,
+    depth: Option<Depth>,
+) -> Vec2 {
+    if lateral_view_offset.abs() < f32::EPSILON || attenuation.abs() < f32::EPSILON {
+        return Vec2::ZERO;
+    }
+
+    // Depth lane → stable floor Y; no Depth → transient entity Y.
+    let reference_y = depth.map_or(world_pos.y, |d| profile.floor_y_for_depth(d.to_i8()));
+    let weight = projection_weight(profile, reference_y).clamp(0.0, 1.0);
+    Vec2::new(-lateral_view_offset * weight * attenuation, 0.0)
 }
 
 /// Composes all offset contributors into `CxPresentationTransform` offset fields.
@@ -588,6 +613,37 @@ mod tests {
             "at horizon Y without Depth, should use Y-based weight≈0; got {}",
             horizon_offset.x
         );
+    }
+
+    #[test]
+    fn parallax_offset_helper_matches_runtime_system_for_depth_lane() {
+        let mut app = make_app();
+        app.insert_resource(ActiveParallaxAttenuation(0.75));
+        let profile = test_profile();
+        let depth = Depth::Five;
+        let world_pos = Vec2::new(100.0, profile.floor_y_for_depth(depth.to_i8()) + 37.0);
+        let expected = parallax_offset_for(&profile, 50.0, 0.75, world_pos, Some(depth));
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                WorldPos(world_pos),
+                ParallaxOffset::default(),
+                CxPresentationTransform::default(),
+                depth,
+            ))
+            .id();
+
+        app.update();
+
+        let runtime = app
+            .world()
+            .entity(entity)
+            .get::<ParallaxOffset>()
+            .expect("runtime parallax should exist")
+            .0;
+
+        assert_eq!(runtime, expected);
     }
 
     // --- Attenuation ---

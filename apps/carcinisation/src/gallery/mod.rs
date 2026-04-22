@@ -1,4 +1,8 @@
 //! Character gallery: standalone viewer for enemy sprites and animations.
+//!
+//! This is an asset-preview authority model, not the gameplay spawn pipeline.
+//! Gallery spawns must not be used as a reference for the stage spawn-time
+//! presentation invariant.
 
 pub mod components;
 pub mod messages;

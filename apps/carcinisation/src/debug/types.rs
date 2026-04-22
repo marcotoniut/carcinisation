@@ -22,7 +22,7 @@ use crate::{
             TweenStageStep,
             damage::{DamageFlicker, InflictsDamage},
             interactive::{ColliderData, Health},
-            placement::{Depth, Floor, Speed},
+            placement::{Depth, Speed},
         },
         data::{
             ContainerSpawn, EnemyDropSpawn, EnemySpawn, ObjectSpawn, ObjectType, PickupDropSpawn,
@@ -55,6 +55,7 @@ use crate::{
                 EnemyTardigrade, EnemyTardigradeAnimation, EnemyTardigradeAttacking,
             },
         },
+        floors::{HeightMode, Surface},
         pickup::components::HealthRecovery,
         player::components::{CameraShake, PlayerAttack},
     },
@@ -109,7 +110,8 @@ pub fn register_types(app: &mut App) {
         .register_type::<EnemyTardigrade>()
         .register_type::<EnemyTardigradeAnimation>()
         .register_type::<EnemyTardigradeAttacking>()
-        .register_type::<Floor>()
+        .register_type::<HeightMode>()
+        .register_type::<Surface>()
         .register_type::<Health>()
         .register_type::<HealthRecovery>()
         .register_type::<IdleEnemyStep>()

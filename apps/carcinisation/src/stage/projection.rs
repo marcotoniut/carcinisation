@@ -863,17 +863,17 @@ pub fn projection_weight(profile: &ProjectionProfile, floor_y: f32) -> f32 {
 /// `world_x` is interpreted as the sprite's screen anchor (not a 3D world
 /// coordinate). Under shift, the screen X is offset by
 /// `lateral_view_offset * depth_weight`, so deep sprites move less than
-/// near sprites. A sprite at depth 9 (horizon, depth_weight = 0) stays
-/// exactly at its authored world_x regardless of shift — this stability
+/// near sprites. A sprite at depth 9 (horizon, `depth_weight` = 0) stays
+/// exactly at its authored `world_x` regardless of shift — this stability
 /// is the intended behaviour.
 ///
 /// Note: this is NOT the same projection model as the perspective grid
 /// (`build_perspective_grid`). The grid uses true pinhole projection and
 /// converges rays to the vanishing point at the horizon; sprites preserve
-/// their world_x as a screen anchor. These two models are intentionally
+/// their `world_x` as a screen anchor. These two models are intentionally
 /// different — the grid visualises the floor plane, sprites are gameplay
 /// entities in depth-banded screen space. Grid rays and sprites at the
-/// same world_x will not coincide except at the foreground depth.
+/// same `world_x` will not coincide except at the foreground depth.
 /// Computes the **visual-space** X for a given world X and screen Y.
 ///
 /// The result is suitable for rendering and debug overlays — NOT for

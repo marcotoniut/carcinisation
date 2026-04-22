@@ -8,15 +8,18 @@ use crate::{
         bundles::{BackgroundBundle, SkyboxBundle},
         components::{Stage, StageEntity},
         data::{StageData, StageSpawn},
+        floors::{ActiveSurfaceLayout, effective_floor_layout, evaluate_floors_at},
         messages::StageStartupEvent,
         player::messages::PlayerStartupEvent,
         projection::{effective_projection, validate_stage_projections},
-        resources::StageGravity,
+        resources::{self, ActiveProjection, StageGravity},
         ui::hud::spawn::spawn_hud,
     },
     systems::spawn::make_music_bundle,
     transitions::trigger_transition,
 };
+use std::time::Duration;
+
 use activable::activate;
 use bevy::{audio::PlaybackMode, prelude::*};
 use carapace::prelude::{CxFilter, CxSprite, CxTypeface};
@@ -74,6 +77,7 @@ pub fn on_stage_startup(
     if from_checkpoint && let Some(checkpoint) = &data.checkpoint {
         effective_data.start_coordinates = checkpoint.start_coordinates;
     }
+    let start_x = effective_data.start_coordinates.x;
     commands.insert_resource::<StageData>(effective_data);
 
     // Set stage-specific gravity or use default
@@ -98,21 +102,34 @@ pub fn on_stage_startup(
     );
 
     let initial_projection = effective_projection(data, 0);
+    let initial_active_projection = ActiveProjection(initial_projection);
+    let initial_floor_layout = effective_floor_layout(data, 0);
+    let initial_floors = evaluate_floors_at(data, Duration::ZERO);
+    let depth_scale_config = crate::stage::depth_scale::DepthScaleConfig::load_or_default();
 
-    // Spawn default floor entities from the initial projection so the depth
-    // debug overlay and falling physics have data immediately.  Steps with
-    // explicit `floor_depths` will despawn and replace these.
-    {
-        use std::collections::HashMap;
-        let default_floors: HashMap<crate::stage::components::placement::Depth, f32> = (1..=9_i8)
-            .filter_map(|d| {
-                crate::stage::components::placement::Depth::try_from(d)
-                    .ok()
-                    .map(|depth| (depth, initial_projection.floor_y_for_depth(d)))
-            })
-            .collect();
-        crate::stage::components::placement::spawn_floor_depths(&mut commands, &default_floors);
-    }
+    commands.insert_resource(initial_active_projection);
+    commands.insert_resource(ActiveSurfaceLayout(initial_floor_layout.clone()));
+    commands.insert_resource(initial_floors.clone());
+    // Lateral parallax anchor: captures camera X at stage entry.
+    //
+    // On checkpoint resume, this re-captures from the checkpoint's start
+    // coordinates, not the stage origin. This means lateral parallax is
+    // relative to entry-point camera position — motion since the player
+    // began this run — which is the perceptually meaningful frame.
+    //
+    // Consequence: a player checkpointing into mid-stage gets a different
+    // "zero" than a player who played through from the beginning. The
+    // parallax response to the same camera tween will differ between those
+    // playthroughs. This is intentional.
+    //
+    // TODO: alternative — anchor against stage_data.start_coordinates.x
+    // unconditionally, making parallax independent of entry point at the
+    // cost of decoupling from the player's perceived camera motion.
+    let initial_projection_view = resources::ProjectionView {
+        lateral_anchor_x: start_x,
+        ..Default::default()
+    };
+    commands.insert_resource(initial_projection_view);
 
     for spawn in &data.spawns {
         // Skip gameplay entities when resuming from checkpoint — they
@@ -138,7 +155,11 @@ pub fn on_stage_startup(
                     &asset_server,
                     Vec2::ZERO,
                     spawn,
-                    &initial_projection,
+                    &initial_floors,
+                    &depth_scale_config,
+                    Some(&initial_active_projection),
+                    Some(&initial_projection_view),
+                    None,
                 );
             }
             StageSpawn::Pickup(spawn) => {

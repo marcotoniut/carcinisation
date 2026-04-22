@@ -130,7 +130,6 @@ StageData(
                     depth: Five,
                 ),
             ],
-            floor_depths: None,
         ),
     ],
 )

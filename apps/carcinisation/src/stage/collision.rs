@@ -32,7 +32,7 @@ pub(crate) struct MaskCollisionAssets<'w, 's> {
     atlas_cache: Local<'s, AtlasPixelCollisionCache>,
 }
 
-impl<'w, 's> MaskCollisionAssets<'w, 's> {
+impl MaskCollisionAssets<'_, '_> {
     pub fn refresh(&mut self) {
         if self.sprite_asset_events.read().next().is_some() {
             self.sprite_cache.clear();
@@ -100,11 +100,11 @@ struct ComposedHitSelection {
     hit_position: Vec2,
 }
 
-pub(crate) fn build_attack_mask<'a>(
-    attack_data: &'a SpritePixelData,
+pub(crate) fn build_attack_mask(
+    attack_data: &SpritePixelData,
     attack_frame: Option<CxFrameView>,
     rect_world: IRect,
-) -> AttackMask<'a> {
+) -> AttackMask<'_> {
     AttackMask {
         mask: WorldMaskInstance {
             source: PixelMaskSource::Sprite(attack_data),
@@ -159,6 +159,8 @@ where
     FMask: FnMut(WorldMaskInstance<'_>),
     FPrimitive: FnMut(Vec2, &Collider),
 {
+    let simple_collision_origin = simple_collision_origin(target);
+
     if target.composed_collision_state.is_some() {
         let mut drew_mask = false;
         visit_composed_target_masks(target, assets, |mask, _, _| {
@@ -191,7 +193,7 @@ where
             if matches!(collider.shape, ColliderShape::SpriteMask) {
                 continue;
             }
-            visit_primitive(target.world_pos.0, collider);
+            visit_primitive(simple_collision_origin, collider);
         }
         return collider_data
             .0
@@ -256,7 +258,7 @@ fn resolve_target_hit(
         && let Some(collider_data) = target.collider_data
     {
         let hit = collider_data
-            .point_collides(target.world_pos.0, hit_position)
+            .point_collides(simple_collision_origin(target), hit_position)
             .map(|collider| TargetCollisionHit {
                 hit_position,
                 defense: collider.defense,
@@ -302,6 +304,7 @@ fn probe_simple_mask(
     probe: &TargetCollisionProbe<'_>,
     target: CollisionTarget<'_>,
 ) -> Option<TargetCollisionHit> {
+    let collision_origin = simple_collision_origin(target);
     match probe {
         TargetCollisionProbe::Point { world_points } => world_points.iter().find_map(|point| {
             let world = point.round().as_ivec2();
@@ -309,7 +312,7 @@ fn probe_simple_mask(
                 hit_position: world.as_vec2(),
                 defense: target
                     .collider_data
-                    .and_then(|data| data.point_collides(target.world_pos.0, world.as_vec2()))
+                    .and_then(|data| data.point_collides(collision_origin, world.as_vec2()))
                     .map_or(1.0, |collider| collider.defense),
                 semantic_part: None,
             })
@@ -319,12 +322,19 @@ fn probe_simple_mask(
                 hit_position: point.as_vec2(),
                 defense: target
                     .collider_data
-                    .and_then(|data| data.point_collides(target.world_pos.0, point.as_vec2()))
+                    .and_then(|data| data.point_collides(collision_origin, point.as_vec2()))
                     .map_or(1.0, |collider| collider.defense),
                 semantic_part: None,
             })
         }
     }
+}
+
+fn simple_collision_origin(target: CollisionTarget<'_>) -> Vec2 {
+    target.world_pos.0
+        + target
+            .presentation
+            .map_or(Vec2::ZERO, |pt| pt.collision_offset)
 }
 
 fn resolve_composed_mask_hit(
@@ -684,5 +694,36 @@ mod tests {
         });
 
         assert_eq!(point, Vec2::new(4.0, 6.0));
+    }
+
+    #[test]
+    fn simple_collision_origin_includes_collision_offset() {
+        let position = CxPosition::default();
+        let world_pos = WorldPos(Vec2::new(12.0, 34.0));
+        let anchor = CxAnchor::Center;
+        let canvas = CxRenderSpace::World;
+        let presentation = CxPresentationTransform {
+            collision_offset: Vec2::new(-6.0, 3.0),
+            ..Default::default()
+        };
+
+        let origin = simple_collision_origin(CollisionTarget {
+            position: &position,
+            world_pos: &world_pos,
+            anchor: &anchor,
+            canvas: &canvas,
+            frame: None,
+            sprite: None,
+            atlas_sprite: None,
+            presentation: Some(&presentation),
+            collider_data: None,
+            composed_collision_state: None,
+            composed_resolved_parts: None,
+            composed_atlas_bindings: None,
+            enemy: None,
+            destructible: None,
+        });
+
+        assert_eq!(origin, Vec2::new(6.0, 37.0));
     }
 }

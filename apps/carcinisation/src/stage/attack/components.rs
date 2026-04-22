@@ -53,20 +53,6 @@ pub struct EnemyAttackDebugPosition {
     pub origin: Vec2,
 }
 
-/// Keeps an attack entity's position locked to a resolved composed part each
-/// frame until removed (e.g. when a startup hold ends and travel begins).
-/// Generic — works for any composed enemy + any part.
-#[derive(Component, Clone, Debug, Reflect)]
-#[reflect(Component)]
-pub struct AttachedToComposedPart {
-    /// The composed enemy entity that owns the part.
-    pub source_entity: Entity,
-    /// Which semantic part to track (e.g. `"head"`).
-    pub part_id: String,
-    /// Authored local offset within the part's sprite (e.g. mouth position).
-    pub local_offset: IVec2,
-}
-
 impl EnemyHoveringAttackType {
     #[must_use]
     pub fn get_name(&self) -> String {

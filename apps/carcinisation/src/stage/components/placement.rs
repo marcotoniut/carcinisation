@@ -5,10 +5,7 @@ use crate::layer::{Layer, MidDepth, PreBackgroundDepth};
 use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    ops::{Add, Sub},
-};
+use std::ops::{Add, Sub};
 use strum_macros::EnumIter;
 
 #[derive(
@@ -27,6 +24,7 @@ use strum_macros::EnumIter;
     TryFromPrimitive,
     Serialize,
 )]
+#[reflect(Component)]
 #[repr(i8)]
 pub enum Depth {
     Nine = 9,
@@ -186,9 +184,6 @@ impl AuthoredDepths {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, Reflect)]
-pub struct Floor(pub f32);
-
 /// State-based anchor offsets for composed entities.
 ///
 /// Both values are distances **downward from the composition origin** in
@@ -248,20 +243,3 @@ pub struct InView;
 
 #[derive(Component, Debug)]
 pub struct LinearUpdateDisabled;
-
-/// Despawn all existing floor marker entities to prevent stale floors from
-/// previous steps polluting gameplay queries (collision, falling, debug).
-pub fn despawn_floor_entities(commands: &mut Commands, query: &Query<Entity, With<Floor>>) {
-    for entity in query.iter() {
-        commands.entity(entity).try_despawn();
-    }
-}
-
-pub fn spawn_floor_depths<S: std::hash::BuildHasher>(
-    commands: &mut Commands,
-    floor_depths: &HashMap<Depth, f32, S>,
-) {
-    for (depth, y) in floor_depths {
-        commands.spawn((Floor(*y), *depth, super::StageEntity));
-    }
-}

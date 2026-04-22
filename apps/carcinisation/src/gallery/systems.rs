@@ -330,6 +330,9 @@ pub fn react_to_gallery_selection_changed(
             ));
         }
         GalleryCharacter::Mosquiton => {
+            // Gallery preview path only. It is an asset-preview authority model,
+            // not the gameplay spawn pipeline, and must not be used as a
+            // reference for spawn-time presentation priming guarantees.
             commands.spawn((
                 common,
                 ComposedAnimationState::new(&animation),
@@ -338,6 +341,9 @@ pub fn react_to_gallery_selection_changed(
             ));
         }
         GalleryCharacter::Spidey => {
+            // Gallery preview path only. It is an asset-preview authority model,
+            // not the gameplay spawn pipeline, and must not be used as a
+            // reference for spawn-time presentation priming guarantees.
             commands.spawn((
                 common,
                 ComposedAnimationState::new(&animation),

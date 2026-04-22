@@ -1,0 +1,5 @@
+# Mechanical rename commits — pure search-and-replace, no logic changes.
+# Configure locally with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# refactor(carapace): mechanical naming cleanup and frame clarity pass
+084d7d4f13df1fd94678a5b6b49d97b951eec2e3

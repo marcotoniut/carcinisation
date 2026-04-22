@@ -1463,6 +1463,7 @@ mod tests {
             gravity: None,
             projection: None,
             checkpoint: None,
+            parallax_attenuation: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1592,14 +1593,16 @@ mod tests {
                 coordinates: Vec2::new(100.0, 50.0),
                 base_speed: 1.0,
                 spawns: Vec::new(),
-                floor_depths: None,
+                surfaces: None,
                 projection: None,
+                parallax_attenuation: None,
             })],
             on_start_transition_o: None,
             on_end_transition_o: None,
             gravity: None,
             projection: None,
             checkpoint: None,
+            parallax_attenuation: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1851,15 +1854,17 @@ mod tests {
                     coordinates: Vec2::new(100.0, 0.0),
                     base_speed: 1.0,
                     spawns: Vec::new(),
-                    floor_depths: None,
+                    surfaces: None,
                     projection: None,
+                    parallax_attenuation: None,
                 }),
                 StageStep::Tween(TweenStageStep {
                     coordinates: Vec2::new(200.0, 0.0),
                     base_speed: 1.0,
                     spawns: Vec::new(),
-                    floor_depths: None,
+                    surfaces: None,
                     projection: None,
+                    parallax_attenuation: None,
                 }),
             ],
             on_start_transition_o: None,
@@ -1867,6 +1872,7 @@ mod tests {
             gravity: None,
             projection: None,
             checkpoint: None,
+            parallax_attenuation: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1975,15 +1981,17 @@ mod tests {
                     coordinates: Vec2::new(100.0, 0.0),
                     base_speed: 1.0,
                     spawns: Vec::new(),
-                    floor_depths: None,
+                    surfaces: None,
                     projection: None,
+                    parallax_attenuation: None,
                 }),
                 StageStep::Tween(TweenStageStep {
                     coordinates: Vec2::new(200.0, 0.0),
                     base_speed: 1.0,
                     spawns: Vec::new(),
-                    floor_depths: None,
+                    surfaces: None,
                     projection: None,
+                    parallax_attenuation: None,
                 }),
             ],
             on_start_transition_o: None,
@@ -1991,6 +1999,7 @@ mod tests {
             gravity: None,
             projection: None,
             checkpoint: None,
+            parallax_attenuation: None,
         };
 
         // Point near the first segment (0,0)→(100,0): should insert at index 0.

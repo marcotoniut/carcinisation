@@ -19,6 +19,7 @@ pub struct PlayerConfig {
 }
 
 impl PlayerConfig {
+    #[must_use]
     pub fn load() -> Self {
         #[cfg(not(target_family = "wasm"))]
         if let Ok(body) = std::fs::read_to_string(CONFIG_PATH) {

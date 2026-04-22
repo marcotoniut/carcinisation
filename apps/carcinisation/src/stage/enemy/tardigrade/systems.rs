@@ -117,13 +117,14 @@ pub fn check_idle_tardigrade(
             &EnemyTardigrade,
             &mut EnemyTardigradeAttacking,
             &WorldPos,
+            Option<&CxPresentationTransform>,
             &Depth,
         ),
         With<InView>,
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();
-    for (entity, _enemy, attacking, position, depth) in &mut query.iter() {
+    for (entity, _enemy, attacking, position, presentation, depth) in &mut query.iter() {
         if attacking.attack {
             // if let EnemyStep::Idle { duration } = enemy.current_step() {
             if attacking.last_attack_started
@@ -148,6 +149,7 @@ pub fn check_idle_tardigrade(
                     &boulder_config,
                     *SCREEN_RESOLUTION_F32_H + camera_pos.0,
                     position.0,
+                    presentation,
                     depth,
                 );
             }

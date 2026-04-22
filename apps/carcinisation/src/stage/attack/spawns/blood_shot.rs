@@ -1,10 +1,11 @@
 use crate::stage::{
     attack::{
         components::{
-            AttachedToComposedPart, EnemyAttack, EnemyAttackOriginDepth, EnemyAttackOriginPosition,
+            EnemyAttack, EnemyAttackOriginDepth, EnemyAttackOriginPosition,
             EnemyHoveringAttackType, bundles::make_hovering_attack_atlas_bundle,
         },
         data::blood_shot::BloodShotConfig,
+        spawns::{ProjectileSpawnSourceBasis, projectile_spawn_world_pos_from_source},
     },
     components::{
         StageEntity,
@@ -18,7 +19,6 @@ use crate::stage::{
 use bevy::prelude::*;
 use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos};
 
-use crate::stage::parallax::ParallaxOffset;
 use cween::{
     linear::components::{TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle},
     structs::{Constructor, Magnitude},
@@ -62,8 +62,8 @@ pub struct BloodShotTween;
 
 /// Holds a freshly spawned blood shot at its authored cue origin briefly so
 /// the first visible frame reads as emerging from the mouth before travel.
-/// Far target is recomputed at arm time from the current position and speed
-/// direction so attachment-moved projectiles travel correctly.
+/// Spawn origin is reconstructed once from the source's presented muzzle.
+/// After that, travel remains plain world-space motion.
 #[derive(Component, Clone, Debug)]
 pub struct PendingBloodShotMotion {
     pub armed_at: Duration,
@@ -92,10 +92,10 @@ pub fn spawn_blood_shot_attack(
     stage_time: &Res<Time<StageTimeDomain>>,
     config: &BloodShotConfig,
     target_pos: Vec2,
-    current_pos: Vec2,
+    source_muzzle_world_pos: Vec2,
+    source_presentation: Option<&CxPresentationTransform>,
     depth: &Depth,
     gameplay_scale: f32,
-    attachment: Option<AttachedToComposedPart>,
 ) {
     let attack_type = EnemyHoveringAttackType::BloodShot;
     // TODO should this account for player speed/direction?
@@ -108,26 +108,31 @@ pub fn spawn_blood_shot_attack(
     let (atlas_sprite, animation, collider_data) =
         make_hovering_attack_atlas_bundle(asset_server, atlas_assets, &attack_type);
 
-    let direction = target_pos - current_pos;
+    let spawn_world_pos = projectile_spawn_world_pos_from_source(
+        source_muzzle_world_pos,
+        source_presentation,
+        ProjectileSpawnSourceBasis::WorldSpace,
+    );
+    let direction = target_pos - spawn_world_pos;
     let speed = direction.normalize_or_zero() * config.line_speed;
 
     let mut entity_commands = commands.spawn(BloodShotBundle {
-        enemy_attack_origin_position: EnemyAttackOriginPosition(current_pos),
+        enemy_attack_origin_position: EnemyAttackOriginPosition(spawn_world_pos),
         enemy_attack_origin_depth: EnemyAttackOriginDepth(*depth),
         enemy_hovering_attack_type: EnemyHoveringAttackType::BloodShot,
         depth: *depth,
         inflicts_damage: InflictsDamage(config.damage),
-        position: WorldPos(current_pos),
-        targeting_value_x: current_pos.x.into(),
-        targeting_value_y: current_pos.y.into(),
+        position: WorldPos(spawn_world_pos),
+        targeting_value_x: spawn_world_pos.x.into(),
+        targeting_value_y: spawn_world_pos.y.into(),
         targeting_value_z: depth.to_f32().into(),
         default: default(),
     });
 
     #[cfg(debug_assertions)]
     entity_commands.insert(crate::stage::attack::components::EnemyAttackDebugPosition {
-        current: current_pos,
-        origin: current_pos,
+        current: spawn_world_pos,
+        origin: spawn_world_pos,
     });
 
     entity_commands.insert((
@@ -136,8 +141,6 @@ pub fn spawn_blood_shot_attack(
         CxAnchor::Center,
         (*depth - 1).to_layer(),
         AuthoredDepths::single(Depth::One),
-        ParallaxOffset::default(),
-        CxPresentationTransform::default(),
     ));
 
     if !collider_data.0.is_empty() {
@@ -158,10 +161,6 @@ pub fn spawn_blood_shot_attack(
         armed_at: stage_time.elapsed() + config.startup_hold(),
         speed,
     });
-
-    if let Some(attachment) = attachment {
-        entity_commands.insert(attachment);
-    }
 }
 
 pub fn arm_pending_blood_shot_motion(
@@ -175,9 +174,9 @@ pub fn arm_pending_blood_shot_motion(
             continue;
         }
 
-        // Recompute far_target from the current (possibly attachment-moved)
-        // position so the travel direction stays consistent with the actual
-        // release point.
+        // Recompute far_target from the current world-space position so the
+        // travel direction stays consistent with the actual held release
+        // point, without re-reading presentation after spawn.
         let direction = pending.speed.normalize_or_zero();
         let far_target = position.0 + direction * 1000.0;
 
@@ -214,10 +213,7 @@ pub fn arm_pending_blood_shot_motion(
             "Blood Shot Tween Z",
         );
 
-        commands
-            .entity(entity)
-            .remove::<PendingBloodShotMotion>()
-            .remove::<AttachedToComposedPart>();
+        commands.entity(entity).remove::<PendingBloodShotMotion>();
     }
 }
 
@@ -285,60 +281,5 @@ mod tests {
             ), With<TweenChild>>();
             assert_eq!(child_query.iter(world).count(), 3);
         }
-    }
-
-    #[test]
-    fn arming_removes_attached_to_composed_part() {
-        let mut app = App::new();
-        app.insert_resource(Time::<StageTimeDomain>::default());
-        app.insert_resource(BloodShotConfig::load());
-        app.add_systems(Update, arm_pending_blood_shot_motion);
-
-        let dummy_source = app.world_mut().spawn_empty().id();
-
-        let attack = app
-            .world_mut()
-            .spawn((
-                EnemyAttack,
-                WorldPos(Vec2::new(10.0, 20.0)),
-                Depth::Three,
-                PendingBloodShotMotion {
-                    armed_at: Duration::from_millis(60),
-                    speed: Vec2::new(5.0, 6.0),
-                },
-                AttachedToComposedPart {
-                    source_entity: dummy_source,
-                    part_id: "head".to_string(),
-                    local_offset: IVec2::new(6, 9),
-                },
-            ))
-            .id();
-
-        // Before hold expires: both components present.
-        app.world_mut()
-            .resource_mut::<Time<StageTimeDomain>>()
-            .advance_by(Duration::from_millis(59));
-        app.update();
-        assert!(
-            app.world()
-                .entity(attack)
-                .contains::<AttachedToComposedPart>()
-        );
-
-        // After hold expires: both removed.
-        app.world_mut()
-            .resource_mut::<Time<StageTimeDomain>>()
-            .advance_by(Duration::from_millis(1));
-        app.update();
-        assert!(
-            !app.world()
-                .entity(attack)
-                .contains::<PendingBloodShotMotion>()
-        );
-        assert!(
-            !app.world()
-                .entity(attack)
-                .contains::<AttachedToComposedPart>()
-        );
     }
 }

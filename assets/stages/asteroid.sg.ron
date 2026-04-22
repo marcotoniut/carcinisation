@@ -72,14 +72,12 @@ StageData(
             coordinates: Vec2(0.0, 577.0),
             base_speed: 8.0,
             spawns: [],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 10.0,
             kill_all: false,
             kill_boss: false,
             spawns: [],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(50.0, 577.0),
@@ -120,25 +118,21 @@ StageData(
                     depth: Six,
                 ),
             ],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(34.0, 577.0),
             base_speed: 8.0,
             spawns: [],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(90.0, 577.0),
             base_speed: 4.0,
             spawns: [],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(0.0, 577.0),
             base_speed: 2.0,
             spawns: [],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(50.0, 577.0),
@@ -163,7 +157,6 @@ StageData(
                     depth: Six,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 30.0,
@@ -180,7 +173,6 @@ StageData(
                     depth: Six,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 40.0,
@@ -197,14 +189,12 @@ StageData(
                     depth: Six,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: None,
             kill_all: false,
             kill_boss: true,
             spawns: [],
-            floor_depths: None,
         ),
     ],
 )

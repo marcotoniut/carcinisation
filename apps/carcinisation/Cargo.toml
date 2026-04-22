@@ -6,7 +6,7 @@ description = "Main Bevy executable for stage-based pixel shooter"
 default-run = "carcinisation"
 
 [features]
-default = []
+default = ["brp"]
 gallery = []
 brp = ["dep:bevy_brp_extras", "carapace/brp_extras"]
 trace_chrome = ["bevy/trace_chrome", "carapace/profiling_spans"]

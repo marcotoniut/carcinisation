@@ -126,10 +126,63 @@ pub fn update_camera_pos_y(
 /// set at stage load. This gives the grid and any lateral-shift-aware system
 /// the camera's displacement from its starting position.
 pub fn update_lateral_view_offset(
-    camera_query: Query<&WorldPos, With<CameraPos>>,
+    camera_query: Query<(&WorldPos, Option<&CameraShake>), With<CameraPos>>,
     mut projection_view: ResMut<ProjectionView>,
 ) {
-    if let Ok(cam_pos) = camera_query.single() {
-        projection_view.lateral_view_offset = cam_pos.0.x - projection_view.lateral_anchor_x;
+    if let Ok((cam_pos, shake)) = camera_query.single() {
+        // Lateral parallax should track the camera's authored X basis, not the
+        // transient shake displacement layered on top of it for presentation.
+        let camera_basis_x = cam_pos.0.x - shake.map_or(0.0, |shake| shake.current_offset.x);
+        projection_view.lateral_view_offset = camera_basis_x - projection_view.lateral_anchor_x;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lateral_view_tracks_camera_x_without_shake() {
+        let mut app = App::new();
+        app.insert_resource(ProjectionView {
+            lateral_anchor_x: 10.0,
+            lateral_view_offset: 0.0,
+        });
+        app.add_systems(Update, update_lateral_view_offset);
+        app.world_mut()
+            .spawn((CameraPos, WorldPos(Vec2::new(42.0, 0.0))));
+
+        app.update();
+
+        assert_eq!(
+            app.world().resource::<ProjectionView>().lateral_view_offset,
+            32.0
+        );
+    }
+
+    #[test]
+    fn lateral_view_ignores_camera_shake_offset() {
+        let mut app = App::new();
+        app.insert_resource(ProjectionView {
+            lateral_anchor_x: 10.0,
+            lateral_view_offset: 0.0,
+        });
+        app.add_systems(Update, update_lateral_view_offset);
+        app.world_mut().spawn((
+            CameraPos,
+            WorldPos(Vec2::new(45.0, 0.0)),
+            CameraShake {
+                intensity: 1.0,
+                decay: 1.0,
+                current_offset: Vec2::new(3.0, -2.0),
+            },
+        ));
+
+        app.update();
+
+        assert_eq!(
+            app.world().resource::<ProjectionView>().lateral_view_offset,
+            32.0
+        );
     }
 }

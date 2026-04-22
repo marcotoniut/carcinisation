@@ -146,12 +146,12 @@ StageData(
                     altitude: 38.0,
                 ),
             ],
-            floor_depths: {
-                Six: 70.0,
-                Four: 30.0,
-                Five: 50.0,
-                Three: 0.0,
-            },
+            surfaces: [
+                SurfaceSpec(depths: RangeInclusive(start: Three, end: Three), mode: Anchored(0.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Four, end: Four), mode: Anchored(30.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Five, end: Five), mode: Anchored(50.0)),
+                SurfaceSpec(depths: RangeInclusive(start: Six, end: Six), mode: Anchored(70.0)),
+            ],
         ),
         Stop(
             max_duration: 12.0,
@@ -234,7 +234,6 @@ StageData(
                     altitude: 53.0,
                 ),
             ],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(193.47852, -0.07234955),
@@ -274,14 +273,12 @@ StageData(
                     depth: Six,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 10.0,
             kill_all: true,
             kill_boss: false,
             spawns: [],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(313.86188, 0.16482544),
@@ -364,7 +361,6 @@ StageData(
                     altitude: 35.0,
                 ),
             ],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(513.0, 0.0),
@@ -566,14 +562,12 @@ StageData(
                     altitude: 48.0,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 10.0,
             kill_all: true,
             kill_boss: false,
             spawns: [],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(800.0, 155.0),
@@ -625,14 +619,12 @@ StageData(
                     altitude: 50.0,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 10.0,
             kill_all: true,
             kill_boss: false,
             spawns: [],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(930.0, 155.0),
@@ -680,14 +672,12 @@ StageData(
                     altitude: 43.0,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 45.0,
             kill_all: false,
             kill_boss: true,
             spawns: [],
-            floor_depths: None,
         ),
     ],
     on_start_transition_o: None,

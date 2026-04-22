@@ -150,6 +150,7 @@ mod tests {
             gravity: None,
             projection: None,
             checkpoint: None,
+            parallax_attenuation: None,
         }
     }
 

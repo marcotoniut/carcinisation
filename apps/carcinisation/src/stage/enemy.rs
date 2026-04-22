@@ -34,7 +34,10 @@ use self::{
         assign_tardigrade_animation, check_idle_tardigrade, despawn_dead_tardigrade,
     },
 };
-use crate::systems::movement::PositionSyncSystems;
+use crate::{
+    stage::{CollisionStateSystems, parallax::compose_presentation_offsets},
+    systems::movement::PositionSyncSystems,
+};
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use carapace::set::CxSet;
@@ -78,22 +81,35 @@ impl Plugin for EnemyPlugin {
                     assign_mosquito_animation.after(check_idle_mosquito),
                     despawn_dead_mosquitoes,
                 ),
+                // Mosquiton
+                //
+                // The composed pipeline + `detect_part_breakage` run first, then
+                // `apply_deferred` flushes their commands (inserting `WingsBroken`,
+                // `FallingState`, removing `EnemyBehaviors`, `DespawnMark` on tween
+                // children). Only then do animation and falling physics run — they
+                // see the up-to-date component state from the same frame.
+                //
+                // This ordering is for behaviour state only. Spawn-time
+                // presentation correctness must already hold before this block
+                // runs; `ApplyDeferred` must never be required to make first
+                // visibility safe.
                 (
-                    // Mosquiton
-                    assign_mosquiton_animation.after(check_idle_mosquito),
-                    apply_mosquiton_falling_physics,
+                    prepare_composed_atlas_assets,
+                    ensure_composed_enemy_parts,
+                    update_composed_enemy_visuals.in_set(CollisionStateSystems),
+                    detect_part_breakage,
+                    trigger_mosquiton_authored_attack_cues,
+                    ApplyDeferred,
                     (
-                        prepare_composed_atlas_assets,
-                        ensure_composed_enemy_parts,
-                        update_composed_enemy_visuals,
-                        detect_part_breakage,
-                        trigger_mosquiton_authored_attack_cues,
-                    )
-                        .chain()
-                        .after(PositionSyncSystems),
-                    despawn_dead_mosquitons,
-                    update_mosquiton_death_effect,
-                ),
+                        assign_mosquiton_animation.after(check_idle_mosquito),
+                        apply_mosquiton_falling_physics,
+                        despawn_dead_mosquitons,
+                        update_mosquiton_death_effect,
+                    ),
+                )
+                    .chain()
+                    .after(PositionSyncSystems)
+                    .after(compose_presentation_offsets),
                 (
                     // Spidey
                     // Composed pipeline (prepare/ensure/update) is registered

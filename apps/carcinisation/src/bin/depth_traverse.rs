@@ -37,6 +37,11 @@
 //! Run with:
 //! - `cargo run -p carcinisation --bin depth_traverse`
 //! - `cargo run -p carcinisation --bin depth_traverse -- --character spidey`
+//!
+//! This demo intentionally owns projection authority itself by writing
+//! projection-adjusted X back into `WorldPos`. It does not follow the gameplay
+//! spawn-time presentation invariant and must not be used as a gameplay
+//! reference.
 
 use bevy::{asset::AssetMetaCheck, prelude::*};
 #[cfg(feature = "brp")]
@@ -449,6 +454,11 @@ fn setup(
     spawn_walker(&mut commands, &asset_server, &profile, *selected);
 }
 
+/// Demo-only spawn path.
+///
+/// This binary uses an alternative authority model: it writes projection-aware
+/// motion directly and is not a gameplay reference for spawn-time presentation
+/// priming. Do not use it to reason about the stage spawn invariant.
 fn spawn_walker(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -486,8 +496,9 @@ fn spawn_walker(
             airborne: false,
             half_trips: 0,
         },
-        // depth_traverse walkers write projection-adjusted X directly to
-        // WorldPos (they track the perspective grid). NoParallax
+        // Demo-only authority model: depth_traverse writes projection-adjusted
+        // X directly to WorldPos to track the perspective grid. It is not a
+        // gameplay reference for spawn-time presentation priming. NoParallax
         // prevents the parallax system from double-shifting them.
         NoParallax,
         CxPresentationTransform::default(),

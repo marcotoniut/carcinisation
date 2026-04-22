@@ -13,8 +13,15 @@
 //!   collision hit-detection, debug overlays.
 //!
 //! All visual displacement (parallax, projection, future knockback/hit-flash)
-//! lives in `CxPresentationTransform` and is applied by the composition system
-//! in `PostUpdate`. Simulation systems write world-space only.
+//! lives in `CxPresentationTransform`. Collision-readable presentation state is
+//! composed in `Update`; composed sprite parts/visibility are then written in
+//! `PostUpdate`. Simulation systems write world-space only.
+//!
+//! For composed enemies, spawn-time priming is explicit: scale and offsets must
+//! already match the runtime presentation rules before the root is allowed to
+//! show its first visible frame. Spawn must not rely on same-frame systems to
+//! fix presentation later, reveal must never repair presentation, and runtime
+//! systems only maintain already-correct state.
 
 pub mod attack;
 pub mod bundles;
@@ -247,9 +254,11 @@ impl Plugin for StagePlugin {
             )
             // Depth-fallback scale + parallax composition run in Update
             // (after PositionSyncSystems) so that update_composed_enemy_visuals
-            // reads the current frame's collision_offset. Previously these ran
-            // in PostUpdate, causing collision state to lag rendering by one
-            // frame during lateral camera pan.
+            // reads the current frame's collision_offset. This ordering keeps
+            // maintained presentation state current; it is not allowed to act
+            // as a same-frame repair path for newly spawned composed roots.
+            // First-visible-frame correctness comes from spawn-time priming
+            // alone, not from any same-frame ordering accident.
             .add_active_systems::<StagePlugin, _>(
                 (
                     apply_depth_fallback_scale.in_set(CollisionStateSystems),

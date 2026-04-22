@@ -220,7 +220,7 @@ impl AtlasPixelData {
     }
 }
 
-impl<'a> AtlasMaskFrames<'a> {
+impl AtlasMaskFrames<'_> {
     fn frame_count(self) -> usize {
         match self {
             Self::Region(region) => region.frame_count(),
@@ -243,7 +243,7 @@ impl<'a> AtlasMaskFrames<'a> {
     }
 }
 
-impl<'a> PixelMaskSource<'a> {
+impl PixelMaskSource<'_> {
     #[must_use]
     pub fn frame_size(self) -> UVec2 {
         match self {
@@ -282,7 +282,7 @@ pub fn world_mask_rect_from_spatial(
     }
 
     let (scale, offset, rotation) = presentation.map_or((Vec2::ONE, Vec2::ZERO, 0.0), |value| {
-        (value.scale, value.offset, value.rotation)
+        (value.scale, value.collision_offset, value.rotation)
     });
     if rotation.abs() >= f32::EPSILON {
         return None;
@@ -609,7 +609,7 @@ pub fn mask_contains_point(
 /// within an atlas-backed fragment.
 ///
 /// `sprite_rect` is the fragment's screen-space bounding box (may be scaled
-/// by gameplay_scale).  `region_rect` is the unscaled atlas sub-region.
+/// by `gameplay_scale`).  `region_rect` is the unscaled atlas sub-region.
 /// When their dimensions differ the function maps screen-local coordinates
 /// proportionally into atlas space (nearest-neighbour), so a scaled-down
 /// fragment still tests the correct atlas pixel.
@@ -1082,6 +1082,7 @@ impl AtlasBoundaryCache {
             .map(|(_, edges)| edges.as_slice())
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -1703,7 +1704,8 @@ mod tests {
             Some(CxPresentationTransform {
                 scale: Vec2::new(-1.5, 2.0),
                 rotation: 0.0,
-                offset: Vec2::new(1.2, -0.7),
+                visual_offset: Vec2::new(1.2, -0.7),
+                collision_offset: Vec2::new(1.2, -0.7),
             }),
         )
         .unwrap();

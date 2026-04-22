@@ -3,7 +3,7 @@ pub mod player;
 
 #[cfg(debug_assertions)]
 use super::components::EnemyAttackDebugPosition;
-use super::components::{AttachedToComposedPart, EnemyAttack, EnemyHoveringAttackType};
+use super::components::{EnemyAttack, EnemyHoveringAttackType};
 use crate::{
     components::{DelayedDespawnOnCxAnimationFinished, DespawnMark},
     layer::Layer,
@@ -13,21 +13,14 @@ use crate::{
             interactive::{Dead, Health},
             placement::{AuthoredDepths, Depth, InView},
         },
-        enemy::composed::ComposedResolvedParts,
         messages::DepthChangedMessage,
         player::components::PLAYER_DEPTH,
         resources::StageTimeDomain,
     },
 };
 use bevy::prelude::*;
-use carapace::prelude::{
-    CxAnchor, CxAtlasSprite, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos,
-};
-
-use crate::stage::parallax::ParallaxOffset;
-use cween::linear::components::{
-    LinearValueReached, TargetingValueX, TargetingValueY, TargetingValueZ,
-};
+use carapace::prelude::{CxAnchor, CxAtlasSprite, CxSpriteAtlasAsset, WorldPos};
+use cween::linear::components::{LinearValueReached, TargetingValueZ};
 
 /// @system Marks entities as `Dead` when their health reaches zero.
 // TODO remove in favor of damage taken?
@@ -130,115 +123,13 @@ pub fn despawn_dead_attacks(
                 AuthoredDepths::single(Depth::One),
                 DelayedDespawnOnCxAnimationFinished::from_secs_f32(0.2),
                 StageEntity,
-                ParallaxOffset::default(),
-                CxPresentationTransform::default(),
             ));
         }
         commands.entity(entity).insert(DespawnMark);
     }
 }
 
-/// @system Keeps attacks with [`AttachedToComposedPart`] locked to their source
-/// part's visual position each frame. Syncs `TargetingValueX/Y` so tween start
-/// values are consistent when the attachment is removed and travel begins.
-pub fn update_attached_attack_positions(
-    composed_query: Query<&ComposedResolvedParts>,
-    mut attack_query: Query<(
-        &AttachedToComposedPart,
-        &mut WorldPos,
-        &mut TargetingValueX,
-        &mut TargetingValueY,
-    )>,
-) {
-    for (attached, mut position, mut tx, mut ty) in &mut attack_query {
-        let Ok(resolved_parts) = composed_query.get(attached.source_entity) else {
-            // Source entity gone (despawned/dead) — hold at current position
-            // until arm_pending_blood_shot_motion fires and detaches.
-            continue;
-        };
-        let scaled_offset = resolved_parts.scaled_visual_offset();
-        let Some(part) = resolved_parts
-            .parts()
-            .iter()
-            .find(|p| p.part_id == attached.part_id)
-        else {
-            continue;
-        };
-        let visual_pos = part.visual_point_from_local_offset(attached.local_offset, scaled_offset);
-        position.0 = visual_pos;
-        tx.0 = visual_pos.x;
-        ty.0 = visual_pos.y;
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::stage::enemy::composed::{ComposedResolvedParts, ResolvedPartState};
-
-    #[test]
-    #[allow(clippy::float_cmp)]
-    fn attachment_tracks_composed_part_visual_position() {
-        let mut app = App::new();
-        app.add_systems(Update, update_attached_attack_positions);
-
-        let visual_offset = Vec2::new(0.0, 49.0);
-        let head_part = ResolvedPartState {
-            part_id: "head".to_string(),
-            parent_id: None,
-            draw_order: 30,
-            sprite_id: "s".to_string(),
-            frame_size: UVec2::new(6, 16),
-            flip_x: false,
-            flip_y: false,
-            part_pivot: IVec2::ZERO,
-            world_top_left_position: Vec2::new(35.0, 513.0),
-            world_pivot_position: Vec2::new(35.0, 513.0),
-            tags: vec![],
-            targetable: false,
-            health_pool: None,
-            armour: 0,
-            current_durability: None,
-            max_durability: None,
-            breakable: false,
-            broken: false,
-            blinking: false,
-            collisions: vec![],
-        };
-
-        let source = app
-            .world_mut()
-            .spawn(ComposedResolvedParts::with_parts_and_offset(
-                vec![head_part],
-                visual_offset,
-            ))
-            .id();
-
-        let attack = app
-            .world_mut()
-            .spawn((
-                AttachedToComposedPart {
-                    source_entity: source,
-                    part_id: "head".to_string(),
-                    local_offset: IVec2::new(6, 9),
-                },
-                WorldPos(Vec2::ZERO),
-                TargetingValueX(0.0),
-                TargetingValueY(0.0),
-            ))
-            .id();
-
-        app.update();
-
-        let world = app.world();
-        let pos = world.entity(attack).get::<WorldPos>().unwrap();
-        let tx = world.entity(attack).get::<TargetingValueX>().unwrap();
-        let ty = world.entity(attack).get::<TargetingValueY>().unwrap();
-
-        // game_logic = (35+6, 513-9) = (41, 504)
-        // visual = (41, 504+49) = (41, 553)
-        assert_eq!(pos.0, Vec2::new(41.0, 553.0));
-        assert_eq!(tx.0, 41.0);
-        assert_eq!(ty.0, 553.0);
-    }
+    // Attack runtime tests live with the specific spawn/motion modules.
 }

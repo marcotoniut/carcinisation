@@ -2,17 +2,17 @@
 //!
 //! Used by both the runtime spawn path and the editor preview to derive
 //! world-space positions from spawn data.  When an [`EnemySpawn`] carries an
-//! `altitude`, screen Y is computed from the stage projection model:
-//! `floor_y_for_depth(depth) + altitude`.  Otherwise the raw `coordinates`
-//! field is used as-is (legacy behaviour).
+//! `altitude`, runtime screen Y is computed from the resolved gameplay floor at
+//! the spawn depth: `floor_y(depth) + altitude`.  The editor preview continues
+//! to use the projection baseline when no runtime floor state is available.
 
-use super::{data::EnemySpawn, projection::ProjectionProfile};
+use super::{data::EnemySpawn, floors::ActiveFloors, projection::ProjectionProfile};
 use bevy::prelude::Vec2;
 
 /// Resolve the world-space spawn position for an enemy.
 ///
-/// When `altitude` is set, Y is derived from the projection floor line at the
-/// spawn's depth.  Otherwise falls back to raw `coordinates`.
+/// When `altitude` is set, Y is derived from the resolved gameplay floor at
+/// the spawn's depth. Otherwise falls back to raw `coordinates`.
 ///
 /// `camera_offset` is added in both paths (same semantics as the existing
 /// `offset + coordinates` pattern).
@@ -20,13 +20,35 @@ use bevy::prelude::Vec2;
 pub fn resolve_enemy_position(
     spawn: &EnemySpawn,
     camera_offset: Vec2,
-    projection: &ProjectionProfile,
+    floors: &ActiveFloors,
 ) -> Vec2 {
-    let local = resolve_enemy_position_local(spawn, projection);
+    let local = resolve_enemy_position_local_with_floors(spawn, floors);
     camera_offset + local
 }
 
-/// Resolve spawn position without camera offset (for editor preview).
+/// Resolve spawn position without camera offset using gameplay floor state.
+#[must_use]
+pub fn resolve_enemy_position_local_with_floors(spawn: &EnemySpawn, floors: &ActiveFloors) -> Vec2 {
+    match spawn.altitude {
+        Some(alt) => {
+            // Pick the ground surface (lowest solid Y) for spawn placement.
+            // Future: spawn authoring may target a specific surface via
+            // tagged identity. V1 picks ground = lowest solid Y.
+            let floor_y = floors.lowest_solid_y(spawn.depth).unwrap_or_else(|| {
+                panic!(
+                    "enemy spawn altitude requires a solid floor at depth {:?}",
+                    spawn.depth
+                )
+            });
+            Vec2::new(spawn.coordinates.x, floor_y + alt)
+        }
+        None => spawn.coordinates,
+    }
+}
+
+/// Resolve spawn position without camera offset for editor preview.
+///
+/// This uses the projection baseline only, not runtime floor overrides or gaps.
 #[must_use]
 pub fn resolve_enemy_position_local(spawn: &EnemySpawn, projection: &ProjectionProfile) -> Vec2 {
     match spawn.altitude {
@@ -43,6 +65,10 @@ mod tests {
     use super::*;
     use crate::stage::components::placement::Depth;
     use crate::stage::data::EnemySpawn;
+    use crate::stage::floors::{
+        ActiveSurfaceLayout, HeightMode, SurfaceLayout, SurfaceSpec, resolve_active_floors,
+    };
+    use crate::stage::resources::ActiveProjection;
 
     fn test_profile() -> ProjectionProfile {
         ProjectionProfile {
@@ -50,6 +76,13 @@ mod tests {
             floor_base_y: -14.4,
             bias_power: 3.0,
         }
+    }
+
+    fn baseline_floors() -> ActiveFloors {
+        resolve_active_floors(
+            &ActiveProjection(test_profile()),
+            &ActiveSurfaceLayout::default().0,
+        )
     }
 
     fn mosquiton_at(depth: Depth, altitude: f32, x: f32) -> EnemySpawn {
@@ -105,12 +138,12 @@ mod tests {
 
     #[test]
     fn camera_offset_applied_correctly() {
-        let profile = test_profile();
+        let floors = baseline_floors();
         let spawn = mosquiton_at(Depth::Five, 20.0, 80.0);
         let offset = Vec2::new(100.0, 50.0);
-        let pos = resolve_enemy_position(&spawn, offset, &profile);
+        let pos = resolve_enemy_position(&spawn, offset, &floors);
         let expected_x = 100.0 + 80.0;
-        let expected_y = 50.0 + profile.floor_y_for_depth(5) + 20.0;
+        let expected_y = 50.0 + floors.solid_y(Depth::Five).unwrap() + 20.0;
         assert!((pos.x - expected_x).abs() < 0.01);
         assert!((pos.y - expected_y).abs() < 0.01);
     }
@@ -118,10 +151,11 @@ mod tests {
     #[test]
     fn editor_and_runtime_derive_same_position() {
         let profile = test_profile();
+        let floors = baseline_floors();
         let spawn = mosquiton_at(Depth::Five, 25.0, 80.0);
         let camera_offset = Vec2::new(100.0, 50.0);
 
-        let runtime_pos = resolve_enemy_position(&spawn, camera_offset, &profile);
+        let runtime_pos = resolve_enemy_position(&spawn, camera_offset, &floors);
         let editor_pos = resolve_enemy_position_local(&spawn, &profile);
 
         assert!((runtime_pos.x - (editor_pos.x + camera_offset.x)).abs() < 0.01);
@@ -193,5 +227,22 @@ mod tests {
             fly_pos.y,
             ground_pos.y,
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "enemy spawn altitude requires a solid floor")]
+    fn gameplay_placement_rejects_gap_floors() {
+        let spawn = mosquiton_at(Depth::Five, 20.0, 80.0);
+        let floors = resolve_active_floors(
+            &ActiveProjection(test_profile()),
+            &SurfaceLayout {
+                spans: vec![SurfaceSpec {
+                    depths: Depth::Five..=Depth::Five,
+                    mode: HeightMode::Gap,
+                }],
+            },
+        );
+
+        let _ = resolve_enemy_position_local_with_floors(&spawn, &floors);
     }
 }

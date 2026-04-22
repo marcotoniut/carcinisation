@@ -9,6 +9,7 @@ use crate::stage::data::{
 use crate::stage::destructible::data::{DestructibleSpawn, LampDepth, TrashcanDepth};
 use crate::stage::enemy::data::steps::EnemyStep;
 use crate::stage::enemy::entity::EnemyType;
+use crate::stage::floors::{HeightMode, SurfaceSpec};
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 
@@ -32,6 +33,7 @@ pub static STAGE_DEBUG_DATA: std::sync::LazyLock<Arc<StageData>> = std::sync::La
         gravity: None,
         projection: None,
         checkpoint: None,
+        parallax_attenuation: None,
     }
     .into()
 });
@@ -87,16 +89,24 @@ pub fn make_steps() -> Vec<StageStep> {
         //     cinematic: INTRO_ANIMATIC_4.clone(),
         // },
         StopStageStep::new()
-            .with_floor_depths(
-                vec![
-                    (Depth::Six, 70.0),
-                    (Depth::Five, 50.0),
-                    (Depth::Four, 30.0),
-                    (Depth::Three, 0.0),
-                ]
-                .into_iter()
-                .collect(),
-            )
+            .with_surfaces(vec![
+                SurfaceSpec {
+                    depths: Depth::Three..=Depth::Three,
+                    mode: HeightMode::Anchored(0.0),
+                },
+                SurfaceSpec {
+                    depths: Depth::Four..=Depth::Four,
+                    mode: HeightMode::Anchored(30.0),
+                },
+                SurfaceSpec {
+                    depths: Depth::Five..=Depth::Five,
+                    mode: HeightMode::Anchored(50.0),
+                },
+                SurfaceSpec {
+                    depths: Depth::Six..=Depth::Six,
+                    mode: HeightMode::Anchored(70.0),
+                },
+            ])
             .with_max_duration(12.)
             .add_spawns(vec![
                 EnemySpawn::tardigrade_base()

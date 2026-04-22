@@ -21,11 +21,7 @@ use bevy::{
     audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
-use carapace::prelude::{
-    CxAnchor, CxAtlasSprite, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos,
-};
-
-use crate::stage::parallax::ParallaxOffset;
+use carapace::prelude::{CxAnchor, CxAtlasSprite, CxSpriteAtlasAsset, WorldPos};
 use cween::linear::components::{LinearValueReached, TargetingValueZ};
 
 use crate::stage::attack::components::bundles::REGION_HIT;
@@ -107,8 +103,6 @@ pub fn hovering_damage_on_reached(
             AuthoredDepths::single(Depth::One),
             DelayedDespawnOnCxAnimationFinished::from_secs_f32(0.4),
             StageEntity,
-            ParallaxOffset::default(),
-            CxPresentationTransform::default(),
         ));
 
         commands.entity(entity).insert(DespawnMark);

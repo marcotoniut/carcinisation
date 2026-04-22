@@ -106,26 +106,32 @@ pub fn toggle_debug_god_mode(
     }
 }
 
+#[must_use]
 pub fn to_viewport_ratio_x(x: f32) -> f32 {
     VIEWPORT_MULTIPLIER * x
 }
 
+#[must_use]
 pub fn to_viewport_ratio_y(y: f32) -> f32 {
     VIEWPORT_MULTIPLIER * y
 }
 
+#[must_use]
 pub fn to_viewport_ratio(v: Vec2) -> Vec2 {
     Vec2::new(to_viewport_ratio_x(v.x), to_viewport_ratio_y(v.y))
 }
 
+#[must_use]
 pub fn to_viewport_coordinate_x(x: f32) -> f32 {
     VIEWPORT_RESOLUTION_OFFSET.x + VIEWPORT_MULTIPLIER * (x - SCREEN_X * 0.5)
 }
 
+#[must_use]
 pub fn to_viewport_coordinate_y(y: f32) -> f32 {
     VIEWPORT_RESOLUTION_OFFSET.y + VIEWPORT_MULTIPLIER * (y - SCREEN_Y * 0.5)
 }
 
+#[must_use]
 pub fn to_viewport_coordinates(position: Vec2) -> Vec2 {
     Vec2::new(
         to_viewport_coordinate_x(position.x),
@@ -200,7 +206,7 @@ impl DebugColliderOverlay {
     }
 }
 
-/// @system Visualises entity-level collider shapes (ColliderData).
+/// @system Visualises entity-level collider shapes (`ColliderData`).
 ///
 /// Gated by [`DebugColliderOverlay`].
 pub(crate) fn draw_colliders(
@@ -649,7 +655,7 @@ pub(crate) fn draw_pixel_mask_outlines(
                     camera_pos.0,
                     debug_collider_color(entity_class, DebugColliderVisualKind::Mask),
                     mask,
-                )
+                );
             },
             |_, _| {},
         );

@@ -45,6 +45,53 @@ Key enemies have hand-drawn sprites per depth (e.g. mosquito: depths 1-7). Syste
 - Must remain subtle and used sparingly
 - **Visual priority**: enemies and projectiles always take precedence over background effects — no visual layer may reduce gameplay readability
 
+## World Structure and Floors 💡
+
+The game operates on a depth-first spatial model where projection defines visual perspective, while floors define gameplay reality. The world is represented as a set of depth-aligned segments rather than a full 2D tilemap.
+
+Projection defines how space is rendered; floors define where gameplay is allowed.
+
+### Floor Semantics
+
+- A **floor** is a gameplay surface for a depth lane, used by grounded placement, falling, landing, and any system that needs to know whether a lane has support
+- Floors are **not** projection. Projection answers "where does this depth render on screen?"; floors answer "what surface exists for gameplay at this depth?"
+- A floor may match the projection baseline for a lane, sit above or below it, or be absent entirely
+- Projection may change the visual lens of a section without changing the underlying gameplay floor layout
+
+### Depth and World Layout
+
+- Depth remains the primary spatial axis
+- Horizontal variation exists for spawn placement and camera scroll, but floor topology is primarily authored across depth lanes rather than as dense 2D terrain
+- The minimal world model is a set of lane-aligned floor segments that resolve into one gameplay floor state per depth
+- Gaps and pits are represented by the absence of a floor in selected depths, not by negative projection tricks
+- Runtime invariant:
+  - every depth resolves to exactly one of:
+  - `Solid { y }`
+  - `Gap`
+
+### Map Construction
+
+- A stage section defines its floor layout independently from its projection profile
+- Projection supplies the baseline visual curve for depths 1-9
+- Floor layout may then:
+  - inherit that baseline directly for a flat arena
+  - raise selected depths to form a platform or ledge
+  - remove support for selected depths to create pits or unsafe lanes
+- Runtime gameplay should consume resolved floor state, not debug entities
+
+### Examples
+
+- **Flat arena**: every active enemy depth uses the projection-derived baseline floor
+- **Raised platform at certain depths**: depths 4-6 resolve to a higher gameplay floor than the baseline, while surrounding depths remain unchanged
+- **Gap / pit**: depths 2-3 have no supporting floor, so grounded actors cannot land there and falling actors continue past those lanes until they reach a valid surface or fail
+
+### Design Implications
+
+- Projection is a visual mapping system
+- Floors are gameplay geometry
+- Debug overlays should read resolved gameplay floor state and projection state, never define them
+- Full tilemap/world-grid machinery is unnecessary unless horizontal terrain variation becomes a real gameplay axis
+
 ### Open Questions
 
 - Player depth movement (dodge into/out of lanes)?

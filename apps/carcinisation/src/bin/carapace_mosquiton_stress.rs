@@ -22,6 +22,10 @@
 //! - `Cmd+P` / `Ctrl+P` to toggle the depth perspective grid overlay.
 //! - `Cmd+O` / `Ctrl+O` to toggle entity anchor markers.
 //! - `Shift+Left/Right` to pan the lateral view offset.
+//!
+//! This demo uses a synthetic traversal authority model and does not represent
+//! the gameplay spawn pipeline. Do not use it as a reference for the stage
+//! spawn-time presentation invariant.
 
 use bevy::{
     asset::{AssetMetaCheck, AssetPlugin},
@@ -257,6 +261,9 @@ fn setup(
          (Cmd+I = horizon, Cmd+P = grid, Cmd+O = anchors)"
     );
 
+    // Demo/stress path only: these entities are spawned under a synthetic
+    // traversal authority model and do not serve as a gameplay reference for
+    // the stage spawn-time presentation invariant.
     for index in 0..MOSQUITON_COUNT {
         let motion = motion_for(index);
         let locomotion = initial_locomotion(0.0, &motion);

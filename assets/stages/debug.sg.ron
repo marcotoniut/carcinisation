@@ -84,7 +84,6 @@ StageData(
             coordinates: Vec2(0.0, 0.0),
             base_speed: 1.0,
             spawns: [],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 12.0,
@@ -178,7 +177,6 @@ StageData(
                     depth: Five,
                 ),
             ],
-            floor_depths: None,
         ),
         Tween(
             coordinates: Vec2(180.0, 0.0),
@@ -196,7 +194,6 @@ StageData(
                     depth: Five,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 15.0,
@@ -215,14 +212,12 @@ StageData(
                     depth: Five,
                 ),
             ],
-            floor_depths: None,
         ),
         Stop(
             max_duration: 100.0,
             kill_all: false,
             kill_boss: false,
             spawns: [],
-            floor_depths: None,
         ),
     ],
 )

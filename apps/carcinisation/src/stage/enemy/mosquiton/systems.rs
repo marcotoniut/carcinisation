@@ -7,10 +7,7 @@ use crate::{
     game::score::components::Score,
     globals::SCREEN_RESOLUTION_F32_H,
     stage::{
-        attack::{
-            components::AttachedToComposedPart, data::blood_shot::BloodShotConfig,
-            spawns::blood_shot::spawn_blood_shot_attack,
-        },
+        attack::{data::blood_shot::BloodShotConfig, spawns::blood_shot::spawn_blood_shot_attack},
         components::{interactive::Dead, placement::Depth},
         enemy::{
             components::{
@@ -35,7 +32,7 @@ use crate::{
     systems::camera::CameraPos,
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxSpriteAtlasAsset, WorldPos};
+use carapace::prelude::{CxPresentationTransform, CxSpriteAtlasAsset, WorldPos};
 
 const MOSQUITON_BLOOD_SHOT_EVENT_ID: &str = "blood_shot";
 
@@ -183,6 +180,7 @@ pub fn trigger_mosquiton_authored_attack_cues(
         (
             &EnemyMosquiton,
             &WorldPos,
+            Option<&CxPresentationTransform>,
             &Depth,
             Option<&ComposedResolvedParts>,
         ),
@@ -198,7 +196,8 @@ pub fn trigger_mosquiton_authored_attack_cues(
             continue;
         }
 
-        let Ok((_mosquiton, position, depth, resolved_parts)) = query.get(cue.entity) else {
+        let Ok((_mosquiton, position, presentation, depth, resolved_parts)) = query.get(cue.entity)
+        else {
             continue;
         };
 
@@ -206,8 +205,14 @@ pub fn trigger_mosquiton_authored_attack_cues(
         // (applied at the source in `build_resolved_part_states`).
         // visual_offset is unscaled — use scaled_visual_offset() for
         // combining with scaled pivot positions.
-        let scaled_offset = resolved_parts.map_or(Vec2::ZERO, |p| p.scaled_visual_offset());
-        let gameplay_scale = resolved_parts.map_or(1.0, |p| p.gameplay_scale());
+        let scaled_offset = resolved_parts.map_or(
+            Vec2::ZERO,
+            super::super::composed::ComposedResolvedParts::scaled_visual_offset,
+        );
+        let gameplay_scale = resolved_parts.map_or(
+            1.0,
+            super::super::composed::ComposedResolvedParts::gameplay_scale,
+        );
 
         let resolved_part = cue.part_id.as_deref().and_then(|part_id| {
             resolved_parts
@@ -237,12 +242,6 @@ pub fn trigger_mosquiton_authored_attack_cues(
             );
         }
 
-        let attachment = resolved_part.map(|_| AttachedToComposedPart {
-            source_entity: cue.entity,
-            part_id: cue.part_id.clone().unwrap_or_default(),
-            local_offset,
-        });
-
         spawn_blood_shot_attack(
             &mut commands,
             &asset_server,
@@ -251,9 +250,9 @@ pub fn trigger_mosquiton_authored_attack_cues(
             &blood_shot_config,
             *SCREEN_RESOLUTION_F32_H + camera_pos.0,
             current_pos,
+            presentation,
             depth,
             gameplay_scale,
-            attachment,
         );
     }
 }

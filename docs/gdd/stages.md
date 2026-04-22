@@ -38,7 +38,7 @@ Executed sequentially to form the stage timeline:
 | **Stop** | Camera holds; waits for enemy defeat or timer | Arena encounters, pacing gates |
 | **Cinematic** | Trigger cutscene sequence | Narrative beats (basic implementation) |
 
-Tween steps support per-depth floor overrides and projection profile shifts for section-specific perspective tuning.
+Tween steps support per-depth floor layout overrides and projection profile shifts. Floor layout defines gameplay surfaces; projection defines how those lanes are rendered.
 
 ### Encounter Pattern
 

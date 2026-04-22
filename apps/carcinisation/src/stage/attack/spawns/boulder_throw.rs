@@ -4,6 +4,7 @@ use crate::stage::{
             EnemyAttack, EnemyHoveringAttackType, bundles::make_hovering_attack_atlas_bundle,
         },
         data::boulder_throw::BoulderThrowConfig,
+        spawns::{ProjectileSpawnSourceBasis, projectile_spawn_world_pos_from_source},
     },
     components::{
         StageEntity,
@@ -17,7 +18,6 @@ use crate::stage::{
 use bevy::prelude::*;
 use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos};
 
-use crate::stage::parallax::ParallaxOffset;
 use cween::{
     linear::components::{
         TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
@@ -94,7 +94,8 @@ pub fn spawn_boulder_throw_attack(
     _stage_time: &Res<Time<StageTimeDomain>>,
     config: &BoulderThrowConfig,
     target_pos: Vec2,
-    current_pos: Vec2,
+    source_muzzle_world_pos: Vec2,
+    source_presentation: Option<&CxPresentationTransform>,
     depth: &Depth,
 ) {
     let attack_type = EnemyHoveringAttackType::BoulderThrow;
@@ -106,6 +107,11 @@ pub fn spawn_boulder_throw_attack(
 
     let (atlas_sprite, animation, collider_data) =
         make_hovering_attack_atlas_bundle(asset_server, atlas_assets, &attack_type);
+    let spawn_world_pos = projectile_spawn_world_pos_from_source(
+        source_muzzle_world_pos,
+        source_presentation,
+        ProjectileSpawnSourceBasis::WorldSpace,
+    );
 
     let depth_f32 = depth.to_f32();
     let target_depth = PLAYER_DEPTH;
@@ -113,7 +119,7 @@ pub fn spawn_boulder_throw_attack(
     let speed_z = config.depth_speed;
     let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
 
-    let d = target_pos - current_pos;
+    let d = target_pos - spawn_world_pos;
 
     let speed_x = d.x / t;
 
@@ -124,17 +130,17 @@ pub fn spawn_boulder_throw_attack(
     let mut entity_commands = commands.spawn(BoulderThrowBundle {
         depth: *depth,
         inflicts_damage: InflictsDamage(config.damage),
-        position: WorldPos(current_pos),
-        targeting_value_x: current_pos.x.into(),
-        targeting_value_y: current_pos.y.into(),
+        position: WorldPos(spawn_world_pos),
+        targeting_value_x: spawn_world_pos.x.into(),
+        targeting_value_y: spawn_world_pos.y.into(),
         targeting_value_z: depth_f32.into(),
         default: default(),
     });
 
     #[cfg(debug_assertions)]
     entity_commands.insert(crate::stage::attack::components::EnemyAttackDebugPosition {
-        current: current_pos,
-        origin: current_pos,
+        current: spawn_world_pos,
+        origin: spawn_world_pos,
     });
 
     entity_commands.insert((
@@ -143,8 +149,6 @@ pub fn spawn_boulder_throw_attack(
         CxAnchor::Center,
         (*depth - 1).to_layer(),
         AuthoredDepths::single(Depth::One),
-        ParallaxOffset::default(),
-        CxPresentationTransform::default(),
     ));
 
     if !collider_data.0.is_empty() {
@@ -158,7 +162,7 @@ pub fn spawn_boulder_throw_attack(
         commands,
         TweenChildBundle::<StageTimeDomain, TargetingValueX>::new(
             boulder_entity,
-            current_pos.x,
+            spawn_world_pos.x,
             target_pos.x,
             speed_x,
         ),
@@ -170,7 +174,7 @@ pub fn spawn_boulder_throw_attack(
         commands,
         TweenChildAcceleratedBundle::<StageTimeDomain, TargetingValueY>::new(
             boulder_entity,
-            current_pos.y,
+            spawn_world_pos.y,
             target_pos.y,
             speed_y,
             config.line_y_acceleration,
