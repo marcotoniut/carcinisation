@@ -37,6 +37,7 @@ use carapace::prelude::{CxPresentationTransform, WorldPos};
 use super::{
     components::placement::Depth,
     data::{StageData, StageStep},
+    enemy::components::EnemyContinuousDepth,
     projection::{ProjectionProfile, projection_weight, tween_duration, walk_steps_at_elapsed},
     resources::{ActiveProjection, ProjectionView, StageTimeDomain},
 };
@@ -166,10 +167,9 @@ pub struct NoParallax;
 ///
 /// # Weight source
 ///
-/// For entities with a [`Depth`] component (stage entities on a depth lane),
-/// the weight comes from the projection profile's floor Y for that lane.
-/// This is stable — jumping, falling, hovering, or any other vertical motion
-/// does not change the lateral parallax.
+/// For enemy entities with [`EnemyContinuousDepth`], the weight comes from the
+/// projection profile evaluated at the continuous depth progress. Other stage
+/// entities continue to use discrete [`Depth`].
 ///
 /// Entities without `Depth` fall back to `WorldPos.y`. This path
 /// exists for non-stage entities that don't participate in the depth-lane
@@ -178,7 +178,15 @@ pub fn update_parallax_offset(
     projection: Option<Res<ActiveProjection>>,
     view: Option<Res<ProjectionView>>,
     attenuation: Option<Res<ActiveParallaxAttenuation>>,
-    mut query: Query<(&WorldPos, &mut ParallaxOffset, Option<&Depth>), Without<NoParallax>>,
+    mut query: Query<
+        (
+            &WorldPos,
+            &mut ParallaxOffset,
+            Option<&Depth>,
+            Option<&EnemyContinuousDepth>,
+        ),
+        Without<NoParallax>,
+    >,
 ) {
     let (Some(projection), Some(view)) = (projection, view) else {
         return;
@@ -187,7 +195,7 @@ pub fn update_parallax_offset(
     let lateral = view.lateral_view_offset;
     let att = attenuation.map_or(1.0, |a| a.0);
     if lateral.abs() < f32::EPSILON || att.abs() < f32::EPSILON {
-        for (_, mut parallax, _) in &mut query {
+        for (_, mut parallax, _, _) in &mut query {
             if parallax.0 != Vec2::ZERO {
                 parallax.0 = Vec2::ZERO;
             }
@@ -195,8 +203,13 @@ pub fn update_parallax_offset(
         return;
     }
 
-    for (sub_pos, mut parallax, depth) in &mut query {
-        let new_offset = parallax_offset_for(profile, lateral, att, sub_pos.0, depth.copied());
+    for (sub_pos, mut parallax, depth, continuous_depth) in &mut query {
+        let reference_y = if let Some(continuous_depth) = continuous_depth {
+            profile.floor_y_for_progress(Depth::progress_for_continuous(continuous_depth.0))
+        } else {
+            depth.map_or(sub_pos.0.y, |d| profile.floor_y_for_depth(d.to_i8()))
+        };
+        let new_offset = parallax_offset_for(profile, lateral, att, reference_y);
         if parallax.0 != new_offset {
             parallax.0 = new_offset;
         }
@@ -213,15 +226,12 @@ pub fn parallax_offset_for(
     profile: &ProjectionProfile,
     lateral_view_offset: f32,
     attenuation: f32,
-    world_pos: Vec2,
-    depth: Option<Depth>,
+    reference_y: f32,
 ) -> Vec2 {
     if lateral_view_offset.abs() < f32::EPSILON || attenuation.abs() < f32::EPSILON {
         return Vec2::ZERO;
     }
 
-    // Depth lane → stable floor Y; no Depth → transient entity Y.
-    let reference_y = depth.map_or(world_pos.y, |d| profile.floor_y_for_depth(d.to_i8()));
     let weight = projection_weight(profile, reference_y).clamp(0.0, 1.0);
     Vec2::new(-lateral_view_offset * weight * attenuation, 0.0)
 }
@@ -622,7 +632,12 @@ mod tests {
         let profile = test_profile();
         let depth = Depth::Five;
         let world_pos = Vec2::new(100.0, profile.floor_y_for_depth(depth.to_i8()) + 37.0);
-        let expected = parallax_offset_for(&profile, 50.0, 0.75, world_pos, Some(depth));
+        let expected = parallax_offset_for(
+            &profile,
+            50.0,
+            0.75,
+            profile.floor_y_for_depth(depth.to_i8()),
+        );
 
         let entity = app
             .world_mut()
@@ -631,6 +646,37 @@ mod tests {
                 ParallaxOffset::default(),
                 CxPresentationTransform::default(),
                 depth,
+            ))
+            .id();
+
+        app.update();
+
+        let runtime = app
+            .world()
+            .entity(entity)
+            .get::<ParallaxOffset>()
+            .expect("runtime parallax should exist")
+            .0;
+
+        assert_eq!(runtime, expected);
+    }
+
+    #[test]
+    fn enemy_continuous_depth_uses_continuous_projection_weight() {
+        let mut app = make_app();
+        let profile = test_profile();
+        let continuous_depth = 4.25;
+        let reference_y =
+            profile.floor_y_for_progress(Depth::progress_for_continuous(continuous_depth));
+        let expected = parallax_offset_for(&profile, 50.0, 1.0, reference_y);
+        let entity = app
+            .world_mut()
+            .spawn((
+                WorldPos(Vec2::new(100.0, 0.0)),
+                ParallaxOffset::default(),
+                CxPresentationTransform::default(),
+                Depth::Five,
+                EnemyContinuousDepth(continuous_depth),
             ))
             .id();
 

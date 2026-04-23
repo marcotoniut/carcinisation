@@ -1,7 +1,7 @@
 use crate::stage::{
-    components::placement::{Depth, Speed},
+    components::placement::Speed,
     enemy::components::{
-        CircleAround, Enemy,
+        CircleAround, Enemy, EnemyContinuousDepth,
         behavior::{
             BehaviorBundle, EnemyBehaviorTimer, EnemyBehaviors, EnemyCurrentBehavior,
             EnemyStepTweenChild,
@@ -12,16 +12,44 @@ use crate::stage::{
 use bevy::{ecs::hierarchy::ChildOf, prelude::*};
 use carapace::prelude::WorldPos;
 
+/// Seeds continuous enemy depth from the current gameplay bucket when missing.
+///
+/// Central spawn paths should already insert [`EnemyContinuousDepth`], but
+/// this keeps direct debug/test spawns from silently falling back to the old
+/// transient-only model.
+pub fn ensure_enemy_continuous_depth(world: &mut World) {
+    let mut query = world.query_filtered::<
+        (Entity, &crate::stage::components::placement::Depth),
+        (With<Enemy>, Without<EnemyContinuousDepth>),
+    >();
+    let missing_depths = query
+        .iter(world)
+        .map(|(entity, depth)| (entity, *depth))
+        .collect::<Vec<_>>();
+
+    for (entity, depth) in missing_depths {
+        world
+            .entity_mut(entity)
+            .insert(EnemyContinuousDepth::from_depth(depth));
+    }
+}
+
 /// @system Assigns the next behavior step to enemies with no active behavior.
 pub fn check_no_behavior(
     mut commands: Commands,
     mut query: Query<
-        (Entity, &mut EnemyBehaviors, &WorldPos, &Speed, &Depth),
+        (
+            Entity,
+            &mut EnemyBehaviors,
+            &WorldPos,
+            &Speed,
+            &EnemyContinuousDepth,
+        ),
         (With<Enemy>, Without<EnemyCurrentBehavior>),
     >,
     stage_time: Res<Time<StageTimeDomain>>,
 ) {
-    for (entity, mut behaviors, position, speed, depth) in &mut query {
+    for (entity, mut behaviors, position, speed, continuous_depth) in &mut query {
         let behavior = behaviors.next_step();
 
         let duration_o = behavior.get_duration_o();
@@ -31,7 +59,12 @@ pub fn check_no_behavior(
             behavior,
         };
 
-        let bundles = current_behavior.get_bundles(stage_time.elapsed(), position, speed.0, *depth);
+        let bundles = current_behavior.get_bundles(
+            stage_time.elapsed(),
+            position,
+            speed.0,
+            *continuous_depth,
+        );
         match bundles {
             BehaviorBundle::Idle | BehaviorBundle::Attack => {}
             BehaviorBundle::Jump(jump_movement) => {
@@ -41,7 +74,7 @@ pub fn check_no_behavior(
                     entity,
                     position,
                     speed.0,
-                    *depth,
+                    *continuous_depth,
                 );
                 commands.entity(entity).insert(jump_movement);
             }
@@ -55,7 +88,7 @@ pub fn check_no_behavior(
                     entity,
                     position,
                     speed.0,
-                    *depth,
+                    *continuous_depth,
                 );
             }
             BehaviorBundle::Circle(bundles) => {
@@ -122,5 +155,58 @@ pub fn cleanup_orphaned_tween_children(
             // Parent behavior ended, despawn orphaned tween child
             commands.entity(child_entity).despawn();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stage::{
+        components::placement::{Depth, Speed},
+        enemy::data::steps::{EnemyStep, IdleEnemyStep},
+    };
+    use std::{collections::VecDeque, time::Duration};
+
+    #[test]
+    fn ensure_enemy_continuous_depth_is_available_same_update() {
+        let mut app = App::new();
+        app.insert_resource(Time::<StageTimeDomain>::default());
+        app.add_systems(
+            Update,
+            (
+                ensure_enemy_continuous_depth.before(check_no_behavior),
+                check_no_behavior,
+            ),
+        );
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Enemy,
+                EnemyBehaviors::new(VecDeque::from([EnemyStep::Idle(
+                    IdleEnemyStep::base().with_duration(Duration::ZERO.as_secs_f32()),
+                )])),
+                WorldPos::default(),
+                Speed(1.0),
+                Depth::Three,
+            ))
+            .id();
+
+        app.update();
+
+        let entity_ref = app.world().entity(entity);
+        assert!(
+            (entity_ref
+                .get::<EnemyContinuousDepth>()
+                .expect("continuous depth should be seeded immediately")
+                .0
+                - Depth::Three.to_f32())
+            .abs()
+                < f32::EPSILON
+        );
+        assert!(
+            entity_ref.get::<EnemyCurrentBehavior>().is_some(),
+            "behavior assignment should still happen on the same update"
+        );
     }
 }

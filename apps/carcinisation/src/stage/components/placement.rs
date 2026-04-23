@@ -82,6 +82,26 @@ impl Depth {
     }
 
     #[must_use]
+    pub fn clamp_continuous(value: f32) -> f32 {
+        value.clamp(Self::MIN.to_f32(), Self::MAX.to_f32())
+    }
+
+    #[must_use]
+    pub fn from_continuous(value: f32) -> Self {
+        let rounded = Self::clamp_continuous(value).round() as i8;
+        Self::try_from(rounded).unwrap_or(Self::MAX)
+    }
+
+    /// Returns the projection progress for a continuous depth value.
+    ///
+    /// Matches [`crate::stage::projection::ProjectionProfile::depth_progress_for_depth`]
+    /// at integer depths while remaining smooth between depth lanes.
+    #[must_use]
+    pub fn progress_for_continuous(value: f32) -> f32 {
+        (Self::MAX.to_f32() - value) / (Self::MAX.to_f32() - Self::One.to_f32())
+    }
+
+    #[must_use]
     pub fn to_layer(&self) -> Layer {
         match self {
             Self::Nine => Layer::PreBackgroundDepth(PreBackgroundDepth::Nine),

@@ -2,7 +2,7 @@ use crate::stage::{
     components::placement::Depth,
     enemy::{
         components::{
-            CircleAround, LinearTween,
+            CircleAround, Enemy, EnemyContinuousDepth, LinearTween,
             behavior::{EnemyCurrentBehavior, EnemyStepTweenChild, JumpTween},
         },
         mosquiton::entity::WingsBroken,
@@ -17,11 +17,51 @@ use cween::{
     structs::TweenDirection,
 };
 
-/// @system Recalculates entity depth from the Z tween value and emits `DepthChangedMessage`.
-pub fn update_depth(
+/// Keeps enemy continuous depth in sync with tween-driven Z motion.
+pub fn sync_enemy_continuous_depth_from_targeting_z(
+    mut query: Query<
+        (&mut EnemyContinuousDepth, &TargetingValueZ),
+        (
+            With<Enemy>,
+            Or<(Added<TargetingValueZ>, Changed<TargetingValueZ>)>,
+        ),
+    >,
+) {
+    for (mut continuous_depth, targeting_depth) in &mut query {
+        let new_depth = Depth::clamp_continuous(targeting_depth.0);
+        if (continuous_depth.0 - new_depth).abs() >= f32::EPSILON {
+            continuous_depth.0 = new_depth;
+        }
+    }
+}
+
+/// Derives the gameplay depth bucket from canonical continuous enemy depth.
+pub fn derive_enemy_depth_from_continuous(
+    mut query: Query<
+        (Entity, &EnemyContinuousDepth, &mut Depth),
+        (
+            With<Enemy>,
+            Or<(Added<EnemyContinuousDepth>, Changed<EnemyContinuousDepth>)>,
+        ),
+    >,
+    mut event_writer: MessageWriter<DepthChangedMessage>,
+) {
+    for (entity, continuous_depth, mut depth) in &mut query {
+        let new_depth = continuous_depth.snapped_depth();
+        if *depth != new_depth {
+            *depth = new_depth;
+            event_writer.write(DepthChangedMessage::new(entity, new_depth));
+        }
+    }
+}
+
+/// Preserves the previous discrete-depth tween behaviour for non-enemy entities
+/// that still express depth only through `TargetingValueZ`.
+pub fn update_non_enemy_depth_from_targeting_z(
     mut query: Query<
         (Entity, &mut Depth, &TargetingValueZ),
         (
+            Without<Enemy>,
             Without<LinearValueReached<StageTimeDomain, TargetingValueZ>>,
             Or<(
                 Added<TargetingValueZ>,
@@ -33,20 +73,10 @@ pub fn update_depth(
     mut event_writer: MessageWriter<DepthChangedMessage>,
 ) {
     for (entity, mut depth, position) in &mut query.iter_mut() {
-        let mut depth_f32 = depth.to_f32();
-
-        // Handle moving deeper
-        while position.0 >= (depth_f32 + 0.5) {
-            *depth = *depth + 1;
-            depth_f32 = depth.to_f32();
-            event_writer.write(DepthChangedMessage::new(entity, *depth));
-        }
-
-        // Handle moving shallower
-        while position.0 <= (depth_f32 - 0.5) {
-            *depth = *depth - 1;
-            depth_f32 = depth.to_f32();
-            event_writer.write(DepthChangedMessage::new(entity, *depth));
+        let new_depth = Depth::from_continuous(position.0);
+        if *depth != new_depth {
+            *depth = new_depth;
+            event_writer.write(DepthChangedMessage::new(entity, new_depth));
         }
     }
 }
@@ -202,5 +232,55 @@ mod tests {
         let entity_ref = app.world().entity(entity);
         assert!(entity_ref.get::<EnemyCurrentBehavior>().is_none());
         assert!(entity_ref.get::<JumpTween>().is_none());
+    }
+
+    #[test]
+    fn enemy_continuous_depth_derives_discrete_bucket() {
+        let mut app = App::new();
+        app.add_message::<DepthChangedMessage>();
+        app.add_systems(Update, derive_enemy_depth_from_continuous);
+
+        let entity = app
+            .world_mut()
+            .spawn((Enemy, EnemyContinuousDepth(4.6), Depth::Three))
+            .id();
+
+        app.update();
+
+        assert_eq!(
+            *app.world()
+                .entity(entity)
+                .get::<Depth>()
+                .expect("enemy should keep depth bucket"),
+            Depth::Five
+        );
+    }
+
+    #[test]
+    fn enemy_targeting_z_updates_continuous_depth() {
+        let mut app = App::new();
+        app.add_systems(Update, sync_enemy_continuous_depth_from_targeting_z);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Enemy,
+                EnemyContinuousDepth::from_depth(Depth::Three),
+                TargetingValueZ::new(5.25),
+            ))
+            .id();
+
+        app.update();
+
+        assert!(
+            (app.world()
+                .entity(entity)
+                .get::<EnemyContinuousDepth>()
+                .expect("enemy should keep continuous depth")
+                .0
+                - 5.25)
+                .abs()
+                < f32::EPSILON
+        );
     }
 }

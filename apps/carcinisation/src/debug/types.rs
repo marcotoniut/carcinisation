@@ -31,7 +31,7 @@ use crate::{
         destructible::{components::DestructibleType, data::DestructibleSpawn},
         enemy::{
             components::{
-                CircleAround, LinearTween,
+                CircleAround, EnemyContinuousDepth, LinearTween,
                 behavior::{EnemyBehaviors, EnemyCurrentBehavior, JumpTween},
             },
             composed::{
@@ -104,6 +104,7 @@ pub fn register_types(app: &mut App) {
         .register_type::<EnemyMosquitoAttacking>()
         .register_type::<EnemyMosquitoAttack>()
         .register_type::<EnemyMosquitoAnimation>()
+        .register_type::<EnemyContinuousDepth>()
         .register_type::<EnemySpidey>()
         .register_type::<EnemySpideyAnimation>()
         .register_type::<EnemySpideyAttacking>()

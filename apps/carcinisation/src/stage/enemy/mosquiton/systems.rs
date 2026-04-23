@@ -585,7 +585,7 @@ mod tests {
         components::placement::{Airborne, Speed},
         enemy::{
             components::behavior::EnemyBehaviors,
-            components::{CircleAround, LinearTween},
+            components::{CircleAround, EnemyContinuousDepth, LinearTween},
             data::steps::{IdleEnemyStep, LinearTweenEnemyStep},
             mosquito::systems::clear_finished_mosquito_attacks,
         },
@@ -830,7 +830,7 @@ mod tests {
             entity,
             &WorldPos(start_pos),
             2.0,
-            Depth::Three,
+            EnemyContinuousDepth::from_depth(Depth::Three),
         );
         app.world_mut().flush();
 

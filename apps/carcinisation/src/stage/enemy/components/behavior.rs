@@ -1,5 +1,4 @@
-use super::{CircleAround, LinearTween};
-use crate::stage::components::placement::Depth;
+use super::{CircleAround, EnemyContinuousDepth, LinearTween};
 use crate::stage::enemy::data::mosquito::MOSQUITO_DEPTH_RANGE;
 use crate::stage::enemy::data::steps::{
     CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearTweenEnemyStep,
@@ -86,13 +85,18 @@ struct JumpMotion {
     z_velocity: Option<f32>,
 }
 
-fn jump_motion(step: JumpEnemyStep, current_position: &WorldPos, depth: Depth) -> JumpMotion {
+fn jump_motion(
+    step: JumpEnemyStep,
+    current_position: &WorldPos,
+    current_depth: EnemyContinuousDepth,
+) -> JumpMotion {
     let target_x = step.coordinates.x;
     let target_y = step.coordinates.y;
     let dx = target_x - current_position.0.x;
+    let depth_value = current_depth.clamped_value();
 
     // Horizontal velocity derived from jump speed and GAME_BASE_SPEED.
-    let adapted_speed = (depth.to_f32() - 3.) / 6.;
+    let adapted_speed = (depth_value - 3.) / 6.;
     let x_velocity = dx.signum() * (step.speed + adapted_speed) * GAME_BASE_SPEED;
 
     let travel_time_secs = if x_velocity.abs() > f32::EPSILON {
@@ -107,13 +111,14 @@ fn jump_motion(step: JumpEnemyStep, current_position: &WorldPos, depth: Depth) -
         / travel_time_secs.max(f32::EPSILON);
 
     let target_depth = step.depth_movement.map(|dm| {
-        let clamped_dm = dm.clamp(-2, 2);
-        (depth + clamped_dm)
-            .clamp(*MOSQUITO_DEPTH_RANGE.start(), *MOSQUITO_DEPTH_RANGE.end())
-            .to_f32()
+        let clamped_dm = f32::from(dm.clamp(-2, 2));
+        (depth_value + clamped_dm).clamp(
+            MOSQUITO_DEPTH_RANGE.start().to_f32(),
+            MOSQUITO_DEPTH_RANGE.end().to_f32(),
+        )
     });
     let z_velocity = target_depth
-        .map(|target_depth| (target_depth - depth.to_f32()) / travel_time_secs.max(f32::EPSILON));
+        .map(|target_depth| (target_depth - depth_value) / travel_time_secs.max(f32::EPSILON));
 
     JumpMotion {
         target_x,
@@ -134,7 +139,7 @@ impl EnemyCurrentBehavior {
         time_offset: Duration,
         current_position: &WorldPos,
         _speed: f32,
-        depth: Depth,
+        current_depth: EnemyContinuousDepth,
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle,
@@ -159,7 +164,7 @@ impl EnemyCurrentBehavior {
                 time_offset: time_offset.as_secs_f32(),
             }),
             EnemyStep::Jump(step) => {
-                let motion = jump_motion(step, current_position, depth);
+                let motion = jump_motion(step, current_position, current_depth);
                 BehaviorBundle::Jump(JumpTween::new(
                     time_offset,
                     motion.travel_time_secs,
@@ -178,7 +183,7 @@ impl EnemyCurrentBehavior {
         enemy_entity: Entity,
         current_position: &WorldPos,
         speed: f32,
-        depth: Depth,
+        current_depth: EnemyContinuousDepth,
     ) -> Vec<Entity> {
         let mut children = Vec::new();
 
@@ -190,7 +195,8 @@ impl EnemyCurrentBehavior {
             }) => {
                 let normalised_direction = direction.normalize_or_zero();
                 // TODO use a better formula to increase speed for higher depths
-                let adapted_speed = (depth.to_f32() - 3.) / 6.;
+                let depth_value = current_depth.clamped_value();
+                let adapted_speed = (depth_value - 3.) / 6.;
                 let velocity = normalised_direction * (speed + adapted_speed) * GAME_BASE_SPEED;
                 let target_position = current_position.0 + normalised_direction * trayectory;
 
@@ -226,19 +232,19 @@ impl EnemyCurrentBehavior {
 
                 // Spawn Z-axis tween child if depth movement specified
                 if let Some(depth_movement) = depth_movement_o {
-                    let target_depth = depth + depth_movement;
-                    let target_depth = target_depth
-                        .clamp(*MOSQUITO_DEPTH_RANGE.start(), *MOSQUITO_DEPTH_RANGE.end())
-                        .to_f32();
+                    let target_depth = (depth_value + f32::from(depth_movement)).clamp(
+                        MOSQUITO_DEPTH_RANGE.start().to_f32(),
+                        MOSQUITO_DEPTH_RANGE.end().to_f32(),
+                    );
 
                     let t = (target_position - current_position.0).length() / velocity.length();
-                    let x = target_depth - depth.to_f32();
+                    let x = target_depth - depth_value;
 
                     let child_z = commands
                         .spawn((
                             TweenChildBundle::<StageTimeDomain, TargetingValueZ>::new(
                                 enemy_entity,
-                                depth.to_f32(),
+                                depth_value,
                                 target_depth,
                                 x / t,
                             ),
@@ -250,7 +256,7 @@ impl EnemyCurrentBehavior {
                 }
             }
             EnemyStep::Jump(step) => {
-                let motion = jump_motion(step, current_position, depth);
+                let motion = jump_motion(step, current_position, current_depth);
                 // Spawn X-axis tween child (linear, constant velocity).
                 let child_x = commands
                     .spawn((
@@ -288,7 +294,7 @@ impl EnemyCurrentBehavior {
                         .spawn((
                             TweenChildBundle::<StageTimeDomain, TargetingValueZ>::new(
                                 enemy_entity,
-                                depth.to_f32(),
+                                current_depth.clamped_value(),
                                 target_depth,
                                 z_velocity,
                             ),

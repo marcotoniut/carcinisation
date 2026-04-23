@@ -22,7 +22,7 @@ use carcinisation::stage::{
     components::placement::{Depth, Speed},
     enemy::{
         components::{
-            Enemy,
+            Enemy, EnemyContinuousDepth,
             behavior::{EnemyBehaviors, EnemyCurrentBehavior, EnemyStepTweenChild},
         },
         data::steps::{EnemyStep, IdleEnemyStep, LinearTweenEnemyStep},
@@ -118,7 +118,7 @@ fn linear_tween_spawns_two_or_three_children() {
         enemy_entity,
         &WorldPos(Vec2::ZERO),
         10.0,
-        Depth::Three,
+        EnemyContinuousDepth::from_depth(Depth::Three),
     );
 
     app.world_mut().flush();
@@ -152,7 +152,7 @@ fn linear_tween_spawns_two_or_three_children() {
         enemy_entity,
         &WorldPos(Vec2::ZERO),
         10.0,
-        Depth::Three,
+        EnemyContinuousDepth::from_depth(Depth::Three),
     );
 
     app.world_mut().flush();
@@ -202,7 +202,7 @@ fn idle_step_spawns_no_tween_children() {
         enemy_entity,
         &WorldPos(Vec2::ZERO),
         10.0,
-        Depth::Three,
+        EnemyContinuousDepth::from_depth(Depth::Three),
     );
 
     assert_eq!(
@@ -243,7 +243,7 @@ fn tween_children_have_correct_marker_component() {
         enemy_entity,
         &WorldPos(Vec2::ZERO),
         10.0,
-        Depth::Three,
+        EnemyContinuousDepth::from_depth(Depth::Three),
     );
 
     app.world_mut().flush();
@@ -297,7 +297,7 @@ fn tween_children_lifecycle_contract() {
         enemy_entity,
         &WorldPos(Vec2::ZERO),
         10.0,
-        Depth::Three,
+        EnemyContinuousDepth::from_depth(Depth::Three),
     );
 
     app.world_mut().flush();

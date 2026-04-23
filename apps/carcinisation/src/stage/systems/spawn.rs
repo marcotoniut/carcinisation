@@ -43,7 +43,7 @@ use crate::{
         },
         data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
         destructible::{components::Destructible, data::DestructibleSpawn},
-        enemy::components::{Enemy, behavior::EnemyBehaviors},
+        enemy::components::{Enemy, EnemyContinuousDepth, behavior::EnemyBehaviors},
         messages::StageSpawnEvent,
         pickup::components::HealthRecovery,
     },
@@ -107,7 +107,7 @@ struct ComposedPresentationBasis {
 /// offsets later, and reveal must never repair presentation. Runtime systems
 /// only maintain this basis after spawn.
 fn compute_presentation_basis(
-    position: Vec2,
+    _position: Vec2,
     depth: Depth,
     authored: &AuthoredDepths,
     depth_scale_config: &DepthScaleConfig,
@@ -121,8 +121,7 @@ fn compute_presentation_basis(
             &projection.0,
             view.lateral_view_offset,
             parallax_attenuation.unwrap_or(1.0),
-            position,
-            Some(depth),
+            projection.0.floor_y_for_depth(depth.to_i8()),
         ),
         _ => Vec2::ZERO,
     };
@@ -300,6 +299,7 @@ pub fn spawn_enemy(
     let name = spawn.enemy_type.get_name();
     let position = spawn_placement::resolve_enemy_position(spawn, offset, floors);
     let behaviors = EnemyBehaviors::new(steps.clone());
+    let continuous_depth = EnemyContinuousDepth::from_depth(*depth);
     let authored =
         authored_depths_from_spawn(*depth, Some(*enemy_type), spawn.authored_depths.as_ref());
     match enemy_type {
@@ -322,6 +322,7 @@ pub fn spawn_enemy(
                         },
                     },
                     authored.clone(),
+                    continuous_depth,
                     ParallaxOffset::default(),
                     CxPresentationTransform::default(),
                 ))
@@ -373,6 +374,7 @@ pub fn spawn_enemy(
                         },
                     },
                     authored.clone(),
+                    continuous_depth,
                     initial_presentation.parallax,
                     initial_presentation.presentation,
                 ))
@@ -437,6 +439,7 @@ pub fn spawn_enemy(
                         },
                     },
                     authored.clone(),
+                    continuous_depth,
                     initial_presentation.parallax,
                     initial_presentation.presentation,
                 ))
@@ -459,7 +462,7 @@ pub fn spawn_enemy(
             entity
         }
         EnemyType::Kyle | EnemyType::Marauder | EnemyType::Spidomonsta => commands
-            .spawn((name, Enemy, behaviors, authored.clone()))
+            .spawn((name, Enemy, continuous_depth, behaviors, authored.clone()))
             .id(),
         EnemyType::Tardigrade => {
             let collider =
@@ -480,6 +483,7 @@ pub fn spawn_enemy(
                         },
                     },
                     authored,
+                    continuous_depth,
                     ParallaxOffset::default(),
                     CxPresentationTransform::default(),
                 ))

@@ -26,8 +26,8 @@ use self::{
         animation::on_composed_enemy_depth_changed,
         animation::on_enemy_depth_changed,
         behaviors::{
-            check_no_behavior, cleanup_orphaned_tween_children, tick_enemy_behavior_timer,
-            tied_components_enemy_current_behavior_circle_around,
+            check_no_behavior, cleanup_orphaned_tween_children, ensure_enemy_continuous_depth,
+            tick_enemy_behavior_timer, tied_components_enemy_current_behavior_circle_around,
         },
     },
     tardigrade::systems::{
@@ -61,6 +61,7 @@ impl Plugin for EnemyPlugin {
         app.add_active_systems::<EnemyPlugin, _>(
             // Behaviour/animation updates only run while the enemy subsystem is active.
             (
+                ensure_enemy_continuous_depth.before(check_no_behavior),
                 check_no_behavior,
                 on_enemy_depth_changed,
                 on_composed_enemy_depth_changed,
