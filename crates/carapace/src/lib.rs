@@ -106,6 +106,7 @@ mod picking;
 pub mod position;
 pub mod prelude;
 pub mod presentation;
+pub mod primitive;
 mod profiling;
 pub(crate) mod pxi;
 mod rect;
@@ -229,6 +230,7 @@ impl<L: CxLayer> Plugin for CxPlugin<L> {
             (
                 #[cfg(feature = "line")]
                 line::plug::<L>,
+                primitive::plug::<L>,
                 rect::plug::<L>,
                 ui::plug::<L>,
                 #[cfg(feature = "particle")]

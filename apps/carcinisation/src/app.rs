@@ -32,7 +32,10 @@ use crate::gallery::GalleryPlugin;
 use crate::{
     cutscene::CutscenePlugin,
     game::GamePlugin,
-    globals::{ASSETS_PATH, DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, VIEWPORT_RESOLUTION},
+    globals::{
+        ASSETS_PATH, DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, scaled_screen_resolution,
+        viewport_resolution,
+    },
     input::GBInput,
     layer::Layer,
     letterbox::LetterboxPlugin,
@@ -68,6 +71,8 @@ const SKIP_MENU_ENV: &str = "CARCINISATION_SKIP_MENU";
 const SKIP_CUTSCENES_ENV: &str = "CARCINISATION_SKIP_CUTSCENES";
 #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
 const SHOW_COLLIDERS_ENV: &str = "CARCINISATION_SHOW_COLLIDERS";
+#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+const SHOW_INSPECTOR_ENV: &str = "CARCINISATION_SHOW_INSPECTOR";
 #[cfg(not(target_arch = "wasm32"))]
 const SHOW_PERSPECTIVE_ENV: &str = "CARCINISATION_SHOW_PERSPECTIVE";
 
@@ -97,6 +102,18 @@ impl Default for AppLaunchOptions {
             headless: false,
         }
     }
+}
+
+fn initial_window_resolution(start_flow: StartFlow) -> WindowResolution {
+    let (width, height) = if matches!(start_flow, StartFlow::StageOnly) {
+        let resolution = scaled_screen_resolution();
+        (resolution.x.round() as u32, resolution.y.round() as u32)
+    } else {
+        let resolution = viewport_resolution();
+        (resolution.x.round() as u32, resolution.y.round() as u32)
+    };
+
+    WindowResolution::new(width, height)
 }
 
 /// Builds the Bevy `App` with shared plugins/resources, parameterised by the entry flow.
@@ -138,10 +155,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                             title,
                             focused,
                             resizable: true,
-                            resolution: WindowResolution::new(
-                                VIEWPORT_RESOLUTION.x as u32,
-                                VIEWPORT_RESOLUTION.y as u32,
-                            ),
+                            resolution: initial_window_resolution(options.start_flow),
                             ..default()
                         }),
                         close_when_requested: false,
@@ -152,10 +166,12 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                         ..default()
                     }),
                 EguiPlugin::default(),
-                DebugInspectorOverlayPlugin,
                 bevy::diagnostic::LogDiagnosticsPlugin::default(),
                 DebugPlugin,
             ));
+            if load_show_inspector() {
+                app.add_plugins(DebugInspectorOverlayPlugin);
+            }
         }
         #[cfg(not(debug_assertions))]
         {
@@ -166,10 +182,7 @@ pub fn build_app(options: AppLaunchOptions) -> App {
                             title,
                             focused,
                             resizable: false,
-                            resolution: WindowResolution::new(
-                                VIEWPORT_RESOLUTION.x as u32,
-                                VIEWPORT_RESOLUTION.y as u32,
-                            ),
+                            resolution: initial_window_resolution(options.start_flow),
                             ..default()
                         }),
                         close_when_requested: false,
@@ -352,6 +365,20 @@ fn load_show_perspective() -> bool {
         .ok()
         .and_then(|v| parse_bool_flag(&v).ok())
         .unwrap_or(false)
+}
+
+#[cfg(all(debug_assertions, target_arch = "wasm32"))]
+fn load_show_inspector() -> bool {
+    true
+}
+
+#[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
+fn load_show_inspector() -> bool {
+    let _ = dotenv_override();
+    env::var(SHOW_INSPECTOR_ENV)
+        .ok()
+        .and_then(|v| parse_bool_flag(&v).ok())
+        .unwrap_or(true)
 }
 
 #[cfg(target_arch = "wasm32")]

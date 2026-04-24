@@ -80,7 +80,7 @@ use self::{
             check_jump_tween_finished, check_jump_tween_z_finished, check_linear_tween_finished,
             check_linear_tween_x_finished, check_linear_tween_y_finished, circle_around,
             derive_enemy_depth_from_continuous, sync_enemy_continuous_depth_from_targeting_z,
-            update_non_enemy_depth_from_targeting_z,
+            update_enemy_pos_x, update_enemy_pos_y, update_non_enemy_depth_from_targeting_z,
         },
         on_death, on_next_step_cleanup_cinematic_step, on_next_step_cleanup_movement_step,
         on_next_step_cleanup_stop_step, on_stage_cleared, read_step_trigger,
@@ -297,6 +297,8 @@ impl Plugin for StagePlugin {
                         check_outside_view,
                         update_camera_pos_x,
                         update_camera_pos_y,
+                        update_enemy_pos_x,
+                        update_enemy_pos_y,
                     ),
                     (
                         // Pickup

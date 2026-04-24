@@ -525,7 +525,7 @@ impl GridParams {
 impl Default for GridParams {
     fn default() -> Self {
         Self {
-            lane_spacing: 160.0,
+            lane_spacing: 68.0,
             horizon_fill: 6.0,
             major_ray_interval: 4,
             horizontal_alpha: 0.85,
@@ -550,10 +550,13 @@ pub struct PerspectiveGrid {
 
 /// Depth brightness: `1.0` at depth 1 (brightest), `0.2` at depth 9 (dimmest).
 ///
-/// Extracted from `depth_debug.rs::depth_brightness`.
+/// Uses a logarithmic foreground-proximity curve so mid/far grid bands stay
+/// legible without flattening the near-to-far fade entirely.
 #[must_use]
 pub fn depth_brightness(d: i8) -> f32 {
-    1.0 - f32::from(d - 1) / 8.0 * 0.8
+    let foreground_proximity = 1.0 - f32::from(d - 1) / 8.0;
+    let curved = (1.0 + 8.0 * foreground_proximity).ln() / 9.0_f32.ln();
+    0.2 + 0.8 * curved
 }
 
 /// Grid colour RGBA from brightness and alpha.
@@ -589,13 +592,28 @@ pub fn grid_color_rgba(brightness: f32, alpha: f32) -> [f32; 4] {
 /// Guide rays are generated from uniformly-spaced world lanes, projected to
 /// viewport-boundary exit points, then filtered by a greedy perimeter-gap
 /// criterion to ensure readable spacing near the horizon.
+///
+/// # Panics
+/// Panics if `debug_assert!` fails (viewport width <= 0 or `depth_span` <= 0).
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn build_perspective_grid(
     floors: &[(i8, f32)],
     viewport: Rect,
     vanish_x: f32,
     params: &GridParams,
 ) -> PerspectiveGrid {
+    #[derive(Clone, Debug)]
+    struct Candidate {
+        k: i32,
+        exit_point: Vec2,
+        perimeter: f32,
+        is_center: bool,
+        is_major: bool,
+    }
+
+    const CENTER_AMBER: [f32; 4] = [0.73, 0.46, 0.09, 1.0];
+
     debug_assert!(
         vanish_x >= viewport.min.x && vanish_x <= viewport.max.x,
         "vanish_x ({}) must be inside viewport X range [{}, {}]",
@@ -652,21 +670,12 @@ pub fn build_perspective_grid(
     let k_search_shift = (params.lateral_view_offset.abs() / params.lane_spacing).ceil() as i32;
     let k_search = (k_search_geom + k_search_shift + 8).max(32);
 
-    #[derive(Clone, Debug)]
-    struct Candidate {
-        k: i32,
-        exit_point: Vec2,
-        perimeter: f32,
-        is_center: bool,
-        is_major: bool,
-    }
-
     let mut candidates: Vec<Candidate> = Vec::with_capacity((2 * k_search + 1) as usize);
     for k in -k_search..=k_search {
         let world_lane = k as f32 * params.lane_spacing;
         let eff_lane = world_lane - params.lateral_view_offset;
         let exit_point = compute_exit(eff_lane, vanish_x, vanish_y, viewport, depth_span, w_bottom);
-        let perimeter = perimeter_coord(&exit_point, viewport, halfwidth);
+        let perimeter = perimeter_coord(exit_point, viewport, halfwidth);
         candidates.push(Candidate {
             k,
             exit_point,
@@ -707,8 +716,6 @@ pub fn build_perspective_grid(
     }
 
     // §2.7 — Segment emission.
-    const CENTER_AMBER: [f32; 4] = [0.73, 0.46, 0.09, 1.0];
-
     for candidate in &kept {
         let use_amber = candidate.is_center && params.center_ray_highlight;
 
@@ -821,7 +828,7 @@ fn compute_exit(
 }
 
 /// Perimeter coordinate for an exit point on the viewport boundary.
-fn perimeter_coord(exit: &Vec2, viewport: Rect, halfwidth: f32) -> f32 {
+fn perimeter_coord(exit: Vec2, viewport: Rect, halfwidth: f32) -> f32 {
     let tol = 1e-3;
     let up_from_bottom = (exit.y - viewport.min.y).abs();
     if up_from_bottom < tol {
@@ -1214,6 +1221,9 @@ mod tests {
         for d in 1..9i8 {
             assert!(depth_brightness(d) > depth_brightness(d + 1));
         }
+        // Logarithmic falloff keeps the mid-depth bands brighter than the old
+        // linear curve for better runtime legibility.
+        assert!(depth_brightness(5) > 0.6);
     }
 
     #[test]
@@ -1634,8 +1644,7 @@ mod tests {
         let grid = build_perspective_grid(&floors, viewport, vanish_x, &params);
 
         // Collect unique exit points: for each ray, the endpoint farthest from VP.
-        use std::collections::HashMap;
-        let mut by_angle: HashMap<i32, Vec2> = HashMap::new();
+        let mut by_angle: std::collections::HashMap<i32, Vec2> = std::collections::HashMap::new();
         for seg in &grid.guide_ray_segments {
             let d = seg.end - vp;
             if d.length() < 1.0 {
@@ -1647,12 +1656,12 @@ mod tests {
                 *entry = seg.end;
             }
         }
-        let exits: Vec<Vec2> = by_angle.values().cloned().collect();
+        let exits: Vec<Vec2> = by_angle.values().copied().collect();
 
         let halfwidth = (viewport.max.x - viewport.min.x) * 0.5;
         let mut peris: Vec<f32> = exits
             .iter()
-            .map(|e| perimeter_coord(e, viewport, halfwidth))
+            .map(|e| perimeter_coord(*e, viewport, halfwidth))
             .collect();
         peris.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
@@ -1705,15 +1714,13 @@ mod tests {
             ..Default::default()
         };
         let exit0 = find_center_exit(p0);
-        let exits = find_center_exit(ps);
+        let exit_shifted = find_center_exit(ps);
 
         let expected_dx = -shift * w_bottom;
-        let observed_dx = exits.x - exit0.x;
+        let observed_dx = exit_shifted.x - exit0.x;
         assert!(
             (observed_dx - expected_dx).abs() < 1.0,
-            "centre ray bottom X shifted by {} but expected {}",
-            observed_dx,
-            expected_dx
+            "centre ray bottom X shifted by {observed_dx} but expected {expected_dx}",
         );
     }
 
@@ -1789,7 +1796,7 @@ mod tests {
             let found = grid.guide_ray_segments.iter().any(|s| {
                 (s.end.x - expected_x).abs() < 2.0 && (s.end.y - viewport.min.y).abs() < 2.0
             });
-            assert!(found, "centre ray (k=0) missing at shift δ={}", shift);
+            assert!(found, "centre ray (k=0) missing at shift δ={shift}");
         }
     }
 

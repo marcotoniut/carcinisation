@@ -119,6 +119,8 @@ fn linear_tween_spawns_two_or_three_children() {
         &WorldPos(Vec2::ZERO),
         10.0,
         EnemyContinuousDepth::from_depth(Depth::Three),
+        carcinisation::stage::resources::StageGravity::STANDARD,
+        None,
     );
 
     app.world_mut().flush();
@@ -153,6 +155,8 @@ fn linear_tween_spawns_two_or_three_children() {
         &WorldPos(Vec2::ZERO),
         10.0,
         EnemyContinuousDepth::from_depth(Depth::Three),
+        carcinisation::stage::resources::StageGravity::STANDARD,
+        None,
     );
 
     app.world_mut().flush();
@@ -203,6 +207,8 @@ fn idle_step_spawns_no_tween_children() {
         &WorldPos(Vec2::ZERO),
         10.0,
         EnemyContinuousDepth::from_depth(Depth::Three),
+        carcinisation::stage::resources::StageGravity::STANDARD,
+        None,
     );
 
     assert_eq!(
@@ -244,6 +250,8 @@ fn tween_children_have_correct_marker_component() {
         &WorldPos(Vec2::ZERO),
         10.0,
         EnemyContinuousDepth::from_depth(Depth::Three),
+        carcinisation::stage::resources::StageGravity::STANDARD,
+        None,
     );
 
     app.world_mut().flush();
@@ -298,6 +306,8 @@ fn tween_children_lifecycle_contract() {
         &WorldPos(Vec2::ZERO),
         10.0,
         EnemyContinuousDepth::from_depth(Depth::Three),
+        carcinisation::stage::resources::StageGravity::STANDARD,
+        None,
     );
 
     app.world_mut().flush();

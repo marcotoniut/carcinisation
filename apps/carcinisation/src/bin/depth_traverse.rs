@@ -48,7 +48,7 @@ use bevy::{asset::AssetMetaCheck, prelude::*};
 use bevy_brp_extras::BrpExtrasPlugin;
 use carapace::{animation::CxAnimationPlugin, prelude::*, set::CxSet};
 use carcinisation::{
-    globals::SCREEN_RESOLUTION,
+    globals::{SCREEN_RESOLUTION, scaled_screen_resolution},
     stage::{
         components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth},
         depth_debug::{DepthDebugOverlay, DepthDebugPlugin},
@@ -89,8 +89,6 @@ const DEPTH_MIN: i8 = 1;
 const DEPTH_MAX: i8 = 9;
 const DEPTH_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN + 1) as f32;
 const DEPTH_INTERVAL_COUNT: f32 = (DEPTH_MAX - DEPTH_MIN) as f32;
-
-const VIEWPORT_SCALE: f32 = 4.0;
 
 /// Duration of the idle pause at each oscillation endpoint before reversing.
 const ENDPOINT_PAUSE_SECS: f32 = 2.0;
@@ -335,6 +333,7 @@ fn main() {
         SelectedCharacter::Mosquiton => "Depth Traverse - Mosquiton",
         SelectedCharacter::Spidey => "Depth Traverse - Spidey",
     };
+    let resolution = scaled_screen_resolution();
 
     let mut app = App::new();
     app.add_plugins((
@@ -342,12 +341,7 @@ fn main() {
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: title.into(),
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    resolution: (
-                        SCREEN_W as u32 * VIEWPORT_SCALE as u32,
-                        SCREEN_H as u32 * VIEWPORT_SCALE as u32,
-                    )
-                        .into(),
+                    resolution: (resolution.x as u32, resolution.y as u32).into(),
                     ..default()
                 }),
                 ..default()
@@ -674,7 +668,7 @@ fn advance_walk(
                 &mut progress,
                 &mut anim,
                 &profile,
-                &projection_view,
+                *projection_view,
                 &depth_scale,
                 &mut pos,
                 &mut depth,
@@ -828,11 +822,12 @@ fn advance_mosquiton(progress: &mut WalkProgress, anim: &mut ComposedAnimationSt
 ///
 /// Spidey idles, then jumps to the next depth level, landing on the floor
 /// line. The jump arc uses a simple parabolic interpolation.
+#[allow(clippy::too_many_lines)]
 fn advance_spidey(
     progress: &mut WalkProgress,
     anim: &mut ComposedAnimationState,
     profile: &HorizonProfile,
-    projection_view: &ProjectionView,
+    projection_view: ProjectionView,
     depth_scale: &DepthScaleConfig,
     pos: &mut WorldPos,
     depth: &mut Depth,
@@ -871,7 +866,7 @@ fn advance_spidey(
                 progress.phase = WalkPhase::SpideyIdle { remaining };
             }
             let floor_y = profile.floor_y_for_depth(depth.to_i8());
-            pos.0.x = compute_visual_x(CENTER_X, floor_y, &profile.profile, projection_view);
+            pos.0.x = compute_visual_x(CENTER_X, floor_y, &profile.profile, &projection_view);
         }
 
         WalkPhase::SpideyJumping {
@@ -888,7 +883,7 @@ fn advance_spidey(
                 *depth = target_depth;
                 progress.t = target_t;
                 pos.0 = Vec2::new(
-                    compute_visual_x(CENTER_X, target_y, &profile.profile, projection_view),
+                    compute_visual_x(CENTER_X, target_y, &profile.profile, &projection_view),
                     target_y,
                 );
                 anim.requested_tag = "landing".into();
@@ -913,9 +908,9 @@ fn advance_spidey(
                 // (not derived from visual_y, which includes the arc and
                 // would cause lateral rubber-banding under camera pan).
                 let start_x =
-                    compute_visual_x(CENTER_X, start_y, &profile.profile, projection_view);
+                    compute_visual_x(CENTER_X, start_y, &profile.profile, &projection_view);
                 let target_x =
-                    compute_visual_x(CENTER_X, target_y, &profile.profile, projection_view);
+                    compute_visual_x(CENTER_X, target_y, &profile.profile, &projection_view);
                 pos.0 = Vec2::new(start_x + (target_x - start_x) * frac, visual_y);
                 progress.t = travel_t;
 
@@ -943,7 +938,7 @@ fn advance_spidey(
                 progress.phase = WalkPhase::SpideyLanding { remaining };
             }
             let floor_y = profile.floor_y_for_depth(depth.to_i8());
-            pos.0.x = compute_visual_x(CENTER_X, floor_y, &profile.profile, projection_view);
+            pos.0.x = compute_visual_x(CENTER_X, floor_y, &profile.profile, &projection_view);
         }
 
         // Mosquiton-only phases are unreachable for spidey.

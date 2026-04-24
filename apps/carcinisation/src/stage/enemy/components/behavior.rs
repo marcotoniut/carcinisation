@@ -3,13 +3,19 @@ use crate::stage::enemy::data::mosquito::MOSQUITO_DEPTH_RANGE;
 use crate::stage::enemy::data::steps::{
     CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearTweenEnemyStep,
 };
-use crate::stage::{data::GAME_BASE_SPEED, resources::StageTimeDomain};
+use crate::stage::{
+    components::placement::Depth, data::GAME_BASE_SPEED, floors::ActiveFloors,
+    resources::StageTimeDomain,
+};
 use bevy::prelude::*;
 use carapace::prelude::WorldPos;
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
     TweenChildBundle,
 };
+
+const MAX_JUMP_ARC_HEIGHT: f32 = 96.0;
+
 use derive_new::new;
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -73,6 +79,12 @@ impl JumpTween {
     }
 }
 
+#[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct GroundedEnemyFall {
+    pub vertical_velocity: f32,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct JumpMotion {
     target_x: f32,
@@ -89,23 +101,38 @@ fn jump_motion(
     step: JumpEnemyStep,
     current_position: &WorldPos,
     current_depth: EnemyContinuousDepth,
+    gravity_acceleration: f32,
+    target_y: f32,
 ) -> JumpMotion {
     let target_x = step.coordinates.x;
-    let target_y = step.coordinates.y;
     let dx = target_x - current_position.0.x;
     let depth_value = current_depth.clamped_value();
 
-    // Horizontal velocity derived from jump speed and GAME_BASE_SPEED.
+    // Horizontal travel starts from authored speed, but absurdly long flights
+    // would force absurd vertical launch speeds to still land on the floor.
+    // Cap total airtime so jumps stay within a sane apex while still using
+    // normal gravity and exact floor landing.
     let adapted_speed = (depth_value - 3.) / 6.;
-    let x_velocity = dx.signum() * (step.speed + adapted_speed) * GAME_BASE_SPEED;
-
-    let travel_time_secs = if x_velocity.abs() > f32::EPSILON {
-        dx.abs() / x_velocity.abs()
+    let base_x_speed = (step.speed + adapted_speed) * GAME_BASE_SPEED;
+    let base_travel_time_secs = if base_x_speed.abs() > f32::EPSILON {
+        dx.abs() / base_x_speed.abs()
     } else {
         1.0
     };
 
-    let gravity = -120.0;
+    let gravity_abs = gravity_acceleration.abs().max(f32::EPSILON);
+    let apex_y = current_position.0.y.max(target_y) + MAX_JUMP_ARC_HEIGHT;
+    let time_to_apex = ((2.0 * (apex_y - current_position.0.y).max(0.0)) / gravity_abs).sqrt();
+    let time_from_apex = ((2.0 * (apex_y - target_y).max(0.0)) / gravity_abs).sqrt();
+    let max_travel_time_secs = (time_to_apex + time_from_apex).max(f32::EPSILON);
+    let travel_time_secs = base_travel_time_secs.min(max_travel_time_secs);
+    let x_velocity = if dx.abs() > f32::EPSILON {
+        dx / travel_time_secs
+    } else {
+        0.0
+    };
+
+    let gravity = -gravity_abs;
     let dy = target_y - current_position.0.y;
     let initial_y_velocity = (dy - 0.5 * gravity * travel_time_secs * travel_time_secs)
         / travel_time_secs.max(f32::EPSILON);
@@ -132,7 +159,42 @@ fn jump_motion(
     }
 }
 
+#[must_use]
+pub fn resolve_jump_target_depth(
+    step: JumpEnemyStep,
+    current_depth: EnemyContinuousDepth,
+) -> Depth {
+    let target_depth = step
+        .depth_movement
+        .map_or(current_depth.clamped_value(), |dm| {
+            let clamped_dm = f32::from(dm.clamp(-2, 2));
+            (current_depth.clamped_value() + clamped_dm).clamp(
+                MOSQUITO_DEPTH_RANGE.start().to_f32(),
+                MOSQUITO_DEPTH_RANGE.end().to_f32(),
+            )
+        });
+    Depth::from_continuous(target_depth)
+}
+
+/// # Panics
+/// Panics if the target depth has no solid floor.
+#[must_use]
+pub fn resolve_jump_target_y(
+    step: JumpEnemyStep,
+    current_depth: EnemyContinuousDepth,
+    floors: &ActiveFloors,
+    ground_anchor: f32,
+) -> f32 {
+    let target_depth = resolve_jump_target_depth(step, current_depth);
+    let floor_y = floors
+        .highest_solid_y(target_depth)
+        .unwrap_or_else(|| panic!("jump target at depth {target_depth:?} requires a solid floor"));
+    floor_y + ground_anchor
+}
+
 impl EnemyCurrentBehavior {
+    /// # Panics
+    /// Panics on `Jump` steps if `jump_target_y` is `None`.
     #[must_use]
     pub fn get_bundles(
         &self,
@@ -140,6 +202,8 @@ impl EnemyCurrentBehavior {
         current_position: &WorldPos,
         _speed: f32,
         current_depth: EnemyContinuousDepth,
+        gravity_acceleration: f32,
+        jump_target_y: Option<f32>,
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle,
@@ -164,7 +228,13 @@ impl EnemyCurrentBehavior {
                 time_offset: time_offset.as_secs_f32(),
             }),
             EnemyStep::Jump(step) => {
-                let motion = jump_motion(step, current_position, current_depth);
+                let motion = jump_motion(
+                    step,
+                    current_position,
+                    current_depth,
+                    gravity_acceleration,
+                    jump_target_y.expect("jump behaviors require a resolved floor target"),
+                );
                 BehaviorBundle::Jump(JumpTween::new(
                     time_offset,
                     motion.travel_time_secs,
@@ -176,6 +246,9 @@ impl EnemyCurrentBehavior {
 
     /// Spawns tween child entities for movement behaviors (`LinearTween` and Jump).
     /// Returns a vector of child entity IDs.
+    ///
+    /// # Panics
+    /// Panics on `Jump` steps if `jump_target_y` is `None`.
     #[allow(clippy::too_many_lines)]
     pub fn spawn_tween_children(
         &self,
@@ -184,6 +257,8 @@ impl EnemyCurrentBehavior {
         current_position: &WorldPos,
         speed: f32,
         current_depth: EnemyContinuousDepth,
+        gravity_acceleration: f32,
+        jump_target_y: Option<f32>,
     ) -> Vec<Entity> {
         let mut children = Vec::new();
 
@@ -256,7 +331,13 @@ impl EnemyCurrentBehavior {
                 }
             }
             EnemyStep::Jump(step) => {
-                let motion = jump_motion(step, current_position, current_depth);
+                let motion = jump_motion(
+                    step,
+                    current_position,
+                    current_depth,
+                    gravity_acceleration,
+                    jump_target_y.expect("jump behaviors require a resolved floor target"),
+                );
                 // Spawn X-axis tween child (linear, constant velocity).
                 let child_x = commands
                     .spawn((

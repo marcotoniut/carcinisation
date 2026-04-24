@@ -10,10 +10,7 @@ pub mod types;
 pub use self::systems::DebugColliderOverlay;
 #[cfg(debug_assertions)]
 use self::{
-    systems::{
-        debug_damage_composed_parts, draw_colliders, draw_floor_lines,
-        log_composed_health_pool_changes,
-    },
+    systems::{debug_damage_composed_parts, draw_colliders, log_composed_health_pool_changes},
     types::register_types,
 };
 #[cfg(debug_assertions)]
@@ -94,11 +91,7 @@ impl Plugin for DebugPlugin {
             .init_resource::<systems::DebugColliderOverlay>()
             .add_systems(Startup, activate_system::<DebugPlugin>)
             .add_active_systems::<DebugPlugin, _>((
-                (
-                    draw_floor_lines,
-                    draw_colliders,
-                    systems::draw_pixel_mask_outlines,
-                ),
+                (draw_colliders, systems::draw_pixel_mask_outlines),
                 (
                     systems::toggle_debug_god_mode,
                     systems::toggle_collider_overlay,

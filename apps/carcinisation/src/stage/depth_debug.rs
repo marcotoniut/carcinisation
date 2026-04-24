@@ -19,8 +19,8 @@
 //!
 //! Grid geometry (horizontal lines + guide rays) is computed from the active
 //! projection profile via the shared [`build_perspective_grid`] function in
-//! [`super::projection`] and rendered here as Bevy gizmos with a
-//! `VIEWPORT_MULTIPLIER` coordinate transform.
+//! [`super::projection`] and rendered here as Bevy gizmos using the active
+//! onscreen viewport scale.
 //!
 //! # Usage with `CxPlugin`
 //!
@@ -28,17 +28,13 @@
 //! gizmos. Spawn a `Camera2d` with [`CxOverlayCamera`] and `order: 1` so
 //! gizmos render on top. See the `depth_traverse` binary for a working example.
 
-use bevy::prelude::*;
-use carapace::prelude::{CxCompositeSprite, WorldPos};
+use bevy::{prelude::*, window::PrimaryWindow};
+use carapace::prelude::{CxCompositeSprite, CxOverlayViewportTransform, CxScreen, WorldPos};
 use carapace::presentation::CxPresentationTransform;
 
-use crate::globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER};
 use crate::stage::components::placement::{Airborne, AnchorOffsets};
 use crate::stage::projection::{GridParams, build_perspective_grid};
 use crate::stage::resources::{ActiveProjection, ProjectionView};
-
-const SCREEN_X: f32 = SCREEN_RESOLUTION.x as f32;
-const SCREEN_Y: f32 = SCREEN_RESOLUTION.y as f32;
 
 // --- Marker colours ---
 
@@ -50,11 +46,6 @@ const PIVOT_COLOR: Color = Color::srgba(0.4, 0.7, 1.0, 0.6);
 
 /// Crosshair arm length as a fraction of the scaled composite width/height.
 const CROSSHAIR_FRACTION: f32 = 0.15;
-
-/// Minimum crosshair arm length in viewport pixels so it stays visible at
-/// horizon depths where the sprite is very small.
-const CROSSHAIR_MIN_PX: f32 = 3.0 * VIEWPORT_MULTIPLIER;
-
 // --- Resources ---
 
 /// Controls whether the perspective depth grid is drawn (`P` to toggle).
@@ -166,6 +157,8 @@ fn draw_depth_grid_background(
     overlay: Res<DepthDebugOverlay>,
     projection: Option<Res<ActiveProjection>>,
     projection_view: Option<Res<ProjectionView>>,
+    screen: Res<CxScreen>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     mut gizmos: Gizmos,
 ) {
     if !overlay.enabled {
@@ -174,37 +167,45 @@ fn draw_depth_grid_background(
     let Some(projection) = projection else {
         return;
     };
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let overlay_transform = CxOverlayViewportTransform::from_screen(
+        &screen,
+        Vec2::new(window.width(), window.height()),
+    );
+    let logical_screen = screen.size().as_vec2();
 
+    // Build the grid entirely in logical game pixels. Only the final gizmo
+    // draw step knows about the fitted overlay viewport transform.
     let floors: Vec<(i8, f32)> = (1..=9_i8)
         .rev()
-        .map(|depth| (depth, to_viewport_y(projection.0.floor_y_for_depth(depth))))
+        .map(|depth| (depth, projection.0.floor_y_for_depth(depth)))
         .collect();
 
-    // Viewport bounds in gizmo space.
-    let viewport = Rect::new(
-        to_viewport_x(0.0),
-        to_viewport_y(0.0),
-        to_viewport_x(SCREEN_X),
-        to_viewport_y(SCREEN_Y),
-    );
-    let vanish_x = to_viewport_x(SCREEN_X * 0.5);
+    let viewport = Rect::new(0.0, 0.0, logical_screen.x, logical_screen.y);
+    let vanish_x = logical_screen.x * 0.5;
     let mut grid_params = GridParams::default();
     if let Some(view) = projection_view {
-        grid_params.lateral_view_offset = view.lateral_view_offset * VIEWPORT_MULTIPLIER;
+        grid_params.lateral_view_offset = view.lateral_view_offset;
     }
 
     let grid = build_perspective_grid(&floors, viewport, vanish_x, &grid_params);
 
     // Render horizontal depth lines.
     for seg in &grid.depth_lines {
-        gizmos.line_2d(seg.start, seg.end, seg_color(&seg.start_rgba));
+        gizmos.line_2d(
+            overlay_transform.point(seg.start),
+            overlay_transform.point(seg.end),
+            seg_color(&seg.start_rgba),
+        );
     }
 
     // Render guide ray segments with gradient.
     for seg in &grid.guide_ray_segments {
         gizmos.line_gradient_2d(
-            seg.start,
-            seg.end,
+            overlay_transform.point(seg.start),
+            overlay_transform.point(seg.end),
             seg_color(&seg.start_rgba),
             seg_color(&seg.end_rgba),
         );
@@ -226,6 +227,8 @@ fn draw_depth_grid_background(
 fn draw_entity_anchors(
     overlay: Res<EntityAnchorOverlay>,
     mut gizmos: Gizmos,
+    screen: Res<CxScreen>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     query: Query<(
         &WorldPos,
         &CxCompositeSprite,
@@ -237,6 +240,13 @@ fn draw_entity_anchors(
     if !overlay.enabled {
         return;
     }
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let overlay_transform = CxOverlayViewportTransform::from_screen(
+        &screen,
+        Vec2::new(window.width(), window.height()),
+    );
 
     for (position, composite, presentation, anchor_offsets, is_airborne) in query.iter() {
         if composite.size.x == 0 {
@@ -246,9 +256,8 @@ fn draw_entity_anchors(
         let scale_x = presentation.map_or(1.0, |pt| pt.scale.x.abs());
         let scale_y = presentation.map_or(1.0, |pt| pt.scale.y.abs());
 
-        let half_w = composite.size.x as f32 * 0.5 * scale_x * VIEWPORT_MULTIPLIER;
-        let cx = to_viewport_x(position.0.x);
-        let pivot_wy = to_viewport_y(position.0.y);
+        let half_w = overlay_transform.delta_x(composite.size.x as f32 * 0.5 * scale_x);
+        let pivot = overlay_transform.point(position.0);
 
         // --- Active anchor (green horizontal line) ---
         let anchor_y = if let Some(offsets) = anchor_offsets {
@@ -257,10 +266,10 @@ fn draw_entity_anchors(
             // Fallback: per-frame bounding-box bottom.
             position.0.y + composite.origin.y as f32 * scale_y
         };
-        let anchor_wy = to_viewport_y(anchor_y);
+        let anchor_wy = overlay_transform.point_y(anchor_y);
         gizmos.line_2d(
-            Vec2::new(cx - half_w, anchor_wy),
-            Vec2::new(cx + half_w, anchor_wy),
+            Vec2::new(pivot.x - half_w, anchor_wy),
+            Vec2::new(pivot.x + half_w, anchor_wy),
             ANCHOR_COLOR,
         );
 
@@ -268,21 +277,26 @@ fn draw_entity_anchors(
         //
         // Arm length = 15 % of scaled composite dimension, floored to a
         // minimum so the crosshair stays visible at far depths.
-        let arm_x = (composite.size.x as f32 * scale_x * CROSSHAIR_FRACTION * VIEWPORT_MULTIPLIER)
-            .max(CROSSHAIR_MIN_PX);
-        let arm_y = (composite.size.y as f32 * scale_y * CROSSHAIR_FRACTION * VIEWPORT_MULTIPLIER)
-            .max(CROSSHAIR_MIN_PX);
+        // Keep the crosshair readable even when far-depth sprites get tiny.
+        let min_crosshair_x = overlay_transform.delta_x(3.0);
+        let min_crosshair_y = overlay_transform.delta_y(3.0);
+        let arm_x = overlay_transform
+            .delta_x(composite.size.x as f32 * scale_x * CROSSHAIR_FRACTION)
+            .max(min_crosshair_x);
+        let arm_y = overlay_transform
+            .delta_y(composite.size.y as f32 * scale_y * CROSSHAIR_FRACTION)
+            .max(min_crosshair_y);
 
         // Horizontal arm.
         gizmos.line_2d(
-            Vec2::new(cx - arm_x, pivot_wy),
-            Vec2::new(cx + arm_x, pivot_wy),
+            Vec2::new(pivot.x - arm_x, pivot.y),
+            Vec2::new(pivot.x + arm_x, pivot.y),
             PIVOT_COLOR,
         );
         // Vertical arm.
         gizmos.line_2d(
-            Vec2::new(cx, pivot_wy - arm_y),
-            Vec2::new(cx, pivot_wy + arm_y),
+            Vec2::new(pivot.x, pivot.y - arm_y),
+            Vec2::new(pivot.x, pivot.y + arm_y),
             PIVOT_COLOR,
         );
     }
@@ -293,19 +307,6 @@ fn draw_entity_anchors(
 /// Convert an RGBA array from the shared grid builder into a Bevy [`Color`].
 fn seg_color(rgba: &[f32; 4]) -> Color {
     Color::srgba(rgba[0], rgba[1], rgba[2], rgba[3])
-}
-
-/// Convert a carapace pixel X coordinate to Bevy world X for gizmo drawing.
-///
-/// `CxPlugin` renders a fullscreen quad — the pixel-art centre always maps to
-/// viewport origin (0, 0). No additional offset is needed.
-fn to_viewport_x(x: f32) -> f32 {
-    VIEWPORT_MULTIPLIER * (x - SCREEN_X * 0.5)
-}
-
-/// Convert a carapace pixel Y coordinate to Bevy world Y for gizmo drawing.
-fn to_viewport_y(y: f32) -> f32 {
-    VIEWPORT_MULTIPLIER * (y - SCREEN_Y * 0.5)
 }
 
 #[cfg(test)]

@@ -53,8 +53,9 @@ pub use crate::{
     math::{Diagonal, Orthogonal},
     position::{CxAnchor, CxLayer, CxPosition, CxVelocity, WorldPos},
     presentation::CxPresentationTransform,
+    primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape},
     rect::CxFilterRect,
-    screen::{CxOverlayCamera, CxScreenSize},
+    screen::{CxOverlayCamera, CxOverlayViewportTransform, CxScreen, CxScreenSize},
     sprite::{
         CxAuthoritativeCompositeMetrics, CxCompositePart, CxCompositePartSource, CxCompositeSprite,
         CxSprite, CxSpriteAsset, PartTransform,

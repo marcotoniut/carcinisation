@@ -579,6 +579,7 @@ pub fn update_mosquiton_death_effect(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
     use crate::stage::{
@@ -610,7 +611,7 @@ mod tests {
         app
     }
 
-    /// Spawn a zero-offset falling mosquiton (body_bottom_y == position.y).
+    /// Spawn a zero-offset falling mosquiton (`body_bottom_y` == position.y).
     fn spawn_falling_entity(app: &mut App, y: f32, depth: Depth, velocity: f32) -> Entity {
         app.world_mut()
             .spawn((
@@ -668,7 +669,7 @@ mod tests {
     /// must land, not pass through.
     ///
     /// Pre-fix failure: `highest_solid_y_at_or_below` is called with the
-    /// post-movement body_bottom (below floor), so the floor is excluded from
+    /// post-movement `body_bottom` (below floor), so the floor is excluded from
     /// the query. The entity falls through.
     #[test]
     fn falling_mosquiton_lands_through_overshoot() {
@@ -732,7 +733,7 @@ mod tests {
         );
     }
 
-    /// Landing snaps body_bottom to floor_y exactly — no floating-point
+    /// Landing snaps `body_bottom` to `floor_y` exactly — no floating-point
     /// epsilon allowed. The snap formula is deterministic.
     #[test]
     fn falling_mosquiton_snap_is_precise() {
@@ -755,7 +756,7 @@ mod tests {
         }
     }
 
-    /// ActiveFloors populated with values matching what surface inheritance
+    /// `ActiveFloors` populated with values matching what surface inheritance
     /// would produce (the floor evaluation pipeline is tested elsewhere;
     /// here we verify the falling system reads the resource correctly).
     #[test]
@@ -831,6 +832,8 @@ mod tests {
             &WorldPos(start_pos),
             2.0,
             EnemyContinuousDepth::from_depth(Depth::Three),
+            crate::stage::resources::StageGravity::STANDARD,
+            None,
         );
         app.world_mut().flush();
 

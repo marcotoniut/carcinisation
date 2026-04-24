@@ -26,8 +26,9 @@ use self::{
         animation::on_composed_enemy_depth_changed,
         animation::on_enemy_depth_changed,
         behaviors::{
-            check_no_behavior, cleanup_orphaned_tween_children, ensure_enemy_continuous_depth,
-            tick_enemy_behavior_timer, tied_components_enemy_current_behavior_circle_around,
+            apply_grounded_enemy_fall, check_no_behavior, cleanup_orphaned_tween_children,
+            ensure_enemy_continuous_depth, tick_enemy_behavior_timer,
+            tied_components_enemy_current_behavior_circle_around,
         },
     },
     tardigrade::systems::{
@@ -116,6 +117,7 @@ impl Plugin for EnemyPlugin {
                     // Composed pipeline (prepare/ensure/update) is registered
                     // in the Mosquiton block and operates generically on all
                     // entities with ComposedEnemyVisual.
+                    apply_grounded_enemy_fall.after(PositionSyncSystems),
                     assign_spidey_animation.after(check_no_behavior),
                     despawn_dead_spideys,
                     update_spidey_death_effect,

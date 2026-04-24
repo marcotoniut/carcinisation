@@ -22,7 +22,7 @@ pub struct EnemyMosquiton;
 
 /// Maximum depth at which a mosquiton can perform ranged (blood shot) attacks.
 /// Beyond this depth, mosquitons are too far to aim effectively.
-pub const MOSQUITON_MAX_RANGED_DEPTH: Depth = Depth::Seven;
+pub const MOSQUITON_MAX_RANGED_DEPTH: Depth = Depth::Six;
 
 impl EnemyMosquiton {
     /// Whether a mosquiton at the given depth can use ranged (blood shot) attacks.
@@ -131,8 +131,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn depth_7_allows_ranged_attack() {
-        assert!(EnemyMosquiton::can_ranged_attack(&Depth::Seven));
+    fn depth_6_allows_ranged_attack() {
+        assert!(EnemyMosquiton::can_ranged_attack(&Depth::Six));
+    }
+
+    #[test]
+    fn depth_7_blocks_ranged_attack() {
+        assert!(!EnemyMosquiton::can_ranged_attack(&Depth::Seven));
     }
 
     #[test]
@@ -141,13 +146,8 @@ mod tests {
     }
 
     #[test]
-    fn depth_9_blocks_ranged_attack() {
-        assert!(!EnemyMosquiton::can_ranged_attack(&Depth::Nine));
-    }
-
-    #[test]
     fn all_shallow_depths_allow_ranged_attack() {
-        for d in 0..=7_i8 {
+        for d in 0..=6_i8 {
             let depth = Depth::try_from(d).unwrap();
             assert!(
                 EnemyMosquiton::can_ranged_attack(&depth),
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn all_deep_depths_block_ranged_attack() {
-        for d in 8..=9_i8 {
+        for d in 7..=9_i8 {
             let depth = Depth::try_from(d).unwrap();
             assert!(
                 !EnemyMosquiton::can_ranged_attack(&depth),

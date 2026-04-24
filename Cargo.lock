@@ -2257,6 +2257,7 @@ dependencies = [
  "bytemuck",
  "carapace_macros",
  "flate2",
+ "image",
  "insta",
  "leafwing-input-manager",
  "line_drawing",

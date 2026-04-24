@@ -299,6 +299,90 @@ pub(crate) fn screen_scale(screen_size: UVec2, window_size: Vec2) -> Vec2 {
     })
 }
 
+/// Canonical transform from Carapace screen pixel coordinates into Bevy overlay
+/// world coordinates for a [`CxOverlayCamera`].
+///
+/// This matches the same fit-to-window model used by Carapace's fullscreen
+/// presentation quad: the logical screen is scaled uniformly to the largest
+/// centred rectangle that fits inside the current window.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CxOverlayViewportTransform {
+    screen_size: Vec2,
+    viewport_size: Vec2,
+}
+
+impl CxOverlayViewportTransform {
+    /// Build the transform for a logical Carapace screen inside the current
+    /// window/backbuffer size.
+    #[must_use]
+    pub fn new(screen_size: UVec2, window_size: Vec2) -> Self {
+        Self {
+            screen_size: screen_size.as_vec2(),
+            viewport_size: screen_scale(screen_size, window_size),
+        }
+    }
+
+    /// Build the transform from the active [`CxScreen`] resource.
+    #[must_use]
+    pub fn from_screen(screen: &CxScreen, window_size: Vec2) -> Self {
+        Self::new(screen.size(), window_size)
+    }
+
+    /// Size of the onscreen viewport rectangle occupied by the Carapace output.
+    #[must_use]
+    pub fn viewport_size(self) -> Vec2 {
+        self.viewport_size
+    }
+
+    /// Uniform screen-to-overlay scale on each axis.
+    #[must_use]
+    pub fn scale(self) -> Vec2 {
+        self.viewport_size / self.screen_size
+    }
+
+    /// Centred overlay-space rectangle occupied by the Carapace output.
+    #[must_use]
+    pub fn viewport_rect(self) -> Rect {
+        Rect::from_center_size(Vec2::ZERO, self.viewport_size)
+    }
+
+    /// Convert a Carapace screen pixel coordinate into Bevy overlay world space.
+    #[must_use]
+    pub fn point(self, point: Vec2) -> Vec2 {
+        (point - self.screen_size * 0.5) * self.scale()
+    }
+
+    /// Convert an X coordinate from Carapace screen pixels into overlay space.
+    #[must_use]
+    pub fn point_x(self, x: f32) -> f32 {
+        self.point(Vec2::new(x, 0.0)).x
+    }
+
+    /// Convert a Y coordinate from Carapace screen pixels into overlay space.
+    #[must_use]
+    pub fn point_y(self, y: f32) -> f32 {
+        self.point(Vec2::new(0.0, y)).y
+    }
+
+    /// Convert a size / delta from Carapace pixel units into overlay-space units.
+    #[must_use]
+    pub fn delta(self, delta: Vec2) -> Vec2 {
+        delta * self.scale()
+    }
+
+    /// Convert an X delta from Carapace pixels into overlay-space units.
+    #[must_use]
+    pub fn delta_x(self, x: f32) -> f32 {
+        self.delta(Vec2::new(x, 0.0)).x
+    }
+
+    /// Convert a Y delta from Carapace pixels into overlay-space units.
+    #[must_use]
+    pub fn delta_y(self, y: f32) -> f32 {
+        self.delta(Vec2::new(0.0, y)).y
+    }
+}
+
 #[cfg(feature = "headed")]
 type Windows<'w, 's> = Query<'w, 's, &'static Window, With<PrimaryWindow>>;
 #[cfg(not(feature = "headed"))]
@@ -412,4 +496,39 @@ fn update_screen_palette(
     screen.palette = screen_palette;
 
     *waiting_for_load = false;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn overlay_transform_matches_centered_uniform_fit() {
+        let transform =
+            CxOverlayViewportTransform::new(UVec2::new(160, 144), Vec2::new(640.0, 576.0));
+
+        assert_eq!(transform.scale(), Vec2::splat(4.0));
+        assert_eq!(
+            transform.viewport_rect(),
+            Rect::from_center_size(Vec2::ZERO, Vec2::new(640.0, 576.0))
+        );
+        assert_eq!(transform.point(Vec2::new(80.0, 72.0)), Vec2::ZERO);
+        assert_eq!(
+            transform.point(Vec2::new(160.0, 144.0)),
+            Vec2::new(320.0, 288.0)
+        );
+    }
+
+    #[test]
+    fn overlay_transform_preserves_letterboxed_viewport_width() {
+        let transform =
+            CxOverlayViewportTransform::new(UVec2::new(160, 144), Vec2::new(896.0, 576.0));
+
+        assert_eq!(transform.scale(), Vec2::splat(4.0));
+        assert_eq!(transform.viewport_size(), Vec2::new(640.0, 576.0));
+        assert_eq!(
+            transform.viewport_rect(),
+            Rect::from_center_size(Vec2::ZERO, Vec2::new(640.0, 576.0))
+        );
+    }
 }

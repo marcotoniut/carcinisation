@@ -22,7 +22,9 @@ use crate::stage::{
             MosquitoDefaultBundle,
         },
         mosquiton::entity::{MosquitonBundle, MosquitonDefaultBundle},
-        spidey::entity::{ENEMY_SPIDEY_BASE_HEALTH, SpideyBundle, SpideyDefaultBundle},
+        spidey::entity::{
+            ENEMY_SPIDEY_BASE_HEALTH, EnemySpideyBehaviorLoop, SpideyBundle, SpideyDefaultBundle,
+        },
         tardigrade::entity::{
             ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS, TardigradeBundle,
             TardigradeDefaultBundle,
@@ -43,7 +45,10 @@ use crate::{
         },
         data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
         destructible::{components::Destructible, data::DestructibleSpawn},
-        enemy::components::{Enemy, EnemyContinuousDepth, behavior::EnemyBehaviors},
+        enemy::components::{
+            Enemy, EnemyContinuousDepth,
+            behavior::{EnemyBehaviors, GroundedEnemyFall},
+        },
         messages::StageSpawnEvent,
         pickup::components::HealthRecovery,
     },
@@ -77,6 +82,27 @@ fn authored_depths_from_spawn(
 
 fn composed_root_visibility() -> Visibility {
     Visibility::Hidden
+}
+
+fn seed_grounded_enemy_fall_if_spawned_above_floor(
+    commands: &mut Commands,
+    entity: Entity,
+    depth: Depth,
+    position: Vec2,
+    floors: &ActiveFloors,
+) {
+    let Some(floor_y) = floors.highest_solid_y_at_or_below(depth, position.y) else {
+        return;
+    };
+
+    if position.y > floor_y {
+        commands.entity(entity).insert((
+            Airborne,
+            GroundedEnemyFall {
+                vertical_velocity: 0.0,
+            },
+        ));
+    }
 }
 
 /// Spawn-time presentation basis for a composed enemy root.
@@ -459,6 +485,14 @@ pub fn spawn_enemy(
                     entity,
                 });
             }
+            if !steps.is_empty() {
+                commands
+                    .entity(entity)
+                    .insert(EnemySpideyBehaviorLoop(steps.clone()));
+            }
+            seed_grounded_enemy_fall_if_spawned_above_floor(
+                commands, entity, *depth, position, floors,
+            );
             entity
         }
         EnemyType::Kyle | EnemyType::Marauder | EnemyType::Spidomonsta => commands
@@ -826,6 +860,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn composed_spawn_reveal_integration_keeps_primed_presentation_basis() {
         let mut app = first_visible_frame_app();
         let asset_server = app.world().resource::<AssetServer>().clone();

@@ -1,6 +1,10 @@
-use std::collections::BTreeMap;
 #[cfg(feature = "gpu_palette")]
 use std::collections::BTreeSet;
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 #[cfg(feature = "gpu_palette")]
 use bevy_ecs::query::Has;
@@ -40,6 +44,9 @@ use super::{
     draw::{self, LayerContentsMap},
     pipeline::{CxPipeline, CxRenderBuffer, CxUniformBuffer},
 };
+
+static EXACT_SCREENSHOT_WRITTEN: AtomicBool = AtomicBool::new(false);
+const EXACT_SCREENSHOT_ENV: &str = "CARAPACE_EXACT_SCREENSHOT_PATH";
 
 /// Resolves filter layer targets against a pre-built ordered layer index.
 ///
@@ -103,6 +110,7 @@ pub(crate) struct CxRenderNode<L: CxLayer> {
     #[cfg(not(feature = "gpu_palette"))]
     composites: QueryState<CompositeSpriteComponents<L>>,
     texts: QueryState<TextComponents<L>>,
+    primitives: QueryState<crate::primitive::PrimitiveComponents<L>>,
     rects: QueryState<RectComponents<L>>,
     #[cfg(feature = "line")]
     lines: QueryState<LineComponents<L>>,
@@ -125,6 +133,7 @@ impl<L: CxLayer> FromWorld for CxRenderNode<L> {
             #[cfg(not(feature = "gpu_palette"))]
             composites: world.query(),
             texts: world.query(),
+            primitives: world.query(),
             rects: world.query(),
             #[cfg(feature = "line")]
             lines: world.query(),
@@ -145,6 +154,7 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
         self.atlas_sprites.update_archetypes(world);
         self.composites.update_archetypes(world);
         self.texts.update_archetypes(world);
+        self.primitives.update_archetypes(world);
         self.rects.update_archetypes(world);
         #[cfg(feature = "line")]
         self.lines.update_archetypes(world);
@@ -192,6 +202,20 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
                 .or_default()
                 .maps
                 .push(map);
+        }
+
+        for (prim, &position, &anchor, layer, &canvas, presentation) in
+            self.primitives.iter_manual(world)
+        {
+            #[cfg(feature = "gpu_palette")]
+            {
+                layer_set.insert(layer.clone());
+            }
+            layer_contents
+                .entry(layer.clone())
+                .or_default()
+                .primitives
+                .push((prim, position, anchor, canvas, presentation.copied()));
         }
 
         #[cfg(feature = "gpu_palette")]
@@ -468,6 +492,7 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
             },
             image_descriptor.size,
         );
+        write_exact_screenshot_if_requested(image, world.resource::<CxScreen>());
 
         #[cfg(feature = "gpu_palette")]
         if let Some(depth_image) = inner.depth_image.as_ref()
@@ -534,6 +559,77 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
 
         Ok(())
     }
+}
+
+fn write_exact_screenshot_if_requested(image: &Image, screen: &CxScreen) {
+    let Some(path) = std::env::var_os(EXACT_SCREENSHOT_ENV).map(PathBuf::from) else {
+        return;
+    };
+
+    if EXACT_SCREENSHOT_WRITTEN.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
+    if let Err(err) = write_exact_screenshot(&path, screen.computed_size, image, &screen.palette) {
+        warn!(
+            "failed to write exact screenshot to {}: {err}",
+            path.display()
+        );
+        EXACT_SCREENSHOT_WRITTEN.store(false, Ordering::SeqCst);
+    }
+}
+
+fn write_exact_screenshot(
+    path: &Path,
+    size: UVec2,
+    image: &Image,
+    palette: &[Vec3; 256],
+) -> Result<(), String> {
+    let data = image
+        .data
+        .as_ref()
+        .ok_or_else(|| "render image has no CPU buffer".to_string())?;
+
+    let expected_len = size.x as usize * size.y as usize;
+    if data.len() != expected_len {
+        return Err(format!(
+            "render image size mismatch: expected {expected_len} bytes, got {}",
+            data.len()
+        ));
+    }
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    }
+
+    let mut rgba = Vec::with_capacity(expected_len * 4);
+    for &index in data {
+        let [r, g, b] = linear_palette_to_srgb_u8(palette[index as usize]);
+        rgba.extend_from_slice(&[r, g, b, 255]);
+    }
+
+    let png = ::image::RgbaImage::from_raw(size.x, size.y, rgba)
+        .ok_or_else(|| "failed to assemble RGBA image".to_string())?;
+    png.save(path).map_err(|err| err.to_string())
+}
+
+fn linear_palette_to_srgb_u8(color: Vec3) -> [u8; 3] {
+    [
+        linear_channel_to_srgb_u8(color.x),
+        linear_channel_to_srgb_u8(color.y),
+        linear_channel_to_srgb_u8(color.z),
+    ]
+}
+
+fn linear_channel_to_srgb_u8(channel: f32) -> u8 {
+    let channel = channel.clamp(0.0, 1.0);
+    let srgb = if channel <= 0.003_130_8 {
+        channel * 12.92
+    } else {
+        1.055 * channel.powf(1.0 / 2.4) - 0.055
+    };
+
+    (srgb * 255.0).round().clamp(0.0, 255.0) as u8
 }
 
 #[cfg(test)]

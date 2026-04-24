@@ -97,11 +97,20 @@ pub(crate) type LineEntry<'a> = (
     bool,
 );
 
+pub(crate) type PrimitiveEntry<'a> = (
+    &'a crate::primitive::CxPrimitive,
+    CxPosition,
+    CxAnchor,
+    CxRenderSpace,
+    Option<crate::presentation::CxPresentationTransform>,
+);
+
 pub(crate) type FilterEntry<'a> = (&'a CxFilter, Option<&'a CxFrameView>);
 
 #[cfg(feature = "line")]
 #[derive(Default)]
 pub(crate) struct LayerContents<'a> {
+    pub(crate) primitives: Vec<PrimitiveEntry<'a>>,
     pub(crate) maps: Vec<MapEntry<'a>>,
     pub(crate) sprites: Vec<SpriteEntry<'a>>,
     pub(crate) atlas_sprites: Vec<AtlasSpriteEntry<'a>>,
@@ -118,6 +127,7 @@ pub(crate) struct LayerContents<'a> {
 #[cfg(not(feature = "line"))]
 #[derive(Default)]
 pub(crate) struct LayerContents<'a> {
+    pub(crate) primitives: Vec<PrimitiveEntry<'a>>,
     pub(crate) maps: Vec<MapEntry<'a>>,
     pub(crate) sprites: Vec<SpriteEntry<'a>>,
     pub(crate) atlas_sprites: Vec<AtlasSpriteEntry<'a>>,
@@ -200,6 +210,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
         #[allow(unused_variables)]
         for (layer, contents) in layer_contents {
             let LayerContents {
+                primitives,
                 maps,
                 sprites,
                 atlas_sprites,
@@ -220,6 +231,29 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
             let over_depth = base_depth.map(|depth| depth.saturating_add(1));
             layer_image.clear();
             let mut layer_slice = layer_image.slice_all_mut();
+
+            // Primitives draw first within the layer, behind maps/sprites.
+            for (prim, position, anchor, canvas, presentation) in primitives {
+                let size = crate::primitive::primitive_frame_size(&prim.shape);
+                let visual_offset = presentation.map_or(Vec2::ZERO, |pt| pt.visual_offset);
+                let position = *position + visual_offset.round().as_ivec2();
+                let position = position - anchor.pos(size).as_ivec2();
+                let world_origin = position;
+                let position = match canvas {
+                    CxRenderSpace::World => position - *camera,
+                    CxRenderSpace::Camera => position,
+                };
+                // Image space: Y flipped (top-left origin).
+                let image_pos = IVec2::new(
+                    position.x,
+                    layer_slice.height() as i32 - position.y - size.y as i32,
+                );
+                let mut prim_slice = layer_slice.slice_mut(IRect {
+                    min: image_pos,
+                    max: image_pos + size.as_ivec2(),
+                });
+                crate::primitive::draw_primitive(prim, &mut prim_slice, world_origin);
+            }
 
             for (map, position, canvas, frame, map_filter) in maps {
                 let Some(tileset) = tilesets.get(&map.tileset) else {

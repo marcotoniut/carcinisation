@@ -138,6 +138,7 @@ pub fn update_lateral_view_offset(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 

@@ -14,6 +14,9 @@
     clippy::cast_sign_loss,
     // Module paths like `enemy::components::Enemy` are clearer with repetition.
     clippy::module_name_repetitions,
+    // Derive macros (Reflect, Serialize, Deserialize) generate underscore-prefixed
+    // bindings internally that trigger false positives.
+    clippy::used_underscore_binding,
 )]
 
 mod assets;

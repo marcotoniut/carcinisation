@@ -96,7 +96,27 @@ StageData(
             coordinates: Vec2(38.9675, 0.0),
             speed: 2.0,
             health: None,
-            steps: [],
+            steps: [
+                LinearTween(
+                    depth_movement_o: None,
+                    direction: Vec2(1.0, -0.25),
+                    trayectory: 18.0,
+                ),
+                Idle(
+                    duration: 1.2,
+                ),
+                Circle(
+                    depth_movement_o: None,
+                    direction: Positive,
+                    duration: 3.0,
+                    radius: 6.0,
+                ),
+                LinearTween(
+                    depth_movement_o: None,
+                    direction: Vec2(-1.0, 0.25),
+                    trayectory: 18.0,
+                ),
+            ],
             depth: Three,
             altitude: 55.0,
         ),
@@ -135,15 +155,86 @@ StageData(
                     speed: 2.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.15),
+                            trayectory: 18.0,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Positive,
-                            duration: 99999.0,
+                            duration: 3.0,
                             radius: 8.0,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 1,
+                            direction: Vec2(1.0, 0.2),
+                            trayectory: 20.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
                         ),
                     ],
                     depth: Six,
                     altitude: 38.0,
+                ),
+                Enemy(
+                    enemy_type: Spidey,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(150.0, 72.0),
+                    speed: 1.0,
+                    health: None,
+                    steps: [
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(124.0, 68.0),
+                            depth_movement: -2,
+                            speed: 1.0,
+                        ),
+                        Idle(
+                            duration: 1.0,
+                        ),
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(156.0, 72.0),
+                            depth_movement: 2,
+                            speed: 1.0,
+                        ),
+                        Idle(
+                            duration: 1.0,
+                        ),
+                    ],
+                    depth: Six,
+                ),
+                Enemy(
+                    enemy_type: Spidey,
+                    elapsed: 1.8,
+                    contains: None,
+                    coordinates: Vec2(210.0, 70.0),
+                    speed: 1.0,
+                    health: None,
+                    steps: [
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(182.0, 66.0),
+                            depth_movement: -2,
+                            speed: 1.05,
+                        ),
+                        Idle(
+                            duration: 1.0,
+                        ),
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(216.0, 70.0),
+                            depth_movement: 2,
+                            speed: 1.05,
+                        ),
+                        Idle(
+                            duration: 1.0,
+                        ),
+                    ],
+                    depth: Six,
                 ),
             ],
             surfaces: [
@@ -193,11 +284,24 @@ StageData(
                     speed: 2.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: None,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 16.0,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Negative,
-                            duration: 99999.0,
+                            duration: 3.5,
                             radius: 10.0,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 1,
+                            direction: Vec2(1.0, 0.3),
+                            trayectory: 18.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
                         ),
                     ],
                     depth: Five,
@@ -291,7 +395,27 @@ StageData(
                     coordinates: Vec2(60.0, 0.0),
                     speed: 2.0,
                     health: None,
-                    steps: [],
+                    steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 22.0,
+                        ),
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 3.0,
+                            radius: 7.0,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 1,
+                            direction: Vec2(1.0, 0.3),
+                            trayectory: 20.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
+                    ],
                     depth: Five,
                     altitude: 48.0,
                 ),
@@ -303,6 +427,14 @@ StageData(
                     speed: 2.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.25),
+                            trayectory: 26.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Positive,
@@ -356,7 +488,24 @@ StageData(
                     coordinates: Vec2(20.0, 0.0),
                     speed: 5.0,
                     health: None,
-                    steps: [],
+                    steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(1.0, -0.35),
+                            trayectory: 24.0,
+                        ),
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Positive,
+                            duration: 2.5,
+                            radius: 5.0,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 1,
+                            direction: Vec2(-1.0, 0.25),
+                            trayectory: 24.0,
+                        ),
+                    ],
                     depth: Six,
                     altitude: 35.0,
                 ),
@@ -386,7 +535,22 @@ StageData(
                     coordinates: Vec2(120.95361, 0.0),
                     speed: 5.0,
                     health: None,
-                    steps: [],
+                    steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.3),
+                            trayectory: 34.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 99999.0,
+                            radius: 8.0,
+                        ),
+                    ],
                     depth: Seven,
                     altitude: 28.0,
                 ),
@@ -398,11 +562,24 @@ StageData(
                     speed: 2.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.15),
+                            trayectory: 18.0,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Negative,
-                            duration: 99999.0,
+                            duration: 3.0,
                             radius: 13.0,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 1,
+                            direction: Vec2(1.0, 0.2),
+                            trayectory: 20.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
                         ),
                     ],
                     depth: Five,
@@ -469,6 +646,14 @@ StageData(
                     speed: 5.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 24.0,
+                        ),
+                        Idle(
+                            duration: 1.0,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Negative,
@@ -507,11 +692,21 @@ StageData(
                     speed: 5.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 26.0,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Positive,
-                            duration: 99999.0,
-                            radius: 23.0,
+                            duration: 3.0,
+                            radius: 12.0,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 1,
+                            direction: Vec2(1.0, 0.2),
+                            trayectory: 22.0,
                         ),
                     ],
                     depth: Six,
@@ -537,7 +732,22 @@ StageData(
                     coordinates: Vec2(185.11719, 0.0),
                     speed: 2.0,
                     health: None,
-                    steps: [],
+                    steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 28.0,
+                        ),
+                        Idle(
+                            duration: 1.5,
+                        ),
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Positive,
+                            duration: 99999.0,
+                            radius: 6.0,
+                        ),
+                    ],
                     depth: Seven,
                     altitude: 30.0,
                 ),
@@ -583,11 +793,21 @@ StageData(
                     speed: 5.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 20.0,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Negative,
-                            duration: 99999.0,
-                            radius: 15.0,
+                            duration: 3.0,
+                            radius: 10.0,
+                        ),
+                        LinearTween(
+                            depth_movement_o: 1,
+                            direction: Vec2(1.0, 0.2),
+                            trayectory: 18.0,
                         ),
                     ],
                     depth: Six,
@@ -638,6 +858,14 @@ StageData(
                     speed: 5.0,
                     health: None,
                     steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.2),
+                            trayectory: 24.0,
+                        ),
+                        Idle(
+                            duration: 1.0,
+                        ),
                         Circle(
                             depth_movement_o: None,
                             direction: Positive,

@@ -37,7 +37,7 @@ use bevy::{
 use bevy_brp_extras::BrpExtrasPlugin;
 use carapace::{prelude::*, set::CxSet};
 use carcinisation::{
-    globals::SCREEN_RESOLUTION,
+    globals::{SCREEN_RESOLUTION, scaled_screen_resolution},
     stage::{
         components::placement::{Airborne, AnchorOffsets, AuthoredDepths, Depth},
         depth_debug::DepthDebugPlugin,
@@ -59,7 +59,6 @@ use carcinisation::{
 };
 
 const MOSQUITON_COUNT: usize = 2000;
-const SCREEN_SCALE: u32 = 4;
 const AUTHORED_DEPTH: Depth = Depth::Three;
 const SCREEN_W: f32 = SCREEN_RESOLUTION.x as f32;
 const SCREEN_H: f32 = SCREEN_RESOLUTION.y as f32;
@@ -166,6 +165,7 @@ enum Layer {
 
 fn main() {
     let title = format!("Carapace Mosquiton Stress ({MOSQUITON_COUNT} / 9 layers)");
+    let resolution = scaled_screen_resolution();
 
     let mut app = App::new();
     app.add_plugins((
@@ -173,11 +173,7 @@ fn main() {
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title,
-                    resolution: (
-                        SCREEN_RESOLUTION.x * SCREEN_SCALE,
-                        SCREEN_RESOLUTION.y * SCREEN_SCALE,
-                    )
-                        .into(),
+                    resolution: (resolution.x as u32, resolution.y as u32).into(),
                     ..default()
                 }),
                 ..default()

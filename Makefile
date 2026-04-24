@@ -72,6 +72,10 @@ dev-stage:
 	fi
 	RUST_BACKTRACE=full bacon single-stage
 
+.PHONY: dev-lab
+dev-lab:
+	RUST_BACKTRACE=full bacon lab
+
 .PHONY: dev-legacy
 dev-legacy:
 	# Legacy cargo-watch based dev loop (kept for reference, prefer 'make dev')

@@ -24,6 +24,7 @@ const MELEE_GRACE_WINDOW_SECS: f32 = 0.08;
 /// system reads it. Gameplay systems consume this instead of polling
 /// raw `GBInput` for the player action path.
 #[derive(Resource, Default, Debug)]
+#[allow(clippy::struct_excessive_bools)] // intentional input flag struct
 pub struct PlayerIntent {
     // --- Continuous state ---
     /// Normalized movement direction (zero when no directional input).
@@ -68,6 +69,7 @@ enum ChordPhase {
 /// Extracted from [`ActionState<GBInput>`] in the system wrapper and
 /// passed to the pure resolver. Tests construct this directly.
 #[derive(Default, Debug, Clone, Copy)]
+#[allow(clippy::struct_excessive_bools)] // intentional input flag struct
 struct RawButtons {
     select_just_pressed: bool,
     a_just_pressed: bool,

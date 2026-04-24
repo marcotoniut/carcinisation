@@ -91,6 +91,19 @@ impl ActiveFloors {
             .reduce(f32::min)
     }
 
+    /// Returns the highest solid Y at a depth (the first surface hit when
+    /// falling from above).
+    #[must_use]
+    pub fn highest_solid_y(&self, depth: Depth) -> Option<f32> {
+        self.surfaces_at(depth)
+            .iter()
+            .filter_map(|s| match s {
+                Surface::Solid { y } => Some(*y),
+                Surface::Gap => None,
+            })
+            .reduce(f32::max)
+    }
+
     /// Returns the highest solid Y at or below `max_y` at a depth.
     ///
     /// Used by falling physics to find the surface a falling entity
@@ -250,6 +263,9 @@ fn resolve_depth_y(
 ///
 /// During stop/cinematic steps, holds the current step's resolved state.
 /// Zero-duration tweens snap to the destination (no interpolation).
+///
+/// # Panics
+/// Panics if `Depth::try_from` fails for any depth in the visible range.
 #[must_use]
 pub fn evaluate_floors_at(stage_data: &StageData, elapsed: Duration) -> ActiveFloors {
     let info = walk_steps_at_elapsed(stage_data, elapsed);
@@ -289,11 +305,10 @@ pub fn evaluate_floors_at(stage_data: &StageData, elapsed: Duration) -> ActiveFl
                     // to Vec pairs when authored content uses stacked surfaces.
                     let surface = match (prev_y, curr_y) {
                         (Some(a), Some(b)) => Surface::Solid { y: a + (b - a) * t },
-                        // No Y on either side → stays absent.
-                        (None, None) => Surface::Gap,
-                        // Y appears or disappears → snap to destination at t=0.
-                        (Some(_), None) => Surface::Gap,
+                        // Y appears mid-tween → snap to destination.
                         (None, Some(b)) => Surface::Solid { y: b },
+                        // Y absent or disappearing → gap.
+                        _ => Surface::Gap,
                     };
 
                     (depth, vec![surface])
@@ -623,7 +638,7 @@ mod tests {
             "Anchored(50) should produce 50"
         );
         assert!(
-            (expected_mid - (prev_y + curr_y) / 2.0).abs() < 0.01,
+            (expected_mid - f32::midpoint(prev_y, curr_y)).abs() < 0.01,
             "midpoint should be average"
         );
     }
@@ -945,6 +960,6 @@ mod tests {
         );
         // lowest_solid_y = 30, altitude = 20 → spawn at 50.
         let ground = floors.lowest_solid_y(Depth::Four).unwrap();
-        assert_eq!(ground + 20.0, 50.0);
+        assert!((ground + 20.0 - 50.0).abs() < f32::EPSILON);
     }
 }

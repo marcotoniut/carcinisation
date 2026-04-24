@@ -1,5 +1,5 @@
 use crate::stage::{
-    components::placement::Depth,
+    components::placement::{Airborne, Depth},
     enemy::{
         components::{
             CircleAround, Enemy, EnemyContinuousDepth, LinearTween,
@@ -103,6 +103,20 @@ pub fn circle_around(
     }
 }
 
+/// Writes tweened X values back into enemy world position.
+pub fn update_enemy_pos_x(mut query: Query<(&TargetingValueX, &mut WorldPos), With<Enemy>>) {
+    for (target_x, mut world_pos) in &mut query {
+        world_pos.0.x = target_x.0;
+    }
+}
+
+/// Writes tweened Y values back into enemy world position.
+pub fn update_enemy_pos_y(mut query: Query<(&TargetingValueY, &mut WorldPos), With<Enemy>>) {
+    for (target_y, mut world_pos) in &mut query {
+        world_pos.0.y = target_y.0;
+    }
+}
+
 /// @system Detects when enemy X-axis tween children reach their target.
 /// Updates the parent enemy's `LinearTween.reached_x` flag.
 pub fn check_linear_tween_x_finished(
@@ -193,7 +207,8 @@ pub fn check_jump_tween_finished(
             commands
                 .entity(entity)
                 .remove::<EnemyCurrentBehavior>()
-                .remove::<JumpTween>();
+                .remove::<JumpTween>()
+                .remove::<Airborne>();
         }
     }
 }
@@ -279,6 +294,64 @@ mod tests {
                 .expect("enemy should keep continuous depth")
                 .0
                 - 5.25)
+                .abs()
+                < f32::EPSILON
+        );
+    }
+
+    #[test]
+    fn enemy_targeting_x_updates_world_position() {
+        let mut app = App::new();
+        app.add_systems(Update, update_enemy_pos_x);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Enemy,
+                WorldPos(Vec2::new(10.0, 20.0)),
+                TargetingValueX::new(42.5),
+            ))
+            .id();
+
+        app.update();
+
+        assert!(
+            (app.world()
+                .entity(entity)
+                .get::<WorldPos>()
+                .expect("enemy should keep world position")
+                .0
+                .x
+                - 42.5)
+                .abs()
+                < f32::EPSILON
+        );
+    }
+
+    #[test]
+    fn enemy_targeting_y_updates_world_position() {
+        let mut app = App::new();
+        app.add_systems(Update, update_enemy_pos_y);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Enemy,
+                WorldPos(Vec2::new(10.0, 20.0)),
+                TargetingValueY::new(77.25),
+            ))
+            .id();
+
+        app.update();
+
+        assert!(
+            (app.world()
+                .entity(entity)
+                .get::<WorldPos>()
+                .expect("enemy should keep world position")
+                .0
+                .y
+                - 77.25)
                 .abs()
                 < f32::EPSILON
         );

@@ -69,6 +69,32 @@ StageData(
                     altitude: 40.0,
                 ),
                 Enemy(
+                    enemy_type: Mosquiton,
+                    elapsed: 0.0,
+                    contains: None,
+                    coordinates: Vec2(138.0, 0.0),
+                    speed: 1.0,
+                    health: 250,
+                    steps: [
+                        LinearTween(
+                            depth_movement_o: -1,
+                            direction: Vec2(-1.0, -0.25),
+                            trayectory: 28.0,
+                        ),
+                        Idle(
+                            duration: 1.25,
+                        ),
+                        Circle(
+                            depth_movement_o: None,
+                            direction: Negative,
+                            duration: 99999.0,
+                            radius: 7.0,
+                        ),
+                    ],
+                    depth: Seven,
+                    altitude: 30.0,
+                ),
+                Enemy(
                     enemy_type: Spidey,
                     elapsed: 0.0,
                     contains: None,
@@ -76,11 +102,59 @@ StageData(
                     speed: 1.0,
                     health: 250,
                     steps: [
-                        Circle(
-                            depth_movement_o: None,
-                            direction: Positive,
-                            duration: 99999.0,
-                            radius: 8.0,
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(76.0, 68.0),
+                            depth_movement: -2,
+                            speed: 1.15,
+                        ),
+                        Idle(
+                            duration: 0.5,
+                        ),
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(112.0, 72.0),
+                            depth_movement: 2,
+                            speed: 1.1,
+                        ),
+                        Idle(
+                            duration: 0.45,
+                        ),
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(136.0, 76.0),
+                            depth_movement: 2,
+                            speed: 1.2,
+                        ),
+                        Idle(
+                            duration: 0.55,
+                        ),
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(92.0, 72.0),
+                            depth_movement: -2,
+                            speed: 1.1,
+                        ),
+                        Idle(
+                            duration: 0.45,
+                        ),
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(56.0, 68.0),
+                            depth_movement: -2,
+                            speed: 1.15,
+                        ),
+                        Idle(
+                            duration: 0.55,
+                        ),
+                        Jump(
+                            attacking: false,
+                            coordinates: Vec2(48.0, 72.0),
+                            depth_movement: 2,
+                            speed: 1.05,
+                        ),
+                        Idle(
+                            duration: 0.75,
                         ),
                     ],
                     depth: Six,

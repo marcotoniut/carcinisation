@@ -5,7 +5,6 @@ use super::{
     DebugComposedDamageProbeResult, DebugGodMode,
 };
 use crate::{
-    globals::{SCREEN_RESOLUTION, VIEWPORT_MULTIPLIER, VIEWPORT_RESOLUTION_OFFSET},
     stage::{
         attack::components::EnemyAttack,
         collision::{CollisionTarget, MaskCollisionAssets, visit_target_debug_collider},
@@ -25,7 +24,7 @@ use crate::{
     },
     systems::camera::CameraPos,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, window::PrimaryWindow};
 use carapace::prelude::*;
 use carcinisation_collision::{
     ColliderShape, WorldMaskInstance, extract_mask_boundary, mask_edge_to_world_points,
@@ -33,8 +32,6 @@ use carcinisation_collision::{
 
 pub const LINE_EXTENSION: f32 = 1000.;
 
-const SCREEN_X: f32 = SCREEN_RESOLUTION.x as f32;
-const SCREEN_Y: f32 = SCREEN_RESOLUTION.y as f32;
 const DEBUG_HEAD_DAMAGE: u32 = 3;
 const DEBUG_BODY_DAMAGE: u32 = 5;
 const DEBUG_ARM_DAMAGE: u32 = 4;
@@ -107,43 +104,52 @@ pub fn toggle_debug_god_mode(
 }
 
 #[must_use]
-pub fn to_viewport_ratio_x(x: f32) -> f32 {
-    VIEWPORT_MULTIPLIER * x
+pub fn to_overlay_delta_x(x: f32, overlay_transform: CxOverlayViewportTransform) -> f32 {
+    overlay_transform.delta_x(x)
 }
 
 #[must_use]
-pub fn to_viewport_ratio_y(y: f32) -> f32 {
-    VIEWPORT_MULTIPLIER * y
+pub fn to_overlay_delta_y(y: f32, overlay_transform: CxOverlayViewportTransform) -> f32 {
+    overlay_transform.delta_y(y)
 }
 
 #[must_use]
-pub fn to_viewport_ratio(v: Vec2) -> Vec2 {
-    Vec2::new(to_viewport_ratio_x(v.x), to_viewport_ratio_y(v.y))
+pub fn to_overlay_delta(v: Vec2, overlay_transform: CxOverlayViewportTransform) -> Vec2 {
+    overlay_transform.delta(v)
 }
 
 #[must_use]
-pub fn to_viewport_coordinate_x(x: f32) -> f32 {
-    VIEWPORT_RESOLUTION_OFFSET.x + VIEWPORT_MULTIPLIER * (x - SCREEN_X * 0.5)
+pub fn to_overlay_point_x(x: f32, overlay_transform: CxOverlayViewportTransform) -> f32 {
+    overlay_transform.point_x(x)
 }
 
 #[must_use]
-pub fn to_viewport_coordinate_y(y: f32) -> f32 {
-    VIEWPORT_RESOLUTION_OFFSET.y + VIEWPORT_MULTIPLIER * (y - SCREEN_Y * 0.5)
+pub fn to_overlay_point_y(y: f32, overlay_transform: CxOverlayViewportTransform) -> f32 {
+    overlay_transform.point_y(y)
 }
 
 #[must_use]
-pub fn to_viewport_coordinates(position: Vec2) -> Vec2 {
-    Vec2::new(
-        to_viewport_coordinate_x(position.x),
-        to_viewport_coordinate_y(position.y),
-    )
+pub fn to_overlay_point(position: Vec2, overlay_transform: CxOverlayViewportTransform) -> Vec2 {
+    overlay_transform.point(position)
 }
 
 /// @system Renders the configured floor heights as horizontal gizmo lines.
-pub fn draw_floor_lines(mut gizmos: Gizmos, floors: Option<Res<ActiveFloors>>) {
+pub fn draw_floor_lines(
+    mut gizmos: Gizmos,
+    floors: Option<Res<ActiveFloors>>,
+    screen: Res<CxScreen>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+) {
     let Some(floors) = floors else {
         return;
     };
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let overlay_transform = CxOverlayViewportTransform::from_screen(
+        &screen,
+        Vec2::new(window.width(), window.height()),
+    );
 
     for (depth, surfaces) in &floors.by_depth {
         if depth == &Depth::Zero {
@@ -153,8 +159,7 @@ pub fn draw_floor_lines(mut gizmos: Gizmos, floors: Option<Res<ActiveFloors>>) {
             let Surface::Solid { y } = surface else {
                 continue;
             };
-            let floor_y = to_viewport_coordinate_y(*y);
-            // TODO calculate position in the real camera SCREEN_RES vs the virtual one
+            let floor_y = to_overlay_point_y(*y, overlay_transform);
             gizmos.line(
                 Vec3::new(-LINE_EXTENSION, floor_y, 0.),
                 Vec3::new(LINE_EXTENSION, floor_y, 0.),
@@ -209,10 +214,13 @@ impl DebugColliderOverlay {
 /// @system Visualises entity-level collider shapes (`ColliderData`).
 ///
 /// Gated by [`DebugColliderOverlay`].
+#[allow(clippy::too_many_lines)]
 pub(crate) fn draw_colliders(
     mut gizmos: Gizmos,
     overlay: Res<DebugColliderOverlay>,
     camera_query: Query<&WorldPos, With<CameraPos>>,
+    screen: Res<CxScreen>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     mut collision_assets: MaskCollisionAssets<'_, '_>,
     query: Query<
         (
@@ -244,6 +252,13 @@ pub(crate) fn draw_colliders(
     }
     let camera_pos = camera_query.single().unwrap();
     let camera_world = camera_pos.0.round().as_ivec2();
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let overlay_transform = CxOverlayViewportTransform::from_screen(
+        &screen,
+        Vec2::new(window.width(), window.height()),
+    );
     collision_assets.refresh();
 
     for (
@@ -287,8 +302,8 @@ pub(crate) fn draw_colliders(
                                 world_pos.0 + collider.offset,
                                 radius,
                                 debug_collider_color(entity_class, DebugColliderVisualKind::Radial),
-                                |point| to_viewport_coordinates(point - cam_offset),
-                                to_viewport_ratio_x,
+                                |point| to_overlay_point(point - cam_offset, overlay_transform),
+                                |x| to_overlay_delta_x(x, overlay_transform),
                             );
                         }
                         ColliderShape::Box(size) => {
@@ -297,8 +312,8 @@ pub(crate) fn draw_colliders(
                                 world_pos.0 + collider.offset,
                                 size,
                                 debug_collider_color(entity_class, DebugColliderVisualKind::Box),
-                                |point| to_viewport_coordinates(point - cam_offset),
-                                to_viewport_ratio,
+                                |point| to_overlay_point(point - cam_offset, overlay_transform),
+                                |value| to_overlay_delta(value, overlay_transform),
                             );
                         }
                         ColliderShape::SpriteMask => {}
@@ -335,8 +350,8 @@ pub(crate) fn draw_colliders(
                             origin + collider.offset,
                             radius,
                             debug_collider_color(entity_class, DebugColliderVisualKind::Radial),
-                            |point| to_viewport_coordinates(point - cam_offset),
-                            to_viewport_ratio_x,
+                            |point| to_overlay_point(point - cam_offset, overlay_transform),
+                            |x| to_overlay_delta_x(x, overlay_transform),
                         );
                     }
                     ColliderShape::Box(size) => {
@@ -345,8 +360,8 @@ pub(crate) fn draw_colliders(
                             origin + collider.offset,
                             size,
                             debug_collider_color(entity_class, DebugColliderVisualKind::Box),
-                            |point| to_viewport_coordinates(point - cam_offset),
-                            to_viewport_ratio,
+                            |point| to_overlay_point(point - cam_offset, overlay_transform),
+                            |value| to_overlay_delta(value, overlay_transform),
                         );
                     }
                     ColliderShape::SpriteMask => {}
@@ -571,6 +586,8 @@ pub(crate) fn draw_pixel_mask_outlines(
     mut gizmos: Gizmos,
     overlay: Res<DebugColliderOverlay>,
     camera_query: Query<&WorldPos, With<CameraPos>>,
+    screen: Res<CxScreen>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     mut collision_assets: MaskCollisionAssets<'_, '_>,
     query: Query<
         (
@@ -602,6 +619,13 @@ pub(crate) fn draw_pixel_mask_outlines(
     }
     let camera_pos = camera_query.single().unwrap();
     let camera_world = camera_pos.0.round().as_ivec2();
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let overlay_transform = CxOverlayViewportTransform::from_screen(
+        &screen,
+        Vec2::new(window.width(), window.height()),
+    );
     collision_assets.refresh();
 
     for (
@@ -653,6 +677,7 @@ pub(crate) fn draw_pixel_mask_outlines(
                 draw_mask_outline_instance(
                     &mut gizmos,
                     camera_pos.0,
+                    overlay_transform,
                     debug_collider_color(entity_class, DebugColliderVisualKind::Mask),
                     mask,
                 );
@@ -665,6 +690,7 @@ pub(crate) fn draw_pixel_mask_outlines(
 fn draw_mask_outline_instance(
     gizmos: &mut Gizmos<'_, '_>,
     camera_pos: Vec2,
+    overlay_transform: CxOverlayViewportTransform,
     color: Color,
     mask: WorldMaskInstance<'_>,
 ) {
@@ -673,7 +699,7 @@ fn draw_mask_outline_instance(
         .into_iter()
         .map(|edge| mask_edge_to_world_points(mask.world, source_size, edge));
     draw_world_mask_outline_2d(gizmos, segments, color, |point| {
-        to_viewport_coordinates(point - camera_pos)
+        to_overlay_point(point - camera_pos, overlay_transform)
     });
 }
 

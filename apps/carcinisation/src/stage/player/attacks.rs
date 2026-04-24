@@ -520,8 +520,7 @@ mod tests {
             let def = defs.get(id);
             assert!(
                 def.hit_offsets.is_empty(),
-                "{:?} should have empty hit_offsets",
-                id
+                "{id:?} should have empty hit_offsets",
             );
         }
     }

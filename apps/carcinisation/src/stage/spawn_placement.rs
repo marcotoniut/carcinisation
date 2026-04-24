@@ -27,6 +27,9 @@ pub fn resolve_enemy_position(
 }
 
 /// Resolve spawn position without camera offset using gameplay floor state.
+///
+/// # Panics
+/// Panics if the spawn depth has no solid floor when altitude is specified.
 #[must_use]
 pub fn resolve_enemy_position_local_with_floors(spawn: &EnemySpawn, floors: &ActiveFloors) -> Vec2 {
     match spawn.altitude {
