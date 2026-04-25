@@ -222,6 +222,28 @@ impl CxFilterAsset {
 #[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect)]
 pub struct CxFilter(pub Handle<CxFilterAsset>);
 
+impl CxFilter {
+    /// Look up the loaded [`CxFilterAsset`] from render assets.
+    #[cfg(feature = "headed")]
+    #[must_use]
+    pub(crate) fn resolve<'a>(
+        &self,
+        assets: &'a bevy_render::render_asset::RenderAssets<CxFilterAsset>,
+    ) -> Option<&'a CxFilterAsset> {
+        assets.get(&**self)
+    }
+}
+
+/// Resolve an optional filter reference against loaded assets.
+#[cfg(feature = "headed")]
+#[must_use]
+pub(crate) fn resolve_filter<'a>(
+    filter: Option<&'a CxFilter>,
+    assets: &'a bevy_render::render_asset::RenderAssets<CxFilterAsset>,
+) -> Option<&'a CxFilterAsset> {
+    filter.and_then(|f| f.resolve(assets))
+}
+
 impl AnimatedAssetComponent for CxFilter {
     type Asset = CxFilterAsset;
 

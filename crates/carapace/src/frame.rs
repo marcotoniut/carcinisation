@@ -45,7 +45,7 @@ pub(crate) fn plug(app: &mut App) {
 }
 
 /// Selects a frame by absolute index or normalized progress.
-#[derive(Clone, Copy, Reflect)]
+#[derive(Clone, Copy, Debug, Reflect)]
 pub enum CxFrameSelector {
     /// Direct frame index (may be fractional for transitions).
     Index(f32),
@@ -60,7 +60,7 @@ impl Default for CxFrameSelector {
 }
 
 /// Method the animation uses to interpolate between frames.
-#[derive(Clone, Copy, Debug, Default, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
 pub enum CxFrameTransition {
     /// Frames are not interpolated.
     #[default]
@@ -88,7 +88,7 @@ pub enum CxFrameBinding {
 /// This is the **read-only output** of the frame lifecycle.  Do not write
 /// to it directly — write [`CxFrameControl`] instead and let
 /// `sync_frame_view` propagate the change.
-#[derive(Component, Default, Clone, Copy, Reflect)]
+#[derive(Component, Default, Clone, Copy, Debug, Reflect)]
 pub struct CxFrameView {
     /// Frame selection mode.
     pub selector: CxFrameSelector,
@@ -349,12 +349,12 @@ pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
     // Coordinate convention: image space has origin at top-left.
     // World/camera positions are bottom-left, so Y is flipped here.
     let size = spatial.frame_size();
-    let position = *position - anchor.pos(size).as_ivec2();
+    let position = *position - anchor.ipos(size);
     let position = match canvas {
         CxRenderSpace::World => position - *camera,
         CxRenderSpace::Camera => position,
     };
-    let position = IVec2::new(position.x, image.slice.height() - position.y);
+    let position = IVec2::new(position.x, image.flip_y(position.y));
     let size = size.as_ivec2();
 
     let mut image = image.slice_mut(IRect {
@@ -500,15 +500,15 @@ pub(crate) fn blit_transformed(
         CxRenderSpace::World => world_pos - *camera,
         CxRenderSpace::Camera => world_pos,
     };
-    let anchor_img = IVec2::new(world_pos.x, image.slice.height() - world_pos.y);
+    let anchor_img = IVec2::new(world_pos.x, image.flip_y(world_pos.y));
 
     // Destination rectangle around anchor.
     let dest_min = IVec2::new(anchor_img.x - half_left, anchor_img.y - half_top);
     let dest_max = IVec2::new(anchor_img.x + half_right, anchor_img.y + half_bottom);
 
     // Clamp to image bounds.
-    let img_w_i = image.slice.width();
-    let img_h_i = image.slice.height();
+    let img_w_i = image.img_width_i();
+    let img_h_i = image.img_height_i();
     let x_min = dest_min.x.clamp(0, img_w_i);
     let x_max = dest_max.x.clamp(0, img_w_i);
     let y_min = dest_min.y.clamp(0, img_h_i);
@@ -541,7 +541,7 @@ pub(crate) fn blit_transformed(
                 && src_y >= 0
                 && src_y < src_h_i
                 && let Some(pixel) = scratch.get_pixel(IVec2::new(src_x, src_y))
-                && pixel != 0
+                && pixel != crate::palette::TRANSPARENT_INDEX
                 && let Some(dest) = image.get_pixel_mut(IVec2::new(dx, dy))
             {
                 *dest = pixel;
@@ -565,7 +565,10 @@ mod tests {
         let size = img.size();
         (0..size.y as i32)
             .flat_map(|y| (0..size.x as i32).map(move |x| IVec2::new(x, y)))
-            .filter(|&pos| img.get_pixel(pos).is_some_and(|p| p != 0))
+            .filter(|&pos| {
+                img.get_pixel(pos)
+                    .is_some_and(|p| p != crate::palette::TRANSPARENT_INDEX)
+            })
             .count()
     }
 

@@ -237,69 +237,103 @@ pub(crate) struct CxImageSliceMut<'a> {
     pub slice: IRect,
 }
 
+/// Clamp a 1D span `[start, start+len)` into `[0, max)`, returning a `usize` range.
+#[inline]
+pub(crate) fn clamp_span(start: i32, len: i32, max: i32) -> std::ops::Range<usize> {
+    let lo = start.max(0).min(max) as usize;
+    let hi = (start + len).max(0).min(max) as usize;
+    lo..hi
+}
+
 impl<'a> CxImageSliceMut<'a> {
     pub(crate) fn from_image_mut(image: &'a mut Image) -> Result<Self> {
+        let w = image.texture_descriptor.size.width as usize;
+        let h = image.texture_descriptor.size.height as i32;
         Ok(Self {
             slice: IRect {
-                min: IVec2::splat(0),
-                max: IVec2::new(
-                    image.texture_descriptor.size.width as i32,
-                    image.texture_descriptor.size.height as i32,
-                ),
+                min: IVec2::ZERO,
+                max: IVec2::new(w as i32, h),
             },
             image: image
                 .data
                 .as_mut()
                 .ok_or("image is not initialized")?
-                .chunks_exact_mut(image.texture_descriptor.size.width as usize)
+                .chunks_exact_mut(w)
                 .collect(),
-            width: image.texture_descriptor.size.width as usize,
+            width: w,
         })
     }
 
+    // --- Dimensions ---
+
+    /// Backing image width as `i32` (avoids `as` casts at call sites).
+    #[inline]
+    pub(crate) fn img_width_i(&self) -> i32 {
+        self.width as i32
+    }
+
+    /// Backing image height as `i32`.
+    #[inline]
+    pub(crate) fn img_height_i(&self) -> i32 {
+        self.image.len() as i32
+    }
+
+    /// Flip a world-space Y-up position to image-space Y-down.
+    ///
+    /// `image_y = height - world_y`. The caller subtracts sprite height
+    /// separately when computing the top-left corner of a rect.
+    #[inline]
+    pub(crate) fn flip_y(&self, world_y: i32) -> i32 {
+        self.slice.height() - world_y
+    }
+
+    // --- Pixel access ---
+
     /// First `usize` is the index in the slice. Second `usize` is the index in the image.
-    pub(crate) fn for_each_mut(&mut self, f: impl Fn(usize, usize, &mut u8)) {
-        // Slice coordinates are in image space; `slice` tracks absolute bounds.
-        let x_min = self.slice.min.x.clamp(0, self.width as i32) as usize;
-        let x_max = self.slice.max.x.clamp(0, self.width as i32) as usize;
-        let max_y = self.image.len() as i32;
-        let y_min = self.slice.min.y.clamp(0, max_y) as usize;
-        let y_max = self.slice.max.y.clamp(0, max_y) as usize;
+    /// First `usize` is the index in the slice. Second `usize` is the index in the image.
+    pub(crate) fn for_each_mut(&mut self, mut f: impl FnMut(usize, usize, &mut u8)) {
+        let x_range = clamp_span(self.slice.min.x, self.slice.width(), self.img_width_i());
+        let y_range = clamp_span(self.slice.min.y, self.slice.height(), self.img_height_i());
+        let slice_w = self.slice.width().max(0) as usize;
+        // slice_index offsets from the unclamped slice origin, not the clamped
+        // image bounds. A slice at min=(-5, -3) has pixel (0,0) at slice
+        // index (5, 3), not (0, 0).
+        let sx_off = self.slice.min.x;
+        let sy_off = self.slice.min.y;
 
-        let slice_width = (self.slice.max.x - self.slice.min.x).max(0) as usize;
-
-        for (row_index, row) in self.image[y_min..y_max].iter_mut().enumerate() {
-            let y = y_min + row_index;
-            for x in x_min..x_max {
-                let slice_index = ((y as i32 - self.slice.min.y) * slice_width as i32
-                    + (x as i32 - self.slice.min.x)) as usize;
+        for (row_index, row) in self.image[y_range.clone()].iter_mut().enumerate() {
+            let y = y_range.start + row_index;
+            for x in x_range.clone() {
+                let slice_index =
+                    (y as i32 - sy_off) as usize * slice_w + (x as i32 - sx_off) as usize;
                 let image_index = y * self.width + x;
-                let pixel = &mut row[x];
-                f(slice_index, image_index, pixel);
+                f(slice_index, image_index, &mut row[x]);
             }
         }
     }
 
     pub(crate) fn contains_pixel(&self, position: IVec2) -> bool {
-        IRect {
-            min: IVec2::splat(0),
-            max: IVec2::new(self.width as i32, self.image.len() as i32),
-        }
-        .contains_exclusive(position - self.slice.min)
+        let img_bounds = IRect {
+            min: IVec2::ZERO,
+            max: IVec2::new(self.img_width_i(), self.img_height_i()),
+        };
+        img_bounds.contains_exclusive(position - self.slice.min)
             && self.slice.contains_exclusive(position)
     }
 
-    pub(crate) fn pixel_mut(&mut self, position: IVec2) -> &mut u8 {
+    /// Pixel at a **slice-local** position (offset by `slice.min` internally).
+    pub(crate) fn slice_pixel_mut(&mut self, position: IVec2) -> &mut u8 {
         &mut self.image[(self.slice.min.y + position.y) as usize]
             [(self.slice.min.x + position.x) as usize]
     }
 
     pub(crate) fn get_pixel_mut(&mut self, position: IVec2) -> Option<&mut u8> {
         self.contains_pixel(position)
-            .then(|| self.pixel_mut(position))
+            .then(|| self.slice_pixel_mut(position))
     }
 
-    pub(crate) fn image_pixel_mut(&mut self, position: IVec2) -> &mut u8 {
+    /// Pixel at an **absolute image** position (no slice offset).
+    pub(crate) fn abs_pixel_mut(&mut self, position: IVec2) -> &mut u8 {
         &mut self.image[position.y as usize][position.x as usize]
     }
 
@@ -327,7 +361,7 @@ impl<'a> CxImageSliceMut<'a> {
     pub(crate) fn draw(&mut self, image: &CxImage) {
         self.for_each_mut(|i, _, pixel| {
             let new_pixel = image.image[i];
-            if new_pixel != 0 {
+            if new_pixel != crate::palette::TRANSPARENT_INDEX {
                 *pixel = new_pixel;
             }
         });
@@ -348,7 +382,7 @@ impl CxImage {
         let (mut max_x, mut max_y) = (-1_i32, -1_i32);
         for y in 0..size.y as i32 {
             for x in 0..size.x as i32 {
-                if self.pixel(IVec2::new(x, y)) != 0 {
+                if self.pixel(IVec2::new(x, y)) != crate::palette::TRANSPARENT_INDEX {
                     min_x = min_x.min(x);
                     max_x = max_x.max(x);
                     min_y = min_y.min(y);
@@ -493,5 +527,87 @@ mod tests {
         assert_eq!(img.height(), 3);
         assert_eq!(img.size(), UVec2::new(4, 3));
         assert!(!img.is_empty());
+    }
+
+    // --- for_each_mut slice_index regression tests ---
+
+    #[test]
+    fn for_each_mut_slice_index_with_positive_offset() {
+        // A 6x4 image with a 2x2 slice at offset (2, 1).
+        // slice_index must be relative to the slice origin, not the
+        // clamped image bounds.
+        let mut image = CxImage::empty(UVec2::new(6, 4));
+        let mut full = image.slice_all_mut();
+        let mut sub = full.slice_mut(IRect {
+            min: IVec2::new(2, 1),
+            max: IVec2::new(4, 3),
+        });
+
+        let mut indices = Vec::new();
+        sub.for_each_mut(|slice_i, image_i, _pixel| {
+            indices.push((slice_i, image_i));
+        });
+
+        // Slice is 2x2: slice_index should be 0,1,2,3.
+        // image_index should be row*6+col for the absolute positions.
+        // image_index = row * width + col, width = 6
+        assert_eq!(indices, vec![(0, 8), (1, 9), (2, 14), (3, 15)]);
+    }
+
+    #[test]
+    fn for_each_mut_slice_index_with_negative_offset() {
+        // A 4x4 image with a slice starting at (-1, -1).
+        // Only the portion within [0,0)→(2,2) is iterable.
+        // slice_index must still offset from the unclamped slice origin.
+        let mut image = CxImage::empty(UVec2::new(4, 4));
+        let mut full = image.slice_all_mut();
+        let mut sub = full.slice_mut(IRect {
+            min: IVec2::new(-1, -1),
+            max: IVec2::new(2, 2),
+        });
+
+        let mut indices = Vec::new();
+        sub.for_each_mut(|slice_i, _image_i, _pixel| {
+            indices.push(slice_i);
+        });
+
+        // Slice is 3x3 (from -1 to 2), but only pixels at x=0,1 y=0,1
+        // are within image bounds. The slice_index for pixel (0,0) in
+        // the image maps to slice column 1, row 1 (offset from -1,-1):
+        //   slice_index = (0 - (-1)) * 3 + (0 - (-1)) = 1*3 + 1 = 4
+        // slice is 3 wide (from -1 to 2). Image pixel (0,0) maps to
+        // slice row 1 col 1 (offset from -1,-1): index = 1*3+1 = 4.
+        assert_eq!(indices, vec![4, 5, 7, 8]);
+    }
+
+    #[test]
+    fn draw_via_sub_slice_places_pixels_correctly() {
+        // Regression: a sprite drawn into a sub-slice must land at the
+        // correct absolute image positions. The Frames::draw callback
+        // reads sprite data via slice_index and writes via the pixel
+        // reference (absolute). If slice_index is wrong, the sprite
+        // data is read from the wrong offset.
+        let mut image = CxImage::empty(UVec2::new(8, 8));
+        // Write a recognisable pattern: palette index = (row + 1)
+        let pattern = CxImage::new(vec![1, 1, 2, 2, 3, 3, 4, 4], 2);
+
+        let mut full = image.slice_all_mut();
+        // Place the 2x4 pattern at image position (3, 2).
+        let mut sub = full.slice_mut(IRect {
+            min: IVec2::new(3, 2),
+            max: IVec2::new(5, 6),
+        });
+        sub.draw(&pattern);
+
+        // Verify the pattern landed at the right place.
+        assert_eq!(image.pixel(IVec2::new(3, 2)), 1);
+        assert_eq!(image.pixel(IVec2::new(4, 2)), 1);
+        assert_eq!(image.pixel(IVec2::new(3, 3)), 2);
+        assert_eq!(image.pixel(IVec2::new(4, 3)), 2);
+        assert_eq!(image.pixel(IVec2::new(3, 4)), 3);
+        assert_eq!(image.pixel(IVec2::new(3, 5)), 4);
+        // Surrounding pixels must be untouched.
+        assert_eq!(image.pixel(IVec2::new(2, 2)), 0);
+        assert_eq!(image.pixel(IVec2::new(5, 2)), 0);
     }
 }

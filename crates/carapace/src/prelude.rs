@@ -51,6 +51,7 @@ pub use crate::{
     cursor::{CxCursor, CxCursorPosition},
     filter::{CxFilter, CxFilterAsset, CxFilterLayers, CxInvertMask},
     math::{Diagonal, Orthogonal},
+    palette::TRANSPARENT_INDEX,
     position::{CxAnchor, CxLayer, CxPosition, CxVelocity, WorldPos},
     presentation::CxPresentationTransform,
     primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape},

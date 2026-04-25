@@ -183,22 +183,18 @@ fn draw_filled_rect(
     fill: &CxPrimitiveFill,
     world_origin: IVec2,
 ) {
-    let img_w = image.width as i32;
-    let img_h = image.image.len() as i32;
+    use crate::image::clamp_span;
     let offset = image.offset();
+    let x_range = clamp_span(offset.x, size.x as i32, image.img_width_i());
+    let y_range = clamp_span(offset.y, size.y as i32, image.img_height_i());
 
-    let x_min = offset.x.max(0);
-    let y_min = offset.y.max(0);
-    let x_max = (offset.x + size.x as i32).min(img_w);
-    let y_max = (offset.y + size.y as i32).min(img_h);
-
-    for y in y_min..y_max {
-        for x in x_min..x_max {
-            let wx = world_origin.x + (x - offset.x);
-            let wy = world_origin.y + (y - offset.y);
+    for y in y_range.clone() {
+        for x in x_range.clone() {
+            let wx = world_origin.x + (x as i32 - offset.x);
+            let wy = world_origin.y + (y as i32 - offset.y);
             let idx = evaluate_fill(fill, wx, wy);
-            if idx != 0 {
-                *image.image_pixel_mut(IVec2::new(x, y)) = idx;
+            if idx != crate::palette::TRANSPARENT_INDEX {
+                *image.abs_pixel_mut(IVec2::new(x as i32, y as i32)) = idx;
             }
         }
     }
@@ -210,31 +206,26 @@ fn draw_filled_circle(
     fill: &CxPrimitiveFill,
     world_origin: IVec2,
 ) {
+    use crate::image::clamp_span;
     let r = radius as i32;
     let diameter = (radius * 2 + 1) as i32;
-    let img_w = image.width as i32;
-    let img_h = image.image.len() as i32;
     let offset = image.offset();
-
-    let x_min = offset.x.max(0);
-    let y_min = offset.y.max(0);
-    let x_max = (offset.x + diameter).min(img_w);
-    let y_max = (offset.y + diameter).min(img_h);
-
+    let x_range = clamp_span(offset.x, diameter, image.img_width_i());
+    let y_range = clamp_span(offset.y, diameter, image.img_height_i());
     let r_sq = r * r;
 
-    for y in y_min..y_max {
-        let local_y = y - offset.y;
+    for y in y_range {
+        let local_y = y as i32 - offset.y;
         let dy = local_y - r;
-        for x in x_min..x_max {
-            let local_x = x - offset.x;
+        for x in x_range.clone() {
+            let local_x = x as i32 - offset.x;
             let dx = local_x - r;
             if dx * dx + dy * dy <= r_sq {
                 let wx = world_origin.x + local_x;
                 let wy = world_origin.y + local_y;
                 let idx = evaluate_fill(fill, wx, wy);
-                if idx != 0 {
-                    *image.image_pixel_mut(IVec2::new(x, y)) = idx;
+                if idx != crate::palette::TRANSPARENT_INDEX {
+                    *image.abs_pixel_mut(IVec2::new(x as i32, y as i32)) = idx;
                 }
             }
         }
@@ -245,28 +236,30 @@ fn draw_filled_circle(
 // Spatial helpers for the render pipeline
 // ---------------------------------------------------------------------------
 
-/// Returns the pixel size of a primitive shape (used for anchor calculation).
-#[must_use]
-pub(crate) fn primitive_frame_size(shape: &CxPrimitiveShape) -> UVec2 {
-    match shape {
-        CxPrimitiveShape::Rect { size } => *size,
-        CxPrimitiveShape::Circle { radius } => {
-            let d = *radius * 2 + 1;
-            UVec2::new(d, d)
-        }
-        CxPrimitiveShape::Polygon { vertices } => {
-            if vertices.is_empty() {
-                return UVec2::ZERO;
+impl CxPrimitiveShape {
+    /// Pixel dimensions of this shape (used for anchor calculation and clipping).
+    #[must_use]
+    pub fn frame_size(&self) -> UVec2 {
+        match self {
+            Self::Rect { size } => *size,
+            Self::Circle { radius } => {
+                let d = *radius * 2 + 1;
+                UVec2::new(d, d)
             }
-            let (mut min_x, mut min_y) = (i32::MAX, i32::MAX);
-            let (mut max_x, mut max_y) = (i32::MIN, i32::MIN);
-            for v in vertices {
-                min_x = min_x.min(v.x);
-                min_y = min_y.min(v.y);
-                max_x = max_x.max(v.x);
-                max_y = max_y.max(v.y);
+            Self::Polygon { vertices } => {
+                if vertices.is_empty() {
+                    return UVec2::ZERO;
+                }
+                let (mut min_x, mut min_y) = (i32::MAX, i32::MAX);
+                let (mut max_x, mut max_y) = (i32::MIN, i32::MIN);
+                for v in vertices {
+                    min_x = min_x.min(v.x);
+                    min_y = min_y.min(v.y);
+                    max_x = max_x.max(v.x);
+                    max_y = max_y.max(v.y);
+                }
+                UVec2::new((max_x - min_x + 1) as u32, (max_y - min_y + 1) as u32)
             }
-            UVec2::new((max_x - min_x + 1) as u32, (max_y - min_y + 1) as u32)
         }
     }
 }
@@ -639,27 +632,29 @@ mod tests {
         );
     }
 
-    // --- primitive_frame_size ---
+    // --- CxPrimitiveShape::frame_size ---
 
     #[test]
     fn frame_size_rect() {
-        let size = primitive_frame_size(&CxPrimitiveShape::Rect {
+        let size = CxPrimitiveShape::Rect {
             size: UVec2::new(10, 20),
-        });
+        }
+        .frame_size();
         assert_eq!(size, UVec2::new(10, 20));
     }
 
     #[test]
     fn frame_size_circle() {
-        let size = primitive_frame_size(&CxPrimitiveShape::Circle { radius: 3 });
+        let size = CxPrimitiveShape::Circle { radius: 3 }.frame_size();
         assert_eq!(size, UVec2::new(7, 7)); // diameter = 2*3+1
     }
 
     #[test]
     fn frame_size_polygon_from_bounds() {
-        let size = primitive_frame_size(&CxPrimitiveShape::Polygon {
+        let size = CxPrimitiveShape::Polygon {
             vertices: vec![IVec2::new(-5, 0), IVec2::new(5, 10)],
-        });
+        }
+        .frame_size();
         // -5..5 inclusive = 11 pixels wide, 0..10 inclusive = 11 pixels tall.
         assert_eq!(size, UVec2::new(11, 11));
     }

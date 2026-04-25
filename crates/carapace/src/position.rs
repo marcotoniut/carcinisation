@@ -45,13 +45,33 @@ impl<T: Spatial> Spatial for &'_ T {
 /// Read by the rendering pipeline. For gameplay logic, prefer reading/writing
 /// [`WorldPos`] directly.
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
-#[derive(Component, Deref, DerefMut, Clone, Copy, Default, Reflect, Debug)]
+#[derive(Component, Deref, DerefMut, Clone, Copy, Default, PartialEq, Eq, Reflect, Debug)]
 #[reflect(Component)]
 pub struct CxPosition(pub IVec2);
 
 impl From<IVec2> for CxPosition {
     fn from(position: IVec2) -> Self {
         Self(position)
+    }
+}
+
+impl std::ops::Add<IVec2> for CxPosition {
+    type Output = Self;
+    fn add(self, rhs: IVec2) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+
+impl std::ops::Sub<IVec2> for CxPosition {
+    type Output = Self;
+    fn sub(self, rhs: IVec2) -> Self {
+        Self(self.0 - rhs)
+    }
+}
+
+impl std::fmt::Display for CxPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.0.x, self.0.y)
     }
 }
 
@@ -122,7 +142,7 @@ fn insert_default_layer(mut world: DeferredWorld, ctx: HookContext) {
 /// buffer.  See the [crate-level docs](crate#anchor-origin-convention) for
 /// the rationale.
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
-#[derive(Component, Clone, Copy, Default, Debug, Reflect)]
+#[derive(Component, Clone, Copy, Default, PartialEq, Debug, Reflect)]
 pub enum CxAnchor {
     /// Center
     #[default]
@@ -181,6 +201,15 @@ impl CxAnchor {
     pub(crate) fn pos(self, size: UVec2) -> UVec2 {
         UVec2::new(self.x_pos(size.x), self.y_pos(size.y))
     }
+
+    /// Anchor offset as [`IVec2`] in **bottom-left Y-up** space.
+    ///
+    /// The result is how far from the bottom-left corner of a sprite the
+    /// anchor point sits. Subtract from a world/screen position to get
+    /// the sprite's bottom-left corner for rendering.
+    pub(crate) fn ipos(self, size: UVec2) -> IVec2 {
+        self.pos(size).as_ivec2()
+    }
 }
 
 /// Authoritative world-space gameplay position in floating-point form.
@@ -209,6 +238,32 @@ pub struct WorldPos(pub Vec2);
 impl From<Vec2> for WorldPos {
     fn from(vec: Vec2) -> Self {
         Self(vec)
+    }
+}
+
+impl From<IVec2> for WorldPos {
+    fn from(v: IVec2) -> Self {
+        Self(v.as_vec2())
+    }
+}
+
+impl std::ops::Add<Vec2> for WorldPos {
+    type Output = Self;
+    fn add(self, rhs: Vec2) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+
+impl std::ops::Sub<Vec2> for WorldPos {
+    type Output = Self;
+    fn sub(self, rhs: Vec2) -> Self {
+        Self(self.0 - rhs)
+    }
+}
+
+impl std::fmt::Display for WorldPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({:.1}, {:.1})", self.0.x, self.0.y)
     }
 }
 

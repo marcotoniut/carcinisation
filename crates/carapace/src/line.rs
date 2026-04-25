@@ -56,8 +56,8 @@ impl Frames for (&CxLine, &CxFilterAsset) {
     ) {
         let (line, CxFilterAsset(filter)) = self;
         let slice_offset = image.offset();
-        let image_width = image.slice.width();
-        let image_height = image.slice.height();
+        let image_width = image.img_width_i();
+        let image_height = image.img_height_i();
 
         if invert {
             let mut line_points = Vec::new();
@@ -84,14 +84,14 @@ impl Frames for (&CxLine, &CxFilterAsset) {
                     continue;
                 }
 
-                let pixel = *image.image_pixel_mut(pos);
+                let pixel = *image.abs_pixel_mut(pos);
                 originals.push((pos, pixel));
             }
 
             for y in 0..image_height {
                 for x in 0..image_width {
                     let pos = ivec2(x, y);
-                    let pixel = image.image_pixel_mut(pos);
+                    let pixel = image.abs_pixel_mut(pos);
                     *pixel = filter.pixel(ivec2(
                         i32::from(*pixel),
                         frame(uvec2(x as u32, y as u32)) as i32,
@@ -100,7 +100,7 @@ impl Frames for (&CxLine, &CxFilterAsset) {
             }
 
             for (pos, pixel) in originals {
-                *image.image_pixel_mut(pos) = pixel;
+                *image.abs_pixel_mut(pos) = pixel;
             }
         } else {
             let mut poses = HashSet::new();
@@ -125,7 +125,7 @@ impl Frames for (&CxLine, &CxFilterAsset) {
                     continue;
                 }
 
-                let pixel = image.image_pixel_mut(pos);
+                let pixel = image.abs_pixel_mut(pos);
                 *pixel = filter.pixel(ivec2(
                     i32::from(*pixel),
                     frame(uvec2(pos.x as u32, pos.y as u32)) as i32,

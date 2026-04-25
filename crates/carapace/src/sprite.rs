@@ -261,7 +261,7 @@ impl Frames for CxSpriteAsset {
         filter: impl Fn(u8) -> u8,
     ) {
         let width = self.data.width();
-        let image_width = image.slice.width() as usize;
+        let image_width = image.width;
         image.for_each_mut(|slice_i, image_i, pixel| {
             if let Some(value) = self.data.get_pixel(ivec2(
                 (slice_i % width) as i32,
@@ -271,7 +271,7 @@ impl Frames for CxSpriteAsset {
                 )) * self.frame_size
                     + slice_i)
                     / width) as i32,
-            )) && value != 0
+            )) && value != crate::palette::TRANSPARENT_INDEX
             {
                 *pixel = filter(value);
             }
@@ -416,6 +416,7 @@ pub(crate) struct CxCompositePartDrawable<'a> {
 }
 
 impl CxResolvedCompositePart<'_> {
+    #[must_use]
     pub(crate) fn metrics(&self) -> CxCompositePartMetrics {
         CxCompositePartMetrics {
             size: self.frame_size(),
@@ -423,6 +424,7 @@ impl CxResolvedCompositePart<'_> {
         }
     }
 
+    #[must_use]
     pub(crate) fn pixel(&self, frame_index: usize, local_pos: UVec2) -> Option<u8> {
         let size = self.frame_size();
         if local_pos.x >= size.x || local_pos.y >= size.y {
@@ -446,6 +448,7 @@ impl CxResolvedCompositePart<'_> {
         }
     }
 
+    #[must_use]
     pub(crate) fn flipped_pixel(
         &self,
         frame_index: usize,
@@ -490,7 +493,7 @@ impl Frames for CxCompositePartDrawable<'_> {
             return;
         }
         let frame_width = size.x as usize;
-        let image_width = image.slice.width() as usize;
+        let image_width = image.width;
 
         image.for_each_mut(|slice_i, image_i, pixel| {
             let local_pos = uvec2(
@@ -505,7 +508,7 @@ impl Frames for CxCompositePartDrawable<'_> {
             if let Some(value) =
                 self.resolved
                     .flipped_pixel(frame_index, local_pos, self.flip_x, self.flip_y)
-                && value != 0
+                && value != crate::palette::TRANSPARENT_INDEX
             {
                 *pixel = filter(value);
             }
@@ -555,6 +558,7 @@ impl CxCompositeSprite {
     ///
     /// This separation ensures that expanding the render envelope for animated parts
     /// does not shift the composite's anchor or world placement.
+    #[must_use]
     pub(crate) fn metrics_with<F>(&self, mut get: F) -> Option<CxCompositeMetrics>
     where
         F: FnMut(&CxCompositePartSource) -> Option<CxCompositePartMetrics>,
@@ -795,7 +799,7 @@ impl CxCompositePartSource {
 /// `part.offset` defines **where** the part is placed in composite space.
 /// `part.transform` defines **how** the part looks around its local pivot.
 /// The transform does not implicitly orbit or remap the part's placement.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PartTransform {
     /// Non-uniform scale factor. `Vec2::ONE` = native size. Negative = flip.
     pub scale: Vec2,

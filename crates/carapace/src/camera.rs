@@ -22,7 +22,7 @@ pub(crate) fn plug(app: &mut App) {
 /// Offsets all [`CxRenderSpace::World`] entities when rendering.  Screen-space
 /// entities ([`CxRenderSpace::Camera`]) are unaffected.
 #[cfg_attr(feature = "headed", derive(ExtractResource))]
-#[derive(Resource, Deref, DerefMut, Clone, Copy, Default, Debug, Reflect)]
+#[derive(Resource, Deref, DerefMut, Clone, Copy, Default, PartialEq, Eq, Debug, Reflect)]
 pub struct CxCamera(pub IVec2);
 
 /// Coordinate space selector for a drawable entity.
@@ -35,7 +35,7 @@ pub struct CxCamera(pub IVec2);
 /// - [`Camera`](Self::Camera) — position is in **screen space**, fixed
 ///   relative to the viewport.  HUD, menus, and overlays use this.
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
-#[derive(Component, Clone, Copy, Default, Reflect, Debug)]
+#[derive(Component, Clone, Copy, Default, PartialEq, Eq, Reflect, Debug)]
 pub enum CxRenderSpace {
     /// Drawn relative to the world origin, offset by the camera.
     #[default]

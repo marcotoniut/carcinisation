@@ -12,11 +12,12 @@ use crate::line::draw_line;
 use crate::{
     atlas::CxSpriteAtlasAsset,
     cursor::{CursorState, CxCursorPosition},
-    filter::{CxFilterAsset, draw_filter},
+    filter::{CxFilterAsset, draw_filter, resolve_filter},
     frame::{
         Frames, blit_transformed, draw_spatial, draw_spatial_transformed, resolve_frame_binding,
     },
     image::{CxImage, CxImageSliceMut},
+    math::RectExt,
     position::Spatial,
     prelude::*,
     sprite::{
@@ -213,7 +214,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                     continue;
                 };
 
-                let map_filter = map_filter.and_then(|map_filter| filters.get(&**map_filter));
+                let map_filter = resolve_filter(map_filter, filters);
                 let size = map.tiles.size();
 
                 for x in 0..size.x {
@@ -245,12 +246,9 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                             CxAnchor::BottomLeft,
                             canvas,
                             frame.copied(),
-                            [
-                                tile_filter.and_then(|tile_filter| filters.get(&**tile_filter)),
-                                map_filter,
-                            ]
-                            .into_iter()
-                            .flatten(),
+                            [resolve_filter(tile_filter, filters), map_filter]
+                                .into_iter()
+                                .flatten(),
                             camera,
                         );
                     }
@@ -260,24 +258,19 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
             // Primitives draw after maps but before sprites, so sprites
             // always paint on top and map tiles form the backdrop.
             for (prim, position, anchor, canvas, presentation) in primitives {
-                let size = crate::primitive::primitive_frame_size(&prim.shape);
+                let size = prim.shape.frame_size();
                 let visual_offset = presentation.map_or(Vec2::ZERO, |pt| pt.visual_offset);
                 let position = *position + visual_offset.round().as_ivec2();
-                let position = position - anchor.pos(size).as_ivec2();
+                let position = position - anchor.ipos(size);
                 let world_origin = position;
                 let position = match canvas {
                     CxRenderSpace::World => position - *camera,
                     CxRenderSpace::Camera => position,
                 };
                 // Image space: Y flipped (top-left origin).
-                let image_pos = IVec2::new(
-                    position.x,
-                    layer_slice.slice.height() - position.y - size.y as i32,
-                );
-                let mut prim_slice = layer_slice.slice_mut(IRect {
-                    min: image_pos,
-                    max: image_pos + size.as_ivec2(),
-                });
+                let image_pos =
+                    IVec2::new(position.x, layer_slice.flip_y(position.y) - size.y as i32);
+                let mut prim_slice = layer_slice.slice_mut(IRect::from_pos_size(image_pos, size));
                 crate::primitive::draw_primitive(prim, &mut prim_slice, world_origin);
             }
 
@@ -286,7 +279,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                     continue;
                 };
 
-                let resolved_filters = filter.and_then(|filter| filters.get(&**filter));
+                let resolved_filters = resolve_filter(filter, filters);
 
                 if let Some(pt) = presentation
                     && pt.needs_transformed_blit()
@@ -337,7 +330,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                     continue;
                 };
 
-                let resolved_filters = filter.and_then(|filter| filters.get(&**filter));
+                let resolved_filters = resolve_filter(filter, filters);
 
                 if let Some(pt) = presentation
                     && pt.needs_transformed_blit()
@@ -444,7 +437,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                         );
                         let part_filter =
                             part.filter.as_ref().and_then(|handle| filters.get(handle));
-                        let entity_filter = filter.and_then(|filter| filters.get(&**filter));
+                        let entity_filter = resolve_filter(filter, filters);
                         let drawable = CxCompositePartDrawable {
                             resolved,
                             flip_x: part.flip_x,
@@ -561,7 +554,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                         );
                         let part_filter =
                             part.filter.as_ref().and_then(|handle| filters.get(handle));
-                        let entity_filter = filter.and_then(|filter| filters.get(&**filter));
+                        let entity_filter = resolve_filter(filter, filters);
                         let drawable = CxCompositePartDrawable {
                             resolved,
                             flip_x: part.flip_x,
@@ -676,7 +669,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                         CxAnchor::TopLeft,
                         canvas,
                         frame.copied(),
-                        filter.and_then(|filter| filters.get(&**filter)),
+                        resolve_filter(filter, filters),
                         camera,
                     );
                 }
@@ -684,7 +677,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
 
             #[cfg(feature = "line")]
             for (line, filter, canvas, frame, invert) in clip_lines {
-                if let Some(filter) = filters.get(&**filter) {
+                if let Some(filter) = filter.resolve(filters) {
                     draw_line(
                         line,
                         filter,
@@ -698,7 +691,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
             }
 
             for (filter, frame) in clip_filters {
-                if let Some(filter) = filters.get(&**filter) {
+                if let Some(filter) = filter.resolve(filters) {
                     draw_filter(filter, frame.copied(), &mut layer_slice);
                 }
             }
@@ -711,7 +704,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
 
             #[cfg(feature = "line")]
             for (line, filter, canvas, frame, invert) in over_lines {
-                if let Some(filter) = filters.get(&**filter) {
+                if let Some(filter) = filter.resolve(filters) {
                     draw_line(
                         line,
                         filter,
@@ -738,7 +731,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
             }
 
             for (filter, frame) in over_filters {
-                if let Some(filter) = filters.get(&**filter) {
+                if let Some(filter) = filter.resolve(filters) {
                     draw_filter(filter, frame.copied(), &mut image_slice);
                 }
                 #[cfg(feature = "gpu_palette")]
@@ -774,7 +767,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
         let mut cursor_image = CxImageSliceMut::from_image_mut(image).unwrap();
         let cursor_pos = IVec2::new(
             cursor_pos.x as i32,
-            cursor_image.slice.height() - 1 - cursor_pos.y as i32,
+            cursor_image.flip_y(cursor_pos.y as i32) - 1,
         );
         if let Some(pixel) = cursor_image.get_pixel_mut(cursor_pos) {
             if let Some(new_pixel) = filter.get_pixel(IVec2::new(i32::from(*pixel), 0)) {
@@ -808,7 +801,7 @@ fn layer_index_for<L: CxLayer>(layers: &[L], layer: &L) -> Option<u16> {
 #[cfg(feature = "gpu_palette")]
 fn update_depth_from_layer(depth: &mut [u16], layer_data: &[u8], depth_value: u16) {
     for (index, value) in layer_data.iter().enumerate() {
-        if *value != 0 {
+        if *value != crate::palette::TRANSPARENT_INDEX {
             depth[index] = depth_value;
         }
     }
@@ -824,7 +817,7 @@ fn spatial_bounds(
     camera: CxCamera,
     image_height: i32,
 ) -> IRect {
-    let position = *position - anchor.pos(size).as_ivec2();
+    let position = *position - anchor.ipos(size);
     let position = match canvas {
         CxRenderSpace::World => position - *camera,
         CxRenderSpace::Camera => position,

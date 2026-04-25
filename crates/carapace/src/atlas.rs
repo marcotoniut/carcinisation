@@ -412,7 +412,7 @@ impl Frames for (&CxSpriteAtlasAsset, &AtlasRegion) {
     ) {
         let (atlas, region) = *self;
         let frame_width = region.frame_size.x as usize;
-        let image_width = image.slice.width() as usize;
+        let image_width = image.width;
 
         image.for_each_mut(|slice_i, image_i, pixel| {
             let x = (slice_i % frame_width) as u32;
@@ -426,7 +426,7 @@ impl Frames for (&CxSpriteAtlasAsset, &AtlasRegion) {
             let src_y = rect.y + y;
 
             if let Some(value) = atlas.data.get_pixel(ivec2(src_x as i32, src_y as i32))
-                && value != 0
+                && value != crate::palette::TRANSPARENT_INDEX
             {
                 *pixel = filter(value);
             }

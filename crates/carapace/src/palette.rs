@@ -67,6 +67,11 @@ pub struct Palette {
 #[derive(Resource, Deref, DerefMut)]
 pub struct PaletteHandle(pub Handle<Palette>);
 
+/// Palette index reserved for transparency.  Pixels with this index are
+/// never drawn — they let the layer below show through.  The palette
+/// image's top-left pixel must be transparent (alpha = 0).
+pub const TRANSPARENT_INDEX: u8 = 0;
+
 impl Palette {
     /// Create a palette from an [`Image`]
     ///
