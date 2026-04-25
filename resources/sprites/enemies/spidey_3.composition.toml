@@ -131,14 +131,6 @@ draw_order = 45
 pivot = { x = 0, y = 0 }
 tags = ["left"]
 
-# --- animations ---
-
-# lounge: resting/crouching pose, reuse idle leg frames since legs stay planted
-[[animation_overrides]]
-tags = ["lounge"]
-source_tag = "idle"
-part_tags = ["legs"]
-
 # --- gameplay ---
 
 [gameplay]

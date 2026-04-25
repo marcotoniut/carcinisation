@@ -34,7 +34,7 @@ use carapace::prelude::{CxFilter, CxSprite, CxTypeface};
 /// When `from_checkpoint` is set, uses the stage's authored checkpoint
 /// coordinates for the camera and skips initial gameplay spawns (enemies,
 /// destructibles, pickups) that precede the checkpoint.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn on_stage_startup(
     trigger: On<StageStartupEvent>,
     mut commands: Commands,
@@ -286,6 +286,13 @@ fn spawn_primitive_bands(
 ) {
     use carapace::prelude::*;
 
+    struct Band {
+        y_bottom: i32,
+        y_top: i32,
+        fill: CxPrimitiveFill,
+        label: &'static str,
+    }
+
     let band_w = (SCREEN_RESOLUTION.x as f32 * config.width_multiplier).round() as u32;
     let colors = &config.ground_colors;
 
@@ -306,13 +313,6 @@ fn spawn_primitive_bands(
     //   solid(colors[N-1])               — remaining gaps
     let num_colors = colors.len();
     let total_gaps = 8u32; // depths 1→9
-
-    struct Band {
-        y_bottom: i32,
-        y_top: i32,
-        fill: CxPrimitiveFill,
-        label: &'static str,
-    }
 
     // Build the colour sequence: [transition, solid, transition, solid, ...]
     // Each entry is (fill, is_transition).
