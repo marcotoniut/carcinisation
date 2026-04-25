@@ -354,7 +354,7 @@ pub(crate) fn draw_spatial<'a, A: Frames + Spatial>(
         CxRenderSpace::World => position - *camera,
         CxRenderSpace::Camera => position,
     };
-    let position = IVec2::new(position.x, image.height() as i32 - position.y);
+    let position = IVec2::new(position.x, image.slice.height() - position.y);
     let size = size.as_ivec2();
 
     let mut image = image.slice_mut(IRect {
@@ -500,15 +500,15 @@ pub(crate) fn blit_transformed(
         CxRenderSpace::World => world_pos - *camera,
         CxRenderSpace::Camera => world_pos,
     };
-    let anchor_img = IVec2::new(world_pos.x, image.height() as i32 - world_pos.y);
+    let anchor_img = IVec2::new(world_pos.x, image.slice.height() - world_pos.y);
 
     // Destination rectangle around anchor.
     let dest_min = IVec2::new(anchor_img.x - half_left, anchor_img.y - half_top);
     let dest_max = IVec2::new(anchor_img.x + half_right, anchor_img.y + half_bottom);
 
     // Clamp to image bounds.
-    let img_w_i = image.image_width() as i32;
-    let img_h_i = image.image_height() as i32;
+    let img_w_i = image.slice.width();
+    let img_h_i = image.slice.height();
     let x_min = dest_min.x.clamp(0, img_w_i);
     let x_max = dest_max.x.clamp(0, img_w_i);
     let y_min = dest_min.y.clamp(0, img_h_i);

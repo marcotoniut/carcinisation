@@ -2,6 +2,7 @@ use crate::{
     position::Spatial,
     prelude::*,
     profiling::{px_end_span, px_trace, px_trace_span},
+    rect::CxFilterRect,
     screen::CxScreen,
 };
 

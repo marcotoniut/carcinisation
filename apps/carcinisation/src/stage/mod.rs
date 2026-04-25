@@ -153,6 +153,12 @@ impl Plugin for StagePlugin {
         #[cfg(debug_assertions)]
         app.add_plugins(depth_debug::DepthDebugPlugin);
 
+        #[cfg(debug_assertions)]
+        app.add_active_systems::<StagePlugin, _>(
+            systems::debug_spawn::debug_keyboard_spawn_enemies
+                .run_if(in_state(StageProgressState::Running)),
+        );
+
         app
             // Core stage state/resources that every sub-system relies on.
             .init_state::<StageProgressState>()

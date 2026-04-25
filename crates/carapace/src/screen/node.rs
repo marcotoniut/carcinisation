@@ -31,7 +31,6 @@ use crate::{
     position::CxLayer,
     prelude::*,
     profiling::{px_end_span, px_trace, px_trace_span},
-    rect::RectComponents,
     sprite::{CompositeSpriteComponents, SpriteComponents},
     text::TextComponents,
     tilemap::{MapComponents, TileComponents},
@@ -111,7 +110,6 @@ pub(crate) struct CxRenderNode<L: CxLayer> {
     composites: QueryState<CompositeSpriteComponents<L>>,
     texts: QueryState<TextComponents<L>>,
     primitives: QueryState<crate::primitive::PrimitiveComponents<L>>,
-    rects: QueryState<RectComponents<L>>,
     #[cfg(feature = "line")]
     lines: QueryState<LineComponents<L>>,
     filters: QueryState<FilterComponents<L>, Without<CxRenderSpace>>,
@@ -134,7 +132,6 @@ impl<L: CxLayer> FromWorld for CxRenderNode<L> {
             composites: world.query(),
             texts: world.query(),
             primitives: world.query(),
-            rects: world.query(),
             #[cfg(feature = "line")]
             lines: world.query(),
             filters: world.query_filtered(),
@@ -155,7 +152,6 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
         self.composites.update_archetypes(world);
         self.texts.update_archetypes(world);
         self.primitives.update_archetypes(world);
-        self.rects.update_archetypes(world);
         #[cfg(feature = "line")]
         self.lines.update_archetypes(world);
         self.filters.update_archetypes(world);
@@ -354,21 +350,8 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
         }
 
         // === Two-phase filter extraction ===
-        // Phase 1: buffer rect/line/filter entities and pre-register their explicit layer targets.
+        // Phase 1: buffer line/filter entities and pre-register their explicit layer targets.
         // This ensures Range resolution in phase 2 sees the complete set of layers.
-        let pending_rects: Vec<_> = self
-            .rects
-            .iter_manual(world)
-            .map(
-                |(&rect, filter, layers, &pos, &anchor, &canvas, animation, invert)| {
-                    preregister_filter_layer(layers, &mut layer_contents);
-                    (
-                        (rect, filter, pos, anchor, canvas, animation, invert),
-                        layers,
-                    )
-                },
-            )
-            .collect();
 
         #[cfg(feature = "line")]
         let pending_lines: Vec<_> = self
@@ -392,21 +375,6 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
         // Phase 2: build ordered layer index and resolve pending filters.
         let ordered_layers: Vec<L> = layer_contents.keys().cloned().collect();
         let mut resolved_filter_layers = Vec::with_capacity(8);
-
-        for (rect, layers) in pending_rects {
-            resolve_filter_layers(&mut resolved_filter_layers, layers, &ordered_layers);
-
-            for (layer, clip) in &resolved_filter_layers {
-                #[cfg(feature = "gpu_palette")]
-                {
-                    layer_set.insert(layer.clone());
-                }
-                layer_contents
-                    .get_mut(layer)
-                    .unwrap()
-                    .push_rect(rect, *clip);
-            }
-        }
 
         #[cfg(feature = "line")]
         for (line, layers) in pending_lines {

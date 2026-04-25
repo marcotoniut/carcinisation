@@ -78,16 +78,6 @@ pub(crate) type TextEntry<'a> = (
     Option<&'a CxFilter>,
 );
 
-pub(crate) type RectEntry<'a> = (
-    CxFilterRect,
-    &'a CxFilter,
-    CxPosition,
-    CxAnchor,
-    CxRenderSpace,
-    Option<&'a CxFrameView>,
-    bool,
-);
-
 #[cfg(feature = "line")]
 pub(crate) type LineEntry<'a> = (
     &'a CxLine,
@@ -110,16 +100,14 @@ pub(crate) type FilterEntry<'a> = (&'a CxFilter, Option<&'a CxFrameView>);
 #[cfg(feature = "line")]
 #[derive(Default)]
 pub(crate) struct LayerContents<'a> {
-    pub(crate) primitives: Vec<PrimitiveEntry<'a>>,
     pub(crate) maps: Vec<MapEntry<'a>>,
+    pub(crate) primitives: Vec<PrimitiveEntry<'a>>,
     pub(crate) sprites: Vec<SpriteEntry<'a>>,
     pub(crate) atlas_sprites: Vec<AtlasSpriteEntry<'a>>,
     pub(crate) composites: Vec<CompositeSpriteEntry<'a>>,
     pub(crate) texts: Vec<TextEntry<'a>>,
-    pub(crate) clip_rects: Vec<RectEntry<'a>>,
     pub(crate) clip_lines: Vec<LineEntry<'a>>,
     pub(crate) clip_filters: Vec<FilterEntry<'a>>,
-    pub(crate) over_rects: Vec<RectEntry<'a>>,
     pub(crate) over_lines: Vec<LineEntry<'a>>,
     pub(crate) over_filters: Vec<FilterEntry<'a>>,
 }
@@ -127,27 +115,17 @@ pub(crate) struct LayerContents<'a> {
 #[cfg(not(feature = "line"))]
 #[derive(Default)]
 pub(crate) struct LayerContents<'a> {
-    pub(crate) primitives: Vec<PrimitiveEntry<'a>>,
     pub(crate) maps: Vec<MapEntry<'a>>,
+    pub(crate) primitives: Vec<PrimitiveEntry<'a>>,
     pub(crate) sprites: Vec<SpriteEntry<'a>>,
     pub(crate) atlas_sprites: Vec<AtlasSpriteEntry<'a>>,
     pub(crate) composites: Vec<CompositeSpriteEntry<'a>>,
     pub(crate) texts: Vec<TextEntry<'a>>,
-    pub(crate) clip_rects: Vec<RectEntry<'a>>,
     pub(crate) clip_filters: Vec<FilterEntry<'a>>,
-    pub(crate) over_rects: Vec<RectEntry<'a>>,
     pub(crate) over_filters: Vec<FilterEntry<'a>>,
 }
 
 impl<'a> LayerContents<'a> {
-    pub(crate) fn push_rect(&mut self, rect: RectEntry<'a>, clip: bool) {
-        if clip {
-            self.clip_rects.push(rect);
-        } else {
-            self.over_rects.push(rect);
-        }
-    }
-
     pub(crate) fn push_filter(&mut self, filter: FilterEntry<'a>, clip: bool) {
         if clip {
             self.clip_filters.push(filter);
@@ -200,9 +178,9 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
             .and_then(|depth| depth.data.as_mut())
             .map(|data| cast_slice_mut::<u8, u16>(data.as_mut_slice()));
         #[cfg(feature = "gpu_palette")]
-        let (image_width, image_height, image_height_i32) = {
+        let (image_width, image_height) = {
             let height = image.height() as usize;
-            (image.width() as usize, height, height as i32)
+            (image.width() as usize, height)
         };
         let mut layer_image = CxImage::empty_from_image(image);
         let mut image_slice = CxImageSliceMut::from_image_mut(image).unwrap();
@@ -216,11 +194,9 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                 atlas_sprites,
                 composites,
                 texts,
-                clip_rects,
                 #[cfg(feature = "line")]
                 clip_lines,
                 clip_filters,
-                over_rects,
                 #[cfg(feature = "line")]
                 over_lines,
                 over_filters,
@@ -231,29 +207,6 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
             let over_depth = base_depth.map(|depth| depth.saturating_add(1));
             layer_image.clear();
             let mut layer_slice = layer_image.slice_all_mut();
-
-            // Primitives draw first within the layer, behind maps/sprites.
-            for (prim, position, anchor, canvas, presentation) in primitives {
-                let size = crate::primitive::primitive_frame_size(&prim.shape);
-                let visual_offset = presentation.map_or(Vec2::ZERO, |pt| pt.visual_offset);
-                let position = *position + visual_offset.round().as_ivec2();
-                let position = position - anchor.pos(size).as_ivec2();
-                let world_origin = position;
-                let position = match canvas {
-                    CxRenderSpace::World => position - *camera,
-                    CxRenderSpace::Camera => position,
-                };
-                // Image space: Y flipped (top-left origin).
-                let image_pos = IVec2::new(
-                    position.x,
-                    layer_slice.height() as i32 - position.y - size.y as i32,
-                );
-                let mut prim_slice = layer_slice.slice_mut(IRect {
-                    min: image_pos,
-                    max: image_pos + size.as_ivec2(),
-                });
-                crate::primitive::draw_primitive(prim, &mut prim_slice, world_origin);
-            }
 
             for (map, position, canvas, frame, map_filter) in maps {
                 let Some(tileset) = tilesets.get(&map.tileset) else {
@@ -302,6 +255,30 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                         );
                     }
                 }
+            }
+
+            // Primitives draw after maps but before sprites, so sprites
+            // always paint on top and map tiles form the backdrop.
+            for (prim, position, anchor, canvas, presentation) in primitives {
+                let size = crate::primitive::primitive_frame_size(&prim.shape);
+                let visual_offset = presentation.map_or(Vec2::ZERO, |pt| pt.visual_offset);
+                let position = *position + visual_offset.round().as_ivec2();
+                let position = position - anchor.pos(size).as_ivec2();
+                let world_origin = position;
+                let position = match canvas {
+                    CxRenderSpace::World => position - *camera,
+                    CxRenderSpace::Camera => position,
+                };
+                // Image space: Y flipped (top-left origin).
+                let image_pos = IVec2::new(
+                    position.x,
+                    layer_slice.slice.height() - position.y - size.y as i32,
+                );
+                let mut prim_slice = layer_slice.slice_mut(IRect {
+                    min: image_pos,
+                    max: image_pos + size.as_ivec2(),
+                });
+                crate::primitive::draw_primitive(prim, &mut prim_slice, world_origin);
             }
 
             for (sprite, position, anchor, canvas, frame, filter, presentation) in sprites {
@@ -705,22 +682,6 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
                 }
             }
 
-            for (rect, filter, pos, anchor, canvas, frame, invert) in clip_rects {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_spatial(
-                        &(rect, filter),
-                        invert,
-                        &mut layer_slice,
-                        pos,
-                        anchor,
-                        canvas,
-                        frame.copied(),
-                        std::iter::empty(),
-                        camera,
-                    );
-                }
-            }
-
             #[cfg(feature = "line")]
             for (line, filter, canvas, frame, invert) in clip_lines {
                 if let Some(filter) = filters.get(&**filter) {
@@ -746,28 +707,6 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
             #[cfg(feature = "gpu_palette")]
             if let (Some(depth), Some(base_depth)) = (depth_data.as_mut(), base_depth) {
                 update_depth_from_layer(depth, layer_image.data(), base_depth);
-            }
-
-            for (rect, filter, pos, anchor, canvas, frame, invert) in over_rects {
-                if let Some(filter) = filters.get(&**filter) {
-                    draw_spatial(
-                        &(rect, filter),
-                        invert,
-                        &mut image_slice,
-                        pos,
-                        anchor,
-                        canvas,
-                        frame.copied(),
-                        std::iter::empty(),
-                        camera,
-                    );
-                }
-                #[cfg(feature = "gpu_palette")]
-                if let (Some(depth), Some(over_depth)) = (depth_data.as_mut(), over_depth) {
-                    let bounds =
-                        spatial_bounds(rect.0, pos, anchor, canvas, camera, image_height_i32);
-                    update_depth_rect(depth, image_width, image_height, bounds, invert, over_depth);
-                }
             }
 
             #[cfg(feature = "line")]
@@ -835,7 +774,7 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
         let mut cursor_image = CxImageSliceMut::from_image_mut(image).unwrap();
         let cursor_pos = IVec2::new(
             cursor_pos.x as i32,
-            cursor_image.height() as i32 - 1 - cursor_pos.y as i32,
+            cursor_image.slice.height() - 1 - cursor_pos.y as i32,
         );
         if let Some(pixel) = cursor_image.get_pixel_mut(cursor_pos) {
             if let Some(new_pixel) = filter.get_pixel(IVec2::new(i32::from(*pixel), 0)) {
@@ -846,11 +785,11 @@ pub(crate) fn draw_layers<'w, L: CxLayer>(
         }
         #[cfg(feature = "gpu_palette")]
         if let Some(depth) = depth_image.as_mut().and_then(|depth| depth.data.as_mut()) {
-            let width = cursor_image.image_width();
+            let width = cursor_image.width;
             if cursor_pos.x >= 0 && cursor_pos.y >= 0 {
                 let x = cursor_pos.x as usize;
                 let y = cursor_pos.y as usize;
-                if x < width && y < cursor_image.image_height() {
+                if x < width && y < cursor_image.image.len() {
                     let depth = cast_slice_mut::<u8, u16>(depth);
                     depth[y * width + x] = u16::MAX;
                 }
@@ -876,6 +815,7 @@ fn update_depth_from_layer(depth: &mut [u16], layer_data: &[u8], depth_value: u1
 }
 
 #[cfg(feature = "gpu_palette")]
+#[allow(dead_code)]
 fn spatial_bounds(
     size: UVec2,
     position: CxPosition,
@@ -899,6 +839,7 @@ fn spatial_bounds(
 }
 
 #[cfg(feature = "gpu_palette")]
+#[allow(dead_code)]
 fn update_depth_rect(
     depth: &mut [u16],
     width: usize,

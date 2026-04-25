@@ -200,7 +200,7 @@ impl Frames for CxFilterAsset {
         _: impl Fn(u8) -> u8,
     ) {
         let Self(filter) = self;
-        let width = image.width();
+        let width = image.slice.width() as u32;
         image.for_each_mut(|index, _, pixel| {
             let index = index as u32;
             *pixel = filter.pixel(IVec2::new(

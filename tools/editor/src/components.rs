@@ -57,6 +57,7 @@ pub struct SelectionOutline;
 
 /// Loaded scene data (stage or cutscene) for inspector/editor systems.
 #[derive(Clone, Debug, Reflect, Resource)]
+#[allow(clippy::large_enum_variant)]
 pub enum SceneData {
     Cutscene(CutsceneData),
     Stage(StageData),

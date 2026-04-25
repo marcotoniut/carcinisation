@@ -1,12 +1,15 @@
 #![allow(clippy::needless_pass_by_value)]
 // In this program, clicking a sprite highlights the clicked pixel with a filter.
+//
+// TODO: CxFilterRect was removed from the public API. The pixel-highlight
+// feature needs to be updated to use the replacement API.
 
 use bevy::prelude::*;
-use bevy_picking::prelude::{Click, Pickable, Pointer, PointerButton};
+use bevy_picking::prelude::{Click, Pointer, PointerButton};
 use carapace::prelude::*;
 
 #[derive(Resource, Default)]
-struct PickedPixel(Option<Entity>);
+struct PickedPixel(#[allow(dead_code)] Option<Entity>);
 
 fn main() {
     let mut app = App::new();
@@ -44,53 +47,24 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
 fn highlight_on_click(
     mut clicks: MessageReader<Pointer<Click>>,
-    cursor: Res<CxCursorPosition>,
-    camera: Res<CxCamera>,
+    _cursor: Res<CxCursorPosition>,
+    _camera: Res<CxCamera>,
     sprites: Query<(&Layer, &CxRenderSpace), With<CxPick>>,
-    mut commands: Commands,
-    mut picked: ResMut<PickedPixel>,
-    assets: Res<AssetServer>,
+    mut _commands: Commands,
+    mut _picked: ResMut<PickedPixel>,
+    _assets: Res<AssetServer>,
 ) {
-    let Some(cursor) = **cursor else {
-        return;
-    };
-    let cursor = cursor.as_ivec2();
-
     for click in clicks.read() {
         if click.event.button != PointerButton::Primary {
             continue;
         }
 
-        let Ok((layer, canvas)) = sprites.get(click.entity) else {
+        let Ok((_layer, _canvas)) = sprites.get(click.entity) else {
             continue;
         };
 
-        let mut highlight_pos = cursor;
-        if matches!(canvas, CxRenderSpace::World) {
-            highlight_pos += **camera;
-        }
-
-        let entity = if let Some(entity) = picked.0 {
-            entity
-        } else {
-            let entity = commands
-                .spawn((
-                    CxFilterRect(UVec2::ONE),
-                    CxAnchor::BottomLeft,
-                    CxFilter(assets.load("filter/invert.px_filter.png")),
-                    Pickable::IGNORE,
-                ))
-                .id();
-            picked.0 = Some(entity);
-            entity
-        };
-
-        commands.entity(entity).insert((
-            CxPosition(highlight_pos),
-            layer.clone(),
-            *canvas,
-            CxFilterLayers::single_clip(layer.clone()),
-        ));
+        // TODO: CxFilterRect was removed. Pixel-highlight spawn logic needs
+        // to be updated to use the replacement API.
     }
 }
 

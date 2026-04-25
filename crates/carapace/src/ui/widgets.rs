@@ -88,7 +88,7 @@ pub struct CxStack;
 
 /// Scroll container that masks and offsets child content.
 #[derive(Component, Default, Clone, Copy, Reflect)]
-#[require(CxInvertMask, CxFilterRect)]
+#[require(CxInvertMask, crate::rect::CxFilterRect)]
 pub struct CxScroll {
     /// If true, scroll horizontally; otherwise vertically.
     pub horizontal: bool,

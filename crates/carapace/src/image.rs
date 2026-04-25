@@ -232,9 +232,9 @@ impl CxImage {
 pub(crate) struct CxImageSliceMut<'a> {
     // TODO Currently, this is the entire image. Trim it down to the slice that this should have
     // access to.
-    image: Vec<&'a mut [u8]>,
-    width: usize,
-    slice: IRect,
+    pub image: Vec<&'a mut [u8]>,
+    pub width: usize,
+    pub slice: IRect,
 }
 
 impl<'a> CxImageSliceMut<'a> {
@@ -306,22 +306,6 @@ impl<'a> CxImageSliceMut<'a> {
     #[expect(unused)]
     pub(crate) fn size(&self) -> UVec2 {
         self.slice.size().as_uvec2()
-    }
-
-    pub(crate) fn width(&self) -> u32 {
-        self.slice.width() as u32
-    }
-
-    pub(crate) fn height(&self) -> u32 {
-        self.slice.height() as u32
-    }
-
-    pub(crate) fn image_width(&self) -> usize {
-        self.width
-    }
-
-    pub(crate) fn image_height(&self) -> usize {
-        self.image.len()
     }
 
     #[allow(unused)]

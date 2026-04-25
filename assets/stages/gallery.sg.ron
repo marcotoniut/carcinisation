@@ -1,0 +1,50 @@
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+#![enable(explicit_struct_names)]
+StageData(
+    name: "Gallery",
+    background_path: "",
+    music_path: "",
+    skybox: SkyboxData(
+        path: "",
+        frames: 1,
+    ),
+    start_coordinates: Vec2(0.0, 0.0),
+    spawns: [],
+    steps: [
+        // Infinite stop step — no duration, no kill conditions.
+        // Projected floors at all depths so enemies can land after wing-break.
+        Stop(
+            kill_all: false,
+            kill_boss: false,
+            spawns: [],
+            surfaces: [
+                SurfaceSpec(
+                    depths: RangeInclusive(start: One, end: Nine),
+                    mode: Projected(displacement: 0.0),
+                ),
+            ],
+        ),
+        // WORKAROUND: Guard step prevents check_staged_cleared from firing.
+        // read_step_trigger increments progress.index when consuming a step,
+        // so a single-step stage has index(1) >= len(1) immediately.
+        // Fix: add NeverEnd step variant or suppress-clear flag on StageData.
+        Stop(
+            kill_all: false,
+            kill_boss: false,
+            spawns: [],
+            surfaces: None,
+        ),
+    ],
+    // Primitive band visualisation:
+    //   Palette: 0=transparent, 1=dark purple (skybox), 2=dark brown,
+    //   3=medium brown, 4=cream.
+    //   Ground from nearest (lightest) to farthest (darkest ground).
+    primitive_bands: PrimitiveBandConfig(
+        skybox_color: 1,
+        ground_colors: [2, 3, 4],
+        transition: Checker,
+        width_multiplier: 2.0,
+    ),
+)

@@ -125,15 +125,6 @@ fn sprite_pixel_visible<'a>(
 fn pick<L: CxLayer>(
     mut hits: MessageWriter<PointerHits>,
     pointers: Query<&PointerId>,
-    rects: Query<(
-        &CxFilterRect,
-        &CxFilterLayers<L>,
-        &CxPosition,
-        &CxAnchor,
-        &CxRenderSpace,
-        &InheritedVisibility,
-        Entity,
-    )>,
     sprites: Query<
         (
             &CxSprite,
@@ -178,7 +169,6 @@ fn pick<L: CxLayer>(
         width = screen.computed_size.x,
         height = screen.computed_size.y
     );
-    // Note: CxPick enables per-pixel picking; rects remain rectangle-based.
     let Some(cursor) = **cursor else {
         return;
     };
@@ -213,29 +203,6 @@ fn pick<L: CxLayer>(
                 },
             ));
         };
-
-        for (&rect, layer, &pos, &anchor, canvas, visibility, id) in &rects {
-            if !visibility.get() {
-                continue;
-            }
-
-            let layer = match layer {
-                CxFilterLayers::Single { layer, .. } => Some(layer),
-                CxFilterLayers::Many(layers) => layers.iter().max(),
-                // TODO Can't pick rects with this variant
-                CxFilterLayers::Range(range) => Some(range.end()),
-            };
-            let Some(layer) = layer else {
-                continue;
-            };
-
-            let depth = layer_depth(&mut depth_cache, layer);
-            let rect = spatial_rect(*rect, pos, anchor, *canvas, cam_pos);
-
-            if rect.contains_exclusive(cursor) {
-                push_pick(id, depth);
-            }
-        }
 
         for (
             sprite,

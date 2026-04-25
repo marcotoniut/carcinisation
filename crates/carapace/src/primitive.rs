@@ -11,14 +11,25 @@
 //! they draw **before** sprites, so sprites always paint on top.
 
 #[cfg(feature = "headed")]
-use bevy_render::{Extract, RenderApp, sync_world::RenderEntity};
+use bevy_render::{
+    Extract, RenderApp,
+    sync_world::{RenderEntity, SyncToRenderWorld},
+};
 
 use crate::{image::CxImageSliceMut, prelude::*};
 
 pub(crate) fn plug<L: CxLayer>(app: &mut App) {
     #[cfg(feature = "headed")]
-    app.sub_app_mut(RenderApp)
-        .add_systems(ExtractSchedule, extract_primitives::<L>);
+    {
+        // CxPrimitive uses manual extraction (not SyncComponentPlugin) because
+        // it needs custom clone/insert logic matching the sprite extraction
+        // pattern. SyncToRenderWorld is registered as a required component so
+        // that Bevy creates render-world counterparts (RenderEntity) for
+        // primitive entities.
+        app.register_required_components::<CxPrimitive, SyncToRenderWorld>();
+        app.sub_app_mut(RenderApp)
+            .add_systems(ExtractSchedule, extract_primitives::<L>);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -30,6 +41,11 @@ pub(crate) fn plug<L: CxLayer>(app: &mut App) {
 ///
 /// Requires the standard carapace spatial components: [`CxPosition`],
 /// [`CxAnchor`], [`CxRenderSpace`], and a layer.
+///
+/// Unlike sprites, primitives do not support [`CxFilter`](crate::filter::CxFilter)
+/// (palette remapping) or [`CxPresentationTransform`] scale/rotation — only
+/// `visual_offset` is applied. Primitives produce palette-indexed pixels
+/// directly from their [`CxPrimitiveFill`].
 #[derive(Component, Clone, Debug)]
 #[require(CxPosition, CxAnchor, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
@@ -41,7 +57,7 @@ pub struct CxPrimitive {
 }
 
 /// Shape geometry for a [`CxPrimitive`].
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum CxPrimitiveShape {
     /// Axis-aligned filled rectangle. `size` is in logical pixels.
     Rect {
@@ -64,7 +80,7 @@ pub enum CxPrimitiveShape {
 }
 
 /// Fill mode for a [`CxPrimitive`].
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum CxPrimitiveFill {
     /// Every pixel is the same palette index.
     Solid(u8),
@@ -167,8 +183,8 @@ fn draw_filled_rect(
     fill: &CxPrimitiveFill,
     world_origin: IVec2,
 ) {
-    let img_w = image.image_width() as i32;
-    let img_h = image.image_height() as i32;
+    let img_w = image.width as i32;
+    let img_h = image.image.len() as i32;
     let offset = image.offset();
 
     let x_min = offset.x.max(0);
@@ -196,8 +212,8 @@ fn draw_filled_circle(
 ) {
     let r = radius as i32;
     let diameter = (radius * 2 + 1) as i32;
-    let img_w = image.image_width() as i32;
-    let img_h = image.image_height() as i32;
+    let img_w = image.width as i32;
+    let img_h = image.image.len() as i32;
     let offset = image.offset();
 
     let x_min = offset.x.max(0);
@@ -250,7 +266,7 @@ pub(crate) fn primitive_frame_size(shape: &CxPrimitiveShape) -> UVec2 {
                 max_x = max_x.max(v.x);
                 max_y = max_y.max(v.y);
             }
-            UVec2::new((max_x - min_x) as u32, (max_y - min_y) as u32)
+            UVec2::new((max_x - min_x + 1) as u32, (max_y - min_y + 1) as u32)
         }
     }
 }
@@ -422,6 +438,28 @@ mod tests {
         let expected = vec![
             2, 1,
             1, 2,
+        ];
+        assert_eq!(pixels(&image), expected);
+    }
+
+    #[test]
+    fn checker_index_zero_punches_holes() {
+        // Pre-fill with color 9, then draw a checker where b=0.
+        // Odd-parity pixels should remain 9 (index 0 is skipped = hole).
+        let mut image = CxImage::new(vec![9; 4], 2);
+        let prim = CxPrimitive {
+            shape: CxPrimitiveShape::Rect {
+                size: UVec2::new(2, 2),
+            },
+            fill: CxPrimitiveFill::Checker { a: 5, b: 0 },
+        };
+        let mut slice = image.slice_all_mut();
+        draw_primitive(&prim, &mut slice, IVec2::ZERO);
+
+        #[rustfmt::skip]
+        let expected = vec![
+            5, 9, // (0,0)=even→5, (1,0)=odd→0→skipped→9
+            9, 5, // (0,1)=odd→0→skipped→9, (1,1)=even→5
         ];
         assert_eq!(pixels(&image), expected);
     }
@@ -622,6 +660,42 @@ mod tests {
         let size = primitive_frame_size(&CxPrimitiveShape::Polygon {
             vertices: vec![IVec2::new(-5, 0), IVec2::new(5, 10)],
         });
-        assert_eq!(size, UVec2::new(10, 10));
+        // -5..5 inclusive = 11 pixels wide, 0..10 inclusive = 11 pixels tall.
+        assert_eq!(size, UVec2::new(11, 11));
+    }
+
+    // --- Render pipeline integration ---
+
+    #[test]
+    fn primitive_via_sub_slice_writes_to_parent_image() {
+        // Simulates the exact render pipeline flow:
+        // layer_image → slice_all_mut → slice_mut(sub_rect) → draw_primitive
+        let mut layer_image = make_image(8, 8);
+        let mut layer_slice = layer_image.slice_all_mut();
+
+        let prim = CxPrimitive {
+            shape: CxPrimitiveShape::Rect {
+                size: UVec2::new(4, 3),
+            },
+            fill: CxPrimitiveFill::Solid(5),
+        };
+
+        let image_pos = IVec2::new(2, 2);
+        let size = UVec2::new(4, 3);
+        let mut prim_slice = layer_slice.slice_mut(IRect {
+            min: image_pos,
+            max: image_pos + size.as_ivec2(),
+        });
+
+        draw_primitive(&prim, &mut prim_slice, IVec2::new(100, 200));
+
+        // Verify the parent image has the pixels.
+        let px = pixels(&layer_image);
+        let row2 = 2 * 8;
+        assert_eq!(px[row2 + 2], 5, "pixel (2,2)");
+        assert_eq!(px[row2 + 5], 5, "pixel (5,2)");
+        assert_eq!(px[row2 + 1], 0, "pixel (1,2) outside rect");
+        let filled = px.iter().filter(|&&p| p != 0).count();
+        assert_eq!(filled, 12, "4x3 rect = 12 filled pixels");
     }
 }

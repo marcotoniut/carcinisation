@@ -1,5 +1,8 @@
 #![allow(clippy::needless_pass_by_value)]
 // In this program, a rectangle filter is applied over a region
+//
+// TODO: CxFilterRect was removed from the public API. This example needs to be
+// updated to use the replacement API or removed entirely.
 
 use bevy::prelude::*;
 use carapace::prelude::*;
@@ -28,13 +31,8 @@ fn init(assets: Res<AssetServer>, mut commands: Commands) {
 
     commands.spawn((CxSprite(mage), CxPosition(IVec2::splat(16))));
 
-    // Apply a filter only within a rectangular region.
-    commands.spawn((
-        CxFilterRect(UVec2::new(12, 10)),
-        CxPosition(IVec2::new(10, 22)),
-        CxFilterLayers::single_over(Layer),
-        CxFilter(assets.load("filter/invert.px_filter.png")),
-    ));
+    // TODO: CxFilterRect was removed. Rect filter application is no longer
+    // supported through the render pipeline.
 }
 
 #[px_layer]

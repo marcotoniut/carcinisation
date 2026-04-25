@@ -412,7 +412,7 @@ impl Frames for (&CxSpriteAtlasAsset, &AtlasRegion) {
     ) {
         let (atlas, region) = *self;
         let frame_width = region.frame_size.x as usize;
-        let image_width = image.image_width();
+        let image_width = image.slice.width() as usize;
 
         image.for_each_mut(|slice_i, image_i, pixel| {
             let x = (slice_i % frame_width) as u32;

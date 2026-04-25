@@ -34,6 +34,8 @@ pub static STAGE_DEBUG_DATA: std::sync::LazyLock<Arc<StageData>> = std::sync::La
         projection: None,
         checkpoint: None,
         parallax_attenuation: None,
+        primitives: vec![],
+        primitive_bands: None,
     }
     .into()
 });

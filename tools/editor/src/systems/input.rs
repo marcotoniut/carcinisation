@@ -1464,6 +1464,8 @@ mod tests {
             projection: None,
             checkpoint: None,
             parallax_attenuation: None,
+            primitives: vec![],
+            primitive_bands: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1603,6 +1605,8 @@ mod tests {
             projection: None,
             checkpoint: None,
             parallax_attenuation: None,
+            primitives: vec![],
+            primitive_bands: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -1873,6 +1877,8 @@ mod tests {
             projection: None,
             checkpoint: None,
             parallax_attenuation: None,
+            primitives: vec![],
+            primitive_bands: None,
         };
         app.insert_resource(SceneData::Stage(stage_data));
 
@@ -2000,6 +2006,8 @@ mod tests {
             projection: None,
             checkpoint: None,
             parallax_attenuation: None,
+            primitives: vec![],
+            primitive_bands: None,
         };
 
         // Point near the first segment (0,0)→(100,0): should insert at index 0.

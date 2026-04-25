@@ -151,6 +151,8 @@ mod tests {
             projection: None,
             checkpoint: None,
             parallax_attenuation: None,
+            primitives: vec![],
+            primitive_bands: None,
         }
     }
 

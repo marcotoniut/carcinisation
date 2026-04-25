@@ -56,8 +56,8 @@ impl Frames for (&CxLine, &CxFilterAsset) {
     ) {
         let (line, CxFilterAsset(filter)) = self;
         let slice_offset = image.offset();
-        let image_width = image.image_width() as i32;
-        let image_height = image.image_height() as i32;
+        let image_width = image.slice.width();
+        let image_height = image.slice.height();
 
         if invert {
             let mut line_points = Vec::new();

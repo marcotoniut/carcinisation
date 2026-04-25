@@ -261,7 +261,7 @@ impl Frames for CxSpriteAsset {
         filter: impl Fn(u8) -> u8,
     ) {
         let width = self.data.width();
-        let image_width = image.image_width();
+        let image_width = image.slice.width() as usize;
         image.for_each_mut(|slice_i, image_i, pixel| {
             if let Some(value) = self.data.get_pixel(ivec2(
                 (slice_i % width) as i32,
@@ -490,7 +490,7 @@ impl Frames for CxCompositePartDrawable<'_> {
             return;
         }
         let frame_width = size.x as usize;
-        let image_width = image.image_width();
+        let image_width = image.slice.width() as usize;
 
         image.for_each_mut(|slice_i, image_i, pixel| {
             let local_pos = uvec2(

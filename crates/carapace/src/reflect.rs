@@ -47,7 +47,6 @@ pub(crate) fn register_types(app: &mut App) {
         .register_type::<CxBlink>()
         .register_type::<CxCursor>()
         .register_type::<CxCursorPosition>()
-        .register_type::<CxFilterRect>()
         // Atlas
         .register_type::<CxSpriteAtlasAsset>()
         .register_type::<AtlasRect>()

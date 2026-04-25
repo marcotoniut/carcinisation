@@ -2,6 +2,8 @@
 
 pub mod camera;
 pub mod damage;
+#[cfg(debug_assertions)]
+pub mod debug_spawn;
 pub mod movement;
 pub mod setup;
 pub mod spawn;
@@ -306,6 +308,8 @@ mod tests {
             projection: None,
             checkpoint: None,
             parallax_attenuation: None,
+            primitives: vec![],
+            primitive_bands: None,
         };
 
         world.insert_resource(stage_data);

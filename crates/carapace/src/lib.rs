@@ -231,7 +231,6 @@ impl<L: CxLayer> Plugin for CxPlugin<L> {
                 #[cfg(feature = "line")]
                 line::plug::<L>,
                 primitive::plug::<L>,
-                rect::plug::<L>,
                 ui::plug::<L>,
                 #[cfg(feature = "particle")]
                 (RngPlugin::default(), particle::plug::<L>),
