@@ -3,60 +3,55 @@
 use super::components::{LetterboxBottom, LetterboxEntity, LetterboxTop};
 use super::messages::LetterboxMoveEvent;
 use super::resources::LetterboxTimeDomain;
-use crate::components::GBColor;
 #[cfg(debug_assertions)]
 use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
 use crate::globals::SCREEN_RESOLUTION_F32;
 use crate::globals::mark_for_despawn_by_query;
-use crate::{
-    cutscene::data::CutsceneLayer,
-    globals::SCREEN_RESOLUTION,
-    layer::Layer,
-    pixel::{CxAssets, CxFilterRectBundle},
-};
+use crate::{cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, layer::Layer};
 use bevy::prelude::*;
 use carapace::prelude::*;
+use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 use cween::linear::components::{LinearTweenBundle, TargetingValueY};
 
 const DEBUG_MODULE: &str = "Letterbox";
 
 /// @system Spawns the top/bottom letterbox entities when entering the active state.
-pub fn on_letterbox_startup(mut commands: Commands, filters: CxAssets<CxFilter>) {
+pub fn on_letterbox_startup(mut commands: Commands) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
-
-    let color = GBColor::Black;
 
     commands.spawn((
         Name::new("LetterboxTop"),
         LetterboxEntity,
         LetterboxTop,
-        WorldPos(Vec2::new(0., SCREEN_RESOLUTION_F32.y)),
-        CxFilterRectBundle::<Layer> {
-            anchor: CxAnchor::BottomLeft,
-            canvas: CxRenderSpace::Camera,
-            filter: CxFilter(filters.load_color(color)),
-            layers: CxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
-            position: CxPosition::from(IVec2::new(0, SCREEN_RESOLUTION.y as i32)),
-            rect: CxFilterRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
-            visibility: Visibility::Visible,
+        CxPrimitive {
+            shape: CxPrimitiveShape::Rect {
+                size: UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y),
+            },
+            fill: CxPrimitiveFill::Solid(1),
         },
+        CxAnchor::BottomLeft,
+        CxRenderSpace::Camera,
+        CxPosition::from(IVec2::new(0, SCREEN_RESOLUTION.y as i32)),
+        Layer::CutsceneLayer(CutsceneLayer::Letterbox),
+        WorldPos(Vec2::new(0., SCREEN_RESOLUTION_F32.y)),
     ));
 
     commands.spawn((
         Name::new("LetterboxBottom"),
         LetterboxEntity,
         LetterboxBottom,
-        WorldPos(Vec2::ZERO),
-        CxFilterRectBundle::<Layer> {
-            anchor: CxAnchor::TopLeft,
-            canvas: CxRenderSpace::Camera,
-            filter: CxFilter(filters.load_color(color)),
-            layers: CxFilterLayers::single_over(Layer::CutsceneLayer(CutsceneLayer::Letterbox)),
-            position: CxPosition::from(IVec2::new(0, 0)),
-            rect: CxFilterRect(UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y)),
-            visibility: Visibility::Visible,
+        CxPrimitive {
+            shape: CxPrimitiveShape::Rect {
+                size: UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y),
+            },
+            fill: CxPrimitiveFill::Solid(1),
         },
+        CxAnchor::TopLeft,
+        CxRenderSpace::Camera,
+        CxPosition::from(IVec2::new(0, 0)),
+        Layer::CutsceneLayer(CutsceneLayer::Letterbox),
+        WorldPos(Vec2::ZERO),
     ));
 }
 

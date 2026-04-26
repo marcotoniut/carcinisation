@@ -40,7 +40,7 @@ pub fn on_stage_startup(
     mut commands: Commands,
     mut next_game_state: ResMut<NextState<GameProgressState>>,
     mut assets_sprite: CxAssets<CxSprite>,
-    mut filters: CxAssets<CxFilter>,
+    _filters: CxAssets<CxFilter>,
     mut typefaces: CxAssets<CxTypeface>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
@@ -99,12 +99,7 @@ pub fn on_stage_startup(
         trigger_transition(&mut commands, request);
     }
 
-    spawn_hud(
-        &mut commands,
-        &mut typefaces,
-        &mut assets_sprite,
-        &mut filters,
-    );
+    spawn_hud(&mut commands, &mut typefaces, &asset_server);
 
     let initial_projection = effective_projection(data, 0);
     let initial_active_projection = ActiveProjection(initial_projection);
@@ -168,7 +163,7 @@ pub fn on_stage_startup(
                 );
             }
             StageSpawn::Pickup(spawn) => {
-                spawn_pickup(&mut commands, &mut assets_sprite, Vec2::ZERO, spawn);
+                spawn_pickup(&mut commands, &asset_server, Vec2::ZERO, spawn);
             }
         }
     }

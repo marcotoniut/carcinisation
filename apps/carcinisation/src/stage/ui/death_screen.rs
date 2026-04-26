@@ -11,7 +11,6 @@ use self::{
 };
 use super::StageUiPlugin;
 use crate::{
-    components::GBColor,
     game::{resources::Lives, score::components::Score},
     globals::{SCREEN_RESOLUTION_F32_H, load_inverted_typeface, mark_for_despawn_by_query},
     layer::Layer,
@@ -19,20 +18,17 @@ use crate::{
 };
 use crate::{
     globals::SCREEN_RESOLUTION_H,
-    pixel::{CxAssets, CxFilterRectBundle, CxTextBundle},
+    pixel::{CxAssets, CxTextBundle},
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use carapace::prelude::{
-    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxText,
-    CxTypeface, WorldPos,
-};
+use carapace::prelude::{CxAnchor, CxPosition, CxRenderSpace, CxText, CxTypeface, WorldPos};
+use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
 pub fn render_death_screen(
     mut commands: Commands,
     assets_typeface: CxAssets<CxTypeface>,
-    filters: CxAssets<CxFilter>,
     lives: Res<Lives>,
     score: Res<Score>,
     stage_state: Res<State<StageProgressState>>,
@@ -46,16 +42,17 @@ pub fn render_death_screen(
             Visibility::Visible,
             children![
                 (
-                    WorldPos(*SCREEN_RESOLUTION_F32_H),
-                    CxFilterRectBundle::<Layer> {
-                        rect: CxFilterRect(UVec2::new(120, 90)),
-                        position: CxPosition::from(*SCREEN_RESOLUTION_H),
-                        anchor: CxAnchor::Center,
-                        canvas: CxRenderSpace::Camera,
-                        layers: CxFilterLayers::single_over(Layer::UIBackground),
-                        filter: CxFilter(filters.load_color(GBColor::White)),
-                        visibility: Visibility::Visible,
+                    CxPrimitive {
+                        shape: CxPrimitiveShape::Rect {
+                            size: UVec2::new(120, 90),
+                        },
+                        fill: CxPrimitiveFill::Solid(4),
                     },
+                    CxAnchor::Center,
+                    CxRenderSpace::Camera,
+                    CxPosition::from(*SCREEN_RESOLUTION_H),
+                    Layer::UIBackground,
+                    WorldPos(*SCREEN_RESOLUTION_F32_H),
                     UIBackground,
                 ),
                 (

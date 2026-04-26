@@ -705,9 +705,29 @@ impl ResolvedPartState {
     /// **Caller must pre-scale** `visual_offset` by `gameplay_scale` when
     /// `world_pivot_position` is in gameplay-scaled space (the normal case
     /// since `build_resolved_part_states` bakes in the scale).
+    ///
+    /// **Note:** The returned position does **not** include
+    /// `CxPresentationTransform::collision_offset` (parallax shift).  If
+    /// the result feeds a projectile spawn, use
+    /// [`projectile_spawn_world_pos_from_source`](crate::stage::attack::spawns::projectile_spawn_world_pos_from_source)
+    /// with `WorldSpace` basis to add the offset downstream, or call
+    /// [`presented_point_from_local_offset`](Self::presented_point_from_local_offset).
     #[must_use]
     pub fn visual_point_from_local_offset(&self, local_offset: IVec2, visual_offset: Vec2) -> Vec2 {
         self.world_point_from_local_offset(local_offset) + visual_offset
+    }
+
+    /// Like [`visual_point_from_local_offset`](Self::visual_point_from_local_offset)
+    /// but also adds `collision_offset`, producing a fully resolved position
+    /// that matches collision shape placement during parallax.
+    #[must_use]
+    pub fn presented_point_from_local_offset(
+        &self,
+        local_offset: IVec2,
+        visual_offset: Vec2,
+        collision_offset: Vec2,
+    ) -> Vec2 {
+        self.visual_point_from_local_offset(local_offset, visual_offset) + collision_offset
     }
 }
 
@@ -1346,13 +1366,27 @@ pub fn update_composed_enemy_visuals(
                         f32::from,
                     );
                 }
-                SpawnAnchorMode::BottomOrigin => {}
+                SpawnAnchorMode::BottomOrigin => {
+                    debug_assert!(
+                        atlas_asset.atlas.ground_anchor_y.is_none(),
+                        "BottomOrigin entities should not have an entity-level ground_anchor_y"
+                    );
+                }
             }
             visual.anchor_offsets_inserted = true;
             // Fall through to the override resolution below.
         }
 
         if visual.last_resolved_anchor_tag.as_deref() != Some(&animation_state.requested_tag) {
+            debug_assert!(
+                atlas_asset.atlas.spawn_anchor != SpawnAnchorMode::BottomOrigin
+                    || cache
+                        .animations
+                        .get(&animation_state.requested_tag)
+                        .is_none_or(|a| a.ground_anchor_y.is_none()),
+                "BottomOrigin animation '{}' should not author a ground_anchor_y override",
+                animation_state.requested_tag,
+            );
             let resolved_ground = cache
                 .animations
                 .get(&animation_state.requested_tag)
@@ -2563,6 +2597,15 @@ fn resolve_part_pose_from_tracks(
                     // Merge sprite override with base position: use sprite/flip
                     // from override, position from base. Applied uniformly to all
                     // fragments where the override provides a matching entry.
+                    if sprite_only_fragments.len() != fragments.len() {
+                        warn!(
+                            "sprite-only override for part '{}' has {} fragments \
+                             but base has {} — mismatched entries will use base sprites",
+                            part.id,
+                            sprite_only_fragments.len(),
+                            fragments.len(),
+                        );
+                    }
                     let merged: Vec<CachedPose> = fragments
                         .iter()
                         .enumerate()
@@ -3019,9 +3062,17 @@ fn build_resolved_part_fragment_states(
                 root_position + (authored_top_left - root_position) * gameplay_scale;
             let scaled_visual_top_left = scaled_top_left + visual_offset * gameplay_scale;
             // Frame size also scales so the rect matches the visual.
+            //
+            // NOTE: Each fragment's size is rounded independently.  Adjacent
+            // fragments from a split part could theoretically develop a 1px
+            // collision-rect seam at non-1.0 scales.  In practice the pixel-
+            // mask test (which reads actual atlas pixels) is the primary
+            // collision path, so a rect-level gap does not create gameplay
+            // holes.  The rendering path scales the composite as a single
+            // image and is unaffected.
             let scaled_frame_size = UVec2::new(
-                (fragment.size.x as f32 * gameplay_scale).round() as u32,
-                (fragment.size.y as f32 * gameplay_scale).round() as u32,
+                (fragment.size.x as f32 * gameplay_scale).round().max(1.0) as u32,
+                (fragment.size.y as f32 * gameplay_scale).round().max(1.0) as u32,
             );
             ResolvedPartFragmentState {
                 part_id: fragment.part_id.clone(),
@@ -6563,6 +6614,77 @@ mod tests {
         assert_eq!(game_logic, Vec2::new(41.0, 504.0));
         // visual = (41, 504+49) = (41, 553)
         assert_eq!(visual, Vec2::new(41.0, 553.0));
+    }
+
+    // ── flip_authored_offset tests ─────────────────────────────────────────
+
+    #[test]
+    fn flip_authored_offset_identity_when_not_flipped() {
+        let offset = Vec2::new(3.0, 5.0);
+        let result = flip_authored_offset(offset, UVec2::new(16, 16), IVec2::ZERO, false, false);
+        // No flip: x unchanged, y negated (Y-down → Y-up).
+        assert_eq!(result, Vec2::new(3.0, -5.0));
+    }
+
+    #[test]
+    fn flip_authored_offset_x_mirrors_around_center_with_zero_pivot() {
+        let offset = Vec2::new(2.0, 0.0);
+        let size = UVec2::new(10, 10);
+        let result = flip_authored_offset(offset, size, IVec2::ZERO, true, false);
+        // flip_x: (size.x - 1 - 2*pivot.x - offset.x) = (9 - 0 - 2) = 7
+        assert_eq!(result.x, 7.0);
+    }
+
+    #[test]
+    fn flip_authored_offset_x_with_nonzero_pivot() {
+        // Pivot at (3, 0) in a 10-wide frame.
+        // An offset of 2 should mirror to: 10 - 1 - 2*3 - 2 = 1.
+        let offset = Vec2::new(2.0, 0.0);
+        let size = UVec2::new(10, 10);
+        let pivot = IVec2::new(3, 0);
+        let result = flip_authored_offset(offset, size, pivot, true, false);
+        assert_eq!(result.x, 1.0);
+    }
+
+    #[test]
+    fn flip_authored_offset_y_with_nonzero_pivot() {
+        // Pivot at (0, 4) in a 16-tall frame.
+        // An offset of 2 should mirror to: 16 - 1 - 2*4 - 2 = 5.
+        // Then negated for Y-up: -5.
+        let offset = Vec2::new(0.0, 2.0);
+        let size = UVec2::new(16, 16);
+        let pivot = IVec2::new(0, 4);
+        let result = flip_authored_offset(offset, size, pivot, false, true);
+        assert_eq!(result.y, -5.0);
+    }
+
+    #[test]
+    fn flip_authored_offset_both_axes_with_nonzero_pivot() {
+        let offset = Vec2::new(1.0, 3.0);
+        let size = UVec2::new(12, 20);
+        let pivot = IVec2::new(2, 5);
+        let result = flip_authored_offset(offset, size, pivot, true, true);
+        // X: 12 - 1 - 2*2 - 1 = 6
+        assert_eq!(result.x, 6.0);
+        // Y: 20 - 1 - 2*5 - 3 = 6, negated = -6
+        assert_eq!(result.y, -6.0);
+    }
+
+    #[test]
+    fn flip_authored_offset_pivot_at_center_is_symmetric() {
+        // When pivot is at the center of the frame, flipping an offset
+        // should produce the "mirror" offset relative to center.
+        let size = UVec2::new(10, 10);
+        let center_pivot = IVec2::new(4, 4); // integer center for even size
+        let offset = Vec2::new(1.0, 1.0);
+
+        let normal = flip_authored_offset(offset, size, center_pivot, false, false);
+        let flipped = flip_authored_offset(offset, size, center_pivot, true, true);
+
+        // X: normal=1, flipped = 10-1-8-1 = 0
+        // Y: normal=-1, flipped = -(10-1-8-1) = 0
+        assert_eq!(normal, Vec2::new(1.0, -1.0));
+        assert_eq!(flipped, Vec2::new(0.0, 0.0));
     }
 
     // ── Spawn anchor tests ────────────────────────────────────────────────

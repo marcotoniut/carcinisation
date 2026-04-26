@@ -10,7 +10,7 @@ use crate::{
     game::GameProgressState,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
     layer::Layer,
-    pixel::{CxAssets, CxFilterRectBundle},
+    pixel::CxAssets,
     stage::{
         components::placement::{Depth, InView},
         enemy::{
@@ -36,14 +36,13 @@ use crate::{
 use activable::activate;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::{EguiContext, PrimaryEguiContext, egui};
-use carapace::prelude::{
-    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxRenderSpace, CxSprite, CxTypeface, WorldPos,
-};
+use carapace::prelude::{CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxTypeface, WorldPos};
+use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 use carapace::{
     animation::CxAnimation,
     frame::{CxFrameControl, CxFrameCount, CxFrameSelector},
 };
-use carcinisation_core::components::{DespawnMark, GBColor};
+use carcinisation_core::components::DespawnMark;
 
 use super::GalleryPlugin;
 
@@ -89,8 +88,7 @@ pub fn on_gallery_startup(
     mut commands: Commands,
     mut next_game_state: ResMut<NextState<GameProgressState>>,
     mut typefaces: CxAssets<CxTypeface>,
-    mut assets_sprite: CxAssets<CxSprite>,
-    mut filters: CxAssets<CxFilter>,
+    asset_server: Res<AssetServer>,
 ) {
     activate::<GalleryPlugin>(&mut commands);
     activate::<HudPlugin>(&mut commands);
@@ -100,27 +98,20 @@ pub fn on_gallery_startup(
     // Spawn a GB-white background covering the playable area above the HUD.
     commands.spawn((
         GalleryEntity,
-        CxFilterRectBundle::<Layer> {
-            anchor: CxAnchor::BottomLeft,
-            canvas: CxRenderSpace::Camera,
-            filter: CxFilter(filters.load_color(GBColor::White)),
-            layers: CxFilterLayers::single_over(Layer::Skybox),
-            position: IVec2::new(0, HUD_HEIGHT as i32).into(),
-            rect: CxFilterRect(UVec2::new(
-                SCREEN_RESOLUTION.x,
-                SCREEN_RESOLUTION.y - HUD_HEIGHT,
-            )),
-            visibility: Visibility::Visible,
+        CxPrimitive {
+            shape: CxPrimitiveShape::Rect {
+                size: UVec2::new(SCREEN_RESOLUTION.x, SCREEN_RESOLUTION.y - HUD_HEIGHT),
+            },
+            fill: CxPrimitiveFill::Solid(4),
         },
+        CxAnchor::BottomLeft,
+        CxRenderSpace::Camera,
+        CxPosition::from(IVec2::new(0, HUD_HEIGHT as i32)),
+        Layer::Skybox,
         Name::new("GalleryBackground"),
     ));
 
-    spawn_hud(
-        &mut commands,
-        &mut typefaces,
-        &mut assets_sprite,
-        &mut filters,
-    );
+    spawn_hud(&mut commands, &mut typefaces, &asset_server);
 }
 
 /// Egui side panel for character and animation selection.

@@ -3,7 +3,6 @@ use super::super::components::{
     PressStartScreenEntity,
 };
 use crate::{
-    components::GBColor,
     game::resources::Difficulty,
     globals::{
         FONT_SIZE, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32, SCREEN_RESOLUTION_F32_H,
@@ -13,15 +12,15 @@ use crate::{
     main_menu::{MainMenuScreen, resources::DifficultySelection},
     pixel::{
         CxAssets,
-        bundle::{CxFilterRectBundle, CxSpriteBundle, CxTextBundle},
+        bundle::{CxSpriteBundle, CxTextBundle},
     },
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxSprite, CxText,
-    CxTypeface, WorldPos,
+    CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxText, CxTypeface, WorldPos,
 };
+use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 use strum::IntoEnumIterator;
 
 /// @system Spawns the main menu background entity.
@@ -81,30 +80,26 @@ pub fn exit_press_start_screen(
 pub fn enter_game_difficulty_screen(
     mut commands: Commands,
     assets_typeface: CxAssets<CxTypeface>,
-    filters: CxAssets<CxFilter>,
     selection: Res<DifficultySelection>,
 ) {
-    let color = GBColor::White;
     let typeface = load_inverted_typeface(&assets_typeface);
 
     commands.spawn((
         MainMenuEntity,
         DifficultySelectScreenEntity,
+        CxPrimitive {
+            shape: CxPrimitiveShape::Rect {
+                // TODO use more memory by making this rect into a global?
+                size: UVec2::new(SCREEN_RESOLUTION.x - 50, SCREEN_RESOLUTION.y - 50),
+            },
+            fill: CxPrimitiveFill::Solid(4),
+        },
+        CxAnchor::Center,
+        CxRenderSpace::Camera,
+        CxPosition::from(*SCREEN_RESOLUTION_H),
+        Layer::UIBackground,
         // TODO should not be using WorldPos here
         WorldPos(*SCREEN_RESOLUTION_F32_H),
-        CxFilterRectBundle::<Layer> {
-            anchor: CxAnchor::Center,
-            canvas: CxRenderSpace::Camera,
-            filter: CxFilter(filters.load_color(color)),
-            layers: CxFilterLayers::single_over(Layer::UIBackground),
-            position: CxPosition::from(*SCREEN_RESOLUTION_H),
-            // TODO use more memory by making this rect into a global?
-            rect: CxFilterRect(UVec2::new(
-                SCREEN_RESOLUTION.x - 50,
-                SCREEN_RESOLUTION.y - 50,
-            )),
-            visibility: Visibility::Visible,
-        },
     ));
 
     for (index, d) in Difficulty::iter().enumerate() {

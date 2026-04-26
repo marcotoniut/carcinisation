@@ -86,18 +86,24 @@ impl Plugin for EnemyPlugin {
                     assign_mosquito_animation.after(check_idle_mosquito),
                     despawn_dead_mosquitoes,
                 ),
-                // Mosquiton
+                // Fall physics must update WorldPos BEFORE the composed
+                // pipeline reads it, so collision state and debug outlines
+                // match the rendered position on the same frame.
                 //
-                // The composed pipeline + `detect_part_breakage` run first, then
-                // `apply_deferred` flushes their commands (inserting `WingsBroken`,
-                // `FallingState`, removing `EnemyBehaviors`, `DespawnMark` on tween
-                // children). Only then do animation and falling physics run — they
-                // see the up-to-date component state from the same frame.
-                //
-                // This ordering is for behaviour state only. Spawn-time
-                // presentation correctness must already hold before this block
-                // runs; `ApplyDeferred` must never be required to make first
-                // visibility safe.
+                // FallingState (inserted by detect_part_breakage via commands)
+                // is available here because it was flushed at the end of the
+                // PREVIOUS frame.  The only consequence: on the exact frame
+                // when wings break, the mosquiton does not start falling until
+                // the next frame — a one-frame onset delay that is invisible
+                // in practice, versus the previous one-frame positional lag
+                // every frame during the entire fall.
+                (apply_mosquiton_falling_physics, apply_grounded_enemy_fall)
+                    .after(PositionSyncSystems)
+                    .after(compose_presentation_offsets),
+                // Composed pipeline: reads WorldPos (now up-to-date after
+                // fall physics), builds collision/visual state, detects
+                // part breakage.  ApplyDeferred flushes breakage commands
+                // so animation systems see the current frame's state.
                 (
                     prepare_composed_atlas_assets,
                     ensure_composed_enemy_parts,
@@ -107,20 +113,20 @@ impl Plugin for EnemyPlugin {
                     ApplyDeferred,
                     (
                         assign_mosquiton_animation.after(check_idle_mosquito),
-                        apply_mosquiton_falling_physics,
                         despawn_dead_mosquitons,
                         update_mosquiton_death_effect,
                     ),
                 )
                     .chain()
                     .after(PositionSyncSystems)
-                    .after(compose_presentation_offsets),
+                    .after(compose_presentation_offsets)
+                    .after(apply_mosquiton_falling_physics)
+                    .after(apply_grounded_enemy_fall),
                 (
                     // Spidey
                     // Composed pipeline (prepare/ensure/update) is registered
                     // in the Mosquiton block and operates generically on all
                     // entities with ComposedEnemyVisual.
-                    apply_grounded_enemy_fall.after(PositionSyncSystems),
                     (clear_finished_spidey_attacks, check_idle_spidey)
                         .chain()
                         .after(check_no_behavior),

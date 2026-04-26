@@ -1,17 +1,16 @@
 use super::components::{HealthIcon, HealthText, Hud, UIBackground};
-use crate::pixel::{CxAssets, CxFilterRectBundle, CxSpriteBundle, CxTextBundle};
+use crate::pixel::{CxAssets, CxTextBundle};
 use crate::{
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION, load_inverted_typeface},
     layer::Layer,
-    stage::{components::StageEntity, ui::components::ScoreText},
+    stage::{
+        components::StageEntity, data::PickupType, pickup::visual::load_pickup_visual,
+        ui::components::ScoreText,
+    },
 };
-use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carapace::prelude::{
-    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxSprite, CxText,
-    CxTypeface, WorldPos,
-};
-use carcinisation_core::components::GBColor;
+use carapace::prelude::{CxAnchor, CxPosition, CxRenderSpace, CxText, CxTypeface, WorldPos};
+use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 
 pub(super) const LAYOUT_Y: i32 = 3;
 pub(super) const HUD_BOTTOM_Y: i32 = SCREEN_RESOLUTION.y as i32 - HUD_HEIGHT as i32;
@@ -25,8 +24,7 @@ const HUD_SCORE_MR: i32 = 15;
 pub fn spawn_hud(
     commands: &mut Commands,
     typefaces: &mut CxAssets<CxTypeface>,
-    assets_sprite: &mut CxAssets<CxSprite>,
-    filters: &mut CxAssets<CxFilter>,
+    asset_server: &AssetServer,
 ) -> Entity {
     let typeface = load_inverted_typeface(typefaces);
     commands
@@ -38,15 +36,16 @@ pub fn spawn_hud(
             InheritedVisibility::VISIBLE,
             children![
                 (
-                    CxFilterRectBundle::<Layer> {
-                        anchor: CxAnchor::BottomLeft,
-                        canvas: CxRenderSpace::Camera,
-                        filter: CxFilter(filters.load_color(GBColor::White)),
-                        layers: CxFilterLayers::single_over(Layer::HudBackground),
-                        position: IVec2::ZERO.into(),
-                        rect: CxFilterRect(UVec2::new(SCREEN_RESOLUTION.x, HUD_HEIGHT)),
-                        visibility: Visibility::Visible,
+                    CxPrimitive {
+                        shape: CxPrimitiveShape::Rect {
+                            size: UVec2::new(SCREEN_RESOLUTION.x, HUD_HEIGHT),
+                        },
+                        fill: CxPrimitiveFill::Solid(4),
                     },
+                    CxAnchor::BottomLeft,
+                    CxRenderSpace::Camera,
+                    CxPosition::from(IVec2::ZERO),
+                    Layer::HudBackground,
                     // TODO Technically not a UiBackground
                     UIBackground,
                     Name::new("HudBackground"),
@@ -56,21 +55,20 @@ pub fn spawn_hud(
                     Visibility::Visible,
                     InheritedVisibility::VISIBLE,
                     children![
-                        (
-                            CxSpriteBundle::<Layer> {
-                                anchor: CxAnchor::BottomLeft,
-                                canvas: CxRenderSpace::Camera,
-                                layer: Layer::Hud,
-                                // TODO could add a macro at the level of assets_sprite that extends assert_assets_path!
-                                sprite: CxSprite(assets_sprite.load(assert_assets_path!(
-                                    "sprites/pickups/health_6.px_sprite.png"
-                                ))),
-                                ..default()
-                            },
-                            WorldPos::from(Vec2::new(HUD_HEALTH_ICON_X, LAYOUT_Y as f32)),
-                            HealthIcon,
-                            Name::new("HealthIcon")
-                        ),
+                        {
+                            let mut visual = load_pickup_visual(
+                                asset_server,
+                                PickupType::BigHealth.visible_parts(),
+                            );
+                            visual.render_space = Some(CxRenderSpace::Camera);
+                            (
+                                visual,
+                                WorldPos::from(Vec2::new(HUD_HEALTH_ICON_X, LAYOUT_Y as f32)),
+                                Layer::Hud,
+                                HealthIcon,
+                                Name::new("HealthIcon"),
+                            )
+                        },
                         (
                             CxTextBundle::<Layer> {
                                 position: CxPosition::from(

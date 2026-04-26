@@ -2,7 +2,7 @@ pub mod components;
 
 use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::globals::{SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H};
-use crate::pixel::{CxAssets, CxFilterRectBundle, CxTextBundle};
+use crate::pixel::{CxAssets, CxTextBundle};
 use crate::{
     game::{GameProgressState, score::components::Score},
     globals::{load_inverted_typeface, mark_for_despawn_by_query},
@@ -10,17 +10,15 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxFilter, CxFilterLayers, CxFilterRect, CxPosition, CxRenderSpace, CxSprite, CxText,
-    CxTypeface, WorldPos,
+    CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxText, CxTypeface, WorldPos,
 };
-use carcinisation_core::components::GBColor;
+use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 
 // TODO if state is changed (split unpause from pause?)
 pub fn pause_menu_renderer(
     mut commands: Commands,
     mut typefaces: CxAssets<CxTypeface>,
     mut assets_sprite: CxAssets<CxSprite>,
-    filters: CxAssets<CxFilter>,
     score: Res<Score>,
     query: Query<Entity, With<PauseMenu>>,
     state: Res<State<GameProgressState>>,
@@ -29,13 +27,7 @@ pub fn pause_menu_renderer(
         if let Ok(_entity) = query.single() {
             //do nothing
         } else {
-            spawn_pause_menu_bundle(
-                &mut commands,
-                &mut typefaces,
-                &mut assets_sprite,
-                &filters,
-                score,
-            );
+            spawn_pause_menu_bundle(&mut commands, &mut typefaces, &mut assets_sprite, score);
         }
     } else {
         mark_for_despawn_by_query(&mut commands, &query);
@@ -46,7 +38,6 @@ pub fn spawn_pause_menu_bundle(
     commands: &mut Commands,
     typefaces: &mut CxAssets<CxTypeface>,
     _assets_sprite: &mut CxAssets<CxSprite>,
-    filters: &CxAssets<CxFilter>,
     score: Res<Score>,
 ) -> Entity {
     let typeface = load_inverted_typeface(typefaces);
@@ -57,16 +48,17 @@ pub fn spawn_pause_menu_bundle(
             Name::new("PauseMenu"),
             children![
                 (
-                    WorldPos(*SCREEN_RESOLUTION_F32_H),
-                    CxFilterRectBundle::<Layer> {
-                        anchor: CxAnchor::Center,
-                        canvas: CxRenderSpace::Camera,
-                        filter: CxFilter(filters.load_color(GBColor::White)),
-                        layers: CxFilterLayers::single_over(Layer::UIBackground),
-                        position: CxPosition::from(*SCREEN_RESOLUTION_H),
-                        rect: CxFilterRect(UVec2::new(80, 60)),
-                        visibility: Visibility::Visible,
+                    CxPrimitive {
+                        shape: CxPrimitiveShape::Rect {
+                            size: UVec2::new(80, 60),
+                        },
+                        fill: CxPrimitiveFill::Solid(4),
                     },
+                    CxAnchor::Center,
+                    CxRenderSpace::Camera,
+                    CxPosition::from(*SCREEN_RESOLUTION_H),
+                    Layer::UIBackground,
+                    WorldPos(*SCREEN_RESOLUTION_F32_H),
                     UIBackground,
                 ),
                 (
