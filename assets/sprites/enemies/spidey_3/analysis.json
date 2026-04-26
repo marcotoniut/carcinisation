@@ -1,0 +1,107 @@
+{
+  "entity": "spidey",
+  "depth": 3,
+  "atlas": {
+    "unique_sprites": 27,
+    "total_references": 176,
+    "logical_part_references": 132,
+    "unique_sprite_reference_ratio": 0.1534090909090909,
+    "dedup_ratio": 0.8465909090909091,
+    "fragment_growth_ratio": 0.3333333333333333,
+    "used_pixels": 7656,
+    "atlas_size": [
+      128,
+      108
+    ],
+    "atlas_pixels": 13824,
+    "packing_efficiency": 0.5538194444444444
+  },
+  "interner": {
+    "total_interns": 132,
+    "new_sprites": 27,
+    "exact_hits": 58,
+    "flip_x_hits": 41,
+    "flip_y_hits": 3,
+    "flip_xy_hits": 3,
+    "hit_rate": 0.7954545454545454
+  },
+  "parts": [
+    {
+      "part_id": "root",
+      "is_visual": false,
+      "unique_sprites": 0,
+      "total_references": 0,
+      "reuse_ratio": 0.0,
+      "total_area_px": 0,
+      "symmetry_score": null,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "body",
+      "is_visual": true,
+      "unique_sprites": 7,
+      "total_references": 44,
+      "reuse_ratio": 6.285714285714286,
+      "total_area_px": 927,
+      "symmetry_score": 0.2746494066882416,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "head",
+      "is_visual": true,
+      "unique_sprites": 4,
+      "total_references": 44,
+      "reuse_ratio": 11.0,
+      "total_area_px": 459,
+      "symmetry_score": 0.2647058823529412,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "legs_r",
+      "is_visual": true,
+      "unique_sprites": 12,
+      "total_references": 22,
+      "reuse_ratio": 1.8333333333333333,
+      "total_area_px": 6026,
+      "symmetry_score": 0.5334516038963433,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "legs_l",
+      "is_visual": true,
+      "unique_sprites": 12,
+      "total_references": 22,
+      "reuse_ratio": 1.8333333333333333,
+      "total_area_px": 6026,
+      "symmetry_score": 0.5334516038963433,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "pedipalp_r",
+      "is_visual": true,
+      "unique_sprites": 4,
+      "total_references": 22,
+      "reuse_ratio": 5.5,
+      "total_area_px": 244,
+      "symmetry_score": 0.46311475409836067,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "pedipalp_l",
+      "is_visual": true,
+      "unique_sprites": 4,
+      "total_references": 22,
+      "reuse_ratio": 5.5,
+      "total_area_px": 244,
+      "symmetry_score": 0.46311475409836067,
+      "bridge_markers": [],
+      "split_candidate": false
+    }
+  ]
+}

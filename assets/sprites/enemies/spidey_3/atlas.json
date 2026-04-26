@@ -12,6 +12,8 @@
     "y": 39
   },
   "spawn_anchor": "BottomOrigin",
+  "ground_anchor_y": null,
+  "air_anchor_y": null,
   "atlas_image": "source.png",
   "part_definitions": [
     {
@@ -1439,16 +1441,7 @@
           ]
         }
       ],
-      "part_overrides": [
-        {
-          "source_tag": "idle",
-          "part_tags": [
-            "legs"
-          ],
-          "part_ids": [],
-          "sprite_only": false
-        }
-      ]
+      "part_overrides": []
     },
     {
       "tag": "shoot",

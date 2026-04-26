@@ -1,0 +1,151 @@
+{
+  "entity": "idolastra",
+  "depth": 3,
+  "atlas": {
+    "unique_sprites": 44,
+    "total_references": 295,
+    "logical_part_references": 130,
+    "unique_sprite_reference_ratio": 0.14915254237288136,
+    "dedup_ratio": 0.8508474576271187,
+    "fragment_growth_ratio": 1.2692307692307692,
+    "used_pixels": 35881,
+    "atlas_size": [
+      256,
+      217
+    ],
+    "atlas_pixels": 55552,
+    "packing_efficiency": 0.6458993375576036
+  },
+  "interner": {
+    "total_interns": 193,
+    "new_sprites": 44,
+    "exact_hits": 136,
+    "flip_x_hits": 13,
+    "flip_y_hits": 0,
+    "flip_xy_hits": 0,
+    "hit_rate": 0.772020725388601
+  },
+  "parts": [
+    {
+      "part_id": "root",
+      "is_visual": false,
+      "unique_sprites": 0,
+      "total_references": 0,
+      "reuse_ratio": 0.0,
+      "total_area_px": 0,
+      "symmetry_score": null,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "tail_back",
+      "is_visual": true,
+      "unique_sprites": 4,
+      "total_references": 39,
+      "reuse_ratio": 9.75,
+      "total_area_px": 1743,
+      "symmetry_score": 0.4807228915662651,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "abdomen",
+      "is_visual": true,
+      "unique_sprites": 6,
+      "total_references": 39,
+      "reuse_ratio": 6.5,
+      "total_area_px": 1090,
+      "symmetry_score": 0.3394495412844037,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "waist",
+      "is_visual": true,
+      "unique_sprites": 5,
+      "total_references": 35,
+      "reuse_ratio": 7.0,
+      "total_area_px": 406,
+      "symmetry_score": 0.6198752228163993,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "chest",
+      "is_visual": true,
+      "unique_sprites": 4,
+      "total_references": 39,
+      "reuse_ratio": 9.75,
+      "total_area_px": 300,
+      "symmetry_score": 0.2,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "tail",
+      "is_visual": true,
+      "unique_sprites": 3,
+      "total_references": 26,
+      "reuse_ratio": 8.666666666666666,
+      "total_area_px": 2973,
+      "symmetry_score": 0.469008959422683,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "back_legs",
+      "is_visual": true,
+      "unique_sprites": 6,
+      "total_references": 26,
+      "reuse_ratio": 4.333333333333333,
+      "total_area_px": 10962,
+      "symmetry_score": 0.7551541689472724,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "front_legs",
+      "is_visual": true,
+      "unique_sprites": 6,
+      "total_references": 26,
+      "reuse_ratio": 4.333333333333333,
+      "total_area_px": 7032,
+      "symmetry_score": 0.6740021805081532,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "arm_r",
+      "is_visual": true,
+      "unique_sprites": 8,
+      "total_references": 13,
+      "reuse_ratio": 1.625,
+      "total_area_px": 11231,
+      "symmetry_score": 0.5896276993005751,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "arm_l",
+      "is_visual": true,
+      "unique_sprites": 8,
+      "total_references": 13,
+      "reuse_ratio": 1.625,
+      "total_area_px": 11231,
+      "symmetry_score": 0.5896276993005751,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "head",
+      "is_visual": true,
+      "unique_sprites": 2,
+      "total_references": 39,
+      "reuse_ratio": 19.5,
+      "total_area_px": 144,
+      "symmetry_score": 0.3958333333333333,
+      "bridge_markers": [],
+      "split_candidate": false
+    }
+  ]
+}

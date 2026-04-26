@@ -11,6 +11,9 @@
     "x": 63,
     "y": 68
   },
+  "spawn_anchor": "BottomOrigin",
+  "ground_anchor_y": null,
+  "air_anchor_y": null,
   "atlas_image": "source.png",
   "part_definitions": [
     {
@@ -24,6 +27,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -40,6 +44,7 @@
         "armour": 1,
         "durability": 4,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": [
           {
             "id": "chest_hurtbox",
@@ -73,6 +78,7 @@
         "armour": 1,
         "durability": 4,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": [
           {
             "id": "waist_hurtbox",
@@ -106,6 +112,7 @@
         "armour": 2,
         "durability": 6,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": [
           {
             "id": "abdomen_hurtbox",
@@ -139,6 +146,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": [
           {
             "id": "head_hurtbox",
@@ -172,6 +180,7 @@
         "armour": 2,
         "durability": 3,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": [
           {
             "id": "tail_hurtbox",
@@ -204,6 +213,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -220,6 +230,7 @@
         "armour": 1,
         "durability": 2,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": [
           {
             "id": "arm_hurtbox",
@@ -253,6 +264,7 @@
         "armour": 1,
         "durability": 2,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": [
           {
             "id": "leg_hurtbox",
@@ -294,6 +306,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -316,6 +329,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -338,6 +352,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -360,6 +375,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -382,6 +398,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -404,6 +421,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -429,6 +447,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -454,6 +473,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -478,6 +498,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -502,6 +523,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     },
@@ -524,6 +546,7 @@
         "armour": 0,
         "durability": null,
         "breakable": null,
+        "pool_damage_ratio": null,
         "collision": []
       }
     }

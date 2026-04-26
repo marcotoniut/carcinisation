@@ -131,6 +131,18 @@ draw_order = 45
 pivot = { x = 0, y = 0 }
 tags = ["left"]
 
+# --- animation events ---
+
+[[animation_events]]
+# Spiderweb projectile fires on the peak shoot pose (frame 5, at 1000ms).
+# Originates from the body part near the spinneret (upper-center of body).
+tag = "shoot"
+frame = 5
+kind = "projectile_spawn"
+id = "spider_shot"
+part_id = "body"
+local_offset = { x = 4, y = 0 }
+
 # --- gameplay ---
 
 [gameplay]

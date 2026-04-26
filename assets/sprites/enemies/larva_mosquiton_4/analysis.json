@@ -1,0 +1,85 @@
+{
+  "entity": "larva_mosquiton",
+  "depth": 4,
+  "atlas": {
+    "unique_sprites": 19,
+    "total_references": 25,
+    "logical_part_references": 19,
+    "unique_sprite_reference_ratio": 0.76,
+    "dedup_ratio": 0.24,
+    "fragment_growth_ratio": 0.3157894736842105,
+    "used_pixels": 7296,
+    "atlas_size": [
+      128,
+      98
+    ],
+    "atlas_pixels": 12544,
+    "packing_efficiency": 0.5816326530612245
+  },
+  "interner": {
+    "total_interns": 22,
+    "new_sprites": 19,
+    "exact_hits": 1,
+    "flip_x_hits": 2,
+    "flip_y_hits": 0,
+    "flip_xy_hits": 0,
+    "hit_rate": 0.13636363636363635
+  },
+  "parts": [
+    {
+      "part_id": "root",
+      "is_visual": false,
+      "unique_sprites": 0,
+      "total_references": 0,
+      "reuse_ratio": 0.0,
+      "total_area_px": 0,
+      "symmetry_score": null,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "body",
+      "is_visual": true,
+      "unique_sprites": 5,
+      "total_references": 9,
+      "reuse_ratio": 1.8,
+      "total_area_px": 501,
+      "symmetry_score": 0.5435897435897435,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "core",
+      "is_visual": true,
+      "unique_sprites": 10,
+      "total_references": 10,
+      "reuse_ratio": 1.0,
+      "total_area_px": 5404,
+      "symmetry_score": 0.8935562135044,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "wing_r",
+      "is_visual": true,
+      "unique_sprites": 3,
+      "total_references": 3,
+      "reuse_ratio": 1.0,
+      "total_area_px": 866,
+      "symmetry_score": 0.29051193225558125,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "wing_l",
+      "is_visual": true,
+      "unique_sprites": 3,
+      "total_references": 3,
+      "reuse_ratio": 1.0,
+      "total_area_px": 1034,
+      "symmetry_score": 0.3563023855577047,
+      "bridge_markers": [],
+      "split_candidate": false
+    }
+  ]
+}
