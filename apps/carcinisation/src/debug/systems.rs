@@ -27,7 +27,8 @@ use crate::{
 use bevy::{prelude::*, window::PrimaryWindow};
 use carapace::prelude::*;
 use carcinisation_collision::{
-    ColliderShape, WorldMaskInstance, extract_mask_boundary, mask_edge_to_world_points,
+    ColliderShape, WorldMaskInstance, extract_mask_boundary, extract_mask_boundary_closed,
+    mask_edge_to_world_points,
 };
 
 pub const LINE_EXTENSION: f32 = 1000.;
@@ -288,8 +289,12 @@ pub(crate) fn draw_colliders(
         // collision shape.
         let has_geometric_player_colliders = player_attack.is_some()
             && collider_data.is_some_and(|d| {
-                d.0.iter()
-                    .any(|c| !matches!(c.shape, ColliderShape::SpriteMask))
+                d.0.iter().any(|c| {
+                    !matches!(
+                        c.shape,
+                        ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed
+                    )
+                })
             });
 
         if has_geometric_player_colliders {
@@ -316,7 +321,7 @@ pub(crate) fn draw_colliders(
                                 |value| to_overlay_delta(value, overlay_transform),
                             );
                         }
-                        ColliderShape::SpriteMask => {}
+                        ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed => {}
                     }
                 }
             }
@@ -364,7 +369,7 @@ pub(crate) fn draw_colliders(
                             |value| to_overlay_delta(value, overlay_transform),
                         );
                     }
-                    ColliderShape::SpriteMask => {}
+                    ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed => {}
                 },
             );
         }
@@ -643,8 +648,12 @@ pub(crate) fn draw_pixel_mask_outlines(
         // Player attacks with geometric colliders have no mask to outline.
         let has_geometric_player_colliders = player_attack.is_some()
             && collider_data.is_some_and(|d| {
-                d.0.iter()
-                    .any(|c| !matches!(c.shape, ColliderShape::SpriteMask))
+                d.0.iter().any(|c| {
+                    !matches!(
+                        c.shape,
+                        ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed
+                    )
+                })
             });
         if has_geometric_player_colliders {
             continue;
@@ -695,7 +704,12 @@ fn draw_mask_outline_instance(
     mask: WorldMaskInstance<'_>,
 ) {
     let source_size = mask.source.frame_size();
-    let segments = extract_mask_boundary(mask.source, mask.frame)
+    let boundary = if mask.closed {
+        extract_mask_boundary_closed(mask.source, mask.frame)
+    } else {
+        extract_mask_boundary(mask.source, mask.frame)
+    };
+    let segments = boundary
         .into_iter()
         .map(|edge| mask_edge_to_world_points(mask.world, source_size, edge));
     draw_world_mask_outline_2d(gizmos, segments, color, |point| {

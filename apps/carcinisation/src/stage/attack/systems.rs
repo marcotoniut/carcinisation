@@ -13,14 +13,17 @@ use crate::{
             interactive::{Dead, Health},
             placement::{AuthoredDepths, Depth, InView},
         },
+        depth_scale::DepthScaleConfig,
         messages::DepthChangedMessage,
         player::components::PLAYER_DEPTH,
         resources::StageTimeDomain,
     },
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxAtlasSprite, CxSpriteAtlasAsset, WorldPos};
-use cween::linear::components::{LinearValueReached, TargetingValueZ};
+use carapace::prelude::{
+    CxAnchor, CxAtlasSprite, CxPosition, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos,
+};
+use cween::linear::components::{LinearValueReached, TargetingValueZ, TweenChild};
 
 /// @system Marks entities as `Dead` when their health reaches zero.
 // TODO remove in favor of damage taken?
@@ -84,6 +87,8 @@ pub fn on_enemy_attack_depth_changed(
 pub fn despawn_dead_attacks(
     mut commands: Commands,
     atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
+    depth_scale_config: Res<DepthScaleConfig>,
+    tween_children: Query<(Entity, &ChildOf), With<TweenChild>>,
     query: Query<
         (
             Entity,
@@ -96,6 +101,21 @@ pub fn despawn_dead_attacks(
     >,
 ) {
     for (entity, attack_type, position, depth, existing_sprite) in query.iter() {
+        // Immediately despawn tween children so the depth/position tweens
+        // stop advancing between now and the PostUpdate despawn pass.
+        for (child_entity, child_of) in &tween_children {
+            if child_of.0 == entity {
+                commands.entity(child_entity).try_despawn();
+            }
+        }
+
+        // Remove the sprite so the hover visual does not render alongside the
+        // destroy animation on the death frame.  DespawnMark cleanup runs in
+        // PostUpdate, but carapace extraction may happen first; removing the
+        // sprite component is more reliable than Visibility::Hidden because it
+        // does not depend on visibility-propagation ordering.
+        commands.entity(entity).remove::<CxAtlasSprite>();
+
         // Reuse the atlas handle from the attack's own sprite — guaranteed loaded
         // since the attack was already rendering its hover animation.
         if let Some(attack_type) = attack_type
@@ -112,18 +132,35 @@ pub fn despawn_dead_attacks(
                 anim.px_finish_behavior(),
                 carapace::prelude::CxFrameTransition::None,
             );
-            commands.spawn((
+            let authored_depths = AuthoredDepths::single(Depth::One);
+            let mut destroy_entity = commands.spawn((
                 Name::new(format!("Attack - {} - destroy", attack_type.get_name())),
                 WorldPos::from(position.0),
+                CxPosition::from(position.0.round().as_ivec2()),
                 destroy_sprite,
                 animation_bundle,
                 CxAnchor::Center,
                 *depth,
                 depth.to_layer(),
-                AuthoredDepths::single(Depth::One),
+                authored_depths.clone(),
                 DelayedDespawnOnCxAnimationFinished::from_secs_f32(0.2),
                 StageEntity,
             ));
+            // Pre-compute depth-fallback scale so the destroy animation renders
+            // at the correct size on its first visible frame.  Both components
+            // must be inserted together to prevent apply_depth_fallback_scale
+            // from double-applying the ratio on the next frame.
+            let ratio = depth_scale_config.resolve_fallback(*depth, &authored_depths);
+            if (ratio - 1.0).abs() >= f32::EPSILON {
+                let fallback = Vec2::splat(ratio);
+                destroy_entity.insert((
+                    CxPresentationTransform {
+                        scale: fallback,
+                        ..default()
+                    },
+                    crate::stage::depth_scale::DepthFallbackScale(fallback),
+                ));
+            }
         }
         commands.entity(entity).insert(DespawnMark);
     }

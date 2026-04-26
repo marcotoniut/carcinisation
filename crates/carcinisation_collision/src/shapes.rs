@@ -14,6 +14,12 @@ pub enum ColliderShape {
     /// for this variant — the real collision check happens via
     /// `world_mask_contains_point` / `world_mask_overlap`.
     SpriteMask,
+    /// Like [`SpriteMask`](Self::SpriteMask), but interior transparent pixels
+    /// (holes surrounded by opaque pixels) are also considered solid.
+    ///
+    /// Uses scanline fill: a pixel is "inside" if it lies between the leftmost
+    /// and rightmost opaque pixels on the same row in the source frame.
+    SpriteMaskClosed,
 }
 
 impl ColliderShape {
@@ -27,7 +33,7 @@ impl ColliderShape {
             ColliderShape::Circle(radius) => {
                 collider_position.distance_squared(point_position) <= *radius * *radius
             }
-            ColliderShape::SpriteMask => false,
+            ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed => false,
         }
     }
 
@@ -39,7 +45,8 @@ impl ColliderShape {
         other_position: Vec2,
     ) -> bool {
         match (self, other) {
-            (ColliderShape::SpriteMask, _) | (_, ColliderShape::SpriteMask) => false,
+            (ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed, _)
+            | (_, ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed) => false,
             (ColliderShape::Circle(a), ColliderShape::Circle(b)) => {
                 let radius = a + b;
                 self_position.distance_squared(other_position) <= radius * radius
@@ -96,7 +103,7 @@ impl Collider {
             ColliderShape::Circle(ref mut radius) => {
                 *radius *= scale;
             }
-            ColliderShape::SpriteMask => {}
+            ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed => {}
         }
         new
     }

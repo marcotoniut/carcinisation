@@ -110,6 +110,10 @@ pub struct WorldMaskInstance<'a> {
     pub source: PixelMaskSource<'a>,
     pub frame: Option<CxFrameView>,
     pub world: WorldMaskRect,
+    /// When true, interior transparent pixels (holes surrounded by opaque
+    /// pixels on the same scanline) are treated as solid. Used by
+    /// [`ColliderShape::SpriteMaskClosed`].
+    pub closed: bool,
 }
 
 impl SpritePixelData {
@@ -310,6 +314,13 @@ pub fn world_mask_rect_from_spatial(
 
 /// Resolve the gameplay/world rect for a mask whose final top-left and display
 /// size are already known (e.g. composed fragment state).
+///
+/// `top_left_world` is the **pixel position** of the top-left-most pixel in
+/// Y-up world coordinates — i.e. it is **inclusive**.  The resulting rect uses
+/// the standard min-inclusive / max-exclusive convention, so:
+///
+///   min = (top_left.x,  top_left.y - height + 1)
+///   max = (top_left.x + width,  top_left.y + 1)
 #[must_use]
 pub fn world_mask_rect_from_top_left(
     top_left_world: Vec2,
@@ -324,8 +335,8 @@ pub fn world_mask_rect_from_top_left(
     let top_left = top_left_world.round().as_ivec2();
     Some(WorldMaskRect {
         rect: IRect {
-            min: IVec2::new(top_left.x, top_left.y - display_size.y as i32),
-            max: IVec2::new(top_left.x + display_size.x as i32, top_left.y),
+            min: IVec2::new(top_left.x, top_left.y - display_size.y as i32 + 1),
+            max: IVec2::new(top_left.x + display_size.x as i32, top_left.y + 1),
         },
         flip_x,
         flip_y,
@@ -366,7 +377,12 @@ pub fn world_mask_contains_point(mask: WorldMaskInstance<'_>, point: IVec2) -> b
         mapped_y
     };
 
-    pixel_source_visible(mask.source, mask.frame, UVec2::new(source_x, source_y))
+    let pos = UVec2::new(source_x, source_y);
+    if mask.closed {
+        pixel_source_visible_closed(mask.source, mask.frame, pos)
+    } else {
+        pixel_source_visible(mask.source, mask.frame, pos)
+    }
 }
 
 /// Returns the first overlapping world-space point between two generic mask
@@ -405,34 +421,60 @@ pub fn extract_mask_boundary(
     source: PixelMaskSource<'_>,
     frame: Option<CxFrameView>,
 ) -> Vec<MaskEdge> {
+    extract_mask_boundary_impl(source, frame, false)
+}
+
+/// Like [`extract_mask_boundary`] but uses scanline-closed visibility: interior
+/// transparent holes are treated as solid, producing a boundary that wraps the
+/// outer contour only.
+pub fn extract_mask_boundary_closed(
+    source: PixelMaskSource<'_>,
+    frame: Option<CxFrameView>,
+) -> Vec<MaskEdge> {
+    extract_mask_boundary_impl(source, frame, true)
+}
+
+fn extract_mask_boundary_impl(
+    source: PixelMaskSource<'_>,
+    frame: Option<CxFrameView>,
+    closed: bool,
+) -> Vec<MaskEdge> {
+    let visible = |pos: UVec2| -> bool {
+        if closed {
+            pixel_source_visible_closed(source, frame, pos)
+        } else {
+            pixel_source_visible(source, frame, pos)
+        }
+    };
+
     let size = source.frame_size();
     let mut edges = Vec::new();
 
     for y in 0..size.y {
         for x in 0..size.x {
-            if !pixel_source_visible(source, frame, UVec2::new(x, y)) {
+            if !visible(UVec2::new(x, y)) {
                 continue;
             }
 
-            if y == 0 || !pixel_source_visible(source, frame, UVec2::new(x, y - 1)) {
+            if y == 0 || !visible(UVec2::new(x, y - 1)) {
                 edges.push(MaskEdge {
                     a: (x, y),
                     b: (x + 1, y),
                 });
             }
-            if y + 1 >= size.y || !pixel_source_visible(source, frame, UVec2::new(x, y + 1)) {
+            if y + 1 >= size.y || !visible(UVec2::new(x, y + 1)) {
                 edges.push(MaskEdge {
                     a: (x, y + 1),
                     b: (x + 1, y + 1),
                 });
             }
-            if x == 0 || !pixel_source_visible(source, frame, UVec2::new(x - 1, y)) {
+            if x == 0 || !visible(UVec2::new(x - 1, y)) {
                 edges.push(MaskEdge {
                     a: (x, y),
                     b: (x, y + 1),
                 });
             }
-            if x + 1 >= size.x || !pixel_source_visible(source, frame, UVec2::new(x + 1, y)) {
+            if x + 1 >= size.x || !visible(UVec2::new(x + 1, y)) {
                 edges.push(MaskEdge {
                     a: (x + 1, y),
                     b: (x + 1, y + 1),
@@ -594,6 +636,7 @@ pub fn mask_contains_point(
                 flip_x: false,
                 flip_y: false,
             },
+            closed: false,
         },
         point,
     )
@@ -633,6 +676,7 @@ pub fn atlas_region_contains_point(
                 flip_x,
                 flip_y,
             },
+            closed: false,
         },
         point,
     )
@@ -667,6 +711,7 @@ pub fn atlas_region_overlaps_sprite_mask(
                 flip_x,
                 flip_y,
             },
+            closed: false,
         },
         WorldMaskInstance {
             source: PixelMaskSource::Sprite(attack),
@@ -676,6 +721,7 @@ pub fn atlas_region_overlaps_sprite_mask(
                 flip_x: false,
                 flip_y: false,
             },
+            closed: false,
         },
     )
 }
@@ -930,6 +976,24 @@ fn pixel_source_visible(
     }
 }
 
+/// Scanline-closed variant: a pixel is "inside" if it lies between the
+/// leftmost and rightmost opaque pixels on the same source row (inclusive).
+/// Interior transparent holes are treated as solid.
+fn pixel_source_visible_closed(
+    source: PixelMaskSource<'_>,
+    frame: Option<CxFrameView>,
+    local_pos: UVec2,
+) -> bool {
+    match source {
+        PixelMaskSource::Sprite(sprite) => {
+            sprite_source_pixel_visible_closed(sprite, frame, local_pos)
+        }
+        PixelMaskSource::Atlas { atlas, frames } => {
+            atlas_source_pixel_visible_closed(atlas, frames, frame, local_pos)
+        }
+    }
+}
+
 fn sprite_source_pixel_visible(
     sprite: &SpritePixelData,
     frame: Option<CxFrameView>,
@@ -951,6 +1015,51 @@ fn sprite_source_pixel_visible(
     let pixel_y = frame_index as u32 * sprite.height + local_pos.y;
     let index = pixel_y as usize * sprite.width as usize + local_pos.x as usize;
     sprite.pixels.get(index).is_some_and(|pixel| *pixel != 0)
+}
+
+fn sprite_source_pixel_visible_closed(
+    sprite: &SpritePixelData,
+    frame: Option<CxFrameView>,
+    local_pos: UVec2,
+) -> bool {
+    if sprite.width == 0 || sprite.height == 0 || sprite.frame_count == 0 {
+        return false;
+    }
+    if local_pos.x >= sprite.width || local_pos.y >= sprite.height {
+        return false;
+    }
+
+    let frame_index = frame_index_for_pos(frame, sprite.frame_count, local_pos);
+    let row_base =
+        (frame_index * sprite.height as usize + local_pos.y as usize) * sprite.segments_per_row;
+
+    // Scan the row's bitmask segments to find leftmost and rightmost opaque bits.
+    let Some((left, right)) =
+        row_opaque_span(&sprite.row_masks[row_base..row_base + sprite.segments_per_row])
+    else {
+        return false;
+    };
+    local_pos.x as usize >= left && local_pos.x as usize <= right
+}
+
+/// Returns `(leftmost_opaque_x, rightmost_opaque_x)` for a row's bitmask
+/// segments, or `None` if the row is entirely transparent.
+fn row_opaque_span(segments: &[u64]) -> Option<(usize, usize)> {
+    let mut left = None;
+    let mut right = 0;
+    for (seg_idx, &bits) in segments.iter().enumerate() {
+        if bits == 0 {
+            continue;
+        }
+        let seg_base = seg_idx * 64;
+        let first = seg_base + bits.trailing_zeros() as usize;
+        let last = seg_base + 63 - bits.leading_zeros() as usize;
+        if left.is_none() {
+            left = Some(first);
+        }
+        right = last;
+    }
+    left.map(|l| (l, right))
 }
 
 fn atlas_source_pixel_visible(
@@ -977,6 +1086,45 @@ fn atlas_source_pixel_visible(
         return false;
     };
     atlas.pixel_visible(rect.x + local_pos.x, rect.y + local_pos.y)
+}
+
+fn atlas_source_pixel_visible_closed(
+    atlas: &AtlasPixelData,
+    frames: AtlasMaskFrames<'_>,
+    frame: Option<CxFrameView>,
+    local_pos: UVec2,
+) -> bool {
+    let frame_size = frames.frame_size();
+    if frame_size.x == 0 || frame_size.y == 0 {
+        return false;
+    }
+    if local_pos.x >= frame_size.x || local_pos.y >= frame_size.y {
+        return false;
+    }
+    let frame_count = frames.frame_count();
+    if frame_count == 0 {
+        return false;
+    }
+
+    let frame_index = frame_index_for_pos(frame, frame_count, local_pos);
+    let Some(rect) = frames.frame_rect(frame_index) else {
+        return false;
+    };
+
+    // Scan the row to find the leftmost and rightmost opaque pixels.
+    let row_y = rect.y + local_pos.y;
+    let mut left = None;
+    let mut right = 0u32;
+    for x in 0..frame_size.x {
+        if atlas.pixel_visible(rect.x + x, row_y) {
+            if left.is_none() {
+                left = Some(x);
+            }
+            right = x;
+        }
+    }
+    let Some(left) = left else { return false };
+    local_pos.x >= left && local_pos.x <= right
 }
 
 fn scaled_dimension(size: u32, scale: f32) -> u32 {
@@ -1740,6 +1888,7 @@ mod tests {
                 flip_x: true,
                 flip_y: false,
             },
+            closed: false,
         };
 
         assert!(world_mask_contains_point(mask, IVec2::new(13, 23)));
@@ -1764,6 +1913,7 @@ mod tests {
                 flip_x: true,
                 flip_y: false,
             },
+            closed: false,
         };
         let attack_mask = WorldMaskInstance {
             source: PixelMaskSource::Sprite(&attack),
@@ -1776,6 +1926,7 @@ mod tests {
                 flip_x: false,
                 flip_y: false,
             },
+            closed: false,
         };
 
         assert_eq!(
@@ -1820,6 +1971,103 @@ mod tests {
         assert!(
             cross_pattern_hits(&sprite, rect, attack),
             "cross pattern should hit via +X offset"
+        );
+    }
+
+    // ── SpriteMaskClosed / scanline fill tests ─────────────────────
+
+    #[test]
+    fn row_opaque_span_empty_row_returns_none() {
+        assert_eq!(row_opaque_span(&[0u64]), None);
+    }
+
+    #[test]
+    fn row_opaque_span_single_pixel() {
+        let mut bits = 0u64;
+        bits |= 1 << 5;
+        assert_eq!(row_opaque_span(&[bits]), Some((5, 5)));
+    }
+
+    #[test]
+    fn row_opaque_span_gap_between_opaque() {
+        // Pixels at columns 2 and 7 — gap from 3..6.
+        let mut bits = 0u64;
+        bits |= 1 << 2;
+        bits |= 1 << 7;
+        assert_eq!(row_opaque_span(&[bits]), Some((2, 7)));
+    }
+
+    #[test]
+    fn closed_mask_fills_interior_hole() {
+        // 4x4 sprite, hollow square: border opaque, center transparent.
+        // Row 0: ####   all opaque
+        // Row 1: #..#   border only
+        // Row 2: #..#   border only
+        // Row 3: ####   all opaque
+        let mask = make_mask(
+            4,
+            4,
+            1,
+            &[
+                (0, 0, 0),
+                (1, 0, 0),
+                (2, 0, 0),
+                (3, 0, 0),
+                (0, 1, 0),
+                (3, 1, 0),
+                (0, 2, 0),
+                (3, 2, 0),
+                (0, 3, 0),
+                (1, 3, 0),
+                (2, 3, 0),
+                (3, 3, 0),
+            ],
+        );
+
+        // Interior pixel (1,1) — transparent in open mode, solid in closed.
+        let pos = UVec2::new(1, 1);
+        assert!(!pixel_source_visible(
+            PixelMaskSource::Sprite(&mask),
+            None,
+            pos,
+        ));
+        assert!(pixel_source_visible_closed(
+            PixelMaskSource::Sprite(&mask),
+            None,
+            pos,
+        ));
+    }
+
+    #[test]
+    fn closed_boundary_has_fewer_edges_than_open() {
+        // Same hollow square as above.
+        let mask = make_mask(
+            4,
+            4,
+            1,
+            &[
+                (0, 0, 0),
+                (1, 0, 0),
+                (2, 0, 0),
+                (3, 0, 0),
+                (0, 1, 0),
+                (3, 1, 0),
+                (0, 2, 0),
+                (3, 2, 0),
+                (0, 3, 0),
+                (1, 3, 0),
+                (2, 3, 0),
+                (3, 3, 0),
+            ],
+        );
+        let source = PixelMaskSource::Sprite(&mask);
+        let open = extract_mask_boundary(source, None);
+        let closed = extract_mask_boundary_closed(source, None);
+        assert!(
+            closed.len() < open.len(),
+            "closed boundary ({}) should have fewer edges than open ({})",
+            closed.len(),
+            open.len(),
         );
     }
 
@@ -1923,5 +2171,65 @@ mod tests {
         assert!(cache.get("body_0").is_some());
         assert_eq!(cache.get("body_0").unwrap().len(), 1);
         assert!(cache.get("missing").is_none());
+    }
+
+    #[test]
+    fn from_top_left_rect_includes_top_left_pixel() {
+        let top_left = Vec2::new(25.0, 56.0);
+        let size = UVec2::new(11, 25);
+        let mask = world_mask_rect_from_top_left(top_left, size, false, false).unwrap();
+
+        // X-axis: leftmost pixel at top_left.x = 25 is inclusive.
+        assert_eq!(mask.rect.min.x, 25);
+        assert_eq!(mask.rect.max.x, 36); // 25 + 11, exclusive
+
+        // Y-axis: topmost pixel at top_left.y = 56 must be inclusive.
+        // With 25 rows, the bottommost pixel is at 56 - 24 = 32.
+        assert_eq!(mask.rect.max.y, 57); // 56 + 1, exclusive
+        assert_eq!(mask.rect.min.y, 32); // 57 - 25
+
+        // Pixel at top-left position is inside the rect.
+        assert!(mask.rect.min.x <= 25 && 25 < mask.rect.max.x);
+        assert!(mask.rect.min.y <= 56 && 56 < mask.rect.max.y);
+
+        // Pixel one row above is outside.
+        assert!(57 >= mask.rect.max.y);
+
+        // Width and height match.
+        assert_eq!((mask.rect.max.x - mask.rect.min.x) as u32, size.x);
+        assert_eq!((mask.rect.max.y - mask.rect.min.y) as u32, size.y);
+    }
+
+    #[test]
+    fn from_top_left_rect_consistent_with_spatial_bottom_left() {
+        // A sprite at entity position (36, 52) with BottomLeft anchor should
+        // produce the same rect regardless of which constructor is used, as
+        // long as the inputs are consistent.
+
+        let entity_pos = IVec2::new(36, 32); // bottom-left pixel position
+        let size = UVec2::new(11, 25);
+        let top_left_y = entity_pos.y + size.y as i32 - 1; // = 56
+
+        // Spatial path with BottomLeft anchor.
+        let spatial = world_mask_rect_from_spatial(
+            size,
+            CxPosition::from(entity_pos),
+            CxAnchor::BottomLeft,
+            CxRenderSpace::World,
+            IVec2::ZERO,
+            None,
+        )
+        .unwrap();
+
+        // Top-left path.
+        let from_tl = world_mask_rect_from_top_left(
+            Vec2::new(entity_pos.x as f32, top_left_y as f32),
+            size,
+            false,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(spatial.rect, from_tl.rect);
     }
 }

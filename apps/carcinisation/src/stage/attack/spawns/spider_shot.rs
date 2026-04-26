@@ -13,11 +13,14 @@ use crate::stage::{
         interactive::{ColliderData, Health, Hittable},
         placement::{AuthoredDepths, Depth},
     },
+    depth_scale::{DepthFallbackScale, DepthScaleConfig},
     player::components::PLAYER_DEPTH,
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos};
+use carapace::prelude::{
+    CxAnchor, CxPosition, CxPresentationTransform, CxSpriteAtlasAsset, WorldPos,
+};
 
 use cween::{
     linear::components::{TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildBundle},
@@ -89,11 +92,11 @@ pub fn spawn_spider_shot_attack(
     atlas_assets: &Assets<CxSpriteAtlasAsset>,
     stage_time: &Res<Time<StageTimeDomain>>,
     config: &SpiderShotConfig,
+    depth_scale_config: &DepthScaleConfig,
     target_pos: Vec2,
     source_muzzle_world_pos: Vec2,
     source_presentation: Option<&CxPresentationTransform>,
     depth: &Depth,
-    gameplay_scale: f32,
 ) {
     let attack_type = EnemyHoveringAttackType::SpiderShot;
     let target_pos = target_pos
@@ -102,7 +105,7 @@ pub fn spawn_spider_shot_attack(
             (1. - rand::random::<f32>()) * config.randomness,
         );
 
-    let (atlas_sprite, animation, collider_data) =
+    let (atlas_sprite, animation, _circle_collider) =
         make_hovering_attack_atlas_bundle(asset_server, atlas_assets, &attack_type);
 
     let spawn_world_pos = projectile_spawn_world_pos_from_source(
@@ -142,24 +145,41 @@ pub fn spawn_spider_shot_attack(
         origin: spawn_world_pos,
     });
 
+    // Insert CxPosition explicitly so the sprite renders at the correct
+    // position on frame 0 (the auto-inserted default is (0,0) and the sync
+    // system doesn't run until PostUpdate).
+    let authored_depths = AuthoredDepths::single(Depth::One);
+    entity_commands.insert(CxPosition::from(spawn_world_pos.round().as_ivec2()));
+
+    // Pre-compute depth-fallback scale so the sprite has the correct size
+    // on its first visible frame rather than flashing at 1× then shrinking.
+    let fallback_ratio = depth_scale_config.resolve_fallback(*depth, &authored_depths);
+    if (fallback_ratio - 1.0).abs() >= f32::EPSILON {
+        entity_commands.insert((
+            CxPresentationTransform {
+                scale: Vec2::splat(fallback_ratio),
+                ..default()
+            },
+            DepthFallbackScale(Vec2::splat(fallback_ratio)),
+        ));
+    }
+
     entity_commands.insert((
         atlas_sprite,
         animation,
         CxAnchor::Center,
         (*depth - 1).to_layer(),
-        AuthoredDepths::single(Depth::One),
+        authored_depths,
     ));
 
-    if !collider_data.0.is_empty() {
-        let scaled_collider = ColliderData(
-            collider_data
-                .0
-                .into_iter()
-                .map(|c| c.new_scaled(gameplay_scale))
-                .collect(),
-        );
-        entity_commands.insert(scaled_collider);
-    }
+    // Use closed pixel-mask collision: the web's opaque pixels plus interior
+    // transparent holes (scanline-filled) define the hitbox. This gives a
+    // solid collision shape matching the web's visual outline.
+    entity_commands.insert(ColliderData::from_one(
+        carcinisation_collision::Collider::new(
+            carcinisation_collision::ColliderShape::SpriteMaskClosed,
+        ),
+    ));
 
     entity_commands.insert(PendingSpiderShotMotion {
         armed_at: stage_time.elapsed() + config.startup_hold(),

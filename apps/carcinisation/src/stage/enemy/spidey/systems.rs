@@ -10,6 +10,7 @@ use crate::{
             interactive::Dead,
             placement::{Depth, InView},
         },
+        depth_scale::DepthScaleConfig,
         enemy::{
             components::{
                 behavior::{EnemyCurrentBehavior, JumpTween},
@@ -88,10 +89,12 @@ pub fn assign_spidey_animation(
                         (EnemySpideyAnimation::Landing, TAG_LANDING, false)
                     }
                 }
-                EnemyStep::Idle { .. } => (EnemySpideyAnimation::Lounge, TAG_LOUNGE, false),
+                EnemyStep::Idle { .. } => (EnemySpideyAnimation::Idle, TAG_IDLE, false),
                 EnemyStep::Attack { .. }
                 | EnemyStep::Circle { .. }
-                | EnemyStep::LinearTween { .. } => (EnemySpideyAnimation::Idle, TAG_IDLE, false),
+                | EnemyStep::LinearTween { .. } => {
+                    (EnemySpideyAnimation::Lounge, TAG_LOUNGE, false)
+                }
             }
         };
 
@@ -235,6 +238,7 @@ pub fn trigger_spidey_authored_attack_cues(
     asset_server: Res<AssetServer>,
     atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
     spider_shot_config: Res<SpiderShotConfig>,
+    depth_scale_config: Res<DepthScaleConfig>,
     player_query: Query<&WorldPos, With<Player>>,
     stage_time: Res<Time<StageTimeDomain>>,
     mut cue_reader: MessageReader<ComposedAnimationCueMessage>,
@@ -268,10 +272,6 @@ pub fn trigger_spidey_authored_attack_cues(
         let scaled_offset = resolved_parts.map_or(
             Vec2::ZERO,
             super::super::composed::ComposedResolvedParts::scaled_visual_offset,
-        );
-        let gameplay_scale = resolved_parts.map_or(
-            1.0,
-            super::super::composed::ComposedResolvedParts::gameplay_scale,
         );
 
         let resolved_part = cue.part_id.as_deref().and_then(|part_id| {
@@ -308,11 +308,11 @@ pub fn trigger_spidey_authored_attack_cues(
             &atlas_assets,
             &stage_time,
             &spider_shot_config,
+            &depth_scale_config,
             player_pos.0,
             current_pos,
             presentation,
             depth,
-            gameplay_scale,
         );
     }
 }

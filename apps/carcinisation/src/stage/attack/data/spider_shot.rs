@@ -22,6 +22,9 @@ const EMBEDDED_CONFIG: &str = include_str!(concat!(
 #[reflect(Resource)]
 pub struct SpiderShotConfig {
     pub depth_speed: f32,
+    /// Retained for future use / tuning reference. The current spawn uses
+    /// time-matched velocity (displacement / depth_time) instead of a fixed
+    /// lateral speed, so this field is not read at runtime.
     pub line_speed: f32,
     pub damage: u32,
     pub randomness: f32,

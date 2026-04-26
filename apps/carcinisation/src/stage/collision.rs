@@ -114,6 +114,7 @@ pub(crate) fn build_attack_mask(
                 flip_x: false,
                 flip_y: false,
             },
+            closed: false,
         },
     }
 }
@@ -190,15 +191,20 @@ where
 
     if let Some(collider_data) = target.collider_data {
         for collider in &collider_data.0 {
-            if matches!(collider.shape, ColliderShape::SpriteMask) {
+            if matches!(
+                collider.shape,
+                ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed
+            ) {
                 continue;
             }
             visit_primitive(simple_collision_origin, collider);
         }
-        return collider_data
-            .0
-            .iter()
-            .any(|c| !matches!(c.shape, ColliderShape::SpriteMask));
+        return collider_data.0.iter().any(|c| {
+            !matches!(
+                c.shape,
+                ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed
+            )
+        });
     }
 
     false
@@ -377,6 +383,14 @@ fn resolve_composed_mask_hit(
     (result, pixel_evaluated)
 }
 
+/// Whether the target's collider data requests closed (scanline-filled) mask testing.
+fn target_wants_closed_mask(target: &CollisionTarget<'_>) -> bool {
+    target.collider_data.is_some_and(|d| {
+        d.0.iter()
+            .any(|c| matches!(c.shape, ColliderShape::SpriteMaskClosed))
+    })
+}
+
 fn visit_simple_target_masks<F>(
     target: CollisionTarget<'_>,
     camera_world: IVec2,
@@ -389,6 +403,7 @@ fn visit_simple_target_masks<F>(
         return;
     }
 
+    let closed = target_wants_closed_mask(&target);
     let frame = target.frame.copied();
     if let Some(sprite) = target.sprite
         && let Some(data) = assets.sprite_pixels(sprite)
@@ -405,6 +420,7 @@ fn visit_simple_target_masks<F>(
             source: PixelMaskSource::Sprite(data.as_ref()),
             frame,
             world,
+            closed,
         });
         return;
     }
@@ -432,6 +448,7 @@ fn visit_simple_target_masks<F>(
             },
             frame,
             world,
+            closed,
         });
     }
 }
@@ -486,6 +503,7 @@ fn visit_composed_target_masks<F>(
                 },
                 frame: None,
                 world,
+                closed: false,
             },
             part,
             fragment,
