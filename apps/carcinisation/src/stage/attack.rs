@@ -13,6 +13,7 @@ use self::{
         spider_shot::SpiderShotConfig,
     },
     spawns::blood_shot::arm_pending_blood_shot_motion,
+    spawns::spider_shot::arm_pending_spider_shot_motion,
     systems::player::check_got_hit,
     systems::{
         check_health_at_0, despawn_dead_attacks, hovering::hovering_damage_on_reached,
@@ -44,6 +45,7 @@ impl Plugin for AttackPlugin {
                 #[cfg(debug_assertions)]
                 sync_enemy_attack_debug_positions,
                 arm_pending_blood_shot_motion.after(CollisionStateSystems),
+                arm_pending_spider_shot_motion.after(CollisionStateSystems),
                 // These run after check_health_at_0 so the Dead insertion is
                 // flushed and Without<Dead> / Added<Dead> filters are reliable.
                 despawn_dead_attacks.after(check_health_at_0),

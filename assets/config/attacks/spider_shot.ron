@@ -1,6 +1,7 @@
 SpiderShotConfig(
-    depth_speed: -1.8,
-    line_speed: 20.0,
-    damage: 15,
-    randomness: 25.0,
+    depth_speed: -4.0,
+    line_speed: 45.0,
+    damage: 5,
+    randomness: 15.0,
+    startup_hold_ms: 80,
 )

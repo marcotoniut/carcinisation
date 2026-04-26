@@ -21,7 +21,10 @@ use self::{
         detect_part_breakage, trigger_mosquiton_authored_attack_cues,
         update_mosquiton_death_effect,
     },
-    spidey::systems::{assign_spidey_animation, despawn_dead_spideys, update_spidey_death_effect},
+    spidey::systems::{
+        assign_spidey_animation, check_idle_spidey, clear_finished_spidey_attacks,
+        despawn_dead_spideys, trigger_spidey_authored_attack_cues, update_spidey_death_effect,
+    },
     systems::{
         animation::on_composed_enemy_depth_changed,
         animation::on_enemy_depth_changed,
@@ -118,7 +121,13 @@ impl Plugin for EnemyPlugin {
                     // in the Mosquiton block and operates generically on all
                     // entities with ComposedEnemyVisual.
                     apply_grounded_enemy_fall.after(PositionSyncSystems),
-                    assign_spidey_animation.after(check_no_behavior),
+                    (clear_finished_spidey_attacks, check_idle_spidey)
+                        .chain()
+                        .after(check_no_behavior),
+                    assign_spidey_animation
+                        .after(check_no_behavior)
+                        .after(check_idle_spidey),
+                    trigger_spidey_authored_attack_cues,
                     despawn_dead_spideys,
                     update_spidey_death_effect,
                 ),

@@ -19,7 +19,7 @@ use self::{
         camera::on_camera_shake,
         confine_player_movement, despawn_expired_attacks, detect_player_attack,
         messages::{on_player_shutdown, on_player_startup},
-        player_movement, tick_attack_lifetimes,
+        player_movement, tick_attack_lifetimes, tick_webbed_status,
     },
 };
 use crate::pixel::{CxAsset, CxAssets, CxSpriteData};
@@ -58,11 +58,13 @@ impl Plugin for PlayerPlugin {
             .add_active_systems::<PlayerPlugin, _>((
                 resolve_player_intent,
                 tick_attack_lifetimes,
+                tick_webbed_status,
                 despawn_expired_attacks,
                 detect_player_attack.after(resolve_player_intent),
                 player_movement
                     .in_set(MovementSystems)
-                    .after(resolve_player_intent),
+                    .after(resolve_player_intent)
+                    .after(tick_webbed_status),
                 confine_player_movement.in_set(ConfinementSystems),
             ));
     }

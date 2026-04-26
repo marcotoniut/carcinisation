@@ -2,6 +2,7 @@ use crate::{data::AnimationData, stage::attack::data::HoveringAttackAnimations};
 use bevy::prelude::*;
 use carapace::prelude::CxAnimationFinishBehavior;
 use serde::Deserialize;
+use std::time::Duration;
 
 // ---------------------------------------------------------------------------
 // Config
@@ -24,6 +25,15 @@ pub struct SpiderShotConfig {
     pub line_speed: f32,
     pub damage: u32,
     pub randomness: f32,
+    pub startup_hold_ms: u64,
+}
+
+impl SpiderShotConfig {
+    /// How long the projectile stays at its spawn point before beginning travel.
+    #[must_use]
+    pub fn startup_hold(&self) -> Duration {
+        Duration::from_millis(self.startup_hold_ms)
+    }
 }
 
 impl SpiderShotConfig {
@@ -120,9 +130,10 @@ mod tests {
     #[test]
     fn values_match_original_constants() {
         let config = SpiderShotConfig::load();
-        assert!((config.depth_speed - (-1.8)).abs() < f32::EPSILON);
-        assert!((config.line_speed - 20.0).abs() < f32::EPSILON);
-        assert_eq!(config.damage, 15);
-        assert!((config.randomness - 25.0).abs() < f32::EPSILON);
+        assert!((config.depth_speed - (-4.0)).abs() < f32::EPSILON);
+        assert!((config.line_speed - 45.0).abs() < f32::EPSILON);
+        assert_eq!(config.damage, 5);
+        assert!((config.randomness - 15.0).abs() < f32::EPSILON);
+        assert_eq!(config.startup_hold_ms, 80);
     }
 }

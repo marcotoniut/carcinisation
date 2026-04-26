@@ -23,7 +23,8 @@ use crate::stage::{
         },
         mosquiton::entity::{MosquitonBundle, MosquitonDefaultBundle},
         spidey::entity::{
-            ENEMY_SPIDEY_BASE_HEALTH, EnemySpideyBehaviorLoop, SpideyBundle, SpideyDefaultBundle,
+            ENEMY_SPIDEY_BASE_HEALTH, EnemySpideyAttacking, EnemySpideyBehaviorLoop, SpideyBundle,
+            SpideyDefaultBundle,
         },
         tardigrade::entity::{
             ENEMY_TARDIGRADE_BASE_HEALTH, ENEMY_TARDIGRADE_RADIUS, TardigradeBundle,
@@ -470,6 +471,10 @@ pub fn spawn_enemy(
                     initial_presentation.presentation,
                 ))
                 .id();
+
+            commands
+                .entity(entity)
+                .insert(EnemySpideyAttacking::default());
 
             if let Some(depth_fallback) = initial_presentation.depth_fallback {
                 commands.entity(entity).insert(depth_fallback);

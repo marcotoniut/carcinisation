@@ -12,7 +12,10 @@ use crate::{
             placement::{AuthoredDepths, Depth, InView},
         },
         messages::DamageMessage,
-        player::{components::Player, messages::CameraShakeEvent},
+        player::{
+            components::{Player, Webbed},
+            messages::CameraShakeEvent,
+        },
         resources::StageTimeDomain,
     },
 };
@@ -30,8 +33,9 @@ use crate::stage::attack::components::bundles::REGION_HIT;
 pub fn hovering_damage_on_reached(
     mut commands: Commands,
     mut damage_event_writer: MessageWriter<DamageMessage>,
-    mut player_query: Query<Entity, With<Player>>,
+    mut player_query: Query<(Entity, Option<&mut Webbed>), With<Player>>,
     atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
+    stage_time: Res<Time<StageTimeDomain>>,
     depth_query: Query<
         (
             Entity,
@@ -50,12 +54,26 @@ pub fn hovering_damage_on_reached(
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
 ) {
+    let is_spider_shot =
+        |attack: &EnemyHoveringAttackType| matches!(attack, EnemyHoveringAttackType::SpiderShot);
+
     for (entity, attack, damage, position, depth, existing_sprite) in &mut depth_query.iter() {
         let sound_effect: Handle<AudioSource> =
             asset_server.load(assert_assets_path!("audio/sfx/enemy_melee.ogg"));
 
-        for entity in &mut player_query.iter_mut() {
-            damage_event_writer.write(DamageMessage::new(entity, damage.0));
+        for (player_entity, ref mut webbed) in &mut player_query.iter_mut() {
+            damage_event_writer.write(DamageMessage::new(player_entity, damage.0));
+
+            // Spider shots apply/refresh the Webbed debuff on hit.
+            if is_spider_shot(attack) {
+                if let Some(webbed) = webbed {
+                    webbed.refresh(stage_time.elapsed());
+                } else {
+                    commands
+                        .entity(player_entity)
+                        .insert(Webbed::new(stage_time.elapsed()));
+                }
+            }
         }
 
         commands.spawn((
@@ -92,6 +110,14 @@ pub fn hovering_damage_on_reached(
             })
             .unwrap_or_default();
 
+        // Spider shot hit effect stays visible for the full web duration
+        // (attached at impact position). Other attacks use a short fade.
+        let hit_despawn_delay = if is_spider_shot(attack) {
+            DelayedDespawnOnCxAnimationFinished::from_secs_f32(3.0)
+        } else {
+            DelayedDespawnOnCxAnimationFinished::from_secs_f32(0.4)
+        };
+
         commands.spawn((
             Name::new(format!("Attack - {} - hit", attack.get_name())),
             WorldPos::from(position.0),
@@ -101,7 +127,7 @@ pub fn hovering_damage_on_reached(
             *depth,
             depth.to_layer(),
             AuthoredDepths::single(Depth::One),
-            DelayedDespawnOnCxAnimationFinished::from_secs_f32(0.4),
+            hit_despawn_delay,
             StageEntity,
         ));
 

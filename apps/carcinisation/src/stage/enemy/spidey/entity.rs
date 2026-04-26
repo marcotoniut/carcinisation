@@ -13,7 +13,7 @@ use crate::stage::{
 };
 use bevy::prelude::*;
 use carapace::position::WorldPos;
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
 pub const ENEMY_SPIDEY_RADIUS: f32 = 8.0;
 pub const ENEMY_SPIDEY_BASE_HEALTH: u32 = 20;
@@ -39,10 +39,25 @@ pub enum EnemySpideyAnimation {
     Landing,
 }
 
-/// Marker component indicating the spidey is in an attacking state.
-#[derive(Component, Clone, Debug, Default, Reflect)]
+/// Tracks the spidey's ranged attack state and cooldown.
+///
+/// Present on all live spideys. `active` is `true` while the shoot animation
+/// is playing and the presentation window is open.
+#[derive(Component, Clone, Debug, Reflect)]
 #[reflect(Component)]
-pub struct EnemySpideyAttacking;
+pub struct EnemySpideyAttacking {
+    pub active: bool,
+    pub last_attack_started: Duration,
+}
+
+impl Default for EnemySpideyAttacking {
+    fn default() -> Self {
+        Self {
+            active: false,
+            last_attack_started: Duration::ZERO,
+        }
+    }
+}
 
 /// Authored step cycle to requeue once a Spidey exhausts its current behavior list.
 #[derive(Component, Clone, Debug, Default, Reflect)]

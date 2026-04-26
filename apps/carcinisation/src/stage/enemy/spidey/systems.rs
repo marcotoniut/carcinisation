@@ -3,13 +3,19 @@ use crate::{
     components::DespawnMark,
     game::score::components::Score,
     stage::{
-        components::interactive::Dead,
+        attack::{
+            data::spider_shot::SpiderShotConfig, spawns::spider_shot::spawn_spider_shot_attack,
+        },
+        components::{
+            interactive::Dead,
+            placement::{Depth, InView},
+        },
         enemy::{
             components::{
                 behavior::{EnemyCurrentBehavior, JumpTween},
                 composed_state::Dying,
             },
-            composed::{ComposedAnimationState, ComposedPartStates},
+            composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
             data::{
                 spidey::{
                     TAG_IDLE, TAG_JUMP, TAG_LANDING, TAG_LOUNGE, TAG_SHOOT,
@@ -18,10 +24,35 @@ use crate::{
                 steps::{EnemyStep, JumpEnemyStep},
             },
         },
+        messages::ComposedAnimationCueMessage,
+        player::components::Player,
         resources::StageTimeDomain,
     },
 };
 use bevy::prelude::*;
+use carapace::prelude::{CxPresentationTransform, CxSpriteAtlasAsset, WorldPos};
+use std::time::Duration;
+
+/// Cooldown between consecutive spider shot attacks.
+pub const ENEMY_SPIDEY_ATTACK_COOLDOWN: Duration = Duration::from_millis(4000);
+
+/// How long the shoot animation plays before the attack state clears.
+/// 7 frames * 200ms = 1400ms.
+pub const ENEMY_SPIDEY_RANGED_PRESENTATION: Duration = Duration::from_millis(1400);
+
+/// Event ID authored in the composed RON `shoot` animation.
+const SPIDEY_SPIDER_SHOT_EVENT_ID: &str = "spider_shot";
+
+fn spidey_attack_cooldown_ready(cooldown_anchor: Duration, stage_elapsed: Duration) -> bool {
+    stage_elapsed >= cooldown_anchor + ENEMY_SPIDEY_ATTACK_COOLDOWN
+}
+
+fn spidey_attack_presentation_finished(
+    last_attack_started: Duration,
+    stage_elapsed: Duration,
+) -> bool {
+    stage_elapsed >= last_attack_started + ENEMY_SPIDEY_RANGED_PRESENTATION
+}
 
 /// Selects the animation tag for a spidey based on its current behavior.
 ///
@@ -44,7 +75,7 @@ pub fn assign_spidey_animation(
     for (entity, behavior, attacking, current_animation, jump_tween, mut animation_state) in
         &mut query
     {
-        let (next_animation, next_tag, hold_last_frame) = if attacking.is_some() {
+        let (next_animation, next_tag, hold_last_frame) = if attacking.is_some_and(|a| a.active) {
             (EnemySpideyAnimation::Shoot, TAG_SHOOT, false)
         } else {
             match behavior.behavior {
@@ -150,11 +181,169 @@ pub fn update_spidey_death_effect(
     }
 }
 
+/// Clears the active attack flag once the shoot presentation window expires.
+pub fn clear_finished_spidey_attacks(
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut query: Query<&mut EnemySpideyAttacking, (With<EnemySpidey>, Without<Dead>)>,
+) {
+    for mut attacking in &mut query {
+        if !attacking.active
+            || !spidey_attack_presentation_finished(
+                attacking.last_attack_started,
+                stage_time.elapsed(),
+            )
+        {
+            continue;
+        }
+
+        attacking.active = false;
+    }
+}
+
+/// Fires ranged attacks from idle in-view spideys on a cooldown.
+pub fn check_idle_spidey(
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut query: Query<
+        (&EnemyCurrentBehavior, &mut EnemySpideyAttacking),
+        (With<InView>, With<EnemySpidey>, Without<Dead>),
+    >,
+) {
+    for (behavior, mut attacking) in &mut query {
+        if attacking.active
+            || !matches!(
+                behavior.behavior,
+                EnemyStep::Idle { .. } | EnemyStep::Attack { .. } | EnemyStep::Circle { .. }
+            )
+        {
+            continue;
+        }
+
+        let cooldown_anchor = attacking.last_attack_started.max(behavior.started);
+        if !spidey_attack_cooldown_ready(cooldown_anchor, stage_time.elapsed()) {
+            continue;
+        }
+
+        attacking.active = true;
+        attacking.last_attack_started = stage_time.elapsed();
+    }
+}
+
+/// Consumes composed-animation cues and spawns spider shot projectiles.
+#[allow(clippy::too_many_arguments)]
+pub fn trigger_spidey_authored_attack_cues(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
+    spider_shot_config: Res<SpiderShotConfig>,
+    player_query: Query<&WorldPos, With<Player>>,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut cue_reader: MessageReader<ComposedAnimationCueMessage>,
+    query: Query<
+        (
+            &EnemySpidey,
+            &WorldPos,
+            Option<&CxPresentationTransform>,
+            &Depth,
+            Option<&ComposedResolvedParts>,
+        ),
+        Without<Dead>,
+    >,
+) {
+    let Ok(player_pos) = player_query.single() else {
+        return;
+    };
+
+    for cue in cue_reader.read() {
+        if cue.id != SPIDEY_SPIDER_SHOT_EVENT_ID
+            || cue.kind != asset_pipeline::aseprite::AnimationEventKind::ProjectileSpawn
+        {
+            continue;
+        }
+
+        let Ok((_spidey, position, presentation, depth, resolved_parts)) = query.get(cue.entity)
+        else {
+            continue;
+        };
+
+        let scaled_offset = resolved_parts.map_or(
+            Vec2::ZERO,
+            super::super::composed::ComposedResolvedParts::scaled_visual_offset,
+        );
+        let gameplay_scale = resolved_parts.map_or(
+            1.0,
+            super::super::composed::ComposedResolvedParts::gameplay_scale,
+        );
+
+        let resolved_part = cue.part_id.as_deref().and_then(|part_id| {
+            resolved_parts
+                .and_then(|parts| parts.parts().iter().find(|part| part.part_id == part_id))
+        });
+
+        let local_offset = IVec2::new(cue.local_offset.x, cue.local_offset.y);
+
+        let current_pos = resolved_part.map_or(position.0 + scaled_offset, |part| {
+            part.visual_point_from_local_offset(local_offset, scaled_offset)
+        });
+
+        #[cfg(debug_assertions)]
+        {
+            let method = if resolved_part.is_some() {
+                "resolved_part"
+            } else {
+                "FALLBACK_entity_visual_center"
+            };
+            let entity_pos = position.0;
+            let cue_part_id = &cue.part_id;
+            let off_x = cue.local_offset.x;
+            let off_y = cue.local_offset.y;
+            info!(
+                "Spider shot cue: method={method}, origin={current_pos:?}, entity_pos={entity_pos:?}, \
+                 part_id={cue_part_id:?}, offset=({off_x},{off_y})",
+            );
+        }
+
+        spawn_spider_shot_attack(
+            &mut commands,
+            &asset_server,
+            &atlas_assets,
+            &stage_time,
+            &spider_shot_config,
+            player_pos.0,
+            current_pos,
+            presentation,
+            depth,
+            gameplay_scale,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::stage::enemy::data::spidey::{TAG_JUMP, TAG_LANDING};
     use std::time::Duration;
+
+    #[test]
+    fn spidey_attack_cooldown_gates_attack() {
+        assert!(!spidey_attack_cooldown_ready(
+            Duration::ZERO,
+            Duration::ZERO
+        ));
+        assert!(spidey_attack_cooldown_ready(
+            Duration::ZERO,
+            ENEMY_SPIDEY_ATTACK_COOLDOWN
+        ));
+    }
+
+    #[test]
+    fn spidey_presentation_window_clears() {
+        let started = Duration::from_secs(1);
+        assert!(!spidey_attack_presentation_finished(started, started));
+        assert!(spidey_attack_presentation_finished(
+            started,
+            started + ENEMY_SPIDEY_RANGED_PRESENTATION
+        ));
+    }
 
     #[test]
     fn jump_animation_holds_terminal_frame_then_switches_to_landing() {

@@ -4,7 +4,7 @@ pub mod messages;
 use super::attacks::{
     AttackDefinitions, AttackId, AttackInputPolicy, AttackInputState, AttackLifetime, AttackLoadout,
 };
-use super::components::{PLAYER_SIZE, Player, PlayerAttack};
+use super::components::{PLAYER_SIZE, Player, PlayerAttack, Webbed};
 use super::config::PlayerConfig;
 use super::intent::PlayerIntent;
 use crate::pixel::CxAssets;
@@ -60,22 +60,41 @@ pub fn confine_player_movement(mut player_query: Query<&mut WorldPos, With<Playe
 }
 
 /// @system Moves the player according to resolved intent (direction + slow modifier).
+///
+/// When the player has a [`Webbed`] debuff, the webbed speed multiplier
+/// overrides the normal SHIFT slow modifier — the slower of the two is NOT
+/// used; the webbed multiplier always wins.
 pub fn player_movement(
     intent: Res<PlayerIntent>,
     config: Res<PlayerConfig>,
-    mut query: Query<&mut WorldPos, With<Player>>,
+    mut query: Query<(&mut WorldPos, Option<&Webbed>), With<Player>>,
     time: Res<Time<StageTimeDomain>>,
 ) {
     if intent.move_direction == Vec2::ZERO {
         return;
     }
-    let speed = if intent.slow_modifier {
-        config.base_speed * config.slow_modifier
-    } else {
-        config.base_speed
-    };
-    for mut position in &mut query {
+    for (mut position, webbed) in &mut query {
+        let speed = if let Some(webbed) = webbed {
+            config.base_speed * webbed.speed_multiplier
+        } else if intent.slow_modifier {
+            config.base_speed * config.slow_modifier
+        } else {
+            config.base_speed
+        };
         position.0 += intent.move_direction * speed * time.delta().as_secs_f32();
+    }
+}
+
+/// @system Removes expired [`Webbed`] components from the player.
+pub fn tick_webbed_status(
+    mut commands: Commands,
+    stage_time: Res<Time<StageTimeDomain>>,
+    query: Query<(Entity, &Webbed), With<Player>>,
+) {
+    for (entity, webbed) in &query {
+        if stage_time.elapsed() >= webbed.expires_at {
+            commands.entity(entity).remove::<Webbed>();
+        }
     }
 }
 
@@ -336,5 +355,130 @@ pub fn despawn_expired_attacks(
             effect_state.follow_up_spawned = true;
         }
         commands.entity(entity).insert(DespawnMark);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::stage::player::components::{WEBBED_DURATION, WEBBED_SPEED_MULTIPLIER};
+    use std::time::Duration;
+
+    fn setup_movement_app() -> App {
+        let mut app = App::new();
+        app.insert_resource(Time::<StageTimeDomain>::default());
+        app.insert_resource(PlayerConfig {
+            base_speed: 100.0,
+            slow_modifier: 0.5,
+        });
+        app.insert_resource(PlayerIntent {
+            move_direction: Vec2::X,
+            slow_modifier: false,
+            ..default()
+        });
+        app.add_systems(Update, (tick_webbed_status, player_movement).chain());
+        app
+    }
+
+    #[test]
+    fn webbed_applies_speed_multiplier() {
+        let mut app = setup_movement_app();
+        let entity = app
+            .world_mut()
+            .spawn((Player, WorldPos(Vec2::ZERO), Webbed::new(Duration::ZERO)))
+            .id();
+
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(Duration::from_secs(1));
+        app.update();
+
+        let pos = app.world().entity(entity).get::<WorldPos>().unwrap();
+        let expected_speed = 100.0 * WEBBED_SPEED_MULTIPLIER;
+        assert!(
+            (pos.0.x - expected_speed).abs() < 1.0,
+            "expected ~{expected_speed}, got {}",
+            pos.0.x,
+        );
+    }
+
+    #[test]
+    fn webbed_overrides_shift_slow() {
+        let mut app = setup_movement_app();
+        app.world_mut().resource_mut::<PlayerIntent>().slow_modifier = true;
+        let entity = app
+            .world_mut()
+            .spawn((Player, WorldPos(Vec2::ZERO), Webbed::new(Duration::ZERO)))
+            .id();
+
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(Duration::from_secs(1));
+        app.update();
+
+        let pos = app.world().entity(entity).get::<WorldPos>().unwrap();
+        // Webbed multiplier (0.4) should be used, NOT slow_modifier (0.5).
+        let webbed_speed = 100.0 * WEBBED_SPEED_MULTIPLIER;
+        assert!(
+            (pos.0.x - webbed_speed).abs() < 1.0,
+            "webbed should override SHIFT slow; expected ~{webbed_speed}, got {}",
+            pos.0.x,
+        );
+    }
+
+    #[test]
+    fn webbed_expires_after_duration() {
+        let mut app = setup_movement_app();
+        let entity = app
+            .world_mut()
+            .spawn((Player, WorldPos(Vec2::ZERO), Webbed::new(Duration::ZERO)))
+            .id();
+
+        // Advance past the web duration.
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(WEBBED_DURATION + Duration::from_millis(1));
+        app.update();
+
+        assert!(
+            !app.world().entity(entity).contains::<Webbed>(),
+            "Webbed should be removed after duration expires"
+        );
+    }
+
+    #[test]
+    fn webbed_refresh_extends_duration() {
+        let start = Duration::from_secs(1);
+        let mut webbed = Webbed::new(start);
+        let original_expires = webbed.expires_at;
+
+        let refresh_time = start + Duration::from_secs(1);
+        webbed.refresh(refresh_time);
+
+        assert!(
+            webbed.expires_at > original_expires,
+            "refresh should extend expiry"
+        );
+        assert_eq!(webbed.expires_at, refresh_time + WEBBED_DURATION);
+        // Multiplier should not change on refresh.
+        assert!((webbed.speed_multiplier - WEBBED_SPEED_MULTIPLIER).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn normal_movement_without_webbed() {
+        let mut app = setup_movement_app();
+        let entity = app.world_mut().spawn((Player, WorldPos(Vec2::ZERO))).id();
+
+        app.world_mut()
+            .resource_mut::<Time<StageTimeDomain>>()
+            .advance_by(Duration::from_secs(1));
+        app.update();
+
+        let pos = app.world().entity(entity).get::<WorldPos>().unwrap();
+        assert!(
+            (pos.0.x - 100.0).abs() < 1.0,
+            "expected ~100, got {}",
+            pos.0.x,
+        );
     }
 }

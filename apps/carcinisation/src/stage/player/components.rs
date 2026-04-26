@@ -16,6 +16,7 @@ use bevy::{
     prelude::*,
 };
 use carapace::prelude::{CxAnimationDirection, CxAnimationDuration, CxSprite, WorldPos};
+use std::time::Duration;
 
 #[derive(Component)]
 pub struct Player;
@@ -129,6 +130,38 @@ impl PlayerAttack {
             ),
             sound_bundle,
         )
+    }
+}
+
+/// Duration of the web slow effect.
+pub const WEBBED_DURATION: Duration = Duration::from_millis(3000);
+
+/// Movement speed multiplier while webbed.
+pub const WEBBED_SPEED_MULTIPLIER: f32 = 0.4;
+
+/// Temporary movement debuff applied when hit by a spider shot.
+///
+/// While active, player movement speed is multiplied by `speed_multiplier`.
+/// The SHIFT slow modifier is overridden — the webbed speed always wins.
+/// Repeated hits refresh `expires_at` without stacking the multiplier.
+#[derive(Component, Clone, Debug, Reflect)]
+pub struct Webbed {
+    pub expires_at: Duration,
+    pub speed_multiplier: f32,
+}
+
+impl Webbed {
+    #[must_use]
+    pub fn new(now: Duration) -> Self {
+        Self {
+            expires_at: now + WEBBED_DURATION,
+            speed_multiplier: WEBBED_SPEED_MULTIPLIER,
+        }
+    }
+
+    /// Refreshes the duration without changing the multiplier.
+    pub fn refresh(&mut self, now: Duration) {
+        self.expires_at = now + WEBBED_DURATION;
     }
 }
 
