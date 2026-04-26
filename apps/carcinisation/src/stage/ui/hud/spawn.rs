@@ -9,12 +9,14 @@ use crate::{
     },
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxPosition, CxRenderSpace, CxText, CxTypeface, WorldPos};
+use carapace::prelude::{
+    CxAnchor, CxPosition, CxPresentationTransform, CxRenderSpace, CxText, CxTypeface, WorldPos,
+};
 use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 
 pub(super) const LAYOUT_Y: i32 = 3;
 pub(super) const HUD_BOTTOM_Y: i32 = SCREEN_RESOLUTION.y as i32 - HUD_HEIGHT as i32;
-pub(super) const HUD_HEALTH_ICON_X: f32 = 6.0;
+pub(super) const HUD_HEALTH_ICON_X: f32 = 8.0;
 pub(super) const HUD_HEALTH_TEXT_X: i32 = 48;
 
 // pub(super) const HUD_HEALTH_LAYOUT_Y: i32 = HUD_BOTTOM_Y + LAYOUT_Y;
@@ -63,7 +65,11 @@ pub fn spawn_hud(
                             visual.render_space = Some(CxRenderSpace::Camera);
                             (
                                 visual,
-                                WorldPos::from(Vec2::new(HUD_HEALTH_ICON_X, LAYOUT_Y as f32)),
+                                WorldPos::from(Vec2::new(
+                                    HUD_HEALTH_ICON_X,
+                                    HUD_HEIGHT as f32 / 2.0,
+                                )),
+                                CxPresentationTransform::scaled(0.5),
                                 Layer::Hud,
                                 HealthIcon,
                                 Name::new("HealthIcon"),

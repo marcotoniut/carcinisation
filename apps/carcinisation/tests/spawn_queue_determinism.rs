@@ -80,7 +80,7 @@ fn spawn_queue_drains_all_spawns() {
             ..Default::default()
         }),
         StageSpawn::Pickup(PickupSpawn {
-            pickup_type: PickupType::SmallHealthpack,
+            pickup_type: PickupType::SmallHealth,
             elapsed: authored_elapsed(Duration::from_secs(1)),
             coordinates: Vec2::new(200., 0.),
             depth: Depth::Three,
@@ -150,7 +150,7 @@ fn simultaneous_spawns_maintain_authored_order() {
             ..Default::default()
         }),
         StageSpawn::Pickup(PickupSpawn {
-            pickup_type: PickupType::SmallHealthpack,
+            pickup_type: PickupType::SmallHealth,
             elapsed: Duration::ZERO,
             coordinates: Vec2::new(100., 0.),
             depth: Depth::Three,
@@ -178,7 +178,7 @@ fn simultaneous_spawns_maintain_authored_order() {
                 ..
             }),
             StageSpawn::Pickup(PickupSpawn {
-                pickup_type: PickupType::SmallHealthpack,
+                pickup_type: PickupType::SmallHealth,
                 ..
             }),
             StageSpawn::Enemy(EnemySpawn {

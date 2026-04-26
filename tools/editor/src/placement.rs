@@ -43,8 +43,12 @@ impl SpawnTemplate {
             SpawnTemplate::Destructible(DestructibleType::Trashcan) => "Trashcan",
             SpawnTemplate::Destructible(DestructibleType::Crystal) => "Crystal",
             SpawnTemplate::Destructible(DestructibleType::Mushroom) => "Mushroom",
-            SpawnTemplate::Pickup(PickupType::BigHealthpack) => "Health (Big)",
-            SpawnTemplate::Pickup(PickupType::SmallHealthpack) => "Health (Small)",
+            SpawnTemplate::Pickup(PickupType::SmallHealth) => "Health (Small)",
+            SpawnTemplate::Pickup(PickupType::BigHealth) => "Health (Big)",
+            SpawnTemplate::Pickup(PickupType::Flamethrower) => "Flamethrower",
+            SpawnTemplate::Pickup(PickupType::Bullet) => "Bullet",
+            SpawnTemplate::Pickup(PickupType::Piercing) => "Piercing",
+            SpawnTemplate::Pickup(PickupType::Bomb) => "Bomb",
             SpawnTemplate::Enemy(EnemyType::Mosquito) => "Mosquito",
             SpawnTemplate::Enemy(EnemyType::Mosquiton) => "Mosquiton",
             SpawnTemplate::Enemy(EnemyType::Tardigrade) => "Tardigrade",
@@ -110,13 +114,8 @@ impl SpawnTemplate {
                     authored_depths: None,
                 })
             }
-            SpawnTemplate::Pickup(PickupType::BigHealthpack) => StageSpawn::Pickup(
-                PickupSpawn::big_healthpack_base()
-                    .with_coordinates(coordinates)
-                    .with_depth(depth),
-            ),
-            SpawnTemplate::Pickup(PickupType::SmallHealthpack) => StageSpawn::Pickup(
-                PickupSpawn::small_healthpack_base()
+            SpawnTemplate::Pickup(pickup_type) => StageSpawn::Pickup(
+                PickupSpawn::base(*pickup_type)
                     .with_coordinates(coordinates)
                     .with_depth(depth),
             ),
@@ -202,8 +201,12 @@ impl SpawnTemplate {
 
     pub fn all_pickups() -> Vec<SpawnTemplate> {
         vec![
-            SpawnTemplate::Pickup(PickupType::BigHealthpack),
-            SpawnTemplate::Pickup(PickupType::SmallHealthpack),
+            SpawnTemplate::Pickup(PickupType::SmallHealth),
+            SpawnTemplate::Pickup(PickupType::BigHealth),
+            SpawnTemplate::Pickup(PickupType::Flamethrower),
+            SpawnTemplate::Pickup(PickupType::Bullet),
+            SpawnTemplate::Pickup(PickupType::Piercing),
+            SpawnTemplate::Pickup(PickupType::Bomb),
         ]
     }
 

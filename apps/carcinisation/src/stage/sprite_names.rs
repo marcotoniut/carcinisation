@@ -101,12 +101,28 @@ impl SpriteNameRegistry {
             ],
             pickups: vec![
                 PickupSpriteName {
-                    pickup_type: PickupType::SmallHealthpack,
-                    base_name: "health_4".to_string(),
+                    pickup_type: PickupType::SmallHealth,
+                    base_name: "pickup".to_string(),
                 },
                 PickupSpriteName {
-                    pickup_type: PickupType::BigHealthpack,
-                    base_name: "health_6".to_string(),
+                    pickup_type: PickupType::BigHealth,
+                    base_name: "pickup".to_string(),
+                },
+                PickupSpriteName {
+                    pickup_type: PickupType::Flamethrower,
+                    base_name: "pickup".to_string(),
+                },
+                PickupSpriteName {
+                    pickup_type: PickupType::Bullet,
+                    base_name: "pickup".to_string(),
+                },
+                PickupSpriteName {
+                    pickup_type: PickupType::Piercing,
+                    base_name: "pickup".to_string(),
+                },
+                PickupSpriteName {
+                    pickup_type: PickupType::Bomb,
+                    base_name: "pickup".to_string(),
                 },
             ],
             destructibles: vec![
@@ -190,7 +206,14 @@ mod tests {
             .iter()
             .map(|entry| (entry.pickup_type, entry.base_name.as_str()))
             .collect();
-        for pickup in [PickupType::SmallHealthpack, PickupType::BigHealthpack] {
+        for pickup in [
+            PickupType::SmallHealth,
+            PickupType::BigHealth,
+            PickupType::Flamethrower,
+            PickupType::Bullet,
+            PickupType::Piercing,
+            PickupType::Bomb,
+        ] {
             assert_eq!(
                 pickup.sprite_base_name(),
                 pickup_map.get(&pickup).copied().unwrap(),

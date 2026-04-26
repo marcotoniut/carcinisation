@@ -56,7 +56,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 0.1,
                     contains: Pickup(
-                        pickup_type: SmallHealthpack,
+                        pickup_type: SmallHealth,
                     ),
                     coordinates: Vec2(60.0, 100.0),
                     speed: 2.0,
@@ -86,7 +86,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 85.0,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(30.0, 60.0),
                     speed: 2.0,
@@ -104,7 +104,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 45.1,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(30.0, 60.0),
                     speed: 2.0,
@@ -122,7 +122,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 2.1,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(140.0, 130.0),
                     speed: 2.0,

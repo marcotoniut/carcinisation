@@ -61,8 +61,10 @@ use self::{
         update_active_parallax_attenuation, update_parallax_offset,
     },
     pickup::systems::health::{
-        mark_pickup_feedback_for_despawn, pickup_health, update_pickup_feedback_glitter,
+        mark_pickup_feedback_for_despawn, pickup_health, tick_pickup_drop_physics,
+        update_pickup_feedback_glitter, update_pickup_feedback_scale,
     },
+    pickup::visual::assemble_pickup_visuals,
     player::{PlayerPlugin, systems::camera::camera_shake},
     resources::{StageActionTimer, StageGravity, StageProgress, StageTimeDomain},
     restart::StageRestartPlugin,
@@ -308,8 +310,11 @@ impl Plugin for StagePlugin {
                     ),
                     (
                         // Pickup
-                        pickup_health,
+                        assemble_pickup_visuals,
+                        pickup_health.after(assemble_pickup_visuals),
+                        tick_pickup_drop_physics,
                         update_pickup_feedback_glitter,
+                        update_pickup_feedback_scale,
                         mark_pickup_feedback_for_despawn,
                     ),
                     (

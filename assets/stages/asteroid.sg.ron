@@ -50,7 +50,7 @@ StageData(
         ),
         Destructible(
             contains: Pickup(
-                pickup_type: BigHealthpack,
+                pickup_type: BigHealth,
             ),
             coordinates: Vec2(20.0, 0.0),
             depth: Four,
@@ -59,7 +59,7 @@ StageData(
         ),
         Destructible(
             contains: Pickup(
-                pickup_type: SmallHealthpack,
+                pickup_type: SmallHealth,
             ),
             coordinates: Vec2(20.0, 0.0),
             depth: Five,

@@ -263,26 +263,6 @@ target_path = "sprites/objects/mushroom_base_4.px_sprite.png"
 path = "sprites/objects/mushroom_broken_4.png"
 target_path = "sprites/objects/mushroom_broken_4.px_sprite.png"
 
-# Pickups
-[[images]]
-path = "sprites/pickups/ammo_9x8.png"
-target_path = "sprites/pickups/ammo_6.px_sprite.png"
-[[images]]
-path = "sprites/pickups/ammo_13x12.png"
-target_path = "sprites/pickups/ammo_4.px_sprite.png"
-[[images]]
-path = "sprites/pickups/bomb_9x9.png"
-target_path = "sprites/pickups/bomb_6.px_sprite.png"
-[[images]]
-path = "sprites/pickups/bomb_13x11.png"
-target_path = "sprites/pickups/bomb_4.px_sprite.png"
-[[images]]
-path = "sprites/pickups/health_9x7.png"
-target_path = "sprites/pickups/health_6.px_sprite.png"
-[[images]]
-path = "sprites/pickups/health_14x10.png"
-target_path = "sprites/pickups/health_4.px_sprite.png"
-
 # Attacks
 [[images]]
 path = "sprites/attacks/bloodball_45x45.png"

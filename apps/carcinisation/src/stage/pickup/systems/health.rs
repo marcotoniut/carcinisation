@@ -1,12 +1,17 @@
-use crate::pixel::{CxAssets, CxSpriteBundle};
+use crate::pixel::CxAssets;
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
     layer::Layer,
     stage::{
-        components::interactive::{Dead, Health},
+        components::{
+            interactive::{Dead, Health},
+            placement::Depth,
+        },
+        depth_scale::DepthScaleConfig,
         pickup::components::{
-            HealthRecovery, PICKUP_FEEDBACK_GLITTER_TIME, PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS,
+            HealthRecovery, PickupDropPhysics, PickupFeedbackScale,
+            PICKUP_FEEDBACK_GLITTER_TIME, PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS,
             PICKUP_FEEDBACK_INITIAL_SPEED_Y, PICKUP_FEEDBACK_TIME, PICKUP_HUD_GLITTER_TIME,
             PickupFeedback, PickupFeedbackGlitter,
         },
@@ -18,7 +23,10 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxFilter, CxRenderSpace, CxSprite, WorldPos};
+use carapace::prelude::{
+    CxAnchor, CxCompositeSprite, CxFilter, CxPosition, CxPresentationTransform, CxRenderSpace,
+    WorldPos,
+};
 use cween::linear::components::{
     LinearValueReached, TargetingValueX, TargetingValueY, TweenChildAcceleratedBundle,
 };
@@ -85,15 +93,6 @@ impl Default for PickupFeedbackDefaultBundle {
     }
 }
 
-#[derive(Bundle)]
-pub struct PickupFeedbackBundle {
-    position: WorldPos,
-    sprite: CxSpriteBundle<Layer>,
-    targeting_value_x: TargetingValueX,
-    targeting_value_y: TargetingValueY,
-    default: PickupFeedbackDefaultBundle,
-}
-
 /// @system Heals the player, despawns the pickup, and spawns the feedback animation.
 ///
 /// # Panics
@@ -103,27 +102,37 @@ pub struct PickupFeedbackBundle {
 pub fn pickup_health(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &HealthRecovery, &WorldPos), Added<Dead>>,
+    query: Query<
+        (
+            Entity,
+            &HealthRecovery,
+            &WorldPos,
+            &Depth,
+            Option<&CxCompositeSprite>,
+        ),
+        Added<Dead>,
+    >,
     camera_query: Query<&WorldPos, With<CameraPos>>,
     mut player_query: Query<&mut Health, With<Player>>,
     hud_icon_query: Query<(Entity, Option<&CxFilter>), With<HealthIcon>>,
     hud_text_query: Query<(Entity, Option<&CxFilter>), With<HealthText>>,
     stage_time: Res<Time<StageTimeDomain>>,
-    assets_sprite: CxAssets<CxSprite>,
+    depth_scale_config: Res<DepthScaleConfig>,
     filters: CxAssets<CxFilter>,
 ) {
     let camera_pos = camera_query.single().unwrap();
     let glitter_filter = CxFilter(filters.load(assert_assets_path!("filter/color3.px_filter.png")));
     if let Ok(mut health) = player_query.single_mut() {
-        for (entity, recovery, position) in query.iter() {
+        for (entity, recovery, position, depth, composite_sprite_o) in query.iter() {
             commands.entity(entity).insert(DespawnMark);
 
             health.0 = health.0.saturating_add(recovery.0).min(PLAYER_MAX_HEALTH);
             score.add(recovery.score_deduction());
 
             let current = position.0 - camera_pos.0;
-            let sprite = assets_sprite.load(assert_assets_path!(
-                "sprites/pickups/health_4.px_sprite.png"
+            let snapped = CxPosition::from(IVec2::new(
+                current.x.round() as i32,
+                current.y.round() as i32,
             ));
 
             let t = PICKUP_FEEDBACK_TIME;
@@ -147,23 +156,37 @@ pub fn pickup_health(
                 None,
             );
 
-            let feedback_entity = commands
-                .spawn(PickupFeedbackBundle {
-                    position: current.into(),
-                    sprite: CxSpriteBundle::<Layer> {
-                        sprite: sprite.into(),
-                        // TODO the position should be stuck to the floor beneath the dropper
-                        anchor: CxAnchor::Center,
-                        canvas: CxRenderSpace::Camera,
-                        layer: Layer::HudUnderlay,
-                        ..default()
-                    },
-                    targeting_value_x: current.x.into(),
-                    targeting_value_y: current.y.into(),
-                    default: default(),
-                })
-                .insert(glitter)
-                .id();
+            // Compute depth-to-depth3 scale for the feedback visual, clamped to <= 1.0.
+            let depth3_ref = crate::stage::components::placement::Depth::Three;
+            let start_scale = depth_scale_config
+                .fallback_scale(*depth, depth3_ref)
+                .unwrap_or(1.0)
+                .min(1.0);
+
+            let mut feedback_entity_commands = commands.spawn((
+                WorldPos::from(current),
+                snapped,
+                CxAnchor::Center,
+                CxRenderSpace::Camera,
+                Layer::HudUnderlay,
+                TargetingValueX::from(current.x),
+                TargetingValueY::from(current.y),
+                PickupFeedbackDefaultBundle::default(),
+                glitter,
+                CxPresentationTransform::scaled(start_scale),
+                PickupFeedbackScale {
+                    start_scale,
+                    end_scale: 1.0,
+                    start_at: now,
+                    end_at: glitter_end,
+                },
+            ));
+
+            if let Some(composite) = composite_sprite_o {
+                feedback_entity_commands.insert(composite.clone());
+            }
+
+            let feedback_entity = feedback_entity_commands.id();
 
             let hud_glitter_start = now;
             let hud_glitter_end = now + Duration::from_secs_f32(PICKUP_HUD_GLITTER_TIME);
@@ -248,6 +271,49 @@ pub fn update_pickup_feedback_glitter(
                 entity_commands.insert(glitter.glitter_filter.clone());
             }
             glitter.filter_on = !glitter.filter_on;
+        }
+    }
+}
+
+/// @system Interpolates `PickupFeedbackScale` on feedback entities over time.
+pub fn update_pickup_feedback_scale(
+    mut commands: Commands,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut query: Query<(Entity, &PickupFeedbackScale, &mut CxPresentationTransform)>,
+) {
+    let now = stage_time.elapsed();
+    for (entity, scale_comp, mut presentation) in &mut query {
+        if now >= scale_comp.end_at {
+            presentation.scale = Vec2::splat(scale_comp.end_scale);
+            commands.entity(entity).remove::<PickupFeedbackScale>();
+            continue;
+        }
+        let elapsed = now.saturating_sub(scale_comp.start_at);
+        let total = scale_comp.end_at.saturating_sub(scale_comp.start_at);
+        let t = if total.is_zero() {
+            1.0
+        } else {
+            elapsed.as_secs_f32() / total.as_secs_f32()
+        };
+        let scale = scale_comp.start_scale + (scale_comp.end_scale - scale_comp.start_scale) * t;
+        presentation.scale = Vec2::splat(scale);
+    }
+}
+
+/// @system Applies velocity and gravity to pickup drop arcs, clamping to floor.
+pub fn tick_pickup_drop_physics(
+    mut commands: Commands,
+    stage_time: Res<Time<StageTimeDomain>>,
+    mut query: Query<(Entity, &mut WorldPos, &mut PickupDropPhysics)>,
+) {
+    let dt = stage_time.delta_secs();
+    for (entity, mut pos, mut physics) in &mut query {
+        physics.velocity_y -= physics.gravity * dt;
+        pos.0.y += physics.velocity_y * dt;
+
+        if pos.0.y <= physics.floor_y {
+            pos.0.y = physics.floor_y;
+            commands.entity(entity).remove::<PickupDropPhysics>();
         }
     }
 }

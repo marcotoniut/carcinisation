@@ -67,7 +67,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
             )
             .into(),
         DestructibleSpawn::lamp_base(260., OBJECT_LAMP_Y, LampDepth::Three)
-            .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
+            .drops(PickupDropSpawn::new(PickupType::BigHealth).into())
             .into(),
     ]
 }
@@ -133,7 +133,7 @@ pub fn make_steps() -> Vec<StageStep> {
                             .opposite_direction()
                             .into(),
                     ])
-                    .drops(PickupDropSpawn::new(PickupType::SmallHealthpack).into())
+                    .drops(PickupDropSpawn::new(PickupType::SmallHealth).into())
                     .into(),
                 EnemySpawn::mosquito_variant_circle()
                     .with_coordinates(Vec2::new(30.0, 60.0))
@@ -159,16 +159,16 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_y(30.)
                     .with_elapsed_f32(85.0)
                     .add_step(EnemyStep::circle_around_base().into())
-                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
+                    .drops(PickupDropSpawn::new(PickupType::BigHealth).into())
                     .into(),
                 EnemySpawn::mosquito_variant_linear_opposite()
                     .with_elapsed_f32(45.1)
-                    .drops(PickupDropSpawn::new(PickupType::SmallHealthpack).into())
+                    .drops(PickupDropSpawn::new(PickupType::SmallHealth).into())
                     .into(),
                 EnemySpawn::mosquito_variant_approacher()
                     .with_coordinates(Vec2::new(140.0, 130.0))
                     .with_elapsed_f32(2.1)
-                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
+                    .drops(PickupDropSpawn::new(PickupType::BigHealth).into())
                     .into(),
             ])
             .into(),
@@ -177,7 +177,7 @@ pub fn make_steps() -> Vec<StageStep> {
                 EnemySpawn::mosquito_variant_approacher()
                     .with_coordinates(Vec2::new(140.0, 130.0))
                     .with_elapsed_f32(2.1)
-                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
+                    .drops(PickupDropSpawn::new(PickupType::BigHealth).into())
                     .into(),
                 // EnemySpawn::mosquito_variant_circle()
                 //     .with_coordinates(Vec2::new(60.0, 70.0))
@@ -186,7 +186,7 @@ pub fn make_steps() -> Vec<StageStep> {
                 // EnemySpawn::mosquito_base()
                 //     .with_coordinates(Vec2::new(130.0, 70.0))
                 //     .with_elapsed(1.8)
-                //     .drops(PickupSpawn::big_healthpack_base().into())
+                //     .drops(PickupSpawn::base(PickupType::BigHealth).into())
                 //     .into(),
             ])
             .into(),
@@ -196,7 +196,7 @@ pub fn make_steps() -> Vec<StageStep> {
                 EnemySpawn::mosquito_base()
                     .with_coordinates(Vec2::new(130.0, 70.0))
                     .with_elapsed_f32(35.)
-                    .drops(PickupDropSpawn::new(PickupType::BigHealthpack).into())
+                    .drops(PickupDropSpawn::new(PickupType::BigHealth).into())
                     .into(),
             ])
             .into(),

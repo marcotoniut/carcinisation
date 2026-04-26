@@ -1,0 +1,151 @@
+(
+    indexed_image: "sprites/pickups/pickup_3/atlas.pxi",
+    regions: [
+        (
+            frame_size: (14, 20),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 14,
+                    h: 20,
+                ),
+            ],
+        ),
+        (
+            frame_size: (1, 20),
+            frames: [
+                (
+                    x: 14,
+                    y: 0,
+                    w: 1,
+                    h: 20,
+                ),
+            ],
+        ),
+        (
+            frame_size: (8, 10),
+            frames: [
+                (
+                    x: 15,
+                    y: 0,
+                    w: 8,
+                    h: 10,
+                ),
+            ],
+        ),
+        (
+            frame_size: (10, 10),
+            frames: [
+                (
+                    x: 23,
+                    y: 0,
+                    w: 10,
+                    h: 10,
+                ),
+            ],
+        ),
+        (
+            frame_size: (10, 8),
+            frames: [
+                (
+                    x: 33,
+                    y: 0,
+                    w: 10,
+                    h: 8,
+                ),
+            ],
+        ),
+        (
+            frame_size: (13, 5),
+            frames: [
+                (
+                    x: 43,
+                    y: 0,
+                    w: 13,
+                    h: 5,
+                ),
+            ],
+        ),
+        (
+            frame_size: (12, 23),
+            frames: [
+                (
+                    x: 0,
+                    y: 20,
+                    w: 12,
+                    h: 23,
+                ),
+            ],
+        ),
+        (
+            frame_size: (1, 23),
+            frames: [
+                (
+                    x: 12,
+                    y: 20,
+                    w: 1,
+                    h: 23,
+                ),
+            ],
+        ),
+        (
+            frame_size: (10, 15),
+            frames: [
+                (
+                    x: 13,
+                    y: 20,
+                    w: 10,
+                    h: 15,
+                ),
+            ],
+        ),
+        (
+            frame_size: (1, 15),
+            frames: [
+                (
+                    x: 23,
+                    y: 20,
+                    w: 1,
+                    h: 15,
+                ),
+            ],
+        ),
+        (
+            frame_size: (3, 8),
+            frames: [
+                (
+                    x: 24,
+                    y: 20,
+                    w: 3,
+                    h: 8,
+                ),
+            ],
+        ),
+        (
+            frame_size: (1, 8),
+            frames: [
+                (
+                    x: 27,
+                    y: 20,
+                    w: 1,
+                    h: 8,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "sprite_0000": 0,
+        "sprite_0001": 1,
+        "sprite_0002": 2,
+        "sprite_0003": 3,
+        "sprite_0004": 4,
+        "sprite_0005": 5,
+        "sprite_0006": 6,
+        "sprite_0007": 7,
+        "sprite_0008": 8,
+        "sprite_0009": 9,
+        "sprite_0010": 10,
+        "sprite_0011": 11,
+    },
+)

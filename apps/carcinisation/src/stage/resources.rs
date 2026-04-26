@@ -134,6 +134,12 @@ impl StageGravity {
         Self { acceleration }
     }
 
+    /// Returns the gravitational acceleration value.
+    #[must_use]
+    pub fn acceleration(&self) -> f32 {
+        self.acceleration
+    }
+
     /// Create standard gravity
     #[must_use]
     pub fn standard() -> Self {

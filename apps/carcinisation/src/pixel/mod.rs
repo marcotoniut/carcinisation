@@ -4,6 +4,4 @@ pub mod assets;
 pub mod bundle;
 
 pub use assets::{CxAsset, CxAssets, CxSpriteData};
-pub use bundle::{
-    CxAnimationBundle, CxFilterRectBundle, CxLineBundle, CxSpriteBundle, CxTextBundle,
-};
+pub use bundle::{CxAnimationBundle, CxLineBundle, CxSpriteBundle, CxTextBundle};

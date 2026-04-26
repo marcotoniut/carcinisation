@@ -1,0 +1,112 @@
+spawn_anchor = "Origin"
+
+# --- Part definitions ---
+
+[[part_definitions]]
+id = "group_marker"
+tags = ["group"]
+
+[[part_definitions]]
+id = "case"
+tags = ["weapon"]
+
+[[part_definitions]]
+id = "icon"
+tags = ["weapon", "icon"]
+
+[[part_definitions]]
+id = "health_large"
+tags = ["health"]
+
+[[part_definitions]]
+id = "health_body"
+tags = ["health", "collidable"]
+
+[[part_definitions]]
+id = "health_handle"
+tags = ["health", "handle"]
+
+# --- Part instances ---
+
+[[parts]]
+id = "root"
+definition_id = "group_marker"
+name = "Root"
+draw_order = 0
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "weapon_case"
+parent_id = "root"
+definition_id = "case"
+name = "Weapon Case"
+source_layer = "weapon_case"
+draw_order = 10
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "icon_flamethrower"
+parent_id = "root"
+definition_id = "icon"
+name = "Icon Flamethrower"
+source_layer = "icon_falmethrower"
+draw_order = 20
+pivot = { x = 0, y = 0 }
+tags = ["flamethrower"]
+
+[[parts]]
+id = "icon_bomb"
+parent_id = "root"
+definition_id = "icon"
+name = "Icon Bomb"
+source_layer = "icon_bomb"
+draw_order = 30
+pivot = { x = 0, y = 0 }
+tags = ["bomb"]
+
+[[parts]]
+id = "icon_bullet"
+parent_id = "root"
+definition_id = "icon"
+name = "Icon Bullet"
+source_layer = "icon_bullet"
+draw_order = 40
+pivot = { x = 0, y = 0 }
+tags = ["bullet"]
+
+[[parts]]
+id = "icon_piercing"
+parent_id = "root"
+definition_id = "icon"
+name = "Icon Piercing"
+source_layer = "icon_piercing"
+draw_order = 50
+pivot = { x = 0, y = 0 }
+tags = ["piercing"]
+
+[[parts]]
+id = "health_l"
+parent_id = "root"
+definition_id = "health_large"
+name = "Health Large"
+source_layer = "health_l"
+draw_order = 60
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "health_s"
+parent_id = "root"
+definition_id = "health_body"
+name = "Health Small Body"
+source_layer = "health_s"
+draw_order = 70
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "health_s_cap"
+parent_id = "root"
+definition_id = "health_handle"
+name = "Health Small Handle"
+source_layer = "health_s_cap"
+draw_order = 80
+pivot = { x = 0, y = 0 }

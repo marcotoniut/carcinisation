@@ -34,7 +34,7 @@ use crate::stage::{
     floors::ActiveFloors,
     parallax::{ActiveParallaxAttenuation, ParallaxOffset, parallax_offset_for},
     player::{attacks::AttackHitTracker, components::PlayerAttack},
-    resources::{ActiveProjection, ProjectionView, StageStepSpawner, StageTimeDomain},
+    resources::{ActiveProjection, ProjectionView, StageGravity, StageStepSpawner, StageTimeDomain},
     spawn_placement,
 };
 use crate::{
@@ -44,7 +44,7 @@ use crate::{
             interactive::{Flickerer, Health, HealthOverride, Hittable, Object},
             placement::Speed,
         },
-        data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
+        data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, StageSpawn},
         destructible::{components::Destructible, data::DestructibleSpawn},
         enemy::components::{
             Enemy, EnemyContinuousDepth,
@@ -228,78 +228,44 @@ pub fn on_stage_spawn(
         }
         StageSpawn::Pickup(x) => {
             let camera_pos = camera_query.single().unwrap();
-            spawn_pickup(&mut commands, &mut assets_sprite, camera_pos.0, x);
+            spawn_pickup(&mut commands, &asset_server, camera_pos.0, x);
         }
     }
 }
 
 pub fn spawn_pickup(
     commands: &mut Commands,
-    assets_sprite: &mut CxAssets<CxSprite>,
+    asset_server: &AssetServer,
     offset: Vec2,
     spawn: &PickupSpawn,
 ) -> Entity {
-    let PickupSpawn {
-        pickup_type,
-        coordinates,
-        ..
-    } = spawn;
-    let position = WorldPos::from(offset + *coordinates);
-    let authored = authored_depths_from_spawn(spawn.depth, None, spawn.authored_depths.as_ref());
-    match pickup_type {
-        PickupType::BigHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!(
-                "sprites/pickups/health_6.px_sprite.png"
-            ));
-            commands
-                .spawn((
-                    spawn.get_name(),
-                    Hittable,
-                    StageEntity,
-                    CxSpriteBundle::<Layer> {
-                        sprite: sprite.into(),
-                        anchor: CxAnchor::Center,
-                        layer: spawn.depth.to_layer(),
-                        ..default()
-                    },
-                    position,
-                    spawn.depth,
-                    authored,
-                    Health(1),
-                    ColliderData::from_one(Collider::new_box(Vec2::new(12., 8.))),
-                    HealthRecovery(100),
-                    ParallaxOffset::default(),
-                    CxPresentationTransform::default(),
-                ))
-                .id()
-        }
-        PickupType::SmallHealthpack => {
-            let sprite = assets_sprite.load(assert_assets_path!(
-                "sprites/pickups/health_4.px_sprite.png"
-            ));
-            commands
-                .spawn((
-                    spawn.get_name(),
-                    Hittable,
-                    StageEntity,
-                    CxSpriteBundle::<Layer> {
-                        sprite: sprite.into(),
-                        anchor: CxAnchor::BottomCenter,
-                        layer: spawn.depth.to_layer(),
-                        ..default()
-                    },
-                    position,
-                    spawn.depth,
-                    authored.clone(),
-                    Health(1),
-                    ColliderData::from_one(Collider::new_box(Vec2::new(7., 5.))),
-                    HealthRecovery(30),
-                    ParallaxOffset::default(),
-                    CxPresentationTransform::default(),
-                ))
-                .id()
-        }
+    use crate::stage::pickup::visual::load_pickup_visual;
+
+    let position = WorldPos::from(offset + spawn.coordinates);
+    let authored = authored_depths_from_spawn(spawn.depth, None, Some(&vec![Depth::Three]));
+    let visual = load_pickup_visual(asset_server, spawn.pickup_type.visible_parts());
+
+    let mut entity_commands = commands.spawn((
+        spawn.get_name(),
+        Hittable,
+        StageEntity,
+        position,
+        spawn.depth,
+        spawn.depth.to_layer(),
+        authored,
+        Health(1),
+        ColliderData::from_one(Collider::new_box(spawn.pickup_type.collider_size())),
+        visual,
+        ParallaxOffset::default(),
+        CxPresentationTransform::default(),
+        Visibility::Hidden,
+    ));
+
+    if let Some(recovery) = spawn.pickup_type.health_recovery() {
+        entity_commands.insert(HealthRecovery(recovery));
     }
+
+    entity_commands.id()
 }
 
 #[allow(clippy::too_many_lines)]
@@ -601,12 +567,16 @@ pub fn spawn_object(
         .id()
 }
 
+/// Minimum depth for pickup drops. Enemies deeper than this (7-8-9) are too
+/// far in the background to meaningfully drop pickups.
+const PICKUP_DROP_MAX_DEPTH: i8 = 7;
+
 /// @system Spawns contained items when a carrier entity dies.
 pub fn check_dead_drop(
     mut commands: Commands,
-    mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
     active_floors: Res<ActiveFloors>,
+    stage_gravity: Res<StageGravity>,
     depth_scale_config: Res<DepthScaleConfig>,
     active_projection: Option<Res<ActiveProjection>>,
     projection_view: Option<Res<ProjectionView>>,
@@ -616,12 +586,32 @@ pub fn check_dead_drop(
 ) {
     for (spawn_drop, position, depth) in &mut query.iter() {
         let entity = match spawn_drop.contains.clone() {
-            ContainerSpawn::Pickup(spawn) => spawn_pickup(
-                &mut commands,
-                &mut assets_sprite,
-                Vec2::ZERO,
-                &spawn.from_spawn(position.0, *depth),
-            ),
+            ContainerSpawn::Pickup(spawn) => {
+                if depth.to_i8() >= PICKUP_DROP_MAX_DEPTH {
+                    continue;
+                }
+                let spawned = spawn_pickup(
+                    &mut commands,
+                    &asset_server,
+                    Vec2::ZERO,
+                    &spawn.from_spawn(position.0, *depth),
+                );
+                // Apply drop arc if there is gravity.
+                if stage_gravity.acceleration() > 0.0 {
+                    let floor_y = active_floors
+                        .lowest_solid_y(*depth)
+                        .unwrap_or(crate::globals::HUD_HEIGHT as f32);
+                    commands.entity(spawned).insert(
+                        crate::stage::pickup::components::PickupDropPhysics::new(
+                            position.0.y,
+                            floor_y,
+                            stage_gravity.acceleration(),
+                        ),
+                    );
+                }
+                // TODO: in zero-gravity (space), pickup just appears in place.
+                spawned
+            }
             ContainerSpawn::Enemy(spawn) => spawn_enemy(
                 &mut commands,
                 &asset_server,

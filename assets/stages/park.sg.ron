@@ -76,7 +76,7 @@ StageData(
         ),
         Destructible(
             contains: Pickup(
-                pickup_type: BigHealthpack,
+                pickup_type: BigHealth,
             ),
             coordinates: Vec2(255.50278, -12.820894),
             depth: Three,
@@ -84,7 +84,7 @@ StageData(
             health: 60,
         ),
         Pickup(
-            pickup_type: BigHealthpack,
+            pickup_type: BigHealth,
             coordinates: Vec2(169.42331, 22.659866),
             elapsed: 0.0,
             depth: Six,
@@ -130,7 +130,7 @@ StageData(
                     enemy_type: Mosquito,
                     elapsed: 5.4,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(60.0, 100.0),
                     speed: 2.0,
@@ -149,7 +149,7 @@ StageData(
                     enemy_type: Mosquiton,
                     elapsed: 0.0,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(123.1298, 0.0),
                     speed: 2.0,
@@ -253,7 +253,7 @@ StageData(
                     enemy_type: Mosquiton,
                     elapsed: 2.4,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(186.94835, 0.0),
                     speed: 2.0,
@@ -311,7 +311,7 @@ StageData(
                     enemy_type: Mosquiton,
                     elapsed: 50.8,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(170.0, 0.0),
                     speed: 2.0,
@@ -371,7 +371,7 @@ StageData(
                     depth: Six,
                 ),
                 Pickup(
-                    pickup_type: BigHealthpack,
+                    pickup_type: BigHealth,
                     coordinates: Vec2(144.0, 68.0),
                     elapsed: 0.0,
                     depth: Six,
@@ -519,7 +519,7 @@ StageData(
                     enemy_type: Mosquiton,
                     elapsed: 8.4,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(100.0, 0.0),
                     speed: 5.0,
@@ -607,7 +607,7 @@ StageData(
                     enemy_type: Tardigrade,
                     elapsed: 6.4,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(124.86621, 38.274643),
                     speed: 2.0,
@@ -716,7 +716,7 @@ StageData(
                     enemy_type: Mosquiton,
                     elapsed: 6.1,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(184.25671, 0.0),
                     speed: 2.0,
@@ -755,7 +755,7 @@ StageData(
                     enemy_type: Mosquiton,
                     elapsed: 8.1,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(734.93945, 0.0),
                     speed: 5.0,
@@ -787,7 +787,7 @@ StageData(
                     enemy_type: Mosquiton,
                     elapsed: 8.4,
                     contains: Pickup(
-                        pickup_type: BigHealthpack,
+                        pickup_type: BigHealth,
                     ),
                     coordinates: Vec2(55.0, 0.0),
                     speed: 5.0,

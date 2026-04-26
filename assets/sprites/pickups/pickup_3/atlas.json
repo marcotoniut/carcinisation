@@ -1,0 +1,661 @@
+{
+  "schema_version": 3,
+  "entity": "pickup",
+  "depth": 3,
+  "source": "pickups/pickups_3.aseprite",
+  "canvas": {
+    "w": 51,
+    "h": 51
+  },
+  "origin": {
+    "x": 25,
+    "y": 25
+  },
+  "spawn_anchor": "Origin",
+  "ground_anchor_y": 12,
+  "air_anchor_y": null,
+  "atlas_image": "source.png",
+  "part_definitions": [
+    {
+      "id": "group_marker",
+      "tags": [
+        "group"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "case",
+      "tags": [
+        "weapon"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "icon",
+      "tags": [
+        "weapon",
+        "icon"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "health_large",
+      "tags": [
+        "health"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "health_body",
+      "tags": [
+        "health",
+        "collidable"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "health_handle",
+      "tags": [
+        "health",
+        "handle"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "root",
+      "definition_id": "group_marker",
+      "name": "Root",
+      "parent_id": null,
+      "source_layer": null,
+      "draw_order": 0,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "weapon_case",
+      "definition_id": "case",
+      "name": "Weapon Case",
+      "parent_id": "root",
+      "source_layer": "weapon_case",
+      "draw_order": 10,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "icon_flamethrower",
+      "definition_id": "icon",
+      "name": "Icon Flamethrower",
+      "parent_id": "root",
+      "source_layer": "icon_falmethrower",
+      "draw_order": 20,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "flamethrower"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "icon_bomb",
+      "definition_id": "icon",
+      "name": "Icon Bomb",
+      "parent_id": "root",
+      "source_layer": "icon_bomb",
+      "draw_order": 30,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "bomb"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "icon_bullet",
+      "definition_id": "icon",
+      "name": "Icon Bullet",
+      "parent_id": "root",
+      "source_layer": "icon_bullet",
+      "draw_order": 40,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "bullet"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "icon_piercing",
+      "definition_id": "icon",
+      "name": "Icon Piercing",
+      "parent_id": "root",
+      "source_layer": "icon_piercing",
+      "draw_order": 50,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "piercing"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "health_l",
+      "definition_id": "health_large",
+      "name": "Health Large",
+      "parent_id": "root",
+      "source_layer": "health_l",
+      "draw_order": 60,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "health_s",
+      "definition_id": "health_body",
+      "name": "Health Small Body",
+      "parent_id": "root",
+      "source_layer": "health_s",
+      "draw_order": 70,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "health_s_cap",
+      "definition_id": "health_handle",
+      "name": "Health Small Handle",
+      "parent_id": "root",
+      "source_layer": "health_s_cap",
+      "draw_order": 80,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    }
+  ],
+  "sprites": [
+    {
+      "id": "sprite_0000",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 20
+      }
+    },
+    {
+      "id": "sprite_0001",
+      "rect": {
+        "x": 14,
+        "y": 0,
+        "w": 1,
+        "h": 20
+      }
+    },
+    {
+      "id": "sprite_0002",
+      "rect": {
+        "x": 15,
+        "y": 0,
+        "w": 8,
+        "h": 10
+      }
+    },
+    {
+      "id": "sprite_0003",
+      "rect": {
+        "x": 23,
+        "y": 0,
+        "w": 10,
+        "h": 10
+      }
+    },
+    {
+      "id": "sprite_0004",
+      "rect": {
+        "x": 33,
+        "y": 0,
+        "w": 10,
+        "h": 8
+      }
+    },
+    {
+      "id": "sprite_0005",
+      "rect": {
+        "x": 43,
+        "y": 0,
+        "w": 13,
+        "h": 5
+      }
+    },
+    {
+      "id": "sprite_0006",
+      "rect": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 23
+      }
+    },
+    {
+      "id": "sprite_0007",
+      "rect": {
+        "x": 12,
+        "y": 20,
+        "w": 1,
+        "h": 23
+      }
+    },
+    {
+      "id": "sprite_0008",
+      "rect": {
+        "x": 13,
+        "y": 20,
+        "w": 10,
+        "h": 15
+      }
+    },
+    {
+      "id": "sprite_0009",
+      "rect": {
+        "x": 23,
+        "y": 20,
+        "w": 1,
+        "h": 15
+      }
+    },
+    {
+      "id": "sprite_0010",
+      "rect": {
+        "x": 24,
+        "y": 20,
+        "w": 3,
+        "h": 8
+      }
+    },
+    {
+      "id": "sprite_0011",
+      "rect": {
+        "x": 27,
+        "y": 20,
+        "w": 1,
+        "h": 8
+      }
+    }
+  ],
+  "animations": [
+    {
+      "tag": "idle",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 0,
+          "duration_ms": 100,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "weapon_case",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -14,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon_case",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "weapon_case",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -11
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "icon_flamethrower",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": -3,
+                "y": -5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "icon_bomb",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": -4,
+                "y": -5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "icon_bullet",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": -5,
+                "y": -4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "icon_piercing",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": -6,
+                "y": -2
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "health_l",
+              "sprite_id": "sprite_0006",
+              "local_offset": {
+                "x": -12,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "health_l",
+              "sprite_id": "sprite_0007",
+              "local_offset": {
+                "x": 0,
+                "y": -11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "health_l",
+              "sprite_id": "sprite_0006",
+              "local_offset": {
+                "x": 1,
+                "y": -11
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "health_s",
+              "sprite_id": "sprite_0008",
+              "local_offset": {
+                "x": -10,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "health_s",
+              "sprite_id": "sprite_0009",
+              "local_offset": {
+                "x": 0,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "health_s",
+              "sprite_id": "sprite_0008",
+              "local_offset": {
+                "x": 1,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "health_s_cap",
+              "sprite_id": "sprite_0010",
+              "local_offset": {
+                "x": -3,
+                "y": -15
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "health_s_cap",
+              "sprite_id": "sprite_0011",
+              "local_offset": {
+                "x": 0,
+                "y": -15
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "health_s_cap",
+              "sprite_id": "sprite_0010",
+              "local_offset": {
+                "x": 1,
+                "y": -15
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    }
+  ],
+  "gameplay": {
+    "entity_health_pool": null,
+    "health_pools": []
+  }
+}

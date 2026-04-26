@@ -64,21 +64,63 @@ impl ObjectType {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Reflect, Serialize)]
 /// Pickup categories available for drop spawns.
 pub enum PickupType {
-    SmallHealthpack,
-    BigHealthpack,
-    // TODO
-    // Weapon,
-    // Ammo,
-    // Shield,
+    SmallHealth,
+    BigHealth,
+    Flamethrower,
+    Bullet,
+    Piercing,
+    Bomb,
 }
 
 impl PickupType {
-    /// Returns the sprite base name for this pickup type
+    /// Returns the composed sprite base name shared by all pickup types.
     #[must_use]
     pub fn sprite_base_name(&self) -> &'static str {
+        "pickup"
+    }
+
+    /// Part names from the composed atlas that should be visible for this type.
+    #[must_use]
+    pub fn visible_parts(&self) -> &'static [&'static str] {
         match self {
-            PickupType::SmallHealthpack => "health_4",
-            PickupType::BigHealthpack => "health_6",
+            PickupType::SmallHealth => &["health_s", "health_s_cap"],
+            PickupType::BigHealth => &["health_l"],
+            PickupType::Flamethrower => &["weapon_case", "icon_flamethrower"],
+            PickupType::Bullet => &["weapon_case", "icon_bullet"],
+            PickupType::Piercing => &["weapon_case", "icon_piercing"],
+            PickupType::Bomb => &["weapon_case", "icon_bomb"],
+        }
+    }
+
+    /// Health recovery amount, if this pickup heals the player.
+    #[must_use]
+    pub fn health_recovery(&self) -> Option<u32> {
+        match self {
+            PickupType::SmallHealth => Some(30),
+            PickupType::BigHealth => Some(100),
+            _ => None,
+        }
+    }
+
+    /// Whether this pickup type grants a weapon.
+    #[must_use]
+    pub fn is_weapon(&self) -> bool {
+        matches!(
+            self,
+            PickupType::Flamethrower | PickupType::Bullet | PickupType::Piercing | PickupType::Bomb
+        )
+    }
+
+    /// Collider dimensions for this pickup type.
+    #[must_use]
+    pub fn collider_size(&self) -> Vec2 {
+        match self {
+            PickupType::SmallHealth => Vec2::new(21.0, 15.0),
+            PickupType::BigHealth => Vec2::new(25.0, 23.0),
+            PickupType::Flamethrower
+            | PickupType::Bullet
+            | PickupType::Piercing
+            | PickupType::Bomb => Vec2::new(29.0, 20.0),
         }
     }
 }
@@ -134,19 +176,9 @@ impl PickupSpawn {
         self
     }
     #[must_use]
-    pub fn big_healthpack_base() -> Self {
+    pub fn base(pickup_type: PickupType) -> Self {
         Self {
-            pickup_type: PickupType::BigHealthpack,
-            coordinates: Vec2::ZERO,
-            elapsed: Duration::ZERO,
-            depth: Depth::Six,
-            authored_depths: None,
-        }
-    }
-    #[must_use]
-    pub fn small_healthpack_base() -> Self {
-        Self {
-            pickup_type: PickupType::SmallHealthpack,
+            pickup_type,
             coordinates: Vec2::ZERO,
             elapsed: Duration::ZERO,
             depth: Depth::Six,
