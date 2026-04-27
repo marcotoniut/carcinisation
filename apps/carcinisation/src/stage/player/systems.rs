@@ -9,6 +9,7 @@ use super::config::PlayerConfig;
 use super::intent::PlayerIntent;
 use crate::pixel::CxAssets;
 use crate::stage::player::attacks::AttackEffectState;
+use crate::stage::player::flamethrower::ActiveFlamethrower;
 use crate::stage::player::messages::CameraShakeEvent;
 use crate::stage::resources::StageTimeDomain;
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
     stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxCamera, CxSprite, WorldPos};
+use carapace::prelude::{CxCamera, CxSprite, CxSpriteAtlasAsset, WorldPos};
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TargetingValueZ, TweenChildAcceleratedBundle,
     TweenChildBundle,
@@ -108,8 +109,9 @@ pub fn detect_player_attack(
     mut commands: Commands,
     mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
     intent: Res<PlayerIntent>,
-    player_attack_query: Query<Entity, With<PlayerAttack>>,
+    player_attack_query: Query<Entity, (With<PlayerAttack>, Without<ActiveFlamethrower>)>,
     player_query: Query<&WorldPos, With<Player>>,
     camera: Res<CxCamera>,
     volume_settings: Res<VolumeSettings>,
@@ -128,6 +130,11 @@ pub fn detect_player_attack(
         loadout.cycle();
     }
 
+    // Flamethrower is managed by its own system.
+    if loadout.current() == AttackId::Flamethrower && !intent.melee_triggered {
+        return;
+    }
+
     // --- Melee (Select+A chord) ---
     if intent.melee_triggered {
         if !attack_active && let Some(position) = player_position {
@@ -136,16 +143,14 @@ pub fn detect_player_attack(
                 position: position.0,
                 attack_id: AttackId::Pincer,
             };
-            let (attack_bundle, sound_bundle) = player_attack.make_bundles(
+            player_attack.spawn_attack(
+                &mut commands,
                 definition,
                 &mut assets_sprite,
                 asset_server.as_ref(),
+                &atlas_assets,
                 volume_settings.as_ref(),
             );
-            commands.spawn(attack_bundle);
-            if let Some(sound_bundle) = sound_bundle {
-                commands.spawn(sound_bundle);
-            }
         }
         // The A press was consumed by melee — clear any armed ranged state.
         input_state.clear();
@@ -183,16 +188,14 @@ pub fn detect_player_attack(
             },
             attack_id,
         };
-        let (attack_bundle, sound_bundle) = player_attack.make_bundles(
+        let attack_entity = player_attack.spawn_attack(
+            &mut commands,
             definition,
             &mut assets_sprite,
             asset_server.as_ref(),
+            &atlas_assets,
             volume_settings.as_ref(),
         );
-        let attack_entity = commands.spawn(attack_bundle).id();
-        if let Some(sound_bundle) = sound_bundle {
-            commands.spawn(sound_bundle);
-        }
 
         if attack_id == AttackId::Bomb {
             let t = definition.duration_secs.max(BOMB_THROW_MIN_DURATION_SECS);
@@ -311,6 +314,7 @@ pub fn despawn_expired_attacks(
     mut commands: Commands,
     mut assets_sprite: CxAssets<CxSprite>,
     asset_server: Res<AssetServer>,
+    atlas_assets: Res<Assets<CxSpriteAtlasAsset>>,
     volume_settings: Res<VolumeSettings>,
     attack_definitions: Res<AttackDefinitions>,
     mut query: Query<
@@ -342,16 +346,14 @@ pub fn despawn_expired_attacks(
                 position: position.0,
                 attack_id: next_id,
             };
-            let (attack_bundle, sound_bundle) = next_attack.make_bundles(
+            next_attack.spawn_attack(
+                &mut commands,
                 next_definition,
                 &mut assets_sprite,
                 asset_server.as_ref(),
+                &atlas_assets,
                 volume_settings.as_ref(),
             );
-            commands.spawn(attack_bundle);
-            if let Some(sound_bundle) = sound_bundle {
-                commands.spawn(sound_bundle);
-            }
             effect_state.follow_up_spawned = true;
         }
         commands.entity(entity).insert(DespawnMark);

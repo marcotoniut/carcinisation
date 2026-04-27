@@ -1,0 +1,44 @@
+(
+    indexed_image: "sprites/attacks/player_flame/atlas.pxi",
+    regions: [
+        (
+            frame_size: (16, 19),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 16,
+                    h: 19,
+                ),
+                (
+                    x: 16,
+                    y: 0,
+                    w: 16,
+                    h: 19,
+                ),
+                (
+                    x: 32,
+                    y: 0,
+                    w: 16,
+                    h: 19,
+                ),
+                (
+                    x: 48,
+                    y: 0,
+                    w: 16,
+                    h: 19,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "flame": 0,
+    },
+    animations: {
+        "flame": (
+            duration_ms: 400,
+            direction: "forward",
+            on_finish: "mark",
+        ),
+    },
+)

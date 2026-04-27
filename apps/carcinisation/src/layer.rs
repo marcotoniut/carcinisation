@@ -4,6 +4,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::cutscene::data::CutsceneLayer;
 
+/// Sub-layer depth for flamethrower particles. Higher = renders on top.
+#[derive(
+    Clone, Debug, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize, Copy,
+)]
+pub struct FlameDepth(pub u8);
+
+impl Next for FlameDepth {
+    const MIN: Self = FlameDepth(0);
+
+    fn next(self) -> Option<Self> {
+        if self.0 < 15 {
+            Some(FlameDepth(self.0 + 1))
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize)]
 pub enum MidDepth {
     /// Furthest mid-plane (distant buildings, scenery silhouettes).
@@ -49,6 +67,8 @@ pub enum Layer {
 
     /// Projectiles/effects that must sit above props but below the player sprite.
     Attack,
+    /// Per-particle flame ordering. Higher values render on top.
+    FlameSegment(FlameDepth),
     /// Default gameplay plane (player + most enemies).
     #[default]
     Front,

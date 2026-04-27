@@ -4,6 +4,13 @@ use bevy::prelude::*;
 use carapace::prelude::{CxAnchor, CxAnimationFinishBehavior, CxFrameTransition, CxRenderSpace};
 use std::collections::HashMap;
 
+pub const PLAYER_MELEE_ATLAS_PATH: &str = "sprites/attacks/player_melee/atlas.px_atlas.ron";
+pub const PLAYER_BULLET_ATLAS_PATH: &str = "sprites/attacks/player_bullet/atlas.px_atlas.ron";
+pub const PLAYER_FLAME_ATLAS_PATH: &str = "sprites/attacks/player_flame/atlas.px_atlas.ron";
+pub const PLAYER_MELEE_REGION: &str = "melee_slash";
+pub const PLAYER_BULLET_REGION: &str = "bullet_particles";
+pub const PLAYER_FLAME_REGION: &str = "flame";
+
 #[derive(Clone, Copy, Debug, Reflect, PartialEq, Eq, Hash)]
 pub enum AttackId {
     Pincer,
@@ -11,6 +18,7 @@ pub enum AttackId {
     MachineGun,
     Bomb,
     BombExplosion,
+    Flamethrower,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,10 +53,24 @@ pub enum AttackHitPolicy {
     },
 }
 
+/// Visual source for a player attack effect.
+#[derive(Clone, Debug)]
+pub enum AttackVisualSource {
+    /// Legacy single sprite (e.g. bomb projectile).
+    Sprite {
+        sprite_path: &'static str,
+        frames: usize,
+    },
+    /// Atlas region from a `.px_atlas.ron` atlas.
+    Atlas {
+        atlas_path: &'static str,
+        region_name: &'static str,
+    },
+}
+
 #[derive(Clone, Debug)]
 pub struct AttackSpriteDefinition {
-    pub sprite_path: &'static str,
-    pub frames: usize,
+    pub visual: AttackVisualSource,
     pub speed_ms: u64,
     pub finish_behavior: CxAnimationFinishBehavior,
     pub frame_transition: CxFrameTransition,
@@ -129,8 +151,10 @@ impl Default for AttackDefinitions {
                 },
                 aim_spread: 0.0,
                 sprite: AttackSpriteDefinition {
-                    sprite_path: assert_assets_path!("sprites/melee_slash.px_sprite.png"),
-                    frames: 9,
+                    visual: AttackVisualSource::Atlas {
+                        atlas_path: PLAYER_MELEE_ATLAS_PATH,
+                        region_name: PLAYER_MELEE_REGION,
+                    },
                     speed_ms: 500,
                     finish_behavior: CxAnimationFinishBehavior::Despawn,
                     frame_transition: CxFrameTransition::None,
@@ -161,8 +185,10 @@ impl Default for AttackDefinitions {
                 hit_policy: AttackHitPolicy::Single,
                 aim_spread: 0.0,
                 sprite: AttackSpriteDefinition {
-                    sprite_path: assert_assets_path!("sprites/bullet_particles.px_sprite.png"),
-                    frames: 4,
+                    visual: AttackVisualSource::Atlas {
+                        atlas_path: PLAYER_BULLET_ATLAS_PATH,
+                        region_name: PLAYER_BULLET_REGION,
+                    },
                     speed_ms: 80,
                     finish_behavior: CxAnimationFinishBehavior::Despawn,
                     frame_transition: CxFrameTransition::None,
@@ -195,8 +221,10 @@ impl Default for AttackDefinitions {
                 hit_policy: AttackHitPolicy::Single,
                 aim_spread: 2.0,
                 sprite: AttackSpriteDefinition {
-                    sprite_path: assert_assets_path!("sprites/bullet_particles.px_sprite.png"),
-                    frames: 4,
+                    visual: AttackVisualSource::Atlas {
+                        atlas_path: PLAYER_BULLET_ATLAS_PATH,
+                        region_name: PLAYER_BULLET_REGION,
+                    },
                     speed_ms: 80,
                     finish_behavior: CxAnimationFinishBehavior::Despawn,
                     frame_transition: CxFrameTransition::None,
@@ -226,8 +254,10 @@ impl Default for AttackDefinitions {
                 hit_policy: AttackHitPolicy::Single,
                 aim_spread: 0.0,
                 sprite: AttackSpriteDefinition {
-                    sprite_path: assert_assets_path!("sprites/pickups/bomb_6.px_sprite.png"),
-                    frames: 1,
+                    visual: AttackVisualSource::Sprite {
+                        sprite_path: assert_assets_path!("sprites/pickups/bomb_6.px_sprite.png"),
+                        frames: 1,
+                    },
                     speed_ms: 200,
                     finish_behavior: CxAnimationFinishBehavior::Loop,
                     frame_transition: CxFrameTransition::None,
@@ -257,10 +287,11 @@ impl Default for AttackDefinitions {
                     repeat_damage: 25,
                 },
                 aim_spread: 0.0,
-                // TODO replace with dedicated explosion sprite
                 sprite: AttackSpriteDefinition {
-                    sprite_path: assert_assets_path!("sprites/bullet_particles.px_sprite.png"),
-                    frames: 4,
+                    visual: AttackVisualSource::Atlas {
+                        atlas_path: PLAYER_BULLET_ATLAS_PATH,
+                        region_name: PLAYER_BULLET_REGION,
+                    },
                     speed_ms: 500,
                     finish_behavior: CxAnimationFinishBehavior::Despawn,
                     frame_transition: CxFrameTransition::None,
@@ -269,6 +300,44 @@ impl Default for AttackDefinitions {
                     layer: Layer::Attack,
                 },
                 sfx_path: Some(assert_assets_path!("audio/sfx/bomb_explode.ogg")),
+                effects: AttackEffects {
+                    screen_shake: false,
+                },
+            },
+        );
+        // Flamethrower is managed by its own system; this stub prevents
+        // panics if any generic code calls `get(AttackId::Flamethrower)`.
+        defs.insert(
+            AttackId::Flamethrower,
+            AttackDefinition {
+                id: AttackId::Flamethrower,
+                name: "Flamethrower",
+                category: AttackCategory::Ranged,
+                damage: 0,
+                duration_secs: 0.0,
+                collision: AttackCollisionMode::None,
+                hit_offsets: vec![],
+                spawn_on_expire: None,
+                detonates_on_hit: false,
+                input_policy: AttackInputPolicy::Hold {
+                    warmup_secs: 0.0,
+                    interval_secs: 0.0,
+                },
+                hit_policy: AttackHitPolicy::Single,
+                aim_spread: 0.0,
+                sprite: AttackSpriteDefinition {
+                    visual: AttackVisualSource::Atlas {
+                        atlas_path: PLAYER_FLAME_ATLAS_PATH,
+                        region_name: PLAYER_FLAME_REGION,
+                    },
+                    speed_ms: 900,
+                    finish_behavior: CxAnimationFinishBehavior::Loop,
+                    frame_transition: CxFrameTransition::None,
+                    anchor: CxAnchor::Center,
+                    canvas: CxRenderSpace::Camera,
+                    layer: Layer::Attack,
+                },
+                sfx_path: None,
                 effects: AttackEffects {
                     screen_shake: false,
                 },
@@ -323,7 +392,11 @@ impl AttackLoadout {
 impl Default for AttackLoadout {
     fn default() -> Self {
         Self {
-            cycle: AttackCycle::new(vec![AttackId::Pistol, AttackId::Bomb]),
+            cycle: AttackCycle::new(vec![
+                AttackId::Pistol,
+                AttackId::Bomb,
+                AttackId::Flamethrower,
+            ]),
         }
     }
 }

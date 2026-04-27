@@ -1,0 +1,74 @@
+(
+    indexed_image: "sprites/attacks/player_melee/atlas.pxi",
+    regions: [
+        (
+            frame_size: (127, 60),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 127,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 254,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 381,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 508,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 635,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 762,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 889,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+                (
+                    x: 1016,
+                    y: 0,
+                    w: 127,
+                    h: 60,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "melee_slash": 0,
+    },
+    animations: {
+        "melee_slash": (
+            duration_ms: 900,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

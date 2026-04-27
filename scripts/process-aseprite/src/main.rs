@@ -32,6 +32,8 @@ fn parse_simple_atlas_args(args: &[String]) -> Result<SimpleAtlasRequest> {
     let mut aseprite_path = None;
     let mut output_dir = None;
     let mut pxi_asset_path = None;
+    let mut layer_filter = None;
+    let mut tag_filter = None;
 
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
@@ -49,6 +51,12 @@ fn parse_simple_atlas_args(args: &[String]) -> Result<SimpleAtlasRequest> {
                     iter.next().context("Missing --pxi-asset-path value")?,
                 ));
             }
+            "--layer" => {
+                layer_filter = Some(iter.next().context("Missing --layer value")?.clone());
+            }
+            "--tag" => {
+                tag_filter = Some(iter.next().context("Missing --tag value")?.clone());
+            }
             "--help" | "-h" => {
                 print_usage();
                 std::process::exit(0);
@@ -64,6 +72,8 @@ fn parse_simple_atlas_args(args: &[String]) -> Result<SimpleAtlasRequest> {
         aseprite_path: aseprite_path.context("Missing required --input")?,
         output_dir: output,
         pxi_asset_path: pxi_asset,
+        layer_filter,
+        tag_filter,
     })
 }
 

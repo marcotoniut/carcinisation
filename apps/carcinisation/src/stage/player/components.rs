@@ -1,21 +1,21 @@
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
-use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
-use crate::{
-    layer::Layer,
-    stage::{
-        components::interactive::ColliderData,
-        components::placement::Depth,
-        player::attacks::{
-            AttackCollisionMode, AttackDefinition, AttackEffectState, AttackHitTracker, AttackId,
-            AttackLifetime,
-        },
+use crate::pixel::{CxAnimationBundle, CxAssets};
+use crate::stage::{
+    components::interactive::ColliderData,
+    components::placement::Depth,
+    player::attacks::{
+        AttackCollisionMode, AttackDefinition, AttackEffectState, AttackHitTracker, AttackId,
+        AttackLifetime, AttackVisualSource,
     },
 };
 use bevy::{
-    audio::{AudioPlayer, PlaybackMode, PlaybackSettings},
+    audio::{AudioPlayer, AudioSource, PlaybackMode, PlaybackSettings},
     prelude::*,
 };
-use carapace::prelude::{CxAnimationDirection, CxAnimationDuration, CxSprite, WorldPos};
+use carapace::prelude::{
+    CxAnimationDirection, CxAnimationDuration, CxAtlasSprite, CxSprite, CxSpriteAtlasAsset,
+    WorldPos,
+};
 use std::time::Duration;
 
 #[derive(Component)]
@@ -33,56 +33,27 @@ pub struct PlayerAttack {
 }
 
 impl PlayerAttack {
-    pub fn make_bundles(
+    /// Spawns a player attack entity with the appropriate visual (sprite or atlas).
+    ///
+    /// Returns the spawned entity's `Entity` id.
+    pub fn spawn_attack(
         &self,
+        commands: &mut Commands,
         definition: &AttackDefinition,
         assets_sprite: &mut CxAssets<CxSprite>,
         asset_server: &AssetServer,
+        atlas_assets: &Assets<CxSpriteAtlasAsset>,
         volume_settings: &VolumeSettings,
-    ) -> (
-        (
-            Self,
-            CxSpriteBundle<Layer>,
-            CxAnimationBundle,
-            WorldPos,
-            AttackHitTracker,
-            AttackEffectState,
-            AttackLifetime,
-            ColliderData,
-            Name,
-        ),
-        Option<(AudioPlayer, PlaybackSettings, AudioSystemBundle)>,
-    ) {
+    ) -> Entity {
         let position = WorldPos::from(self.position);
         let name = Name::new(format!("PlayerAttack<{}>", definition.name));
 
-        let sprite =
-            assets_sprite.load_animated(definition.sprite.sprite_path, definition.sprite.frames);
-        let sprite_bundle = CxSpriteBundle::<Layer> {
-            sprite: sprite.into(),
-            anchor: definition.sprite.anchor,
-            canvas: definition.sprite.canvas,
-            layer: definition.sprite.layer.clone(),
-            ..default()
-        };
         let animation_bundle = CxAnimationBundle::from_parts(
             CxAnimationDirection::default(),
             CxAnimationDuration::millis_per_animation(definition.sprite.speed_ms),
             definition.sprite.finish_behavior,
             definition.sprite.frame_transition,
         );
-        let sound_bundle = definition.sfx_path.map(|sfx_path| {
-            let audio_player = AudioPlayer(asset_server.load(sfx_path));
-            let playback_settings = PlaybackSettings {
-                mode: PlaybackMode::Despawn,
-                volume: volume_settings.sfx,
-                ..Default::default()
-            };
-            let audio_system_bundle = AudioSystemBundle {
-                system_type: AudioSystemType::SFX,
-            };
-            (audio_player, playback_settings, audio_system_bundle)
-        });
 
         let collider_data = match definition.collision {
             AttackCollisionMode::SpriteMask => {
@@ -116,20 +87,60 @@ impl PlayerAttack {
             AttackCollisionMode::None => ColliderData::default(),
         };
 
-        (
-            (
-                *self,
-                sprite_bundle,
-                animation_bundle,
-                position,
-                AttackHitTracker::default(),
-                AttackEffectState::default(),
-                AttackLifetime::new(definition.duration_secs),
-                collider_data,
-                name,
-            ),
-            sound_bundle,
-        )
+        let mut entity_commands = commands.spawn((
+            *self,
+            position,
+            definition.sprite.anchor,
+            definition.sprite.canvas,
+            definition.sprite.layer.clone(),
+            animation_bundle,
+            AttackHitTracker::default(),
+            AttackEffectState::default(),
+            AttackLifetime::new(definition.duration_secs),
+            collider_data,
+            name,
+        ));
+
+        match &definition.sprite.visual {
+            AttackVisualSource::Sprite {
+                sprite_path,
+                frames,
+            } => {
+                let sprite = assets_sprite.load_animated(*sprite_path, *frames);
+                entity_commands.insert(CxSprite::from(sprite));
+            }
+            AttackVisualSource::Atlas {
+                atlas_path,
+                region_name,
+            } => {
+                let atlas_handle: Handle<CxSpriteAtlasAsset> = asset_server.load(*atlas_path);
+                let region_id = atlas_assets
+                    .get(&atlas_handle)
+                    .and_then(|a| a.region_id(region_name))
+                    .unwrap_or_default();
+                entity_commands.insert(CxAtlasSprite::new(atlas_handle, region_id));
+            }
+        }
+
+        let entity = entity_commands.id();
+
+        if let Some(sfx_path) = definition.sfx_path {
+            let audio_player = AudioPlayer::<AudioSource>(asset_server.load(sfx_path));
+            let playback_settings = PlaybackSettings {
+                mode: PlaybackMode::Despawn,
+                volume: volume_settings.sfx,
+                ..Default::default()
+            };
+            commands.spawn((
+                audio_player,
+                playback_settings,
+                AudioSystemBundle {
+                    system_type: AudioSystemType::SFX,
+                },
+            ));
+        }
+
+        entity
     }
 }
 

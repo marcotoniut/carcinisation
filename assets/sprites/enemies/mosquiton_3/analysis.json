@@ -9,10 +9,7 @@
     "dedup_ratio": 0.8935185185185185,
     "fragment_growth_ratio": 1.1966101694915254,
     "used_pixels": 21364,
-    "atlas_size": [
-      256,
-      129
-    ],
+    "atlas_size": [256, 129],
     "atlas_pixels": 33024,
     "packing_efficiency": 0.6469234496124031
   },

@@ -5,6 +5,7 @@ pub mod bundles;
 pub mod components;
 pub mod config;
 pub mod crosshair;
+pub mod flamethrower;
 pub mod intent;
 pub mod messages;
 pub(crate) mod systems;
@@ -13,6 +14,9 @@ use self::{
     attacks::{AttackDefinitions, AttackInputState, AttackLoadout},
     config::PlayerConfig,
     crosshair::{Crosshair, CrosshairSettings},
+    flamethrower::{
+        FlamethrowerConfig, flamethrower_damage, manage_flamethrower, update_flamethrower,
+    },
     intent::{PlayerIntent, SelectChordState, resolve_player_intent},
     messages::{CameraShakeEvent, PlayerShutdownEvent, PlayerStartupEvent},
     systems::{
@@ -43,6 +47,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(PlayerConfig::load())
+            .insert_resource(FlamethrowerConfig::load())
             .init_resource::<AttackDefinitions>()
             .init_resource::<AttackInputState>()
             .init_resource::<AttackLoadout>()
@@ -61,6 +66,9 @@ impl Plugin for PlayerPlugin {
                 tick_webbed_status,
                 despawn_expired_attacks,
                 detect_player_attack.after(resolve_player_intent),
+                manage_flamethrower.after(resolve_player_intent),
+                update_flamethrower.after(manage_flamethrower),
+                flamethrower_damage.after(update_flamethrower),
                 player_movement
                     .in_set(MovementSystems)
                     .after(resolve_player_intent)

@@ -55,6 +55,26 @@ impl MaskCollisionAssets<'_, '_> {
     ) -> Option<Arc<AtlasPixelData>> {
         atlas_data(&mut self.atlas_cache, &self.atlas_assets, handle)
     }
+
+    /// Returns a reference to the atlas assets for use in spawn helpers.
+    pub fn atlas_asset_store(&self) -> &Assets<CxSpriteAtlasAsset> {
+        &self.atlas_assets
+    }
+
+    /// Returns the atlas region size for a given sprite, if the atlas is loaded.
+    pub fn atlas_sprite_region_size(&self, sprite: &CxAtlasSprite) -> Option<UVec2> {
+        atlas_region_size(self, sprite)
+    }
+
+    /// Returns the atlas region for a given sprite, if the atlas is loaded.
+    pub fn atlas_sprite_region(
+        &self,
+        sprite: &CxAtlasSprite,
+    ) -> Option<&carapace::prelude::AtlasRegion> {
+        self.atlas_assets
+            .get(&sprite.atlas)
+            .and_then(|atlas| atlas.region(sprite.region))
+    }
 }
 
 #[derive(Clone, Copy)]

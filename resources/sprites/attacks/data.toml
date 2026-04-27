@@ -9,3 +9,21 @@ output = "sprites/attacks/boulder_throw"
 [[atlases]]
 source = "spider_shot_1.aseprite"
 output = "sprites/attacks/spider_shot"
+
+[[atlases]]
+source = "player_attacks.aseprite"
+output = "sprites/attacks/player_melee"
+layer = "melee_slash"
+tag = "melee_slash"
+
+[[atlases]]
+source = "player_attacks.aseprite"
+output = "sprites/attacks/player_bullet"
+layer = "bullet_particles"
+tag = "bullet_particles"
+
+[[atlases]]
+source = "player_attacks.aseprite"
+output = "sprites/attacks/player_flame"
+layer = "flame"
+tag = "flame"

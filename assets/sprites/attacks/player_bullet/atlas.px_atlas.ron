@@ -1,0 +1,44 @@
+(
+    indexed_image: "sprites/attacks/player_bullet/atlas.pxi",
+    regions: [
+        (
+            frame_size: (17, 17),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 17,
+                    h: 17,
+                ),
+                (
+                    x: 17,
+                    y: 0,
+                    w: 17,
+                    h: 17,
+                ),
+                (
+                    x: 34,
+                    y: 0,
+                    w: 17,
+                    h: 17,
+                ),
+                (
+                    x: 51,
+                    y: 0,
+                    w: 17,
+                    h: 17,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "bullet_particles": 0,
+    },
+    animations: {
+        "bullet_particles": (
+            duration_ms: 400,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

@@ -6,7 +6,6 @@ use crate::stage::{
         damage::{DamageFlicker, InvertFilter},
         interactive::{Dead, Flickerer, Health},
     },
-    enemy::composed::ComposedHealthPools,
     messages::DamageMessage,
     player::components::Player,
     resources::StageTimeDomain,
@@ -25,13 +24,14 @@ pub static DAMAGE_INVERT_DURATION: std::sync::LazyLock<Duration> =
 
 /// @system Applies incoming entity-level damage and marks entities as `Dead` when health reaches zero.
 ///
-/// Entities with `ComposedHealthPools` are excluded because their damage is routed through
-/// part-specific health pools via `PartDamageMessage`. Entity-level damage (fall damage, etc.)
-/// should still go through this system, so composed enemies should use a simple `Health` component.
+/// Part-specific damage on composed enemies is routed through `PartDamageMessage` →
+/// `apply_composed_part_damage`. Entity-level `DamageMessage` (flamethrower, environmental)
+/// bypasses part durability and hits the entity's `Health` directly, regardless of whether
+/// it also has `ComposedHealthPools`.
 pub fn on_damage(
     mut commands: Commands,
     mut event_reader: MessageReader<DamageMessage>,
-    mut query: Query<&mut Health, (Without<Dead>, Without<ComposedHealthPools>)>,
+    mut query: Query<&mut Health, Without<Dead>>,
     players: Query<(), With<Player>>,
     #[cfg(debug_assertions)] god_mode: Option<Res<DebugGodMode>>,
 ) {

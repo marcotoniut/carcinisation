@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use carapace::prelude::*;
 
+use crate::stage::collision::AttackMask;
 use crate::{
     components::{DespawnMark, VolumeSettings},
     game::score::components::Score,
@@ -34,7 +35,9 @@ use crate::{
         resources::StageTimeDomain,
     },
 };
-use carcinisation_collision::world_mask_rect_from_spatial;
+use carcinisation_collision::{
+    AtlasMaskFrames, PixelMaskSource, WorldMaskInstance, world_mask_rect_from_spatial,
+};
 use colored::Colorize;
 
 const CRITICAL_THRESHOLD: f32 = 0.5;
@@ -67,7 +70,8 @@ pub fn check_got_hit(
         &CxAnchor,
         &CxRenderSpace,
         Option<&CxFrameView>,
-        &CxSprite,
+        Option<&CxSprite>,
+        Option<&CxAtlasSprite>,
         &mut AttackHitTracker,
         &mut AttackEffectState,
         Option<&Depth>,
@@ -108,6 +112,7 @@ pub fn check_got_hit(
         attack_canvas,
         attack_frame,
         attack_sprite,
+        attack_atlas_sprite,
         mut hit_tracker,
         mut effect_state,
         bomb_depth,
@@ -125,10 +130,27 @@ pub fn check_got_hit(
         }
         .as_vec2();
 
-        let attack_data = matches!(attack_definition.collision, AttackCollisionMode::SpriteMask)
-            .then(|| collision_assets.sprite_pixels(attack_sprite))
+        // Resolve sprite mask data. Store Arc-owned data locally so the mask
+        // can borrow from it for the duration of the target loop.
+        let is_sprite_mask = matches!(attack_definition.collision, AttackCollisionMode::SpriteMask);
+        let attack_sprite_data = is_sprite_mask
+            .then(|| attack_sprite.and_then(|s| collision_assets.sprite_pixels(&s.0)))
             .flatten();
-        let attack_mask = attack_data.as_deref().and_then(|data| {
+        let (attack_atlas_data, attack_atlas_region_size, attack_atlas_region) = if is_sprite_mask
+            && attack_sprite_data.is_none()
+            && let Some(atlas_sprite) = attack_atlas_sprite
+        {
+            let data = collision_assets.atlas_pixels(&atlas_sprite.atlas);
+            let region_size = collision_assets.atlas_sprite_region_size(atlas_sprite);
+            // Clone the region so we don't hold an immutable borrow on
+            // collision_assets through the target loop.
+            let region = collision_assets.atlas_sprite_region(atlas_sprite).cloned();
+            (data, region_size, region)
+        } else {
+            (None, None, None)
+        };
+
+        let attack_mask = if let Some(ref data) = attack_sprite_data {
             world_mask_rect_from_spatial(
                 data.frame_size(),
                 *attack_position,
@@ -138,10 +160,37 @@ pub fn check_got_hit(
                 None,
             )
             .map(|world| build_attack_mask(data, attack_frame.copied(), world.rect))
-        });
-        if matches!(attack_definition.collision, AttackCollisionMode::SpriteMask)
-            && attack_mask.is_none()
+        } else if let Some(ref atlas_data) = attack_atlas_data
+            && let Some(region_size) = attack_atlas_region_size
+            && let Some(ref region) = attack_atlas_region
         {
+            world_mask_rect_from_spatial(
+                region_size,
+                *attack_position,
+                *attack_anchor,
+                *attack_canvas,
+                camera_world,
+                None,
+            )
+            .map(|world| AttackMask {
+                mask: WorldMaskInstance {
+                    source: PixelMaskSource::Atlas {
+                        atlas: atlas_data.as_ref(),
+                        frames: AtlasMaskFrames::Region(region),
+                    },
+                    frame: attack_frame.copied(),
+                    world: carcinisation_collision::WorldMaskRect {
+                        rect: world.rect,
+                        flip_x: false,
+                        flip_y: false,
+                    },
+                    closed: false,
+                },
+            })
+        } else {
+            None
+        };
+        if is_sprite_mask && attack_mask.is_none() {
             continue;
         }
 
@@ -270,16 +319,14 @@ pub fn check_got_hit(
                             position: attack_world,
                             attack_id: next_id,
                         };
-                        let (attack_bundle, sound_bundle) = next_attack.make_bundles(
+                        next_attack.spawn_attack(
+                            &mut commands,
                             next_definition,
                             &mut assets_sprite,
                             asset_server.as_ref(),
+                            collision_assets.atlas_asset_store(),
                             volume_settings.as_ref(),
                         );
-                        commands.spawn(attack_bundle);
-                        if let Some(sound_bundle) = sound_bundle {
-                            commands.spawn(sound_bundle);
-                        }
                     }
                     effect_state.follow_up_spawned = true;
                 }

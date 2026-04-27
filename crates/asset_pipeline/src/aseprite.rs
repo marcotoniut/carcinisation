@@ -1123,6 +1123,10 @@ fn select_part_layers<'a>(
             continue;
         }
 
+        // Skip guide/reference layers prefixed with '_'.
+        if layer.name.starts_with('_') {
+            continue;
+        }
         match layer.layer_type {
             LayerType::Normal => {
                 ensure!(
@@ -2901,6 +2905,10 @@ pub struct SimpleAtlasRequest {
     pub output_dir: PathBuf,
     /// Asset-relative path for the PXI reference in the RON descriptor.
     pub pxi_asset_path: PathBuf,
+    /// When set, only this layer is included in the flatten step.
+    pub layer_filter: Option<String>,
+    /// When set, only tags matching this name become atlas regions.
+    pub tag_filter: Option<String>,
 }
 
 /// Manifest entry for batch simple-atlas export.
@@ -2910,6 +2918,10 @@ pub struct SimpleAtlasEntry {
     pub source: String,
     /// Asset-relative output directory (also used for PXI asset path).
     pub output: String,
+    /// When set, only this layer is included (others are skipped even if visible).
+    pub layer: Option<String>,
+    /// When set, only tags matching this name become atlas regions.
+    pub tag: Option<String>,
 }
 
 /// Manifest for batch simple-atlas export.
@@ -2931,6 +2943,8 @@ pub fn export_simple_atlas_manifest(manifest_path: &Path, assets_root: &Path) ->
             aseprite_path: manifest_dir.join(&entry.source),
             output_dir: assets_root.join(&entry.output),
             pxi_asset_path: PathBuf::from(format!("{}/atlas.pxi", entry.output)),
+            layer_filter: entry.layer.clone(),
+            tag_filter: entry.tag.clone(),
         };
         export_simple_atlas(&request)
             .with_context(|| format!("Failed to export '{}'", entry.source))?;
@@ -2949,17 +2963,27 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     let (w, h) = (u32::from(ase.size().0), u32::from(ase.size().1));
     let num_frames = ase.frames().len();
 
-    // Flatten each frame (merge all visible layers).
+    // Flatten each frame (merge visible layers, optionally filtered to one).
     let mut flat_frames: Vec<RgbaImage> = Vec::new();
     for frame_idx in 0..num_frames {
         let frame = &ase.frames()[frame_idx];
         let mut merged = RgbaImage::new(w, h);
         for cel in &frame.cels {
             let layer = &ase.file.layers[cel.layer_index];
-            if !layer.flags.contains(LayerFlags::VISIBLE) {
+            if layer.layer_type != LayerType::Normal {
                 continue;
             }
-            if layer.layer_type != LayerType::Normal {
+            // Layers prefixed with '_' are always excluded (guide/reference layers).
+            if layer.name.starts_with('_') {
+                continue;
+            }
+            if let Some(ref filter) = request.layer_filter {
+                // When a layer filter is active, include only the named layer
+                // regardless of its visibility flag.
+                if layer.name != *filter {
+                    continue;
+                }
+            } else if !layer.flags.contains(LayerFlags::VISIBLE) {
                 continue;
             }
             let img = load_cel_image(&ase, cel)?;
@@ -2991,6 +3015,11 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     }
     let mut tag_regions: Vec<TagRegion> = Vec::new();
     for tag in ase.tags() {
+        if let Some(ref filter) = request.tag_filter
+            && tag.name != *filter
+        {
+            continue;
+        }
         let frames: Vec<usize> = tag.range.clone().map(usize::from).collect();
         tag_regions.push(TagRegion {
             name: tag.name.clone(),
