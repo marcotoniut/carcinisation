@@ -126,8 +126,10 @@ fn build_pickup_composite(
         min = min.min(offset);
         max = max.max(offset + size);
 
-        let mut part_entry =
-            CxCompositePart::atlas_region(sprite_atlas_handle.clone(), AtlasRegionId(sprite_idx as u32));
+        let mut part_entry = CxCompositePart::atlas_region(
+            sprite_atlas_handle.clone(),
+            AtlasRegionId(sprite_idx as u32),
+        );
         part_entry.offset = offset;
         part_entry.flip_x = pose.fx;
         part_entry.flip_y = pose.fy;

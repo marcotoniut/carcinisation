@@ -10,10 +10,9 @@ use crate::{
         },
         depth_scale::DepthScaleConfig,
         pickup::components::{
-            HealthRecovery, PickupDropPhysics, PickupFeedbackScale,
-            PICKUP_FEEDBACK_GLITTER_TIME, PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS,
+            HealthRecovery, PICKUP_FEEDBACK_GLITTER_TIME, PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS,
             PICKUP_FEEDBACK_INITIAL_SPEED_Y, PICKUP_FEEDBACK_TIME, PICKUP_HUD_GLITTER_TIME,
-            PickupFeedback, PickupFeedbackGlitter,
+            PickupDropPhysics, PickupFeedback, PickupFeedbackGlitter, PickupFeedbackScale,
         },
         player::components::{PLAYER_MAX_HEALTH, Player},
         resources::StageTimeDomain,
@@ -109,6 +108,7 @@ pub fn pickup_health(
             &WorldPos,
             &Depth,
             Option<&CxCompositeSprite>,
+            Option<&CxPresentationTransform>,
         ),
         Added<Dead>,
     >,
@@ -123,13 +123,17 @@ pub fn pickup_health(
     let camera_pos = camera_query.single().unwrap();
     let glitter_filter = CxFilter(filters.load(assert_assets_path!("filter/color3.px_filter.png")));
     if let Ok(mut health) = player_query.single_mut() {
-        for (entity, recovery, position, depth, composite_sprite_o) in query.iter() {
+        for (entity, recovery, position, depth, composite_sprite_o, presentation_o) in query.iter()
+        {
             commands.entity(entity).insert(DespawnMark);
 
             health.0 = health.0.saturating_add(recovery.0).min(PLAYER_MAX_HEALTH);
             score.add(recovery.score_deduction());
 
-            let current = position.0 - camera_pos.0;
+            // Include the visual offset (parallax) so the arc starts from
+            // where the player actually sees the pickup, not its gameplay position.
+            let visual_offset = presentation_o.map_or(Vec2::ZERO, |pt| pt.visual_offset);
+            let current = position.0 + visual_offset - camera_pos.0;
             let snapped = CxPosition::from(IVec2::new(
                 current.x.round() as i32,
                 current.y.round() as i32,

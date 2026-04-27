@@ -34,7 +34,9 @@ use crate::stage::{
     floors::ActiveFloors,
     parallax::{ActiveParallaxAttenuation, ParallaxOffset, parallax_offset_for},
     player::{attacks::AttackHitTracker, components::PlayerAttack},
-    resources::{ActiveProjection, ProjectionView, StageGravity, StageStepSpawner, StageTimeDomain},
+    resources::{
+        ActiveProjection, ProjectionView, StageGravity, StageStepSpawner, StageTimeDomain,
+    },
     spawn_placement,
 };
 use crate::{
