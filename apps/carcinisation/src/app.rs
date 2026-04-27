@@ -41,6 +41,7 @@ use crate::{
     letterbox::LetterboxPlugin,
     main_menu::MainMenuPlugin,
     resources::DifficultySelected,
+    splash::SplashPlugin,
     stage::{StagePlugin, depth_debug::DepthDebugOverlay, player::crosshair::CrosshairSettings},
     systems::{
         camera::move_camera,
@@ -69,6 +70,8 @@ const INITIAL_GOD_MODE_ENV: &str = "CARCINISATION_GOD_MODE";
 const SKIP_MENU_ENV: &str = "CARCINISATION_SKIP_MENU";
 #[cfg(not(target_arch = "wasm32"))]
 const SKIP_CUTSCENES_ENV: &str = "CARCINISATION_SKIP_CUTSCENES";
+#[cfg(not(target_arch = "wasm32"))]
+const SKIP_SPLASH_ENV: &str = "CARCINISATION_SKIP_SPLASH";
 #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
 const SHOW_COLLIDERS_ENV: &str = "CARCINISATION_SHOW_COLLIDERS";
 #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
@@ -240,7 +243,8 @@ pub fn build_app(options: AppLaunchOptions) -> App {
     app.add_systems(Startup, init_gb_input);
 
     if options.start_flow.includes_start_flow() {
-        app.add_plugins(CutscenePlugin)
+        app.add_plugins(SplashPlugin)
+            .add_plugins(CutscenePlugin)
             .add_plugins(MainMenuPlugin)
             .add_systems(PostStartup, on_post_startup);
     }
@@ -398,10 +402,15 @@ fn load_dev_flags() -> crate::resources::DevFlags {
         .ok()
         .and_then(|v| parse_bool_flag(&v).ok())
         .unwrap_or(false);
+    let skip_splash = env::var(SKIP_SPLASH_ENV)
+        .ok()
+        .and_then(|v| parse_bool_flag(&v).ok())
+        .unwrap_or(false);
 
     crate::resources::DevFlags {
         skip_menu,
         skip_cutscenes,
+        skip_splash,
     }
 }
 

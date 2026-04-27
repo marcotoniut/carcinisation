@@ -20,10 +20,18 @@ use crate::{
     transitions::trigger_transition,
 };
 use bevy::{audio::PlaybackMode, prelude::*};
-use carapace::prelude::{
-    CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
-    CxFrameTransition, CxRenderSpace, CxSprite, WorldPos,
+use carapace::{
+    prelude::{
+        CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
+        CxFrameTransition, CxPosition, CxPresentationTransform, CxRenderSpace, CxSprite, WorldPos,
+    },
+    primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape},
 };
+
+use crate::cutscene::components::{CutsceneAppearAt, RotationFollower, TimelineCurveFollower};
+use crate::data::keyframe::{RotationKeyframe, RotationKeyframes};
+use crate::globals::SCREEN_RESOLUTION;
+use std::time::Duration;
 
 /// @system Applies the next cutscene act when none is currently active.
 pub fn read_step_trigger(
@@ -37,9 +45,12 @@ pub fn read_step_trigger(
             Without<Cleared>,
         ),
     >,
-    data: Res<CutsceneData>,
+    data: Option<Res<CutsceneData>>,
     time: Res<Time<CutsceneTimeDomain>>,
 ) {
+    let Some(data) = data else {
+        return;
+    };
     let Ok(entity) = query.single() else {
         return;
     };
@@ -72,6 +83,23 @@ pub fn read_step_trigger(
         }
         if let Some(x) = &act.transition_o {
             trigger_transition(&mut commands, &x.request);
+        }
+        if let Some(bg) = &act.background_primitive_o {
+            commands.spawn((
+                CutsceneEntity,
+                CutsceneGraphic,
+                Name::new("Cutscene Background"),
+                CxPrimitive {
+                    shape: CxPrimitiveShape::Rect {
+                        size: SCREEN_RESOLUTION,
+                    },
+                    fill: CxPrimitiveFill::Solid(bg.palette_index),
+                },
+                CxPosition(IVec2::ZERO),
+                CxAnchor::BottomLeft,
+                bg.layer.clone(),
+                CxRenderSpace::Camera,
+            ));
         }
         if act.await_input {
             // TODO
@@ -157,6 +185,13 @@ pub fn process_cutscene_animations_spawn(
             if let Some(target_movement) = &spawn.target_movement_o {
                 entity_commands.insert(target_movement.make_bundles(spawn.coordinates));
             }
+
+            insert_rotation_keyframes(
+                &mut entity_commands,
+                &spawn.rotation_keyframes_o,
+                spawn.rotation_pivot_o,
+                spawn.rotation_offset_deg,
+            );
         }
 
         commands.entity(entity).remove::<CutsceneAnimationsSpawn>();
@@ -168,8 +203,10 @@ pub fn process_cutscene_images_spawn(
     mut commands: Commands,
     query: Query<(Entity, &CutsceneImagesSpawn), (With<Cinematic>, Added<CutsceneImagesSpawn>)>,
     assets_sprite: CxAssets<CxSprite>,
+    data: Option<Res<CutsceneData>>,
     existing_graphics: Query<(Entity, &Layer), With<CutsceneGraphic>>,
 ) {
+    let data = data.as_deref();
     for (entity, spawns) in query.iter() {
         if spawns.spawns.iter().any(|spawn| {
             matches!(
@@ -187,21 +224,68 @@ pub fn process_cutscene_images_spawn(
         for spawn in &spawns.spawns {
             let sprite = assets_sprite.load(spawn.image_path.clone());
 
+            let uses_timeline = spawn.rotation_time_scale_o.is_some()
+                && spawn.rotation_keyframes_o.is_none()
+                && data.is_some_and(|d| d.timeline_config_o.is_some());
+
+            let (anchor, world_pos) = if uses_timeline {
+                let tc = data.unwrap().timeline_config_o.as_ref().unwrap();
+                (
+                    CxAnchor::Custom(tc.rotation_pivot),
+                    Vec2::new(tc.rotation_position.x as f32, tc.rotation_position.y as f32),
+                )
+            } else {
+                (CxAnchor::BottomLeft, spawn.coordinates)
+            };
+
             let mut entity_commands = commands.spawn((
                 CutsceneEntity,
                 CutsceneGraphic,
                 CxSpriteBundle::<Layer> {
                     sprite: sprite.into(),
-                    anchor: CxAnchor::BottomLeft,
+                    anchor,
                     layer: spawn.layer.clone(),
                     canvas: CxRenderSpace::Camera,
                     ..default()
                 },
-                WorldPos::from(spawn.coordinates),
+                WorldPos::from(world_pos),
             ));
 
             if let Some(tag) = &spawn.tag_o {
                 entity_commands.insert(Tag(tag.clone()));
+            }
+
+            if uses_timeline {
+                let appear_at = Duration::from_millis(spawn.appear_ms_o.unwrap_or(0));
+                entity_commands.insert((
+                    TimelineCurveFollower {
+                        appear_at,
+                        time_scale: spawn.rotation_time_scale_o.unwrap_or(1.0),
+                        angle_offset: spawn.rotation_offset_deg.to_radians(),
+                    },
+                    CxPresentationTransform::default(),
+                ));
+                if appear_at > Duration::ZERO {
+                    entity_commands.insert(Visibility::Hidden);
+                }
+            } else {
+                insert_rotation_keyframes(
+                    &mut entity_commands,
+                    &spawn.rotation_keyframes_o,
+                    spawn.rotation_pivot_o,
+                    spawn.rotation_offset_deg,
+                );
+                if let Some(ref follow_tag) = spawn.follow_rotation_tag_o {
+                    entity_commands.insert(RotationFollower {
+                        leader_tag: follow_tag.clone(),
+                    });
+                }
+                if let Some(appear_ms) = spawn.appear_ms_o {
+                    entity_commands.insert((
+                        CutsceneAppearAt(Duration::from_millis(appear_ms)),
+                        Visibility::Hidden,
+                    ));
+                }
             }
         }
 
@@ -236,6 +320,130 @@ pub fn process_cutscene_music_spawn(
             Name::new("Cutscene music"),
         ));
         commands.entity(entity).remove::<CutsceneMusicSpawn>();
+    }
+}
+
+/// Inserts rotation keyframes + presentation transform on an entity if configured.
+fn insert_rotation_keyframes(
+    entity_commands: &mut EntityCommands,
+    keyframes_o: &Option<Vec<RotationKeyframe>>,
+    pivot_o: Option<Vec2>,
+    offset_deg: f32,
+) {
+    if let Some(keyframes) = keyframes_o {
+        entity_commands.insert((
+            RotationKeyframes {
+                keyframes: keyframes.clone(),
+                offset: offset_deg.to_radians(),
+            },
+            CxPresentationTransform::default(),
+        ));
+        if let Some(pivot) = pivot_o {
+            entity_commands.insert(CxAnchor::Custom(pivot));
+        }
+    }
+}
+
+/// @system Drives absolute rotation keyframes (skips followers — they're handled separately).
+pub fn drive_cutscene_rotation_keyframes(
+    time: Res<Time<CutsceneTimeDomain>>,
+    mut query: Query<
+        (&RotationKeyframes, &mut CxPresentationTransform),
+        (With<CutsceneGraphic>, Without<RotationFollower>),
+    >,
+) {
+    let elapsed = time.elapsed();
+    for (rk, mut pt) in &mut query {
+        pt.rotation =
+            crate::data::keyframe::evaluate_rotation_keyframes(&rk.keyframes, elapsed) + rk.offset;
+    }
+}
+
+/// @system Drives followers: rotation = leader's rotation + relative offset keyframes.
+pub fn drive_rotation_followers(
+    time: Res<Time<CutsceneTimeDomain>>,
+    leaders: Query<
+        (&Tag, &CxPresentationTransform),
+        (With<CutsceneGraphic>, Without<RotationFollower>),
+    >,
+    mut followers: Query<
+        (
+            &RotationFollower,
+            &RotationKeyframes,
+            &mut CxPresentationTransform,
+        ),
+        With<CutsceneGraphic>,
+    >,
+) {
+    let elapsed = time.elapsed();
+    for (follower, rk, mut pt) in &mut followers {
+        // Find leader by tag.
+        let leader_rotation = leaders
+            .iter()
+            .find_map(|(tag, leader_pt)| {
+                if tag.0.as_str() == follower.leader_tag {
+                    Some(leader_pt.rotation)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0.0);
+
+        // Relative offset from keyframes (0 at appear, peaks briefly, returns to 0).
+        let relative_offset =
+            crate::data::keyframe::evaluate_rotation_keyframes(&rk.keyframes, elapsed) + rk.offset;
+
+        pt.rotation = leader_rotation + relative_offset;
+    }
+}
+
+/// @system Drives elements following the shared timeline rotation curve.
+pub fn drive_timeline_curve_followers(
+    time: Res<Time<CutsceneTimeDomain>>,
+    data: Option<Res<CutsceneData>>,
+    mut query: Query<
+        (
+            &TimelineCurveFollower,
+            &mut CxPresentationTransform,
+            &mut Visibility,
+        ),
+        With<CutsceneGraphic>,
+    >,
+) {
+    let Some(data) = data else {
+        return;
+    };
+    let Some(tc) = &data.timeline_config_o else {
+        return;
+    };
+    let elapsed = time.elapsed();
+
+    for (follower, mut pt, mut visibility) in &mut query {
+        if elapsed < follower.appear_at {
+            *visibility = Visibility::Hidden;
+            continue;
+        }
+        *visibility = Visibility::Inherited;
+
+        let dt = (elapsed - follower.appear_at).as_secs_f32();
+        let scaled_elapsed = follower.appear_at + Duration::from_secs_f32(dt * follower.time_scale);
+        pt.rotation = crate::data::keyframe::evaluate_rotation_keyframes(
+            &tc.rotation_keyframes,
+            scaled_elapsed,
+        ) + follower.angle_offset;
+    }
+}
+
+/// @system Reveals elements when their scheduled appear time is reached.
+pub fn check_cutscene_appear_times(
+    time: Res<Time<CutsceneTimeDomain>>,
+    mut query: Query<(&CutsceneAppearAt, &mut Visibility), With<CutsceneGraphic>>,
+) {
+    let elapsed = time.elapsed();
+    for (appear, mut visibility) in &mut query {
+        if elapsed >= appear.0 {
+            *visibility = Visibility::Inherited;
+        }
     }
 }
 

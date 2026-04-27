@@ -6,7 +6,6 @@ use std::sync::Arc;
 use crate::debug::plugin::debug_print_startup;
 use crate::{
     cutscene::{
-        CutscenePlugin,
         data::CutsceneData,
         messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
     },
@@ -84,7 +83,6 @@ pub fn on_stage_cleared(
 /// @trigger Advances progress when a cutscene finishes.
 pub fn on_cutscene_shutdown(
     event_reader: Option<MessageReader<CutsceneShutdownEvent>>,
-    mut commands: Commands,
     mut progress: ResMut<GameProgress>,
 ) {
     let Some(mut reader) = event_reader else {
@@ -92,9 +90,8 @@ pub fn on_cutscene_shutdown(
     };
     for _ in reader.read() {
         progress.index += 1;
-        // TODO should this be handled inside of the plugin instead?
-        deactivate::<CutscenePlugin>(&mut commands);
-        commands.remove_resource::<CutsceneData>();
+        // Plugin deactivation and resource cleanup are handled by
+        // the cutscene plugin's own on_cutscene_shutdown observer.
     }
 }
 

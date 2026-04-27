@@ -15,4 +15,6 @@ pub struct DevFlags {
     pub skip_menu: bool,
     /// Auto-skip cutscenes as soon as they start.
     pub skip_cutscenes: bool,
+    /// Skip the boot splash screen.
+    pub skip_splash: bool,
 }

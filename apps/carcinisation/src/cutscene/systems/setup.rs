@@ -30,7 +30,9 @@ pub fn on_cutscene_startup(
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
-    if dev_flags.skip_cutscenes {
+    let e = trigger.event();
+
+    if dev_flags.skip_cutscenes && e.data.respect_skip_cutscenes {
         info!("CARCINISATION_SKIP_CUTSCENES: auto-skipping cutscene");
         // Activate and immediately shut down so the game progression
         // system sees the plugin cycle and advances to the next step.
@@ -38,9 +40,10 @@ pub fn on_cutscene_startup(
         commands.trigger(CutsceneShutdownEvent);
         return;
     }
-
-    let e = trigger.event();
     activate::<CutscenePlugin>(&mut commands);
+
+    // Reset the time domain so keyframe evaluations start from zero.
+    commands.insert_resource(Time::<super::super::resources::CutsceneTimeDomain>::default());
 
     commands.insert_resource::<CutsceneData>(e.data.as_ref().clone());
     commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });
@@ -65,6 +68,9 @@ pub fn on_cutscene_shutdown(
 
     deactivate::<CutscenePlugin>(&mut commands);
     commands.trigger(LetterboxMoveEvent::hide());
+
+    commands.remove_resource::<CutsceneData>();
+    commands.remove_resource::<CutsceneProgress>();
 
     mark_for_despawn_by_query(&mut commands, &cutscene_entity_query);
     mark_for_despawn_by_query(&mut commands, &cinematic_query);

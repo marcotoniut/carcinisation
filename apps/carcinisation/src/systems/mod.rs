@@ -9,9 +9,8 @@ use crate::{
         VolumeSettings,
     },
     game::messages::GameStartupEvent,
-    main_menu::MainMenuPlugin,
+    splash::messages::SplashStartupEvent,
 };
-use activable::activate;
 use bevy::prelude::*;
 use carapace::prelude::CxAnimationFinished;
 
@@ -121,12 +120,12 @@ pub fn debug_trigger_game_startup(mut commands: Commands) {
     commands.trigger(GameStartupEvent);
 }
 
-/// @system Activates the main-menu plugin after initial startup.
+/// @system Routes boot flow through the splash screen or directly to menu/game.
 pub fn on_post_startup(mut commands: Commands, dev_flags: Res<crate::resources::DevFlags>) {
-    if dev_flags.skip_menu {
-        info!("CARCINISATION_SKIP_MENU: skipping main menu, starting game directly");
-        commands.trigger(GameStartupEvent);
+    if dev_flags.skip_splash {
+        info!("CARCINISATION_SKIP_SPLASH: skipping splash screen");
+        crate::splash::continue_after_splash(&mut commands, &dev_flags);
     } else {
-        activate::<MainMenuPlugin>(&mut commands);
+        commands.trigger(SplashStartupEvent);
     }
 }

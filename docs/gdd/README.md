@@ -11,16 +11,17 @@
 ## Core Pillars
 
 1. **Depth-lane perspective** — enemies occupy discrete depth planes; the player attacks across lanes, creating multi-plane pressure
-2. **Dual-attack combat** — melee pincer + ranged guns serve distinct tactical roles (close control vs. depth reach)
-3. **Performance-driven pressure** 💡 — efficient play feeds rank, which escalates encounter intensity (see [Gameplay Systems](gameplay.md#scoring-))
-4. **Authored stage scripting** — encounters are choreographed via RON data files, not procedural
-5. **Pixel-perfect rendering** — palette-indexed visuals, per-depth sprite variants, composed multi-part animations
+2. **Weapon-slot combat** 💡 — two-weapon rotation with tactical reload management; bombs as defensive panic button (replaces dual melee+ranged)
+3. **Hit-based survivability** 💡 — lives system with diegetic helmet degradation feedback
+4. **Performance-driven pressure** 💡 — efficient play feeds rank, which escalates encounter intensity (see [Gameplay Systems](gameplay.md#scoring-))
+5. **Authored stage scripting** — encounters are choreographed via RON data files, not procedural
+6. **Pixel-perfect rendering** — palette-indexed visuals, per-depth sprite variants, composed multi-part animations
 
 ## Document Index
 
 | Document | Scope |
 |----------|-------|
-| [Gameplay Systems](gameplay.md) | Movement, depth, combat, scoring, enemies |
+| [Gameplay Systems](gameplay.md) | Movement, depth, survivability, combat, weapons, bombs, scoring, enemies |
 | [Stage Structure](stages.md) | Stage progression, scripting format, campaign |
 | [Specs: Chain / Rank / Pressure](specs/chain_rank_pressure.md) | First-pass implementation spec for performance loop |
 | [Specs: Vacuum Window](specs/vaccum_window_mechanic.md) | Proposed environmental mechanic (spaceship stage) |

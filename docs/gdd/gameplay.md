@@ -97,11 +97,100 @@ Projection defines how space is rendered; floors define where gameplay is allowe
 - Player depth movement (dodge into/out of lanes)?
 - Depth interaction with environmental hazards?
 
-## Combat ✅
+## Player Survivability 💡
 
-Dual-button system: A = melee, B = ranged. Melee is primarily a close-range stabilisation tool — it controls nearby threats under pressure but is not the intended optimisation path. Ranged reaches into depth and drives efficient chain play.
+> [v0.3 — 2026-04-27] Proposed shift from health bar to hit-based lives system.
 
-### Player Attacks
+### Lives System
+
+The player operates on a hit-based system (lives) instead of a continuous health bar. Aligns with genre expectations (Time Crisis, House of the Dead) and makes difficulty immediately readable.
+
+- Default: **3 lives**
+- Accessibility mode: **5 lives** (configurable)
+- **1CC challenge** toggle available from the select screen — explicit, visible, opt-in
+- Each hit consumes 1 life
+
+### Post-Hit Invincibility
+
+Essential for preventing cheap-hit frustration.
+
+- ~1-2 seconds of invincibility frames after each hit
+- Visual feedback: flicker, shader effect, audio dampening
+- Without this, rapid successive hits would kill the game feel
+
+### Helmet Degradation (Diegetic Hit Feedback)
+
+Instead of abstract UI indicators, each hit progressively damages the player's helmet visor, creating escalating visual tension.
+
+| Stage | Lives Remaining | Visual Effect |
+|-------|-----------------|---------------|
+| Clean | Full | Clear visor |
+| Light damage | -1 life | Hairline cracks |
+| Heavy damage | -2 lives | Deep cracks + slight blur/glitch |
+| Critical | Last life | Severe obstruction + audio distortion |
+
+Design constraints:
+- Obstruction must remain **partial** — the game must stay playable at max damage
+- The last life should feel desperate, not unfair
+- Degradation is diegetic (physical, not UI clutter)
+
+## Bomb System 💡
+
+> [v0.3 — 2026-04-27] Proposed replacement of melee with screen-clear bomb. Melee in a rail shooter is awkward unless extremely contextual; bombs add shmup-DNA resource tension.
+
+Bombs are a **defensive recovery tool**, not a primary damage source.
+
+### Effects
+
+- Grants temporary invincibility during activation
+- Deals heavy damage to all enemies on screen
+- Clears all active projectiles
+- Deals percentage damage to bosses (10-25%) — does not trivialise boss encounters
+
+### Resource Rules
+
+- Limited stock: 2-3 max
+- Refill via pickups or slow passive recharge
+- Using a bomb = forfeiting potential score (risk/reward tension)
+
+### Design Rule
+
+> Bombs are a defensive resource, not a primary damage tool.
+
+If bombs become dominant strategy, reduce stock or increase score penalty.
+
+## Combat 🚧
+
+> [v0.3 — 2026-04-27] Proposed shift from dual-attack (melee+ranged) to weapon-slot system with bombs replacing melee.
+
+### Weapon System 💡
+
+The player carries up to **2 weapons**. Switching is bound to **Select**.
+
+| Mechanic | Behaviour |
+|----------|-----------|
+| Carry limit | 2 weapons max |
+| Switch input | Select button |
+| Ammo tracking | Each weapon maintains its own ammo state independently |
+| Reload | Automatic when ammo is depleted (forced reload animation) |
+| Switch abuse prevention | Switching does **not** bypass reload — each weapon tracks its own state |
+
+**Design intent**: encourages weapon rotation for tactical variety without allowing fire→switch→fire→switch infinite-ammo abuse.
+
+#### Switch Abuse Mitigation Options
+
+If testing reveals switch-spam as dominant strategy:
+
+| Option | Effect |
+|--------|--------|
+| A: Cooldown on switch | Prevent instant swap spam |
+| B: Partial reload on switch | Restores 50%, not full |
+| C: Shared reload penalty | Switching triggers a shorter reload |
+| **D: Independent ammo (current)** | **Each weapon tracks its own state — can't bypass reload, only delay it** |
+
+Option D is the current design. Reassess if playtesting shows problems.
+
+### Player Attacks (Current) ✅
 
 | Attack | Type | Damage | Input | Collision | Notes |
 |--------|------|--------|-------|-----------|-------|
@@ -110,11 +199,11 @@ Dual-button system: A = melee, B = ranged. Melee is primarily a close-range stab
 | Machine Gun | Ranged | 20 | Hold | Point | 0.18s warmup, 0.08s interval, 2 deg spread |
 | Bomb | Ranged | 0 (det: 60) | Release | Point | Arc trajectory, screen shake |
 
-Bomb is a standard combat option (area denial, grouped targets), not a panic/reset mechanic. Bomb depth interaction and effectiveness scaling are intentionally undefined.
+> Note: The attack table above reflects the current implementation. The proposed weapon-slot and bomb systems will replace this layout.
 
 Source: `apps/carcinisation/src/player/attacks.rs`
 
-### Damage Resolution
+### Damage Resolution ✅
 
 1. Attack entity spawns with collision mode (point or sprite mask)
 2. Hit -> `DamageMessage` observer -> `Health` decremented + `Flickerer` feedback
@@ -138,10 +227,12 @@ Source: `apps/carcinisation/src/stage/attack/`
 
 - Weapon unlock/upgrade progression (all attacks currently available from start)
 - Depth-distance affecting attack effectiveness?
+- Specific weapon roster (beyond pistol/machine gun/bomb)
+- Weapon pickup/drop mechanics during stages
 
 ## Scoring ✅
 
-Points accumulate during a run. Score penalised on death and health pickup use.
+Points accumulate during a run. Score penalised on death and bomb usage.
 
 ### Score Sources
 
@@ -152,11 +243,11 @@ Points accumulate during a run. Score penalised on death and health pickup use.
 | Melee hit | +3 |
 | Melee critical hit | +10 |
 | Enemy kill | +7 to +10 (per type) |
-| Player death | -150 |
-| Health pickup | -2 x health restored |
+| Player death (life lost) | -150 |
+| Bomb used | 💡 Score penalty (TBD — maintains risk/reward tension) |
 
-- Melee is higher-risk, higher-reward than ranged
-- Health usage trades score for survival
+- Melee is higher-risk, higher-reward than ranged (current implementation)
+- Bomb usage trades score for survival (proposed)
 - Top 5 high scores persisted
 - Source: `apps/carcinisation/src/game/score/`
 
@@ -253,11 +344,13 @@ Steps can include `depth_movement` to shift between lanes mid-motion. All moveme
 - Boss encounter design
 - Per-rank enemy count targets
 
-## Pickups ✅
+## Pickups 🚧
 
-- Health packs (restore HP, costs score) and bomb pickups (replenish ammo)
+- Bomb refills (replenish bomb stock)
+- Weapon pickups 💡 (swap/add weapons during stage)
 - Sources: enemy drops (`SpawnDrop`), stage data placement, destructible contents
 - Per-depth sprite variants
+- Health packs currently implemented (restore HP, costs score) — will be revised or removed under lives system
 
 ## Destructibles ✅
 
@@ -265,7 +358,50 @@ Steps can include `depth_movement` to shift between lanes mid-motion. All moveme
 - On destruction: spawn contained items (pickups, enemies)
 - Purpose: optional risk/reward encounters, pacing variation
 
-## HUD ✅
+## HUD 🚧
 
-- 14px strip at screen bottom; displays health, lives, score
+- 14px strip at screen bottom; displays lives, score
 - Source: `apps/carcinisation/src/stage/ui/`
+
+### Weapon UI 💡
+
+- Current weapon displayed at **bottom-centre** of screen (sprite)
+- Secondary weapon shown as smaller adjacent icon
+- Ammo indicator: bars or ticks (arcade feel, not numeric)
+- Player doesn't need to look away from centre to read weapon state
+
+### Helmet Overlay 💡
+
+- Full-screen visor overlay driven by lives remaining (see [Helmet Degradation](#helmet-degradation-diegetic-hit-feedback))
+- Rendered above gameplay, below UI layer
+- Cracks/distortion accumulate per hit, reset on new run
+
+## Cohesive Game Loop 💡
+
+The proposed systems compose into this core loop:
+
+1. Player tracks targets across depth lanes
+2. Shoots with current weapon
+3. Manages reload timing (or swaps weapon)
+4. Uses bombs defensively to recover from mistakes
+5. Takes hits → helmet degrades → tension spikes
+6. Loses all lives → run ends (1CC structure)
+
+No fluff — every system feeds back into the next.
+
+### Design Identity
+
+The game converges on a clean arcade identity:
+
+- **Rail shooter base** — depth-lane targeting
+- **Shmup resource layer** — limited bombs as defensive panic button
+- **Light tactical weapon management** — two-slot rotation
+- **Diegetic feedback** — helmet degradation over abstract UI
+
+### Balance Risks
+
+| Risk | Mitigation |
+|------|------------|
+| Weapon-switch abuse | Independent ammo tracking per weapon |
+| Over-obscuring visuals (helmet) | Cap obstruction at partial; must remain playable |
+| Bomb overuse trivialising difficulty | Limited stock + score penalty |

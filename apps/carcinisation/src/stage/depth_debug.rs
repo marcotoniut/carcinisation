@@ -155,13 +155,14 @@ fn toggle_entity_anchor_overlay(
 /// [`ActiveProjection`] and does not consume gameplay floor state.
 fn draw_depth_grid_background(
     overlay: Res<DepthDebugOverlay>,
+    splash_active: Option<Res<crate::splash::components::SplashActive>>,
     projection: Option<Res<ActiveProjection>>,
     projection_view: Option<Res<ProjectionView>>,
     screen: Res<CxScreen>,
     windows: Query<&Window, With<PrimaryWindow>>,
     mut gizmos: Gizmos,
 ) {
-    if !overlay.enabled {
+    if !overlay.enabled || splash_active.is_some() {
         return;
     }
     let Some(projection) = projection else {
@@ -226,6 +227,7 @@ fn draw_depth_grid_background(
 #[allow(clippy::float_cmp, clippy::similar_names)]
 fn draw_entity_anchors(
     overlay: Res<EntityAnchorOverlay>,
+    splash_active: Option<Res<crate::splash::components::SplashActive>>,
     mut gizmos: Gizmos,
     screen: Res<CxScreen>,
     windows: Query<&Window, With<PrimaryWindow>>,
@@ -237,7 +239,7 @@ fn draw_entity_anchors(
         Has<Airborne>,
     )>,
 ) {
-    if !overlay.enabled {
+    if !overlay.enabled || splash_active.is_some() {
         return;
     }
     let Ok(window) = windows.single() else {

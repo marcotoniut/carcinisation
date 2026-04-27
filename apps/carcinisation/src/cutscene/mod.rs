@@ -14,9 +14,10 @@ use self::{
     systems::{
         interactions::check_press_start_input,
         progress::{
-            check_cutscene_elapsed, process_cutscene_animations_spawn,
-            process_cutscene_images_spawn, process_cutscene_music_despawn,
-            process_cutscene_music_spawn, read_step_trigger,
+            check_cutscene_appear_times, check_cutscene_elapsed, drive_cutscene_rotation_keyframes,
+            drive_rotation_followers, drive_timeline_curve_followers,
+            process_cutscene_animations_spawn, process_cutscene_images_spawn,
+            process_cutscene_music_despawn, process_cutscene_music_spawn, read_step_trigger,
         },
         setup::{on_cutscene_shutdown, on_cutscene_startup},
     },
@@ -60,7 +61,12 @@ impl Plugin for CutscenePlugin {
                             process_cutscene_images_spawn,
                             process_cutscene_music_spawn,
                             process_cutscene_music_despawn,
+                            drive_cutscene_rotation_keyframes,
+                            drive_timeline_curve_followers,
+                            check_cutscene_appear_times,
                         ),
+                        // Followers must run after leaders are updated.
+                        drive_rotation_followers,
                     )
                         .chain(),
                     tick_time::<Fixed, CutsceneTimeDomain>,

@@ -1,5 +1,7 @@
 //! Shared animation data helpers for stage/enemy definitions.
 
+pub mod keyframe;
+
 use crate::{pixel::CxAnimationBundle, stage::components::interactive::ColliderData};
 use bevy::prelude::*;
 use carapace::prelude::{
