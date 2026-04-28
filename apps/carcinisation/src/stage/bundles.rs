@@ -2,13 +2,14 @@
 
 use super::data::SkyboxData;
 use crate::{
-    layer::Layer,
-    pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle},
+    assets::CxAssets,
+    layer::{Layer, OrsLayer, SharedLayer},
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
-    CxFrameTransition, CxRenderSpace, CxSprite, WorldPos,
+    CxAnchor, CxAnimationBundle, CxAnimationDirection, CxAnimationDuration,
+    CxAnimationFinishBehavior, CxFrameTransition, CxRenderSpace, CxSprite, CxSpriteBundle,
+    WorldPos,
 };
 use carapace::sprite::CxSpriteAsset;
 
@@ -30,7 +31,7 @@ impl BackgroundBundle {
             sprite: CxSpriteBundle::<Layer> {
                 sprite: sprite.into(),
                 anchor: CxAnchor::BottomLeft,
-                layer: Layer::Background,
+                layer: Layer::Ors(OrsLayer::Background),
                 ..default()
             },
         }
@@ -64,7 +65,7 @@ impl SkyboxBundle {
                 sprite: sprite.into(),
                 anchor: CxAnchor::BottomLeft,
                 canvas: CxRenderSpace::Camera,
-                layer: Layer::Skybox,
+                layer: Layer::Shared(SharedLayer::Skybox),
                 ..default()
             },
         }

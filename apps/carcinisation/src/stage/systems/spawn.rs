@@ -1,6 +1,6 @@
 //! Entity spawning systems for enemies, pickups, destructibles, and objects.
 
-use crate::pixel::{CxAssets, CxSpriteBundle};
+use crate::assets::CxAssets;
 use crate::stage::{
     components::{
         SpawnDrop, StageEntity,
@@ -59,7 +59,7 @@ use crate::{
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSprite, WorldPos};
+use carapace::prelude::{CxAnchor, CxPresentationTransform, CxSprite, CxSpriteBundle, WorldPos};
 
 /// Build an [`AuthoredDepths`] component from spawn data.
 ///

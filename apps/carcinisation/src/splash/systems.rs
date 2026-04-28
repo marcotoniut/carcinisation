@@ -8,10 +8,10 @@ use crate::cutscene::{
         CutsceneImagesSpawn, CutsceneSkipMode,
     },
     messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
-    resources::CutsceneTimeDomain,
 };
 use bevy::prelude::*;
 use carcinisation_core::core::time::TimeMultiplier;
+use carcinisation_cutscene::resources::CutsceneTimeDomain;
 use std::sync::Arc;
 
 /// Builds a `CutsceneData` from the splash RON config.
@@ -23,7 +23,10 @@ pub fn build_splash_cutscene_data() -> (SplashConfig, CutsceneData) {
         .tracks
         .iter()
         .map(|track| {
-            let mut spawn = CutsceneImageSpawn::new(track.asset.clone(), crate::layer::Layer::UI);
+            let mut spawn = CutsceneImageSpawn::new(
+                track.asset.clone(),
+                crate::layer::Layer::Menu(crate::layer::MenuLayer::Foreground),
+            );
             if let Some(appear_ms) = track.appear_ms {
                 spawn = spawn.with_appear_ms(Some(appear_ms));
             }
@@ -51,7 +54,7 @@ pub fn build_splash_cutscene_data() -> (SplashConfig, CutsceneData) {
         .spawn_images(CutsceneImagesSpawn::new().with_spawns(image_spawns))
         .with_background_primitive(CutsceneBackgroundPrimitive {
             palette_index: config.bg_palette_index,
-            layer: crate::layer::Layer::UIBackground,
+            layer: crate::layer::Layer::Menu(crate::layer::MenuLayer::Background),
         });
 
     let data = CutsceneData::new("Splash".to_string())

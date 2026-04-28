@@ -88,6 +88,8 @@
 pub mod animation;
 pub mod atlas;
 pub mod blink;
+/// Convenience bundles for spawning common entity configurations.
+pub mod bundles;
 mod camera;
 pub mod cursor;
 #[cfg(feature = "headed")]

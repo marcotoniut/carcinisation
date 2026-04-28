@@ -26,7 +26,7 @@ use self::{
         player_movement, tick_attack_lifetimes, tick_webbed_status,
     },
 };
-use crate::pixel::{CxAsset, CxAssets, CxSpriteData};
+use crate::assets::{CxAsset, CxAssets, CxSpriteData};
 use activable::{Activable, ActivableAppExt};
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;

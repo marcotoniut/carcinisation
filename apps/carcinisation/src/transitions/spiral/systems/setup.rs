@@ -1,6 +1,6 @@
 use crate::{
+    assets::CxAssets,
     globals::{SCREEN_RESOLUTION, mark_for_despawn_by_query},
-    pixel::CxAssets,
     transitions::{
         data::{TransitionVenetianData, TransitionVenetianDataState},
         spiral::{

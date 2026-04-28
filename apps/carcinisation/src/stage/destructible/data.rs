@@ -1,17 +1,14 @@
 pub mod destructibles;
 
 use super::components::DestructibleType;
-use crate::{
-    pixel::CxAnimationBundle,
-    stage::{
-        components::{interactive::ColliderData, placement::Depth},
-        data::ContainerSpawn,
-    },
+use crate::stage::{
+    components::{interactive::ColliderData, placement::Depth},
+    data::ContainerSpawn,
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
-    CxFrameTransition,
+    CxAnchor, CxAnimationBundle, CxAnimationDirection, CxAnimationDuration,
+    CxAnimationFinishBehavior, CxFrameTransition,
 };
 use serde::{Deserialize, Serialize};
 

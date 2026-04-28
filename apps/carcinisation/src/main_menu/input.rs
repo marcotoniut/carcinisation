@@ -1,8 +1,8 @@
 //! Input mapping for navigating the main menu.
 
-use crate::input::GBInput;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
+use carcinisation_input::GBInput;
 use leafwing_input_manager::Actionlike;
 use leafwing_input_manager::{action_state::ActionState, input_map::InputMap};
 

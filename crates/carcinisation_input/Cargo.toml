@@ -1,0 +1,12 @@
+[package]
+name = "carcinisation_input"
+version.workspace = true
+edition.workspace = true
+description = "GB-style input abstraction for Carcinisation"
+
+[dependencies]
+bevy = { workspace = true }
+leafwing-input-manager = { workspace = true }
+
+[lints]
+workspace = true

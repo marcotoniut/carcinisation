@@ -2,7 +2,7 @@ use super::{
     components::{Destructible, DestructibleState, DestructibleType, make_animation_bundle},
     data::destructibles::DESTRUCTIBLE_ANIMATIONS,
 };
-use crate::pixel::CxAssets;
+use crate::assets::CxAssets;
 use crate::stage::components::{
     interactive::{Dead, Flickerer, Hittable},
     placement::Depth,

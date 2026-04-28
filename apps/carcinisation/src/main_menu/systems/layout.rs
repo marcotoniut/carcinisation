@@ -3,22 +3,20 @@ use super::super::components::{
     PressStartScreenEntity,
 };
 use crate::{
+    assets::CxAssets,
     game::resources::Difficulty,
     globals::{
         FONT_SIZE, SCREEN_RESOLUTION, SCREEN_RESOLUTION_F32, SCREEN_RESOLUTION_F32_H,
         SCREEN_RESOLUTION_H, load_inverted_typeface, mark_for_despawn_by_query,
     },
-    layer::Layer,
+    layer::{Layer, MenuLayer, OrsLayer},
     main_menu::{MainMenuScreen, resources::DifficultySelection},
-    pixel::{
-        CxAssets,
-        bundle::{CxSpriteBundle, CxTextBundle},
-    },
 };
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxText, CxTypeface, WorldPos,
+    CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxSpriteBundle, CxText, CxTextBundle,
+    CxTypeface, WorldPos,
 };
 use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 use strum::IntoEnumIterator;
@@ -37,7 +35,7 @@ pub fn spawn_main_menu(mut commands: Commands, asset_server: Res<AssetServer>) {
             CxSpriteBundle::<Layer> {
                 sprite: CxSprite(background_sprite),
                 anchor: CxAnchor::BottomLeft,
-                layer: Layer::Hud,
+                layer: Layer::Ors(OrsLayer::Hud),
                 ..default()
             },
             Name::new("MainMenuBackground"),
@@ -56,7 +54,7 @@ pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: CxAsset
             position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 10)),
             anchor: CxAnchor::BottomCenter,
             canvas: CxRenderSpace::Camera,
-            layer: Layer::UI,
+            layer: Layer::Menu(MenuLayer::Foreground),
             text: CxText {
                 value: "Press Start".to_string(),
                 typeface: typeface.clone(),
@@ -97,7 +95,7 @@ pub fn enter_game_difficulty_screen(
         CxAnchor::Center,
         CxRenderSpace::Camera,
         CxPosition::from(*SCREEN_RESOLUTION_H),
-        Layer::UIBackground,
+        Layer::Menu(MenuLayer::Background),
         // TODO should not be using WorldPos here
         WorldPos(*SCREEN_RESOLUTION_F32_H),
     ));
@@ -116,7 +114,7 @@ pub fn enter_game_difficulty_screen(
                 position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, y)),
                 anchor: CxAnchor::Center,
                 canvas: CxRenderSpace::Camera,
-                layer: Layer::UI,
+                layer: Layer::Menu(MenuLayer::Foreground),
                 text: CxText {
                     value: name.to_string(),
                     typeface: typeface.clone(),
@@ -137,7 +135,7 @@ pub fn enter_game_difficulty_screen(
                 position: CxPosition::from(difficulty_arrow_position(selection_index)),
                 anchor: CxAnchor::CenterRight,
                 canvas: CxRenderSpace::Camera,
-                layer: Layer::UI,
+                layer: Layer::Menu(MenuLayer::Foreground),
                 text: CxText {
                     value: ">".to_string(),
                     typeface,

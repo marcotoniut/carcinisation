@@ -1,11 +1,9 @@
 use crate::{
-    globals::SCREEN_RESOLUTION,
-    layer::Layer,
-    pixel::{CxAssets, CxLineBundle},
+    assets::CxAssets, globals::SCREEN_RESOLUTION, layer::Layer,
     transitions::data::TransitionVenetianData,
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxFilter, CxFilterLayers, CxRenderSpace};
+use carapace::prelude::{CxFilter, CxFilterLayers, CxLineBundle, CxRenderSpace};
 
 use super::{
     components::{TransitionVenetian, TransitionVenetianRow},

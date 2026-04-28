@@ -1,10 +1,10 @@
 use super::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 use crate::{
+    assets::CxAssets,
     components::VolumeSettings,
     game::GameProgressState,
     globals::SCREEN_RESOLUTION,
-    layer::Layer,
-    pixel::CxAssets,
+    layer::{Layer, OrsLayer, SharedLayer},
     stage::{
         StagePlugin,
         bundles::{BackgroundBundle, SkyboxBundle},
@@ -246,8 +246,8 @@ fn spawn_stage_primitive(commands: &mut Commands, prim: &StagePrimitive) {
     };
 
     let layer = match prim.layer {
-        StagePrimitiveLayer::Skybox => Layer::Skybox,
-        StagePrimitiveLayer::Background => Layer::Background,
+        StagePrimitiveLayer::Skybox => Layer::Shared(SharedLayer::Skybox),
+        StagePrimitiveLayer::Background => Layer::Ors(OrsLayer::Background),
     };
 
     commands.spawn((
@@ -381,7 +381,7 @@ fn spawn_primitive_bands(
             CxPosition::from(IVec2::new(screen_center_x, band.y_bottom)),
             CxAnchor::BottomCenter,
             CxRenderSpace::Camera,
-            Layer::Background,
+            Layer::Ors(OrsLayer::Background),
             StageEntity,
         ));
     }
@@ -400,7 +400,7 @@ fn spawn_primitive_bands(
         CxPosition::from(IVec2::new(screen_center_x, horizon_y)),
         CxAnchor::BottomCenter,
         CxRenderSpace::Camera,
-        Layer::Background,
+        Layer::Ors(OrsLayer::Background),
         StageEntity,
     ));
 }

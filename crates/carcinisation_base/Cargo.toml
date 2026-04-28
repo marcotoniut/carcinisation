@@ -1,0 +1,13 @@
+[package]
+name = "carcinisation_base"
+version.workspace = true
+edition.workspace = true
+description = "Shared gameplay vocabulary for Carcinisation — Layer enum, sub-layers, Score"
+
+[dependencies]
+bevy = { workspace = true }
+carapace = { workspace = true }
+serde = { workspace = true }
+
+[lints]
+workspace = true

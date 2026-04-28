@@ -1,6 +1,6 @@
+use crate::assets::CxAssets;
 #[cfg(debug_assertions)]
 use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
-use crate::pixel::CxAssets;
 use crate::{
     globals::mark_for_despawn_by_query,
     stage::player::{

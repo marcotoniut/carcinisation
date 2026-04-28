@@ -6,9 +6,9 @@
 //!
 //! Data flow: `GBInput` → [`resolve_player_intent`] → [`PlayerIntent`] → gameplay systems.
 
-use crate::input::GBInput;
 use crate::stage::resources::StageTimeDomain;
 use bevy::prelude::*;
+use carcinisation_input::GBInput;
 use leafwing_input_manager::prelude::ActionState;
 
 /// Grace window for Select+A melee chord detection.

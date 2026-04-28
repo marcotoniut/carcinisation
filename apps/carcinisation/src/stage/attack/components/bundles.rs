@@ -1,10 +1,7 @@
 use super::EnemyHoveringAttackType;
-use crate::{
-    pixel::CxAnimationBundle,
-    stage::components::interactive::{Collider, ColliderData},
-};
+use crate::stage::components::interactive::{Collider, ColliderData};
 use bevy::prelude::*;
-use carapace::prelude::{CxAtlasSprite, CxFrameTransition, CxSpriteAtlasAsset};
+use carapace::prelude::{CxAnimationBundle, CxAtlasSprite, CxFrameTransition, CxSpriteAtlasAsset};
 
 /// Region name constants matching aseprite tag names.
 pub const REGION_HOVER: &str = "hover";

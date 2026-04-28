@@ -1,8 +1,8 @@
-use crate::pixel::CxAssets;
+use crate::assets::CxAssets;
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
-    layer::Layer,
+    layer::{Layer, OrsLayer},
     stage::{
         components::{
             interactive::{Dead, Health},
@@ -172,7 +172,7 @@ pub fn pickup_health(
                 snapped,
                 CxAnchor::Center,
                 CxRenderSpace::Camera,
-                Layer::HudUnderlay,
+                Layer::Ors(OrsLayer::HudUnderlay),
                 TargetingValueX::from(current.x),
                 TargetingValueY::from(current.y),
                 PickupFeedbackDefaultBundle::default(),

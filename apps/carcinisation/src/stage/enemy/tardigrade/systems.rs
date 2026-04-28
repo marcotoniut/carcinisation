@@ -1,5 +1,5 @@
 use super::entity::{EnemyTardigrade, EnemyTardigradeAnimation};
-use crate::pixel::{CxAssets, CxSpriteBundle};
+use crate::assets::CxAssets;
 use crate::{
     components::DespawnMark,
     game::score::components::Score,
@@ -25,7 +25,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxPresentationTransform, CxSprite, CxSpriteAtlasAsset, WorldPos,
+    CxAnchor, CxPresentationTransform, CxSprite, CxSpriteAtlasAsset, CxSpriteBundle, WorldPos,
 };
 
 use crate::stage::parallax::ParallaxOffset;

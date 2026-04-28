@@ -33,7 +33,7 @@ pub fn on_letterbox_startup(mut commands: Commands) {
         CxAnchor::BottomLeft,
         CxRenderSpace::Camera,
         CxPosition::from(IVec2::new(0, SCREEN_RESOLUTION.y as i32)),
-        Layer::CutsceneLayer(CutsceneLayer::Letterbox),
+        Layer::Cutscene(CutsceneLayer::Letterbox),
         WorldPos(Vec2::new(0., SCREEN_RESOLUTION_F32.y)),
     ));
 
@@ -50,7 +50,7 @@ pub fn on_letterbox_startup(mut commands: Commands) {
         CxAnchor::TopLeft,
         CxRenderSpace::Camera,
         CxPosition::from(IVec2::new(0, 0)),
-        Layer::CutsceneLayer(CutsceneLayer::Letterbox),
+        Layer::Cutscene(CutsceneLayer::Letterbox),
         WorldPos(Vec2::ZERO),
     ));
 }

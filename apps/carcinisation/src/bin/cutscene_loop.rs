@@ -34,7 +34,7 @@ impl Plugin for CutsceneLoopPlugin {
         #[cfg(debug_assertions)]
         if config.slowdown > 1 {
             app.insert_resource(carcinisation_core::core::time::TimeMultiplier::<
-                carcinisation::cutscene::resources::CutsceneTimeDomain,
+                carcinisation_cutscene::resources::CutsceneTimeDomain,
             >::new(1.0 / config.slowdown as f32));
         }
         let _ = config;

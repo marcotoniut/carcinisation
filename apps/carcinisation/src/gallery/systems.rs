@@ -1,6 +1,7 @@
 //! Gallery systems: startup, egui panel, character spawning, and animation override.
 
 use crate::{
+    assets::CxAssets,
     data::AnimationData,
     gallery::{
         components::{GalleryAnimationOverride, GalleryDisplayCharacter, GalleryEntity},
@@ -9,8 +10,7 @@ use crate::{
     },
     game::GameProgressState,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION},
-    layer::Layer,
-    pixel::CxAssets,
+    layer::{Layer, SharedLayer},
     stage::{
         components::placement::{Depth, InView},
         enemy::{
@@ -107,7 +107,7 @@ pub fn on_gallery_startup(
         CxAnchor::BottomLeft,
         CxRenderSpace::Camera,
         CxPosition::from(IVec2::new(0, HUD_HEIGHT as i32)),
-        Layer::Skybox,
+        Layer::Shared(SharedLayer::Skybox),
         Name::new("GalleryBackground"),
     ));
 

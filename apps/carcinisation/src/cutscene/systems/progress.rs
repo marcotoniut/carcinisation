@@ -1,17 +1,15 @@
 #![allow(clippy::type_complexity)]
 
+use crate::assets::CxAssets;
 use crate::components::VolumeSettings;
-use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
 use crate::{
     components::{Cleared, CutsceneElapsedStarted, Music, Tag},
     cutscene::{
-        components::{Cinematic, CutsceneEntity, CutsceneGraphic},
         data::{
             CutsceneAnimationsSpawn, CutsceneData, CutsceneElapse, CutsceneImagesSpawn,
             CutsceneLayer, CutsceneMusicDespawn, CutsceneMusicSpawn,
         },
         messages::CutsceneShutdownEvent,
-        resources::{CutsceneProgress, CutsceneTimeDomain},
     },
     globals::mark_for_despawn_by_query,
     layer::Layer,
@@ -22,15 +20,20 @@ use crate::{
 use bevy::{audio::PlaybackMode, prelude::*};
 use carapace::{
     prelude::{
-        CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
-        CxFrameTransition, CxPosition, CxPresentationTransform, CxRenderSpace, CxSprite, WorldPos,
+        CxAnchor, CxAnimationBundle, CxAnimationDirection, CxAnimationDuration,
+        CxAnimationFinishBehavior, CxFrameTransition, CxPosition, CxPresentationTransform,
+        CxRenderSpace, CxSprite, CxSpriteBundle, WorldPos,
     },
     primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape},
 };
+use carcinisation_cutscene::components::{Cinematic, CutsceneEntity, CutsceneGraphic};
+use carcinisation_cutscene::resources::{CutsceneProgress, CutsceneTimeDomain};
 
-use crate::cutscene::components::{CutsceneAppearAt, RotationFollower, TimelineCurveFollower};
-use crate::data::keyframe::{RotationKeyframe, RotationKeyframes};
 use crate::globals::SCREEN_RESOLUTION;
+use carcinisation_animation::{RotationKeyframe, RotationKeyframes};
+use carcinisation_cutscene::components::{
+    CutsceneAppearAt, RotationFollower, TimelineCurveFollower,
+};
 use std::time::Duration;
 
 /// @system Applies the next cutscene act when none is currently active.
@@ -143,14 +146,13 @@ pub fn process_cutscene_animations_spawn(
     existing_graphics: Query<(Entity, &Layer), With<CutsceneGraphic>>,
 ) {
     for (entity, spawns) in query.iter() {
-        if spawns.spawns.iter().any(|spawn| {
-            matches!(
-                spawn.layer,
-                Layer::CutsceneLayer(CutsceneLayer::Background(_))
-            )
-        }) {
+        if spawns
+            .spawns
+            .iter()
+            .any(|spawn| matches!(spawn.layer, Layer::Cutscene(CutsceneLayer::Background(_))))
+        {
             for (existing, layer) in existing_graphics.iter() {
-                if matches!(layer, Layer::CutsceneLayer(CutsceneLayer::Background(_))) {
+                if matches!(layer, Layer::Cutscene(CutsceneLayer::Background(_))) {
                     commands.entity(existing).despawn();
                 }
             }
@@ -208,14 +210,13 @@ pub fn process_cutscene_images_spawn(
 ) {
     let data = data.as_deref();
     for (entity, spawns) in query.iter() {
-        if spawns.spawns.iter().any(|spawn| {
-            matches!(
-                spawn.layer,
-                Layer::CutsceneLayer(CutsceneLayer::Background(_))
-            )
-        }) {
+        if spawns
+            .spawns
+            .iter()
+            .any(|spawn| matches!(spawn.layer, Layer::Cutscene(CutsceneLayer::Background(_))))
+        {
             for (existing, layer) in existing_graphics.iter() {
-                if matches!(layer, Layer::CutsceneLayer(CutsceneLayer::Background(_))) {
+                if matches!(layer, Layer::Cutscene(CutsceneLayer::Background(_))) {
                     commands.entity(existing).despawn();
                 }
             }
@@ -354,8 +355,8 @@ pub fn drive_cutscene_rotation_keyframes(
 ) {
     let elapsed = time.elapsed();
     for (rk, mut pt) in &mut query {
-        pt.rotation =
-            crate::data::keyframe::evaluate_rotation_keyframes(&rk.keyframes, elapsed) + rk.offset;
+        pt.rotation = carcinisation_animation::evaluate_rotation_keyframes(&rk.keyframes, elapsed)
+            + rk.offset;
     }
 }
 
@@ -391,7 +392,8 @@ pub fn drive_rotation_followers(
 
         // Relative offset from keyframes (0 at appear, peaks briefly, returns to 0).
         let relative_offset =
-            crate::data::keyframe::evaluate_rotation_keyframes(&rk.keyframes, elapsed) + rk.offset;
+            carcinisation_animation::evaluate_rotation_keyframes(&rk.keyframes, elapsed)
+                + rk.offset;
 
         pt.rotation = leader_rotation + relative_offset;
     }
@@ -427,7 +429,7 @@ pub fn drive_timeline_curve_followers(
 
         let dt = (elapsed - follower.appear_at).as_secs_f32();
         let scaled_elapsed = follower.appear_at + Duration::from_secs_f32(dt * follower.time_scale);
-        pt.rotation = crate::data::keyframe::evaluate_rotation_keyframes(
+        pt.rotation = carcinisation_animation::evaluate_rotation_keyframes(
             &tc.rotation_keyframes,
             scaled_elapsed,
         ) + follower.angle_offset;

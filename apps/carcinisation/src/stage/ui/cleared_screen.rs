@@ -10,19 +10,18 @@ use self::{
     systems::check_press_continue_input,
 };
 use super::{StageUiPlugin, components::ScoreText};
+use crate::{assets::CxAssets, globals::SCREEN_RESOLUTION_H};
 use crate::{
     game::score::components::Score,
     globals::{SCREEN_RESOLUTION_F32_H, load_inverted_typeface, mark_for_despawn_by_query},
-    layer::Layer,
+    layer::{Layer, MenuLayer},
     stage::StageProgressState,
-};
-use crate::{
-    globals::SCREEN_RESOLUTION_H,
-    pixel::{CxAssets, CxTextBundle},
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxPosition, CxRenderSpace, CxText, CxTypeface, WorldPos};
+use carapace::prelude::{
+    CxAnchor, CxPosition, CxRenderSpace, CxText, CxTextBundle, CxTypeface, WorldPos,
+};
 use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
@@ -51,7 +50,7 @@ pub fn render_cleared_screen(
                     CxAnchor::Center,
                     CxRenderSpace::Camera,
                     CxPosition::from(*SCREEN_RESOLUTION_H),
-                    Layer::UIBackground,
+                    Layer::Menu(MenuLayer::Background),
                     WorldPos(*SCREEN_RESOLUTION_F32_H),
                     UIBackground,
                 ),
@@ -60,7 +59,7 @@ pub fn render_cleared_screen(
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 90).into(),
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
                             value: "Stage  Cleared".to_string(),
                             typeface: typeface.clone(),
@@ -76,7 +75,7 @@ pub fn render_cleared_screen(
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 60).into(),
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
                             value: "Score:".to_string(),
                             typeface: typeface.clone(),
@@ -92,7 +91,7 @@ pub fn render_cleared_screen(
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 50).into(),
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
                             value: score_text.clone(),
                             typeface: typeface.clone(),

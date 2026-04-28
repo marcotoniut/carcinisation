@@ -1,11 +1,11 @@
 use super::data::destructibles::DestructibleAnimationData;
-use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
 use crate::{
+    assets::CxAssets,
     layer::Layer,
     stage::components::{interactive::ColliderData, placement::Depth},
 };
 use bevy::prelude::*;
-use carapace::prelude::CxSprite;
+use carapace::prelude::{CxAnimationBundle, CxSprite, CxSpriteBundle};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

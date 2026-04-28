@@ -2,7 +2,7 @@ use bevy::{prelude::*, time::Time};
 use carapace::prelude::{CxCamera, WorldPos};
 use leafwing_input_manager::prelude::ActionState;
 
-use crate::input::GBInput;
+use carcinisation_input::GBInput;
 
 #[derive(Component)]
 pub struct CameraPos;

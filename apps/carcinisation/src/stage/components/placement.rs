@@ -1,7 +1,7 @@
 //! Spatial placement components: depth, floor, speed, and position types.
 #![allow(clippy::wrong_self_convention)]
 
-use crate::layer::{Layer, MidDepth, PreBackgroundDepth};
+use crate::layer::{Layer, MidDepth, OrsLayer, PreBackgroundDepth};
 use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -104,16 +104,16 @@ impl Depth {
     #[must_use]
     pub fn to_layer(&self) -> Layer {
         match self {
-            Self::Nine => Layer::PreBackgroundDepth(PreBackgroundDepth::Nine),
-            Self::Eight => Layer::PreBackgroundDepth(PreBackgroundDepth::Eight),
-            Self::Seven => Layer::PreBackgroundDepth(PreBackgroundDepth::Seven),
-            Self::Six => Layer::MidDepth(MidDepth::Six),
-            Self::Five => Layer::MidDepth(MidDepth::Five),
-            Self::Four => Layer::MidDepth(MidDepth::Four),
-            Self::Three => Layer::MidDepth(MidDepth::Three),
-            Self::Two => Layer::MidDepth(MidDepth::Two),
-            Self::One => Layer::MidDepth(MidDepth::One),
-            Self::Zero => Layer::MidDepth(MidDepth::Zero),
+            Self::Nine => Layer::Ors(OrsLayer::PreBackgroundDepth(PreBackgroundDepth::Nine)),
+            Self::Eight => Layer::Ors(OrsLayer::PreBackgroundDepth(PreBackgroundDepth::Eight)),
+            Self::Seven => Layer::Ors(OrsLayer::PreBackgroundDepth(PreBackgroundDepth::Seven)),
+            Self::Six => Layer::Ors(OrsLayer::MidDepth(MidDepth::Six)),
+            Self::Five => Layer::Ors(OrsLayer::MidDepth(MidDepth::Five)),
+            Self::Four => Layer::Ors(OrsLayer::MidDepth(MidDepth::Four)),
+            Self::Three => Layer::Ors(OrsLayer::MidDepth(MidDepth::Three)),
+            Self::Two => Layer::Ors(OrsLayer::MidDepth(MidDepth::Two)),
+            Self::One => Layer::Ors(OrsLayer::MidDepth(MidDepth::One)),
+            Self::Zero => Layer::Ors(OrsLayer::MidDepth(MidDepth::Zero)),
         }
     }
 }

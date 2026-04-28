@@ -7,7 +7,7 @@ use super::attacks::{
 use super::components::{PLAYER_SIZE, Player, PlayerAttack, Webbed};
 use super::config::PlayerConfig;
 use super::intent::PlayerIntent;
-use crate::pixel::CxAssets;
+use crate::assets::CxAssets;
 use crate::stage::player::attacks::AttackEffectState;
 use crate::stage::player::flamethrower::ActiveFlamethrower;
 use crate::stage::player::messages::CameraShakeEvent;

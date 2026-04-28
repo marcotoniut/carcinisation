@@ -1,7 +1,7 @@
 use super::entity::{
     EnemyMosquito, EnemyMosquitoAnimation, EnemyMosquitoAttack, EnemyMosquitoAttacking,
 };
-use crate::pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle};
+use crate::assets::CxAssets;
 use crate::stage::enemy::composed::ComposedAnimationState;
 use crate::stage::enemy::mosquiton::entity::EnemyMosquiton;
 use crate::{
@@ -30,8 +30,8 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxAnimationDuration, CxAnimationFinishBehavior, CxPresentationTransform, CxSprite,
-    CxSpriteAtlasAsset, WorldPos,
+    CxAnchor, CxAnimationBundle, CxAnimationDuration, CxAnimationFinishBehavior,
+    CxPresentationTransform, CxSprite, CxSpriteAtlasAsset, CxSpriteBundle, WorldPos,
 };
 
 use crate::stage::parallax::ParallaxOffset;

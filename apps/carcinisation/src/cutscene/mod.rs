@@ -1,16 +1,13 @@
 //! Cutscene system: data loading, input handling, progression, and playback state.
 
-pub mod components;
 pub mod data;
 pub mod input;
 pub mod messages;
-pub mod resources;
 mod systems;
 
 use self::{
     input::{CutsceneInput, init_input},
     messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
-    resources::CutsceneTimeDomain,
     systems::{
         interactions::check_press_start_input,
         progress::{
@@ -26,6 +23,7 @@ use crate::core::{event::on_trigger_write_event, time::tick_time};
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
+use carcinisation_cutscene::resources::CutsceneTimeDomain;
 use cween::linear::{
     LinearTweenPlugin,
     components::{TargetingValueX, TargetingValueY},

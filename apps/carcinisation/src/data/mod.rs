@@ -1,11 +1,10 @@
 //! Shared animation data helpers for stage/enemy definitions.
 
-pub mod keyframe;
-
-use crate::{pixel::CxAnimationBundle, stage::components::interactive::ColliderData};
+use crate::stage::components::interactive::ColliderData;
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior, CxFrameTransition,
+    CxAnimationBundle, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior,
+    CxFrameTransition,
 };
 
 /// Serialized animation metadata used by stage/enemy bundles.

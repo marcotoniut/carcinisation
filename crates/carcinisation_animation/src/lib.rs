@@ -1,4 +1,7 @@
-//! Shared rotation keyframe types used by both cutscenes and the splash screen.
+//! Easing functions and rotation keyframe interpolation for Carcinisation.
+//!
+//! Shared across cutscenes, splash screen, and any game mode that uses
+//! keyframe-driven rotation.
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};

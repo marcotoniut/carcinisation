@@ -10,19 +10,18 @@ use self::{
     systems::{check_press_continue_input, handle_game_over_screen_continue},
 };
 use super::StageUiPlugin;
+use crate::{assets::CxAssets, globals::SCREEN_RESOLUTION_H};
 use crate::{
     game::score::components::Score,
     globals::{SCREEN_RESOLUTION_F32_H, load_inverted_typeface, mark_for_despawn_by_query},
-    layer::Layer,
+    layer::{Layer, MenuLayer},
     stage::StageProgressState,
-};
-use crate::{
-    globals::SCREEN_RESOLUTION_H,
-    pixel::{CxAssets, CxTextBundle},
 };
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxPosition, CxRenderSpace, CxText, CxTypeface, WorldPos};
+use carapace::prelude::{
+    CxAnchor, CxPosition, CxRenderSpace, CxText, CxTextBundle, CxTypeface, WorldPos,
+};
 use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 use leafwing_input_manager::plugin::InputManagerPlugin;
 
@@ -51,7 +50,7 @@ pub fn render_game_over_screen(
                     CxAnchor::Center,
                     CxRenderSpace::Camera,
                     CxPosition::from(*SCREEN_RESOLUTION_H),
-                    Layer::UIBackground,
+                    Layer::Menu(MenuLayer::Background),
                     WorldPos(*SCREEN_RESOLUTION_F32_H),
                     Name::new("UIBackground"),
                     UIBackground,
@@ -60,7 +59,7 @@ pub fn render_game_over_screen(
                     CxTextBundle::<Layer> {
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 90)),
                         text: CxText {
                             value: "Game Over".to_string(),
@@ -76,7 +75,7 @@ pub fn render_game_over_screen(
                     CxTextBundle::<Layer> {
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 60)),
                         text: CxText {
                             value: "Score:".to_string(),
@@ -92,7 +91,7 @@ pub fn render_game_over_screen(
                     CxTextBundle::<Layer> {
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 50)),
                         text: CxText {
                             value: score_text.clone(),

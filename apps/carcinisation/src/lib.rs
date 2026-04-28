@@ -37,11 +37,9 @@ pub mod debug;
 pub mod gallery;
 pub mod game;
 pub mod globals;
-mod input;
 mod layer;
 pub mod letterbox;
 mod main_menu;
-mod pixel;
 mod progression;
 pub mod resources;
 pub mod splash;
@@ -58,7 +56,7 @@ pub mod asset_meta {
     use std::collections::HashMap;
 
     pub fn ensure_sprite_meta(path: &str, frames: usize) {
-        crate::pixel::assets::ensure_sprite_meta(path, frames);
+        crate::assets::ensure_sprite_meta(path, frames);
     }
 
     pub fn ensure_typeface_meta<S: std::hash::BuildHasher>(
@@ -66,7 +64,7 @@ pub mod asset_meta {
         characters: &str,
         separators: &HashMap<char, u32, S>,
     ) {
-        crate::pixel::assets::ensure_typeface_meta(path, characters, separators);
+        crate::assets::ensure_typeface_meta(path, characters, separators);
     }
 }
 

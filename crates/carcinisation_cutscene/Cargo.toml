@@ -1,0 +1,14 @@
+[package]
+name = "carcinisation_cutscene"
+version.workspace = true
+edition.workspace = true
+description = "Cutscene vocabulary types for Carcinisation — data, components, resources, messages"
+
+[dependencies]
+bevy = { workspace = true }
+carapace = { workspace = true }
+carcinisation_base = { path = "../carcinisation_base" }
+serde = { workspace = true }
+
+[lints]
+workspace = true

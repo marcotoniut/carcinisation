@@ -12,6 +12,7 @@ use carapace::prelude::*;
 use carcinisation_fps::plugin::{
     FpCameraRes, FpConfig, FpMapRes, FpPlayerDead, FpPlugin, FpShootRequest, FpSystems, move_camera,
 };
+use carcinisation_input::{GBInput, init_gb_input};
 use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -20,35 +21,6 @@ const SCREEN_H: u32 = 144;
 const MAP_PATH: &str = "../../assets/config/fp/test_room.fp_map.ron";
 const MOVE_SPEED: f32 = 2.0;
 const TURN_SPEED: f32 = 2.0;
-
-// --- GB-style input (mirrors carcinisation::input::GBInput) ---
-
-#[derive(Actionlike, PartialEq, Eq, Clone, Copy, Hash, Debug, Reflect)]
-enum GBInput {
-    A,
-    B,
-    Up,
-    Down,
-    Left,
-    Right,
-    Start,
-    Select,
-}
-
-fn init_gb_input(mut commands: Commands) {
-    let mappings = vec![
-        (GBInput::Up, KeyCode::ArrowUp),
-        (GBInput::Down, KeyCode::ArrowDown),
-        (GBInput::Left, KeyCode::ArrowLeft),
-        (GBInput::Right, KeyCode::ArrowRight),
-        (GBInput::A, KeyCode::KeyX),
-        (GBInput::B, KeyCode::ShiftLeft),
-        (GBInput::Start, KeyCode::Enter),
-        (GBInput::Select, KeyCode::KeyZ),
-    ];
-    commands.insert_resource(ActionState::<GBInput>::default());
-    commands.insert_resource(InputMap::<GBInput>::new(mappings));
-}
 
 // --- Minimal layer enum for this dev binary ---
 

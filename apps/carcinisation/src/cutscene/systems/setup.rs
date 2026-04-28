@@ -5,16 +5,16 @@ use crate::cutscene::CutscenePlugin;
 use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
 use crate::{
     cutscene::{
-        components::{Cinematic, CutsceneEntity},
         data::CutsceneData,
         messages::{CutsceneShutdownEvent, CutsceneStartupEvent},
-        resources::CutsceneProgress,
     },
     globals::mark_for_despawn_by_query,
     letterbox::messages::LetterboxMoveEvent,
 };
 use activable::{activate, deactivate};
 use bevy::prelude::*;
+use carcinisation_cutscene::components::{Cinematic, CutsceneEntity};
+use carcinisation_cutscene::resources::CutsceneProgress;
 
 const DEBUG_MODULE: &str = "Cutscene";
 
@@ -43,7 +43,8 @@ pub fn on_cutscene_startup(
     activate::<CutscenePlugin>(&mut commands);
 
     // Reset the time domain so keyframe evaluations start from zero.
-    commands.insert_resource(Time::<super::super::resources::CutsceneTimeDomain>::default());
+    commands
+        .insert_resource(Time::<carcinisation_cutscene::resources::CutsceneTimeDomain>::default());
 
     commands.insert_resource::<CutsceneData>(e.data.as_ref().clone());
     commands.insert_resource::<CutsceneProgress>(CutsceneProgress { index: 0 });

@@ -126,7 +126,7 @@ pub fn despawn_dead_attacks(
             && let Some(anim) = atlas.animation(super::components::bundles::REGION_DESTROY)
         {
             let destroy_sprite = CxAtlasSprite::new(sprite.atlas.clone(), destroy_region);
-            let animation_bundle = crate::pixel::CxAnimationBundle::from_parts(
+            let animation_bundle = carapace::prelude::CxAnimationBundle::from_parts(
                 anim.px_direction(),
                 anim.px_duration(),
                 anim.px_finish_behavior(),

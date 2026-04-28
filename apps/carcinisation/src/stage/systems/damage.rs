@@ -1,6 +1,6 @@
+use crate::assets::CxAssets;
 #[cfg(debug_assertions)]
 use crate::debug::DebugGodMode;
-use crate::pixel::CxAssets;
 use crate::stage::{
     components::{
         damage::{DamageFlicker, InvertFilter},

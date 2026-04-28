@@ -1,8 +1,8 @@
 use super::components::{HealthIcon, HealthText, Hud, UIBackground};
-use crate::pixel::{CxAssets, CxTextBundle};
 use crate::{
+    assets::CxAssets,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION, load_inverted_typeface},
-    layer::Layer,
+    layer::{Layer, OrsLayer},
     stage::{
         components::StageEntity, data::PickupType, pickup::visual::load_pickup_visual,
         ui::components::ScoreText,
@@ -10,7 +10,8 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxPosition, CxPresentationTransform, CxRenderSpace, CxText, CxTypeface, WorldPos,
+    CxAnchor, CxPosition, CxPresentationTransform, CxRenderSpace, CxText, CxTextBundle, CxTypeface,
+    WorldPos,
 };
 use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 
@@ -47,7 +48,7 @@ pub fn spawn_hud(
                     CxAnchor::BottomLeft,
                     CxRenderSpace::Camera,
                     CxPosition::from(IVec2::ZERO),
-                    Layer::HudBackground,
+                    Layer::Ors(OrsLayer::HudBackground),
                     // TODO Technically not a UiBackground
                     UIBackground,
                     Name::new("HudBackground"),
@@ -70,7 +71,7 @@ pub fn spawn_hud(
                                     HUD_HEIGHT as f32 / 2.0,
                                 )),
                                 CxPresentationTransform::scaled(0.5),
-                                Layer::Hud,
+                                Layer::Ors(OrsLayer::Hud),
                                 HealthIcon,
                                 Name::new("HealthIcon"),
                             )
@@ -82,7 +83,7 @@ pub fn spawn_hud(
                                 ),
                                 anchor: CxAnchor::BottomRight,
                                 canvas: CxRenderSpace::Camera,
-                                layer: Layer::Hud,
+                                layer: Layer::Ors(OrsLayer::Hud),
                                 text: CxText {
                                     typeface: typeface.clone(),
                                     ..Default::default()
@@ -106,7 +107,7 @@ pub fn spawn_hud(
                             )),
                             anchor: CxAnchor::BottomRight,
                             canvas: CxRenderSpace::Camera,
-                            layer: Layer::Hud,
+                            layer: Layer::Ors(OrsLayer::Hud),
                             text: CxText {
                                 typeface: typeface.clone(),
                                 ..Default::default()

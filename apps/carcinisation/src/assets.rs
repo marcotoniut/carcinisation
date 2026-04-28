@@ -1,1 +1,207 @@
-// pub const FONT_PATH: &str = "fonts/Pixeboy.ttf";
+//! Sprite/typeface asset loading helpers and metadata writers for `carapace`.
+
+use crate::components::GBColor;
+use bevy::{
+    asset::{AssetPath, AssetServer},
+    ecs::system::SystemParam,
+    prelude::{Handle, Res},
+};
+use carapace::{
+    filter::{CxFilter, CxFilterAsset},
+    prelude::{CxSprite, CxSpriteAsset, CxTypeface},
+};
+#[cfg(not(target_family = "wasm"))]
+use std::fs;
+use std::{collections::HashMap, marker::PhantomData, path::PathBuf};
+
+pub type CxAsset<T> = T;
+pub type CxSpriteData = CxSpriteAsset;
+pub type CxFilterData = CxFilterAsset;
+pub type CxTypefaceData = CxTypeface;
+
+#[derive(SystemParam)]
+pub struct CxAssets<'w, 's, T: 'static> {
+    asset_server: Res<'w, AssetServer>,
+    _marker: PhantomData<&'s T>,
+}
+
+fn into_asset_path(path: impl Into<String>) -> AssetPath<'static> {
+    AssetPath::from(path.into())
+}
+
+impl CxAssets<'_, '_, CxSprite> {
+    pub fn load(&self, path: impl Into<String>) -> Handle<CxAsset<CxSpriteData>> {
+        self.asset_server.load(into_asset_path(path))
+    }
+
+    pub fn load_animated(
+        &self,
+        path: impl Into<String>,
+        frames: usize,
+    ) -> Handle<CxAsset<CxSpriteData>> {
+        let path = path.into();
+        ensure_sprite_meta(&path, frames);
+        self.asset_server.load(into_asset_path(path))
+    }
+}
+
+impl CxAssets<'_, '_, CxFilter> {
+    pub fn load(&self, path: impl Into<String>) -> Handle<CxAsset<CxFilterData>> {
+        self.asset_server.load(into_asset_path(path))
+    }
+
+    pub fn load_color(&self, color: GBColor) -> Handle<CxFilterAsset> {
+        self.asset_server.load(color.get_filter_path())
+    }
+}
+
+impl CxAssets<'_, '_, CxTypeface> {
+    pub fn load(
+        &self,
+        path: impl Into<String>,
+        characters: &str,
+        separators: impl IntoIterator<Item = (char, u32)>,
+    ) -> Handle<CxAsset<CxTypefaceData>> {
+        let characters = characters.to_string();
+        let separator_map: HashMap<char, u32> = separators.into_iter().collect();
+        let path = path.into();
+        ensure_typeface_meta(&path, &characters, &separator_map);
+        self.asset_server.load(into_asset_path(path))
+    }
+}
+
+pub(crate) fn ensure_sprite_meta(path: &str, frames: usize) {
+    if frames == 0 {
+        return;
+    }
+
+    let meta_path = asset_meta_path(path);
+    let contents = sprite_meta_contents(frames);
+    write_meta_file(&meta_path, &contents);
+}
+
+pub(crate) fn ensure_typeface_meta<S: std::hash::BuildHasher>(
+    path: &str,
+    characters: &str,
+    separators: &HashMap<char, u32, S>,
+) {
+    let meta_path = asset_meta_path(path);
+    let contents = typeface_meta_contents(characters, separators);
+    write_meta_file(&meta_path, &contents);
+}
+
+fn asset_meta_path(path: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join(crate::globals::ASSETS_PATH)
+        .join(format!("{path}.meta"))
+}
+
+#[cfg(not(target_family = "wasm"))]
+fn write_meta_file(path: &PathBuf, contents: &str) {
+    #[cfg(debug_assertions)]
+    {
+        if let Ok(existing) = fs::read_to_string(path)
+            && existing == contents
+        {
+            return;
+        }
+
+        if let Some(parent) = path.parent()
+            && let Err(err) = fs::create_dir_all(parent)
+        {
+            panic!("Failed to create directories for {}: {err}", path.display());
+        }
+
+        if let Err(err) = fs::write(path, contents) {
+            panic!("Failed to write {}: {err}", path.display());
+        }
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        if !path.exists() {
+            panic!(
+                "Missing asset meta file {}. Run the game or the metadata generator in a debug build to create it.",
+                path.display()
+            );
+        }
+    }
+}
+
+#[cfg(target_family = "wasm")]
+fn write_meta_file(_path: &PathBuf, _contents: &str) {}
+
+fn sprite_meta_contents(frames: usize) -> String {
+    format!(
+        r#"(
+    meta_format_version: "1.0",
+    asset: Load(
+        loader: "carapace::sprite::CxSpriteLoader",
+        settings: (
+            frame_count: {frames},
+            image_loader_settings: (
+                format: FromExtension,
+                is_srgb: true,
+                sampler: Default,
+                asset_usage: RenderAssetUsages("RENDER_WORLD | MAIN_WORLD"),
+            ),
+        ),
+    ),
+)
+"#
+    )
+}
+
+fn typeface_meta_contents<S: std::hash::BuildHasher>(
+    characters: &str,
+    separators: &HashMap<char, u32, S>,
+) -> String {
+    let separator_entries = if separators.is_empty() {
+        String::from("{}")
+    } else {
+        let mut parts: Vec<String> = separators
+            .iter()
+            .map(|(ch, width)| format!("'{}': {}", escape_ron_char(*ch), width))
+            .collect();
+        parts.sort();
+        format!("{{ {} }}", parts.join(", "))
+    };
+
+    // Typeface atlases generate characters from bottom to top, so reverse to match
+    // the vertical order expected by the loader.
+    let glyph_order: String = characters.chars().rev().collect();
+    let escaped_chars = escape_ron_string(&glyph_order);
+    format!(
+        r#"(
+    meta_format_version: "1.0",
+    asset: Load(
+        loader: "carapace::text::CxTypefaceLoader",
+        settings: (
+            default_frames: 1,
+            characters: "{escaped_chars}",
+            character_frames: {{}},
+            separator_widths: {separator_entries},
+            image_loader_settings: (
+                format: FromExtension,
+                is_srgb: true,
+                sampler: Default,
+                asset_usage: RenderAssetUsages("RENDER_WORLD | MAIN_WORLD"),
+            ),
+        ),
+    ),
+)
+"#
+    )
+}
+
+fn escape_ron_char(ch: char) -> String {
+    match ch {
+        '\'' => String::from("\\'"),
+        '\\' => String::from("\\\\"),
+        _ => ch.to_string(),
+    }
+}
+
+fn escape_ron_string(value: &str) -> String {
+    value.chars().flat_map(char::escape_default).collect()
+}

@@ -4,7 +4,6 @@
 use crate::gallery::{GalleryPlugin, messages::GalleryStartupEvent};
 use crate::{
     game::{messages::GameStartupEvent, resources::Difficulty},
-    input::GBInput,
     main_menu::{MainMenuPlugin, MainMenuScreen, resources::DifficultySelection},
     resources::DifficultySelected,
 };
@@ -12,6 +11,7 @@ use crate::{
 use activable::activate;
 use activable::deactivate;
 use bevy::prelude::*;
+use carcinisation_input::GBInput;
 use leafwing_input_manager::prelude::ActionState;
 
 /// @system Transitions from press-start screen to difficulty selection, or gallery via Select.

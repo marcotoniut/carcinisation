@@ -1,16 +1,16 @@
 pub mod components;
 
 use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
+use crate::assets::CxAssets;
 use crate::globals::{SCREEN_RESOLUTION_F32_H, SCREEN_RESOLUTION_H};
-use crate::pixel::{CxAssets, CxTextBundle};
 use crate::{
     game::{GameProgressState, score::components::Score},
     globals::{load_inverted_typeface, mark_for_despawn_by_query},
-    layer::Layer,
+    layer::{Layer, MenuLayer},
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxText, CxTypeface, WorldPos,
+    CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxText, CxTextBundle, CxTypeface, WorldPos,
 };
 use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
 
@@ -57,7 +57,7 @@ pub fn spawn_pause_menu_bundle(
                     CxAnchor::Center,
                     CxRenderSpace::Camera,
                     CxPosition::from(*SCREEN_RESOLUTION_H),
-                    Layer::UIBackground,
+                    Layer::Menu(MenuLayer::Background),
                     WorldPos(*SCREEN_RESOLUTION_F32_H),
                     UIBackground,
                 ),
@@ -66,7 +66,7 @@ pub fn spawn_pause_menu_bundle(
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 90).into(),
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
                             value: "Paused".to_string(),
                             typeface: typeface.clone(),
@@ -82,7 +82,7 @@ pub fn spawn_pause_menu_bundle(
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 60).into(),
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
                             value: "Score:".to_string(),
                             typeface: typeface.clone(),
@@ -98,7 +98,7 @@ pub fn spawn_pause_menu_bundle(
                         position: IVec2::new(SCREEN_RESOLUTION_H.x, 50).into(),
                         anchor: CxAnchor::BottomCenter,
                         canvas: CxRenderSpace::Camera,
-                        layer: Layer::UI,
+                        layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
                             value: score_text.clone(),
                             typeface: typeface.clone(),

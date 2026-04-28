@@ -3,9 +3,9 @@ use carapace::prelude::*;
 
 use crate::stage::collision::AttackMask;
 use crate::{
+    assets::CxAssets,
     components::{DespawnMark, VolumeSettings},
     game::score::components::Score,
-    pixel::CxAssets,
     stage::{
         attack::components::{
             SCORE_MELEE_CRITICAL_HIT, SCORE_MELEE_REGULAR_HIT, SCORE_RANGED_CRITICAL_HIT,

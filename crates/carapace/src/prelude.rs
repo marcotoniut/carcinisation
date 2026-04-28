@@ -24,6 +24,8 @@ pub(crate) use bevy_window::prelude::*;
 
 pub(crate) const OK: Result = Ok(());
 
+#[cfg(feature = "line")]
+pub use crate::bundles::CxLineBundle;
 #[cfg(feature = "headed")]
 pub use crate::debug_draw::{
     draw_circle_collider_2d, draw_rect_collider_2d, draw_world_mask_outline_2d,
@@ -47,6 +49,7 @@ pub use crate::{
     },
     atlas::{AtlasRect, AtlasRegion, AtlasRegionId, CxAtlasSprite, CxSpriteAtlasAsset},
     blink::CxBlink,
+    bundles::{CxAnimationBundle, CxFilterRectBundle, CxSpriteBundle, CxTextBundle},
     camera::{CxCamera, CxRenderSpace},
     cursor::{CxCursor, CxCursorPosition},
     filter::{CxFilter, CxFilterAsset, CxFilterLayers, CxInvertMask},

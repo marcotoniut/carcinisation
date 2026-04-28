@@ -2292,9 +2292,13 @@ dependencies = [
  "bevy_framepace",
  "bevy_state",
  "carapace",
+ "carcinisation_animation",
+ "carcinisation_base",
  "carcinisation_collision",
  "carcinisation_core",
+ "carcinisation_cutscene",
  "carcinisation_fps",
+ "carcinisation_input",
  "clap",
  "colored",
  "cween",
@@ -2315,6 +2319,23 @@ dependencies = [
  "strum 0.28.0",
  "strum_macros 0.28.0",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "carcinisation_animation"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "serde",
+]
+
+[[package]]
+name = "carcinisation_base"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "carapace",
+ "serde",
 ]
 
 [[package]]
@@ -2339,14 +2360,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "carcinisation_cutscene"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "carapace",
+ "carcinisation_base",
+ "serde",
+]
+
+[[package]]
 name = "carcinisation_fps"
 version = "0.2.0"
 dependencies = [
  "bevy",
  "bevy_math",
  "carapace",
+ "carcinisation_base",
  "ron 0.12.0",
  "serde",
+]
+
+[[package]]
+name = "carcinisation_input"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "leafwing-input-manager",
 ]
 
 [[package]]

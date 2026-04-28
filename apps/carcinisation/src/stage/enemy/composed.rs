@@ -19,7 +19,7 @@
     clippy::cast_precision_loss
 )]
 
-use crate::pixel::CxAssets;
+use crate::assets::CxAssets;
 use crate::stage::{
     components::{
         interactive::{Dead, Flickerer, Health},

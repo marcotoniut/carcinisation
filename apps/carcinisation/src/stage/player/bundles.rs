@@ -3,14 +3,14 @@ use super::{
     components::{PLAYER_MAX_HEALTH, Player},
     crosshair::CrosshairSettings,
 };
-use crate::pixel::{CxAssets, CxSpriteBundle};
 use crate::{
+    assets::CxAssets,
     globals::{HUD_HEIGHT, SCREEN_RESOLUTION, SCREEN_RESOLUTION_H},
-    layer::Layer,
+    layer::{Layer, OrsLayer},
     stage::components::{StageEntity, interactive::Health},
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxRenderSpace, CxSprite, WorldPos};
+use carapace::prelude::{CxAnchor, CxRenderSpace, CxSprite, CxSpriteBundle, WorldPos};
 
 pub fn make_player_bundle(
     asset_server: &mut CxAssets<CxSprite>,
@@ -32,7 +32,7 @@ pub fn make_player_bundle(
         CxSpriteBundle::<Layer> {
             canvas: CxRenderSpace::Camera,
             sprite: sprite.into(),
-            layer: Layer::Front,
+            layer: Layer::Ors(OrsLayer::Front),
             anchor: CxAnchor::Center,
             ..default()
         },

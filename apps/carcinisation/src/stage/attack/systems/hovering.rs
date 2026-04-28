@@ -101,7 +101,7 @@ pub fn hovering_damage_on_reached(
             .get(&atlas_handle)
             .and_then(|a| a.animation(REGION_HIT))
             .map(|a| {
-                crate::pixel::CxAnimationBundle::from_parts(
+                carapace::prelude::CxAnimationBundle::from_parts(
                     a.px_direction(),
                     a.px_duration(),
                     a.px_finish_behavior(),

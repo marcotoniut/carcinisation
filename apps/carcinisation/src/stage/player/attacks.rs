@@ -1,4 +1,4 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, OrsLayer};
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carapace::prelude::{CxAnchor, CxAnimationFinishBehavior, CxFrameTransition, CxRenderSpace};
@@ -160,7 +160,7 @@ impl Default for AttackDefinitions {
                     frame_transition: CxFrameTransition::None,
                     anchor: CxAnchor::Center,
                     canvas: CxRenderSpace::Camera,
-                    layer: Layer::Attack,
+                    layer: Layer::Ors(OrsLayer::Attack),
                 },
                 sfx_path: Some(assert_assets_path!("audio/sfx/player_melee.ogg")),
                 effects: AttackEffects {
@@ -194,7 +194,7 @@ impl Default for AttackDefinitions {
                     frame_transition: CxFrameTransition::None,
                     anchor: CxAnchor::Center,
                     canvas: CxRenderSpace::Camera,
-                    layer: Layer::Attack,
+                    layer: Layer::Ors(OrsLayer::Attack),
                 },
                 sfx_path: Some(assert_assets_path!("audio/sfx/player_shot.ogg")),
                 effects: AttackEffects {
@@ -230,7 +230,7 @@ impl Default for AttackDefinitions {
                     frame_transition: CxFrameTransition::None,
                     anchor: CxAnchor::Center,
                     canvas: CxRenderSpace::Camera,
-                    layer: Layer::Attack,
+                    layer: Layer::Ors(OrsLayer::Attack),
                 },
                 sfx_path: Some(assert_assets_path!("audio/sfx/player_shot.ogg")),
                 effects: AttackEffects {
@@ -263,7 +263,7 @@ impl Default for AttackDefinitions {
                     frame_transition: CxFrameTransition::None,
                     anchor: CxAnchor::Center,
                     canvas: CxRenderSpace::World,
-                    layer: Layer::Attack,
+                    layer: Layer::Ors(OrsLayer::Attack),
                 },
                 sfx_path: None,
                 effects: AttackEffects { screen_shake: true },
@@ -297,7 +297,7 @@ impl Default for AttackDefinitions {
                     frame_transition: CxFrameTransition::None,
                     anchor: CxAnchor::Center,
                     canvas: CxRenderSpace::World,
-                    layer: Layer::Attack,
+                    layer: Layer::Ors(OrsLayer::Attack),
                 },
                 sfx_path: Some(assert_assets_path!("audio/sfx/bomb_explode.ogg")),
                 effects: AttackEffects {
@@ -335,7 +335,7 @@ impl Default for AttackDefinitions {
                     frame_transition: CxFrameTransition::None,
                     anchor: CxAnchor::Center,
                     canvas: CxRenderSpace::Camera,
-                    layer: Layer::Attack,
+                    layer: Layer::Ors(OrsLayer::Attack),
                 },
                 sfx_path: None,
                 effects: AttackEffects {

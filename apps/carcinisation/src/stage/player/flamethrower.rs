@@ -1,7 +1,6 @@
 use crate::globals::SCREEN_RESOLUTION;
 use crate::{
-    layer::{FlameDepth, Layer},
-    pixel::CxAnimationBundle,
+    layer::{FlameDepth, Layer, OrsLayer},
     stage::{
         components::{
             interactive::{ColliderData, Hittable},
@@ -17,9 +16,9 @@ use crate::{
 };
 use bevy::prelude::*;
 use carapace::prelude::{
-    CxAnchor, CxAnimationDirection, CxAnimationDuration, CxAnimationFinishBehavior, CxAtlasSprite,
-    CxCamera, CxFrameTransition, CxPosition, CxPresentationTransform, CxRenderSpace,
-    CxSpriteAtlasAsset, WorldPos,
+    CxAnchor, CxAnimationBundle, CxAnimationDirection, CxAnimationDuration,
+    CxAnimationFinishBehavior, CxAtlasSprite, CxCamera, CxFrameTransition, CxPosition,
+    CxPresentationTransform, CxRenderSpace, CxSpriteAtlasAsset, WorldPos,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -306,7 +305,7 @@ pub fn manage_flamethrower(
             CxPosition::from(origin.round().as_ivec2()),
             CxRenderSpace::Camera,
             CxAnchor::Center,
-            Layer::Attack,
+            Layer::Ors(OrsLayer::Attack),
             Name::new("Flamethrower"),
         ));
     }
@@ -409,7 +408,7 @@ pub fn update_flamethrower(
         // Closer to origin = higher render priority (renders on top).
         let progress_t = (particle.progress / max_range).clamp(0.0, 1.0);
         let depth = ((1.0 - progress_t) * 15.0) as u8;
-        *layer = Layer::FlameSegment(FlameDepth(depth));
+        *layer = Layer::Ors(OrsLayer::FlameSegment(FlameDepth(depth)));
 
         // Interpolate scale from near (origin) to far (max range).
         let scale = config.scale_near + (config.scale_far - config.scale_near) * progress_t;
@@ -456,7 +455,7 @@ pub fn update_flamethrower(
                 ..default()
             },
             CxRenderSpace::Camera,
-            Layer::FlameSegment(FlameDepth(15)), // starts at highest (closest to origin)
+            Layer::Ors(OrsLayer::FlameSegment(FlameDepth(15))), // starts at highest (closest to origin)
             Name::new("FlameParticle"),
         ));
 

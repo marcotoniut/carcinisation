@@ -36,13 +36,13 @@ use crate::{
         score::components::Score,
     },
     globals::{DEBUG_STAGESTEP, mark_for_despawn_by_query},
-    input::GBInput,
     systems::{camera::CameraPos, spawn::make_music_bundle},
     transitions::trigger_transition,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
 use carapace::prelude::WorldPos;
+use carcinisation_input::GBInput;
 use cween::linear::components::{
     TargetingValueX, TargetingValueY, TweenChildBundle, extra::LinearTween2DReachCheck,
 };

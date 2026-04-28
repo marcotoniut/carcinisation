@@ -1,5 +1,5 @@
+use crate::assets::CxAssets;
 use crate::components::{AudioSystemBundle, AudioSystemType, VolumeSettings};
-use crate::pixel::{CxAnimationBundle, CxAssets};
 use crate::stage::{
     components::interactive::ColliderData,
     components::placement::Depth,
@@ -13,8 +13,8 @@ use bevy::{
     prelude::*,
 };
 use carapace::prelude::{
-    CxAnimationDirection, CxAnimationDuration, CxAtlasSprite, CxSprite, CxSpriteAtlasAsset,
-    WorldPos,
+    CxAnimationBundle, CxAnimationDirection, CxAnimationDuration, CxAtlasSprite, CxSprite,
+    CxSpriteAtlasAsset, WorldPos,
 };
 use std::time::Duration;
 

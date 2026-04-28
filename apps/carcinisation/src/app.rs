@@ -2,6 +2,7 @@
 
 #![allow(clippy::too_many_lines)]
 
+use carcinisation_input::GBInput;
 #[cfg(not(target_arch = "wasm32"))]
 use std::env;
 
@@ -36,7 +37,6 @@ use crate::{
         ASSETS_PATH, DEFAULT_CROSSHAIR_INDEX, SCREEN_RESOLUTION, scaled_screen_resolution,
         viewport_resolution,
     },
-    input::GBInput,
     layer::Layer,
     letterbox::LetterboxPlugin,
     main_menu::MainMenuPlugin,
@@ -47,12 +47,13 @@ use crate::{
         camera::move_camera,
         movement::{PositionSyncSystems, update_position_x, update_position_y},
         on_post_startup,
-        setup::{init_gb_input, set_fixed_timestep, set_framespace, spawn_camera},
+        setup::{set_fixed_timestep, set_framespace, spawn_camera},
     },
     transitions::spiral::TransitionVenetianPlugin,
 };
 use carapace::animation::CxAnimationPlugin;
 use carapace::prelude::*;
+use carcinisation_input::init_gb_input;
 use leafwing_input_manager::prelude::InputManagerPlugin;
 
 /// Controls whether the full start/menu stack should run.

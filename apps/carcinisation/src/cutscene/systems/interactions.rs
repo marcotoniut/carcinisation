@@ -1,14 +1,12 @@
 //! Player interactions during cutscenes.
 
-use crate::{
-    cutscene::{
-        data::{CutsceneData, CutsceneSkipMode},
-        input::CutsceneInput,
-        messages::CutsceneShutdownEvent,
-    },
-    input::GBInput,
+use crate::cutscene::{
+    data::{CutsceneData, CutsceneSkipMode},
+    input::CutsceneInput,
+    messages::CutsceneShutdownEvent,
 };
 use bevy::prelude::*;
+use carcinisation_input::GBInput;
 use leafwing_input_manager::prelude::ActionState;
 
 /// @system Skips the cutscene based on the configured skip mode.

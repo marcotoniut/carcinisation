@@ -1,11 +1,14 @@
 //! Serialized cutscene definitions: layers, steps, images, animations, music.
 
-use super::resources::CutsceneTimeDomain;
 use crate::{
-    data::keyframe::RotationKeyframe, layer::Layer, letterbox::messages::LetterboxMove,
-    stage::data::GAME_BASE_SPEED, transitions::data::TransitionRequest,
+    layer::{Layer, MenuLayer},
+    letterbox::messages::LetterboxMove,
+    stage::data::GAME_BASE_SPEED,
+    transitions::data::TransitionRequest,
 };
 use bevy::prelude::*;
+use carcinisation_animation::RotationKeyframe;
+use carcinisation_cutscene::resources::CutsceneTimeDomain;
 use cween::linear::components::{LinearTweenBundle, TargetingValueX, TargetingValueY};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
@@ -39,33 +42,10 @@ pub struct CutsceneBackgroundPrimitive {
 }
 
 fn default_bg_layer() -> Layer {
-    Layer::UIBackground
+    Layer::Menu(MenuLayer::Background)
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Eq, Ord, Reflect, Serialize)]
-/// Layer stack used while rendering cinematic sequences (the later variants render on top).
-pub enum CutsceneLayer {
-    /// Parallax sky/props furthest from the camera (multiple slots for effects).
-    Background(u8),
-    /// Hero/enemy sprites and props that sit behind the letterbox/frame.
-    Middle(u8),
-    /// Black bars and frame dressing.
-    Letterbox,
-    /// Particles/effects above the letterbox but below UI text.
-    Foreground(u8),
-    /// Panel container for dialogue.
-    Textbox,
-    /// Primary dialogue text.
-    Text,
-    /// Captions/emphasis sitting above the main dialogue.
-    Overtext(u8),
-}
-
-impl Default for CutsceneLayer {
-    fn default() -> Self {
-        CutsceneLayer::Background(0)
-    }
-}
+pub use carcinisation_cutscene::layer::CutsceneLayer;
 
 #[serde_as]
 #[derive(Clone, Copy, Debug, Default, Deserialize, Reflect, Serialize)]

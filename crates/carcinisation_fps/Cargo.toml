@@ -6,6 +6,7 @@ description = "First-person raycaster subgame for Carcinisation"
 
 [dependencies]
 carapace = { workspace = true }
+carcinisation_base = { path = "../carcinisation_base" }
 bevy = { workspace = true }
 bevy_math = { version = "0.18.0", default-features = false }
 serde = { workspace = true }

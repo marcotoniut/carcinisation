@@ -1,11 +1,8 @@
 use crate::{
-    data::AnimationData,
-    layer::Layer,
-    pixel::{CxAnimationBundle, CxAssets, CxSpriteBundle},
-    stage::components::placement::Depth,
+    assets::CxAssets, data::AnimationData, layer::Layer, stage::components::placement::Depth,
 };
 use bevy::prelude::*;
-use carapace::prelude::{CxAnchor, CxSprite};
+use carapace::prelude::{CxAnchor, CxAnimationBundle, CxSprite, CxSpriteBundle};
 
 /**
  * TODO
