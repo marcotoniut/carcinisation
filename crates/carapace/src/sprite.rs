@@ -176,6 +176,61 @@ pub struct CxSpriteAsset {
     pub(crate) frame_size: usize,
 }
 
+impl CxSpriteAsset {
+    /// Create a sprite asset from raw palette-indexed data.
+    ///
+    /// `data` is row-major palette indices (image-space: top-left origin, Y-down).
+    /// The image is treated as a single frame.
+    ///
+    /// # Panics
+    ///
+    /// - `width` is 0.
+    /// - `data` is non-empty and its length is not a multiple of `width`.
+    pub fn from_raw(data: Vec<u8>, width: usize) -> Self {
+        assert!(width > 0, "CxSpriteAsset::from_raw: width must be > 0");
+        assert!(
+            data.is_empty() || data.len().is_multiple_of(width),
+            "CxSpriteAsset::from_raw: data length ({}) must be a multiple of width ({width})",
+            data.len(),
+        );
+        let image = CxImage::new(data, width);
+        let frame_size = image.area();
+        Self {
+            data: image,
+            frame_size,
+        }
+    }
+
+    /// Width of a single frame in pixels.
+    #[must_use]
+    pub fn frame_width(&self) -> usize {
+        self.data.width()
+    }
+
+    /// Height of a single frame in pixels.
+    #[must_use]
+    pub fn frame_height(&self) -> usize {
+        self.frame_size / self.data.width()
+    }
+
+    /// Extract a single frame as a standalone [`CxImage`].
+    ///
+    /// Frames are stacked top-to-bottom in the sprite data.
+    /// Returns `None` if `frame` is out of bounds.
+    #[must_use]
+    pub fn extract_frame(&self, frame: usize) -> Option<CxImage> {
+        let frame_count = self.data.area() / self.frame_size;
+        if frame >= frame_count {
+            return None;
+        }
+        let w = self.data.width();
+        let start = frame * self.frame_size;
+        let end = start + self.frame_size;
+        let frame_data = self.data.data()[start..end].to_vec();
+        Some(CxImage::new(frame_data, w))
+    }
+}
+
 #[cfg(feature = "gpu_palette")]
 #[derive(Clone)]
 pub(crate) struct CxSpriteGpu {

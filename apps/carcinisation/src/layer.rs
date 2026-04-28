@@ -1,5 +1,6 @@
 use bevy::reflect::Reflect;
 use carapace::{math::Next, prelude::px_layer};
+use carcinisation_fps::layer::FpSubLayer;
 use serde::{Deserialize, Serialize};
 
 use crate::cutscene::data::CutsceneLayer;
@@ -84,6 +85,8 @@ pub enum Layer {
     UIBackground,
     /// Menu text/icons that must sit above everything else.
     UI,
+    /// First-person raycaster view (walls, billboards, FP HUD).
+    FirstPerson(FpSubLayer),
     /// Mirrors the RON-defined layering for cutscenes (see `CutsceneLayer` docs for detail).
     #[allow(clippy::enum_variant_names)]
     CutsceneLayer(CutsceneLayer),

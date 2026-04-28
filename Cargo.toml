@@ -9,6 +9,7 @@ members = [
     "crates/carapace/macros",
     "crates/carcinisation_collision",
     "crates/carcinisation_core",
+    "crates/carcinisation_fps",
     "crates/cween",
     "scripts/generate-typeface",
     "scripts/process-aseprite",

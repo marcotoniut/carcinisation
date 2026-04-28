@@ -21,7 +21,7 @@ use crate::{math::RectExt, palette::Palette, prelude::*};
 /// not by manufacturing a degenerate `CxImage`. The renderer skips zero-area
 /// metrics at the draw boundary.
 #[derive(Serialize, Deserialize, Clone, Reflect, Debug)]
-pub(crate) struct CxImage {
+pub struct CxImage {
     image: Vec<u8>,
     width: usize,
 }
@@ -37,7 +37,7 @@ impl CxImage {
     ///
     /// - `width` is 0.
     /// - `image` is non-empty and its length is not a multiple of `width`.
-    pub(crate) fn new(image: Vec<u8>, width: usize) -> Self {
+    pub fn new(image: Vec<u8>, width: usize) -> Self {
         debug_assert!(width > 0, "CxImage: width must be > 0 (got width 0)");
         debug_assert!(
             image.is_empty() || image.len().is_multiple_of(width),
@@ -52,7 +52,7 @@ impl CxImage {
     /// # Panics (debug)
     ///
     /// Either dimension is 0.
-    pub(crate) fn empty(size: UVec2) -> Self {
+    pub fn empty(size: UVec2) -> Self {
         debug_assert!(
             size.x > 0 && size.y > 0,
             "CxImage::empty: dimensions must be > 0 (got {size})",
@@ -104,11 +104,17 @@ impl CxImage {
         })
     }
 
+    /// Read a single palette index at the given image-space position (unchecked).
+    ///
+    /// # Panics
+    ///
+    /// Out-of-bounds access. Prefer [`get_pixel`](Self::get_pixel) from external code.
     pub(crate) fn pixel(&self, position: IVec2) -> u8 {
         self.image[(position.x + position.y * self.width as i32) as usize]
     }
 
-    pub(crate) fn get_pixel(&self, position: IVec2) -> Option<u8> {
+    /// Bounds-checked pixel read. Returns `None` for out-of-bounds positions.
+    pub fn get_pixel(&self, position: IVec2) -> Option<u8> {
         IRect {
             min: IVec2::splat(0),
             max: IVec2::new(self.width as i32, (self.image.len() / self.width) as i32),
@@ -117,25 +123,34 @@ impl CxImage {
         .then(|| self.pixel(position))
     }
 
-    pub(crate) fn size(&self) -> UVec2 {
+    /// Dimensions as `(width, height)`.
+    pub fn size(&self) -> UVec2 {
         UVec2::new(self.width as u32, (self.image.len() / self.width) as u32)
     }
 
-    pub(crate) fn width(&self) -> usize {
+    /// Width in pixels.
+    pub fn width(&self) -> usize {
         self.width
     }
 
-    pub(crate) fn height(&self) -> usize {
+    /// Height in pixels.
+    pub fn height(&self) -> usize {
         self.image.len() / self.width
     }
 
-    pub(crate) fn area(&self) -> usize {
+    /// Total pixel count (`width * height`).
+    pub fn area(&self) -> usize {
         self.image.len()
     }
 
-    #[cfg(feature = "gpu_palette")]
-    pub(crate) fn data(&self) -> &[u8] {
+    /// Raw palette-index data (row-major, image-space: top-left origin, Y-down).
+    pub fn data(&self) -> &[u8] {
         &self.image
+    }
+
+    /// Mutable access to raw palette-index data.
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        &mut self.image
     }
 
     #[expect(unused)]
@@ -224,7 +239,8 @@ impl CxImage {
         }
     }
 
-    pub(crate) fn clear(&mut self) {
+    /// Zero-fill all pixel data (all pixels become transparent index 0).
+    pub fn clear(&mut self) {
         self.image.fill(default());
     }
 }

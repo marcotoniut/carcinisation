@@ -94,7 +94,8 @@ pub mod cursor;
 pub mod debug_draw;
 pub mod filter;
 pub mod frame;
-mod image;
+/// Palette-indexed raster image buffer.
+pub mod image;
 #[cfg(feature = "line")]
 mod line;
 pub mod math;
@@ -109,6 +110,8 @@ pub mod presentation;
 pub mod primitive;
 mod profiling;
 pub(crate) mod pxi;
+/// Generic raycaster rendering helpers.
+pub mod raycaster;
 mod rect;
 #[cfg(feature = "reflect")]
 mod reflect;

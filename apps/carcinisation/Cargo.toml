@@ -18,6 +18,7 @@ activable = { path = "../../crates/activable" }
 activable_macros = { path = "../../crates/activable_macros" }
 carcinisation_core = { path = "../../crates/carcinisation_core" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
+carcinisation_fps = { path = "../../crates/carcinisation_fps" }
 cween = { path = "../../crates/cween" }
 asset_pipeline = { workspace = true }
 
@@ -68,3 +69,7 @@ path = "src/bin/single_stage.rs"
 [[bin]]
 name = "gallery"
 path = "src/bin/gallery.rs"
+
+[[bin]]
+name = "fp_test"
+path = "src/bin/fp_test.rs"

@@ -1,0 +1,15 @@
+[package]
+name = "carcinisation_fps"
+version.workspace = true
+edition.workspace = true
+description = "First-person raycaster subgame for Carcinisation"
+
+[dependencies]
+carapace = { workspace = true }
+bevy = { workspace = true }
+bevy_math = { version = "0.18.0", default-features = false }
+serde = { workspace = true }
+ron = { workspace = true }
+
+[lints]
+workspace = true

@@ -2294,6 +2294,7 @@ dependencies = [
  "carapace",
  "carcinisation_collision",
  "carcinisation_core",
+ "carcinisation_fps",
  "clap",
  "colored",
  "cween",
@@ -2335,6 +2336,17 @@ dependencies = [
  "carapace",
  "derive-new",
  "lazy_static",
+]
+
+[[package]]
+name = "carcinisation_fps"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "bevy_math",
+ "carapace",
+ "ron 0.12.0",
+ "serde",
 ]
 
 [[package]]

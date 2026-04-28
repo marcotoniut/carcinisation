@@ -1,0 +1,48 @@
+FpMapData(
+    width: 12,
+    height: 12,
+    cells: [
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 3, 3, 0, 0, 2, 2, 0, 0, 1,
+        1, 0, 0, 3, 0, 0, 0, 0, 2, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 2, 0, 0, 0, 0, 3, 0, 0, 1,
+        1, 0, 0, 2, 2, 0, 0, 3, 3, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    ],
+    wall_textures: [
+        Brick(color: 2, mortar: 1),
+        Checker(color_a: 3, color_b: 4, block: 8),
+        Checker(color_a: 1, color_b: 2, block: 8),
+    ],
+    ceiling_color: 1,
+    floor_color: 4,
+    player_start: (x: 6.0, y: 6.0, angle_deg: 0.0),
+    entities: [
+        (kind: Pillar(color: 4, width: 12, height: 24), x: 3.5, y: 3.5),
+        (kind: Pillar(color: 4, width: 12, height: 24), x: 8.5, y: 3.5),
+        (kind: Pillar(color: 4, width: 12, height: 24), x: 3.5, y: 8.5),
+        (kind: Pillar(color: 4, width: 12, height: 24), x: 8.5, y: 8.5),
+        (kind: SpriteEnemy(
+            sprite: "sprites/enemies/mosquiton_billboard.px_sprite.png",
+            death_sprite: "sprites/enemies/mosquiton_death_billboard.px_sprite.png",
+            health: 30,
+        ), x: 9.5, y: 6.0),
+        (kind: SpriteEnemy(
+            sprite: "sprites/enemies/mosquiton_billboard.px_sprite.png",
+            death_sprite: "sprites/enemies/mosquiton_death_billboard.px_sprite.png",
+            health: 30,
+        ), x: 2.5, y: 2.5),
+        (kind: SpriteEnemy(
+            sprite: "sprites/enemies/mosquiton_billboard.px_sprite.png",
+            death_sprite: "sprites/enemies/mosquiton_death_billboard.px_sprite.png",
+            health: 50,
+            speed: 1.0,
+        ), x: 6.0, y: 9.5),
+    ],
+)
