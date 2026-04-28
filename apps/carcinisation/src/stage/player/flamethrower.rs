@@ -3,7 +3,10 @@ use crate::{
     layer::{FlameDepth, Layer},
     pixel::CxAnimationBundle,
     stage::{
-        components::{interactive::Hittable, placement::Depth},
+        components::{
+            interactive::{ColliderData, Hittable},
+            placement::Depth,
+        },
         messages::DamageMessage,
         player::{
             components::{Player, PlayerAttack},
@@ -333,6 +336,7 @@ pub fn update_flamethrower(
             &mut CxPosition,
             &mut Layer,
             &mut CxPresentationTransform,
+            &mut ColliderData,
         ),
         (Without<ActiveFlamethrower>, Without<Player>),
     >,
@@ -363,8 +367,15 @@ pub fn update_flamethrower(
         config.flame_speed * config.drain_speed_multiplier
     };
 
-    for (entity, mut particle, mut world_pos, mut cx_pos, mut layer, mut presentation) in
-        &mut particle_query
+    for (
+        entity,
+        mut particle,
+        mut world_pos,
+        mut cx_pos,
+        mut layer,
+        mut presentation,
+        mut collider,
+    ) in &mut particle_query
     {
         particle.progress += speed * dt;
 
@@ -403,6 +414,11 @@ pub fn update_flamethrower(
         // Interpolate scale from near (origin) to far (max range).
         let scale = config.scale_near + (config.scale_far - config.scale_near) * progress_t;
         presentation.scale = Vec2::splat(scale);
+
+        // Scale collider to match visual size.
+        *collider = ColliderData::from_one(carcinisation_collision::Collider::new_circle(
+            config.hit_radius * scale,
+        ));
     }
 
     // Spawn new particles at the configured interval while chain isn't full.
@@ -432,6 +448,9 @@ pub fn update_flamethrower(
             WorldPos::from(origin),
             CxPosition::from(origin.round().as_ivec2()),
             CxAnchor::Center,
+            ColliderData::from_one(carcinisation_collision::Collider::new_circle(
+                config.hit_radius,
+            )),
             CxPresentationTransform {
                 scale: Vec2::splat(config.scale_near),
                 ..default()

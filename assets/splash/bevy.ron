@@ -4,8 +4,7 @@ SplashConfig(
     bg_palette_index: 4,
 
     tracks: [
-        // Brown feet — follows main bird, appears at whip peak.
-        // Relative offset: 0 at appear, overshoots briefly, settles to 0.
+        // Brown feet — follows main bird, relative offset cascade.
         (
             asset: "ui/splash/bevy_logo_2.px_sprite.png",
             pivot: Some((0.45, 0.556)),
@@ -14,11 +13,12 @@ SplashConfig(
             follow_rotation_tag: Some("main_bird"),
             rotation: Some([
                 (time_ms: 1350, angle_deg: 0.0,  easing: Linear),
-                (time_ms: 1500, angle_deg: 8.0,  easing: DampedSpring),
-                (time_ms: 1900, angle_deg: 0.0,  easing: Linear),
+                (time_ms: 1550, angle_deg: 8.0,  easing: DampedSpring),
+                (time_ms: 1850, angle_deg: 4.0,  easing: Smoothstep),
+                (time_ms: 2100, angle_deg: 0.0,  easing: Smoothstep),
             ]),
         ),
-        // Gold eye — follows main bird, appears at whip peak.
+        // Gold eye — follows main bird, wider offset, slightly later peak.
         (
             asset: "ui/splash/bevy_logo_3.px_sprite.png",
             pivot: Some((0.45, 0.556)),
@@ -26,12 +26,14 @@ SplashConfig(
             appear_ms: Some(1350),
             follow_rotation_tag: Some("main_bird"),
             rotation: Some([
-                (time_ms: 1350, angle_deg: 0.0,  easing: Linear),
-                (time_ms: 1550, angle_deg: 12.0, easing: DampedSpring),
-                (time_ms: 2000, angle_deg: 0.0,  easing: Linear),
+                (time_ms: 1350, angle_deg: 0.0,   easing: Linear),
+                (time_ms: 1620, angle_deg: 14.0,  easing: DampedSpring),
+                (time_ms: 1920, angle_deg: 6.0,   easing: Smoothstep),
+                (time_ms: 2100, angle_deg: 0.0,   easing: Smoothstep),
             ]),
         ),
         // Dark bird silhouette — visible from start, renders on top.
+        // Slower return: 1350 -> 2100 (750ms) instead of 250ms.
         (
             asset: "ui/splash/bevy_logo_1.px_sprite.png",
             tag: Some("main_bird"),
@@ -41,7 +43,7 @@ SplashConfig(
                 (time_ms: 500,  angle_deg: 0.0,   easing: SlightEaseIn),
                 (time_ms: 1100, angle_deg: -20.0,  easing: Smoothstep),
                 (time_ms: 1350, angle_deg: 40.0,   easing: EaseOut),
-                (time_ms: 1600, angle_deg: 0.0,    easing: Linear),
+                (time_ms: 2100, angle_deg: 0.0,    easing: Smoothstep),
             ]),
         ),
         // BEVY text — always visible, no rotation.
