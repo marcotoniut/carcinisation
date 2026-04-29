@@ -1,6 +1,6 @@
 [package]
 name = "carapace"
-version = "0.9.0-dev"
+version = "0.10.0-dev"
 edition = "2024"
 categories = ["game-development"]
 description = "Bevy plugin for limited color palette pixel art games"

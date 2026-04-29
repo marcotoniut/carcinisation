@@ -76,5 +76,5 @@ name = "gallery"
 path = "src/bin/gallery.rs"
 
 [[bin]]
-name = "fp_test"
-path = "src/bin/fp_test.rs"
+name = "fps_test"
+path = "src/bin/fps_test.rs"

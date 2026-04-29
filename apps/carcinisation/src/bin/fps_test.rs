@@ -5,7 +5,7 @@
 //! A (X) to shoot. Enemies chase and attack.
 //!
 //! Usage:
-//!   cargo run --bin fp_test
+//!   cargo run --bin fps_test
 
 use bevy::prelude::*;
 use carapace::prelude::*;
