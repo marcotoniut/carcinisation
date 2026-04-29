@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use carapace::prelude::WorldPos;
 use cween::linear::components::{TargetingValueX, TargetingValueY};
 
-use crate::systems::camera::CameraPos;
+use carcinisation_base::game::CameraPos;
 
 /// Systems that sync tween-driven `TargetingValueX`/`Y` into `WorldPos`.
 ///

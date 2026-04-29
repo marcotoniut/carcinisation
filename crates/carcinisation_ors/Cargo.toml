@@ -1,0 +1,39 @@
+[package]
+name = "carcinisation_ors"
+version.workspace = true
+edition.workspace = true
+description = "On-rails shooter gameplay for Carcinisation"
+
+[dependencies]
+activable = { path = "../activable" }
+activable_macros = { path = "../activable_macros" }
+carapace = { workspace = true }
+carcinisation_animation = { path = "../carcinisation_animation" }
+carcinisation_base = { path = "../carcinisation_base" }
+carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
+carcinisation_core = { path = "../carcinisation_core" }
+carcinisation_cutscene = { path = "../carcinisation_cutscene" }
+carcinisation_input = { path = "../carcinisation_input" }
+cween = { path = "../cween" }
+asset_pipeline = { workspace = true }
+bevy = { workspace = true }
+bevy_common_assets = { workspace = true }
+bevy_ecs = { workspace = true }
+leafwing-input-manager = { workspace = true }
+ron = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_with = { workspace = true }
+anyhow = { workspace = true }
+assert_assets_path = { workspace = true }
+colored = { workspace = true }
+derive-new = { workspace = true }
+derive_more = { workspace = true }
+lazy_static = { workspace = true }
+num_enum = { workspace = true }
+rand = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+
+[lints]
+workspace = true

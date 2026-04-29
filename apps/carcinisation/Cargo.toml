@@ -21,6 +21,7 @@ carcinisation_animation = { path = "../../crates/carcinisation_animation" }
 carcinisation_base = { path = "../../crates/carcinisation_base" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 carcinisation_cutscene = { path = "../../crates/carcinisation_cutscene" }
+carcinisation_ors = { path = "../../crates/carcinisation_ors" }
 carcinisation_fps = { path = "../../crates/carcinisation_fps" }
 carcinisation_input = { path = "../../crates/carcinisation_input" }
 cween = { path = "../../crates/cween" }

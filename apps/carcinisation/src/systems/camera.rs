@@ -2,10 +2,8 @@ use bevy::{prelude::*, time::Time};
 use carapace::prelude::{CxCamera, WorldPos};
 use leafwing_input_manager::prelude::ActionState;
 
+use carcinisation_base::game::CameraPos;
 use carcinisation_input::GBInput;
-
-#[derive(Component)]
-pub struct CameraPos;
 
 const CAMERA_MOVEMENT_SPEED: f32 = 30.;
 

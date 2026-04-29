@@ -9,11 +9,12 @@ use crate::{
         MainMenuScreen,
         components::{MainMenu, MainMenuEntity, MainMenuMusic},
     },
-    systems::{camera::CameraPos, spawn::make_music_bundle},
+    systems::spawn::make_music_bundle,
 };
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, prelude::*};
 use carapace::prelude::WorldPos;
+use carcinisation_base::game::CameraPos;
 
 #[cfg(debug_assertions)]
 const DEBUG_MODULE: &str = "MainMenu";

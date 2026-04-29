@@ -4,15 +4,11 @@ pub mod setup;
 pub mod spawn;
 
 use crate::{
-    components::{
-        AudioSystemType, DelayedDespawnOnCxAnimationFinished, DespawnAfterDelay, DespawnMark,
-        VolumeSettings,
-    },
+    components::{AudioSystemType, VolumeSettings},
     game::messages::GameStartupEvent,
     splash::messages::SplashStartupEvent,
 };
 use bevy::prelude::*;
-use carapace::prelude::CxAnimationFinished;
 
 /*
  * DEBUG
@@ -81,37 +77,6 @@ pub fn update_sfx_volume(
 ) {
     for mut sfx_source_settings in &mut source_settings {
         sfx_source_settings.volume = volume_settings.sfx;
-    }
-}
-
-/// @system Attaches a `DespawnAfterDelay` once a pixel animation finishes.
-pub fn delay_despawn<D: Default + Send + Sync + 'static>(
-    mut commands: Commands,
-    mut query: Query<
-        (Entity, &DelayedDespawnOnCxAnimationFinished),
-        (With<CxAnimationFinished>, Without<DespawnAfterDelay>),
-    >,
-    time: Res<Time<D>>,
-) {
-    for (entity, delayed) in &mut query.iter_mut() {
-        let elapsed = time.elapsed();
-        commands.entity(entity).insert(DespawnAfterDelay {
-            elapsed,
-            duration: delayed.0,
-        });
-    }
-}
-
-/// @system Marks entities for despawn once their delay timer expires.
-pub fn check_despawn_after_delay<D: Default + Send + Sync + 'static>(
-    mut commands: Commands,
-    mut query: Query<(Entity, &DespawnAfterDelay)>,
-    time: Res<Time<D>>,
-) {
-    for (entity, despawn_after_delay) in &mut query.iter_mut() {
-        if despawn_after_delay.elapsed + despawn_after_delay.duration <= time.elapsed() {
-            commands.entity(entity).insert(DespawnMark);
-        }
     }
 }
 

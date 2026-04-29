@@ -43,3 +43,43 @@ pub fn mark_for_despawn_by_query<F: QueryFilter>(
         commands.entity(entity).insert(DespawnMark);
     }
 }
+
+/// Attaches a `DespawnAfterDelay` once a pixel animation finishes.
+#[allow(clippy::type_complexity)]
+pub fn delay_despawn<D: Default + Send + Sync + 'static>(
+    mut commands: Commands,
+    mut query: Query<
+        (
+            Entity,
+            &crate::components::DelayedDespawnOnCxAnimationFinished,
+        ),
+        (
+            With<carapace::prelude::CxAnimationFinished>,
+            Without<crate::components::DespawnAfterDelay>,
+        ),
+    >,
+    time: Res<Time<D>>,
+) {
+    for (entity, delayed) in &mut query.iter_mut() {
+        let elapsed = time.elapsed();
+        commands
+            .entity(entity)
+            .insert(crate::components::DespawnAfterDelay {
+                elapsed,
+                duration: delayed.0,
+            });
+    }
+}
+
+/// Marks entities for despawn once their delay timer expires.
+pub fn check_despawn_after_delay<D: Default + Send + Sync + 'static>(
+    mut commands: Commands,
+    mut query: Query<(Entity, &crate::components::DespawnAfterDelay)>,
+    time: Res<Time<D>>,
+) {
+    for (entity, despawn_after_delay) in &mut query.iter_mut() {
+        if despawn_after_delay.elapsed + despawn_after_delay.duration <= time.elapsed() {
+            commands.entity(entity).insert(DespawnMark);
+        }
+    }
+}

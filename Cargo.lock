@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "activable"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "activable_macros",
  "bevy",
@@ -91,7 +91,7 @@ dependencies = [
 
 [[package]]
 name = "activable_macros"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -382,7 +382,7 @@ dependencies = [
 
 [[package]]
 name = "asset_pipeline"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "aseprite-loader",
@@ -2224,7 +2224,7 @@ dependencies = [
 
 [[package]]
 name = "carapace"
-version = "0.9.0-dev"
+version = "0.10.0-dev"
 dependencies = [
  "asset_pipeline",
  "bevy",
@@ -2277,7 +2277,7 @@ dependencies = [
 
 [[package]]
 name = "carcinisation"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "activable",
  "activable_macros",
@@ -2299,6 +2299,7 @@ dependencies = [
  "carcinisation_cutscene",
  "carcinisation_fps",
  "carcinisation_input",
+ "carcinisation_ors",
  "clap",
  "colored",
  "cween",
@@ -2323,7 +2324,7 @@ dependencies = [
 
 [[package]]
 name = "carcinisation_animation"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "serde",
@@ -2331,7 +2332,7 @@ dependencies = [
 
 [[package]]
 name = "carcinisation_base"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "carapace",
@@ -2340,7 +2341,7 @@ dependencies = [
 
 [[package]]
 name = "carcinisation_collision"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "carapace",
@@ -2350,7 +2351,7 @@ dependencies = [
 
 [[package]]
 name = "carcinisation_core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "assert_assets_path",
  "bevy",
@@ -2361,7 +2362,7 @@ dependencies = [
 
 [[package]]
 name = "carcinisation_cutscene"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "carapace",
@@ -2371,7 +2372,7 @@ dependencies = [
 
 [[package]]
 name = "carcinisation_fps"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "bevy_math",
@@ -2383,10 +2384,45 @@ dependencies = [
 
 [[package]]
 name = "carcinisation_input"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "leafwing-input-manager",
+]
+
+[[package]]
+name = "carcinisation_ors"
+version = "0.3.0"
+dependencies = [
+ "activable",
+ "activable_macros",
+ "anyhow",
+ "assert_assets_path",
+ "asset_pipeline",
+ "bevy",
+ "bevy_common_assets",
+ "bevy_ecs",
+ "carapace",
+ "carcinisation_animation",
+ "carcinisation_base",
+ "carcinisation_collision",
+ "carcinisation_core",
+ "carcinisation_cutscene",
+ "carcinisation_input",
+ "colored",
+ "cween",
+ "derive-new",
+ "derive_more",
+ "lazy_static",
+ "leafwing-input-manager",
+ "num_enum",
+ "rand 0.10.0",
+ "ron 0.12.0",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "strum 0.28.0",
+ "strum_macros 0.28.0",
 ]
 
 [[package]]
@@ -2876,7 +2912,7 @@ checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
 name = "cween"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "carapace",
@@ -3085,6 +3121,7 @@ dependencies = [
  "bevy_common_assets",
  "bevy_prototype_lyon",
  "carcinisation",
+ "carcinisation_ors",
  "derive-new",
  "derive_more",
  "futures-lite",

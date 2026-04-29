@@ -1,27 +1,7 @@
 //! Score-related resources.
 
 use bevy::prelude::*;
-
-/// Tracks the current run score.
-#[derive(Resource, Default)]
-pub struct Score {
-    pub value: u32,
-}
-
-impl Score {
-    pub fn add(&mut self, value: i32) {
-        let score: i32 = self.value as i32 + value;
-        if score < 0 {
-            self.value = 0;
-        } else {
-            self.value = score as u32;
-        }
-    }
-
-    pub fn add_u(&mut self, value: u32) {
-        self.value += value;
-    }
-}
+pub use carcinisation_base::game::Score;
 
 #[derive(Resource)]
 /// Stores the top high scores for display.

@@ -4,28 +4,26 @@ use super::{
     DebugColor, DebugComposedDamageProbe, DebugComposedDamageProbeRequest,
     DebugComposedDamageProbeResult, DebugGodMode,
 };
-use crate::{
-    stage::{
-        attack::components::EnemyAttack,
-        collision::{CollisionTarget, MaskCollisionAssets, visit_target_debug_collider},
-        components::{interactive::ColliderData, placement::Depth},
-        destructible::components::Destructible,
-        enemy::{
-            components::Enemy,
-            composed::{
-                ComposedAtlasBindings, ComposedCollisionState, ComposedHealthPools,
-                ComposedResolvedParts,
-            },
-            mosquiton::entity::EnemyMosquiton,
+use crate::stage::{
+    attack::components::EnemyAttack,
+    collision::{CollisionTarget, MaskCollisionAssets, visit_target_debug_collider},
+    components::{interactive::ColliderData, placement::Depth},
+    destructible::components::Destructible,
+    enemy::{
+        components::Enemy,
+        composed::{
+            ComposedAtlasBindings, ComposedCollisionState, ComposedHealthPools,
+            ComposedResolvedParts,
         },
-        floors::{ActiveFloors, Surface},
-        messages::PartDamageMessage,
-        player::components::PlayerAttack,
+        mosquiton::entity::EnemyMosquiton,
     },
-    systems::camera::CameraPos,
+    floors::{ActiveFloors, Surface},
+    messages::PartDamageMessage,
+    player::components::PlayerAttack,
 };
 use bevy::{prelude::*, window::PrimaryWindow};
 use carapace::prelude::*;
+use carcinisation_base::game::CameraPos;
 use carcinisation_collision::{
     ColliderShape, WorldMaskInstance, extract_mask_boundary, extract_mask_boundary_closed,
     mask_edge_to_world_points,

@@ -19,7 +19,9 @@
     clippy::used_underscore_binding,
 )]
 
-mod assets;
+pub mod assets {
+    pub use carcinisation_ors::assets::*;
+}
 pub mod bevy_utils {
     pub use carcinisation_core::bevy_utils::*;
 }
@@ -31,7 +33,9 @@ pub mod core {
 }
 pub mod app;
 pub mod cutscene;
-mod data;
+pub mod data {
+    pub use carcinisation_ors::data::*;
+}
 pub mod debug;
 #[cfg(feature = "gallery")]
 pub mod gallery;
@@ -43,7 +47,9 @@ mod main_menu;
 mod progression;
 pub mod resources;
 pub mod splash;
-pub mod stage;
+pub mod stage {
+    pub use carcinisation_ors::stage::*;
+}
 mod systems;
 mod transitions;
 

@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use bevy::math::Vec2;
-use carcinisation::cutscene::data::CutsceneAnimationsSpawn;
 use carcinisation::stage::components::{CinematicStageStep, StopStageStep, TweenStageStep};
 use carcinisation::stage::data::{StageData, StageStep};
+use carcinisation_ors::stubs::CutsceneAnimationsSpawn;
 
 /// Configures how stage steps contribute to timeline durations.
 #[derive(Clone, Copy, Debug)]

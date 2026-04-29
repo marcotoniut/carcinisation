@@ -7,9 +7,7 @@ use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
 use strum_macros::EnumIter;
 
-#[derive(Resource, Debug, Default, Clone, Copy)]
-/// Number of lives remaining in the current run.
-pub struct Lives(pub u8);
+pub use carcinisation_base::game::Lives;
 
 #[derive(Resource, Default, Clone, Copy)]
 /// Tracks which game step is currently active.

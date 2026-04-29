@@ -12,6 +12,7 @@ members = [
     "crates/carcinisation_collision",
     "crates/carcinisation_cutscene",
     "crates/carcinisation_core",
+    "crates/carcinisation_ors",
     "crates/carcinisation_fps",
     "crates/carcinisation_input",
     "crates/cween",
@@ -25,7 +26,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.2.0"
+version = "0.3.0"
 
 [workspace.dependencies]
 assert_assets_path = { path = "tools/assert_assets_path" }

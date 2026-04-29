@@ -55,12 +55,4 @@ impl Plugin for GamePlugin {
     }
 }
 
-#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
-/// Coarse game states used to drive menus/cutscenes/stage logic.
-pub enum GameProgressState {
-    #[default]
-    Loading,
-    Running,
-    Paused,
-    Cutscene,
-}
+pub use carcinisation_base::game::GameProgressState;
