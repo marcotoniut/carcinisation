@@ -10,7 +10,8 @@
 use bevy::prelude::*;
 use carapace::prelude::*;
 use carcinisation_fps::plugin::{
-    FpCameraRes, FpConfig, FpMapRes, FpPlayerDead, FpPlugin, FpShootRequest, FpSystems, move_camera,
+    FpCameraRes, FpConfig, FpMapRes, FpPlayerDead, FpPlugin, FpQuickTurnDebounce, FpQuickTurnState,
+    FpShootRequest, FpSystems, move_camera, request_quick_turn, resolve_quick_turn_pressed,
 };
 use carcinisation_input::{GBInput, init_gb_input};
 use leafwing_input_manager::prelude::*;
@@ -34,6 +35,7 @@ enum FpLayer {
 
 // --- Input system (binary-specific, reads GBInput → updates FP resources) ---
 
+#[allow(clippy::too_many_arguments)]
 fn handle_input(
     action: Res<ActionState<GBInput>>,
     time: Res<Time>,
@@ -41,6 +43,8 @@ fn handle_input(
     map: Res<FpMapRes>,
     dead: Res<FpPlayerDead>,
     mut shoot: ResMut<FpShootRequest>,
+    mut quick_turn: ResMut<FpQuickTurnDebounce>,
+    mut quick_turn_state: ResMut<FpQuickTurnState>,
 ) {
     if dead.0 {
         return;
@@ -49,6 +53,19 @@ fn handle_input(
     let dt = time.delta_secs();
     let cam = &mut camera.0;
     let b_held = action.pressed(&GBInput::B);
+    let back_held = action.pressed(&GBInput::Down);
+    let quick_turn_pressed = resolve_quick_turn_pressed(
+        back_held,
+        b_held,
+        action.just_pressed(&GBInput::Down),
+        action.just_pressed(&GBInput::B),
+        time.elapsed_secs(),
+        &mut quick_turn,
+    );
+
+    if quick_turn_pressed {
+        request_quick_turn(&mut quick_turn_state);
+    }
 
     if !b_held {
         if action.pressed(&GBInput::Left) {
@@ -66,7 +83,7 @@ fn handle_input(
     if action.pressed(&GBInput::Up) {
         move_delta += dir;
     }
-    if action.pressed(&GBInput::Down) {
+    if back_held && !b_held {
         move_delta -= dir;
     }
     if b_held {
@@ -123,6 +140,7 @@ fn main() {
         screen_height: SCREEN_H,
         ..Default::default()
     });
+    app.init_resource::<FpQuickTurnDebounce>();
     app.add_plugins(FpPlugin::<FpLayer>::new());
 
     app.add_plugins(InputManagerPlugin::<GBInput>::default());

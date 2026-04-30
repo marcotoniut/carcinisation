@@ -28,21 +28,8 @@ FpMapData(
         (kind: Pillar(color: 4, width: 12, height: 24), x: 8.5, y: 3.5),
         (kind: Pillar(color: 4, width: 12, height: 24), x: 3.5, y: 8.5),
         (kind: Pillar(color: 4, width: 12, height: 24), x: 8.5, y: 8.5),
-        (kind: SpriteEnemy(
-            sprite: "sprites/enemies/mosquiton_billboard.px_sprite.png",
-            death_sprite: "sprites/enemies/mosquiton_death_billboard.px_sprite.png",
-            health: 30,
-        ), x: 9.5, y: 6.0),
-        (kind: SpriteEnemy(
-            sprite: "sprites/enemies/mosquiton_billboard.px_sprite.png",
-            death_sprite: "sprites/enemies/mosquiton_death_billboard.px_sprite.png",
-            health: 30,
-        ), x: 2.5, y: 2.5),
-        (kind: SpriteEnemy(
-            sprite: "sprites/enemies/mosquiton_billboard.px_sprite.png",
-            death_sprite: "sprites/enemies/mosquiton_death_billboard.px_sprite.png",
-            health: 50,
-            speed: 1.0,
-        ), x: 6.0, y: 9.5),
+        (kind: Mosquiton(health: 30), x: 9.5, y: 6.0),
+        (kind: Mosquiton(health: 30), x: 2.5, y: 2.5),
+        (kind: Mosquiton(health: 50, speed: 1.0), x: 6.0, y: 9.5),
     ],
 )

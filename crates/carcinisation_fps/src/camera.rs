@@ -23,6 +23,24 @@ impl Default for FpCamera {
     }
 }
 
+impl FpCamera {
+    /// Unit direction vector the camera is facing.
+    #[must_use]
+    pub fn direction(&self) -> Vec2 {
+        Vec2::new(self.angle.cos(), self.angle.sin())
+    }
+
+    /// Camera plane vector (perpendicular to direction, scaled by FOV).
+    /// Points to the **right** of the view direction.
+    #[must_use]
+    pub fn plane(&self) -> Vec2 {
+        let dir = self.direction();
+        let plane_len = (self.fov / 2.0).tan();
+        // Right-hand perpendicular: rotate dir 90° clockwise.
+        Vec2::new(dir.y, -dir.x) * plane_len
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -70,23 +88,5 @@ mod tests {
             (actual_len - expected_len).abs() < 1e-5,
             "plane length {actual_len} != expected {expected_len}"
         );
-    }
-}
-
-impl FpCamera {
-    /// Unit direction vector the camera is facing.
-    #[must_use]
-    pub fn direction(&self) -> Vec2 {
-        Vec2::new(self.angle.cos(), self.angle.sin())
-    }
-
-    /// Camera plane vector (perpendicular to direction, scaled by FOV).
-    /// Points to the **right** of the view direction.
-    #[must_use]
-    pub fn plane(&self) -> Vec2 {
-        let dir = self.direction();
-        let plane_len = (self.fov / 2.0).tan();
-        // Right-hand perpendicular: rotate dir 90° clockwise.
-        Vec2::new(dir.y, -dir.x) * plane_len
     }
 }

@@ -46,6 +46,13 @@ pub struct DebugGodMode {
     pub enabled: bool,
 }
 
+impl DebugGodMode {
+    #[must_use]
+    pub const fn new(enabled: bool) -> Self {
+        Self { enabled }
+    }
+}
+
 // TODO(ors-extract): resolve this dependency — lives in `debug::plugin`
 pub fn debug_print_startup(module: &str) {
     #[cfg(debug_assertions)]

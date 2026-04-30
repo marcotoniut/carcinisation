@@ -5,10 +5,12 @@ edition.workspace = true
 description = "First-person raycaster subgame for Carcinisation"
 
 [dependencies]
+asset_pipeline = { workspace = true }
 carapace = { workspace = true }
 carcinisation_base = { path = "../carcinisation_base" }
 bevy = { workspace = true }
 bevy_math = { version = "0.18.0", default-features = false }
+flate2 = "1.1"
 serde = { workspace = true }
 ron = { workspace = true }
 

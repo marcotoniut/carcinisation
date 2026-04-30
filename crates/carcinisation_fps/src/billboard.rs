@@ -5,13 +5,22 @@ use carapace::image::CxImage;
 use carapace::palette::TRANSPARENT_INDEX;
 
 use crate::camera::FpCamera;
-use crate::enemy::{FpEnemy, FpEnemyState, FpProjectile};
+use crate::enemy::{
+    FpEnemy, FpEnemyState, FpProjectile, FpProjectileImpact, FpProjectileImpactKind,
+};
+use crate::mosquiton::{
+    FpBloodShotBillboardSprites, FpMosquiton, FpMosquitonBillboardSprites, FpMosquitonState,
+};
 
 /// A billboard entity in map space.
 #[derive(Clone, Debug)]
 pub struct Billboard {
     /// Position in map-space units.
     pub position: Vec2,
+    /// Vertical offset from the view centre, in map-space units.
+    pub height: f32,
+    /// Rendered billboard height, in map-space units.
+    pub world_height: f32,
     /// Billboard sprite (palette-indexed, single frame).
     pub sprite: CxImage,
 }
@@ -26,6 +35,8 @@ pub(crate) struct ProjectedBillboard<'a> {
     pub screen_h: i32,
     /// Sprite width in screen pixels.
     pub screen_w: i32,
+    /// Screen-space vertical shift, in pixels.
+    pub vertical_shift: i32,
     /// Reference to the source sprite.
     pub sprite: &'a CxImage,
 }
@@ -66,9 +77,10 @@ pub(crate) fn project_billboard<'a>(
     let sx = (screen_w as f32 / 2.0) * (1.0 + transform_x / transform_y);
 
     // Scale by distance.
-    let sprite_screen_h = (screen_h as f32 / transform_y).abs() as i32;
+    let sprite_screen_h = (screen_h as f32 * billboard.world_height / transform_y).abs() as i32;
     let aspect = billboard.sprite.width() as f32 / billboard.sprite.height().max(1) as f32;
     let sprite_screen_w = (sprite_screen_h as f32 * aspect) as i32;
+    let vertical_shift = (screen_h as f32 * billboard.height / transform_y) as i32;
 
     // Too small to draw — avoid zero-division in texture sampling.
     if sprite_screen_h < 1 || sprite_screen_w < 1 {
@@ -80,6 +92,7 @@ pub(crate) fn project_billboard<'a>(
         distance: transform_y,
         screen_h: sprite_screen_h,
         screen_w: sprite_screen_w,
+        vertical_shift,
         sprite: &billboard.sprite,
     })
 }
@@ -96,7 +109,7 @@ pub(crate) fn draw_billboard(
     let img_w = image.width() as i32;
     let half_h = screen_h / 2;
 
-    let draw_start_y = half_h - proj.screen_h / 2;
+    let draw_start_y = half_h - proj.screen_h / 2 - proj.vertical_shift;
     let draw_end_y = draw_start_y + proj.screen_h;
     let draw_start_x = (proj.screen_x as i32) - proj.screen_w / 2;
     let draw_end_x = draw_start_x + proj.screen_w;
@@ -218,6 +231,8 @@ pub fn billboards_from_enemies(
         .filter(|e| !matches!(e.state, FpEnemyState::Dead))
         .map(|e| Billboard {
             position: e.position,
+            height: 0.0,
+            world_height: 1.0,
             sprite: match e.state {
                 FpEnemyState::Dying { .. } => death_sprite.clone(),
                 _ => alive_sprite.clone(),
@@ -244,6 +259,8 @@ pub fn billboards_from_enemies_indexed(
             let (alive, death) = sprite_pairs.get(pair_idx).unwrap_or(&sprite_pairs[0]);
             Billboard {
                 position: e.position,
+                height: 0.0,
+                world_height: 1.0,
                 sprite: match e.state {
                     FpEnemyState::Dying { .. } => death.clone(),
                     _ => alive.clone(),
@@ -251,14 +268,6 @@ pub fn billboards_from_enemies_indexed(
             }
         })
         .collect()
-}
-
-/// Create a small projectile sprite (bright dot).
-#[must_use]
-pub fn make_projectile_sprite(color: u8) -> CxImage {
-    // 3x3 bright dot.
-    let data = vec![0, color, 0, color, color, color, 0, color, 0];
-    CxImage::new(data, 3)
 }
 
 /// Build billboard list from active projectiles.
@@ -271,7 +280,57 @@ pub fn billboards_from_projectiles(
         .filter(|p| p.alive)
         .map(|p| Billboard {
             position: p.position,
+            height: 0.15,
+            world_height: 0.3,
             sprite: sprite.clone(),
+        })
+        .collect()
+}
+
+/// Build billboard list from projectile impact effects.
+pub fn billboards_from_projectile_impacts(
+    impacts: &[FpProjectileImpact],
+    sprites: &FpBloodShotBillboardSprites,
+) -> Vec<Billboard> {
+    impacts
+        .iter()
+        .map(|impact| {
+            let sprite = match impact.kind {
+                FpProjectileImpactKind::Hit => sprites.hit.clone(),
+                FpProjectileImpactKind::Destroy => sprites.destroy_sprite_at(impact.age).clone(),
+            };
+            Billboard {
+                position: impact.position,
+                height: 0.15,
+                world_height: match impact.kind {
+                    FpProjectileImpactKind::Hit => 0.42,
+                    FpProjectileImpactKind::Destroy => 0.36,
+                },
+                sprite,
+            }
+        })
+        .collect()
+}
+
+/// Build billboard list from Mosquiton enemies.
+pub fn billboards_from_mosquitons(
+    mosquitons: &[FpMosquiton],
+    sprites: &FpMosquitonBillboardSprites,
+) -> Vec<Billboard> {
+    mosquitons
+        .iter()
+        .filter(|m| !matches!(m.state, FpMosquitonState::Dead))
+        .map(|m| Billboard {
+            position: m.position,
+            height: m.height,
+            world_height: m.config.billboard_height,
+            sprite: match m.state {
+                FpMosquitonState::Dying { .. } => sprites.death.clone(),
+                FpMosquitonState::MeleeAttack { .. } => {
+                    sprites.melee_sprite_at(m.animation_time).clone()
+                }
+                _ => sprites.alive_sprite_at(m.animation_time).clone(),
+            },
         })
         .collect()
 }
@@ -286,6 +345,8 @@ mod tests {
         let cam = FpCamera::default(); // at (4,4), facing east
         let bb = Billboard {
             position: Vec2::new(6.0, 4.0), // directly ahead
+            height: 0.0,
+            world_height: 1.0,
             sprite: make_pillar_sprite(8, 16, 5),
         };
         let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
@@ -303,6 +364,8 @@ mod tests {
         let cam = FpCamera::default(); // facing east
         let bb = Billboard {
             position: Vec2::new(2.0, 4.0), // behind
+            height: 0.0,
+            world_height: 1.0,
             sprite: make_pillar_sprite(8, 16, 5),
         };
         assert!(project_billboard(&bb, &cam, 160, 144).is_none());
@@ -313,6 +376,8 @@ mod tests {
         let cam = FpCamera::default();
         let bb = Billboard {
             position: Vec2::new(10000.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
             sprite: make_pillar_sprite(8, 16, 5),
         };
         // At extreme distance, projected size rounds to 0 → filtered out.
@@ -324,10 +389,14 @@ mod tests {
         let cam = FpCamera::default(); // facing east
         let center = Billboard {
             position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
             sprite: make_pillar_sprite(8, 16, 5),
         };
         let right = Billboard {
             position: Vec2::new(6.0, 3.0), // south = screen-right
+            height: 0.0,
+            world_height: 1.0,
             sprite: make_pillar_sprite(8, 16, 5),
         };
         let pc = project_billboard(&center, &cam, 160, 144).unwrap();

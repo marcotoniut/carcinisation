@@ -72,8 +72,8 @@ mod tests {
         // y=1: tex_y = 1*2/4 = 0 → pixel 1
         // y=2: tex_y = 2*2/4 = 1 → pixel 3
         // y=3: tex_y = 3*2/4 = 1 → pixel 3
-        assert_eq!(data[0 * 4 + 1], 1);
-        assert_eq!(data[1 * 4 + 1], 1);
+        assert_eq!(data[1], 1);
+        assert_eq!(data[5], 1);
         assert_eq!(data[2 * 4 + 1], 3);
         assert_eq!(data[3 * 4 + 1], 3);
     }
@@ -87,8 +87,8 @@ mod tests {
         draw_wall_column(&mut image, 0, -2, 2, &texture, 0);
 
         let data = image.data();
-        assert_eq!(data[0 * 4], 5);
-        assert_eq!(data[1 * 4], 5);
+        assert_eq!(data[0], 5);
+        assert_eq!(data[4], 5);
         assert_eq!(data[2 * 4], 0); // untouched
     }
 

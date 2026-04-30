@@ -87,6 +87,17 @@ pub enum FpEntityKind {
         #[serde(default = "default_enemy_speed")]
         speed: f32,
     },
+    /// Flying Mosquiton enemy with ranged + melee AI.
+    Mosquiton {
+        #[serde(default = "default_mosquiton_health")]
+        health: u32,
+        #[serde(default = "default_enemy_speed")]
+        speed: f32,
+    },
+}
+
+fn default_mosquiton_health() -> u32 {
+    40
 }
 
 fn default_enemy_speed() -> f32 {

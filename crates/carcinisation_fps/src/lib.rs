@@ -10,6 +10,7 @@ pub mod data;
 pub mod enemy;
 pub mod layer;
 pub mod map;
+pub mod mosquiton;
 pub mod plugin;
 pub mod raycast;
 pub mod render;
