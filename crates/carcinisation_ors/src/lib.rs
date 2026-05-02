@@ -17,3 +17,6 @@ pub mod assets;
 pub mod data;
 pub mod stage;
 pub mod stubs;
+pub mod globals {
+    pub use carcinisation_core::globals::*;
+}

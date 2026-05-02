@@ -1,4 +1,4 @@
-use carcinisation::stage::data::StageSpawn;
+use carcinisation_ors::stage::data::StageSpawn;
 
 use crate::components::StageSpawnRef;
 
@@ -32,10 +32,10 @@ impl SpawnLocation {
 
 /// Resolve a mutable reference to a spawn in `StageData`.
 pub fn resolve_spawn_mut<'a>(
-    stage_data: &'a mut carcinisation::stage::data::StageData,
+    stage_data: &'a mut carcinisation_ors::stage::data::StageData,
     location: &SpawnLocation,
 ) -> Option<&'a mut StageSpawn> {
-    use carcinisation::stage::data::StageStep;
+    use carcinisation_ors::stage::data::StageStep;
     match location {
         SpawnLocation::Static { index } => stage_data.spawns.get_mut(*index),
         SpawnLocation::Step {
@@ -51,10 +51,10 @@ pub fn resolve_spawn_mut<'a>(
 
 /// Resolve an immutable reference to a spawn in `StageData`.
 pub fn resolve_spawn<'a>(
-    stage_data: &'a carcinisation::stage::data::StageData,
+    stage_data: &'a carcinisation_ors::stage::data::StageData,
     location: &SpawnLocation,
 ) -> Option<&'a StageSpawn> {
-    use carcinisation::stage::data::StageStep;
+    use carcinisation_ors::stage::data::StageStep;
     match location {
         SpawnLocation::Static { index } => stage_data.spawns.get(*index),
         SpawnLocation::Step {
@@ -70,10 +70,10 @@ pub fn resolve_spawn<'a>(
 
 /// Remove a spawn at the given location, returning the removed spawn.
 pub fn remove_spawn(
-    stage_data: &mut carcinisation::stage::data::StageData,
+    stage_data: &mut carcinisation_ors::stage::data::StageData,
     location: &SpawnLocation,
 ) -> Option<StageSpawn> {
-    use carcinisation::stage::data::StageStep;
+    use carcinisation_ors::stage::data::StageStep;
     match location {
         SpawnLocation::Static { index } => {
             if *index < stage_data.spawns.len() {
@@ -112,7 +112,7 @@ pub fn remove_spawn(
 mod tests {
     use super::*;
     use bevy::prelude::*;
-    use carcinisation::stage::{
+    use carcinisation_ors::stage::{
         components::{TweenStageStep, placement::Depth},
         data::*,
     };

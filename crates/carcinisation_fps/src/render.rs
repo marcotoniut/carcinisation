@@ -1,19 +1,18 @@
 //! Render orchestration: produces a full-frame [`CxImage`] from map + camera.
 
 use carapace::image::CxImage;
-use carapace::raycaster::draw_wall_column;
 
 use crate::billboard::{Billboard, draw_billboard, project_billboard};
-use crate::camera::FpCamera;
-use crate::map::FpMap;
-use crate::raycast::{HitSide, cast_ray};
+use crate::camera::Camera;
+use crate::map::Map;
+use crate::raycast::{HitSide, WallSurfaceId, cast_ray};
 
 /// 4x4 Bayer ordered-dither threshold matrix (values 0..15).
 pub(crate) const BAYER_4X4: [[u8; 4]; 4] =
     [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
 
 /// Palette indices for ceiling and floor fills.
-pub struct FpPalette {
+pub struct Palette {
     pub ceiling: u8,
     pub floor: u8,
     /// Palette index used as the fog/darkness color.
@@ -24,7 +23,7 @@ pub struct FpPalette {
     pub fog_start: f32,
 }
 
-impl Default for FpPalette {
+impl Default for Palette {
     fn default() -> Self {
         Self {
             ceiling: 1,
@@ -34,6 +33,37 @@ impl Default for FpPalette {
             fog_distance: 12.0,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct CharDecal {
+    pub surface_id: WallSurfaceId,
+    pub u: f32,
+    pub v: f32,
+    pub width: f32,
+    pub height: f32,
+    pub intensity: f32,
+    pub flip_x: bool,
+    pub flip_y: bool,
+    pub seed: u32,
+}
+
+#[derive(Clone, Copy)]
+pub struct WallSurfaceSprite<'a> {
+    pub surface_id: WallSurfaceId,
+    pub u: f32,
+    pub v: f32,
+    pub width: f32,
+    pub height: f32,
+    pub texture: &'a CxImage,
+    pub flip_x: bool,
+    pub flip_y: bool,
+}
+
+pub struct FpWallRenderEffects<'a> {
+    pub char_decals: &'a [CharDecal],
+    pub char_mask: Option<&'a CxImage>,
+    pub surface_sprites: &'a [WallSurfaceSprite<'a>],
 }
 
 /// Apply distance fog to a column of pixels in the image.
@@ -78,16 +108,16 @@ fn apply_column_fog(
 
 /// Render a first-person view into `image` (walls only, no billboards).
 ///
-/// `wall_textures` is indexed by `wall_id - 1` (wall_id 0 is empty).
+/// `wall_textures` is indexed by `wall_id - 1` (`wall_id` 0 is empty).
 /// Image is cleared and fully redrawn.
 pub fn render_fp_view(
     image: &mut CxImage,
-    map: &FpMap,
-    camera: &FpCamera,
+    map: &Map,
+    camera: &Camera,
     wall_textures: &[CxImage],
-    palette: &FpPalette,
+    palette: &Palette,
 ) {
-    render_walls(image, map, camera, wall_textures, palette, None);
+    render_walls(image, map, camera, wall_textures, palette, None, None);
 }
 
 /// Render walls + billboard entities into `image`.
@@ -96,11 +126,39 @@ pub fn render_fp_view(
 /// z-buffer occlusion against walls.
 pub fn render_fp_scene(
     image: &mut CxImage,
-    map: &FpMap,
-    camera: &FpCamera,
+    map: &Map,
+    camera: &Camera,
     wall_textures: &[CxImage],
-    palette: &FpPalette,
+    palette: &Palette,
     billboards: &[Billboard],
+) {
+    let no_decals = [];
+    let no_sprites = [];
+    let effects = FpWallRenderEffects {
+        char_decals: &no_decals,
+        char_mask: None,
+        surface_sprites: &no_sprites,
+    };
+    render_fp_scene_with_effects(
+        image,
+        map,
+        camera,
+        wall_textures,
+        palette,
+        billboards,
+        &effects,
+    );
+}
+
+/// Render walls with wall-anchored effects + billboard entities.
+pub fn render_fp_scene_with_effects(
+    image: &mut CxImage,
+    map: &Map,
+    camera: &Camera,
+    wall_textures: &[CxImage],
+    palette: &Palette,
+    billboards: &[Billboard],
+    effects: &FpWallRenderEffects<'_>,
 ) {
     let w = image.width();
     let h = image.height() as i32;
@@ -113,6 +171,7 @@ pub fn render_fp_scene(
         wall_textures,
         palette,
         Some(&mut zbuffer),
+        Some(effects),
     );
 
     // Sort billboards back-to-front (farthest first).
@@ -142,11 +201,12 @@ pub fn render_fp_scene(
 /// Internal wall rendering pass. Optionally writes per-column depth to `zbuffer`.
 fn render_walls(
     image: &mut CxImage,
-    map: &FpMap,
-    camera: &FpCamera,
+    map: &Map,
+    camera: &Camera,
     wall_textures: &[CxImage],
-    palette: &FpPalette,
+    palette: &Palette,
     mut zbuffer: Option<&mut [f32]>,
+    effects: Option<&FpWallRenderEffects<'_>>,
 ) {
     let w = image.width() as i32;
     let h = image.height() as i32;
@@ -189,11 +249,18 @@ fn render_walls(
             let mut tex_x = (hit.wall_x * tex.width() as f32) as i32;
             tex_x = tex_x.clamp(0, tex.width() as i32 - 1);
 
-            if hit.side == HitSide::Horizontal {
-                draw_wall_column_shaded(image, x, draw_start, draw_end, tex, tex_x);
-            } else {
-                draw_wall_column(image, x, draw_start, draw_end, tex, tex_x);
-            }
+            draw_wall_column_textured(
+                image,
+                x,
+                draw_start,
+                draw_end,
+                tex,
+                tex_x,
+                hit.side == HitSide::Horizontal,
+                hit.surface_id,
+                hit.wall_x,
+                effects,
+            );
         }
 
         // Floor below wall.
@@ -275,19 +342,18 @@ pub fn draw_crosshair(image: &mut CxImage, color: u8) {
     }
 }
 
-/// Draw a wall column with basic shading: shift palette index up by 1
-/// (clamped to 255) for a darker appearance on Y-side walls.
-///
-/// This is a cheap side-based shading trick — horizontal walls get their
-/// palette index incremented, which in most palettes produces a darker
-/// or different variant.
-fn draw_wall_column_shaded(
+#[allow(clippy::too_many_arguments)]
+fn draw_wall_column_textured(
     image: &mut CxImage,
     x: i32,
     y_start: i32,
     y_end: i32,
     texture: &CxImage,
     tex_x: i32,
+    shaded: bool,
+    surface_id: Option<WallSurfaceId>,
+    wall_u: f32,
+    effects: Option<&FpWallRenderEffects<'_>>,
 ) {
     let img_w = image.width() as i32;
     let img_h = image.height() as i32;
@@ -311,13 +377,149 @@ fn draw_wall_column_shaded(
     for y in y_min..y_max {
         let tex_y = ((y - y_start) * tex_h / strip_h).min(tex_h - 1);
         let pixel = tex_data[(tex_y * tex_w + tex_x) as usize];
-        if pixel != 0 {
-            // Darken Y-side walls via dither: ~25% of pixels shift to
-            // fog_color (index 1) for subtle side shading.
-            let threshold = BAYER_4X4[(y & 3) as usize][(x & 3) as usize];
-            data[(y * img_w + x) as usize] = if threshold < 4 { 1 } else { pixel };
+        let threshold = BAYER_4X4[(y & 3) as usize][(x & 3) as usize];
+        let mut out = (pixel != 0).then_some(if shaded && threshold < 4 { 1 } else { pixel });
+        if let (Some(surface_id), Some(effects)) = (surface_id, effects) {
+            let wall_v = (y - y_start) as f32 / strip_h as f32;
+            if let Some(color) = sample_char_decals(
+                effects.char_decals,
+                effects.char_mask,
+                surface_id,
+                wall_u,
+                wall_v,
+                x,
+                y,
+            ) {
+                out = Some(color);
+            }
+            if let Some(color) =
+                sample_surface_sprites(effects.surface_sprites, surface_id, wall_u, wall_v)
+            {
+                out = Some(color);
+            }
+        }
+        if let Some(out) = out {
+            data[(y * img_w + x) as usize] = out;
         }
     }
+}
+
+fn sample_char_decals(
+    decals: &[CharDecal],
+    mask: Option<&CxImage>,
+    surface_id: WallSurfaceId,
+    wall_u: f32,
+    wall_v: f32,
+    screen_x: i32,
+    screen_y: i32,
+) -> Option<u8> {
+    decals.iter().rev().find_map(|decal| {
+        let mask = mask?;
+        if decal.surface_id != surface_id {
+            return None;
+        }
+        let sample = sample_mask(
+            wall_u,
+            wall_v,
+            decal.u,
+            decal.v,
+            decal.width,
+            decal.height,
+            decal.flip_x,
+            decal.flip_y,
+            Some(mask),
+        )?;
+        let color = char_color(sample)?;
+        let noise =
+            ((screen_x as u32).wrapping_mul(17) ^ (screen_y as u32).wrapping_mul(31) ^ decal.seed)
+                & 15;
+        let density = (decal.intensity.clamp(0.0, 1.0) * 16.0) as u32;
+        (density > noise).then_some(color)
+    })
+}
+
+fn sample_surface_sprites(
+    sprites: &[WallSurfaceSprite<'_>],
+    surface_id: WallSurfaceId,
+    wall_u: f32,
+    wall_v: f32,
+) -> Option<u8> {
+    sprites.iter().rev().find_map(|sprite| {
+        if sprite.surface_id != surface_id {
+            return None;
+        }
+        let pixel = sample_mask(
+            wall_u,
+            wall_v,
+            sprite.u,
+            sprite.v,
+            sprite.width,
+            sprite.height,
+            sprite.flip_x,
+            sprite.flip_y,
+            Some(sprite.texture),
+        )?;
+        if pixel == 0 {
+            None
+        } else {
+            flame_hit_color(pixel)
+        }
+    })
+}
+
+fn flame_hit_color(mask_pixel: u8) -> Option<u8> {
+    match mask_pixel {
+        0 => None,
+        2 => Some(2),
+        4 => Some(4),
+        other => Some(other),
+    }
+}
+
+fn char_color(mask_pixel: u8) -> Option<u8> {
+    match mask_pixel {
+        0 => None,
+        _ => Some(1),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sample_mask(
+    wall_u: f32,
+    wall_v: f32,
+    center_u: f32,
+    center_v: f32,
+    width: f32,
+    height: f32,
+    flip_x: bool,
+    flip_y: bool,
+    texture: Option<&CxImage>,
+) -> Option<u8> {
+    let width = width.max(0.001);
+    let height = height.max(0.001);
+    let mut local_x = (wall_u - (center_u - width * 0.5)) / width;
+    let mut local_y = (wall_v - (center_v - height * 0.5)) / height;
+    if !(0.0..=1.0).contains(&local_x) || !(0.0..=1.0).contains(&local_y) {
+        return None;
+    }
+    if flip_x {
+        local_x = 1.0 - local_x;
+    }
+    if flip_y {
+        local_y = 1.0 - local_y;
+    }
+    texture.map_or(Some(1), |texture| {
+        let tex_w = texture.width() as i32;
+        let tex_h = texture.height() as i32;
+        if tex_w <= 0 || tex_h <= 0 {
+            return None;
+        }
+        let tex_x = (local_x * tex_w as f32).floor() as i32;
+        let tex_y = (local_y * tex_h as f32).floor() as i32;
+        let tex_x = tex_x.clamp(0, tex_w - 1);
+        let tex_y = tex_y.clamp(0, tex_h - 1);
+        Some(texture.data()[(tex_y * tex_w + tex_x) as usize])
+    })
 }
 
 /// Create a procedural checkerboard wall texture.
@@ -369,12 +571,13 @@ pub fn make_brick_texture(size: u32, brick_color: u8, mortar_color: u8) -> CxIma
 mod tests {
     use super::*;
     use crate::map::test_map;
+    use crate::raycast::{HitSide, WallSurfaceId};
     use bevy_math::UVec2;
 
     #[test]
     fn render_produces_nonempty_image() {
         let map = test_map();
-        let camera = FpCamera::default();
+        let camera = Camera::default();
         let tex = make_checker_texture(16, 4, 1, 2);
         let mut image = CxImage::empty(UVec2::new(32, 24));
 
@@ -383,7 +586,7 @@ mod tests {
             &map,
             &camera,
             &[tex.clone(), tex],
-            &FpPalette::default(),
+            &Palette::default(),
         );
 
         // At least some pixels should be non-zero.
@@ -396,5 +599,114 @@ mod tests {
         let data = tex.data();
         assert!(data.contains(&5));
         assert!(data.contains(&7));
+    }
+
+    #[test]
+    fn flame_wall_hit_keeps_secondary_mask_color() {
+        let surface_id = WallSurfaceId {
+            cell_x: 1,
+            cell_y: 1,
+            side: HitSide::Vertical,
+            normal_sign: -1,
+        };
+        let texture = CxImage::new(vec![2, 4], 2);
+        let sprite = WallSurfaceSprite {
+            surface_id,
+            u: 0.5,
+            v: 0.5,
+            width: 1.0,
+            height: 1.0,
+            texture: &texture,
+            flip_x: false,
+            flip_y: false,
+        };
+
+        assert_eq!(
+            sample_surface_sprites(&[sprite], surface_id, 0.25, 0.5),
+            Some(2)
+        );
+        assert_eq!(
+            sample_surface_sprites(&[sprite], surface_id, 0.75, 0.5),
+            Some(4)
+        );
+        assert_eq!(
+            sample_surface_sprites(&[sprite], surface_id, 0.75, 1.1),
+            None
+        );
+    }
+
+    #[test]
+    fn char_decal_filters_secondary_mask_color() {
+        let surface_id = WallSurfaceId {
+            cell_x: 1,
+            cell_y: 1,
+            side: HitSide::Vertical,
+            normal_sign: -1,
+        };
+        let mask = CxImage::new(vec![2, 4], 2);
+        let decal = CharDecal {
+            surface_id,
+            u: 0.5,
+            v: 0.5,
+            width: 1.0,
+            height: 1.0,
+            intensity: 1.0,
+            flip_x: false,
+            flip_y: false,
+            seed: 0,
+        };
+
+        assert_eq!(
+            sample_char_decals(&[decal], Some(&mask), surface_id, 0.25, 0.5, 0, 0),
+            Some(1)
+        );
+        assert_eq!(
+            sample_char_decals(&[decal], Some(&mask), surface_id, 0.75, 0.5, 0, 0),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn wall_effects_draw_over_transparent_wall_pixels() {
+        let surface_id = WallSurfaceId {
+            cell_x: 1,
+            cell_y: 1,
+            side: HitSide::Vertical,
+            normal_sign: -1,
+        };
+        let wall_texture = CxImage::new(vec![0; 16], 4);
+        let effect_texture = CxImage::new(vec![2], 1);
+        let sprite = WallSurfaceSprite {
+            surface_id,
+            u: 0.5,
+            v: 0.5,
+            width: 1.0,
+            height: 1.0,
+            texture: &effect_texture,
+            flip_x: false,
+            flip_y: false,
+        };
+        let sprites = [sprite];
+        let effects = FpWallRenderEffects {
+            char_decals: &[],
+            char_mask: None,
+            surface_sprites: &sprites,
+        };
+        let mut image = CxImage::empty(UVec2::new(4, 4));
+
+        draw_wall_column_textured(
+            &mut image,
+            2,
+            0,
+            4,
+            &wall_texture,
+            2,
+            false,
+            Some(surface_id),
+            0.5,
+            Some(&effects),
+        );
+
+        assert_eq!(image.data()[2 + 2 * image.width()], 2);
     }
 }

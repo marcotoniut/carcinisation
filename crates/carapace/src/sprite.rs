@@ -186,6 +186,7 @@ impl CxSpriteAsset {
     ///
     /// - `width` is 0.
     /// - `data` is non-empty and its length is not a multiple of `width`.
+    #[must_use]
     pub fn from_raw(data: Vec<u8>, width: usize) -> Self {
         assert!(width > 0, "CxSpriteAsset::from_raw: width must be > 0");
         assert!(

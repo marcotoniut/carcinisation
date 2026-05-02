@@ -33,6 +33,7 @@ use self::{
             ensure_enemy_continuous_depth, tick_enemy_behavior_timer,
             tied_components_enemy_current_behavior_circle_around,
         },
+        damage::{start_burning_corpses, tick_burning_corpses},
     },
     tardigrade::systems::{
         assign_tardigrade_animation, check_idle_tardigrade, despawn_dead_tardigrade,
@@ -68,6 +69,7 @@ impl Plugin for EnemyPlugin {
                 on_enemy_depth_changed,
                 on_composed_enemy_depth_changed,
                 tick_enemy_behavior_timer,
+                (start_burning_corpses, tick_burning_corpses),
                 (
                     // Tied components - cleanup when behaviors end
                     tied_components_enemy_current_behavior_circle_around,

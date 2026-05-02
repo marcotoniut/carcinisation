@@ -5,6 +5,7 @@ use derive_new::new;
 use serde::{Deserialize, Serialize};
 
 use super::components::{LETTERBOX_HEIGHT, LETTERBOX_INSTANT_SPEED, LETTERBOX_NORMAL_SPEED};
+use carcinisation_cutscene::data::LetterboxMove;
 
 #[derive(new, Clone, Debug, Deserialize, Event, Message, Serialize)]
 /// Motion command that drives letterbox movement.
@@ -49,17 +50,6 @@ impl LetterboxMoveEvent {
     pub fn move_to_at(target: f32, speed: f32) -> Self {
         Self::new(speed, target)
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Reflect, Serialize)]
-/// Serializable command used inside cutscenes.
-pub enum LetterboxMove {
-    To(f32),
-    ToAt(f32, f32),
-    Hide,
-    Show,
-    Close,
-    Open,
 }
 
 impl From<LetterboxMove> for LetterboxMoveEvent {

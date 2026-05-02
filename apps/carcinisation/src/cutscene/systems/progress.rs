@@ -7,12 +7,12 @@ use crate::{
     cutscene::{
         data::{
             CutsceneAnimationsSpawn, CutsceneData, CutsceneElapse, CutsceneImagesSpawn,
-            CutsceneLayer, CutsceneMusicDespawn, CutsceneMusicSpawn,
+            CutsceneMusicDespawn, CutsceneMusicSpawn,
         },
         messages::CutsceneShutdownEvent,
     },
     globals::mark_for_despawn_by_query,
-    layer::Layer,
+    layer::{CutsceneLayer, Layer},
     letterbox::messages::LetterboxMoveEvent,
     systems::spawn::make_music_bundle,
     transitions::trigger_transition,
@@ -185,12 +185,15 @@ pub fn process_cutscene_animations_spawn(
             }
 
             if let Some(target_movement) = &spawn.target_movement_o {
-                entity_commands.insert(target_movement.make_bundles(spawn.coordinates));
+                entity_commands.insert(
+                    target_movement
+                        .make_bundles(spawn.coordinates, crate::stage::data::GAME_BASE_SPEED),
+                );
             }
 
             insert_rotation_keyframes(
                 &mut entity_commands,
-                &spawn.rotation_keyframes_o,
+                spawn.rotation_keyframes_o.as_ref(),
                 spawn.rotation_pivot_o,
                 spawn.rotation_offset_deg,
             );
@@ -272,7 +275,7 @@ pub fn process_cutscene_images_spawn(
             } else {
                 insert_rotation_keyframes(
                     &mut entity_commands,
-                    &spawn.rotation_keyframes_o,
+                    spawn.rotation_keyframes_o.as_ref(),
                     spawn.rotation_pivot_o,
                     spawn.rotation_offset_deg,
                 );
@@ -327,7 +330,7 @@ pub fn process_cutscene_music_spawn(
 /// Inserts rotation keyframes + presentation transform on an entity if configured.
 fn insert_rotation_keyframes(
     entity_commands: &mut EntityCommands,
-    keyframes_o: &Option<Vec<RotationKeyframe>>,
+    keyframes_o: Option<&Vec<RotationKeyframe>>,
     pivot_o: Option<Vec2>,
     offset_deg: f32,
 ) {
@@ -427,7 +430,10 @@ pub fn drive_timeline_curve_followers(
         }
         *visibility = Visibility::Inherited;
 
-        let dt = (elapsed - follower.appear_at).as_secs_f32();
+        let dt = elapsed
+            .checked_sub(follower.appear_at)
+            .unwrap()
+            .as_secs_f32();
         let scaled_elapsed = follower.appear_at + Duration::from_secs_f32(dt * follower.time_scale);
         pt.rotation = carcinisation_animation::evaluate_rotation_keyframes(
             &tc.rotation_keyframes,

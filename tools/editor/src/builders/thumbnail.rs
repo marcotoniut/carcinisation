@@ -10,7 +10,7 @@ use bevy::{
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
     sprite::{Anchor, Sprite},
 };
-use carcinisation::stage::{
+use carcinisation_ors::stage::{
     components::placement::Depth,
     data::{ObjectType, PickupType, StageSpawn},
     destructible::{components::DestructibleType, data::DestructibleSpawn},
@@ -59,7 +59,7 @@ pub fn resolve_stage_spawn_thumbnail(
     asset_server: &AssetServer,
     image_assets: &mut Assets<Image>,
     cache: &mut ThumbnailCache,
-    depth_scale_config: &carcinisation::stage::depth_scale::DepthScaleConfig,
+    depth_scale_config: &carcinisation_ors::stage::depth_scale::DepthScaleConfig,
     animation_tag: Option<&str>,
 ) -> ResolvedThumbnail {
     match spawn {
@@ -107,7 +107,7 @@ fn resolve_enemy_thumbnail(
     asset_server: &AssetServer,
     image_assets: &mut Assets<Image>,
     cache: &mut ThumbnailCache,
-    depth_scale_config: &carcinisation::stage::depth_scale::DepthScaleConfig,
+    depth_scale_config: &carcinisation_ors::stage::depth_scale::DepthScaleConfig,
     animation_tag: Option<&str>,
 ) -> ResolvedThumbnail {
     use crate::placement::SpawnTemplate;
@@ -329,7 +329,7 @@ fn compose_preview_frame(
             }
         }
         asset_pipeline::composed_ron::SpawnAnchorMode::BottomOrigin => {
-            carcinisation::stage::enemy::composed::bevy_anchor_for_composed(
+            carcinisation_ors::stage::enemy::composed::bevy_anchor_for_composed(
                 (atlas.canvas.w as u16, atlas.canvas.h as u16),
                 (atlas.origin.x as i16, atlas.origin.y as i16),
                 atlas.spawn_anchor,

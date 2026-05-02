@@ -16,6 +16,7 @@ use carapace::prelude::{
     CxAnimationFinishBehavior, CxAtlasSprite, CxCamera, CxFrameTransition, CxPosition,
     CxPresentationTransform, CxRenderSpace, CxSpriteAtlasAsset, WorldPos,
 };
+use carcinisation_base::fire_death::FireDeathConfig;
 use carcinisation_base::layer::FlameDepth;
 use carcinisation_base::layer::Layer;
 use carcinisation_base::layer::OrsLayer;
@@ -28,10 +29,10 @@ use std::time::Duration;
 // Config
 // ---------------------------------------------------------------------------
 
-const CONFIG_PATH: &str = "assets/config/attacks/player_flamethrower.ron";
+const CONFIG_PATH: &str = "assets/config/attacks/player_flamethrower_ors.ron";
 const EMBEDDED_CONFIG: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../assets/config/attacks/player_flamethrower.ron"
+    "/../../assets/config/attacks/player_flamethrower_ors.ron"
 ));
 
 #[derive(Clone, Debug, Deserialize, Resource, Reflect)]
@@ -70,6 +71,12 @@ pub struct FlamethrowerConfig {
     pub scale_far: f32,
     /// Maximum depth that the flamethrower can damage (inclusive).
     pub max_damage_depth: i8,
+    pub burning_corpse_duration_secs: f32,
+    pub burning_flame_count: usize,
+    pub burning_flame_perimeter_padding_px: f32,
+    pub burning_flame_jitter_px: f32,
+    pub burning_flame_scale_min: f32,
+    pub burning_flame_scale_max: f32,
 }
 
 impl FlamethrowerConfig {
@@ -127,6 +134,14 @@ impl FlamethrowerConfig {
             self.scale_near > 0.0 && self.scale_far > 0.0,
             "{source}: scale_near and scale_far must be positive",
         );
+        assert!(
+            self.burning_corpse_duration_secs >= 0.0,
+            "{source}: burning_corpse_duration_secs must be non-negative",
+        );
+        assert!(
+            self.burning_flame_scale_min > 0.0 && self.burning_flame_scale_max > 0.0,
+            "{source}: burning flame scales must be positive",
+        );
     }
 
     #[must_use]
@@ -156,6 +171,18 @@ impl FlamethrowerConfig {
     pub fn slot_target(&self, slot: u8) -> f32 {
         let t = (f32::from(slot) + 1.0) / f32::from(self.max_flames);
         self.chain_range * t.powf(self.spacing_curve)
+    }
+
+    #[must_use]
+    pub fn fire_death_config(&self) -> FireDeathConfig {
+        FireDeathConfig {
+            burning_corpse_duration_secs: self.burning_corpse_duration_secs,
+            burning_flame_count: self.burning_flame_count,
+            burning_flame_perimeter_padding_px: self.burning_flame_perimeter_padding_px,
+            burning_flame_jitter_px: self.burning_flame_jitter_px,
+            burning_flame_scale_min: self.burning_flame_scale_min,
+            burning_flame_scale_max: self.burning_flame_scale_max,
+        }
     }
 }
 
@@ -518,7 +545,7 @@ pub fn flamethrower_damage(
 
         if hit.is_some() {
             tick_state.register_tick(target_entity, now);
-            event_writer.write(DamageMessage::new(target_entity, config.damage_per_tick));
+            event_writer.write(DamageMessage::fire(target_entity, config.damage_per_tick));
         }
     }
 }

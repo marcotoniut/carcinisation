@@ -2,10 +2,12 @@ use crate::assets::CxAssets;
 use crate::stage::{
     components::{
         damage::{DamageFlicker, InvertFilter},
-        interactive::{Dead, Flickerer, Health},
+        interactive::{BurningCorpse, Dead, Flickerer, Health},
     },
-    messages::DamageMessage,
+    enemy::components::Enemy,
+    messages::{DamageMessage, DamageSource},
     player::components::Player,
+    player::flamethrower::FlamethrowerConfig,
     resources::StageTimeDomain,
 };
 #[cfg(debug_assertions)]
@@ -13,6 +15,8 @@ use crate::stubs::DebugGodMode;
 use assert_assets_path::assert_assets_path;
 use bevy::prelude::*;
 use carapace::prelude::CxFilter;
+use carapace::prelude::WorldPos;
+use carcinisation_base::fire_death::corpse_seed;
 use std::time::Duration;
 
 pub const DAMAGE_FLICKER_COUNT: u8 = 4;
@@ -31,8 +35,10 @@ pub static DAMAGE_INVERT_DURATION: std::sync::LazyLock<Duration> =
 pub fn on_damage(
     mut commands: Commands,
     mut event_reader: MessageReader<DamageMessage>,
-    mut query: Query<&mut Health, Without<Dead>>,
+    mut query: Query<(&mut Health, Has<Enemy>, Option<&WorldPos>), Without<Dead>>,
     players: Query<(), With<Player>>,
+    config: Res<FlamethrowerConfig>,
+    stage_time: Res<Time<StageTimeDomain>>,
     #[cfg(debug_assertions)] god_mode: Option<Res<DebugGodMode>>,
 ) {
     for e in event_reader.read() {
@@ -42,10 +48,19 @@ pub fn on_damage(
             continue;
         }
 
-        if let Ok(mut health) = query.get_mut(e.entity) {
+        if let Ok((mut health, is_enemy, position)) = query.get_mut(e.entity) {
             health.0 = health.0.saturating_sub(e.value);
             if health.0 == 0 {
-                commands.entity(e.entity).insert(Dead);
+                let mut entity_commands = commands.entity(e.entity);
+                if is_enemy && e.source == DamageSource::Fire {
+                    let position = position.map_or(Vec2::ZERO, |position| position.0);
+                    entity_commands.insert(BurningCorpse {
+                        started: stage_time.elapsed(),
+                        duration: Duration::from_secs_f32(config.burning_corpse_duration_secs),
+                        seed: corpse_seed(position),
+                    });
+                }
+                entity_commands.insert(Dead);
             }
         }
     }
@@ -58,11 +73,16 @@ pub fn check_damage_flicker_taken(
     stage_time: Res<Time<StageTimeDomain>>,
     mut reader: MessageReader<DamageMessage>,
     // TODO Destructibles and Attacks
-    query: Query<Entity, (With<Flickerer>, Without<Dead>)>,
+    query: Query<
+        (Entity, Option<&DamageFlicker>),
+        (With<Flickerer>, Without<Dead>, Without<BurningCorpse>),
+    >,
 ) {
     for e in reader.read() {
-        if query.get(e.entity).is_ok() {
-            commands.entity(e.entity).insert(DamageFlicker {
+        if let Ok((entity, active_flicker)) = query.get(e.entity)
+            && active_flicker.is_none()
+        {
+            commands.entity(entity).insert(DamageFlicker {
                 phase_start: stage_time.elapsed() + *DAMAGE_REGULAR_DURATION,
                 count: DAMAGE_FLICKER_COUNT,
             });
@@ -74,12 +94,11 @@ pub fn check_damage_flicker_taken(
 pub fn add_invert_filter(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
-    mut query: Query<(Entity, &mut DamageFlicker), Without<InvertFilter>>,
+    mut query: Query<(Entity, &mut DamageFlicker), (Without<InvertFilter>, Without<BurningCorpse>)>,
     filters: CxAssets<CxFilter>,
 ) {
-    let regular_duration = *DAMAGE_REGULAR_DURATION;
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
-        if stage_time.elapsed() < damage_flicker.phase_start + regular_duration {
+        if stage_time.elapsed() >= damage_flicker.phase_start {
             damage_flicker.phase_start = stage_time.elapsed();
             commands.entity(entity).insert((
                 InvertFilter,
@@ -93,18 +112,18 @@ pub fn add_invert_filter(
 pub fn remove_invert_filter(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
-    mut query: Query<(Entity, &mut DamageFlicker), With<InvertFilter>>,
+    mut query: Query<(Entity, &mut DamageFlicker), (With<InvertFilter>, Without<BurningCorpse>)>,
 ) {
     let invert_duration = *DAMAGE_INVERT_DURATION;
     for (entity, mut damage_flicker) in &mut query.iter_mut() {
-        if stage_time.elapsed() < damage_flicker.phase_start + invert_duration {
+        if stage_time.elapsed() >= damage_flicker.phase_start + invert_duration {
             let mut entity_commands = commands.entity(entity);
             entity_commands
                 .remove::<InvertFilter>()
                 .remove::<CxFilter>();
             if damage_flicker.count > 0 {
                 damage_flicker.count -= 1;
-                damage_flicker.phase_start = stage_time.elapsed();
+                damage_flicker.phase_start = stage_time.elapsed() + *DAMAGE_REGULAR_DURATION;
             } else {
                 entity_commands.remove::<DamageFlicker>();
             }
@@ -120,6 +139,8 @@ mod tests {
     fn player_damage_is_ignored_while_debug_god_mode_is_enabled() {
         let mut app = App::new();
         app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
         #[cfg(debug_assertions)]
         app.insert_resource(DebugGodMode::new(true));
         app.add_systems(Update, on_damage);
@@ -130,5 +151,52 @@ mod tests {
 
         assert_eq!(app.world().entity(entity).get::<Health>().unwrap().0, 10);
         assert!(app.world().entity(entity).get::<Dead>().is_none());
+    }
+
+    #[test]
+    fn lethal_fire_damage_marks_enemy_as_burning_corpse() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
+        app.add_systems(Update, on_damage);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                crate::stage::enemy::components::Enemy,
+                Health(10),
+                WorldPos(Vec2::new(4.0, 5.0)),
+            ))
+            .id();
+        app.world_mut()
+            .write_message(DamageMessage::fire(entity, 10));
+        app.update();
+
+        let entity_ref = app.world().entity(entity);
+        assert!(entity_ref.get::<Dead>().is_some());
+        assert!(entity_ref.get::<BurningCorpse>().is_some());
+    }
+
+    #[test]
+    fn lethal_fire_damage_does_not_start_normal_flicker_in_stage_order() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
+        app.add_systems(Update, (on_damage, check_damage_flicker_taken).chain());
+
+        let entity = app
+            .world_mut()
+            .spawn((Enemy, Flickerer, Health(10), WorldPos(Vec2::new(4.0, 5.0))))
+            .id();
+        app.world_mut()
+            .write_message(DamageMessage::fire(entity, 10));
+        app.update();
+
+        let entity_ref = app.world().entity(entity);
+        assert!(entity_ref.get::<Dead>().is_some());
+        assert!(entity_ref.get::<BurningCorpse>().is_some());
+        assert!(entity_ref.get::<DamageFlicker>().is_none());
     }
 }

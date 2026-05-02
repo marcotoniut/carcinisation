@@ -37,6 +37,7 @@ impl CxImage {
     ///
     /// - `width` is 0.
     /// - `image` is non-empty and its length is not a multiple of `width`.
+    #[must_use]
     pub fn new(image: Vec<u8>, width: usize) -> Self {
         debug_assert!(width > 0, "CxImage: width must be > 0 (got width 0)");
         debug_assert!(
@@ -52,6 +53,7 @@ impl CxImage {
     /// # Panics (debug)
     ///
     /// Either dimension is 0.
+    #[must_use]
     pub fn empty(size: UVec2) -> Self {
         debug_assert!(
             size.x > 0 && size.y > 0,
@@ -114,6 +116,7 @@ impl CxImage {
     }
 
     /// Bounds-checked pixel read. Returns `None` for out-of-bounds positions.
+    #[must_use]
     pub fn get_pixel(&self, position: IVec2) -> Option<u8> {
         IRect {
             min: IVec2::splat(0),
@@ -124,26 +127,31 @@ impl CxImage {
     }
 
     /// Dimensions as `(width, height)`.
+    #[must_use]
     pub fn size(&self) -> UVec2 {
         UVec2::new(self.width as u32, (self.image.len() / self.width) as u32)
     }
 
     /// Width in pixels.
+    #[must_use]
     pub fn width(&self) -> usize {
         self.width
     }
 
     /// Height in pixels.
+    #[must_use]
     pub fn height(&self) -> usize {
         self.image.len() / self.width
     }
 
     /// Total pixel count (`width * height`).
+    #[must_use]
     pub fn area(&self) -> usize {
         self.image.len()
     }
 
     /// Raw palette-index data (row-major, image-space: top-left origin, Y-down).
+    #[must_use]
     pub fn data(&self) -> &[u8] {
         &self.image
     }

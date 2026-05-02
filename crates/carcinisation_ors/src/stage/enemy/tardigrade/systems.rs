@@ -6,7 +6,7 @@ use crate::stage::{
     },
     components::{
         StageEntity,
-        interactive::Dead,
+        interactive::{BurningCorpse, Dead},
         placement::{Depth, InView},
     },
     enemy::{
@@ -35,7 +35,12 @@ pub fn assign_tardigrade_animation(
     mut commands: Commands,
     query: Query<
         (Entity, &EnemyCurrentBehavior, &WorldPos, &Depth),
-        (With<EnemyTardigrade>, Without<EnemyTardigradeAnimation>),
+        (
+            With<EnemyTardigrade>,
+            Without<EnemyTardigradeAnimation>,
+            Without<Dead>,
+            Without<BurningCorpse>,
+        ),
     >,
     mut assets_sprite: CxAssets<CxSprite>,
 ) {
@@ -63,7 +68,10 @@ pub fn despawn_dead_tardigrade(
     mut commands: Commands,
     assets_sprite: CxAssets<CxSprite>,
     mut score: ResMut<Score>,
-    query: Query<(Entity, &EnemyTardigrade, &WorldPos, &Depth), Added<Dead>>,
+    query: Query<
+        (Entity, &EnemyTardigrade, &WorldPos, &Depth),
+        (Added<Dead>, Without<BurningCorpse>),
+    >,
 ) {
     for (entity, tardigrade, position, depth) in query.iter() {
         commands.entity(entity).insert(DespawnMark);
@@ -117,7 +125,7 @@ pub fn check_idle_tardigrade(
             Option<&CxPresentationTransform>,
             &Depth,
         ),
-        With<InView>,
+        (With<InView>, Without<Dead>, Without<BurningCorpse>),
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();

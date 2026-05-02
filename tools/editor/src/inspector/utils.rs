@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{math::Vec2, prelude::Name};
-use carcinisation::stage::{
+use carcinisation_ors::stage::{
     data::{EnemySpawn, ObjectSpawn, PickupSpawn, StageData, StageSpawn, StageStep},
     destructible::data::DestructibleSpawn,
     projection::walk_steps_at_elapsed,

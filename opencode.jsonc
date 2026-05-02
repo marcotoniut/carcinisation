@@ -1,0 +1,28 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "filesystem": {
+      "type": "local",
+      "command": ["pnpm", "exec", "mcp-server-filesystem", "."],
+      "enabled": true
+    },
+    "brp": {
+      "type": "local",
+      "command": ["bevy_brp_mcp"],
+      "enabled": true
+    },
+    "aseprite": {
+      "type": "local",
+      "command": [
+        "proto",
+        "run",
+        "python",
+        "3.13.9",
+        "--",
+        "-m",
+        "aseprite_mcp"
+      ],
+      "enabled": true
+    }
+  }
+}

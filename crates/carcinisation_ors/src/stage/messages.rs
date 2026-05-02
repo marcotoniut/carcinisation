@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use asset_pipeline::aseprite::{AnimationEventKind, Point};
 use bevy::prelude::*;
+use carcinisation_base::fire_death::DamageKind;
 use derive_new::new;
 
 use super::{
@@ -51,7 +52,22 @@ pub struct DepthChangedMessage {
     pub depth: Depth,
 }
 
-#[derive(new, Message)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DamageSource {
+    Physical,
+    Fire,
+}
+
+impl From<DamageSource> for DamageKind {
+    fn from(source: DamageSource) -> Self {
+        match source {
+            DamageSource::Physical => Self::Physical,
+            DamageSource::Fire => Self::Fire,
+        }
+    }
+}
+
+#[derive(Message)]
 /// Entity-level damage that bypasses part durability and goes directly to entity health.
 ///
 /// Use for environmental/non-combat damage like fall damage, poison, drowning, etc.
@@ -59,6 +75,27 @@ pub struct DepthChangedMessage {
 pub struct EntityDamageMessage {
     pub entity: Entity,
     pub value: u32,
+    pub source: DamageSource,
+}
+
+impl EntityDamageMessage {
+    #[must_use]
+    pub fn new(entity: Entity, value: u32) -> Self {
+        Self {
+            entity,
+            value,
+            source: DamageSource::Physical,
+        }
+    }
+
+    #[must_use]
+    pub fn fire(entity: Entity, value: u32) -> Self {
+        Self {
+            entity,
+            value,
+            source: DamageSource::Fire,
+        }
+    }
 }
 
 /// Legacy alias for backwards compatibility.

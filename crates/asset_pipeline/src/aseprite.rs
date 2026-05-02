@@ -908,6 +908,9 @@ pub struct RegionAnimationDescriptor {
 #[derive(Serialize)]
 struct AtlasRegionDescriptor {
     frame_size: [u32; 2],
+    /// Top-left offset of the trimmed region in the original source canvas (px).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    origin: Option<[i32; 2]>,
     frames: Vec<AtlasRectDescriptor>,
 }
 
@@ -931,6 +934,7 @@ fn write_px_atlas_metadata(
             .iter()
             .map(|sprite| AtlasRegionDescriptor {
                 frame_size: [sprite.rect.w, sprite.rect.h],
+                origin: None,
                 frames: vec![AtlasRectDescriptor {
                     x: sprite.rect.x,
                     y: sprite.rect.y,
@@ -2907,6 +2911,8 @@ pub struct SimpleAtlasRequest {
     pub pxi_asset_path: PathBuf,
     /// When set, only this layer is included in the flatten step.
     pub layer_filter: Option<String>,
+    /// When set, this layer supplies trim bounds while `layer_filter` supplies pixels.
+    pub bounds_layer_filter: Option<String>,
     /// When set, only tags matching this name become atlas regions.
     pub tag_filter: Option<String>,
 }
@@ -2920,6 +2926,8 @@ pub struct SimpleAtlasEntry {
     pub output: String,
     /// When set, only this layer is included (others are skipped even if visible).
     pub layer: Option<String>,
+    /// When set, this layer supplies trim bounds while `layer` supplies pixels.
+    pub bounds_layer: Option<String>,
     /// When set, only tags matching this name become atlas regions.
     pub tag: Option<String>,
 }
@@ -2944,6 +2952,7 @@ pub fn export_simple_atlas_manifest(manifest_path: &Path, assets_root: &Path) ->
             output_dir: assets_root.join(&entry.output),
             pxi_asset_path: PathBuf::from(format!("{}/atlas.pxi", entry.output)),
             layer_filter: entry.layer.clone(),
+            bounds_layer_filter: entry.bounds_layer.clone(),
             tag_filter: entry.tag.clone(),
         };
         export_simple_atlas(&request)
@@ -2961,49 +2970,13 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
         .with_context(|| format!("Failed to parse {}", request.aseprite_path.display()))?;
 
     let (w, h) = (u32::from(ase.size().0), u32::from(ase.size().1));
-    let num_frames = ase.frames().len();
 
-    // Flatten each frame (merge visible layers, optionally filtered to one).
-    let mut flat_frames: Vec<RgbaImage> = Vec::new();
-    for frame_idx in 0..num_frames {
-        let frame = &ase.frames()[frame_idx];
-        let mut merged = RgbaImage::new(w, h);
-        for cel in &frame.cels {
-            let layer = &ase.file.layers[cel.layer_index];
-            if layer.layer_type != LayerType::Normal {
-                continue;
-            }
-            // Layers prefixed with '_' are always excluded (guide/reference layers).
-            if layer.name.starts_with('_') {
-                continue;
-            }
-            if let Some(ref filter) = request.layer_filter {
-                // When a layer filter is active, include only the named layer
-                // regardless of its visibility flag.
-                if layer.name != *filter {
-                    continue;
-                }
-            } else if !layer.flags.contains(LayerFlags::VISIBLE) {
-                continue;
-            }
-            let img = load_cel_image(&ase, cel)?;
-            let (cx, cy) = (i32::from(cel.origin.0), i32::from(cel.origin.1));
-            for py in 0..img.height() {
-                for px in 0..img.width() {
-                    let src = img.get_pixel(px, py);
-                    if src.0[3] == 0 {
-                        continue;
-                    }
-                    let dx = cx + px as i32;
-                    let dy = cy + py as i32;
-                    if dx >= 0 && dy >= 0 && (dx as u32) < w && (dy as u32) < h {
-                        merged.put_pixel(dx as u32, dy as u32, *src);
-                    }
-                }
-            }
-        }
-        flat_frames.push(merged);
-    }
+    let flat_frames = flatten_simple_atlas_frames(&ase, request.layer_filter.as_deref())?;
+    let bounds_frames = if let Some(bounds_layer) = request.bounds_layer_filter.as_deref() {
+        flatten_simple_atlas_frames(&ase, Some(bounds_layer))?
+    } else {
+        flat_frames.clone()
+    };
 
     // Group frames by tags, capturing animation metadata.
     #[allow(clippy::items_after_statements)]
@@ -3030,7 +3003,10 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     }
     if tag_regions.is_empty() {
         tag_regions.push(TagRegion {
-            name: "default".to_string(),
+            name: request
+                .tag_filter
+                .clone()
+                .unwrap_or_else(|| "default".to_string()),
             frames: (0..flat_frames.len()).collect(),
             direction: AnimationDirection::Forward,
             repeat: None,
@@ -3042,6 +3018,7 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     struct PackedRegion {
         name: String,
         frame_size: (u32, u32),
+        origin: (i32, i32),
         rects: Vec<(u32, u32, u32, u32)>,
     }
     let mut packed_regions: Vec<PackedRegion> = Vec::new();
@@ -3053,7 +3030,7 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
         let mut max_x = 0u32;
         let mut max_y = 0u32;
         for &fi in &tag.frames {
-            for (px, py, pixel) in flat_frames[fi].enumerate_pixels() {
+            for (px, py, pixel) in bounds_frames[fi].enumerate_pixels() {
                 if pixel.0[3] > 0 {
                     min_x = min_x.min(px);
                     min_y = min_y.min(py);
@@ -3082,6 +3059,7 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
         packed_regions.push(PackedRegion {
             name: tag.name.clone(),
             frame_size: (tw, th),
+            origin: (min_x as i32, min_y as i32),
             rects: Vec::new(),
         });
     }
@@ -3149,6 +3127,7 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
             .iter()
             .map(|r| AtlasRegionDescriptor {
                 frame_size: [r.frame_size.0, r.frame_size.1],
+                origin: Some([r.origin.0, r.origin.1]),
                 frames: r
                     .rects
                     .iter()
@@ -3184,6 +3163,55 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
         );
     }
     Ok(())
+}
+
+fn flatten_simple_atlas_frames(
+    ase: &AsepriteFile,
+    layer_filter: Option<&str>,
+) -> Result<Vec<RgbaImage>> {
+    let (w, h) = (u32::from(ase.size().0), u32::from(ase.size().1));
+    let num_frames = ase.frames().len();
+    let mut flat_frames = Vec::new();
+    for frame_idx in 0..num_frames {
+        let frame = &ase.frames()[frame_idx];
+        let mut merged = RgbaImage::new(w, h);
+        for cel in &frame.cels {
+            let layer = &ase.file.layers[cel.layer_index];
+            if layer.layer_type != LayerType::Normal {
+                continue;
+            }
+            // Layers prefixed with '_' are always excluded (guide/reference layers).
+            if layer.name.starts_with('_') {
+                continue;
+            }
+            if let Some(filter) = layer_filter {
+                // When a layer filter is active, include only the named layer
+                // regardless of its visibility flag.
+                if layer.name != filter {
+                    continue;
+                }
+            } else if !layer.flags.contains(LayerFlags::VISIBLE) {
+                continue;
+            }
+            let img = load_cel_image(ase, cel)?;
+            let (cx, cy) = (i32::from(cel.origin.0), i32::from(cel.origin.1));
+            for py in 0..img.height() {
+                for px in 0..img.width() {
+                    let src = img.get_pixel(px, py);
+                    if src.0[3] == 0 {
+                        continue;
+                    }
+                    let dx = cx + px as i32;
+                    let dy = cy + py as i32;
+                    if dx >= 0 && dy >= 0 && (dx as u32) < w && (dy as u32) < h {
+                        merged.put_pixel(dx as u32, dy as u32, *src);
+                    }
+                }
+            }
+        }
+        flat_frames.push(merged);
+    }
+    Ok(flat_frames)
 }
 
 #[cfg(test)]

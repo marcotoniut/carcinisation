@@ -89,7 +89,7 @@ pub fn debug_trigger_game_startup(mut commands: Commands) {
 pub fn on_post_startup(mut commands: Commands, dev_flags: Res<crate::resources::DevFlags>) {
     if dev_flags.skip_splash {
         info!("CARCINISATION_SKIP_SPLASH: skipping splash screen");
-        crate::splash::continue_after_splash(&mut commands, &dev_flags);
+        crate::splash::continue_after_splash(&mut commands, *dev_flags);
     } else {
         commands.trigger(SplashStartupEvent);
     }

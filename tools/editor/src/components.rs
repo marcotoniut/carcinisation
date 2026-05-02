@@ -1,7 +1,8 @@
 #![allow(clippy::used_underscore_binding)]
 
 use bevy::prelude::*;
-use carcinisation::{CutsceneData, stage::data::StageData};
+use carcinisation_cutscene::data::CutsceneData;
+use carcinisation_ors::stage::data::StageData;
 
 /// Sprite atlas animation indices for cycling frames.
 #[derive(Component)]

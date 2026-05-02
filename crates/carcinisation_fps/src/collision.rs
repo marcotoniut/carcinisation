@@ -2,13 +2,13 @@
 
 use bevy_math::Vec2;
 
-use crate::map::FpMap;
+use crate::map::Map;
 
 /// Try to move a position by `delta`, checking wall collision per axis.
 ///
 /// Uses axis-separated sliding: tests X and Y independently so the entity
 /// slides along walls rather than stopping dead.
-pub fn try_move(position: &mut Vec2, delta: Vec2, margin: f32, map: &FpMap) {
+pub fn try_move(position: &mut Vec2, delta: Vec2, margin: f32, map: &Map) {
     let new_pos = *position + delta;
     let test_x = (new_pos.x + margin * delta.x.signum()).floor() as i32;
     let test_y = (new_pos.y + margin * delta.y.signum()).floor() as i32;

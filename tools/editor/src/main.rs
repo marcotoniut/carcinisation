@@ -97,7 +97,7 @@ fn main() {
         .init_resource::<StageControlsUI>()
         .init_resource::<ThumbnailCache>()
         .init_resource::<PlacementMode>()
-        .insert_resource(carcinisation::stage::depth_scale::DepthScaleConfig::load_or_default())
+        .insert_resource(carcinisation_ors::stage::depth_scale::DepthScaleConfig::load_or_default())
         .init_resource::<SavedSceneSnapshot>()
         .init_resource::<SceneInspectorLayout>()
         .init_resource::<CloseConfirmation>()

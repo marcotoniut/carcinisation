@@ -14,7 +14,7 @@ use bevy::sprite::Anchor;
 use bevy::window::PrimaryWindow;
 use bevy_inspector_egui::bevy_egui::input::EguiWantsInput;
 use bevy_prototype_lyon::prelude::*;
-use carcinisation::stage::components::placement::Depth;
+use carcinisation_ors::stage::components::placement::Depth;
 use std::time::{Duration, Instant};
 
 // ─── Tuning constants ───────────────────────────────────────────────────────
@@ -626,14 +626,15 @@ pub fn on_mouse_press(
                     if let Some(scene_data) = scene_data.as_mut()
                         && let SceneData::Stage(stage_data) = scene_data.as_mut()
                     {
-                        let h_screen = carcinisation::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
+                        let h_screen =
+                            carcinisation_ors::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
                         let data_coords = world_position - h_screen;
                         let insert_idx = path_insert_index(stage_data, data_coords);
-                        let mut tween = carcinisation::stage::components::TweenStageStep::new();
+                        let mut tween = carcinisation_ors::stage::components::TweenStageStep::new();
                         tween.coordinates = data_coords;
                         stage_data.steps.insert(
                             insert_idx,
-                            carcinisation::stage::data::StageStep::Tween(tween),
+                            carcinisation_ors::stage::data::StageStep::Tween(tween),
                         );
                     }
                     gesture.owner = GestureTarget::Tool;
@@ -748,7 +749,7 @@ pub fn on_mouse_drag(
         return;
     };
 
-    let h_screen = carcinisation::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
+    let h_screen = carcinisation_ors::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
 
     for event in cursor_moved_events.read() {
         if event.window != window_entity {
@@ -769,7 +770,7 @@ pub fn on_mouse_drag(
             // SceneData will be marked changed on mouse release to trigger a clean rebuild.
             if let Some(scene_data) = scene_data.as_mut()
                 && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
-                && let Some(carcinisation::stage::data::StageStep::Tween(tween)) =
+                && let Some(carcinisation_ors::stage::data::StageStep::Tween(tween)) =
                     stage_data.steps.get_mut(node.step_index)
             {
                 tween.coordinates = data_coords;
@@ -830,14 +831,14 @@ pub fn on_mouse_drag(
                 && let Some(ref controls) = controls
                 && let SceneData::Stage(stage_data) = scene_data.bypass_change_detection()
             {
-                let info = carcinisation::stage::projection::walk_steps_at_elapsed(
+                let info = carcinisation_ors::stage::projection::walk_steps_at_elapsed(
                     stage_data,
                     controls.elapsed_duration,
                 );
 
                 // Resolve effective projection BEFORE taking a mutable reference
                 // to the step, to avoid borrow conflicts.
-                let eff = carcinisation::stage::projection::effective_projection(
+                let eff = carcinisation_ors::stage::projection::effective_projection(
                     stage_data,
                     info.step_index,
                 );
@@ -845,13 +846,13 @@ pub fn on_mouse_drag(
                 // Get or create the projection override on the active step.
                 if let Some(step) = stage_data.steps.get_mut(info.step_index) {
                     let proj = match step {
-                        carcinisation::stage::data::StageStep::Tween(s) => {
+                        carcinisation_ors::stage::data::StageStep::Tween(s) => {
                             s.projection.get_or_insert(eff)
                         }
-                        carcinisation::stage::data::StageStep::Stop(s) => {
+                        carcinisation_ors::stage::data::StageStep::Stop(s) => {
                             s.projection.get_or_insert(eff)
                         }
-                        carcinisation::stage::data::StageStep::Cinematic(_) => {
+                        carcinisation_ors::stage::data::StageStep::Cinematic(_) => {
                             continue;
                         }
                     };
@@ -890,7 +891,9 @@ pub fn on_mouse_drag(
                 let projection = {
                     let controls = controls.as_ref();
                     let elapsed = controls.map_or(Duration::ZERO, |c| c.elapsed_duration);
-                    carcinisation::stage::projection::evaluate_projection_at(stage_data, elapsed)
+                    carcinisation_ors::stage::projection::evaluate_projection_at(
+                        stage_data, elapsed,
+                    )
                 };
                 update_spawn_from_drag(spawn_ref, target_position, stage_data, &projection);
 
@@ -899,7 +902,7 @@ pub fn on_mouse_drag(
                     let depth = {
                         let loc = SpawnLocation::from_ref(spawn_ref);
                         crate::history::resolve_spawn(stage_data, &loc)
-                            .map(carcinisation::stage::data::StageSpawn::get_depth)
+                            .map(carcinisation_ors::stage::data::StageSpawn::get_depth)
                     };
                     update_coordinate_overlay(
                         &mut commands,
@@ -981,8 +984,8 @@ pub fn on_delete_selected(
 /// Finds the step index at which a new tween should be inserted so that it
 /// sits on the path segment nearest to `point`. Returns `steps.len()` (append)
 /// if appending after the last segment is the best fit.
-fn path_insert_index(stage_data: &carcinisation::stage::data::StageData, point: Vec2) -> usize {
-    use carcinisation::stage::data::StageStep;
+fn path_insert_index(stage_data: &carcinisation_ors::stage::data::StageData, point: Vec2) -> usize {
+    use carcinisation_ors::stage::data::StageStep;
 
     // Walk the path collecting (segment_start, segment_end, insert_before_index).
     // "insert_before_index" = the index of the tween that ENDS this segment + 1,
@@ -1200,8 +1203,8 @@ fn sprite_texture_rect(
 fn update_spawn_from_drag(
     spawn_ref: &StageSpawnRef,
     world_position: Vec2,
-    stage_data: &mut carcinisation::stage::data::StageData,
-    projection: &carcinisation::stage::projection::ProjectionProfile,
+    stage_data: &mut carcinisation_ors::stage::data::StageData,
+    projection: &carcinisation_ors::stage::projection::ProjectionProfile,
 ) {
     let location = SpawnLocation::from_ref(spawn_ref);
     if let Some(spawn) = crate::history::resolve_spawn_mut(stage_data, &location) {
@@ -1212,7 +1215,7 @@ fn update_spawn_from_drag(
 
         // For altitude-based enemy spawns, update altitude from Y rather than
         // storing a raw coordinate that would be ignored at runtime.
-        if let carcinisation::stage::data::StageSpawn::Enemy(es) = spawn
+        if let carcinisation_ors::stage::data::StageSpawn::Enemy(es) = spawn
             && es.altitude.is_some()
         {
             let floor_y = projection.floor_y_for_depth(es.depth.to_i8());
@@ -1229,7 +1232,7 @@ fn update_coordinate_overlay(
     commands: &mut Commands,
     overlay_query: &Query<Entity, With<CoordinateOverlay>>,
     position: Vec2,
-    depth: Option<carcinisation::stage::components::placement::Depth>,
+    depth: Option<carcinisation_ors::stage::components::placement::Depth>,
     asset_server: &AssetServer,
 ) {
     for entity in overlay_query.iter() {
@@ -1311,7 +1314,7 @@ pub fn update_placement_ghost(
     asset_server: Res<AssetServer>,
     mut image_assets: ResMut<Assets<Image>>,
     mut thumbnail_cache: ResMut<crate::resources::ThumbnailCache>,
-    depth_scale_config: Res<carcinisation::stage::depth_scale::DepthScaleConfig>,
+    depth_scale_config: Res<carcinisation_ors::stage::depth_scale::DepthScaleConfig>,
 ) {
     use crate::builders::thumbnail::resolve_stage_spawn_thumbnail;
     use crate::components::PlacementGhost;
@@ -1344,10 +1347,11 @@ pub fn update_placement_ghost(
 
     // For altitude-based flying enemies, derive ghost Y from the projection
     // floor line rather than raw cursor Y. X still follows cursor.
-    let ghost_position = if let carcinisation::stage::data::StageSpawn::Enemy(ref es) = temp_spawn
+    let ghost_position = if let carcinisation_ors::stage::data::StageSpawn::Enemy(ref es) =
+        temp_spawn
         && es.enemy_type.composed_authored_depth().is_some()
     {
-        let profile = carcinisation::stage::projection::ProjectionProfile::default();
+        let profile = carcinisation_ors::stage::projection::ProjectionProfile::default();
         let floor_y = profile.floor_y_for_depth(state.depth.to_i8());
         let altitude = (world_position.y - floor_y).max(0.0);
         Vec2::new(world_position.x, floor_y + altitude)
@@ -1417,8 +1421,10 @@ mod tests {
     use bevy::ecs::message::Messages;
     use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
     use bevy::window::WindowResolution;
-    use carcinisation::stage::components::placement::Depth;
-    use carcinisation::stage::data::{ObjectSpawn, ObjectType, SkyboxData, StageData, StageSpawn};
+    use carcinisation_ors::stage::components::placement::Depth;
+    use carcinisation_ors::stage::data::{
+        ObjectSpawn, ObjectType, SkyboxData, StageData, StageSpawn,
+    };
 
     #[derive(Bundle)]
     struct TestCameraBundle {
@@ -1567,8 +1573,8 @@ mod tests {
 
     /// Helper: build a minimal test App with the systems needed for path node testing.
     fn make_path_node_test_app() -> App {
-        use carcinisation::stage::components::TweenStageStep;
-        use carcinisation::stage::data::StageStep;
+        use carcinisation_ors::stage::components::TweenStageStep;
+        use carcinisation_ors::stage::data::StageStep;
 
         let mut app = App::new();
         app.add_message::<CursorMoved>();
@@ -1672,7 +1678,7 @@ mod tests {
 
     #[test]
     fn drag_tween_path_node_updates_coordinates() {
-        use carcinisation::stage::data::StageStep;
+        use carcinisation_ors::stage::data::StageStep;
 
         let mut app = make_path_node_test_app();
         let (window_entity, node_entity) = spawn_path_node_test_entities(&mut app);
@@ -1712,7 +1718,7 @@ mod tests {
         };
         // Node was at world (0,0), dragged +20 on x. Data coords = world - h_screen.
         // With h_screen = SCREEN_RESOLUTION/2 = (80, 72), data_coords.x = 20.0 - 80.0 = -60.0
-        let h_screen = carcinisation::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
+        let h_screen = carcinisation_ors::globals::SCREEN_RESOLUTION.as_vec2() / 2.0;
         let expected_x = 20.0 - h_screen.x;
         assert!(
             (tween.coordinates.x - expected_x).abs() < 0.01,
@@ -1829,8 +1835,8 @@ mod tests {
     #[test]
     #[allow(clippy::too_many_lines)]
     fn alt_click_inserts_tween_at_correct_path_position() {
-        use carcinisation::stage::components::TweenStageStep;
-        use carcinisation::stage::data::StageStep;
+        use carcinisation_ors::stage::components::TweenStageStep;
+        use carcinisation_ors::stage::data::StageStep;
 
         let mut app = App::new();
         app.add_message::<CursorMoved>();
@@ -1969,8 +1975,8 @@ mod tests {
 
     #[test]
     fn path_insert_index_finds_nearest_segment() {
-        use carcinisation::stage::components::TweenStageStep;
-        use carcinisation::stage::data::StageStep;
+        use carcinisation_ors::stage::components::TweenStageStep;
+        use carcinisation_ors::stage::data::StageStep;
 
         let stage_data = StageData {
             name: "Test".to_string(),
@@ -2030,7 +2036,7 @@ mod tests {
         app.insert_resource(PlacementMode {
             active: Some(crate::placement::PlacementState {
                 template: crate::placement::SpawnTemplate::Enemy(
-                    carcinisation::stage::enemy::entity::EnemyType::Mosquiton,
+                    carcinisation_ors::stage::enemy::entity::EnemyType::Mosquiton,
                 ),
                 depth: Depth::Three,
                 animation_tag: None,

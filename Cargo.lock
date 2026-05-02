@@ -2366,8 +2366,12 @@ version = "0.3.0"
 dependencies = [
  "bevy",
  "carapace",
+ "carcinisation_animation",
  "carcinisation_base",
+ "cween",
+ "derive-new",
  "serde",
+ "serde_with",
 ]
 
 [[package]]
@@ -2379,7 +2383,9 @@ dependencies = [
  "bevy_math",
  "carapace",
  "carcinisation_base",
+ "carcinisation_core",
  "flate2",
+ "rand 0.10.0",
  "ron 0.12.0",
  "serde",
 ]
@@ -2409,7 +2415,6 @@ dependencies = [
  "carcinisation_base",
  "carcinisation_collision",
  "carcinisation_core",
- "carcinisation_cutscene",
  "carcinisation_input",
  "colored",
  "cween",
@@ -3123,6 +3128,7 @@ dependencies = [
  "bevy_common_assets",
  "bevy_prototype_lyon",
  "carcinisation",
+ "carcinisation_cutscene",
  "carcinisation_ors",
  "derive-new",
  "derive_more",

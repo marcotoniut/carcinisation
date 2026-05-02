@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use carcinisation::CutsceneData;
-use carcinisation::globals::SCREEN_RESOLUTION;
+use carcinisation_cutscene::data::CutsceneData;
+use carcinisation_ors::globals::SCREEN_RESOLUTION;
 
 use crate::components::{
     CutsceneActConnection, CutsceneActNode, CutsceneImage, Draggable, LetterboxLabel, SceneItem,
 };
 use crate::constants::FONT_PATH;
-use carcinisation::letterbox::messages::LetterboxMove;
+use carcinisation_cutscene::data::LetterboxMove;
 
 const ACT_OFFSET: f32 = 250.0;
 

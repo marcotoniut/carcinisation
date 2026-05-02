@@ -1,10 +1,9 @@
 //! Cutscene vocabulary types for Carcinisation.
 //!
-//! Defines cutscene sub-layers, runtime components, resources, and lifecycle
-//! messages. Serialisable script types (`CutsceneData`, `CutsceneAct`, etc.)
-//! remain in the app crate for now because they reference app-specific
-//! rendering layer types. See `apps/carcinisation/src/cutscene/data.rs`.
+//! Defines cutscene sub-layers, runtime components, resources, lifecycle
+//! messages, and serializable script types (`CutsceneData`, `CutsceneAct`, etc.).
 
 pub mod components;
+pub mod data;
 pub mod layer;
 pub mod resources;

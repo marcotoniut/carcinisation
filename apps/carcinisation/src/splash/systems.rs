@@ -1,5 +1,5 @@
-//! Splash startup/shutdown: constructs CutsceneData from per-track RON config
-//! and delegates to CutscenePlugin.
+//! Splash startup/shutdown: constructs `CutsceneData` from per-track RON config
+//! and delegates to `CutscenePlugin`.
 
 use super::{components::SplashActive, messages::SplashStartupEvent, timeline::SplashConfig};
 use crate::cutscene::{
@@ -65,7 +65,7 @@ pub fn build_splash_cutscene_data() -> (SplashConfig, CutsceneData) {
     (config, data)
 }
 
-/// Constructs a CutsceneData from the per-track splash config.
+/// Constructs a `CutsceneData` from the per-track splash config.
 pub fn on_splash_startup(_trigger: On<SplashStartupEvent>, mut commands: Commands) {
     info!("Splash: startup");
 
@@ -100,5 +100,5 @@ pub fn on_cutscene_shutdown_during_splash(
     #[cfg(debug_assertions)]
     commands.remove_resource::<TimeMultiplier<CutsceneTimeDomain>>();
 
-    super::continue_after_splash(&mut commands, &dev_flags);
+    super::continue_after_splash(&mut commands, *dev_flags);
 }

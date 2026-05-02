@@ -26,13 +26,13 @@ pub struct PickupVisualReady;
 const PICKUP_ASSET_ROOT: &str = "sprites/pickups";
 const PICKUP_ATLAS_BASENAME: &str = "atlas";
 
-/// Loads the composed RON and px_atlas assets for the pickup_3 atlas.
+/// Loads the composed RON and `px_atlas` assets for the `pickup_3` atlas.
 #[must_use]
 pub fn load_pickup_visual(
     asset_server: &AssetServer,
     visible_parts: &'static [&'static str],
 ) -> PendingPickupVisual {
-    let base_path = format!("{}/pickup_3/{}", PICKUP_ASSET_ROOT, PICKUP_ATLAS_BASENAME);
+    let base_path = format!("{PICKUP_ASSET_ROOT}/pickup_3/{PICKUP_ATLAS_BASENAME}");
     PendingPickupVisual {
         atlas_manifest: asset_server.load(format!("{base_path}.composed.ron")),
         sprite_atlas: asset_server.load(format!("{base_path}.px_atlas.ron")),
@@ -89,8 +89,8 @@ fn build_pickup_composite(
     let idle_anim = atlas.animations.iter().find(|a| a.tag == "idle")?;
     let frame = idle_anim.frames.first()?;
 
-    let canvas_h = atlas.canvas.1 as i32;
-    let origin = IVec2::new(atlas.origin.0 as i32, atlas.origin.1 as i32);
+    let canvas_h = i32::from(atlas.canvas.1);
+    let origin = IVec2::new(i32::from(atlas.origin.0), i32::from(atlas.origin.1));
 
     let mut parts = Vec::new();
     let mut min = IVec2::MAX;
@@ -111,10 +111,10 @@ fn build_pickup_composite(
 
         let sprite_idx = pose.s as usize;
         let (sw, sh) = atlas.sprite_sizes.get(sprite_idx)?;
-        let size = IVec2::new(*sw as i32, *sh as i32);
+        let size = IVec2::new(i32::from(*sw), i32::from(*sh));
 
         // Pose offset is top-left, Y-down relative to composition origin.
-        let top_left = IVec2::new(pose.o.0 as i32, pose.o.1 as i32);
+        let top_left = IVec2::new(i32::from(pose.o.0), i32::from(pose.o.1));
 
         // Convert to bottom-left, Y-up (carapace convention):
         // bottom_left.x = origin.x + top_left.x

@@ -2,7 +2,7 @@
 
 /// A 2D grid map where each cell is either empty (0) or a wall type (>0).
 #[derive(Clone, Debug)]
-pub struct FpMap {
+pub struct Map {
     pub width: usize,
     pub height: usize,
     /// Row-major cell data. `cells[y * width + x]`.
@@ -10,7 +10,7 @@ pub struct FpMap {
     pub cells: Vec<u8>,
 }
 
-impl FpMap {
+impl Map {
     /// Look up the cell at grid position `(x, y)`.
     /// Returns 0 (empty) for out-of-bounds coordinates.
     #[must_use]
@@ -35,7 +35,7 @@ impl FpMap {
 /// 1 1 1 1 1 1 1 1
 /// ```
 #[must_use]
-pub fn test_map() -> FpMap {
+pub fn test_map() -> Map {
     #[rustfmt::skip]
     let cells = vec![
         1, 1, 1, 1, 1, 1, 1, 1,
@@ -47,7 +47,7 @@ pub fn test_map() -> FpMap {
         1, 0, 0, 0, 0, 0, 0, 1,
         1, 1, 1, 1, 1, 1, 1, 1,
     ];
-    FpMap {
+    Map {
         width: 8,
         height: 8,
         cells,

@@ -7,7 +7,7 @@ use bevy_inspector_egui::egui::{self, Align2};
 use bevy_inspector_egui::reflect_inspector::{Context, InspectorUi};
 use bevy_inspector_egui::restricted_world_view::RestrictedWorldView;
 
-use carcinisation::stage::projection::{
+use carcinisation_ors::stage::projection::{
     ProjectionProfile, evaluate_projection_at, walk_steps_at_elapsed,
 };
 
@@ -371,9 +371,9 @@ fn reflected_field_narrow(
 fn spawn_list(
     env: &mut InspectorUi,
     ui: &mut egui::Ui,
-    spawns: &mut Vec<carcinisation::stage::data::StageSpawn>,
+    spawns: &mut Vec<carcinisation_ors::stage::data::StageSpawn>,
 ) -> bool {
-    use carcinisation::stage::data::{ObjectSpawn, ObjectType, StageSpawn};
+    use carcinisation_ors::stage::data::{ObjectSpawn, ObjectType, StageSpawn};
 
     let mut changed = false;
     let mut action: Option<ListAction> = None;
@@ -406,7 +406,7 @@ fn spawn_list(
         spawns.push(StageSpawn::Object(ObjectSpawn {
             object_type: ObjectType::BenchBig,
             coordinates: bevy::math::Vec2::ZERO,
-            depth: carcinisation::stage::components::placement::Depth::Three,
+            depth: carcinisation_ors::stage::components::placement::Depth::Three,
             authored_depths: None,
         }));
         changed = true;
@@ -424,9 +424,9 @@ fn spawn_list(
 fn spawn_fields(
     env: &mut InspectorUi,
     ui: &mut egui::Ui,
-    spawn: &mut carcinisation::stage::data::StageSpawn,
+    spawn: &mut carcinisation_ors::stage::data::StageSpawn,
 ) -> bool {
-    use carcinisation::stage::data::StageSpawn;
+    use carcinisation_ors::stage::data::StageSpawn;
 
     let mut changed = false;
     match spawn {
@@ -468,11 +468,11 @@ fn spawn_fields(
 fn step_list(
     env: &mut InspectorUi,
     ui: &mut egui::Ui,
-    steps: &mut Vec<carcinisation::stage::data::StageStep>,
+    steps: &mut Vec<carcinisation_ors::stage::data::StageStep>,
     start_coordinates: bevy::math::Vec2,
 ) -> bool {
-    use carcinisation::stage::components::{StopStageStep, TweenStageStep};
-    use carcinisation::stage::data::StageStep;
+    use carcinisation_ors::stage::components::{StopStageStep, TweenStageStep};
+    use carcinisation_ors::stage::data::StageStep;
 
     let mut changed = false;
     let mut action: Option<ListAction> = None;
@@ -531,10 +531,10 @@ fn step_list(
 
 /// Returns the world position of the last tween endpoint, or `start` if no tweens exist.
 fn last_step_endpoint(
-    steps: &[carcinisation::stage::data::StageStep],
+    steps: &[carcinisation_ors::stage::data::StageStep],
     start: bevy::math::Vec2,
 ) -> bevy::math::Vec2 {
-    use carcinisation::stage::data::StageStep;
+    use carcinisation_ors::stage::data::StageStep;
     for step in steps.iter().rev() {
         if let StageStep::Tween(t) = step {
             return t.coordinates;
@@ -547,9 +547,9 @@ fn last_step_endpoint(
 fn step_fields(
     env: &mut InspectorUi,
     ui: &mut egui::Ui,
-    step: &mut carcinisation::stage::data::StageStep,
+    step: &mut carcinisation_ors::stage::data::StageStep,
 ) -> bool {
-    use carcinisation::stage::data::StageStep;
+    use carcinisation_ors::stage::data::StageStep;
 
     let mut changed = false;
     match step {
@@ -667,10 +667,10 @@ fn apply_list_action<T>(vec: &mut Vec<T>, action: ListAction) {
 
 /// Human-readable label describing where the effective projection comes from.
 fn projection_source_label(
-    stage: &carcinisation::stage::data::StageData,
+    stage: &carcinisation_ors::stage::data::StageData,
     step_index: usize,
 ) -> String {
-    use carcinisation::stage::data::StageStep;
+    use carcinisation_ors::stage::data::StageStep;
 
     let limit = step_index.min(stage.steps.len().saturating_sub(1));
     for i in (0..=limit).rev() {
@@ -695,8 +695,8 @@ fn projection_source_label(
 }
 
 /// Returns `true` if the step has an explicit projection override.
-fn step_has_projection(step: &carcinisation::stage::data::StageStep) -> bool {
-    use carcinisation::stage::data::StageStep;
+fn step_has_projection(step: &carcinisation_ors::stage::data::StageStep) -> bool {
+    use carcinisation_ors::stage::data::StageStep;
     match step {
         StageStep::Tween(s) => s.projection.is_some(),
         StageStep::Stop(s) => s.projection.is_some(),

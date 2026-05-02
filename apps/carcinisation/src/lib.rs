@@ -22,9 +22,6 @@
 pub mod assets {
     pub use carcinisation_ors::assets::*;
 }
-pub mod bevy_utils {
-    pub use carcinisation_core::bevy_utils::*;
-}
 pub mod components {
     pub use carcinisation_core::components::*;
 }

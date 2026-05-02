@@ -1,0 +1,39 @@
+(
+    indexed_image: "assets/sprites/ui/stage_flamethrower_flame/atlas.pxi",
+    regions: [
+        (
+            frame_size: (6, 8),
+            origin: Some((77, 84)),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 6,
+                    h: 8,
+                ),
+                (
+                    x: 6,
+                    y: 0,
+                    w: 6,
+                    h: 8,
+                ),
+                (
+                    x: 12,
+                    y: 0,
+                    w: 6,
+                    h: 8,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "flamethrower_flame": 0,
+    },
+    animations: {
+        "flamethrower_flame": (
+            duration_ms: 300,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

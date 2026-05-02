@@ -3,6 +3,12 @@
 //! Shared across cutscenes, splash screen, and any game mode that uses
 //! keyframe-driven rotation.
 
+#![allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -58,27 +64,34 @@ pub struct RotationKeyframe {
 /// - After the last keyframe: returns the last keyframe's angle.
 /// - Between keyframes: interpolates using the left keyframe's easing.
 #[must_use]
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
 pub fn evaluate_rotation_keyframes(keyframes: &[RotationKeyframe], elapsed: Duration) -> f32 {
     if keyframes.is_empty() {
         return 0.0;
     }
 
-    let ms = elapsed.as_millis() as u64;
+    let ms = elapsed.as_millis();
 
-    if ms <= keyframes[0].time_ms {
+    if ms <= u128::from(keyframes[0].time_ms) {
         return keyframes[0].angle_deg.to_radians();
     }
 
     let last = keyframes.len() - 1;
-    if ms >= keyframes[last].time_ms {
+    if ms >= u128::from(keyframes[last].time_ms) {
         return keyframes[last].angle_deg.to_radians();
     }
 
     for pair in keyframes.windows(2) {
         let (a, b) = (&pair[0], &pair[1]);
-        if ms >= a.time_ms && ms < b.time_ms {
-            let t = (ms - a.time_ms) as f32 / (b.time_ms - a.time_ms) as f32;
-            let eased = a.easing.apply(t);
+        let a_ms = u128::from(a.time_ms);
+        let b_ms = u128::from(b.time_ms);
+        if ms >= a_ms && ms < b_ms {
+            let t = (ms - a_ms) as f64 / (b_ms - a_ms) as f64;
+            let eased = a.easing.apply(t as f32);
             let angle = a.angle_deg + (b.angle_deg - a.angle_deg) * eased;
             return angle.to_radians();
         }

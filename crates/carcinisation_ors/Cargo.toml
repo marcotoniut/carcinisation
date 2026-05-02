@@ -12,7 +12,6 @@ carcinisation_animation = { path = "../carcinisation_animation" }
 carcinisation_base = { path = "../carcinisation_base" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 carcinisation_core = { path = "../carcinisation_core" }
-carcinisation_cutscene = { path = "../carcinisation_cutscene" }
 carcinisation_input = { path = "../carcinisation_input" }
 cween = { path = "../cween" }
 asset_pipeline = { workspace = true }

@@ -1,0 +1,38 @@
+(
+    indexed_image: "sprites/attacks/player_flame_wall/atlas.pxi",
+    regions: [
+        (
+            frame_size: (22, 22),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 22,
+                    h: 22,
+                ),
+                (
+                    x: 22,
+                    y: 0,
+                    w: 22,
+                    h: 22,
+                ),
+                (
+                    x: 44,
+                    y: 0,
+                    w: 22,
+                    h: 22,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "flame_wall_hit": 0,
+    },
+    animations: {
+        "flame_wall_hit": (
+            duration_ms: 300,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

@@ -8,7 +8,7 @@ use crate::stage::{
     attack::{data::blood_shot::BloodShotConfig, spawns::blood_shot::spawn_blood_shot_attack},
     components::{
         StageEntity,
-        interactive::Dead,
+        interactive::{BurningCorpse, Dead},
         placement::{Depth, InView},
     },
     enemy::{
@@ -75,6 +75,7 @@ pub fn assign_mosquito_animation(
             With<EnemyMosquito>,
             Without<EnemyMosquitoAnimation>,
             Without<EnemyMosquiton>,
+            Without<BurningCorpse>,
         ),
     >,
     mut assets_sprite: CxAssets<CxSprite>,
@@ -171,7 +172,7 @@ pub fn despawn_dead_mosquitoes(
     mut score: ResMut<Score>,
     query: Query<
         (Entity, &EnemyMosquito, &WorldPos, &Depth),
-        (Added<Dead>, Without<EnemyMosquiton>),
+        (Added<Dead>, Without<EnemyMosquiton>, Without<BurningCorpse>),
     >,
 ) {
     for (entity, mosquito, position, depth) in query.iter() {
@@ -221,7 +222,10 @@ pub fn despawn_dead_mosquitoes(
 pub fn clear_finished_mosquito_attacks(
     mut commands: Commands,
     stage_time: Res<Time<StageTimeDomain>>,
-    mut query: Query<(Entity, &mut EnemyMosquitoAttacking), (With<EnemyMosquito>, Without<Dead>)>,
+    mut query: Query<
+        (Entity, &mut EnemyMosquitoAttacking),
+        (With<EnemyMosquito>, Without<Dead>, Without<BurningCorpse>),
+    >,
 ) {
     for (entity, mut attacking) in &mut query {
         if attacking.attack.is_none()
@@ -263,7 +267,12 @@ pub fn check_idle_mosquito(
             Option<&CxPresentationTransform>,
             &Depth,
         ),
-        (With<InView>, With<EnemyMosquito>),
+        (
+            With<InView>,
+            With<EnemyMosquito>,
+            Without<Dead>,
+            Without<BurningCorpse>,
+        ),
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();

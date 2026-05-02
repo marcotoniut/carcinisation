@@ -1,8 +1,8 @@
 //! Loops a cutscene for tuning/preview.
 //!
 //! Usage:
-//!   cargo run --bin cutscene_loop             # loops the splash
-//!   cargo run --bin cutscene_loop -- splash   # same
+//!   cargo run --bin `cutscene_loop`             # loops the splash
+//!   cargo run --bin `cutscene_loop` -- splash   # same
 
 use bevy::prelude::*;
 use carcinisation::{
@@ -35,7 +35,7 @@ impl Plugin for CutsceneLoopPlugin {
         if config.slowdown > 1 {
             app.insert_resource(carcinisation_core::core::time::TimeMultiplier::<
                 carcinisation_cutscene::resources::CutsceneTimeDomain,
-            >::new(1.0 / config.slowdown as f32));
+            >::new(1.0 / (config.slowdown as f32)));
         }
         let _ = config;
 
@@ -45,6 +45,7 @@ impl Plugin for CutsceneLoopPlugin {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn fire_cutscene(mut commands: Commands, data: Res<LoopCutsceneData>) {
     info!("Cutscene loop: starting");
     commands.trigger(CutsceneStartupEvent {
@@ -52,6 +53,7 @@ fn fire_cutscene(mut commands: Commands, data: Res<LoopCutsceneData>) {
     });
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn on_shutdown_restart(
     _trigger: On<CutsceneShutdownEvent>,
     mut commands: Commands,

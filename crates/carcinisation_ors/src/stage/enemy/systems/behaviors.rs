@@ -1,6 +1,6 @@
 use crate::stage::{
     components::{
-        interactive::Dead,
+        interactive::{BurningCorpse, Dead},
         placement::{Airborne, AnchorOffsets, Depth, Speed},
     },
     enemy::components::{
@@ -97,7 +97,12 @@ pub fn check_no_behavior(
             Option<&EnemySpideyBehaviorLoop>,
             Has<GroundedEnemyFall>,
         ),
-        (With<Enemy>, Without<EnemyCurrentBehavior>),
+        (
+            With<Enemy>,
+            Without<EnemyCurrentBehavior>,
+            Without<Dead>,
+            Without<BurningCorpse>,
+        ),
     >,
     floors: Res<ActiveFloors>,
     stage_gravity: Res<StageGravity>,
@@ -258,7 +263,7 @@ pub fn apply_grounded_enemy_fall(
             &Depth,
             Option<&AnchorOffsets>,
         ),
-        (With<Enemy>, Without<Dead>),
+        (With<Enemy>, Without<Dead>, Without<BurningCorpse>),
     >,
 ) {
     const TERMINAL_VELOCITY: f32 = 600.0;
@@ -399,6 +404,43 @@ mod tests {
         assert!(
             entity_ref.get::<EnemyCurrentBehavior>().is_some(),
             "behavior assignment should still happen on the same update"
+        );
+    }
+
+    #[test]
+    fn burning_corpse_does_not_assign_enemy_behavior() {
+        let mut app = App::new();
+        app.insert_resource(Time::<StageTimeDomain>::default());
+        app.insert_resource(StageGravity::standard());
+        app.insert_resource(ActiveFloors::default());
+        app.add_systems(Update, check_no_behavior);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Enemy,
+                BurningCorpse {
+                    started: Duration::ZERO,
+                    duration: Duration::from_secs(1),
+                    seed: 1,
+                },
+                EnemyBehaviors::new(VecDeque::from([EnemyStep::Idle(
+                    IdleEnemyStep::base().with_duration(1.0),
+                )])),
+                WorldPos::default(),
+                Speed(1.0),
+                EnemyContinuousDepth::from_depth(Depth::Three),
+                Depth::Three,
+            ))
+            .id();
+
+        app.update();
+
+        assert!(
+            app.world()
+                .entity(entity)
+                .get::<EnemyCurrentBehavior>()
+                .is_none()
         );
     }
 

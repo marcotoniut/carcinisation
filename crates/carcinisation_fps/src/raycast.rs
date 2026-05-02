@@ -1,16 +1,25 @@
-//! DDA raycasting against an [`FpMap`] grid.
+//! DDA raycasting against an [`Map`] grid.
 
 use bevy_math::Vec2;
 
-use crate::map::FpMap;
+use crate::map::Map;
 
 /// Which side of a grid cell the ray hit.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HitSide {
     /// Hit a wall face perpendicular to X (vertical wall edge).
     Vertical,
     /// Hit a wall face perpendicular to Y (horizontal wall edge).
     Horizontal,
+}
+
+/// Stable identity for one visible wall face.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct WallSurfaceId {
+    pub cell_x: i32,
+    pub cell_y: i32,
+    pub side: HitSide,
+    pub normal_sign: i8,
 }
 
 /// Result of casting a single ray into the map.
@@ -24,6 +33,8 @@ pub struct RayHit {
     pub wall_x: f32,
     /// Which side of the cell was hit.
     pub side: HitSide,
+    /// Wall face hit by the ray. `None` means the ray escaped the map.
+    pub surface_id: Option<WallSurfaceId>,
 }
 
 /// Cast a ray from `origin` in direction `dir` through `map` using DDA.
@@ -32,7 +43,7 @@ pub struct RayHit {
 /// calculation accounts for the ray direction magnitude, which avoids
 /// fisheye distortion when used with a camera-plane projection.
 #[must_use]
-pub fn cast_ray(map: &FpMap, origin: Vec2, dir: Vec2) -> RayHit {
+pub fn cast_ray(map: &Map, origin: Vec2, dir: Vec2) -> RayHit {
     let mut map_x = origin.x.floor() as i32;
     let mut map_y = origin.y.floor() as i32;
 
@@ -90,6 +101,15 @@ pub fn cast_ray(map: &FpMap, origin: Vec2, dir: Vec2) -> RayHit {
                 wall_id: cell,
                 wall_x,
                 side,
+                surface_id: Some(WallSurfaceId {
+                    cell_x: map_x,
+                    cell_y: map_y,
+                    side,
+                    normal_sign: match side {
+                        HitSide::Vertical => -step_x as i8,
+                        HitSide::Horizontal => -step_y as i8,
+                    },
+                }),
             };
         }
     }
@@ -100,6 +120,7 @@ pub fn cast_ray(map: &FpMap, origin: Vec2, dir: Vec2) -> RayHit {
         wall_id: 0,
         wall_x: 0.0,
         side: HitSide::Vertical,
+        surface_id: None,
     }
 }
 

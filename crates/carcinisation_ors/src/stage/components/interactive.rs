@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 pub use carcinisation_collision::{Collider, ColliderData, ColliderShape};
+use std::time::Duration;
 
 #[derive(Component)]
 pub struct Object;
@@ -14,6 +15,14 @@ pub struct Hittable;
 // TODO? critical kill
 #[derive(Clone, Component, Debug, Default)]
 pub struct Dead;
+
+#[derive(Clone, Component, Debug, Reflect)]
+#[reflect(Component)]
+pub struct BurningCorpse {
+    pub started: Duration,
+    pub duration: Duration,
+    pub seed: u32,
+}
 
 #[derive(Clone, Component, Debug, Reflect)]
 pub struct Health(pub u32);

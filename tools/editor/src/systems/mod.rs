@@ -7,7 +7,8 @@ use bevy::{
     asset::{AssetServer, Assets},
     prelude::*,
 };
-use carcinisation::{CutsceneData, stage::data::StageData};
+use carcinisation_cutscene::data::CutsceneData;
+use carcinisation_ors::stage::data::StageData;
 
 use crate::components::{
     AnimationIndices, AnimationTimer, EditorCamera, PathOverlay, PlacementGhost,
@@ -150,7 +151,7 @@ pub fn on_scene_change(
     mut thumbnail_cache: ResMut<ThumbnailCache>,
     drag_state: Res<DragState>,
     mut pending_rebuild: ResMut<crate::resources::PendingSceneRebuild>,
-    depth_scale_config: Res<carcinisation::stage::depth_scale::DepthScaleConfig>,
+    depth_scale_config: Res<carcinisation_ors::stage::depth_scale::DepthScaleConfig>,
     placement_mode: Res<crate::placement::PlacementMode>,
 ) {
     // Skip full rebuild during an active path or gizmo drag — the dragged handle

@@ -20,6 +20,7 @@ pub struct AnimationData {
 
 impl AnimationData {
     /// Converts this metadata into a ready-to-use animation bundle.
+    #[must_use]
     pub fn make_animation_bundle(&self) -> CxAnimationBundle {
         CxAnimationBundle::from_parts(
             self.direction,

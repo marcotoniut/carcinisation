@@ -1,0 +1,32 @@
+(
+    indexed_image: "sprites/ui/stage_flamethrower_weapon_shooting/atlas.pxi",
+    regions: [
+        (
+            frame_size: (68, 54),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 68,
+                    h: 54,
+                ),
+                (
+                    x: 68,
+                    y: 0,
+                    w: 68,
+                    h: 54,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "flamethrower_shooting": 0,
+    },
+    animations: {
+        "flamethrower_shooting": (
+            duration_ms: 200,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

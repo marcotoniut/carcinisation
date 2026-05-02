@@ -319,8 +319,8 @@ pub fn world_mask_rect_from_spatial(
 /// Y-up world coordinates — i.e. it is **inclusive**.  The resulting rect uses
 /// the standard min-inclusive / max-exclusive convention, so:
 ///
-///   min = (top_left.x,  top_left.y - height + 1)
-///   max = (top_left.x + width,  top_left.y + 1)
+///   min = (`top_left.x`,  `top_left.y` - height + 1)
+///   max = (`top_left.x` + width,  `top_left.y` + 1)
 #[must_use]
 pub fn world_mask_rect_from_top_left(
     top_left_world: Vec2,
@@ -427,6 +427,7 @@ pub fn extract_mask_boundary(
 /// Like [`extract_mask_boundary`] but uses scanline-closed visibility: interior
 /// transparent holes are treated as solid, producing a boundary that wraps the
 /// outer contour only.
+#[must_use]
 pub fn extract_mask_boundary_closed(
     source: PixelMaskSource<'_>,
     frame: Option<CxFrameView>,

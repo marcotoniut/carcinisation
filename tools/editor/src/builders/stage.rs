@@ -10,13 +10,13 @@ use crate::timeline::{
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy_prototype_lyon::{prelude::*, shapes};
-use carcinisation::globals::SCREEN_RESOLUTION;
-use carcinisation::stage::data::{StageData, StageSpawn, StageStep};
-use carcinisation::stage::depth_scale::DepthScaleConfig;
-use carcinisation::stage::projection::{
+use carcinisation_ors::globals::SCREEN_RESOLUTION;
+use carcinisation_ors::stage::data::{StageData, StageSpawn, StageStep};
+use carcinisation_ors::stage::depth_scale::DepthScaleConfig;
+use carcinisation_ors::stage::projection::{
     GridParams, build_perspective_grid, evaluate_projection_at,
 };
-use carcinisation::stage::spawn_placement::resolve_enemy_position_local;
+use carcinisation_ors::stage::spawn_placement::resolve_enemy_position_local;
 
 use crate::components::{
     AnimationIndices, AnimationTimer, Draggable, PathOverlay, ProjectionGizmo, SceneItem,
@@ -32,7 +32,7 @@ const BACKGROUND_Z: f32 = -10.0;
 /// for enemy spawns with an altitude field.
 fn resolve_spawn_coordinates(
     spawn: &StageSpawn,
-    projection: &carcinisation::stage::projection::ProjectionProfile,
+    projection: &carcinisation_ors::stage::projection::ProjectionProfile,
 ) -> Vec2 {
     match spawn {
         StageSpawn::Enemy(es) if es.altitude.is_some() => {
@@ -225,7 +225,7 @@ fn spawn_projection_grid(
     asset_server: &AssetServer,
     stage_data: &StageData,
     controls: &StageControlsUI,
-    active_placement_depth: Option<carcinisation::stage::components::placement::Depth>,
+    active_placement_depth: Option<carcinisation_ors::stage::components::placement::Depth>,
 ) {
     let profile = evaluate_projection_at(stage_data, controls.elapsed_duration);
     let camera_pos = stage_data.calculate_camera_position(controls.elapsed_duration);
@@ -405,7 +405,7 @@ fn spawn_projection_grid(
 /// Spawns stage background/skybox, spawns, and optional path overlay.
 #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub fn spawn_stage(
-    active_placement_depth: Option<carcinisation::stage::components::placement::Depth>,
+    active_placement_depth: Option<carcinisation_ors::stage::components::placement::Depth>,
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     editor_state: &EditorState,
@@ -607,7 +607,7 @@ fn spawn_step_entities(
     ghost: bool,
     editor_state: &EditorState,
     depth_scale_config: &DepthScaleConfig,
-    projection: &carcinisation::stage::projection::ProjectionProfile,
+    projection: &carcinisation_ors::stage::projection::ProjectionProfile,
 ) {
     for (spawn_index, spawn) in spawns.iter().enumerate() {
         if !stage_controls_ui.depth_is_visible(spawn.get_depth()) {
@@ -650,7 +650,7 @@ fn spawn_step_entities(
 fn editor_depth_scale(
     editor_state: &EditorState,
     depth_scale_config: &DepthScaleConfig,
-    depth: carcinisation::stage::components::placement::Depth,
+    depth: carcinisation_ors::stage::components::placement::Depth,
 ) -> f32 {
     if editor_state.depth_preview_enabled {
         depth_scale_config.scale_for(depth).unwrap_or(1.0)
@@ -662,7 +662,7 @@ fn editor_depth_scale(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use carcinisation::stage::components::placement::Depth;
+    use carcinisation_ors::stage::components::placement::Depth;
 
     #[test]
     fn authoring_mode_keeps_background_and_spawns_at_identity_scale() {

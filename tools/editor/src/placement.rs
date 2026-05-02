@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use carcinisation::stage::{
+use carcinisation_ors::stage::{
     components::placement::Depth,
     data::{EnemySpawn, ObjectSpawn, ObjectType, PickupSpawn, PickupType, StageSpawn},
     destructible::{components::DestructibleType, data::DestructibleSpawn},
@@ -7,7 +7,7 @@ use carcinisation::stage::{
 };
 
 use crate::builders::thumbnail::get_enemy_thumbnail;
-use carcinisation::stage::enemy::data::{mosquiton, spidey};
+use carcinisation_ors::stage::enemy::data::{mosquiton, spidey};
 
 /// Depths available in the editor spawn palette (excludes 0 = player layer).
 pub const EDITOR_DEPTHS: &[Depth] = &[

@@ -50,6 +50,7 @@ impl CxAssets<'_, '_, CxFilter> {
         self.asset_server.load(into_asset_path(path))
     }
 
+    #[must_use]
     pub fn load_color(&self, color: GBColor) -> Handle<CxFilterAsset> {
         self.asset_server.load(color.get_filter_path())
     }

@@ -1,5 +1,5 @@
 use crate::stage::{
-    components::interactive::Dead,
+    components::interactive::{BurningCorpse, Dead},
     enemy::{
         components::Enemy, composed::ComposedEnemyVisual, mosquito::entity::EnemyMosquitoAnimation,
         mosquiton::entity::EnemyMosquitonAnimation, tardigrade::entity::EnemyTardigradeAnimation,
@@ -12,7 +12,7 @@ use bevy::prelude::*;
 pub fn on_enemy_depth_changed(
     mut reader: MessageReader<DepthChangedMessage>,
     mut commands: Commands,
-    query: Query<(Entity, &Enemy), Without<Dead>>,
+    query: Query<(Entity, &Enemy), (Without<Dead>, Without<BurningCorpse>)>,
 ) {
     for e in reader.read() {
         if query.get(e.entity).is_ok() {
@@ -28,7 +28,14 @@ pub fn on_enemy_depth_changed(
 pub fn on_composed_enemy_depth_changed(
     mut reader: MessageReader<DepthChangedMessage>,
     mut commands: Commands,
-    query: Query<(Entity, &Enemy), (With<ComposedEnemyVisual>, Without<Dead>)>,
+    query: Query<
+        (Entity, &Enemy),
+        (
+            With<ComposedEnemyVisual>,
+            Without<Dead>,
+            Without<BurningCorpse>,
+        ),
+    >,
 ) {
     for e in reader.read() {
         if query.get(e.entity).is_ok() {

@@ -30,7 +30,7 @@ pub struct CxSpriteBundle<L: Component + CxLayer + Default + Clone> {
     pub sprite: CxSprite,
     /// Pixel position.
     pub position: CxPosition,
-    /// Anchor point (default: BottomLeft).
+    /// Anchor point (default: `BottomLeft`).
     pub anchor: CxAnchor,
     /// Rendering layer (game-specific).
     pub layer: L,

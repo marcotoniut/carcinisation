@@ -4,13 +4,14 @@ use bevy_math::Vec2;
 use carapace::image::CxImage;
 use carapace::palette::TRANSPARENT_INDEX;
 
-use crate::camera::FpCamera;
-use crate::enemy::{
-    FpEnemy, FpEnemyState, FpProjectile, FpProjectileImpact, FpProjectileImpactKind,
-};
+use crate::camera::Camera;
+use crate::enemy::{Enemy, EnemyState, Projectile, ProjectileImpact, ProjectileImpactKind};
 use crate::mosquiton::{
-    FpBloodShotBillboardSprites, FpMosquiton, FpMosquitonBillboardSprites, FpMosquitonState,
+    BloodShotBillboardSprites, Mosquiton, MosquitonBillboardSprites, MosquitonState,
 };
+
+const FP_DAMAGE_INVERT_MIN_COLOR_INDEX: u8 = 1;
+const FP_DAMAGE_INVERT_MAX_COLOR_INDEX: u8 = 3;
 
 /// A billboard entity in map space.
 #[derive(Clone, Debug)]
@@ -46,7 +47,7 @@ pub(crate) struct ProjectedBillboard<'a> {
 /// Returns `None` if the billboard is behind the camera.
 pub(crate) fn project_billboard<'a>(
     billboard: &'a Billboard,
-    camera: &FpCamera,
+    camera: &Camera,
     screen_w: i32,
     screen_h: i32,
 ) -> Option<ProjectedBillboard<'a>> {
@@ -219,24 +220,77 @@ pub fn make_death_sprite(size: u32, color: u8) -> CxImage {
     CxImage::new(data, size as usize)
 }
 
+/// Darken a palette-indexed sprite for fire-death corpses.
+#[must_use]
+pub fn make_charred_sprite(sprite: &CxImage) -> CxImage {
+    let data = sprite
+        .data()
+        .iter()
+        .map(|pixel| {
+            if *pixel == TRANSPARENT_INDEX {
+                TRANSPARENT_INDEX
+            } else {
+                1
+            }
+        })
+        .collect();
+    CxImage::new(data, sprite.width())
+}
+
+/// Temporary fire-death corpse sprite hook.
+///
+/// Dedicated burn animation can replace this without changing callers.
+#[must_use]
+pub fn make_burning_corpse_sprite(sprite: &CxImage) -> CxImage {
+    make_charred_sprite(sprite)
+}
+
+/// Apply the same visual role as the ORS hit invert filter to an FP sprite.
+#[must_use]
+pub fn make_damage_invert_sprite(sprite: &CxImage) -> CxImage {
+    let data = sprite
+        .data()
+        .iter()
+        .map(|pixel| {
+            if *pixel == TRANSPARENT_INDEX {
+                TRANSPARENT_INDEX
+            } else if (FP_DAMAGE_INVERT_MIN_COLOR_INDEX..=FP_DAMAGE_INVERT_MAX_COLOR_INDEX)
+                .contains(pixel)
+            {
+                FP_DAMAGE_INVERT_MAX_COLOR_INDEX + FP_DAMAGE_INVERT_MIN_COLOR_INDEX - *pixel
+            } else {
+                FP_DAMAGE_INVERT_MAX_COLOR_INDEX
+            }
+        })
+        .collect();
+    CxImage::new(data, sprite.width())
+}
+
+fn enemy_presentation_sprite(enemy: &Enemy, alive: &CxImage, death: &CxImage) -> CxImage {
+    match enemy.state {
+        EnemyState::Dying { .. } => death.clone(),
+        EnemyState::BurningCorpse { .. } => make_burning_corpse_sprite(alive),
+        _ if enemy.showing_damage_invert() => make_damage_invert_sprite(alive),
+        _ => alive.clone(),
+    }
+}
+
 /// Build billboard list from enemies (alive and dying).
 /// Dead enemies are excluded. Dying enemies use the death sprite.
+#[must_use]
 pub fn billboards_from_enemies(
-    enemies: &[FpEnemy],
+    enemies: &[Enemy],
     alive_sprite: &CxImage,
     death_sprite: &CxImage,
 ) -> Vec<Billboard> {
     enemies
         .iter()
-        .filter(|e| !matches!(e.state, FpEnemyState::Dead))
+        .filter(|e| !matches!(e.state, EnemyState::Dead))
         .map(|e| Billboard {
             position: e.position,
             height: 0.0,
             world_height: 1.0,
-            sprite: match e.state {
-                FpEnemyState::Dying { .. } => death_sprite.clone(),
-                _ => alive_sprite.clone(),
-            },
+            sprite: enemy_presentation_sprite(e, alive_sprite, death_sprite),
         })
         .collect()
 }
@@ -245,15 +299,31 @@ pub fn billboards_from_enemies(
 ///
 /// `sprite_indices[i]` maps enemy `i` to a sprite pair in `sprite_pairs`.
 /// Enemies without a valid index use the first pair as fallback.
+/// Build a single billboard from one enemy (used during setup before entities exist).
+#[must_use]
+pub fn billboard_from_enemy(
+    enemy: &Enemy,
+    sprite_index: usize,
+    sprite_pairs: &[(CxImage, CxImage)],
+) -> Billboard {
+    let (alive, death) = sprite_pairs.get(sprite_index).unwrap_or(&sprite_pairs[0]);
+    Billboard {
+        position: enemy.position,
+        height: 0.0,
+        world_height: 1.0,
+        sprite: enemy_presentation_sprite(enemy, alive, death),
+    }
+}
+
 pub fn billboards_from_enemies_indexed(
-    enemies: &[FpEnemy],
+    enemies: &[Enemy],
     sprite_indices: &[usize],
     sprite_pairs: &[(CxImage, CxImage)],
 ) -> Vec<Billboard> {
     enemies
         .iter()
         .enumerate()
-        .filter(|(_, e)| !matches!(e.state, FpEnemyState::Dead))
+        .filter(|(_, e)| !matches!(e.state, EnemyState::Dead))
         .map(|(i, e)| {
             let pair_idx = sprite_indices.get(i).copied().unwrap_or(0);
             let (alive, death) = sprite_pairs.get(pair_idx).unwrap_or(&sprite_pairs[0]);
@@ -261,20 +331,15 @@ pub fn billboards_from_enemies_indexed(
                 position: e.position,
                 height: 0.0,
                 world_height: 1.0,
-                sprite: match e.state {
-                    FpEnemyState::Dying { .. } => death.clone(),
-                    _ => alive.clone(),
-                },
+                sprite: enemy_presentation_sprite(e, alive, death),
             }
         })
         .collect()
 }
 
 /// Build billboard list from active projectiles.
-pub fn billboards_from_projectiles(
-    projectiles: &[FpProjectile],
-    sprite: &CxImage,
-) -> Vec<Billboard> {
+#[must_use]
+pub fn billboards_from_projectiles(projectiles: &[Projectile], sprite: &CxImage) -> Vec<Billboard> {
     projectiles
         .iter()
         .filter(|p| p.alive)
@@ -288,23 +353,24 @@ pub fn billboards_from_projectiles(
 }
 
 /// Build billboard list from projectile impact effects.
+#[must_use]
 pub fn billboards_from_projectile_impacts(
-    impacts: &[FpProjectileImpact],
-    sprites: &FpBloodShotBillboardSprites,
+    impacts: &[ProjectileImpact],
+    sprites: &BloodShotBillboardSprites,
 ) -> Vec<Billboard> {
     impacts
         .iter()
         .map(|impact| {
             let sprite = match impact.kind {
-                FpProjectileImpactKind::Hit => sprites.hit.clone(),
-                FpProjectileImpactKind::Destroy => sprites.destroy_sprite_at(impact.age).clone(),
+                ProjectileImpactKind::Hit => sprites.hit.clone(),
+                ProjectileImpactKind::Destroy => sprites.destroy_sprite_at(impact.age).clone(),
             };
             Billboard {
                 position: impact.position,
                 height: 0.15,
                 world_height: match impact.kind {
-                    FpProjectileImpactKind::Hit => 0.42,
-                    FpProjectileImpactKind::Destroy => 0.36,
+                    ProjectileImpactKind::Hit => 0.42,
+                    ProjectileImpactKind::Destroy => 0.36,
                 },
                 sprite,
             }
@@ -313,23 +379,73 @@ pub fn billboards_from_projectile_impacts(
 }
 
 /// Build billboard list from Mosquiton enemies.
+/// Build a single billboard from one mosquiton (used during setup before entities exist).
+#[must_use]
+pub fn billboard_from_mosquiton(
+    mosquiton: &Mosquiton,
+    sprites: &MosquitonBillboardSprites,
+) -> Billboard {
+    Billboard {
+        position: mosquiton.position,
+        height: mosquiton.height,
+        world_height: mosquiton.config.billboard_height,
+        sprite: match mosquiton.state {
+            MosquitonState::Dying { .. } => sprites.death.clone(),
+            MosquitonState::BurningCorpse { .. } => {
+                make_burning_corpse_sprite(sprites.alive_sprite_at(0.0))
+            }
+            MosquitonState::MeleeAttack { .. } => {
+                let sprite = sprites.melee_sprite_at(mosquiton.animation_time);
+                if mosquiton.showing_damage_invert() {
+                    make_damage_invert_sprite(sprite)
+                } else {
+                    sprite.clone()
+                }
+            }
+            _ => {
+                let sprite = sprites.alive_sprite_at(mosquiton.animation_time);
+                if mosquiton.showing_damage_invert() {
+                    make_damage_invert_sprite(sprite)
+                } else {
+                    sprite.clone()
+                }
+            }
+        },
+    }
+}
+
 pub fn billboards_from_mosquitons(
-    mosquitons: &[FpMosquiton],
-    sprites: &FpMosquitonBillboardSprites,
+    mosquitons: &[Mosquiton],
+    sprites: &MosquitonBillboardSprites,
 ) -> Vec<Billboard> {
     mosquitons
         .iter()
-        .filter(|m| !matches!(m.state, FpMosquitonState::Dead))
+        .filter(|m| !matches!(m.state, MosquitonState::Dead))
         .map(|m| Billboard {
             position: m.position,
             height: m.height,
             world_height: m.config.billboard_height,
             sprite: match m.state {
-                FpMosquitonState::Dying { .. } => sprites.death.clone(),
-                FpMosquitonState::MeleeAttack { .. } => {
-                    sprites.melee_sprite_at(m.animation_time).clone()
+                MosquitonState::Dying { .. } => sprites.death.clone(),
+                MosquitonState::BurningCorpse { .. } => {
+                    make_burning_corpse_sprite(sprites.alive_sprite_at(0.0))
                 }
-                _ => sprites.alive_sprite_at(m.animation_time).clone(),
+                MosquitonState::MeleeAttack { .. } => {
+                    let sprite = sprites.melee_sprite_at(m.animation_time);
+                    if m.showing_damage_invert() {
+                        make_damage_invert_sprite(sprite)
+                    } else {
+                        sprite.clone()
+                    }
+                }
+                _ => {
+                    let sprite = sprites.alive_sprite_at(m.animation_time);
+                    if m.showing_damage_invert() {
+                        make_damage_invert_sprite(sprite)
+                    } else {
+                        sprite.clone()
+                    }
+                }
             },
         })
         .collect()
@@ -338,11 +454,11 @@ pub fn billboards_from_mosquitons(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::camera::FpCamera;
+    use crate::camera::Camera;
 
     #[test]
     fn billboard_in_front_projects_near_center() {
-        let cam = FpCamera::default(); // at (4,4), facing east
+        let cam = Camera::default(); // at (4,4), facing east
         let bb = Billboard {
             position: Vec2::new(6.0, 4.0), // directly ahead
             height: 0.0,
@@ -361,7 +477,7 @@ mod tests {
 
     #[test]
     fn billboard_behind_camera_returns_none() {
-        let cam = FpCamera::default(); // facing east
+        let cam = Camera::default(); // facing east
         let bb = Billboard {
             position: Vec2::new(2.0, 4.0), // behind
             height: 0.0,
@@ -373,7 +489,7 @@ mod tests {
 
     #[test]
     fn billboard_very_far_returns_none_due_to_zero_size() {
-        let cam = FpCamera::default();
+        let cam = Camera::default();
         let bb = Billboard {
             position: Vec2::new(10000.0, 4.0),
             height: 0.0,
@@ -386,7 +502,7 @@ mod tests {
 
     #[test]
     fn billboard_to_the_right_has_higher_screen_x() {
-        let cam = FpCamera::default(); // facing east
+        let cam = Camera::default(); // facing east
         let center = Billboard {
             position: Vec2::new(6.0, 4.0),
             height: 0.0,
@@ -407,5 +523,41 @@ mod tests {
             pr.screen_x,
             pc.screen_x
         );
+    }
+
+    #[test]
+    fn burning_corpse_sprite_overrides_damage_invert() {
+        let alive = make_enemy_sprite(8, 2);
+        let death = make_death_sprite(8, 3);
+        let mut enemy = Enemy::new(Vec2::new(6.0, 4.0), 10, 1.0);
+        enemy.take_damage(1);
+        enemy.damage_flicker = enemy.damage_flicker.and_then(|flicker| flicker.tick(0.2));
+        assert!(enemy.showing_damage_invert());
+        enemy.state = EnemyState::BurningCorpse {
+            timer: 1.0,
+            seed: 123,
+        };
+
+        let billboard = billboards_from_enemies(&[enemy], &alive, &death)
+            .pop()
+            .expect("burning corpse should still render");
+
+        assert!(
+            billboard
+                .sprite
+                .data()
+                .iter()
+                .filter(|pixel| **pixel != TRANSPARENT_INDEX)
+                .all(|pixel| *pixel == 1)
+        );
+    }
+
+    #[test]
+    fn damage_invert_keeps_opaque_pixels_visible() {
+        let sprite = CxImage::new(vec![TRANSPARENT_INDEX, 1, 2, 3, 4], 5);
+
+        let inverted = make_damage_invert_sprite(&sprite);
+
+        assert_eq!(inverted.data(), &[TRANSPARENT_INDEX, 3, 2, 1, 3]);
     }
 }

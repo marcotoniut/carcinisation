@@ -8,9 +8,11 @@ description = "First-person raycaster subgame for Carcinisation"
 asset_pipeline = { workspace = true }
 carapace = { workspace = true }
 carcinisation_base = { path = "../carcinisation_base" }
+carcinisation_core = { path = "../carcinisation_core" }
 bevy = { workspace = true }
 bevy_math = { version = "0.18.0", default-features = false }
 flate2 = "1.1"
+rand = { workspace = true }
 serde = { workspace = true }
 ron = { workspace = true }
 

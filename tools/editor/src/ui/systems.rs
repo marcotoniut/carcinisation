@@ -3,7 +3,7 @@ use bevy_inspector_egui::{
     bevy_egui::{EguiContext, PrimaryEguiContext},
     egui::{self},
 };
-use carcinisation::stage::components::placement::Depth;
+use carcinisation_ors::stage::components::placement::Depth;
 
 use crate::components::SceneData;
 use crate::placement::{EDITOR_DEPTHS, PlacementMode, PlacementState, SpawnTemplate};

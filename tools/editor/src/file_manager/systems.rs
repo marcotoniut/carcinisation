@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::tasks::AsyncComputeTaskPool;
-use carcinisation::CutsceneData;
-use carcinisation::stage::data::StageData;
+use carcinisation_cutscene::data::CutsceneData;
+use carcinisation_ors::stage::data::StageData;
 use futures_lite::future;
 use std::fs::File;
 use std::io::{Read, Write};

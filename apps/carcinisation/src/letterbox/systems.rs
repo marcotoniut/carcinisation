@@ -7,10 +7,11 @@ use super::resources::LetterboxTimeDomain;
 use crate::debug::plugin::{debug_print_shutdown, debug_print_startup};
 use crate::globals::SCREEN_RESOLUTION_F32;
 use crate::globals::mark_for_despawn_by_query;
-use crate::{cutscene::data::CutsceneLayer, globals::SCREEN_RESOLUTION, layer::Layer};
+use crate::{globals::SCREEN_RESOLUTION, layer::Layer};
 use bevy::prelude::*;
 use carapace::prelude::*;
 use carapace::primitive::{CxPrimitive, CxPrimitiveFill, CxPrimitiveShape};
+use carcinisation_cutscene::layer::CutsceneLayer;
 use cween::linear::components::{LinearTweenBundle, TargetingValueY};
 
 const DEBUG_MODULE: &str = "Letterbox";

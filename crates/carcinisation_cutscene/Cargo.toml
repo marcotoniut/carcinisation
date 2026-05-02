@@ -7,8 +7,12 @@ description = "Cutscene vocabulary types for Carcinisation — data, components,
 [dependencies]
 bevy = { workspace = true }
 carapace = { workspace = true }
+carcinisation_animation = { path = "../carcinisation_animation" }
 carcinisation_base = { path = "../carcinisation_base" }
+cween = { path = "../cween" }
+derive-new = { workspace = true }
 serde = { workspace = true }
+serde_with = { workspace = true }
 
 [lints]
 workspace = true

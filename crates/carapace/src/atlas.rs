@@ -227,6 +227,19 @@ impl CxSpriteAtlasAsset {
     pub fn animation(&self, name: &str) -> Option<&RegionAnimation> {
         self.animations.get(name)
     }
+
+    /// Extract a region frame as a standalone palette-indexed image.
+    #[must_use]
+    pub fn extract_region_frame(&self, id: AtlasRegionId, frame: usize) -> Option<CxImage> {
+        let rect = self.region(id)?.frame(frame)?;
+        let mut pixels = Vec::with_capacity((rect.w * rect.h) as usize);
+        for y in rect.y..rect.y + rect.h {
+            for x in rect.x..rect.x + rect.w {
+                pixels.push(self.data.get_pixel(ivec2(x as i32, y as i32))?);
+            }
+        }
+        Some(CxImage::new(pixels, rect.w as usize))
+    }
 }
 
 /// Identifier for a region within a [`CxSpriteAtlasAsset`].

@@ -157,6 +157,7 @@ mod duration_secs_frac {
 // ---------------------------------------------------------------------------
 
 // TODO(ors-extract): resolve this dependency — lives in `systems::spawn`
+#[must_use]
 pub fn make_music_bundle(
     asset_server: &Res<AssetServer>,
     volume_settings: &Res<carcinisation_core::components::VolumeSettings>,

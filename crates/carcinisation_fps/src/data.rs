@@ -2,13 +2,13 @@
 
 use serde::Deserialize;
 
-use crate::camera::FpCamera;
-use crate::map::FpMap;
-use crate::render::FpPalette;
+use crate::camera::Camera;
+use crate::map::Map;
+use crate::render::Palette;
 
 /// Top-level map definition loaded from `.fp_map.ron`.
 #[derive(Deserialize, Debug)]
-pub struct FpMapData {
+pub struct MapData {
     pub width: usize,
     pub height: usize,
     /// Row-major cell grid. 0 = empty, >0 = wall texture index (1-based).
@@ -18,7 +18,7 @@ pub struct FpMapData {
     pub floor_color: u8,
     pub player_start: PlayerStart,
     #[serde(default)]
-    pub entities: Vec<FpEntitySpawn>,
+    pub entities: Vec<EntitySpawn>,
 }
 
 /// How to generate or load a wall texture.
@@ -59,15 +59,15 @@ pub struct PlayerStart {
 
 /// An entity to place in the map.
 #[derive(Deserialize, Debug)]
-pub struct FpEntitySpawn {
-    pub kind: FpEntityKind,
+pub struct EntitySpawn {
+    pub kind: EntityKind,
     pub x: f32,
     pub y: f32,
 }
 
 /// Entity types that can be spawned in an FP map.
 #[derive(Deserialize, Debug)]
-pub enum FpEntityKind {
+pub enum EntityKind {
     /// Static column/pillar billboard.
     Pillar { color: u8, width: u32, height: u32 },
     /// Enemy with procedural sprite.
@@ -79,7 +79,7 @@ pub enum FpEntityKind {
     },
     /// Enemy using an asset-loaded sprite (e.g. Mosquito).
     SpriteEnemy {
-        /// Sprite path relative to assets/ (e.g. "sprites/enemies/mosquito_fly_3.px_sprite.png").
+        /// Sprite path relative to assets/ (e.g. "`sprites/enemies/mosquito_fly_3.px_sprite.png`").
         sprite: String,
         /// Death sprite path.
         death_sprite: String,
@@ -106,24 +106,24 @@ fn default_enemy_speed() -> f32 {
 
 // --- Conversion helpers ---
 
-impl FpMapData {
+impl MapData {
     /// Build the runtime map from this data.
     ///
     /// # Panics
     ///
     /// `cells` length does not equal `width * height`.
     #[must_use]
-    pub fn to_map(&self) -> FpMap {
+    pub fn to_map(&self) -> Map {
         let expected = self.width * self.height;
         assert_eq!(
             self.cells.len(),
             expected,
-            "FpMapData: cells length ({}) must equal width * height ({}x{} = {expected})",
+            "MapData: cells length ({}) must equal width * height ({}x{} = {expected})",
             self.cells.len(),
             self.width,
             self.height,
         );
-        FpMap {
+        Map {
             width: self.width,
             height: self.height,
             cells: self.cells.clone(),
@@ -132,8 +132,8 @@ impl FpMapData {
 
     /// Build the camera from player start.
     #[must_use]
-    pub fn to_camera(&self) -> FpCamera {
-        FpCamera {
+    pub fn to_camera(&self) -> Camera {
+        Camera {
             position: bevy_math::Vec2::new(self.player_start.x, self.player_start.y),
             angle: self.player_start.angle_deg.to_radians(),
             ..Default::default()
@@ -142,8 +142,8 @@ impl FpMapData {
 
     /// Build the palette config.
     #[must_use]
-    pub fn to_palette(&self) -> FpPalette {
-        FpPalette {
+    pub fn to_palette(&self) -> Palette {
+        Palette {
             ceiling: self.ceiling_color,
             floor: self.floor_color,
             ..Default::default()
@@ -172,7 +172,7 @@ impl FpMapData {
             .collect()
     }
 
-    /// Load an `FpMapData` from a RON string.
+    /// Load an `MapData` from a RON string.
     ///
     /// # Errors
     ///
@@ -187,7 +187,7 @@ mod tests {
     use super::*;
 
     const MINIMAL_RON: &str = r#"
-        FpMapData(
+        MapData(
             width: 3,
             height: 3,
             cells: [1,0,1, 0,0,0, 1,0,1],
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn parse_minimal_ron() {
-        let data = FpMapData::from_ron(MINIMAL_RON).unwrap();
+        let data = MapData::from_ron(MINIMAL_RON).unwrap();
         assert_eq!(data.width, 3);
         assert_eq!(data.height, 3);
         assert_eq!(data.cells.len(), 9);
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn to_map_validates_cells_length() {
-        let data = FpMapData {
+        let data = MapData {
             width: 4,
             height: 4,
             cells: vec![0; 10], // wrong: 10 != 16
@@ -230,13 +230,13 @@ mod tests {
 
     #[test]
     fn to_camera_converts_degrees_to_radians() {
-        let data = FpMapData::from_ron(MINIMAL_RON).unwrap();
+        let data = MapData::from_ron(MINIMAL_RON).unwrap();
         let cam = data.to_camera();
         assert!((cam.angle - 90.0_f32.to_radians()).abs() < 1e-5);
     }
 
     #[test]
     fn invalid_ron_returns_error() {
-        assert!(FpMapData::from_ron("not valid ron {{{").is_err());
+        assert!(MapData::from_ron("not valid ron {{{").is_err());
     }
 }

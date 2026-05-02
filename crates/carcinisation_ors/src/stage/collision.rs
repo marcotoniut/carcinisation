@@ -57,16 +57,19 @@ impl MaskCollisionAssets<'_, '_> {
     }
 
     /// Returns a reference to the atlas assets for use in spawn helpers.
+    #[must_use]
     pub fn atlas_asset_store(&self) -> &Assets<CxSpriteAtlasAsset> {
         &self.atlas_assets
     }
 
     /// Returns the atlas region size for a given sprite, if the atlas is loaded.
+    #[must_use]
     pub fn atlas_sprite_region_size(&self, sprite: &CxAtlasSprite) -> Option<UVec2> {
         atlas_region_size(self, sprite)
     }
 
     /// Returns the atlas region for a given sprite, if the atlas is loaded.
+    #[must_use]
     pub fn atlas_sprite_region(
         &self,
         sprite: &CxAtlasSprite,
@@ -120,6 +123,7 @@ struct ComposedHitSelection {
     hit_position: Vec2,
 }
 
+#[must_use]
 pub fn build_attack_mask(
     attack_data: &SpritePixelData,
     attack_frame: Option<CxFrameView>,

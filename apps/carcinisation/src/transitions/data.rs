@@ -9,13 +9,6 @@ pub enum TransitionVenetianDataState {
     Closing,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Reflect, Serialize)]
-#[reflect(Default)]
-pub enum TransitionRequest {
-    #[default]
-    Venetian,
-}
-
 #[derive(Clone, Debug, Resource, Deserialize, Reflect, Serialize)]
 pub struct TransitionVenetianData {
     pub state: TransitionVenetianDataState,

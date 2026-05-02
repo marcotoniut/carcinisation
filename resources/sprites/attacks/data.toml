@@ -27,3 +27,21 @@ source = "player_attacks.aseprite"
 output = "sprites/attacks/player_flame"
 layer = "flame"
 tag = "flame"
+
+[[atlases]]
+source = "../ui/stage.aseprite"
+output = "sprites/ui/stage_flamethrower_weapon"
+layer = "flamethrower_fps"
+tag = "flamethrower_idle"
+
+[[atlases]]
+source = "../ui/stage.aseprite"
+output = "sprites/ui/stage_flamethrower_weapon_shooting"
+layer = "flamethrower_fps"
+tag = "flamethrower_shooting"
+
+[[atlases]]
+source = "../ui/stage.aseprite"
+output = "sprites/ui/stage_flamethrower_flame"
+layer = "flamethrower_flame"
+tag = "flamethrower_flame"

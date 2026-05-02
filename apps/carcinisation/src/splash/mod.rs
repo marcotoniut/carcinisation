@@ -1,5 +1,5 @@
-//! Boot-time splash screen — thin wrapper that constructs CutsceneData and
-//! delegates to CutscenePlugin.
+//! Boot-time splash screen — thin wrapper that constructs `CutsceneData` and
+//! delegates to `CutscenePlugin`.
 
 pub mod components;
 pub mod messages;
@@ -10,7 +10,7 @@ use self::systems::{on_cutscene_shutdown_during_splash, on_splash_startup};
 use bevy::prelude::*;
 
 /// Registers splash lifecycle observers. The actual rendering and timeline
-/// are handled by CutscenePlugin — this plugin just bridges the boot flow.
+/// are handled by `CutscenePlugin` — this plugin just bridges the boot flow.
 pub struct SplashPlugin;
 
 impl Plugin for SplashPlugin {
@@ -23,7 +23,7 @@ impl Plugin for SplashPlugin {
 /// After the splash finishes (or is skipped), resume the normal boot path.
 pub(crate) fn continue_after_splash(
     commands: &mut Commands,
-    dev_flags: &crate::resources::DevFlags,
+    dev_flags: crate::resources::DevFlags,
 ) {
     if dev_flags.skip_menu {
         info!("CARCINISATION_SKIP_MENU: skipping main menu, starting game directly");

@@ -2,7 +2,7 @@ use super::entity::{EnemySpidey, EnemySpideyAnimation, EnemySpideyAttacking};
 use crate::stage::{
     attack::{data::spider_shot::SpiderShotConfig, spawns::spider_shot::spawn_spider_shot_attack},
     components::{
-        interactive::Dead,
+        interactive::{BurningCorpse, Dead},
         placement::{Depth, InView},
     },
     depth_scale::DepthScaleConfig,
@@ -66,7 +66,7 @@ pub fn assign_spidey_animation(
             Option<&JumpTween>,
             &mut ComposedAnimationState,
         ),
-        (With<EnemySpidey>, Without<Dead>),
+        (With<EnemySpidey>, Without<Dead>, Without<BurningCorpse>),
     >,
 ) {
     for (entity, behavior, attacking, current_animation, jump_tween, mut animation_state) in
@@ -113,7 +113,7 @@ pub fn despawn_dead_spideys(
             &mut ComposedAnimationState,
             &mut ComposedPartStates,
         ),
-        Added<Dead>,
+        (Added<Dead>, Without<BurningCorpse>),
     >,
 ) {
     for (entity, spidey, _animation_state, mut part_states) in &mut query {
@@ -183,7 +183,10 @@ pub fn update_spidey_death_effect(
 /// Clears the active attack flag once the shoot presentation window expires.
 pub fn clear_finished_spidey_attacks(
     stage_time: Res<Time<StageTimeDomain>>,
-    mut query: Query<&mut EnemySpideyAttacking, (With<EnemySpidey>, Without<Dead>)>,
+    mut query: Query<
+        &mut EnemySpideyAttacking,
+        (With<EnemySpidey>, Without<Dead>, Without<BurningCorpse>),
+    >,
 ) {
     for mut attacking in &mut query {
         if !attacking.active
@@ -204,7 +207,12 @@ pub fn check_idle_spidey(
     stage_time: Res<Time<StageTimeDomain>>,
     mut query: Query<
         (&EnemyCurrentBehavior, &mut EnemySpideyAttacking),
-        (With<InView>, With<EnemySpidey>, Without<Dead>),
+        (
+            With<InView>,
+            With<EnemySpidey>,
+            Without<Dead>,
+            Without<BurningCorpse>,
+        ),
     >,
 ) {
     for (behavior, mut attacking) in &mut query {
@@ -246,7 +254,7 @@ pub fn trigger_spidey_authored_attack_cues(
             &Depth,
             Option<&ComposedResolvedParts>,
         ),
-        Without<Dead>,
+        (Without<Dead>, Without<BurningCorpse>),
     >,
 ) {
     let Ok(player_pos) = player_query.single() else {

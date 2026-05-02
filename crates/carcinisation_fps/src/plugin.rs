@@ -1,39 +1,48 @@
 //! Bevy plugin that encapsulates the first-person raycaster systems.
 //!
 //! The plugin is generic over the game's layer type. The caller provides
-//! a [`FpConfig`] that specifies which layer the FP view renders into
+//! a [`Config`] that specifies which layer the First-person view renders into
 //! and the path to the map RON file.
 
 use std::marker::PhantomData;
 
 use bevy::{ecs::system::SystemParam, prelude::*};
 use carapace::prelude::*;
+use carcinisation_base::fire_death::{DamageKind, perimeter_flames_from_mask};
 
-/// System set for FP plugin systems. External input systems should run
-/// `.before(FpSystems)` so the FP plugin reads updated state.
+/// System set for First-person plugin systems. External input systems should run
+/// `.before(Systems)` so the First-person plugin reads updated state.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FpSystems;
+pub struct Systems;
 
 use crate::{
     billboard::{
-        Billboard, billboards_from_enemies_indexed, billboards_from_mosquitons,
-        billboards_from_projectile_impacts, billboards_from_projectiles, make_death_sprite,
-        make_enemy_sprite, make_pillar_sprite,
+        Billboard, billboard_from_enemy, billboard_from_mosquiton, billboards_from_enemies_indexed,
+        billboards_from_mosquitons, billboards_from_projectile_impacts,
+        billboards_from_projectiles, make_death_sprite, make_enemy_sprite, make_pillar_sprite,
     },
-    camera::FpCamera,
+    camera::Camera,
     collision::try_move,
-    data::{FpEntityKind, FpMapData},
+    data::{EntityKind, MapData},
     enemy::{
-        FpEnemy, FpProjectile, FpProjectileImpact, hitscan, hitscan_projectiles, tick_enemies,
-        tick_projectile_impacts, tick_projectiles,
+        Enemy, EnemyState, Projectile, ProjectileImpact, ProjectileTickResult,
+        tick_projectile_impacts, tick_projectiles, tick_single_enemy,
     },
-    map::FpMap,
+    map::Map,
     mosquiton::{
-        FpBloodShotBillboardSprites, FpMosquiton, FpMosquitonBillboardSprites, FpMosquitonConfig,
-        hitscan_mosquitons, make_blood_shot_billboard_sprites, make_mosquiton_billboard_sprites,
-        tick_mosquitons,
+        BloodShotBillboardSprites, Mosquiton, MosquitonBillboardSprites, MosquitonConfig,
+        MosquitonState, make_blood_shot_billboard_sprites, make_mosquiton_billboard_sprites,
+        tick_single_mosquiton,
     },
-    render::{FpPalette, draw_crosshair, draw_overlay_tint, render_fp_scene},
+    player_attack::{
+        AttackInput, AttackLoadout, FlamethrowerConfig, PlayerAttackSprites, PlayerAttackState,
+        destroy_projectiles_touching_active_flamethrower, draw_player_attack_overlays,
+        flame_wall_mask, process_player_attacks, wall_impact_sprite,
+    },
+    render::{
+        CharDecal, FpWallRenderEffects, Palette, draw_crosshair, draw_overlay_tint,
+        render_fp_scene, render_fp_scene_with_effects,
+    },
 };
 
 const QUICK_TURN_DURATION_SECS: f32 = 0.2;
@@ -41,10 +50,13 @@ const QUICK_TURN_RADIANS: f32 = std::f32::consts::PI;
 const QUICK_TURN_GRACE_WINDOW_SECS: f32 = 0.08;
 const DEATH_TURN_DURATION_SECS: f32 = 0.45;
 const DEATH_RED_MAX_DENSITY: f32 = 0.85;
+const CAMERA_SHAKE_BASE_INTENSITY: f32 = 3.0;
+const CAMERA_SHAKE_DECAY_RATE: f32 = 12.0;
+const CAMERA_SHAKE_THRESHOLD: f32 = 0.3;
 
-/// Configuration for the FP plugin.
+/// Configuration for the First-person plugin.
 #[derive(Resource, Clone)]
-pub struct FpConfig {
+pub struct Config {
     /// RON map file contents (pre-loaded string).
     pub map_ron: String,
     /// The layer value the FP sprite entity should render into.
@@ -57,7 +69,7 @@ pub struct FpConfig {
     pub player_max_health: u32,
 }
 
-impl Default for FpConfig {
+impl Default for Config {
     fn default() -> Self {
         Self {
             map_ron: String::new(),
@@ -74,73 +86,92 @@ impl Default for FpConfig {
 // --- Resources ---
 
 #[derive(Resource)]
-pub struct FpSpriteHandle(pub Handle<CxSpriteAsset>);
+pub struct SpriteHandle(pub Handle<CxSpriteAsset>);
 
 #[derive(Resource)]
-pub struct FpWallTextures(pub Vec<CxImage>);
+pub struct WallTextures(pub Vec<CxImage>);
 
 #[derive(Resource)]
-pub struct FpCameraRes(pub FpCamera);
+pub struct CameraRes(pub Camera);
 
 #[derive(Resource)]
-pub struct FpMapRes(pub FpMap);
+pub struct MapRes(pub Map);
 
 #[derive(Resource)]
-pub struct FpPaletteRes(pub FpPalette);
+pub struct PaletteRes(pub Palette);
 
 #[derive(Resource)]
-pub struct FpStaticBillboards(pub Vec<Billboard>);
+pub struct StaticBillboards(pub Vec<Billboard>);
+
+/// Sprite index paired with each enemy entity for billboard resolution.
+#[derive(Component)]
+pub struct EnemySpriteIndex(pub usize);
 
 #[derive(Resource)]
-pub struct FpEnemies(pub Vec<FpEnemy>);
+pub struct SpritePairs(pub Vec<(CxImage, CxImage)>);
 
 #[derive(Resource)]
-pub struct FpEnemySpriteIndices(pub Vec<usize>);
+pub struct Projectiles(pub Vec<Projectile>);
 
 #[derive(Resource)]
-pub struct FpSpritePairs(pub Vec<(CxImage, CxImage)>);
+pub struct ProjectileImpacts(pub Vec<ProjectileImpact>);
 
-#[derive(Resource)]
-pub struct FpProjectiles(pub Vec<FpProjectile>);
+#[derive(Resource, Default)]
+pub struct CharDecals(pub Vec<CharDecal>);
 
-#[derive(Resource)]
-pub struct FpProjectileImpacts(pub Vec<FpProjectileImpact>);
-
-#[derive(Resource)]
-pub struct FpBloodShotSprites(pub FpBloodShotBillboardSprites);
-
-#[derive(Resource)]
-pub struct FpMosquitons(pub Vec<FpMosquiton>);
-
-#[derive(Resource)]
-pub struct FpMosquitonSprites(pub FpMosquitonBillboardSprites);
-
-#[derive(SystemParam)]
-struct FpRenderSources<'w> {
-    static_bbs: Res<'w, FpStaticBillboards>,
-    enemies: Res<'w, FpEnemies>,
-    indices: Res<'w, FpEnemySpriteIndices>,
-    pairs: Res<'w, FpSpritePairs>,
-    projectiles: Res<'w, FpProjectiles>,
-    impacts: Res<'w, FpProjectileImpacts>,
-    blood_shot_sprites: Res<'w, FpBloodShotSprites>,
-    mosquitons: Res<'w, FpMosquitons>,
-    mosquiton_sprites: Res<'w, FpMosquitonSprites>,
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct BurningCorpseContactHazardState {
+    cooldown_remaining_secs: f32,
 }
 
 #[derive(Resource)]
-pub struct FpPlayerHealth(pub u32);
+pub struct BloodShotSprites(pub BloodShotBillboardSprites);
 
 #[derive(Resource)]
-pub struct FpPlayerDead(pub bool);
+pub struct MosquitonSprites(pub MosquitonBillboardSprites);
 
-/// Marker resource indicating FP mode is active.
+#[derive(SystemParam)]
+struct RenderSources<'w> {
+    static_bbs: Res<'w, StaticBillboards>,
+    pairs: Res<'w, SpritePairs>,
+    projectiles: Res<'w, Projectiles>,
+    impacts: Res<'w, ProjectileImpacts>,
+    blood_shot_sprites: Res<'w, BloodShotSprites>,
+    mosquiton_sprites: Res<'w, MosquitonSprites>,
+    char_decals: Res<'w, CharDecals>,
+}
+
+#[derive(SystemParam)]
+struct ViewResources<'w> {
+    textures: Res<'w, WallTextures>,
+    camera: Res<'w, CameraRes>,
+    map: Res<'w, MapRes>,
+    palette: Res<'w, PaletteRes>,
+    config: Res<'w, Config>,
+    health: Res<'w, PlayerHealth>,
+    dead: Res<'w, PlayerDead>,
+    death_view: Res<'w, DeathViewState>,
+    camera_shake: Res<'w, CameraShakeState>,
+    attack_sprites: Res<'w, PlayerAttackSprites>,
+    attack_loadout: Res<'w, AttackLoadout>,
+    attack_state: Res<'w, PlayerAttackState>,
+}
+
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
+pub struct PlayerHealth(pub u32);
+
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
+pub struct PlayerDead(pub bool);
+
+/// Marker resource indicating First-person mode is active.
 #[derive(Resource)]
-pub struct FpActive;
+pub struct Active;
 
 /// Resolved FP player intent. Integration layers can build this from any input source.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct FpPlayerIntent {
+pub struct PlayerIntent {
     pub move_delta: Vec2,
     pub turn_delta: f32,
     pub shoot_pressed: bool,
@@ -149,12 +180,12 @@ pub struct FpPlayerIntent {
 
 /// Debouncer for the Back+B quick-turn chord.
 #[derive(Resource, Clone, Copy, Debug, Default)]
-pub struct FpQuickTurnDebounce {
-    phase: FpQuickTurnChordPhase,
+pub struct QuickTurnDebounce {
+    phase: QuickTurnChordPhase,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-enum FpQuickTurnChordPhase {
+enum QuickTurnChordPhase {
     #[default]
     Idle,
     GraceWindow {
@@ -166,17 +197,24 @@ enum FpQuickTurnChordPhase {
 
 /// Runtime state for a smooth 180-degree left quick-turn.
 #[derive(Resource, Clone, Copy, Debug, Default)]
-pub struct FpQuickTurnState {
+pub struct QuickTurnState {
     remaining_radians: f32,
 }
 
 /// Runtime state for death camera facing and red fade.
 #[derive(Resource, Clone, Copy, Debug, Default)]
-pub struct FpDeathViewState {
+pub struct DeathViewState {
     active: bool,
     elapsed: f32,
     start_angle: f32,
     target_angle: f32,
+}
+
+/// Runtime state for FP hit camera shake.
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct CameraShakeState {
+    intensity: f32,
+    current_offset: IVec2,
 }
 
 /// Resolve Back+B/Down+Shift quick-turn as a near-simultaneous chord.
@@ -190,51 +228,51 @@ pub fn resolve_quick_turn_pressed(
     back_just_pressed: bool,
     b_just_pressed: bool,
     now_secs: f32,
-    debounce: &mut FpQuickTurnDebounce,
+    debounce: &mut QuickTurnDebounce,
 ) -> bool {
     let chord_pressed = back_pressed && b_pressed;
     if !back_pressed && !b_pressed {
-        debounce.phase = FpQuickTurnChordPhase::Idle;
+        debounce.phase = QuickTurnChordPhase::Idle;
         return false;
     }
 
     match debounce.phase {
-        FpQuickTurnChordPhase::Idle => {
+        QuickTurnChordPhase::Idle => {
             if back_just_pressed && b_just_pressed {
-                debounce.phase = FpQuickTurnChordPhase::Consumed;
+                debounce.phase = QuickTurnChordPhase::Consumed;
                 true
             } else if back_just_pressed || b_just_pressed {
-                debounce.phase = FpQuickTurnChordPhase::GraceWindow { since: now_secs };
+                debounce.phase = QuickTurnChordPhase::GraceWindow { since: now_secs };
                 false
             } else {
-                debounce.phase = FpQuickTurnChordPhase::BlockedUntilRelease;
+                debounce.phase = QuickTurnChordPhase::BlockedUntilRelease;
                 false
             }
         }
-        FpQuickTurnChordPhase::GraceWindow { since } => {
+        QuickTurnChordPhase::GraceWindow { since } => {
             if chord_pressed && now_secs - since <= QUICK_TURN_GRACE_WINDOW_SECS {
-                debounce.phase = FpQuickTurnChordPhase::Consumed;
+                debounce.phase = QuickTurnChordPhase::Consumed;
                 true
             } else if now_secs - since > QUICK_TURN_GRACE_WINDOW_SECS {
-                debounce.phase = FpQuickTurnChordPhase::BlockedUntilRelease;
+                debounce.phase = QuickTurnChordPhase::BlockedUntilRelease;
                 false
             } else {
                 false
             }
         }
-        FpQuickTurnChordPhase::Consumed | FpQuickTurnChordPhase::BlockedUntilRelease => false,
+        QuickTurnChordPhase::Consumed | QuickTurnChordPhase::BlockedUntilRelease => false,
     }
 }
 
 /// Start a smooth 180-degree quick-turn to the left.
-pub fn request_quick_turn(state: &mut FpQuickTurnState) {
+pub fn request_quick_turn(state: &mut QuickTurnState) {
     if state.remaining_radians <= 0.0 {
         state.remaining_radians = QUICK_TURN_RADIANS;
     }
 }
 
 /// Advance the active quick-turn animation by `dt` seconds.
-pub fn tick_quick_turn(camera: &mut FpCamera, state: &mut FpQuickTurnState, dt: f32) {
+pub fn tick_quick_turn(camera: &mut Camera, state: &mut QuickTurnState, dt: f32) {
     if state.remaining_radians <= 0.0 {
         return;
     }
@@ -247,7 +285,7 @@ pub fn tick_quick_turn(camera: &mut FpCamera, state: &mut FpQuickTurnState, dt: 
 }
 
 /// Start the death view: rotate toward the source that killed the player.
-pub fn request_death_view(state: &mut FpDeathViewState, camera: &FpCamera, killer_position: Vec2) {
+pub fn request_death_view(state: &mut DeathViewState, camera: &Camera, killer_position: Vec2) {
     if state.active {
         return;
     }
@@ -267,7 +305,7 @@ pub fn request_death_view(state: &mut FpDeathViewState, camera: &FpCamera, kille
 }
 
 /// Advance the death camera turn and red-fade timer.
-pub fn tick_death_view(camera: &mut FpCamera, state: &mut FpDeathViewState, dt: f32) {
+pub fn tick_death_view(camera: &mut Camera, state: &mut DeathViewState, dt: f32) {
     if !state.active {
         return;
     }
@@ -279,7 +317,7 @@ pub fn tick_death_view(camera: &mut FpCamera, state: &mut FpDeathViewState, dt: 
 }
 
 #[must_use]
-pub fn death_red_density(state: &FpDeathViewState) -> f32 {
+pub fn death_red_density(state: &DeathViewState) -> f32 {
     if !state.active {
         return 0.0;
     }
@@ -291,63 +329,120 @@ fn signed_angle_delta(from: f32, to: f32) -> f32 {
     (to - from + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
 }
 
+/// Reinforce an FP camera shake, matching ORS' additive hit shake model.
+pub fn request_camera_shake(state: &mut CameraShakeState) {
+    state.intensity += CAMERA_SHAKE_BASE_INTENSITY;
+}
+
+/// Advance FP camera shake with caller-provided random samples.
+///
+/// `angle_sample` and `magnitude_sample` are expected in `0.0..=1.0`.
+/// They are parameters so the behavior can be tested deterministically while
+/// the Bevy system uses real randomness.
+pub fn tick_camera_shake(
+    state: &mut CameraShakeState,
+    dt: f32,
+    angle_sample: f32,
+    magnitude_sample: f32,
+) {
+    if state.intensity < CAMERA_SHAKE_THRESHOLD {
+        state.intensity = 0.0;
+        state.current_offset = IVec2::ZERO;
+        return;
+    }
+
+    let angle = angle_sample.clamp(0.0, 1.0) * std::f32::consts::TAU;
+    let magnitude = state.intensity * (0.5 + 0.5 * magnitude_sample.clamp(0.0, 1.0));
+    let offset = Vec2::new(angle.cos() * magnitude, angle.sin() * magnitude).round();
+    state.current_offset = IVec2::new(offset.x as i32, offset.y as i32);
+    state.intensity *= (-CAMERA_SHAKE_DECAY_RATE * dt).exp();
+}
+
+fn apply_framebuffer_offset(image: &mut CxImage, offset: IVec2) {
+    if offset == IVec2::ZERO {
+        return;
+    }
+
+    let width = image.width() as i32;
+    let height = image.height() as i32;
+    let source = image.data().to_vec();
+    let target = image.data_mut();
+
+    for y in 0..height {
+        for x in 0..width {
+            let src_x = (x - offset.x).clamp(0, width - 1);
+            let src_y = (y - offset.y).clamp(0, height - 1);
+            target[(y * width + x) as usize] = source[(src_y * width + src_x) as usize];
+        }
+    }
+}
+
 // --- Plugin ---
 
 /// First-person raycaster plugin.
 ///
 /// Generic over `L: CxLayer` so it works with any game's layer enum.
-/// Insert [`FpConfig`] before adding this plugin, or the setup system
+/// Insert [`Config`] before adding this plugin, or the setup system
 /// will panic.
-pub struct FpPlugin<L: CxLayer> {
+pub struct FpsPlugin<L: CxLayer> {
     _l: PhantomData<L>,
 }
 
-impl<L: CxLayer> Default for FpPlugin<L> {
+impl<L: CxLayer> Default for FpsPlugin<L> {
     fn default() -> Self {
         Self { _l: PhantomData }
     }
 }
 
-impl<L: CxLayer> FpPlugin<L> {
+impl<L: CxLayer> FpsPlugin<L> {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl<L: CxLayer + Default> Plugin for FpPlugin<L> {
+impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_fp::<L>);
-        app.init_resource::<FpShootRequest>();
-        app.init_resource::<FpQuickTurnState>();
-        app.init_resource::<FpDeathViewState>();
+        app.register_type::<AttackInput>();
+        app.register_type::<AttackLoadout>();
+        app.register_type::<PlayerHealth>();
+        app.register_type::<PlayerDead>();
+        app.init_resource::<ShootRequest>();
+        app.init_resource::<AttackInput>();
+        app.init_resource::<AttackLoadout>();
+        app.init_resource::<PlayerAttackState>();
+        app.init_resource::<CharDecals>();
+        app.init_resource::<BurningCorpseContactHazardState>();
+        app.init_resource::<QuickTurnState>();
+        app.init_resource::<DeathViewState>();
+        app.init_resource::<CameraShakeState>();
         app.add_systems(
             Update,
             (
-                apply_quick_turn_animation,
-                tick_enemy_ai,
-                apply_death_view,
-                tick_projectile_impact_effects,
-                handle_shooting,
-                update_fp_view,
+                apply_quick_turn_animation.in_set(Systems),
+                handle_shooting.in_set(Systems),
+                tick_enemy_ai.in_set(Systems).after(handle_shooting),
+                apply_death_view.in_set(Systems),
+                tick_projectile_impact_effects.in_set(Systems),
+                tick_camera_shake_effect.in_set(Systems),
+                update_fp_view.in_set(Systems).after(tick_enemy_ai),
             )
-                .chain()
-                .in_set(FpSystems)
-                .run_if(resource_exists::<FpActive>),
+                .run_if(resource_exists::<Active>),
         );
     }
 }
 
-/// Setup system: parses the map from FpConfig, builds all resources.
+/// Setup system: parses the map from `Config`, builds all resources.
 ///
 /// Input handling is NOT included — the caller (binary or game plugin)
-/// is responsible for reading input and updating `FpCameraRes`.
+/// is responsible for reading input and updating `CameraRes`.
 fn setup_fp<L: CxLayer + Default>(
     mut commands: Commands,
     mut sprite_assets: ResMut<Assets<CxSpriteAsset>>,
-    config: Res<FpConfig>,
+    config: Res<Config>,
 ) {
-    let map_data = FpMapData::from_ron(&config.map_ron)
+    let map_data = MapData::from_ron(&config.map_ron)
         .unwrap_or_else(|e| panic!("failed to parse FP map: {e}"));
     let map = map_data.to_map();
     let camera = map_data.to_camera();
@@ -355,9 +450,6 @@ fn setup_fp<L: CxLayer + Default>(
     let textures = map_data.build_wall_textures();
 
     let mut static_billboards = Vec::new();
-    let mut enemies = Vec::new();
-    let mut enemy_sprite_indices = Vec::new();
-    let mut mosquitons = Vec::new();
 
     let procedural_alive = make_enemy_sprite(24, 2);
     let procedural_death = make_death_sprite(24, 1);
@@ -368,10 +460,14 @@ fn setup_fp<L: CxLayer + Default>(
     let blood_shot_sprites =
         make_blood_shot_billboard_sprites().expect("embedded blood shot assets should resolve");
 
+    // Temporary Vecs for first-frame render before entities exist.
+    let mut enemy_bbs = Vec::new();
+    let mut mosquiton_bbs = Vec::new();
+
     for spawn in &map_data.entities {
         let pos = Vec2::new(spawn.x, spawn.y);
         match &spawn.kind {
-            FpEntityKind::Pillar {
+            EntityKind::Pillar {
                 color,
                 width,
                 height,
@@ -383,39 +479,38 @@ fn setup_fp<L: CxLayer + Default>(
                     sprite: make_pillar_sprite(*width, *height, *color),
                 });
             }
-            FpEntityKind::Enemy { health, speed, .. } => {
-                enemies.push(FpEnemy::new(pos, *health, *speed));
-                enemy_sprite_indices.push(0);
+            EntityKind::Enemy { health, speed, .. }
+            | EntityKind::SpriteEnemy { health, speed, .. } => {
+                let enemy = Enemy::new(pos, *health, *speed);
+                enemy_bbs.push(billboard_from_enemy(&enemy, 0, &sprite_pairs));
+                commands.spawn((enemy, EnemySpriteIndex(0)));
             }
-            FpEntityKind::SpriteEnemy { health, speed, .. } => {
-                enemies.push(FpEnemy::new(pos, *health, *speed));
-                // TODO: asset-loaded sprites (requires async resolution).
-                // For now, use procedural fallback.
-                enemy_sprite_indices.push(0);
-            }
-            FpEntityKind::Mosquiton { health, speed } => {
-                let config = FpMosquitonConfig {
+            EntityKind::Mosquiton { health, speed } => {
+                let config = MosquitonConfig {
                     health: *health,
                     move_speed: *speed,
                     ..Default::default()
                 };
-                mosquitons.push(FpMosquiton::new(pos, config));
+                let mosquiton = Mosquiton::new(pos, config);
+                mosquiton_bbs.push(billboard_from_mosquiton(&mosquiton, &mosquiton_sprites));
+                commands.spawn(mosquiton);
             }
         }
     }
 
-    // Render first frame.
-    let enemy_bbs = billboards_from_enemies_indexed(&enemies, &enemy_sprite_indices, &sprite_pairs);
-    let mosquiton_bbs = billboards_from_mosquitons(&mosquitons, &mosquiton_sprites);
-    let all_bbs: Vec<Billboard> = static_billboards.iter().cloned().chain(enemy_bbs).collect();
-    let all_bbs: Vec<Billboard> = all_bbs.into_iter().chain(mosquiton_bbs).collect();
+    let all_bbs: Vec<Billboard> = static_billboards
+        .iter()
+        .cloned()
+        .chain(enemy_bbs)
+        .chain(mosquiton_bbs)
+        .collect();
     let mut image = CxImage::empty(UVec2::new(config.screen_width, config.screen_height));
     render_fp_scene(&mut image, &map, &camera, &textures, &palette, &all_bbs);
     draw_crosshair(&mut image, 4);
     let initial = CxSpriteAsset::from_raw(image.data().to_vec(), image.width());
     let handle = sprite_assets.add(initial);
 
-    // Spawn the FP view sprite entity.
+    // Spawn the First-person view sprite entity.
     commands.spawn((
         CxSprite(handle.clone()),
         CxPosition(IVec2::ZERO),
@@ -425,68 +520,80 @@ fn setup_fp<L: CxLayer + Default>(
         Visibility::Visible,
     ));
 
-    commands.insert_resource(FpSpriteHandle(handle));
-    commands.insert_resource(FpWallTextures(textures));
-    commands.insert_resource(FpCameraRes(camera));
-    commands.insert_resource(FpMapRes(map));
-    commands.insert_resource(FpPaletteRes(palette));
-    commands.insert_resource(FpStaticBillboards(static_billboards));
-    commands.insert_resource(FpEnemies(enemies));
-    commands.insert_resource(FpEnemySpriteIndices(enemy_sprite_indices));
-    commands.insert_resource(FpSpritePairs(sprite_pairs));
-    commands.insert_resource(FpProjectiles(Vec::new()));
-    commands.insert_resource(FpProjectileImpacts(Vec::new()));
-    commands.insert_resource(FpBloodShotSprites(blood_shot_sprites));
-    commands.insert_resource(FpMosquitons(mosquitons));
-    commands.insert_resource(FpMosquitonSprites(mosquiton_sprites));
-    commands.insert_resource(FpPlayerHealth(config.player_max_health));
-    commands.insert_resource(FpPlayerDead(false));
-    commands.insert_resource(FpActive);
+    commands.insert_resource(SpriteHandle(handle));
+    commands.insert_resource(WallTextures(textures));
+    commands.insert_resource(CameraRes(camera));
+    commands.insert_resource(MapRes(map));
+    commands.insert_resource(PaletteRes(palette));
+    commands.insert_resource(StaticBillboards(static_billboards));
+    commands.insert_resource(SpritePairs(sprite_pairs));
+    commands.insert_resource(Projectiles(Vec::new()));
+    commands.insert_resource(ProjectileImpacts(Vec::new()));
+    commands.insert_resource(CharDecals::default());
+    commands.insert_resource(BloodShotSprites(blood_shot_sprites));
+    commands.insert_resource(MosquitonSprites(mosquiton_sprites));
+    commands.insert_resource(PlayerAttackSprites::load());
+    commands.insert_resource(PlayerHealth(config.player_max_health));
+    commands.insert_resource(PlayerDead(false));
+    commands.insert_resource(Active);
 
-    info!("FP mode initialized");
+    info!("First-person mode initialized");
 }
 
 /// Movement helper for external input systems. Call this with the computed
 /// move delta to update the camera position with wall collision.
-pub fn move_camera(camera: &mut FpCamera, delta: Vec2, map: &FpMap) {
+pub fn move_camera(camera: &mut Camera, delta: Vec2, map: &Map) {
     try_move(&mut camera.position, delta, 0.2, map);
 }
 
 fn apply_quick_turn_animation(
     time: Res<Time>,
-    mut camera: ResMut<FpCameraRes>,
-    mut quick_turn: ResMut<FpQuickTurnState>,
+    mut camera: ResMut<CameraRes>,
+    mut quick_turn: ResMut<QuickTurnState>,
 ) {
     tick_quick_turn(&mut camera.0, &mut quick_turn, time.delta_secs());
 }
 
 fn apply_death_view(
     time: Res<Time>,
-    mut camera: ResMut<FpCameraRes>,
-    mut death_view: ResMut<FpDeathViewState>,
-    dead: Res<FpPlayerDead>,
+    mut camera: ResMut<CameraRes>,
+    mut death_view: ResMut<DeathViewState>,
+    dead: Res<PlayerDead>,
 ) {
     if dead.0 {
         tick_death_view(&mut camera.0, &mut death_view, time.delta_secs());
     }
 }
 
-fn tick_projectile_impact_effects(time: Res<Time>, mut impacts: ResMut<FpProjectileImpacts>) {
+fn tick_projectile_impact_effects(time: Res<Time>, mut impacts: ResMut<ProjectileImpacts>) {
     tick_projectile_impacts(&mut impacts.0, time.delta_secs());
+}
+
+fn tick_camera_shake_effect(time: Res<Time>, mut shake: ResMut<CameraShakeState>) {
+    tick_camera_shake(
+        &mut shake,
+        time.delta_secs(),
+        rand::random::<f32>(),
+        rand::random::<f32>(),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
 fn tick_enemy_ai(
     time: Res<Time>,
-    camera: Res<FpCameraRes>,
-    map: Res<FpMapRes>,
-    mut enemies: ResMut<FpEnemies>,
-    mut mosquitons: ResMut<FpMosquitons>,
-    mut projectiles: ResMut<FpProjectiles>,
-    mut impacts: ResMut<FpProjectileImpacts>,
-    mut health: ResMut<FpPlayerHealth>,
-    mut dead: ResMut<FpPlayerDead>,
-    mut death_view: ResMut<FpDeathViewState>,
+    camera: Res<CameraRes>,
+    map: Res<MapRes>,
+    mut enemy_q: Query<(Entity, &mut Enemy)>,
+    mut mosquiton_q: Query<(Entity, &mut Mosquiton)>,
+    mut projectiles: ResMut<Projectiles>,
+    mut impacts: ResMut<ProjectileImpacts>,
+    mut health: ResMut<PlayerHealth>,
+    mut dead: ResMut<PlayerDead>,
+    mut death_view: ResMut<DeathViewState>,
+    mut camera_shake: ResMut<CameraShakeState>,
+    attack_state: Res<PlayerAttackState>,
+    mut burning_corpse_contact: ResMut<BurningCorpseContactHazardState>,
+    mut commands: Commands,
 ) {
     let dt = time.delta_secs();
 
@@ -494,37 +601,278 @@ fn tick_enemy_ai(
         return;
     }
 
-    let new_projs = tick_enemies(&mut enemies.0, camera.0.position, &map.0, dt);
-    projectiles.0.extend(new_projs);
-    let mosquiton_result = tick_mosquitons(&mut mosquitons.0, camera.0.position, &map.0, dt);
-    projectiles.0.extend(mosquiton_result.projectiles);
+    let player_pos = camera.0.position;
 
-    let projectile_result = tick_projectiles(&mut projectiles.0, camera.0.position, &map.0, dt);
-    impacts.0.extend(projectile_result.impacts);
+    // Tick enemies and collect dead entities for despawning.
+    let mut dead_enemies = Vec::new();
+    for (entity, mut enemy) in enemy_q.iter_mut() {
+        if let Some(proj) = tick_single_enemy(&mut enemy, player_pos, &map.0, dt) {
+            projectiles.0.push(proj);
+        }
+        if matches!(enemy.state, EnemyState::Dead) {
+            dead_enemies.push(entity);
+        }
+    }
+    for entity in dead_enemies {
+        commands.entity(entity).despawn();
+    }
+
+    // Tick mosquitons and collect dead entities for despawning.
+    let mut dead_mosquitons = Vec::new();
+    for (entity, mut mosquiton) in mosquiton_q.iter_mut() {
+        let (proj, dmg) = tick_single_mosquiton(&mut mosquiton, player_pos, &map.0, dt);
+        if let Some(p) = proj {
+            projectiles.0.push(p);
+        }
+        if let Some((amount, source)) = dmg {
+            apply_player_damage(
+                &mut health.0,
+                &mut dead.0,
+                &mut death_view,
+                &mut camera_shake,
+                &camera.0,
+                amount,
+                Some(source),
+            );
+        }
+        if matches!(mosquiton.state, MosquitonState::Dead) {
+            dead_mosquitons.push(entity);
+        }
+    }
+    for entity in dead_mosquitons {
+        commands.entity(entity).despawn();
+    }
+
+    destroy_projectiles_touching_active_flamethrower(
+        &camera.0,
+        &map.0,
+        &attack_state,
+        &mut projectiles.0,
+        &mut impacts.0,
+    );
+
+    let projectile_result = intercept_and_tick_projectiles(
+        &camera.0,
+        &map.0,
+        &attack_state,
+        &mut projectiles.0,
+        &mut impacts.0,
+        dt,
+    );
 
     apply_player_damage(
         &mut health.0,
         &mut dead.0,
         &mut death_view,
+        &mut camera_shake,
         &camera.0,
         projectile_result.player_damage,
         projectile_result.damage_source,
     );
+
+    // Collect burning corpses from remaining enemies and mosquitons.
+    let mut burning_corpses = Vec::new();
+    for (_, enemy) in enemy_q.iter() {
+        if matches!(enemy.state, EnemyState::BurningCorpse { .. }) {
+            burning_corpses.push(enemy.position);
+        }
+    }
+    for (_, mosquiton) in mosquiton_q.iter() {
+        if matches!(mosquiton.state, MosquitonState::BurningCorpse { .. }) {
+            burning_corpses.push(mosquiton.position);
+        }
+    }
+    let burning_corpse_contact_result = tick_burning_corpse_contact_damage(
+        &camera.0,
+        &burning_corpses,
+        attack_state.config(),
+        &mut burning_corpse_contact,
+        dt,
+    );
     apply_player_damage(
         &mut health.0,
         &mut dead.0,
         &mut death_view,
+        &mut camera_shake,
         &camera.0,
-        mosquiton_result.player_damage,
-        mosquiton_result.damage_source,
+        burning_corpse_contact_result.player_damage,
+        burning_corpse_contact_result.damage_source,
     );
+    tick_burning_corpse_crossfire_query(
+        &mut enemy_q,
+        &mut mosquiton_q,
+        &burning_corpses,
+        attack_state.config(),
+    );
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct BurningCorpseContactDamageResult {
+    player_damage: u32,
+    damage_source: Option<Vec2>,
+}
+
+fn tick_burning_corpse_contact_damage(
+    camera: &Camera,
+    burning_corpses: &[Vec2],
+    config: &FlamethrowerConfig,
+    state: &mut BurningCorpseContactHazardState,
+    dt: f32,
+) -> BurningCorpseContactDamageResult {
+    state.cooldown_remaining_secs = (state.cooldown_remaining_secs - dt).max(0.0);
+
+    if config.burning_corpse_contact_damage == 0 || config.burning_corpse_contact_radius <= 0.0 {
+        return BurningCorpseContactDamageResult::default();
+    }
+
+    assert!(
+        config.burning_corpse_contact_tick_ms > 0,
+        "burning_corpse_contact_tick_ms must be greater than zero"
+    );
+    if state.cooldown_remaining_secs > 0.0 {
+        return BurningCorpseContactDamageResult::default();
+    }
+
+    let Some(source) = closest_burning_corpse_to(
+        camera.position,
+        burning_corpses,
+        config.burning_corpse_contact_radius,
+    ) else {
+        return BurningCorpseContactDamageResult::default();
+    };
+
+    state.cooldown_remaining_secs = config.burning_corpse_contact_tick_secs();
+    BurningCorpseContactDamageResult {
+        player_damage: config.burning_corpse_contact_damage,
+        damage_source: Some(source),
+    }
+}
+
+#[cfg(test)]
+fn collect_burning_corpses(enemies: &[Enemy], mosquitons: &[Mosquiton]) -> Vec<Vec2> {
+    let mut corpses = Vec::new();
+    for enemy in enemies {
+        if matches!(enemy.state, EnemyState::BurningCorpse { .. }) {
+            corpses.push(enemy.position);
+        }
+    }
+    for mosquiton in mosquitons {
+        if matches!(mosquiton.state, MosquitonState::BurningCorpse { .. }) {
+            corpses.push(mosquiton.position);
+        }
+    }
+    corpses
+}
+
+#[cfg(test)]
+fn tick_burning_corpse_crossfire(
+    enemies: &mut [Enemy],
+    mosquitons: &mut [Mosquiton],
+    burning_corpses: &[Vec2],
+    config: &FlamethrowerConfig,
+) {
+    if config.burning_corpse_crossfire_damage == 0 || burning_corpses.is_empty() {
+        return;
+    }
+
+    let fire_death_secs = config.burning_corpse_duration_secs;
+    let radius = config.burning_corpse_contact_radius;
+    let damage = config.burning_corpse_crossfire_damage;
+
+    for mosquiton in mosquitons.iter_mut() {
+        if !mosquiton.is_alive() {
+            continue;
+        }
+        if closest_burning_corpse_to(mosquiton.position, burning_corpses, radius).is_some() {
+            mosquiton.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+        }
+    }
+
+    for enemy in enemies.iter_mut() {
+        if !enemy.is_alive() {
+            continue;
+        }
+        if closest_burning_corpse_to(enemy.position, burning_corpses, radius).is_some() {
+            enemy.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+        }
+    }
+}
+
+fn closest_burning_corpse_to(pos: Vec2, corpses: &[Vec2], radius: f32) -> Option<Vec2> {
+    let radius_sq = radius * radius;
+    corpses
+        .iter()
+        .filter_map(|&corpse| {
+            let dist_sq = corpse.distance_squared(pos);
+            if dist_sq <= radius_sq {
+                Some((corpse, dist_sq))
+            } else {
+                None
+            }
+        })
+        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(pos, _)| pos)
+}
+
+fn tick_burning_corpse_crossfire_query(
+    enemy_q: &mut Query<(Entity, &mut Enemy)>,
+    mosquiton_q: &mut Query<(Entity, &mut Mosquiton)>,
+    burning_corpses: &[Vec2],
+    config: &FlamethrowerConfig,
+) {
+    if config.burning_corpse_crossfire_damage == 0 || burning_corpses.is_empty() {
+        return;
+    }
+
+    let fire_death_secs = config.burning_corpse_duration_secs;
+    let radius = config.burning_corpse_contact_radius;
+    let damage = config.burning_corpse_crossfire_damage;
+
+    for (_, mut mosquiton) in mosquiton_q.iter_mut() {
+        if !mosquiton.is_alive() {
+            continue;
+        }
+        if closest_burning_corpse_to(mosquiton.position, burning_corpses, radius).is_some() {
+            mosquiton.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+        }
+    }
+
+    for (_, mut enemy) in enemy_q.iter_mut() {
+        if !enemy.is_alive() {
+            continue;
+        }
+        if closest_burning_corpse_to(enemy.position, burning_corpses, radius).is_some() {
+            enemy.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+        }
+    }
+}
+
+fn intercept_and_tick_projectiles(
+    camera: &Camera,
+    map: &Map,
+    attack_state: &PlayerAttackState,
+    projectiles: &mut Vec<Projectile>,
+    impacts: &mut Vec<ProjectileImpact>,
+    dt: f32,
+) -> ProjectileTickResult {
+    destroy_projectiles_touching_active_flamethrower(
+        camera,
+        map,
+        attack_state,
+        projectiles,
+        impacts,
+    );
+    let result = tick_projectiles(projectiles, camera.position, map, dt);
+    impacts.extend(result.impacts.iter().cloned());
+    result
 }
 
 fn apply_player_damage(
     health: &mut u32,
     dead: &mut bool,
-    death_view: &mut FpDeathViewState,
-    camera: &FpCamera,
+    death_view: &mut DeathViewState,
+    camera_shake: &mut CameraShakeState,
+    camera: &Camera,
     damage: u32,
     damage_source: Option<Vec2>,
 ) {
@@ -532,6 +880,7 @@ fn apply_player_damage(
         return;
     }
 
+    request_camera_shake(camera_shake);
     *health = health.saturating_sub(damage);
     if *health == 0 {
         *dead = true;
@@ -544,130 +893,176 @@ fn apply_player_damage(
 
 #[allow(clippy::too_many_arguments)]
 fn handle_shooting(
-    camera: Res<FpCameraRes>,
-    map: Res<FpMapRes>,
-    config: Res<FpConfig>,
-    mut enemies: ResMut<FpEnemies>,
-    mut mosquitons: ResMut<FpMosquitons>,
-    mut projectiles: ResMut<FpProjectiles>,
-    mut impacts: ResMut<FpProjectileImpacts>,
-    dead: Res<FpPlayerDead>,
-    mut shoot: ResMut<FpShootRequest>,
+    camera: Res<CameraRes>,
+    map: Res<MapRes>,
+    config: Res<Config>,
+    time: Res<Time>,
+    mut enemy_q: Query<(Entity, &mut Enemy)>,
+    mut mosquiton_q: Query<(Entity, &mut Mosquiton)>,
+    mut projectiles: ResMut<Projectiles>,
+    mut impacts: ResMut<ProjectileImpacts>,
+    mut char_decals: ResMut<CharDecals>,
+    dead: Res<PlayerDead>,
+    mut shoot: ResMut<ShootRequest>,
+    mut attack_input: ResMut<AttackInput>,
+    mut attack_loadout: ResMut<AttackLoadout>,
+    mut attack_state: ResMut<PlayerAttackState>,
 ) {
-    if dead.0 || !shoot.0 {
+    if dead.0 {
+        shoot.0 = false;
+        attack_input.clear_edges();
         return;
     }
-    shoot.0 = false;
 
-    let enemy_hit = hitscan(&camera.0, &enemies.0, &map.0);
-    let mosquiton_hit = hitscan_mosquitons(&camera.0, &mosquitons.0, &map.0);
-    let projectile_hit = hitscan_projectiles(&camera.0, &projectiles.0, &map.0);
-
-    let mut hit = enemy_hit
-        .enemy_idx
-        .map(|enemy_idx| (FpShotHit::Enemy(enemy_idx), enemy_hit.distance));
-    if let Some((mosquiton_idx, distance)) = mosquiton_hit
-        && hit.is_none_or(|(_, current_distance)| distance < current_distance)
-    {
-        hit = Some((FpShotHit::Mosquiton(mosquiton_idx), distance));
-    }
-    if let Some((projectile_idx, distance)) = projectile_hit
-        && hit.is_none_or(|(_, current_distance)| distance < current_distance)
-    {
-        hit = Some((FpShotHit::Projectile(projectile_idx), distance));
+    // Gather enemies into Vecs for slice-based attack processing.
+    let mut enemy_entities: Vec<Entity> = Vec::new();
+    let mut enemies: Vec<Enemy> = Vec::new();
+    for (entity, enemy) in enemy_q.iter() {
+        enemy_entities.push(entity);
+        enemies.push(enemy.clone());
     }
 
-    match hit {
-        Some((FpShotHit::Enemy(enemy_idx), distance)) => {
-            enemies.0[enemy_idx].take_damage(config.hitscan_damage);
-            info!(
-                "Hit enemy {enemy_idx} at distance {distance:.1} — health: {}",
-                enemies.0[enemy_idx].health
-            );
-        }
-        Some((FpShotHit::Mosquiton(mosquiton_idx), distance)) => {
-            mosquitons.0[mosquiton_idx].take_damage(config.hitscan_damage);
-            info!(
-                "Hit mosquiton {mosquiton_idx} at distance {distance:.1} — health: {}",
-                mosquitons.0[mosquiton_idx].health
-            );
-        }
-        Some((FpShotHit::Projectile(projectile_idx), _)) => {
-            if let Some(projectile) = projectiles.0.get_mut(projectile_idx) {
-                projectile.alive = false;
-                impacts
-                    .0
-                    .push(FpProjectileImpact::destroy(projectile.position));
-            }
-            projectiles.0.retain(|projectile| projectile.alive);
-        }
-        None => {}
+    // Gather mosquitons into Vecs for slice-based attack processing.
+    let mut mosquiton_entities: Vec<Entity> = Vec::new();
+    let mut mosquitons: Vec<Mosquiton> = Vec::new();
+    for (entity, mosquiton) in mosquiton_q.iter() {
+        mosquiton_entities.push(entity);
+        mosquitons.push(mosquiton.clone());
     }
-}
 
-#[derive(Clone, Copy, Debug)]
-enum FpShotHit {
-    Enemy(usize),
-    Mosquiton(usize),
-    Projectile(usize),
+    process_player_attacks(
+        &camera.0,
+        &map.0,
+        config.hitscan_damage,
+        time.delta_secs(),
+        time.elapsed_secs(),
+        &mut attack_input,
+        &mut attack_loadout,
+        &mut attack_state,
+        &mut enemies,
+        &mut mosquitons,
+        &mut projectiles.0,
+        &mut impacts.0,
+        &mut char_decals.0,
+        config.screen_height as f32,
+        &mut shoot.0,
+    );
+
+    // Scatter: write back changes to entities.
+    // Despawn is handled by tick_enemy_ai which runs after this system.
+    for (i, &entity) in enemy_entities.iter().enumerate() {
+        if !matches!(enemies[i].state, EnemyState::Dead)
+            && let Ok((_, mut e)) = enemy_q.get_mut(entity)
+        {
+            *e = enemies[i].clone();
+        }
+    }
+
+    for (i, &entity) in mosquiton_entities.iter().enumerate() {
+        if !matches!(mosquitons[i].state, MosquitonState::Dead)
+            && let Ok((_, mut m)) = mosquiton_q.get_mut(entity)
+        {
+            *m = mosquitons[i].clone();
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn update_fp_view(
     mut sprite_assets: ResMut<Assets<CxSpriteAsset>>,
-    handle: Res<FpSpriteHandle>,
-    textures: Res<FpWallTextures>,
-    camera: Res<FpCameraRes>,
-    map: Res<FpMapRes>,
-    palette: Res<FpPaletteRes>,
-    config: Res<FpConfig>,
-    sources: FpRenderSources,
-    health: Res<FpPlayerHealth>,
-    dead: Res<FpPlayerDead>,
-    death_view: Res<FpDeathViewState>,
+    handle: Res<SpriteHandle>,
+    sources: RenderSources,
+    view: ViewResources,
+    time: Res<Time>,
+    enemy_q: Query<(&Enemy, &EnemySpriteIndex)>,
+    mosquiton_q: Query<&Mosquiton>,
 ) {
-    let mut image = CxImage::empty(UVec2::new(config.screen_width, config.screen_height));
+    let mut image = CxImage::empty(UVec2::new(
+        view.config.screen_width,
+        view.config.screen_height,
+    ));
 
-    let enemy_bbs =
-        billboards_from_enemies_indexed(&sources.enemies.0, &sources.indices.0, &sources.pairs.0);
+    // Gather enemies with sprite indices and mosquitons for billboard rendering.
+    let mut enemies: Vec<Enemy> = Vec::new();
+    let mut indices: Vec<usize> = Vec::new();
+    for (e, idx) in enemy_q.iter() {
+        enemies.push(e.clone());
+        indices.push(idx.0);
+    }
+    let mosquitons: Vec<Mosquiton> = mosquiton_q.iter().cloned().collect();
+
+    let enemy_bbs = billboards_from_enemies_indexed(&enemies, &indices, &sources.pairs.0);
+    let corpse_flame_bbs = burning_corpse_flame_billboards(
+        &enemies,
+        &indices,
+        &sources.pairs.0,
+        &mosquitons,
+        &sources.mosquiton_sprites.0,
+        &CorpseFlameContext {
+            attack_sprites: &view.attack_sprites,
+            config: view.attack_state.config(),
+            camera: &view.camera.0,
+            elapsed_secs: time.elapsed_secs(),
+        },
+    );
     let proj_bbs =
         billboards_from_projectiles(&sources.projectiles.0, &sources.blood_shot_sprites.0.hover);
     let impact_bbs =
         billboards_from_projectile_impacts(&sources.impacts.0, &sources.blood_shot_sprites.0);
-    let mosquiton_bbs =
-        billboards_from_mosquitons(&sources.mosquitons.0, &sources.mosquiton_sprites.0);
+    let mosquiton_bbs = billboards_from_mosquitons(&mosquitons, &sources.mosquiton_sprites.0);
     let all_bbs: Vec<Billboard> = sources
         .static_bbs
         .0
         .iter()
         .cloned()
+        .chain(corpse_flame_bbs)
         .chain(enemy_bbs)
         .chain(mosquiton_bbs)
         .chain(impact_bbs)
         .chain(proj_bbs)
         .collect();
 
-    render_fp_scene(
+    let impact_sprite = wall_impact_sprite(&view.attack_state, &view.attack_sprites);
+    let impact_sprites = impact_sprite.into_iter().collect::<Vec<_>>();
+    let wall_effects = FpWallRenderEffects {
+        char_decals: &sources.char_decals.0,
+        char_mask: Some(flame_wall_mask(&view.attack_sprites)),
+        surface_sprites: &impact_sprites,
+    };
+
+    render_fp_scene_with_effects(
         &mut image,
-        &map.0,
-        &camera.0,
-        &textures.0,
-        &palette.0,
+        &view.map.0,
+        &view.camera.0,
+        &view.textures.0,
+        &view.palette.0,
         &all_bbs,
+        &wall_effects,
     );
 
-    if dead.0 {
-        draw_overlay_tint(&mut image, 2, death_red_density(&death_view));
+    apply_framebuffer_offset(&mut image, view.camera_shake.current_offset);
+    draw_player_attack_overlays(
+        &mut image,
+        &view.camera.0,
+        &view.map.0,
+        &view.attack_sprites,
+        &view.attack_loadout,
+        &view.attack_state,
+        time.elapsed_secs(),
+    );
+
+    if view.dead.0 {
+        draw_overlay_tint(&mut image, 2, death_red_density(&view.death_view));
     } else {
         draw_crosshair(&mut image, 4);
     }
 
     // Health bar at top-left.
     let bar_w = 20;
-    let filled = (health.0 as i32 * bar_w / config.player_max_health as i32).max(0);
+    let filled = (view.health.0 as i32 * bar_w / view.config.player_max_health as i32).max(0);
     {
         let data = image.data_mut();
-        let w = config.screen_width as i32;
+        let w = view.config.screen_width as i32;
         for x in 1..=bar_w {
             let color = if x <= filled { 2 } else { 1 };
             data[(w + x) as usize] = color;
@@ -680,18 +1075,404 @@ fn update_fp_view(
     }
 }
 
+struct CorpseFlameContext<'a> {
+    attack_sprites: &'a PlayerAttackSprites,
+    config: &'a FlamethrowerConfig,
+    camera: &'a Camera,
+    elapsed_secs: f32,
+}
+
+fn burning_corpse_flame_billboards(
+    enemies: &[Enemy],
+    enemy_sprite_indices: &[usize],
+    enemy_sprite_pairs: &[(CxImage, CxImage)],
+    mosquitons: &[Mosquiton],
+    mosquiton_sprites: &MosquitonBillboardSprites,
+    ctx: &CorpseFlameContext<'_>,
+) -> Vec<Billboard> {
+    let mut billboards = Vec::new();
+    for (index, enemy) in enemies.iter().enumerate() {
+        if let EnemyState::BurningCorpse { seed, .. } = enemy.state {
+            let pair_index = enemy_sprite_indices.get(index).copied().unwrap_or(0);
+            let Some((corpse_sprite, _death_sprite)) = enemy_sprite_pairs
+                .get(pair_index)
+                .or_else(|| enemy_sprite_pairs.first())
+            else {
+                continue;
+            };
+            push_burning_corpse_flames(
+                &mut billboards,
+                enemy.position,
+                0.0,
+                1.0,
+                seed,
+                corpse_sprite,
+                ctx,
+            );
+        }
+    }
+    for mosquiton in mosquitons {
+        if let MosquitonState::BurningCorpse { seed, .. } = mosquiton.state {
+            let corpse_sprite = mosquiton_sprites.alive_sprite_at(0.0);
+            push_burning_corpse_flames(
+                &mut billboards,
+                mosquiton.position,
+                mosquiton.height,
+                mosquiton.config.billboard_height,
+                seed,
+                corpse_sprite,
+                ctx,
+            );
+        }
+    }
+    billboards
+}
+fn push_burning_corpse_flames(
+    billboards: &mut Vec<Billboard>,
+    position: Vec2,
+    height: f32,
+    base_world_height: f32,
+    seed: u32,
+    corpse_sprite: &CxImage,
+    ctx: &CorpseFlameContext<'_>,
+) {
+    if ctx.config.burning_flame_count == 0 {
+        return;
+    }
+
+    let to_corpse = position - ctx.camera.position;
+    let distance = to_corpse.length().max(0.1);
+
+    let behind_dir = if distance > 0.001 {
+        to_corpse / distance
+    } else {
+        ctx.camera.direction()
+    };
+
+    let right = Vec2::new(-ctx.camera.direction().y, ctx.camera.direction().x);
+
+    let fire_config = ctx.config.fire_death_config();
+
+    let flames = perimeter_flames_from_mask(
+        seed,
+        corpse_sprite.width(),
+        corpse_sprite.height(),
+        |x, y| corpse_sprite.data()[y * corpse_sprite.width() + x] != TRANSPARENT_INDEX,
+        &fire_config,
+    );
+
+    let px_to_world = base_world_height / corpse_sprite.height() as f32;
+
+    for flame in flames {
+        let lateral_units = flame.offset_px.x * px_to_world;
+        let vertical_units = flame.offset_px.y * px_to_world;
+
+        billboards.push(Billboard {
+            position: position + behind_dir * 0.04 + right * lateral_units,
+            height: height + vertical_units,
+            world_height: base_world_height * 0.35 * flame.scale,
+            sprite: ctx
+                .attack_sprites
+                .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs)
+                .clone(),
+        });
+    }
+}
+
 /// Set to `true` from your input system to trigger a hitscan shot.
 /// The plugin resets it to `false` after processing.
 #[derive(Resource, Default)]
-pub struct FpShootRequest(pub bool);
+pub struct ShootRequest(pub bool);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn contact_hazard_test_config() -> FlamethrowerConfig {
+        let mut config = FlamethrowerConfig::load();
+        config.burning_corpse_contact_damage = 1;
+        config.burning_corpse_contact_tick_ms = 300;
+        config.burning_corpse_contact_radius = 0.6;
+        config
+    }
+
+    #[test]
+    fn burning_corpse_flames_are_deterministic_billboards() {
+        let sprites = PlayerAttackSprites::load();
+        let enemy_pairs = vec![(make_enemy_sprite(24, 2), make_death_sprite(24, 1))];
+        let mosquiton_sprites = make_mosquiton_billboard_sprites().unwrap();
+        let config = FlamethrowerConfig::load();
+        let camera = Camera {
+            position: Vec2::new(1.0, 1.0),
+            angle: 0.0,
+            ..Default::default()
+        };
+        let mut enemies = vec![Enemy::new(Vec2::new(3.0, 1.0), 10, 1.0)];
+        enemies[0].state = EnemyState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+
+        let ctx = CorpseFlameContext {
+            attack_sprites: &sprites,
+            config: &config,
+            camera: &camera,
+            elapsed_secs: 0.2,
+        };
+
+        let first = burning_corpse_flame_billboards(
+            &enemies,
+            &[0],
+            &enemy_pairs,
+            &[],
+            &mosquiton_sprites,
+            &ctx,
+        );
+        let second = burning_corpse_flame_billboards(
+            &enemies,
+            &[0],
+            &enemy_pairs,
+            &[],
+            &mosquiton_sprites,
+            &ctx,
+        );
+
+        assert_eq!(first.len(), config.burning_flame_count);
+        assert_eq!(second.len(), first.len());
+        assert_eq!(first[0].position, second[0].position);
+        assert_eq!(first[0].height, second[0].height);
+        assert!(
+            first
+                .iter()
+                .any(|flame| flame.position.distance(enemies[0].position) > 0.05)
+        );
+    }
+
+    #[test]
+    fn mosquiton_burning_corpse_flames_use_frozen_frame() {
+        let sprites = PlayerAttackSprites::load();
+        let enemy_pairs = vec![(make_enemy_sprite(24, 2), make_death_sprite(24, 1))];
+        let mosquiton_sprites = make_mosquiton_billboard_sprites().unwrap();
+        let config = FlamethrowerConfig::load();
+        let camera = Camera {
+            position: Vec2::new(1.0, 1.0),
+            angle: 0.0,
+            ..Default::default()
+        };
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(3.0, 1.0),
+            MosquitonConfig::default(),
+        )];
+        mosquitons[0].state = MosquitonState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+
+        let ctx = CorpseFlameContext {
+            attack_sprites: &sprites,
+            config: &config,
+            camera: &camera,
+            elapsed_secs: 0.2,
+        };
+
+        let first = burning_corpse_flame_billboards(
+            &[],
+            &[],
+            &enemy_pairs,
+            &mosquitons,
+            &mosquiton_sprites,
+            &ctx,
+        );
+        mosquitons[0].animation_time = 0.75;
+        let second = burning_corpse_flame_billboards(
+            &[],
+            &[],
+            &enemy_pairs,
+            &mosquitons,
+            &mosquiton_sprites,
+            &ctx,
+        );
+
+        assert_eq!(second.len(), first.len());
+        assert_eq!(first[0].position, second[0].position);
+        assert_eq!(first[0].height, second[0].height);
+    }
+
+    #[test]
+    fn burning_corpse_contact_damage_ticks_on_global_cooldown() {
+        let config = contact_hazard_test_config();
+        let camera = Camera {
+            position: Vec2::new(1.0, 1.0),
+            ..Default::default()
+        };
+        let mut enemies = vec![Enemy::new(Vec2::new(1.5, 1.0), 10, 1.0)];
+        enemies[0].state = EnemyState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+        let corpses = collect_burning_corpses(&enemies, &[]);
+        let mut state = BurningCorpseContactHazardState::default();
+
+        let first = tick_burning_corpse_contact_damage(&camera, &corpses, &config, &mut state, 0.0);
+        let cooldown_blocked =
+            tick_burning_corpse_contact_damage(&camera, &corpses, &config, &mut state, 0.1);
+        let after_tick =
+            tick_burning_corpse_contact_damage(&camera, &corpses, &config, &mut state, 0.201);
+
+        assert_eq!(first.player_damage, 1);
+        assert_eq!(first.damage_source, Some(enemies[0].position));
+        assert_eq!(cooldown_blocked.player_damage, 0);
+        assert_eq!(after_tick.player_damage, 1);
+    }
+
+    #[test]
+    fn burning_corpse_contact_damage_stops_when_away_or_dead() {
+        let config = contact_hazard_test_config();
+        let camera = Camera {
+            position: Vec2::new(1.0, 1.0),
+            ..Default::default()
+        };
+        let mut enemies = vec![
+            Enemy::new(Vec2::new(2.0, 1.0), 10, 1.0),
+            Enemy::new(Vec2::new(1.2, 1.0), 10, 1.0),
+        ];
+        enemies[0].state = EnemyState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+        enemies[1].state = EnemyState::Dead;
+        let corpses = collect_burning_corpses(&enemies, &[]);
+        let mut state = BurningCorpseContactHazardState::default();
+
+        let result =
+            tick_burning_corpse_contact_damage(&camera, &corpses, &config, &mut state, 0.3);
+
+        assert_eq!(result.player_damage, 0);
+    }
+
+    #[test]
+    fn multiple_burning_corpses_do_not_stack_contact_damage() {
+        let config = contact_hazard_test_config();
+        let camera = Camera {
+            position: Vec2::new(1.0, 1.0),
+            ..Default::default()
+        };
+        let mut enemies = [
+            Enemy::new(Vec2::new(1.4, 1.0), 10, 1.0),
+            Enemy::new(Vec2::new(1.5, 1.0), 10, 1.0),
+        ];
+        for enemy in &mut enemies {
+            enemy.state = EnemyState::BurningCorpse {
+                timer: 1.0,
+                seed: 42,
+            };
+        }
+        let corpses = collect_burning_corpses(&enemies, &[]);
+        let mut state = BurningCorpseContactHazardState::default();
+
+        let first = tick_burning_corpse_contact_damage(&camera, &corpses, &config, &mut state, 0.0);
+        let same_frame =
+            tick_burning_corpse_contact_damage(&camera, &corpses, &config, &mut state, 0.0);
+
+        assert_eq!(first.player_damage, 1);
+        assert_eq!(first.damage_source, Some(enemies[0].position));
+        assert_eq!(same_frame.player_damage, 0);
+    }
+
+    #[test]
+    fn mosquiton_burning_corpse_contact_damage_uses_same_hazard() {
+        let config = contact_hazard_test_config();
+        let camera = Camera {
+            position: Vec2::new(1.0, 1.0),
+            ..Default::default()
+        };
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(1.2, 1.0),
+            MosquitonConfig::default(),
+        )];
+        mosquitons[0].state = MosquitonState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+        let corpses = collect_burning_corpses(&[], &mosquitons);
+        let mut state = BurningCorpseContactHazardState::default();
+
+        let result =
+            tick_burning_corpse_contact_damage(&camera, &corpses, &config, &mut state, 0.0);
+
+        assert_eq!(result.player_damage, 1);
+        assert_eq!(result.damage_source, Some(mosquitons[0].position));
+    }
+
+    #[test]
+    fn crossfire_damage_hits_living_enemy_near_burning_mosquiton() {
+        let mut config = FlamethrowerConfig::load();
+        config.burning_corpse_crossfire_damage = 10;
+        let mut enemies = vec![Enemy::new(Vec2::new(1.0, 0.0), 10, 1.0)];
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(1.3, 0.0),
+            MosquitonConfig::default(),
+        )];
+        mosquitons[0].state = MosquitonState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+        let corpses = collect_burning_corpses(&enemies, &mosquitons);
+
+        tick_burning_corpse_crossfire(&mut enemies, &mut mosquitons, &corpses, &config);
+
+        assert_eq!(enemies[0].health, 0);
+        assert!(matches!(enemies[0].state, EnemyState::BurningCorpse { .. }));
+    }
+
+    #[test]
+    fn crossfire_damage_hits_living_mosquiton_near_burning_enemy() {
+        let mut config = FlamethrowerConfig::load();
+        config.burning_corpse_crossfire_damage = MosquitonConfig::default().health;
+        let mut enemies = vec![Enemy::new(Vec2::new(1.0, 0.0), 10, 1.0)];
+        enemies[0].state = EnemyState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(1.3, 0.0),
+            MosquitonConfig::default(),
+        )];
+        let corpses = collect_burning_corpses(&enemies, &mosquitons);
+
+        tick_burning_corpse_crossfire(&mut enemies, &mut mosquitons, &corpses, &config);
+
+        assert_eq!(mosquitons[0].health, 0);
+        assert!(matches!(
+            mosquitons[0].state,
+            MosquitonState::BurningCorpse { .. }
+        ));
+    }
+
+    #[test]
+    fn crossfire_damage_ignores_out_of_range() {
+        let mut config = FlamethrowerConfig::load();
+        config.burning_corpse_crossfire_damage = 2;
+        config.burning_corpse_contact_radius = 0.5;
+        let mut enemies = vec![Enemy::new(Vec2::new(0.0, 0.0), 10, 1.0)];
+        let mut mosquitons = vec![Mosquiton::new(
+            Vec2::new(1.0, 0.0),
+            MosquitonConfig::default(),
+        )];
+        mosquitons[0].state = MosquitonState::BurningCorpse {
+            timer: 1.0,
+            seed: 42,
+        };
+        let corpses = collect_burning_corpses(&enemies, &mosquitons);
+
+        tick_burning_corpse_crossfire(&mut enemies, &mut mosquitons, &corpses, &config);
+
+        assert_eq!(enemies[0].health, 10);
+    }
+
     #[test]
     fn quick_turn_allows_simultaneous_press_and_debounces_hold() {
-        let mut debounce = FpQuickTurnDebounce::default();
+        let mut debounce = QuickTurnDebounce::default();
         assert!(resolve_quick_turn_pressed(
             true,
             true,
@@ -744,7 +1525,7 @@ mod tests {
 
     #[test]
     fn quick_turn_allows_staggered_press_inside_grace() {
-        let mut debounce = FpQuickTurnDebounce::default();
+        let mut debounce = QuickTurnDebounce::default();
         assert!(!resolve_quick_turn_pressed(
             true,
             false,
@@ -773,7 +1554,7 @@ mod tests {
 
     #[test]
     fn quick_turn_blocks_staggered_back_then_shift_after_grace_until_release() {
-        let mut debounce = FpQuickTurnDebounce::default();
+        let mut debounce = QuickTurnDebounce::default();
         assert!(!resolve_quick_turn_pressed(
             true,
             false,
@@ -818,11 +1599,11 @@ mod tests {
 
     #[test]
     fn quick_turn_animates_left_over_point_two_seconds() {
-        let mut camera = FpCamera {
+        let mut camera = Camera {
             angle: 0.25,
             ..Default::default()
         };
-        let mut quick_turn = FpQuickTurnState::default();
+        let mut quick_turn = QuickTurnState::default();
         request_quick_turn(&mut quick_turn);
 
         tick_quick_turn(&mut camera, &mut quick_turn, 0.1);
@@ -836,9 +1617,9 @@ mod tests {
 
     #[test]
     fn quick_turn_request_ignored_while_active() {
-        let mut quick_turn = FpQuickTurnState::default();
+        let mut quick_turn = QuickTurnState::default();
         request_quick_turn(&mut quick_turn);
-        tick_quick_turn(&mut FpCamera::default(), &mut quick_turn, 0.05);
+        tick_quick_turn(&mut Camera::default(), &mut quick_turn, 0.05);
         let remaining = quick_turn.remaining_radians;
         request_quick_turn(&mut quick_turn);
         assert_eq!(quick_turn.remaining_radians, remaining);
@@ -846,12 +1627,12 @@ mod tests {
 
     #[test]
     fn death_view_turns_toward_killer_and_red_increases() {
-        let mut camera = FpCamera {
+        let mut camera = Camera {
             position: Vec2::ZERO,
             angle: 0.0,
             ..Default::default()
         };
-        let mut death_view = FpDeathViewState::default();
+        let mut death_view = DeathViewState::default();
 
         request_death_view(&mut death_view, &camera, Vec2::Y);
         tick_death_view(&mut camera, &mut death_view, DEATH_TURN_DURATION_SECS * 0.5);
@@ -867,12 +1648,12 @@ mod tests {
 
     #[test]
     fn death_view_uses_shortest_turn_direction() {
-        let mut camera = FpCamera {
+        let mut camera = Camera {
             position: Vec2::ZERO,
             angle: 350.0_f32.to_radians(),
             ..Default::default()
         };
-        let mut death_view = FpDeathViewState::default();
+        let mut death_view = DeathViewState::default();
         let ten_degrees = Vec2::new(10.0_f32.to_radians().cos(), 10.0_f32.to_radians().sin());
 
         request_death_view(&mut death_view, &camera, ten_degrees);
@@ -880,7 +1661,7 @@ mod tests {
         assert!((camera.angle - 10.0_f32.to_radians()).abs() < 1e-5);
 
         camera.angle = 10.0_f32.to_radians();
-        let mut death_view = FpDeathViewState::default();
+        let mut death_view = DeathViewState::default();
         let three_fifty_degrees =
             Vec2::new(350.0_f32.to_radians().cos(), 350.0_f32.to_radians().sin());
         request_death_view(&mut death_view, &camera, three_fifty_degrees);
@@ -890,19 +1671,21 @@ mod tests {
 
     #[test]
     fn player_damage_latches_first_killing_source() {
-        let camera = FpCamera {
+        let camera = Camera {
             position: Vec2::ZERO,
             angle: 0.0,
             ..Default::default()
         };
         let mut health = 10;
         let mut dead = false;
-        let mut death_view = FpDeathViewState::default();
+        let mut death_view = DeathViewState::default();
+        let mut camera_shake = CameraShakeState::default();
 
         apply_player_damage(
             &mut health,
             &mut dead,
             &mut death_view,
+            &mut camera_shake,
             &camera,
             10,
             Some(Vec2::Y),
@@ -912,6 +1695,7 @@ mod tests {
             &mut health,
             &mut dead,
             &mut death_view,
+            &mut camera_shake,
             &camera,
             10,
             Some(Vec2::NEG_Y),
@@ -921,5 +1705,130 @@ mod tests {
         assert_eq!(health, 0);
         assert!((first_target - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
         assert_eq!(death_view.target_angle, first_target);
+    }
+
+    #[test]
+    fn player_damage_requests_camera_shake() {
+        let camera = Camera::default();
+        let mut health = 100;
+        let mut dead = false;
+        let mut death_view = DeathViewState::default();
+        let mut camera_shake = CameraShakeState::default();
+
+        apply_player_damage(
+            &mut health,
+            &mut dead,
+            &mut death_view,
+            &mut camera_shake,
+            &camera,
+            1,
+            None,
+        );
+
+        assert_eq!(health, 99);
+        assert!(!dead);
+        assert_eq!(camera_shake.intensity, CAMERA_SHAKE_BASE_INTENSITY);
+    }
+
+    #[test]
+    fn active_flamethrower_intercepts_projectile_before_projectile_damage() {
+        let camera = Camera {
+            position: Vec2::ZERO,
+            angle: 0.0,
+            ..Default::default()
+        };
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut loadout = AttackLoadout::default();
+        let mut attack_state = PlayerAttackState::default();
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut setup_projectiles = Vec::new();
+        let mut setup_impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot_request = false;
+
+        process_player_attacks(
+            &camera,
+            &map,
+            15,
+            1.0 / 60.0,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut attack_state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut setup_projectiles,
+            &mut setup_impacts,
+            &mut char_decals,
+            144.0,
+            &mut shoot_request,
+        );
+
+        let mut projectiles = vec![Projectile {
+            position: Vec2::new(0.7, 0.0),
+            source_position: Vec2::new(3.0, 0.0),
+            direction: -Vec2::X,
+            speed: 10.0,
+            radius: 0.3,
+            damage: 10,
+            lifetime: 1.0,
+            alive: true,
+        }];
+        let mut impacts = Vec::new();
+
+        let result = intercept_and_tick_projectiles(
+            &camera,
+            &map,
+            &attack_state,
+            &mut projectiles,
+            &mut impacts,
+            1.0,
+        );
+
+        assert_eq!(result.player_damage, 0);
+        assert!(projectiles.is_empty());
+        assert_eq!(impacts.len(), 1);
+    }
+
+    #[test]
+    fn camera_shake_reinforces_decays_and_clears() {
+        let mut camera_shake = CameraShakeState::default();
+        request_camera_shake(&mut camera_shake);
+        request_camera_shake(&mut camera_shake);
+
+        assert_eq!(camera_shake.intensity, CAMERA_SHAKE_BASE_INTENSITY * 2.0);
+
+        tick_camera_shake(&mut camera_shake, 0.1, 0.0, 1.0);
+        assert_eq!(
+            camera_shake.current_offset,
+            IVec2::new((CAMERA_SHAKE_BASE_INTENSITY * 2.0) as i32, 0)
+        );
+        assert!(camera_shake.intensity < CAMERA_SHAKE_BASE_INTENSITY * 2.0);
+
+        camera_shake.intensity = CAMERA_SHAKE_THRESHOLD * 0.5;
+        camera_shake.current_offset = IVec2::new(1, 1);
+        tick_camera_shake(&mut camera_shake, 0.016, 0.0, 0.0);
+        assert_eq!(camera_shake.intensity, 0.0);
+        assert_eq!(camera_shake.current_offset, IVec2::ZERO);
+    }
+
+    #[test]
+    fn framebuffer_offset_clamps_edges() {
+        let mut image = CxImage::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9], 3);
+
+        apply_framebuffer_offset(&mut image, IVec2::new(1, 0));
+
+        assert_eq!(image.data(), &[1, 1, 2, 4, 4, 5, 7, 7, 8]);
     }
 }

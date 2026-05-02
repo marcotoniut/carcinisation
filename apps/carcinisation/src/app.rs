@@ -21,8 +21,8 @@ use bevy_inspector_egui::{
     bevy_egui::{EguiContext, EguiPrimaryContextPass, PrimaryEguiContext, egui},
     bevy_inspector,
 };
-use carcinisation_core::bevy_utils::despawn_entities;
 use carcinisation_core::components::{DespawnMark, VolumeSettings};
+use carcinisation_core::systems::despawn_entities;
 #[cfg(not(target_arch = "wasm32"))]
 use dotenvy::dotenv_override;
 

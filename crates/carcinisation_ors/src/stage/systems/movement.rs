@@ -1,4 +1,5 @@
 use crate::stage::{
+    components::interactive::BurningCorpse,
     components::placement::{Airborne, Depth},
     enemy::{
         components::{
@@ -23,6 +24,7 @@ pub fn sync_enemy_continuous_depth_from_targeting_z(
         (&mut EnemyContinuousDepth, &TargetingValueZ),
         (
             With<Enemy>,
+            Without<BurningCorpse>,
             Or<(Added<TargetingValueZ>, Changed<TargetingValueZ>)>,
         ),
     >,
@@ -41,6 +43,7 @@ pub fn derive_enemy_depth_from_continuous(
         (Entity, &EnemyContinuousDepth, &mut Depth),
         (
             With<Enemy>,
+            Without<BurningCorpse>,
             Or<(Added<EnemyContinuousDepth>, Changed<EnemyContinuousDepth>)>,
         ),
     >,
@@ -89,7 +92,10 @@ pub fn update_non_enemy_depth_from_targeting_z(
 /// cleanup ever regresses.
 pub fn circle_around(
     time: Res<Time<StageTimeDomain>>,
-    mut query: Query<(&CircleAround, &mut WorldPos), Without<WingsBroken>>,
+    mut query: Query<
+        (&CircleAround, &mut WorldPos),
+        (Without<WingsBroken>, Without<BurningCorpse>),
+    >,
 ) {
     for (circle_around, mut position) in &mut query {
         let elapsed_seconds = time.elapsed().as_secs_f32();
@@ -104,14 +110,18 @@ pub fn circle_around(
 }
 
 /// Writes tweened X values back into enemy world position.
-pub fn update_enemy_pos_x(mut query: Query<(&TargetingValueX, &mut WorldPos), With<Enemy>>) {
+pub fn update_enemy_pos_x(
+    mut query: Query<(&TargetingValueX, &mut WorldPos), (With<Enemy>, Without<BurningCorpse>)>,
+) {
     for (target_x, mut world_pos) in &mut query {
         world_pos.0.x = target_x.0;
     }
 }
 
 /// Writes tweened Y values back into enemy world position.
-pub fn update_enemy_pos_y(mut query: Query<(&TargetingValueY, &mut WorldPos), With<Enemy>>) {
+pub fn update_enemy_pos_y(
+    mut query: Query<(&TargetingValueY, &mut WorldPos), (With<Enemy>, Without<BurningCorpse>)>,
+) {
     for (target_y, mut world_pos) in &mut query {
         world_pos.0.y = target_y.0;
     }
@@ -217,6 +227,7 @@ pub fn check_jump_tween_finished(
 mod tests {
     use super::*;
     use crate::stage::enemy::data::steps::{EnemyStep, JumpEnemyStep};
+    use cween::linear::components::TargetingValueX;
     use std::time::Duration;
 
     #[test]
@@ -247,6 +258,33 @@ mod tests {
         let entity_ref = app.world().entity(entity);
         assert!(entity_ref.get::<EnemyCurrentBehavior>().is_none());
         assert!(entity_ref.get::<JumpTween>().is_none());
+    }
+
+    #[test]
+    fn burning_corpse_ignores_targeting_position_writes() {
+        let mut app = App::new();
+        app.add_systems(Update, update_enemy_pos_x);
+
+        let entity = app
+            .world_mut()
+            .spawn((
+                Enemy,
+                BurningCorpse {
+                    started: Duration::ZERO,
+                    duration: Duration::from_secs(1),
+                    seed: 1,
+                },
+                TargetingValueX::new(42.0),
+                WorldPos(Vec2::ZERO),
+            ))
+            .id();
+
+        app.update();
+
+        assert_eq!(
+            app.world().entity(entity).get::<WorldPos>().unwrap().0.x,
+            0.0
+        );
     }
 
     #[test]

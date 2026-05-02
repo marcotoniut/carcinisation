@@ -4,7 +4,10 @@ use super::entity::{
 use crate::stage::enemy::composed::ComposedAnimationOverride;
 use crate::stage::{
     attack::{data::blood_shot::BloodShotConfig, spawns::blood_shot::spawn_blood_shot_attack},
-    components::{interactive::Dead, placement::Depth},
+    components::{
+        interactive::{BurningCorpse, Dead},
+        placement::Depth,
+    },
     enemy::{
         components::{
             CircleAround, LinearTween,
@@ -57,7 +60,7 @@ pub fn assign_mosquiton_animation(
             &mut ComposedAnimationState,
             &Depth,
         ),
-        (With<EnemyMosquiton>, Without<Dead>),
+        (With<EnemyMosquiton>, Without<Dead>, Without<BurningCorpse>),
     >,
 ) {
     for (
@@ -127,7 +130,7 @@ pub fn despawn_dead_mosquitons(
             &mut ComposedAnimationState,
             &mut ComposedPartStates,
         ),
-        Added<Dead>,
+        (Added<Dead>, Without<BurningCorpse>),
     >,
 ) {
     for (entity, mosquiton, mut animation_state, mut part_states) in &mut query {
@@ -182,7 +185,7 @@ pub fn trigger_mosquiton_authored_attack_cues(
             &Depth,
             Option<&ComposedResolvedParts>,
         ),
-        Without<Dead>,
+        (Without<Dead>, Without<BurningCorpse>),
     >,
 ) {
     let camera_pos = camera_query.single().unwrap();
@@ -272,7 +275,7 @@ pub fn detect_part_breakage(
             &WorldPos,
             Option<&mut BrokenParts>,
         ),
-        (With<EnemyMosquiton>, Without<Dead>),
+        (With<EnemyMosquiton>, Without<Dead>, Without<BurningCorpse>),
     >,
     tween_children: Query<(Entity, &ChildOf), With<EnemyStepTweenChild>>,
 ) {
@@ -381,7 +384,12 @@ pub fn apply_mosquiton_falling_physics(
             &Depth,
             &ComposedResolvedParts,
         ),
-        (With<EnemyMosquiton>, With<WingsBroken>, Without<Dead>),
+        (
+            With<EnemyMosquiton>,
+            With<WingsBroken>,
+            Without<Dead>,
+            Without<BurningCorpse>,
+        ),
     >,
 ) {
     const TERMINAL_VELOCITY: f32 = 600.0; // max fall speed pixels per second
@@ -468,10 +476,7 @@ pub fn apply_mosquiton_falling_physics(
                 // Apply fall damage as entity-level damage (bypasses part durability).
                 // Fall damage goes directly to the entity's health pool, not individual parts.
                 use crate::stage::messages::DamageMessage;
-                messages.write(DamageMessage {
-                    entity,
-                    value: fall_damage,
-                });
+                messages.write(DamageMessage::new(entity, fall_damage));
             }
         }
     }

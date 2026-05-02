@@ -22,7 +22,7 @@
 use crate::assets::CxAssets;
 use crate::stage::{
     components::{
-        interactive::{Dead, Flickerer, Health},
+        interactive::{BurningCorpse, Dead, Flickerer, Health},
         placement::{AnchorOffsets, Depth},
     },
     enemy::{components::composed_state::Dying, entity::EnemyType},
@@ -50,6 +50,7 @@ use carapace::{
     },
 };
 use carcinisation_collision::{Collider, ColliderShape};
+use carcinisation_core::components::GBColor;
 use serde::{Deserialize, Deserializer};
 use std::collections::{HashMap, HashSet};
 
@@ -1166,6 +1167,7 @@ pub fn update_composed_enemy_visuals(
             Option<&mut AnchorOffsets>,
             (
                 Option<&Dying>,
+                Option<&BurningCorpse>,
                 Option<&ComposedAnimationPlaybackDebugEnabled>,
                 Option<&ComposedAnimationPlaybackDebug>,
                 Option<&super::super::depth_scale::DepthFallbackScale>,
@@ -1177,6 +1179,7 @@ pub fn update_composed_enemy_visuals(
 ) {
     let now_ms = stage_time.elapsed().as_millis() as u64;
     let invert_filter = filters.load(assert_assets_path!("filter/invert.px_filter.png"));
+    let charred_filter = filters.load(GBColor::Black.get_filter_path());
 
     for (
         entity,
@@ -1189,14 +1192,23 @@ pub fn update_composed_enemy_visuals(
         mut resolved_part_states,
         mut frame_output,
         anchor_offsets,
-        (dying, playback_debug_enabled, playback_debug, depth_fallback_scale, presentation),
+        (
+            dying,
+            burning_corpse,
+            playback_debug_enabled,
+            playback_debug,
+            depth_fallback_scale,
+            presentation,
+        ),
     ) in &mut root_query
     {
         let gameplay_scale = depth_fallback_scale.map_or(1.0, |s| s.0.x);
         let collision_offset = presentation.map_or(Vec2::ZERO, |pt| pt.collision_offset);
-        // Freeze animation time for dying entities so they show death face on their last pose frame
+        // Freeze animation time for death presentation states.
         let animation_time_ms = if let Some(dying) = dying {
             dying.started.as_millis() as u64
+        } else if let Some(burning) = burning_corpse {
+            burning.started.as_millis() as u64
         } else {
             now_ms
         };
@@ -1251,8 +1263,8 @@ pub fn update_composed_enemy_visuals(
         };
         visual.last_error = None;
 
-        // Don't advance hit blinks for dying entities - freeze all flickering
-        if dying.is_none() {
+        // Don't advance hit blinks for death presentation states.
+        if dying.is_none() && burning_corpse.is_none() {
             advance_part_hit_blinks(&mut part_states, animation_time_ms);
         }
 
@@ -1290,6 +1302,7 @@ pub fn update_composed_enemy_visuals(
             atlas_bindings,
             &part_states,
             &invert_filter,
+            burning_corpse.map(|_| &charred_filter),
             entity,
         ) else {
             hide_composite(
@@ -1491,7 +1504,7 @@ pub fn apply_composed_part_damage(
             &mut ComposedPartStates,
             Option<&mut Health>,
         ),
-        Without<Dead>,
+        (Without<Dead>, Without<BurningCorpse>),
     >,
 ) {
     for event in event_reader.read() {
@@ -1554,7 +1567,10 @@ pub fn apply_composed_part_damage(
 pub fn check_composed_damage_flicker_taken(
     stage_time: Res<Time<StageTimeDomain>>,
     mut reader: MessageReader<PartDamageMessage>,
-    mut query: Query<&mut ComposedPartStates, (With<Flickerer>, Without<Dead>)>,
+    mut query: Query<
+        &mut ComposedPartStates,
+        (With<Flickerer>, Without<Dead>, Without<BurningCorpse>),
+    >,
 ) {
     let now_ms = stage_time.elapsed().as_millis() as u64;
 
@@ -2641,6 +2657,7 @@ fn compose_frame(
     atlas_bindings: &ComposedAtlasBindings,
     part_states: &ComposedPartStates,
     invert_filter: &Handle<CxFilterAsset>,
+    charred_filter: Option<&Handle<CxFilterAsset>>,
     entity: Entity,
 ) -> Option<(
     Vec<CxCompositePart>,
@@ -2681,6 +2698,7 @@ fn compose_frame(
             .and_then(|state| state.hit_blink.as_ref())
             .filter(|state| state.showing_invert)
             .map(|_| invert_filter.clone());
+        let render_filter = charred_filter.cloned().or(hit_filter);
 
         let mut logical_min: Option<IVec2> = None;
         let mut logical_max: Option<IVec2> = None;
@@ -2730,7 +2748,7 @@ fn compose_frame(
             parts.push(
                 CxCompositePart::atlas_region(atlas_bindings.atlas.clone(), *region_id)
                     .with_offset(bottom_left_offset)
-                    .with_filter(hit_filter.clone())
+                    .with_filter(render_filter.clone())
                     .with_flip(pose.flip_x, pose.flip_y),
             );
             metrics_source.push((bottom_left_offset, pose.size));
@@ -4643,6 +4661,7 @@ mod tests {
             &bindings,
             &part_states,
             &Handle::default(),
+            None,
             Entity::from_bits(1),
         )
         .expect("frame should compose");
@@ -4969,6 +4988,7 @@ mod tests {
             &bindings,
             &part_states,
             &Handle::default(),
+            None,
             Entity::from_bits(1),
         )
         .expect("frame should compose");
@@ -5070,6 +5090,7 @@ mod tests {
             &bindings,
             &part_states,
             &Handle::default(),
+            None,
             Entity::from_bits(1),
         )
         .expect("frame should compose");
@@ -5145,6 +5166,7 @@ mod tests {
             &bindings,
             &part_states,
             &Handle::default(),
+            None,
             Entity::from_bits(1),
         )
         .expect("frame should compose");
@@ -5356,6 +5378,7 @@ mod tests {
             &bindings,
             &part_states,
             &Handle::default(),
+            None,
             Entity::from_bits(1),
         )
         .expect("frame should compose");
@@ -5625,6 +5648,7 @@ mod tests {
             &bindings,
             &part_states,
             &Handle::default(),
+            None,
             Entity::from_bits(1),
         )
         .expect("frame should compose");
@@ -5766,6 +5790,7 @@ mod tests {
             &bindings,
             &part_states,
             &Handle::default(),
+            None,
             Entity::from_bits(1),
         )
         .expect("frame should compose");
@@ -6274,6 +6299,7 @@ mod tests {
             &bindings,
             &part_states,
             &filter_handle,
+            None,
             Entity::PLACEHOLDER,
         );
 

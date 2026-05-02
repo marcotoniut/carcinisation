@@ -21,11 +21,11 @@ pub struct Score {
 impl Score {
     /// Add a signed value (negative = penalty).
     pub fn add(&mut self, value: i32) {
-        let score: i32 = self.value as i32 + value;
-        if score < 0 {
-            self.value = 0;
+        let abs = value.unsigned_abs();
+        if value >= 0 {
+            self.value = self.value.saturating_add(abs);
         } else {
-            self.value = score as u32;
+            self.value = self.value.saturating_sub(abs);
         }
     }
 

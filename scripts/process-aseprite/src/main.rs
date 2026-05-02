@@ -33,6 +33,7 @@ fn parse_simple_atlas_args(args: &[String]) -> Result<SimpleAtlasRequest> {
     let mut output_dir = None;
     let mut pxi_asset_path = None;
     let mut layer_filter = None;
+    let mut bounds_layer_filter = None;
     let mut tag_filter = None;
 
     let mut iter = args.iter();
@@ -54,6 +55,10 @@ fn parse_simple_atlas_args(args: &[String]) -> Result<SimpleAtlasRequest> {
             "--layer" => {
                 layer_filter = Some(iter.next().context("Missing --layer value")?.clone());
             }
+            "--bounds-layer" => {
+                bounds_layer_filter =
+                    Some(iter.next().context("Missing --bounds-layer value")?.clone());
+            }
             "--tag" => {
                 tag_filter = Some(iter.next().context("Missing --tag value")?.clone());
             }
@@ -73,6 +78,7 @@ fn parse_simple_atlas_args(args: &[String]) -> Result<SimpleAtlasRequest> {
         output_dir: output,
         pxi_asset_path: pxi_asset,
         layer_filter,
+        bounds_layer_filter,
         tag_filter,
     })
 }

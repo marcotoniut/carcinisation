@@ -13,6 +13,7 @@ use crate::debug::{
 use crate::gallery::resources::{GalleryCharacter, GalleryState};
 use crate::{
     components::GBColor,
+    cutscene::data::TransitionRequest,
     cutscene::data::{CutsceneAnimationSpawn, CutsceneAnimationsSpawn, TargetMovement},
     layer::Layer,
     stage::{
@@ -59,7 +60,6 @@ use crate::{
         pickup::components::HealthRecovery,
         player::components::{CameraShake, PlayerAttack},
     },
-    transitions::data::TransitionRequest,
 };
 
 /// Registers types needed for reflection-based debugging/inspection.

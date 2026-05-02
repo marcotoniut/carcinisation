@@ -4,7 +4,7 @@ use bevy_math::Vec2;
 
 /// First-person camera: position in map space, facing angle, field of view.
 #[derive(Clone, Debug)]
-pub struct FpCamera {
+pub struct Camera {
     /// Position in map-space units (1.0 = one grid cell).
     pub position: Vec2,
     /// Facing angle in radians. 0 = east (+X), PI/2 = north (+Y).
@@ -13,7 +13,7 @@ pub struct FpCamera {
     pub fov: f32,
 }
 
-impl Default for FpCamera {
+impl Default for Camera {
     fn default() -> Self {
         Self {
             position: Vec2::new(4.0, 4.0),
@@ -23,7 +23,7 @@ impl Default for FpCamera {
     }
 }
 
-impl FpCamera {
+impl Camera {
     /// Unit direction vector the camera is facing.
     #[must_use]
     pub fn direction(&self) -> Vec2 {
@@ -47,7 +47,7 @@ mod tests {
 
     #[test]
     fn plane_is_perpendicular_to_direction() {
-        let cam = FpCamera {
+        let cam = Camera {
             position: Vec2::ZERO,
             angle: 0.5,
             fov: 1.0,
@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn plane_points_right_of_direction() {
         // Facing east (angle=0): right is south (-Y in math Y-up).
-        let cam = FpCamera {
+        let cam = Camera {
             position: Vec2::ZERO,
             angle: 0.0,
             fov: std::f32::consts::FRAC_PI_2,
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn plane_magnitude_matches_fov() {
         let fov = 1.2_f32;
-        let cam = FpCamera {
+        let cam = Camera {
             position: Vec2::ZERO,
             angle: 0.0,
             fov,
