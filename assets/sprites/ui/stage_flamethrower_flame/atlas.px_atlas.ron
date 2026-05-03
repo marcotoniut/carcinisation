@@ -1,5 +1,5 @@
 (
-    indexed_image: "assets/sprites/ui/stage_flamethrower_flame/atlas.pxi",
+    indexed_image: "sprites/ui/stage_flamethrower_flame/atlas.pxi",
     regions: [
         (
             frame_size: (6, 8),

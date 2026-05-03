@@ -3,6 +3,7 @@
     regions: [
         (
             frame_size: (36, 36),
+            origin: Some((14, 14)),
             frames: [
                 (
                     x: 0,
@@ -32,6 +33,7 @@
         ),
         (
             frame_size: (38, 38),
+            origin: Some((12, 13)),
             frames: [
                 (
                     x: 0,
@@ -55,6 +57,7 @@
         ),
         (
             frame_size: (45, 45),
+            origin: Some((10, 10)),
             frames: [
                 (
                     x: 0,

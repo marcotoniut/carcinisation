@@ -20,7 +20,7 @@ MapData(
         Checker(color_a: 3, color_b: 4, block: 8),
         Checker(color_a: 1, color_b: 2, block: 8),
     ],
-    ceiling_color: 1,
+    ceiling_color: 3,
     floor_color: 4,
     player_start: (x: 6.0, y: 6.0, angle_deg: 0.0),
     entities: [

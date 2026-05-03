@@ -18,8 +18,9 @@ use carcinisation_fps::player_attack::PlayerAttackState;
 use carcinisation_fps::plugin::{
     CameraRes, CameraShakeState, CharDecals, Config, DeathViewState, EnemySpriteIndex, FpsPlugin,
     MapRes, PlayerDead, PlayerHealth, ProjectileImpacts, Projectiles, QuickTurnDebounce,
-    QuickTurnState, ShootRequest, Systems, move_camera, request_quick_turn,
-    resolve_quick_turn_pressed,
+    QuickTurnState, ShootRequest, SideTurnLeftDebounce, SideTurnRightDebounce, Systems,
+    move_camera, request_quick_turn, request_side_turn, resolve_quick_turn_pressed,
+    resolve_side_turn_pressed,
 };
 use carcinisation_input::{GBInput, init_gb_input};
 use leafwing_input_manager::prelude::*;
@@ -29,10 +30,31 @@ use std::time::Duration;
 const SCREEN_W: u32 = 160;
 const SCREEN_H: u32 = 144;
 const MAP_PATH: &str = "../../assets/config/fp/test_room.fp_map.ron";
+const SKY_PATH: &str = "../../assets/config/sky/park.sky.ron";
 const MOVE_SPEED: f32 = 2.0;
 const TURN_SPEED: f32 = 2.0;
 const DEATH_RESTART_DELAY_SECS: f32 = 0.75;
-const GOD_MODE_DEFAULT: bool = true;
+const GOD_MODE_ENV: &str = "CARCINISATION_GOD_MODE";
+
+/// Debug god mode resource — mirrors DebugGodMode from the main app debug plugin.
+#[derive(Resource)]
+struct GodMode {
+    enabled: bool,
+}
+
+fn load_initial_god_mode() -> bool {
+    match std::env::var(GOD_MODE_ENV) {
+        Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => true,
+            "0" | "false" | "no" | "off" => false,
+            _ => {
+                warn!("{GOD_MODE_ENV} unrecognised value '{value}'; defaulting to true");
+                true
+            }
+        },
+        Err(_) => true, // dev binary defaults to god mode on
+    }
+}
 
 // --- Minimal layer enum for this dev binary ---
 
@@ -57,6 +79,8 @@ fn handle_input(
     mut shoot: ResMut<ShootRequest>,
     mut attack_input: ResMut<AttackInput>,
     mut quick_turn: ResMut<QuickTurnDebounce>,
+    mut side_turn_left: ResMut<SideTurnLeftDebounce>,
+    mut side_turn_right: ResMut<SideTurnRightDebounce>,
     mut quick_turn_state: ResMut<QuickTurnState>,
 ) {
     if dead.0 {
@@ -78,12 +102,41 @@ fn handle_input(
         b_held,
         action.just_pressed(&GBInput::Down),
         action.just_pressed(&GBInput::B),
+        action.just_released(&GBInput::Down),
         time.elapsed_secs(),
         &mut quick_turn,
     );
 
-    if quick_turn_pressed {
+    let side_turn_left_pressed = resolve_side_turn_pressed(
+        b_held,
+        action.pressed(&GBInput::Left),
+        action.just_pressed(&GBInput::B),
+        action.just_pressed(&GBInput::Left),
+        action.just_released(&GBInput::Left),
+        time.elapsed_secs(),
+        &mut side_turn_left.0,
+    );
+    let side_turn_right_pressed = resolve_side_turn_pressed(
+        b_held,
+        action.pressed(&GBInput::Right),
+        action.just_pressed(&GBInput::B),
+        action.just_pressed(&GBInput::Right),
+        action.just_released(&GBInput::Right),
+        time.elapsed_secs(),
+        &mut side_turn_right.0,
+    );
+
+    let up_held = action.pressed(&GBInput::Up);
+    let left_held = action.pressed(&GBInput::Left);
+    let right_held = action.pressed(&GBInput::Right);
+
+    // Block turn chords while other movement keys are held.
+    if quick_turn_pressed && !up_held && !left_held && !right_held {
         request_quick_turn(&mut quick_turn_state);
+    } else if side_turn_left_pressed && !up_held && !back_held {
+        request_side_turn(&mut quick_turn_state, true);
+    } else if side_turn_right_pressed && !up_held && !back_held {
+        request_side_turn(&mut quick_turn_state, false);
     }
 
     let mut turn_delta = 0.0;
@@ -278,22 +331,49 @@ fn reset_stage(reset: &mut ResetParams<'_, '_>) {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn apply_default_god_mode(
+fn apply_god_mode(
     config: Res<Config>,
+    god_mode: Res<GodMode>,
     mut health: ResMut<PlayerHealth>,
     mut dead: ResMut<PlayerDead>,
 ) {
-    if GOD_MODE_DEFAULT {
+    if god_mode.enabled {
         health.0 = config.player_max_health;
         dead.0 = false;
     }
 }
 
+fn toggle_god_mode(keys: Res<ButtonInput<KeyCode>>, mut god_mode: ResMut<GodMode>) {
+    let modifier_held = keys.any_pressed([
+        KeyCode::ShiftLeft,
+        KeyCode::ShiftRight,
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+    ]);
+    if modifier_held && keys.just_pressed(KeyCode::KeyG) {
+        god_mode.enabled = !god_mode.enabled;
+        info!(
+            "God mode {}",
+            if god_mode.enabled {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        );
+    }
+}
+
 fn main() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let path = std::path::Path::new(manifest_dir).join(MAP_PATH);
-    let map_ron = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
+    let map_path = std::path::Path::new(manifest_dir).join(MAP_PATH);
+    let map_ron = std::fs::read_to_string(&map_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", map_path.display()));
+    let sky_path = std::path::Path::new(manifest_dir)
+        .join(SKY_PATH)
+        .to_string_lossy()
+        .to_string();
 
     let mut app = App::new();
 
@@ -320,12 +400,14 @@ fn main() {
 
     app.insert_resource(Config {
         map_ron,
+        sky_path,
         screen_width: SCREEN_W,
         screen_height: SCREEN_H,
         ..Default::default()
     });
     app.init_resource::<DeathRestartGate>();
     app.init_resource::<QuickTurnDebounce>();
+    app.insert_resource(GodMode { enabled: load_initial_god_mode() });
     app.add_plugins(FpsPlugin::<Layer>::new());
 
     app.add_plugins(InputManagerPlugin::<GBInput>::default());
@@ -336,7 +418,8 @@ fn main() {
         }),
     );
     app.add_systems(Update, handle_input.before(Systems));
-    app.add_systems(Update, apply_default_god_mode.after(Systems));
+    app.add_systems(Update, toggle_god_mode);
+    app.add_systems(Update, apply_god_mode.after(Systems));
     app.add_systems(Update, reset_on_dead_input.after(Systems));
 
     app.run();

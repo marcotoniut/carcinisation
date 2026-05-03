@@ -3,6 +3,7 @@
     regions: [
         (
             frame_size: (127, 60),
+            origin: Some((18, 3)),
             frames: [
                 (
                     x: 0,

@@ -11,6 +11,16 @@ use asset_pipeline::aseprite::{
 use std::path::PathBuf;
 
 fn main() -> Result<()> {
+    // Spawn on a thread with a larger stack to accommodate the 16MB palette LUT
+    // and deep aseprite-loader call chains.
+    let child = std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(run)
+        .expect("failed to spawn worker thread");
+    child.join().unwrap()
+}
+
+fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(std::string::String::as_str) {
         Some("--simple-atlas") => {

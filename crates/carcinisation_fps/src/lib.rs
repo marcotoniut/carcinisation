@@ -30,3 +30,4 @@ pub mod player_attack;
 pub mod plugin;
 pub mod raycast;
 pub mod render;
+pub mod sky;

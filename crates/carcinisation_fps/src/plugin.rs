@@ -43,10 +43,13 @@ use crate::{
         CharDecal, FpWallRenderEffects, Palette, draw_crosshair, draw_overlay_tint,
         render_fp_scene, render_fp_scene_with_effects,
     },
+    sky::Sky,
 };
 
-const QUICK_TURN_DURATION_SECS: f32 = 0.2;
+const QUICK_TURN_DURATION_SECS: f32 = 0.4;
 const QUICK_TURN_RADIANS: f32 = std::f32::consts::PI;
+const SIDE_TURN_DURATION_SECS: f32 = 0.4;
+const SIDE_TURN_RADIANS: f32 = std::f32::consts::FRAC_PI_2;
 const QUICK_TURN_GRACE_WINDOW_SECS: f32 = 0.08;
 const DEATH_TURN_DURATION_SECS: f32 = 0.45;
 const DEATH_RED_MAX_DENSITY: f32 = 0.85;
@@ -59,6 +62,8 @@ const CAMERA_SHAKE_THRESHOLD: f32 = 0.3;
 pub struct Config {
     /// RON map file contents (pre-loaded string).
     pub map_ron: String,
+    /// Path to the sky RON config file (used to resolve .pxi asset paths).
+    pub sky_path: String,
     /// The layer value the FP sprite entity should render into.
     /// This is stored as a closure that produces the layer component.
     pub screen_width: u32,
@@ -73,6 +78,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             map_ron: String::new(),
+            sky_path: String::new(),
             screen_width: 160,
             screen_height: 144,
             move_speed: 2.0,
@@ -147,6 +153,7 @@ struct ViewResources<'w> {
     camera: Res<'w, CameraRes>,
     map: Res<'w, MapRes>,
     palette: Res<'w, PaletteRes>,
+    sky: Res<'w, Sky>,
     config: Res<'w, Config>,
     health: Res<'w, PlayerHealth>,
     dead: Res<'w, PlayerDead>,
@@ -178,27 +185,49 @@ pub struct PlayerIntent {
     pub quick_turn_pressed: bool,
 }
 
-/// Debouncer for the Back+B quick-turn chord.
-#[derive(Resource, Clone, Copy, Debug, Default)]
-pub struct QuickTurnDebounce {
-    phase: QuickTurnChordPhase,
+/// Debouncer for simultaneous-press chords that fire on arrow release.
+///
+/// Flow: both keys pressed within grace window → Armed → direction key
+/// released → fires. The modifier key (B/shift) can stay held.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ChordDebounce {
+    phase: ChordPhase,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-enum QuickTurnChordPhase {
+enum ChordPhase {
     #[default]
     Idle,
+    /// One key pressed, waiting for the other within the grace window.
     GraceWindow {
         since: f32,
     },
-    Consumed,
+    /// Both keys were pressed in time; waiting for direction key release to fire.
+    Armed,
+    /// Chord was consumed or missed; wait for full release before re-arming.
     BlockedUntilRelease,
 }
+
+/// Debouncer for the Back+B quick-turn chord.
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct QuickTurnDebounce(pub ChordDebounce);
+
+/// Debouncer for the B+Left side-turn chord.
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct SideTurnLeftDebounce(pub ChordDebounce);
+
+/// Debouncer for the B+Right side-turn chord.
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct SideTurnRightDebounce(pub ChordDebounce);
 
 /// Runtime state for a smooth 180-degree left quick-turn.
 #[derive(Resource, Clone, Copy, Debug, Default)]
 pub struct QuickTurnState {
     remaining_radians: f32,
+    /// Radians per second for the active turn.
+    speed: f32,
+    /// +1.0 for left, -1.0 for right.
+    direction: f32,
 }
 
 /// Runtime state for death camera facing and red fade.
@@ -217,57 +246,127 @@ pub struct CameraShakeState {
     current_offset: IVec2,
 }
 
-/// Resolve Back+B/Down+Shift quick-turn as a near-simultaneous chord.
+/// Resolve a two-button chord that fires on release of the direction key.
 ///
-/// Mirrors ORS melee chord handling with a short grace window: slightly
-/// imprecise presses count, but deliberate backpedal → strafe input does not.
+/// `mod_pressed`/`dir_pressed` = held state this frame.
+/// `mod_just_pressed`/`dir_just_pressed` = pressed this frame.
+/// `dir_just_released` = direction key released this frame (fires the chord).
+///
+/// The modifier key (B/shift) can stay held after the chord fires.
+#[must_use]
+pub fn resolve_chord_released(
+    mod_pressed: bool,
+    dir_pressed: bool,
+    mod_just_pressed: bool,
+    dir_just_pressed: bool,
+    dir_just_released: bool,
+    now_secs: f32,
+    debounce: &mut ChordDebounce,
+) -> bool {
+    // Full release of both keys resets to idle.
+    if !mod_pressed && !dir_pressed && !dir_just_released {
+        debounce.phase = ChordPhase::Idle;
+        return false;
+    }
+
+    match debounce.phase {
+        ChordPhase::Idle => {
+            if mod_pressed && dir_pressed && (mod_just_pressed && dir_just_pressed) {
+                debounce.phase = ChordPhase::Armed;
+            } else if mod_just_pressed || dir_just_pressed {
+                debounce.phase = ChordPhase::GraceWindow { since: now_secs };
+            } else if mod_pressed || dir_pressed {
+                debounce.phase = ChordPhase::BlockedUntilRelease;
+            }
+            false
+        }
+        ChordPhase::GraceWindow { since } => {
+            if mod_pressed && dir_pressed && now_secs - since <= QUICK_TURN_GRACE_WINDOW_SECS {
+                debounce.phase = ChordPhase::Armed;
+                false
+            } else if now_secs - since > QUICK_TURN_GRACE_WINDOW_SECS {
+                debounce.phase = ChordPhase::BlockedUntilRelease;
+                false
+            } else {
+                false
+            }
+        }
+        ChordPhase::Armed => {
+            if dir_just_released {
+                debounce.phase = ChordPhase::BlockedUntilRelease;
+                true
+            } else {
+                false
+            }
+        }
+        ChordPhase::BlockedUntilRelease => {
+            if !mod_pressed && !dir_pressed {
+                debounce.phase = ChordPhase::Idle;
+            }
+            false
+        }
+    }
+}
+
+/// Convenience wrapper: resolve Back+B quick-turn chord (fires on Back release).
 #[must_use]
 pub fn resolve_quick_turn_pressed(
     back_pressed: bool,
     b_pressed: bool,
     back_just_pressed: bool,
     b_just_pressed: bool,
+    back_just_released: bool,
     now_secs: f32,
     debounce: &mut QuickTurnDebounce,
 ) -> bool {
-    let chord_pressed = back_pressed && b_pressed;
-    if !back_pressed && !b_pressed {
-        debounce.phase = QuickTurnChordPhase::Idle;
-        return false;
-    }
+    resolve_chord_released(
+        b_pressed,
+        back_pressed,
+        b_just_pressed,
+        back_just_pressed,
+        back_just_released,
+        now_secs,
+        &mut debounce.0,
+    )
+}
 
-    match debounce.phase {
-        QuickTurnChordPhase::Idle => {
-            if back_just_pressed && b_just_pressed {
-                debounce.phase = QuickTurnChordPhase::Consumed;
-                true
-            } else if back_just_pressed || b_just_pressed {
-                debounce.phase = QuickTurnChordPhase::GraceWindow { since: now_secs };
-                false
-            } else {
-                debounce.phase = QuickTurnChordPhase::BlockedUntilRelease;
-                false
-            }
-        }
-        QuickTurnChordPhase::GraceWindow { since } => {
-            if chord_pressed && now_secs - since <= QUICK_TURN_GRACE_WINDOW_SECS {
-                debounce.phase = QuickTurnChordPhase::Consumed;
-                true
-            } else if now_secs - since > QUICK_TURN_GRACE_WINDOW_SECS {
-                debounce.phase = QuickTurnChordPhase::BlockedUntilRelease;
-                false
-            } else {
-                false
-            }
-        }
-        QuickTurnChordPhase::Consumed | QuickTurnChordPhase::BlockedUntilRelease => false,
-    }
+/// Convenience wrapper: resolve B+direction side-turn chord (fires on direction release).
+#[must_use]
+pub fn resolve_side_turn_pressed(
+    b_pressed: bool,
+    dir_pressed: bool,
+    b_just_pressed: bool,
+    dir_just_pressed: bool,
+    dir_just_released: bool,
+    now_secs: f32,
+    debounce: &mut ChordDebounce,
+) -> bool {
+    resolve_chord_released(
+        b_pressed,
+        dir_pressed,
+        b_just_pressed,
+        dir_just_pressed,
+        dir_just_released,
+        now_secs,
+        debounce,
+    )
 }
 
 /// Start a smooth 180-degree quick-turn to the left.
 pub fn request_quick_turn(state: &mut QuickTurnState) {
     if state.remaining_radians <= 0.0 {
         state.remaining_radians = QUICK_TURN_RADIANS;
+        state.speed = QUICK_TURN_RADIANS / QUICK_TURN_DURATION_SECS;
+        state.direction = 1.0;
+    }
+}
+
+/// Start a smooth 90-degree side turn. `left` = true turns left, false turns right.
+pub fn request_side_turn(state: &mut QuickTurnState, left: bool) {
+    if state.remaining_radians <= 0.0 {
+        state.remaining_radians = SIDE_TURN_RADIANS;
+        state.speed = SIDE_TURN_RADIANS / SIDE_TURN_DURATION_SECS;
+        state.direction = if left { 1.0 } else { -1.0 };
     }
 }
 
@@ -277,10 +376,10 @@ pub fn tick_quick_turn(camera: &mut Camera, state: &mut QuickTurnState, dt: f32)
         return;
     }
 
-    let step = (QUICK_TURN_RADIANS / QUICK_TURN_DURATION_SECS * dt)
+    let step = (state.speed * dt)
         .min(state.remaining_radians)
         .max(0.0);
-    camera.angle = (camera.angle + step).rem_euclid(std::f32::consts::TAU);
+    camera.angle = (camera.angle + step * state.direction).rem_euclid(std::f32::consts::TAU);
     state.remaining_radians -= step;
 }
 
@@ -415,6 +514,8 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
         app.init_resource::<CharDecals>();
         app.init_resource::<BurningCorpseContactHazardState>();
         app.init_resource::<QuickTurnState>();
+        app.init_resource::<SideTurnLeftDebounce>();
+        app.init_resource::<SideTurnRightDebounce>();
         app.init_resource::<DeathViewState>();
         app.init_resource::<CameraShakeState>();
         app.add_systems(
@@ -504,8 +605,23 @@ fn setup_fp<L: CxLayer + Default>(
         .chain(enemy_bbs)
         .chain(mosquiton_bbs)
         .collect();
+    let sky_ron = std::fs::read_to_string(&config.sky_path)
+        .unwrap_or_else(|e| panic!("failed to read sky RON {}: {}", config.sky_path, e));
+    let workspace_root = std::env::current_dir()
+        .unwrap_or_else(|e| panic!("failed to get current dir: {}", e))
+        .to_string_lossy()
+        .to_string();
+    let sky = Sky::from_ron(&sky_ron, &workspace_root);
     let mut image = CxImage::empty(UVec2::new(config.screen_width, config.screen_height));
-    render_fp_scene(&mut image, &map, &camera, &textures, &palette, &all_bbs);
+    render_fp_scene(
+        &mut image,
+        &map,
+        &camera,
+        &textures,
+        &palette,
+        &all_bbs,
+        Some(&sky),
+    );
     draw_crosshair(&mut image, 4);
     let initial = CxSpriteAsset::from_raw(image.data().to_vec(), image.width());
     let handle = sprite_assets.add(initial);
@@ -525,6 +641,7 @@ fn setup_fp<L: CxLayer + Default>(
     commands.insert_resource(CameraRes(camera));
     commands.insert_resource(MapRes(map));
     commands.insert_resource(PaletteRes(palette));
+    commands.insert_resource(sky);
     commands.insert_resource(StaticBillboards(static_billboards));
     commands.insert_resource(SpritePairs(sprite_pairs));
     commands.insert_resource(Projectiles(Vec::new()));
@@ -1038,6 +1155,7 @@ fn update_fp_view(
         &view.palette.0,
         &all_bbs,
         &wall_effects,
+        Some(&view.sky),
     );
 
     apply_framebuffer_offset(&mut image, view.camera_shake.current_offset);
@@ -1057,16 +1175,17 @@ fn update_fp_view(
         draw_crosshair(&mut image, 4);
     }
 
-    // Health bar at top-left.
+    // Health bar at bottom-left.
     let bar_w = 20;
     let filled = (view.health.0 as i32 * bar_w / view.config.player_max_health as i32).max(0);
     {
         let data = image.data_mut();
         let w = view.config.screen_width as i32;
+        let h = view.config.screen_height as i32;
         for x in 1..=bar_w {
             let color = if x <= filled { 2 } else { 1 };
-            data[(w + x) as usize] = color;
-            data[(2 * w + x) as usize] = color;
+            data[((h - 3) * w + x) as usize] = color;
+            data[((h - 2) * w + x) as usize] = color;
         }
     }
 
@@ -1471,134 +1590,84 @@ mod tests {
     }
 
     #[test]
-    fn quick_turn_allows_simultaneous_press_and_debounces_hold() {
+    fn quick_turn_fires_on_back_release_after_simultaneous_press() {
         let mut debounce = QuickTurnDebounce::default();
+        // Simultaneous press: arms the chord, does not fire yet.
+        assert!(!resolve_quick_turn_pressed(
+            true, true, true, true, false, 0.0, &mut debounce
+        ));
+        // Still held: nothing fires.
+        assert!(!resolve_quick_turn_pressed(
+            true, true, false, false, false, 0.01, &mut debounce
+        ));
+        // Back released: fires.
         assert!(resolve_quick_turn_pressed(
-            true,
-            true,
-            true,
-            true,
-            0.0,
-            &mut debounce
+            false, true, false, false, true, 0.02, &mut debounce
         ));
+        // Already consumed, hold blocked.
         assert!(!resolve_quick_turn_pressed(
-            true,
-            true,
-            false,
-            false,
-            0.01,
-            &mut debounce
+            false, true, false, false, false, 0.03, &mut debounce
         ));
+        // Full release resets.
         assert!(!resolve_quick_turn_pressed(
-            false,
-            true,
-            false,
-            false,
-            0.02,
-            &mut debounce
+            false, false, false, false, false, 0.04, &mut debounce
         ));
+        // Can re-arm and fire again.
         assert!(!resolve_quick_turn_pressed(
-            true,
-            true,
-            true,
-            false,
-            0.03,
-            &mut debounce
-        ));
-        assert!(!resolve_quick_turn_pressed(
-            false,
-            false,
-            false,
-            false,
-            0.04,
-            &mut debounce
+            true, true, true, true, false, 0.05, &mut debounce
         ));
         assert!(resolve_quick_turn_pressed(
-            true,
-            true,
-            true,
-            true,
-            0.05,
-            &mut debounce
+            false, true, false, false, true, 0.06, &mut debounce
         ));
     }
 
     #[test]
-    fn quick_turn_allows_staggered_press_inside_grace() {
+    fn quick_turn_fires_on_release_after_staggered_press_inside_grace() {
         let mut debounce = QuickTurnDebounce::default();
+        // Back pressed first.
         assert!(!resolve_quick_turn_pressed(
-            true,
-            false,
-            true,
-            false,
-            1.0,
-            &mut debounce
+            true, false, true, false, false, 1.0, &mut debounce
         ));
+        // B pressed within grace: arms.
+        assert!(!resolve_quick_turn_pressed(
+            true, true, false, true, false, 1.04, &mut debounce
+        ));
+        // Back released: fires.
         assert!(resolve_quick_turn_pressed(
-            true,
-            true,
-            false,
-            true,
-            1.04,
-            &mut debounce
-        ));
-        assert!(!resolve_quick_turn_pressed(
-            true,
-            true,
-            false,
-            false,
-            1.05,
-            &mut debounce
+            false, true, false, false, true, 1.05, &mut debounce
         ));
     }
 
     #[test]
-    fn quick_turn_blocks_staggered_back_then_shift_after_grace_until_release() {
+    fn quick_turn_blocks_staggered_press_after_grace_until_release() {
         let mut debounce = QuickTurnDebounce::default();
+        // Back pressed first.
         assert!(!resolve_quick_turn_pressed(
-            true,
-            false,
-            true,
-            false,
-            2.0,
-            &mut debounce
+            true, false, true, false, false, 2.0, &mut debounce
         ));
+        // Grace window passes without B.
         assert!(!resolve_quick_turn_pressed(
-            true,
-            false,
-            false,
-            false,
-            2.09,
-            &mut debounce
+            true, false, false, false, false, 2.09, &mut debounce
         ));
+        // B pressed too late: blocked.
         assert!(!resolve_quick_turn_pressed(
-            true,
-            true,
-            false,
-            true,
-            2.1,
-            &mut debounce
+            true, true, false, true, false, 2.1, &mut debounce
         ));
+        // Full release resets.
         assert!(!resolve_quick_turn_pressed(
-            false,
-            false,
-            false,
-            false,
-            2.2,
-            &mut debounce
+            false, false, false, false, false, 2.2, &mut debounce
+        ));
+        // Can fire again after reset.
+        assert!(!resolve_quick_turn_pressed(
+            true, true, true, true, false, 2.3, &mut debounce
         ));
         assert!(resolve_quick_turn_pressed(
-            true,
-            true,
-            true,
-            true,
-            2.3,
-            &mut debounce
+            false, true, false, false, true, 2.31, &mut debounce
         ));
     }
 
     #[test]
-    fn quick_turn_animates_left_over_point_two_seconds() {
+    fn quick_turn_animates_left_over_point_four_seconds() {
         let mut camera = Camera {
             angle: 0.25,
             ..Default::default()
@@ -1606,13 +1675,42 @@ mod tests {
         let mut quick_turn = QuickTurnState::default();
         request_quick_turn(&mut quick_turn);
 
-        tick_quick_turn(&mut camera, &mut quick_turn, 0.1);
+        tick_quick_turn(&mut camera, &mut quick_turn, 0.2);
         assert!((camera.angle - (0.25 + std::f32::consts::FRAC_PI_2)).abs() < 1e-5);
         assert!(quick_turn.remaining_radians > 0.0);
 
-        tick_quick_turn(&mut camera, &mut quick_turn, 0.1);
+        tick_quick_turn(&mut camera, &mut quick_turn, 0.2);
         assert!((camera.angle - (0.25 + std::f32::consts::PI)).abs() < 1e-5);
         assert!(quick_turn.remaining_radians <= 1e-5);
+    }
+
+    #[test]
+    fn side_turn_left_rotates_90_degrees() {
+        let mut camera = Camera {
+            angle: 0.0,
+            ..Default::default()
+        };
+        let mut state = QuickTurnState::default();
+        request_side_turn(&mut state, true);
+
+        tick_quick_turn(&mut camera, &mut state, 0.4);
+        assert!((camera.angle - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
+        assert!(state.remaining_radians <= 1e-5);
+    }
+
+    #[test]
+    fn side_turn_right_rotates_negative_90_degrees() {
+        let mut camera = Camera {
+            angle: 1.0,
+            ..Default::default()
+        };
+        let mut state = QuickTurnState::default();
+        request_side_turn(&mut state, false);
+
+        tick_quick_turn(&mut camera, &mut state, 0.4);
+        let expected = (1.0 - std::f32::consts::FRAC_PI_2).rem_euclid(std::f32::consts::TAU);
+        assert!((camera.angle - expected).abs() < 1e-5);
+        assert!(state.remaining_radians <= 1e-5);
     }
 
     #[test]

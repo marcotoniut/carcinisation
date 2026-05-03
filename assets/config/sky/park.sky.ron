@@ -1,0 +1,16 @@
+SkyData(
+    layers: [
+        SkyLayerData(
+            name: "clouds_fps_c",
+            path: "assets/sprites/sky/clouds_fps_c.pxi",
+            width: 295,
+            height: 64,
+        ),
+        SkyLayerData(
+            name: "clouds_fps_f",
+            path: "assets/sprites/sky/clouds_fps_f.pxi",
+            width: 160,
+            height: 64,
+        ),
+    ],
+)

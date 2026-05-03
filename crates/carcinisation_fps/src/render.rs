@@ -6,6 +6,7 @@ use crate::billboard::{Billboard, draw_billboard, project_billboard};
 use crate::camera::Camera;
 use crate::map::Map;
 use crate::raycast::{HitSide, WallSurfaceId, cast_ray};
+use crate::sky::Sky;
 
 /// 4x4 Bayer ordered-dither threshold matrix (values 0..15).
 pub(crate) const BAYER_4X4: [[u8; 4]; 4] =
@@ -110,20 +111,23 @@ fn apply_column_fog(
 ///
 /// `wall_textures` is indexed by `wall_id - 1` (`wall_id` 0 is empty).
 /// Image is cleared and fully redrawn.
+/// If `sky` is provided, escaped ray columns render the sky instead of a solid ceiling.
 pub fn render_fp_view(
     image: &mut CxImage,
     map: &Map,
     camera: &Camera,
     wall_textures: &[CxImage],
     palette: &Palette,
+    sky: Option<&Sky>,
 ) {
-    render_walls(image, map, camera, wall_textures, palette, None, None);
+    render_walls(image, map, camera, wall_textures, palette, None, None, sky);
 }
 
 /// Render walls + billboard entities into `image`.
 ///
 /// Billboards are depth-sorted and drawn back-to-front with per-column
 /// z-buffer occlusion against walls.
+/// If `sky` is provided, escaped ray columns render the sky instead of a solid ceiling.
 pub fn render_fp_scene(
     image: &mut CxImage,
     map: &Map,
@@ -131,6 +135,7 @@ pub fn render_fp_scene(
     wall_textures: &[CxImage],
     palette: &Palette,
     billboards: &[Billboard],
+    sky: Option<&Sky>,
 ) {
     let no_decals = [];
     let no_sprites = [];
@@ -147,10 +152,12 @@ pub fn render_fp_scene(
         palette,
         billboards,
         &effects,
+        sky,
     );
 }
 
 /// Render walls with wall-anchored effects + billboard entities.
+/// If `sky` is provided, escaped ray columns render the sky instead of a solid ceiling.
 pub fn render_fp_scene_with_effects(
     image: &mut CxImage,
     map: &Map,
@@ -159,6 +166,7 @@ pub fn render_fp_scene_with_effects(
     palette: &Palette,
     billboards: &[Billboard],
     effects: &FpWallRenderEffects<'_>,
+    sky: Option<&Sky>,
 ) {
     let w = image.width();
     let h = image.height() as i32;
@@ -172,6 +180,7 @@ pub fn render_fp_scene_with_effects(
         palette,
         Some(&mut zbuffer),
         Some(effects),
+        sky,
     );
 
     // Sort billboards back-to-front (farthest first).
@@ -199,6 +208,8 @@ pub fn render_fp_scene_with_effects(
 }
 
 /// Internal wall rendering pass. Optionally writes per-column depth to `zbuffer`.
+/// If `sky` is provided, the ceiling area (above walls and in open columns)
+/// renders the sky instead of a solid ceiling color.
 fn render_walls(
     image: &mut CxImage,
     map: &Map,
@@ -207,6 +218,7 @@ fn render_walls(
     palette: &Palette,
     mut zbuffer: Option<&mut [f32]>,
     effects: Option<&FpWallRenderEffects<'_>>,
+    sky: Option<&Sky>,
 ) {
     let w = image.width() as i32;
     let h = image.height() as i32;
@@ -216,6 +228,7 @@ fn render_walls(
     let dir = camera.direction();
     let plane = camera.plane();
     let half_h = h / 2;
+    let yaw_offset = camera.angle / std::f32::consts::TAU;
 
     for x in 0..w {
         let camera_x = 2.0 * x as f32 / w as f32 - 1.0;
@@ -230,7 +243,11 @@ fn render_walls(
         }
 
         if hit.wall_id == 0 {
-            fill_column(image, x, 0, half_h, palette.ceiling);
+            if let Some(sky_ref) = sky {
+                sky_ref.draw_column(image, x, half_h, palette.ceiling, yaw_offset);
+            } else {
+                fill_column(image, x, 0, half_h, palette.ceiling);
+            }
             fill_column(image, x, half_h, h, palette.floor);
             continue;
         }
@@ -239,8 +256,12 @@ fn render_walls(
         let draw_start = half_h - line_height / 2;
         let draw_end = draw_start + line_height;
 
-        // Ceiling above wall.
-        fill_column(image, x, 0, draw_start.max(0), palette.ceiling);
+        // Ceiling above wall — sky replaces ceiling color when available.
+        if let Some(sky_ref) = sky {
+            sky_ref.draw_column(image, x, draw_start.max(0), palette.ceiling, yaw_offset);
+        } else {
+            fill_column(image, x, 0, draw_start.max(0), palette.ceiling);
+        }
 
         // Wall texture.
         let tex_idx = (hit.wall_id - 1) as usize;
@@ -587,6 +608,7 @@ mod tests {
             &camera,
             &[tex.clone(), tex],
             &Palette::default(),
+            None,
         );
 
         // At least some pixels should be non-zero.
