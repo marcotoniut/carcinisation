@@ -165,6 +165,8 @@ pub struct FlamethrowerConfig {
     pub scale_near: f32,
     pub scale_far: f32,
     pub weapon_base_offset_px: (f32, f32),
+    pub weapon_raise_px: f32,
+    pub weapon_raise_speed: f32,
     pub weapon_bob_enabled: bool,
     pub weapon_bob_horizontal_px: f32,
     pub weapon_bob_vertical_px: f32,
@@ -340,16 +342,22 @@ pub struct PlayerAttackState {
     one_shots: Vec<OneShotEffect>,
     flamethrower: Option<ActiveFpFlamethrower>,
     weapon_bob_offset: Vec2,
+    /// Current vertical offset for the idle-lowered / shooting-raised tween.
+    /// Starts at `config.weapon_raise_px` (lowered) and lerps to 0 when shooting.
+    weapon_raise_offset: f32,
     config: FlamethrowerConfig,
 }
 
 impl Default for PlayerAttackState {
     fn default() -> Self {
+        let config = FlamethrowerConfig::load();
+        let weapon_raise_offset = config.weapon_raise_px;
         Self {
             one_shots: Vec::new(),
             flamethrower: None,
             weapon_bob_offset: Vec2::ZERO,
-            config: FlamethrowerConfig::load(),
+            weapon_raise_offset,
+            config,
         }
     }
 }
@@ -535,6 +543,7 @@ fn update_weapon_presentation(
 ) {
     if !flamethrower_selected {
         state.weapon_bob_offset = Vec2::ZERO;
+        state.weapon_raise_offset = state.config.weapon_raise_px;
         return;
     }
 
@@ -543,6 +552,11 @@ fn update_weapon_presentation(
         .flamethrower
         .as_ref()
         .is_some_and(|active| active.spawning);
+
+    // Weapon raise/lower tween: 0.0 = raised (shooting), weapon_raise_px = lowered (idle).
+    let raise_target = if firing { 0.0 } else { config.weapon_raise_px };
+    let raise_t = (config.weapon_raise_speed * dt).clamp(0.0, 1.0);
+    state.weapon_raise_offset += (raise_target - state.weapon_raise_offset) * raise_t;
 
     if config.weapon_bob_enabled && moving_forward_back && !firing {
         state.weapon_bob_offset = weapon_bob_offset(config, elapsed_secs);
@@ -1346,7 +1360,8 @@ pub fn draw_player_attack_overlays(
         let config = &state.config;
         let origin = config.origin();
         let screen_height = image.height() as f32;
-        let presentation_offset = state.weapon_bob_offset;
+        let presentation_offset =
+            state.weapon_bob_offset + Vec2::new(0.0, state.weapon_raise_offset);
         let weapon_center = flamethrower_weapon_center(screen_height, config, presentation_offset);
 
         let active_flamethrower = state.flamethrower.as_ref();
@@ -1699,13 +1714,14 @@ mod tests {
         let (ox, oy) = config.idle_flame_offset();
         let idle_flame_center = Vec2::new(ox, oy - flame_center_y);
 
+        let idle_center_y = 124.0 + config.weapon_raise_px;
         let weapon_tl_x = 80 - weapon_frame.width() as i32 / 2;
-        let weapon_tl_y = 124 - weapon_frame.height() as i32 / 2;
+        let weapon_tl_y = idle_center_y as i32 - weapon_frame.height() as i32 / 2;
 
         let flame_tl_x = (80.0 + idle_flame_center.x
             - idle_frame.width() as f32 * config.idle_flame_scale * 0.5)
             .round() as i32;
-        let flame_tl_y = (124.0 + idle_flame_center.y - flame_center_y).round() as i32;
+        let flame_tl_y = (idle_center_y + idle_flame_center.y - flame_center_y).round() as i32;
 
         let flame_sample = idle_frame
             .data()
@@ -2287,6 +2303,7 @@ mod tests {
                 last_decal_impact: None,
             }),
             weapon_bob_offset: Vec2::ZERO,
+            weapon_raise_offset: 0.0,
             config,
         };
         let mut projectiles = vec![Projectile {

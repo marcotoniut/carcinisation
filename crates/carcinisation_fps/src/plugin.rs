@@ -46,32 +46,44 @@ use crate::{
     sky::Sky,
 };
 
-const QUICK_TURN_DURATION_SECS: f32 = 0.4;
-const QUICK_TURN_RADIANS: f32 = std::f32::consts::PI;
-const SIDE_TURN_DURATION_SECS: f32 = 0.4;
-const SIDE_TURN_RADIANS: f32 = std::f32::consts::FRAC_PI_2;
+/// Grace window for simultaneous chord presses (seconds).
 const QUICK_TURN_GRACE_WINDOW_SECS: f32 = 0.08;
-const DEATH_TURN_DURATION_SECS: f32 = 0.45;
-const DEATH_RED_MAX_DENSITY: f32 = 0.85;
-const CAMERA_SHAKE_BASE_INTENSITY: f32 = 3.0;
-const CAMERA_SHAKE_DECAY_RATE: f32 = 12.0;
-const CAMERA_SHAKE_THRESHOLD: f32 = 0.3;
 
 /// Configuration for the First-person plugin.
+///
+/// Gameplay-tunable fields have sensible defaults. The caller (binary or game
+/// plugin) can override any field before inserting the resource.
 #[derive(Resource, Clone)]
 pub struct Config {
     /// RON map file contents (pre-loaded string).
     pub map_ron: String,
-    /// Path to the sky RON config file (used to resolve .pxi asset paths).
+    /// Path to the sky RON config file (used to resolve `.pxi` asset paths).
     pub sky_path: String,
-    /// The layer value the FP sprite entity should render into.
-    /// This is stored as a closure that produces the layer component.
+    /// Framebuffer width in pixels.
     pub screen_width: u32,
+    /// Framebuffer height in pixels.
     pub screen_height: u32,
+    /// Player movement speed in world units per second.
     pub move_speed: f32,
+    /// Player manual turn speed in radians per second.
     pub turn_speed: f32,
+    /// Damage dealt by the player's hitscan weapon per shot.
     pub hitscan_damage: u32,
+    /// Maximum player health points.
     pub player_max_health: u32,
+    /// Duration of the 180° quick-turn animation in seconds.
+    /// The 90° side turn shares the same angular velocity, completing in half this time.
+    pub quick_turn_duration_secs: f32,
+    /// Duration of the death camera rotation toward the killer in seconds.
+    pub death_turn_duration_secs: f32,
+    /// Maximum red overlay density during the death fade (0.0–1.0).
+    pub death_red_max_density: f32,
+    /// Base intensity added per camera-shake hit.
+    pub camera_shake_base_intensity: f32,
+    /// Exponential decay rate for camera shake (higher = faster decay).
+    pub camera_shake_decay_rate: f32,
+    /// Intensity below which camera shake snaps to zero.
+    pub camera_shake_threshold: f32,
 }
 
 impl Default for Config {
@@ -85,6 +97,12 @@ impl Default for Config {
             turn_speed: 2.0,
             hitscan_damage: 15,
             player_max_health: 100,
+            quick_turn_duration_secs: 0.4,
+            death_turn_duration_secs: 0.45,
+            death_red_max_density: 0.85,
+            camera_shake_base_intensity: 3.0,
+            camera_shake_decay_rate: 12.0,
+            camera_shake_threshold: 0.3,
         }
     }
 }
@@ -185,42 +203,60 @@ pub struct PlayerIntent {
     pub quick_turn_pressed: bool,
 }
 
-/// Debouncer for simultaneous-press chords that fire on arrow release.
+/// Which kind of snap turn to perform.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum TurnKind {
+    /// 180° turn (B + Down).
+    QuickTurn,
+    /// 90° turn left (B + Left).
+    SideTurnLeft,
+    /// 90° turn right (B + Right).
+    SideTurnRight,
+}
+
+/// Unified chord state machine for all snap turns (quick turn, side turns).
 ///
-/// Flow: both keys pressed within grace window → Armed → direction key
-/// released → fires. The modifier key (B/shift) can stay held.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct ChordDebounce {
-    phase: ChordPhase,
+/// Only one chord can be armed at a time. Flow:
+/// 1. B + direction pressed within the grace window → `Armed(kind)`
+/// 2. Direction key released → fires, returns the `TurnKind`
+/// 3. Blocked until all keys released, then resets to `Idle`
+///
+/// Priority when multiple directions are held: Down > Left > Right.
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct TurnChordState {
+    phase: TurnChordPhase,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-enum ChordPhase {
+enum TurnChordPhase {
     #[default]
     Idle,
     /// One key pressed, waiting for the other within the grace window.
-    GraceWindow {
-        since: f32,
-    },
-    /// Both keys were pressed in time; waiting for direction key release to fire.
-    Armed,
-    /// Chord was consumed or missed; wait for full release before re-arming.
+    GraceWindow { since: f32 },
+    /// Chord identified; waiting for the direction key release to fire.
+    Armed(TurnKind),
+    /// Chord consumed or missed; wait for full release before re-arming.
     BlockedUntilRelease,
 }
 
-/// Debouncer for the Back+B quick-turn chord.
-#[derive(Resource, Clone, Copy, Debug, Default)]
-pub struct QuickTurnDebounce(pub ChordDebounce);
+/// Raw button state for the turn chord resolver.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TurnChordInput {
+    pub b_pressed: bool,
+    pub b_just_pressed: bool,
+    pub down_pressed: bool,
+    pub down_just_pressed: bool,
+    pub down_just_released: bool,
+    pub left_pressed: bool,
+    pub left_just_pressed: bool,
+    pub left_just_released: bool,
+    pub right_pressed: bool,
+    pub right_just_pressed: bool,
+    pub right_just_released: bool,
+    pub now_secs: f32,
+}
 
-/// Debouncer for the B+Left side-turn chord.
-#[derive(Resource, Clone, Copy, Debug, Default)]
-pub struct SideTurnLeftDebounce(pub ChordDebounce);
-
-/// Debouncer for the B+Right side-turn chord.
-#[derive(Resource, Clone, Copy, Debug, Default)]
-pub struct SideTurnRightDebounce(pub ChordDebounce);
-
-/// Runtime state for a smooth 180-degree left quick-turn.
+/// Runtime state for a smooth quick-turn or side-turn animation.
 #[derive(Resource, Clone, Copy, Debug, Default)]
 pub struct QuickTurnState {
     remaining_radians: f32,
@@ -228,6 +264,14 @@ pub struct QuickTurnState {
     speed: f32,
     /// +1.0 for left, -1.0 for right.
     direction: f32,
+}
+
+impl QuickTurnState {
+    /// Returns `true` while a turn animation is playing.
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        self.remaining_radians > 0.0
+    }
 }
 
 /// Runtime state for death camera facing and red fade.
@@ -246,127 +290,151 @@ pub struct CameraShakeState {
     current_offset: IVec2,
 }
 
-/// Resolve a two-button chord that fires on release of the direction key.
+/// Identify which turn chord is active given B + at least one direction held.
+/// Priority: Down (quick turn) > Left > Right.
+fn identify_turn_kind(input: &TurnChordInput) -> Option<TurnKind> {
+    if !input.b_pressed {
+        return None;
+    }
+    if input.down_pressed {
+        return Some(TurnKind::QuickTurn);
+    }
+    if input.left_pressed {
+        return Some(TurnKind::SideTurnLeft);
+    }
+    if input.right_pressed {
+        return Some(TurnKind::SideTurnRight);
+    }
+    None
+}
+
+/// Whether the direction key for the given turn kind was just released.
+fn dir_just_released_for(kind: TurnKind, input: &TurnChordInput) -> bool {
+    match kind {
+        TurnKind::QuickTurn => input.down_just_released,
+        TurnKind::SideTurnLeft => input.left_just_released,
+        TurnKind::SideTurnRight => input.right_just_released,
+    }
+}
+
+/// Whether any direction key relevant to chords is pressed.
+fn any_dir_pressed(input: &TurnChordInput) -> bool {
+    input.down_pressed || input.left_pressed || input.right_pressed
+}
+
+/// Whether any relevant key was just pressed this frame.
+fn any_chord_key_just_pressed(input: &TurnChordInput) -> bool {
+    input.b_just_pressed
+        || input.down_just_pressed
+        || input.left_just_pressed
+        || input.right_just_pressed
+}
+
+/// Whether any direction key was just released this frame.
+fn any_dir_just_released(input: &TurnChordInput) -> bool {
+    input.down_just_released || input.left_just_released || input.right_just_released
+}
+
+/// Resolve the unified turn chord state machine.
 ///
-/// `mod_pressed`/`dir_pressed` = held state this frame.
-/// `mod_just_pressed`/`dir_just_pressed` = pressed this frame.
-/// `dir_just_released` = direction key released this frame (fires the chord).
+/// Returns `Some(TurnKind)` on the frame the chord fires (direction key released
+/// after arming). The modifier key (B/shift) can stay held.
+#[must_use]
+pub fn resolve_turn_chord(input: &TurnChordInput, state: &mut TurnChordState) -> Option<TurnKind> {
+    // Full release of all keys resets to idle.
+    if !input.b_pressed && !any_dir_pressed(input) && !any_dir_just_released(input) {
+        state.phase = TurnChordPhase::Idle;
+        return None;
+    }
+
+    match state.phase {
+        TurnChordPhase::Idle => {
+            if let Some(kind) = identify_turn_kind(input) {
+                if input.b_just_pressed || any_chord_key_just_pressed(input) {
+                    // At least one key was just pressed and both sides are held.
+                    if input.b_just_pressed
+                        && (input.down_just_pressed
+                            || input.left_just_pressed
+                            || input.right_just_pressed)
+                    {
+                        // Simultaneous press — arm immediately.
+                        state.phase = TurnChordPhase::Armed(kind);
+                    } else {
+                        // Staggered — start grace window.
+                        state.phase = TurnChordPhase::GraceWindow {
+                            since: input.now_secs,
+                        };
+                    }
+                } else {
+                    // Keys were already held from before — block.
+                    state.phase = TurnChordPhase::BlockedUntilRelease;
+                }
+            } else if any_chord_key_just_pressed(input) {
+                // Only one side pressed so far — start grace window.
+                state.phase = TurnChordPhase::GraceWindow {
+                    since: input.now_secs,
+                };
+            } else if input.b_pressed || any_dir_pressed(input) {
+                state.phase = TurnChordPhase::BlockedUntilRelease;
+            }
+            None
+        }
+        TurnChordPhase::GraceWindow { since } => {
+            if let Some(kind) = identify_turn_kind(input) {
+                if input.now_secs - since <= QUICK_TURN_GRACE_WINDOW_SECS {
+                    // Both sides held within the grace window — arm.
+                    state.phase = TurnChordPhase::Armed(kind);
+                } else {
+                    // Grace expired.
+                    state.phase = TurnChordPhase::BlockedUntilRelease;
+                }
+            } else if input.now_secs - since > QUICK_TURN_GRACE_WINDOW_SECS {
+                state.phase = TurnChordPhase::BlockedUntilRelease;
+            }
+            None
+        }
+        TurnChordPhase::Armed(kind) => {
+            if dir_just_released_for(kind, input) {
+                state.phase = TurnChordPhase::BlockedUntilRelease;
+                Some(kind)
+            } else {
+                None
+            }
+        }
+        TurnChordPhase::BlockedUntilRelease => {
+            if !input.b_pressed && !any_dir_pressed(input) {
+                state.phase = TurnChordPhase::Idle;
+            }
+            None
+        }
+    }
+}
+
+/// Start a snap turn animation for the given kind.
 ///
-/// The modifier key (B/shift) can stay held after the chord fires.
-#[must_use]
-pub fn resolve_chord_released(
-    mod_pressed: bool,
-    dir_pressed: bool,
-    mod_just_pressed: bool,
-    dir_just_pressed: bool,
-    dir_just_released: bool,
-    now_secs: f32,
-    debounce: &mut ChordDebounce,
-) -> bool {
-    // Full release of both keys resets to idle.
-    if !mod_pressed && !dir_pressed && !dir_just_released {
-        debounce.phase = ChordPhase::Idle;
-        return false;
+/// Quick turn = 180° left. Side turns = 90° left/right.
+/// All share the same angular velocity (π / `quick_turn_duration_secs`).
+pub fn request_snap_turn(state: &mut QuickTurnState, kind: TurnKind, config: &Config) {
+    if state.remaining_radians > 0.0 {
+        return;
     }
-
-    match debounce.phase {
-        ChordPhase::Idle => {
-            if mod_pressed && dir_pressed && (mod_just_pressed && dir_just_pressed) {
-                debounce.phase = ChordPhase::Armed;
-            } else if mod_just_pressed || dir_just_pressed {
-                debounce.phase = ChordPhase::GraceWindow { since: now_secs };
-            } else if mod_pressed || dir_pressed {
-                debounce.phase = ChordPhase::BlockedUntilRelease;
-            }
-            false
+    let angular_speed = std::f32::consts::PI / config.quick_turn_duration_secs;
+    match kind {
+        TurnKind::QuickTurn => {
+            state.remaining_radians = std::f32::consts::PI;
+            state.speed = angular_speed;
+            state.direction = 1.0;
         }
-        ChordPhase::GraceWindow { since } => {
-            if mod_pressed && dir_pressed && now_secs - since <= QUICK_TURN_GRACE_WINDOW_SECS {
-                debounce.phase = ChordPhase::Armed;
-                false
-            } else if now_secs - since > QUICK_TURN_GRACE_WINDOW_SECS {
-                debounce.phase = ChordPhase::BlockedUntilRelease;
-                false
-            } else {
-                false
-            }
+        TurnKind::SideTurnLeft => {
+            state.remaining_radians = std::f32::consts::FRAC_PI_2;
+            state.speed = angular_speed;
+            state.direction = 1.0;
         }
-        ChordPhase::Armed => {
-            if dir_just_released {
-                debounce.phase = ChordPhase::BlockedUntilRelease;
-                true
-            } else {
-                false
-            }
+        TurnKind::SideTurnRight => {
+            state.remaining_radians = std::f32::consts::FRAC_PI_2;
+            state.speed = angular_speed;
+            state.direction = -1.0;
         }
-        ChordPhase::BlockedUntilRelease => {
-            if !mod_pressed && !dir_pressed {
-                debounce.phase = ChordPhase::Idle;
-            }
-            false
-        }
-    }
-}
-
-/// Convenience wrapper: resolve Back+B quick-turn chord (fires on Back release).
-#[must_use]
-pub fn resolve_quick_turn_pressed(
-    back_pressed: bool,
-    b_pressed: bool,
-    back_just_pressed: bool,
-    b_just_pressed: bool,
-    back_just_released: bool,
-    now_secs: f32,
-    debounce: &mut QuickTurnDebounce,
-) -> bool {
-    resolve_chord_released(
-        b_pressed,
-        back_pressed,
-        b_just_pressed,
-        back_just_pressed,
-        back_just_released,
-        now_secs,
-        &mut debounce.0,
-    )
-}
-
-/// Convenience wrapper: resolve B+direction side-turn chord (fires on direction release).
-#[must_use]
-pub fn resolve_side_turn_pressed(
-    b_pressed: bool,
-    dir_pressed: bool,
-    b_just_pressed: bool,
-    dir_just_pressed: bool,
-    dir_just_released: bool,
-    now_secs: f32,
-    debounce: &mut ChordDebounce,
-) -> bool {
-    resolve_chord_released(
-        b_pressed,
-        dir_pressed,
-        b_just_pressed,
-        dir_just_pressed,
-        dir_just_released,
-        now_secs,
-        debounce,
-    )
-}
-
-/// Start a smooth 180-degree quick-turn to the left.
-pub fn request_quick_turn(state: &mut QuickTurnState) {
-    if state.remaining_radians <= 0.0 {
-        state.remaining_radians = QUICK_TURN_RADIANS;
-        state.speed = QUICK_TURN_RADIANS / QUICK_TURN_DURATION_SECS;
-        state.direction = 1.0;
-    }
-}
-
-/// Start a smooth 90-degree side turn. `left` = true turns left, false turns right.
-pub fn request_side_turn(state: &mut QuickTurnState, left: bool) {
-    if state.remaining_radians <= 0.0 {
-        state.remaining_radians = SIDE_TURN_RADIANS;
-        state.speed = SIDE_TURN_RADIANS / SIDE_TURN_DURATION_SECS;
-        state.direction = if left { 1.0 } else { -1.0 };
     }
 }
 
@@ -376,9 +444,7 @@ pub fn tick_quick_turn(camera: &mut Camera, state: &mut QuickTurnState, dt: f32)
         return;
     }
 
-    let step = (state.speed * dt)
-        .min(state.remaining_radians)
-        .max(0.0);
+    let step = (state.speed * dt).min(state.remaining_radians).max(0.0);
     camera.angle = (camera.angle + step * state.direction).rem_euclid(std::f32::consts::TAU);
     state.remaining_radians -= step;
 }
@@ -404,24 +470,24 @@ pub fn request_death_view(state: &mut DeathViewState, camera: &Camera, killer_po
 }
 
 /// Advance the death camera turn and red-fade timer.
-pub fn tick_death_view(camera: &mut Camera, state: &mut DeathViewState, dt: f32) {
+pub fn tick_death_view(camera: &mut Camera, state: &mut DeathViewState, dt: f32, config: &Config) {
     if !state.active {
         return;
     }
 
-    state.elapsed = (state.elapsed + dt).min(DEATH_TURN_DURATION_SECS);
-    let t = (state.elapsed / DEATH_TURN_DURATION_SECS).clamp(0.0, 1.0);
+    state.elapsed = (state.elapsed + dt).min(config.death_turn_duration_secs);
+    let t = (state.elapsed / config.death_turn_duration_secs).clamp(0.0, 1.0);
     let delta = signed_angle_delta(state.start_angle, state.target_angle);
     camera.angle = (state.start_angle + delta * t).rem_euclid(std::f32::consts::TAU);
 }
 
 #[must_use]
-pub fn death_red_density(state: &DeathViewState) -> f32 {
+pub fn death_red_density(state: &DeathViewState, config: &Config) -> f32 {
     if !state.active {
         return 0.0;
     }
-    let t = (state.elapsed / DEATH_TURN_DURATION_SECS).clamp(0.0, 1.0);
-    (t * DEATH_RED_MAX_DENSITY).clamp(0.0, 1.0)
+    let t = (state.elapsed / config.death_turn_duration_secs).clamp(0.0, 1.0);
+    (t * config.death_red_max_density).clamp(0.0, 1.0)
 }
 
 fn signed_angle_delta(from: f32, to: f32) -> f32 {
@@ -429,8 +495,8 @@ fn signed_angle_delta(from: f32, to: f32) -> f32 {
 }
 
 /// Reinforce an FP camera shake, matching ORS' additive hit shake model.
-pub fn request_camera_shake(state: &mut CameraShakeState) {
-    state.intensity += CAMERA_SHAKE_BASE_INTENSITY;
+pub fn request_camera_shake(state: &mut CameraShakeState, config: &Config) {
+    state.intensity += config.camera_shake_base_intensity;
 }
 
 /// Advance FP camera shake with caller-provided random samples.
@@ -443,8 +509,9 @@ pub fn tick_camera_shake(
     dt: f32,
     angle_sample: f32,
     magnitude_sample: f32,
+    config: &Config,
 ) {
-    if state.intensity < CAMERA_SHAKE_THRESHOLD {
+    if state.intensity < config.camera_shake_threshold {
         state.intensity = 0.0;
         state.current_offset = IVec2::ZERO;
         return;
@@ -454,7 +521,7 @@ pub fn tick_camera_shake(
     let magnitude = state.intensity * (0.5 + 0.5 * magnitude_sample.clamp(0.0, 1.0));
     let offset = Vec2::new(angle.cos() * magnitude, angle.sin() * magnitude).round();
     state.current_offset = IVec2::new(offset.x as i32, offset.y as i32);
-    state.intensity *= (-CAMERA_SHAKE_DECAY_RATE * dt).exp();
+    state.intensity *= (-config.camera_shake_decay_rate * dt).exp();
 }
 
 fn apply_framebuffer_offset(image: &mut CxImage, offset: IVec2) {
@@ -514,8 +581,7 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
         app.init_resource::<CharDecals>();
         app.init_resource::<BurningCorpseContactHazardState>();
         app.init_resource::<QuickTurnState>();
-        app.init_resource::<SideTurnLeftDebounce>();
-        app.init_resource::<SideTurnRightDebounce>();
+        app.init_resource::<TurnChordState>();
         app.init_resource::<DeathViewState>();
         app.init_resource::<CameraShakeState>();
         app.add_systems(
@@ -676,9 +742,10 @@ fn apply_death_view(
     mut camera: ResMut<CameraRes>,
     mut death_view: ResMut<DeathViewState>,
     dead: Res<PlayerDead>,
+    config: Res<Config>,
 ) {
     if dead.0 {
-        tick_death_view(&mut camera.0, &mut death_view, time.delta_secs());
+        tick_death_view(&mut camera.0, &mut death_view, time.delta_secs(), &config);
     }
 }
 
@@ -686,12 +753,17 @@ fn tick_projectile_impact_effects(time: Res<Time>, mut impacts: ResMut<Projectil
     tick_projectile_impacts(&mut impacts.0, time.delta_secs());
 }
 
-fn tick_camera_shake_effect(time: Res<Time>, mut shake: ResMut<CameraShakeState>) {
+fn tick_camera_shake_effect(
+    time: Res<Time>,
+    mut shake: ResMut<CameraShakeState>,
+    config: Res<Config>,
+) {
     tick_camera_shake(
         &mut shake,
         time.delta_secs(),
         rand::random::<f32>(),
         rand::random::<f32>(),
+        &config,
     );
 }
 
@@ -711,6 +783,7 @@ fn tick_enemy_ai(
     attack_state: Res<PlayerAttackState>,
     mut burning_corpse_contact: ResMut<BurningCorpseContactHazardState>,
     mut commands: Commands,
+    config: Res<Config>,
 ) {
     let dt = time.delta_secs();
 
@@ -750,6 +823,7 @@ fn tick_enemy_ai(
                 &camera.0,
                 amount,
                 Some(source),
+                &config,
             );
         }
         if matches!(mosquiton.state, MosquitonState::Dead) {
@@ -785,6 +859,7 @@ fn tick_enemy_ai(
         &camera.0,
         projectile_result.player_damage,
         projectile_result.damage_source,
+        &config,
     );
 
     // Collect burning corpses from remaining enemies and mosquitons.
@@ -814,6 +889,7 @@ fn tick_enemy_ai(
         &camera.0,
         burning_corpse_contact_result.player_damage,
         burning_corpse_contact_result.damage_source,
+        &config,
     );
     tick_burning_corpse_crossfire_query(
         &mut enemy_q,
@@ -992,12 +1068,13 @@ fn apply_player_damage(
     camera: &Camera,
     damage: u32,
     damage_source: Option<Vec2>,
+    config: &Config,
 ) {
     if *dead || damage == 0 {
         return;
     }
 
-    request_camera_shake(camera_shake);
+    request_camera_shake(camera_shake, config);
     *health = health.saturating_sub(damage);
     if *health == 0 {
         *dead = true;
@@ -1170,7 +1247,11 @@ fn update_fp_view(
     );
 
     if view.dead.0 {
-        draw_overlay_tint(&mut image, 2, death_red_density(&view.death_view));
+        draw_overlay_tint(
+            &mut image,
+            2,
+            death_red_density(&view.death_view, &view.config),
+        );
     } else {
         draw_crosshair(&mut image, 4);
     }
@@ -1589,142 +1670,228 @@ mod tests {
         assert_eq!(enemies[0].health, 10);
     }
 
+    fn chord_input(
+        b: (bool, bool),
+        down: (bool, bool, bool),
+        left: (bool, bool, bool),
+        right: (bool, bool, bool),
+        now_secs: f32,
+    ) -> TurnChordInput {
+        TurnChordInput {
+            b_pressed: b.0,
+            b_just_pressed: b.1,
+            down_pressed: down.0,
+            down_just_pressed: down.1,
+            down_just_released: down.2,
+            left_pressed: left.0,
+            left_just_pressed: left.1,
+            left_just_released: left.2,
+            right_pressed: right.0,
+            right_just_pressed: right.1,
+            right_just_released: right.2,
+            now_secs,
+        }
+    }
+
+    // Shorthand: (pressed, just_pressed) for B, (pressed, just_pressed, just_released) for dirs.
+    const NONE: (bool, bool, bool) = (false, false, false);
+    const B_OFF: (bool, bool) = (false, false);
+
     #[test]
-    fn quick_turn_fires_on_back_release_after_simultaneous_press() {
-        let mut debounce = QuickTurnDebounce::default();
-        // Simultaneous press: arms the chord, does not fire yet.
-        assert!(!resolve_quick_turn_pressed(
-            true, true, true, true, false, 0.0, &mut debounce
-        ));
-        // Still held: nothing fires.
-        assert!(!resolve_quick_turn_pressed(
-            true, true, false, false, false, 0.01, &mut debounce
-        ));
-        // Back released: fires.
-        assert!(resolve_quick_turn_pressed(
-            false, true, false, false, true, 0.02, &mut debounce
-        ));
-        // Already consumed, hold blocked.
-        assert!(!resolve_quick_turn_pressed(
-            false, true, false, false, false, 0.03, &mut debounce
-        ));
+    fn chord_fires_quick_turn_on_down_release() {
+        let mut state = TurnChordState::default();
+        // B+Down simultaneous press → armed.
+        let input = chord_input((true, true), (true, true, false), NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Still held.
+        let input = chord_input((true, false), (true, false, false), NONE, NONE, 0.01);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Down released → fires quick turn.
+        let input = chord_input((true, false), (false, false, true), NONE, NONE, 0.02);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
+        // Blocked until release.
+        let input = chord_input((true, false), (false, false, false), NONE, NONE, 0.03);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
         // Full release resets.
-        assert!(!resolve_quick_turn_pressed(
-            false, false, false, false, false, 0.04, &mut debounce
-        ));
-        // Can re-arm and fire again.
-        assert!(!resolve_quick_turn_pressed(
-            true, true, true, true, false, 0.05, &mut debounce
-        ));
-        assert!(resolve_quick_turn_pressed(
-            false, true, false, false, true, 0.06, &mut debounce
-        ));
+        let input = chord_input(B_OFF, NONE, NONE, NONE, 0.04);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Can fire again.
+        let input = chord_input((true, true), (true, true, false), NONE, NONE, 0.05);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input((true, false), (false, false, true), NONE, NONE, 0.06);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
     }
 
     #[test]
-    fn quick_turn_fires_on_release_after_staggered_press_inside_grace() {
-        let mut debounce = QuickTurnDebounce::default();
-        // Back pressed first.
-        assert!(!resolve_quick_turn_pressed(
-            true, false, true, false, false, 1.0, &mut debounce
-        ));
-        // B pressed within grace: arms.
-        assert!(!resolve_quick_turn_pressed(
-            true, true, false, true, false, 1.04, &mut debounce
-        ));
-        // Back released: fires.
-        assert!(resolve_quick_turn_pressed(
-            false, true, false, false, true, 1.05, &mut debounce
-        ));
+    fn chord_fires_after_staggered_press_inside_grace() {
+        let mut state = TurnChordState::default();
+        // Down pressed first.
+        let input = chord_input(B_OFF, (true, true, false), NONE, NONE, 1.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B pressed within grace → arms.
+        let input = chord_input((true, true), (true, false, false), NONE, NONE, 1.04);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Down released → fires.
+        let input = chord_input((true, false), (false, false, true), NONE, NONE, 1.05);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
     }
 
     #[test]
-    fn quick_turn_blocks_staggered_press_after_grace_until_release() {
-        let mut debounce = QuickTurnDebounce::default();
-        // Back pressed first.
-        assert!(!resolve_quick_turn_pressed(
-            true, false, true, false, false, 2.0, &mut debounce
-        ));
-        // Grace window passes without B.
-        assert!(!resolve_quick_turn_pressed(
-            true, false, false, false, false, 2.09, &mut debounce
-        ));
-        // B pressed too late: blocked.
-        assert!(!resolve_quick_turn_pressed(
-            true, true, false, true, false, 2.1, &mut debounce
-        ));
+    fn chord_blocks_after_grace_until_release() {
+        let mut state = TurnChordState::default();
+        // Down pressed alone.
+        let input = chord_input(B_OFF, (true, true, false), NONE, NONE, 2.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Grace window passes.
+        let input = chord_input(B_OFF, (true, false, false), NONE, NONE, 2.09);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B pressed too late → blocked.
+        let input = chord_input((true, true), (true, false, false), NONE, NONE, 2.1);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
         // Full release resets.
-        assert!(!resolve_quick_turn_pressed(
-            false, false, false, false, false, 2.2, &mut debounce
-        ));
-        // Can fire again after reset.
-        assert!(!resolve_quick_turn_pressed(
-            true, true, true, true, false, 2.3, &mut debounce
-        ));
-        assert!(resolve_quick_turn_pressed(
-            false, true, false, false, true, 2.31, &mut debounce
-        ));
+        let input = chord_input(B_OFF, NONE, NONE, NONE, 2.2);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Can fire again.
+        let input = chord_input((true, true), (true, true, false), NONE, NONE, 2.3);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input((true, false), (false, false, true), NONE, NONE, 2.31);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
     }
 
     #[test]
-    fn quick_turn_animates_left_over_point_four_seconds() {
+    fn chord_fires_side_turn_left() {
+        let mut state = TurnChordState::default();
+        let input = chord_input((true, true), NONE, (true, true, false), NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input((true, false), NONE, (false, false, true), NONE, 0.05);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnLeft)
+        );
+    }
+
+    #[test]
+    fn chord_fires_side_turn_right() {
+        let mut state = TurnChordState::default();
+        let input = chord_input((true, true), NONE, NONE, (true, true, false), 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input((true, false), NONE, NONE, (false, false, true), 0.05);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnRight)
+        );
+    }
+
+    #[test]
+    fn chord_down_takes_priority_over_left() {
+        let mut state = TurnChordState::default();
+        // B+Down+Left all pressed simultaneously → Down wins.
+        let input = chord_input(
+            (true, true),
+            (true, true, false),
+            (true, true, false),
+            NONE,
+            0.0,
+        );
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Down released → fires quick turn, not side turn.
+        let input = chord_input(
+            (true, false),
+            (false, false, true),
+            (true, false, false),
+            NONE,
+            0.05,
+        );
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
+    }
+
+    #[test]
+    fn snap_turn_animates_over_configured_duration() {
+        let config = Config::default();
         let mut camera = Camera {
             angle: 0.25,
             ..Default::default()
         };
-        let mut quick_turn = QuickTurnState::default();
-        request_quick_turn(&mut quick_turn);
+        let mut turn = QuickTurnState::default();
+        request_snap_turn(&mut turn, TurnKind::QuickTurn, &config);
 
-        tick_quick_turn(&mut camera, &mut quick_turn, 0.2);
+        tick_quick_turn(&mut camera, &mut turn, 0.2);
         assert!((camera.angle - (0.25 + std::f32::consts::FRAC_PI_2)).abs() < 1e-5);
-        assert!(quick_turn.remaining_radians > 0.0);
+        assert!(turn.is_active());
 
-        tick_quick_turn(&mut camera, &mut quick_turn, 0.2);
+        tick_quick_turn(&mut camera, &mut turn, 0.2);
         assert!((camera.angle - (0.25 + std::f32::consts::PI)).abs() < 1e-5);
-        assert!(quick_turn.remaining_radians <= 1e-5);
+        assert!(!turn.is_active());
     }
 
     #[test]
-    fn side_turn_left_rotates_90_degrees() {
+    fn side_turn_shares_angular_velocity_with_quick_turn() {
+        let config = Config::default();
         let mut camera = Camera {
             angle: 0.0,
             ..Default::default()
         };
-        let mut state = QuickTurnState::default();
-        request_side_turn(&mut state, true);
+        let mut turn = QuickTurnState::default();
+        request_snap_turn(&mut turn, TurnKind::SideTurnLeft, &config);
 
-        tick_quick_turn(&mut camera, &mut state, 0.4);
+        tick_quick_turn(
+            &mut camera,
+            &mut turn,
+            config.quick_turn_duration_secs / 2.0,
+        );
         assert!((camera.angle - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
-        assert!(state.remaining_radians <= 1e-5);
+        assert!(!turn.is_active());
     }
 
     #[test]
-    fn side_turn_right_rotates_negative_90_degrees() {
+    fn side_turn_right_rotates_negative() {
+        let config = Config::default();
         let mut camera = Camera {
             angle: 1.0,
             ..Default::default()
         };
-        let mut state = QuickTurnState::default();
-        request_side_turn(&mut state, false);
+        let mut turn = QuickTurnState::default();
+        request_snap_turn(&mut turn, TurnKind::SideTurnRight, &config);
 
-        tick_quick_turn(&mut camera, &mut state, 0.4);
+        tick_quick_turn(
+            &mut camera,
+            &mut turn,
+            config.quick_turn_duration_secs / 2.0,
+        );
         let expected = (1.0 - std::f32::consts::FRAC_PI_2).rem_euclid(std::f32::consts::TAU);
         assert!((camera.angle - expected).abs() < 1e-5);
-        assert!(state.remaining_radians <= 1e-5);
+        assert!(!turn.is_active());
     }
 
     #[test]
-    fn quick_turn_request_ignored_while_active() {
-        let mut quick_turn = QuickTurnState::default();
-        request_quick_turn(&mut quick_turn);
-        tick_quick_turn(&mut Camera::default(), &mut quick_turn, 0.05);
-        let remaining = quick_turn.remaining_radians;
-        request_quick_turn(&mut quick_turn);
-        assert_eq!(quick_turn.remaining_radians, remaining);
+    fn snap_turn_request_ignored_while_active() {
+        let config = Config::default();
+        let mut turn = QuickTurnState::default();
+        request_snap_turn(&mut turn, TurnKind::QuickTurn, &config);
+        tick_quick_turn(&mut Camera::default(), &mut turn, 0.05);
+        let remaining = turn.remaining_radians;
+        request_snap_turn(&mut turn, TurnKind::SideTurnLeft, &config);
+        assert_eq!(turn.remaining_radians, remaining);
     }
 
     #[test]
     fn death_view_turns_toward_killer_and_red_increases() {
+        let config = Config::default();
         let mut camera = Camera {
             position: Vec2::ZERO,
             angle: 0.0,
@@ -1733,19 +1900,32 @@ mod tests {
         let mut death_view = DeathViewState::default();
 
         request_death_view(&mut death_view, &camera, Vec2::Y);
-        tick_death_view(&mut camera, &mut death_view, DEATH_TURN_DURATION_SECS * 0.5);
+        tick_death_view(
+            &mut camera,
+            &mut death_view,
+            config.death_turn_duration_secs * 0.5,
+            &config,
+        );
         assert!((camera.angle - std::f32::consts::FRAC_PI_4).abs() < 1e-5);
-        let half_density = death_red_density(&death_view);
+        let half_density = death_red_density(&death_view, &config);
         assert!(half_density > 0.0);
-        assert!(half_density < DEATH_RED_MAX_DENSITY);
+        assert!(half_density < config.death_red_max_density);
 
-        tick_death_view(&mut camera, &mut death_view, DEATH_TURN_DURATION_SECS * 0.5);
+        tick_death_view(
+            &mut camera,
+            &mut death_view,
+            config.death_turn_duration_secs * 0.5,
+            &config,
+        );
         assert!((camera.angle - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
-        assert!((death_red_density(&death_view) - DEATH_RED_MAX_DENSITY).abs() < 1e-5);
+        assert!(
+            (death_red_density(&death_view, &config) - config.death_red_max_density).abs() < 1e-5
+        );
     }
 
     #[test]
     fn death_view_uses_shortest_turn_direction() {
+        let config = Config::default();
         let mut camera = Camera {
             position: Vec2::ZERO,
             angle: 350.0_f32.to_radians(),
@@ -1755,7 +1935,12 @@ mod tests {
         let ten_degrees = Vec2::new(10.0_f32.to_radians().cos(), 10.0_f32.to_radians().sin());
 
         request_death_view(&mut death_view, &camera, ten_degrees);
-        tick_death_view(&mut camera, &mut death_view, DEATH_TURN_DURATION_SECS);
+        tick_death_view(
+            &mut camera,
+            &mut death_view,
+            config.death_turn_duration_secs,
+            &config,
+        );
         assert!((camera.angle - 10.0_f32.to_radians()).abs() < 1e-5);
 
         camera.angle = 10.0_f32.to_radians();
@@ -1763,12 +1948,18 @@ mod tests {
         let three_fifty_degrees =
             Vec2::new(350.0_f32.to_radians().cos(), 350.0_f32.to_radians().sin());
         request_death_view(&mut death_view, &camera, three_fifty_degrees);
-        tick_death_view(&mut camera, &mut death_view, DEATH_TURN_DURATION_SECS);
+        tick_death_view(
+            &mut camera,
+            &mut death_view,
+            config.death_turn_duration_secs,
+            &config,
+        );
         assert!((camera.angle - 350.0_f32.to_radians()).abs() < 1e-5);
     }
 
     #[test]
     fn player_damage_latches_first_killing_source() {
+        let config = Config::default();
         let camera = Camera {
             position: Vec2::ZERO,
             angle: 0.0,
@@ -1787,6 +1978,7 @@ mod tests {
             &camera,
             10,
             Some(Vec2::Y),
+            &config,
         );
         let first_target = death_view.target_angle;
         apply_player_damage(
@@ -1797,6 +1989,7 @@ mod tests {
             &camera,
             10,
             Some(Vec2::NEG_Y),
+            &config,
         );
 
         assert!(dead);
@@ -1807,6 +2000,7 @@ mod tests {
 
     #[test]
     fn player_damage_requests_camera_shake() {
+        let config = Config::default();
         let camera = Camera::default();
         let mut health = 100;
         let mut dead = false;
@@ -1821,11 +2015,12 @@ mod tests {
             &camera,
             1,
             None,
+            &config,
         );
 
         assert_eq!(health, 99);
         assert!(!dead);
-        assert_eq!(camera_shake.intensity, CAMERA_SHAKE_BASE_INTENSITY);
+        assert_eq!(camera_shake.intensity, config.camera_shake_base_intensity);
     }
 
     #[test]
@@ -1901,22 +2096,26 @@ mod tests {
 
     #[test]
     fn camera_shake_reinforces_decays_and_clears() {
+        let config = Config::default();
         let mut camera_shake = CameraShakeState::default();
-        request_camera_shake(&mut camera_shake);
-        request_camera_shake(&mut camera_shake);
+        request_camera_shake(&mut camera_shake, &config);
+        request_camera_shake(&mut camera_shake, &config);
 
-        assert_eq!(camera_shake.intensity, CAMERA_SHAKE_BASE_INTENSITY * 2.0);
+        assert_eq!(
+            camera_shake.intensity,
+            config.camera_shake_base_intensity * 2.0
+        );
 
-        tick_camera_shake(&mut camera_shake, 0.1, 0.0, 1.0);
+        tick_camera_shake(&mut camera_shake, 0.1, 0.0, 1.0, &config);
         assert_eq!(
             camera_shake.current_offset,
-            IVec2::new((CAMERA_SHAKE_BASE_INTENSITY * 2.0) as i32, 0)
+            IVec2::new((config.camera_shake_base_intensity * 2.0) as i32, 0)
         );
-        assert!(camera_shake.intensity < CAMERA_SHAKE_BASE_INTENSITY * 2.0);
+        assert!(camera_shake.intensity < config.camera_shake_base_intensity * 2.0);
 
-        camera_shake.intensity = CAMERA_SHAKE_THRESHOLD * 0.5;
+        camera_shake.intensity = config.camera_shake_threshold * 0.5;
         camera_shake.current_offset = IVec2::new(1, 1);
-        tick_camera_shake(&mut camera_shake, 0.016, 0.0, 0.0);
+        tick_camera_shake(&mut camera_shake, 0.016, 0.0, 0.0, &config);
         assert_eq!(camera_shake.intensity, 0.0);
         assert_eq!(camera_shake.current_offset, IVec2::ZERO);
     }
