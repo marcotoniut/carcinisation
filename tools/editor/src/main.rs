@@ -52,7 +52,8 @@ use bevy_inspector_egui::bevy_egui::{EguiPlugin, EguiPrimaryContextPass};
 #[cfg(feature = "full_editor")]
 use bevy_prototype_lyon::plugin::ShapePlugin;
 #[cfg(feature = "full_editor")]
-use carcinisation::{cutscene::data::CutsceneData, stage::data::StageData};
+use carcinisation_cutscene::data::CutsceneData;
+use carcinisation_ors::stage::data::StageData;
 #[cfg(feature = "full_editor")]
 use components::SceneData;
 #[cfg(feature = "full_editor")]

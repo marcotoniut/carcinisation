@@ -5,12 +5,11 @@ edition.workspace = true
 description = "Tweening system for animating stage entities on fixed-step time domains"
 
 [dependencies]
-carcinisation_core = { path = "../carcinisation_core" }
-
 bevy = { workspace = true }
 carapace = { workspace = true, features = ["line"] }
+carcinisation_core = { path = "../carcinisation_core" }
+serde = { workspace = true, features = ["derive"] }
 
 derive-new = { workspace = true }
 derive_more = { workspace = true }
 lazy_static = { workspace = true }
-serde = { workspace = true, features = ["derive"] }

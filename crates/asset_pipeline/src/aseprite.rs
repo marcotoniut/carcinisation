@@ -969,19 +969,19 @@ pub fn compute_palette_indices(source: &RgbaImage) -> Result<Vec<u8>> {
     let palette = load_runtime_palette(Path::new(DEFAULT_RUNTIME_PALETTE_PATH))?;
     let grayscale_mapping = grayscale_ramp_mapping(source, &palette);
 
-    // Build palette index lookup: RGB → 1-based index (0 = transparent).
-    // Keyed on RGB (not RGBA) to match the runtime Palette which ignores alpha.
-    let palette_index: HashMap<[u8; 3], u8> = palette
-        .iter()
-        .enumerate()
-        .map(|(i, color)| ([color.0[0], color.0[1], color.0[2]], (i + 1) as u8))
-        .collect();
+    // Build direct RGB lookup table: [r][g][b] → index (0 = transparent).
+    // Palette has ≤15 colors; heap-allocate the 16MB LUT to avoid stack overflow.
+    let mut lut: Box<[[[u8; 256]; 256]; 256]> = Box::new([[[0; 256]; 256]; 256]);
+    for (i, color) in palette.iter().enumerate() {
+        let [r, g, b, _] = color.0;
+        lut[r as usize][g as usize][b as usize] = (i + 1) as u8;
+    }
 
     ensure!(
-        palette_index.len() <= 15,
+        palette.len() <= 15,
         "Runtime palette has {} colours, but PXI format supports at most 15 \
          (indices 1–15, with 0 reserved for transparent)",
-        palette_index.len(),
+        palette.len(),
     );
 
     let indices: Vec<u8> = source
@@ -990,13 +990,13 @@ pub fn compute_palette_indices(source: &RgbaImage) -> Result<Vec<u8>> {
             if pixel.0[3] == 0 {
                 return 0;
             }
-            // Quantize to palette colour first, then look up its index.
+            // Quantize to palette colour first, then look up its index in O(1) LUT.
             let quantized = grayscale_mapping
                 .get(&pixel.0)
                 .copied()
                 .unwrap_or_else(|| nearest_palette_color(*pixel, &palette));
-            let rgb = [quantized.0[0], quantized.0[1], quantized.0[2]];
-            *palette_index.get(&rgb).unwrap_or(&0)
+            let [r, g, b, _] = quantized.0;
+            lut[r as usize][g as usize][b as usize]
         })
         .collect();
 
@@ -1266,6 +1266,10 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
         "No non-empty sprites were extracted from Aseprite"
     );
 
+    // Sort by height (tallest first) for better shelf packing.
+    let mut sorted_indices: Vec<usize> = (0..sprites.len()).collect();
+    sorted_indices.sort_by(|&a, &b| sprites[b].image.height().cmp(&sprites[a].image.height()));
+
     let area: u64 = sprites
         .iter()
         .map(|sprite| u64::from(sprite.image.width()) * u64::from(sprite.image.height()))
@@ -1275,17 +1279,58 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
         .map(|sprite| sprite.image.width())
         .max()
         .unwrap_or(1);
-    let target_width = next_power_of_two(u32::max(widest, (area as f64).sqrt().ceil() as u32));
 
+    // Try multiple width candidates, pick the one that produces smallest atlas.
+    let candidates: Vec<u32> = {
+        let sqrt_area = (area as f64).sqrt().ceil() as u32;
+        let mut c: Vec<u32> = vec![widest, sqrt_area];
+        if sqrt_area > widest {
+            c.push(sqrt_area.next_power_of_two());
+        }
+        c.sort_unstable();
+        c.dedup();
+        c
+    };
+
+    let mut best = None;
+    for &target_width in &candidates {
+        if let Some(result) = try_pack_sprites(sprites, &sorted_indices, target_width) {
+            let atlas_h = result.0.height();
+            match &best {
+                None => best = Some((target_width, result)),
+                Some((_, (prev_atlas, _))) if atlas_h < prev_atlas.height() => {
+                    best = Some((target_width, result))
+                }
+                _ => {}
+            }
+        }
+    }
+
+    best.map(|(_, result)| Ok(result)).unwrap_or_else(|| {
+        try_pack_sprites(sprites, &sorted_indices, widest)
+            .ok_or_else(|| anyhow!("Failed to pack sprites"))
+    })
+}
+
+/// Try to pack sprites using shelf packing with given width.
+/// Returns Some((atlas_image, sprites)) if all sprites fit, None otherwise.
+fn try_pack_sprites(
+    sprites: &[PreparedSprite],
+    sorted_indices: &[usize],
+    target_width: u32,
+) -> Option<(RgbaImage, Vec<AtlasSprite>)> {
     let mut placements = Vec::with_capacity(sprites.len());
     let mut cursor_x = 0;
     let mut cursor_y = 0;
     let mut shelf_height = 0;
     let mut atlas_height = 0;
 
-    for sprite in sprites {
+    for &idx in sorted_indices {
+        let sprite = &sprites[idx];
         let width = sprite.image.width();
         let height = sprite.image.height();
+
+        // Check if sprite fits in current shelf.
         if cursor_x > 0 && cursor_x + width > target_width {
             cursor_x = 0;
             cursor_y += shelf_height;
@@ -1293,7 +1338,7 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
         }
 
         placements.push((
-            sprite.id.clone(),
+            idx,
             Rect {
                 x: cursor_x,
                 y: cursor_y,
@@ -1306,28 +1351,29 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
         atlas_height = atlas_height.max(cursor_y + height);
     }
 
+    // Check if all sprites fit within target_width.
+    if placements.iter().any(|(_, r)| r.x + r.w > target_width) {
+        return None;
+    }
+
     let mut atlas = ImageBuffer::from_pixel(target_width, atlas_height.max(1), Rgba([0, 0, 0, 0]));
     let mut atlas_sprites = Vec::with_capacity(placements.len());
 
-    for (sprite, (id, rect)) in sprites.iter().zip(placements.into_iter()) {
+    for (idx, rect) in placements {
+        let sprite = &sprites[idx];
         imageops::overlay(
             &mut atlas,
             &sprite.image,
             i64::from(rect.x),
             i64::from(rect.y),
         );
-        atlas_sprites.push(AtlasSprite { id, rect });
+        atlas_sprites.push(AtlasSprite {
+            id: sprite.id.clone(),
+            rect,
+        });
     }
 
-    Ok((atlas, atlas_sprites))
-}
-
-fn next_power_of_two(value: u32) -> u32 {
-    if value <= 1 {
-        1
-    } else {
-        value.next_power_of_two()
-    }
+    Some((atlas, atlas_sprites))
 }
 
 fn intern_sprite(

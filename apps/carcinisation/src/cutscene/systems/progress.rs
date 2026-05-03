@@ -30,10 +30,10 @@ use carcinisation_cutscene::components::{Cinematic, CutsceneEntity, CutsceneGrap
 use carcinisation_cutscene::resources::{CutsceneProgress, CutsceneTimeDomain};
 
 use crate::globals::SCREEN_RESOLUTION;
-use carcinisation_animation::{RotationKeyframe, RotationKeyframes};
 use carcinisation_cutscene::components::{
     CutsceneAppearAt, RotationFollower, TimelineCurveFollower,
 };
+use cween::animation::{RotationKeyframe, RotationKeyframes};
 use std::time::Duration;
 
 /// @system Applies the next cutscene act when none is currently active.
@@ -358,8 +358,8 @@ pub fn drive_cutscene_rotation_keyframes(
 ) {
     let elapsed = time.elapsed();
     for (rk, mut pt) in &mut query {
-        pt.rotation = carcinisation_animation::evaluate_rotation_keyframes(&rk.keyframes, elapsed)
-            + rk.offset;
+        pt.rotation =
+            cween::animation::evaluate_rotation_keyframes(&rk.keyframes, elapsed) + rk.offset;
     }
 }
 
@@ -395,8 +395,7 @@ pub fn drive_rotation_followers(
 
         // Relative offset from keyframes (0 at appear, peaks briefly, returns to 0).
         let relative_offset =
-            carcinisation_animation::evaluate_rotation_keyframes(&rk.keyframes, elapsed)
-                + rk.offset;
+            cween::animation::evaluate_rotation_keyframes(&rk.keyframes, elapsed) + rk.offset;
 
         pt.rotation = leader_rotation + relative_offset;
     }
@@ -435,10 +434,9 @@ pub fn drive_timeline_curve_followers(
             .unwrap()
             .as_secs_f32();
         let scaled_elapsed = follower.appear_at + Duration::from_secs_f32(dt * follower.time_scale);
-        pt.rotation = carcinisation_animation::evaluate_rotation_keyframes(
-            &tc.rotation_keyframes,
-            scaled_elapsed,
-        ) + follower.angle_offset;
+        pt.rotation =
+            cween::animation::evaluate_rotation_keyframes(&tc.rotation_keyframes, scaled_elapsed)
+                + follower.angle_offset;
     }
 }
 

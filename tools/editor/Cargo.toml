@@ -13,7 +13,6 @@ bevy_brp_extras = { workspace = true }
 bevy_common_assets = { workspace = true }
 bevy-inspector-egui = { workspace = true }
 bevy_prototype_lyon = { version = "0.16", optional = true }
-carcinisation = { path = "../../apps/carcinisation" }
 carcinisation_cutscene = { path = "../../crates/carcinisation_cutscene" }
 carcinisation_ors = { path = "../../crates/carcinisation_ors" }
 derive-new = { workspace = true }

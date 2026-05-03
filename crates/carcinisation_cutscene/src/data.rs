@@ -6,8 +6,8 @@
 
 use crate::resources::CutsceneTimeDomain;
 use bevy::prelude::*;
-use carcinisation_animation::RotationKeyframe;
 use carcinisation_base::layer::{Layer, MenuLayer};
+use cween::animation::RotationKeyframe;
 use cween::linear::components::{LinearTweenBundle, TargetingValueX, TargetingValueY};
 use derive_new::new;
 use serde::{Deserialize, Serialize};

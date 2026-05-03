@@ -8,12 +8,11 @@ description = "On-rails shooter gameplay for Carcinisation"
 activable = { path = "../activable" }
 activable_macros = { path = "../activable_macros" }
 carapace = { workspace = true }
-carcinisation_animation = { path = "../carcinisation_animation" }
+cween = { path = "../cween" }
 carcinisation_base = { path = "../carcinisation_base" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 carcinisation_core = { path = "../carcinisation_core" }
 carcinisation_input = { path = "../carcinisation_input" }
-cween = { path = "../cween" }
 asset_pipeline = { workspace = true }
 bevy = { workspace = true }
 bevy_common_assets = { workspace = true }

@@ -1,8 +1,8 @@
 use std::{collections::HashMap, time::Duration};
 
-use carcinisation::{
-    cutscene::data::CutsceneData,
-    stage::{components::placement::Depth, data::StageData, enemy::entity::EnemyType},
+use carcinisation_cutscene::data::CutsceneData;
+use carcinisation_ors::stage::{
+    components::placement::Depth, data::StageData, enemy::entity::EnemyType,
 };
 
 use bevy::{prelude::*, sprite::Anchor};

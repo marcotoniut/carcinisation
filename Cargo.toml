@@ -7,7 +7,7 @@ members = [
     "crates/asset_pipeline",
     "crates/carapace",
     "crates/carapace/macros",
-    "crates/carcinisation_animation",
+    "crates/cween",
     "crates/carcinisation_base",
     "crates/carcinisation_collision",
     "crates/carcinisation_cutscene",

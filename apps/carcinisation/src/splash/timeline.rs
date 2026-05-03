@@ -1,7 +1,7 @@
 //! Splash RON config — per-track animation data, loaded and mapped to
 //! `CutsceneData` at startup.
 
-use carcinisation_animation::RotationKeyframe;
+use cween::animation::RotationKeyframe;
 use serde::Deserialize;
 
 const CONFIG_PATH: &str = "assets/splash/bevy.ron";

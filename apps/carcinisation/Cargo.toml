@@ -18,13 +18,12 @@ carcinisation_cutscene = { path = "../../crates/carcinisation_cutscene" }
 activable = { path = "../../crates/activable" }
 activable_macros = { path = "../../crates/activable_macros" }
 carcinisation_core = { path = "../../crates/carcinisation_core" }
-carcinisation_animation = { path = "../../crates/carcinisation_animation" }
+cween = { path = "../../crates/cween" }
 carcinisation_base = { path = "../../crates/carcinisation_base" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 carcinisation_ors = { path = "../../crates/carcinisation_ors" }
 carcinisation_fps = { path = "../../crates/carcinisation_fps" }
 carcinisation_input = { path = "../../crates/carcinisation_input" }
-cween = { path = "../../crates/cween" }
 asset_pipeline = { workspace = true }
 
 # Bevy ecosystem

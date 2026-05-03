@@ -256,7 +256,7 @@ fn render_walls(
         let draw_start = half_h - line_height / 2;
         let draw_end = draw_start + line_height;
 
-        // Ceiling above wall — sky replaces ceiling color when available.
+        // Ceiling above wall — sky at native height, no Y distortion.
         if let Some(sky_ref) = sky {
             sky_ref.draw_column(image, x, draw_start.max(0), palette.ceiling, yaw_offset);
         } else {
