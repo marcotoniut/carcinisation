@@ -17,10 +17,8 @@ use carcinisation_fps::player_attack::AttackInput;
 use carcinisation_fps::player_attack::PlayerAttackState;
 use carcinisation_fps::plugin::{
     CameraRes, CameraShakeState, CharDecals, Config, DeathViewState, EnemySpriteIndex, FpsPlugin,
-    MapRes, PlayerDead, PlayerHealth, ProjectileImpacts, Projectiles, QuickTurnDebounce,
-    QuickTurnState, ShootRequest, SideTurnLeftDebounce, SideTurnRightDebounce, Systems,
-    move_camera, request_quick_turn, request_side_turn, resolve_quick_turn_pressed,
-    resolve_side_turn_pressed,
+    MapRes, PlayerDead, PlayerHealth, ProjectileImpacts, Projectiles, QuickTurnState, ShootRequest,
+    Systems, TurnChordInput, TurnChordState, move_camera, request_snap_turn, resolve_turn_chord,
 };
 use carcinisation_input::{GBInput, init_gb_input};
 use leafwing_input_manager::prelude::*;
@@ -31,8 +29,6 @@ const SCREEN_W: u32 = 160;
 const SCREEN_H: u32 = 144;
 const MAP_PATH: &str = "../../assets/config/fp/test_room.fp_map.ron";
 const SKY_PATH: &str = "../../assets/config/sky/park.sky.ron";
-const MOVE_SPEED: f32 = 2.0;
-const TURN_SPEED: f32 = 2.0;
 const DEATH_RESTART_DELAY_SECS: f32 = 0.75;
 const GOD_MODE_ENV: &str = "CARCINISATION_GOD_MODE";
 
@@ -75,12 +71,11 @@ fn handle_input(
     time: Res<Time>,
     mut camera: ResMut<CameraRes>,
     map: Res<MapRes>,
+    config: Res<Config>,
     dead: Res<PlayerDead>,
     mut shoot: ResMut<ShootRequest>,
     mut attack_input: ResMut<AttackInput>,
-    mut quick_turn: ResMut<QuickTurnDebounce>,
-    mut side_turn_left: ResMut<SideTurnLeftDebounce>,
-    mut side_turn_right: ResMut<SideTurnRightDebounce>,
+    mut turn_chord: ResMut<TurnChordState>,
     mut quick_turn_state: ResMut<QuickTurnState>,
 ) {
     if dead.0 {
@@ -97,54 +92,44 @@ fn handle_input(
     let select_just_pressed = action.just_pressed(&GBInput::Select);
     let turning_left = action.pressed(&GBInput::Left) && !b_held;
     let turning_right = action.pressed(&GBInput::Right) && !b_held;
-    let quick_turn_pressed = resolve_quick_turn_pressed(
-        back_held,
-        b_held,
-        action.just_pressed(&GBInput::Down),
-        action.just_pressed(&GBInput::B),
-        action.just_released(&GBInput::Down),
-        time.elapsed_secs(),
-        &mut quick_turn,
-    );
-
-    let side_turn_left_pressed = resolve_side_turn_pressed(
-        b_held,
-        action.pressed(&GBInput::Left),
-        action.just_pressed(&GBInput::B),
-        action.just_pressed(&GBInput::Left),
-        action.just_released(&GBInput::Left),
-        time.elapsed_secs(),
-        &mut side_turn_left.0,
-    );
-    let side_turn_right_pressed = resolve_side_turn_pressed(
-        b_held,
-        action.pressed(&GBInput::Right),
-        action.just_pressed(&GBInput::B),
-        action.just_pressed(&GBInput::Right),
-        action.just_released(&GBInput::Right),
-        time.elapsed_secs(),
-        &mut side_turn_right.0,
-    );
-
     let up_held = action.pressed(&GBInput::Up);
-    let left_held = action.pressed(&GBInput::Left);
-    let right_held = action.pressed(&GBInput::Right);
 
-    // Block turn chords while other movement keys are held.
-    if quick_turn_pressed && !up_held && !left_held && !right_held {
-        request_quick_turn(&mut quick_turn_state);
-    } else if side_turn_left_pressed && !up_held && !back_held {
-        request_side_turn(&mut quick_turn_state, true);
-    } else if side_turn_right_pressed && !up_held && !back_held {
-        request_side_turn(&mut quick_turn_state, false);
+    let chord_input = TurnChordInput {
+        b_pressed: b_held,
+        b_just_pressed: action.just_pressed(&GBInput::B),
+        down_pressed: back_held,
+        down_just_pressed: action.just_pressed(&GBInput::Down),
+        down_just_released: action.just_released(&GBInput::Down),
+        left_pressed: action.pressed(&GBInput::Left),
+        left_just_pressed: action.just_pressed(&GBInput::Left),
+        left_just_released: action.just_released(&GBInput::Left),
+        right_pressed: action.pressed(&GBInput::Right),
+        right_just_pressed: action.just_pressed(&GBInput::Right),
+        right_just_released: action.just_released(&GBInput::Right),
+        now_secs: time.elapsed_secs(),
+    };
+
+    // Block snap turns while moving forward; side turns also blocked while moving back.
+    if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord) {
+        let blocked = up_held
+            || matches!(
+                kind,
+                carcinisation_fps::plugin::TurnKind::SideTurnLeft
+                    | carcinisation_fps::plugin::TurnKind::SideTurnRight
+            ) && back_held;
+        if !blocked {
+            request_snap_turn(&mut quick_turn_state, kind, &config);
+        }
     }
 
+    // Suppress manual turning while a snap turn animation is active.
+    let turn_animating = quick_turn_state.is_active();
     let mut turn_delta = 0.0;
-    if turning_left {
-        turn_delta += TURN_SPEED * dt;
+    if turning_left && !turn_animating {
+        turn_delta += config.turn_speed * dt;
     }
-    if turning_right {
-        turn_delta -= TURN_SPEED * dt;
+    if turning_right && !turn_animating {
+        turn_delta -= config.turn_speed * dt;
     }
     cam.angle += turn_delta;
 
@@ -168,7 +153,7 @@ fn handle_input(
     }
 
     if move_delta != Vec2::ZERO {
-        move_delta = move_delta.normalize() * MOVE_SPEED * dt;
+        move_delta = move_delta.normalize() * config.move_speed * dt;
         move_camera(cam, move_delta, &map.0);
     }
 
@@ -260,7 +245,7 @@ struct ResetParams<'w, 's> {
     char_decals: ResMut<'w, CharDecals>,
     death_view: ResMut<'w, DeathViewState>,
     camera_shake: ResMut<'w, CameraShakeState>,
-    quick_turn: ResMut<'w, QuickTurnDebounce>,
+    turn_chord: ResMut<'w, TurnChordState>,
     quick_turn_state: ResMut<'w, QuickTurnState>,
     restart_gate: ResMut<'w, DeathRestartGate>,
     commands: Commands<'w, 's>,
@@ -325,7 +310,7 @@ fn reset_stage(reset: &mut ResetParams<'_, '_>) {
     *reset.attack_state = PlayerAttackState::default();
     *reset.death_view = DeathViewState::default();
     *reset.camera_shake = CameraShakeState::default();
-    *reset.quick_turn = QuickTurnDebounce::default();
+    *reset.turn_chord = TurnChordState::default();
     *reset.quick_turn_state = QuickTurnState::default();
     reset.restart_gate.reset_alive();
 }
@@ -406,8 +391,9 @@ fn main() {
         ..Default::default()
     });
     app.init_resource::<DeathRestartGate>();
-    app.init_resource::<QuickTurnDebounce>();
-    app.insert_resource(GodMode { enabled: load_initial_god_mode() });
+    app.insert_resource(GodMode {
+        enabled: load_initial_god_mode(),
+    });
     app.add_plugins(FpsPlugin::<Layer>::new());
 
     app.add_plugins(InputManagerPlugin::<GBInput>::default());
