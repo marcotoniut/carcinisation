@@ -1,0 +1,10 @@
+[package]
+name = "carcinisation_fps_core"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+bevy_math = { version = "0.18.0" }
+serde = { workspace = true }
+ron = { workspace = true }

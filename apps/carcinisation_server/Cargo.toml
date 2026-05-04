@@ -1,0 +1,9 @@
+[package]
+name = "carcinisation_server"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+carcinisation_fps_core = { path = "../../crates/carcinisation_fps_core" }
+carcinisation_net = { path = "../../crates/carcinisation_net" }
+bevy = { version = "0.18", default-features = false }

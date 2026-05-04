@@ -2,19 +2,21 @@
 resolver = "2"
 members = [
     "apps/carcinisation",
+    "apps/carcinisation_server",
     "crates/activable_macros",
     "crates/activable",
     "crates/asset_pipeline",
     "crates/carapace",
     "crates/carapace/macros",
-    "crates/cween",
     "crates/carcinisation_base",
     "crates/carcinisation_collision",
     "crates/carcinisation_cutscene",
     "crates/carcinisation_core",
-    "crates/carcinisation_ors",
     "crates/carcinisation_fps",
+    "crates/carcinisation_fps_core",
+    "crates/carcinisation_fps_render",
     "crates/carcinisation_input",
+    "crates/carcinisation_net",
     "crates/cween",
     "scripts/generate-typeface",
     "scripts/process-aseprite",
@@ -54,6 +56,9 @@ carapace = { path = "crates/carapace", default-features = true, features = [
 serde = { version = "1.0", features = ["derive"] }
 serde_with = "3.17.0"
 serde_json = "1.0"
+bevy_replicon = "0.39"
+bevy_replicon_renet2 = "0.15"
+bincode = "1"
 ron = "0.12.0"
 anyhow = "1.0"
 strum = "0.28.0"
