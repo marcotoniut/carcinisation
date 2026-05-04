@@ -1,0 +1,39 @@
+(
+    indexed_image: "sprites/ui/stage_gun_muzzle_flash/atlas.pxi",
+    regions: [
+        (
+            frame_size: (18, 15),
+            origin: Some((71, 91)),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 18,
+                    h: 15,
+                ),
+                (
+                    x: 18,
+                    y: 0,
+                    w: 18,
+                    h: 15,
+                ),
+                (
+                    x: 36,
+                    y: 0,
+                    w: 18,
+                    h: 15,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "shooting": 0,
+    },
+    animations: {
+        "shooting": (
+            duration_ms: 300,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

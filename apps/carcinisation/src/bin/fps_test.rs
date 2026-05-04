@@ -112,11 +112,11 @@ fn handle_input(
     // Block snap turns while moving forward; side turns also blocked while moving back.
     if let Some(kind) = resolve_turn_chord(&chord_input, &mut turn_chord) {
         let blocked = up_held
-            || matches!(
+            || (matches!(
                 kind,
                 carcinisation_fps::plugin::TurnKind::SideTurnLeft
                     | carcinisation_fps::plugin::TurnKind::SideTurnRight
-            ) && back_held;
+            ) && back_held);
         if !blocked {
             request_snap_turn(&mut quick_turn_state, kind, &config);
         }

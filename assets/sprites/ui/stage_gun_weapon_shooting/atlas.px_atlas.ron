@@ -1,0 +1,39 @@
+(
+    indexed_image: "sprites/ui/stage_gun_weapon_shooting/atlas.pxi",
+    regions: [
+        (
+            frame_size: (28, 48),
+            origin: Some((65, 96)),
+            frames: [
+                (
+                    x: 0,
+                    y: 0,
+                    w: 28,
+                    h: 48,
+                ),
+                (
+                    x: 28,
+                    y: 0,
+                    w: 28,
+                    h: 48,
+                ),
+                (
+                    x: 56,
+                    y: 0,
+                    w: 28,
+                    h: 48,
+                ),
+            ],
+        ),
+    ],
+    names: {
+        "shooting": 0,
+    },
+    animations: {
+        "shooting": (
+            duration_ms: 300,
+            direction: "forward",
+            on_finish: "loop",
+        ),
+    },
+)

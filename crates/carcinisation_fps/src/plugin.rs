@@ -95,7 +95,7 @@ impl Default for Config {
             screen_height: 144,
             move_speed: 2.0,
             turn_speed: 2.0,
-            hitscan_damage: 15,
+            hitscan_damage: 37,
             player_max_health: 100,
             quick_turn_duration_secs: 0.4,
             death_turn_duration_secs: 0.45,
@@ -1101,6 +1101,7 @@ fn handle_shooting(
     mut attack_input: ResMut<AttackInput>,
     mut attack_loadout: ResMut<AttackLoadout>,
     mut attack_state: ResMut<PlayerAttackState>,
+    attack_sprites: Res<PlayerAttackSprites>,
 ) {
     if dead.0 {
         shoot.0 = false;
@@ -1127,6 +1128,7 @@ fn handle_shooting(
     process_player_attacks(
         &camera.0,
         &map.0,
+        &attack_sprites,
         config.hitscan_damage,
         time.delta_secs(),
         time.elapsed_secs(),
@@ -2050,9 +2052,11 @@ mod tests {
         let mut char_decals = Vec::new();
         let mut shoot_request = false;
 
+        let sprites = PlayerAttackSprites::load();
         process_player_attacks(
             &camera,
             &map,
+            &sprites,
             15,
             1.0 / 60.0,
             0.0,

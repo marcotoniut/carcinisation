@@ -45,3 +45,21 @@ source = "../ui/stage.aseprite"
 output = "sprites/ui/stage_flamethrower_flame"
 layer = "flamethrower_flame"
 tag = "flamethrower_flame"
+
+[[atlases]]
+source = "../ui/stage.aseprite"
+output = "sprites/ui/stage_gun_weapon"
+layer = "gun_fps"
+tag = "idle"
+
+[[atlases]]
+source = "../ui/stage.aseprite"
+output = "sprites/ui/stage_gun_weapon_shooting"
+layer = "gun_fps"
+tag = "shooting"
+
+[[atlases]]
+source = "../ui/stage.aseprite"
+output = "sprites/ui/stage_gun_muzzle_flash"
+layer = "gun_fps_muzzle_flash"
+tag = "shooting"

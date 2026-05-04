@@ -49,8 +49,21 @@ const STAGE_IDLE_FLAME_ATLAS_RON: &str =
     include_str!("../../../assets/sprites/ui/stage_flamethrower_flame/atlas.px_atlas.ron");
 const STAGE_IDLE_FLAME_PXI: &[u8] =
     include_bytes!("../../../assets/sprites/ui/stage_flamethrower_flame/atlas.pxi");
+const STAGE_GUN_ATLAS_RON: &str =
+    include_str!("../../../assets/sprites/ui/stage_gun_weapon/atlas.px_atlas.ron");
+const STAGE_GUN_PXI: &[u8] =
+    include_bytes!("../../../assets/sprites/ui/stage_gun_weapon/atlas.pxi");
+const STAGE_GUN_SHOOTING_ATLAS_RON: &str =
+    include_str!("../../../assets/sprites/ui/stage_gun_weapon_shooting/atlas.px_atlas.ron");
+const STAGE_GUN_SHOOTING_PXI: &[u8] =
+    include_bytes!("../../../assets/sprites/ui/stage_gun_weapon_shooting/atlas.pxi");
+const STAGE_GUN_MUZZLE_FLASH_ATLAS_RON: &str =
+    include_str!("../../../assets/sprites/ui/stage_gun_muzzle_flash/atlas.px_atlas.ron");
+const STAGE_GUN_MUZZLE_FLASH_PXI: &[u8] =
+    include_bytes!("../../../assets/sprites/ui/stage_gun_muzzle_flash/atlas.pxi");
 const FLAMETHROWER_CONFIG_RON: &str =
     include_str!("../../../assets/config/attacks/player_flamethrower_fps.ron");
+const GUN_CONFIG_RON: &str = include_str!("../../../assets/config/attacks/player_gun_fps.ron");
 
 const BULLET_REGION: &str = "bullet_particles";
 const MELEE_REGION: &str = "melee_slash";
@@ -59,6 +72,9 @@ const FLAME_WALL_HIT_REGION: &str = "flame_wall_hit";
 const FLAMETHROWER_IDLE_REGION: &str = "flamethrower_idle";
 const FLAMETHROWER_SHOOTING_REGION: &str = "flamethrower_shooting";
 const STAGE_IDLE_FLAME_REGION: &str = "flamethrower_flame";
+const GUN_IDLE_REGION: &str = "idle";
+const GUN_SHOOTING_REGION: &str = "shooting";
+const GUN_MUZZLE_FLASH_REGION: &str = "shooting";
 const PISTOL_EFFECT_POS: Vec2 = Vec2::new(80.0, 72.0);
 const MELEE_EFFECT_POS: Vec2 = Vec2::new(80.0, 72.0);
 const MELEE_RANGE_UNITS: f32 = 1.1;
@@ -255,6 +271,38 @@ impl FlamethrowerConfig {
     }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename = "GunConfig")]
+pub struct GunConfig {
+    pub weapon_base_offset_px: (f32, f32),
+    pub weapon_raise_px: f32,
+    pub weapon_raise_speed: f32,
+    pub weapon_bob_enabled: bool,
+    pub weapon_bob_horizontal_px: f32,
+    pub weapon_bob_vertical_px: f32,
+    pub weapon_bob_speed: f32,
+    pub weapon_bob_return_speed: f32,
+    pub muzzle_flash_offset: (f32, f32),
+    pub muzzle_flash_scale: f32,
+}
+
+impl GunConfig {
+    #[must_use]
+    pub fn load() -> Self {
+        ron::from_str(GUN_CONFIG_RON).expect("embedded player_gun_fps.ron must parse")
+    }
+
+    #[must_use]
+    pub fn weapon_base_offset(&self) -> Vec2 {
+        Vec2::new(self.weapon_base_offset_px.0, self.weapon_base_offset_px.1)
+    }
+
+    #[must_use]
+    pub fn muzzle_flash_offset(&self) -> Vec2 {
+        Vec2::new(self.muzzle_flash_offset.0, self.muzzle_flash_offset.1)
+    }
+}
+
 #[derive(Clone, Debug)]
 struct AtlasAnimation {
     frames: Vec<CxImage>,
@@ -292,6 +340,9 @@ pub struct PlayerAttackSprites {
     weapon_idle: AtlasAnimation,
     weapon_shooting: AtlasAnimation,
     idle_flame: AtlasAnimation,
+    gun_idle: AtlasAnimation,
+    gun_shooting: AtlasAnimation,
+    gun_muzzle_flash: AtlasAnimation,
 }
 
 impl PlayerAttackSprites {
@@ -328,6 +379,20 @@ impl PlayerAttackSprites {
                 STAGE_IDLE_FLAME_REGION,
             )
             .expect("stage flamethrower idle flame atlas must load"),
+            gun_idle: load_atlas_animation(STAGE_GUN_ATLAS_RON, STAGE_GUN_PXI, GUN_IDLE_REGION)
+                .expect("stage gun idle atlas must load"),
+            gun_shooting: load_atlas_animation(
+                STAGE_GUN_SHOOTING_ATLAS_RON,
+                STAGE_GUN_SHOOTING_PXI,
+                GUN_SHOOTING_REGION,
+            )
+            .expect("stage gun shooting atlas must load"),
+            gun_muzzle_flash: load_atlas_animation(
+                STAGE_GUN_MUZZLE_FLASH_ATLAS_RON,
+                STAGE_GUN_MUZZLE_FLASH_PXI,
+                GUN_MUZZLE_FLASH_REGION,
+            )
+            .expect("stage gun muzzle flash atlas must load"),
         }
     }
 
@@ -341,23 +406,29 @@ impl PlayerAttackSprites {
 pub struct PlayerAttackState {
     one_shots: Vec<OneShotEffect>,
     flamethrower: Option<ActiveFpFlamethrower>,
+    /// Muzzle flash elapsed timer. `Some` while the flash animation is playing.
+    gun_muzzle_flash_elapsed: Option<f32>,
     weapon_bob_offset: Vec2,
     /// Current vertical offset for the idle-lowered / shooting-raised tween.
-    /// Starts at `config.weapon_raise_px` (lowered) and lerps to 0 when shooting.
+    /// Starts at the active weapon's `weapon_raise_px` (lowered) and lerps to 0 when shooting.
     weapon_raise_offset: f32,
     config: FlamethrowerConfig,
+    gun_config: GunConfig,
 }
 
 impl Default for PlayerAttackState {
     fn default() -> Self {
         let config = FlamethrowerConfig::load();
+        let gun_config = GunConfig::load();
         let weapon_raise_offset = config.weapon_raise_px;
         Self {
             one_shots: Vec::new(),
             flamethrower: None,
+            gun_muzzle_flash_elapsed: None,
             weapon_bob_offset: Vec2::ZERO,
             weapon_raise_offset,
             config,
+            gun_config,
         }
     }
 }
@@ -444,6 +515,7 @@ enum FpFlameTarget {
 pub fn process_player_attacks(
     camera: &Camera,
     map: &Map,
+    sprites: &PlayerAttackSprites,
     hitscan_damage: u32,
     dt: f32,
     elapsed_secs: f32,
@@ -485,6 +557,7 @@ pub fn process_player_attacks(
         match loadout.current() {
             AttackId::Pistol => {
                 if input.shoot_just_pressed || legacy_shot {
+                    state.gun_muzzle_flash_elapsed = Some(0.0);
                     state.one_shots.push(OneShotEffect {
                         kind: OneShotEffectKind::Bullet,
                         elapsed: 0.0,
@@ -522,10 +595,21 @@ pub fn process_player_attacks(
     if loadout.current() != AttackId::Flamethrower {
         state.flamethrower = None;
     }
+    if loadout.current() != AttackId::Pistol {
+        state.gun_muzzle_flash_elapsed = None;
+    }
+
+    // Tick muzzle flash timer; expire when animation duration is exceeded.
+    if let Some(elapsed) = &mut state.gun_muzzle_flash_elapsed {
+        *elapsed += dt;
+        if *elapsed >= sprites.gun_muzzle_flash.duration_secs {
+            state.gun_muzzle_flash_elapsed = None;
+        }
+    }
 
     update_weapon_presentation(
         state,
-        loadout.current() == AttackId::Flamethrower,
+        loadout.current(),
         input.moving_forward_back,
         dt,
         elapsed_secs,
@@ -536,43 +620,54 @@ pub fn process_player_attacks(
 
 fn update_weapon_presentation(
     state: &mut PlayerAttackState,
-    flamethrower_selected: bool,
+    current_weapon: AttackId,
     moving_forward_back: bool,
     dt: f32,
     elapsed_secs: f32,
 ) {
-    if !flamethrower_selected {
-        state.weapon_bob_offset = Vec2::ZERO;
-        state.weapon_raise_offset = state.config.weapon_raise_px;
-        return;
-    }
+    let (raise_px, raise_speed, bob_enabled, bob_h, bob_v, bob_speed, bob_return) =
+        match current_weapon {
+            AttackId::Flamethrower => (
+                state.config.weapon_raise_px,
+                state.config.weapon_raise_speed,
+                state.config.weapon_bob_enabled,
+                state.config.weapon_bob_horizontal_px,
+                state.config.weapon_bob_vertical_px,
+                state.config.weapon_bob_speed,
+                state.config.weapon_bob_return_speed,
+            ),
+            AttackId::Pistol => (
+                state.gun_config.weapon_raise_px,
+                state.gun_config.weapon_raise_speed,
+                state.gun_config.weapon_bob_enabled,
+                state.gun_config.weapon_bob_horizontal_px,
+                state.gun_config.weapon_bob_vertical_px,
+                state.gun_config.weapon_bob_speed,
+                state.gun_config.weapon_bob_return_speed,
+            ),
+        };
 
-    let config = &state.config;
-    let firing = state
-        .flamethrower
-        .as_ref()
-        .is_some_and(|active| active.spawning);
+    let firing = match current_weapon {
+        AttackId::Flamethrower => state
+            .flamethrower
+            .as_ref()
+            .is_some_and(|active| active.spawning),
+        AttackId::Pistol => state.gun_muzzle_flash_elapsed.is_some(),
+    };
 
-    // Weapon raise/lower tween: 0.0 = raised (shooting), weapon_raise_px = lowered (idle).
-    let raise_target = if firing { 0.0 } else { config.weapon_raise_px };
-    let raise_t = (config.weapon_raise_speed * dt).clamp(0.0, 1.0);
+    // Weapon raise/lower tween: 0.0 = raised (shooting), raise_px = lowered (idle).
+    let raise_target = if firing { 0.0 } else { raise_px };
+    let raise_t = (raise_speed * dt).clamp(0.0, 1.0);
     state.weapon_raise_offset += (raise_target - state.weapon_raise_offset) * raise_t;
 
-    if config.weapon_bob_enabled && moving_forward_back && !firing {
-        state.weapon_bob_offset = weapon_bob_offset(config, elapsed_secs);
+    if bob_enabled && moving_forward_back && !firing {
+        let phase = elapsed_secs * bob_speed;
+        let horizontal = phase.sin();
+        state.weapon_bob_offset = Vec2::new(horizontal * bob_h, -horizontal.abs() * bob_v);
     } else {
-        let t = (config.weapon_bob_return_speed * dt).clamp(0.0, 1.0);
+        let t = (bob_return * dt).clamp(0.0, 1.0);
         state.weapon_bob_offset = state.weapon_bob_offset.lerp(Vec2::ZERO, t);
     }
-}
-
-fn weapon_bob_offset(config: &FlamethrowerConfig, elapsed_secs: f32) -> Vec2 {
-    let phase = elapsed_secs * config.weapon_bob_speed;
-    let horizontal = phase.sin();
-    Vec2::new(
-        horizontal * config.weapon_bob_horizontal_px,
-        -horizontal.abs() * config.weapon_bob_vertical_px,
-    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1426,6 +1521,31 @@ pub fn draw_player_attack_overlays(
             weapon_center,
             1.0,
         );
+    } else if loadout.current() == AttackId::Pistol {
+        let gun_config = &state.gun_config;
+        let screen_height = image.height() as f32;
+        let presentation_offset =
+            state.weapon_bob_offset + Vec2::new(0.0, state.weapon_raise_offset);
+        let weapon_center = gun_weapon_center(screen_height, gun_config, presentation_offset);
+
+        // Muzzle flash (drawn behind weapon).
+        if let Some(elapsed) = state.gun_muzzle_flash_elapsed {
+            let flash_offset = gun_config.muzzle_flash_offset();
+            draw_image_scaled_center(
+                image,
+                sprites.gun_muzzle_flash.frame_clamped(elapsed),
+                weapon_center + flash_offset,
+                gun_config.muzzle_flash_scale,
+            );
+        }
+
+        // Gun weapon sprite: idle shows first frame only, shooting loops.
+        let gun_frame = if state.gun_muzzle_flash_elapsed.is_some() {
+            sprites.gun_shooting.frame_loop(elapsed_secs)
+        } else {
+            sprites.gun_idle.frame_clamped(0.0)
+        };
+        draw_image_scaled_center(image, gun_frame, weapon_center, 1.0);
     }
 }
 
@@ -1438,6 +1558,10 @@ fn flamethrower_weapon_animation<'a>(
     } else {
         &sprites.weapon_idle
     }
+}
+
+fn gun_weapon_center(screen_height: f32, config: &GunConfig, presentation_offset: Vec2) -> Vec2 {
+    Vec2::new(80.0, screen_height - 20.0) + config.weapon_base_offset() + presentation_offset
 }
 
 fn flamethrower_weapon_center(
@@ -1666,6 +1790,138 @@ mod tests {
         assert_eq!(sprites.weapon_shooting.frames.len(), 2);
         assert_eq!(sprites.idle_flame.frames.len(), 3);
         assert_eq!(sprites.idle_flame.frames[0].size(), UVec2::new(6, 8));
+        assert_eq!(sprites.gun_idle.frames.len(), 3);
+        assert_eq!(sprites.gun_shooting.frames.len(), 3);
+        assert_eq!(sprites.gun_muzzle_flash.frames.len(), 3);
+    }
+
+    #[test]
+    fn gun_muzzle_flash_spawns_on_shoot_and_expires() {
+        let sprites = PlayerAttackSprites::load();
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        loadout.cycle(); // switch to Pistol
+        assert_eq!(loadout.current(), AttackId::Pistol);
+
+        // No flash initially.
+        assert!(state.gun_muzzle_flash_elapsed.is_none());
+
+        // Simulate a shot.
+        let camera = Camera::default();
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            shoot_just_pressed: true,
+            shoot_held: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot = false;
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0 / 60.0,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            &mut shoot,
+        );
+
+        // Flash should be active.
+        assert!(state.gun_muzzle_flash_elapsed.is_some());
+
+        // Tick past the flash duration.
+        input.shoot_just_pressed = false;
+        input.shoot_held = false;
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            sprites.gun_muzzle_flash.duration_secs + 0.01,
+            1.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            &mut shoot,
+        );
+
+        // Flash should have expired.
+        assert!(state.gun_muzzle_flash_elapsed.is_none());
+    }
+
+    #[test]
+    fn gun_muzzle_flash_clears_on_weapon_switch() {
+        let sprites = PlayerAttackSprites::load();
+        let mut state = PlayerAttackState::default();
+        let mut loadout = AttackLoadout::default();
+        loadout.cycle(); // Pistol
+
+        state.gun_muzzle_flash_elapsed = Some(0.05);
+
+        let camera = Camera::default();
+        let map = Map {
+            width: 8,
+            height: 8,
+            cells: vec![0; 64],
+        };
+        let mut input = AttackInput {
+            cycle_requested: true,
+            cursor_x: 80.0,
+            ..Default::default()
+        };
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        let mut projectiles = Vec::new();
+        let mut impacts = Vec::new();
+        let mut char_decals = Vec::new();
+        let mut shoot = false;
+
+        process_player_attacks(
+            &camera,
+            &map,
+            &sprites,
+            37,
+            1.0 / 60.0,
+            0.0,
+            &mut input,
+            &mut loadout,
+            &mut state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut projectiles,
+            &mut impacts,
+            &mut char_decals,
+            144.0,
+            &mut shoot,
+        );
+
+        assert_eq!(loadout.current(), AttackId::Flamethrower);
+        assert!(state.gun_muzzle_flash_elapsed.is_none());
     }
 
     #[test]
@@ -1809,11 +2065,16 @@ mod tests {
     #[test]
     fn weapon_bob_is_high_at_horizontal_extremes() {
         let config = FlamethrowerConfig::load();
-        let center = weapon_bob_offset(&config, 0.0);
-        let extreme = weapon_bob_offset(
-            &config,
-            std::f32::consts::FRAC_PI_2 / config.weapon_bob_speed,
-        );
+        let bob = |t: f32| -> Vec2 {
+            let phase = t * config.weapon_bob_speed;
+            let h = phase.sin();
+            Vec2::new(
+                h * config.weapon_bob_horizontal_px,
+                -h.abs() * config.weapon_bob_vertical_px,
+            )
+        };
+        let center = bob(0.0);
+        let extreme = bob(std::f32::consts::FRAC_PI_2 / config.weapon_bob_speed);
 
         assert!(center.x.abs() < 0.01);
         assert!(center.y.abs() < 0.01);
@@ -2302,9 +2563,11 @@ mod tests {
                 wall_impact: None,
                 last_decal_impact: None,
             }),
+            gun_muzzle_flash_elapsed: None,
             weapon_bob_offset: Vec2::ZERO,
             weapon_raise_offset: 0.0,
             config,
+            gun_config: GunConfig::load(),
         };
         let mut projectiles = vec![Projectile {
             position: Vec2::new(collision_local.y, 0.0),

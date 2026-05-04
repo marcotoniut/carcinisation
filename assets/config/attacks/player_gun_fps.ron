@@ -1,0 +1,12 @@
+GunConfig(
+    weapon_base_offset_px: (0.0, 0.0),
+    weapon_raise_px: 4.0,
+    weapon_raise_speed: 12.0,
+    weapon_bob_enabled: true,
+    weapon_bob_horizontal_px: 2.0,
+    weapon_bob_vertical_px: 1.5,
+    weapon_bob_speed: 8.0,
+    weapon_bob_return_speed: 16.0,
+    muzzle_flash_offset: (1.0, -22.0),
+    muzzle_flash_scale: 1.0,
+)
