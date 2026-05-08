@@ -7,6 +7,6 @@ GunConfig(
     weapon_bob_vertical_px: 1.5,
     weapon_bob_speed: 8.0,
     weapon_bob_return_speed: 16.0,
-    muzzle_flash_offset: (1.0, -22.0),
+    muzzle_flash_offset: (1.0, -18.0),
     muzzle_flash_scale: 1.0,
 )

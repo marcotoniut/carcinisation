@@ -47,6 +47,7 @@ pub mod splash;
 pub mod stage {
     pub use carcinisation_ors::stage::*;
 }
+pub mod first_person;
 mod systems;
 mod transitions;
 

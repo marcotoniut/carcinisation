@@ -10,6 +10,7 @@ use carcinisation_net::{
     NetAttackId, NetEnemyState, NetHealth, NetPlayer, PlayerId, PlayerNetState,
 };
 use carcinisation_server::ServerPlugin;
+use carcinisation_server::systems::BurnContactCooldowns;
 use common::{build_server_app, reserve_port};
 
 // ---------------------------------------------------------------------------
@@ -273,5 +274,42 @@ fn alive_player_remains_targetable_when_other_dies() {
     assert!(
         hp2 < 100.0,
         "alive player should take damage from enemy: hp={hp2}"
+    );
+}
+
+/// Death clears `BurnContactCooldowns` so respawned player doesn't inherit stale state.
+#[test]
+fn death_clears_burn_contact_cooldown() {
+    let port = reserve_port();
+    let mut server = build_server_with_enemy(port, 6.5, 6.5);
+    server.update();
+
+    spawn_alive_player(&mut server, 1, 1.5, 1.5);
+
+    // Seed a non-zero burn contact cooldown as if the player was near a burning corpse.
+    server
+        .world_mut()
+        .resource_mut::<BurnContactCooldowns>()
+        .0
+        .insert(PlayerId(1), 0.4);
+
+    // Kill the player.
+    set_player_health(&mut server, 1, 0.0);
+    for _ in 0..50 {
+        tick(&mut server);
+    }
+
+    let (_, state, _) = get_player(&mut server, 1).unwrap();
+    assert!(
+        matches!(state, PlayerNetState::Dead { .. }),
+        "player should be dead"
+    );
+    assert!(
+        !server
+            .world()
+            .resource::<BurnContactCooldowns>()
+            .0
+            .contains_key(&PlayerId(1)),
+        "BurnContactCooldowns should be cleared on death"
     );
 }

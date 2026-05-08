@@ -97,4 +97,35 @@ mod tests {
             "x should be blocked by wall: {pos:?}"
         );
     }
+
+    /// Verify that `apply_movement` produces the same result as manually computing
+    /// world-space delta + `try_move`. This ensures SP (which now calls
+    /// `apply_movement`) and any manual delta path produce identical positions.
+    #[test]
+    fn apply_movement_matches_manual_delta() {
+        use crate::collision::try_move;
+        use crate::map::test_map;
+
+        let map = test_map();
+        let angle = 0.5_f32;
+        let intent = Vec2::new(-0.7, 0.8); // strafe left + forward
+        let speed = MOVE_SPEED;
+        let dt = 0.033;
+
+        // Path A: apply_movement (shared function).
+        let mut pos_a = Vec2::new(3.5, 3.5);
+        apply_movement(&mut pos_a, angle, intent, speed, dt, &map);
+
+        // Path B: manual world-space delta + try_move (old SP pattern).
+        let mut pos_b = Vec2::new(3.5, 3.5);
+        let world_move = local_to_world(angle, intent);
+        let delta = world_move * speed * dt;
+        try_move(&mut pos_b, delta, COLLISION_MARGIN, &map);
+
+        assert!(
+            (pos_a - pos_b).length() < 1e-6,
+            "apply_movement and manual delta should produce identical positions: \
+             a={pos_a:?} b={pos_b:?}"
+        );
+    }
 }

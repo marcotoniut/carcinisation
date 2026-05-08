@@ -2508,6 +2508,7 @@ dependencies = [
  "carapace",
  "carcinisation_base",
  "carcinisation_core",
+ "carcinisation_fps_core",
  "flate2",
  "rand 0.10.1",
  "ron 0.12.1",
@@ -2520,21 +2521,6 @@ version = "0.3.0"
 dependencies = [
  "bevy",
  "bevy_math",
- "ron 0.12.1",
- "serde",
-]
-
-[[package]]
-name = "carcinisation_fps_render"
-version = "0.3.0"
-dependencies = [
- "asset_pipeline",
- "bevy",
- "bevy_math",
- "carapace",
- "carcinisation_fps_core",
- "flate2",
- "rand 0.10.1",
  "ron 0.12.1",
  "serde",
 ]

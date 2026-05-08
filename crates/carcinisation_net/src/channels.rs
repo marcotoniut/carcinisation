@@ -13,7 +13,7 @@ pub fn register_reliable_channels(app: &mut App) {
 }
 
 /// Register unreliable (unordered) channels for visual/effect events.
-/// Authoritative state is replicated via components (NetEnemyState, PlayerNetState).
+/// Authoritative state is replicated via components (`NetEnemyState`, `PlayerNetState`).
 /// These events are cosmetic feedback; dropped packets are tolerated.
 pub fn register_unreliable_channels(app: &mut App) {
     app.add_server_event::<MuzzleFlash>(Channel::Unordered)

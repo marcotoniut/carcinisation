@@ -3411,6 +3411,7 @@ fn fail_ready_composed_enemy(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
     use asset_pipeline::aseprite::{

@@ -87,9 +87,12 @@ impl Plugin for TickPlugin {
         let tick_config = TickConfig::default();
 
         // Align Bevy's FixedUpdate timestep with our tick rate.
-        app.world_mut()
-            .resource_mut::<Time<Fixed>>()
-            .set_timestep_hz(f64::from(tick_config.hz));
+        // Time<Fixed> is initialized by Bevy's TimePlugin (included in MinimalPlugins).
+        if app.world().contains_resource::<Time<Fixed>>() {
+            app.world_mut()
+                .resource_mut::<Time<Fixed>>()
+                .set_timestep_hz(f64::from(tick_config.hz));
+        }
 
         app.insert_resource(tick_config)
             .insert_resource(TickCounter::default())

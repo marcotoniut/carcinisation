@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 use bevy::{ecs::system::SystemParam, prelude::*};
 use carapace::prelude::*;
-use carcinisation_base::fire_death::{DamageKind, perimeter_flames_from_mask};
+use carcinisation_fps_core::fire_death::{DamageKind, perimeter_flames_from_mask};
 
 /// System set for First-person plugin systems. External input systems should run
 /// `.before(Systems)` so the First-person plugin reads updated state.
@@ -46,8 +46,9 @@ use crate::{
     sky::Sky,
 };
 
-/// Grace window for simultaneous chord presses (seconds).
-const QUICK_TURN_GRACE_WINDOW_SECS: f32 = 0.08;
+/// Maximum time B can be held before the chord window expires.
+/// If B is released after this, no turn fires even if a direction was selected.
+const CHORD_WINDOW_SECS: f32 = 0.15;
 
 /// Configuration for the First-person plugin.
 ///
@@ -84,6 +85,36 @@ pub struct Config {
     pub camera_shake_decay_rate: f32,
     /// Intensity below which camera shake snaps to zero.
     pub camera_shake_threshold: f32,
+    /// Extra billboards to render (e.g., networked player sprites).
+    pub extra_billboards: Vec<Billboard>,
+    /// Who owns FPS combat simulation for enemies.
+    pub authority_mode: FpsAuthorityMode,
+}
+
+/// Enemy authority model for the FPS plugin.
+///
+/// `LocalAuthority` is the single-player model: map-authored combat entities
+/// spawn locally, tick AI locally, take local player damage, and render through
+/// local enemy billboards.
+///
+/// `RemoteClient` is the multiplayer-client model: map geometry and static
+/// scenery remain local, but combat enemies are rendered from replicated
+/// network state and are not locally spawned, ticked, or damaged.
+///
+/// Set at startup. Runtime switching is not supported — entity and billboard
+/// setup occurs once during initialization.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FpsAuthorityMode {
+    #[default]
+    LocalAuthority,
+    RemoteClient,
+}
+
+impl FpsAuthorityMode {
+    #[must_use]
+    fn uses_local_combat(self) -> bool {
+        matches!(self, Self::LocalAuthority)
+    }
 }
 
 impl Default for Config {
@@ -103,6 +134,8 @@ impl Default for Config {
             camera_shake_base_intensity: 3.0,
             camera_shake_decay_rate: 12.0,
             camera_shake_threshold: 0.3,
+            extra_billboards: Vec::new(),
+            authority_mode: FpsAuthorityMode::LocalAuthority,
         }
     }
 }
@@ -153,6 +186,14 @@ pub struct BloodShotSprites(pub BloodShotBillboardSprites);
 
 #[derive(Resource)]
 pub struct MosquitonSprites(pub MosquitonBillboardSprites);
+
+struct FpMapEntitySetup {
+    static_billboards: Vec<Billboard>,
+    initial_enemy_billboards: Vec<Billboard>,
+    initial_mosquiton_billboards: Vec<Billboard>,
+    enemies: Vec<Enemy>,
+    mosquitons: Vec<Mosquiton>,
+}
 
 #[derive(SystemParam)]
 struct RenderSources<'w> {
@@ -214,28 +255,43 @@ pub enum TurnKind {
     SideTurnRight,
 }
 
-/// Unified chord state machine for all snap turns (quick turn, side turns).
+/// Hold-to-select chord state machine for snap/quick turns.
 ///
-/// Only one chord can be armed at a time. Flow:
-/// 1. B + direction pressed within the grace window → `Armed(kind)`
-/// 2. Direction key released → fires, returns the `TurnKind`
-/// 3. Blocked until all keys released, then resets to `Idle`
+/// Flow:
+/// 1. B `just_pressed` (no direction pre-held) → `ChordMode { since, selected: None }`
+/// 2. Direction `just_pressed` during chord mode within window → `selected = Some(kind)`
+/// 3. B `just_released` within window with selection → **fire**
+/// 4. B `just_released` without selection, or window expires → cancel
+/// 5. Directions already held when B is pressed are blocked from selection.
 ///
-/// Priority when multiple directions are held: Down > Left > Right.
+/// Movement/turn is suppressed while in `ChordMode`.
+/// Priority when multiple directions pressed same frame: Down > Left > Right.
 #[derive(Resource, Clone, Copy, Debug, Default)]
 pub struct TurnChordState {
     phase: TurnChordPhase,
+}
+
+impl TurnChordState {
+    /// Whether the FSM is in chord mode (B held, awaiting direction or release).
+    /// Callers should suppress movement/turn input while this returns `true`.
+    #[must_use]
+    pub fn is_pending(&self) -> bool {
+        matches!(self.phase, TurnChordPhase::ChordMode { .. })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 enum TurnChordPhase {
     #[default]
     Idle,
-    /// One key pressed, waiting for the other within the grace window.
-    GraceWindow { since: f32 },
-    /// Chord identified; waiting for the direction key release to fire.
-    Armed(TurnKind),
-    /// Chord consumed or missed; wait for full release before re-arming.
+    /// B is held within the chord window. Direction presses select. B release fires.
+    ChordMode {
+        since: f32,
+        selected: Option<TurnKind>,
+        /// Directions that were already held when B was pressed (blocked from selection).
+        blocked_dirs: u8,
+    },
+    /// Chord fired or window expired; wait for all keys to release.
     BlockedUntilRelease,
 }
 
@@ -244,6 +300,7 @@ enum TurnChordPhase {
 pub struct TurnChordInput {
     pub b_pressed: bool,
     pub b_just_pressed: bool,
+    pub b_just_released: bool,
     pub down_pressed: bool,
     pub down_just_pressed: bool,
     pub down_just_released: bool,
@@ -290,31 +347,37 @@ pub struct CameraShakeState {
     current_offset: IVec2,
 }
 
-/// Identify which turn chord is active given B + at least one direction held.
-/// Priority: Down (quick turn) > Left > Right.
-fn identify_turn_kind(input: &TurnChordInput) -> Option<TurnKind> {
-    if !input.b_pressed {
-        return None;
+const DIR_DOWN: u8 = 1;
+const DIR_LEFT: u8 = 2;
+const DIR_RIGHT: u8 = 4;
+
+/// Bitmask of directions that were pre-held (pressed but NOT `just_pressed`).
+fn dir_preheld_mask(input: &TurnChordInput) -> u8 {
+    let mut m = 0u8;
+    if input.down_pressed && !input.down_just_pressed {
+        m |= DIR_DOWN;
     }
-    if input.down_pressed {
+    if input.left_pressed && !input.left_just_pressed {
+        m |= DIR_LEFT;
+    }
+    if input.right_pressed && !input.right_just_pressed {
+        m |= DIR_RIGHT;
+    }
+    m
+}
+
+/// Identify which direction was just pressed and not blocked. Priority: Down > Left > Right.
+fn identify_just_pressed_direction(input: &TurnChordInput, blocked: u8) -> Option<TurnKind> {
+    if input.down_just_pressed && blocked & DIR_DOWN == 0 {
         return Some(TurnKind::QuickTurn);
     }
-    if input.left_pressed {
+    if input.left_just_pressed && blocked & DIR_LEFT == 0 {
         return Some(TurnKind::SideTurnLeft);
     }
-    if input.right_pressed {
+    if input.right_just_pressed && blocked & DIR_RIGHT == 0 {
         return Some(TurnKind::SideTurnRight);
     }
     None
-}
-
-/// Whether the direction key for the given turn kind was just released.
-fn dir_just_released_for(kind: TurnKind, input: &TurnChordInput) -> bool {
-    match kind {
-        TurnKind::QuickTurn => input.down_just_released,
-        TurnKind::SideTurnLeft => input.left_just_released,
-        TurnKind::SideTurnRight => input.right_just_released,
-    }
 }
 
 /// Whether any direction key relevant to chords is pressed.
@@ -322,84 +385,60 @@ fn any_dir_pressed(input: &TurnChordInput) -> bool {
     input.down_pressed || input.left_pressed || input.right_pressed
 }
 
-/// Whether any relevant key was just pressed this frame.
-fn any_chord_key_just_pressed(input: &TurnChordInput) -> bool {
-    input.b_just_pressed
-        || input.down_just_pressed
-        || input.left_just_pressed
-        || input.right_just_pressed
-}
-
-/// Whether any direction key was just released this frame.
-fn any_dir_just_released(input: &TurnChordInput) -> bool {
-    input.down_just_released || input.left_just_released || input.right_just_released
-}
-
-/// Resolve the unified turn chord state machine.
+/// Resolve the hold-to-select chord state machine.
 ///
-/// Returns `Some(TurnKind)` on the frame the chord fires (direction key released
-/// after arming). The modifier key (B/shift) can stay held.
+/// Returns `Some(TurnKind)` on the frame B is **released** within the chord
+/// window while a direction was selected. Directions held before B are blocked.
+/// Window expiry cancels any pending selection.
 #[must_use]
 pub fn resolve_turn_chord(input: &TurnChordInput, state: &mut TurnChordState) -> Option<TurnKind> {
-    // Full release of all keys resets to idle.
-    if !input.b_pressed && !any_dir_pressed(input) && !any_dir_just_released(input) {
-        state.phase = TurnChordPhase::Idle;
-        return None;
-    }
-
     match state.phase {
         TurnChordPhase::Idle => {
-            if let Some(kind) = identify_turn_kind(input) {
-                if input.b_just_pressed || any_chord_key_just_pressed(input) {
-                    // At least one key was just pressed and both sides are held.
-                    if input.b_just_pressed
-                        && (input.down_just_pressed
-                            || input.left_just_pressed
-                            || input.right_just_pressed)
-                    {
-                        // Simultaneous press — arm immediately.
-                        state.phase = TurnChordPhase::Armed(kind);
-                    } else {
-                        // Staggered — start grace window.
-                        state.phase = TurnChordPhase::GraceWindow {
-                            since: input.now_secs,
-                        };
-                    }
-                } else {
-                    // Keys were already held from before — block.
-                    state.phase = TurnChordPhase::BlockedUntilRelease;
-                }
-            } else if any_chord_key_just_pressed(input) {
-                // Only one side pressed so far — start grace window.
-                state.phase = TurnChordPhase::GraceWindow {
+            if input.b_just_pressed {
+                // Block directions that were already held (not freshly pressed) when B arrives.
+                let blocked_dirs = dir_preheld_mask(input);
+                // Pre-select only if a direction was ALSO just pressed (same frame, not pre-held).
+                let selected = identify_just_pressed_direction(input, blocked_dirs);
+                state.phase = TurnChordPhase::ChordMode {
                     since: input.now_secs,
+                    selected,
+                    blocked_dirs,
                 };
-            } else if input.b_pressed || any_dir_pressed(input) {
-                state.phase = TurnChordPhase::BlockedUntilRelease;
             }
             None
         }
-        TurnChordPhase::GraceWindow { since } => {
-            if let Some(kind) = identify_turn_kind(input) {
-                if input.now_secs - since <= QUICK_TURN_GRACE_WINDOW_SECS {
-                    // Both sides held within the grace window — arm.
-                    state.phase = TurnChordPhase::Armed(kind);
+        TurnChordPhase::ChordMode {
+            since,
+            mut selected,
+            blocked_dirs,
+        } => {
+            // Window expired → cancel and block until release.
+            if input.now_secs - since > CHORD_WINDOW_SECS {
+                state.phase = TurnChordPhase::BlockedUntilRelease;
+                return None;
+            }
+
+            // Accept direction selection if not already selected and not blocked.
+            if selected.is_none() {
+                selected = identify_just_pressed_direction(input, blocked_dirs);
+            }
+
+            // B released within window → fire if selected, cancel otherwise.
+            if input.b_just_released {
+                state.phase = if selected.is_some() {
+                    TurnChordPhase::BlockedUntilRelease
                 } else {
-                    // Grace expired.
-                    state.phase = TurnChordPhase::BlockedUntilRelease;
-                }
-            } else if input.now_secs - since > QUICK_TURN_GRACE_WINDOW_SECS {
-                state.phase = TurnChordPhase::BlockedUntilRelease;
+                    TurnChordPhase::Idle
+                };
+                return selected;
             }
+
+            state.phase = TurnChordPhase::ChordMode {
+                since,
+                selected,
+                blocked_dirs,
+            };
             None
-        }
-        TurnChordPhase::Armed(kind) => {
-            if dir_just_released_for(kind, input) {
-                state.phase = TurnChordPhase::BlockedUntilRelease;
-                Some(kind)
-            } else {
-                None
-            }
         }
         TurnChordPhase::BlockedUntilRelease => {
             if !input.b_pressed && !any_dir_pressed(input) {
@@ -616,8 +655,6 @@ fn setup_fp<L: CxLayer + Default>(
     let palette = map_data.to_palette();
     let textures = map_data.build_wall_textures();
 
-    let mut static_billboards = Vec::new();
-
     let procedural_alive = make_enemy_sprite(24, 2);
     let procedural_death = make_death_sprite(24, 1);
     let sprite_pairs: Vec<(CxImage, CxImage)> =
@@ -627,54 +664,31 @@ fn setup_fp<L: CxLayer + Default>(
     let blood_shot_sprites =
         make_blood_shot_billboard_sprites().expect("embedded blood shot assets should resolve");
 
-    // Temporary Vecs for first-frame render before entities exist.
-    let mut enemy_bbs = Vec::new();
-    let mut mosquiton_bbs = Vec::new();
+    let entity_setup = build_map_entity_setup(
+        &map_data,
+        config.authority_mode,
+        &sprite_pairs,
+        &mosquiton_sprites,
+    );
 
-    for spawn in &map_data.entities {
-        let pos = Vec2::new(spawn.x, spawn.y);
-        match &spawn.kind {
-            EntityKind::Pillar {
-                color,
-                width,
-                height,
-            } => {
-                static_billboards.push(Billboard {
-                    position: pos,
-                    height: 0.0,
-                    world_height: 1.0,
-                    sprite: make_pillar_sprite(*width, *height, *color),
-                });
-            }
-            EntityKind::Enemy { health, speed, .. }
-            | EntityKind::SpriteEnemy { health, speed, .. } => {
-                let enemy = Enemy::new(pos, *health, *speed);
-                enemy_bbs.push(billboard_from_enemy(&enemy, 0, &sprite_pairs));
-                commands.spawn((enemy, EnemySpriteIndex(0)));
-            }
-            EntityKind::Mosquiton { health, speed } => {
-                let config = MosquitonConfig {
-                    health: *health,
-                    move_speed: *speed,
-                    ..Default::default()
-                };
-                let mosquiton = Mosquiton::new(pos, config);
-                mosquiton_bbs.push(billboard_from_mosquiton(&mosquiton, &mosquiton_sprites));
-                commands.spawn(mosquiton);
-            }
-        }
+    for enemy in &entity_setup.enemies {
+        commands.spawn((enemy.clone(), EnemySpriteIndex(0)));
+    }
+    for mosquiton in &entity_setup.mosquitons {
+        commands.spawn(mosquiton.clone());
     }
 
-    let all_bbs: Vec<Billboard> = static_billboards
+    let all_bbs: Vec<Billboard> = entity_setup
+        .static_billboards
         .iter()
         .cloned()
-        .chain(enemy_bbs)
-        .chain(mosquiton_bbs)
+        .chain(entity_setup.initial_enemy_billboards.iter().cloned())
+        .chain(entity_setup.initial_mosquiton_billboards.iter().cloned())
         .collect();
     let sky_ron = std::fs::read_to_string(&config.sky_path)
         .unwrap_or_else(|e| panic!("failed to read sky RON {}: {}", config.sky_path, e));
     let workspace_root = std::env::current_dir()
-        .unwrap_or_else(|e| panic!("failed to get current dir: {}", e))
+        .unwrap_or_else(|e| panic!("failed to get current dir: {e}"))
         .to_string_lossy()
         .to_string();
     let sky = Sky::from_ron(&sky_ron, &workspace_root);
@@ -708,7 +722,7 @@ fn setup_fp<L: CxLayer + Default>(
     commands.insert_resource(MapRes(map));
     commands.insert_resource(PaletteRes(palette));
     commands.insert_resource(sky);
-    commands.insert_resource(StaticBillboards(static_billboards));
+    commands.insert_resource(StaticBillboards(entity_setup.static_billboards));
     commands.insert_resource(SpritePairs(sprite_pairs));
     commands.insert_resource(Projectiles(Vec::new()));
     commands.insert_resource(ProjectileImpacts(Vec::new()));
@@ -721,6 +735,68 @@ fn setup_fp<L: CxLayer + Default>(
     commands.insert_resource(Active);
 
     info!("First-person mode initialized");
+}
+
+fn build_map_entity_setup(
+    map_data: &MapData,
+    authority_mode: FpsAuthorityMode,
+    sprite_pairs: &[(CxImage, CxImage)],
+    mosquiton_sprites: &MosquitonBillboardSprites,
+) -> FpMapEntitySetup {
+    let mut setup = FpMapEntitySetup {
+        static_billboards: Vec::new(),
+        initial_enemy_billboards: Vec::new(),
+        initial_mosquiton_billboards: Vec::new(),
+        enemies: Vec::new(),
+        mosquitons: Vec::new(),
+    };
+
+    for spawn in &map_data.entities {
+        let pos = Vec2::new(spawn.x, spawn.y);
+        match &spawn.kind {
+            EntityKind::Pillar {
+                color,
+                width,
+                height,
+            } => {
+                setup.static_billboards.push(Billboard {
+                    position: pos,
+                    height: 0.0,
+                    world_height: 1.0,
+                    sprite: make_pillar_sprite(*width, *height, *color),
+                });
+            }
+            EntityKind::Enemy { health, speed, .. }
+            | EntityKind::SpriteEnemy { health, speed, .. } => {
+                if authority_mode.uses_local_combat() {
+                    let enemy = Enemy::new(pos, *health, *speed);
+                    setup.initial_enemy_billboards.push(billboard_from_enemy(
+                        &enemy,
+                        0,
+                        sprite_pairs,
+                    ));
+                    setup.enemies.push(enemy);
+                }
+            }
+            EntityKind::Mosquiton { health, speed } => {
+                if authority_mode.uses_local_combat() {
+                    let config = MosquitonConfig {
+                        health: *health,
+                        move_speed: *speed,
+                        shoot_cue_secs: mosquiton_sprites.shoot_cue_elapsed_secs,
+                        ..Default::default()
+                    };
+                    let mosquiton = Mosquiton::new(pos, config);
+                    setup
+                        .initial_mosquiton_billboards
+                        .push(billboard_from_mosquiton(&mosquiton, mosquiton_sprites));
+                    setup.mosquitons.push(mosquiton);
+                }
+            }
+        }
+    }
+
+    setup
 }
 
 /// Movement helper for external input systems. Call this with the computed
@@ -785,6 +861,10 @@ fn tick_enemy_ai(
     mut commands: Commands,
     config: Res<Config>,
 ) {
+    if !config.authority_mode.uses_local_combat() {
+        return;
+    }
+
     let dt = time.delta_secs();
 
     if dead.0 {
@@ -795,7 +875,7 @@ fn tick_enemy_ai(
 
     // Tick enemies and collect dead entities for despawning.
     let mut dead_enemies = Vec::new();
-    for (entity, mut enemy) in enemy_q.iter_mut() {
+    for (entity, mut enemy) in &mut enemy_q {
         if let Some(proj) = tick_single_enemy(&mut enemy, player_pos, &map.0, dt) {
             projectiles.0.push(proj);
         }
@@ -809,7 +889,7 @@ fn tick_enemy_ai(
 
     // Tick mosquitons and collect dead entities for despawning.
     let mut dead_mosquitons = Vec::new();
-    for (entity, mut mosquiton) in mosquiton_q.iter_mut() {
+    for (entity, mut mosquiton) in &mut mosquiton_q {
         let (proj, dmg) = tick_single_mosquiton(&mut mosquiton, player_pos, &map.0, dt);
         if let Some(p) = proj {
             projectiles.0.push(p);
@@ -1109,6 +1189,30 @@ fn handle_shooting(
         return;
     }
 
+    if !config.authority_mode.uses_local_combat() {
+        let mut enemies = Vec::new();
+        let mut mosquitons = Vec::new();
+        process_player_attacks(
+            &camera.0,
+            &map.0,
+            &attack_sprites,
+            config.hitscan_damage,
+            time.delta_secs(),
+            time.elapsed_secs(),
+            &mut attack_input,
+            &mut attack_loadout,
+            &mut attack_state,
+            &mut enemies,
+            &mut mosquitons,
+            &mut projectiles.0,
+            &mut impacts.0,
+            &mut char_decals.0,
+            config.screen_height as f32,
+            &mut shoot.0,
+        );
+        return;
+    }
+
     // Gather enemies into Vecs for slice-based attack processing.
     let mut enemy_entities: Vec<Entity> = Vec::new();
     let mut enemies: Vec<Enemy> = Vec::new();
@@ -1211,6 +1315,7 @@ fn update_fp_view(
         .0
         .iter()
         .cloned()
+        .chain(view.config.extra_billboards.iter().cloned())
         .chain(corpse_flame_bbs)
         .chain(enemy_bbs)
         .chain(mosquiton_bbs)
@@ -1387,8 +1492,27 @@ fn push_burning_corpse_flames(
 pub struct ShootRequest(pub bool);
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
+
+    fn test_room_map_data() -> MapData {
+        MapData::from_ron(include_str!(
+            "../../../assets/config/fp/test_room.fp_map.ron"
+        ))
+        .expect("test_room.fp_map.ron should parse")
+    }
+
+    fn setup_from_test_room(authority_mode: FpsAuthorityMode) -> FpMapEntitySetup {
+        let sprite_pairs = vec![(make_enemy_sprite(24, 2), make_death_sprite(24, 1))];
+        let mosquiton_sprites = make_mosquiton_billboard_sprites().unwrap();
+        build_map_entity_setup(
+            &test_room_map_data(),
+            authority_mode,
+            &sprite_pairs,
+            &mosquiton_sprites,
+        )
+    }
 
     fn contact_hazard_test_config() -> FlamethrowerConfig {
         let mut config = FlamethrowerConfig::load();
@@ -1396,6 +1520,28 @@ mod tests {
         config.burning_corpse_contact_tick_ms = 300;
         config.burning_corpse_contact_radius = 0.6;
         config
+    }
+
+    #[test]
+    fn local_authority_map_setup_spawns_local_combat_entities() {
+        let setup = setup_from_test_room(FpsAuthorityMode::LocalAuthority);
+
+        assert_eq!(setup.static_billboards.len(), 4);
+        assert_eq!(setup.enemies.len(), 0);
+        assert_eq!(setup.initial_enemy_billboards.len(), 0);
+        assert_eq!(setup.mosquitons.len(), 6);
+        assert_eq!(setup.initial_mosquiton_billboards.len(), 6);
+    }
+
+    #[test]
+    fn remote_client_map_setup_suppresses_local_combat_entities() {
+        let setup = setup_from_test_room(FpsAuthorityMode::RemoteClient);
+
+        assert_eq!(setup.static_billboards.len(), 4);
+        assert_eq!(setup.enemies.len(), 0);
+        assert_eq!(setup.initial_enemy_billboards.len(), 0);
+        assert_eq!(setup.mosquitons.len(), 0);
+        assert_eq!(setup.initial_mosquiton_billboards.len(), 0);
     }
 
     #[test]
@@ -1672,8 +1818,9 @@ mod tests {
         assert_eq!(enemies[0].health, 10);
     }
 
-    fn chord_input(
-        b: (bool, bool),
+    /// Helper: `b` = (pressed, `just_pressed`, `just_released`).
+    fn chord_input_at(
+        b: (bool, bool, bool),
         down: (bool, bool, bool),
         left: (bool, bool, bool),
         right: (bool, bool, bool),
@@ -1682,6 +1829,7 @@ mod tests {
         TurnChordInput {
             b_pressed: b.0,
             b_just_pressed: b.1,
+            b_just_released: b.2,
             down_pressed: down.0,
             down_just_pressed: down.1,
             down_just_released: down.2,
@@ -1695,89 +1843,35 @@ mod tests {
         }
     }
 
-    // Shorthand: (pressed, just_pressed) for B, (pressed, just_pressed, just_released) for dirs.
+    fn chord_input(
+        b: (bool, bool, bool),
+        down: (bool, bool, bool),
+        left: (bool, bool, bool),
+        right: (bool, bool, bool),
+    ) -> TurnChordInput {
+        chord_input_at(b, down, left, right, 0.0)
+    }
+
     const NONE: (bool, bool, bool) = (false, false, false);
-    const B_OFF: (bool, bool) = (false, false);
+    const B_OFF: (bool, bool, bool) = (false, false, false);
+    const B_PRESSED: (bool, bool, bool) = (true, true, false);
+    const B_HELD: (bool, bool, bool) = (true, false, false);
+    const B_RELEASED: (bool, bool, bool) = (false, false, true);
+
+    // --- Hold-to-select chord tests ---
 
     #[test]
-    fn chord_fires_quick_turn_on_down_release() {
+    fn b_hold_left_press_b_release_fires_snap_left() {
         let mut state = TurnChordState::default();
-        // B+Down simultaneous press → armed.
-        let input = chord_input((true, true), (true, true, false), NONE, NONE, 0.0);
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Still held.
-        let input = chord_input((true, false), (true, false, false), NONE, NONE, 0.01);
+        assert!(state.is_pending());
+        // Left pressed while B held → selects.
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Down released → fires quick turn.
-        let input = chord_input((true, false), (false, false, true), NONE, NONE, 0.02);
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::QuickTurn)
-        );
-        // Blocked until release.
-        let input = chord_input((true, false), (false, false, false), NONE, NONE, 0.03);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Full release resets.
-        let input = chord_input(B_OFF, NONE, NONE, NONE, 0.04);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Can fire again.
-        let input = chord_input((true, true), (true, true, false), NONE, NONE, 0.05);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input((true, false), (false, false, true), NONE, NONE, 0.06);
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::QuickTurn)
-        );
-    }
-
-    #[test]
-    fn chord_fires_after_staggered_press_inside_grace() {
-        let mut state = TurnChordState::default();
-        // Down pressed first.
-        let input = chord_input(B_OFF, (true, true, false), NONE, NONE, 1.0);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B pressed within grace → arms.
-        let input = chord_input((true, true), (true, false, false), NONE, NONE, 1.04);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Down released → fires.
-        let input = chord_input((true, false), (false, false, true), NONE, NONE, 1.05);
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::QuickTurn)
-        );
-    }
-
-    #[test]
-    fn chord_blocks_after_grace_until_release() {
-        let mut state = TurnChordState::default();
-        // Down pressed alone.
-        let input = chord_input(B_OFF, (true, true, false), NONE, NONE, 2.0);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Grace window passes.
-        let input = chord_input(B_OFF, (true, false, false), NONE, NONE, 2.09);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // B pressed too late → blocked.
-        let input = chord_input((true, true), (true, false, false), NONE, NONE, 2.1);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Full release resets.
-        let input = chord_input(B_OFF, NONE, NONE, NONE, 2.2);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Can fire again.
-        let input = chord_input((true, true), (true, true, false), NONE, NONE, 2.3);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input((true, false), (false, false, true), NONE, NONE, 2.31);
-        assert_eq!(
-            resolve_turn_chord(&input, &mut state),
-            Some(TurnKind::QuickTurn)
-        );
-    }
-
-    #[test]
-    fn chord_fires_side_turn_left() {
-        let mut state = TurnChordState::default();
-        let input = chord_input((true, true), NONE, (true, true, false), NONE, 0.0);
-        assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input((true, false), NONE, (false, false, true), NONE, 0.05);
+        assert!(state.is_pending());
+        // B released → fires.
+        let input = chord_input(B_RELEASED, NONE, (true, false, false), NONE);
         assert_eq!(
             resolve_turn_chord(&input, &mut state),
             Some(TurnKind::SideTurnLeft)
@@ -1785,11 +1879,90 @@ mod tests {
     }
 
     #[test]
-    fn chord_fires_side_turn_right() {
+    fn b_hold_down_press_b_release_fires_quick_turn() {
         let mut state = TurnChordState::default();
-        let input = chord_input((true, true), NONE, NONE, (true, true, false), 0.0);
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        let input = chord_input((true, false), NONE, NONE, (false, false, true), 0.05);
+        let input = chord_input(B_HELD, (true, true, false), NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_RELEASED, (true, false, false), NONE, NONE);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
+    }
+
+    #[test]
+    fn b_press_release_no_direction_does_nothing() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // B released with no direction → cancel.
+        let input = chord_input(B_RELEASED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(!state.is_pending());
+    }
+
+    #[test]
+    fn b_held_past_window_then_direction_does_not_fire() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // Window expires at 160ms.
+        let input = chord_input_at(B_HELD, NONE, NONE, NONE, 0.16);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(!state.is_pending());
+        // Direction pressed after window → no chord.
+        let input = chord_input_at(B_HELD, NONE, NONE, (true, true, false), 0.2);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B released → no fire.
+        let input = chord_input_at(B_RELEASED, NONE, NONE, (true, false, false), 0.25);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn direction_release_before_b_release_still_fires_on_b_release() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Left pressed → selects.
+        let input = chord_input(B_HELD, NONE, (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Left released, B still held → does NOT fire yet.
+        let input = chord_input(B_HELD, NONE, (false, false, true), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // B released → fires (selection was latched).
+        let input = chord_input(B_RELEASED, NONE, NONE, NONE);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnLeft)
+        );
+    }
+
+    #[test]
+    fn after_fire_requires_release_before_retrigger() {
+        let mut state = TurnChordState::default();
+        // Fire a chord.
+        let input = chord_input(B_PRESSED, (true, true, false), NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_RELEASED, (true, false, false), NONE, NONE);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::QuickTurn)
+        );
+        // Direction still held → blocked.
+        let input = chord_input(B_OFF, (true, false, false), NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Release all.
+        let input = chord_input(B_OFF, NONE, NONE, NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Can fire again.
+        let input = chord_input(B_PRESSED, NONE, NONE, (true, true, false));
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_RELEASED, NONE, NONE, (true, false, false));
         assert_eq!(
             resolve_turn_chord(&input, &mut state),
             Some(TurnKind::SideTurnRight)
@@ -1797,29 +1970,145 @@ mod tests {
     }
 
     #[test]
-    fn chord_down_takes_priority_over_left() {
+    fn movement_suppressed_while_chord_mode() {
         let mut state = TurnChordState::default();
-        // B+Down+Left all pressed simultaneously → Down wins.
-        let input = chord_input(
-            (true, true),
-            (true, true, false),
-            (true, true, false),
-            NONE,
-            0.0,
-        );
+        assert!(!state.is_pending());
+        let input = chord_input(B_PRESSED, NONE, NONE, NONE);
+        let _ = resolve_turn_chord(&input, &mut state);
+        assert!(state.is_pending());
+        let input = chord_input(B_HELD, NONE, NONE, NONE);
+        let _ = resolve_turn_chord(&input, &mut state);
+        assert!(state.is_pending());
+        // B released → no longer pending.
+        let input = chord_input(B_RELEASED, NONE, NONE, NONE);
+        let _ = resolve_turn_chord(&input, &mut state);
+        assert!(!state.is_pending());
+    }
+
+    #[test]
+    fn normal_backward_unaffected() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_OFF, (true, true, false), NONE, NONE);
         assert_eq!(resolve_turn_chord(&input, &mut state), None);
-        // Down released → fires quick turn, not side turn.
-        let input = chord_input(
-            (true, false),
-            (false, false, true),
-            (true, false, false),
-            NONE,
-            0.05,
+        assert!(!state.is_pending());
+    }
+
+    #[test]
+    fn same_frame_b_direction_selects_waits_for_release() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, NONE, (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        let input = chord_input(B_RELEASED, NONE, (true, false, false), NONE);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnLeft)
         );
+    }
+
+    #[test]
+    fn down_priority_over_left_on_same_frame() {
+        let mut state = TurnChordState::default();
+        let input = chord_input(B_PRESSED, (true, true, false), (true, true, false), NONE);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        let input = chord_input(B_RELEASED, (true, false, false), (true, false, false), NONE);
         assert_eq!(
             resolve_turn_chord(&input, &mut state),
             Some(TurnKind::QuickTurn)
         );
+    }
+
+    // --- Pre-held direction + timeout tests ---
+
+    #[test]
+    fn left_held_then_b_press_then_late_b_release_does_not_snap() {
+        let mut state = TurnChordState::default();
+        // Left already held.
+        let input = chord_input_at(B_OFF, NONE, (true, false, false), NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B pressed while Left held → Left is blocked.
+        let input = chord_input_at(B_PRESSED, NONE, (true, false, false), NONE, 0.1);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // B released after >150ms → window expired, no fire.
+        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.3);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn left_held_then_b_press_then_fast_b_release_does_not_snap() {
+        let mut state = TurnChordState::default();
+        // Left already held.
+        let input = chord_input_at(B_OFF, NONE, (true, false, false), NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B pressed while Left held → Left is blocked (pre-held).
+        let input = chord_input_at(B_PRESSED, NONE, (true, false, false), NONE, 0.1);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B released quickly → but Left was blocked, so no selection → no fire.
+        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.15);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn b_press_left_press_then_late_b_release_does_not_snap() {
+        let mut state = TurnChordState::default();
+        // B pressed alone.
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Left pressed at 50ms (within window) → selected.
+        let input = chord_input_at(B_HELD, NONE, (true, true, false), NONE, 0.05);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B released at 200ms (past 150ms window) → no fire.
+        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.2);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+    }
+
+    #[test]
+    fn b_press_left_press_then_fast_b_release_does_snap() {
+        let mut state = TurnChordState::default();
+        // B pressed alone.
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Left pressed at 50ms → selected.
+        let input = chord_input_at(B_HELD, NONE, (true, true, false), NONE, 0.05);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B released at 100ms (within 150ms window) → fires.
+        let input = chord_input_at(B_RELEASED, NONE, (true, false, false), NONE, 0.1);
+        assert_eq!(
+            resolve_turn_chord(&input, &mut state),
+            Some(TurnKind::SideTurnLeft)
+        );
+    }
+
+    #[test]
+    fn selected_action_expires_after_window() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Down pressed at 50ms → selected.
+        let input = chord_input_at(B_HELD, (true, true, false), NONE, NONE, 0.05);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(state.is_pending());
+        // Window expires at 160ms → no longer pending.
+        let input = chord_input_at(B_HELD, (true, false, false), NONE, NONE, 0.16);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        assert!(!state.is_pending());
+    }
+
+    #[test]
+    fn b_release_after_window_clears_pending_action() {
+        let mut state = TurnChordState::default();
+        let input = chord_input_at(B_PRESSED, NONE, NONE, NONE, 0.0);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Right pressed at 50ms → selected.
+        let input = chord_input_at(B_HELD, NONE, NONE, (true, true, false), 0.05);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // Window expires.
+        let input = chord_input_at(B_HELD, NONE, NONE, (true, false, false), 0.16);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
+        // B released after window → no fire (selection was cleared by expiry).
+        let input = chord_input_at(B_RELEASED, NONE, NONE, (true, false, false), 0.2);
+        assert_eq!(resolve_turn_chord(&input, &mut state), None);
     }
 
     #[test]

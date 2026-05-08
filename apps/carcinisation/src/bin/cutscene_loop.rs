@@ -3,6 +3,7 @@
 //! Usage:
 //!   cargo run --bin `cutscene_loop`             # loops the splash
 //!   cargo run --bin `cutscene_loop` -- splash   # same
+#![allow(clippy::cast_precision_loss)]
 
 use bevy::prelude::*;
 use carcinisation::{

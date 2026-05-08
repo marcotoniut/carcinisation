@@ -7,7 +7,9 @@
 //!   with full health.
 
 use crate::MapPlayerStarts;
-use crate::systems::{FireCooldownMap, FlameActiveTracker};
+use crate::systems::{
+    BurnContactCooldowns, FireCooldownMap, FlameActiveTracker, FlameCharCooldowns,
+};
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::config::PLAYER_RESPAWN_DELAY_SECS;
@@ -16,6 +18,7 @@ use carcinisation_net::{
 };
 
 /// Check for player death and handle respawn timers.
+#[allow(clippy::too_many_arguments)]
 pub fn tick_player_lifecycle(
     mut commands: Commands,
     mut players: Query<(&mut NetPlayer, &mut NetHealth)>,
@@ -24,6 +27,8 @@ pub fn tick_player_lifecycle(
     mut respawn_idx: Local<usize>,
     mut cooldowns: ResMut<FireCooldownMap>,
     mut flame_tracker: ResMut<FlameActiveTracker>,
+    mut char_cooldowns: ResMut<FlameCharCooldowns>,
+    mut burn_cooldowns: ResMut<BurnContactCooldowns>,
 ) {
     let dt = fixed_time.delta_secs();
 
@@ -39,8 +44,10 @@ pub fn tick_player_lifecycle(
                     respawn_timer: PLAYER_RESPAWN_DELAY_SECS,
                 };
 
-                // Clear fire/flame state so respawn starts clean.
+                // Clear per-player combat state so respawn starts clean.
                 cooldowns.remove_player(&player.player_id);
+                char_cooldowns.remove_player(&player.player_id);
+                burn_cooldowns.remove_player(&player.player_id);
                 if flame_tracker
                     .0
                     .get(&player.player_id)

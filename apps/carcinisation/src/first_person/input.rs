@@ -1,4 +1,4 @@
-//! Client input collection: resolves GBInput actions into semantic `ClientIntent`.
+//! Client input collection: resolves `GBInput` actions into semantic `ClientIntent`.
 //!
 //! Uses leafwing `ActionState<GBInput>` as the input source — the same
 //! abstraction as singleplayer. Physical key mapping is centralized in
@@ -41,11 +41,11 @@ impl Default for InputSendTimer {
     }
 }
 
-/// Collects GBInput state, resolves chords, and sends `ClientIntent` to server.
+/// Collects `GBInput` state, resolves chords, and sends `ClientIntent` to server.
 ///
 /// Uses the same `ActionState<GBInput>` as singleplayer, ensuring key mapping
 /// parity. The chord FSM (snap turns) matches the SP `resolve_turn_chord` path.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn collect_and_send_intent(
     mut commands: Commands,
     action: Res<ActionState<GBInput>>,
@@ -78,6 +78,7 @@ pub fn collect_and_send_intent(
     let chord_input = TurnChordInput {
         b_pressed: b_held,
         b_just_pressed: action.just_pressed(&GBInput::B),
+        b_just_released: action.just_released(&GBInput::B),
         down_pressed: down_held,
         down_just_pressed: action.just_pressed(&GBInput::Down),
         down_just_released: action.just_released(&GBInput::Down),
@@ -109,11 +110,13 @@ pub fn collect_and_send_intent(
     }
 
     // -- Movement --
+    // Backward is always applied (matches SP). B+Down arms a quick turn chord
+    // but does NOT suppress backward movement — the turn fires on release.
     let mut movement = Vec2::ZERO;
     if up_held {
         movement.y += 1.0;
     }
-    if down_held && !b_held {
+    if down_held {
         movement.y -= 1.0;
     }
     // Strafe: B + Left/Right held.

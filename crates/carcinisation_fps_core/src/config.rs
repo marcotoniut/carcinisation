@@ -33,8 +33,10 @@ pub const FIRE_COOLDOWN_SECS: f32 = 0.33;
 pub const FLAME_DPS: f32 = 580.0;
 /// Flamethrower max range in world units.
 pub const FLAME_RANGE: f32 = 5.0;
-/// Flamethrower half-angle in radians (~30 degrees).
-pub const FLAME_HALF_ANGLE: f32 = 0.52;
+/// Flamethrower hit half-width in world units.
+/// The server checks perpendicular distance from the flame line, not a cone angle.
+/// This matches the SP chain-segment proximity model.
+pub const FLAME_HIT_HALF_WIDTH: f32 = 0.5;
 
 // -- Enemy Projectiles --
 
@@ -47,18 +49,35 @@ pub const PROJECTILE_LIFETIME: f32 = 3.0;
 
 // -- Mosquiton Enemy --
 
-/// Seconds between Mosquiton ranged attacks.
-pub const MOSQUITON_ATTACK_INTERVAL: f32 = 2.0;
+/// Seconds between Mosquiton ranged attacks (shoot cooldown).
+pub const MOSQUITON_SHOOT_COOLDOWN: f32 = 2.0;
+/// Seconds between Mosquiton melee attacks.
+pub const MOSQUITON_MELEE_COOLDOWN: f32 = 2.0;
+/// Duration of the melee attack animation in seconds.
+pub const MOSQUITON_MELEE_ATTACK_DURATION: f32 = 0.6;
 /// Damage per Mosquiton ranged projectile.
 pub const MOSQUITON_PROJECTILE_DAMAGE: f32 = 10.0;
 /// Damage per Mosquiton melee hit.
 pub const MOSQUITON_MELEE_DAMAGE: f32 = 15.0;
-/// Melee range in world units.
+/// Melee engagement range in world units.
 pub const MOSQUITON_MELEE_RANGE: f32 = 0.8;
-/// Delay from shoot animation start to blood_shot projectile spawn.
+/// Maximum range at which a Mosquiton can fire ranged attacks.
+pub const MOSQUITON_SHOOT_RANGE: f32 = 8.0;
+/// Preferred engagement range — Mosquiton holds at this distance.
+pub const MOSQUITON_PREFERRED_RANGE: f32 = 4.0;
+/// Mosquiton blood-shot projectile speed in world-units per second.
+pub const MOSQUITON_BLOOD_SHOT_SPEED: f32 = 4.0;
+/// Mosquiton collision radius for wall avoidance.
+pub const MOSQUITON_COLLISION_RADIUS: f32 = 0.3;
+/// Mosquiton default health.
+pub const MOSQUITON_HEALTH: u32 = 40;
+/// Delay from shoot animation start to `blood_shot` projectile spawn.
 /// Derived from composed atlas `shoot_fly` cue frame.
 /// The fps crate test `shoot_cue_elapsed_from_composed_atlas` validates this.
 pub const MOSQUITON_SHOOT_CUE_SECS: f32 = 1.0;
+
+// Legacy alias — server code references this for EnemyAttackCooldown interval.
+pub const MOSQUITON_ATTACK_INTERVAL: f32 = MOSQUITON_SHOOT_COOLDOWN;
 
 // -- Burning Corpse Contact Damage --
 // Values match SP RON config: assets/config/attacks/player_flamethrower_fps.ron

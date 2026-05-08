@@ -13,6 +13,8 @@ use carcinisation_net::{
     NetEnemy, NetEnemyState, NetEnemyType, NetHealth, NetPlayer, PlayerNetState,
 };
 
+use super::enemy_attack::ServerMosquitonSim;
+
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct EnemyAiSet;
 
@@ -32,7 +34,10 @@ impl ServerEnemyAiConfig {
 }
 
 pub fn tick_net_enemy_ai(
-    mut enemies: Query<(&mut NetEnemy, &NetHealth, Option<&ServerEnemyAiConfig>)>,
+    mut enemies: Query<
+        (&mut NetEnemy, &NetHealth, Option<&ServerEnemyAiConfig>),
+        Without<ServerMosquitonSim>,
+    >,
     players: Query<&NetPlayer>,
     server_map: Res<ServerMap>,
     fixed_time: Res<Time<Fixed>>,

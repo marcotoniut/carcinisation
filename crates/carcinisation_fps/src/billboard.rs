@@ -198,6 +198,50 @@ pub fn make_enemy_sprite(size: u32, color: u8) -> CxImage {
     CxImage::new(data, size as usize)
 }
 
+/// Create a clearly Mosquiton-shaped temporary network billboard fallback.
+///
+/// Multiplayer clients normally render `NetEnemy` Mosquitons using the composed
+/// Mosquiton billboard sprites loaded by the FPS plugin. This fallback keeps
+/// the enemy visually distinct from generic diamonds in headless tests or
+/// minimal harnesses that do not load the composed sprite resource.
+#[allow(clippy::similar_names)]
+#[must_use]
+pub fn make_mosquiton_placeholder_sprite(size: u32, color: u8) -> CxImage {
+    let mut data = vec![TRANSPARENT_INDEX; (size * size) as usize];
+    let half = size as i32 / 2;
+    let body_rx = (size as i32 / 7).max(2);
+    let body_ry = (size as i32 / 4).max(3);
+    let wing_rx = (size as i32 / 4).max(4);
+    let wing_ry = (size as i32 / 6).max(3);
+
+    for y in 0..size as i32 {
+        for x in 0..size as i32 {
+            let dx = x - half;
+            let dy = y - half;
+            let body = dx * dx * body_ry * body_ry + dy * dy * body_rx * body_rx
+                <= body_rx * body_rx * body_ry * body_ry;
+            let left_wing_dx = x - (half - body_rx - wing_rx / 2);
+            let right_wing_dx = x - (half + body_rx + wing_rx / 2);
+            let wing_dy = y - (half - body_ry / 2);
+            let left_wing = left_wing_dx * left_wing_dx * wing_ry * wing_ry
+                + wing_dy * wing_dy * wing_rx * wing_rx
+                <= wing_rx * wing_rx * wing_ry * wing_ry;
+            let right_wing = right_wing_dx * right_wing_dx * wing_ry * wing_ry
+                + wing_dy * wing_dy * wing_rx * wing_rx
+                <= wing_rx * wing_rx * wing_ry * wing_ry;
+            if body || left_wing || right_wing {
+                data[(y as u32 * size + x as u32) as usize] = if body {
+                    color
+                } else {
+                    color.saturating_add(1).min(15)
+                };
+            }
+        }
+    }
+
+    CxImage::new(data, size as usize)
+}
+
 /// Create a death-frame sprite (X shape).
 #[must_use]
 pub fn make_death_sprite(size: u32, color: u8) -> CxImage {
@@ -213,6 +257,26 @@ pub fn make_death_sprite(size: u32, color: u8) -> CxImage {
                 if x + 1 < size {
                     data[(y * size + x + 1) as usize] = color;
                 }
+            }
+        }
+    }
+
+    CxImage::new(data, size as usize)
+}
+
+/// Create a small filled circle sprite for enemy blood-shot projectiles.
+#[must_use]
+pub fn make_blood_shot_sprite(size: u32, color: u8) -> CxImage {
+    let mut data = vec![TRANSPARENT_INDEX; (size * size) as usize];
+    let half = size as f32 / 2.0;
+    let radius_sq = half * half;
+
+    for y in 0..size {
+        for x in 0..size {
+            let dx = x as f32 + 0.5 - half;
+            let dy = y as f32 + 0.5 - half;
+            if dx * dx + dy * dy <= radius_sq {
+                data[(y * size + x) as usize] = color;
             }
         }
     }
@@ -315,6 +379,7 @@ pub fn billboard_from_enemy(
     }
 }
 
+#[must_use]
 pub fn billboards_from_enemies_indexed(
     enemies: &[Enemy],
     sprite_indices: &[usize],
@@ -414,6 +479,7 @@ pub fn billboard_from_mosquiton(
     }
 }
 
+#[must_use]
 pub fn billboards_from_mosquitons(
     mosquitons: &[Mosquiton],
     sprites: &MosquitonBillboardSprites,
@@ -439,7 +505,11 @@ pub fn billboards_from_mosquitons(
                     }
                 }
                 _ => {
-                    let sprite = sprites.alive_sprite_at(m.animation_time);
+                    let sprite = if let Some(elapsed) = m.shoot_anim_elapsed {
+                        sprites.shoot_sprite_at(elapsed)
+                    } else {
+                        sprites.alive_sprite_at(m.animation_time)
+                    };
                     if m.showing_damage_invert() {
                         make_damage_invert_sprite(sprite)
                     } else {
@@ -531,7 +601,7 @@ mod tests {
         let death = make_death_sprite(8, 3);
         let mut enemy = Enemy::new(Vec2::new(6.0, 4.0), 10, 1.0);
         enemy.take_damage(1);
-        enemy.damage_flicker = enemy.damage_flicker.and_then(|flicker| flicker.tick(0.2));
+        enemy.damage_flicker = enemy.damage_flicker.and_then(|flicker| flicker.tick(0.1));
         assert!(enemy.showing_damage_invert());
         enemy.state = EnemyState::BurningCorpse {
             timer: 1.0,

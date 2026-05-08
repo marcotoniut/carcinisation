@@ -2,26 +2,32 @@
     indexed_image: "sprites/ui/stage_gun_weapon/atlas.pxi",
     regions: [
         (
-            frame_size: (28, 48),
-            origin: Some((65, 96)),
+            frame_size: (28, 43),
+            origin: Some((65, 101)),
             frames: [
                 (
                     x: 0,
                     y: 0,
                     w: 28,
-                    h: 48,
+                    h: 43,
                 ),
                 (
                     x: 28,
                     y: 0,
                     w: 28,
-                    h: 48,
+                    h: 43,
                 ),
                 (
                     x: 56,
                     y: 0,
                     w: 28,
-                    h: 48,
+                    h: 43,
+                ),
+                (
+                    x: 84,
+                    y: 0,
+                    w: 28,
+                    h: 43,
                 ),
             ],
         ),
@@ -31,7 +37,7 @@
     },
     animations: {
         "idle": (
-            duration_ms: 300,
+            duration_ms: 400,
             direction: "forward",
             on_finish: "loop",
         ),

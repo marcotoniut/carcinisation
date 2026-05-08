@@ -13,8 +13,8 @@ pub use combat::{
 };
 pub use enemy_ai::{EnemyAiSet, ServerEnemyAiConfig, tick_net_enemy_ai};
 pub use enemy_attack::{
-    EnemyAttackCooldown, EnemyAttackSet, NextProjectileId, tick_enemy_attacks,
-    tick_pending_projectiles,
+    EnemyAttackSet, NextProjectileId, ServerMosquitonSim, ServerMosquitonSimConfig,
+    tick_enemy_attacks, tick_pending_projectiles,
 };
 pub use input::{
     PlayerInputTracker, PlayerIntentBuffer, ServerQuickTurn, ServerTurnConfig, SnapTurnKind,

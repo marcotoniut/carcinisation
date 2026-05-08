@@ -86,10 +86,10 @@ impl PlayerActions {
 pub struct ClientIntent {
     pub sequence: InputSequence,
     /// Player-local movement intent: y = forward(+)/back(-), x = strafe right(+)/left(-).
-    /// Normalized to unit length. Server scales by move_speed × dt.
+    /// Normalized to unit length. Server scales by `move_speed` × dt.
     pub movement: Vec2,
     /// Continuous turn direction: +1.0 = left, -1.0 = right, 0.0 = none.
-    /// Server scales by turn_speed × dt. Suppressed by server during snap turn animation.
+    /// Server scales by `turn_speed` × dt. Suppressed by server during snap turn animation.
     pub turn: f32,
     /// Fire button held. Server uses for pistol cooldown and flamethrower continuous fire.
     pub fire_held: bool,

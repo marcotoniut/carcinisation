@@ -1,13 +1,11 @@
 //! First-person raycaster for Carcinisation.
 //!
-//! **LEGACY / dev-render path.** Do NOT use from server or networking crates.
+//! Core gameplay types (`Camera`, `Map`, `Enemy`, `Projectile`, collision,
+//! raycasting) are canonical in `carcinisation_fps_core` and re-exported here.
+//! This crate adds rendering, billboard sprites, and the Bevy plugin.
+//!
 //! Server depends on `carcinisation_fps_core` only.
-//!
-//! Migration to `carcinisation_fps_core` + `carcinisation_fps_render` is deferred.
-//! See `apps/carcinisation/src/bin/fps_test.rs` for current usage.
-//!
-//! Pure computation crate: map representation, camera, DDA raycasting, and
-//! render orchestration. Does NOT depend on the main game crate.
+//! See `apps/carcinisation/src/bin/fps_test.rs` for singleplayer usage.
 
 #![allow(
     clippy::cast_precision_loss,

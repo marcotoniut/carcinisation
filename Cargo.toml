@@ -14,7 +14,6 @@ members = [
     "crates/carcinisation_core",
     "crates/carcinisation_fps",
     "crates/carcinisation_fps_core",
-    "crates/carcinisation_fps_render",
     "crates/carcinisation_input",
     "crates/carcinisation_net",
     "crates/cween",

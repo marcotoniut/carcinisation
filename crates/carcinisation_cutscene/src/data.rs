@@ -394,7 +394,7 @@ pub struct LetterboxMoveEvent {
 impl LetterboxMoveEvent {
     #[must_use]
     pub fn open() -> Self {
-        Self::new(LETTERBOX_NORMAL_SPEED, LETTERBOX_HEIGHT as f32)
+        Self::new(LETTERBOX_NORMAL_SPEED, LETTERBOX_HEIGHT)
     }
 
     #[must_use]
@@ -404,7 +404,7 @@ impl LetterboxMoveEvent {
 
     #[must_use]
     pub fn show() -> Self {
-        Self::new(LETTERBOX_INSTANT_SPEED, LETTERBOX_HEIGHT as f32)
+        Self::new(LETTERBOX_INSTANT_SPEED, LETTERBOX_HEIGHT)
     }
 
     #[must_use]
@@ -439,4 +439,4 @@ impl From<LetterboxMove> for LetterboxMoveEvent {
 // Constants for letterbox. Defined here so both app and editor can use them.
 pub const LETTERBOX_NORMAL_SPEED: f32 = 10.;
 pub const LETTERBOX_INSTANT_SPEED: f32 = f32::MAX;
-pub const LETTERBOX_HEIGHT: u32 = 20;
+pub const LETTERBOX_HEIGHT: f32 = 20.0;

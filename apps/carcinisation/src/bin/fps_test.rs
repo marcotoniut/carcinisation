@@ -6,6 +6,7 @@
 //!
 //! Usage:
 //!   cargo run --bin `fps_test`
+#![allow(clippy::cast_precision_loss, clippy::needless_pass_by_value)]
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
@@ -18,7 +19,7 @@ use carcinisation_fps::player_attack::PlayerAttackState;
 use carcinisation_fps::plugin::{
     CameraRes, CameraShakeState, CharDecals, Config, DeathViewState, EnemySpriteIndex, FpsPlugin,
     MapRes, PlayerDead, PlayerHealth, ProjectileImpacts, Projectiles, QuickTurnState, ShootRequest,
-    Systems, TurnChordInput, TurnChordState, move_camera, request_snap_turn, resolve_turn_chord,
+    Systems, TurnChordInput, TurnChordState, request_snap_turn, resolve_turn_chord,
 };
 use carcinisation_input::{GBInput, init_gb_input};
 use leafwing_input_manager::prelude::*;
@@ -32,7 +33,7 @@ const SKY_PATH: &str = "../../assets/config/sky/park.sky.ron";
 const DEATH_RESTART_DELAY_SECS: f32 = 0.75;
 const GOD_MODE_ENV: &str = "CARCINISATION_GOD_MODE";
 
-/// Debug god mode resource — mirrors DebugGodMode from the main app debug plugin.
+/// Debug god mode resource — mirrors `DebugGodMode` from the main app debug plugin.
 #[derive(Resource)]
 struct GodMode {
     enabled: bool,
@@ -97,6 +98,7 @@ fn handle_input(
     let chord_input = TurnChordInput {
         b_pressed: b_held,
         b_just_pressed: action.just_pressed(&GBInput::B),
+        b_just_released: action.just_released(&GBInput::B),
         down_pressed: back_held,
         down_just_pressed: action.just_pressed(&GBInput::Down),
         down_just_released: action.just_released(&GBInput::Down),
@@ -133,28 +135,35 @@ fn handle_input(
     }
     cam.angle += turn_delta;
 
-    let dir = cam.direction();
-    let right = Vec2::new(dir.y, -dir.x);
-    let mut move_delta = Vec2::ZERO;
-
+    // Build local-space movement intent (matches MP client → server path).
+    let mut movement = Vec2::ZERO;
     if action.pressed(&GBInput::Up) {
-        move_delta += dir;
+        movement.y += 1.0;
     }
     if back_held {
-        move_delta -= dir;
+        movement.y -= 1.0;
     }
     if b_held {
         if action.pressed(&GBInput::Left) {
-            move_delta -= right;
+            movement.x -= 1.0;
         }
         if action.pressed(&GBInput::Right) {
-            move_delta += right;
+            movement.x += 1.0;
         }
     }
+    if movement.length_squared() > 1.0 {
+        movement = movement.normalize();
+    }
 
-    if move_delta != Vec2::ZERO {
-        move_delta = move_delta.normalize() * config.move_speed * dt;
-        move_camera(cam, move_delta, &map.0);
+    if movement != Vec2::ZERO {
+        carcinisation_fps_core::movement::apply_movement(
+            &mut cam.position,
+            cam.angle,
+            movement,
+            config.move_speed,
+            dt,
+            &map.0,
+        );
     }
 
     let melee_triggered = (select_held && a_just_pressed) || (select_just_pressed && a_held);

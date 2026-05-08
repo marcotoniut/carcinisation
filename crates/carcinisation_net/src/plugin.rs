@@ -20,7 +20,16 @@ impl Plugin for NetProtocolPlugin {
 
 /// Register replicated components and network channels.
 /// Must be called AFTER `RepliconPlugins` because it requires `ProtocolHasher`.
+///
+/// # Panics (debug builds)
+/// Panics if `RepliconChannels` resource is missing, indicating
+/// `RepliconPlugins` was not added before this call.
 pub fn register_net_all(app: &mut App) {
+    debug_assert!(
+        app.world().contains_resource::<RepliconChannels>(),
+        "register_net_all called before RepliconPlugins — \
+         add RepliconSharedPlugin + ServerPlugin/ClientPlugin first"
+    );
     register_replication(app);
     register_reliable_channels(app);
     register_unreliable_channels(app);

@@ -11,7 +11,7 @@ use bevy_replicon::prelude::*;
 use carcinisation_fps_core::camera::Camera;
 use carcinisation_fps_core::config::{
     BURN_CONTACT_DAMAGE, BURN_CONTACT_RADIUS, BURN_CONTACT_TICK_SECS, ENEMY_DEATH_ANIM_SECS,
-    ENEMY_DESPAWN_DELAY, FIRE_COOLDOWN_SECS, FLAME_DPS, FLAME_HALF_ANGLE, FLAME_RANGE,
+    ENEMY_DESPAWN_DELAY, FIRE_COOLDOWN_SECS, FLAME_DPS, FLAME_HIT_HALF_WIDTH, FLAME_RANGE,
     HITSCAN_DAMAGE, PROJECTILE_HIT_RADIUS,
 };
 use carcinisation_fps_core::enemy::{Enemy, hitscan};
@@ -154,7 +154,8 @@ const FLAME_CHAR_EMIT_INTERVAL: f32 = 0.1;
     clippy::too_many_arguments,
     clippy::too_many_lines,
     clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
+    clippy::cast_sign_loss,
+    clippy::missing_panics_doc
 )]
 pub fn process_combat(
     mut commands: Commands,
@@ -335,7 +336,6 @@ pub fn process_combat(
                 }
 
                 let dir = Vec2::new(player.angle.cos(), player.angle.sin());
-                let cos_threshold = FLAME_HALF_ANGLE.cos();
                 let damage_this_tick = FLAME_DPS * dt;
 
                 debug!(
@@ -348,6 +348,10 @@ pub fn process_combat(
                     damage_this_tick
                 );
 
+                // Line-distance collision: check perpendicular distance from the
+                // flame line, matching the SP chain-segment proximity model.
+                let hit_half_w_sq = FLAME_HIT_HALF_WIDTH * FLAME_HIT_HALF_WIDTH;
+
                 // Collect hit entities first (avoids borrow conflict with apply_damage).
                 let hit_entities: Vec<Entity> = enemies
                     .iter()
@@ -359,21 +363,26 @@ pub fn process_combat(
                             return None;
                         }
                         let to_enemy = net_enemy.position - player.position;
-                        let dist = to_enemy.length();
-                        let in_range = (0.01..=FLAME_RANGE).contains(&dist);
-                        let to_dir = if dist > 0.001 { to_enemy / dist } else { Vec2::ZERO };
-                        let dot = dir.dot(to_dir);
-                        let in_angle = dot >= cos_threshold;
+                        let along = to_enemy.dot(dir);
+                        let in_range = (0.01..=FLAME_RANGE).contains(&along);
+                        let perp = to_enemy - dir * along;
+                        let perp_sq = perp.length_squared();
+                        let in_line = perp_sq <= hit_half_w_sq;
+                        let to_dir = if to_enemy.length() > 0.001 {
+                            to_enemy.normalize()
+                        } else {
+                            Vec2::ZERO
+                        };
                         let ray_hit = cast_ray(&server_map.0, player.position, to_dir);
-                        let has_los = ray_hit.distance >= dist;
+                        let has_los = ray_hit.distance >= to_enemy.length();
 
                         debug!(
-                            "  enemy obj={:?} pos={} hp={:.0} dist={:.2} in_range={} dot={:.3} (thresh={:.3}) in_angle={} los_dist={:.2} has_los={}",
+                            "  enemy obj={:?} pos={} hp={:.0} along={:.2} perp={:.2} in_range={} in_line={} los_dist={:.2} has_los={}",
                             net_enemy.object_id, net_enemy.position, net_health.current,
-                            dist, in_range, dot, cos_threshold, in_angle, ray_hit.distance, has_los
+                            along, perp_sq.sqrt(), in_range, in_line, ray_hit.distance, has_los
                         );
 
-                        if !in_range || !in_angle || !has_los {
+                        if !in_range || !in_line || !has_los {
                             return None;
                         }
                         Some(entity)

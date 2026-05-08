@@ -285,9 +285,7 @@ fn simultaneous_input_isolated() {
     // Player 2: turned left — position unchanged, angle changed.
     assert!(
         (p2_end.x - p2_start.x).abs() < 0.01 && (p2_end.y - p2_start.y).abs() < 0.01,
-        "P2 position should stay (turn only): {:?} → {:?}",
-        p2_start,
-        p2_end
+        "P2 position should stay (turn only): {p2_start:?} → {p2_end:?}"
     );
 }
 
@@ -427,5 +425,49 @@ fn duplicate_sequence_rejected() {
     assert_eq!(
         stopped_pos, after_dup,
         "Duplicate seq should not change buffer: {stopped_pos:?} → {after_dup:?}"
+    );
+}
+
+/// Out-of-order (lower) sequence numbers are rejected by the observer.
+/// Sending seq=3 then seq=1 should not revert to the seq=1 intent.
+#[test]
+fn out_of_order_sequence_rejected() {
+    let port = reserve_port();
+    let mut server = build_fixed_tick_server(port);
+    server.update();
+
+    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
+    let mut client = build_input_client(addr);
+    client.update();
+
+    assert!(
+        wait_for_players_2(1, &mut server, &mut client),
+        "NetPlayer should exist"
+    );
+
+    // seq=1: move forward.
+    queue_forward(&mut client, 1);
+    for _ in 0..5 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    // seq=3: stop (skip seq=2 to simulate reordering).
+    queue_idle(&mut client, 3);
+    for _ in 0..5 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let stopped_pos = get_server_players(&mut server)[0].1;
+
+    // Now send seq=1 again with forward — should be rejected (older than last=3).
+    queue_forward(&mut client, 1);
+    for _ in 0..20 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let after_old = get_server_players(&mut server)[0].1;
+    assert_eq!(
+        stopped_pos, after_old,
+        "Out-of-order seq should not change buffer: {stopped_pos:?} → {after_old:?}"
     );
 }

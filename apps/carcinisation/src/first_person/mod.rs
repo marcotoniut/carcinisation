@@ -11,15 +11,19 @@ use carcinisation_fps::billboard::{
 use carcinisation_fps::player_attack::{
     AttackInput, AttackLoadout, PlayerAttackSprites, PlayerAttackState,
 };
+use carcinisation_fps::plugin::CharDecals;
 use carcinisation_fps::plugin::{
-    Active, BloodShotSprites, CameraRes, CameraShakeState, Config, DeathViewState,
+    Active, BloodShotSprites, CameraRes, CameraShakeState, Config, DeathViewState, MapRes,
     MosquitonSprites, Systems, request_camera_shake,
 };
+use carcinisation_fps::raycast::{HitSide, WallSurfaceId};
+use carcinisation_fps::render::CharDecal;
 use carcinisation_net::components::NetEnemy;
 use carcinisation_net::{
-    DamageEffect, DeathEffect, EnemyAttackKind, EnemyAttackVisual, FlameActive, HitConfirm,
-    MuzzleFlash, NetAttackId, NetEnemyState, NetEnemyType, NetHealth, NetPlayer, NetProjectile,
-    NetProtocolPlugin, NetworkObjectId, PlayerId, PlayerIdAssigned, register_net_all,
+    DamageEffect, DeathEffect, EnemyAttackKind, EnemyAttackVisual, FlameActive, FlameCharMark,
+    HitConfirm, MuzzleFlash, NetAttackId, NetEnemyState, NetEnemyType, NetHealth, NetPlayer,
+    NetProjectile, NetProtocolPlugin, NetworkObjectId, PlayerId, PlayerIdAssigned,
+    register_net_all,
 };
 use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -34,6 +38,10 @@ pub struct LocalPlayerId(pub Option<PlayerId>);
 /// Whether the local player's flamethrower is currently active (from server `FlameActive` event).
 #[derive(Resource, Debug, Default)]
 struct LocalFlameActive(bool);
+
+/// Active flamethrower state for remote players (from server `FlameActive` events).
+#[derive(Resource, Debug, Default)]
+struct RemoteFlameStates(std::collections::HashMap<PlayerId, bool>);
 
 /// Projectile visual speed for client-side extrapolation.
 const PROJECTILE_VISUAL_SPEED: f32 = carcinisation_fps_core::PROJECTILE_SPEED;
@@ -105,6 +113,7 @@ impl Plugin for FpsClientPlugin {
             .init_resource::<carcinisation_fps::plugin::QuickTurnState>()
             .init_resource::<LocalPlayerId>()
             .init_resource::<LocalFlameActive>()
+            .init_resource::<RemoteFlameStates>()
             .init_resource::<EnemyAttackOverrides>()
             .init_resource::<EnemyDamageFlickers>()
             .init_resource::<HitImpacts>()
@@ -113,6 +122,7 @@ impl Plugin for FpsClientPlugin {
             .add_observer(handle_damage_effect)
             .add_observer(handle_death_effect)
             .add_observer(handle_flame_active)
+            .add_observer(handle_flame_char_mark)
             .add_observer(handle_enemy_attack_visual)
             .add_observer(handle_hit_confirm)
             .add_systems(
@@ -254,10 +264,63 @@ fn handle_flame_active(
     trigger: On<FlameActive>,
     local_id: Res<LocalPlayerId>,
     mut flame_active: ResMut<LocalFlameActive>,
+    mut remote_flames: ResMut<RemoteFlameStates>,
 ) {
     let event = trigger.event();
     if local_id.0 == Some(event.player_id) {
         flame_active.0 = event.active;
+    } else {
+        remote_flames.0.insert(event.player_id, event.active);
+    }
+}
+
+/// Maximum number of char decals to keep.
+const MAX_FLAME_CHAR_DECALS: usize = 128;
+
+fn handle_flame_char_mark(trigger: On<FlameCharMark>, mut char_decals: ResMut<CharDecals>) {
+    let mark = trigger.event();
+    let surface_id = WallSurfaceId {
+        cell_x: mark.cell_x,
+        cell_y: mark.cell_y,
+        side: if mark.side == 0 {
+            HitSide::Vertical
+        } else {
+            HitSide::Horizontal
+        },
+        normal_sign: mark.normal_sign,
+    };
+
+    // Dedup: skip if a nearby decal already exists on the same surface.
+    let dominated = char_decals
+        .0
+        .iter()
+        .rev()
+        .take(12)
+        .any(|d| d.surface_id == surface_id && (d.u - mark.u).abs() < 0.025);
+    if dominated {
+        return;
+    }
+
+    let flip_x = mark.seed & 1 != 0;
+    let flip_y = mark.seed & 2 != 0;
+    let intensity = if mark.seed & 4 != 0 { 0.88 } else { 0.58 };
+
+    char_decals.0.push(CharDecal {
+        surface_id,
+        u: mark.u,
+        v: 0.5,
+        width: 0.30,
+        height: 0.30,
+        intensity,
+        flip_x,
+        flip_y,
+        seed: mark.seed,
+    });
+
+    // Cap total decals.
+    if char_decals.0.len() > MAX_FLAME_CHAR_DECALS {
+        let excess = char_decals.0.len() - MAX_FLAME_CHAR_DECALS;
+        char_decals.0.drain(..excess);
     }
 }
 
@@ -422,6 +485,7 @@ fn sync_player_lifecycle_state(
     mut player_dead: ResMut<carcinisation_fps::plugin::PlayerDead>,
     mut player_health: ResMut<carcinisation_fps::plugin::PlayerHealth>,
     mut death_view: ResMut<carcinisation_fps::plugin::DeathViewState>,
+    mut camera_shake: ResMut<CameraShakeState>,
     fps_config: Res<Config>,
 ) {
     let Some(my_id) = local_player_id.0 else {
@@ -433,18 +497,30 @@ fn sync_player_lifecycle_state(
     match &local_np.state {
         carcinisation_net::PlayerNetState::Alive => {
             if player_dead.0 {
+                // Respawn — reset all death/damage visual state.
                 player_dead.0 = false;
                 player_health.0 = fps_config.player_max_health;
                 *death_view = DeathViewState::default();
+                *camera_shake = CameraShakeState::default();
             }
         }
         carcinisation_net::PlayerNetState::Dead { .. } => {
+            if !player_dead.0 {
+                // Just died — stop camera shake so it doesn't fight the death view.
+                *camera_shake = CameraShakeState::default();
+            }
             player_dead.0 = true;
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[derive(Default)]
+struct SyncLocals {
+    has_set_camera: bool,
+    last_log_frame: u32,
+}
+
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 fn sync_camera_from_net_player(
     net_players: Query<(Entity, &NetPlayer)>,
     net_enemies: Query<(&NetEnemy, Option<&NetHealth>)>,
@@ -452,14 +528,15 @@ fn sync_camera_from_net_player(
     mut camera_res: ResMut<CameraRes>,
     mut fps_config: ResMut<Config>,
     local_player_id: Res<LocalPlayerId>,
+    mut remote_flames: ResMut<RemoteFlameStates>,
+    map_res: Option<Res<MapRes>>,
     mosquiton_sprites: Option<Res<MosquitonSprites>>,
     blood_shot_sprites: Option<Res<BloodShotSprites>>,
     attack_sprites: Option<Res<PlayerAttackSprites>>,
     attack_overrides: Res<EnemyAttackOverrides>,
     damage_flickers: Res<EnemyDamageFlickers>,
     hit_impacts: Res<HitImpacts>,
-    mut has_set_camera: Local<bool>,
-    mut last_log_frame: Local<u32>,
+    mut sync_locals: Local<SyncLocals>,
     time: Res<Time>,
 ) {
     let Some(my_id) = local_player_id.0 else {
@@ -475,6 +552,7 @@ fn sync_camera_from_net_player(
     camera_res.0.angle = local_np.angle;
 
     fps_config.extra_billboards.clear();
+    let elapsed = time.elapsed_secs();
     for (_entity, np) in net_players.iter() {
         if np.player_id == my_id {
             continue;
@@ -486,10 +564,30 @@ fn sync_camera_from_net_player(
             world_height: 1.5,
             sprite: make_enemy_sprite(32, color_idx),
         });
+
+        // Remote flame arc billboards.
+        let is_flaming = remote_flames.0.get(&np.player_id).copied().unwrap_or(false)
+            && matches!(np.current_attack, NetAttackId::Projectile);
+        if is_flaming {
+            push_remote_flame_billboards(
+                &mut fps_config.extra_billboards,
+                np.position,
+                np.angle,
+                elapsed,
+                attack_sprites.as_deref(),
+                map_res.as_deref(),
+            );
+        }
+    }
+
+    // Prune stale entries for disconnected/despawned players.
+    if !remote_flames.0.is_empty() {
+        remote_flames
+            .0
+            .retain(|id, _| net_players.iter().any(|(_, np)| np.player_id == *id));
     }
 
     // Enemy billboards (including dying/dead for death pose, excludes despawned).
-    let elapsed = time.elapsed_secs();
     for (enemy, _health) in net_enemies.iter() {
         let show_invert = damage_flickers
             .0
@@ -565,8 +663,8 @@ fn sync_camera_from_net_player(
     }
 
     let frame = time.elapsed_secs_f64() as u32;
-    if !*has_set_camera || frame - *last_log_frame > 120 {
-        *last_log_frame = frame;
+    if !sync_locals.has_set_camera || frame - sync_locals.last_log_frame > 120 {
+        sync_locals.last_log_frame = frame;
         let total = net_players.iter().count();
         let remote_count = fps_config.extra_billboards.len();
         info!(
@@ -582,8 +680,8 @@ fn sync_camera_from_net_player(
         }
     }
 
-    if !*has_set_camera {
-        *has_set_camera = true;
+    if !sync_locals.has_set_camera {
+        sync_locals.has_set_camera = true;
     }
 }
 
@@ -706,6 +804,91 @@ fn push_net_burn_flames(
     }
 }
 
+/// Generate flame arc billboards for a remote player's active flamethrower.
+///
+/// Matches SP flamethrower density: 12 segments with power-curve spacing
+/// (denser near source), scale interpolation, staggered animation phases,
+/// and client-side wall clipping via raycast.
+#[allow(clippy::too_many_lines, clippy::items_after_statements)]
+fn push_remote_flame_billboards(
+    billboards: &mut Vec<Billboard>,
+    position: Vec2,
+    angle: f32,
+    elapsed: f32,
+    attack_sprites: Option<&PlayerAttackSprites>,
+    map: Option<&MapRes>,
+) {
+    use carcinisation_fps::raycast::cast_ray;
+
+    const SEGMENT_COUNT: u32 = 12;
+    const FLAME_START: f32 = 0.6;
+    const FLAME_RANGE: f32 = 4.0;
+    const SPACING_CURVE: f32 = 0.65;
+    const SCALE_NEAR: f32 = 0.45; // 0.65× of previous 0.7
+    const SCALE_FAR: f32 = 0.16; // 0.65× of previous 0.25
+    // Per-segment lateral offset: small static jitter seeded by index for variety,
+    // no time-varying component (SP flame only bends when turning, not continuously).
+    const JITTER_AMP: f32 = 0.03;
+
+    let dir = Vec2::new(angle.cos(), angle.sin());
+    let right = Vec2::new(-dir.y, dir.x);
+
+    // Client-side wall clipping: raycast to find max flame distance.
+    let max_dist = map.map_or(FLAME_START + FLAME_RANGE, |m| {
+        let hit = cast_ray(&m.0, position, dir);
+        if hit.wall_id > 0 {
+            hit.distance.min(FLAME_START + FLAME_RANGE)
+        } else {
+            FLAME_START + FLAME_RANGE
+        }
+    });
+
+    for i in 0..SEGMENT_COUNT {
+        let t = (i as f32 + 1.0) / SEGMENT_COUNT as f32;
+        let dist = FLAME_START + FLAME_RANGE * t.powf(SPACING_CURVE);
+
+        // Stop generating segments past the wall hit.
+        if dist >= max_dist {
+            break;
+        }
+
+        let scale = SCALE_NEAR + (SCALE_FAR - SCALE_NEAR) * t;
+        let phase = elapsed + i as f32 * 0.15;
+        // Static lateral offset per segment (deterministic, no time wobble).
+        let jitter = ((i as f32 * 7.31).sin() * JITTER_AMP) * t;
+
+        let sprite = attack_sprites.map_or_else(
+            || make_blood_shot_sprite(6, 3),
+            |sprites| sprites.flame_frame_loop(phase).clone(),
+        );
+        billboards.push(Billboard {
+            position: position + dir * dist + right * jitter,
+            height: 0.05,
+            world_height: scale,
+            sprite,
+        });
+    }
+
+    // Wall impact billboard: uses the dedicated wall-hit animation at normal speed,
+    // matching SP (player_attack.rs wall_impact_sprite).
+    let full_range = FLAME_START + FLAME_RANGE;
+    const WALL_OFFSET: f32 = 0.08;
+    const IMPACT_SCALE: f32 = 0.5;
+    if max_dist < full_range {
+        let impact_dist = (max_dist - WALL_OFFSET).max(FLAME_START);
+        let sprite = attack_sprites.map_or_else(
+            || make_blood_shot_sprite(8, 3),
+            |sprites| sprites.flame_wall_hit_frame_loop(elapsed).clone(),
+        );
+        billboards.push(Billboard {
+            position: position + dir * impact_dist,
+            height: 0.0,
+            world_height: IMPACT_SCALE,
+            sprite,
+        });
+    }
+}
+
 #[derive(Component)]
 struct ClientInfoText;
 
@@ -768,6 +951,7 @@ mod tests {
         app.init_resource::<EnemyAttackOverrides>();
         app.init_resource::<EnemyDamageFlickers>();
         app.init_resource::<HitImpacts>();
+        app.init_resource::<RemoteFlameStates>();
     }
 
     /// Dead enemies get death-pose billboards; alive enemies get alive billboards.
@@ -989,5 +1173,79 @@ mod tests {
         let melee_fallback = MELEE_ANIM_DURATION_FALLBACK;
         assert!(shoot_fallback > 0.0);
         assert!(melee_fallback > 0.0);
+    }
+
+    #[test]
+    fn remote_flame_state_pruned_when_player_despawns() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(CameraRes(Camera::default()));
+        app.insert_resource(Config::default());
+        init_sync_test_app(&mut app);
+        app.add_systems(Update, sync_camera_from_net_player);
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(2.0, 3.0),
+            angle: 0.0,
+            current_attack: NetAttackId::None,
+            state: PlayerNetState::Alive,
+        });
+
+        // Seed remote flame state for a player that has no entity.
+        app.world_mut()
+            .resource_mut::<RemoteFlameStates>()
+            .0
+            .insert(PlayerId(99), true);
+
+        app.update();
+
+        let remote = app.world().resource::<RemoteFlameStates>();
+        assert!(
+            remote.0.is_empty(),
+            "stale remote flame entry should be pruned when player entity is absent"
+        );
+    }
+
+    #[test]
+    fn remote_flame_state_preserved_for_present_player() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(CameraRes(Camera::default()));
+        app.insert_resource(Config::default());
+        init_sync_test_app(&mut app);
+        app.add_systems(Update, sync_camera_from_net_player);
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(2.0, 3.0),
+            angle: 0.0,
+            current_attack: NetAttackId::None,
+            state: PlayerNetState::Alive,
+        });
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(2),
+            position: Vec2::new(4.0, 5.0),
+            angle: 0.0,
+            current_attack: NetAttackId::Projectile,
+            state: PlayerNetState::Alive,
+        });
+
+        app.world_mut()
+            .resource_mut::<RemoteFlameStates>()
+            .0
+            .insert(PlayerId(2), true);
+
+        app.update();
+
+        let remote = app.world().resource::<RemoteFlameStates>();
+        assert_eq!(
+            remote.0.get(&PlayerId(2)),
+            Some(&true),
+            "flame state should be preserved for present player"
+        );
     }
 }

@@ -224,6 +224,7 @@ pub fn check_jump_tween_finished(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
     use crate::stage::enemy::data::steps::{EnemyStep, JumpEnemyStep};

@@ -19,17 +19,18 @@ use carcinisation_fps_core::{
 };
 use carcinisation_net::{CombatSet, MovementSet, TickSet};
 use carcinisation_net::{
-    NetAttackId, NetEnemyState, NetEnemyType, NetHealth, NetPlayer, NetProtocolPlugin,
+    FlameActive, NetAttackId, NetEnemyState, NetEnemyType, NetHealth, NetPlayer, NetProtocolPlugin,
     NetworkObjectId, PlayerId, PlayerIdAssigned, PlayerNetState, register_net_all,
 };
 use systems::combat::process_combat;
 use systems::input::{apply_buffered_movement, receive_client_intent};
 use systems::{
-    BurnContactCooldowns, EnemyAiSet, EnemyAttackCooldown, EnemyAttackSet, FireCooldownMap,
-    FlameActiveTracker, FlameCharCooldowns, NetEnemy, NextProjectileId, PlayerInputTracker,
-    PlayerIntentBuffer, ProjectileSet, ServerEnemyAiConfig, ServerQuickTurn, ServerTurnConfig,
-    tick_burn_contact_damage, tick_despawn_timers, tick_enemy_attacks, tick_enemy_death_timers,
-    tick_net_enemy_ai, tick_pending_projectiles, tick_player_lifecycle, tick_projectiles_server,
+    BurnContactCooldowns, EnemyAiSet, EnemyAttackSet, FireCooldownMap, FlameActiveTracker,
+    FlameCharCooldowns, NetEnemy, NextProjectileId, PlayerInputTracker, PlayerIntentBuffer,
+    ProjectileSet, ServerEnemyAiConfig, ServerMosquitonSim, ServerMosquitonSimConfig,
+    ServerQuickTurn, ServerTurnConfig, tick_burn_contact_damage, tick_despawn_timers,
+    tick_enemy_attacks, tick_enemy_death_timers, tick_net_enemy_ai, tick_pending_projectiles,
+    tick_player_lifecycle, tick_projectiles_server,
 };
 
 /// Component attached to `ConnectedClient` to track assigned `PlayerId`.
@@ -351,6 +352,7 @@ fn handle_client_disconnect(
     mut cooldowns: ResMut<FireCooldownMap>,
     mut flame_tracker: ResMut<FlameActiveTracker>,
     mut burn_cooldowns: ResMut<BurnContactCooldowns>,
+    mut char_cooldowns: ResMut<FlameCharCooldowns>,
 ) {
     let client_entity = trigger.event().entity;
 
@@ -370,11 +372,23 @@ fn handle_client_disconnect(
         }
     }
 
+    // Emit FlameActive(false) if the player was flaming, so clients clear visuals.
+    if flame_tracker.0.get(&player_id).copied().unwrap_or(false) {
+        commands.server_trigger(ToClients {
+            mode: SendMode::Broadcast,
+            message: FlameActive {
+                player_id,
+                active: false,
+            },
+        });
+    }
+
     tracker.remove_player(&player_id);
     buffer.remove_player(&player_id);
     cooldowns.remove_player(&player_id);
     flame_tracker.remove_player(&player_id);
     burn_cooldowns.remove_player(&player_id);
+    char_cooldowns.remove_player(&player_id);
 
     info!(
         "Client {:?} disconnected, cleaned up PlayerId {:?}",
@@ -413,8 +427,11 @@ fn spawn_map_enemies(mut commands: Commands, map_entities: Res<MapEntities>) {
         if let Some(ai_config) = server_enemy_ai_config_from_spawn(spawn) {
             enemy_commands.insert(ai_config);
         }
-        if matches!(spawn.kind, EntitySpawnKind::Mosquiton { .. }) {
-            enemy_commands.insert(EnemyAttackCooldown::mosquiton());
+        if let EntitySpawnKind::Mosquiton { speed, .. } = &spawn.kind {
+            enemy_commands.insert((
+                ServerMosquitonSim::default(),
+                ServerMosquitonSimConfig::with_speed(*speed),
+            ));
         }
         count += 1;
     }

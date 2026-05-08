@@ -1,0 +1,593 @@
+//! Pure Mosquiton combat simulation — state machine, cooldowns, attack decisions.
+//!
+//! No rendering, no Bevy ECS. The fps crate wraps this with animation/billboard
+//! concerns; the server can adopt the same sim path for parity.
+
+use bevy_math::Vec2;
+
+use crate::collision::try_move;
+use crate::config;
+use crate::enemy::Projectile;
+use crate::map::Map;
+use crate::raycast::cast_ray;
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+/// Pure simulation state for a Mosquiton.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MosquitonSimState {
+    /// Moving toward the player.
+    Pursue,
+    /// At preferred range, strafing and shooting.
+    RangedAttack { strafe_dir: f32 },
+    /// Close enough for melee.
+    MeleeAttack { timer: f32, dealt_damage: bool },
+    /// Brief pause after melee before re-engaging.
+    Recover { timer: f32 },
+    /// Playing death animation.
+    Dying { timer: f32 },
+    /// Inert fire-death before despawn.
+    BurningCorpse { timer: f32, seed: u32 },
+    /// Fully dead.
+    Dead,
+}
+
+impl MosquitonSimState {
+    #[must_use]
+    pub fn is_alive(&self) -> bool {
+        !matches!(
+            self,
+            Self::Dying { .. } | Self::BurningCorpse { .. } | Self::Dead
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+/// Gameplay-only configuration for Mosquiton simulation.
+/// All values derive from `config.rs` constants by default.
+#[derive(Clone, Debug)]
+pub struct MosquitonSimConfig {
+    pub move_speed: f32,
+    pub preferred_range: f32,
+    pub melee_range: f32,
+    pub shoot_range: f32,
+    pub shoot_cooldown: f32,
+    pub melee_cooldown: f32,
+    pub melee_attack_duration: f32,
+    pub melee_damage: u32,
+    pub blood_shot_speed: f32,
+    pub blood_shot_damage: u32,
+    pub collision_radius: f32,
+    pub shoot_cue_secs: f32,
+}
+
+impl Default for MosquitonSimConfig {
+    fn default() -> Self {
+        Self {
+            move_speed: 2.0,
+            preferred_range: config::MOSQUITON_PREFERRED_RANGE,
+            melee_range: config::MOSQUITON_MELEE_RANGE,
+            shoot_range: config::MOSQUITON_SHOOT_RANGE,
+            shoot_cooldown: config::MOSQUITON_SHOOT_COOLDOWN,
+            melee_cooldown: config::MOSQUITON_MELEE_COOLDOWN,
+            melee_attack_duration: config::MOSQUITON_MELEE_ATTACK_DURATION,
+            melee_damage: config::MOSQUITON_MELEE_DAMAGE as u32,
+            blood_shot_speed: config::MOSQUITON_BLOOD_SHOT_SPEED,
+            blood_shot_damage: config::MOSQUITON_PROJECTILE_DAMAGE as u32,
+            collision_radius: config::MOSQUITON_COLLISION_RADIUS,
+            shoot_cue_secs: config::MOSQUITON_SHOOT_CUE_SECS,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Sim I/O
+// ---------------------------------------------------------------------------
+
+/// Mutable simulation fields passed into `tick_mosquiton_sim`.
+pub struct MosquitonSim {
+    pub position: Vec2,
+    pub state: MosquitonSimState,
+    pub shoot_cooldown: f32,
+    pub melee_cooldown: f32,
+    pub decision_timer: f32,
+    /// When `Some(elapsed)`, a shoot animation is playing. The projectile
+    /// spawns when `elapsed >= config.shoot_cue_secs`.
+    pub shoot_anim_elapsed: Option<f32>,
+}
+
+/// Outputs from one simulation tick.
+#[derive(Clone, Debug, Default)]
+pub struct MosquitonSimOutput {
+    /// Projectile to spawn (if any).
+    pub projectile: Option<Projectile>,
+    /// Melee damage to apply: (amount, `source_position`).
+    pub melee_damage: Option<(u32, Vec2)>,
+    /// Velocity this frame (for rendering/animation).
+    pub velocity: Vec2,
+    /// Whether a shoot animation was started this tick.
+    pub started_shoot_anim: bool,
+    /// Whether a melee attack was started this tick.
+    pub started_melee: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Core sim tick
+// ---------------------------------------------------------------------------
+
+/// Pure Mosquiton simulation tick. No rendering, no ECS.
+///
+/// Mutates `sim` in place and returns semantic outputs. The caller
+/// (fps crate or server) is responsible for spawning projectiles,
+/// applying damage, and driving animation.
+#[must_use]
+#[allow(clippy::too_many_lines)]
+pub fn tick_mosquiton_sim(
+    sim: &mut MosquitonSim,
+    config: &MosquitonSimConfig,
+    player_pos: Vec2,
+    map: &Map,
+    dt: f32,
+) -> MosquitonSimOutput {
+    let mut output = MosquitonSimOutput::default();
+
+    // Tick cooldowns.
+    sim.shoot_cooldown = (sim.shoot_cooldown - dt).max(0.0);
+    sim.melee_cooldown = (sim.melee_cooldown - dt).max(0.0);
+    sim.decision_timer = (sim.decision_timer - dt).max(0.0);
+
+    // Tick shoot animation — spawn projectile at cue point.
+    if let Some(elapsed) = &mut sim.shoot_anim_elapsed {
+        *elapsed += dt;
+        if *elapsed >= config.shoot_cue_secs {
+            if let Some(proj) = Projectile::new(sim.position, player_pos, config.blood_shot_damage)
+            {
+                let mut p = proj;
+                p.speed = config.blood_shot_speed;
+                p.radius = 0.2;
+                output.projectile = Some(p);
+            }
+            sim.shoot_anim_elapsed = None;
+        }
+    }
+
+    match &mut sim.state {
+        MosquitonSimState::Dead => {}
+
+        MosquitonSimState::Dying { timer } | MosquitonSimState::BurningCorpse { timer, .. } => {
+            *timer -= dt;
+            if *timer <= 0.0 {
+                sim.state = MosquitonSimState::Dead;
+            }
+        }
+
+        MosquitonSimState::Recover { timer } => {
+            *timer -= dt;
+            if *timer <= 0.0 {
+                sim.state = MosquitonSimState::Pursue;
+            }
+        }
+
+        MosquitonSimState::Pursue => {
+            let to_player = player_pos - sim.position;
+            let dist = to_player.length();
+
+            if dist <= config.melee_range {
+                if sim.melee_cooldown <= 0.0 {
+                    start_melee(sim, config, &mut output);
+                } else {
+                    output.velocity = back_off(&mut sim.position, to_player, dist, config, map, dt);
+                }
+                return output;
+            }
+
+            if dist <= config.preferred_range {
+                let strafe_dir = if (sim.position.x * 100.0) as i32 % 2 == 0 {
+                    1.0
+                } else {
+                    -1.0
+                };
+                sim.state = MosquitonSimState::RangedAttack { strafe_dir };
+                return output;
+            }
+
+            // Move toward player.
+            if dist > 0.01 {
+                let move_dir = to_player / dist;
+                let step = move_dir * config.move_speed * dt;
+                output.velocity = step / dt.max(f32::EPSILON);
+                try_move(&mut sim.position, step, config.collision_radius, map);
+            }
+
+            // Start shoot animation if cooldown ready and LOS clear.
+            try_start_shoot(sim, config, player_pos, dist, map, &mut output);
+        }
+
+        MosquitonSimState::RangedAttack { strafe_dir } => {
+            let to_player = player_pos - sim.position;
+            let dist = to_player.length();
+
+            if dist <= config.melee_range {
+                if sim.melee_cooldown <= 0.0 {
+                    start_melee(sim, config, &mut output);
+                } else {
+                    output.velocity = back_off(&mut sim.position, to_player, dist, config, map, dt);
+                }
+                return output;
+            }
+
+            if dist > config.preferred_range * 1.5 {
+                sim.state = MosquitonSimState::Pursue;
+                return output;
+            }
+
+            if sim.decision_timer <= 0.0 {
+                *strafe_dir *= -1.0;
+                sim.decision_timer = 0.75;
+            }
+
+            // Strafe perpendicular.
+            if dist > 0.01 {
+                let dir_to_player = to_player / dist;
+                let strafe = Vec2::new(-dir_to_player.y, dir_to_player.x) * *strafe_dir;
+                let step = strafe * config.move_speed * 0.5 * dt;
+                output.velocity = step / dt.max(f32::EPSILON);
+                try_move(&mut sim.position, step, config.collision_radius, map);
+            }
+
+            // Start shoot animation on cooldown.
+            try_start_shoot(sim, config, player_pos, dist, map, &mut output);
+        }
+
+        MosquitonSimState::MeleeAttack {
+            timer,
+            dealt_damage,
+        } => {
+            let dist = sim.position.distance(player_pos);
+
+            if dist > config.melee_range * 1.5 {
+                sim.state = MosquitonSimState::Pursue;
+                return output;
+            }
+
+            if !*dealt_damage {
+                output.melee_damage = Some((config.melee_damage, sim.position));
+                *dealt_damage = true;
+                sim.melee_cooldown = config.melee_cooldown;
+            }
+
+            *timer -= dt;
+            if *timer <= 0.0 {
+                sim.state = MosquitonSimState::Recover { timer: 0.2 };
+            }
+        }
+    }
+
+    output
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn start_melee(
+    sim: &mut MosquitonSim,
+    config: &MosquitonSimConfig,
+    output: &mut MosquitonSimOutput,
+) {
+    sim.shoot_anim_elapsed = None;
+    sim.state = MosquitonSimState::MeleeAttack {
+        timer: config.melee_attack_duration,
+        dealt_damage: false,
+    };
+    output.started_melee = true;
+}
+
+fn back_off(
+    position: &mut Vec2,
+    to_player: Vec2,
+    dist: f32,
+    config: &MosquitonSimConfig,
+    map: &Map,
+    dt: f32,
+) -> Vec2 {
+    if dist <= 0.01 {
+        return Vec2::ZERO;
+    }
+    let step = -(to_player / dist) * config.move_speed * 0.35 * dt;
+    try_move(position, step, config.collision_radius, map);
+    step / dt.max(f32::EPSILON)
+}
+
+fn try_start_shoot(
+    sim: &mut MosquitonSim,
+    config: &MosquitonSimConfig,
+    player_pos: Vec2,
+    dist: f32,
+    map: &Map,
+    output: &mut MosquitonSimOutput,
+) {
+    if sim.shoot_cooldown <= 0.0
+        && sim.shoot_anim_elapsed.is_none()
+        && dist < config.shoot_range
+        && has_line_of_sight(sim.position, player_pos, map)
+    {
+        sim.shoot_anim_elapsed = Some(0.0);
+        sim.shoot_cooldown = config.shoot_cooldown;
+        output.started_shoot_anim = true;
+    }
+}
+
+/// Line-of-sight check via raycast.
+#[must_use]
+pub fn has_line_of_sight(from: Vec2, to: Vec2, map: &Map) -> bool {
+    let dir = to - from;
+    let dist = dir.length();
+    if dist < 0.01 {
+        return true;
+    }
+    let hit = cast_ray(map, from, dir / dist);
+    hit.distance > dist
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+#[allow(clippy::float_cmp)]
+mod tests {
+    use super::*;
+    use crate::map::test_map;
+
+    fn make_sim(x: f32, y: f32) -> MosquitonSim {
+        MosquitonSim {
+            position: Vec2::new(x, y),
+            state: MosquitonSimState::Pursue,
+            shoot_cooldown: 0.0,
+            melee_cooldown: 0.0,
+            decision_timer: 0.0,
+            shoot_anim_elapsed: None,
+        }
+    }
+
+    fn default_config() -> MosquitonSimConfig {
+        MosquitonSimConfig::default()
+    }
+
+    #[test]
+    fn pursue_moves_toward_player() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(1.5, 1.5);
+        // Place player beyond preferred_range so Pursue continues.
+        let player = Vec2::new(1.5 + config.preferred_range + 1.0, 1.5);
+        let pos_before = sim.position;
+
+        let _ = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(
+            sim.position.x > pos_before.x,
+            "should move east toward player"
+        );
+        assert!(matches!(sim.state, MosquitonSimState::Pursue));
+    }
+
+    #[test]
+    fn switches_to_ranged_at_preferred_range() {
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(1.5, 1.5);
+        // Place at preferred_range distance.
+        let mut sim = make_sim(1.5 + config.preferred_range - 0.1, 1.5);
+
+        let _ = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(matches!(sim.state, MosquitonSimState::RangedAttack { .. }));
+    }
+
+    #[test]
+    fn switches_to_melee_when_close() {
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(1.5, 1.5);
+        let mut sim = make_sim(1.5 + config.melee_range * 0.5, 1.5);
+
+        let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(matches!(sim.state, MosquitonSimState::MeleeAttack { .. }));
+        assert!(output.started_melee);
+    }
+
+    #[test]
+    fn melee_deals_damage_once() {
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(1.5, 1.5);
+        let mut sim = make_sim(1.5 + config.melee_range * 0.3, 1.5);
+        sim.state = MosquitonSimState::MeleeAttack {
+            timer: 0.5,
+            dealt_damage: false,
+        };
+
+        let out1 = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+        let out2 = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(out1.melee_damage.is_some(), "first tick should deal damage");
+        assert_eq!(out1.melee_damage.unwrap().0, config.melee_damage);
+        assert!(
+            out2.melee_damage.is_none(),
+            "second tick should not re-deal"
+        );
+    }
+
+    #[test]
+    fn ranged_attack_starts_shoot_anim() {
+        let map = test_map();
+        let config = MosquitonSimConfig {
+            shoot_range: 10.0,
+            preferred_range: 2.0,
+            ..default_config()
+        };
+        let player = Vec2::new(5.5, 1.5);
+        let mut sim = make_sim(1.5, 1.5);
+        sim.shoot_cooldown = 0.0;
+
+        let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(output.started_shoot_anim, "should start shoot anim");
+        assert!(sim.shoot_anim_elapsed.is_some());
+        assert!(
+            output.projectile.is_none(),
+            "projectile should not spawn yet"
+        );
+    }
+
+    #[test]
+    fn projectile_spawns_at_cue_point() {
+        let map = test_map();
+        let config = MosquitonSimConfig {
+            shoot_cue_secs: 0.5,
+            shoot_range: 10.0,
+            preferred_range: 2.0,
+            ..default_config()
+        };
+        let player = Vec2::new(5.5, 1.5);
+        let mut sim = make_sim(1.5, 1.5);
+        sim.shoot_anim_elapsed = Some(0.0);
+        // Prevent re-triggering after projectile spawns.
+        sim.shoot_cooldown = 10.0;
+
+        // Not yet at cue.
+        let out1 = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.3);
+        assert!(out1.projectile.is_none());
+        assert!(sim.shoot_anim_elapsed.is_some());
+
+        // Past cue.
+        let out2 = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.3);
+        assert!(out2.projectile.is_some());
+        assert!(sim.shoot_anim_elapsed.is_none());
+
+        let proj = out2.projectile.unwrap();
+        assert_eq!(proj.speed, config.blood_shot_speed);
+        assert_eq!(proj.damage, config.blood_shot_damage);
+    }
+
+    #[test]
+    fn shoot_cooldown_prevents_rapid_fire() {
+        let map = test_map();
+        let config = MosquitonSimConfig {
+            shoot_range: 10.0,
+            preferred_range: 2.0,
+            ..default_config()
+        };
+        let player = Vec2::new(5.5, 1.5);
+        let mut sim = make_sim(1.5, 1.5);
+
+        // First tick starts shoot anim.
+        let out1 = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+        assert!(out1.started_shoot_anim);
+
+        // Clear shoot anim (simulate projectile spawned).
+        sim.shoot_anim_elapsed = None;
+
+        // Second tick should NOT start another shoot anim (cooldown active).
+        let out2 = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+        assert!(!out2.started_shoot_anim);
+        assert!(sim.shoot_cooldown > 0.0);
+    }
+
+    #[test]
+    fn dead_does_nothing() {
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(1.5, 1.5);
+        let mut sim = make_sim(3.0, 1.5);
+        sim.state = MosquitonSimState::Dead;
+        let pos_before = sim.position;
+
+        let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 1.0);
+
+        assert_eq!(sim.position, pos_before);
+        assert!(output.projectile.is_none());
+        assert!(output.melee_damage.is_none());
+    }
+
+    #[test]
+    fn dying_transitions_to_dead() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(1.5, 1.5);
+        sim.state = MosquitonSimState::Dying { timer: 0.1 };
+
+        let _ = tick_mosquiton_sim(&mut sim, &config, Vec2::ZERO, &map, 0.2);
+
+        assert_eq!(sim.state, MosquitonSimState::Dead);
+    }
+
+    #[test]
+    fn recover_transitions_to_pursue() {
+        let map = test_map();
+        let config = default_config();
+        let mut sim = make_sim(1.5, 1.5);
+        sim.state = MosquitonSimState::Recover { timer: 0.1 };
+
+        let _ = tick_mosquiton_sim(&mut sim, &config, Vec2::ZERO, &map, 0.2);
+
+        assert_eq!(sim.state, MosquitonSimState::Pursue);
+    }
+
+    #[test]
+    fn no_shoot_without_los() {
+        let map = Map {
+            width: 5,
+            height: 3,
+            cells: vec![1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1],
+        };
+        let config = MosquitonSimConfig {
+            shoot_range: 10.0,
+            ..default_config()
+        };
+        let player = Vec2::new(3.5, 1.5);
+        let mut sim = make_sim(1.5, 1.5);
+        sim.shoot_cooldown = 0.0;
+
+        let output = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert!(!output.started_shoot_anim);
+        assert!(!has_line_of_sight(sim.position, player, &map));
+    }
+
+    #[test]
+    fn config_default_matches_constants() {
+        let c = MosquitonSimConfig::default();
+        assert_eq!(c.melee_range, config::MOSQUITON_MELEE_RANGE);
+        assert_eq!(c.preferred_range, config::MOSQUITON_PREFERRED_RANGE);
+        assert_eq!(c.shoot_range, config::MOSQUITON_SHOOT_RANGE);
+        assert_eq!(c.shoot_cooldown, config::MOSQUITON_SHOOT_COOLDOWN);
+        assert_eq!(c.melee_cooldown, config::MOSQUITON_MELEE_COOLDOWN);
+        assert_eq!(c.blood_shot_speed, config::MOSQUITON_BLOOD_SHOT_SPEED);
+        assert_eq!(c.shoot_cue_secs, config::MOSQUITON_SHOOT_CUE_SECS);
+    }
+
+    #[test]
+    fn melee_out_of_range_reverts_to_pursue() {
+        let map = test_map();
+        let config = default_config();
+        let player = Vec2::new(5.5, 1.5);
+        let mut sim = make_sim(1.5, 1.5);
+        sim.state = MosquitonSimState::MeleeAttack {
+            timer: 0.5,
+            dealt_damage: false,
+        };
+
+        let _ = tick_mosquiton_sim(&mut sim, &config, player, &map, 0.016);
+
+        assert_eq!(sim.state, MosquitonSimState::Pursue);
+    }
+}

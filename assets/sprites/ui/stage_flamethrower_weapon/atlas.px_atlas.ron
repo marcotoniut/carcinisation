@@ -2,14 +2,14 @@
     indexed_image: "sprites/ui/stage_flamethrower_weapon/atlas.pxi",
     regions: [
         (
-            frame_size: (68, 54),
-            origin: Some((43, 90)),
+            frame_size: (68, 52),
+            origin: Some((43, 92)),
             frames: [
                 (
                     x: 0,
                     y: 0,
                     w: 68,
-                    h: 54,
+                    h: 52,
                 ),
             ],
         ),

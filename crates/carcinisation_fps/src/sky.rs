@@ -115,6 +115,7 @@ pub struct Sky {
 }
 
 impl Sky {
+    #[must_use]
     pub fn from_ron(ron: &str, workspace_root: &str) -> Self {
         let data: SkyData = ron::from_str(ron).expect("sky RON config must parse");
         let bg_data = data
@@ -132,9 +133,9 @@ impl Sky {
         let fg_path = format!("{}/{}", workspace_root, fg_data.path);
 
         let bg_bytes = std::fs::read(&bg_path)
-            .unwrap_or_else(|e| panic!("failed to read sky .pxi {}: {}", bg_path, e));
+            .unwrap_or_else(|e| panic!("failed to read sky .pxi {bg_path}: {e}"));
         let fg_bytes = std::fs::read(&fg_path)
-            .unwrap_or_else(|e| panic!("failed to read sky .pxi {}: {}", fg_path, e));
+            .unwrap_or_else(|e| panic!("failed to read sky .pxi {fg_path}: {e}"));
 
         Self {
             bg: SkyLayer::from_pxi(&bg_bytes),
@@ -197,6 +198,7 @@ impl Sky {
 }
 
 #[cfg(test)]
+#[allow(clippy::uninlined_format_args)]
 mod tests {
     use super::*;
     use bevy_math::UVec2;

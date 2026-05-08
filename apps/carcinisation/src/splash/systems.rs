@@ -60,7 +60,7 @@ pub fn build_splash_cutscene_data() -> (SplashConfig, CutsceneData) {
     let data = CutsceneData::new("Splash".to_string())
         .set_steps(vec![act])
         .with_skip_mode(CutsceneSkipMode::AnyGameplayKey)
-        .with_respect_skip_cutscenes(false);
+        .with_respect_skip_cutscenes(true);
 
     (config, data)
 }

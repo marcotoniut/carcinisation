@@ -62,9 +62,18 @@ use bevy_replicon_renet2::renet2::{ConnectionConfig, RenetClient, RenetServer};
 /// Global port allocator. Starts at a high port to avoid conflicts.
 static NEXT_TEST_PORT: AtomicU16 = AtomicU16::new(25000);
 
-/// Reserve the next available test port.
+/// Reserve the next available test port, verifying the port is bindable.
+/// Retries up to 64 times on bind failure (port in `TIME_WAIT` or already in use).
+#[allow(clippy::single_match)]
 pub fn reserve_port() -> u16 {
-    NEXT_TEST_PORT.fetch_add(1, Ordering::Relaxed)
+    for _ in 0..64 {
+        let port = NEXT_TEST_PORT.fetch_add(1, Ordering::SeqCst);
+        let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), port);
+        if let Ok(_socket) = std::net::UdpSocket::bind(addr) {
+            return port; // Socket drops, port is free for the test server.
+        }
+    }
+    panic!("Could not find a free UDP port after 64 attempts");
 }
 
 /// Build a minimal headless server App.

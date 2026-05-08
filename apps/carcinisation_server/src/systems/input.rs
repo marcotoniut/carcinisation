@@ -108,7 +108,7 @@ impl PlayerIntentBuffer {
         actions
     }
 
-    /// Peek fire_held without aging (for combat system after movement aged).
+    /// Peek `fire_held` without aging (for combat system after movement aged).
     #[must_use]
     pub fn peek_fire_held(&self, pid: &PlayerId) -> bool {
         self.entries
@@ -300,6 +300,7 @@ pub fn apply_buffered_movement(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
     use carcinisation_net::InputSequence;

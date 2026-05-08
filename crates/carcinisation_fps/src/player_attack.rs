@@ -2,7 +2,7 @@
 
 use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
 use carapace::{image::CxImage, palette::TRANSPARENT_INDEX};
-use carcinisation_base::fire_death::{DamageKind, FireDeathConfig};
+use carcinisation_fps_core::fire_death::{DamageKind, FireDeathConfig};
 use flate2::read::DeflateDecoder;
 use serde::Deserialize;
 use std::{
@@ -78,7 +78,11 @@ const GUN_MUZZLE_FLASH_REGION: &str = "shooting";
 const PISTOL_EFFECT_POS: Vec2 = Vec2::new(80.0, 72.0);
 const MELEE_EFFECT_POS: Vec2 = Vec2::new(80.0, 72.0);
 const MELEE_RANGE_UNITS: f32 = 1.1;
-const FLAME_RANGE_UNITS: f32 = 2.8;
+/// Conversion factor from screen pixels to world units for the flame visual.
+/// Set so max visual reach matches server `FLAME_RANGE` (5.0 world units):
+///   reach = `FLAME_RANGE_UNITS` * (`chain_range` + `flame_start_offset_px`) / `chain_range`
+///         = 4.0 * (80 + 20) / 80 = 5.0 world units
+const FLAME_RANGE_UNITS: f32 = 4.0;
 const FLAME_WALL_IMPACT_WIDTH: f32 = 0.30;
 const FLAME_WALL_IMPACT_HEIGHT: f32 = 0.30;
 const FLAME_CHAR_DECAL_WIDTH: f32 = FLAME_WALL_IMPACT_WIDTH;
@@ -400,6 +404,11 @@ impl PlayerAttackSprites {
     pub fn flame_frame_loop(&self, elapsed_secs: f32) -> &CxImage {
         self.flame.frame_loop(elapsed_secs)
     }
+
+    #[must_use]
+    pub fn flame_wall_hit_frame_loop(&self, elapsed_secs: f32) -> &CxImage {
+        self.flame_wall_hit.frame_loop(elapsed_secs)
+    }
 }
 
 #[derive(Resource, Debug)]
@@ -414,6 +423,13 @@ pub struct PlayerAttackState {
     weapon_raise_offset: f32,
     config: FlamethrowerConfig,
     gun_config: GunConfig,
+}
+
+impl PlayerAttackState {
+    /// Trigger the pistol muzzle flash animation (used by multiplayer client on `MuzzleFlash` event).
+    pub fn trigger_muzzle_flash(&mut self) {
+        self.gun_muzzle_flash_elapsed = Some(0.0);
+    }
 }
 
 impl Default for PlayerAttackState {
@@ -1759,15 +1775,16 @@ fn decode_pxi(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
     use bevy::prelude::{IVec2, UVec2};
 
     fn open_test_map() -> Map {
         Map {
-            width: 8,
-            height: 8,
-            cells: vec![0; 64],
+            width: 32,
+            height: 32,
+            cells: vec![0; 32 * 32],
         }
     }
 
@@ -1788,11 +1805,11 @@ mod tests {
         assert_eq!(sprites.flame_wall_hit.frames.len(), 3);
         assert_eq!(sprites.weapon_idle.frames.len(), 1);
         assert_eq!(sprites.weapon_shooting.frames.len(), 2);
-        assert_eq!(sprites.idle_flame.frames.len(), 3);
+        assert_eq!(sprites.idle_flame.frames.len(), 4);
         assert_eq!(sprites.idle_flame.frames[0].size(), UVec2::new(6, 8));
-        assert_eq!(sprites.gun_idle.frames.len(), 3);
-        assert_eq!(sprites.gun_shooting.frames.len(), 3);
-        assert_eq!(sprites.gun_muzzle_flash.frames.len(), 3);
+        assert_eq!(sprites.gun_idle.frames.len(), 4);
+        assert_eq!(sprites.gun_shooting.frames.len(), 4);
+        assert_eq!(sprites.gun_muzzle_flash.frames.len(), 4);
     }
 
     #[test]
@@ -2471,8 +2488,9 @@ mod tests {
     #[test]
     fn flamethrower_destroys_projectiles_on_collision_chain() {
         let config = FlamethrowerConfig::load();
+        let center = Vec2::new(16.0, 16.0);
         let camera = Camera {
-            position: Vec2::ZERO,
+            position: center,
             angle: 0.0,
             fov: 1.0,
         };
@@ -2500,8 +2518,8 @@ mod tests {
             &config,
         );
         let mut projectiles = vec![Projectile {
-            position: Vec2::new(collision_local.y, 0.0),
-            source_position: Vec2::new(3.0, 0.0),
+            position: center + Vec2::new(collision_local.y, 0.0),
+            source_position: center + Vec2::new(3.0, 0.0),
             direction: -Vec2::X,
             speed: 1.0,
             radius: 0.3,
@@ -2534,8 +2552,9 @@ mod tests {
     #[test]
     fn active_flamethrower_intercepts_projectile_before_it_hits_player() {
         let config = FlamethrowerConfig::load();
+        let center = Vec2::new(16.0, 16.0);
         let camera = Camera {
-            position: Vec2::ZERO,
+            position: center,
             angle: 0.0,
             fov: 1.0,
         };
@@ -2570,8 +2589,8 @@ mod tests {
             gun_config: GunConfig::load(),
         };
         let mut projectiles = vec![Projectile {
-            position: Vec2::new(collision_local.y, 0.0),
-            source_position: Vec2::new(3.0, 0.0),
+            position: center + Vec2::new(collision_local.y, 0.0),
+            source_position: center + Vec2::new(3.0, 0.0),
             direction: -Vec2::X,
             speed: 10.0,
             radius: 0.3,

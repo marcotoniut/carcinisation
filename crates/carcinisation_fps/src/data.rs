@@ -186,7 +186,7 @@ impl MapData {
 mod tests {
     use super::*;
 
-    const MINIMAL_RON: &str = r#"
+    const MINIMAL_RON: &str = r"
         MapData(
             width: 3,
             height: 3,
@@ -196,7 +196,7 @@ mod tests {
             floor_color: 3,
             player_start: (x: 1.5, y: 1.5, angle_deg: 90.0),
         )
-    "#;
+    ";
 
     #[test]
     fn parse_minimal_ron() {

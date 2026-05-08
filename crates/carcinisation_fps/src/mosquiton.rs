@@ -1,10 +1,14 @@
 //! FP Mosquiton enemy — flying ranged attacker with melee fallback.
+//!
+//! TODO(convergence): Pure simulation pieces (AI tick, config, state machine)
+//! are candidates for extraction into `carcinisation_fps_core`. Rendering-specific
+//! code (sprite loading, billboard frames, composed atlas parsing) must stay here.
 
 use asset_pipeline::composed_ron::{CompactComposedAtlas, CompactFrame, CompactPose};
 use bevy::prelude::Component;
 use bevy_math::Vec2;
 use carapace::{image::CxImage, palette::TRANSPARENT_INDEX};
-use carcinisation_base::fire_death::{DamageKind, corpse_seed};
+use carcinisation_fps_core::fire_death::{DamageKind, corpse_seed};
 use flate2::bufread::DeflateDecoder;
 use serde::Deserialize;
 use std::{
@@ -35,25 +39,32 @@ pub struct MosquitonConfig {
     pub billboard_height: f32,
     pub hover_height: f32,
     pub health: u32,
+    /// Delay from shoot animation start to projectile spawn (seconds).
+    /// Derived from composed atlas cue frame; default matches
+    /// `MOSQUITON_SHOOT_CUE_SECS`.
+    pub shoot_cue_secs: f32,
 }
 
 impl Default for MosquitonConfig {
     fn default() -> Self {
+        use carcinisation_fps_core::config;
         Self {
             move_speed: 2.0,
-            preferred_range: 4.0,
-            melee_range: 1.0,
-            shoot_range: 8.0,
-            shoot_cooldown: Duration::from_secs_f32(1.5),
-            melee_cooldown: Duration::from_secs_f32(0.8),
-            melee_attack_duration: Duration::from_secs_f32(0.6),
-            melee_damage: 15,
-            blood_shot_speed: 5.0,
-            blood_shot_damage: 10,
-            collision_radius: 0.3,
+            preferred_range: config::MOSQUITON_PREFERRED_RANGE,
+            melee_range: config::MOSQUITON_MELEE_RANGE,
+            shoot_range: config::MOSQUITON_SHOOT_RANGE,
+            shoot_cooldown: Duration::from_secs_f32(config::MOSQUITON_SHOOT_COOLDOWN),
+            melee_cooldown: Duration::from_secs_f32(config::MOSQUITON_MELEE_COOLDOWN),
+            melee_attack_duration: Duration::from_secs_f32(config::MOSQUITON_MELEE_ATTACK_DURATION),
+            melee_damage: config::MOSQUITON_MELEE_DAMAGE as u32,
+            blood_shot_speed: config::MOSQUITON_BLOOD_SHOT_SPEED,
+            blood_shot_damage: config::MOSQUITON_PROJECTILE_DAMAGE as u32,
+            collision_radius: config::MOSQUITON_COLLISION_RADIUS,
+            // Rendering-only defaults — not shared with server.
             billboard_height: 0.9,
             hover_height: 0.08,
-            health: 40,
+            health: config::MOSQUITON_HEALTH,
+            shoot_cue_secs: config::MOSQUITON_SHOOT_CUE_SECS,
         }
     }
 }
@@ -98,6 +109,9 @@ pub struct Mosquiton {
     pub shoot_cooldown: f32,
     pub melee_cooldown: f32,
     pub decision_timer: f32,
+    /// When `Some(elapsed)`, a shoot animation is playing. The projectile
+    /// spawns when `elapsed >= config.shoot_cue_secs`.
+    pub shoot_anim_elapsed: Option<f32>,
     pub config: MosquitonConfig,
     pub damage_flicker: Option<DamageFlicker>,
 }
@@ -117,6 +131,7 @@ impl Mosquiton {
             shoot_cooldown: 0.0,
             melee_cooldown: 0.0,
             decision_timer: 0.0,
+            shoot_anim_elapsed: None,
             config,
             damage_flicker: None,
         }
@@ -143,6 +158,7 @@ impl Mosquiton {
         self.health = self.health.saturating_sub(amount);
         if self.health == 0 {
             self.damage_flicker = None;
+            self.shoot_anim_elapsed = None;
             self.state = match kind {
                 DamageKind::Physical => MosquitonState::Dying { timer: 0.5 },
                 DamageKind::Fire => MosquitonState::BurningCorpse {
@@ -165,19 +181,12 @@ impl Mosquiton {
     }
 }
 
-/// Check line of sight from a position to a target using raycasting.
-#[must_use]
-pub fn has_line_of_sight(from: Vec2, to: Vec2, map: &Map) -> bool {
-    let dir = to - from;
-    let dist = dir.length();
-    if dist < 0.01 {
-        return true;
-    }
-    let hit = cast_ray(map, from, dir / dist);
-    hit.distance > dist
-}
+pub use carcinisation_fps_core::mosquiton::has_line_of_sight;
 
 /// Tick a single Mosquiton for one frame. Returns spawned projectile and optional player damage.
+///
+/// Delegates gameplay logic to `carcinisation_fps_core::tick_mosquiton_sim` and
+/// handles rendering concerns (animation time, damage flicker, velocity).
 #[must_use]
 pub fn tick_single_mosquiton(
     mosquiton: &mut Mosquiton,
@@ -185,178 +194,64 @@ pub fn tick_single_mosquiton(
     map: &Map,
     dt: f32,
 ) -> (Option<Projectile>, Option<(u32, Vec2)>) {
+    use carcinisation_fps_core::mosquiton::{MosquitonSim, MosquitonSimConfig, tick_mosquiton_sim};
+
+    // Tick rendering-only state.
     if let Some(flicker) = mosquiton.damage_flicker {
         mosquiton.damage_flicker = flicker.tick(dt);
     }
-
-    // Tick cooldowns.
-    mosquiton.shoot_cooldown = (mosquiton.shoot_cooldown - dt).max(0.0);
-    mosquiton.melee_cooldown = (mosquiton.melee_cooldown - dt).max(0.0);
-    mosquiton.decision_timer = (mosquiton.decision_timer - dt).max(0.0);
     if !matches!(
         mosquiton.state,
         MosquitonState::Dead | MosquitonState::BurningCorpse { .. }
     ) {
         mosquiton.animation_time += dt;
     }
-    mosquiton.velocity = Vec2::ZERO;
 
-    let mut projectile = None;
-    let mut damage = None;
+    // Build sim config from MosquitonConfig.
+    let sim_config = MosquitonSimConfig {
+        move_speed: mosquiton.config.move_speed,
+        preferred_range: mosquiton.config.preferred_range,
+        melee_range: mosquiton.config.melee_range,
+        shoot_range: mosquiton.config.shoot_range,
+        shoot_cooldown: mosquiton.config.shoot_cooldown.as_secs_f32(),
+        melee_cooldown: mosquiton.config.melee_cooldown.as_secs_f32(),
+        melee_attack_duration: mosquiton.config.melee_attack_duration.as_secs_f32(),
+        melee_damage: mosquiton.config.melee_damage,
+        blood_shot_speed: mosquiton.config.blood_shot_speed,
+        blood_shot_damage: mosquiton.config.blood_shot_damage,
+        collision_radius: mosquiton.config.collision_radius,
+        shoot_cue_secs: mosquiton.config.shoot_cue_secs,
+    };
 
-    match &mut mosquiton.state {
-        MosquitonState::Dead => {}
+    // Convert state to sim state.
+    let sim_state = state_to_sim(&mosquiton.state);
 
-        MosquitonState::Dying { timer } | MosquitonState::BurningCorpse { timer, .. } => {
-            *timer -= dt;
-            if *timer <= 0.0 {
-                mosquiton.state = MosquitonState::Dead;
-            }
-        }
+    let mut sim = MosquitonSim {
+        position: mosquiton.position,
+        state: sim_state,
+        shoot_cooldown: mosquiton.shoot_cooldown,
+        melee_cooldown: mosquiton.melee_cooldown,
+        decision_timer: mosquiton.decision_timer,
+        shoot_anim_elapsed: mosquiton.shoot_anim_elapsed,
+    };
 
-        MosquitonState::Recover { timer } => {
-            *timer -= dt;
-            if *timer <= 0.0 {
-                mosquiton.state = MosquitonState::Pursue;
-            }
-        }
+    let output = tick_mosquiton_sim(&mut sim, &sim_config, player_pos, map, dt);
 
-        MosquitonState::Pursue => {
-            let to_player = player_pos - mosquiton.position;
-            let dist = to_player.length();
+    // Write back sim state.
+    mosquiton.position = sim.position;
+    mosquiton.state = sim_to_state(&sim.state);
+    mosquiton.shoot_cooldown = sim.shoot_cooldown;
+    mosquiton.melee_cooldown = sim.melee_cooldown;
+    mosquiton.decision_timer = sim.decision_timer;
+    mosquiton.shoot_anim_elapsed = sim.shoot_anim_elapsed;
+    mosquiton.velocity = output.velocity;
 
-            if dist <= mosquiton.config.melee_range {
-                if mosquiton.melee_cooldown <= 0.0 {
-                    start_melee_attack(mosquiton);
-                } else {
-                    back_off_from_player(mosquiton, to_player, dist, map, dt);
-                }
-                return (None, None);
-            }
-
-            if dist <= mosquiton.config.preferred_range {
-                // Arrived at preferred range — switch to ranged.
-                let strafe_dir = if (mosquiton.position.x * 100.0) as i32 % 2 == 0 {
-                    1.0
-                } else {
-                    -1.0
-                };
-                mosquiton.state = MosquitonState::RangedAttack { strafe_dir };
-                return (None, None);
-            }
-
-            // Move toward player.
-            if dist > 0.01 {
-                let move_dir = to_player / dist;
-                let step = move_dir * mosquiton.config.move_speed * dt;
-                mosquiton.velocity = step / dt.max(f32::EPSILON);
-                crate::collision::try_move(
-                    &mut mosquiton.position,
-                    step,
-                    mosquiton.config.collision_radius,
-                    map,
-                );
-            }
-
-            // Shoot while approaching if LOS is clear.
-            if mosquiton.shoot_cooldown <= 0.0
-                && dist < mosquiton.config.shoot_range
-                && has_line_of_sight(mosquiton.position, player_pos, map)
-            {
-                if let Some(proj) = Projectile::new(
-                    mosquiton.position,
-                    player_pos,
-                    mosquiton.config.blood_shot_damage,
-                ) {
-                    let mut p = proj;
-                    p.speed = mosquiton.config.blood_shot_speed;
-                    p.radius = 0.2;
-                    projectile = Some(p);
-                }
-                mosquiton.shoot_cooldown = mosquiton.config.shoot_cooldown.as_secs_f32();
-            }
-        }
-
-        MosquitonState::RangedAttack { strafe_dir } => {
-            let to_player = player_pos - mosquiton.position;
-            let dist = to_player.length();
-
-            if dist <= mosquiton.config.melee_range {
-                if mosquiton.melee_cooldown <= 0.0 {
-                    start_melee_attack(mosquiton);
-                } else {
-                    back_off_from_player(mosquiton, to_player, dist, map, dt);
-                }
-                return (None, None);
-            }
-
-            if dist > mosquiton.config.preferred_range * 1.5 {
-                mosquiton.state = MosquitonState::Pursue;
-                return (None, None);
-            }
-
-            if mosquiton.decision_timer <= 0.0 {
-                *strafe_dir *= -1.0;
-                mosquiton.decision_timer = 0.75;
-            }
-
-            // Strafe perpendicular to player direction.
-            if dist > 0.01 {
-                let dir_to_player = to_player / dist;
-                let strafe = Vec2::new(-dir_to_player.y, dir_to_player.x) * *strafe_dir;
-                let step = strafe * mosquiton.config.move_speed * 0.5 * dt;
-                mosquiton.velocity = step / dt.max(f32::EPSILON);
-                crate::collision::try_move(
-                    &mut mosquiton.position,
-                    step,
-                    mosquiton.config.collision_radius,
-                    map,
-                );
-            }
-
-            // Shoot on cooldown.
-            if mosquiton.shoot_cooldown <= 0.0
-                && has_line_of_sight(mosquiton.position, player_pos, map)
-            {
-                if let Some(proj) = Projectile::new(
-                    mosquiton.position,
-                    player_pos,
-                    mosquiton.config.blood_shot_damage,
-                ) {
-                    let mut p = proj;
-                    p.speed = mosquiton.config.blood_shot_speed;
-                    p.radius = 0.2;
-                    projectile = Some(p);
-                }
-                mosquiton.shoot_cooldown = mosquiton.config.shoot_cooldown.as_secs_f32();
-            }
-        }
-
-        MosquitonState::MeleeAttack {
-            timer,
-            dealt_damage,
-        } => {
-            let dist = mosquiton.position.distance(player_pos);
-
-            if dist > mosquiton.config.melee_range * 1.5 {
-                mosquiton.state = MosquitonState::Pursue;
-                return (None, None);
-            }
-
-            if !*dealt_damage {
-                damage = Some((mosquiton.config.melee_damage, mosquiton.position));
-                *dealt_damage = true;
-                mosquiton.melee_cooldown = mosquiton.config.melee_cooldown.as_secs_f32();
-            }
-
-            *timer -= dt;
-            if *timer <= 0.0 {
-                mosquiton.state = MosquitonState::Recover { timer: 0.2 };
-            }
-        }
+    // Reset animation time on melee start (rendering concern).
+    if output.started_melee {
+        mosquiton.animation_time = 0.0;
     }
 
-    (projectile, damage)
+    (output.projectile, output.melee_damage)
 }
 
 /// Tick all Mosquitons. Returns spawned projectiles and direct melee damage.
@@ -383,27 +278,54 @@ pub fn tick_mosquitons(
     result
 }
 
-fn start_melee_attack(mosquiton: &mut Mosquiton) {
-    mosquiton.animation_time = 0.0;
-    mosquiton.state = MosquitonState::MeleeAttack {
-        timer: mosquiton.config.melee_attack_duration.as_secs_f32(),
-        dealt_damage: false,
-    };
+/// Convert fps `MosquitonState` → `fps_core` `MosquitonSimState`.
+fn state_to_sim(state: &MosquitonState) -> carcinisation_fps_core::mosquiton::MosquitonSimState {
+    use carcinisation_fps_core::mosquiton::MosquitonSimState;
+    match state {
+        MosquitonState::Pursue => MosquitonSimState::Pursue,
+        MosquitonState::RangedAttack { strafe_dir } => MosquitonSimState::RangedAttack {
+            strafe_dir: *strafe_dir,
+        },
+        MosquitonState::MeleeAttack {
+            timer,
+            dealt_damage,
+        } => MosquitonSimState::MeleeAttack {
+            timer: *timer,
+            dealt_damage: *dealt_damage,
+        },
+        MosquitonState::Recover { timer } => MosquitonSimState::Recover { timer: *timer },
+        MosquitonState::Dying { timer } => MosquitonSimState::Dying { timer: *timer },
+        MosquitonState::BurningCorpse { timer, seed } => MosquitonSimState::BurningCorpse {
+            timer: *timer,
+            seed: *seed,
+        },
+        MosquitonState::Dead => MosquitonSimState::Dead,
+    }
 }
 
-fn back_off_from_player(mosquiton: &mut Mosquiton, to_player: Vec2, dist: f32, map: &Map, dt: f32) {
-    if dist <= 0.01 {
-        return;
+/// Convert `fps_core` `MosquitonSimState` → fps `MosquitonState`.
+fn sim_to_state(state: &carcinisation_fps_core::mosquiton::MosquitonSimState) -> MosquitonState {
+    use carcinisation_fps_core::mosquiton::MosquitonSimState;
+    match state {
+        MosquitonSimState::Pursue => MosquitonState::Pursue,
+        MosquitonSimState::RangedAttack { strafe_dir } => MosquitonState::RangedAttack {
+            strafe_dir: *strafe_dir,
+        },
+        MosquitonSimState::MeleeAttack {
+            timer,
+            dealt_damage,
+        } => MosquitonState::MeleeAttack {
+            timer: *timer,
+            dealt_damage: *dealt_damage,
+        },
+        MosquitonSimState::Recover { timer } => MosquitonState::Recover { timer: *timer },
+        MosquitonSimState::Dying { timer } => MosquitonState::Dying { timer: *timer },
+        MosquitonSimState::BurningCorpse { timer, seed } => MosquitonState::BurningCorpse {
+            timer: *timer,
+            seed: *seed,
+        },
+        MosquitonSimState::Dead => MosquitonState::Dead,
     }
-
-    let step = -(to_player / dist) * mosquiton.config.move_speed * 0.35 * dt;
-    mosquiton.velocity = step / dt.max(f32::EPSILON);
-    crate::collision::try_move(
-        &mut mosquiton.position,
-        step,
-        mosquiton.config.collision_radius,
-        map,
-    );
 }
 
 /// Hitscan check against Mosquitons. Returns index of closest hit.
@@ -452,6 +374,7 @@ const MOSQUITON_PXI: &[u8] =
 const MOSQUITON_IDLE_FLY_TAG: &str = "idle_fly";
 const MOSQUITON_DEATH_FLY_TAG: &str = "death_fly";
 const MOSQUITON_MELEE_FLY_TAG: &str = "melee_fly";
+const MOSQUITON_SHOOT_FLY_TAG: &str = "shoot_fly";
 const MOSQUITON_WING_TAG: &str = "wings";
 const BLOOD_SHOT_PX_ATLAS_RON: &str =
     include_str!("../../../assets/sprites/attacks/blood_shot/atlas.px_atlas.ron");
@@ -473,7 +396,11 @@ pub struct MosquitonBillboardFrame {
 pub struct MosquitonBillboardSprites {
     pub alive: Vec<MosquitonBillboardFrame>,
     pub melee: Vec<MosquitonBillboardFrame>,
+    pub shoot: Vec<MosquitonBillboardFrame>,
     pub death: CxImage,
+    /// Elapsed time from shoot animation start to the `blood_shot` projectile cue.
+    /// Computed from the composed atlas event data at load time.
+    pub shoot_cue_elapsed_secs: f32,
 }
 
 impl MosquitonBillboardSprites {
@@ -485,6 +412,28 @@ impl MosquitonBillboardSprites {
     #[must_use]
     pub fn melee_sprite_at(&self, elapsed_secs: f32) -> &CxImage {
         animation_sprite_at_clamped(&self.melee, elapsed_secs)
+    }
+
+    /// Sample the ranged attack (`shoot_fly`) animation. Falls back to alive
+    /// sprite if shoot frames are empty.
+    #[must_use]
+    pub fn shoot_sprite_at(&self, elapsed_secs: f32) -> &CxImage {
+        if self.shoot.is_empty() {
+            return self.alive_sprite_at(elapsed_secs);
+        }
+        animation_sprite_at_clamped(&self.shoot, elapsed_secs)
+    }
+
+    /// Total duration of the shoot animation in seconds.
+    #[must_use]
+    pub fn shoot_duration(&self) -> f32 {
+        animation_total_duration(&self.shoot)
+    }
+
+    /// Total duration of the melee animation in seconds.
+    #[must_use]
+    pub fn melee_duration(&self) -> f32 {
+        animation_total_duration(&self.melee)
     }
 }
 
@@ -501,6 +450,11 @@ impl BloodShotBillboardSprites {
     pub fn destroy_sprite_at(&self, elapsed_secs: f32) -> &CxImage {
         animation_sprite_at_clamped(&self.destroy, elapsed_secs)
     }
+}
+
+/// Total duration of an animation in seconds.
+fn animation_total_duration(frames: &[MosquitonBillboardFrame]) -> f32 {
+    frames.iter().map(|f| f.duration.max(0.0)).sum()
 }
 
 /// Sample a looping animation at the given elapsed time.
@@ -626,11 +580,52 @@ pub fn make_mosquiton_billboard_sprites() -> Result<MosquitonBillboardSprites, S
         atlas_width,
         MOSQUITON_MELEE_FLY_TAG,
     )?;
+    let shoot = compose_animation_frames_full(
+        &composed,
+        &atlas,
+        &atlas_pixels,
+        atlas_width,
+        MOSQUITON_SHOOT_FLY_TAG,
+    )?;
+    let shoot_cue_elapsed_secs = find_shoot_cue_elapsed(&composed);
+
     Ok(MosquitonBillboardSprites {
         alive,
         melee,
+        shoot,
         death,
+        shoot_cue_elapsed_secs,
     })
+}
+
+/// Find the elapsed time from `shoot_fly` animation start to the `blood_shot`
+/// `ProjectileSpawn` cue, by parsing the composed atlas frame events.
+/// Returns 0.0 if no cue is found (fail-safe: projectile spawns immediately).
+fn find_shoot_cue_elapsed(composed: &CompactComposedAtlas) -> f32 {
+    use asset_pipeline::aseprite::AnimationEventKind;
+
+    let Some(shoot_anim) = composed
+        .animations
+        .iter()
+        .find(|a| a.tag == MOSQUITON_SHOOT_FLY_TAG)
+    else {
+        return 0.0;
+    };
+
+    let mut elapsed_ms: u32 = 0;
+    for frame in &shoot_anim.frames {
+        let has_cue = frame
+            .events
+            .iter()
+            .any(|e| e.kind == AnimationEventKind::ProjectileSpawn && e.id == "blood_shot");
+        if has_cue {
+            return elapsed_ms as f32 / 1000.0;
+        }
+        elapsed_ms += u32::from(frame.duration_ms);
+    }
+
+    // No cue found — fail-safe: spawn immediately.
+    0.0
 }
 
 /// Resolve all FP blood-shot billboard sprites from existing ORS attack assets.
@@ -1243,9 +1238,11 @@ fn decode_pxi(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
     use crate::map::{Map, test_map};
+    use carcinisation_fps_core::config::{self, MOSQUITON_MELEE_RANGE};
 
     fn make_mosquiton(x: f32, y: f32) -> Mosquiton {
         Mosquiton::new(Vec2::new(x, y), MosquitonConfig::default())
@@ -1287,13 +1284,9 @@ mod tests {
     #[test]
     fn switches_to_melee_when_close() {
         let map = test_map();
-        let config = MosquitonConfig {
-            melee_range: 1.0,
-            ..Default::default()
-        };
-        let mut ms = vec![Mosquiton::new(Vec2::new(2.0, 1.5), config)];
+        // Uses default melee_range from config (MOSQUITON_MELEE_RANGE).
+        let mut ms = vec![make_mosquiton(1.5 + MOSQUITON_MELEE_RANGE * 0.5, 1.5)];
         let player = Vec2::new(1.5, 1.5);
-        // Distance = 0.5, within melee range.
         let _ = tick_mosquitons(&mut ms, player, &map, 0.016);
         assert!(matches!(ms[0].state, MosquitonState::MeleeAttack { .. }));
     }
@@ -1398,13 +1391,34 @@ mod tests {
         let config = MosquitonConfig {
             shoot_range: 10.0,
             preferred_range: 2.0,
+            shoot_cue_secs: 0.5,
             ..Default::default()
         };
         let mut ms = vec![Mosquiton::new(Vec2::new(1.5, 1.5), config)];
         ms[0].shoot_cooldown = 0.0;
         let player = Vec2::new(5.5, 1.5);
+
+        // First tick starts the shoot animation.
         let result = tick_mosquitons(&mut ms, player, &map, 0.016);
-        assert!(!result.projectiles.is_empty(), "should fire while pursuing");
+        assert!(
+            result.projectiles.is_empty(),
+            "projectile should not spawn immediately"
+        );
+        assert!(
+            ms[0].shoot_anim_elapsed.is_some(),
+            "shoot anim should start"
+        );
+
+        // Tick past the cue point — projectile spawns.
+        let result = tick_mosquitons(&mut ms, player, &map, 0.5);
+        assert!(
+            !result.projectiles.is_empty(),
+            "should fire after cue delay"
+        );
+        assert!(
+            ms[0].shoot_anim_elapsed.is_none(),
+            "shoot anim should clear"
+        );
     }
 
     #[test]
@@ -1663,5 +1677,85 @@ mod tests {
         let mosquiton = make_mosquiton(2.0, 2.0);
         assert!(mosquiton.height <= 0.1);
         assert!(mosquiton.height > 0.0);
+    }
+
+    /// Validates that the shoot cue timing from the composed atlas matches the
+    /// constant in `carcinisation_fps_core::MOSQUITON_SHOOT_CUE_SECS` (currently 0.1).
+    /// If this test fails, update the constant in `fps_core/src/enemy.rs`.
+    #[test]
+    fn shoot_cue_elapsed_from_composed_atlas() {
+        let sprites = make_mosquiton_billboard_sprites().unwrap();
+        let cue = sprites.shoot_cue_elapsed_secs;
+        // Must match fps_core::MOSQUITON_SHOOT_CUE_SECS = 1.0
+        assert!(
+            (cue - 1.0).abs() < 0.001,
+            "composed atlas blood_shot cue elapsed ({cue}s) diverged from expected 1.0s. \
+             Update MOSQUITON_SHOOT_CUE_SECS in carcinisation_fps_core::enemy."
+        );
+    }
+
+    /// Verify that `MosquitonConfig::default()` gameplay fields match `fps_core` config
+    /// constants. This prevents SP/MP drift — if a constant changes in config.rs,
+    /// the SP default must track it automatically.
+    #[test]
+    fn default_config_matches_fps_core_constants() {
+        let c = MosquitonConfig::default();
+
+        assert_eq!(
+            c.melee_range,
+            config::MOSQUITON_MELEE_RANGE,
+            "melee_range drift"
+        );
+        assert_eq!(
+            c.preferred_range,
+            config::MOSQUITON_PREFERRED_RANGE,
+            "preferred_range drift"
+        );
+        assert_eq!(
+            c.shoot_range,
+            config::MOSQUITON_SHOOT_RANGE,
+            "shoot_range drift"
+        );
+        assert_eq!(
+            c.shoot_cooldown.as_secs_f32(),
+            config::MOSQUITON_SHOOT_COOLDOWN,
+            "shoot_cooldown drift"
+        );
+        assert_eq!(
+            c.melee_cooldown.as_secs_f32(),
+            config::MOSQUITON_MELEE_COOLDOWN,
+            "melee_cooldown drift"
+        );
+        assert_eq!(
+            c.melee_attack_duration.as_secs_f32(),
+            config::MOSQUITON_MELEE_ATTACK_DURATION,
+            "melee_attack_duration drift"
+        );
+        assert_eq!(
+            c.melee_damage as f32,
+            config::MOSQUITON_MELEE_DAMAGE,
+            "melee_damage drift"
+        );
+        assert_eq!(
+            c.blood_shot_speed,
+            config::MOSQUITON_BLOOD_SHOT_SPEED,
+            "blood_shot_speed drift"
+        );
+        assert_eq!(
+            c.blood_shot_damage as f32,
+            config::MOSQUITON_PROJECTILE_DAMAGE,
+            "blood_shot_damage drift"
+        );
+        assert_eq!(
+            c.collision_radius,
+            config::MOSQUITON_COLLISION_RADIUS,
+            "collision_radius drift"
+        );
+        assert_eq!(c.health, config::MOSQUITON_HEALTH, "health drift");
+        assert_eq!(
+            c.shoot_cue_secs,
+            config::MOSQUITON_SHOOT_CUE_SECS,
+            "shoot_cue_secs drift"
+        );
     }
 }

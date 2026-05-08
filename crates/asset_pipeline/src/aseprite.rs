@@ -1299,7 +1299,7 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
             match &best {
                 None => best = Some((target_width, result)),
                 Some((_, (prev_atlas, _))) if atlas_h < prev_atlas.height() => {
-                    best = Some((target_width, result))
+                    best = Some((target_width, result));
                 }
                 _ => {}
             }
@@ -1313,7 +1313,7 @@ fn pack_sprites(sprites: &[PreparedSprite]) -> Result<(RgbaImage, Vec<AtlasSprit
 }
 
 /// Try to pack sprites using shelf packing with given width.
-/// Returns Some((atlas_image, sprites)) if all sprites fit, None otherwise.
+/// Returns `Some((atlas_image`, sprites)) if all sprites fit, None otherwise.
 fn try_pack_sprites(
     sprites: &[PreparedSprite],
     sorted_indices: &[usize],

@@ -1,9 +1,9 @@
-//! Server-authoritative Mosquiton ranged and melee attacks.
+//! Server-authoritative Mosquiton attacks via shared `fps_core` simulation.
 //!
-//! When a Mosquiton is in `NetEnemyState::Attack` and alive, tick a per-entity
-//! cooldown. On expiry:
-//! - If within melee range: deal direct damage to nearest player.
-//! - Otherwise: spawn a `NetProjectile` blood shot aimed at the target.
+//! Uses `tick_mosquiton_sim` from `carcinisation_fps_core` for the full
+//! Mosquiton combat state machine (movement, cooldowns, melee/ranged decisions).
+//! The server is an ECS adapter: it converts replicated components to/from
+//! the portable sim model and maps outputs to network effects.
 
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
@@ -12,38 +12,58 @@ use carcinisation_net::{
     NetHealth, NetPlayer, NetProjectileType, NetworkObjectId, Owner, PlayerId, PlayerNetState,
 };
 
-use carcinisation_fps_core::config::{
-    MOSQUITON_ATTACK_INTERVAL, MOSQUITON_MELEE_DAMAGE, MOSQUITON_MELEE_RANGE,
-    MOSQUITON_PROJECTILE_DAMAGE, MOSQUITON_SHOOT_CUE_SECS, PROJECTILE_LIFETIME, PROJECTILE_SPEED,
+use carcinisation_fps_core::config::PROJECTILE_LIFETIME;
+use carcinisation_fps_core::mosquiton::{
+    MosquitonSim, MosquitonSimConfig, MosquitonSimState, tick_mosquiton_sim,
 };
+
+use crate::ServerMap;
 
 use super::NetProjectile;
 
-/// Per-enemy attack cooldown, attached at spawn time.
-#[derive(Component, Debug, Clone, Copy, Reflect)]
-#[reflect(Component)]
-pub struct EnemyAttackCooldown {
-    pub remaining: f32,
-    pub interval: f32,
-    pub damage: f32,
-    pub projectile_speed: f32,
+/// Per-enemy Mosquiton simulation state, attached at spawn time.
+///
+/// Stores the `MosquitonSim` fields that persist across ticks.
+/// The sim config is shared via `ServerMosquitonSimConfig`.
+#[derive(Component, Debug, Clone)]
+pub struct ServerMosquitonSim {
+    pub shoot_cooldown: f32,
+    pub melee_cooldown: f32,
+    pub decision_timer: f32,
+    pub shoot_anim_elapsed: Option<f32>,
+    pub sim_state: MosquitonSimState,
 }
 
-impl EnemyAttackCooldown {
-    #[must_use]
-    pub fn mosquiton() -> Self {
+impl Default for ServerMosquitonSim {
+    fn default() -> Self {
         Self {
-            remaining: MOSQUITON_ATTACK_INTERVAL,
-            interval: MOSQUITON_ATTACK_INTERVAL,
-            damage: MOSQUITON_PROJECTILE_DAMAGE,
-            projectile_speed: PROJECTILE_SPEED,
+            shoot_cooldown: 0.0,
+            melee_cooldown: 0.0,
+            decision_timer: 0.0,
+            shoot_anim_elapsed: None,
+            sim_state: MosquitonSimState::Pursue,
         }
+    }
+}
+
+/// Per-enemy sim config, attached at spawn time.
+/// Allows map-authored speed overrides.
+#[derive(Component, Debug, Clone, Default)]
+pub struct ServerMosquitonSimConfig(pub MosquitonSimConfig);
+
+impl ServerMosquitonSimConfig {
+    #[must_use]
+    pub fn with_speed(speed: f32) -> Self {
+        Self(MosquitonSimConfig {
+            move_speed: speed,
+            ..MosquitonSimConfig::default()
+        })
     }
 }
 
 /// Delay between shoot animation start and projectile spawn.
 /// Uses the authored cue frame timing from the composed atlas.
-const SHOOT_LEAD_TIME: f32 = MOSQUITON_SHOOT_CUE_SECS;
+const SHOOT_LEAD_TIME: f32 = carcinisation_fps_core::config::MOSQUITON_SHOOT_CUE_SECS;
 
 /// Pending ranged projectile — delays spawn so the shoot animation leads.
 /// Cancelled if the source enemy dies before the timer expires.
@@ -75,77 +95,90 @@ impl NextProjectileId {
 
 /// Deferred melee hit to apply after the enemy iteration.
 struct MeleeHit {
-    #[allow(dead_code)]
-    enemy_object_id: NetworkObjectId,
     target_player_id: PlayerId,
     damage: f32,
 }
 
-/// Tick enemy attack cooldowns and spawn projectiles or apply melee damage.
-#[allow(clippy::too_many_arguments)]
+/// Tick Mosquiton enemies using the shared `fps_core` simulation.
+///
+/// Handles movement, attack cooldowns, and attack decisions in one call
+/// via `tick_mosquiton_sim`. Maps outputs to ECS/network effects.
+#[allow(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    clippy::cast_precision_loss
+)]
 pub fn tick_enemy_attacks(
     mut commands: Commands,
-    mut enemies: Query<(Entity, &NetEnemy, &NetHealth, &mut EnemyAttackCooldown)>,
+    mut enemies: Query<(
+        Entity,
+        &mut NetEnemy,
+        &NetHealth,
+        &mut ServerMosquitonSim,
+        &ServerMosquitonSimConfig,
+    )>,
     players: Query<&NetPlayer>,
     mut player_health: Query<(&NetPlayer, &mut NetHealth), Without<NetEnemy>>,
     fixed_time: Res<Time<Fixed>>,
     mut next_id: ResMut<NextProjectileId>,
+    server_map: Res<ServerMap>,
 ) {
     let dt = fixed_time.delta_secs();
     let mut melee_hits: Vec<MeleeHit> = Vec::new();
 
-    for (enemy_entity, enemy, health, mut cooldown) in &mut enemies {
-        // Only fire when alive and in Attack state.
+    // Find nearest alive player for targeting (shared across all enemies).
+    let target_pos = nearest_alive_player_pos(&players);
+
+    for (enemy_entity, mut enemy, health, mut mosquiton_sim, sim_config) in &mut enemies {
+        if enemy.enemy_type != NetEnemyType::Mosquiton {
+            continue;
+        }
+
+        // Skip dead/dying enemies.
         if health.current <= 0.0
-            || enemy.state != NetEnemyState::HoldingRange
-            || enemy.enemy_type != NetEnemyType::Mosquiton
+            || matches!(
+                enemy.state,
+                NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+            )
         {
             continue;
         }
 
-        cooldown.remaining -= dt;
-        if cooldown.remaining > 0.0 {
-            continue;
-        }
-        cooldown.remaining = cooldown.interval;
-
-        // Find nearest alive player.
-        let Some((target_pos, target_pid)) = nearest_alive_player(enemy.position, &players) else {
+        let Some(player_pos) = target_pos else {
             continue;
         };
 
-        let to_target = target_pos - enemy.position;
-        let dist = to_target.length();
-        if dist < 0.01 {
-            continue;
+        // Build sim from per-entity state + shared NetEnemy position.
+        let mut sim = MosquitonSim {
+            position: enemy.position,
+            state: mosquiton_sim.sim_state.clone(),
+            shoot_cooldown: mosquiton_sim.shoot_cooldown,
+            melee_cooldown: mosquiton_sim.melee_cooldown,
+            decision_timer: mosquiton_sim.decision_timer,
+            shoot_anim_elapsed: mosquiton_sim.shoot_anim_elapsed,
+        };
+
+        let output = tick_mosquiton_sim(&mut sim, &sim_config.0, player_pos, &server_map.0, dt);
+
+        // Write back sim state.
+        enemy.position = sim.position;
+        mosquiton_sim.sim_state = sim.state.clone();
+        mosquiton_sim.shoot_cooldown = sim.shoot_cooldown;
+        mosquiton_sim.melee_cooldown = sim.melee_cooldown;
+        mosquiton_sim.decision_timer = sim.decision_timer;
+        mosquiton_sim.shoot_anim_elapsed = sim.shoot_anim_elapsed;
+
+        // Map sim state → NetEnemyState for replication.
+        let net_state = sim_state_to_net(&sim.state);
+        if !matches!(
+            enemy.state,
+            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+        ) {
+            enemy.state = net_state;
         }
 
-        if dist <= MOSQUITON_MELEE_RANGE {
-            // Melee: direct damage (deferred to avoid borrow conflict).
-            melee_hits.push(MeleeHit {
-                enemy_object_id: enemy.object_id,
-                target_player_id: target_pid,
-                damage: MOSQUITON_MELEE_DAMAGE,
-            });
-            debug!(
-                "Enemy {:?} melee hit player {:?} at dist={:.2}",
-                enemy.object_id, target_pid, dist
-            );
-            // Visual event for melee animation.
-            commands.server_trigger(ToClients {
-                mode: SendMode::Broadcast,
-                message: EnemyAttackVisual {
-                    object_id: enemy.object_id,
-                    kind: EnemyAttackKind::Melee,
-                },
-            });
-        } else {
-            // Ranged: send visual event now, defer projectile spawn so
-            // the shoot animation leads the projectile by SHOOT_LEAD_TIME.
-            let dir = to_target / dist;
-            let angle = dir.y.atan2(dir.x);
-            let object_id = next_id.allocate();
-
+        // Handle shoot animation start → visual event + deferred projectile.
+        if output.started_shoot_anim {
             commands.server_trigger(ToClients {
                 mode: SendMode::Broadcast,
                 message: EnemyAttackVisual {
@@ -154,20 +187,58 @@ pub fn tick_enemy_attacks(
                 },
             });
 
-            commands.spawn(PendingProjectile {
-                timer: SHOOT_LEAD_TIME,
-                source_entity: enemy_entity,
-                position: enemy.position,
-                angle,
-                damage: cooldown.damage,
-                object_id,
-            });
+            let to_target = player_pos - enemy.position;
+            let dist = to_target.length();
+            if dist > 0.01 {
+                let dir = to_target / dist;
+                let angle = dir.y.atan2(dir.x);
+                let object_id = next_id.allocate();
 
+                commands.spawn(PendingProjectile {
+                    timer: SHOOT_LEAD_TIME,
+                    source_entity: enemy_entity,
+                    position: enemy.position,
+                    angle,
+                    damage: sim_config.0.blood_shot_damage as f32,
+                    object_id,
+                });
+
+                debug!(
+                    "Enemy {:?} queued projectile {:?} at player angle={:.2}",
+                    enemy.object_id, object_id, angle
+                );
+            }
+        }
+
+        // Handle melee start → visual event + deferred damage.
+        if output.started_melee {
+            commands.server_trigger(ToClients {
+                mode: SendMode::Broadcast,
+                message: EnemyAttackVisual {
+                    object_id: enemy.object_id,
+                    kind: EnemyAttackKind::Melee,
+                },
+            });
+        }
+
+        // Handle melee damage output.
+        if let Some((damage, _source)) = output.melee_damage
+            && let Some(target_pid) = nearest_alive_player_id(enemy.position, &players)
+        {
+            melee_hits.push(MeleeHit {
+                target_player_id: target_pid,
+                damage: damage as f32,
+            });
             debug!(
-                "Enemy {:?} queued projectile {:?} at player angle={:.2}",
-                enemy.object_id, object_id, angle
+                "Enemy {:?} melee hit player {:?}",
+                enemy.object_id, target_pid
             );
         }
+
+        // Note: `output.projectile` is produced by the sim when shoot_anim_elapsed
+        // reaches shoot_cue_secs. On the server, we use PendingProjectile instead
+        // (deferred spawn for animation lead). The sim's projectile output is ignored;
+        // the deferred spawn handles it.
     }
 
     // Apply deferred melee damage.
@@ -234,15 +305,36 @@ pub fn tick_pending_projectiles(
     }
 }
 
-fn nearest_alive_player(position: Vec2, players: &Query<&NetPlayer>) -> Option<(Vec2, PlayerId)> {
+/// Map `MosquitonSimState` → `NetEnemyState` for replication.
+fn sim_state_to_net(state: &MosquitonSimState) -> NetEnemyState {
+    match state {
+        MosquitonSimState::Pursue => NetEnemyState::Chase,
+        MosquitonSimState::RangedAttack { .. }
+        | MosquitonSimState::MeleeAttack { .. }
+        | MosquitonSimState::Recover { .. } => NetEnemyState::HoldingRange,
+        MosquitonSimState::Dying { .. } => NetEnemyState::Dying { burn: false },
+        MosquitonSimState::BurningCorpse { .. } => NetEnemyState::Dying { burn: true },
+        MosquitonSimState::Dead => NetEnemyState::Dead { burn: false },
+    }
+}
+
+fn nearest_alive_player_pos(players: &Query<&NetPlayer>) -> Option<Vec2> {
     players
         .iter()
         .filter(|p| matches!(p.state, PlayerNetState::Alive))
-        .map(|p| (p.position, p.player_id, p.position.distance(position)))
-        .min_by(|(_, pa, a), (_, pb, b)| {
+        .map(|p| p.position)
+        .next()
+}
+
+fn nearest_alive_player_id(position: Vec2, players: &Query<&NetPlayer>) -> Option<PlayerId> {
+    players
+        .iter()
+        .filter(|p| matches!(p.state, PlayerNetState::Alive))
+        .map(|p| (p.player_id, p.position.distance(position)))
+        .min_by(|(pa, a), (pb, b)| {
             a.partial_cmp(b)
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then(pa.0.cmp(&pb.0))
         })
-        .map(|(pos, pid, _)| (pos, pid))
+        .map(|(pid, _)| pid)
 }

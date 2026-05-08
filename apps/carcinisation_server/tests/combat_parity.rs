@@ -272,7 +272,7 @@ fn flamethrower_dps_per_tick() {
 }
 
 /// Flamethrower blocked by wall does no damage (shared with guards_and_los.rs but
-/// verifying here that flame cone LOS check matches fps_core raycast).
+/// verifying here that flame line-distance LOS check matches fps_core raycast).
 #[test]
 fn flamethrower_wall_blocked_parity() {
     // Wall at (4,1) in LOS test map blocks (1.5,1.5) → (5.5,1.5).
