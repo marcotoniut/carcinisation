@@ -1,6 +1,7 @@
 //! First-person enemy state and AI.
 
 use bevy::prelude::Component;
+use bevy::reflect::Reflect;
 use bevy_math::Vec2;
 
 use crate::camera::Camera;
@@ -8,9 +9,275 @@ use crate::fire_death::{DamageKind, corpse_seed};
 use crate::map::Map;
 use crate::raycast::cast_ray;
 
-pub const FP_DAMAGE_FLICKER_COUNT: u8 = 4;
-pub const FP_DAMAGE_FLICKER_REGULAR_SECS: f32 = 0.2;
-pub const FP_DAMAGE_FLICKER_INVERT_SECS: f32 = 0.15;
+// Re-export from config with legacy `FP_` prefix for existing consumers.
+pub use crate::config::DAMAGE_FLICKER_COUNT as FP_DAMAGE_FLICKER_COUNT;
+pub use crate::config::DAMAGE_FLICKER_INVERT_SECS as FP_DAMAGE_FLICKER_INVERT_SECS;
+pub use crate::config::DAMAGE_FLICKER_REGULAR_SECS as FP_DAMAGE_FLICKER_REGULAR_SECS;
+
+/// Headless FPS enemy kind.
+///
+/// This lives in `carcinisation_fps_core` so single-player and server code can
+/// share enemy rules without depending on networking or rendering crates.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FpsEnemyKind {
+    Basic,
+    Mosquiton,
+}
+
+/// Headless enemy AI state shared by local and server-authoritative sims.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FpsEnemyAiState {
+    Idle,
+    Chasing,
+    Attacking,
+    Dead,
+}
+
+/// Minimal headless enemy sim state consumed and produced by shared AI rules.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EnemySim {
+    pub kind: FpsEnemyKind,
+    pub position: Vec2,
+    pub angle: f32,
+    pub health: f32,
+    pub state: FpsEnemyAiState,
+}
+
+impl EnemySim {
+    #[must_use]
+    pub fn is_alive(self) -> bool {
+        self.health > 0.0 && self.state != FpsEnemyAiState::Dead
+    }
+}
+
+/// Target data visible to shared enemy AI.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EnemyPlayerTarget {
+    pub position: Vec2,
+    pub alive: bool,
+    /// Stable ID for deterministic tie-breaking when equidistant.
+    pub id: u32,
+}
+
+/// Explicit config for shared Mosquiton chase/hold behavior.
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+pub struct MosquitonAiConfig {
+    pub move_speed: f32,
+    pub preferred_range: f32,
+    /// Distance band around `preferred_range` where the current chase/attack
+    /// state is preserved to avoid edge flicker.
+    pub preferred_range_hysteresis: f32,
+    pub aggro_range: f32,
+    pub collision_radius: f32,
+}
+
+impl Default for MosquitonAiConfig {
+    fn default() -> Self {
+        Self {
+            move_speed: 1.2,
+            preferred_range: 3.0,
+            preferred_range_hysteresis: 0.2,
+            aggro_range: 8.0,
+            collision_radius: 0.3,
+        }
+    }
+}
+
+/// Result summary from a shared enemy AI tick.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EnemyAiOutput {
+    pub target_position: Option<Vec2>,
+    pub distance_to_target: Option<f32>,
+    pub desired_direction: Option<Vec2>,
+    pub attempted_step: Vec2,
+    pub disposition: EnemyAiDisposition,
+    pub moved: bool,
+    pub blocked_by_collision: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum EnemyAiDisposition {
+    #[default]
+    None,
+    Dead,
+    UnsupportedKind,
+    NoAlivePlayers,
+    OutsideAggroRange,
+    HoldingPreferredRange,
+    Chasing,
+    StalledAtPreferredRange,
+    BlockedByCollision,
+}
+
+/// Tick shared headless enemy AI.
+///
+/// Initial Mosquiton behavior is intentionally small and portable:
+/// nearest alive target inside aggro range is faced; Mosquitons move toward
+/// that target until preferred range, then hold in an attacking-ready state.
+/// Dead enemies never move.
+pub fn tick_enemy_ai(
+    enemy: &mut EnemySim,
+    players: &[EnemyPlayerTarget],
+    map: &Map,
+    dt: f32,
+    config: MosquitonAiConfig,
+) -> EnemyAiOutput {
+    if !enemy.is_alive() {
+        enemy.state = FpsEnemyAiState::Dead;
+        return EnemyAiOutput {
+            disposition: EnemyAiDisposition::Dead,
+            ..Default::default()
+        };
+    }
+
+    match enemy.kind {
+        FpsEnemyKind::Basic => tick_basic_enemy_ai(enemy),
+        FpsEnemyKind::Mosquiton => tick_mosquiton_ai(enemy, players, map, dt, config),
+    }
+}
+
+fn tick_basic_enemy_ai(enemy: &mut EnemySim) -> EnemyAiOutput {
+    // Basic enemies intentionally have no shared headless behavior yet.
+    // Keeping this no-op prevents callers from accidentally getting Mosquiton AI.
+    enemy.state = FpsEnemyAiState::Idle;
+    EnemyAiOutput {
+        disposition: EnemyAiDisposition::UnsupportedKind,
+        ..Default::default()
+    }
+}
+
+fn tick_mosquiton_ai(
+    enemy: &mut EnemySim,
+    players: &[EnemyPlayerTarget],
+    map: &Map,
+    dt: f32,
+    config: MosquitonAiConfig,
+) -> EnemyAiOutput {
+    let Some((target, distance)) = nearest_alive_target(enemy.position, players) else {
+        enemy.state = FpsEnemyAiState::Idle;
+        return EnemyAiOutput {
+            disposition: EnemyAiDisposition::NoAlivePlayers,
+            ..Default::default()
+        };
+    };
+
+    if distance > config.aggro_range {
+        enemy.state = FpsEnemyAiState::Idle;
+        return EnemyAiOutput {
+            target_position: Some(target.position),
+            distance_to_target: Some(distance),
+            disposition: EnemyAiDisposition::OutsideAggroRange,
+            moved: false,
+            desired_direction: None,
+            attempted_step: Vec2::ZERO,
+            blocked_by_collision: false,
+        };
+    }
+
+    face_target(enemy, target.position);
+
+    let hysteresis = config
+        .preferred_range_hysteresis
+        .clamp(0.0, config.preferred_range.max(0.0));
+    let chase_distance = config.preferred_range + hysteresis;
+    let should_chase = if distance > chase_distance {
+        true
+    } else if distance <= config.preferred_range {
+        false
+    } else {
+        matches!(enemy.state, FpsEnemyAiState::Chasing)
+    };
+
+    if !should_chase {
+        enemy.state = FpsEnemyAiState::Attacking;
+        return EnemyAiOutput {
+            target_position: Some(target.position),
+            distance_to_target: Some(distance),
+            desired_direction: Some((target.position - enemy.position).normalize_or_zero()),
+            attempted_step: Vec2::ZERO,
+            disposition: EnemyAiDisposition::HoldingPreferredRange,
+            moved: false,
+            blocked_by_collision: false,
+        };
+    }
+
+    enemy.state = FpsEnemyAiState::Chasing;
+    let before = enemy.position;
+    let dir = target.position - enemy.position;
+    let len = dir.length();
+    let mut attempted_step = Vec2::ZERO;
+    let desired_direction = (len > f32::EPSILON).then_some(dir / len);
+    if len > f32::EPSILON {
+        let max_step = (distance - config.preferred_range).max(0.0);
+        let step_len = (config.move_speed * dt).min(max_step);
+        if step_len <= f32::EPSILON {
+            enemy.state = FpsEnemyAiState::Attacking;
+            return EnemyAiOutput {
+                target_position: Some(target.position),
+                distance_to_target: Some(distance),
+                desired_direction,
+                attempted_step,
+                disposition: EnemyAiDisposition::HoldingPreferredRange,
+                moved: false,
+                blocked_by_collision: false,
+            };
+        }
+        attempted_step = dir / len * step_len;
+        crate::collision::try_move(
+            &mut enemy.position,
+            attempted_step,
+            config.collision_radius,
+            map,
+        );
+    }
+    let moved = enemy.position.distance_squared(before) > 0.000_001;
+    let stalled_at_preferred_range =
+        !moved && attempted_step.length_squared() <= f32::EPSILON && distance <= chase_distance;
+    let blocked_by_collision =
+        !moved && distance > config.preferred_range && !stalled_at_preferred_range;
+
+    EnemyAiOutput {
+        target_position: Some(target.position),
+        distance_to_target: Some(distance),
+        desired_direction,
+        attempted_step,
+        disposition: if blocked_by_collision {
+            EnemyAiDisposition::BlockedByCollision
+        } else if stalled_at_preferred_range {
+            EnemyAiDisposition::StalledAtPreferredRange
+        } else {
+            EnemyAiDisposition::Chasing
+        },
+        moved,
+        blocked_by_collision,
+    }
+}
+
+fn nearest_alive_target(
+    position: Vec2,
+    players: &[EnemyPlayerTarget],
+) -> Option<(EnemyPlayerTarget, f32)> {
+    players
+        .iter()
+        .copied()
+        .filter(|target| target.alive)
+        .map(|target| (target, target.position.distance(position)))
+        .min_by(|(ta, a), (tb, b)| {
+            a.partial_cmp(b)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(ta.id.cmp(&tb.id))
+        })
+}
+
+fn face_target(enemy: &mut EnemySim, target_position: Vec2) {
+    let to_target = target_position - enemy.position;
+    if to_target.length_squared() > f32::EPSILON {
+        enemy.angle = to_target
+            .y
+            .atan2(to_target.x)
+            .rem_euclid(std::f32::consts::TAU);
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DamageFlickerPhase {
@@ -331,9 +598,10 @@ pub fn hitscan(camera: &Camera, enemies: &[Enemy], map: &Map) -> HitscanResult {
 // Projectiles
 // ---------------------------------------------------------------------------
 
-const PROJECTILE_SPEED: f32 = 4.0;
-const PROJECTILE_HIT_RADIUS: f32 = 0.3;
-const PROJECTILE_LIFETIME: f32 = 3.0;
+// Re-export from config so `enemy::PROJECTILE_SPEED` etc. still work.
+pub use crate::config::{
+    MOSQUITON_SHOOT_CUE_SECS, PROJECTILE_HIT_RADIUS, PROJECTILE_LIFETIME, PROJECTILE_SPEED,
+};
 
 /// An enemy projectile moving through map space.
 #[derive(Clone, Debug)]
@@ -516,7 +784,13 @@ fn earliest_projectile_collision(
     }
 }
 
-fn segment_circle_hit_distance(start: Vec2, end: Vec2, center: Vec2, radius: f32) -> Option<f32> {
+#[must_use]
+pub fn segment_circle_hit_distance(
+    start: Vec2,
+    end: Vec2,
+    center: Vec2,
+    radius: f32,
+) -> Option<f32> {
     let segment = end - start;
     let len_sq = segment.length_squared();
     if len_sq <= f32::EPSILON {
@@ -619,6 +893,227 @@ mod tests {
 
     fn make_enemy(x: f32, y: f32) -> Enemy {
         Enemy::new(Vec2::new(x, y), 30, 1.5)
+    }
+
+    fn make_mosquiton_sim(x: f32, y: f32) -> EnemySim {
+        EnemySim {
+            kind: FpsEnemyKind::Mosquiton,
+            position: Vec2::new(x, y),
+            angle: 0.0,
+            health: 100.0,
+            state: FpsEnemyAiState::Idle,
+        }
+    }
+
+    fn target_at(x: f32, y: f32) -> EnemyPlayerTarget {
+        EnemyPlayerTarget {
+            position: Vec2::new(x, y),
+            alive: true,
+            id: 1,
+        }
+    }
+
+    // --- shared enemy AI ---
+
+    #[test]
+    fn mosquiton_ai_moves_toward_player_when_far() {
+        let map = test_map();
+        let mut enemy = make_mosquiton_sim(1.5, 1.5);
+        let config = MosquitonAiConfig {
+            move_speed: 1.0,
+            preferred_range: 1.0,
+            collision_radius: 0.2,
+            ..Default::default()
+        };
+
+        let output = tick_enemy_ai(&mut enemy, &[target_at(5.5, 1.5)], &map, 1.0, config);
+
+        assert!(output.moved);
+        assert!(enemy.position.x > 1.5);
+        assert_eq!(enemy.state, FpsEnemyAiState::Chasing);
+        assert!(enemy.angle.abs() < 0.001);
+    }
+
+    #[test]
+    fn mosquiton_ai_holds_near_preferred_range() {
+        let map = test_map();
+        let mut enemy = make_mosquiton_sim(1.5, 1.5);
+        let config = MosquitonAiConfig {
+            move_speed: 1.0,
+            preferred_range: 3.0,
+            collision_radius: 0.2,
+            ..Default::default()
+        };
+
+        let output = tick_enemy_ai(&mut enemy, &[target_at(4.0, 1.5)], &map, 1.0, config);
+
+        assert!(!output.moved);
+        assert_eq!(enemy.position, Vec2::new(1.5, 1.5));
+        assert_eq!(enemy.state, FpsEnemyAiState::Attacking);
+    }
+
+    #[test]
+    fn mosquiton_ai_does_not_move_through_walls() {
+        let map = test_map();
+        let mut enemy = make_mosquiton_sim(2.5, 2.5);
+        let config = MosquitonAiConfig {
+            move_speed: 1.0,
+            preferred_range: 0.5,
+            collision_radius: 0.3,
+            ..Default::default()
+        };
+
+        let output = tick_enemy_ai(&mut enemy, &[target_at(4.5, 2.5)], &map, 1.0, config);
+
+        assert!(!output.moved);
+        assert!(enemy.position.x < 3.0);
+        assert_eq!(enemy.state, FpsEnemyAiState::Chasing);
+    }
+
+    #[test]
+    fn mosquiton_ai_slides_when_only_one_axis_is_blocked() {
+        #[rustfmt::skip]
+        let map = Map {
+            width: 6,
+            height: 6,
+            cells: vec![
+                1, 1, 1, 1, 1, 1,
+                1, 0, 0, 0, 0, 1,
+                1, 0, 0, 1, 0, 1,
+                1, 0, 0, 0, 0, 1,
+                1, 0, 0, 0, 0, 1,
+                1, 1, 1, 1, 1, 1,
+            ],
+        };
+        let mut enemy = make_mosquiton_sim(2.7, 2.5);
+        let config = MosquitonAiConfig {
+            move_speed: 1.0,
+            preferred_range: 0.5,
+            collision_radius: 0.3,
+            ..Default::default()
+        };
+
+        let output = tick_enemy_ai(&mut enemy, &[target_at(4.5, 4.5)], &map, 1.0, config);
+
+        assert!(output.moved);
+        assert!(enemy.position.x < 3.0, "x should be blocked by wall");
+        assert!(enemy.position.y > 2.5, "y should slide along wall");
+        assert_eq!(output.disposition, EnemyAiDisposition::Chasing);
+    }
+
+    #[test]
+    fn dead_mosquiton_ai_does_not_move() {
+        let map = test_map();
+        let mut enemy = make_mosquiton_sim(1.5, 1.5);
+        enemy.health = 0.0;
+        enemy.state = FpsEnemyAiState::Dead;
+
+        let output = tick_enemy_ai(
+            &mut enemy,
+            &[target_at(5.5, 1.5)],
+            &map,
+            1.0,
+            MosquitonAiConfig::default(),
+        );
+
+        assert!(!output.moved);
+        assert_eq!(enemy.position, Vec2::new(1.5, 1.5));
+        assert_eq!(enemy.state, FpsEnemyAiState::Dead);
+    }
+
+    #[test]
+    fn mosquiton_ai_preserves_state_inside_preferred_range_hysteresis() {
+        let map = test_map();
+        let config = MosquitonAiConfig {
+            move_speed: 1.0,
+            preferred_range: 3.0,
+            preferred_range_hysteresis: 0.25,
+            collision_radius: 0.2,
+            ..Default::default()
+        };
+
+        let mut chasing = make_mosquiton_sim(1.5, 1.5);
+        chasing.state = FpsEnemyAiState::Chasing;
+        let chasing_output = tick_enemy_ai(&mut chasing, &[target_at(4.6, 1.5)], &map, 0.1, config);
+        assert_eq!(chasing.state, FpsEnemyAiState::Chasing);
+        assert!(chasing_output.moved);
+
+        let mut attacking = make_mosquiton_sim(1.5, 1.5);
+        attacking.state = FpsEnemyAiState::Attacking;
+        let attacking_output =
+            tick_enemy_ai(&mut attacking, &[target_at(4.6, 1.5)], &map, 0.1, config);
+        assert_eq!(attacking.state, FpsEnemyAiState::Attacking);
+        assert!(!attacking_output.moved);
+    }
+
+    #[test]
+    fn mosquiton_ai_holds_when_chasing_reaches_preferred_range() {
+        let map = test_map();
+        let config = MosquitonAiConfig {
+            move_speed: 10.0,
+            preferred_range: 3.0,
+            preferred_range_hysteresis: 0.25,
+            collision_radius: 0.2,
+            ..Default::default()
+        };
+        let mut enemy = make_mosquiton_sim(1.5, 1.5);
+        enemy.state = FpsEnemyAiState::Chasing;
+
+        let output = tick_enemy_ai(&mut enemy, &[target_at(4.5, 1.5)], &map, 1.0, config);
+
+        assert!(!output.moved);
+        assert_eq!(enemy.state, FpsEnemyAiState::Attacking);
+        assert_eq!(
+            output.disposition,
+            EnemyAiDisposition::HoldingPreferredRange
+        );
+    }
+
+    #[test]
+    fn mosquiton_ai_does_not_zero_step_loop_while_chasing() {
+        let map = test_map();
+        let config = MosquitonAiConfig {
+            move_speed: 1.0,
+            preferred_range: 3.0,
+            preferred_range_hysteresis: 0.25,
+            collision_radius: 0.2,
+            ..Default::default()
+        };
+        let mut enemy = make_mosquiton_sim(1.5, 1.5);
+        enemy.state = FpsEnemyAiState::Chasing;
+
+        let output = tick_enemy_ai(&mut enemy, &[target_at(4.6, 1.5)], &map, 0.0, config);
+
+        assert!(!output.moved);
+        assert_eq!(enemy.state, FpsEnemyAiState::Attacking);
+        assert_ne!(
+            output.disposition,
+            EnemyAiDisposition::StalledAtPreferredRange
+        );
+    }
+
+    #[test]
+    fn basic_enemy_ai_is_explicit_noop() {
+        let map = test_map();
+        let mut enemy = EnemySim {
+            kind: FpsEnemyKind::Basic,
+            position: Vec2::new(1.5, 1.5),
+            angle: 0.0,
+            health: 100.0,
+            state: FpsEnemyAiState::Chasing,
+        };
+
+        let output = tick_enemy_ai(
+            &mut enemy,
+            &[target_at(5.5, 1.5)],
+            &map,
+            1.0,
+            MosquitonAiConfig::default(),
+        );
+
+        assert!(!output.moved);
+        assert_eq!(enemy.position, Vec2::new(1.5, 1.5));
+        assert_eq!(enemy.state, FpsEnemyAiState::Idle);
     }
 
     // --- take_damage ---

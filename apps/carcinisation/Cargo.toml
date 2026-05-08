@@ -9,6 +9,8 @@ default-run = "carcinisation"
 default = ["brp"]
 gallery = []
 brp = ["dep:bevy_brp_extras", "carapace/brp_extras"]
+# TODO: fix getrandom transitive dep for WASM
+wasm_client = ["carcinisation_net/wasm_client", "bevy_replicon_renet2/ws_client_transport", "bevy_replicon_renet2/netcode", "bevy_replicon_renet2/client"]
 trace_chrome = ["bevy/trace_chrome", "carapace/profiling_spans"]
 trace_tracy = ["bevy/trace_tracy", "carapace/profiling_spans"]
 
@@ -23,7 +25,9 @@ carcinisation_base = { path = "../../crates/carcinisation_base" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 carcinisation_ors = { path = "../../crates/carcinisation_ors" }
 carcinisation_fps = { path = "../../crates/carcinisation_fps" }
+carcinisation_fps_core = { path = "../../crates/carcinisation_fps_core" }
 carcinisation_input = { path = "../../crates/carcinisation_input" }
+carcinisation_net = { path = "../../crates/carcinisation_net" }
 asset_pipeline = { workspace = true }
 
 # Bevy ecosystem
@@ -34,6 +38,10 @@ bevy_ecs = { workspace = true }
 bevy_brp_extras = { workspace = true, optional = true }
 bevy_framepace = { workspace = true }
 bevy_state = { workspace = true }
+bevy_replicon = { workspace = true }
+bevy_replicon_renet2 = { workspace = true }
+bevy_renet2 = { workspace = true }
+renet2 = { workspace = true }
 leafwing-input-manager = { workspace = true }
 carapace = { workspace = true }
 
@@ -77,3 +85,7 @@ path = "src/bin/gallery.rs"
 [[bin]]
 name = "fps_test"
 path = "src/bin/fps_test.rs"
+
+[[bin]]
+name = "multiplayer_client"
+path = "src/bin/multiplayer_client.rs"

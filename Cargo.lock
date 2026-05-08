@@ -1327,6 +1327,7 @@ dependencies = [
  "bevy_post_process",
  "bevy_ptr",
  "bevy_reflect",
+ "bevy_remote",
  "bevy_render",
  "bevy_scene",
  "bevy_shader",
@@ -2417,6 +2418,9 @@ dependencies = [
  "bevy_common_assets",
  "bevy_ecs",
  "bevy_framepace",
+ "bevy_renet2",
+ "bevy_replicon",
+ "bevy_replicon_renet2",
  "bevy_state",
  "carapace",
  "carcinisation_base",
@@ -2424,7 +2428,9 @@ dependencies = [
  "carcinisation_core",
  "carcinisation_cutscene",
  "carcinisation_fps",
+ "carcinisation_fps_core",
  "carcinisation_input",
+ "carcinisation_net",
  "carcinisation_ors",
  "clap",
  "colored",
@@ -2437,6 +2443,7 @@ dependencies = [
  "leafwing-input-manager",
  "num_enum",
  "rand 0.10.1",
+ "renet2",
  "ron 0.12.1",
  "serde",
  "serde-generate",
@@ -2590,8 +2597,13 @@ name = "carcinisation_server"
 version = "0.3.0"
 dependencies = [
  "bevy",
+ "bevy_renet2",
+ "bevy_replicon",
+ "bevy_replicon_renet2",
  "carcinisation_fps_core",
  "carcinisation_net",
+ "clap",
+ "renet2",
 ]
 
 [[package]]

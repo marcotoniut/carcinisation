@@ -1,0 +1,23 @@
+MapData(
+    width: 8,
+    height: 8,
+    cells: [
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 0, 0, 0, 0, 0, 0, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+    ],
+    wall_textures: [
+        Brick(color: 2, mortar: 1),
+    ],
+    ceiling_color: 3,
+    floor_color: 4,
+    player_start: (x: 1.5, y: 1.5, angle_deg: 0.0),
+    entities: [
+        (kind: Mosquiton(health: 200), x: 4.0, y: 1.5),
+    ],
+)

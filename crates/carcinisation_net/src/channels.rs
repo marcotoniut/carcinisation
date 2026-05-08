@@ -2,20 +2,26 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 
 use crate::protocol::{
-    AttackFire, ClientInput, DamageEffect, DeathEffect, HitConfirm, MuzzleFlash, PickupEffect,
+    ClientIntent, DamageEffect, DeathEffect, EnemyAttackVisual, FlameActive, FlameCharMark,
+    HitConfirm, MuzzleFlash, PickupEffect, PlayerIdAssigned,
 };
 
-/// Register reliable (ordered) channels for input and attack events.
+/// Register reliable (ordered) channels for input and identity.
 pub fn register_reliable_channels(app: &mut App) {
-    app.add_client_event::<ClientInput>(Channel::Ordered)
-        .add_client_event::<AttackFire>(Channel::Ordered);
+    app.add_client_event::<ClientIntent>(Channel::Ordered)
+        .add_server_event::<PlayerIdAssigned>(Channel::Ordered);
 }
 
 /// Register unreliable (unordered) channels for visual/effect events.
+/// Authoritative state is replicated via components (NetEnemyState, PlayerNetState).
+/// These events are cosmetic feedback; dropped packets are tolerated.
 pub fn register_unreliable_channels(app: &mut App) {
     app.add_server_event::<MuzzleFlash>(Channel::Unordered)
         .add_server_event::<HitConfirm>(Channel::Unordered)
         .add_server_event::<DamageEffect>(Channel::Unordered)
         .add_server_event::<DeathEffect>(Channel::Unordered)
+        .add_server_event::<FlameActive>(Channel::Unordered)
+        .add_server_event::<EnemyAttackVisual>(Channel::Unordered)
+        .add_server_event::<FlameCharMark>(Channel::Unordered)
         .add_server_event::<PickupEffect>(Channel::Unordered);
 }

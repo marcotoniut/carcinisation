@@ -1,4 +1,5 @@
 // carcinisation_net: Shared protocol + replication types
+#![allow(clippy::used_underscore_binding)]
 
 pub mod channels;
 pub mod components;
@@ -6,17 +7,33 @@ pub mod plugin;
 pub mod protocol;
 pub mod tick;
 
-pub use plugin::{NetProtocolPlugin, NetTransportPlugin};
-
-// Re-export key types
-pub use components::{NetAttackId, NetEnemyState};
-pub use components::{
-    NetEnemy, NetHealth, NetPickup, NetPlayer, NetProjectile, PlayerNetState, ReplicatedTick,
-};
+pub use components::{NetAttackId, NetEnemyState, NetEnemyType, NetProjectileType};
+pub use components::{NetEnemy, NetHealth, NetPickup, NetPlayer, NetProjectile, PlayerNetState};
 pub use protocol::{
-    AttackFire, ClientInput, DamageEffect, DeathEffect, HitConfirm, MuzzleFlash, NetPickupKind,
-    NetworkObjectId, Owner, PickupEffect, PlayerId,
+    // Semantic intent protocol
+    ClientIntent,
+    // Events
+    DamageEffect,
+    DeathEffect,
+    EnemyAttackKind,
+    EnemyAttackVisual,
+    FlameActive,
+    FlameCharMark,
+    HitConfirm,
+    HitImpactKind,
+    MuzzleFlash,
+    NetPickupKind,
+    NetworkObjectId,
+    Owner,
+    PickupEffect,
+    PlayerActions,
+    PlayerId,
+    PlayerIdAssigned,
 };
-pub use tick::{InputSequence, Tick, TickConfig, TickCounter, TickPlugin, TickSet};
+pub use tick::{
+    CombatSet, InputSequence, MovementSet, Tick, TickConfig, TickCounter, TickPlugin, TickSet,
+};
 
-pub const PROTOCOL_ID: u64 = 0xC4AC1253D; // TEMP: local testing only, replace later
+pub const PROTOCOL_ID: u64 = 0x000C_4AC1_253D;
+
+pub use plugin::{NetProtocolPlugin, register_net_all};

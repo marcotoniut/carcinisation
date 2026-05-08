@@ -8,6 +8,15 @@ FEATURES ?= bevy/dynamic_linking
 WASM_FEATURES ?=
 BEVY ?= bevy
 
+# Multiplayer convenience
+SERVER_PORT ?= 7000
+CLIENT_FLAGS ?= CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1
+
+# Signal trap: Ctrl+C kills all child processes cleanly.
+define SETUP_TRAP
+trap "kill 0 2>/dev/null" INT TERM EXIT
+endef
+
 # Strip helper vars to avoid accidental extra whitespace
 STRIPPED_ARGS := $(strip $(ARGS))
 STRIPPED_FEATURES := $(strip $(FEATURES))
@@ -30,6 +39,51 @@ OUTPUT_ROOT ?= tmp/aseprite-export
 ifeq ($(OS),Windows_NT)
 	PYTHON_BIN := $(PYTHON_VENV)/Scripts/python.exe
 endif
+
+# =============================================================================
+# Multiplayer convenience targets
+# =============================================================================
+
+.PHONY: dev-fps-server
+dev-fps-server:
+	RUST_BACKTRACE=full $(BEVY) run --bin carcinisation_server --package carcinisation_server -- --port $(SERVER_PORT)
+
+.PHONY: dev-fps-client
+dev-fps-client:
+	RUST_BACKTRACE=full $(CLIENT_FLAGS) $(BEVY) run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:$(SERVER_PORT)
+
+.PHONY: dev-fps-pair
+dev-fps-pair:
+	@echo "Starting headless server + 1 client (Ctrl+C stops both)…"
+	@bash -c '\
+		set -euo pipefail; \
+		$(SETUP_TRAP); \
+		RUST_BACKTRACE=full $(BEVY) run --bin carcinisation_server --package carcinisation_server -- --port $(SERVER_PORT) & \
+		SRV=$$!; \
+		sleep 3; \
+		$(CLIENT_FLAGS) RUST_BACKTRACE=full $(BEVY) run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:$(SERVER_PORT) & \
+		CLI=$$!; \
+		echo "Press Ctrl+C to stop server+client"; \
+		wait $$SRV $$CLI \
+	'
+
+.PHONY: dev-fps-duo
+dev-fps-duo:
+	@echo "Starting headless server + 2 clients (Ctrl+C stops all)…"
+	@bash -c '\
+		set -euo pipefail; \
+		$(SETUP_TRAP); \
+		RUST_BACKTRACE=full $(BEVY) run --bin carcinisation_server --package carcinisation_server -- --port $(SERVER_PORT) & \
+		SRV=$$!; \
+		sleep 3; \
+		$(CLIENT_FLAGS) RUST_BACKTRACE=full $(BEVY) run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:$(SERVER_PORT) & \
+		CLI0=$$!; \
+		sleep 1; \
+		$(CLIENT_FLAGS) RUST_BACKTRACE=full $(BEVY) run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:$(SERVER_PORT) & \
+		CLI1=$$!; \
+		echo "Press Ctrl+C to stop server+clients"; \
+		wait $$SRV $$CLI0 $$CLI1 \
+	'
 
 # =============================================================================
 # Game launchers

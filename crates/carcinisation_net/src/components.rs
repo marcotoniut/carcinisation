@@ -3,16 +3,35 @@ use bevy_math::Vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::{NetPickupKind, NetworkObjectId, Owner, PlayerId};
-use crate::tick::Tick;
 
 /// Net-safe enemy state enum.
+///
+/// Drives both gameplay decisions (server) and animation selection (client).
+/// One-shot attack animations are driven by `EnemyAttackVisual` events, not
+/// replicated state, to avoid stale one-shot states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[reflect(Serialize, Deserialize)]
 pub enum NetEnemyState {
     Idle,
     Chase,
-    Attack,
-    Dead,
+    /// Holding at preferred range, ready to attack. Client renders idle/wing loop.
+    HoldingRange,
+    /// Playing death animation. Client renders death or burn pose.
+    Dying {
+        burn: bool,
+    },
+    /// Fully dead, inert until despawn. `burn` preserves kill type for visuals.
+    Dead {
+        burn: bool,
+    },
+}
+
+/// Net-safe enemy type enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[reflect(Serialize, Deserialize)]
+pub enum NetEnemyType {
+    Basic,
+    Mosquiton,
 }
 
 /// Net-safe attack ID enum.
@@ -35,7 +54,7 @@ pub enum PlayerNetState {
 
 /// Replicated player component.
 #[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct NetPlayer {
     pub player_id: PlayerId,
     pub position: Vec2,
@@ -46,30 +65,38 @@ pub struct NetPlayer {
 
 /// Replicated enemy component.
 #[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct NetEnemy {
     pub object_id: NetworkObjectId,
     pub position: Vec2,
     pub angle: f32,
     pub state: NetEnemyState,
-    pub enemy_type: u32,
+    pub enemy_type: NetEnemyType,
+}
+
+/// Net-safe projectile type enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Serialize, Deserialize)]
+pub enum NetProjectileType {
+    #[default]
+    BloodShot,
 }
 
 /// Replicated projectile component.
 #[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct NetProjectile {
     pub object_id: NetworkObjectId,
     pub position: Vec2,
     pub angle: f32,
-    pub ttl: f32,
     pub owner: Owner,
     pub damage: f32,
+    pub projectile_type: NetProjectileType,
 }
 
 /// Replicated pickup component.
 #[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct NetPickup {
     pub object_id: NetworkObjectId,
     pub position: Vec2,
@@ -79,21 +106,10 @@ pub struct NetPickup {
 
 /// Reusable health component for players and enemies.
 #[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
-#[reflect(Serialize, Deserialize)]
+#[reflect(Component, Serialize, Deserialize)]
 pub struct NetHealth {
     pub current: f32,
     pub max: f32,
-}
-
-/// Replicated tick resource — server's current tick.
-#[derive(Resource, Debug, Clone, Deref, DerefMut, Serialize, Deserialize, Reflect)]
-#[reflect(Serialize, Deserialize)]
-pub struct ReplicatedTick(pub Tick);
-
-impl Default for ReplicatedTick {
-    fn default() -> Self {
-        Self(Tick(0))
-    }
 }
 
 #[cfg(test)]
@@ -126,11 +142,12 @@ mod tests {
             position: Vec2::new(3.0, 4.0),
             angle: 0.0,
             state: NetEnemyState::Chase,
-            enemy_type: 0,
+            enemy_type: NetEnemyType::Mosquiton,
         };
         let back = roundtrip_component(&enemy);
         assert_eq!(back.object_id.0, 5);
         assert!(matches!(back.state, NetEnemyState::Chase));
+        assert_eq!(back.enemy_type, NetEnemyType::Mosquiton);
     }
 
     #[test]
@@ -149,13 +166,13 @@ mod tests {
             object_id: NetworkObjectId(10),
             position: Vec2::new(5.0, 5.0),
             angle: 0.78,
-            ttl: 2.5,
             owner: Owner(PlayerId(2)),
             damage: 25.0,
+            projectile_type: NetProjectileType::BloodShot,
         };
         let back = roundtrip_component(&proj);
         assert_eq!(back.owner.0.0, 2);
-        assert!((back.ttl - 2.5).abs() < 1e-6);
+        assert!((back.damage - 25.0).abs() < 1e-6);
     }
 
     #[test]
@@ -169,11 +186,5 @@ mod tests {
         let back = roundtrip_component(&pickup);
         assert_eq!(back.kind, NetPickupKind::Health);
         assert_eq!(back.respawn_timer, Some(5.0));
-    }
-
-    #[test]
-    fn replicated_tick_defaults() {
-        let tick = ReplicatedTick::default();
-        assert_eq!(tick.0.0, 0);
     }
 }

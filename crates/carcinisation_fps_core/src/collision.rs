@@ -53,4 +53,52 @@ mod tests {
         assert!((pos.x - 1.1).abs() < 0.01, "X blocked");
         assert!((pos.y - 2.0).abs() < 0.01, "Y slides");
     }
+
+    #[test]
+    fn cannot_move_outside_map_bounds() {
+        let map = test_map();
+        // Near west edge — large westward delta should be blocked by OOB wall.
+        let mut pos = Vec2::new(1.1, 1.5);
+        try_move(&mut pos, Vec2::new(-2.0, 0.0), 0.2, &map);
+        assert!(
+            (pos.x - 1.1).abs() < 0.01,
+            "should not escape west: {pos:?}"
+        );
+
+        // Near north edge — large northward delta should be blocked.
+        let mut pos = Vec2::new(1.5, 1.1);
+        try_move(&mut pos, Vec2::new(0.0, -2.0), 0.2, &map);
+        assert!(
+            (pos.y - 1.1).abs() < 0.01,
+            "should not escape north: {pos:?}"
+        );
+
+        // Near east edge.
+        let mut pos = Vec2::new(6.9, 1.5);
+        try_move(&mut pos, Vec2::new(2.0, 0.0), 0.2, &map);
+        assert!(
+            (pos.x - 6.9).abs() < 0.01,
+            "should not escape east: {pos:?}"
+        );
+
+        // Near south edge.
+        let mut pos = Vec2::new(1.5, 6.9);
+        try_move(&mut pos, Vec2::new(0.0, 2.0), 0.2, &map);
+        assert!(
+            (pos.y - 6.9).abs() < 0.01,
+            "should not escape south: {pos:?}"
+        );
+    }
+
+    #[test]
+    fn cannot_move_into_interior_wall() {
+        let map = test_map();
+        // Wall at cell (3,2). Approach from (2.5, 2.5) moving east.
+        let mut pos = Vec2::new(2.5, 2.5);
+        try_move(&mut pos, Vec2::new(0.5, 0.0), 0.2, &map);
+        assert!(
+            pos.x < 3.0,
+            "should be blocked by interior wall at (3,2): {pos:?}"
+        );
+    }
 }

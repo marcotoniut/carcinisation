@@ -3,7 +3,20 @@ name = "carcinisation_server"
 edition.workspace = true
 version.workspace = true
 
+[features]
+default = ["native"]
+native = ["carcinisation_net/native", "bevy_replicon_renet2/native_transport", "bevy_replicon_renet2/netcode", "bevy_replicon_renet2/server"]
+brp = ["bevy/bevy_remote"]
+
 [dependencies]
 carcinisation_fps_core = { path = "../../crates/carcinisation_fps_core" }
 carcinisation_net = { path = "../../crates/carcinisation_net" }
 bevy = { version = "0.18", default-features = false }
+bevy_replicon = { workspace = true }
+bevy_replicon_renet2 = { workspace = true }
+clap = { version = "4.5", features = ["derive"] }
+renet2 = { workspace = true }
+bevy_renet2 = { workspace = true }
+
+[dev-dependencies]
+bevy = { workspace = true }

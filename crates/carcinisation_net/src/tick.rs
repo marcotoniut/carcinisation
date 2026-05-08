@@ -18,7 +18,7 @@ impl std::fmt::Display for Tick {
 }
 
 /// Input sequence counter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, Default)]
 pub struct InputSequence(pub u32);
 
 impl InputSequence {
@@ -53,7 +53,15 @@ impl Default for TickCounter {
     }
 }
 
-/// SystemSet for tick systems.
+/// `SystemSet` for server-authoritative movement, runs first in `FixedUpdate`.
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct MovementSet;
+
+/// `SystemSet` for server-authoritative combat (hitscan, damage), runs after movement.
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct CombatSet;
+
+/// `SystemSet` for tick systems, runs last in `FixedUpdate`.
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct TickSet;
 
@@ -62,14 +70,30 @@ pub fn increment_tick(mut tick_counter: ResMut<TickCounter>) {
     tick_counter.0.increment();
 }
 
-/// Tick plugin.
+/// Tick plugin — shared by all consumers (server, client, tests).
+///
+/// Configures `FixedUpdate` at 30 Hz and establishes the **base** set ordering:
+///
+///   `MovementSet` → `CombatSet` → `TickSet`
+///
+/// The server extends this chain with intermediate sets (e.g.
+/// `EnemyAiSet`, `EnemyAttackSet`, `ProjectileSet`) between `MovementSet`
+/// and `CombatSet`. Bevy merges ordering constraints additively, so the
+/// extended chain refines this base without contradicting it.
 pub struct TickPlugin;
 
 impl Plugin for TickPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(TickConfig::default())
+        let tick_config = TickConfig::default();
+
+        // Align Bevy's FixedUpdate timestep with our tick rate.
+        app.world_mut()
+            .resource_mut::<Time<Fixed>>()
+            .set_timestep_hz(f64::from(tick_config.hz));
+
+        app.insert_resource(tick_config)
             .insert_resource(TickCounter::default())
-            .configure_sets(FixedUpdate, TickSet)
+            .configure_sets(FixedUpdate, (MovementSet, CombatSet, TickSet).chain())
             .add_systems(FixedUpdate, increment_tick.in_set(TickSet));
     }
 }
