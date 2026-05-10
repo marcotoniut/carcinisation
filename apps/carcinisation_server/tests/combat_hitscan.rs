@@ -1299,7 +1299,7 @@ fn dead_player_fire_does_not_damage_enemy() {
         .next()
         .map(|p| p.state.clone());
     assert!(
-        matches!(state, Some(PlayerNetState::Dead { .. })),
+        matches!(state, Some(PlayerNetState::Dead)),
         "player should be dead, got {state:?}"
     );
 
@@ -1372,5 +1372,119 @@ fn fire_cooldown_cleared_on_death() {
     assert!(
         cleared,
         "FireCooldownMap should be cleared after player death"
+    );
+}
+
+/// P2 regression: two players fire during the same tick at enemies in a line.
+/// Player 1 kills the front enemy. Player 2's hitscan must see fresh state
+/// (front enemy dead/filtered) and hit the back enemy instead of wasting the
+/// shot on the corpse.
+///
+/// Under a stale shared-snapshot implementation (enemy list built once before
+/// the player loop), player 2 would "hit" the dead front enemy and the back
+/// enemy would be untouched.
+#[test]
+fn two_players_same_tick_second_sees_fresh_enemy_state() {
+    use carcinisation_server::systems::PlayerIntentBuffer;
+
+    let port = reserve_port();
+
+    // Two enemies in a line east of both players:
+    //   front enemy at (3.5, 1.5) with 1 HP — player 1 will kill it
+    //   back  enemy at (5.5, 1.5) with 100 HP — player 2 should hit this
+    let entities = vec![
+        EntitySpawnData {
+            kind: EntitySpawnKind::Mosquiton {
+                health: 1,
+                speed: 0.0,
+            },
+            x: 3.5,
+            y: 1.5,
+        },
+        EntitySpawnData {
+            kind: EntitySpawnKind::Mosquiton {
+                health: 100,
+                speed: 0.0,
+            },
+            x: 5.5,
+            y: 1.5,
+        },
+    ];
+    let mut server = build_server_app(ServerPlugin {
+        port,
+        map: test_map(),
+        entities,
+        player_starts: vec![],
+    });
+    server.update();
+
+    // Both players at the same position facing east (angle 0), both using pistol.
+    // They occupy the same cell so both hitscans travel the same ray.
+    for pid in [1u32, 2] {
+        server.world_mut().spawn((
+            NetPlayer {
+                player_id: PlayerId(pid),
+                position: Vec2::new(1.5, 1.5),
+                angle: 0.0,
+                current_attack: NetAttackId::None,
+                state: PlayerNetState::Alive,
+            },
+            NetHealth {
+                current: 100.0,
+                max: 100.0,
+            },
+            Replicated,
+        ));
+    }
+
+    // Inject fire_held for both players.
+    {
+        let mut buf = server.world_mut().resource_mut::<PlayerIntentBuffer>();
+        for pid in [1u32, 2] {
+            buf.set(
+                PlayerId(pid),
+                &ClientIntent {
+                    sequence: InputSequence(1),
+                    movement: Vec2::ZERO,
+                    turn: 0.0,
+                    fire_held: true,
+                    actions: PlayerActions::default(),
+                },
+            );
+        }
+    }
+
+    // Tick enough for FixedUpdate to fire (at 2ms sleep per tick, ~17 ticks = one 30 Hz tick).
+    for _ in 0..50 {
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        server.update();
+    }
+
+    // Collect enemy health values.
+    let mut healths: Vec<(f32, f32)> = server
+        .world_mut()
+        .query::<(&NetEnemy, &NetHealth)>()
+        .iter(server.world())
+        .map(|(e, h)| (e.position.x, h.current))
+        .collect();
+    healths.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+    assert!(
+        healths.len() >= 2,
+        "both enemies should still exist, got {healths:?}"
+    );
+
+    let front_hp = healths[0].1;
+    let back_hp = healths[1].1;
+
+    // Front enemy (1 HP) should be dead.
+    assert!(front_hp <= 0.0, "front enemy should be dead: hp={front_hp}");
+
+    // Back enemy should have taken damage from the second player's hitscan.
+    // Under the stale-snapshot bug, back_hp would still be 100.
+    assert!(
+        back_hp < 100.0,
+        "back enemy should be hit by player 2 (fresh snapshot): hp={back_hp}. \
+         If 100, the enemy list was stale and player 2 wasted a shot on the dead front enemy."
     );
 }

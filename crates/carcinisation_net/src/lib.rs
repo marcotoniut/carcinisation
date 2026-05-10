@@ -6,6 +6,7 @@ pub mod components;
 pub mod plugin;
 pub mod protocol;
 pub mod tick;
+pub mod transport;
 
 pub use components::{NetAttackId, NetEnemyState, NetEnemyType, NetProjectileType};
 pub use components::{NetEnemy, NetHealth, NetPickup, NetPlayer, NetProjectile, PlayerNetState};

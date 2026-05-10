@@ -321,9 +321,7 @@ fn dead_player_ignores_input() {
             position: Vec2::new(3.0, 3.0),
             angle: 0.0,
             current_attack: NetAttackId::None,
-            state: PlayerNetState::Dead {
-                respawn_timer: 10.0,
-            },
+            state: PlayerNetState::Dead,
         },
         NetHealth {
             current: 0.0,

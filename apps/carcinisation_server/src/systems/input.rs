@@ -179,7 +179,7 @@ pub(crate) fn receive_client_intent(
 // ---------------------------------------------------------------------------
 
 /// Server-only per-player snap turn animation state.
-/// Mirrors singleplayer `QuickTurnState` without depending on the fps rendering crate.
+/// Delegates to `fps_core::snap_turn_params` / `tick_snap_turn` for shared math.
 #[derive(Component, Clone, Copy, Debug, Default)]
 pub struct ServerQuickTurn {
     pub remaining_radians: f32,
@@ -193,39 +193,31 @@ impl ServerQuickTurn {
         self.remaining_radians > 0.0
     }
 
-    /// Start a snap turn. Matches SP `request_snap_turn`.
+    /// Start a snap turn. Delegates to `fps_core::snap_turn_params`.
     pub fn request(&mut self, kind: SnapTurnKind, quick_turn_duration_secs: f32) {
         if self.remaining_radians > 0.0 {
-            return; // Already active.
-        }
-        let angular_speed = std::f32::consts::PI / quick_turn_duration_secs;
-        match kind {
-            SnapTurnKind::QuickTurn => {
-                self.remaining_radians = std::f32::consts::PI;
-                self.speed = angular_speed;
-                self.direction = 1.0;
-            }
-            SnapTurnKind::Left => {
-                self.remaining_radians = std::f32::consts::FRAC_PI_2;
-                self.speed = angular_speed;
-                self.direction = 1.0;
-            }
-            SnapTurnKind::Right => {
-                self.remaining_radians = std::f32::consts::FRAC_PI_2;
-                self.speed = angular_speed;
-                self.direction = -1.0;
-            }
-        }
-    }
-
-    /// Tick animation. Matches SP `tick_quick_turn`.
-    pub fn tick(&mut self, angle: &mut f32, dt: f32) {
-        if self.remaining_radians <= 0.0 {
             return;
         }
-        let step = (self.speed * dt).min(self.remaining_radians).max(0.0);
-        *angle = (*angle + step * self.direction).rem_euclid(std::f32::consts::TAU);
-        self.remaining_radians -= step;
+        let core_kind = match kind {
+            SnapTurnKind::QuickTurn => carcinisation_fps_core::SnapTurnKind::QuickTurn,
+            SnapTurnKind::Left => carcinisation_fps_core::SnapTurnKind::Left,
+            SnapTurnKind::Right => carcinisation_fps_core::SnapTurnKind::Right,
+        };
+        let params = carcinisation_fps_core::snap_turn_params(core_kind, quick_turn_duration_secs);
+        self.remaining_radians = params.remaining_radians;
+        self.speed = params.speed;
+        self.direction = params.direction;
+    }
+
+    /// Tick animation. Delegates to `fps_core::tick_snap_turn`.
+    pub fn tick(&mut self, angle: &mut f32, dt: f32) {
+        carcinisation_fps_core::tick_snap_turn(
+            angle,
+            &mut self.remaining_radians,
+            self.speed,
+            self.direction,
+            dt,
+        );
     }
 }
 

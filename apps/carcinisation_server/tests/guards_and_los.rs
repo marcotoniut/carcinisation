@@ -76,15 +76,7 @@ fn spawn_player(server: &mut App, player_id: u32, x: f32, y: f32, state: PlayerN
 }
 
 fn spawn_dead_player(server: &mut App, player_id: u32, x: f32, y: f32) {
-    spawn_player(
-        server,
-        player_id,
-        x,
-        y,
-        PlayerNetState::Dead {
-            respawn_timer: 10.0,
-        },
-    );
+    spawn_player(server, player_id, x, y, PlayerNetState::Dead);
 }
 
 fn tick_server(server: &mut App) {

@@ -144,6 +144,7 @@ pub fn render_fp_scene(
         char_mask: None,
         surface_sprites: &no_sprites,
     };
+    let mut zbuffer = Vec::new();
     render_fp_scene_with_effects(
         image,
         map,
@@ -153,11 +154,15 @@ pub fn render_fp_scene(
         billboards,
         &effects,
         sky,
+        &mut zbuffer,
     );
 }
 
 /// Render walls with wall-anchored effects + billboard entities.
 /// If `sky` is provided, escaped ray columns render the sky instead of a solid ceiling.
+///
+/// `zbuffer` is caller-owned to avoid per-frame allocation. It is resized and
+/// reset internally — the caller only needs to keep the `Vec` alive across frames.
 pub fn render_fp_scene_with_effects(
     image: &mut CxImage,
     map: &Map,
@@ -167,10 +172,12 @@ pub fn render_fp_scene_with_effects(
     billboards: &[Billboard],
     effects: &FpWallRenderEffects<'_>,
     sky: Option<&Sky>,
+    zbuffer: &mut Vec<f32>,
 ) {
     let w = image.width();
     let h = image.height() as i32;
-    let mut zbuffer = vec![f32::MAX; w];
+    zbuffer.resize(w, f32::MAX);
+    zbuffer.fill(f32::MAX);
 
     render_walls(
         image,
@@ -178,7 +185,7 @@ pub fn render_fp_scene_with_effects(
         camera,
         wall_textures,
         palette,
-        Some(&mut zbuffer),
+        Some(zbuffer.as_mut_slice()),
         Some(effects),
         sky,
     );
@@ -203,7 +210,7 @@ pub fn render_fp_scene_with_effects(
         } else {
             None
         };
-        draw_billboard(image, &zbuffer, proj, h, fog);
+        draw_billboard(image, zbuffer, proj, h, fog);
     }
 }
 

@@ -8,6 +8,7 @@
 
 pub mod camera;
 pub mod collision;
+pub mod combat;
 pub mod config;
 pub mod enemy;
 pub mod fire_death;
@@ -19,6 +20,7 @@ pub mod raycast;
 // Re-export key types
 pub use camera::Camera;
 pub use collision::try_move;
+pub use combat::{flame_hits_position, flame_hits_position_default};
 pub use config::{
     BURN_CONTACT_DAMAGE, BURN_CONTACT_RADIUS, BURN_CONTACT_TICK_SECS, COLLISION_MARGIN,
     DAMAGE_FLICKER_COUNT, DAMAGE_FLICKER_INVERT_SECS, DAMAGE_FLICKER_REGULAR_SECS,
@@ -40,9 +42,15 @@ pub use enemy::{
 pub use fire_death::{
     DamageKind, FireDeathConfig, PerimeterFlame, corpse_seed, perimeter_flames_from_mask,
 };
-pub use map::{Map, MapError};
+pub use map::{
+    EntitySpawnData, EntitySpawnKind, Map, MapError, MapLoadData, PlayerStartData, test_map,
+};
 pub use mosquiton::{
     MosquitonSim, MosquitonSimConfig, MosquitonSimOutput, MosquitonSimState, has_line_of_sight,
     tick_mosquiton_sim,
 };
+pub use movement::{
+    SnapTurnKind, SnapTurnParams, apply_movement, local_to_world, snap_turn_params, tick_snap_turn,
+};
+pub use raycast::WallSurfaceId;
 pub use raycast::{HitSide, RayHit, cast_ray};

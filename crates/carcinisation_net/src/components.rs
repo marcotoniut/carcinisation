@@ -49,7 +49,7 @@ pub enum NetAttackId {
 #[reflect(Serialize, Deserialize)]
 pub enum PlayerNetState {
     Alive,
-    Dead { respawn_timer: f32 },
+    Dead,
 }
 
 /// Replicated player component.

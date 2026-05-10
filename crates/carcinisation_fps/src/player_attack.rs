@@ -493,11 +493,6 @@ struct FpFlameSegment {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct FlameCollisionPoint {
-    local: Vec2,
-}
-
-#[derive(Clone, Copy, Debug)]
 struct FlamePoint {
     local: Vec2,
     screen_offset: Vec2,
@@ -924,17 +919,6 @@ fn visual_progress_for_collision_offset(
     (collision_offset.length() - config.flame_start_offset_px).clamp(0.0, config.chain_range)
 }
 
-fn camera_local_point(camera: &Camera, world: Vec2) -> Vec2 {
-    let (forward, right) = camera_basis(camera);
-    let delta = world - camera.position;
-    Vec2::new(delta.dot(right), delta.dot(forward))
-}
-
-fn camera_world_point(camera: &Camera, local: Vec2) -> Vec2 {
-    let (forward, right) = camera_basis(camera);
-    camera.position + right * local.x + forward * local.y
-}
-
 fn weapon_center_camera(screen_height: f32, config: &FlamethrowerConfig) -> Vec2 {
     let center = flamethrower_weapon_center(screen_height, config, Vec2::ZERO);
     Vec2::new(center.x, screen_height - center.y)
@@ -1064,13 +1048,6 @@ fn flame_wall_bridge(
     })
 }
 
-fn flame_collision_points(points: &[FlamePoint]) -> Vec<FlameCollisionPoint> {
-    points
-        .iter()
-        .map(|point| FlameCollisionPoint { local: point.local })
-        .collect()
-}
-
 fn camera_world_direction(camera: &Camera, local_dir: Vec2) -> Vec2 {
     let (forward, right) = camera_basis(camera);
     (right * local_dir.x + forward * local_dir.y).normalize_or_zero()
@@ -1191,24 +1168,24 @@ pub fn destroy_projectiles_touching_active_flamethrower(
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
 ) {
-    let Some(active) = &state.flamethrower else {
+    if state.flamethrower.is_none() {
         return;
-    };
-    let flame_points = flame_collision_points(&active_flame_points(
-        camera,
-        map,
-        active,
-        &state.config,
-        144.0,
-    ));
-    destroy_projectiles_touching_flame(
-        camera,
-        map,
-        &flame_points,
-        state.config.hit_radius_units(),
-        projectiles,
-        impacts,
-    );
+    }
+    let flame_dir = camera.direction();
+    for projectile in projectiles.iter_mut() {
+        if projectile.alive
+            && carcinisation_fps_core::flame_hits_position_default(
+                camera.position,
+                flame_dir,
+                projectile.position,
+                map,
+            )
+        {
+            projectile.alive = false;
+            impacts.push(ProjectileImpact::destroy(projectile.position));
+        }
+    }
+    projectiles.retain(|p| p.alive);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1217,7 +1194,7 @@ fn apply_flamethrower_damage(
     map: &Map,
     config: &FlamethrowerConfig,
     active: &mut ActiveFpFlamethrower,
-    flame_points: &[FlamePoint],
+    _flame_points: &[FlamePoint],
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
     projectiles: &mut Vec<Projectile>,
@@ -1225,13 +1202,13 @@ fn apply_flamethrower_damage(
     elapsed_secs: f32,
 ) {
     let tick_secs = config.tick_ms as f32 / 1000.0;
-    let flame_points = flame_collision_points(flame_points);
-    let hit_radius = config.hit_radius_units();
 
     active.tick_state.retain(|target, _| match *target {
         FpFlameTarget::Enemy(index) => enemies.get(index).is_some_and(Enemy::is_alive),
         FpFlameTarget::Mosquiton(index) => mosquitons.get(index).is_some_and(Mosquiton::is_alive),
     });
+
+    let flame_dir = camera.direction();
 
     for (index, enemy) in enemies.iter_mut().enumerate() {
         if !enemy.is_alive() {
@@ -1239,7 +1216,12 @@ fn apply_flamethrower_damage(
         }
         let target = FpFlameTarget::Enemy(index);
         if can_flame_tick(&active.tick_state, target, elapsed_secs, tick_secs)
-            && flame_hits_target(camera, map, &flame_points, enemy.position, hit_radius)
+            && carcinisation_fps_core::flame_hits_position_default(
+                camera.position,
+                flame_dir,
+                enemy.position,
+                map,
+            )
         {
             enemy.take_damage_from(
                 config.damage_per_tick,
@@ -1256,7 +1238,12 @@ fn apply_flamethrower_damage(
         }
         let target = FpFlameTarget::Mosquiton(index);
         if can_flame_tick(&active.tick_state, target, elapsed_secs, tick_secs)
-            && flame_hits_target(camera, map, &flame_points, mosquiton.position, hit_radius)
+            && carcinisation_fps_core::flame_hits_position_default(
+                camera.position,
+                flame_dir,
+                mosquiton.position,
+                map,
+            )
         {
             mosquiton.take_damage_from(
                 config.damage_per_tick,
@@ -1267,27 +1254,24 @@ fn apply_flamethrower_damage(
         }
     }
 
-    destroy_projectiles_touching_flame(
-        camera,
-        map,
-        &flame_points,
-        hit_radius,
-        projectiles,
-        impacts,
-    );
+    destroy_projectiles_touching_flame(camera, map, projectiles, impacts);
 }
 
 fn destroy_projectiles_touching_flame(
     camera: &Camera,
     map: &Map,
-    flame_points: &[FlameCollisionPoint],
-    hit_radius: f32,
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
 ) {
+    let flame_dir = camera.direction();
     for projectile in projectiles.iter_mut() {
         if projectile.alive
-            && flame_hits_target(camera, map, flame_points, projectile.position, hit_radius)
+            && carcinisation_fps_core::flame_hits_position_default(
+                camera.position,
+                flame_dir,
+                projectile.position,
+                map,
+            )
         {
             projectile.alive = false;
             impacts.push(ProjectileImpact::destroy(projectile.position));
@@ -1307,76 +1291,8 @@ fn can_flame_tick(
         .is_none_or(|last| now - *last >= interval)
 }
 
-fn flame_hits_target(
-    camera: &Camera,
-    map: &Map,
-    flame_points: &[FlameCollisionPoint],
-    target: Vec2,
-    hit_radius: f32,
-) -> bool {
-    let target_local = camera_local_point(camera, target);
-    if target_local.y < -hit_radius {
-        return false;
-    }
-    let to_target = target - camera.position;
-    let target_dist = to_target.length();
-    if target_dist > 0.01 {
-        let wall_hit = cast_ray(map, camera.position, to_target / target_dist);
-        if wall_hit.wall_id > 0 && wall_hit.distance < target_dist {
-            return false;
-        }
-    }
-
-    let Some(hit_local) = flame_local_hit_point(flame_points, target_local, hit_radius) else {
-        return false;
-    };
-
-    let hit_world = camera_world_point(camera, hit_local);
-    let to_hit = hit_world - camera.position;
-    let dist = to_hit.length();
-    if dist <= 0.01 {
-        return true;
-    }
-    cast_ray(map, camera.position, to_hit / dist).distance > dist - hit_radius
-}
-
-fn flame_local_hit_point(
-    flame_points: &[FlameCollisionPoint],
-    target_local: Vec2,
-    hit_radius: f32,
-) -> Option<Vec2> {
-    let mut best = None;
-    for point in flame_points {
-        retain_closest_hit(&mut best, target_local, point.local, hit_radius);
-    }
-    for points in flame_points.windows(2) {
-        retain_closest_hit(
-            &mut best,
-            target_local,
-            closest_point_on_segment(target_local, points[0].local, points[1].local),
-            hit_radius,
-        );
-    }
-    best.map(|(_, point)| point)
-}
-
-fn retain_closest_hit(best: &mut Option<(f32, Vec2)>, target: Vec2, candidate: Vec2, radius: f32) {
-    let distance = target.distance(candidate);
-    if distance > radius || best.is_some_and(|(current, _)| current <= distance) {
-        return;
-    }
-    *best = Some((distance, candidate));
-}
-
-fn closest_point_on_segment(point: Vec2, a: Vec2, b: Vec2) -> Vec2 {
-    let ab = b - a;
-    let len_sq = ab.length_squared();
-    if len_sq <= f32::EPSILON {
-        return a;
-    }
-    let t = ((point - a).dot(ab) / len_sq).clamp(0.0, 1.0);
-    a + ab * t
-}
+// flame_hits_target and helpers (flame_local_hit_point, retain_closest_hit,
+// closest_point_on_segment) removed — replaced by fps_core::flame_hits_position.
 
 fn tick_one_shot_effects(effects: &mut Vec<OneShotEffect>, dt: f32, config: &FlamethrowerConfig) {
     let max_duration = config.chain_range / config.flame_speed;
@@ -2243,18 +2159,14 @@ mod tests {
         let collision_local = local_flame_offset(collision, &config);
         let (forward, right) = camera_basis(&camera);
         let target = camera.position + forward * collision_local.y + right * collision_local.x;
-        let points = vec![FlameCollisionPoint {
-            local: collision_local,
-        }];
 
         assert!(visual.y < collision.y);
         assert!(local_flame_offset(collision - visual, &config).y > 0.0);
-        assert!(flame_hits_target(
-            &camera,
-            &map,
-            &points,
+        assert!(carcinisation_fps_core::flame_hits_position_default(
+            camera.position,
+            camera.direction(),
             target,
-            config.hit_radius_units()
+            &map,
         ));
     }
 
@@ -2303,20 +2215,8 @@ mod tests {
         assert!((wall_screen_offset.y - expected_wall_y).abs() < 0.01);
     }
 
-    #[test]
-    fn flame_collision_capsules_follow_lateral_curve() {
-        let points = vec![
-            FlameCollisionPoint {
-                local: Vec2::new(0.0, 1.0),
-            },
-            FlameCollisionPoint {
-                local: Vec2::new(0.8, 2.0),
-            },
-        ];
-
-        assert!(flame_local_hit_point(&points, Vec2::new(0.8, 2.0), 0.2).is_some());
-        assert!(flame_local_hit_point(&points, Vec2::new(0.0, 2.0), 0.2).is_none());
-    }
+    // flame_collision_capsules_follow_lateral_curve removed — chain-segment
+    // proximity replaced by fps_core::flame_hits_position line-distance check.
 
     #[test]
     fn flame_points_clamp_to_first_wall() {
@@ -2459,7 +2359,6 @@ mod tests {
 
     #[test]
     fn flame_wall_blocks_damage_behind_it() {
-        let config = FlamethrowerConfig::load();
         let camera = Camera {
             position: Vec2::new(1.5, 1.5),
             angle: 0.0,
@@ -2470,18 +2369,14 @@ mod tests {
             height: 3,
             cells: vec![0; 12],
         };
-        map.cells[map.width + 2] = 1;
-        let points = vec![FlameCollisionPoint {
-            local: Vec2::new(0.0, 0.5),
-        }];
-        let target = Vec2::new(2.05, 1.5);
+        map.cells[map.width + 2] = 1; // wall at (2,1)
+        let target = Vec2::new(2.5, 1.5); // behind wall
 
-        assert!(!flame_hits_target(
-            &camera,
-            &map,
-            &points,
+        assert!(!carcinisation_fps_core::flame_hits_position_default(
+            camera.position,
+            camera.direction(),
             target,
-            config.hit_radius_units()
+            &map,
         ));
     }
 

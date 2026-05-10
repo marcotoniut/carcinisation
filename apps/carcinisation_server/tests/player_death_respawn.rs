@@ -121,7 +121,7 @@ fn lethal_damage_sets_dead() {
     for _ in 0..2000 {
         tick(&mut server);
         if let Some((_, state, _)) = get_player(&mut server, 1)
-            && matches!(state, PlayerNetState::Dead { .. })
+            && matches!(state, PlayerNetState::Dead)
         {
             died = true;
             break;
@@ -149,7 +149,7 @@ fn dead_player_input_ignored() {
 
     let (pos_before, state, _) = get_player(&mut server, 1).unwrap();
     assert!(
-        matches!(state, PlayerNetState::Dead { .. }),
+        matches!(state, PlayerNetState::Dead),
         "player should be dead"
     );
 
@@ -214,7 +214,7 @@ fn enemies_ignore_dead_player() {
     }
 
     let (_, state, _) = get_player(&mut server, 1).unwrap();
-    assert!(matches!(state, PlayerNetState::Dead { .. }));
+    assert!(matches!(state, PlayerNetState::Dead));
 
     // Force enemy into attacking and wait for projectile spawn.
     force_enemy_attacking(&mut server);
@@ -259,7 +259,7 @@ fn alive_player_remains_targetable_when_other_dies() {
     }
 
     let (_, state1, _) = get_player(&mut server, 1).unwrap();
-    assert!(matches!(state1, PlayerNetState::Dead { .. }));
+    assert!(matches!(state1, PlayerNetState::Dead));
     let (_, state2, _) = get_player(&mut server, 2).unwrap();
     assert!(matches!(state2, PlayerNetState::Alive));
 
@@ -301,7 +301,7 @@ fn death_clears_burn_contact_cooldown() {
 
     let (_, state, _) = get_player(&mut server, 1).unwrap();
     assert!(
-        matches!(state, PlayerNetState::Dead { .. }),
+        matches!(state, PlayerNetState::Dead),
         "player should be dead"
     );
     assert!(

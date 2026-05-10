@@ -126,9 +126,6 @@ pub fn tick_enemy_attacks(
     let dt = fixed_time.delta_secs();
     let mut melee_hits: Vec<MeleeHit> = Vec::new();
 
-    // Find nearest alive player for targeting (shared across all enemies).
-    let target_pos = nearest_alive_player_pos(&players);
-
     for (enemy_entity, mut enemy, health, mut mosquiton_sim, sim_config) in &mut enemies {
         if enemy.enemy_type != NetEnemyType::Mosquiton {
             continue;
@@ -144,7 +141,8 @@ pub fn tick_enemy_attacks(
             continue;
         }
 
-        let Some(player_pos) = target_pos else {
+        // Find nearest alive player per-enemy (not shared).
+        let Some(player_pos) = nearest_alive_player_pos(enemy.position, &players) else {
             continue;
         };
 
@@ -318,12 +316,13 @@ fn sim_state_to_net(state: &MosquitonSimState) -> NetEnemyState {
     }
 }
 
-fn nearest_alive_player_pos(players: &Query<&NetPlayer>) -> Option<Vec2> {
+fn nearest_alive_player_pos(enemy_pos: Vec2, players: &Query<&NetPlayer>) -> Option<Vec2> {
     players
         .iter()
         .filter(|p| matches!(p.state, PlayerNetState::Alive))
-        .map(|p| p.position)
-        .next()
+        .map(|p| (p.position, p.position.distance_squared(enemy_pos)))
+        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(pos, _)| pos)
 }
 
 fn nearest_alive_player_id(position: Vec2, players: &Query<&NetPlayer>) -> Option<PlayerId> {

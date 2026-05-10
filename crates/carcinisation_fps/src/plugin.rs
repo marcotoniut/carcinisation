@@ -22,7 +22,6 @@ use crate::{
         billboards_from_projectiles, make_death_sprite, make_enemy_sprite, make_pillar_sprite,
     },
     camera::Camera,
-    collision::try_move,
     data::{EntityKind, MapData},
     enemy::{
         Enemy, EnemyState, Projectile, ProjectileImpact, ProjectileTickResult,
@@ -452,40 +451,33 @@ pub fn resolve_turn_chord(input: &TurnChordInput, state: &mut TurnChordState) ->
 /// Start a snap turn animation for the given kind.
 ///
 /// Quick turn = 180° left. Side turns = 90° left/right.
-/// All share the same angular velocity (π / `quick_turn_duration_secs`).
+/// Delegates to `fps_core::snap_turn_params` for the shared math.
 pub fn request_snap_turn(state: &mut QuickTurnState, kind: TurnKind, config: &Config) {
     if state.remaining_radians > 0.0 {
         return;
     }
-    let angular_speed = std::f32::consts::PI / config.quick_turn_duration_secs;
-    match kind {
-        TurnKind::QuickTurn => {
-            state.remaining_radians = std::f32::consts::PI;
-            state.speed = angular_speed;
-            state.direction = 1.0;
-        }
-        TurnKind::SideTurnLeft => {
-            state.remaining_radians = std::f32::consts::FRAC_PI_2;
-            state.speed = angular_speed;
-            state.direction = 1.0;
-        }
-        TurnKind::SideTurnRight => {
-            state.remaining_radians = std::f32::consts::FRAC_PI_2;
-            state.speed = angular_speed;
-            state.direction = -1.0;
-        }
-    }
+    let core_kind = match kind {
+        TurnKind::QuickTurn => carcinisation_fps_core::SnapTurnKind::QuickTurn,
+        TurnKind::SideTurnLeft => carcinisation_fps_core::SnapTurnKind::Left,
+        TurnKind::SideTurnRight => carcinisation_fps_core::SnapTurnKind::Right,
+    };
+    let params =
+        carcinisation_fps_core::snap_turn_params(core_kind, config.quick_turn_duration_secs);
+    state.remaining_radians = params.remaining_radians;
+    state.speed = params.speed;
+    state.direction = params.direction;
 }
 
 /// Advance the active quick-turn animation by `dt` seconds.
+/// Delegates to `fps_core::tick_snap_turn` for the shared math.
 pub fn tick_quick_turn(camera: &mut Camera, state: &mut QuickTurnState, dt: f32) {
-    if state.remaining_radians <= 0.0 {
-        return;
-    }
-
-    let step = (state.speed * dt).min(state.remaining_radians).max(0.0);
-    camera.angle = (camera.angle + step * state.direction).rem_euclid(std::f32::consts::TAU);
-    state.remaining_radians -= step;
+    carcinisation_fps_core::tick_snap_turn(
+        &mut camera.angle,
+        &mut state.remaining_radians,
+        state.speed,
+        state.direction,
+        dt,
+    );
 }
 
 /// Start the death view: rotate toward the source that killed the player.
@@ -797,12 +789,6 @@ fn build_map_entity_setup(
     }
 
     setup
-}
-
-/// Movement helper for external input systems. Call this with the computed
-/// move delta to update the camera position with wall collision.
-pub fn move_camera(camera: &mut Camera, delta: Vec2, map: &Map) {
-    try_move(&mut camera.position, delta, 0.2, map);
 }
 
 fn apply_quick_turn_animation(
@@ -1276,6 +1262,7 @@ fn update_fp_view(
     time: Res<Time>,
     enemy_q: Query<(&Enemy, &EnemySpriteIndex)>,
     mosquiton_q: Query<&Mosquiton>,
+    mut zbuffer: Local<Vec<f32>>,
 ) {
     let mut image = CxImage::empty(UVec2::new(
         view.config.screen_width,
@@ -1340,6 +1327,7 @@ fn update_fp_view(
         &all_bbs,
         &wall_effects,
         Some(&view.sky),
+        &mut zbuffer,
     );
 
     apply_framebuffer_offset(&mut image, view.camera_shake.current_offset);

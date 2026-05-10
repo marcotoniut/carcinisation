@@ -208,6 +208,111 @@ fn projectile_moves_over_ticks() {
     // If None, projectile already hit something — also valid behavior.
 }
 
+/// Each enemy independently targets the nearest alive player (R1 regression).
+///
+/// Places two players and two enemies. Each enemy should face toward its
+/// nearest player, not an arbitrary player.
+#[test]
+fn each_enemy_targets_nearest_player() {
+    use carcinisation_fps_core::map::EntitySpawnKind;
+    let port = reserve_port();
+    // Two Mosquitons: one near (2.5,1.5), one near (5.5,1.5). Speed 0 so they don't move.
+    let entities = vec![
+        EntitySpawnData {
+            kind: EntitySpawnKind::Mosquiton {
+                health: 100,
+                speed: 0.0,
+            },
+            x: 2.5,
+            y: 1.5,
+        },
+        EntitySpawnData {
+            kind: EntitySpawnKind::Mosquiton {
+                health: 100,
+                speed: 0.0,
+            },
+            x: 5.5,
+            y: 1.5,
+        },
+    ];
+    let mut server = build_server_app(ServerPlugin {
+        port,
+        map: test_map(),
+        entities,
+        player_starts: vec![],
+    });
+    server.update();
+
+    // Player 1 at (1.5, 1.5) — nearest to enemy at (2.5, 1.5).
+    server.world_mut().spawn((
+        NetPlayer {
+            player_id: carcinisation_net::PlayerId(1),
+            position: bevy::math::Vec2::new(1.5, 1.5),
+            angle: 0.0,
+            current_attack: carcinisation_net::NetAttackId::None,
+            state: carcinisation_net::PlayerNetState::Alive,
+        },
+        NetHealth {
+            current: 100.0,
+            max: 100.0,
+        },
+        Replicated,
+    ));
+
+    // Player 2 at (6.5, 1.5) — nearest to enemy at (5.5, 1.5).
+    server.world_mut().spawn((
+        NetPlayer {
+            player_id: carcinisation_net::PlayerId(2),
+            position: bevy::math::Vec2::new(6.5, 1.5),
+            angle: 0.0,
+            current_attack: carcinisation_net::NetAttackId::None,
+            state: carcinisation_net::PlayerNetState::Alive,
+        },
+        NetHealth {
+            current: 100.0,
+            max: 100.0,
+        },
+        Replicated,
+    ));
+
+    // Force enemies into attacking range.
+    force_enemy_attacking(&mut server);
+
+    // Tick enough for projectiles to spawn.
+    for _ in 0..2000 {
+        tick_server(&mut server);
+        if projectile_count(&mut server) >= 2 {
+            break;
+        }
+    }
+
+    // Both enemies should have fired. Verify each projectile's direction
+    // points toward the nearer player, not the same player.
+    let projs: Vec<_> = server
+        .world_mut()
+        .query::<&NetProjectile>()
+        .iter(server.world())
+        .map(|p| (p.position, p.angle))
+        .collect();
+
+    assert!(
+        projs.len() >= 2,
+        "both enemies should have fired, got {} projectiles",
+        projs.len()
+    );
+
+    // Projectile from enemy at (2.5,1.5) should aim left (toward player 1 at 1.5,1.5).
+    // Projectile from enemy at (5.5,1.5) should aim right (toward player 2 at 6.5,1.5).
+    // Check that projectile angles are NOT all the same direction (the pre-fix bug).
+    let angles: Vec<f32> = projs.iter().map(|(_, a)| *a).collect();
+    let all_same_sign =
+        angles.iter().all(|a| a.cos() > 0.0) || angles.iter().all(|a| a.cos() < 0.0);
+    assert!(
+        !all_same_sign,
+        "enemies should target different players: angles={angles:?} (all facing same direction is the R1 bug)"
+    );
+}
+
 /// Projectile despawns on wall hit (TTL expiry or wall collision).
 #[test]
 fn projectile_despawns_eventually() {

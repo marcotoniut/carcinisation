@@ -19,5 +19,5 @@ pub use enemy_attack::{
 pub use input::{
     PlayerInputTracker, PlayerIntentBuffer, ServerQuickTurn, ServerTurnConfig, SnapTurnKind,
 };
-pub use player_lifecycle::tick_player_lifecycle;
+pub use player_lifecycle::{RespawnTimer, tick_player_lifecycle};
 pub use projectile::{ProjectileSet, ProjectileTtl, tick_projectiles_server};

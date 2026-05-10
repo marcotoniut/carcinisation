@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::camera::Camera;
+use carcinisation_fps_core::combat::flame_hits_position;
 use carcinisation_fps_core::config::{
     BURN_CONTACT_DAMAGE, BURN_CONTACT_RADIUS, BURN_CONTACT_TICK_SECS, ENEMY_DEATH_ANIM_SECS,
     ENEMY_DESPAWN_DELAY, FIRE_COOLDOWN_SECS, FLAME_DPS, FLAME_HIT_HALF_WIDTH, FLAME_RANGE,
@@ -179,6 +180,17 @@ pub fn process_combat(
     // Weapon switch and snap turns are now handled in apply_buffered_movement (MovementSet)
     // via take_actions(). Combat only reads fire_held from the intent buffer.
 
+    // Enemy snapshot Vecs — declared once so `clear()` + `push()` reuses
+    // capacity instead of allocating per player.
+    //
+    // IMPORTANT: the rebuild MUST stay inside the per-player hitscan branch.
+    // `apply_damage` mutates `NetHealth`/`NetEnemyState` on the live query,
+    // so an earlier player's kill must be visible to later players in the
+    // same tick. A shared pre-loop snapshot would let later players waste
+    // shots on already-dead enemies.
+    let mut enemy_entities: Vec<Entity> = Vec::new();
+    let mut enemy_list: Vec<Enemy> = Vec::new();
+
     // Combat processing per player (alive only).
     for player in &players {
         if !matches!(player.state, carcinisation_net::PlayerNetState::Alive) {
@@ -224,9 +236,9 @@ pub fn process_combat(
                     },
                 });
 
-                // Build enemy list for hitscan.
-                let mut enemy_entities: Vec<Entity> = Vec::new();
-                let mut enemy_list: Vec<Enemy> = Vec::new();
+                // Rebuild enemy list with fresh health/state (Vecs reuse capacity).
+                enemy_entities.clear();
+                enemy_list.clear();
                 for (entity, net_enemy, net_health) in enemies.iter() {
                     if matches!(
                         net_enemy.state,
@@ -348,44 +360,28 @@ pub fn process_combat(
                     damage_this_tick
                 );
 
-                // Line-distance collision: check perpendicular distance from the
-                // flame line, matching the SP chain-segment proximity model.
-                let hit_half_w_sq = FLAME_HIT_HALF_WIDTH * FLAME_HIT_HALF_WIDTH;
-
-                // Collect hit entities first (avoids borrow conflict with apply_damage).
+                // Collect hit entities using shared fps_core flame hit detection.
                 let hit_entities: Vec<Entity> = enemies
                     .iter()
-                    .filter_map(|(entity, net_enemy, net_health)| {
+                    .filter_map(|(entity, net_enemy, _net_health)| {
                         if matches!(
                             net_enemy.state,
                             NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
                         ) {
                             return None;
                         }
-                        let to_enemy = net_enemy.position - player.position;
-                        let along = to_enemy.dot(dir);
-                        let in_range = (0.01..=FLAME_RANGE).contains(&along);
-                        let perp = to_enemy - dir * along;
-                        let perp_sq = perp.length_squared();
-                        let in_line = perp_sq <= hit_half_w_sq;
-                        let to_dir = if to_enemy.length() > 0.001 {
-                            to_enemy.normalize()
+                        if flame_hits_position(
+                            player.position,
+                            dir,
+                            net_enemy.position,
+                            FLAME_RANGE,
+                            FLAME_HIT_HALF_WIDTH,
+                            &server_map.0,
+                        ) {
+                            Some(entity)
                         } else {
-                            Vec2::ZERO
-                        };
-                        let ray_hit = cast_ray(&server_map.0, player.position, to_dir);
-                        let has_los = ray_hit.distance >= to_enemy.length();
-
-                        debug!(
-                            "  enemy obj={:?} pos={} hp={:.0} along={:.2} perp={:.2} in_range={} in_line={} los_dist={:.2} has_los={}",
-                            net_enemy.object_id, net_enemy.position, net_health.current,
-                            along, perp_sq.sqrt(), in_range, in_line, ray_hit.distance, has_los
-                        );
-
-                        if !in_range || !in_line || !has_los {
-                            return None;
+                            None
                         }
-                        Some(entity)
                     })
                     .collect();
 

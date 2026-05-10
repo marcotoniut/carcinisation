@@ -3,7 +3,7 @@
 //! Runs in `CombatSet` (after projectile damage has been applied).
 //! - When `NetHealth.current <= 0` and player is `Alive`: transition to `Dead`,
 //!   send `DeathEffect`, reset position.
-//! - When `Dead { respawn_timer }` ticks down to 0: respawn at a spawn point
+//! - When `RespawnTimer` ticks down to 0: respawn at a spawn point
 //!   with full health.
 
 use crate::MapPlayerStarts;
@@ -17,11 +17,21 @@ use carcinisation_net::{
     DeathEffect, FlameActive, NetHealth, NetPlayer, NetworkObjectId, PlayerNetState,
 };
 
+/// Server-only respawn countdown. Not replicated — avoids 30 Hz replication
+/// churn during the death period.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct RespawnTimer(pub f32);
+
 /// Check for player death and handle respawn timers.
 #[allow(clippy::too_many_arguments)]
 pub fn tick_player_lifecycle(
     mut commands: Commands,
-    mut players: Query<(&mut NetPlayer, &mut NetHealth)>,
+    mut players: Query<(
+        Entity,
+        &mut NetPlayer,
+        &mut NetHealth,
+        Option<&mut RespawnTimer>,
+    )>,
     player_starts: Res<MapPlayerStarts>,
     fixed_time: Res<Time<Fixed>>,
     mut respawn_idx: Local<usize>,
@@ -32,7 +42,7 @@ pub fn tick_player_lifecycle(
 ) {
     let dt = fixed_time.delta_secs();
 
-    for (mut player, mut health) in &mut players {
+    for (entity, mut player, mut health, respawn_timer) in &mut players {
         match &player.state {
             PlayerNetState::Alive => {
                 if health.current > 0.0 {
@@ -40,9 +50,10 @@ pub fn tick_player_lifecycle(
                 }
 
                 // Player just died.
-                player.state = PlayerNetState::Dead {
-                    respawn_timer: PLAYER_RESPAWN_DELAY_SECS,
-                };
+                player.state = PlayerNetState::Dead;
+                commands
+                    .entity(entity)
+                    .insert(RespawnTimer(PLAYER_RESPAWN_DELAY_SECS));
 
                 // Clear per-player combat state so respawn starts clean.
                 cooldowns.remove_player(&player.player_id);
@@ -77,16 +88,17 @@ pub fn tick_player_lifecycle(
                     player.player_id
                 );
             }
-            PlayerNetState::Dead { respawn_timer } => {
-                let new_timer = respawn_timer - dt;
-                if new_timer > 0.0 {
-                    player.state = PlayerNetState::Dead {
-                        respawn_timer: new_timer,
-                    };
+            PlayerNetState::Dead => {
+                let Some(mut timer) = respawn_timer else {
+                    continue;
+                };
+                timer.0 -= dt;
+                if timer.0 > 0.0 {
                     continue;
                 }
 
                 // Respawn.
+                commands.entity(entity).remove::<RespawnTimer>();
                 let spawn = player_starts.0[*respawn_idx % player_starts.0.len()];
                 *respawn_idx += 1;
 

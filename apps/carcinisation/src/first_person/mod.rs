@@ -504,7 +504,7 @@ fn sync_player_lifecycle_state(
                 *camera_shake = CameraShakeState::default();
             }
         }
-        carcinisation_net::PlayerNetState::Dead { .. } => {
+        carcinisation_net::PlayerNetState::Dead => {
             if !player_dead.0 {
                 // Just died — stop camera shake so it doesn't fight the death view.
                 *camera_shake = CameraShakeState::default();
