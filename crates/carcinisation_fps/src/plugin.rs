@@ -84,8 +84,6 @@ pub struct Config {
     pub camera_shake_decay_rate: f32,
     /// Intensity below which camera shake snaps to zero.
     pub camera_shake_threshold: f32,
-    /// Extra billboards to render (e.g., networked player sprites).
-    pub extra_billboards: Vec<Billboard>,
     /// Who owns FPS combat simulation for enemies.
     pub authority_mode: FpsAuthorityMode,
 }
@@ -133,11 +131,18 @@ impl Default for Config {
             camera_shake_base_intensity: 3.0,
             camera_shake_decay_rate: 12.0,
             camera_shake_threshold: 0.3,
-            extra_billboards: Vec::new(),
             authority_mode: FpsAuthorityMode::LocalAuthority,
         }
     }
 }
+
+/// Per-frame billboard scratch buffer for networked entities.
+///
+/// Populated by the multiplayer client each frame, consumed by the renderer.
+/// Separated from `Config` so serialization/inspection of config doesn't
+/// include transient per-frame state.
+#[derive(Resource, Default)]
+pub struct ExtraBillboards(pub Vec<Billboard>);
 
 // --- Resources ---
 
@@ -213,6 +218,7 @@ struct ViewResources<'w> {
     palette: Res<'w, PaletteRes>,
     sky: Res<'w, Sky>,
     config: Res<'w, Config>,
+    extra_bbs: Res<'w, ExtraBillboards>,
     health: Res<'w, PlayerHealth>,
     dead: Res<'w, PlayerDead>,
     death_view: Res<'w, DeathViewState>,
@@ -605,6 +611,7 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
         app.register_type::<AttackLoadout>();
         app.register_type::<PlayerHealth>();
         app.register_type::<PlayerDead>();
+        app.init_resource::<ExtraBillboards>();
         app.init_resource::<ShootRequest>();
         app.init_resource::<AttackInput>();
         app.init_resource::<AttackLoadout>();
@@ -1302,7 +1309,7 @@ fn update_fp_view(
         .0
         .iter()
         .cloned()
-        .chain(view.config.extra_billboards.iter().cloned())
+        .chain(view.extra_bbs.0.iter().cloned())
         .chain(corpse_flame_bbs)
         .chain(enemy_bbs)
         .chain(mosquiton_bbs)

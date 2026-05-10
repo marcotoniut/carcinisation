@@ -216,7 +216,7 @@ fn handle_damage_effect(
     let is_local = local_id.0.is_some_and(|pid| effect.target_id.0 == pid.0);
     if is_local {
         request_camera_shake(&mut camera_shake, &config);
-        health.0 = effect.remaining_health as u32;
+        health.0 = effect.remaining_health.ceil() as u32;
     }
 
     // Trigger/restart damage flicker for enemies (not players).
@@ -526,7 +526,7 @@ fn sync_camera_from_net_player(
     net_enemies: Query<(&NetEnemy, Option<&NetHealth>)>,
     net_projectiles: Query<&NetProjectile>,
     mut camera_res: ResMut<CameraRes>,
-    mut fps_config: ResMut<Config>,
+    mut extra_bbs: ResMut<carcinisation_fps::plugin::ExtraBillboards>,
     local_player_id: Res<LocalPlayerId>,
     mut remote_flames: ResMut<RemoteFlameStates>,
     map_res: Option<Res<MapRes>>,
@@ -551,14 +551,14 @@ fn sync_camera_from_net_player(
     camera_res.0.position = local_np.position;
     camera_res.0.angle = local_np.angle;
 
-    fps_config.extra_billboards.clear();
+    extra_bbs.0.clear();
     let elapsed = time.elapsed_secs();
     for (_entity, np) in net_players.iter() {
         if np.player_id == my_id {
             continue;
         }
         let color_idx = (np.player_id.0.wrapping_sub(1) % 4) as u8 + 1;
-        fps_config.extra_billboards.push(Billboard {
+        extra_bbs.0.push(Billboard {
             position: np.position,
             height: 0.0,
             world_height: 1.5,
@@ -570,7 +570,7 @@ fn sync_camera_from_net_player(
             && matches!(np.current_attack, NetAttackId::Projectile);
         if is_flaming {
             push_remote_flame_billboards(
-                &mut fps_config.extra_billboards,
+                &mut extra_bbs.0,
                 np.position,
                 np.angle,
                 elapsed,
@@ -593,7 +593,7 @@ fn sync_camera_from_net_player(
             .0
             .get(&enemy.object_id)
             .is_some_and(|f| f.showing_invert());
-        fps_config.extra_billboards.push(net_enemy_billboard(
+        extra_bbs.0.push(net_enemy_billboard(
             enemy,
             elapsed,
             mosquiton_sprites.as_deref(),
@@ -609,7 +609,7 @@ fn sync_camera_from_net_player(
         {
             let corpse_sprite = sprites.0.alive_sprite_at(0.0);
             push_net_burn_flames(
-                &mut fps_config.extra_billboards,
+                &mut extra_bbs.0,
                 enemy.position,
                 enemy.object_id.0,
                 elapsed,
@@ -622,14 +622,15 @@ fn sync_camera_from_net_player(
     }
 
     // Projectile billboards (extrapolated forward by one frame for smoothness).
-    let frame_dt = time.delta_secs();
+    // Clamp dt to 50ms so low-FPS spikes or browser stalls don't cause large visual jumps.
+    let frame_dt = time.delta_secs().min(0.05);
     for proj in net_projectiles.iter() {
         let dir = Vec2::new(proj.angle.cos(), proj.angle.sin());
         let extrapolated = proj.position + dir * PROJECTILE_VISUAL_SPEED * frame_dt;
         let sprite = blood_shot_sprites
             .as_ref()
             .map_or_else(|| make_blood_shot_sprite(8, 3), |bs| bs.0.hover.clone());
-        fps_config.extra_billboards.push(Billboard {
+        extra_bbs.0.push(Billboard {
             position: extrapolated,
             height: 0.0,
             world_height: 0.3,
@@ -654,7 +655,7 @@ fn sync_camera_from_net_player(
                 (s, 0.36)
             }
         };
-        fps_config.extra_billboards.push(Billboard {
+        extra_bbs.0.push(Billboard {
             position: impact.position,
             height: 0.15,
             world_height,
@@ -666,7 +667,7 @@ fn sync_camera_from_net_player(
     if !sync_locals.has_set_camera || frame - sync_locals.last_log_frame > 120 {
         sync_locals.last_log_frame = frame;
         let total = net_players.iter().count();
-        let remote_count = fps_config.extra_billboards.len();
+        let remote_count = extra_bbs.0.len();
         info!(
             "[NET] local={:?} entity={:?} pos={:?} angle={:.2} total_players={} remote_billboards={}",
             my_id, local_entity, local_np.position, local_np.angle, total, remote_count
@@ -948,6 +949,7 @@ mod tests {
     use carcinisation_net::{NetworkObjectId, PlayerNetState};
 
     fn init_sync_test_app(app: &mut App) {
+        app.init_resource::<carcinisation_fps::plugin::ExtraBillboards>();
         app.init_resource::<EnemyAttackOverrides>();
         app.init_resource::<EnemyDamageFlickers>();
         app.init_resource::<HitImpacts>();
@@ -1001,11 +1003,13 @@ mod tests {
 
         app.update();
 
-        let config = app.world().resource::<Config>();
+        let extra_bbs = app
+            .world()
+            .resource::<carcinisation_fps::plugin::ExtraBillboards>();
         // Both alive and dead enemies get billboards (dead = death pose).
-        assert_eq!(config.extra_billboards.len(), 2);
-        assert_eq!(config.extra_billboards[0].position, Vec2::new(4.0, 5.0));
-        assert_eq!(config.extra_billboards[0].world_height, 0.9);
+        assert_eq!(extra_bbs.0.len(), 2);
+        assert_eq!(extra_bbs.0[0].position, Vec2::new(4.0, 5.0));
+        assert_eq!(extra_bbs.0[0].world_height, 0.9);
 
         let camera = app.world().resource::<CameraRes>();
         assert_eq!(camera.0.position, Vec2::new(2.0, 3.0));
@@ -1056,14 +1060,13 @@ mod tests {
             .alive_sprite_at(elapsed_secs)
             .data()
             .to_vec();
-        let config = app.world().resource::<Config>();
-        assert_eq!(config.extra_billboards.len(), 1);
-        assert_eq!(
-            config.extra_billboards[0].sprite.data(),
-            expected.as_slice()
-        );
+        let extra_bbs = app
+            .world()
+            .resource::<carcinisation_fps::plugin::ExtraBillboards>();
+        assert_eq!(extra_bbs.0.len(), 1);
+        assert_eq!(extra_bbs.0[0].sprite.data(), expected.as_slice());
         assert_ne!(
-            config.extra_billboards[0].sprite.data(),
+            extra_bbs.0[0].sprite.data(),
             make_mosquiton_placeholder_sprite(32, 2).data()
         );
     }
