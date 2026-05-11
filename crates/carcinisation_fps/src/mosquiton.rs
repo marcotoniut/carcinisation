@@ -4,6 +4,8 @@
 //! are candidates for extraction into `carcinisation_fps_core`. Rendering-specific
 //! code (sprite loading, billboard frames, composed atlas parsing) must stay here.
 
+use std::sync::Arc;
+
 use asset_pipeline::composed_ron::{CompactComposedAtlas, CompactFrame, CompactPose};
 use bevy::prelude::Component;
 use bevy_math::Vec2;
@@ -387,17 +389,20 @@ const BLOOD_SHOT_DESTROY_REGION: &str = "destroy";
 /// One rendered FP Mosquiton billboard frame.
 #[derive(Clone, Debug)]
 pub struct MosquitonBillboardFrame {
-    pub sprite: CxImage,
+    pub sprite: Arc<CxImage>,
     pub duration: f32,
 }
 
 /// Palette-indexed FP Mosquiton billboard sprites resolved from composed output.
+///
+/// Sprites are `Arc`-wrapped so billboard construction can share them
+/// via `Arc::clone()` instead of deep-copying pixel data.
 #[derive(Clone, Debug)]
 pub struct MosquitonBillboardSprites {
     pub alive: Vec<MosquitonBillboardFrame>,
     pub melee: Vec<MosquitonBillboardFrame>,
     pub shoot: Vec<MosquitonBillboardFrame>,
-    pub death: CxImage,
+    pub death: Arc<CxImage>,
     /// Elapsed time from shoot animation start to the `blood_shot` projectile cue.
     /// Computed from the composed atlas event data at load time.
     pub shoot_cue_elapsed_secs: f32,
@@ -405,19 +410,19 @@ pub struct MosquitonBillboardSprites {
 
 impl MosquitonBillboardSprites {
     #[must_use]
-    pub fn alive_sprite_at(&self, elapsed_secs: f32) -> &CxImage {
+    pub fn alive_sprite_at(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         animation_sprite_at(&self.alive, elapsed_secs)
     }
 
     #[must_use]
-    pub fn melee_sprite_at(&self, elapsed_secs: f32) -> &CxImage {
+    pub fn melee_sprite_at(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         animation_sprite_at_clamped(&self.melee, elapsed_secs)
     }
 
     /// Sample the ranged attack (`shoot_fly`) animation. Falls back to alive
     /// sprite if shoot frames are empty.
     #[must_use]
-    pub fn shoot_sprite_at(&self, elapsed_secs: f32) -> &CxImage {
+    pub fn shoot_sprite_at(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         if self.shoot.is_empty() {
             return self.alive_sprite_at(elapsed_secs);
         }
@@ -438,16 +443,19 @@ impl MosquitonBillboardSprites {
 }
 
 /// Palette-indexed FP blood-shot sprites resolved from the ORS attack atlas.
+///
+/// Sprites are `Arc`-wrapped so billboard construction can share them
+/// via `Arc::clone()` instead of deep-copying pixel data.
 #[derive(Clone, Debug)]
 pub struct BloodShotBillboardSprites {
-    pub hover: CxImage,
-    pub hit: CxImage,
+    pub hover: Arc<CxImage>,
+    pub hit: Arc<CxImage>,
     pub destroy: Vec<MosquitonBillboardFrame>,
 }
 
 impl BloodShotBillboardSprites {
     #[must_use]
-    pub fn destroy_sprite_at(&self, elapsed_secs: f32) -> &CxImage {
+    pub fn destroy_sprite_at(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         animation_sprite_at_clamped(&self.destroy, elapsed_secs)
     }
 }
@@ -458,7 +466,7 @@ fn animation_total_duration(frames: &[MosquitonBillboardFrame]) -> f32 {
 }
 
 /// Sample a looping animation at the given elapsed time.
-fn animation_sprite_at(frames: &[MosquitonBillboardFrame], elapsed_secs: f32) -> &CxImage {
+fn animation_sprite_at(frames: &[MosquitonBillboardFrame], elapsed_secs: f32) -> &Arc<CxImage> {
     debug_assert!(
         !frames.is_empty(),
         "animation_sprite_at requires non-empty frames"
@@ -483,7 +491,10 @@ fn animation_sprite_at(frames: &[MosquitonBillboardFrame], elapsed_secs: f32) ->
 }
 
 /// Sample a one-shot animation, clamping to the last frame when finished.
-fn animation_sprite_at_clamped(frames: &[MosquitonBillboardFrame], elapsed_secs: f32) -> &CxImage {
+fn animation_sprite_at_clamped(
+    frames: &[MosquitonBillboardFrame],
+    elapsed_secs: f32,
+) -> &Arc<CxImage> {
     debug_assert!(
         !frames.is_empty(),
         "animation_sprite_at_clamped requires non-empty frames"
@@ -566,13 +577,13 @@ pub fn make_mosquiton_billboard_sprites() -> Result<MosquitonBillboardSprites, S
         atlas_width,
         MOSQUITON_IDLE_FLY_TAG,
     )?;
-    let death = compose_first_animation_frame(
+    let death = Arc::new(compose_first_animation_frame(
         &composed,
         &atlas,
         &atlas_pixels,
         atlas_width,
         MOSQUITON_DEATH_FLY_TAG,
-    )?;
+    )?);
     let melee = compose_animation_frames_full(
         &composed,
         &atlas,
@@ -635,8 +646,10 @@ fn find_shoot_cue_elapsed(composed: &CompactComposedAtlas) -> f32 {
 /// Returns an error if embedded generated assets are malformed.
 pub fn make_blood_shot_billboard_sprites() -> Result<BloodShotBillboardSprites, String> {
     Ok(BloodShotBillboardSprites {
-        hover: make_blood_shot_region_first_sprite(BLOOD_SHOT_HOVER_REGION)?,
-        hit: make_blood_shot_region_first_sprite(BLOOD_SHOT_HIT_REGION)?,
+        hover: Arc::new(make_blood_shot_region_first_sprite(
+            BLOOD_SHOT_HOVER_REGION,
+        )?),
+        hit: Arc::new(make_blood_shot_region_first_sprite(BLOOD_SHOT_HIT_REGION)?),
         destroy: make_blood_shot_region_animation(BLOOD_SHOT_DESTROY_REGION)?,
     })
 }
@@ -692,11 +705,13 @@ fn make_blood_shot_region_animation(
         .copied()
         .map(|rect| {
             Ok(MosquitonBillboardFrame {
-                sprite: extract_atlas_rect(&atlas_pixels, atlas_width, rect)
-                    .and_then(trim_transparent)
-                    .ok_or_else(|| {
-                        format!("blood shot {region_name} frame produced no visible pixels")
-                    })?,
+                sprite: Arc::new(
+                    extract_atlas_rect(&atlas_pixels, atlas_width, rect)
+                        .and_then(trim_transparent)
+                        .ok_or_else(|| {
+                            format!("blood shot {region_name} frame produced no visible pixels")
+                        })?,
+                ),
                 duration: frame_duration,
             })
         })
@@ -814,13 +829,13 @@ fn render_stable_animation_frames(
     Ok(rendered
         .iter()
         .map(|(img, duration)| MosquitonBillboardFrame {
-            sprite: crop_to_rect(
+            sprite: Arc::new(crop_to_rect(
                 img,
                 union_visible.0,
                 union_visible.1,
                 union_visible.2,
                 union_visible.3,
-            ),
+            )),
             duration: *duration,
         })
         .collect())

@@ -8,6 +8,7 @@ use serde::Deserialize;
 use std::{
     collections::HashMap,
     io::{Cursor, Read},
+    sync::Arc,
     time::Duration,
 };
 
@@ -309,12 +310,12 @@ impl GunConfig {
 
 #[derive(Clone, Debug)]
 struct AtlasAnimation {
-    frames: Vec<CxImage>,
+    frames: Vec<Arc<CxImage>>,
     duration_secs: f32,
 }
 
 impl AtlasAnimation {
-    fn frame_loop(&self, elapsed_secs: f32) -> &CxImage {
+    fn frame_loop(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         let len = self.frames.len();
         if len == 1 || self.duration_secs <= f32::EPSILON {
             return &self.frames[0];
@@ -324,7 +325,7 @@ impl AtlasAnimation {
         &self.frames[index]
     }
 
-    fn frame_clamped(&self, elapsed_secs: f32) -> &CxImage {
+    fn frame_clamped(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         let len = self.frames.len();
         if len == 1 || self.duration_secs <= f32::EPSILON {
             return &self.frames[0];
@@ -401,12 +402,12 @@ impl PlayerAttackSprites {
     }
 
     #[must_use]
-    pub fn flame_frame_loop(&self, elapsed_secs: f32) -> &CxImage {
+    pub fn flame_frame_loop(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         self.flame.frame_loop(elapsed_secs)
     }
 
     #[must_use]
-    pub fn flame_wall_hit_frame_loop(&self, elapsed_secs: f32) -> &CxImage {
+    pub fn flame_wall_hit_frame_loop(&self, elapsed_secs: f32) -> &Arc<CxImage> {
         self.flame_wall_hit.frame_loop(elapsed_secs)
     }
 }
@@ -1607,10 +1608,10 @@ fn load_atlas_animation(
         .get(region_index)
         .ok_or_else(|| format!("atlas region index {region_index} missing"))?;
     let (atlas_width, _, atlas_pixels) = decode_pxi(pxi_bytes)?;
-    let frames = region
+    let frames: Vec<Arc<CxImage>> = region
         .frames
         .iter()
-        .map(|rect| extract_atlas_rect(&atlas_pixels, atlas_width, *rect))
+        .map(|rect| extract_atlas_rect(&atlas_pixels, atlas_width, *rect).map(Arc::new))
         .collect::<Option<Vec<_>>>()
         .ok_or_else(|| format!("atlas region {region_name:?} rect exceeds atlas"))?;
     let duration_secs = descriptor

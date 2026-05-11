@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 use bevy_renet2::netcode::NetcodeClientTransport;
 use bevy_replicon::prelude::*;
@@ -518,6 +520,9 @@ fn sync_player_lifecycle_state(
 struct SyncLocals {
     has_set_camera: bool,
     last_log_frame: u32,
+    /// Cached per-color player placeholder sprites (indices 1..=4).
+    /// Avoids regenerating a 32x32 procedural sprite per remote player per frame.
+    player_sprites: Option<[Arc<carapace::image::CxImage>; 4]>,
 }
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
@@ -553,16 +558,19 @@ fn sync_camera_from_net_player(
 
     extra_bbs.0.clear();
     let elapsed = time.elapsed_secs();
+    let player_sprites = sync_locals.player_sprites.get_or_insert_with(|| {
+        std::array::from_fn(|i| Arc::new(make_enemy_sprite(32, i as u8 + 1)))
+    });
     for (_entity, np) in net_players.iter() {
         if np.player_id == my_id {
             continue;
         }
-        let color_idx = (np.player_id.0.wrapping_sub(1) % 4) as u8 + 1;
+        let color_idx = (np.player_id.0.wrapping_sub(1) % 4) as usize;
         extra_bbs.0.push(Billboard {
             position: np.position,
             height: 0.0,
             world_height: 1.5,
-            sprite: make_enemy_sprite(32, color_idx),
+            sprite: Arc::clone(&player_sprites[color_idx]),
         });
 
         // Remote flame arc billboards.
@@ -627,9 +635,10 @@ fn sync_camera_from_net_player(
     for proj in net_projectiles.iter() {
         let dir = Vec2::new(proj.angle.cos(), proj.angle.sin());
         let extrapolated = proj.position + dir * PROJECTILE_VISUAL_SPEED * frame_dt;
-        let sprite = blood_shot_sprites
-            .as_ref()
-            .map_or_else(|| make_blood_shot_sprite(8, 3), |bs| bs.0.hover.clone());
+        let sprite = blood_shot_sprites.as_ref().map_or_else(
+            || Arc::new(make_blood_shot_sprite(8, 3)),
+            |bs| Arc::clone(&bs.0.hover),
+        );
         extra_bbs.0.push(Billboard {
             position: extrapolated,
             height: 0.0,
@@ -642,15 +651,16 @@ fn sync_camera_from_net_player(
     for impact in &hit_impacts.0 {
         let (sprite, world_height) = match impact.kind {
             HitImpactKind::Hit => {
-                let s = blood_shot_sprites
-                    .as_ref()
-                    .map_or_else(|| make_blood_shot_sprite(8, 3), |bs| bs.0.hit.clone());
+                let s = blood_shot_sprites.as_ref().map_or_else(
+                    || Arc::new(make_blood_shot_sprite(8, 3)),
+                    |bs| Arc::clone(&bs.0.hit),
+                );
                 (s, 0.42)
             }
             HitImpactKind::Destroy => {
                 let s = blood_shot_sprites.as_ref().map_or_else(
-                    || make_blood_shot_sprite(8, 3),
-                    |bs| bs.0.destroy_sprite_at(impact.age).clone(),
+                    || Arc::new(make_blood_shot_sprite(8, 3)),
+                    |bs| Arc::clone(bs.0.destroy_sprite_at(impact.age)),
                 );
                 (s, 0.36)
             }
@@ -698,47 +708,47 @@ fn net_enemy_billboard(
             position: enemy.position,
             height: 0.0,
             world_height: 1.0,
-            sprite: make_enemy_sprite(32, 2),
+            sprite: Arc::new(make_enemy_sprite(32, 2)),
         },
         NetEnemyType::Mosquiton => Billboard {
             position: enemy.position,
             height: 0.0,
             world_height: 0.9,
             sprite: mosquiton_sprites.map_or_else(
-                || make_mosquiton_placeholder_sprite(32, 2),
+                || Arc::new(make_mosquiton_placeholder_sprite(32, 2)),
                 |sprites| {
                     // Dying/Dead: no flicker, no attack override.
                     match enemy.state {
                         NetEnemyState::Dying { burn: false }
                         | NetEnemyState::Dead { burn: false } => {
-                            return sprites.0.death.clone();
+                            return Arc::clone(&sprites.0.death);
                         }
                         NetEnemyState::Dying { burn: true }
                         | NetEnemyState::Dead { burn: true } => {
-                            return carcinisation_fps::billboard::make_charred_sprite(
+                            return Arc::new(carcinisation_fps::billboard::make_charred_sprite(
                                 sprites.0.alive_sprite_at(0.0),
-                            );
+                            ));
                         }
                         _ => {}
                     }
                     // Select base sprite from attack override or idle state.
-                    let base = if let Some(anim) = attack_override {
-                        match anim.kind {
-                            EnemyAttackKind::Melee => {
-                                sprites.0.melee_sprite_at(anim.elapsed).clone()
-                            }
-                            EnemyAttackKind::Ranged => {
-                                sprites.0.shoot_sprite_at(anim.elapsed).clone()
-                            }
+                    if let Some(anim) = attack_override {
+                        let sprite = match anim.kind {
+                            EnemyAttackKind::Melee => sprites.0.melee_sprite_at(anim.elapsed),
+                            EnemyAttackKind::Ranged => sprites.0.shoot_sprite_at(anim.elapsed),
+                        };
+                        if damage_invert {
+                            Arc::new(make_damage_invert_sprite(sprite))
+                        } else {
+                            Arc::clone(sprite)
                         }
                     } else {
-                        sprites.0.alive_sprite_at(elapsed_secs).clone()
-                    };
-                    // Apply damage flash invert if active.
-                    if damage_invert {
-                        make_damage_invert_sprite(&base)
-                    } else {
-                        base
+                        let sprite = sprites.0.alive_sprite_at(elapsed_secs);
+                        if damage_invert {
+                            Arc::new(make_damage_invert_sprite(sprite))
+                        } else {
+                            Arc::clone(sprite)
+                        }
                     }
                 },
             ),
@@ -793,8 +803,8 @@ fn push_net_burn_flames(
         let vertical_units = flame.offset_px.y * px_to_world;
         let phase = elapsed + flame.phase_secs;
         let sprite = attack_sprites.map_or_else(
-            || make_blood_shot_sprite(6, 3),
-            |sprites| sprites.flame_frame_loop(phase).clone(),
+            || Arc::new(make_blood_shot_sprite(6, 3)),
+            |sprites| Arc::clone(sprites.flame_frame_loop(phase)),
         );
         billboards.push(Billboard {
             position: position + behind_dir * 0.04 + right * lateral_units,
@@ -859,8 +869,8 @@ fn push_remote_flame_billboards(
         let jitter = ((i as f32 * 7.31).sin() * JITTER_AMP) * t;
 
         let sprite = attack_sprites.map_or_else(
-            || make_blood_shot_sprite(6, 3),
-            |sprites| sprites.flame_frame_loop(phase).clone(),
+            || Arc::new(make_blood_shot_sprite(6, 3)),
+            |sprites| Arc::clone(sprites.flame_frame_loop(phase)),
         );
         billboards.push(Billboard {
             position: position + dir * dist + right * jitter,
@@ -878,8 +888,8 @@ fn push_remote_flame_billboards(
     if max_dist < full_range {
         let impact_dist = (max_dist - WALL_OFFSET).max(FLAME_START);
         let sprite = attack_sprites.map_or_else(
-            || make_blood_shot_sprite(8, 3),
-            |sprites| sprites.flame_wall_hit_frame_loop(elapsed).clone(),
+            || Arc::new(make_blood_shot_sprite(8, 3)),
+            |sprites| Arc::clone(sprites.flame_wall_hit_frame_loop(elapsed)),
         );
         billboards.push(Billboard {
             position: position + dir * impact_dist,

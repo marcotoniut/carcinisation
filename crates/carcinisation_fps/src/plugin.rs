@@ -762,7 +762,7 @@ fn build_map_entity_setup(
                     position: pos,
                     height: 0.0,
                     world_height: 1.0,
-                    sprite: make_pillar_sprite(*width, *height, *color),
+                    sprite: std::sync::Arc::new(make_pillar_sprite(*width, *height, *color)),
                 });
             }
             EntityKind::Enemy { health, speed, .. }
@@ -1473,10 +1473,10 @@ fn push_burning_corpse_flames(
             position: position + behind_dir * 0.04 + right * lateral_units,
             height: height + vertical_units,
             world_height: base_world_height * 0.35 * flame.scale,
-            sprite: ctx
-                .attack_sprites
-                .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs)
-                .clone(),
+            sprite: std::sync::Arc::clone(
+                ctx.attack_sprites
+                    .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs),
+            ),
         });
     }
 }

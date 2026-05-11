@@ -1,5 +1,7 @@
 //! Billboard sprite projection and rendering.
 
+use std::sync::Arc;
+
 use bevy_math::Vec2;
 use carapace::image::CxImage;
 use carapace::palette::TRANSPARENT_INDEX;
@@ -14,6 +16,10 @@ const FP_DAMAGE_INVERT_MIN_COLOR_INDEX: u8 = 1;
 const FP_DAMAGE_INVERT_MAX_COLOR_INDEX: u8 = 3;
 
 /// A billboard entity in map space.
+///
+/// `sprite` is `Arc`-wrapped so cloning a billboard (e.g. when the renderer
+/// collects all billboard sources into a single `Vec`) is a refcount bump
+/// instead of a deep copy of pixel data.
 #[derive(Clone, Debug)]
 pub struct Billboard {
     /// Position in map-space units.
@@ -23,7 +29,7 @@ pub struct Billboard {
     /// Rendered billboard height, in map-space units.
     pub world_height: f32,
     /// Billboard sprite (palette-indexed, single frame).
-    pub sprite: CxImage,
+    pub sprite: Arc<CxImage>,
 }
 
 /// Projected billboard ready for rendering.
@@ -330,12 +336,12 @@ pub fn make_damage_invert_sprite(sprite: &CxImage) -> CxImage {
     CxImage::new(data, sprite.width())
 }
 
-fn enemy_presentation_sprite(enemy: &Enemy, alive: &CxImage, death: &CxImage) -> CxImage {
+fn enemy_presentation_sprite(enemy: &Enemy, alive: &CxImage, death: &CxImage) -> Arc<CxImage> {
     match enemy.state {
-        EnemyState::Dying { .. } => death.clone(),
-        EnemyState::BurningCorpse { .. } => make_burning_corpse_sprite(alive),
-        _ if enemy.showing_damage_invert() => make_damage_invert_sprite(alive),
-        _ => alive.clone(),
+        EnemyState::BurningCorpse { .. } => Arc::new(make_burning_corpse_sprite(alive)),
+        _ if enemy.showing_damage_invert() => Arc::new(make_damage_invert_sprite(alive)),
+        EnemyState::Dying { .. } => Arc::new(death.clone()),
+        _ => Arc::new(alive.clone()),
     }
 }
 
@@ -404,7 +410,10 @@ pub fn billboards_from_enemies_indexed(
 
 /// Build billboard list from active projectiles.
 #[must_use]
-pub fn billboards_from_projectiles(projectiles: &[Projectile], sprite: &CxImage) -> Vec<Billboard> {
+pub fn billboards_from_projectiles(
+    projectiles: &[Projectile],
+    sprite: &Arc<CxImage>,
+) -> Vec<Billboard> {
     projectiles
         .iter()
         .filter(|p| p.alive)
@@ -412,7 +421,7 @@ pub fn billboards_from_projectiles(projectiles: &[Projectile], sprite: &CxImage)
             position: p.position,
             height: 0.15,
             world_height: 0.3,
-            sprite: sprite.clone(),
+            sprite: Arc::clone(sprite),
         })
         .collect()
 }
@@ -423,12 +432,13 @@ pub fn billboards_from_projectile_impacts(
     impacts: &[ProjectileImpact],
     sprites: &BloodShotBillboardSprites,
 ) -> Vec<Billboard> {
+    let shared_hit = Arc::clone(&sprites.hit);
     impacts
         .iter()
         .map(|impact| {
             let sprite = match impact.kind {
-                ProjectileImpactKind::Hit => sprites.hit.clone(),
-                ProjectileImpactKind::Destroy => sprites.destroy_sprite_at(impact.age).clone(),
+                ProjectileImpactKind::Hit => Arc::clone(&shared_hit),
+                ProjectileImpactKind::Destroy => Arc::clone(sprites.destroy_sprite_at(impact.age)),
             };
             Billboard {
                 position: impact.position,
@@ -455,24 +465,24 @@ pub fn billboard_from_mosquiton(
         height: mosquiton.height,
         world_height: mosquiton.config.billboard_height,
         sprite: match mosquiton.state {
-            MosquitonState::Dying { .. } => sprites.death.clone(),
+            MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
             MosquitonState::BurningCorpse { .. } => {
-                make_burning_corpse_sprite(sprites.alive_sprite_at(0.0))
+                Arc::new(make_burning_corpse_sprite(sprites.alive_sprite_at(0.0)))
             }
             MosquitonState::MeleeAttack { .. } => {
                 let sprite = sprites.melee_sprite_at(mosquiton.animation_time);
                 if mosquiton.showing_damage_invert() {
-                    make_damage_invert_sprite(sprite)
+                    Arc::new(make_damage_invert_sprite(sprite))
                 } else {
-                    sprite.clone()
+                    Arc::clone(sprite)
                 }
             }
             _ => {
                 let sprite = sprites.alive_sprite_at(mosquiton.animation_time);
                 if mosquiton.showing_damage_invert() {
-                    make_damage_invert_sprite(sprite)
+                    Arc::new(make_damage_invert_sprite(sprite))
                 } else {
-                    sprite.clone()
+                    Arc::clone(sprite)
                 }
             }
         },
@@ -492,16 +502,16 @@ pub fn billboards_from_mosquitons(
             height: m.height,
             world_height: m.config.billboard_height,
             sprite: match m.state {
-                MosquitonState::Dying { .. } => sprites.death.clone(),
+                MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
                 MosquitonState::BurningCorpse { .. } => {
-                    make_burning_corpse_sprite(sprites.alive_sprite_at(0.0))
+                    Arc::new(make_burning_corpse_sprite(sprites.alive_sprite_at(0.0)))
                 }
                 MosquitonState::MeleeAttack { .. } => {
                     let sprite = sprites.melee_sprite_at(m.animation_time);
                     if m.showing_damage_invert() {
-                        make_damage_invert_sprite(sprite)
+                        Arc::new(make_damage_invert_sprite(sprite))
                     } else {
-                        sprite.clone()
+                        Arc::clone(sprite)
                     }
                 }
                 _ => {
@@ -511,9 +521,9 @@ pub fn billboards_from_mosquitons(
                         sprites.alive_sprite_at(m.animation_time)
                     };
                     if m.showing_damage_invert() {
-                        make_damage_invert_sprite(sprite)
+                        Arc::new(make_damage_invert_sprite(sprite))
                     } else {
-                        sprite.clone()
+                        Arc::clone(sprite)
                     }
                 }
             },
@@ -533,7 +543,7 @@ mod tests {
             position: Vec2::new(6.0, 4.0), // directly ahead
             height: 0.0,
             world_height: 1.0,
-            sprite: make_pillar_sprite(8, 16, 5),
+            sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
         };
         let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
         // Should be near screen center (x=80).
@@ -552,7 +562,7 @@ mod tests {
             position: Vec2::new(2.0, 4.0), // behind
             height: 0.0,
             world_height: 1.0,
-            sprite: make_pillar_sprite(8, 16, 5),
+            sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
         };
         assert!(project_billboard(&bb, &cam, 160, 144).is_none());
     }
@@ -564,7 +574,7 @@ mod tests {
             position: Vec2::new(10000.0, 4.0),
             height: 0.0,
             world_height: 1.0,
-            sprite: make_pillar_sprite(8, 16, 5),
+            sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
         };
         // At extreme distance, projected size rounds to 0 → filtered out.
         assert!(project_billboard(&bb, &cam, 160, 144).is_none());
@@ -577,13 +587,13 @@ mod tests {
             position: Vec2::new(6.0, 4.0),
             height: 0.0,
             world_height: 1.0,
-            sprite: make_pillar_sprite(8, 16, 5),
+            sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
         };
         let right = Billboard {
             position: Vec2::new(6.0, 3.0), // south = screen-right
             height: 0.0,
             world_height: 1.0,
-            sprite: make_pillar_sprite(8, 16, 5),
+            sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
         };
         let pc = project_billboard(&center, &cam, 160, 144).unwrap();
         let pr = project_billboard(&right, &cam, 160, 144).unwrap();
