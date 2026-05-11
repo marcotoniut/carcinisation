@@ -1,5 +1,7 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
+use bevy::app::ScheduleRunnerPlugin;
 use bevy::prelude::*;
 use carcinisation_fps_core::map::Map;
 use carcinisation_server::ServerPlugin;
@@ -25,7 +27,16 @@ fn main() {
         .unwrap_or_else(|e| panic!("failed to parse map {}: {e}", args.map.display()));
 
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
+
+    // Explicit plugin list instead of MinimalPlugins — configurable tick loop.
+    // 1ms poll interval avoids busy-spinning while keeping latency low.
+    app.add_plugins((
+        bevy::app::TaskPoolPlugin::default(),
+        bevy::diagnostic::FrameCountPlugin,
+        bevy::time::TimePlugin,
+        ScheduleRunnerPlugin::run_loop(Duration::from_millis(1)),
+        bevy::app::TerminalCtrlCHandlerPlugin,
+    ));
     app.add_plugins(bevy::log::LogPlugin::default());
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.add_plugins(ServerPlugin {
@@ -34,5 +45,8 @@ fn main() {
         entities: map_data.entities,
         player_starts: map_data.player_starts,
     });
+
     app.run();
+    // Reached after Ctrl+C / AppExit.
+    eprintln!("Server stopped.");
 }

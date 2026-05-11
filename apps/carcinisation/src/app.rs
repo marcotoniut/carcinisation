@@ -12,6 +12,7 @@ use bevy::window::{WindowCloseRequested, WindowResolution};
 use bevy::{asset::AssetMetaCheck, asset::AssetPlugin, prelude::*};
 #[cfg(feature = "brp")]
 use bevy_brp_extras::BrpExtrasPlugin;
+#[cfg(not(target_arch = "wasm32"))]
 use bevy_framepace::FramepacePlugin;
 #[cfg(debug_assertions)]
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
@@ -30,6 +31,8 @@ use dotenvy::dotenv_override;
 use crate::debug::{DebugColliderOverlay, DebugGodMode, DebugPlugin};
 #[cfg(feature = "gallery")]
 use crate::gallery::GalleryPlugin;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::systems::setup::{set_fixed_timestep, set_framespace};
 use crate::{
     cutscene::CutscenePlugin,
     game::GamePlugin,
@@ -47,7 +50,7 @@ use crate::{
         camera::move_camera,
         movement::{PositionSyncSystems, update_position_x, update_position_y},
         on_post_startup,
-        setup::{set_fixed_timestep, set_framespace, spawn_camera},
+        setup::spawn_camera,
     },
     transitions::spiral::TransitionVenetianPlugin,
 };

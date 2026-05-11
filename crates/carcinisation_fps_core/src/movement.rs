@@ -317,7 +317,10 @@ mod tests {
 
         tick_snap_turn(&mut angle, &mut remaining, 10.0, 1.0, 1.0);
 
-        assert_eq!(angle, 1.0, "should not change angle when remaining is 0");
+        assert!(
+            (angle - 1.0).abs() < f32::EPSILON,
+            "should not change angle when remaining is 0"
+        );
     }
 
     #[test]

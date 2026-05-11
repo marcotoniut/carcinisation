@@ -161,7 +161,7 @@ const FLAME_CHAR_EMIT_INTERVAL: f32 = 0.1;
 pub fn process_combat(
     mut commands: Commands,
     buffer: Res<super::PlayerIntentBuffer>,
-    players: Query<&NetPlayer>,
+    mut players: Query<&mut NetPlayer>,
     mut enemies: Query<(Entity, &mut NetEnemy, &mut NetHealth)>,
     projectiles: Query<(Entity, &NetProjectile)>,
     server_map: Res<ServerMap>,
@@ -191,6 +191,9 @@ pub fn process_combat(
     let mut enemy_entities: Vec<Entity> = Vec::new();
     let mut enemy_list: Vec<Enemy> = Vec::new();
 
+    // Flame state changes to apply after combat (avoids mutable borrow during iteration).
+    let mut flame_updates: HashMap<PlayerId, bool> = HashMap::new();
+
     // Combat processing per player (alive only).
     for player in &players {
         if !matches!(player.state, carcinisation_net::PlayerNetState::Alive) {
@@ -209,7 +212,9 @@ pub fn process_combat(
             NetAttackId::None | NetAttackId::Melee => {
                 // -- Pistol: hitscan + cooldown --
                 // Stop flame if was active.
-                send_flame_stop(&mut commands, &mut flame_tracker, player);
+                if send_flame_stop(&mut commands, &mut flame_tracker, player) {
+                    flame_updates.insert(player.player_id, false);
+                }
 
                 if !firing {
                     continue;
@@ -326,7 +331,9 @@ pub fn process_combat(
             NetAttackId::Projectile => {
                 // -- Flamethrower: continuous cone damage --
                 if !firing {
-                    send_flame_stop(&mut commands, &mut flame_tracker, player);
+                    if send_flame_stop(&mut commands, &mut flame_tracker, player) {
+                        flame_updates.insert(player.player_id, false);
+                    }
                     continue;
                 }
 
@@ -338,6 +345,7 @@ pub fn process_combat(
                     .unwrap_or(false);
                 if !was_active {
                     flame_tracker.0.insert(player.player_id, true);
+                    flame_updates.insert(player.player_id, true);
                     commands.server_trigger(ToClients {
                         mode: SendMode::Broadcast,
                         message: FlameActive {
@@ -431,10 +439,26 @@ pub fn process_combat(
             }
         }
     }
+
+    // Apply flame_active to replicated NetPlayer components.
+    // Collected during the loop to avoid mutable borrow conflicts.
+    // bevy_replicon change detection ensures this only replicates on transition.
+    if !flame_updates.is_empty() {
+        for mut p in &mut players {
+            if let Some(&active) = flame_updates.get(&p.player_id) {
+                p.flame_active = active;
+            }
+        }
+    }
 }
 
 /// Send FlameActive(false) if the player was previously flaming.
-fn send_flame_stop(commands: &mut Commands, tracker: &mut FlameActiveTracker, player: &NetPlayer) {
+/// Returns `true` if a stop transition occurred.
+fn send_flame_stop(
+    commands: &mut Commands,
+    tracker: &mut FlameActiveTracker,
+    player: &NetPlayer,
+) -> bool {
     if tracker.0.get(&player.player_id).copied().unwrap_or(false) {
         tracker.0.insert(player.player_id, false);
         commands.server_trigger(ToClients {
@@ -444,6 +468,9 @@ fn send_flame_stop(commands: &mut Commands, tracker: &mut FlameActiveTracker, pl
                 active: false,
             },
         });
+        true
+    } else {
+        false
     }
 }
 

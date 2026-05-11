@@ -1,8 +1,24 @@
-# TODO review these scripts, move them under scripts/ and update them.
+#!/usr/bin/env bash
+set -euo pipefail
 
-#cargo run --target wasm32-unknown-unknown
-#wasm-bindgen --target web --out-dir deploy ./target/wasm32-unknown-unknown/debug/carcinisation.wasm
-cargo build --release --target wasm32-unknown-unknown
-wasm-bindgen --no-typescript --target web --out-dir web-deploy ./target/wasm32-unknown-unknown/release/carcinisation.wasm
-wasm-opt -0z ./web-deploy/carcinisation.wasm --output ./web-deploy/carcinisation.wasm
-cp -r ./assets ./web-deploy/assets
+# Build the WASM binary, bind JS glue, optimise, and stage assets.
+
+TARGET=wasm32-unknown-unknown
+OUT_DIR=web-deploy
+WASM=carcinisation
+
+# Clean stale artefacts so a failed prior build can't mask errors.
+rm -rf "${OUT_DIR:?}/${WASM}.wasm" "${OUT_DIR:?}/${WASM}_bg.wasm" "${OUT_DIR:?}/${WASM}.js"
+
+cargo build --release --target "$TARGET" -p carcinisation --bin "$WASM"
+
+wasm-bindgen \
+  --no-typescript \
+  --target web \
+  --out-dir "$OUT_DIR" \
+  "./target/${TARGET}/release/${WASM}.wasm"
+
+wasm-opt -Oz "${OUT_DIR}/${WASM}_bg.wasm" --output "${OUT_DIR}/${WASM}_bg.wasm"
+
+# Sync assets (delete removed files).
+rsync -a --delete ./assets/ "${OUT_DIR}/assets/"

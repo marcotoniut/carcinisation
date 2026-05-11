@@ -16,6 +16,7 @@ members = [
     "crates/carcinisation_fps_core",
     "crates/carcinisation_input",
     "crates/carcinisation_net",
+    "crates/carcinisation_ors",
     "crates/cween",
     "scripts/generate-typeface",
     "scripts/process-aseprite",
@@ -34,7 +35,7 @@ assert_assets_path = { path = "tools/assert_assets_path" }
 asset_pipeline = { path = "crates/asset_pipeline" }
 carcinisation_collision = { path = "crates/carcinisation_collision" }
 # Keep host binaries self-contained so BRP/MCP launchers can execute them directly.
-bevy = { version = "0.18", features = ["file_watcher", "wayland", "std", "async_executor"] }
+bevy = { version = "0.18", features = ["wayland", "std", "async_executor"] }
 bevy_brp_extras = "0.18"
 bevy_state = "0.18"
 bevy_ecs = "0.18"
@@ -67,13 +68,16 @@ strum_macros = "0.28.0"
 
 [profile.dev]
 opt-level = 1
+debug = 1
 
 [profile.dev.package."*"]
 opt-level = 3
 
 [profile.release]
-lto = "thin"
+lto = true
 opt-level = "z"
+strip = "symbols"
+codegen-units = 1
 
 [workspace.lints.rust]
 warnings = "deny"

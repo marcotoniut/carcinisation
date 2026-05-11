@@ -769,7 +769,6 @@ dependencies = [
  "futures-lite",
  "futures-util",
  "js-sys",
- "notify-debouncer-full",
  "ron 0.12.1",
  "serde",
  "stackfuture",
@@ -2438,7 +2437,8 @@ dependencies = [
  "derive-new",
  "derive_more",
  "dotenvy",
- "getrandom 0.3.4",
+ "getrandom 0.2.17",
+ "getrandom 0.4.2",
  "lazy_static",
  "leafwing-input-manager",
  "num_enum",
@@ -2483,6 +2483,7 @@ dependencies = [
  "carapace",
  "derive-new",
  "lazy_static",
+ "serde",
 ]
 
 [[package]]
@@ -2561,6 +2562,7 @@ dependencies = [
  "carcinisation_base",
  "carcinisation_collision",
  "carcinisation_core",
+ "carcinisation_cutscene",
  "carcinisation_input",
  "colored",
  "cween",
@@ -3617,15 +3619,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "file-id"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1fc6a637b6dc58414714eddd9170ff187ecb0933d4c7024d1abbd23a3cc26e9"
-dependencies = [
- "windows-sys 0.60.2",
-]
-
-[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3944,11 +3937,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0de51e6874e94e7bf76d726fc5d13ba782deca734ff60d5bb2fb2607c7406555"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi 6.0.0",
  "rand_core 0.10.1",
  "wasip2",
  "wasip3",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -5382,19 +5377,6 @@ dependencies = [
  "notify-types",
  "walkdir",
  "windows-sys 0.60.2",
-]
-
-[[package]]
-name = "notify-debouncer-full"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "375bd3a138be7bfeff3480e4a623df4cbfb55b79df617c055cd810ba466fa078"
-dependencies = [
- "file-id",
- "log",
- "notify",
- "notify-types",
- "walkdir",
 ]
 
 [[package]]

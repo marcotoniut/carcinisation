@@ -7,6 +7,8 @@ version.workspace = true
 default = ["native"]
 native = ["carcinisation_net/native", "bevy_replicon_renet2/native_transport", "bevy_replicon_renet2/netcode", "bevy_replicon_renet2/server"]
 brp = ["bevy/bevy_remote"]
+trace_chrome = ["bevy/trace_chrome"]
+trace_tracy = ["bevy/trace_tracy"]
 
 [dependencies]
 carcinisation_fps_core = { path = "../../crates/carcinisation_fps_core" }

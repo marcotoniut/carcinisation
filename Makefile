@@ -231,10 +231,9 @@ install-web-deps:
 build-web:
 	bash make-web.sh
 
+# Alias: full web build + optimise + stage assets (same as build-web).
 .PHONY: release-wasm
-release-wasm:
-	$(BEVY) build $(RUN_TARGET_FLAGS) --release --target wasm32-unknown-unknown
-	wasm-opt -O -ol 100 -s 100 -o target/wasm32-unknown-unknown/release/carcinisation.opt.wasm target/wasm32-unknown-unknown/release/carcinisation.wasm
+release-wasm: build-web
 
 # =============================================================================
 # Quality gates
@@ -361,8 +360,8 @@ help:
 	@echo ""
 	@echo "🌐 Web Targets:"
 	@echo "  install-web-deps   - Install wasm toolchain dependencies"
-	@echo "  build-web          - Produce web build artifacts via make-web.sh"
-	@echo "  release-wasm       - Build optimized wasm binary (output in target/wasm32-unknown-unknown/release)"
+	@echo "  build-web          - Full web build: compile, wasm-bindgen, wasm-opt, stage assets"
+	@echo "  release-wasm       - Alias for build-web"
 	@echo ""
 	@echo "✅ Quality Gates:"
 	@echo "  check              - cargo check across the workspace with all features"

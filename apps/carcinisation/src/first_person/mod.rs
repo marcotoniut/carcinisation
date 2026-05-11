@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
 use bevy::prelude::*;
+#[cfg(not(target_family = "wasm"))]
 use bevy_renet2::netcode::NetcodeClientTransport;
 use bevy_replicon::prelude::*;
+#[cfg(not(target_family = "wasm"))]
 use bevy_replicon_renet2::RenetChannelsExt;
+#[cfg(not(target_family = "wasm"))]
 use bevy_replicon_renet2::renet2::{ConnectionConfig, RenetClient};
 use carcinisation_fps::billboard::Billboard;
 use carcinisation_fps::billboard::{
@@ -28,6 +31,7 @@ use carcinisation_net::{
     register_net_all,
 };
 use std::net::SocketAddr;
+#[cfg(not(target_family = "wasm"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod input;
@@ -40,10 +44,6 @@ pub struct LocalPlayerId(pub Option<PlayerId>);
 /// Whether the local player's flamethrower is currently active (from server `FlameActive` event).
 #[derive(Resource, Debug, Default)]
 struct LocalFlameActive(bool);
-
-/// Active flamethrower state for remote players (from server `FlameActive` events).
-#[derive(Resource, Debug, Default)]
-struct RemoteFlameStates(std::collections::HashMap<PlayerId, bool>);
 
 /// Projectile visual speed for client-side extrapolation.
 const PROJECTILE_VISUAL_SPEED: f32 = carcinisation_fps_core::PROJECTILE_SPEED;
@@ -98,24 +98,21 @@ pub struct FpsClientPlugin {
 impl Plugin for FpsClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(NetProtocolPlugin)
-            .add_plugins(bevy_replicon::prelude::RepliconSharedPlugin {
-                auth_method: bevy_replicon::prelude::AuthMethod::None,
+            .add_plugins(RepliconSharedPlugin {
+                auth_method: AuthMethod::None,
             })
-            .add_plugins(bevy_replicon::prelude::ClientPlugin)
-            .add_plugins(bevy_replicon::prelude::ClientMessagePlugin);
+            .add_plugins(ClientPlugin)
+            .add_plugins(ClientMessagePlugin);
 
         register_net_all(app);
 
         app.add_plugins(bevy_replicon_renet2::RepliconRenetPlugins)
-            .add_systems(Startup, init_client_setup)
-            .add_systems(Startup, setup_client_info_text)
             .init_resource::<input::ClientInputSequence>()
             .init_resource::<input::InputSendTimer>()
             .init_resource::<carcinisation_fps::plugin::TurnChordState>()
             .init_resource::<carcinisation_fps::plugin::QuickTurnState>()
             .init_resource::<LocalPlayerId>()
             .init_resource::<LocalFlameActive>()
-            .init_resource::<RemoteFlameStates>()
             .init_resource::<EnemyAttackOverrides>()
             .init_resource::<EnemyDamageFlickers>()
             .init_resource::<HitImpacts>()
@@ -127,14 +124,7 @@ impl Plugin for FpsClientPlugin {
             .add_observer(handle_flame_char_mark)
             .add_observer(handle_enemy_attack_visual)
             .add_observer(handle_hit_confirm)
-            .add_systems(
-                PreUpdate,
-                kickstart_client_transport
-                    .run_if(resource_added::<RenetClient>)
-                    .before(bevy_renet2::prelude::RenetReceive),
-            )
             .add_systems(Update, collect_and_send_intent)
-            .add_systems(Update, update_client_info_text)
             .add_systems(
                 Update,
                 (
@@ -157,14 +147,44 @@ impl Plugin for FpsClientPlugin {
                 sync_weapon_hud_and_flame_visual
                     .before(Systems)
                     .run_if(resource_exists::<Active>),
-            )
-            .insert_resource(ConnectAddr(self.connect_addr));
+            );
 
         info!("FpsClientPlugin: connect addr = {:?}", self.connect_addr);
+
+        #[cfg(not(target_family = "wasm"))]
+        {
+            app.insert_resource(ConnectAddr(self.connect_addr));
+        }
+        #[cfg(not(target_family = "wasm"))]
+        {
+            use init_client_setup as _init;
+            app.add_systems(Startup, _init);
+        }
+        #[cfg(not(target_family = "wasm"))]
+        {
+            use setup_client_info_text as _info;
+            app.add_systems(Startup, _info);
+        }
+        #[cfg(not(target_family = "wasm"))]
+        {
+            use kickstart_client_transport as _kick;
+            app.add_systems(
+                PreUpdate,
+                _kick
+                    .run_if(resource_added::<bevy_replicon_renet2::renet2::RenetClient>)
+                    .before(bevy_renet2::prelude::RenetReceive),
+            );
+        }
+        #[cfg(not(target_family = "wasm"))]
+        {
+            use update_client_info_text as _update_info;
+            app.add_systems(Update, _update_info);
+        }
     }
 }
 
 #[derive(Resource)]
+#[cfg(not(target_family = "wasm"))]
 struct ConnectAddr(SocketAddr);
 
 fn handle_player_id_assigned(trigger: On<PlayerIdAssigned>, mut local_id: ResMut<LocalPlayerId>) {
@@ -262,18 +282,23 @@ fn handle_death_effect(
     }
 }
 
+/// Handles `FlameActive` unreliable events for immediate VFX responsiveness.
+///
+/// Remote flame state is authoritative via `NetPlayer.flame_active` (replicated).
+/// This event handler only updates the local player's `LocalFlameActive` for
+/// instant HUD feedback — remote players reconcile against the replicated field.
 fn handle_flame_active(
     trigger: On<FlameActive>,
     local_id: Res<LocalPlayerId>,
     mut flame_active: ResMut<LocalFlameActive>,
-    mut remote_flames: ResMut<RemoteFlameStates>,
 ) {
     let event = trigger.event();
     if local_id.0 == Some(event.player_id) {
         flame_active.0 = event.active;
-    } else {
-        remote_flames.0.insert(event.player_id, event.active);
     }
+    // Remote player flame state comes from NetPlayer.flame_active (replicated).
+    // Unreliable events for remote players are intentionally ignored — the
+    // replicated component is the authoritative reconciliation source.
 }
 
 /// Maximum number of char decals to keep.
@@ -382,12 +407,19 @@ fn tick_damage_flickers(mut flickers: ResMut<EnemyDamageFlickers>, time: Res<Tim
 }
 
 /// Sync the client weapon HUD from replicated state and drive local flamethrower visuals.
+///
+/// Local flame state uses two sources:
+/// - `LocalFlameActive`: set by unreliable `FlameActive` events (immediate, may be lost)
+/// - `player.flame_active`: replicated field on `NetPlayer` (authoritative, eventual)
+///
+/// The replicated field acts as a reconciliation fallback — if an event is
+/// dropped, the next replication tick corrects the local state.
 fn sync_weapon_hud_and_flame_visual(
     net_players: Query<&NetPlayer>,
     local_id: Res<LocalPlayerId>,
     mut loadout: ResMut<AttackLoadout>,
     mut attack_input: ResMut<AttackInput>,
-    flame_active: Res<LocalFlameActive>,
+    mut flame_active: ResMut<LocalFlameActive>,
     mut was_flame_active: Local<bool>,
 ) {
     let Some(my_id) = local_id.0 else {
@@ -406,6 +438,12 @@ fn sync_weapon_hud_and_flame_visual(
         loadout.index = target_idx;
     }
 
+    // Reconcile: replicated state overrides event-driven state if they disagree.
+    // This recovers from dropped FlameActive events within one replication tick.
+    if flame_active.0 != player.flame_active {
+        flame_active.0 = player.flame_active;
+    }
+
     let active = flame_active.0 && matches!(player.current_attack, NetAttackId::Projectile);
     if active {
         attack_input.shoot_held = true;
@@ -421,6 +459,7 @@ fn sync_weapon_hud_and_flame_visual(
     *was_flame_active = active;
 }
 
+#[cfg(not(target_family = "wasm"))]
 fn kickstart_client_transport(
     mut client: ResMut<RenetClient>,
     mut transport: ResMut<NetcodeClientTransport>,
@@ -431,6 +470,7 @@ fn kickstart_client_transport(
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 fn init_client_setup(
     mut commands: Commands,
     connect_addr: Res<ConnectAddr>,
@@ -533,7 +573,6 @@ fn sync_camera_from_net_player(
     mut camera_res: ResMut<CameraRes>,
     mut extra_bbs: ResMut<carcinisation_fps::plugin::ExtraBillboards>,
     local_player_id: Res<LocalPlayerId>,
-    mut remote_flames: ResMut<RemoteFlameStates>,
     map_res: Option<Res<MapRes>>,
     mosquiton_sprites: Option<Res<MosquitonSprites>>,
     blood_shot_sprites: Option<Res<BloodShotSprites>>,
@@ -573,10 +612,8 @@ fn sync_camera_from_net_player(
             sprite: Arc::clone(&player_sprites[color_idx]),
         });
 
-        // Remote flame arc billboards.
-        let is_flaming = remote_flames.0.get(&np.player_id).copied().unwrap_or(false)
-            && matches!(np.current_attack, NetAttackId::Projectile);
-        if is_flaming {
+        // Remote flame arc billboards (authoritative: replicated NetPlayer.flame_active).
+        if np.flame_active {
             push_remote_flame_billboards(
                 &mut extra_bbs.0,
                 np.position,
@@ -586,13 +623,6 @@ fn sync_camera_from_net_player(
                 map_res.as_deref(),
             );
         }
-    }
-
-    // Prune stale entries for disconnected/despawned players.
-    if !remote_flames.0.is_empty() {
-        remote_flames
-            .0
-            .retain(|id, _| net_players.iter().any(|(_, np)| np.player_id == *id));
     }
 
     // Enemy billboards (including dying/dead for death pose, excludes despawned).
@@ -900,9 +930,11 @@ fn push_remote_flame_billboards(
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[derive(Component)]
 struct ClientInfoText;
 
+#[cfg(not(target_family = "wasm"))]
 fn setup_client_info_text(mut commands: Commands, transport: Option<Res<NetcodeClientTransport>>) {
     let Some(transport) = transport else {
         info!("setup_client_info_text: no transport");
@@ -931,6 +963,7 @@ fn setup_client_info_text(mut commands: Commands, transport: Option<Res<NetcodeC
     ));
 }
 
+#[cfg(not(target_family = "wasm"))]
 fn update_client_info_text(
     transport: Option<Res<NetcodeClientTransport>>,
     mut text_query: Query<&mut Text, With<ClientInfoText>>,
@@ -963,7 +996,6 @@ mod tests {
         app.init_resource::<EnemyAttackOverrides>();
         app.init_resource::<EnemyDamageFlickers>();
         app.init_resource::<HitImpacts>();
-        app.init_resource::<RemoteFlameStates>();
     }
 
     /// Dead enemies get death-pose billboards; alive enemies get alive billboards.
@@ -983,6 +1015,7 @@ mod tests {
             angle: 0.25,
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
+            flame_active: false,
         });
         app.world_mut().spawn((
             NetEnemy {
@@ -1045,6 +1078,7 @@ mod tests {
             angle: 0.25,
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
+            flame_active: false,
         });
         app.world_mut().spawn((
             NetEnemy {
@@ -1188,8 +1222,9 @@ mod tests {
         assert!(melee_fallback > 0.0);
     }
 
+    /// Remote flame billboards are generated when `NetPlayer.flame_active` is true.
     #[test]
-    fn remote_flame_state_pruned_when_player_despawns() {
+    fn remote_flame_active_generates_flame_billboards() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
         app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
@@ -1204,61 +1239,72 @@ mod tests {
             angle: 0.0,
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
+            flame_active: false,
         });
 
-        // Seed remote flame state for a player that has no entity.
-        app.world_mut()
-            .resource_mut::<RemoteFlameStates>()
-            .0
-            .insert(PlayerId(99), true);
-
-        app.update();
-
-        let remote = app.world().resource::<RemoteFlameStates>();
-        assert!(
-            remote.0.is_empty(),
-            "stale remote flame entry should be pruned when player entity is absent"
-        );
-    }
-
-    #[test]
-    fn remote_flame_state_preserved_for_present_player() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
-        app.insert_resource(CameraRes(Camera::default()));
-        app.insert_resource(Config::default());
-        init_sync_test_app(&mut app);
-        app.add_systems(Update, sync_camera_from_net_player);
-
-        app.world_mut().spawn(NetPlayer {
-            player_id: PlayerId(1),
-            position: Vec2::new(2.0, 3.0),
-            angle: 0.0,
-            current_attack: NetAttackId::None,
-            state: PlayerNetState::Alive,
-        });
-
+        // Remote player with flame_active = true (replicated authoritative state).
         app.world_mut().spawn(NetPlayer {
             player_id: PlayerId(2),
             position: Vec2::new(4.0, 5.0),
             angle: 0.0,
             current_attack: NetAttackId::Projectile,
             state: PlayerNetState::Alive,
+            flame_active: true,
         });
-
-        app.world_mut()
-            .resource_mut::<RemoteFlameStates>()
-            .0
-            .insert(PlayerId(2), true);
 
         app.update();
 
-        let remote = app.world().resource::<RemoteFlameStates>();
+        let extra_bbs = app
+            .world()
+            .resource::<carcinisation_fps::plugin::ExtraBillboards>();
+        // Should have: 1 player billboard + flame arc billboards (12 segments + wall impact).
+        assert!(
+            extra_bbs.0.len() > 1,
+            "flame_active=true should generate flame arc billboards, got {}",
+            extra_bbs.0.len()
+        );
+    }
+
+    /// Remote flame billboards are NOT generated when `flame_active` is false.
+    #[test]
+    fn remote_flame_inactive_no_flame_billboards() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(CameraRes(Camera::default()));
+        app.insert_resource(Config::default());
+        init_sync_test_app(&mut app);
+        app.add_systems(Update, sync_camera_from_net_player);
+
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(2.0, 3.0),
+            angle: 0.0,
+            current_attack: NetAttackId::None,
+            state: PlayerNetState::Alive,
+            flame_active: false,
+        });
+
+        // Remote player with flamethrower equipped but NOT firing.
+        app.world_mut().spawn(NetPlayer {
+            player_id: PlayerId(2),
+            position: Vec2::new(4.0, 5.0),
+            angle: 0.0,
+            current_attack: NetAttackId::Projectile,
+            state: PlayerNetState::Alive,
+            flame_active: false,
+        });
+
+        app.update();
+
+        let extra_bbs = app
+            .world()
+            .resource::<carcinisation_fps::plugin::ExtraBillboards>();
+        // Should have exactly 1 billboard (remote player sprite only, no flames).
         assert_eq!(
-            remote.0.get(&PlayerId(2)),
-            Some(&true),
-            "flame state should be preserved for present player"
+            extra_bbs.0.len(),
+            1,
+            "flame_active=false should not generate flame billboards"
         );
     }
 }

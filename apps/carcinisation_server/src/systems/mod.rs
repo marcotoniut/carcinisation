@@ -1,4 +1,5 @@
 pub mod combat;
+pub mod diagnostics;
 pub mod enemy_ai;
 pub mod enemy_attack;
 pub mod input;

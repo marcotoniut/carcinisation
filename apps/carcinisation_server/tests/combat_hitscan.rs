@@ -529,6 +529,7 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
         angle: start.angle_deg.to_radians(),
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
+        flame_active: false,
     });
 
     let before = enemy_positions_by_object_id(&mut server);
@@ -633,6 +634,7 @@ fn open_map_mosquiton_reaches_preferred_range_then_holds() {
         angle: 0.0,
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
+        flame_active: false,
     });
 
     let mut previous_distance = server
@@ -733,6 +735,7 @@ fn server_ai_updates_live_mosquiton_position() {
         angle: 0.0,
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
+        flame_active: false,
     });
 
     let before = server
@@ -797,6 +800,7 @@ fn map_authored_speed_changes_mosquiton_movement_distance() {
         angle: 0.0,
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
+        flame_active: false,
     });
 
     let before: Vec<(f32, Vec2)> = server
@@ -903,6 +907,7 @@ fn server_ai_does_not_move_dead_mosquiton() {
         angle: 0.0,
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
+        flame_active: false,
     });
 
     let before = {
@@ -1163,6 +1168,85 @@ fn flamethrower_e2e_switch_fire_release_uses_server_state() {
     assert_eq!(
         hp_at_release, hp_final,
         "NetHealth should stop changing after BTN_FIRE release: {hp_at_release} -> {hp_final}"
+    );
+}
+
+/// Replicated `NetPlayer.flame_active` tracks server flame state transitions.
+///
+/// This is the authoritative field clients use for reconciliation if
+/// unreliable `FlameActive` events are dropped. The test verifies the
+/// server sets the field to `true` during active fire and back to `false`
+/// on release — directly on the component, not via `FlameActiveTracker`.
+#[test]
+fn net_player_flame_active_tracks_server_state() {
+    let port = reserve_port();
+    let mut server = build_flame_server(port);
+    server.update();
+
+    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
+    let mut client = build_combat_client(addr);
+    client.update();
+
+    assert!(wait_for_player(&mut server, &mut client));
+
+    // Switch to flamethrower.
+    queue_switch(&mut client, 1);
+    for _ in 0..20 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    // flame_active should be false before firing.
+    let flame_before = server
+        .world_mut()
+        .query::<&NetPlayer>()
+        .iter(server.world())
+        .next()
+        .map(|p| p.flame_active);
+    assert_eq!(
+        flame_before,
+        Some(false),
+        "flame_active should be false before firing"
+    );
+
+    // Hold fire.
+    for seq in 2..=12 {
+        queue_fire(&mut client, seq);
+        tick_with_sleep(&mut server, &mut client);
+    }
+    for _ in 0..20 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    // flame_active on the replicated NetPlayer should be true.
+    let flame_during = server
+        .world_mut()
+        .query::<&NetPlayer>()
+        .iter(server.world())
+        .next()
+        .map(|p| p.flame_active);
+    assert_eq!(
+        flame_during,
+        Some(true),
+        "NetPlayer.flame_active should be true while flamethrower is held"
+    );
+
+    // Release fire.
+    queue_idle(&mut client, 13);
+    for _ in 0..20 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    // flame_active should return to false.
+    let flame_after = server
+        .world_mut()
+        .query::<&NetPlayer>()
+        .iter(server.world())
+        .next()
+        .map(|p| p.flame_active);
+    assert_eq!(
+        flame_after,
+        Some(false),
+        "NetPlayer.flame_active should be false after releasing fire"
     );
 }
 
@@ -1428,6 +1512,7 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
                 angle: 0.0,
                 current_attack: NetAttackId::None,
                 state: PlayerNetState::Alive,
+                flame_active: false,
             },
             NetHealth {
                 current: 100.0,

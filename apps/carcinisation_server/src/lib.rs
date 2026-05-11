@@ -23,6 +23,7 @@ use carcinisation_net::{
     NetworkObjectId, PlayerId, PlayerIdAssigned, PlayerNetState, register_net_all,
 };
 use systems::combat::process_combat;
+use systems::diagnostics::{DiagnosticsState, tick_diagnostics_end, tick_diagnostics_start};
 use systems::input::{apply_buffered_movement, receive_client_intent};
 use systems::{
     BurnContactCooldowns, EnemyAiSet, EnemyAttackSet, FireCooldownMap, FlameActiveTracker,
@@ -78,6 +79,7 @@ pub struct ServerPlugin {
     pub player_starts: Vec<PlayerStartData>,
 }
 
+#[allow(clippy::too_many_lines)]
 impl Plugin for ServerPlugin {
     fn build(&self, app: &mut App) {
         #[cfg(feature = "brp")]
@@ -171,13 +173,28 @@ impl Plugin for ServerPlugin {
                     .after(tick_burn_contact_damage),
             )
             .add_systems(FixedUpdate, tick_despawn_timers.in_set(TickSet))
+            .add_systems(
+                FixedUpdate,
+                tick_diagnostics_start
+                    .in_set(MovementSet)
+                    .before(apply_buffered_movement),
+            )
+            .add_systems(
+                FixedUpdate,
+                tick_diagnostics_end
+                    .in_set(TickSet)
+                    .after(tick_despawn_timers),
+            )
+            .init_resource::<DiagnosticsState>()
             .init_resource::<NextProjectileId>()
             .insert_resource(ServerPort(self.port));
 
         let wall_count = self.map.cells.iter().filter(|&&c| c > 0).count();
+        let spawn_count = self.player_starts.len();
+        let entity_count = self.entities.len();
         info!(
-            "ServerPlugin built: port={}, map={}x{} ({} walls)",
-            self.port, self.map.width, self.map.height, wall_count
+            "ServerPlugin built: port={} map={}x{} walls={} spawns={} entities={} tick_hz=30",
+            self.port, self.map.width, self.map.height, wall_count, spawn_count, entity_count
         );
     }
 }
@@ -266,6 +283,7 @@ fn handle_client_connect(
             angle,
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
+            flame_active: false,
         },
         NetHealth {
             current: 100.0,

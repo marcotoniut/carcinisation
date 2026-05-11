@@ -17,13 +17,5 @@ rustflags = []
 [target.wasm32-unknown-unknown]
 runner = "wasm-server-runner"
 
-[profile.dev]
-debug = 1
-opt-level = 1
-incremental = true
-
-[profile.release]
-opt-level = "z"
-lto = true
-strip = "symbols"
-codegen-units = 1
+# Profile settings are in the workspace Cargo.toml.
+# Only platform-specific config (linker, runner) belongs here.
