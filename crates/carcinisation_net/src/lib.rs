@@ -5,6 +5,7 @@ pub mod channels;
 pub mod components;
 pub mod plugin;
 pub mod protocol;
+pub mod sim_hash;
 pub mod tick;
 pub mod transport;
 

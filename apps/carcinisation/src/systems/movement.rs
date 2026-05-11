@@ -3,13 +3,7 @@ use carapace::prelude::WorldPos;
 use cween::linear::components::{TargetingValueX, TargetingValueY};
 
 use carcinisation_base::game::CameraPos;
-
-/// Systems that sync tween-driven `TargetingValueX`/`Y` into `WorldPos`.
-///
-/// Any system that reads `WorldPos` after tween integration (e.g.
-/// `update_composed_enemy_visuals`) should declare `.after(PositionSyncSystems)`.
-#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-pub struct PositionSyncSystems;
+pub use carcinisation_core::globals::PositionSyncSystems;
 
 /// @system Syncs `TargetingValueX` to WorldPos.x
 /// Movement children update `TargetingValueX` via aggregation, this syncs to the visual position.

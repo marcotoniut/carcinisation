@@ -251,8 +251,12 @@ pub fn build_app(options: AppLaunchOptions) -> App {
     }
 
     app.configure_sets(Update, PositionSyncSystems);
-    app.add_plugins(StagePlugin)
-        .add_plugins(GamePlugin)
+    app.add_plugins(StagePlugin::<GamePlugin, MainMenuPlugin>::new());
+    // Wire the real transition handler into StageHooks (default is no-op).
+    app.world_mut()
+        .resource_mut::<carcinisation_ors::stage::StageHooks>()
+        .trigger_transition = crate::transitions::trigger_transition;
+    app.add_plugins(GamePlugin)
         .add_systems(
             Update,
             (

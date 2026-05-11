@@ -12,6 +12,7 @@ cween = { path = "../cween" }
 carcinisation_base = { path = "../carcinisation_base" }
 carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
 carcinisation_core = { path = "../carcinisation_core" }
+carcinisation_cutscene = { path = "../carcinisation_cutscene" }
 carcinisation_input = { path = "../carcinisation_input" }
 asset_pipeline = { workspace = true }
 bevy = { workspace = true }

@@ -7,13 +7,7 @@ use bevy::prelude::*;
 use num_enum::TryFromPrimitive;
 use strum_macros::EnumIter;
 
-pub use carcinisation_base::game::Lives;
-
-#[derive(Resource, Default, Clone, Copy)]
-/// Tracks which game step is currently active.
-pub struct GameProgress {
-    pub index: usize,
-}
+pub use carcinisation_base::game::{GameProgress, Lives};
 
 #[derive(Clone, Debug, Resource)]
 /// Describes the campaign being played.

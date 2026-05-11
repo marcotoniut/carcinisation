@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use activable::activate;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use carapace::prelude::WorldPos;
 
 use crate::stage::{
-    StagePlugin, StageProgressState,
+    StageHooks, StageProgressState,
     components::interactive::Object,
     components::{Stage, StageEntity},
     data::StageData,
@@ -19,6 +19,18 @@ use crate::stage::{
 use crate::stubs::CameraPos;
 use carcinisation_core::components::Music;
 use carcinisation_core::globals::mark_for_despawn_by_query;
+
+/// Bundles stage-level resources used by the restart system, keeping
+/// the overall parameter count within Bevy's 16-parameter limit.
+#[derive(SystemParam)]
+pub struct StageRestartResources<'w> {
+    data: Res<'w, StageData>,
+    hooks: Res<'w, StageHooks>,
+    progress: ResMut<'w, StageProgress>,
+    state: ResMut<'w, NextState<StageProgressState>>,
+    time: ResMut<'w, Time<StageTimeDomain>>,
+    action_timer: ResMut<'w, StageActionTimer>,
+}
 
 /// Despawns all entities that belong to the current stage run.
 ///
@@ -42,7 +54,7 @@ pub fn despawn_stage_entities(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_stage_restart(
     mut commands: Commands,
-    stage_data: Res<StageData>,
+    mut stage_res: StageRestartResources,
     stage_query: Query<Entity, With<Stage>>,
     stage_entity_query: Query<Entity, With<StageEntity>>,
     destructible_query: Query<Entity, With<Destructible>>,
@@ -52,17 +64,14 @@ pub fn handle_stage_restart(
     player_query: Query<Entity, With<Player>>,
     mut camera_query: Query<(Entity, Option<&CameraShake>, &mut WorldPos), With<CameraPos>>,
     camera_tween_query: Query<Entity, With<CameraStepTween>>,
-    mut stage_progress: ResMut<StageProgress>,
-    mut stage_state: ResMut<NextState<StageProgressState>>,
-    mut stage_time: ResMut<Time<StageTimeDomain>>,
-    mut stage_action_timer: ResMut<StageActionTimer>,
     mut restart_reader: MessageReader<StageRestart>,
 ) {
     for restart in restart_reader.read() {
         camera::cleanup_camera_stage_state(&mut commands, &mut camera_query, &camera_tween_query);
 
         let start_index = if restart.from_checkpoint {
-            stage_data
+            stage_res
+                .data
                 .checkpoint
                 .as_ref()
                 .expect("StageRestart with from_checkpoint requires a defined checkpoint")
@@ -73,10 +82,10 @@ pub fn handle_stage_restart(
 
         // Reset progression/resources before rebuilding.
         reset_stage_progression(
-            &mut stage_progress,
-            &mut stage_state,
-            &mut stage_time,
-            &mut stage_action_timer,
+            &mut stage_res.progress,
+            &mut stage_res.state,
+            &mut stage_res.time,
+            &mut stage_res.action_timer,
             start_index,
         );
 
@@ -90,9 +99,9 @@ pub fn handle_stage_restart(
         mark_for_despawn_by_query(&mut commands, &object_query);
         mark_for_despawn_by_query(&mut commands, &player_query);
 
-        activate::<StagePlugin>(&mut commands);
+        (stage_res.hooks.activate_stage)(&mut commands);
 
-        let data = stage_data.clone();
+        let data = stage_res.data.clone();
         commands.trigger(StageStartupEvent {
             data: Arc::new(data),
             from_checkpoint: restart.from_checkpoint,

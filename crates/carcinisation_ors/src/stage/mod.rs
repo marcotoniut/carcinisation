@@ -129,16 +129,57 @@ pub struct BuildingSystems;
 /// hit detection should run `.after(CollisionStateSystems)`.
 pub struct CollisionStateSystems;
 
+/// Function-pointer hooks that downstream systems use to activate/deactivate
+/// the stage, game, and menu plugins without knowing the concrete types.
+///
+/// Inserted by `StagePlugin<G, M>::build()` so that systems like
+/// `handle_game_over_screen_continue` and `handle_stage_restart` can call
+/// the right `activate`/`deactivate` without carrying generic parameters.
+#[derive(Resource)]
+pub struct StageHooks {
+    /// `activate::<StagePlugin<G, M>>`
+    pub activate_stage: fn(&mut Commands),
+    /// `deactivate::<StagePlugin<G, M>>`
+    pub deactivate_stage: fn(&mut Commands),
+    /// `deactivate::<G>` (the game plugin)
+    pub deactivate_game: fn(&mut Commands),
+    /// `activate::<M>` (the main-menu plugin)
+    pub activate_menu: fn(&mut Commands),
+    /// Fire a visual transition (venetian wipe, etc).
+    /// Default: no-op. App provides the real implementation.
+    pub trigger_transition: fn(&mut Commands, &carcinisation_cutscene::data::TransitionRequest),
+}
+
 /// Registers all stage-related plugins, assets, events, and frame drives.
+///
+/// `G` is the *game plugin* `Activable` marker (deactivated on game-over exit).
+/// `M` is the *main-menu plugin* `Activable` marker (activated on game-over exit).
 #[derive(Activable)]
-pub struct StagePlugin;
+pub struct StagePlugin<G: Activable, M: Activable> {
+    _phantom: std::marker::PhantomData<(G, M)>,
+}
+
+impl<G: Activable, M: Activable> StagePlugin<G, M> {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<G: Activable, M: Activable> Default for StagePlugin<G, M> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /**
  * TODO
  * - implement a lifecycle state to indicate whether the plugin is active, inactive, (and perhaps initialising or cleaning up.)
  * - implement mapping of buttons exclusive to the plugin. (then we could have the menus create their own mappers.)
  */
-impl Plugin for StagePlugin {
+impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
     #[allow(clippy::too_many_lines)]
     fn build(&self, app: &mut App) {
         #[cfg(debug_assertions)]
@@ -153,10 +194,20 @@ impl Plugin for StagePlugin {
         app.add_plugins(depth_debug::DepthDebugPlugin);
 
         #[cfg(debug_assertions)]
-        app.add_active_systems::<StagePlugin, _>(
+        app.add_active_systems::<StagePlugin<G, M>, _>(
             systems::debug_spawn::debug_keyboard_spawn_enemies
                 .run_if(in_state(StageProgressState::Running)),
         );
+
+        app.insert_resource(StageHooks {
+            activate_stage: activable::activate::<StagePlugin<G, M>>,
+            deactivate_stage: activable::deactivate::<StagePlugin<G, M>>,
+            deactivate_game: activable::deactivate::<G>,
+            activate_menu: activable::activate::<M>,
+            trigger_transition: |_commands, _request| {
+                // No-op default. App overrides via StageHooks::with_transition().
+            },
+        });
 
         app
             // Core stage state/resources that every sub-system relies on.
@@ -194,14 +245,14 @@ impl Plugin for StagePlugin {
             .add_observer(on_stage_cleared)
             .add_observer(on_trigger_write_event::<StageClearedEvent>)
             // Checkpoint resume is handled via the `from_checkpoint` flag on `StageStartupEvent`.
-            .on_active::<StagePlugin, _>((
+            .on_active::<StagePlugin<G, M>, _>((
                 activate_system::<AttackPlugin>,
                 activate_system::<DestructiblePlugin>,
                 activate_system::<EnemyPlugin>,
                 activate_system::<PlayerPlugin>,
                 activate_system::<StageUiPlugin>,
             ))
-            .on_inactive::<StagePlugin, _>((
+            .on_inactive::<StagePlugin<G, M>, _>((
                 deactivate_system::<AttackPlugin>,
                 deactivate_system::<DestructiblePlugin>,
                 deactivate_system::<EnemyPlugin>,
@@ -233,7 +284,7 @@ impl Plugin for StagePlugin {
             .add_plugins(PlayerPlugin)
             .add_plugins(StageRestartPlugin)
             .add_plugins(StageUiPlugin)
-            .add_active_systems_in::<StagePlugin, _>(
+            .add_active_systems_in::<StagePlugin<G, M>, _>(
                 FixedUpdate,
                 (
                     (
@@ -270,7 +321,7 @@ impl Plugin for StagePlugin {
             // as a same-frame repair path for newly spawned composed roots.
             // First-visible-frame correctness comes from spawn-time priming
             // alone, not from any same-frame ordering accident.
-            .add_active_systems::<StagePlugin, _>(
+            .add_active_systems::<StagePlugin<G, M>, _>(
                 (
                     apply_depth_fallback_scale.in_set(CollisionStateSystems),
                     update_parallax_offset
@@ -283,7 +334,7 @@ impl Plugin for StagePlugin {
                 )
                     .after(PositionSyncSystems),
             )
-            .add_active_systems::<StagePlugin, _>((
+            .add_active_systems::<StagePlugin<G, M>, _>((
                 update_stage,
                 update_active_projection.after(update_stage),
                 update_active_parallax_attenuation.after(update_stage),
@@ -354,7 +405,7 @@ impl Plugin for StagePlugin {
             // plugins (DeathScreenPlugin, GameOverScreenPlugin,
             // ClearedScreenPlugin) and gated via StageUiPlugin.  Do NOT
             // re-register them here — that would cause double execution.
-            .add_active_systems::<StagePlugin, _>((
+            .add_active_systems::<StagePlugin<G, M>, _>((
                 // Pause menu
                 pause_menu_renderer,
                 toggle_game.run_if(in_state(StageProgressState::Running)),
@@ -372,4 +423,67 @@ pub enum StageProgressState {
     Cleared,
     Death,
     GameOver,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Activable)]
+    struct MockGame;
+    #[derive(Activable)]
+    struct MockMenu;
+
+    /// Verify `StageHooks` captures the correct monomorphized function pointers.
+    #[test]
+    fn stage_hooks_captures_correct_function_pointers() {
+        let hooks = StageHooks {
+            activate_stage: activable::activate::<StagePlugin<MockGame, MockMenu>>,
+            deactivate_stage: activable::deactivate::<StagePlugin<MockGame, MockMenu>>,
+            deactivate_game: activable::deactivate::<MockGame>,
+            activate_menu: activable::activate::<MockMenu>,
+            trigger_transition: |_commands, _request| {},
+        };
+
+        // Verify the pointers resolve to the expected functions.
+        let expected_activate: fn(&mut Commands) =
+            activable::activate::<StagePlugin<MockGame, MockMenu>>;
+        let expected_deactivate_game: fn(&mut Commands) = activable::deactivate::<MockGame>;
+        let expected_activate_menu: fn(&mut Commands) = activable::activate::<MockMenu>;
+
+        assert_eq!(
+            hooks.activate_stage as usize, expected_activate as usize,
+            "activate_stage should point to activate::<StagePlugin<MockGame, MockMenu>>"
+        );
+        assert_eq!(
+            hooks.deactivate_game as usize, expected_deactivate_game as usize,
+            "deactivate_game should point to deactivate::<MockGame>"
+        );
+        assert_eq!(
+            hooks.activate_menu as usize, expected_activate_menu as usize,
+            "activate_menu should point to activate::<MockMenu>"
+        );
+    }
+
+    /// Default transition handler is a no-op (doesn't panic).
+    #[test]
+    fn default_transition_handler_is_noop() {
+        let hooks = StageHooks {
+            activate_stage: activable::activate::<StagePlugin<MockGame, MockMenu>>,
+            deactivate_stage: activable::deactivate::<StagePlugin<MockGame, MockMenu>>,
+            deactivate_game: activable::deactivate::<MockGame>,
+            activate_menu: activable::activate::<MockMenu>,
+            trigger_transition: |_commands, _request| {},
+        };
+
+        // Calling the no-op handler with a real TransitionRequest must not panic.
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.update();
+        let mut commands = app.world_mut().commands();
+        (hooks.trigger_transition)(
+            &mut commands,
+            &carcinisation_cutscene::data::TransitionRequest::Venetian,
+        );
+    }
 }

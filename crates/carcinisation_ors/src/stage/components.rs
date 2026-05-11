@@ -9,8 +9,8 @@ use super::{
     floors::SurfaceSpec,
     projection::ProjectionProfile,
 };
-use crate::stubs::CutsceneAnimationsSpawn;
 use bevy::prelude::*;
+use carcinisation_cutscene::data::CutsceneAnimationsSpawn;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use serde_with::{DurationSecondsWithFrac, serde_as};

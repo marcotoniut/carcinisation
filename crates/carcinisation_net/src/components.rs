@@ -61,6 +61,9 @@ pub struct NetPlayer {
     pub angle: f32,
     pub current_attack: NetAttackId,
     pub state: PlayerNetState,
+    /// Authoritative flamethrower fire state. Replicated on transition only.
+    /// Clients use this for reconciliation if `FlameActive` events are dropped.
+    pub flame_active: bool,
 }
 
 /// Replicated enemy component.
@@ -129,6 +132,7 @@ mod tests {
             angle: 1.57,
             current_attack: NetAttackId::Projectile,
             state: PlayerNetState::Alive,
+            flame_active: false,
         };
         let back = roundtrip_component(&player);
         assert_eq!(back.player_id.0, 1);

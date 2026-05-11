@@ -21,12 +21,12 @@ use crate::{
     },
     progression::game::GAME_DATA,
     stage::{
-        StagePlugin,
+        StageHooks,
         data::StageData,
         messages::{StageClearedEvent, StageStartupEvent},
     },
 };
-use activable::{activate, deactivate};
+use activable::activate;
 use bevy::prelude::*;
 
 const DEBUG_MODULE: &str = "Game";
@@ -72,10 +72,11 @@ pub fn on_stage_cleared(
     mut event_reader: MessageReader<StageClearedEvent>,
     mut commands: Commands,
     mut progress: ResMut<GameProgress>,
+    stage_hooks: Res<StageHooks>,
 ) {
     for _ in event_reader.read() {
         progress.index += 1;
-        deactivate::<StagePlugin>(&mut commands);
+        (stage_hooks.deactivate_stage)(&mut commands);
         commands.remove_resource::<StageData>();
     }
 }

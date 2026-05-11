@@ -31,19 +31,7 @@ pub struct DebugPlugin;
 /// Combat systems still emit normal damage; the shared damage application
 /// boundary decides whether player damage is ignored while debugging.
 #[cfg(debug_assertions)]
-#[derive(Resource, Clone, Copy, Debug, Reflect, Serialize, Deserialize)]
-#[reflect(Resource)]
-pub struct DebugGodMode {
-    pub enabled: bool,
-}
-
-#[cfg(debug_assertions)]
-impl DebugGodMode {
-    #[must_use]
-    pub const fn new(enabled: bool) -> Self {
-        Self { enabled }
-    }
-}
+pub use carcinisation_core::debug::DebugGodMode;
 
 /// BRP-drivable debug probe used to exercise composed-part damage deterministically.
 ///

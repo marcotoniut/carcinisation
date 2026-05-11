@@ -1,5 +1,5 @@
 use super::components::{HealthIcon, HealthText, Hud, UIBackground};
-use crate::stubs::load_inverted_typeface;
+use crate::stage::ui::typeface::load_inverted_typeface;
 use crate::{
     assets::CxAssets,
     stage::{

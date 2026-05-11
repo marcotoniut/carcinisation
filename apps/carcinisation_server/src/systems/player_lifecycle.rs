@@ -51,6 +51,7 @@ pub fn tick_player_lifecycle(
 
                 // Player just died.
                 player.state = PlayerNetState::Dead;
+                player.flame_active = false;
                 commands
                     .entity(entity)
                     .insert(RespawnTimer(PLAYER_RESPAWN_DELAY_SECS));

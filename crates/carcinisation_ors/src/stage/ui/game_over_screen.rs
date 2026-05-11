@@ -12,8 +12,8 @@ use self::{
 use super::StageUiPlugin;
 use crate::assets::CxAssets;
 use crate::stage::StageProgressState;
+use crate::stage::ui::typeface::load_inverted_typeface;
 use crate::stubs::Score;
-use crate::stubs::load_inverted_typeface;
 use activable::{Activable, ActivableAppExt};
 use bevy::prelude::*;
 use carapace::prelude::{

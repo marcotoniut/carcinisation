@@ -5,6 +5,11 @@ use std::sync::LazyLock;
 
 use crate::components::DespawnMark;
 
+/// Systems that sync tween-driven position values into `WorldPos`.
+/// Any system reading `WorldPos` after tween integration should declare `.after(PositionSyncSystems)`.
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub struct PositionSyncSystems;
+
 /// Native screen resolution (Game Boy: 160x144).
 pub const SCREEN_RESOLUTION: UVec2 = UVec2::new(160, 144);
 

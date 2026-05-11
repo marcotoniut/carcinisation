@@ -8,10 +8,10 @@ use super::{
     enemy::{data::steps::EnemyStep, entity::EnemyType},
     projection::ProjectionProfile,
 };
-use crate::stubs::TransitionRequest;
 use bevy::{asset::Asset, prelude::*, reflect::Reflect};
 use carcinisation_core::globals::SCREEN_RESOLUTION;
 use carcinisation_core::globals::SCREEN_RESOLUTION_F32_H;
+use carcinisation_cutscene::data::TransitionRequest;
 use derive_more::From;
 use derive_new::new;
 use serde::{Deserialize, Serialize};

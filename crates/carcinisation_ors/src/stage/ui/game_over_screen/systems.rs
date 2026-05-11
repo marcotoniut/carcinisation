@@ -1,13 +1,12 @@
 use super::{input::GameOverScreenInput, messages::GameOverScreenShutdownMessage};
 use crate::stage::{
-    StagePlugin, StageProgressState,
+    StageHooks, StageProgressState,
     components::{Stage, StageEntity},
     data::StageData,
     resources::StageProgress,
     restart::despawn_stage_entities,
 };
-use crate::stubs::{GamePlugin, GameProgress, Lives, MainMenuPlugin, STARTING_LIVES, Score};
-use activable::{activate, deactivate};
+use crate::stubs::{GameProgress, Lives, STARTING_LIVES, Score};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
@@ -29,6 +28,7 @@ pub fn check_press_continue_input(
 pub fn handle_game_over_screen_continue(
     mut event_reader: MessageReader<GameOverScreenShutdownMessage>,
     mut commands: Commands,
+    stage_hooks: Res<StageHooks>,
     mut stage_state: ResMut<NextState<StageProgressState>>,
     mut stage_progress: ResMut<StageProgress>,
     mut game_progress: ResMut<GameProgress>,
@@ -48,9 +48,9 @@ pub fn handle_game_over_screen_continue(
         // before deactivating plugins and returning to the main menu.
         despawn_stage_entities(&mut commands, &stage_query, &stage_entity_query);
 
-        deactivate::<StagePlugin>(&mut commands);
-        deactivate::<GamePlugin>(&mut commands);
-        activate::<MainMenuPlugin>(&mut commands);
+        (stage_hooks.deactivate_stage)(&mut commands);
+        (stage_hooks.deactivate_game)(&mut commands);
+        (stage_hooks.activate_menu)(&mut commands);
 
         commands.remove_resource::<StageData>();
     }

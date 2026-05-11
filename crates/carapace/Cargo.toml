@@ -89,7 +89,6 @@ required-features = ["particle"]
 
 [[example]]
 name = "state"
-required-features = ["state"]
 
 [[example]]
 name = "brp_screenshot"

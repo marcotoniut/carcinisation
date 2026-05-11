@@ -2,9 +2,9 @@ pub mod components;
 
 use self::components::{InfoText, PauseMenu, ScoreText, UIBackground};
 use crate::assets::CxAssets;
+use crate::stage::ui::typeface::load_inverted_typeface;
 use crate::stubs::GameProgressState;
 use crate::stubs::Score;
-use crate::stubs::load_inverted_typeface;
 use bevy::prelude::*;
 use carapace::prelude::{
     CxAnchor, CxPosition, CxRenderSpace, CxSprite, CxText, CxTextBundle, CxTypeface, WorldPos,

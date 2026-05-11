@@ -2,11 +2,7 @@
 
 use bevy::prelude::*;
 
-#[derive(Clone, Event, Message)]
-/// Raised when the player loses all lives or triggers game over.
-pub struct GameOverEvent {
-    pub score: u32,
-}
+pub use carcinisation_base::game::GameOverEvent;
 
 #[derive(Event, Message)]
 /// Starts the gameplay loop.

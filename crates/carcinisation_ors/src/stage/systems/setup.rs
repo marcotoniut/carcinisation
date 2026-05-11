@@ -1,11 +1,10 @@
 use super::spawn::{spawn_destructible, spawn_enemy, spawn_object, spawn_pickup};
 use crate::stubs::GameProgressState;
 use crate::stubs::make_music_bundle;
-use crate::stubs::trigger_transition;
 use crate::{
     assets::CxAssets,
     stage::{
-        StagePlugin,
+        StageHooks,
         bundles::{BackgroundBundle, SkyboxBundle},
         components::{Stage, StageEntity},
         data::{
@@ -27,7 +26,6 @@ use carcinisation_core::components::VolumeSettings;
 use carcinisation_core::globals::SCREEN_RESOLUTION;
 use std::time::Duration;
 
-use activable::activate;
 use bevy::{audio::PlaybackMode, prelude::*};
 use carapace::prelude::{CxFilter, CxSprite, CxTypeface};
 
@@ -46,6 +44,7 @@ pub fn on_stage_startup(
     mut typefaces: CxAssets<CxTypeface>,
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
+    stage_hooks: Res<StageHooks>,
 ) {
     let event = trigger.event();
     let data = event.data.as_ref();
@@ -67,7 +66,7 @@ pub fn on_stage_startup(
 
     // Required for the initial game-start path where no prior activate
     // has run.  On checkpoint restart this is a safe no-op (already active).
-    activate::<StagePlugin>(&mut commands);
+    (stage_hooks.activate_stage)(&mut commands);
 
     // When resuming from checkpoint, override start_coordinates so the
     // camera system (`initialise_camera_from_stage`) picks up the
@@ -98,7 +97,7 @@ pub fn on_stage_startup(
     // Skip the start transition on checkpoint restart — it is a one-time
     // stage entry effect that should not replay on continue.
     if !from_checkpoint && let Some(request) = &data.on_start_transition_o {
-        trigger_transition(&mut commands, request);
+        (stage_hooks.trigger_transition)(&mut commands, request);
     }
 
     spawn_hud(&mut commands, &mut typefaces, &asset_server);

@@ -71,6 +71,10 @@ pub struct DespawnMark;
 #[derive(Component)]
 pub struct Music;
 
+/// Marker resource indicating the splash screen is active.
+#[derive(Resource)]
+pub struct SplashActive;
+
 #[derive(Component)]
 pub struct DelayedDespawnOnCxAnimationFinished(pub Duration);
 
@@ -121,4 +125,32 @@ fn scaled_volume(volume: Volume, factor: f32) -> Volume {
         Volume::Linear(level) => Volume::Linear(level * factor),
         Volume::Decibels(level) => Volume::Decibels(level * factor),
     }
+}
+
+/// Build a music playback bundle with volume settings.
+#[must_use]
+pub fn make_music_bundle(
+    asset_server: &Res<AssetServer>,
+    volume_settings: &Res<VolumeSettings>,
+    music_path: String,
+    mode: bevy::audio::PlaybackMode,
+) -> (
+    bevy::audio::AudioPlayer,
+    bevy::audio::PlaybackSettings,
+    AudioSystemBundle,
+    Music,
+) {
+    let source = asset_server.load(music_path);
+    (
+        bevy::audio::AudioPlayer::new(source),
+        bevy::audio::PlaybackSettings {
+            mode,
+            volume: volume_settings.music,
+            ..Default::default()
+        },
+        AudioSystemBundle {
+            system_type: AudioSystemType::MUSIC,
+        },
+        Music,
+    )
 }

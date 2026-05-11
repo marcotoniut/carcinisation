@@ -44,6 +44,7 @@ fn spawn_player_at(server: &mut App, pid: u32, x: f32, y: f32, angle: f32) {
             angle,
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
+            flame_active: false,
         },
         NetHealth {
             current: 100.0,
@@ -322,6 +323,7 @@ fn dead_player_ignores_input() {
             angle: 0.0,
             current_attack: NetAttackId::None,
             state: PlayerNetState::Dead,
+            flame_active: false,
         },
         NetHealth {
             current: 0.0,

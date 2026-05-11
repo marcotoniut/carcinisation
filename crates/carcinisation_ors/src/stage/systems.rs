@@ -8,6 +8,7 @@ pub mod movement;
 pub mod setup;
 pub mod spawn;
 
+use super::StageHooks;
 use super::{
     StageProgressState,
     attack::components::EnemyAttack,
@@ -35,7 +36,6 @@ use crate::stubs::GameProgressState;
 use crate::stubs::Lives;
 use crate::stubs::Score;
 use crate::stubs::make_music_bundle;
-use crate::stubs::trigger_transition;
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
 use carapace::prelude::WorldPos;
@@ -351,9 +351,10 @@ pub fn on_stage_cleared(
     asset_server: Res<AssetServer>,
     volume_settings: Res<VolumeSettings>,
     stage_data: Res<StageData>,
+    stage_hooks: Res<StageHooks>,
 ) {
     if let Some(request) = &stage_data.on_end_transition_o {
-        trigger_transition(&mut commands, request);
+        (stage_hooks.trigger_transition)(&mut commands, request);
     }
 
     mark_for_despawn_by_query(&mut commands, &destructible_query);
