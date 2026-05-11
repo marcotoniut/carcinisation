@@ -1,0 +1,37 @@
+[Unit]
+Description=Carcinisation Multiplayer Server (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=carcinisation
+Group=carcinisation
+WorkingDirectory=/opt/carcinisation/current
+EnvironmentFile=/opt/carcinisation/configs/%i.env
+ExecStart=/opt/carcinisation/current/bin/carcinisation_server --port ${PORT} --map ${MAP}
+Restart=on-failure
+RestartSec=5
+UMask=0027
+StateDirectory=carcinisation/%i
+CacheDirectory=carcinisation/%i
+LogsDirectory=carcinisation
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/carcinisation/%i /var/cache/carcinisation/%i /var/log/carcinisation
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

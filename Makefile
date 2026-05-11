@@ -236,6 +236,22 @@ build-web:
 release-wasm: build-web
 
 # =============================================================================
+# Deployment
+# =============================================================================
+DEPLOY_TARGET ?= x86_64-unknown-linux-gnu
+DEPLOY_SERVER_BINARY := target/$(DEPLOY_TARGET)/release/carcinisation_server
+DEPLOY_CTL_BINARY := target/$(DEPLOY_TARGET)/release/carcinisationctl
+
+.PHONY: deploy-build
+deploy-build:
+	cross build --release --target $(DEPLOY_TARGET) --bin carcinisation_server --package carcinisation_server --bin carcinisationctl --package carcinisationctl
+
+.PHONY: deploy
+deploy: deploy-build
+	@echo "Deploying to remote server…"
+	DEPLOY_SERVER_BINARY=$(DEPLOY_SERVER_BINARY) DEPLOY_CTL_BINARY=$(DEPLOY_CTL_BINARY) bash deploy/deploy.sh
+
+# =============================================================================
 # Quality gates
 # =============================================================================
 .PHONY: check
