@@ -40,6 +40,9 @@ fn build_combat_server(port: u16, enemy_x: f32, enemy_y: f32) -> App {
         map: test_map(),
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     })
 }
 
@@ -300,6 +303,9 @@ fn flamethrower_wall_blocked_parity() {
         map,
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
@@ -344,6 +350,9 @@ fn lethal_damage_dying_dead_parity() {
         map: test_map(),
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
@@ -399,6 +408,9 @@ fn flame_lethal_damage_burn_parity() {
         map: test_map(),
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);

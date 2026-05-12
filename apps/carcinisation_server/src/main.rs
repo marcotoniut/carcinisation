@@ -16,6 +16,14 @@ struct Args {
     port: u16,
     #[arg(long, default_value = DEFAULT_MAP)]
     map: PathBuf,
+    /// Instance name for admin/status reporting.
+    /// Defaults to the `INSTANCE_NAME` env var, then "server".
+    #[arg(long, env = "INSTANCE_NAME", default_value = "server")]
+    instance: String,
+    /// Path to the admin Unix socket.
+    /// Defaults to the `ADMIN_SOCKET` env var. If unset, admin socket is disabled.
+    #[arg(long, env = "ADMIN_SOCKET")]
+    admin_socket: Option<String>,
 }
 
 fn main() {
@@ -44,6 +52,9 @@ fn main() {
         map: map_data.map,
         entities: map_data.entities,
         player_starts: map_data.player_starts,
+        admin_socket: args.admin_socket,
+        instance_name: args.instance,
+        map_path: args.map.display().to_string(),
     });
 
     app.run();

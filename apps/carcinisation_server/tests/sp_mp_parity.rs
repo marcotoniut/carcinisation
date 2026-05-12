@@ -33,6 +33,9 @@ fn build_parity_server(port: u16) -> App {
         map: test_map(),
         entities: vec![],
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     })
 }
 

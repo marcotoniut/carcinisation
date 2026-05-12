@@ -36,6 +36,9 @@ fn build_replay_server(port: u16) -> App {
         map: test_map(),
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     // Deterministic: each app.update() = exactly 1 fixed tick.
     app.insert_resource(TimeUpdateStrategy::FixedTimesteps(1));

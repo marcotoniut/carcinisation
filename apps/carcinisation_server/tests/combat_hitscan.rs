@@ -97,6 +97,9 @@ fn build_combat_server(port: u16) -> App {
         map: test_map(),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     })
 }
 
@@ -424,6 +427,9 @@ fn build_flame_server(port: u16) -> App {
         map: test_map(),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     })
 }
 
@@ -443,6 +449,9 @@ fn build_default_map_server(port: u16) -> App {
         map: map_data.map,
         entities: map_data.entities,
         player_starts: map_data.player_starts,
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     })
 }
 
@@ -595,6 +604,9 @@ fn map_authored_mosquiton_speed_is_preserved_on_server_spawn() {
         map: test_map(),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
 
@@ -625,6 +637,9 @@ fn open_map_mosquiton_reaches_preferred_range_then_holds() {
         map: open_test_map(9, 4),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
     let player_position = Vec2::new(1.5, 1.5);
@@ -727,6 +742,9 @@ fn server_ai_updates_live_mosquiton_position() {
         map: open_test_map(10, 4),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
     server.world_mut().spawn(NetPlayer {
@@ -792,6 +810,9 @@ fn map_authored_speed_changes_mosquiton_movement_distance() {
         map: open_test_map(10, 6),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
     server.world_mut().spawn(NetPlayer {
@@ -860,6 +881,9 @@ fn client_receives_replicated_mosquiton_position_updates() {
         map: open_test_map(10, 5),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
 
@@ -899,6 +923,9 @@ fn server_ai_does_not_move_dead_mosquiton() {
         map: test_map(),
         entities,
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
     server.world_mut().spawn(NetPlayer {
@@ -959,6 +986,9 @@ fn default_map_first_spawn_has_live_flamethrower_target() {
         map: map_data.map.clone(),
         entities: map_data.entities.clone(),
         player_starts: map_data.player_starts.clone(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
 
@@ -1499,6 +1529,9 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
         map: test_map(),
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
 

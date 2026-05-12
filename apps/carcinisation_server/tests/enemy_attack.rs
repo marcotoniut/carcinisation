@@ -31,6 +31,9 @@ fn build_attack_server(port: u16) -> App {
         map: test_map(),
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     })
 }
 
@@ -241,6 +244,9 @@ fn each_enemy_targets_nearest_player() {
         map: test_map(),
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     });
     server.update();
 

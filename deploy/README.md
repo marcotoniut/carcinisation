@@ -11,7 +11,8 @@ bridge.
 
 - `/opt/carcinisation/releases/<git-sha>/` - immutable release directories.
 - `/opt/carcinisation/current` - symlink to the active release.
-- `/opt/carcinisation/current/configs/*.env` - per-release instance environment files.
+- `/opt/carcinisation/configs/*.env` - persistent per-instance environment files (seeded from examples on first deploy, never overwritten).
+- `/run/carcinisation/` - runtime directory for admin sockets (managed by systemd `RuntimeDirectory`).
 - `/var/lib/carcinisation/`, `/var/cache/carcinisation/`, `/var/log/carcinisation/` - writable runtime paths.
 - `/etc/systemd/system/carcinisation@.service` - systemd template unit.
 - `/usr/local/sbin/carcinisation-deploy` - root-owned deploy helper used by CI.
@@ -76,23 +77,28 @@ above and must not rely on local shell aliases.
 
 ## Deploying
 
-Deployment runs on pushes to the `release` branch and can also be started with
-`workflow_dispatch`. The workflow builds:
+Deployment runs via `make deploy` which cross-compiles both binaries and
+uploads them to the remote host. The build step produces:
 
 ```bash
-cargo build --release --locked --bin carcinisation_server --package carcinisation_server
+cross build --release --target x86_64-unknown-linux-gnu \
+  --bin carcinisation_server --package carcinisation_server \
+  --bin carcinisationctl --package carcinisationctl
 ```
 
-The deploy script verifies the local binary is a Linux ELF for the expected
-architecture, verifies the remote architecture, uploads the server binary,
+The deploy script verifies both binaries are Linux ELF artifacts for the
+expected architecture, verifies the remote architecture, uploads both binaries,
 assets, and configs to a staging directory, calls the root-owned deploy helper,
 installs a new release, atomically switches `/opt/carcinisation/current`, and
-restarts only currently active `carcinisation@*.service` units.
+restarts only currently active `carcinisation@*.service` units. Both binaries
+live under `/opt/carcinisation/current/bin/` and roll back together via the
+`current` symlink.
 
 ## Instances
 
-Per-instance configs live in `deploy/configs/*.env` and are deployed to
-`/opt/carcinisation/current/configs/` as part of each release.
+Per-instance configs live in `deploy/configs/*.env.example` and are seeded to
+`/opt/carcinisation/configs/` on first deploy. Existing server-managed configs
+are never overwritten.
 
 Start an instance:
 
@@ -107,23 +113,67 @@ sudo systemctl stop carcinisation@deathmatch.service
 sudo systemctl restart carcinisation@deathmatch.service
 ```
 
-Add a new instance by adding `deploy/configs/<name>.env` with a unique `PORT`
-and absolute `MAP` path, deploying it, then enabling `carcinisation@<name>.service`.
+Add a new instance by adding `deploy/configs/<name>.env.example` with a unique
+`PORT`, `INSTANCE_NAME`, `ADMIN_SOCKET`, and absolute `MAP` path. Deploy it,
+then enable `carcinisation@<name>.service`.
+
+## Admin Commands
+
+Each server instance exposes a local-only Unix domain socket for administration.
+Sockets live at `/run/carcinisation/<instance>.admin.sock` (created by systemd's
+`RuntimeDirectory`). The `carcinisationctl` CLI connects to this socket.
+
+Admin commands are local-only. They are not exposed over the public multiplayer
+port.
+
+### Usage
+
+```bash
+# From the server host (SSH in first):
+ssh sship
+
+# Run as the carcinisation user:
+sudo -u carcinisation /opt/carcinisation/current/bin/carcinisationctl deathmatch status
+sudo -u carcinisation /opt/carcinisation/current/bin/carcinisationctl deathmatch players
+sudo -u carcinisation /opt/carcinisation/current/bin/carcinisationctl deathmatch help
+sudo -u carcinisation /opt/carcinisation/current/bin/carcinisationctl deathmatch restart
+sudo -u carcinisation /opt/carcinisation/current/bin/carcinisationctl deathmatch reset-map
+sudo -u carcinisation /opt/carcinisation/current/bin/carcinisationctl deathmatch shutdown
+sudo -u carcinisation /opt/carcinisation/current/bin/carcinisationctl deathmatch say "Server restart in 2 minutes"
+```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `help` | Lists available commands |
+| `status` | Instance name, port, map, uptime, player/enemy count |
+| `players` | Lists connected players (ID, state, health, position) |
+| `say <message>` | Not implemented yet (no in-game chat system) |
+| `restart` | Exit with non-zero code so systemd `Restart=on-failure` brings it back |
+| `reset-map` | Reset gameplay state in-place: despawn enemies/projectiles, respawn enemies, reset players to spawn points. Preserves connections. Uses cached map data from startup — does not re-read the map file from disk. |
+| `shutdown` | Graceful server shutdown (clean exit code 0, no auto-restart) |
+
+### Socket Override
+
+```bash
+/opt/carcinisation/current/bin/carcinisationctl deathmatch status --socket /tmp/test.admin.sock
+```
 
 ## Logs And Health
 
 ```bash
 systemctl status carcinisation@deathmatch.service
 journalctl -u carcinisation@deathmatch.service -n 200 --no-pager
-ss -lunp | grep 7001
+ss -lunp | grep 7142
 ```
 
 Open the UDP ports used by enabled instances, for example:
 
 ```bash
-sudo ufw allow 7001/udp
-sudo ufw allow 7002/udp
-sudo ufw allow 7003/udp
+sudo ufw allow 7142/udp
+sudo ufw allow 7143/udp
+sudo ufw allow 7144/udp
 ```
 
 ## Rollback
@@ -131,7 +181,7 @@ sudo ufw allow 7003/udp
 If a restart health check fails during deploy, `deploy/deploy.sh` switches
 `/opt/carcinisation/current` back to the previous release and restarts the
 previously active instances. Because configs are versioned inside each release,
-rollback restores the previous binary, assets, and configs together. The systemd
+rollback restores both binaries, assets, and configs together. The systemd
 unit is bootstrap-managed and is not changed by normal app deploys.
 
 Manual rollback:

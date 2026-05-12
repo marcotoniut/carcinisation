@@ -1,0 +1,9 @@
+[package]
+name = "carcinisationctl"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+carcinisation_admin = { path = "../../crates/carcinisation_admin" }
+clap = { version = "4.5", features = ["derive"] }
+serde_json = { workspace = true }

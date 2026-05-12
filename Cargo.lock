@@ -2456,6 +2456,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "carcinisation_admin"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "carcinisation_base"
 version = "0.3.0"
 dependencies = [
@@ -2588,10 +2596,21 @@ dependencies = [
  "bevy_renet2",
  "bevy_replicon",
  "bevy_replicon_renet2",
+ "carcinisation_admin",
  "carcinisation_fps_core",
  "carcinisation_net",
  "clap",
  "renet2",
+ "serde_json",
+]
+
+[[package]]
+name = "carcinisationctl"
+version = "0.3.0"
+dependencies = [
+ "carcinisation_admin",
+ "clap",
+ "serde_json",
 ]
 
 [[package]]

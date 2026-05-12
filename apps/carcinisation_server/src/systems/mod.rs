@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod combat;
 pub mod diagnostics;
 pub mod enemy_ai;
@@ -5,6 +6,7 @@ pub mod enemy_attack;
 pub mod input;
 pub mod player_lifecycle;
 pub mod projectile;
+pub mod reset;
 
 pub use carcinisation_net::components::NetEnemy;
 pub use carcinisation_net::{NetEnemyState, NetEnemyType, NetHealth, NetProjectile};

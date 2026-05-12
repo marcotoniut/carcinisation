@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "apps/carcinisation",
     "apps/carcinisation_server",
+    "apps/carcinisationctl",
     "crates/activable_macros",
     "crates/activable",
     "crates/asset_pipeline",
@@ -11,6 +12,7 @@ members = [
     "crates/carcinisation_base",
     "crates/carcinisation_collision",
     "crates/carcinisation_cutscene",
+    "crates/carcinisation_admin",
     "crates/carcinisation_core",
     "crates/carcinisation_fps",
     "crates/carcinisation_fps_core",

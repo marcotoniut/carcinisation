@@ -22,16 +22,18 @@ use carcinisation_net::{
     FlameActive, NetAttackId, NetEnemyState, NetEnemyType, NetHealth, NetPlayer, NetProtocolPlugin,
     NetworkObjectId, PlayerId, PlayerIdAssigned, PlayerNetState, register_net_all,
 };
+use systems::admin::{poll_admin_socket, setup_admin_socket};
 use systems::combat::process_combat;
 use systems::diagnostics::{DiagnosticsState, tick_diagnostics_end, tick_diagnostics_start};
 use systems::input::{apply_buffered_movement, receive_client_intent};
+use systems::reset::{MapResetRequested, handle_map_reset};
 use systems::{
     BurnContactCooldowns, EnemyAiSet, EnemyAttackSet, FireCooldownMap, FlameActiveTracker,
-    FlameCharCooldowns, NetEnemy, NextProjectileId, PlayerInputTracker, PlayerIntentBuffer,
-    ProjectileSet, ServerEnemyAiConfig, ServerMosquitonSim, ServerMosquitonSimConfig,
-    ServerQuickTurn, ServerTurnConfig, tick_burn_contact_damage, tick_despawn_timers,
-    tick_enemy_attacks, tick_enemy_death_timers, tick_net_enemy_ai, tick_pending_projectiles,
-    tick_player_lifecycle, tick_projectiles_server,
+    FlameCharCooldowns, NextProjectileId, PlayerInputTracker, PlayerIntentBuffer, ProjectileSet,
+    ServerEnemyAiConfig, ServerMosquitonSim, ServerMosquitonSimConfig, ServerQuickTurn,
+    ServerTurnConfig, tick_burn_contact_damage, tick_despawn_timers, tick_enemy_attacks,
+    tick_enemy_death_timers, tick_net_enemy_ai, tick_pending_projectiles, tick_player_lifecycle,
+    tick_projectiles_server,
 };
 
 /// Component attached to `ConnectedClient` to track assigned `PlayerId`.
@@ -62,7 +64,7 @@ impl NextPlayerId {
 
 /// Per-server spawn point rotator.
 #[derive(Resource, Default)]
-struct SpawnIndex(usize);
+pub struct SpawnIndex(pub usize);
 
 /// Map entity spawns, stored as a resource for the startup system.
 #[derive(Resource, Default)]
@@ -77,6 +79,12 @@ pub struct ServerPlugin {
     pub map: Map,
     pub entities: Vec<EntitySpawnData>,
     pub player_starts: Vec<PlayerStartData>,
+    /// If set, the server binds a local admin socket at this path.
+    pub admin_socket: Option<String>,
+    /// Human-readable instance name (e.g. "deathmatch").
+    pub instance_name: String,
+    /// Map file path for status reporting.
+    pub map_path: String,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -187,7 +195,29 @@ impl Plugin for ServerPlugin {
             )
             .init_resource::<DiagnosticsState>()
             .init_resource::<NextProjectileId>()
-            .insert_resource(ServerPort(self.port));
+            .init_resource::<MapResetRequested>()
+            .insert_resource(ServerPort(self.port))
+            .add_systems(
+                FixedUpdate,
+                handle_map_reset
+                    .in_set(MovementSet)
+                    .before(tick_diagnostics_start),
+            );
+
+        // Admin socket (optional — skipped in tests or when no path is given).
+        if let Some(ref socket_path) = self.admin_socket {
+            let admin_state = setup_admin_socket(
+                socket_path,
+                self.instance_name.clone(),
+                self.map_path.clone(),
+            );
+            app.insert_resource(admin_state).add_systems(
+                FixedUpdate,
+                poll_admin_socket
+                    .in_set(TickSet)
+                    .after(tick_diagnostics_end),
+            );
+        }
 
         let wall_count = self.map.cells.iter().filter(|&&c| c > 0).count();
         let spawn_count = self.player_starts.len();
@@ -415,21 +445,27 @@ fn handle_client_disconnect(
 }
 
 /// Spawns enemies from the map's entity list on server startup.
-#[allow(clippy::cast_precision_loss)]
 fn spawn_map_enemies(mut commands: Commands, map_entities: Res<MapEntities>) {
-    let mut next_id = 1_u32;
-    let mut count = 0;
+    let count = spawn_map_enemies_inner(&mut commands, &map_entities.0);
+    info!("Spawned {count} enemies from map entities");
+}
 
-    for spawn in &map_entities.0 {
+/// Shared enemy spawning logic used by both startup and map reset.
+#[allow(clippy::cast_precision_loss)]
+pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnData]) -> u32 {
+    let mut next_id = 1_u32;
+    let mut count = 0u32;
+
+    for spawn in entities {
         let Some(health) = spawn.kind.health() else {
-            continue; // Skip non-enemy entities (Pillars).
+            continue;
         };
 
         let object_id = NetworkObjectId(next_id);
         next_id += 1;
 
         let mut enemy_commands = commands.spawn((
-            NetEnemy {
+            systems::NetEnemy {
                 object_id,
                 position: bevy::math::Vec2::new(spawn.x, spawn.y),
                 angle: 0.0,
@@ -454,10 +490,10 @@ fn spawn_map_enemies(mut commands: Commands, map_entities: Res<MapEntities>) {
         count += 1;
     }
 
-    info!("Spawned {count} enemies from map entities");
+    count
 }
 
-fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
+pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
     match &spawn.kind {
         EntitySpawnKind::Pillar { .. }
         | EntitySpawnKind::Enemy { .. }
@@ -466,7 +502,7 @@ fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
     }
 }
 
-fn server_enemy_ai_config_from_spawn(spawn: &EntitySpawnData) -> Option<ServerEnemyAiConfig> {
+pub fn server_enemy_ai_config_from_spawn(spawn: &EntitySpawnData) -> Option<ServerEnemyAiConfig> {
     match &spawn.kind {
         EntitySpawnKind::Mosquiton { speed, .. } => Some(ServerEnemyAiConfig::mosquiton(*speed)),
         EntitySpawnKind::Pillar { .. }

@@ -18,6 +18,9 @@ pub fn test_server_plugin(port: u16) -> ServerPlugin {
         map: test_map(),
         entities: Vec::new(),
         player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     }
 }
 

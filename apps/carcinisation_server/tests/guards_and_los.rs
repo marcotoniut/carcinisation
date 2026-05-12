@@ -50,6 +50,9 @@ fn build_server_with_map_and_enemy(port: u16, map: Map, enemy_x: f32, enemy_y: f
         map,
         entities,
         player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
     })
 }
 
