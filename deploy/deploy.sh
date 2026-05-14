@@ -11,38 +11,38 @@ CTL_BINARY="${DEPLOY_CTL_BINARY:-target/x86_64-unknown-linux-gnu/release/carcini
 REMOTE_HELPER="${DEPLOY_REMOTE_HELPER:-/usr/local/sbin/carcinisation-deploy}"
 
 validate_release_id() {
-    case "$1" in
-        ""|"."|".."|*/*|*\\*) return 1 ;;
-    esac
-    [[ "$1" =~ ^[A-Za-z0-9._-]+$ ]]
+	case "$1" in
+	"" | "." | ".." | */* | *\\*) return 1 ;;
+	esac
+	[[ "$1" =~ ^[A-Za-z0-9._-]+$ ]]
 }
 
 if ! validate_release_id "$RELEASE_ID"; then
-    echo "unsafe DEPLOY_RELEASE_ID: $RELEASE_ID" >&2
-    exit 1
+	echo "unsafe DEPLOY_RELEASE_ID: $RELEASE_ID" >&2
+	exit 1
 fi
 
 if ! command -v file >/dev/null 2>&1; then
-    echo "required command not found: file" >&2
-    exit 1
+	echo "required command not found: file" >&2
+	exit 1
 fi
 
 validate_binary() {
-    local name="$1" path="$2"
-    if [ ! -x "$path" ]; then
-        echo "$name binary not found or not executable: $path" >&2
-        exit 1
-    fi
-    local info
-    info="$(file "$path")"
-    case "$EXPECTED_ARCH:$info" in
-        x86_64:*ELF*64-bit*x86-64*|amd64:*ELF*64-bit*x86-64*) ;;
-        aarch64:*ELF*64-bit*ARM*aarch64*|arm64:*ELF*64-bit*ARM*aarch64*) ;;
-        *)
-            echo "$name binary must be a Linux ELF for $EXPECTED_ARCH: $info" >&2
-            exit 1
-            ;;
-    esac
+	local name="$1" path="$2"
+	if [ ! -x "$path" ]; then
+		echo "$name binary not found or not executable: $path" >&2
+		exit 1
+	fi
+	local info
+	info="$(file "$path")"
+	case "$EXPECTED_ARCH:$info" in
+	x86_64:*ELF*64-bit*x86-64* | amd64:*ELF*64-bit*x86-64*) ;;
+	aarch64:*ELF*64-bit*ARM*aarch64* | arm64:*ELF*64-bit*ARM*aarch64*) ;;
+	*)
+		echo "$name binary must be a Linux ELF for $EXPECTED_ARCH: $info" >&2
+		exit 1
+		;;
+	esac
 }
 
 validate_binary "server" "$SERVER_BINARY"
@@ -53,20 +53,20 @@ scp_cmd=(scp)
 rsync_cmd=(rsync -az --delete --delay-updates)
 
 cleanup_remote_tmp() {
-    if [ -n "${REMOTE_TMP:-}" ]; then
-        "${ssh_cmd[@]}" "rm -rf '$REMOTE_TMP'" || true
-    fi
+	if [ -n "${REMOTE_TMP:-}" ]; then
+		"${ssh_cmd[@]}" "rm -rf '$REMOTE_TMP'" || true
+	fi
 }
 trap cleanup_remote_tmp EXIT
 
 echo "==> Checking remote architecture"
 remote_arch="$("${ssh_cmd[@]}" "uname -m")"
 case "$EXPECTED_ARCH:$remote_arch" in
-    x86_64:x86_64|amd64:x86_64|aarch64:aarch64|arm64:aarch64) ;;
-    *)
-        echo "remote architecture mismatch: expected $EXPECTED_ARCH, got $remote_arch" >&2
-        exit 1
-        ;;
+x86_64:x86_64 | amd64:x86_64 | aarch64:aarch64 | arm64:aarch64) ;;
+*)
+	echo "remote architecture mismatch: expected $EXPECTED_ARCH, got $remote_arch" >&2
+	exit 1
+	;;
 esac
 
 echo "==> Checking remote deploy helper"

@@ -51,8 +51,18 @@ Troubleshooting: If VS Code reports `Import "PIL" could not be resolved`, re-run
 ## Documentation
 
 - `CONTRIBUTING.md` – project guardrails, quality gates, and pull-request expectations.
-- `DEVELOPMENT.md` – make targets, asset tooling, palette generation workflow, and day-to-day processes.
+<!-- DEVELOPMENT.md planned but not yet written -->
 - `AGENTS.md` – AI agent collaboration rules and coordination tips.
+
+## Shell Scripts
+
+Run:
+```bash
+just check-shell   # bash -n + shellcheck + shfmt -d
+just fmt-shell     # shfmt -w (auto-format)
+```
+
+Tooling is installed via proto (`shellcheck`, `shfmt`).
 
 ## Agent Validation Metadata
 

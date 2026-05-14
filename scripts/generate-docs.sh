@@ -22,10 +22,10 @@ cd "$REPO_ROOT"
 
 DOC_FLAGS=(--workspace --all-features)
 if [[ "${DOCS_PRIVATE:-1}" != "0" ]]; then
-  DOC_FLAGS+=(--document-private-items)
+	DOC_FLAGS+=(--document-private-items)
 fi
 if [[ "${DOCS_OFFLINE:-0}" != "0" ]]; then
-  DOC_FLAGS+=(--offline)
+	DOC_FLAGS+=(--offline)
 fi
 
 printf '📚 Generating workspace docs...\n'
@@ -33,8 +33,8 @@ cargo doc "${DOC_FLAGS[@]}"
 printf '✅ Docs available under %s/target/doc\n' "$REPO_ROOT"
 
 if [[ "${1:-}" == "--serve" ]]; then
-  PORT="${DOCS_PORT:-7878}"
-  printf '🌐 Serving docs at http://localhost:%s (Ctrl+C to stop)\n' "$PORT"
-  cd target/doc
-  python3 -m http.server "$PORT"
+	PORT="${DOCS_PORT:-7878}"
+	printf '🌐 Serving docs at http://localhost:%s (Ctrl+C to stop)\n' "$PORT"
+	cd target/doc
+	python3 -m http.server "$PORT"
 fi

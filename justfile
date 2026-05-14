@@ -183,6 +183,20 @@ export-aseprite entity depth manifest="resources/sprites/data.toml" output-root=
 export-attack-atlases manifest="resources/sprites/attacks/data.toml":
     cargo run -p process-aseprite -- --simple-atlases --manifest {{ manifest }}
 
+# ─── Shell ───────────────────────────────────────────────────────────────────
+
+shell-scripts := `find . -maxdepth 3 -name '*.sh' -not -path './.git/*' -not -path './node_modules/*' -not -path './target/*' -not -path './tmp/*' -not -path './.tmp/*' -not -path './web-deploy/*' | sort | paste -sd ' ' -`
+
+# Check shell scripts: bash syntax + shellcheck + shfmt diff
+check-shell:
+    @for s in {{ shell-scripts }}; do echo "  bash -n  $s"; bash -n "$s"; done
+    shellcheck {{ shell-scripts }}
+    shfmt -d {{ shell-scripts }}
+
+# Format all shell scripts with shfmt
+fmt-shell:
+    shfmt -w {{ shell-scripts }}
+
 # ─── Quality Gates ───────────────────────────────────────────────────────────
 
 # cargo check workspace with all features
@@ -205,16 +219,18 @@ clean:
 fmt:
     cargo fmt --all
 
-# Format check + clippy (workspace-wide)
+# Format check + clippy + shell check (workspace-wide)
 lint:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets --all-features -- -D warnings
+    just check-shell
 
-# Auto-fix what we can (fmt, ruff, pnpm lint, bevy lint)
+# Auto-fix what we can (fmt, ruff, pnpm lint, shell, bevy lint)
 lint-fix:
     cargo fmt --all
     proto run ruff -- check --fix scripts
     pnpm lint:fix
+    -just fmt-shell
     -just bevy-lint-fix
 
 # Bevy CLI lint

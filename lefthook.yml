@@ -9,6 +9,12 @@ pre-commit:
       run: pnpm lint
     ruff-check:
       run: proto run ruff -- check scripts
+    shell-bash-n:
+      run: bash -n install-web.sh make-web.sh scripts/debug-carcinisation.sh scripts/generate-docs.sh bin/pre-push.sh deploy/deploy.sh deploy/carcinisation-deploy-helper.sh
+    shell-shellcheck:
+      run: shellcheck install-web.sh make-web.sh scripts/debug-carcinisation.sh scripts/generate-docs.sh bin/pre-push.sh deploy/deploy.sh deploy/carcinisation-deploy-helper.sh
+    shell-shfmt:
+      run: shfmt -d install-web.sh make-web.sh scripts/debug-carcinisation.sh scripts/generate-docs.sh bin/pre-push.sh deploy/deploy.sh deploy/carcinisation-deploy-helper.sh
 
 pre-push:
   commands:

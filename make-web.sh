@@ -13,10 +13,10 @@ rm -rf "${OUT_DIR:?}/${WASM}.wasm" "${OUT_DIR:?}/${WASM}_bg.wasm" "${OUT_DIR:?}/
 cargo build --release --target "$TARGET" -p carcinisation --bin "$WASM"
 
 wasm-bindgen \
-  --no-typescript \
-  --target web \
-  --out-dir "$OUT_DIR" \
-  "./target/${TARGET}/release/${WASM}.wasm"
+	--no-typescript \
+	--target web \
+	--out-dir "$OUT_DIR" \
+	"./target/${TARGET}/release/${WASM}.wasm"
 
 wasm-opt -Oz "${OUT_DIR}/${WASM}_bg.wasm" --output "${OUT_DIR}/${WASM}_bg.wasm"
 
