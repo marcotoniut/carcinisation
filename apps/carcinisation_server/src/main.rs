@@ -12,7 +12,7 @@ const DEFAULT_MAP: &str = "assets/config/fp/test_room.fp_map.ron";
 
 #[derive(Parser, Clone, Debug)]
 struct Args {
-    #[arg(long, default_value = "5000")]
+    #[arg(long, default_value = "7142")]
     port: u16,
     #[arg(long, default_value = DEFAULT_MAP)]
     map: PathBuf,

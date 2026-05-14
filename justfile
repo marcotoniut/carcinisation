@@ -52,54 +52,51 @@ dev-gallery:
 
 # ─── Multiplayer ──────────────────────────────────────────────────────────────
 
-server-port := "7000"
+server-port := "7142"
 
 # Run dedicated FPS server
 dev-fps-server:
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }}
 
-# Run FPS client connecting to local server
+# Run FPS client (uses CARCINISATION_CONNECT from .env, override with --connect)
 dev-fps-client:
+    @test -n "$${CARCINISATION_CONNECT:-}" || { echo "ERROR: set CARCINISATION_CONNECT or use 'just dev-fps-client-local'" >&2; exit 1; }
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:{{ server-port }}
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking
+
+# Run FPS client connecting to local server
+dev-fps-client-local:
+    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }}
 
 # Headless server + 1 client
 dev-fps-pair:
-    @echo "Starting headless server + 1 client (Ctrl+C stops both)..."
-    @bash -c ' \
-        SRV=; CLI=; \
-        cleanup() { status=$$?; trap - INT TERM EXIT; [ -n "$$SRV" ] && kill "$$SRV" 2>/dev/null || true; [ -n "$$CLI" ] && kill "$$CLI" 2>/dev/null || true; exit "$$status"; }; \
-        trap cleanup INT TERM EXIT; \
-        RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} & \
-        SRV=$$!; \
-        sleep 3; \
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:{{ server-port }} & \
-        CLI=$$!; \
-        echo "Press Ctrl+C to stop server+client"; \
-        wait -n "$$SRV" "$$CLI"; \
-    '
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Starting headless server + 1 client (Ctrl+C stops both)..."
+    trap 'kill 0 2>/dev/null' INT TERM EXIT
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} &
+    sleep 3
+    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} &
+    echo "Press Ctrl+C to stop server+client"
+    wait
 
 # Headless server + 2 clients
 dev-fps-duo:
-    @echo "Starting headless server + 2 clients (Ctrl+C stops all)..."
-    @bash -c ' \
-        SRV=; CLI0=; CLI1=; \
-        cleanup() { status=$$?; trap - INT TERM EXIT; [ -n "$$SRV" ] && kill "$$SRV" 2>/dev/null || true; [ -n "$$CLI0" ] && kill "$$CLI0" 2>/dev/null || true; [ -n "$$CLI1" ] && kill "$$CLI1" 2>/dev/null || true; exit "$$status"; }; \
-        trap cleanup INT TERM EXIT; \
-        RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} & \
-        SRV=$$!; \
-        sleep 3; \
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:{{ server-port }} & \
-        CLI0=$$!; \
-        sleep 1; \
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation -- --connect 127.0.0.1:{{ server-port }} & \
-        CLI1=$$!; \
-        echo "Press Ctrl+C to stop server+clients"; \
-        wait -n "$$SRV" "$$CLI0" "$$CLI1"; \
-    '
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Starting headless server + 2 clients (Ctrl+C stops all)..."
+    trap 'kill 0 2>/dev/null' INT TERM EXIT
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} &
+    sleep 3
+    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} &
+    sleep 1
+    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} &
+    echo "Press Ctrl+C to stop server+clients"
+    wait
 
 # ─── Web ──────────────────────────────────────────────────────────────────────
 

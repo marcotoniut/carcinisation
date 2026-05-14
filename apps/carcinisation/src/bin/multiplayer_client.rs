@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 
 const MAP_PATH: &str = "assets/config/fp/test_room.fp_map.ron";
 const SKY_PATH: &str = "assets/config/sky/park.sky.ron";
+const CONNECT_ENV: &str = "CARCINISATION_CONNECT";
 const SCREEN_W: u32 = 160;
 const SCREEN_H: u32 = 144;
 
 #[derive(Parser, Debug)]
 #[command(about = "Networked multiplayer FPS client - connects to server.")]
 struct MpClientArgs {
+    /// Server address to connect to. Overrides CARCINISATION_CONNECT env var.
     #[arg(long = "connect")]
     connect: Option<String>,
     #[arg(long = "map", default_value = MAP_PATH)]
@@ -38,6 +40,7 @@ fn god_mode(config: Res<Config>, mut health: ResMut<PlayerHealth>, mut dead: Res
 }
 
 fn main() -> ExitCode {
+    let _ = dotenvy::dotenv_override();
     let args = MpClientArgs::parse();
 
     let map_ron = fs::read_to_string(&args.map_path)
@@ -93,8 +96,10 @@ fn main() -> ExitCode {
     // God mode disabled — death/respawn is now server-authoritative.
     // To re-enable for testing: app.add_systems(Update, god_mode.after(Systems));
 
-    if let Some(addr) = args.connect {
-        let addr: SocketAddr = addr.parse().expect("invalid connect address");
+    let connect_addr = args.connect.or_else(|| std::env::var(CONNECT_ENV).ok());
+
+    if let Some(addr_str) = connect_addr {
+        let addr: SocketAddr = addr_str.parse().expect("invalid connect address");
         app.add_plugins(FpsClientPlugin { connect_addr: addr });
     }
 

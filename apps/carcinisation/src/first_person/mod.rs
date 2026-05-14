@@ -41,6 +41,49 @@ pub use input::{ClientInputSequence, collect_and_send_intent};
 #[derive(Resource, Debug, Default)]
 pub struct LocalPlayerId(pub Option<PlayerId>);
 
+/// Client connection state machine.
+///
+/// Transitions:
+///   Connecting ──(PlayerIdAssigned)──→ Connected
+///   Connecting ──(timeout/error)─────→ Failed
+///   Connected  ──(transport drop)────→ Disconnected
+#[derive(Resource, Debug, Clone)]
+pub enum ConnectionState {
+    Connecting {
+        addr: SocketAddr,
+        start_time: std::time::Instant,
+    },
+    Connected,
+    Failed {
+        reason: String,
+    },
+    Disconnected {
+        reason: String,
+    },
+}
+
+const CONNECTION_TIMEOUT_SECS: f64 = 15.0;
+
+const SHOW_NET_INFO_ENV: &str = "CARCINISATION_SHOW_NET_INFO";
+
+/// Toggle resource for the FPS/ping/connection HUD.
+#[derive(Resource, Debug)]
+struct NetInfoVisible(bool);
+
+impl Default for NetInfoVisible {
+    fn default() -> Self {
+        let enabled = std::env::var(SHOW_NET_INFO_ENV)
+            .ok()
+            .and_then(|v| match v.trim().to_ascii_lowercase().as_str() {
+                "1" | "true" | "yes" | "on" => Some(true),
+                "0" | "false" | "no" | "off" => Some(false),
+                _ => None,
+            })
+            .unwrap_or(false);
+        Self(enabled)
+    }
+}
+
 /// Whether the local player's flamethrower is currently active (from server `FlameActive` event).
 #[derive(Resource, Debug, Default)]
 struct LocalFlameActive(bool);
@@ -106,6 +149,9 @@ impl Plugin for FpsClientPlugin {
 
         register_net_all(app);
 
+        if !app.is_plugin_added::<bevy::diagnostic::FrameTimeDiagnosticsPlugin>() {
+            app.add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default());
+        }
         app.add_plugins(bevy_replicon_renet2::RepliconRenetPlugins)
             .init_resource::<input::ClientInputSequence>()
             .init_resource::<input::InputSendTimer>()
@@ -116,6 +162,10 @@ impl Plugin for FpsClientPlugin {
             .init_resource::<EnemyAttackOverrides>()
             .init_resource::<EnemyDamageFlickers>()
             .init_resource::<HitImpacts>()
+            .insert_resource(ConnectionState::Connecting {
+                addr: self.connect_addr,
+                start_time: std::time::Instant::now(),
+            })
             .add_observer(handle_player_id_assigned)
             .add_observer(handle_muzzle_flash)
             .add_observer(handle_damage_effect)
@@ -124,36 +174,34 @@ impl Plugin for FpsClientPlugin {
             .add_observer(handle_flame_char_mark)
             .add_observer(handle_enemy_attack_visual)
             .add_observer(handle_hit_confirm)
-            .add_systems(Update, collect_and_send_intent)
+            .add_systems(Update, collect_and_send_intent.run_if(is_connected))
             .add_systems(
                 Update,
                 (
                     tick_attack_overrides,
                     tick_damage_flickers,
                     tick_hit_impacts,
+                    sync_player_lifecycle_state,
+                    sync_camera_from_net_player,
                 )
-                    .run_if(resource_exists::<Active>),
-            )
-            .add_systems(
-                Update,
-                sync_player_lifecycle_state.run_if(resource_exists::<Active>),
-            )
-            .add_systems(
-                Update,
-                sync_camera_from_net_player.run_if(resource_exists::<Active>),
+                    .run_if(resource_exists::<Active>)
+                    .run_if(is_connected),
             )
             .add_systems(
                 Update,
                 sync_weapon_hud_and_flame_visual
                     .before(Systems)
-                    .run_if(resource_exists::<Active>),
+                    .run_if(resource_exists::<Active>)
+                    .run_if(is_connected),
             );
 
         info!("FpsClientPlugin: connect addr = {:?}", self.connect_addr);
 
         #[cfg(not(target_family = "wasm"))]
         {
+            let _ = dotenvy::dotenv_override();
             app.insert_resource(ConnectAddr(self.connect_addr));
+            app.init_resource::<NetInfoVisible>();
         }
         #[cfg(not(target_family = "wasm"))]
         {
@@ -177,9 +225,14 @@ impl Plugin for FpsClientPlugin {
         }
         #[cfg(not(target_family = "wasm"))]
         {
-            use update_client_info_text as _update_info;
-            app.add_systems(Update, _update_info);
+            use monitor_connection as _monitor;
+            app.add_systems(Update, _monitor);
         }
+        #[cfg(not(target_family = "wasm"))]
+        {
+            app.add_systems(Update, (toggle_net_info, update_client_info_text));
+        }
+        // Overlay controls visibility — shown during non-Connected states.
     }
 }
 
@@ -187,9 +240,16 @@ impl Plugin for FpsClientPlugin {
 #[cfg(not(target_family = "wasm"))]
 struct ConnectAddr(SocketAddr);
 
-fn handle_player_id_assigned(trigger: On<PlayerIdAssigned>, mut local_id: ResMut<LocalPlayerId>) {
+fn handle_player_id_assigned(
+    trigger: On<PlayerIdAssigned>,
+    mut local_id: ResMut<LocalPlayerId>,
+    mut connection_state: ResMut<ConnectionState>,
+) {
     local_id.0 = Some(trigger.0);
-    info!("Local PlayerId assigned: {:?}", trigger.0);
+    if !matches!(*connection_state, ConnectionState::Connected) {
+        *connection_state = ConnectionState::Connected;
+        info!("Connection established — PlayerId {:?}", trigger.0);
+    }
 }
 
 fn handle_muzzle_flash(
@@ -459,6 +519,51 @@ fn sync_weapon_hud_and_flame_visual(
     *was_flame_active = active;
 }
 
+/// Run condition: only run gameplay systems when fully connected.
+fn is_connected(state: Res<ConnectionState>) -> bool {
+    matches!(*state, ConnectionState::Connected)
+}
+
+/// Monitor renet client state and drive connection lifecycle.
+///
+/// Transitions:
+/// - `Connecting` → `Failed` on transport disconnect or timeout
+/// - `Connected` → `Disconnected` on transport drop
+#[cfg(not(target_family = "wasm"))]
+fn monitor_connection(
+    client: Res<RenetClient>,
+    mut connection_state: ResMut<ConnectionState>,
+    mut local_id: ResMut<LocalPlayerId>,
+) {
+    let disconnected = client.is_disconnected();
+    match &*connection_state {
+        ConnectionState::Connecting { addr, start_time } => {
+            if disconnected {
+                let reason = "Connection refused".to_string();
+                error!("Failed to connect to {addr}: {reason}");
+                *connection_state = ConnectionState::Failed { reason };
+                local_id.0 = None;
+                return;
+            }
+            if start_time.elapsed().as_secs_f64() > CONNECTION_TIMEOUT_SECS {
+                let reason = format!("Timed out after {CONNECTION_TIMEOUT_SECS}s");
+                error!("Connection to {addr} {reason}");
+                *connection_state = ConnectionState::Failed { reason };
+                local_id.0 = None;
+            }
+        }
+        ConnectionState::Connected => {
+            if disconnected {
+                let reason = "Connection lost".to_string();
+                warn!("{reason}");
+                *connection_state = ConnectionState::Disconnected { reason };
+                local_id.0 = None;
+            }
+        }
+        ConnectionState::Failed { .. } | ConnectionState::Disconnected { .. } => {}
+    }
+}
+
 #[cfg(not(target_family = "wasm"))]
 fn kickstart_client_transport(
     mut client: ResMut<RenetClient>,
@@ -475,7 +580,13 @@ fn init_client_setup(
     mut commands: Commands,
     connect_addr: Res<ConnectAddr>,
     channels: Res<RepliconChannels>,
+    mut connection_state: ResMut<ConnectionState>,
 ) {
+    // Reset start_time — build() captured Instant::now() during plugin ctor,
+    // but app init (asset loading, shader compilation) may have taken seconds.
+    if let ConnectionState::Connecting { start_time, .. } = &mut *connection_state {
+        *start_time = std::time::Instant::now();
+    }
     use bevy_renet2::netcode::{ClientAuthentication, NativeSocket};
 
     let client_id = SystemTime::now()
@@ -930,55 +1041,190 @@ fn push_remote_flame_billboards(
     }
 }
 
+/// FPS counter — always visible, line 1.
 #[cfg(not(target_family = "wasm"))]
 #[derive(Component)]
-struct ClientInfoText;
+struct FpsText;
+
+/// Connection info — server + ping / connecting / failed. Line 2, toggled with Cmd+I.
+#[cfg(not(target_family = "wasm"))]
+#[derive(Component)]
+struct ConnectionInfoText;
+
+/// Full-screen dark overlay shown during non-Connected states.
+#[cfg(not(target_family = "wasm"))]
+#[derive(Component)]
+struct ConnectionOverlay;
 
 #[cfg(not(target_family = "wasm"))]
-fn setup_client_info_text(mut commands: Commands, transport: Option<Res<NetcodeClientTransport>>) {
-    let Some(transport) = transport else {
-        info!("setup_client_info_text: no transport");
-        return;
-    };
-
-    let client_id = transport.client_id();
-    let addr = transport
-        .addr()
-        .map_or_else(|_| "unknown".into(), |a| a.to_string());
-
+fn setup_client_info_text(mut commands: Commands) {
+    // Full-screen dark overlay — covers the empty world during connecting/failed/disconnected.
     commands.spawn((
-        ClientInfoText,
-        Text::new(format!("Client: {addr}\nID: {client_id}")),
-        TextFont {
-            font_size: 24.0,
-            ..default()
-        },
-        TextColor(Color::srgb(0.0, 1.0, 0.0)),
+        ConnectionOverlay,
         Node {
             position_type: PositionType::Absolute,
-            left: Val::Px(10.0),
-            top: Val::Px(10.0),
+            left: Val::Px(0.0),
+            right: Val::Px(0.0),
+            top: Val::Px(0.0),
+            bottom: Val::Px(0.0),
             ..default()
         },
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 1.0)),
+        Visibility::Hidden,
     ));
+
+    // FPS — top-right, toggled with Cmd+I.
+    commands.spawn((
+        FpsText,
+        Text::new(String::new()),
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
+        TextColor(Color::srgba(0.0, 1.0, 0.0, 0.6)),
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(2.0),
+            top: Val::Px(1.0),
+            ..default()
+        },
+        Visibility::Hidden,
+    ));
+
+    // Connection info — top-left, toggled with Cmd+I.
+    // Forced visible when connecting/failed/disconnected.
+    commands.spawn((
+        ConnectionInfoText,
+        Text::new(String::new()),
+        TextFont {
+            font_size: 14.0,
+            ..default()
+        },
+        TextColor(Color::srgba(0.0, 1.0, 0.0, 0.6)),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(2.0),
+            top: Val::Px(1.0),
+            ..default()
+        },
+        Visibility::Hidden,
+    ));
+}
+
+/// Toggle net info HUD with Cmd+I.
+#[cfg(not(target_family = "wasm"))]
+fn toggle_net_info(keys: Res<ButtonInput<KeyCode>>, mut visible: ResMut<NetInfoVisible>) {
+    let modifier_held = keys.any_pressed([
+        KeyCode::ControlLeft,
+        KeyCode::ControlRight,
+        KeyCode::SuperLeft,
+        KeyCode::SuperRight,
+    ]);
+    if modifier_held && keys.just_pressed(KeyCode::KeyI) {
+        visible.0 = !visible.0;
+    }
 }
 
 #[cfg(not(target_family = "wasm"))]
 fn update_client_info_text(
-    transport: Option<Res<NetcodeClientTransport>>,
-    mut text_query: Query<&mut Text, With<ClientInfoText>>,
+    connection_state: Res<ConnectionState>,
+    visible: Res<NetInfoVisible>,
+    client: Option<Res<RenetClient>>,
+    connect_addr: Option<Res<ConnectAddr>>,
+    diagnostics: Res<bevy::diagnostic::DiagnosticsStore>,
+    mut fps_query: Query<
+        (&mut Text, &mut Visibility),
+        (
+            With<FpsText>,
+            Without<ConnectionInfoText>,
+            Without<ConnectionOverlay>,
+        ),
+    >,
+    mut conn_query: Query<
+        (&mut Text, &mut TextColor, &mut Visibility),
+        (
+            With<ConnectionInfoText>,
+            Without<FpsText>,
+            Without<ConnectionOverlay>,
+        ),
+    >,
+    mut overlay_query: Query<
+        &mut Visibility,
+        (
+            With<ConnectionOverlay>,
+            Without<FpsText>,
+            Without<ConnectionInfoText>,
+        ),
+    >,
 ) {
-    let Some(transport) = transport else {
-        return;
+    let user_wants = visible.0;
+    // Connection overlay forced visible when not connected.
+    let force_conn = !matches!(*connection_state, ConnectionState::Connected);
+
+    // FPS — top-right, shown when toggled on.
+    let fps = diagnostics
+        .get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS)
+        .and_then(|d| d.smoothed())
+        .map_or_else(|| "--".to_string(), |v| format!("{v:.0}"));
+
+    let fps_vis = if user_wants {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
+    for (mut text, mut vis) in &mut fps_query {
+        text.0 = format!("FPS {fps}");
+        *vis = fps_vis;
+    }
+
+    // Connection info — top-left, shown when toggled on OR when not connected.
+    let server = connect_addr
+        .as_ref()
+        .map_or_else(|| "—".to_string(), |a| a.0.to_string());
+
+    let (line, color) = match &*connection_state {
+        ConnectionState::Connecting { .. } => (
+            format!("{server} | connecting..."),
+            Color::srgba(1.0, 1.0, 0.0, 0.7),
+        ),
+        ConnectionState::Connected => {
+            let ping = client
+                .as_ref()
+                .map_or_else(|| "--".to_string(), |c| format!("{:.0}", c.rtt() * 1000.0));
+            (
+                format!("{server} | {ping}ms"),
+                Color::srgba(0.0, 1.0, 0.0, 0.6),
+            )
+        }
+        ConnectionState::Failed { reason } => (
+            format!("{server} | {reason}"),
+            Color::srgba(1.0, 0.4, 0.7, 0.9),
+        ),
+        ConnectionState::Disconnected { reason } => (
+            format!("{server} | {reason}"),
+            Color::srgba(1.0, 0.4, 0.7, 0.9),
+        ),
     };
 
-    let client_id = transport.client_id();
-    let addr = transport
-        .addr()
-        .map_or_else(|_| "unknown".into(), |a| a.to_string());
+    let conn_vis = if user_wants || force_conn {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
+    for (mut text, mut tc, mut vis) in &mut conn_query {
+        text.0 = line.clone();
+        tc.0 = color;
+        *vis = conn_vis;
+    }
 
-    for mut text in &mut text_query {
-        text.0 = format!("Client: {addr}\nID: {client_id}");
+    // Dark overlay — shown during connecting/failed/disconnected, hidden when connected.
+    let overlay_vis = if force_conn {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    };
+    for mut vis in &mut overlay_query {
+        *vis = overlay_vis;
     }
 }
 
