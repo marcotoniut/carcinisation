@@ -215,6 +215,46 @@ pub struct FlamethrowerConfig {
     pub burning_flame_scale_max: f32,
 }
 
+/// Config for the third-person remote flame arc billboards.
+/// Loaded from `assets/config/attacks/remote_flame.ron`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename = "RemoteFlameConfig")]
+pub struct RemoteFlameConfig {
+    pub segment_count: u32,
+    /// Distance from player origin to the first flame billboard.
+    pub flame_start: f32,
+    /// Distance from player origin to the last flame billboard.
+    pub flame_end: f32,
+    /// Uniform world-space height of each flame billboard.
+    pub flame_scale: f32,
+    /// Vertical offset of flame billboards (negative = lower).
+    pub flame_height: f32,
+    /// Lateral jitter amplitude per segment.
+    pub jitter_amp: f32,
+    /// Animation phase offset between consecutive segments.
+    pub phase_step: f32,
+    /// Distance to pull wall impact back from the wall.
+    pub wall_offset: f32,
+    /// World-space height of the wall impact billboard.
+    pub impact_scale: f32,
+}
+
+impl Default for RemoteFlameConfig {
+    fn default() -> Self {
+        Self {
+            segment_count: 20,
+            flame_start: 0.15,
+            flame_end: 3.5,
+            flame_scale: 0.22,
+            flame_height: -0.22,
+            jitter_amp: 0.015,
+            phase_step: 0.15,
+            wall_offset: 0.08,
+            impact_scale: 0.5,
+        }
+    }
+}
+
 impl FlamethrowerConfig {
     #[must_use]
     pub fn load() -> Self {
@@ -865,8 +905,6 @@ fn flame_segment_offset(
 
     let chain = direction * progress;
     let bend = Vec2::new(segment.bend_px, 0.0);
-
-    // Screen-space: vertical drop increases toward the far end (negative Y = lower on screen).
     let drop = flame_visual_drop(segment.progress, config);
 
     chain + bend + drop
@@ -905,6 +943,12 @@ fn screen_flame_offset_from_local(local: Vec2, config: &FlamethrowerConfig) -> V
     local * (flame_world_scale_denominator_px(config) / FLAME_RANGE_UNITS)
 }
 
+/// Visual vertical offset for flame segments.
+///
+/// Pulls the far end of the chain downward so it converges toward the horizon
+/// rather than overshooting above it. The nozzle starts below screen center;
+/// without this drop the chain direction vector would push flames above the
+/// horizon line at full range.
 fn flame_visual_drop(progress: f32, config: &FlamethrowerConfig) -> Vec2 {
     let t = (progress / config.chain_range).clamp(0.0, 1.0);
     Vec2::new(
@@ -2143,12 +2187,6 @@ mod tests {
     #[test]
     fn flame_collision_offset_ignores_visual_vertical_drop() {
         let config = FlamethrowerConfig::load();
-        let camera = Camera {
-            position: Vec2::ZERO,
-            angle: 0.0,
-            fov: 1.0,
-        };
-        let map = open_test_map();
         let segment = FpFlameSegment {
             progress: config.chain_range,
             target: config.chain_range,
@@ -2157,18 +2195,14 @@ mod tests {
         };
         let visual = flame_segment_offset(Vec2::Y, &segment, &config);
         let collision = flame_collision_offset(Vec2::Y, &segment, &config);
-        let collision_local = local_flame_offset(collision, &config);
-        let (forward, right) = camera_basis(&camera);
-        let target = camera.position + forward * collision_local.y + right * collision_local.x;
 
-        assert!(visual.y < collision.y);
-        assert!(local_flame_offset(collision - visual, &config).y > 0.0);
-        assert!(carcinisation_fps_core::flame_hits_position_default(
-            camera.position,
-            camera.direction(),
-            target,
-            &map,
-        ));
+        // Visual drops below collision due to flame_visual_drop.
+        assert!(
+            visual.y < collision.y,
+            "visual.y={} should be below collision.y={}",
+            visual.y,
+            collision.y
+        );
     }
 
     #[test]

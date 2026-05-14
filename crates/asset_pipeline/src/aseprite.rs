@@ -786,6 +786,12 @@ fn build_piece_atlas(
     let mut animations = Vec::new();
 
     for tag in aseprite.tags() {
+        // Tags prefixed with '_' are dev/reference-only and must not produce
+        // runtime animation metadata or interned sprites.
+        if tag.name.starts_with('_') {
+            continue;
+        }
+
         let mut frames = Vec::new();
         for source_frame in tag.range.clone() {
             let frame_index = usize::from(source_frame);
@@ -3034,6 +3040,10 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     }
     let mut tag_regions: Vec<TagRegion> = Vec::new();
     for tag in ase.tags() {
+        // Tags prefixed with '_' are dev/reference-only — skip them.
+        if tag.name.starts_with('_') {
+            continue;
+        }
         if let Some(ref filter) = request.tag_filter
             && tag.name != *filter
         {
@@ -3266,10 +3276,10 @@ mod tests {
         Animation, AnimationEventKind, AnimationFrame, AtlasSprite, CollisionShape,
         CollisionVolume, CompositionAnimationEventSource, CompositionAtlas, CompositionGameplay,
         CompositionPartSource, CompositionSource, HealthPool, ImageKey, Manifest, PartDefinition,
-        PartGameplayMetadata, PartInstance, PartPose, Point, Rect, Size, SplitMode, SpriteInterner,
-        SpriteSpec, Vec2Value, emit_authored_mirror_x_split_fragments, image_key,
+        PartGameplayMetadata, PartInstance, PartPose, Point, Rect, SelectedLayer, Size, SplitMode,
+        SpriteInterner, SpriteSpec, Vec2Value, emit_authored_mirror_x_split_fragments, image_key,
         normalize_part_id, trim_transparent_bounds, validate_composition_atlas,
-        validate_composition_source, validate_manifest,
+        validate_composition_source, validate_layer_bindings, validate_manifest,
     };
     use crate::composed_ron::SpawnAnchorMode;
     use image::{ImageBuffer, Rgba, RgbaImage};
@@ -3683,6 +3693,23 @@ mod tests {
             .expect_err("visible_by_default false is currently unsupported")
             .to_string();
         assert!(error.contains("visible_by_default = false"));
+    }
+
+    #[test]
+    fn rejects_parts_bound_to_hidden_source_layers() {
+        let parts = vec![minimal_composition().parts[0].to_instance()];
+        let selected_layers = vec![SelectedLayer {
+            index: 0,
+            name: "body",
+            opacity: 255,
+            visible: false,
+        }];
+
+        let error = validate_layer_bindings(&parts, &selected_layers)
+            .expect_err("hidden source layer should not render through composition metadata")
+            .to_string();
+
+        assert!(error.contains("hidden source layer"));
     }
 
     #[test]

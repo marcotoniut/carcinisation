@@ -1,0 +1,5411 @@
+{
+  "schema_version": 3,
+  "entity": "player",
+  "depth": 3,
+  "source": "player/player_3.aseprite",
+  "canvas": {
+    "w": 95,
+    "h": 95
+  },
+  "origin": {
+    "x": 47,
+    "y": 43
+  },
+  "spawn_anchor": "Origin",
+  "ground_anchor_y": 37,
+  "air_anchor_y": null,
+  "atlas_image": "source.png",
+  "part_definitions": [
+    {
+      "id": "group_marker",
+      "tags": [
+        "group"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "body_part",
+      "tags": [
+        "body"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "limb",
+      "tags": [
+        "limb"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "equipment",
+      "tags": [
+        "equipment"
+      ],
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "root",
+      "definition_id": "group_marker",
+      "name": "Root",
+      "parent_id": null,
+      "source_layer": null,
+      "draw_order": 0,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "body",
+      "definition_id": "body_part",
+      "name": "Body",
+      "parent_id": "root",
+      "source_layer": "body",
+      "draw_order": 10,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "head",
+      "definition_id": "body_part",
+      "name": "Head",
+      "parent_id": "body",
+      "source_layer": "head",
+      "draw_order": 50,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "leg_l",
+      "definition_id": "limb",
+      "name": "Leg Left",
+      "parent_id": "root",
+      "source_layer": "leg_l",
+      "draw_order": 15,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "left",
+        "legs"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "leg_r",
+      "definition_id": "limb",
+      "name": "Leg Right",
+      "parent_id": "root",
+      "source_layer": "leg_r",
+      "draw_order": 16,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "right",
+        "legs"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "legs",
+      "definition_id": "limb",
+      "name": "Legs Overlay",
+      "parent_id": "root",
+      "source_layer": "legs",
+      "draw_order": 17,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "legs"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "arm_l",
+      "definition_id": "limb",
+      "name": "Arm Left",
+      "parent_id": "body",
+      "source_layer": "arm_l",
+      "draw_order": 20,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "left",
+        "arms"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "arm_r",
+      "definition_id": "limb",
+      "name": "Arm Right",
+      "parent_id": "body",
+      "source_layer": "arm_r",
+      "draw_order": 30,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "right",
+        "arms"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    },
+    {
+      "id": "weapon",
+      "definition_id": "equipment",
+      "name": "Weapon",
+      "parent_id": "body",
+      "source_layer": "weapon",
+      "draw_order": 40,
+      "pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "weapon"
+      ],
+      "visible_by_default": true,
+      "gameplay": {
+        "targetable": null,
+        "health_pool": null,
+        "armour": 0,
+        "durability": null,
+        "breakable": null,
+        "pool_damage_ratio": null,
+        "collision": []
+      }
+    }
+  ],
+  "sprites": [
+    {
+      "id": "sprite_0024",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 14,
+        "h": 32
+      }
+    },
+    {
+      "id": "sprite_0058",
+      "rect": {
+        "x": 14,
+        "y": 0,
+        "w": 14,
+        "h": 28
+      }
+    },
+    {
+      "id": "sprite_0063",
+      "rect": {
+        "x": 28,
+        "y": 0,
+        "w": 18,
+        "h": 28
+      }
+    },
+    {
+      "id": "sprite_0004",
+      "rect": {
+        "x": 46,
+        "y": 0,
+        "w": 10,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0005",
+      "rect": {
+        "x": 56,
+        "y": 0,
+        "w": 1,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0010",
+      "rect": {
+        "x": 57,
+        "y": 0,
+        "w": 13,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0011",
+      "rect": {
+        "x": 70,
+        "y": 0,
+        "w": 14,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0017",
+      "rect": {
+        "x": 84,
+        "y": 0,
+        "w": 13,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0018",
+      "rect": {
+        "x": 97,
+        "y": 0,
+        "w": 13,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0025",
+      "rect": {
+        "x": 110,
+        "y": 0,
+        "w": 13,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0031",
+      "rect": {
+        "x": 123,
+        "y": 0,
+        "w": 14,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0032",
+      "rect": {
+        "x": 137,
+        "y": 0,
+        "w": 13,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0041",
+      "rect": {
+        "x": 150,
+        "y": 0,
+        "w": 13,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0042",
+      "rect": {
+        "x": 163,
+        "y": 0,
+        "w": 15,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0049",
+      "rect": {
+        "x": 178,
+        "y": 0,
+        "w": 9,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0050",
+      "rect": {
+        "x": 187,
+        "y": 0,
+        "w": 10,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0051",
+      "rect": {
+        "x": 197,
+        "y": 0,
+        "w": 13,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0052",
+      "rect": {
+        "x": 210,
+        "y": 0,
+        "w": 12,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0055",
+      "rect": {
+        "x": 222,
+        "y": 0,
+        "w": 12,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0056",
+      "rect": {
+        "x": 234,
+        "y": 0,
+        "w": 14,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0059",
+      "rect": {
+        "x": 0,
+        "y": 32,
+        "w": 14,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0060",
+      "rect": {
+        "x": 14,
+        "y": 32,
+        "w": 15,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0061",
+      "rect": {
+        "x": 29,
+        "y": 32,
+        "w": 11,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0062",
+      "rect": {
+        "x": 40,
+        "y": 32,
+        "w": 14,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0064",
+      "rect": {
+        "x": 54,
+        "y": 32,
+        "w": 11,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0065",
+      "rect": {
+        "x": 65,
+        "y": 32,
+        "w": 15,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0066",
+      "rect": {
+        "x": 80,
+        "y": 32,
+        "w": 14,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0067",
+      "rect": {
+        "x": 94,
+        "y": 32,
+        "w": 12,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0070",
+      "rect": {
+        "x": 106,
+        "y": 32,
+        "w": 12,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0071",
+      "rect": {
+        "x": 118,
+        "y": 32,
+        "w": 15,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0072",
+      "rect": {
+        "x": 133,
+        "y": 32,
+        "w": 10,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0073",
+      "rect": {
+        "x": 143,
+        "y": 32,
+        "w": 9,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0074",
+      "rect": {
+        "x": 152,
+        "y": 32,
+        "w": 10,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0076",
+      "rect": {
+        "x": 162,
+        "y": 32,
+        "w": 14,
+        "h": 27
+      }
+    },
+    {
+      "id": "sprite_0000",
+      "rect": {
+        "x": 176,
+        "y": 32,
+        "w": 11,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0001",
+      "rect": {
+        "x": 187,
+        "y": 32,
+        "w": 1,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0009",
+      "rect": {
+        "x": 188,
+        "y": 32,
+        "w": 12,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0015",
+      "rect": {
+        "x": 200,
+        "y": 32,
+        "w": 19,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0022",
+      "rect": {
+        "x": 219,
+        "y": 32,
+        "w": 17,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0029",
+      "rect": {
+        "x": 236,
+        "y": 32,
+        "w": 19,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0036",
+      "rect": {
+        "x": 0,
+        "y": 59,
+        "w": 19,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0037",
+      "rect": {
+        "x": 19,
+        "y": 59,
+        "w": 11,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0038",
+      "rect": {
+        "x": 30,
+        "y": 59,
+        "w": 1,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0046",
+      "rect": {
+        "x": 31,
+        "y": 59,
+        "w": 11,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0047",
+      "rect": {
+        "x": 42,
+        "y": 59,
+        "w": 1,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0053",
+      "rect": {
+        "x": 43,
+        "y": 59,
+        "w": 11,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0054",
+      "rect": {
+        "x": 54,
+        "y": 59,
+        "w": 11,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0057",
+      "rect": {
+        "x": 65,
+        "y": 59,
+        "w": 17,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0068",
+      "rect": {
+        "x": 82,
+        "y": 59,
+        "w": 11,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0069",
+      "rect": {
+        "x": 93,
+        "y": 59,
+        "w": 13,
+        "h": 25
+      }
+    },
+    {
+      "id": "sprite_0008",
+      "rect": {
+        "x": 106,
+        "y": 59,
+        "w": 9,
+        "h": 21
+      }
+    },
+    {
+      "id": "sprite_0007",
+      "rect": {
+        "x": 115,
+        "y": 59,
+        "w": 18,
+        "h": 19
+      }
+    },
+    {
+      "id": "sprite_0013",
+      "rect": {
+        "x": 133,
+        "y": 59,
+        "w": 16,
+        "h": 19
+      }
+    },
+    {
+      "id": "sprite_0044",
+      "rect": {
+        "x": 149,
+        "y": 59,
+        "w": 16,
+        "h": 19
+      }
+    },
+    {
+      "id": "sprite_0006",
+      "rect": {
+        "x": 165,
+        "y": 59,
+        "w": 13,
+        "h": 18
+      }
+    },
+    {
+      "id": "sprite_0020",
+      "rect": {
+        "x": 178,
+        "y": 59,
+        "w": 16,
+        "h": 18
+      }
+    },
+    {
+      "id": "sprite_0034",
+      "rect": {
+        "x": 194,
+        "y": 59,
+        "w": 16,
+        "h": 18
+      }
+    },
+    {
+      "id": "sprite_0027",
+      "rect": {
+        "x": 210,
+        "y": 59,
+        "w": 20,
+        "h": 17
+      }
+    },
+    {
+      "id": "sprite_0014",
+      "rect": {
+        "x": 230,
+        "y": 59,
+        "w": 23,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0021",
+      "rect": {
+        "x": 0,
+        "y": 84,
+        "w": 22,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0028",
+      "rect": {
+        "x": 22,
+        "y": 84,
+        "w": 24,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0035",
+      "rect": {
+        "x": 46,
+        "y": 84,
+        "w": 22,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0045",
+      "rect": {
+        "x": 68,
+        "y": 84,
+        "w": 23,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0048",
+      "rect": {
+        "x": 91,
+        "y": 84,
+        "w": 23,
+        "h": 16
+      }
+    },
+    {
+      "id": "sprite_0012",
+      "rect": {
+        "x": 114,
+        "y": 84,
+        "w": 13,
+        "h": 15
+      }
+    },
+    {
+      "id": "sprite_0019",
+      "rect": {
+        "x": 127,
+        "y": 84,
+        "w": 11,
+        "h": 15
+      }
+    },
+    {
+      "id": "sprite_0033",
+      "rect": {
+        "x": 138,
+        "y": 84,
+        "w": 13,
+        "h": 15
+      }
+    },
+    {
+      "id": "sprite_0043",
+      "rect": {
+        "x": 151,
+        "y": 84,
+        "w": 13,
+        "h": 15
+      }
+    },
+    {
+      "id": "sprite_0002",
+      "rect": {
+        "x": 164,
+        "y": 84,
+        "w": 8,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0003",
+      "rect": {
+        "x": 172,
+        "y": 84,
+        "w": 1,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0016",
+      "rect": {
+        "x": 173,
+        "y": 84,
+        "w": 17,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0023",
+      "rect": {
+        "x": 190,
+        "y": 84,
+        "w": 15,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0075",
+      "rect": {
+        "x": 205,
+        "y": 84,
+        "w": 8,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0077",
+      "rect": {
+        "x": 213,
+        "y": 84,
+        "w": 17,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0078",
+      "rect": {
+        "x": 230,
+        "y": 84,
+        "w": 15,
+        "h": 13
+      }
+    },
+    {
+      "id": "sprite_0030",
+      "rect": {
+        "x": 0,
+        "y": 100,
+        "w": 17,
+        "h": 11
+      }
+    },
+    {
+      "id": "sprite_0039",
+      "rect": {
+        "x": 17,
+        "y": 100,
+        "w": 8,
+        "h": 10
+      }
+    },
+    {
+      "id": "sprite_0040",
+      "rect": {
+        "x": 25,
+        "y": 100,
+        "w": 1,
+        "h": 10
+      }
+    },
+    {
+      "id": "sprite_0026",
+      "rect": {
+        "x": 26,
+        "y": 100,
+        "w": 10,
+        "h": 6
+      }
+    }
+  ],
+  "animations": [
+    {
+      "tag": "front_idle_unarmed_stand",
+      "direction": "ping_pong",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 0,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": -10,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0006",
+              "local_offset": {
+                "x": 16,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0007",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 1,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": -10,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0008",
+              "local_offset": {
+                "x": 19,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0009",
+              "local_offset": {
+                "x": -8,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "front_idle_stand",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 3,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0010",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0011",
+              "local_offset": {
+                "x": -14,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": 13,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 0,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 4,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0010",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0011",
+              "local_offset": {
+                "x": -14,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": 13,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "frontleft_idle_stand",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 5,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0017",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0018",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0019",
+              "local_offset": {
+                "x": 16,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0020",
+              "local_offset": {
+                "x": 0,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 8,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 6,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0017",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0018",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0019",
+              "local_offset": {
+                "x": 16,
+                "y": 6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0020",
+              "local_offset": {
+                "x": 0,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 8,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "left_idle_stand",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 7,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0024",
+              "local_offset": {
+                "x": 0,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0025",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0026",
+              "local_offset": {
+                "x": 14,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0027",
+              "local_offset": {
+                "x": 2,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0028",
+              "local_offset": {
+                "x": 13,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": 4,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 8,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0024",
+              "local_offset": {
+                "x": 0,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0025",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0026",
+              "local_offset": {
+                "x": 14,
+                "y": 13
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0027",
+              "local_offset": {
+                "x": 2,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0028",
+              "local_offset": {
+                "x": 13,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": 4,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "backleft_idle_stand",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 9,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0029",
+              "local_offset": {
+                "x": -7,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0031",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0032",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0033",
+              "local_offset": {
+                "x": -8,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0034",
+              "local_offset": {
+                "x": 3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0035",
+              "local_offset": {
+                "x": -11,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0030",
+              "local_offset": {
+                "x": -1,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 10,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0036",
+              "local_offset": {
+                "x": -7,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0031",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0032",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0033",
+              "local_offset": {
+                "x": -8,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0034",
+              "local_offset": {
+                "x": 3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0035",
+              "local_offset": {
+                "x": -11,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0030",
+              "local_offset": {
+                "x": -1,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "back_idle_stand",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 11,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0038",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0041",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0042",
+              "local_offset": {
+                "x": -14,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": 10,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0045",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 12,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0046",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0047",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0046",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0041",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0042",
+              "local_offset": {
+                "x": -14,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": 10,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0048",
+              "local_offset": {
+                "x": 0,
+                "y": 13
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "front_walk_forward",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 13,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0049",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0050",
+              "local_offset": {
+                "x": -9,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": 13,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 14,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": -10,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": 13,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 0,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 15,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0050",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0049",
+              "local_offset": {
+                "x": -9,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": 13,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 16,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": -10,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0004",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": 13,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 0,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0002",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "frontleft_walk_forward",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 17,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0051",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0052",
+              "local_offset": {
+                "x": -11,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0019",
+              "local_offset": {
+                "x": 16,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0020",
+              "local_offset": {
+                "x": 0,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 8,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 18,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0053",
+              "local_offset": {
+                "x": -1,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0054",
+              "local_offset": {
+                "x": -9,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0019",
+              "local_offset": {
+                "x": 16,
+                "y": 6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0020",
+              "local_offset": {
+                "x": 0,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 8,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 19,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0055",
+              "local_offset": {
+                "x": -4,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0056",
+              "local_offset": {
+                "x": -8,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0019",
+              "local_offset": {
+                "x": 16,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0020",
+              "local_offset": {
+                "x": 0,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 8,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 20,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0053",
+              "local_offset": {
+                "x": -1,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0054",
+              "local_offset": {
+                "x": -9,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0019",
+              "local_offset": {
+                "x": 16,
+                "y": 6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0020",
+              "local_offset": {
+                "x": 0,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 8,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0016",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "left_walk_forward",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 21,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0057",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0058",
+              "local_offset": {
+                "x": -1,
+                "y": 9
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0059",
+              "local_offset": {
+                "x": -11,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0026",
+              "local_offset": {
+                "x": 14,
+                "y": 13
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0027",
+              "local_offset": {
+                "x": 2,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0028",
+              "local_offset": {
+                "x": 13,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": 4,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 22,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0060",
+              "local_offset": {
+                "x": -7,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0061",
+              "local_offset": {
+                "x": -7,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0026",
+              "local_offset": {
+                "x": 14,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0027",
+              "local_offset": {
+                "x": 2,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0028",
+              "local_offset": {
+                "x": 13,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": 4,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 23,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0057",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0062",
+              "local_offset": {
+                "x": -11,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0063",
+              "local_offset": {
+                "x": -5,
+                "y": 9
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0026",
+              "local_offset": {
+                "x": 14,
+                "y": 13
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0027",
+              "local_offset": {
+                "x": 2,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0028",
+              "local_offset": {
+                "x": 13,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": 4,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 24,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0064",
+              "local_offset": {
+                "x": -7,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0065",
+              "local_offset": {
+                "x": -7,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0026",
+              "local_offset": {
+                "x": 14,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0027",
+              "local_offset": {
+                "x": 2,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0028",
+              "local_offset": {
+                "x": 13,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0023",
+              "local_offset": {
+                "x": 4,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "backleft_walk_forward",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 25,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0029",
+              "local_offset": {
+                "x": -7,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0066",
+              "local_offset": {
+                "x": -5,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0067",
+              "local_offset": {
+                "x": -7,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0033",
+              "local_offset": {
+                "x": -8,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0034",
+              "local_offset": {
+                "x": 3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0035",
+              "local_offset": {
+                "x": -11,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0030",
+              "local_offset": {
+                "x": -1,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 26,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0036",
+              "local_offset": {
+                "x": -7,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0068",
+              "local_offset": {
+                "x": -1,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0069",
+              "local_offset": {
+                "x": -9,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0033",
+              "local_offset": {
+                "x": -8,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0034",
+              "local_offset": {
+                "x": 3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0035",
+              "local_offset": {
+                "x": -11,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0030",
+              "local_offset": {
+                "x": -1,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 27,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0029",
+              "local_offset": {
+                "x": -7,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0070",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0071",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0033",
+              "local_offset": {
+                "x": -8,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0034",
+              "local_offset": {
+                "x": 3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0035",
+              "local_offset": {
+                "x": -11,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0030",
+              "local_offset": {
+                "x": -1,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        },
+        {
+          "source_frame": 28,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0036",
+              "local_offset": {
+                "x": -7,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0068",
+              "local_offset": {
+                "x": -1,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0069",
+              "local_offset": {
+                "x": -9,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0033",
+              "local_offset": {
+                "x": -8,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0034",
+              "local_offset": {
+                "x": 3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0035",
+              "local_offset": {
+                "x": -11,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0030",
+              "local_offset": {
+                "x": -1,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "back_walk_forward",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 29,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0038",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0072",
+              "local_offset": {
+                "x": -9,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0073",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": 10,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0045",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 30,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0046",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0047",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0046",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0074",
+              "local_offset": {
+                "x": -10,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0074",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": 10,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0048",
+              "local_offset": {
+                "x": 0,
+                "y": 13
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 31,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0038",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0073",
+              "local_offset": {
+                "x": -9,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0072",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": 10,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0045",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        },
+        {
+          "source_frame": 32,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0046",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0047",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0046",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0074",
+              "local_offset": {
+                "x": -10,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0005",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "legs",
+              "sprite_id": "sprite_0074",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": 10,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0048",
+              "local_offset": {
+                "x": 0,
+                "y": 13
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "front_death",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 33,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0001",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0000",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0010",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0076",
+              "local_offset": {
+                "x": -14,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0012",
+              "local_offset": {
+                "x": 13,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0013",
+              "local_offset": {
+                "x": -3,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0014",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0075",
+              "local_offset": {
+                "x": 3,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0003",
+              "local_offset": {
+                "x": 11,
+                "y": -6
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0075",
+              "local_offset": {
+                "x": 12,
+                "y": -6
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "frontleft_death",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 34,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0015",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0017",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0018",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0019",
+              "local_offset": {
+                "x": 16,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0020",
+              "local_offset": {
+                "x": 0,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0021",
+              "local_offset": {
+                "x": 8,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0077",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "left_death",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 35,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0022",
+              "local_offset": {
+                "x": -10,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0024",
+              "local_offset": {
+                "x": 0,
+                "y": 5
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0025",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0026",
+              "local_offset": {
+                "x": 14,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0027",
+              "local_offset": {
+                "x": 2,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0028",
+              "local_offset": {
+                "x": 13,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0078",
+              "local_offset": {
+                "x": 4,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "backleft_death",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 36,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0029",
+              "local_offset": {
+                "x": -7,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0031",
+              "local_offset": {
+                "x": -12,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0032",
+              "local_offset": {
+                "x": 0,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0033",
+              "local_offset": {
+                "x": -8,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0034",
+              "local_offset": {
+                "x": 3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0035",
+              "local_offset": {
+                "x": -11,
+                "y": 11
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0030",
+              "local_offset": {
+                "x": -1,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    },
+    {
+      "tag": "back_death",
+      "direction": "forward",
+      "repeats": null,
+      "frames": [
+        {
+          "source_frame": 37,
+          "duration_ms": 200,
+          "events": [],
+          "parts": [
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": -11,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0038",
+              "local_offset": {
+                "x": 0,
+                "y": -10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "body",
+              "sprite_id": "sprite_0037",
+              "local_offset": {
+                "x": 1,
+                "y": -10
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            },
+            {
+              "part_id": "leg_l",
+              "sprite_id": "sprite_0041",
+              "local_offset": {
+                "x": 1,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "leg_r",
+              "sprite_id": "sprite_0042",
+              "local_offset": {
+                "x": -14,
+                "y": 10
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_l",
+              "sprite_id": "sprite_0043",
+              "local_offset": {
+                "x": -3,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "arm_r",
+              "sprite_id": "sprite_0044",
+              "local_offset": {
+                "x": 10,
+                "y": 4
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "weapon",
+              "sprite_id": "sprite_0045",
+              "local_offset": {
+                "x": 0,
+                "y": 12
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 3,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0040",
+              "local_offset": {
+                "x": 11,
+                "y": -7
+              },
+              "flip_x": false,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 1
+            },
+            {
+              "part_id": "head",
+              "sprite_id": "sprite_0039",
+              "local_offset": {
+                "x": 12,
+                "y": -7
+              },
+              "flip_x": true,
+              "flip_y": false,
+              "visible": true,
+              "opacity": 255,
+              "fragment": 2
+            }
+          ]
+        }
+      ],
+      "part_overrides": []
+    }
+  ],
+  "gameplay": {
+    "entity_health_pool": null,
+    "health_pools": []
+  }
+}

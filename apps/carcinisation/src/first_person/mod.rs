@@ -13,8 +13,12 @@ use carcinisation_fps::billboard::{
     make_blood_shot_sprite, make_damage_invert_sprite, make_enemy_sprite,
     make_mosquiton_placeholder_sprite,
 };
+use carcinisation_fps::directional_billboard::{
+    BillboardAnimationState, DirectionalBillboardAtlas, make_player_billboard_atlas,
+    resolve_billboard,
+};
 use carcinisation_fps::player_attack::{
-    AttackInput, AttackLoadout, PlayerAttackSprites, PlayerAttackState,
+    AttackInput, AttackLoadout, PlayerAttackSprites, PlayerAttackState, RemoteFlameConfig,
 };
 use carcinisation_fps::plugin::CharDecals;
 use carcinisation_fps::plugin::{
@@ -667,13 +671,35 @@ fn sync_player_lifecycle_state(
     }
 }
 
+/// Cached player billboard atlas + per-player animation state.
 #[derive(Default)]
 struct SyncLocals {
     has_set_camera: bool,
     last_log_frame: u32,
-    /// Cached per-color player placeholder sprites (indices 1..=4).
-    /// Avoids regenerating a 32x32 procedural sprite per remote player per frame.
-    player_sprites: Option<[Arc<carapace::image::CxImage>; 4]>,
+    /// Directional billboard atlas for remote player rendering.
+    player_billboard_atlas: Option<DirectionalBillboardAtlas>,
+    /// Set after one failed load attempt so fallback rendering does not retry
+    /// and warn every frame.
+    player_billboard_atlas_failed: bool,
+    /// Per-player animation states, keyed by `PlayerId`.
+    player_anim_states: std::collections::HashMap<PlayerId, BillboardAnimationState>,
+    /// Smoothed speed for walk detection (avoids flicker from tick-rate jitter).
+    player_smoothed_speed: std::collections::HashMap<PlayerId, (Vec2, f32)>,
+    /// Fallback placeholder sprites if atlas loading fails.
+    fallback_sprites: Option<[Arc<carapace::image::CxImage>; 4]>,
+    /// Remote flame billboard config (loaded once from RON).
+    remote_flame_config: Option<RemoteFlameConfig>,
+}
+
+/// Smoothing alpha for walk detection. Lower = smoother but laggier.
+const WALK_SMOOTH_ALPHA: f32 = 0.15;
+/// Speed to START walking animation (world units/sec).
+const WALK_START_THRESHOLD: f32 = 0.3;
+/// Speed to STOP walking animation. Lower than start for hysteresis.
+const WALK_STOP_THRESHOLD: f32 = 0.1;
+
+fn anim_state_is_walking(state: Option<&BillboardAnimationState>) -> bool {
+    state.is_some_and(|s| s.action == "walk_forward")
 }
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
@@ -708,33 +734,182 @@ fn sync_camera_from_net_player(
 
     extra_bbs.0.clear();
     let elapsed = time.elapsed_secs();
-    let player_sprites = sync_locals.player_sprites.get_or_insert_with(|| {
-        std::array::from_fn(|i| Arc::new(make_enemy_sprite(32, i as u8 + 1)))
-    });
-    for (_entity, np) in net_players.iter() {
-        if np.player_id == my_id {
-            continue;
-        }
-        let color_idx = (np.player_id.0.wrapping_sub(1) % 4) as usize;
-        extra_bbs.0.push(Billboard {
-            position: np.position,
-            height: 0.0,
-            world_height: 1.5,
-            sprite: Arc::clone(&player_sprites[color_idx]),
-        });
+    let dt = time.delta_secs();
 
-        // Remote flame arc billboards (authoritative: replicated NetPlayer.flame_active).
-        if np.flame_active {
+    // Lazy-init remote flame config from RON.
+    if sync_locals.remote_flame_config.is_none() {
+        const RON_PATH: &str = "assets/config/attacks/remote_flame.ron";
+        sync_locals.remote_flame_config = Some(match std::fs::read_to_string(RON_PATH) {
+            Ok(s) => ron::from_str(&s).unwrap_or_else(|err| {
+                warn!("[NET] failed to parse {RON_PATH}: {err}, using defaults");
+                RemoteFlameConfig::default()
+            }),
+            Err(err) => {
+                warn!("[NET] failed to read {RON_PATH}: {err}, using defaults");
+                RemoteFlameConfig::default()
+            }
+        });
+    }
+
+    // Lazy-init directional billboard atlas and fallback sprites.
+    if sync_locals.player_billboard_atlas.is_none() && !sync_locals.player_billboard_atlas_failed {
+        match make_player_billboard_atlas() {
+            Ok(atlas) => {
+                sync_locals.player_billboard_atlas = Some(atlas);
+            }
+            Err(err) => {
+                warn!("[NET] failed to load player billboard atlas: {err}");
+                sync_locals.player_billboard_atlas_failed = true;
+            }
+        }
+    }
+    if sync_locals.fallback_sprites.is_none() {
+        sync_locals.fallback_sprites = Some(std::array::from_fn(|i| {
+            Arc::new(make_enemy_sprite(32, i as u8 + 1))
+        }));
+    }
+
+    // Collect remote player data first to avoid borrow conflicts.
+    struct RemotePlayerInfo {
+        player_id: PlayerId,
+        position: Vec2,
+        angle: f32,
+        state: carcinisation_net::PlayerNetState,
+        current_attack: NetAttackId,
+        flame_active: bool,
+    }
+    let remote_players: Vec<RemotePlayerInfo> = net_players
+        .iter()
+        .filter(|(_, p)| p.player_id != my_id)
+        .map(|(_, np)| RemotePlayerInfo {
+            player_id: np.player_id,
+            position: np.position,
+            angle: np.angle,
+            state: np.state.clone(),
+            current_attack: np.current_attack,
+            flame_active: np.flame_active,
+        })
+        .collect();
+
+    let mut seen_player_ids: Vec<PlayerId> = Vec::new();
+
+    for rp in &remote_players {
+        seen_player_ids.push(rp.player_id);
+
+        // Determine animation action from player state and movement.
+        // Use exponentially smoothed speed to avoid walk/idle flicker from
+        // network tick-rate jitter.
+        let currently_walking =
+            anim_state_is_walking(sync_locals.player_anim_states.get(&rp.player_id));
+        let action = match rp.state {
+            carcinisation_net::PlayerNetState::Dead => "death",
+            carcinisation_net::PlayerNetState::Alive => {
+                let (prev_pos, smoothed_speed) = sync_locals
+                    .player_smoothed_speed
+                    .entry(rp.player_id)
+                    .or_insert((rp.position, 0.0));
+                let instant_speed = if dt > 0.0 {
+                    prev_pos.distance(rp.position) / dt
+                } else {
+                    0.0
+                };
+                *smoothed_speed =
+                    *smoothed_speed * (1.0 - WALK_SMOOTH_ALPHA) + instant_speed * WALK_SMOOTH_ALPHA;
+                *prev_pos = rp.position;
+                let threshold = if currently_walking {
+                    WALK_STOP_THRESHOLD
+                } else {
+                    WALK_START_THRESHOLD
+                };
+                if *smoothed_speed > threshold {
+                    "walk_forward"
+                } else {
+                    "idle_stand"
+                }
+            }
+        };
+
+        // Update or create animation state for this player.
+        let anim_state = sync_locals
+            .player_anim_states
+            .entry(rp.player_id)
+            .or_insert_with(|| BillboardAnimationState::new("idle_stand"));
+        anim_state.set_action(action);
+        anim_state.tick(dt);
+
+        // Snapshot animation state for billboard resolution (avoids borrow conflict).
+        let anim_snapshot = anim_state.clone();
+
+        // Try directional billboard resolution.
+        let mut pushed = false;
+        if let Some(atlas) = &sync_locals.player_billboard_atlas
+            && let Some(resolved) = resolve_billboard(
+                atlas,
+                local_np.position,
+                rp.position,
+                rp.angle,
+                &anim_snapshot,
+            )
+        {
+            // height shifts the billboard vertically. Negative = feet toward floor.
+            // Formula: -(0.5 - world_height/2) grounds feet at floor level.
+            let world_height = 0.65;
+            extra_bbs.0.push(Billboard {
+                position: rp.position,
+                height: -(0.5 - world_height / 2.0),
+                world_height,
+                sprite: resolved.sprite,
+                flip_x: resolved.flip_x,
+            });
+            pushed = true;
+        }
+
+        if !pushed {
+            // Fallback: use placeholder diamond sprites.
+            if let Some(fallback) = &sync_locals.fallback_sprites {
+                let color_idx = (rp.player_id.0.wrapping_sub(1) % 4) as usize;
+                extra_bbs.0.push(Billboard {
+                    position: rp.position,
+                    height: 0.0,
+                    world_height: 1.5,
+                    sprite: Arc::clone(&fallback[color_idx]),
+                    flip_x: false,
+                });
+            }
+        }
+
+        // Remote flame arc billboards (authoritative: replicated NetPlayer.flame_active
+        // AND must be using the flamethrower weapon).
+        if rp.flame_active
+            && matches!(
+                rp.current_attack,
+                carcinisation_net::NetAttackId::Projectile
+            )
+        {
+            let default_flame_cfg = RemoteFlameConfig::default();
+            let flame_cfg = sync_locals
+                .remote_flame_config
+                .as_ref()
+                .unwrap_or(&default_flame_cfg);
             push_remote_flame_billboards(
                 &mut extra_bbs.0,
-                np.position,
-                np.angle,
+                rp.position,
+                rp.angle,
                 elapsed,
                 attack_sprites.as_deref(),
                 map_res.as_deref(),
+                flame_cfg,
             );
         }
     }
+
+    // Prune stale animation states for disconnected players.
+    sync_locals
+        .player_anim_states
+        .retain(|id, _| seen_player_ids.contains(id));
+    sync_locals
+        .player_smoothed_speed
+        .retain(|id, _| seen_player_ids.contains(id));
 
     // Enemy billboards (including dying/dead for death pose, excludes despawned).
     for (enemy, _health) in net_enemies.iter() {
@@ -785,6 +960,7 @@ fn sync_camera_from_net_player(
             height: 0.0,
             world_height: 0.3,
             sprite,
+            flip_x: false,
         });
     }
 
@@ -811,6 +987,7 @@ fn sync_camera_from_net_player(
             height: 0.15,
             world_height,
             sprite,
+            flip_x: false,
         });
     }
 
@@ -850,6 +1027,7 @@ fn net_enemy_billboard(
             height: 0.0,
             world_height: 1.0,
             sprite: Arc::new(make_enemy_sprite(32, 2)),
+            flip_x: false,
         },
         NetEnemyType::Mosquiton => Billboard {
             position: enemy.position,
@@ -893,6 +1071,7 @@ fn net_enemy_billboard(
                     }
                 },
             ),
+            flip_x: false,
         },
     }
 }
@@ -952,16 +1131,14 @@ fn push_net_burn_flames(
             height: vertical_units,
             world_height: base_world_height * 0.35 * flame.scale,
             sprite,
+            flip_x: false,
         });
     }
 }
 
 /// Generate flame arc billboards for a remote player's active flamethrower.
 ///
-/// Matches SP flamethrower density: 12 segments with power-curve spacing
-/// (denser near source), scale interpolation, staggered animation phases,
-/// and client-side wall clipping via raycast.
-#[allow(clippy::too_many_lines, clippy::items_after_statements)]
+/// Config loaded from `assets/config/attacks/remote_flame.ron`.
 fn push_remote_flame_billboards(
     billboards: &mut Vec<Billboard>,
     position: Vec2,
@@ -969,45 +1146,33 @@ fn push_remote_flame_billboards(
     elapsed: f32,
     attack_sprites: Option<&PlayerAttackSprites>,
     map: Option<&MapRes>,
+    cfg: &RemoteFlameConfig,
 ) {
     use carcinisation_fps::raycast::cast_ray;
-
-    const SEGMENT_COUNT: u32 = 12;
-    const FLAME_START: f32 = 0.6;
-    const FLAME_RANGE: f32 = 4.0;
-    const SPACING_CURVE: f32 = 0.65;
-    const SCALE_NEAR: f32 = 0.45; // 0.65× of previous 0.7
-    const SCALE_FAR: f32 = 0.16; // 0.65× of previous 0.25
-    // Per-segment lateral offset: small static jitter seeded by index for variety,
-    // no time-varying component (SP flame only bends when turning, not continuously).
-    const JITTER_AMP: f32 = 0.03;
 
     let dir = Vec2::new(angle.cos(), angle.sin());
     let right = Vec2::new(-dir.y, dir.x);
 
-    // Client-side wall clipping: raycast to find max flame distance.
-    let max_dist = map.map_or(FLAME_START + FLAME_RANGE, |m| {
+    let max_dist = map.map_or(cfg.flame_end, |m| {
         let hit = cast_ray(&m.0, position, dir);
         if hit.wall_id > 0 {
-            hit.distance.min(FLAME_START + FLAME_RANGE)
+            hit.distance.min(cfg.flame_end)
         } else {
-            FLAME_START + FLAME_RANGE
+            cfg.flame_end
         }
     });
 
-    for i in 0..SEGMENT_COUNT {
-        let t = (i as f32 + 1.0) / SEGMENT_COUNT as f32;
-        let dist = FLAME_START + FLAME_RANGE * t.powf(SPACING_CURVE);
+    let seg_max = cfg.segment_count.max(2);
+    for i in 0..seg_max {
+        let t = i as f32 / (seg_max - 1) as f32;
+        let dist = cfg.flame_start + (cfg.flame_end - cfg.flame_start) * t;
 
-        // Stop generating segments past the wall hit.
         if dist >= max_dist {
             break;
         }
 
-        let scale = SCALE_NEAR + (SCALE_FAR - SCALE_NEAR) * t;
-        let phase = elapsed + i as f32 * 0.15;
-        // Static lateral offset per segment (deterministic, no time wobble).
-        let jitter = ((i as f32 * 7.31).sin() * JITTER_AMP) * t;
+        let phase = elapsed + i as f32 * cfg.phase_step;
+        let jitter = ((i as f32 * 7.31).sin() * cfg.jitter_amp) * t;
 
         let sprite = attack_sprites.map_or_else(
             || Arc::new(make_blood_shot_sprite(6, 3)),
@@ -1015,28 +1180,26 @@ fn push_remote_flame_billboards(
         );
         billboards.push(Billboard {
             position: position + dir * dist + right * jitter,
-            height: 0.05,
-            world_height: scale,
+            height: cfg.flame_height,
+            world_height: cfg.flame_scale,
             sprite,
+            flip_x: false,
         });
     }
 
-    // Wall impact billboard: uses the dedicated wall-hit animation at normal speed,
-    // matching SP (player_attack.rs wall_impact_sprite).
-    let full_range = FLAME_START + FLAME_RANGE;
-    const WALL_OFFSET: f32 = 0.08;
-    const IMPACT_SCALE: f32 = 0.5;
-    if max_dist < full_range {
-        let impact_dist = (max_dist - WALL_OFFSET).max(FLAME_START);
+    // Wall impact billboard.
+    if max_dist < cfg.flame_end {
+        let impact_dist = (max_dist - cfg.wall_offset).max(cfg.flame_start);
         let sprite = attack_sprites.map_or_else(
             || Arc::new(make_blood_shot_sprite(8, 3)),
             |sprites| Arc::clone(sprites.flame_wall_hit_frame_loop(elapsed)),
         );
         billboards.push(Billboard {
             position: position + dir * impact_dist,
-            height: 0.0,
-            world_height: IMPACT_SCALE,
+            height: cfg.flame_height,
+            world_height: cfg.impact_scale,
             sprite,
+            flip_x: false,
         });
     }
 }

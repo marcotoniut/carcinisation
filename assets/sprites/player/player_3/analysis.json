@@ -1,0 +1,126 @@
+{
+  "entity": "player",
+  "depth": 3,
+  "atlas": {
+    "unique_sprites": 79,
+    "total_references": 327,
+    "logical_part_references": 251,
+    "unique_sprite_reference_ratio": 0.2415902140672783,
+    "dedup_ratio": 0.7584097859327217,
+    "fragment_growth_ratio": 0.30278884462151395,
+    "used_pixels": 22796,
+    "atlas_size": [256, 111],
+    "atlas_pixels": 28416,
+    "packing_efficiency": 0.8022240990990991
+  },
+  "interner": {
+    "total_interns": 289,
+    "new_sprites": 79,
+    "exact_hits": 206,
+    "flip_x_hits": 4,
+    "flip_y_hits": 0,
+    "flip_xy_hits": 0,
+    "hit_rate": 0.726643598615917
+  },
+  "parts": [
+    {
+      "part_id": "root",
+      "is_visual": false,
+      "unique_sprites": 0,
+      "total_references": 0,
+      "reuse_ratio": 0.0,
+      "total_area_px": 0,
+      "symmetry_score": null,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "body",
+      "is_visual": true,
+      "unique_sprites": 11,
+      "total_references": 69,
+      "reuse_ratio": 6.2727272727272725,
+      "total_area_px": 3175,
+      "symmetry_score": 0.4581953405017921,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "head",
+      "is_visual": true,
+      "unique_sprites": 10,
+      "total_references": 69,
+      "reuse_ratio": 6.9,
+      "total_area_px": 1330,
+      "symmetry_score": 0.6172805771122527,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "leg_l",
+      "is_visual": true,
+      "unique_sprites": 19,
+      "total_references": 31,
+      "reuse_ratio": 1.631578947368421,
+      "total_area_px": 6304,
+      "symmetry_score": 0.5162825568044477,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "leg_r",
+      "is_visual": true,
+      "unique_sprites": 20,
+      "total_references": 31,
+      "reuse_ratio": 1.55,
+      "total_area_px": 6855,
+      "symmetry_score": 0.5248567260602272,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "legs",
+      "is_visual": true,
+      "unique_sprites": 3,
+      "total_references": 18,
+      "reuse_ratio": 6.0,
+      "total_area_px": 567,
+      "symmetry_score": 0.5740740740740741,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "arm_l",
+      "is_visual": true,
+      "unique_sprites": 7,
+      "total_references": 37,
+      "reuse_ratio": 5.285714285714286,
+      "total_area_px": 1233,
+      "symmetry_score": 0.28695593403622605,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "arm_r",
+      "is_visual": true,
+      "unique_sprites": 7,
+      "total_references": 37,
+      "reuse_ratio": 5.285714285714286,
+      "total_area_px": 2166,
+      "symmetry_score": 0.3684210526315789,
+      "bridge_markers": [],
+      "split_candidate": false
+    },
+    {
+      "part_id": "weapon",
+      "is_visual": true,
+      "unique_sprites": 6,
+      "total_references": 35,
+      "reuse_ratio": 5.833333333333333,
+      "total_area_px": 2192,
+      "symmetry_score": 0.37396317186463174,
+      "bridge_markers": [],
+      "split_candidate": false
+    }
+  ]
+}

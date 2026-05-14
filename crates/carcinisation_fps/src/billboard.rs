@@ -30,6 +30,8 @@ pub struct Billboard {
     pub world_height: f32,
     /// Billboard sprite (palette-indexed, single frame).
     pub sprite: Arc<CxImage>,
+    /// When true, the sprite is rendered horizontally mirrored.
+    pub flip_x: bool,
 }
 
 /// Projected billboard ready for rendering.
@@ -46,6 +48,8 @@ pub(crate) struct ProjectedBillboard<'a> {
     pub vertical_shift: i32,
     /// Reference to the source sprite.
     pub sprite: &'a CxImage,
+    /// When true, the sprite is rendered horizontally mirrored.
+    pub flip_x: bool,
 }
 
 /// Project a billboard into screen space.
@@ -94,6 +98,11 @@ pub(crate) fn project_billboard<'a>(
         return None;
     }
 
+    // Too large — billboard fills the screen, looks broken at close range.
+    if sprite_screen_h > screen_h + screen_h / 2 || sprite_screen_w > screen_w + screen_w / 2 {
+        return None;
+    }
+
     Some(ProjectedBillboard {
         screen_x: sx,
         distance: transform_y,
@@ -101,6 +110,7 @@ pub(crate) fn project_billboard<'a>(
         screen_w: sprite_screen_w,
         vertical_shift,
         sprite: &billboard.sprite,
+        flip_x: billboard.flip_x,
     })
 }
 
@@ -137,7 +147,12 @@ pub(crate) fn draw_billboard(
             continue;
         }
 
-        let tex_x = ((x - draw_start_x) * tex_w / proj.screen_w).min(tex_w - 1);
+        let raw_tex_x = ((x - draw_start_x) * tex_w / proj.screen_w).min(tex_w - 1);
+        let tex_x = if proj.flip_x {
+            tex_w - 1 - raw_tex_x
+        } else {
+            raw_tex_x
+        };
 
         for y in draw_start_y.max(0)..draw_end_y.min(img_h) {
             let tex_y = ((y - draw_start_y) * tex_h / proj.screen_h).min(tex_h - 1);
@@ -361,6 +376,7 @@ pub fn billboards_from_enemies(
             height: 0.0,
             world_height: 1.0,
             sprite: enemy_presentation_sprite(e, alive_sprite, death_sprite),
+            flip_x: false,
         })
         .collect()
 }
@@ -382,6 +398,7 @@ pub fn billboard_from_enemy(
         height: 0.0,
         world_height: 1.0,
         sprite: enemy_presentation_sprite(enemy, alive, death),
+        flip_x: false,
     }
 }
 
@@ -403,6 +420,7 @@ pub fn billboards_from_enemies_indexed(
                 height: 0.0,
                 world_height: 1.0,
                 sprite: enemy_presentation_sprite(e, alive, death),
+                flip_x: false,
             }
         })
         .collect()
@@ -422,6 +440,7 @@ pub fn billboards_from_projectiles(
             height: 0.15,
             world_height: 0.3,
             sprite: Arc::clone(sprite),
+            flip_x: false,
         })
         .collect()
 }
@@ -448,6 +467,7 @@ pub fn billboards_from_projectile_impacts(
                     ProjectileImpactKind::Destroy => 0.36,
                 },
                 sprite,
+                flip_x: false,
             }
         })
         .collect()
@@ -486,6 +506,7 @@ pub fn billboard_from_mosquiton(
                 }
             }
         },
+        flip_x: false,
     }
 }
 
@@ -527,6 +548,7 @@ pub fn billboards_from_mosquitons(
                     }
                 }
             },
+            flip_x: false,
         })
         .collect()
 }
@@ -544,6 +566,7 @@ mod tests {
             height: 0.0,
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
+            flip_x: false,
         };
         let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
         // Should be near screen center (x=80).
@@ -563,6 +586,7 @@ mod tests {
             height: 0.0,
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
+            flip_x: false,
         };
         assert!(project_billboard(&bb, &cam, 160, 144).is_none());
     }
@@ -575,6 +599,7 @@ mod tests {
             height: 0.0,
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
+            flip_x: false,
         };
         // At extreme distance, projected size rounds to 0 → filtered out.
         assert!(project_billboard(&bb, &cam, 160, 144).is_none());
@@ -588,12 +613,14 @@ mod tests {
             height: 0.0,
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
+            flip_x: false,
         };
         let right = Billboard {
             position: Vec2::new(6.0, 3.0), // south = screen-right
             height: 0.0,
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
+            flip_x: false,
         };
         let pc = project_billboard(&center, &cam, 160, 144).unwrap();
         let pr = project_billboard(&right, &cam, 160, 144).unwrap();

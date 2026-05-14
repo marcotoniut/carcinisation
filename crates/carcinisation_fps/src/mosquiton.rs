@@ -511,30 +511,30 @@ fn animation_sprite_at_clamped(
 }
 
 #[derive(Deserialize)]
-struct PxAtlasDescriptor {
-    regions: Vec<PxAtlasRegion>,
+pub(crate) struct PxAtlasDescriptor {
+    pub regions: Vec<PxAtlasRegion>,
     #[serde(default)]
-    names: HashMap<String, u32>,
+    pub names: HashMap<String, u32>,
     #[serde(default)]
-    animations: HashMap<String, PxAtlasAnimation>,
+    pub animations: HashMap<String, PxAtlasAnimation>,
 }
 
 #[derive(Deserialize)]
-struct PxAtlasRegion {
-    frames: Vec<PxAtlasRect>,
+pub(crate) struct PxAtlasRegion {
+    pub frames: Vec<PxAtlasRect>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
-struct PxAtlasRect {
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
+pub(crate) struct PxAtlasRect {
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
 }
 
 #[derive(Deserialize)]
-struct PxAtlasAnimation {
-    duration_ms: u64,
+pub(crate) struct PxAtlasAnimation {
+    pub duration_ms: u64,
 }
 
 #[derive(Clone)]
@@ -652,6 +652,60 @@ pub fn make_blood_shot_billboard_sprites() -> Result<BloodShotBillboardSprites, 
         hit: Arc::new(make_blood_shot_region_first_sprite(BLOOD_SHOT_HIT_REGION)?),
         destroy: make_blood_shot_region_animation(BLOOD_SHOT_DESTROY_REGION)?,
     })
+}
+
+/// Compose a single animation tag from a composed atlas into full-frame
+/// `Arc<CxImage>` sprites. This is the generic composed-billboard compositor
+/// reusable by any entity that uses the composed pipeline (player, enemies).
+///
+/// Returns one `Arc<CxImage>` per animation frame, composited from per-part
+/// sprites with stable bounding box across all frames.
+pub(crate) fn compose_tag_frames(
+    composed: &CompactComposedAtlas,
+    atlas: &PxAtlasDescriptor,
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    tag: &str,
+) -> Result<Vec<Arc<CxImage>>, String> {
+    let billboard_frames =
+        compose_animation_frames_full(composed, atlas, atlas_pixels, atlas_width, tag)?;
+    Ok(billboard_frames
+        .into_iter()
+        .map(|frame| frame.sprite)
+        .collect())
+}
+
+/// Like [`compose_tag_frames`] but reverses the part draw order.
+///
+/// Used for back-facing directions where the body should render on top of
+/// arms/head/weapon (the viewer sees the character's back, so frontmost
+/// parts are behind the torso).
+pub(crate) fn compose_tag_frames_reversed(
+    composed: &CompactComposedAtlas,
+    atlas: &PxAtlasDescriptor,
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    tag: &str,
+) -> Result<Vec<Arc<CxImage>>, String> {
+    // Build a modified composed atlas with inverted draw orders.
+    let max_draw_order = composed
+        .parts
+        .iter()
+        .map(|p| p.draw_order)
+        .max()
+        .unwrap_or(0);
+    let mut reversed = composed.clone();
+    for part in &mut reversed.parts {
+        if part.visual {
+            part.draw_order = max_draw_order - part.draw_order;
+        }
+    }
+    let billboard_frames =
+        compose_animation_frames_full(&reversed, atlas, atlas_pixels, atlas_width, tag)?;
+    Ok(billboard_frames
+        .into_iter()
+        .map(|frame| frame.sprite)
+        .collect())
 }
 
 fn make_blood_shot_region_first_sprite(region_name: &str) -> Result<CxImage, String> {
@@ -1183,7 +1237,11 @@ fn crop_to_rect(image: &CxImage, min_x: u32, min_y: u32, max_x: u32, max_y: u32)
     CxImage::new(out, out_w)
 }
 
-fn extract_atlas_rect(atlas_pixels: &[u8], atlas_width: u32, rect: PxAtlasRect) -> Option<CxImage> {
+pub(crate) fn extract_atlas_rect(
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    rect: PxAtlasRect,
+) -> Option<CxImage> {
     let mut data = vec![TRANSPARENT_INDEX; (rect.w * rect.h) as usize];
     for local_y in 0..rect.h {
         for local_x in 0..rect.w {
@@ -1199,7 +1257,7 @@ fn trim_transparent(image: CxImage) -> Option<CxImage> {
     Some(crop_to_rect(&image, min_x, min_y, max_x, max_y))
 }
 
-fn decode_pxi(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
+pub(crate) fn decode_pxi(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
     const HEADER_SIZE: usize = 10;
     if bytes.len() < HEADER_SIZE {
         return Err(format!("PXI file too short: {} bytes", bytes.len()));

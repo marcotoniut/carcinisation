@@ -1,0 +1,11 @@
+RemoteFlameConfig(
+    segment_count: 20,
+    flame_start: 0.33,
+    flame_end: 3.5,
+    flame_scale: 0.22,
+    flame_height: -0.11,
+    jitter_amp: 0.015,
+    phase_step: 0.15,
+    wall_offset: 0.08,
+    impact_scale: 0.5,
+)

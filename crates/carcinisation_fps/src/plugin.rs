@@ -763,6 +763,7 @@ fn build_map_entity_setup(
                     height: 0.0,
                     world_height: 1.0,
                     sprite: std::sync::Arc::new(make_pillar_sprite(*width, *height, *color)),
+                    flip_x: false,
                 });
             }
             EntityKind::Enemy { health, speed, .. }
@@ -1477,6 +1478,7 @@ fn push_burning_corpse_flames(
                 ctx.attack_sprites
                     .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs),
             ),
+            flip_x: false,
         });
     }
 }
