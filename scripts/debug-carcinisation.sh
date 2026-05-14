@@ -35,9 +35,9 @@ export DYLD_LIBRARY_PATH="$RUST_LIB_DIR:$REPO_ROOT/target/debug/deps${DYLD_LIBRA
 
 BINARY="$REPO_ROOT/target/debug/carcinisation"
 if [[ ! -f "$BINARY" ]]; then
-    echo "Error: Binary not found at $BINARY" >&2
-    echo "Run 'make build' or 'cargo build --bin carcinisation' first." >&2
-    exit 1
+	echo "Error: Binary not found at $BINARY" >&2
+	echo "Run 'just build' or 'cargo build --bin carcinisation' first." >&2
+	exit 1
 fi
 
 exec "$BINARY" "$@"

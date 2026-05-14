@@ -53,7 +53,7 @@ command = [
 need_stdout = true
 allow_warnings = true
 env.RUST_BACKTRACE = "full"
-# Watch game source and assets only (like make dev)
+# Watch game source and assets only (like just dev)
 watch = ["apps/carcinisation/src", "assets", ".env"]
 # Don't restart on file changes - let the process crash and restart clean
 on_change_strategy = "kill_then_restart"

@@ -77,7 +77,7 @@ above and must not rely on local shell aliases.
 
 ## Deploying
 
-Deployment runs via `make deploy` which cross-compiles both binaries and
+Deployment runs via `just deploy` which cross-compiles both binaries and
 uploads them to the remote host. The build step produces:
 
 ```bash

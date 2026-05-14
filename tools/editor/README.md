@@ -5,7 +5,7 @@ A standalone Bevy app for visually authoring stage (`.sg.ron`) and cutscene (`.c
 ## Running
 
 ```sh
-make launch-editor
+just launch-editor
 ```
 
 Or directly:

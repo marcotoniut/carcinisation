@@ -21,7 +21,7 @@ export const TASKS: TaskConfig[] = [
   {
     flag: "--lint",
     name: "lint-rs",
-    command: "make lint",
+    command: "just lint",
     logFile: "lint-rs.log",
     focusFile: "lint-rs.focus.txt",
     focusStyle: "rust-or-diff",
@@ -31,7 +31,7 @@ export const TASKS: TaskConfig[] = [
   {
     flag: "--test",
     name: "test",
-    command: "make test",
+    command: "just test",
     logFile: "test.log",
     focusFile: "test.focus.txt",
     focusStyle: "cargo-test",
@@ -41,7 +41,7 @@ export const TASKS: TaskConfig[] = [
   {
     flag: "--clippy-pedantic",
     name: "clippy-pedantic",
-    command: "make clippy-pedantic",
+    command: "just clippy-pedantic",
     logFile: "clippy-pedantic.log",
     focusFile: "clippy-pedantic.focus.txt",
     focusStyle: "rustc",
