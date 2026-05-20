@@ -90,3 +90,7 @@ Give options, trade-offs, and recommendation.
 
 - Prefer explicit failure over silent fallback.
 - Do not hide missing required inputs with no-op guards.
+
+## Glossary
+
+See `.agents/glossary.md` for canonical project vocabulary, acronyms, and domain terms.

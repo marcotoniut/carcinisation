@@ -14,14 +14,15 @@
 2. **Weapon-slot combat** 💡 — two-weapon rotation with tactical reload management; bombs as defensive panic button (replaces dual melee+ranged)
 3. **Hit-based survivability** 💡 — lives system with diegetic helmet degradation feedback
 4. **Performance-driven pressure** 💡 — efficient play feeds rank, which escalates encounter intensity (see [Gameplay Systems](gameplay.md#scoring-))
-5. **Authored stage scripting** — encounters are choreographed via RON data files, not procedural
-6. **Pixel-perfect rendering** — palette-indexed visuals, per-depth sprite variants, composed multi-part animations
+5. **Spatial physicality** 💡 — enemies occupy space, corpses persist as obstacles, the battlefield accumulates weight over time (see [FPS Combat: Spatial Pressure](gameplay.md#fps-combat-spatial-pressure-))
+6. **Authored stage scripting** — encounters are choreographed via RON data files, not procedural
+7. **Pixel-perfect rendering** — palette-indexed visuals, per-depth sprite variants, composed multi-part animations
 
 ## Document Index
 
 | Document | Scope |
 |----------|-------|
-| [Gameplay Systems](gameplay.md) | Movement, depth, survivability, combat, weapons, bombs, scoring, enemies |
+| [Gameplay Systems](gameplay.md) | Movement, depth, survivability, combat, weapons, bombs, scoring, enemies, FPS spatial pressure |
 | [Stage Structure](stages.md) | Stage progression, scripting format, campaign |
 | [Specs: Chain / Rank / Pressure](specs/chain_rank_pressure.md) | First-pass implementation spec for performance loop |
 | [Specs: Vacuum Window](specs/vaccum_window_mechanic.md) | Proposed environmental mechanic (spaceship stage) |

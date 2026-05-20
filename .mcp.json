@@ -1,11 +1,5 @@
 {
   "mcpServers": {
-    "filesystem": {
-      "type": "stdio",
-      "command": "pnpm",
-      "args": ["exec", "mcp-server-filesystem", "${workspaceFolder}"],
-      "env": {}
-    },
     "brp": {
       "type": "stdio",
       "command": "bevy_brp_mcp",
@@ -16,7 +10,6 @@
       "type": "stdio",
       "command": "proto",
       "args": ["run", "python", "3.13.9", "--", "-m", "aseprite_mcp"],
-      "cwd": "${workspaceFolder}",
       "env": {}
     }
   }

@@ -344,6 +344,63 @@ Steps can include `depth_movement` to shift between lanes mid-motion. All moveme
 - Boss encounter design
 - Per-rank enemy count targets
 
+## FPS Combat: Spatial Pressure 💡
+
+Positioning and spatial pressure are core gameplay elements in the first-person mode. The battlefield should feel increasingly physical, oppressive, and spatially reactive over time.
+
+### Enemy Spatial Occupation
+
+Enemies occupy physical space and resist excessive clumping. Multiple enemies cannot fully overlap or stand in the exact same position.
+
+- Enemy movement naturally creates crowd pressure, lane blocking, encirclement, and spatial denial
+- Groups of enemies form walls and chokepoints through emergent positioning
+- The player must manage angles and sightlines rather than treating all threats as interchangeable
+
+Design constraint: spatial occupation must feel grounded and readable, not chaotic. Enemies should press and crowd, not jitter or clip.
+
+### Corpse Persistence
+
+Enemy corpses persist in the FPS world after death instead of disappearing immediately. Corpses remain on the ground as environmental obstacles and visual storytelling elements.
+
+**Burn deaths**:
+- Enemies killed by fire leave behind charred corpses
+- Residual flames slowly extinguish over time directly on the corpse
+- Burning visuals are attached to the body itself, not floating independently
+
+**Corpse interaction**:
+- Walking over corpses slightly slows player movement
+- Large piles of bodies create traversal friction and reinforce battlefield accumulation
+- Corpses contribute to tactical positioning: retreat paths narrow, flanking routes fill
+
+### Battlefield Accumulation
+
+Over the course of an encounter, the battlefield state compounds:
+
+| Element | Effect |
+|---------|--------|
+| Living enemies | Spatial denial, active threat |
+| Corpses | Traversal friction, visual clutter |
+| Ground fire | Area denial, burn hazard |
+| Charred corpses | Persistent obstacle + lingering flame |
+
+All elements interact: fire kills produce ground fire, ground fire produces charred corpses, corpses slow movement through fire, movement slowdown increases burn exposure.
+
+### Design Intent
+
+The battlefield should reward positioning over raw damage output. Players who manage space, create kill zones, and control corpse accumulation outperform players who ignore spatial consequences.
+
+- Tension escalates through environmental state, not just enemy count
+- Retreating through a corpse-strewn corridor should feel heavy, not trivial
+- Fire as area denial creates geometric constraints on movement
+
+### Open Questions
+
+- Corpse decay timer (permanent per encounter, or fade after N seconds)?
+- Maximum corpse count before oldest despawn?
+- Does corpse slowdown scale with pile density or cap at a fixed penalty?
+- Should corpses block enemy pathing as well as player movement?
+- Interaction with rank: does higher rank produce more corpse/fire accumulation, or is accumulation rank-neutral?
+
 ## Pickups 🚧
 
 - Bomb refills (replenish bomb stock)
