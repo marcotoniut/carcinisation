@@ -53,48 +53,67 @@ dev-gallery:
 # ─── Multiplayer ──────────────────────────────────────────────────────────────
 
 server-port := "7142"
+default-map := "assets/config/fp/test_room.fp_map.ron"
+
+# Stage aliases → map file paths. Add entries here for named stages.
+# Raw paths also work: just dev-fps-pair path/to/map.ron
+_resolve-stage stage:
+    #!/usr/bin/env bash
+    case "{{ stage }}" in
+        test-room|"") echo "{{ default-map }}" ;;
+        *) echo "{{ stage }}" ;;  # treat as raw path
+    esac
 
 # Run dedicated FPS server
-dev-fps-server:
-    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }}
+dev-fps-server stage="":
+    #!/usr/bin/env bash
+    map=$(just _resolve-stage "{{ stage }}")
+    echo "Server: map=$map"
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map"
 
 # Run FPS client (uses CARCINISATION_CONNECT from .env, override with --connect)
-dev-fps-client:
-    @test -n "$${CARCINISATION_CONNECT:-}" || { echo "ERROR: set CARCINISATION_CONNECT or use 'just dev-fps-client-local'" >&2; exit 1; }
+dev-fps-client stage="":
+    #!/usr/bin/env bash
+    test -n "${CARCINISATION_CONNECT:-}" || { echo "ERROR: set CARCINISATION_CONNECT or use 'just dev-fps-client-local'" >&2; exit 1; }
+    map=$(just _resolve-stage "{{ stage }}")
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --map "$map"
 
 # Run FPS client connecting to local server
-dev-fps-client-local:
+dev-fps-client-local stage="":
+    #!/usr/bin/env bash
+    map=$(just _resolve-stage "{{ stage }}")
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }}
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map"
 
 # Headless server + 1 client
-dev-fps-pair:
+dev-fps-pair stage="":
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Starting headless server + 1 client (Ctrl+C stops both)..."
+    map=$(just _resolve-stage "{{ stage }}")
+    echo "Starting headless server + 1 client (map=$map, Ctrl+C stops both)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
-    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} &
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
     sleep 3
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} &
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
     echo "Press Ctrl+C to stop server+client"
     wait
 
 # Headless server + 2 clients
-dev-fps-duo:
+dev-fps-duo stage="":
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Starting headless server + 2 clients (Ctrl+C stops all)..."
+    map=$(just _resolve-stage "{{ stage }}")
+    echo "Starting headless server + 2 clients (map=$map, Ctrl+C stops all)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
-    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} &
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
     sleep 3
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} &
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
     sleep 1
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} &
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
     echo "Press Ctrl+C to stop server+clients"
     wait
 
@@ -127,7 +146,7 @@ build-web:
         OUT_DIR=web-deploy; \
         WASM=carcinisation; \
         rm -rf "$${OUT_DIR:?}/$${WASM}"*; \
-        cargo build --release --target "$$TARGET" -p carcinisation --bin "$$WASM"; \
+        cargo build --release --target "$$TARGET" -p carcinisation --bin "$$WASM" --no-default-features --features brp; \
         wasm-bindgen --no-typescript --target web --out-dir "$$OUT_DIR" "./target/$${TARGET}/release/$${WASM}.wasm"; \
         wasm-opt -Oz "$${OUT_DIR}/$${WASM}_bg.wasm" --output "$${OUT_DIR}/$${WASM}_bg.wasm"; \
         rsync -a --delete ./assets/ "$${OUT_DIR}/assets/"; \
@@ -179,6 +198,10 @@ export-aseprite entity depth manifest="resources/sprites/data.toml" output-root=
 # Export attack atlases
 export-attack-atlases manifest="resources/sprites/attacks/data.toml":
     cargo run -p process-aseprite -- --simple-atlases --manifest {{ manifest }}
+
+# Validate sprite assets: re-export to tmp and verify tags/directions
+validate-assets manifest="resources/sprites/data.toml":
+    cargo run -p process-aseprite -- --manifest {{ manifest }} --output-root tmp/aseprite-validate --all
 
 # ─── Shell ───────────────────────────────────────────────────────────────────
 

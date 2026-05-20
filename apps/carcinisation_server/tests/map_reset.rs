@@ -4,13 +4,15 @@
 //! - Enemy despawn/respawn across reset
 //! - Player preservation with health restoration
 //! - Projectile despawn
-//! - PendingProjectile despawn
-//! - Dead player (with RespawnTimer) reset to alive
-//! - FlameActiveTracker cleared on reset
-//! - FireCooldownMap cleared on reset
+//! - `PendingProjectile` despawn
+//! - Dead player (with `RespawnTimer`) reset to alive
+//! - `FlameActiveTracker` cleared on reset
+//! - `FireCooldownMap` cleared on reset
 //! - Admin socket round-trip for all commands
 //! - Admin socket `players` with connected player data
 //! - Admin socket `status` enemy count after reset-map
+
+#![allow(clippy::float_cmp)]
 
 mod common;
 

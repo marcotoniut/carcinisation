@@ -12,4 +12,3 @@ serde = { workspace = true, features = ["derive"] }
 
 derive-new = { workspace = true }
 derive_more = { workspace = true }
-lazy_static = { workspace = true }

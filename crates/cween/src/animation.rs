@@ -29,6 +29,10 @@ pub enum Easing {
 impl Easing {
     #[must_use]
     pub fn apply(self, t: f32) -> f32 {
+        debug_assert!(
+            (0.0..=1.0).contains(&t),
+            "Easing::apply expects t in [0.0, 1.0], got {t}"
+        );
         match self {
             Self::Linear => t,
             Self::EaseIn => t * t,

@@ -1,0 +1,6 @@
+GroundFireVisualConfig(
+    flame_count: 6,
+    visual_radius: 0.35,
+    flame_world_height: 0.39,
+    crop_bottom_px: 4,
+)

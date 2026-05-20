@@ -37,7 +37,7 @@
     },
     animations: {
         "shooting": (
-            duration_ms: 250,
+            duration_ms: 400,
             direction: "forward",
             on_finish: "loop",
         ),

@@ -25,15 +25,15 @@ use carcinisation_net::{
 use systems::admin::{poll_admin_socket, setup_admin_socket};
 use systems::combat::process_combat;
 use systems::diagnostics::{DiagnosticsState, tick_diagnostics_end, tick_diagnostics_start};
-use systems::input::{apply_buffered_movement, receive_client_intent};
+use systems::input::{apply_buffered_movement, receive_client_intent, send_input_acks};
 use systems::reset::{MapResetRequested, handle_map_reset};
 use systems::{
     BurnContactCooldowns, EnemyAiSet, EnemyAttackSet, FireCooldownMap, FlameActiveTracker,
-    FlameCharCooldowns, NextProjectileId, PlayerInputTracker, PlayerIntentBuffer, ProjectileSet,
-    ServerEnemyAiConfig, ServerMosquitonSim, ServerMosquitonSimConfig, ServerQuickTurn,
-    ServerTurnConfig, tick_burn_contact_damage, tick_despawn_timers, tick_enemy_attacks,
-    tick_enemy_death_timers, tick_net_enemy_ai, tick_pending_projectiles, tick_player_lifecycle,
-    tick_projectiles_server,
+    FlameCharCooldowns, GroundFireContactCooldowns, GroundFireCount, NextProjectileId,
+    PlayerInputTracker, PlayerIntentBuffer, ProjectileSet, ServerEnemyAiConfig, ServerMosquitonSim,
+    ServerMosquitonSimConfig, ServerQuickTurn, tick_burn_contact_damage, tick_despawn_timers,
+    tick_enemy_attacks, tick_enemy_death_timers, tick_ground_fire_damage, tick_net_enemy_ai,
+    tick_pending_projectiles, tick_player_lifecycle, tick_projectiles_server,
 };
 
 /// Component attached to `ConnectedClient` to track assigned `PlayerId`.
@@ -121,11 +121,16 @@ impl Plugin for ServerPlugin {
             )
             .init_resource::<PlayerInputTracker>()
             .init_resource::<PlayerIntentBuffer>()
-            .init_resource::<ServerTurnConfig>()
             .init_resource::<FireCooldownMap>()
             .init_resource::<FlameActiveTracker>()
             .init_resource::<FlameCharCooldowns>()
             .init_resource::<BurnContactCooldowns>()
+            .init_resource::<GroundFireContactCooldowns>()
+            .init_resource::<GroundFireCount>()
+            .insert_resource(systems::combat::load_burn_config())
+            .insert_resource(carcinisation_fps_core::PlayerFlamethrowerConfig::load())
+            .insert_resource(carcinisation_fps_core::FpsMovementConfig::load())
+            .insert_resource(carcinisation_fps_core::FpsCombatConfig::load())
             .init_resource::<NextPlayerId>()
             .init_resource::<SpawnIndex>()
             .insert_resource(ServerMap(self.map.clone()))
@@ -151,6 +156,12 @@ impl Plugin for ServerPlugin {
                     .chain(),
             )
             .add_systems(FixedUpdate, apply_buffered_movement.in_set(MovementSet))
+            .add_systems(
+                FixedUpdate,
+                send_input_acks
+                    .in_set(MovementSet)
+                    .after(apply_buffered_movement),
+            )
             .add_systems(FixedUpdate, tick_net_enemy_ai.in_set(EnemyAiSet))
             .add_systems(FixedUpdate, tick_enemy_attacks.in_set(EnemyAttackSet))
             .add_systems(
@@ -166,6 +177,20 @@ impl Plugin for ServerPlugin {
                 tick_burn_contact_damage
                     .in_set(CombatSet)
                     .after(process_combat),
+            )
+            .add_systems(
+                FixedUpdate,
+                tick_ground_fire_damage
+                    .in_set(CombatSet)
+                    .after(process_combat)
+                    .after(tick_burn_contact_damage),
+            )
+            .add_systems(
+                FixedUpdate,
+                systems::combat::tick_enemy_burning
+                    .in_set(CombatSet)
+                    .after(process_combat)
+                    .after(tick_ground_fire_damage),
             )
             .add_systems(
                 FixedUpdate,
@@ -401,6 +426,7 @@ fn handle_client_disconnect(
     mut flame_tracker: ResMut<FlameActiveTracker>,
     mut burn_cooldowns: ResMut<BurnContactCooldowns>,
     mut char_cooldowns: ResMut<FlameCharCooldowns>,
+    mut gf_cooldowns: ResMut<GroundFireContactCooldowns>,
 ) {
     let client_entity = trigger.event().entity;
 
@@ -437,6 +463,7 @@ fn handle_client_disconnect(
     flame_tracker.remove_player(&player_id);
     burn_cooldowns.remove_player(&player_id);
     char_cooldowns.remove_player(&player_id);
+    gf_cooldowns.remove_player(&player_id);
 
     info!(
         "Client {:?} disconnected, cleaned up PlayerId {:?}",
@@ -476,14 +503,20 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
                 current: health as f32,
                 max: health as f32,
             },
+            carcinisation_net::NetBurning::default(),
+            crate::systems::combat::ServerBurnState::default(),
             Replicated,
         ));
         if let Some(ai_config) = server_enemy_ai_config_from_spawn(spawn) {
             enemy_commands.insert(ai_config);
         }
         if let EntitySpawnKind::Mosquiton { speed, .. } = &spawn.kind {
+            let seed = carcinisation_fps_core::corpse_seed(bevy::math::Vec2::new(spawn.x, spawn.y));
             enemy_commands.insert((
-                ServerMosquitonSim::default(),
+                ServerMosquitonSim {
+                    seed,
+                    ..Default::default()
+                },
                 ServerMosquitonSimConfig::with_speed(*speed),
             ));
         }
@@ -493,6 +526,7 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
     count
 }
 
+#[must_use]
 pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
     match &spawn.kind {
         EntitySpawnKind::Pillar { .. }
@@ -502,6 +536,7 @@ pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
     }
 }
 
+#[must_use]
 pub fn server_enemy_ai_config_from_spawn(spawn: &EntitySpawnData) -> Option<ServerEnemyAiConfig> {
     match &spawn.kind {
         EntitySpawnKind::Mosquiton { speed, .. } => Some(ServerEnemyAiConfig::mosquiton(*speed)),

@@ -3,6 +3,8 @@
 //! These cover the Mosquiton ranged-attack timing contract without depending on
 //! full app startup, async asset loading, or transient message readers.
 
+use carcinisation_base::direction::SpriteDirection;
+
 use std::{fs, path::PathBuf, time::Duration};
 
 use asset_pipeline::aseprite::{AnimationEventKind, CompositionAtlas};
@@ -13,7 +15,7 @@ use carcinisation::stage::{
         components::behavior::EnemyCurrentBehavior,
         composed::ComposedAnimationState,
         data::{
-            mosquiton::{TAG_IDLE_FLY, TAG_SHOOT_FLY},
+            mosquiton::{ACTION_IDLE_FLY, ACTION_SHOOT_FLY},
             steps::{EnemyStep, IdleEnemyStep},
         },
         mosquito::{
@@ -44,7 +46,7 @@ fn shoot_fly_cue_elapsed(atlas: &CompositionAtlas) -> Duration {
     let shoot = atlas
         .animations
         .iter()
-        .find(|animation| animation.tag == TAG_SHOOT_FLY)
+        .find(|animation| animation.tag == SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY))
         .expect("shoot_fly animation should exist");
 
     let mut elapsed_ms = 0u64;
@@ -84,7 +86,7 @@ fn spawn_test_mosquiton(app: &mut App) -> Entity {
                 attack: Some(EnemyMosquitoAttack::Ranged),
                 last_attack_started: Duration::ZERO,
             },
-            ComposedAnimationState::new(TAG_IDLE_FLY),
+            ComposedAnimationState::new(SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)),
             Depth::Three,
         ))
         .id()
@@ -169,7 +171,10 @@ fn mosquiton_animation_cycles_through_attack_presentation() {
             .expect("animation state should exist");
 
         assert_eq!(*animation, EnemyMosquitonAnimation::ShootFly);
-        assert_eq!(state.requested_tag, TAG_SHOOT_FLY);
+        assert_eq!(
+            state.requested_tag,
+            SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY)
+        );
     }
 
     advance_stage(
@@ -190,6 +195,9 @@ fn mosquiton_animation_cycles_through_attack_presentation() {
             .expect("animation state should exist");
 
         assert_eq!(*animation, EnemyMosquitonAnimation::IdleFly);
-        assert_eq!(state.requested_tag, TAG_IDLE_FLY);
+        assert_eq!(
+            state.requested_tag,
+            SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)
+        );
     }
 }

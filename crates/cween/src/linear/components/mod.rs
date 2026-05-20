@@ -55,7 +55,7 @@ pub struct LinearTweenDirection<D: Send + Sync + 'static, P> {
 impl<D: Send + Sync + 'static, P> LinearTweenDirection<D, P> {
     #[must_use]
     pub fn from_delta(value: f32) -> Self {
-        Self::new(if value > 0.0 {
+        Self::new(if value >= 0.0 {
             TweenDirection::Positive
         } else {
             TweenDirection::Negative

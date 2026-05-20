@@ -49,7 +49,7 @@ use carcinisation::{
                 ensure_composed_enemy_parts, prepare_composed_atlas_assets,
                 update_composed_enemy_visuals,
             },
-            data::mosquiton::{TAG_IDLE_STAND, apply_mosquiton_animation_state},
+            data::mosquiton::{ACTION_IDLE_STAND, request_mosquiton_action},
             entity::EnemyType,
         },
         messages::ComposedAnimationCueMessage,
@@ -385,7 +385,7 @@ fn update_locomotion(
                     set_mosquiton_tag(&mut animation, tag);
                     LocomotionState::Airborne
                 } else {
-                    set_mosquiton_tag(&mut animation, TAG_IDLE_STAND);
+                    set_mosquiton_tag(&mut animation, ACTION_IDLE_STAND);
                     LocomotionState::Landing {
                         remaining: LANDING_SECS,
                     }
@@ -641,7 +641,7 @@ fn entity_y_for(
 }
 
 fn set_mosquiton_tag(animation: &mut ComposedAnimationState, tag: &str) {
-    apply_mosquiton_animation_state(animation, tag);
+    request_mosquiton_action(animation, tag);
 }
 
 fn animation_tag_for(state: LocomotionState, x: f32, center_x: f32) -> &'static str {
@@ -655,7 +655,7 @@ fn animation_tag_for(state: LocomotionState, x: f32, center_x: f32) -> &'static 
                 "fly_backward"
             }
         }
-        LocomotionState::Landing { .. } => TAG_IDLE_STAND,
+        LocomotionState::Landing { .. } => ACTION_IDLE_STAND,
     }
 }
 

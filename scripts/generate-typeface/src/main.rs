@@ -50,16 +50,20 @@ fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> R
 
         let glyph = glyph.positioned(point(glyph_x as f32, glyph_y as f32));
 
-        let pixel_bounding_box = glyph.pixel_bounding_box().unwrap();
+        let Some(pixel_bounding_box) = glyph.pixel_bounding_box() else {
+            // Empty glyph (e.g. space) — skip rendering, advance to next row.
+            y += target_height;
+            continue;
+        };
 
-        let offset_y = (scale.y as i32 + pixel_bounding_box.min.y) as i32;
+        let offset_y = scale.y as i32 + pixel_bounding_box.min.y;
         let offset_x =
             ((scale.x - (pixel_bounding_box.max.x - pixel_bounding_box.min.x) as f32) / 2.0) as i32;
 
         glyph.draw(|gx, gy, gv| {
             let gx = gx as i32 + offset_x;
             let gy = gy as i32 + offset_y;
-            if gx >= 0 && gy >= 0 && gy < height as i32 {
+            if gx >= 0 && (gx as u32) < width && gy >= 0 && gy < height as i32 {
                 let pixel = image.get_pixel_mut(gx as u32, gy as u32);
                 *pixel = Rgba([255, 255, 255, if gv < 0.25 { 0 } else { 255 }]);
             }

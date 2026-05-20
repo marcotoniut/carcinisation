@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_SOCKET_DIR: &str = "/run/carcinisation";
 
 /// Derive the admin socket path for a named instance.
+#[must_use]
 pub fn socket_path_for(instance: &str) -> PathBuf {
     Path::new(DEFAULT_SOCKET_DIR).join(format!("{instance}.admin.sock"))
 }

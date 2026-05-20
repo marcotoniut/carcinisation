@@ -1,6 +1,7 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 //! Legacy/composed mosquito parity tests.
 
+use carcinisation_base::direction::SpriteDirection;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -10,7 +11,7 @@ use carcinisation::stage::{
         components::behavior::EnemyCurrentBehavior,
         composed::ComposedAnimationState,
         data::{
-            mosquiton::{TAG_IDLE_FLY, TAG_SHOOT_FLY},
+            mosquiton::{ACTION_IDLE_FLY, ACTION_SHOOT_FLY},
             steps::{EnemyStep, IdleEnemyStep},
         },
         mosquito::{
@@ -72,7 +73,7 @@ fn spawn_composed_mosquiton(app: &mut App) -> Entity {
                 attack: Some(EnemyMosquitoAttack::Ranged),
                 last_attack_started: Duration::ZERO,
             },
-            ComposedAnimationState::new(TAG_IDLE_FLY),
+            ComposedAnimationState::new(SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)),
             Depth::Three,
         ))
         .id()
@@ -134,7 +135,10 @@ fn composed_mosquiton_requests_shoot_then_returns_to_idle() {
             .get::<ComposedAnimationState>()
             .expect("composed state should exist");
         assert_eq!(*animation, EnemyMosquitonAnimation::ShootFly);
-        assert_eq!(state.requested_tag, TAG_SHOOT_FLY);
+        assert_eq!(
+            state.requested_tag,
+            SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY)
+        );
     }
 
     advance_stage(
@@ -154,7 +158,10 @@ fn composed_mosquiton_requests_shoot_then_returns_to_idle() {
             .get::<ComposedAnimationState>()
             .expect("composed state should exist");
         assert_eq!(*animation, EnemyMosquitonAnimation::IdleFly);
-        assert_eq!(state.requested_tag, TAG_IDLE_FLY);
+        assert_eq!(
+            state.requested_tag,
+            SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)
+        );
     }
 }
 

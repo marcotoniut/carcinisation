@@ -2,6 +2,19 @@
 
 use bevy_math::Vec2;
 
+/// Compute distance-banded bob attenuation.
+/// Returns 1.0 for close, 0.5 for mid, 0.0 for far.
+#[must_use]
+pub fn view_bob_strength(distance: f32, near: f32, mid: f32) -> f32 {
+    if distance < near {
+        1.0
+    } else if distance < mid {
+        0.5
+    } else {
+        0.0
+    }
+}
+
 /// First-person camera: position in map space, facing angle, field of view.
 #[derive(Clone, Debug)]
 pub struct Camera {
@@ -11,6 +24,13 @@ pub struct Camera {
     pub angle: f32,
     /// Horizontal field of view in radians.
     pub fov: f32,
+    /// Vertical view bob offset in pixels (positive = look up).
+    /// Driven by walk animation, shifts the horizon line.
+    pub view_bob: f32,
+    /// Distance threshold for full view bob (map units).
+    pub view_bob_near: f32,
+    /// Distance threshold for half view bob (map units). Beyond this, bob is zero.
+    pub view_bob_mid: f32,
 }
 
 impl Default for Camera {
@@ -19,6 +39,9 @@ impl Default for Camera {
             position: Vec2::new(4.0, 4.0),
             angle: 0.0,
             fov: 66.0_f32.to_radians(), // ~66° horizontal, close to Wolf3D
+            view_bob: 0.0,
+            view_bob_near: 3.0,
+            view_bob_mid: 6.0,
         }
     }
 }
@@ -51,6 +74,7 @@ mod tests {
             position: Vec2::ZERO,
             angle: 0.5,
             fov: 1.0,
+            ..Default::default()
         };
         let dot = cam.direction().dot(cam.plane());
         assert!(
@@ -66,6 +90,7 @@ mod tests {
             position: Vec2::ZERO,
             angle: 0.0,
             fov: std::f32::consts::FRAC_PI_2,
+            ..Default::default()
         };
         let plane = cam.plane();
         assert!(
@@ -81,6 +106,7 @@ mod tests {
             position: Vec2::ZERO,
             angle: 0.0,
             fov,
+            ..Default::default()
         };
         let expected_len = (fov / 2.0).tan();
         let actual_len = cam.plane().length();

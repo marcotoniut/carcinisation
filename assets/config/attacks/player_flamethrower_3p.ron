@@ -1,0 +1,11 @@
+PlayerFlamethrower3pConfig(
+    nozzle_forward: 0.30,
+    nozzle_lateral: -0.06,
+    nozzle_height: -0.11,
+    flame_scale_near: 0.22,
+    flame_scale_far: 0.15,
+    jitter_amp: 0.015,
+    phase_step: 0.15,
+    wall_offset: 0.08,
+    impact_scale: 0.5,
+)

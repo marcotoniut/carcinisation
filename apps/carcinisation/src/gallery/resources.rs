@@ -3,8 +3,8 @@
 use crate::stage::{
     components::placement::Depth,
     enemy::data::{
-        mosquiton::GALLERY_TAGS as MOSQUITON_GALLERY_TAGS,
-        spidey::GALLERY_TAGS as SPIDEY_GALLERY_TAGS,
+        mosquiton::GALLERY_ACTIONS as MOSQUITON_GALLERY_ACTIONS,
+        spidey::GALLERY_ACTIONS as SPIDEY_GALLERY_ACTIONS,
     },
 };
 use bevy::prelude::*;
@@ -59,9 +59,9 @@ impl GalleryCharacter {
                 "melee_attack".into(),
                 "death".into(),
             ],
-            Self::Mosquiton => MOSQUITON_GALLERY_TAGS
+            Self::Mosquiton => MOSQUITON_GALLERY_ACTIONS
                 .iter()
-                .map(|tag| (*tag).to_string())
+                .map(|action| (*action).to_string())
                 .collect(),
             Self::Tardigrade => vec![
                 "idle".into(),
@@ -69,9 +69,9 @@ impl GalleryCharacter {
                 "sucking".into(),
                 "death".into(),
             ],
-            Self::Spidey => SPIDEY_GALLERY_TAGS
+            Self::Spidey => SPIDEY_GALLERY_ACTIONS
                 .iter()
-                .map(|tag| (*tag).to_string())
+                .map(|action| (*action).to_string())
                 .collect(),
             Self::Marauder | Self::Spidomonsta | Self::Kyle => vec![],
         }

@@ -3,8 +3,12 @@ name = "carcinisation_fps_core"
 edition.workspace = true
 version.workspace = true
 
+[features]
+hot_reload = ["carcinisation_core/hot_reload"]
+
 [dependencies]
 bevy = { workspace = true }
 bevy_math = { version = "0.18.0" }
+carcinisation_core = { path = "../carcinisation_core" }
 serde = { workspace = true }
 ron = { workspace = true }

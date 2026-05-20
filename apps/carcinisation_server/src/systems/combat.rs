@@ -2,30 +2,38 @@
 //!
 //! Runs in `FixedUpdate` (`CombatSet`) after movement.
 //! - Pistol (`NetAttackId::None`): hitscan + cooldown
-//! - Flamethrower (`NetAttackId::Projectile`): continuous cone damage while held
+//! - Flamethrower (`NetAttackId::Projectile`): progressive burn via `BurnState`
 
 use crate::ServerMap;
 use bevy::prelude::*;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
+use carcinisation_fps_core::burning::{self, BurnConfig, BurnState};
 use carcinisation_fps_core::camera::Camera;
 use carcinisation_fps_core::combat::flame_hits_position;
-use carcinisation_fps_core::config::{
-    BURN_CONTACT_DAMAGE, BURN_CONTACT_RADIUS, BURN_CONTACT_TICK_SECS, ENEMY_DEATH_ANIM_SECS,
-    ENEMY_DESPAWN_DELAY, FIRE_COOLDOWN_SECS, FLAME_DPS, FLAME_HIT_HALF_WIDTH, FLAME_RANGE,
-    HITSCAN_DAMAGE, PROJECTILE_HIT_RADIUS,
-};
+use carcinisation_fps_core::config::FpsCombatConfig;
 use carcinisation_fps_core::enemy::{Enemy, hitscan};
+use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
     DamageEffect, DeathEffect, FlameActive, FlameCharMark, HitConfirm, MuzzleFlash, NetAttackId,
-    NetPlayer, NetProjectile, NetworkObjectId, PlayerId,
+    NetBurning, NetGroundFire, NetPlayer, NetProjectile, NetworkObjectId, PlayerId,
 };
 use std::collections::HashMap;
 
 use crate::systems::NetEnemy;
 use crate::systems::NetEnemyState;
 use crate::systems::NetHealth;
+
+/// Server-only burn state wrapper. Not replicated — intensity is synced to `NetBurning`.
+#[derive(Component, Debug, Clone, Default)]
+pub struct ServerBurnState(pub BurnState);
+
+/// Load `BurnConfig` from the embedded RON asset.
+#[must_use]
+pub fn load_burn_config() -> BurnConfig {
+    burning::load_config()
+}
 
 /// Per-player cooldown for burning corpse contact damage.
 #[derive(Resource, Default)]
@@ -44,6 +52,7 @@ pub fn tick_burn_contact_damage(
     enemies: Query<&NetEnemy>,
     mut cooldowns: ResMut<BurnContactCooldowns>,
     fixed_time: Res<Time<Fixed>>,
+    combat_config: Res<FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
 
@@ -81,17 +90,17 @@ pub fn tick_burn_contact_damage(
         // Check proximity to any burning corpse.
         let near = burning
             .iter()
-            .any(|pos| pos.distance(player.position) <= BURN_CONTACT_RADIUS);
+            .any(|pos| pos.distance(player.position) <= combat_config.burn_contact_radius);
         if !near {
             continue;
         }
-        *cd = BURN_CONTACT_TICK_SECS;
-        health.current = (health.current - BURN_CONTACT_DAMAGE).max(0.0);
+        *cd = combat_config.burn_contact_tick_secs;
+        health.current = (health.current - combat_config.burn_contact_damage).max(0.0);
         commands.server_trigger(ToClients {
             mode: SendMode::Broadcast,
             message: DamageEffect {
                 target_id: NetworkObjectId(player.player_id.0),
-                damage: BURN_CONTACT_DAMAGE,
+                damage: combat_config.burn_contact_damage,
                 remaining_health: health.current,
                 was_player: true,
             },
@@ -162,13 +171,19 @@ pub fn process_combat(
     mut commands: Commands,
     buffer: Res<super::PlayerIntentBuffer>,
     mut players: Query<&mut NetPlayer>,
-    mut enemies: Query<(Entity, &mut NetEnemy, &mut NetHealth)>,
+    mut enemies: Query<
+        (Entity, &mut NetEnemy, &mut NetHealth, &mut ServerBurnState),
+        Without<NetPlayer>,
+    >,
     projectiles: Query<(Entity, &NetProjectile)>,
     server_map: Res<ServerMap>,
     fixed_time: Res<Time<Fixed>>,
     mut cooldowns: ResMut<FireCooldownMap>,
     mut flame_tracker: ResMut<FlameActiveTracker>,
     mut char_cooldowns: ResMut<FlameCharCooldowns>,
+    burn_config: Res<BurnConfig>,
+    flame_cfg: Res<carcinisation_fps_core::PlayerFlamethrowerConfig>,
+    combat_config: Res<FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
 
@@ -176,9 +191,6 @@ pub fn process_combat(
     for cd in cooldowns.0.values_mut() {
         *cd = (*cd - dt).max(0.0);
     }
-
-    // Weapon switch and snap turns are now handled in apply_buffered_movement (MovementSet)
-    // via take_actions(). Combat only reads fire_held from the intent buffer.
 
     // Enemy snapshot Vecs — declared once so `clear()` + `push()` reuses
     // capacity instead of allocating per player.
@@ -190,6 +202,9 @@ pub fn process_combat(
     // shots on already-dead enemies.
     let mut enemy_entities: Vec<Entity> = Vec::new();
     let mut enemy_list: Vec<Enemy> = Vec::new();
+
+    // Entities hit by any flamethrower this tick — exposure applied after the player loop.
+    let mut flame_exposed_entities: Vec<Entity> = Vec::new();
 
     // Flame state changes to apply after combat (avoids mutable borrow during iteration).
     let mut flame_updates: HashMap<PlayerId, bool> = HashMap::new();
@@ -224,7 +239,7 @@ pub fn process_combat(
                 if *cd > 0.0 {
                     continue;
                 }
-                *cd = FIRE_COOLDOWN_SECS;
+                *cd = combat_config.fire_cooldown_secs;
 
                 let camera = Camera {
                     position: player.position,
@@ -244,7 +259,7 @@ pub fn process_combat(
                 // Rebuild enemy list with fresh health/state (Vecs reuse capacity).
                 enemy_entities.clear();
                 enemy_list.clear();
-                for (entity, net_enemy, net_health) in enemies.iter() {
+                for (entity, net_enemy, net_health, _) in enemies.iter() {
                     if matches!(
                         net_enemy.state,
                         NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
@@ -272,7 +287,8 @@ pub fn process_combat(
                         continue;
                     }
                     let perp_sq = to_proj.length_squared() - along * along;
-                    if perp_sq < PROJECTILE_HIT_RADIUS * PROJECTILE_HIT_RADIUS
+                    if perp_sq
+                        < combat_config.projectile_hit_radius * combat_config.projectile_hit_radius
                         && closest_proj.is_none_or(|(_, _, _, d)| along < d)
                     {
                         closest_proj = Some((proj_entity, proj.object_id, proj.position, along));
@@ -310,17 +326,18 @@ pub fn process_combat(
                     &mut commands,
                     &mut enemies,
                     hit_entity,
-                    HITSCAN_DAMAGE,
+                    combat_config.hitscan_damage,
                     false,
+                    &combat_config,
                 );
 
                 // Send hit confirmation for blood splat visual.
-                if let Ok((_, hit_enemy, _)) = enemies.get(hit_entity) {
+                if let Ok((_, hit_enemy, _, _)) = enemies.get(hit_entity) {
                     commands.server_trigger(ToClients {
                         mode: SendMode::Broadcast,
                         message: HitConfirm {
                             target_id: hit_enemy.object_id,
-                            damage: HITSCAN_DAMAGE,
+                            damage: combat_config.hitscan_damage,
                             position: hit_enemy.position,
                             kind: carcinisation_net::HitImpactKind::Hit,
                         },
@@ -356,52 +373,25 @@ pub fn process_combat(
                 }
 
                 let dir = Vec2::new(player.angle.cos(), player.angle.sin());
-                let damage_this_tick = FLAME_DPS * dt;
 
-                debug!(
-                    "Flame tick: player={:?} pos={} angle={:.2} dir={} range={} dmg_tick={:.1}",
-                    player.player_id,
-                    player.position,
-                    player.angle,
-                    dir,
-                    FLAME_RANGE,
-                    damage_this_tick
-                );
-
-                // Collect hit entities using shared fps_core flame hit detection.
-                let hit_entities: Vec<Entity> = enemies
-                    .iter()
-                    .filter_map(|(entity, net_enemy, _net_health)| {
-                        if matches!(
-                            net_enemy.state,
-                            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
-                        ) {
-                            return None;
-                        }
-                        if flame_hits_position(
-                            player.position,
-                            dir,
-                            net_enemy.position,
-                            FLAME_RANGE,
-                            FLAME_HIT_HALF_WIDTH,
-                            &server_map.0,
-                        ) {
-                            Some(entity)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                for entity in &hit_entities {
-                    apply_damage(&mut commands, &mut enemies, *entity, damage_this_tick, true);
-                }
-                if !hit_entities.is_empty() {
-                    debug!(
-                        "  Flame hit {} enemies, {:.1} dmg each",
-                        hit_entities.len(),
-                        damage_this_tick
-                    );
+                // Collect hit entities and apply burn exposure (replaces instant damage).
+                for (entity, net_enemy, _, _) in enemies.iter() {
+                    if matches!(
+                        net_enemy.state,
+                        NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+                    ) {
+                        continue;
+                    }
+                    if flame_hits_position(
+                        player.position,
+                        dir,
+                        net_enemy.position,
+                        flame_cfg.range,
+                        flame_cfg.hit_half_width,
+                        &server_map.0,
+                    ) {
+                        flame_exposed_entities.push(entity);
+                    }
                 }
 
                 // Wall char mark emission (rate-limited).
@@ -409,7 +399,7 @@ pub fn process_combat(
                 *char_cd = (*char_cd - dt).max(0.0);
                 if *char_cd <= 0.0 {
                     let wall_hit = cast_ray(&server_map.0, player.position, dir);
-                    if wall_hit.wall_id > 0 && wall_hit.distance <= FLAME_RANGE {
+                    if wall_hit.wall_id > 0 && wall_hit.distance <= flame_cfg.range {
                         *char_cd = FLAME_CHAR_EMIT_INTERVAL;
                         let side = match wall_hit.side {
                             carcinisation_fps_core::HitSide::Vertical => 0u8,
@@ -448,6 +438,20 @@ pub fn process_combat(
             if let Some(&active) = flame_updates.get(&p.player_id) {
                 p.flame_active = active;
             }
+        }
+    }
+
+    // Apply burn exposure to all flame-hit entities (deduplicated).
+    flame_exposed_entities.sort_unstable();
+    flame_exposed_entities.dedup();
+    for entity in &flame_exposed_entities {
+        if let Ok((_, _, _, mut burn)) = enemies.get_mut(*entity) {
+            burning::apply_exposure(
+                &mut burn.0,
+                &burn_config,
+                burn_config.flame_exposure_per_sec,
+                dt,
+            );
         }
     }
 }
@@ -495,15 +499,224 @@ pub fn tick_enemy_death_timers(
     }
 }
 
+/// Server-side ground fire entity count for cap enforcement.
+#[derive(Resource, Default)]
+pub struct GroundFireCount(pub u32);
+
+/// Per-player cooldown for ground fire contact damage.
+#[derive(Resource, Default)]
+pub struct GroundFireContactCooldowns(pub HashMap<PlayerId, f32>);
+
+impl GroundFireContactCooldowns {
+    pub fn remove_player(&mut self, player_id: &PlayerId) {
+        self.0.remove(player_id);
+    }
+}
+
+/// Server-authoritative ground fire proximity damage.
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+pub fn tick_ground_fire_damage(
+    mut commands: Commands,
+    mut players: Query<(&NetPlayer, &mut NetHealth)>,
+    mut enemies: Query<
+        (Entity, &mut NetEnemy, &mut NetHealth, &mut ServerBurnState),
+        (Without<NetPlayer>, Without<DespawnTimer>),
+    >,
+    ground_fires: Query<(&NetGroundFire, &DespawnTimer)>,
+    mut cooldowns: ResMut<GroundFireContactCooldowns>,
+    fixed_time: Res<Time<Fixed>>,
+    burn_config: Res<BurnConfig>,
+    combat_config: Res<FpsCombatConfig>,
+) {
+    let dt = fixed_time.delta_secs();
+
+    for cd in cooldowns.0.values_mut() {
+        *cd = (*cd - dt).max(0.0);
+    }
+
+    // Collect fire positions with intensity (half damage after fade threshold).
+    let fade_threshold =
+        combat_config.ground_fire_lifetime_secs - combat_config.ground_fire_fade_start_secs;
+    let fire_data: Vec<(Vec2, f32)> = ground_fires
+        .iter()
+        .map(|(f, timer)| {
+            let intensity = if timer.0 <= fade_threshold { 0.5 } else { 1.0 };
+            (f.position, intensity)
+        })
+        .collect();
+    if fire_data.is_empty() {
+        return;
+    }
+
+    let radius_sq = combat_config.ground_fire_radius * combat_config.ground_fire_radius;
+
+    // Damage players standing on ground fires.
+    for (player, mut health) in &mut players {
+        if !matches!(player.state, carcinisation_net::PlayerNetState::Alive)
+            || health.current <= 0.0
+        {
+            continue;
+        }
+        let cd = cooldowns.0.entry(player.player_id).or_insert(0.0);
+        if *cd > 0.0 {
+            continue;
+        }
+        // Find the closest fire within radius.
+        let closest = fire_data
+            .iter()
+            .filter(|(pos, _)| pos.distance_squared(player.position) <= radius_sq)
+            .min_by(|(_, a_int), (_, b_int)| {
+                a_int
+                    .partial_cmp(b_int)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        let Some(&(_, intensity)) = closest else {
+            continue;
+        };
+        *cd = combat_config.ground_fire_tick_secs;
+        let damage = combat_config.ground_fire_damage * intensity;
+        health.current = (health.current - damage).max(0.0);
+        commands.server_trigger(ToClients {
+            mode: SendMode::Broadcast,
+            message: DamageEffect {
+                target_id: NetworkObjectId(player.player_id.0),
+                damage,
+                remaining_health: health.current,
+                was_player: true,
+            },
+        });
+    }
+
+    // Apply burn exposure to alive enemies standing on ground fires (crossfire).
+    let dt = fixed_time.delta_secs();
+    for (_entity, net_enemy, _, mut burn) in &mut enemies {
+        if matches!(
+            net_enemy.state,
+            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+        ) {
+            continue;
+        }
+        let in_fire = fire_data
+            .iter()
+            .any(|(pos, _)| pos.distance_squared(net_enemy.position) <= radius_sq);
+        if in_fire {
+            burning::apply_exposure(
+                &mut burn.0,
+                &burn_config,
+                burn_config.ground_fire_exposure_per_sec,
+                dt,
+            );
+        }
+    }
+}
+
+/// Tick burn state for all enemies: apply intensity-proportional damage, decay,
+/// sync intensity to `NetBurning` for replication, clear on death.
+#[allow(clippy::type_complexity)]
+pub fn tick_enemy_burning(
+    mut commands: Commands,
+    mut enemies: Query<
+        (
+            Entity,
+            &mut NetEnemy,
+            &mut NetHealth,
+            &mut ServerBurnState,
+            &mut NetBurning,
+        ),
+        Without<NetPlayer>,
+    >,
+    burn_config: Res<BurnConfig>,
+    fixed_time: Res<Time<Fixed>>,
+    combat_config: Res<FpsCombatConfig>,
+) {
+    let dt = fixed_time.delta_secs();
+
+    for (entity, mut net_enemy, mut net_health, mut burn, mut net_burning) in &mut enemies {
+        // Tick burn (applies damage + decay).
+        // TODO: pass actual movement state when enemy movement tracking is added.
+        let result = burning::tick_burning(&mut burn.0, &burn_config, dt, false);
+
+        // Skip dead enemies (state may have been set to Dying by this same burn).
+        if matches!(
+            net_enemy.state,
+            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+        ) {
+            continue;
+        }
+
+        // Sync intensity to replicated component (only on change to avoid replication churn).
+        let new_intensity = burn.0.intensity;
+        if (net_burning.intensity - new_intensity).abs() > f32::EPSILON {
+            net_burning.intensity = new_intensity;
+        }
+
+        // Apply burn damage.
+        if result.damage > 0 && net_health.current > 0.0 {
+            #[allow(clippy::cast_precision_loss)]
+            let damage = result.damage as f32;
+            net_health.current = (net_health.current - damage).max(0.0);
+
+            if net_health.current <= 0.0 {
+                net_enemy.state = NetEnemyState::Dying { burn: true };
+                let death_position = net_enemy.position;
+                commands
+                    .entity(entity)
+                    .insert(EnemyDeathTimer(combat_config.enemy_death_anim_secs))
+                    .insert(DespawnTimer(combat_config.enemy_despawn_delay));
+
+                // Ground fire on burn death.
+                commands.spawn((
+                    NetGroundFire {
+                        position: death_position,
+                        seed: corpse_seed(death_position),
+                    },
+                    DespawnTimer(combat_config.ground_fire_lifetime_secs),
+                    Replicated,
+                ));
+
+                burning::extinguish(&mut burn.0);
+                net_burning.intensity = 0.0;
+
+                commands.server_trigger(ToClients {
+                    mode: SendMode::Broadcast,
+                    message: DeathEffect {
+                        target_id: net_enemy.object_id,
+                        was_player: false,
+                    },
+                });
+            } else {
+                commands.server_trigger(ToClients {
+                    mode: SendMode::Broadcast,
+                    message: DamageEffect {
+                        target_id: net_enemy.object_id,
+                        damage,
+                        remaining_health: net_health.current,
+                        was_player: false,
+                    },
+                });
+            }
+        }
+    }
+}
+
 /// Apply damage to an enemy entity, handling death transition and events.
+///
+/// When `burn` is true and the enemy dies, a ground fire entity is spawned at
+/// the death position. The caller must pass `ground_fire_count` to enforce
+/// the server-side cap.
 fn apply_damage(
     commands: &mut Commands,
-    enemies: &mut Query<(Entity, &mut NetEnemy, &mut NetHealth)>,
+    enemies: &mut Query<
+        (Entity, &mut NetEnemy, &mut NetHealth, &mut ServerBurnState),
+        Without<NetPlayer>,
+    >,
     entity: Entity,
     damage: f32,
     burn: bool,
+    combat_config: &FpsCombatConfig,
 ) {
-    let Ok((_, mut net_enemy, mut net_health)) = enemies.get_mut(entity) else {
+    let Ok((_, mut net_enemy, mut net_health, _)) = enemies.get_mut(entity) else {
         return;
     };
     if net_health.current <= 0.0 {
@@ -514,10 +727,24 @@ fn apply_damage(
 
     if net_health.current <= 0.0 {
         net_enemy.state = NetEnemyState::Dying { burn };
+        let death_position = net_enemy.position;
         commands
             .entity(entity)
-            .insert(EnemyDeathTimer(ENEMY_DEATH_ANIM_SECS))
-            .insert(DespawnTimer(ENEMY_DESPAWN_DELAY));
+            .insert(EnemyDeathTimer(combat_config.enemy_death_anim_secs))
+            .insert(DespawnTimer(combat_config.enemy_despawn_delay));
+
+        // Spawn ground fire at death position for fire kills.
+        if burn {
+            commands.spawn((
+                NetGroundFire {
+                    position: death_position,
+                    seed: corpse_seed(death_position),
+                },
+                DespawnTimer(combat_config.ground_fire_lifetime_secs),
+                Replicated,
+            ));
+        }
+
         commands.server_trigger(ToClients {
             mode: SendMode::Broadcast,
             message: DeathEffect {

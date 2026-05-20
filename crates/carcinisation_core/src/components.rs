@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use assert_assets_path::assert_assets_path;
 use bevy::{audio::Volume, prelude::*};
-use carapace::filter::CxFilterAsset;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Component)]
@@ -42,17 +41,6 @@ impl GBColor {
                 assert_assets_path!("filter/color3.px_filter.png")
             }
         }
-    }
-}
-
-pub trait CxSpriteColorLoader {
-    /// Runs `f` on `self`
-    fn load_color(&self, color: GBColor) -> Handle<CxFilterAsset>;
-}
-
-impl CxSpriteColorLoader for AssetServer {
-    fn load_color(&self, color: GBColor) -> Handle<CxFilterAsset> {
-        self.load(color.get_filter_path())
     }
 }
 

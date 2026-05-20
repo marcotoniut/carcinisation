@@ -26,6 +26,7 @@ pub mod billboard;
 pub mod camera;
 pub mod collision;
 pub mod data;
+pub mod directional_billboard;
 pub mod enemy;
 pub mod layer;
 pub mod map;

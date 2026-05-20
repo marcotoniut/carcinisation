@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use carcinisation::stage::{
     check_step_spawn,
     components::placement::Depth,
-    data::{EnemySpawn, GAME_BASE_SPEED, PickupSpawn, PickupType, StageSpawn},
+    data::{EnemySpawn, OrsGameplayConfig, PickupSpawn, PickupType, StageSpawn},
     enemy::entity::EnemyType,
     messages::StageSpawnEvent,
     resources::{StageStepSpawner, StageTimeDomain},
@@ -18,6 +18,7 @@ struct ObservedStageSpawns(Vec<StageSpawn>);
 fn build_spawn_test_app() -> App {
     let mut app = App::new();
     app.insert_resource(Time::<StageTimeDomain>::default());
+    app.insert_resource(carcinisation::stage::data::OrsGameplayConfig::default());
     app.init_resource::<ObservedStageSpawns>();
     app.add_message::<StageSpawnEvent>();
     app.add_observer(
@@ -41,7 +42,9 @@ fn take_spawn_events(app: &mut App) -> Vec<StageSpawn> {
 }
 
 fn authored_elapsed(runtime_duration: Duration) -> Duration {
-    Duration::from_secs_f32(runtime_duration.as_secs_f32() * GAME_BASE_SPEED)
+    Duration::from_secs_f32(
+        runtime_duration.as_secs_f32() * OrsGameplayConfig::default().game_base_speed,
+    )
 }
 
 fn get_spawner_queue_len(app: &mut App) -> usize {

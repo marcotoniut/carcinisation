@@ -8,7 +8,11 @@ use std::marker::PhantomData;
 
 use bevy::{ecs::system::SystemParam, prelude::*};
 use carapace::prelude::*;
-use carcinisation_fps_core::fire_death::{DamageKind, perimeter_flames_from_mask};
+use carcinisation_fps_core::fire_death::perimeter_flames_from_mask;
+use carcinisation_fps_core::ground_fire::{
+    GroundFire, GroundFireConfig, GroundFireContactState, ground_fire_contact_damage,
+    ground_fire_flame_layout, tick_ground_fires, try_spawn_ground_fire,
+};
 
 /// System set for First-person plugin systems. External input systems should run
 /// `.before(Systems)` so the First-person plugin reads updated state.
@@ -34,7 +38,7 @@ use crate::{
         tick_single_mosquiton,
     },
     player_attack::{
-        AttackInput, AttackLoadout, FlamethrowerConfig, PlayerAttackSprites, PlayerAttackState,
+        AttackInput, AttackLoadout, GroundFireVisualConfig, PlayerAttackSprites, PlayerAttackState,
         destroy_projectiles_touching_active_flamethrower, draw_player_attack_overlays,
         flame_wall_mask, process_player_attacks, wall_impact_sprite,
     },
@@ -57,6 +61,12 @@ const CHORD_WINDOW_SECS: f32 = 0.15;
 pub struct Config {
     /// RON map file contents (pre-loaded string).
     pub map_ron: String,
+    /// Filesystem path to the map RON file (for hot reload).
+    ///
+    /// When set, Cmd+R re-reads the map from this path, rebuilds `MapRes` and
+    /// `ClientMap`, and logs the update. Left empty in production builds or
+    /// when the map is baked into `map_ron`.
+    pub map_path: String,
     /// Path to the sky RON config file (used to resolve `.pxi` asset paths).
     pub sky_path: String,
     /// Framebuffer width in pixels.
@@ -118,6 +128,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             map_ron: String::new(),
+            map_path: String::new(),
             sky_path: String::new(),
             screen_width: 160,
             screen_height: 144,
@@ -185,6 +196,24 @@ pub struct BurningCorpseContactHazardState {
     cooldown_remaining_secs: f32,
 }
 
+/// Ground fire hazards spawned when enemies die from fire.
+#[derive(Resource, Default)]
+pub struct GroundFires(pub Vec<GroundFire>);
+
+/// Per-player cooldown for ground fire contact damage (SP only).
+#[derive(Resource, Clone, Copy, Debug, Default)]
+pub struct GroundFireContactHazardState {
+    cooldown_remaining_secs: f32,
+}
+
+/// Bundled fire hazard state for the SP tick system (avoids param overflow).
+#[derive(SystemParam)]
+struct FireHazardState<'w> {
+    burning_corpse_contact: ResMut<'w, BurningCorpseContactHazardState>,
+    ground_fires: ResMut<'w, GroundFires>,
+    gf_contact: ResMut<'w, GroundFireContactHazardState>,
+}
+
 #[derive(Resource)]
 pub struct BloodShotSprites(pub BloodShotBillboardSprites);
 
@@ -208,6 +237,8 @@ struct RenderSources<'w> {
     blood_shot_sprites: Res<'w, BloodShotSprites>,
     mosquiton_sprites: Res<'w, MosquitonSprites>,
     char_decals: Res<'w, CharDecals>,
+    ground_fires: Res<'w, GroundFires>,
+    ground_fire_vis: Res<'w, GroundFireVisualConfig>,
 }
 
 #[derive(SystemParam)]
@@ -611,26 +642,71 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
         app.register_type::<AttackLoadout>();
         app.register_type::<PlayerHealth>();
         app.register_type::<PlayerDead>();
+        #[cfg(feature = "hot_reload")]
+        app.add_plugins(carcinisation_core::dev_reload::DevReloadPlugin);
+
         app.init_resource::<ExtraBillboards>();
         app.init_resource::<ShootRequest>();
         app.init_resource::<AttackInput>();
         app.init_resource::<AttackLoadout>();
-        app.init_resource::<PlayerAttackState>();
         app.init_resource::<CharDecals>();
         app.init_resource::<BurningCorpseContactHazardState>();
+        app.init_resource::<GroundFires>();
+        app.init_resource::<GroundFireContactHazardState>();
+        app.insert_resource(GroundFireVisualConfig::load());
+        app.insert_resource(carcinisation_fps_core::burning::load_config());
+        app.insert_resource(carcinisation_fps_core::FpsMovementConfig::load());
+        app.insert_resource(carcinisation_fps_core::FpsCombatConfig::load());
+        app.insert_resource(carcinisation_fps_core::FpsVisualConfig::load());
+        let flame_cfg = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        app.insert_resource(PlayerAttackState::new(flame_cfg));
+        app.insert_resource(flame_cfg);
         app.init_resource::<QuickTurnState>();
         app.init_resource::<TurnChordState>();
         app.init_resource::<DeathViewState>();
         app.init_resource::<CameraShakeState>();
+
+        #[cfg(feature = "hot_reload")]
+        {
+            carcinisation_core::watch_config!(app, "assets/config/attacks/player_flamethrower.ron");
+            carcinisation_core::watch_config!(app, "assets/config/status/burning.ron");
+            carcinisation_core::watch_config!(app, "assets/config/fp/movement.ron");
+            carcinisation_core::watch_config!(app, "assets/config/fp/combat.ron");
+            carcinisation_core::watch_config!(app, "assets/config/fp/visuals.ron");
+            carcinisation_core::watch_config!(app, "assets/config/attacks/ground_fire.ron");
+            // Sprite PXI files are not auto-polled (10 stat() calls per poll
+            // cause frame stutters). Use Cmd+R for manual sprite reload.
+        }
+
         app.add_systems(
             Update,
             (
+                #[cfg(feature = "hot_reload")]
+                reload_flamethrower_config.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
+                reload_burn_config.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
+                reload_movement_config.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
+                reload_combat_config.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
+                reload_visual_config.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
+                reload_ground_fire_visual.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
+                reload_map.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
+                reload_attack_sprites.in_set(Systems),
                 apply_quick_turn_animation.in_set(Systems),
                 handle_shooting.in_set(Systems),
                 tick_enemy_ai.in_set(Systems).after(handle_shooting),
                 apply_death_view.in_set(Systems),
                 tick_projectile_impact_effects.in_set(Systems),
                 tick_camera_shake_effect.in_set(Systems),
+                apply_view_bob
+                    .in_set(Systems)
+                    .after(handle_shooting)
+                    .after(apply_death_view),
                 update_fp_view.in_set(Systems).after(tick_enemy_ai),
             )
                 .run_if(resource_exists::<Active>),
@@ -763,6 +839,7 @@ fn build_map_entity_setup(
                     height: 0.0,
                     world_height: 1.0,
                     sprite: std::sync::Arc::new(make_pillar_sprite(*width, *height, *color)),
+                    flip_x: false,
                 });
             }
             EntityKind::Enemy { health, speed, .. }
@@ -802,8 +879,23 @@ fn apply_quick_turn_animation(
     time: Res<Time>,
     mut camera: ResMut<CameraRes>,
     mut quick_turn: ResMut<QuickTurnState>,
+    config: Res<Config>,
 ) {
-    tick_quick_turn(&mut camera.0, &mut quick_turn, time.delta_secs());
+    let dt = time.delta_secs();
+    if config.authority_mode == FpsAuthorityMode::RemoteClient {
+        // In multiplayer, prediction owns the camera angle. Only tick
+        // the QuickTurnState timer (for input suppression) without
+        // rotating the camera — sync_camera_from_net_player reads
+        // PredictedRenderState instead.
+        if quick_turn.remaining_radians > 0.0 {
+            let step = (quick_turn.speed * dt)
+                .min(quick_turn.remaining_radians)
+                .max(0.0);
+            quick_turn.remaining_radians -= step;
+        }
+    } else {
+        tick_quick_turn(&mut camera.0, &mut quick_turn, dt);
+    }
 }
 
 fn apply_death_view(
@@ -816,6 +908,19 @@ fn apply_death_view(
     if dead.0 {
         tick_death_view(&mut camera.0, &mut death_view, time.delta_secs(), &config);
     }
+}
+
+/// Apply walk view bob to the camera. Zeroed when dead to avoid bobbing
+/// death camera. Runs after `handle_shooting` computes `view_bob`.
+fn apply_view_bob(
+    mut camera: ResMut<CameraRes>,
+    attack_state: Res<PlayerAttackState>,
+    dead: Res<PlayerDead>,
+    visual_config: Res<carcinisation_fps_core::FpsVisualConfig>,
+) {
+    camera.0.view_bob = if dead.0 { 0.0 } else { attack_state.view_bob };
+    camera.0.view_bob_near = visual_config.view_bob_near;
+    camera.0.view_bob_mid = visual_config.view_bob_mid;
 }
 
 fn tick_projectile_impact_effects(time: Res<Time>, mut impacts: ResMut<ProjectileImpacts>) {
@@ -850,9 +955,10 @@ fn tick_enemy_ai(
     mut death_view: ResMut<DeathViewState>,
     mut camera_shake: ResMut<CameraShakeState>,
     attack_state: Res<PlayerAttackState>,
-    mut burning_corpse_contact: ResMut<BurningCorpseContactHazardState>,
+    mut fire_hazard: FireHazardState,
     mut commands: Commands,
     config: Res<Config>,
+    burn_config: Res<carcinisation_fps_core::BurnConfig>,
 ) {
     if !config.authority_mode.uses_local_combat() {
         return;
@@ -872,6 +978,26 @@ fn tick_enemy_ai(
         if let Some(proj) = tick_single_enemy(&mut enemy, player_pos, &map.0, dt) {
             projectiles.0.push(proj);
         }
+
+        // Tick burn state (exposure was applied in handle_shooting).
+        if enemy.is_alive() {
+            let result = carcinisation_fps_core::tick_burning(
+                &mut enemy.burn_state,
+                &burn_config,
+                dt,
+                false,
+            );
+            if result.damage > 0 {
+                enemy.take_damage_from(
+                    result.damage,
+                    carcinisation_fps_core::DamageKind::Fire,
+                    attack_state.shared().burning_corpse_duration_secs,
+                );
+            }
+        } else if enemy.burn_state.is_burning() {
+            carcinisation_fps_core::burning::extinguish(&mut enemy.burn_state);
+        }
+
         if matches!(enemy.state, EnemyState::Dead) {
             dead_enemies.push(entity);
         }
@@ -899,6 +1025,26 @@ fn tick_enemy_ai(
                 &config,
             );
         }
+
+        // Tick burn state for mosquitons.
+        if mosquiton.is_alive() {
+            let result = carcinisation_fps_core::tick_burning(
+                &mut mosquiton.burn_state,
+                &burn_config,
+                dt,
+                false,
+            );
+            if result.damage > 0 {
+                mosquiton.take_damage_from(
+                    result.damage,
+                    carcinisation_fps_core::DamageKind::Fire,
+                    attack_state.shared().burning_corpse_duration_secs,
+                );
+            }
+        } else if mosquiton.burn_state.is_burning() {
+            carcinisation_fps_core::burning::extinguish(&mut mosquiton.burn_state);
+        }
+
         if matches!(mosquiton.state, MosquitonState::Dead) {
             dead_mosquitons.push(entity);
         }
@@ -947,11 +1093,22 @@ fn tick_enemy_ai(
             burning_corpses.push(mosquiton.position);
         }
     }
+
+    // Spawn ground fires from new burning corpses.
+    let gf_config = GroundFireConfig::default();
+    for &pos in &burning_corpses {
+        try_spawn_ground_fire(&mut fire_hazard.ground_fires.0, pos, &gf_config);
+    }
+
+    // Tick ground fire lifetimes.
+    tick_ground_fires(&mut fire_hazard.ground_fires.0, dt);
+
+    // Burning corpse contact damage (player proximity to corpses).
     let burning_corpse_contact_result = tick_burning_corpse_contact_damage(
         &camera.0,
         &burning_corpses,
-        attack_state.config(),
-        &mut burning_corpse_contact,
+        attack_state.shared(),
+        &mut fire_hazard.burning_corpse_contact,
         dt,
     );
     apply_player_damage(
@@ -964,11 +1121,40 @@ fn tick_enemy_ai(
         burning_corpse_contact_result.damage_source,
         &config,
     );
+
+    // Ground fire contact damage (separate cooldown, lower DPS).
+    let mut gf_state = GroundFireContactState {
+        cooldown_remaining_secs: fire_hazard.gf_contact.cooldown_remaining_secs,
+    };
+    let gf_contact_result = ground_fire_contact_damage(
+        camera.0.position,
+        &fire_hazard.ground_fires.0,
+        &gf_config,
+        &mut gf_state,
+        dt,
+    );
+    fire_hazard.gf_contact.cooldown_remaining_secs = gf_state.cooldown_remaining_secs;
+    apply_player_damage(
+        &mut health.0,
+        &mut dead.0,
+        &mut death_view,
+        &mut camera_shake,
+        &camera.0,
+        gf_contact_result.player_damage,
+        gf_contact_result.damage_source,
+        &config,
+    );
+
+    // Crossfire: merge burning corpse + ground fire positions for enemy damage.
+    let mut all_fire_positions = burning_corpses;
+    all_fire_positions.extend(fire_hazard.ground_fires.0.iter().map(|f| f.position));
     tick_burning_corpse_crossfire_query(
         &mut enemy_q,
         &mut mosquiton_q,
-        &burning_corpses,
-        attack_state.config(),
+        &all_fire_positions,
+        attack_state.shared(),
+        &burn_config,
+        dt,
     );
 }
 
@@ -981,7 +1167,7 @@ struct BurningCorpseContactDamageResult {
 fn tick_burning_corpse_contact_damage(
     camera: &Camera,
     burning_corpses: &[Vec2],
-    config: &FlamethrowerConfig,
+    config: &carcinisation_fps_core::PlayerFlamethrowerConfig,
     state: &mut BurningCorpseContactHazardState,
     dt: f32,
 ) -> BurningCorpseContactDamageResult {
@@ -1014,6 +1200,147 @@ fn tick_burning_corpse_contact_damage(
     }
 }
 
+// ── Hot reload systems ────────────────────────────────────────────────────
+
+/// Reload `PlayerFlamethrowerConfig` from disk on Cmd+R.
+///
+/// Updates both the `Res<PlayerFlamethrowerConfig>` and the cached copy inside
+/// `PlayerAttackState` so gameplay systems see the new values immediately.
+#[cfg(feature = "hot_reload")]
+fn reload_flamethrower_config(
+    events: Option<bevy::prelude::MessageReader<carcinisation_core::dev_reload::DevReloadRequest>>,
+    mut flame_res: bevy::prelude::ResMut<carcinisation_fps_core::PlayerFlamethrowerConfig>,
+    mut attack_state: bevy::prelude::ResMut<PlayerAttackState>,
+) {
+    let Some(mut events) = events else { return };
+    // Drain all events and reload only once.
+    if events.read().count() == 0 {
+        return;
+    }
+    let reloaded: carcinisation_fps_core::PlayerFlamethrowerConfig =
+        carcinisation_core::ron_config!("assets/config/attacks/player_flamethrower.ron");
+    *flame_res = reloaded;
+    attack_state.update_shared(reloaded);
+    bevy::log::info!(
+        "Reloaded PlayerFlamethrowerConfig from assets/config/attacks/player_flamethrower.ron"
+    );
+}
+
+// Reload `BurnConfig` from disk on Cmd+R.
+#[cfg(feature = "hot_reload")]
+carcinisation_core::reload_ron_system!(
+    reload_burn_config,
+    carcinisation_fps_core::BurnConfig,
+    "assets/config/status/burning.ron"
+);
+
+// Reload `FpsMovementConfig` from disk on Cmd+R.
+#[cfg(feature = "hot_reload")]
+carcinisation_core::reload_ron_system!(
+    reload_movement_config,
+    carcinisation_fps_core::FpsMovementConfig,
+    "assets/config/fp/movement.ron"
+);
+
+// Reload `FpsCombatConfig` from disk on Cmd+R.
+#[cfg(feature = "hot_reload")]
+carcinisation_core::reload_ron_system!(
+    reload_combat_config,
+    carcinisation_fps_core::FpsCombatConfig,
+    "assets/config/fp/combat.ron"
+);
+
+// Reload `FpsVisualConfig` from disk on Cmd+R.
+#[cfg(feature = "hot_reload")]
+carcinisation_core::reload_ron_system!(
+    reload_visual_config,
+    carcinisation_fps_core::FpsVisualConfig,
+    "assets/config/fp/visuals.ron"
+);
+
+// Reload `GroundFireVisualConfig` from disk on Cmd+R.
+#[cfg(feature = "hot_reload")]
+carcinisation_core::reload_ron_system!(
+    reload_ground_fire_visual,
+    GroundFireVisualConfig,
+    "assets/config/attacks/ground_fire.ron"
+);
+
+/// Reload the FPS map from disk on Cmd+R.
+///
+/// Re-reads the map RON file from `Config.map_path` and rebuilds `MapRes`.
+/// Geometry and collision data are reconstructed; entities are NOT re-spawned.
+/// Skipped when `map_path` is empty (production builds where the map is baked
+/// into `map_ron`).
+///
+/// Downstream systems (e.g. client prediction) should detect the `MapRes`
+/// change and update their own derived maps (e.g. `ClientMap`).
+#[cfg(feature = "hot_reload")]
+fn reload_map(
+    events: Option<bevy::prelude::MessageReader<carcinisation_core::dev_reload::DevReloadRequest>>,
+    config: bevy::prelude::Res<Config>,
+    map_res: Option<bevy::prelude::ResMut<MapRes>>,
+) {
+    let Some(mut events) = events else { return };
+    if events.read().count() == 0 {
+        return;
+    }
+    if config.map_path.is_empty() {
+        return;
+    }
+    let body = match std::fs::read_to_string(&config.map_path) {
+        Ok(b) => b,
+        Err(e) => {
+            bevy::log::warn!("Map reload: failed to read {}: {e}", config.map_path);
+            return;
+        }
+    };
+    let map_data =
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| MapData::from_ron(&body))) {
+            Ok(Ok(data)) => data,
+            Ok(Err(e)) => {
+                bevy::log::warn!("Map reload: parse error in {}: {e}", config.map_path);
+                return;
+            }
+            Err(_) => {
+                bevy::log::warn!("Map reload: panic while parsing {}", config.map_path);
+                return;
+            }
+        };
+    if let Some(mut mr) = map_res {
+        mr.0 = map_data.to_map();
+    }
+    bevy::log::warn!(
+        "Map reloaded from {} — geometry/collision rebuilt, entities NOT re-spawned",
+        config.map_path
+    );
+}
+
+/// Reload all FPS attack sprites from disk.
+///
+/// Catches panics from corrupt/incompatible filesystem data and keeps
+/// the previous sprites if loading fails.
+#[cfg(feature = "hot_reload")]
+fn reload_attack_sprites(
+    events: Option<bevy::prelude::MessageReader<carcinisation_core::dev_reload::DevReloadRequest>>,
+    sprites: Option<bevy::prelude::ResMut<PlayerAttackSprites>>,
+) {
+    let Some(mut events) = events else { return };
+    let Some(mut sprites) = sprites else { return };
+    if events.read().next().is_none() {
+        return;
+    }
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(PlayerAttackSprites::load)) {
+        Ok(reloaded) => {
+            *sprites = reloaded;
+            bevy::log::info!("Reloaded PlayerAttackSprites");
+        }
+        Err(_) => {
+            bevy::log::warn!("PlayerAttackSprites reload failed, keeping previous sprites");
+        }
+    }
+}
+
 #[cfg(test)]
 fn collect_burning_corpses(enemies: &[Enemy], mosquitons: &[Mosquiton]) -> Vec<Vec2> {
     let mut corpses = Vec::new();
@@ -1035,22 +1362,27 @@ fn tick_burning_corpse_crossfire(
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
     burning_corpses: &[Vec2],
-    config: &FlamethrowerConfig,
+    config: &carcinisation_fps_core::PlayerFlamethrowerConfig,
+    burn_config: &carcinisation_fps_core::BurnConfig,
+    dt: f32,
 ) {
-    if config.burning_corpse_crossfire_damage == 0 || burning_corpses.is_empty() {
+    if burning_corpses.is_empty() {
         return;
     }
 
-    let fire_death_secs = config.burning_corpse_duration_secs;
     let radius = config.burning_corpse_contact_radius;
-    let damage = config.burning_corpse_crossfire_damage;
 
     for mosquiton in mosquitons.iter_mut() {
         if !mosquiton.is_alive() {
             continue;
         }
         if closest_burning_corpse_to(mosquiton.position, burning_corpses, radius).is_some() {
-            mosquiton.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+            carcinisation_fps_core::apply_exposure(
+                &mut mosquiton.burn_state,
+                burn_config,
+                burn_config.ground_fire_exposure_per_sec,
+                dt,
+            );
         }
     }
 
@@ -1059,7 +1391,12 @@ fn tick_burning_corpse_crossfire(
             continue;
         }
         if closest_burning_corpse_to(enemy.position, burning_corpses, radius).is_some() {
-            enemy.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+            carcinisation_fps_core::apply_exposure(
+                &mut enemy.burn_state,
+                burn_config,
+                burn_config.ground_fire_exposure_per_sec,
+                dt,
+            );
         }
     }
 }
@@ -1084,22 +1421,27 @@ fn tick_burning_corpse_crossfire_query(
     enemy_q: &mut Query<(Entity, &mut Enemy)>,
     mosquiton_q: &mut Query<(Entity, &mut Mosquiton)>,
     burning_corpses: &[Vec2],
-    config: &FlamethrowerConfig,
+    config: &carcinisation_fps_core::PlayerFlamethrowerConfig,
+    burn_config: &carcinisation_fps_core::BurnConfig,
+    dt: f32,
 ) {
-    if config.burning_corpse_crossfire_damage == 0 || burning_corpses.is_empty() {
+    if burning_corpses.is_empty() {
         return;
     }
 
-    let fire_death_secs = config.burning_corpse_duration_secs;
     let radius = config.burning_corpse_contact_radius;
-    let damage = config.burning_corpse_crossfire_damage;
 
     for (_, mut mosquiton) in mosquiton_q.iter_mut() {
         if !mosquiton.is_alive() {
             continue;
         }
         if closest_burning_corpse_to(mosquiton.position, burning_corpses, radius).is_some() {
-            mosquiton.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+            carcinisation_fps_core::apply_exposure(
+                &mut mosquiton.burn_state,
+                burn_config,
+                burn_config.ground_fire_exposure_per_sec,
+                dt,
+            );
         }
     }
 
@@ -1108,7 +1450,12 @@ fn tick_burning_corpse_crossfire_query(
             continue;
         }
         if closest_burning_corpse_to(enemy.position, burning_corpses, radius).is_some() {
-            enemy.take_damage_from(damage, DamageKind::Fire, fire_death_secs);
+            carcinisation_fps_core::apply_exposure(
+                &mut enemy.burn_state,
+                burn_config,
+                burn_config.ground_fire_exposure_per_sec,
+                dt,
+            );
         }
     }
 }
@@ -1158,6 +1505,17 @@ fn apply_player_damage(
     }
 }
 
+/// Bundled attack resources to stay within Bevy's 16-param system limit.
+#[derive(bevy::ecs::system::SystemParam)]
+struct AttackResources<'w> {
+    input: ResMut<'w, AttackInput>,
+    loadout: ResMut<'w, AttackLoadout>,
+    state: ResMut<'w, PlayerAttackState>,
+    sprites: Res<'w, PlayerAttackSprites>,
+    burn_config: Res<'w, carcinisation_fps_core::BurnConfig>,
+    visual_config: Res<'w, carcinisation_fps_core::FpsVisualConfig>,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn handle_shooting(
     camera: Res<CameraRes>,
@@ -1171,14 +1529,23 @@ fn handle_shooting(
     mut char_decals: ResMut<CharDecals>,
     dead: Res<PlayerDead>,
     mut shoot: ResMut<ShootRequest>,
-    mut attack_input: ResMut<AttackInput>,
-    mut attack_loadout: ResMut<AttackLoadout>,
-    mut attack_state: ResMut<PlayerAttackState>,
-    attack_sprites: Res<PlayerAttackSprites>,
+    mut attack: AttackResources,
+    mut prev_camera_angle: Local<f32>,
 ) {
+    // Derive aim_turn_velocity from camera angle change so the flamethrower
+    // chain bends during turns (whip effect).
+    if attack.input.aim_turn_velocity.abs() <= f32::EPSILON {
+        attack.input.aim_turn_velocity = carcinisation_fps_core::angular_velocity_clamped(
+            camera.0.angle,
+            *prev_camera_angle,
+            time.delta_secs(),
+        );
+    }
+    *prev_camera_angle = camera.0.angle;
+
     if dead.0 {
         shoot.0 = false;
-        attack_input.clear_edges();
+        attack.input.clear_edges();
         return;
     }
 
@@ -1188,13 +1555,13 @@ fn handle_shooting(
         process_player_attacks(
             &camera.0,
             &map.0,
-            &attack_sprites,
+            &attack.sprites,
             config.hitscan_damage,
             time.delta_secs(),
             time.elapsed_secs(),
-            &mut attack_input,
-            &mut attack_loadout,
-            &mut attack_state,
+            &mut attack.input,
+            &mut attack.loadout,
+            &mut attack.state,
             &mut enemies,
             &mut mosquitons,
             &mut projectiles.0,
@@ -1202,6 +1569,9 @@ fn handle_shooting(
             &mut char_decals.0,
             config.screen_height as f32,
             &mut shoot.0,
+            &attack.burn_config,
+            attack.visual_config.view_bob_amplitude,
+            attack.visual_config.view_bob_freq_mult,
         );
         return;
     }
@@ -1225,13 +1595,13 @@ fn handle_shooting(
     process_player_attacks(
         &camera.0,
         &map.0,
-        &attack_sprites,
+        &attack.sprites,
         config.hitscan_damage,
         time.delta_secs(),
         time.elapsed_secs(),
-        &mut attack_input,
-        &mut attack_loadout,
-        &mut attack_state,
+        &mut attack.input,
+        &mut attack.loadout,
+        &mut attack.state,
         &mut enemies,
         &mut mosquitons,
         &mut projectiles.0,
@@ -1239,6 +1609,9 @@ fn handle_shooting(
         &mut char_decals.0,
         config.screen_height as f32,
         &mut shoot.0,
+        &attack.burn_config,
+        attack.visual_config.view_bob_amplitude,
+        attack.visual_config.view_bob_freq_mult,
     );
 
     // Scatter: write back changes to entities.
@@ -1269,6 +1642,7 @@ fn update_fp_view(
     time: Res<Time>,
     enemy_q: Query<(&Enemy, &EnemySpriteIndex)>,
     mosquiton_q: Query<&Mosquiton>,
+    burn_config: Res<carcinisation_fps_core::BurnConfig>,
     mut zbuffer: Local<Vec<f32>>,
 ) {
     let mut image = CxImage::empty(UVec2::new(
@@ -1294,27 +1668,54 @@ fn update_fp_view(
         &sources.mosquiton_sprites.0,
         &CorpseFlameContext {
             attack_sprites: &view.attack_sprites,
-            config: view.attack_state.config(),
+            config: view.attack_state.shared(),
             camera: &view.camera.0,
             elapsed_secs: time.elapsed_secs(),
         },
+    );
+    let ground_fire_bbs = ground_fire_billboards(
+        &sources.ground_fires.0,
+        &view.attack_sprites,
+        &view.camera.0,
+        time.elapsed_secs(),
+        &sources.ground_fire_vis,
     );
     let proj_bbs =
         billboards_from_projectiles(&sources.projectiles.0, &sources.blood_shot_sprites.0.hover);
     let impact_bbs =
         billboards_from_projectile_impacts(&sources.impacts.0, &sources.blood_shot_sprites.0);
     let mosquiton_bbs = billboards_from_mosquitons(&mosquitons, &sources.mosquiton_sprites.0);
+    let alive_burn_bbs = alive_burn_flame_billboards(
+        &enemies,
+        &indices,
+        &sources.pairs.0,
+        &mosquitons,
+        &sources.mosquiton_sprites.0,
+        &CorpseFlameContext {
+            attack_sprites: &view.attack_sprites,
+            config: view.attack_state.shared(),
+            camera: &view.camera.0,
+            elapsed_secs: time.elapsed_secs(),
+        },
+        &burn_config,
+    );
+    let local_flame_bbs = view
+        .attack_state
+        .flame_chain_billboards(&view.camera.0, &view.attack_sprites);
     let all_bbs: Vec<Billboard> = sources
         .static_bbs
         .0
         .iter()
         .cloned()
         .chain(view.extra_bbs.0.iter().cloned())
+        .chain(ground_fire_bbs)
         .chain(corpse_flame_bbs)
+        .chain(alive_burn_bbs)
         .chain(enemy_bbs)
         .chain(mosquiton_bbs)
         .chain(impact_bbs)
         .chain(proj_bbs)
+        .chain(local_flame_bbs)
         .collect();
 
     let impact_sprite = wall_impact_sprite(&view.attack_state, &view.attack_sprites);
@@ -1379,7 +1780,7 @@ fn update_fp_view(
 
 struct CorpseFlameContext<'a> {
     attack_sprites: &'a PlayerAttackSprites,
-    config: &'a FlamethrowerConfig,
+    config: &'a carcinisation_fps_core::PlayerFlamethrowerConfig,
     camera: &'a Camera,
     elapsed_secs: f32,
 }
@@ -1477,8 +1878,171 @@ fn push_burning_corpse_flames(
                 ctx.attack_sprites
                     .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs),
             ),
+            flip_x: false,
         });
     }
+}
+
+/// Generate flame billboards on alive burning enemies/mosquitons.
+/// Flame count scales with burn intensity.
+fn alive_burn_flame_billboards(
+    enemies: &[Enemy],
+    enemy_sprite_indices: &[usize],
+    enemy_sprite_pairs: &[(CxImage, CxImage)],
+    mosquitons: &[Mosquiton],
+    mosquiton_sprites: &MosquitonBillboardSprites,
+    ctx: &CorpseFlameContext<'_>,
+    burn_config: &carcinisation_fps_core::BurnConfig,
+) -> Vec<Billboard> {
+    let mut billboards = Vec::new();
+
+    for (index, enemy) in enemies.iter().enumerate() {
+        if !enemy.is_alive() || !enemy.burn_state.is_burning() {
+            continue;
+        }
+        let pair_index = enemy_sprite_indices.get(index).copied().unwrap_or(0);
+        let Some((alive_sprite, _)) = enemy_sprite_pairs
+            .get(pair_index)
+            .or_else(|| enemy_sprite_pairs.first())
+        else {
+            continue;
+        };
+        push_alive_burn_flames_sp(
+            &mut billboards,
+            enemy.position,
+            0.0,
+            1.0,
+            enemy.burn_state.intensity,
+            index as u32,
+            alive_sprite,
+            ctx,
+            burn_config,
+        );
+    }
+
+    for (mi, mosquiton) in mosquitons.iter().enumerate() {
+        if !mosquiton.is_alive() || !mosquiton.burn_state.is_burning() {
+            continue;
+        }
+        let sprite = mosquiton_sprites.alive_sprite_at(0.0);
+        push_alive_burn_flames_sp(
+            &mut billboards,
+            mosquiton.position,
+            mosquiton.height,
+            mosquiton.config.billboard_height,
+            mosquiton.burn_state.intensity,
+            (enemies.len() + mi) as u32,
+            sprite,
+            ctx,
+            burn_config,
+        );
+    }
+
+    billboards
+}
+
+fn push_alive_burn_flames_sp(
+    billboards: &mut Vec<Billboard>,
+    position: Vec2,
+    height: f32,
+    base_world_height: f32,
+    intensity: f32,
+    seed: u32,
+    sprite: &CxImage,
+    ctx: &CorpseFlameContext<'_>,
+    burn_config: &carcinisation_fps_core::BurnConfig,
+) {
+    let all_flames = carcinisation_fps_core::centered_flames_from_mask(
+        seed,
+        sprite.width(),
+        sprite.height(),
+        |x, y| sprite.data()[y * sprite.width() + x] != TRANSPARENT_INDEX,
+        burn_config.max_burn_flames,
+    );
+    if all_flames.is_empty() {
+        return;
+    }
+
+    let visible =
+        carcinisation_fps_core::burn_flame_count(intensity, all_flames.len(), burn_config);
+    if visible == 0 {
+        return;
+    }
+
+    let to_enemy = position - ctx.camera.position;
+    let distance = to_enemy.length().max(0.1);
+    let behind_dir = if distance > 0.001 {
+        to_enemy / distance
+    } else {
+        ctx.camera.direction()
+    };
+    let right = Vec2::new(-ctx.camera.direction().y, ctx.camera.direction().x);
+    let px_to_world = base_world_height / sprite.height() as f32;
+
+    let flame_size = carcinisation_fps_core::burn_flame_scale(intensity, burn_config);
+    for flame in all_flames.iter().take(visible) {
+        let lateral_units = flame.offset_px.x * px_to_world;
+        let vertical_units = flame.offset_px.y * px_to_world;
+        billboards.push(Billboard {
+            position: position - behind_dir * 0.04 + right * lateral_units,
+            height: height + vertical_units,
+            world_height: base_world_height * flame_size * flame.scale,
+            sprite: std::sync::Arc::clone(
+                ctx.attack_sprites
+                    .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs),
+            ),
+            flip_x: false,
+        });
+    }
+}
+
+/// Crop the bottom N rows from a `CxImage`, returning a new image.
+#[must_use]
+pub fn crop_bottom(image: &CxImage, rows: usize) -> CxImage {
+    let w = image.width();
+    let h = image.height();
+    if rows >= h {
+        return CxImage::empty(UVec2::new(w as u32, 1));
+    }
+    let new_h = h - rows;
+    CxImage::new(image.data()[..new_h * w].to_vec(), w)
+}
+
+/// Generate billboards for active ground fires.
+fn ground_fire_billboards(
+    fires: &[GroundFire],
+    attack_sprites: &PlayerAttackSprites,
+    camera: &Camera,
+    elapsed_secs: f32,
+    vis: &GroundFireVisualConfig,
+) -> Vec<Billboard> {
+    let mut billboards = Vec::new();
+
+    let cam_dir = camera.direction();
+    let right = Vec2::new(-cam_dir.y, cam_dir.x);
+
+    let gf_config = GroundFireConfig::default();
+
+    for fire in fires {
+        let intensity = fire.intensity(&gf_config);
+        let flames = ground_fire_flame_layout(fire.seed, vis.flame_count, vis.visual_radius);
+        for (offset, scale, phase) in &flames {
+            let full_sprite = attack_sprites.flame_frame_loop(elapsed_secs + phase);
+            let cropped = crop_bottom(full_sprite, vis.crop_bottom_px);
+            let world_height = vis.flame_world_height * scale * intensity;
+            // Bottom of the cropped sprite sits at ground level (-0.5).
+            let height = -0.5 + world_height * 0.5;
+            billboards.push(Billboard {
+                position: fire.position + right * offset.x + cam_dir * offset.y,
+                height,
+                world_height,
+                sprite: std::sync::Arc::new(cropped),
+                flip_x: false,
+            });
+        }
+    }
+
+    billboards
 }
 
 /// Set to `true` from your input system to trigger a hitscan shot.
@@ -1509,8 +2073,8 @@ mod tests {
         )
     }
 
-    fn contact_hazard_test_config() -> FlamethrowerConfig {
-        let mut config = FlamethrowerConfig::load();
+    fn contact_hazard_test_config() -> carcinisation_fps_core::PlayerFlamethrowerConfig {
+        let mut config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         config.burning_corpse_contact_damage = 1;
         config.burning_corpse_contact_tick_ms = 300;
         config.burning_corpse_contact_radius = 0.6;
@@ -1544,7 +2108,7 @@ mod tests {
         let sprites = PlayerAttackSprites::load();
         let enemy_pairs = vec![(make_enemy_sprite(24, 2), make_death_sprite(24, 1))];
         let mosquiton_sprites = make_mosquiton_billboard_sprites().unwrap();
-        let config = FlamethrowerConfig::load();
+        let config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         let camera = Camera {
             position: Vec2::new(1.0, 1.0),
             angle: 0.0,
@@ -1596,7 +2160,7 @@ mod tests {
         let sprites = PlayerAttackSprites::load();
         let enemy_pairs = vec![(make_enemy_sprite(24, 2), make_death_sprite(24, 1))];
         let mosquiton_sprites = make_mosquiton_billboard_sprites().unwrap();
-        let config = FlamethrowerConfig::load();
+        let config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         let camera = Camera {
             position: Vec2::new(1.0, 1.0),
             angle: 0.0,
@@ -1748,9 +2312,8 @@ mod tests {
     }
 
     #[test]
-    fn crossfire_damage_hits_living_enemy_near_burning_mosquiton() {
-        let mut config = FlamethrowerConfig::load();
-        config.burning_corpse_crossfire_damage = 10;
+    fn crossfire_exposure_builds_burn_on_living_enemy() {
+        let config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         let mut enemies = vec![Enemy::new(Vec2::new(1.0, 0.0), 10, 1.0)];
         let mut mosquitons = vec![Mosquiton::new(
             Vec2::new(1.3, 0.0),
@@ -1762,16 +2325,25 @@ mod tests {
         };
         let corpses = collect_burning_corpses(&enemies, &mosquitons);
 
-        tick_burning_corpse_crossfire(&mut enemies, &mut mosquitons, &corpses, &config);
+        let burn_cfg = carcinisation_fps_core::burning::load_config();
+        let dt = 1.0 / 30.0;
+        tick_burning_corpse_crossfire(
+            &mut enemies,
+            &mut mosquitons,
+            &corpses,
+            &config,
+            &burn_cfg,
+            dt,
+        );
 
-        assert_eq!(enemies[0].health, 0);
-        assert!(matches!(enemies[0].state, EnemyState::BurningCorpse { .. }));
+        // Crossfire applies exposure — enemy should now be burning.
+        assert!(enemies[0].burn_state.is_burning());
+        assert!(enemies[0].burn_state.intensity > 0.0);
     }
 
     #[test]
-    fn crossfire_damage_hits_living_mosquiton_near_burning_enemy() {
-        let mut config = FlamethrowerConfig::load();
-        config.burning_corpse_crossfire_damage = MosquitonConfig::default().health;
+    fn crossfire_exposure_builds_burn_on_living_mosquiton() {
+        let config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         let mut enemies = vec![Enemy::new(Vec2::new(1.0, 0.0), 10, 1.0)];
         enemies[0].state = EnemyState::BurningCorpse {
             timer: 1.0,
@@ -1783,19 +2355,24 @@ mod tests {
         )];
         let corpses = collect_burning_corpses(&enemies, &mosquitons);
 
-        tick_burning_corpse_crossfire(&mut enemies, &mut mosquitons, &corpses, &config);
+        let burn_cfg = carcinisation_fps_core::burning::load_config();
+        let dt = 1.0 / 30.0;
+        tick_burning_corpse_crossfire(
+            &mut enemies,
+            &mut mosquitons,
+            &corpses,
+            &config,
+            &burn_cfg,
+            dt,
+        );
 
-        assert_eq!(mosquitons[0].health, 0);
-        assert!(matches!(
-            mosquitons[0].state,
-            MosquitonState::BurningCorpse { .. }
-        ));
+        assert!(mosquitons[0].burn_state.is_burning());
+        assert!(mosquitons[0].burn_state.intensity > 0.0);
     }
 
     #[test]
-    fn crossfire_damage_ignores_out_of_range() {
-        let mut config = FlamethrowerConfig::load();
-        config.burning_corpse_crossfire_damage = 2;
+    fn crossfire_exposure_ignores_out_of_range() {
+        let mut config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         config.burning_corpse_contact_radius = 0.5;
         let mut enemies = vec![Enemy::new(Vec2::new(0.0, 0.0), 10, 1.0)];
         let mut mosquitons = vec![Mosquiton::new(
@@ -1808,9 +2385,92 @@ mod tests {
         };
         let corpses = collect_burning_corpses(&enemies, &mosquitons);
 
-        tick_burning_corpse_crossfire(&mut enemies, &mut mosquitons, &corpses, &config);
+        let burn_cfg = carcinisation_fps_core::burning::load_config();
+        tick_burning_corpse_crossfire(
+            &mut enemies,
+            &mut mosquitons,
+            &corpses,
+            &config,
+            &burn_cfg,
+            1.0 / 30.0,
+        );
 
-        assert_eq!(enemies[0].health, 10);
+        assert!(!enemies[0].burn_state.is_burning());
+    }
+
+    // --- ground fire ---
+
+    #[test]
+    fn ground_fire_spawns_from_burning_corpse_position() {
+        let gf_config = GroundFireConfig::default();
+        let mut fires = Vec::new();
+        // Enemy in BurningCorpse state at (3.0, 3.0).
+        let pos = Vec2::new(3.0, 3.0);
+        try_spawn_ground_fire(&mut fires, pos, &gf_config);
+        assert_eq!(fires.len(), 1);
+        assert_eq!(fires[0].position, pos);
+    }
+
+    #[test]
+    fn ground_fire_no_duplicate_at_same_position() {
+        let gf_config = GroundFireConfig::default();
+        let mut fires = Vec::new();
+        let pos = Vec2::new(3.0, 3.0);
+        try_spawn_ground_fire(&mut fires, pos, &gf_config);
+        // Second attempt at same position should be deduplicated.
+        let spawned = try_spawn_ground_fire(&mut fires, pos, &gf_config);
+        assert!(!spawned);
+        assert_eq!(fires.len(), 1);
+    }
+
+    #[test]
+    fn ground_fire_expires_after_lifetime() {
+        let mut fires = vec![GroundFire {
+            position: Vec2::new(3.0, 3.0),
+            remaining_secs: 1.0,
+            seed: 42,
+        }];
+        tick_ground_fires(&mut fires, 1.1);
+        assert!(fires.is_empty());
+    }
+
+    #[test]
+    fn ground_fire_billboards_anchor_at_ground_level() {
+        let vis = GroundFireVisualConfig::load();
+        let fires = vec![GroundFire {
+            position: Vec2::new(3.0, 3.0),
+            remaining_secs: 2.0,
+            seed: 42,
+        }];
+        let attack_sprites = PlayerAttackSprites::load();
+        let camera = Camera {
+            position: Vec2::new(1.5, 1.5),
+            angle: 0.0,
+            ..Default::default()
+        };
+        let bbs = ground_fire_billboards(&fires, &attack_sprites, &camera, 0.0, &vis);
+        assert_eq!(bbs.len(), vis.flame_count);
+        // All flames should be at or below eye level (negative height).
+        for bb in &bbs {
+            assert!(
+                bb.height < 0.0,
+                "ground fire billboard height {} should be negative",
+                bb.height
+            );
+        }
+    }
+
+    #[test]
+    fn non_burning_death_does_not_spawn_ground_fire() {
+        let gf_config = GroundFireConfig::default();
+        let mut fires = Vec::new();
+        // Only BurningCorpse state should trigger ground fire, not Dying/Dead.
+        // Simulate: no burning corpse positions → no ground fires.
+        let burning_corpses: Vec<Vec2> = vec![];
+        for &pos in &burning_corpses {
+            try_spawn_ground_fire(&mut fires, pos, &gf_config);
+        }
+        assert!(fires.is_empty());
     }
 
     /// Helper: `b` = (pressed, `just_pressed`, `just_released`).
@@ -2175,6 +2835,89 @@ mod tests {
         assert_eq!(turn.remaining_radians, remaining);
     }
 
+    /// In RemoteClient mode, `apply_quick_turn_animation` must NOT rotate
+    /// the camera — prediction owns the angle. It should only tick the
+    /// QuickTurnState timer for input suppression.
+    #[test]
+    fn remote_client_quick_turn_does_not_rotate_camera() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .set_max_delta(std::time::Duration::from_secs(1));
+
+        let mut config = Config::default();
+        config.authority_mode = FpsAuthorityMode::RemoteClient;
+        app.insert_resource(config);
+
+        let mut camera = Camera::default();
+        camera.angle = 1.0;
+        app.insert_resource(CameraRes(camera));
+
+        let mut turn = QuickTurnState::default();
+        request_snap_turn(&mut turn, TurnKind::QuickTurn, &Config::default());
+        assert!(turn.is_active());
+        app.insert_resource(turn);
+
+        app.add_systems(Update, apply_quick_turn_animation);
+
+        // First update has dt=0; second has real dt.
+        app.update();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        app.update();
+
+        let cam = app.world().resource::<CameraRes>();
+        assert!(
+            (cam.0.angle - 1.0).abs() < 1e-6,
+            "camera angle should be unchanged in RemoteClient mode: got {:.4}",
+            cam.0.angle
+        );
+
+        // QuickTurnState should have ticked down (for input suppression).
+        let qt = app.world().resource::<QuickTurnState>();
+        assert!(
+            qt.remaining_radians < std::f32::consts::PI,
+            "QuickTurnState should have decremented: {:.4}",
+            qt.remaining_radians
+        );
+    }
+
+    /// In LocalAuthority mode, `apply_quick_turn_animation` DOES rotate camera.
+    #[test]
+    fn local_authority_quick_turn_rotates_camera() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .set_max_delta(std::time::Duration::from_secs(1));
+
+        let config = Config::default(); // LocalAuthority by default
+        assert_eq!(config.authority_mode, FpsAuthorityMode::LocalAuthority);
+        app.insert_resource(config);
+
+        let mut camera = Camera::default();
+        camera.angle = 0.0;
+        app.insert_resource(CameraRes(camera));
+
+        let mut turn = QuickTurnState::default();
+        request_snap_turn(&mut turn, TurnKind::QuickTurn, &Config::default());
+        app.insert_resource(turn);
+
+        app.add_systems(Update, apply_quick_turn_animation);
+
+        // First update has dt=0; second has real dt.
+        app.update();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        app.update();
+
+        let cam = app.world().resource::<CameraRes>();
+        assert!(
+            cam.0.angle > 0.01,
+            "camera angle should have rotated in LocalAuthority mode: got {:.4}",
+            cam.0.angle
+        );
+    }
+
     #[test]
     fn death_view_turns_toward_killer_and_red_increases() {
         let config = Config::default();
@@ -2337,6 +3080,7 @@ mod tests {
         let mut shoot_request = false;
 
         let sprites = PlayerAttackSprites::load();
+        let burn_config = carcinisation_fps_core::burning::load_config();
         process_player_attacks(
             &camera,
             &map,
@@ -2354,6 +3098,9 @@ mod tests {
             &mut char_decals,
             144.0,
             &mut shoot_request,
+            &burn_config,
+            1.5,
+            2.0,
         );
 
         let mut projectiles = vec![Projectile {

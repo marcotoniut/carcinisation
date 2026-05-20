@@ -120,13 +120,13 @@ pub fn make_steps() -> Vec<StageStep> {
                     .with_steps_vec(vec![
                         EnemyStep::linear_movement_base()
                             .with_direction(-1., -0.2)
-                            .with_trayectory(30.)
+                            .with_trajectory(30.)
                             .depth_advance(2)
                             .into(),
                         EnemyStep::idle_base().with_duration(3.).into(),
                         EnemyStep::linear_movement_base()
                             .with_direction(1., -0.5)
-                            .with_trayectory(50.)
+                            .with_trajectory(50.)
                             .depth_retreat(1)
                             .into(),
                         EnemyStep::linear_movement_base()

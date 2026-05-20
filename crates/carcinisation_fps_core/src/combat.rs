@@ -2,7 +2,7 @@
 
 use bevy_math::Vec2;
 
-use crate::config::{FLAME_HIT_HALF_WIDTH, FLAME_RANGE};
+use crate::config::PlayerFlamethrowerConfig;
 use crate::map::Map;
 use crate::raycast::cast_ray;
 
@@ -47,20 +47,21 @@ pub fn flame_hits_position(
     ray.distance >= dist
 }
 
-/// Convenience wrapper using default config constants.
+/// Convenience wrapper using values from a `PlayerFlamethrowerConfig`.
 #[must_use]
-pub fn flame_hits_position_default(
+pub fn flame_hits_position_configured(
     origin: Vec2,
     direction: Vec2,
     target_pos: Vec2,
     map: &Map,
+    cfg: &PlayerFlamethrowerConfig,
 ) -> bool {
     flame_hits_position(
         origin,
         direction,
         target_pos,
-        FLAME_RANGE,
-        FLAME_HIT_HALF_WIDTH,
+        cfg.range,
+        cfg.hit_half_width,
         map,
     )
 }
@@ -181,9 +182,10 @@ mod tests {
         let dir = Vec2::new(1.0, 0.0);
         let target = Vec2::new(3.5, 1.5);
 
+        let cfg = PlayerFlamethrowerConfig::load();
         let explicit =
-            flame_hits_position(origin, dir, target, FLAME_RANGE, FLAME_HIT_HALF_WIDTH, &map);
-        let default = flame_hits_position_default(origin, dir, target, &map);
+            flame_hits_position(origin, dir, target, cfg.range, cfg.hit_half_width, &map);
+        let default = flame_hits_position_configured(origin, dir, target, &map, &cfg);
         assert_eq!(explicit, default);
     }
 }

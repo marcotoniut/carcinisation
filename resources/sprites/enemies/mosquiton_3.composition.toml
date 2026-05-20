@@ -218,26 +218,54 @@ draw_order = 80
 pivot = { x = 0, y = 0 }
 tags = ["leg", "limb", "targetable", "legs"]
 
+## Wing overrides: flying attack animations use idle_fly wing cycle per direction.
 [[animation_overrides]]
-# Flying animations have single-frame static wings. Source wing flap
-# cycle from idle_fly so wings animate independently of the body.
-tags = ["fly_forward", "fly_backward", "shoot_fly", "melee_fly"]
-source_tag = "idle_fly"
+tags = ["front_shoot_fly", "front_melee_fly"]
+source_tag = "front_idle_fly"
 part_tags = ["wings"]
 
+[[animation_overrides]]
+tags = ["frontleft_shoot_fly", "frontleft_melee_fly"]
+source_tag = "frontleft_idle_fly"
+part_tags = ["wings"]
+
+[[animation_overrides]]
+tags = ["left_shoot_fly", "left_melee_fly"]
+source_tag = "left_idle_fly"
+part_tags = ["wings"]
+
+[[animation_overrides]]
+tags = ["backleft_shoot_fly", "backleft_melee_fly"]
+source_tag = "backleft_idle_fly"
+part_tags = ["wings"]
+
+[[animation_overrides]]
+tags = ["back_shoot_fly", "back_melee_fly"]
+source_tag = "back_idle_fly"
+part_tags = ["wings"]
+
+## Projectile spawn event (front direction for ORS).
 [[animation_events]]
-# Tag-local frame index inside `shoot_fly`. This is the first clear discharge
-# pose, so projectile timing is authored by animation playback rather than tied
-# to attack start.
-tag = "shoot_fly"
+tag = "front_shoot_fly"
 frame = 5
 kind = "projectile_spawn"
 id = "blood_shot"
 part_id = "head"
-# Blood shots are center-anchored circles. This cue marks the center of the
-# black mouth opening on the current `shoot_fly` head frame so the visible
-# splat originates from the mouth itself.
 local_offset = { x = 6, y = 9 }
+
+[directional]
+authored_directions = ["front", "frontleft", "left", "backleft", "back"]
+default_direction = "front"
+# mirror_allowed: right-side directions derived from left-side via flip.
+# Attack animations (shoot_fly, melee_fly) are close enough to symmetric
+# that mirroring is acceptable — head/body offsets are near-centered.
+# TODO: revisit if asymmetric weapon/arm poses are added.
+mirror_policy = "mirror_allowed"
+
+[directional.mirrors]
+frontright = "frontleft"
+right = "left"
+backright = "backleft"
 
 [gameplay]
 entity_health_pool = "core"

@@ -4,12 +4,6 @@
 use cween::animation::RotationKeyframe;
 use serde::Deserialize;
 
-const CONFIG_PATH: &str = "assets/splash/bevy.ron";
-const EMBEDDED_CONFIG: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../assets/splash/bevy.ron"
-));
-
 /// One animation track — a sprite with optional timing, pivot, and keyframes.
 #[derive(Clone, Debug, Deserialize)]
 pub struct SplashTrack {
@@ -45,16 +39,19 @@ pub struct SplashConfig {
 impl SplashConfig {
     #[must_use]
     pub fn load() -> Self {
-        #[cfg(not(target_family = "wasm"))]
-        if let Ok(body) = std::fs::read_to_string(CONFIG_PATH) {
-            return Self::parse(&body, CONFIG_PATH);
-        }
-        Self::parse(EMBEDDED_CONFIG, "embedded splash.ron")
+        let config: Self = carcinisation_core::ron_config!("assets/splash/bevy.ron");
+        config.validate();
+        config
     }
 
-    fn parse(ron_str: &str, source: &str) -> Self {
-        ron::from_str(ron_str).unwrap_or_else(|e| {
-            panic!("{source}: failed to parse SplashConfig: {e}");
-        })
+    fn validate(&self) {
+        assert!(
+            self.total_duration_ms > 0,
+            "SplashConfig: total_duration_ms must be > 0",
+        );
+        assert!(
+            !self.tracks.is_empty(),
+            "SplashConfig: tracks must not be empty",
+        );
     }
 }

@@ -144,6 +144,7 @@ pub fn process_cutscene_animations_spawn(
     >,
     assets_sprite: CxAssets<CxSprite>,
     existing_graphics: Query<(Entity, &Layer), With<CutsceneGraphic>>,
+    gameplay_config: Res<crate::stage::data::OrsGameplayConfig>,
 ) {
     for (entity, spawns) in query.iter() {
         if spawns
@@ -187,7 +188,7 @@ pub fn process_cutscene_animations_spawn(
             if let Some(target_movement) = &spawn.target_movement_o {
                 entity_commands.insert(
                     target_movement
-                        .make_bundles(spawn.coordinates, crate::stage::data::GAME_BASE_SPEED),
+                        .make_bundles(spawn.coordinates, gameplay_config.game_base_speed),
                 );
             }
 

@@ -210,7 +210,13 @@ pub fn render_fp_scene_with_effects(
         } else {
             None
         };
-        draw_billboard(image, zbuffer, proj, h, fog);
+        let bb_bob_strength = crate::camera::view_bob_strength(
+            proj.distance,
+            camera.view_bob_near,
+            camera.view_bob_mid,
+        );
+        let bb_bob_px = (camera.view_bob * bb_bob_strength).round() as i32;
+        draw_billboard(image, zbuffer, proj, h, fog, bb_bob_px);
     }
 }
 
@@ -234,7 +240,8 @@ fn render_walls(
 
     let dir = camera.direction();
     let plane = camera.plane();
-    let half_h = h / 2;
+    let base_half_h = h / 2;
+    let view_bob = camera.view_bob;
     let yaw_offset = camera.angle / std::f32::consts::TAU;
 
     for x in 0..w {
@@ -248,6 +255,15 @@ fn render_walls(
         if let Some(ref mut zb) = zbuffer {
             zb[x as usize] = hit.distance;
         }
+
+        // Perspective-aware view bob: close walls get full bob, distant
+        // walls get reduced bob. Banded to avoid per-column shimmer.
+        let bob_strength = crate::camera::view_bob_strength(
+            hit.distance,
+            camera.view_bob_near,
+            camera.view_bob_mid,
+        );
+        let half_h = (base_half_h + (view_bob * bob_strength).round() as i32).clamp(0, h);
 
         if hit.wall_id == 0 {
             if let Some(sky_ref) = sky {

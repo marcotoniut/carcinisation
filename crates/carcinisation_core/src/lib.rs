@@ -12,5 +12,8 @@
 pub mod components;
 pub mod core;
 pub mod debug;
+#[cfg(feature = "hot_reload")]
+pub mod dev_reload;
 pub mod globals;
+pub mod ron_loading;
 pub mod systems;

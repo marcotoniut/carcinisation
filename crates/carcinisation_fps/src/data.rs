@@ -16,6 +16,10 @@ pub struct MapData {
     pub wall_textures: Vec<WallTextureSpec>,
     pub ceiling_color: u8,
     pub floor_color: u8,
+    #[serde(default = "default_fog_start")]
+    pub fog_start: f32,
+    #[serde(default = "default_fog_distance")]
+    pub fog_distance: f32,
     pub player_start: PlayerStart,
     #[serde(default)]
     pub entities: Vec<EntitySpawn>,
@@ -40,6 +44,8 @@ pub enum WallTextureSpec {
         #[serde(default = "default_tex_size")]
         size: u32,
     },
+    /// Raw indexed pixel data (palette indices 0-15, row-major).
+    Raw { size: u32, data: Vec<u8> },
 }
 
 fn default_tex_size() -> u32 {
@@ -47,6 +53,12 @@ fn default_tex_size() -> u32 {
 }
 fn default_block_size() -> u32 {
     8
+}
+fn default_fog_start() -> f32 {
+    3.0
+}
+fn default_fog_distance() -> f32 {
+    12.0
 }
 
 /// Player spawn position and facing.
@@ -146,7 +158,9 @@ impl MapData {
         Palette {
             ceiling: self.ceiling_color,
             floor: self.floor_color,
-            ..Default::default()
+            fog_color: 1,
+            fog_start: self.fog_start,
+            fog_distance: self.fog_distance,
         }
     }
 
@@ -168,6 +182,13 @@ impl MapData {
                     block,
                     size,
                 } => make_checker_texture(*size, *block, *color_a, *color_b),
+                WallTextureSpec::Raw { size, data } => {
+                    assert!(*size > 0, "Raw wall texture size must be > 0");
+                    let expected = (*size as usize) * (*size as usize);
+                    let mut pixels = data.clone();
+                    pixels.resize(expected, 0);
+                    carapace::image::CxImage::new(pixels, *size as usize)
+                }
             })
             .collect()
     }
@@ -217,6 +238,8 @@ mod tests {
             wall_textures: vec![],
             ceiling_color: 0,
             floor_color: 0,
+            fog_start: 3.0,
+            fog_distance: 12.0,
             player_start: PlayerStart {
                 x: 1.0,
                 y: 1.0,

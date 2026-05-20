@@ -112,10 +112,11 @@ fn resolve_enemy_thumbnail(
 ) -> ResolvedThumbnail {
     use crate::placement::SpawnTemplate;
 
-    let tag = animation_tag
-        .or_else(|| SpawnTemplate::Enemy(enemy_type).default_animation_tag())
+    let action = animation_tag
+        .or_else(|| SpawnTemplate::Enemy(enemy_type).default_animation_action())
         .unwrap_or("idle");
-    let cache_key = (enemy_type, depth, tag.to_string());
+    let tag = &carcinisation_base::direction::SpriteDirection::Front.tag_name(action);
+    let cache_key = (enemy_type, depth, tag.clone());
 
     // Return cached result if available.
     if let Some(cached) = cache.composed_enemies.get(&cache_key) {
@@ -589,6 +590,7 @@ mod tests {
             ground_anchor_y: None,
             air_anchor_y: None,
             atlas_image: "atlas.png".into(),
+            directional_layer_order: None,
             part_definitions: vec![PartDefinition {
                 id: "root".into(),
                 tags: vec![],
@@ -738,7 +740,7 @@ mod tests {
 
     #[test]
     fn mosquiton_preview_uses_composed_idle_frame_instead_of_raw_sheet() {
-        let preview = compose_enemy_preview(EnemyType::Mosquiton, Depth::Three, "idle_fly")
+        let preview = compose_enemy_preview(EnemyType::Mosquiton, Depth::Three, "front_idle_stand")
             .expect("mosquiton preview should load");
         let raw_sheet = image::open(assets_root().join("sprites/enemies/mosquiton_3/source.png"))
             .expect("raw sheet should load")

@@ -10,6 +10,7 @@ use asset_pipeline::composed_ron::{CompactComposedAtlas, CompactFrame, CompactPo
 use bevy::prelude::Component;
 use bevy_math::Vec2;
 use carapace::{image::CxImage, palette::TRANSPARENT_INDEX};
+use carcinisation_fps_core::burning::BurnState;
 use carcinisation_fps_core::fire_death::{DamageKind, corpse_seed};
 use flate2::bufread::DeflateDecoder;
 use serde::Deserialize;
@@ -49,24 +50,24 @@ pub struct MosquitonConfig {
 
 impl Default for MosquitonConfig {
     fn default() -> Self {
-        use carcinisation_fps_core::config;
+        let combat = carcinisation_fps_core::FpsCombatConfig::default();
         Self {
             move_speed: 2.0,
-            preferred_range: config::MOSQUITON_PREFERRED_RANGE,
-            melee_range: config::MOSQUITON_MELEE_RANGE,
-            shoot_range: config::MOSQUITON_SHOOT_RANGE,
-            shoot_cooldown: Duration::from_secs_f32(config::MOSQUITON_SHOOT_COOLDOWN),
-            melee_cooldown: Duration::from_secs_f32(config::MOSQUITON_MELEE_COOLDOWN),
-            melee_attack_duration: Duration::from_secs_f32(config::MOSQUITON_MELEE_ATTACK_DURATION),
-            melee_damage: config::MOSQUITON_MELEE_DAMAGE as u32,
-            blood_shot_speed: config::MOSQUITON_BLOOD_SHOT_SPEED,
-            blood_shot_damage: config::MOSQUITON_PROJECTILE_DAMAGE as u32,
-            collision_radius: config::MOSQUITON_COLLISION_RADIUS,
+            preferred_range: combat.mosquiton_preferred_range,
+            melee_range: combat.mosquiton_melee_range,
+            shoot_range: combat.mosquiton_shoot_range,
+            shoot_cooldown: Duration::from_secs_f32(combat.mosquiton_shoot_cooldown),
+            melee_cooldown: Duration::from_secs_f32(combat.mosquiton_melee_cooldown),
+            melee_attack_duration: Duration::from_secs_f32(combat.mosquiton_melee_attack_duration),
+            melee_damage: combat.mosquiton_melee_damage as u32,
+            blood_shot_speed: combat.mosquiton_blood_shot_speed,
+            blood_shot_damage: combat.mosquiton_projectile_damage as u32,
+            collision_radius: combat.mosquiton_collision_radius,
             // Rendering-only defaults — not shared with server.
             billboard_height: 0.9,
             hover_height: 0.08,
-            health: config::MOSQUITON_HEALTH,
-            shoot_cue_secs: config::MOSQUITON_SHOOT_CUE_SECS,
+            health: combat.mosquiton_health,
+            shoot_cue_secs: combat.mosquiton_shoot_cue_secs,
         }
     }
 }
@@ -116,6 +117,9 @@ pub struct Mosquiton {
     pub shoot_anim_elapsed: Option<f32>,
     pub config: MosquitonConfig,
     pub damage_flicker: Option<DamageFlicker>,
+    /// Stable per-instance seed for deterministic sim decisions.
+    pub seed: u32,
+    pub burn_state: BurnState,
 }
 
 impl Mosquiton {
@@ -136,6 +140,8 @@ impl Mosquiton {
             shoot_anim_elapsed: None,
             config,
             damage_flicker: None,
+            burn_state: BurnState::default(),
+            seed: carcinisation_fps_core::corpse_seed(position),
         }
     }
 
@@ -183,7 +189,7 @@ impl Mosquiton {
     }
 }
 
-pub use carcinisation_fps_core::mosquiton::has_line_of_sight;
+pub use carcinisation_fps_core::has_line_of_sight;
 
 /// Tick a single Mosquiton for one frame. Returns spawned projectile and optional player damage.
 ///
@@ -235,6 +241,7 @@ pub fn tick_single_mosquiton(
         melee_cooldown: mosquiton.melee_cooldown,
         decision_timer: mosquiton.decision_timer,
         shoot_anim_elapsed: mosquiton.shoot_anim_elapsed,
+        seed: mosquiton.seed,
     };
 
     let output = tick_mosquiton_sim(&mut sim, &sim_config, player_pos, map, dt);
@@ -373,10 +380,14 @@ const MOSQUITON_PX_ATLAS_RON: &str =
     include_str!("../../../assets/sprites/enemies/mosquiton_3/atlas.px_atlas.ron");
 const MOSQUITON_PXI: &[u8] =
     include_bytes!("../../../assets/sprites/enemies/mosquiton_3/atlas.pxi");
-const MOSQUITON_IDLE_FLY_TAG: &str = "idle_fly";
-const MOSQUITON_DEATH_FLY_TAG: &str = "death_fly";
-const MOSQUITON_MELEE_FLY_TAG: &str = "melee_fly";
-const MOSQUITON_SHOOT_FLY_TAG: &str = "shoot_fly";
+// Semantic action names — physical atlas tags are derived at each call site
+// via `SpriteDirection::Front.tag_name(action)`.
+// Duplicated from carcinisation_ors::stage::enemy::data::mosquiton because
+// FPS and ORS are sibling crates with no direct dependency.
+const ACTION_IDLE_FLY: &str = "idle_fly";
+const ACTION_DEATH_FLY: &str = "death_fly";
+const ACTION_MELEE_FLY: &str = "melee_fly";
+const ACTION_SHOOT_FLY: &str = "shoot_fly";
 const MOSQUITON_WING_TAG: &str = "wings";
 const BLOOD_SHOT_PX_ATLAS_RON: &str =
     include_str!("../../../assets/sprites/attacks/blood_shot/atlas.px_atlas.ron");
@@ -511,30 +522,30 @@ fn animation_sprite_at_clamped(
 }
 
 #[derive(Deserialize)]
-struct PxAtlasDescriptor {
-    regions: Vec<PxAtlasRegion>,
+pub(crate) struct PxAtlasDescriptor {
+    pub regions: Vec<PxAtlasRegion>,
     #[serde(default)]
-    names: HashMap<String, u32>,
+    pub names: HashMap<String, u32>,
     #[serde(default)]
-    animations: HashMap<String, PxAtlasAnimation>,
+    pub animations: HashMap<String, PxAtlasAnimation>,
 }
 
 #[derive(Deserialize)]
-struct PxAtlasRegion {
-    frames: Vec<PxAtlasRect>,
+pub(crate) struct PxAtlasRegion {
+    pub frames: Vec<PxAtlasRect>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
-struct PxAtlasRect {
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
+pub(crate) struct PxAtlasRect {
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
 }
 
 #[derive(Deserialize)]
-struct PxAtlasAnimation {
-    duration_ms: u64,
+pub(crate) struct PxAtlasAnimation {
+    pub duration_ms: u64,
 }
 
 #[derive(Clone)]
@@ -564,39 +575,47 @@ struct Placement {
 ///
 /// Returns an error if embedded generated assets are malformed.
 pub fn make_mosquiton_billboard_sprites() -> Result<MosquitonBillboardSprites, String> {
+    use carcinisation_base::direction::SpriteDirection;
+
     let composed: CompactComposedAtlas =
         ron::from_str(MOSQUITON_COMPOSED_RON).map_err(|err| err.to_string())?;
     let atlas: PxAtlasDescriptor =
         ron::from_str(MOSQUITON_PX_ATLAS_RON).map_err(|err| err.to_string())?;
     let (atlas_width, _atlas_height, atlas_pixels) = decode_pxi(MOSQUITON_PXI)?;
 
+    // Resolve semantic actions to physical atlas tags (front-facing for flat path).
+    let idle_fly_tag = SpriteDirection::Front.tag_name(ACTION_IDLE_FLY);
+    let death_fly_tag = SpriteDirection::Front.tag_name(ACTION_DEATH_FLY);
+    let melee_fly_tag = SpriteDirection::Front.tag_name(ACTION_MELEE_FLY);
+    let shoot_fly_tag = SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY);
+
     let alive = compose_animation_frames_wing_only(
         &composed,
         &atlas,
         &atlas_pixels,
         atlas_width,
-        MOSQUITON_IDLE_FLY_TAG,
+        &idle_fly_tag,
     )?;
     let death = Arc::new(compose_first_animation_frame(
         &composed,
         &atlas,
         &atlas_pixels,
         atlas_width,
-        MOSQUITON_DEATH_FLY_TAG,
+        &death_fly_tag,
     )?);
     let melee = compose_animation_frames_full(
         &composed,
         &atlas,
         &atlas_pixels,
         atlas_width,
-        MOSQUITON_MELEE_FLY_TAG,
+        &melee_fly_tag,
     )?;
     let shoot = compose_animation_frames_full(
         &composed,
         &atlas,
         &atlas_pixels,
         atlas_width,
-        MOSQUITON_SHOOT_FLY_TAG,
+        &shoot_fly_tag,
     )?;
     let shoot_cue_elapsed_secs = find_shoot_cue_elapsed(&composed);
 
@@ -614,12 +633,10 @@ pub fn make_mosquiton_billboard_sprites() -> Result<MosquitonBillboardSprites, S
 /// Returns 0.0 if no cue is found (fail-safe: projectile spawns immediately).
 fn find_shoot_cue_elapsed(composed: &CompactComposedAtlas) -> f32 {
     use asset_pipeline::aseprite::AnimationEventKind;
+    use carcinisation_base::direction::SpriteDirection;
 
-    let Some(shoot_anim) = composed
-        .animations
-        .iter()
-        .find(|a| a.tag == MOSQUITON_SHOOT_FLY_TAG)
-    else {
+    let shoot_fly_tag = SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY);
+    let Some(shoot_anim) = composed.animations.iter().find(|a| a.tag == shoot_fly_tag) else {
         return 0.0;
     };
 
@@ -652,6 +669,121 @@ pub fn make_blood_shot_billboard_sprites() -> Result<BloodShotBillboardSprites, 
         hit: Arc::new(make_blood_shot_region_first_sprite(BLOOD_SHOT_HIT_REGION)?),
         destroy: make_blood_shot_region_animation(BLOOD_SHOT_DESTROY_REGION)?,
     })
+}
+
+/// Compose a single animation tag from a composed atlas into full-frame
+/// `Arc<CxImage>` sprites. This is the generic composed-billboard compositor
+/// reusable by any entity that uses the composed pipeline (player, enemies).
+///
+/// Returns one `Arc<CxImage>` per animation frame, composited from per-part
+/// sprites with stable bounding box across all frames.
+pub(crate) fn compose_tag_frames(
+    composed: &CompactComposedAtlas,
+    atlas: &PxAtlasDescriptor,
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    tag: &str,
+) -> Result<Vec<Arc<CxImage>>, String> {
+    let billboard_frames =
+        compose_animation_frames_full(composed, atlas, atlas_pixels, atlas_width, tag)?;
+    Ok(billboard_frames
+        .into_iter()
+        .map(|frame| frame.sprite)
+        .collect())
+}
+
+/// Like [`compose_tag_frames`] but reverses the part draw order.
+///
+/// Used for back-facing directions where the body should render on top of
+/// arms/head/weapon (the viewer sees the character's back, so frontmost
+/// parts are behind the torso).
+pub(crate) fn compose_tag_frames_reversed(
+    composed: &CompactComposedAtlas,
+    atlas: &PxAtlasDescriptor,
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    tag: &str,
+) -> Result<Vec<Arc<CxImage>>, String> {
+    // Build a modified composed atlas with inverted draw orders.
+    let max_draw_order = composed
+        .parts
+        .iter()
+        .map(|p| p.draw_order)
+        .max()
+        .unwrap_or(0);
+    let mut reversed = composed.clone();
+    for part in &mut reversed.parts {
+        if part.visual {
+            part.draw_order = max_draw_order - part.draw_order;
+        }
+    }
+    let billboard_frames =
+        compose_animation_frames_full(&reversed, atlas, atlas_pixels, atlas_width, tag)?;
+    Ok(billboard_frames
+        .into_iter()
+        .map(|frame| frame.sprite)
+        .collect())
+}
+
+/// Compose tag frames with direction-aware layer ordering from [`LayerOrderConfig`].
+///
+/// Applies per-direction `draw_order` overrides and/or full reversal based on
+/// the layer order policy for the given direction.
+pub(crate) fn compose_tag_frames_with_layer_order(
+    composed: &CompactComposedAtlas,
+    atlas: &PxAtlasDescriptor,
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    tag: &str,
+    direction: carcinisation_base::direction::SpriteDirection,
+    layer_order: &carcinisation_base::layer_order::LayerOrderConfig,
+) -> Result<Vec<Arc<CxImage>>, String> {
+    use carcinisation_base::layer_order::LayerOrderMode;
+
+    let policy = layer_order.effective_policy(direction);
+    let part_overrides = layer_order.part_overrides(direction);
+
+    // Fast path: canonical order with no per-part overrides.
+    if policy == LayerOrderMode::Canonical && part_overrides.is_none() {
+        return compose_tag_frames(composed, atlas, atlas_pixels, atlas_width, tag);
+    }
+
+    let max_draw_order = composed
+        .parts
+        .iter()
+        .map(|p| p.draw_order)
+        .max()
+        .unwrap_or(0);
+
+    let mut modified = composed.clone();
+    for part in &mut modified.parts {
+        if !part.visual {
+            continue;
+        }
+        let part_name = composed
+            .part_names
+            .get(part.id as usize)
+            .map_or("", String::as_str);
+
+        // Per-part override takes precedence.
+        if let Some(overrides) = part_overrides
+            && let Some(&order) = overrides.get(part_name)
+        {
+            part.draw_order = order;
+            continue;
+        }
+        // Then apply policy-based transformation.
+        if policy == LayerOrderMode::Reverse {
+            part.draw_order = max_draw_order - part.draw_order;
+        }
+    }
+
+    let billboard_frames =
+        compose_animation_frames_full(&modified, atlas, atlas_pixels, atlas_width, tag)?;
+    Ok(billboard_frames
+        .into_iter()
+        .map(|frame| frame.sprite)
+        .collect())
 }
 
 fn make_blood_shot_region_first_sprite(region_name: &str) -> Result<CxImage, String> {
@@ -1183,7 +1315,11 @@ fn crop_to_rect(image: &CxImage, min_x: u32, min_y: u32, max_x: u32, max_y: u32)
     CxImage::new(out, out_w)
 }
 
-fn extract_atlas_rect(atlas_pixels: &[u8], atlas_width: u32, rect: PxAtlasRect) -> Option<CxImage> {
+pub(crate) fn extract_atlas_rect(
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    rect: PxAtlasRect,
+) -> Option<CxImage> {
     let mut data = vec![TRANSPARENT_INDEX; (rect.w * rect.h) as usize];
     for local_y in 0..rect.h {
         for local_x in 0..rect.w {
@@ -1199,7 +1335,7 @@ fn trim_transparent(image: CxImage) -> Option<CxImage> {
     Some(crop_to_rect(&image, min_x, min_y, max_x, max_y))
 }
 
-fn decode_pxi(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
+pub(crate) fn decode_pxi(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
     const HEADER_SIZE: usize = 10;
     if bytes.len() < HEADER_SIZE {
         return Err(format!("PXI file too short: {} bytes", bytes.len()));
@@ -1257,7 +1393,7 @@ fn decode_pxi(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
 mod tests {
     use super::*;
     use crate::map::{Map, test_map};
-    use carcinisation_fps_core::config::{self, MOSQUITON_MELEE_RANGE};
+    use carcinisation_fps_core::FpsCombatConfig;
 
     fn make_mosquiton(x: f32, y: f32) -> Mosquiton {
         Mosquiton::new(Vec2::new(x, y), MosquitonConfig::default())
@@ -1299,8 +1435,12 @@ mod tests {
     #[test]
     fn switches_to_melee_when_close() {
         let map = test_map();
-        // Uses default melee_range from config (MOSQUITON_MELEE_RANGE).
-        let mut ms = vec![make_mosquiton(1.5 + MOSQUITON_MELEE_RANGE * 0.5, 1.5)];
+        let combat = FpsCombatConfig::default();
+        // Uses default melee_range from FpsCombatConfig.
+        let mut ms = vec![make_mosquiton(
+            1.5 + combat.mosquiton_melee_range * 0.5,
+            1.5,
+        )];
         let player = Vec2::new(1.5, 1.5);
         let _ = tick_mosquitons(&mut ms, player, &map, 0.016);
         assert!(matches!(ms[0].state, MosquitonState::MeleeAttack { .. }));
@@ -1566,11 +1706,14 @@ mod tests {
 
     #[test]
     fn idle_fly_composition_animates_wings_only() {
+        use carcinisation_base::direction::SpriteDirection;
+
         let composed: CompactComposedAtlas = ron::from_str(MOSQUITON_COMPOSED_RON).unwrap();
+        let idle_fly_tag = SpriteDirection::Front.tag_name(ACTION_IDLE_FLY);
         let animation = composed
             .animations
             .iter()
-            .find(|animation| animation.tag == MOSQUITON_IDLE_FLY_TAG)
+            .find(|animation| animation.tag == idle_fly_tag)
             .unwrap();
         assert!(animation.frames.len() > 1);
 
@@ -1709,67 +1852,60 @@ mod tests {
         );
     }
 
-    /// Verify that `MosquitonConfig::default()` gameplay fields match `fps_core` config
-    /// constants. This prevents SP/MP drift — if a constant changes in config.rs,
+    /// Verify that `MosquitonConfig::default()` gameplay fields match `FpsCombatConfig`
+    /// defaults. This prevents SP/MP drift — if a value changes in the config Resource,
     /// the SP default must track it automatically.
     #[test]
-    fn default_config_matches_fps_core_constants() {
+    fn default_config_matches_fps_core_combat_config() {
         let c = MosquitonConfig::default();
+        let combat = FpsCombatConfig::default();
 
         assert_eq!(
-            c.melee_range,
-            config::MOSQUITON_MELEE_RANGE,
+            c.melee_range, combat.mosquiton_melee_range,
             "melee_range drift"
         );
         assert_eq!(
-            c.preferred_range,
-            config::MOSQUITON_PREFERRED_RANGE,
+            c.preferred_range, combat.mosquiton_preferred_range,
             "preferred_range drift"
         );
         assert_eq!(
-            c.shoot_range,
-            config::MOSQUITON_SHOOT_RANGE,
+            c.shoot_range, combat.mosquiton_shoot_range,
             "shoot_range drift"
         );
         assert_eq!(
             c.shoot_cooldown.as_secs_f32(),
-            config::MOSQUITON_SHOOT_COOLDOWN,
+            combat.mosquiton_shoot_cooldown,
             "shoot_cooldown drift"
         );
         assert_eq!(
             c.melee_cooldown.as_secs_f32(),
-            config::MOSQUITON_MELEE_COOLDOWN,
+            combat.mosquiton_melee_cooldown,
             "melee_cooldown drift"
         );
         assert_eq!(
             c.melee_attack_duration.as_secs_f32(),
-            config::MOSQUITON_MELEE_ATTACK_DURATION,
+            combat.mosquiton_melee_attack_duration,
             "melee_attack_duration drift"
         );
         assert_eq!(
-            c.melee_damage as f32,
-            config::MOSQUITON_MELEE_DAMAGE,
+            c.melee_damage as f32, combat.mosquiton_melee_damage,
             "melee_damage drift"
         );
         assert_eq!(
-            c.blood_shot_speed,
-            config::MOSQUITON_BLOOD_SHOT_SPEED,
+            c.blood_shot_speed, combat.mosquiton_blood_shot_speed,
             "blood_shot_speed drift"
         );
         assert_eq!(
-            c.blood_shot_damage as f32,
-            config::MOSQUITON_PROJECTILE_DAMAGE,
+            c.blood_shot_damage as f32, combat.mosquiton_projectile_damage,
             "blood_shot_damage drift"
         );
         assert_eq!(
-            c.collision_radius,
-            config::MOSQUITON_COLLISION_RADIUS,
+            c.collision_radius, combat.mosquiton_collision_radius,
             "collision_radius drift"
         );
-        assert_eq!(c.health, config::MOSQUITON_HEALTH, "health drift");
+        assert_eq!(c.health, combat.mosquiton_health, "health drift");
         assert_eq!(
-            c.shoot_cue_secs,
-            config::MOSQUITON_SHOOT_CUE_SECS,
+            c.shoot_cue_secs, combat.mosquiton_shoot_cue_secs,
             "shoot_cue_secs drift"
         );
     }

@@ -9,7 +9,7 @@ use crate::collision::try_move;
 use crate::config;
 use crate::enemy::Projectile;
 use crate::map::Map;
-use crate::raycast::cast_ray;
+use crate::raycast::has_line_of_sight;
 
 // ---------------------------------------------------------------------------
 // State
@@ -68,20 +68,7 @@ pub struct MosquitonSimConfig {
 
 impl Default for MosquitonSimConfig {
     fn default() -> Self {
-        Self {
-            move_speed: 2.0,
-            preferred_range: config::MOSQUITON_PREFERRED_RANGE,
-            melee_range: config::MOSQUITON_MELEE_RANGE,
-            shoot_range: config::MOSQUITON_SHOOT_RANGE,
-            shoot_cooldown: config::MOSQUITON_SHOOT_COOLDOWN,
-            melee_cooldown: config::MOSQUITON_MELEE_COOLDOWN,
-            melee_attack_duration: config::MOSQUITON_MELEE_ATTACK_DURATION,
-            melee_damage: config::MOSQUITON_MELEE_DAMAGE as u32,
-            blood_shot_speed: config::MOSQUITON_BLOOD_SHOT_SPEED,
-            blood_shot_damage: config::MOSQUITON_PROJECTILE_DAMAGE as u32,
-            collision_radius: config::MOSQUITON_COLLISION_RADIUS,
-            shoot_cue_secs: config::MOSQUITON_SHOOT_CUE_SECS,
-        }
+        config::FpsCombatConfig::default().mosquiton_sim_config()
     }
 }
 
@@ -99,6 +86,9 @@ pub struct MosquitonSim {
     /// When `Some(elapsed)`, a shoot animation is playing. The projectile
     /// spawns when `elapsed >= config.shoot_cue_secs`.
     pub shoot_anim_elapsed: Option<f32>,
+    /// Stable per-instance seed for deterministic decisions (e.g. initial strafe direction).
+    /// Should be set once at spawn from position bits and not changed.
+    pub seed: u32,
 }
 
 /// Outputs from one simulation tick.
@@ -187,11 +177,7 @@ pub fn tick_mosquiton_sim(
             }
 
             if dist <= config.preferred_range {
-                let strafe_dir = if (sim.position.x * 100.0) as i32 % 2 == 0 {
-                    1.0
-                } else {
-                    -1.0
-                };
+                let strafe_dir = if sim.seed & 1 == 0 { 1.0 } else { -1.0 };
                 sim.state = MosquitonSimState::RangedAttack { strafe_dir };
                 return output;
             }
@@ -323,18 +309,6 @@ fn try_start_shoot(
     }
 }
 
-/// Line-of-sight check via raycast.
-#[must_use]
-pub fn has_line_of_sight(from: Vec2, to: Vec2, map: &Map) -> bool {
-    let dir = to - from;
-    let dist = dir.length();
-    if dist < 0.01 {
-        return true;
-    }
-    let hit = cast_ray(map, from, dir / dist);
-    hit.distance > dist
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -346,13 +320,15 @@ mod tests {
     use crate::map::test_map;
 
     fn make_sim(x: f32, y: f32) -> MosquitonSim {
+        let pos = Vec2::new(x, y);
         MosquitonSim {
-            position: Vec2::new(x, y),
+            position: pos,
             state: MosquitonSimState::Pursue,
             shoot_cooldown: 0.0,
             melee_cooldown: 0.0,
             decision_timer: 0.0,
             shoot_anim_elapsed: None,
+            seed: crate::fire_death::corpse_seed(pos),
         }
     }
 
@@ -564,15 +540,16 @@ mod tests {
     }
 
     #[test]
-    fn config_default_matches_constants() {
+    fn config_default_matches_combat_config() {
         let c = MosquitonSimConfig::default();
-        assert_eq!(c.melee_range, config::MOSQUITON_MELEE_RANGE);
-        assert_eq!(c.preferred_range, config::MOSQUITON_PREFERRED_RANGE);
-        assert_eq!(c.shoot_range, config::MOSQUITON_SHOOT_RANGE);
-        assert_eq!(c.shoot_cooldown, config::MOSQUITON_SHOOT_COOLDOWN);
-        assert_eq!(c.melee_cooldown, config::MOSQUITON_MELEE_COOLDOWN);
-        assert_eq!(c.blood_shot_speed, config::MOSQUITON_BLOOD_SHOT_SPEED);
-        assert_eq!(c.shoot_cue_secs, config::MOSQUITON_SHOOT_CUE_SECS);
+        let combat = config::FpsCombatConfig::default();
+        assert_eq!(c.melee_range, combat.mosquiton_melee_range);
+        assert_eq!(c.preferred_range, combat.mosquiton_preferred_range);
+        assert_eq!(c.shoot_range, combat.mosquiton_shoot_range);
+        assert_eq!(c.shoot_cooldown, combat.mosquiton_shoot_cooldown);
+        assert_eq!(c.melee_cooldown, combat.mosquiton_melee_cooldown);
+        assert_eq!(c.blood_shot_speed, combat.mosquiton_blood_shot_speed);
+        assert_eq!(c.shoot_cue_secs, combat.mosquiton_shoot_cue_secs);
     }
 
     #[test]

@@ -1,0 +1,14 @@
+BurnConfig(
+    max_intensity: 1.0,
+    flame_exposure_per_sec: 1.5,
+    ground_fire_exposure_per_sec: 0.3,
+    decay_per_sec: 0.15,
+    movement_decay_multiplier: 2.5,
+    damage_per_sec_at_max: 70.0,
+    direct_contact_dps: 10.0,
+    extinguish_threshold: 0.01,
+    visible_threshold: 0.3,
+    max_burn_flames: 6,
+    flame_scale_min: 0.1,
+    flame_scale_max: 0.3,
+)

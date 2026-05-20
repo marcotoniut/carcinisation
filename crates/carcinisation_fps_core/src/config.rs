@@ -6,103 +6,372 @@
 //! When adding a new weapon, enemy type, or mechanic — add its constants here
 //! so both SP and MP automatically use the same values.
 
-// -- Movement --
+use bevy::prelude::ReflectResource;
 
-/// Default movement speed in map-units per second.
-pub const MOVE_SPEED: f32 = 2.0;
-/// Default turn speed in radians per second.
-pub const TURN_SPEED: f32 = 2.0;
-/// Collision margin in map-units (distance kept from walls).
-pub const COLLISION_MARGIN: f32 = 0.2;
+/// Hot-reloadable FPS movement tuning.
+///
+/// Loaded from `assets/config/fp/movement.ron`.
+/// Used by both singleplayer and multiplayer (client + server).
+#[derive(
+    Clone, Copy, Debug, serde::Deserialize, bevy::prelude::Resource, bevy::prelude::Reflect,
+)]
+#[reflect(Resource)]
+#[serde(rename = "FpsMovementConfig")]
+pub struct FpsMovementConfig {
+    /// Movement speed in map-units per second.
+    pub move_speed: f32,
+    /// Turn speed in radians per second.
+    pub turn_speed: f32,
+    /// Collision margin in map-units (distance kept from walls).
+    pub collision_margin: f32,
+    /// Duration of a 180° quick turn in seconds. 90° turns complete in half this time.
+    pub quick_turn_duration_secs: f32,
+}
 
-// -- Snap / Quick Turn --
+impl FpsMovementConfig {
+    #[must_use]
+    pub fn load() -> Self {
+        carcinisation_core::ron_config!("assets/config/fp/movement.ron")
+    }
+}
 
-/// Duration of a 180° quick turn in seconds. 90° turns complete in half this time.
-pub const QUICK_TURN_DURATION_SECS: f32 = 0.4;
+impl Default for FpsMovementConfig {
+    fn default() -> Self {
+        Self {
+            move_speed: 2.0,
+            turn_speed: 2.0,
+            collision_margin: 0.2,
+            quick_turn_duration_secs: 0.4,
+        }
+    }
+}
 
-// -- Pistol --
+/// Shared flamethrower gameplay and stream tuning.
+///
+/// Loaded from `assets/config/attacks/player_flamethrower.ron`.
+/// Used by both singleplayer and multiplayer (client + server).
+#[derive(
+    Clone, Copy, Debug, serde::Deserialize, bevy::prelude::Resource, bevy::prelude::Reflect,
+)]
+#[reflect(Resource)]
+#[serde(rename = "PlayerFlamethrowerConfig")]
+pub struct PlayerFlamethrowerConfig {
+    /// Maximum distance a flame can reach from the player (world units).
+    /// Controls both the damage hitbox range and the visual stream lifetime.
+    pub range: f32,
+    /// Half-width of the flame damage line (world units).
+    /// The server checks perpendicular distance from the flame centre-line;
+    /// targets within this distance are considered hit.
+    pub hit_half_width: f32,
+    /// Travel speed of flame stream samples (world units per second).
+    /// Shared between 1P and 3P visual rendering.
+    pub speed: f32,
+    /// Minimum interval between flame sample emissions (milliseconds).
+    /// Lower values produce a denser stream. Shared between 1P and 3P.
+    pub emit_interval_ms: u64,
+    /// Damage applied per flamethrower tick while a target is in the flame.
+    pub damage_per_tick: u32,
+    /// Interval between damage ticks (milliseconds).
+    pub tick_ms: u64,
+    /// Maximum ammo pool. Ammo drains continuously while firing.
+    pub max_ammo: f32,
+    /// Ammo consumed per millisecond of sustained fire.
+    pub ammo_drain_per_ms: f32,
+    /// How long a burning corpse persists before despawning (seconds).
+    pub burning_corpse_duration_secs: f32,
+    /// Damage dealt to the player per contact tick when touching a burning corpse.
+    pub burning_corpse_contact_damage: u32,
+    /// Interval between burning-corpse contact damage ticks (milliseconds).
+    pub burning_corpse_contact_tick_ms: u64,
+    /// Radius around a burning corpse that triggers contact damage (world units).
+    pub burning_corpse_contact_radius: f32,
+    /// Damage applied to nearby enemies each tick by a burning corpse (crossfire).
+    pub burning_corpse_crossfire_damage: u32,
+    /// Number of flame sprites placed around a burning corpse perimeter.
+    pub burning_flame_count: usize,
+    /// Inward padding from the sprite edge when placing perimeter flames (pixels).
+    pub burning_flame_perimeter_padding_px: f32,
+    /// Random positional jitter applied to each perimeter flame (pixels).
+    pub burning_flame_jitter_px: f32,
+    /// Minimum random scale multiplier for perimeter flames.
+    pub burning_flame_scale_min: f32,
+    /// Maximum random scale multiplier for perimeter flames.
+    pub burning_flame_scale_max: f32,
+}
 
-/// Damage per hitscan shot.
-pub const HITSCAN_DAMAGE: f32 = 37.0;
-/// Minimum seconds between pistol shots.
-pub const FIRE_COOLDOWN_SECS: f32 = 0.33;
+impl PlayerFlamethrowerConfig {
+    #[must_use]
+    pub fn load() -> Self {
+        carcinisation_core::ron_config!("assets/config/attacks/player_flamethrower.ron")
+    }
 
-// -- Flamethrower --
+    /// Maximum age of a flame sample before it expires (seconds).
+    #[must_use]
+    pub fn max_stream_age(&self) -> f32 {
+        self.range / self.speed
+    }
 
-/// Flamethrower damage per second (continuous while held).
-pub const FLAME_DPS: f32 = 580.0;
-/// Flamethrower max range in world units.
-pub const FLAME_RANGE: f32 = 5.0;
-/// Flamethrower hit half-width in world units.
-/// The server checks perpendicular distance from the flame line, not a cone angle.
-/// This matches the SP chain-segment proximity model.
-pub const FLAME_HIT_HALF_WIDTH: f32 = 0.5;
+    #[must_use]
+    pub fn fire_death_config(&self) -> crate::fire_death::FireDeathConfig {
+        crate::fire_death::FireDeathConfig {
+            burning_corpse_duration_secs: self.burning_corpse_duration_secs,
+            burning_flame_count: self.burning_flame_count,
+            burning_flame_perimeter_padding_px: self.burning_flame_perimeter_padding_px,
+            burning_flame_jitter_px: self.burning_flame_jitter_px,
+            burning_flame_scale_min: self.burning_flame_scale_min,
+            burning_flame_scale_max: self.burning_flame_scale_max,
+        }
+    }
 
-// -- Enemy Projectiles --
+    #[must_use]
+    pub fn burning_corpse_contact_tick_secs(&self) -> f32 {
+        std::time::Duration::from_millis(self.burning_corpse_contact_tick_ms).as_secs_f32()
+    }
+}
 
-/// Enemy projectile speed in world-units per second.
-pub const PROJECTILE_SPEED: f32 = 4.0;
-/// Enemy projectile collision radius.
-pub const PROJECTILE_HIT_RADIUS: f32 = 0.3;
-/// Enemy projectile lifetime in seconds before auto-despawn.
-pub const PROJECTILE_LIFETIME: f32 = 3.0;
+/// Hot-reloadable FPS combat tuning.
+///
+/// Loaded from `assets/config/fp/combat.ron`.
+/// Used by both singleplayer and multiplayer (client + server).
+#[derive(
+    Clone, Copy, Debug, serde::Deserialize, bevy::prelude::Resource, bevy::prelude::Reflect,
+)]
+#[reflect(Resource)]
+#[serde(rename = "FpsCombatConfig")]
+pub struct FpsCombatConfig {
+    // -- Pistol --
+    /// Damage per hitscan shot.
+    pub hitscan_damage: f32,
+    /// Minimum seconds between pistol shots.
+    pub fire_cooldown_secs: f32,
+    // -- Flamethrower --
+    /// Flamethrower damage per second (continuous while held).
+    pub flame_dps: f32,
+    // -- Enemy Projectiles --
+    /// Enemy projectile speed in world-units per second.
+    pub projectile_speed: f32,
+    /// Enemy projectile collision radius.
+    pub projectile_hit_radius: f32,
+    /// Enemy projectile lifetime in seconds before auto-despawn.
+    pub projectile_lifetime: f32,
+    // -- Mosquiton --
+    /// Seconds between Mosquiton ranged attacks (shoot cooldown).
+    pub mosquiton_shoot_cooldown: f32,
+    /// Seconds between Mosquiton melee attacks.
+    pub mosquiton_melee_cooldown: f32,
+    /// Duration of the melee attack animation in seconds.
+    pub mosquiton_melee_attack_duration: f32,
+    /// Damage per Mosquiton ranged projectile.
+    pub mosquiton_projectile_damage: f32,
+    /// Damage per Mosquiton melee hit.
+    pub mosquiton_melee_damage: f32,
+    /// Melee engagement range in world units.
+    pub mosquiton_melee_range: f32,
+    /// Maximum range at which a Mosquiton can fire ranged attacks.
+    pub mosquiton_shoot_range: f32,
+    /// Preferred engagement range — Mosquiton holds at this distance.
+    pub mosquiton_preferred_range: f32,
+    /// Mosquiton blood-shot projectile speed in world-units per second.
+    pub mosquiton_blood_shot_speed: f32,
+    /// Mosquiton collision radius for wall avoidance.
+    pub mosquiton_collision_radius: f32,
+    /// Mosquiton default health.
+    pub mosquiton_health: u32,
+    /// Delay from shoot animation start to projectile spawn (seconds).
+    pub mosquiton_shoot_cue_secs: f32,
+    // -- Burn Contact --
+    /// Radius for burning corpse contact damage.
+    pub burn_contact_radius: f32,
+    /// Damage per burn contact tick.
+    pub burn_contact_damage: f32,
+    /// Seconds between burn contact damage ticks.
+    pub burn_contact_tick_secs: f32,
+    // -- Death / Respawn --
+    /// Duration of enemy death animation before transitioning to Dead state.
+    pub enemy_death_anim_secs: f32,
+    /// Seconds before a dead enemy entity is despawned.
+    pub enemy_despawn_delay: f32,
+    /// Seconds before a dead player respawns.
+    pub player_respawn_delay_secs: f32,
+    // -- Ground Fire --
+    /// Lifetime of a ground fire hazard in seconds (full + fade phases).
+    pub ground_fire_lifetime_secs: f32,
+    /// Seconds at which the ground fire begins fading (half size, half damage).
+    pub ground_fire_fade_start_secs: f32,
+    /// Damage radius of ground fire in world units.
+    pub ground_fire_radius: f32,
+    /// Damage per ground fire contact tick.
+    pub ground_fire_damage: f32,
+    /// Seconds between ground fire contact damage ticks.
+    pub ground_fire_tick_secs: f32,
+    /// Visual spread radius for ground fire flame placement (world units).
+    pub ground_fire_visual_radius: f32,
+    /// Number of flame sprites per ground fire.
+    pub ground_fire_flame_count: usize,
+    /// Maximum number of ground fires that can exist simultaneously.
+    pub ground_fire_max: usize,
+}
 
-// -- Mosquiton Enemy --
+impl FpsCombatConfig {
+    #[must_use]
+    pub fn load() -> Self {
+        carcinisation_core::ron_config!("assets/config/fp/combat.ron")
+    }
 
-/// Seconds between Mosquiton ranged attacks (shoot cooldown).
-pub const MOSQUITON_SHOOT_COOLDOWN: f32 = 2.0;
-/// Seconds between Mosquiton melee attacks.
-pub const MOSQUITON_MELEE_COOLDOWN: f32 = 2.0;
-/// Duration of the melee attack animation in seconds.
-pub const MOSQUITON_MELEE_ATTACK_DURATION: f32 = 0.6;
-/// Damage per Mosquiton ranged projectile.
-pub const MOSQUITON_PROJECTILE_DAMAGE: f32 = 10.0;
-/// Damage per Mosquiton melee hit.
-pub const MOSQUITON_MELEE_DAMAGE: f32 = 15.0;
-/// Melee engagement range in world units.
-pub const MOSQUITON_MELEE_RANGE: f32 = 0.8;
-/// Maximum range at which a Mosquiton can fire ranged attacks.
-pub const MOSQUITON_SHOOT_RANGE: f32 = 8.0;
-/// Preferred engagement range — Mosquiton holds at this distance.
-pub const MOSQUITON_PREFERRED_RANGE: f32 = 4.0;
-/// Mosquiton blood-shot projectile speed in world-units per second.
-pub const MOSQUITON_BLOOD_SHOT_SPEED: f32 = 4.0;
-/// Mosquiton collision radius for wall avoidance.
-pub const MOSQUITON_COLLISION_RADIUS: f32 = 0.3;
-/// Mosquiton default health.
-pub const MOSQUITON_HEALTH: u32 = 40;
-/// Delay from shoot animation start to `blood_shot` projectile spawn.
-/// Derived from composed atlas `shoot_fly` cue frame.
-/// The fps crate test `shoot_cue_elapsed_from_composed_atlas` validates this.
-pub const MOSQUITON_SHOOT_CUE_SECS: f32 = 1.0;
+    /// Legacy alias — equivalent to `self.mosquiton_shoot_cooldown`.
+    #[must_use]
+    pub fn mosquiton_attack_interval(&self) -> f32 {
+        self.mosquiton_shoot_cooldown
+    }
 
-// Legacy alias — server code references this for EnemyAttackCooldown interval.
-pub const MOSQUITON_ATTACK_INTERVAL: f32 = MOSQUITON_SHOOT_COOLDOWN;
+    /// Build a `MosquitonSimConfig` from the combat config values.
+    #[must_use]
+    pub fn mosquiton_sim_config(&self) -> crate::mosquiton::MosquitonSimConfig {
+        crate::mosquiton::MosquitonSimConfig {
+            move_speed: 2.0,
+            preferred_range: self.mosquiton_preferred_range,
+            melee_range: self.mosquiton_melee_range,
+            shoot_range: self.mosquiton_shoot_range,
+            shoot_cooldown: self.mosquiton_shoot_cooldown,
+            melee_cooldown: self.mosquiton_melee_cooldown,
+            melee_attack_duration: self.mosquiton_melee_attack_duration,
+            melee_damage: self.mosquiton_melee_damage as u32,
+            blood_shot_speed: self.mosquiton_blood_shot_speed,
+            blood_shot_damage: self.mosquiton_projectile_damage as u32,
+            collision_radius: self.mosquiton_collision_radius,
+            shoot_cue_secs: self.mosquiton_shoot_cue_secs,
+        }
+    }
 
-// -- Burning Corpse Contact Damage --
-// Values match SP RON config: assets/config/attacks/player_flamethrower_fps.ron
+    /// Build a `GroundFireConfig` from the combat config values.
+    #[must_use]
+    pub fn ground_fire_config(&self) -> crate::ground_fire::GroundFireConfig {
+        crate::ground_fire::GroundFireConfig {
+            lifetime_secs: self.ground_fire_lifetime_secs,
+            fade_start_secs: self.ground_fire_fade_start_secs,
+            radius: self.ground_fire_radius,
+            damage_per_tick: self.ground_fire_damage,
+            tick_secs: self.ground_fire_tick_secs,
+            flame_count: self.ground_fire_flame_count,
+            max_fires: self.ground_fire_max,
+            visual_radius: self.ground_fire_visual_radius,
+        }
+    }
+}
 
-/// Radius for burning corpse contact damage.
-pub const BURN_CONTACT_RADIUS: f32 = 1.1;
-/// Damage per burn contact tick.
-pub const BURN_CONTACT_DAMAGE: f32 = 5.0;
-/// Seconds between burn contact damage ticks.
-pub const BURN_CONTACT_TICK_SECS: f32 = 0.5;
+impl Default for FpsCombatConfig {
+    fn default() -> Self {
+        Self {
+            hitscan_damage: 37.0,
+            fire_cooldown_secs: 0.33,
+            flame_dps: 580.0,
+            projectile_speed: 4.0,
+            projectile_hit_radius: 0.3,
+            projectile_lifetime: 3.0,
+            mosquiton_shoot_cooldown: 2.0,
+            mosquiton_melee_cooldown: 2.0,
+            mosquiton_melee_attack_duration: 0.6,
+            mosquiton_projectile_damage: 10.0,
+            mosquiton_melee_damage: 15.0,
+            mosquiton_melee_range: 0.8,
+            mosquiton_shoot_range: 8.0,
+            mosquiton_preferred_range: 4.0,
+            mosquiton_blood_shot_speed: 4.0,
+            mosquiton_collision_radius: 0.3,
+            mosquiton_health: 40,
+            mosquiton_shoot_cue_secs: 1.0,
+            burn_contact_radius: 1.1,
+            burn_contact_damage: 5.0,
+            burn_contact_tick_secs: 0.5,
+            enemy_death_anim_secs: 0.5,
+            enemy_despawn_delay: 5.0,
+            player_respawn_delay_secs: 3.0,
+            ground_fire_lifetime_secs: 15.0,
+            ground_fire_fade_start_secs: 10.0,
+            ground_fire_radius: 0.8,
+            ground_fire_damage: 3.0,
+            ground_fire_tick_secs: 0.5,
+            ground_fire_visual_radius: 0.35,
+            ground_fire_flame_count: 6,
+            ground_fire_max: 32,
+        }
+    }
+}
 
-// -- Death / Respawn --
+/// Hot-reloadable FPS visual tuning.
+///
+/// Loaded from `assets/config/fp/visuals.ron`.
+/// Client-only: controls damage flicker presentation.
+#[derive(
+    Clone, Copy, Debug, serde::Deserialize, bevy::prelude::Resource, bevy::prelude::Reflect,
+)]
+#[reflect(Resource)]
+#[serde(rename = "FpsVisualConfig")]
+pub struct FpsVisualConfig {
+    /// Number of invert cycles in a damage flicker effect.
+    pub damage_flicker_count: u8,
+    /// Duration of the regular (non-inverted) phase in seconds.
+    pub damage_flicker_regular_secs: f32,
+    /// Duration of the inverted phase in seconds.
+    pub damage_flicker_invert_secs: f32,
+    /// Amplitude of the camera view bob in pixels while walking.
+    #[serde(default = "default_view_bob_amplitude")]
+    pub view_bob_amplitude: f32,
+    /// Frequency multiplier for view bob relative to weapon bob phase.
+    #[serde(default = "default_view_bob_freq_mult")]
+    pub view_bob_freq_mult: f32,
+    /// Distance below which view bob is at full strength (map units).
+    #[serde(default = "default_view_bob_near")]
+    pub view_bob_near: f32,
+    /// Distance above which view bob is at half strength (map units).
+    /// Beyond 2x this distance, bob is zero.
+    #[serde(default = "default_view_bob_mid")]
+    pub view_bob_mid: f32,
+}
 
-/// Duration of enemy death animation before transitioning to Dead state.
-pub const ENEMY_DEATH_ANIM_SECS: f32 = 0.5;
-/// Seconds before a dead enemy entity is despawned.
-pub const ENEMY_DESPAWN_DELAY: f32 = 5.0;
-/// Seconds before a dead player respawns.
-pub const PLAYER_RESPAWN_DELAY_SECS: f32 = 3.0;
+impl FpsVisualConfig {
+    #[must_use]
+    pub fn load() -> Self {
+        carcinisation_core::ron_config!("assets/config/fp/visuals.ron")
+    }
+}
 
-// -- Damage Flicker --
+fn default_view_bob_amplitude() -> f32 {
+    1.5
+}
+fn default_view_bob_freq_mult() -> f32 {
+    2.0
+}
+fn default_view_bob_near() -> f32 {
+    3.0
+}
+fn default_view_bob_mid() -> f32 {
+    6.0
+}
 
-/// Number of invert cycles in a damage flicker effect.
-pub const DAMAGE_FLICKER_COUNT: u8 = 4;
-/// Duration of the regular (non-inverted) phase in seconds.
-pub const DAMAGE_FLICKER_REGULAR_SECS: f32 = 0.1;
-/// Duration of the inverted phase in seconds.
-pub const DAMAGE_FLICKER_INVERT_SECS: f32 = 0.075;
+impl Default for FpsVisualConfig {
+    fn default() -> Self {
+        Self {
+            damage_flicker_count: 4,
+            damage_flicker_regular_secs: 0.1,
+            damage_flicker_invert_secs: 0.075,
+            view_bob_amplitude: default_view_bob_amplitude(),
+            view_bob_freq_mult: default_view_bob_freq_mult(),
+            view_bob_near: default_view_bob_near(),
+            view_bob_mid: default_view_bob_mid(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fps_visual_config_ron_parses() {
+        let config = FpsVisualConfig::load();
+        assert_eq!(config.damage_flicker_count, 4);
+        assert!((config.damage_flicker_regular_secs - 0.1).abs() < f32::EPSILON);
+        assert!((config.damage_flicker_invert_secs - 0.075).abs() < f32::EPSILON);
+    }
+}

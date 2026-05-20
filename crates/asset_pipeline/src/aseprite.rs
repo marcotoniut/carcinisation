@@ -132,6 +132,9 @@ pub struct CompositionAtlas {
     /// Gameplay metadata kept separate from visual deduplication.
     #[serde(default)]
     pub gameplay: CompositionGameplay,
+    /// Directional layer ordering config from composition metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub directional_layer_order: Option<carcinisation_base::layer_order::LayerOrderConfig>,
 }
 
 /// Reusable semantic part definition shared by multiple instances.
@@ -457,6 +460,10 @@ struct CompositionSource {
     /// Authored airborne pivot offset (Y-down from origin).
     #[serde(default)]
     air_anchor_y: Option<i16>,
+    /// Directional sprite configuration: authored directions, mirror policy,
+    /// and per-animation overrides.
+    #[serde(default)]
+    directional: Option<carcinisation_base::directional_config::DirectionalConfig>,
 }
 
 /// Per-animation part override declared in composition metadata.
@@ -780,12 +787,25 @@ fn build_piece_atlas(
         .map(CompositionPartSource::to_instance)
         .collect::<Vec<_>>();
     validate_layer_bindings(&parts, &selected_layers)?;
+
+    // Validate directional tag consistency when config is present.
+    if let Some(ref directional) = composition.directional {
+        let tag_names: Vec<&str> = aseprite.tags().iter().map(|t| t.name.as_str()).collect();
+        validate_directional_tags(&tag_names, directional, &sprite.entity)?;
+    }
+
     let authored_events = bind_animation_events(aseprite, &parts, &composition.animation_events)?;
     let topo_order = build_part_topology(&parts)?;
     let mut sprite_interner = SpriteInterner::default();
     let mut animations = Vec::new();
 
     for tag in aseprite.tags() {
+        // Tags prefixed with '_' are dev/reference-only and must not produce
+        // runtime animation metadata or interned sprites.
+        if tag.name.starts_with('_') {
+            continue;
+        }
+
         let mut frames = Vec::new();
         for source_frame in tag.range.clone() {
             let frame_index = usize::from(source_frame);
@@ -842,6 +862,13 @@ fn build_piece_atlas(
         });
     }
 
+    // Apply per-part directional source overrides. For each direction that has
+    // overrides, swap affected parts' pose data from the specified source
+    // direction's animation.
+    if let Some(ref directional) = composition.directional {
+        apply_part_source_overrides(&mut animations, directional, &sprite.entity)?;
+    }
+
     let (atlas_image, atlas_sprites) = pack_sprites(&sprite_interner.sprites)?;
     let mut metadata = CompositionAtlas {
         schema_version: CURRENT_SCHEMA_VERSION,
@@ -862,6 +889,10 @@ fn build_piece_atlas(
         sprites: atlas_sprites,
         animations,
         gameplay: composition.gameplay.clone(),
+        directional_layer_order: composition
+            .directional
+            .as_ref()
+            .map(|d| d.layer_order.clone()),
     };
 
     let had_ground = metadata.ground_anchor_y.is_some();
@@ -1588,6 +1619,207 @@ fn validate_composition_source_contracts(source: &CompositionSource) -> Result<(
                 event.id,
                 event.tag
             );
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate directional tag consistency when a `[directional]` config is present.
+///
+/// Checks:
+/// - All tags follow `{direction}_{action}` format (non-directional tags are errors)
+/// - All authored directions have matching tags for each action
+/// - Mirror mapping targets are valid authored directions
+/// - Mirror mapping sources are NOT authored directions (they are virtual)
+fn validate_directional_tags(
+    tags: &[&str],
+    config: &carcinisation_base::directional_config::DirectionalConfig,
+    entity: &str,
+) -> Result<()> {
+    use carcinisation_base::direction::parse_directional_tag;
+    use std::collections::{HashMap, HashSet};
+
+    // Validate mirror mapping targets point to authored directions.
+    let authored: HashSet<_> = config.authored_directions.iter().copied().collect();
+    for (virtual_dir, source_dir) in &config.mirrors {
+        ensure!(
+            authored.contains(source_dir),
+            "{entity} mirror mapping {virtual_dir} -> {source_dir}: \
+             target '{source_dir}' is not in authored_directions"
+        );
+        ensure!(
+            !authored.contains(virtual_dir),
+            "{entity} mirror mapping {virtual_dir} -> {source_dir}: \
+             source '{virtual_dir}' is already an authored direction (mirrors \
+             should map virtual → physical)"
+        );
+    }
+
+    // Group tags by action, collecting which directions are present.
+    let mut action_directions: HashMap<
+        String,
+        HashSet<carcinisation_base::direction::SpriteDirection>,
+    > = HashMap::new();
+    let mut non_directional_tags = Vec::new();
+
+    for &tag in tags {
+        if tag.starts_with('_') {
+            continue; // Skip dev tags.
+        }
+        match parse_directional_tag(tag) {
+            Some(parsed) => {
+                action_directions
+                    .entry(parsed.action)
+                    .or_default()
+                    .insert(parsed.direction);
+            }
+            None => {
+                non_directional_tags.push(tag);
+            }
+        }
+    }
+
+    // Non-directional tags are errors when [directional] config is present.
+    ensure!(
+        non_directional_tags.is_empty(),
+        "{entity} has [directional] config but contains non-directional tags: {non_directional_tags:?}. \
+         All tags must follow {{direction}}_{{action}} format, or prefix with '_' to skip."
+    );
+
+    // Check that each action has all authored directions. Incomplete direction
+    // sets are warnings (front-only poses are valid) rather than errors.
+    for (action, dirs) in &action_directions {
+        let missing: Vec<_> = authored.iter().filter(|d| !dirs.contains(d)).collect();
+        if !missing.is_empty() {
+            let missing_names: Vec<_> = missing.iter().map(|d| d.tag_prefix()).collect();
+            eprintln!(
+                "  warning: {entity} action '{action}' is missing authored directions: {missing_names:?}"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Apply per-part directional source overrides to already-built animations.
+///
+/// For each viewing direction with part overrides, find the target animation
+/// and the source animation, then swap affected parts' pose data. This runs
+/// after all animations are built so we can cross-reference between directions.
+fn apply_part_source_overrides(
+    animations: &mut [Animation],
+    config: &carcinisation_base::directional_config::DirectionalConfig,
+    entity: &str,
+) -> Result<()> {
+    struct PoseSwap {
+        target_anim_idx: usize,
+        frame_idx: usize,
+        target_part_id: String,
+        source_pose: PartPose,
+    }
+
+    use carcinisation_base::direction::parse_directional_tag;
+
+    if config.part_source_overrides.is_empty() {
+        return Ok(());
+    }
+
+    // Index: (direction, action) → animation index.
+    let anim_index: std::collections::HashMap<(String, String), usize> = animations
+        .iter()
+        .enumerate()
+        .filter_map(|(i, a)| {
+            parse_directional_tag(&a.tag).map(|parsed| {
+                (
+                    (parsed.direction.tag_prefix().to_string(), parsed.action),
+                    i,
+                )
+            })
+        })
+        .collect();
+
+    let mut swaps = Vec::new();
+
+    for (viewing_dir, part_overrides) in &config.part_source_overrides {
+        for anim in animations.iter() {
+            let Some(parsed) = parse_directional_tag(&anim.tag) else {
+                continue;
+            };
+            if parsed.direction != *viewing_dir {
+                continue;
+            }
+            let action = &parsed.action;
+
+            let target_key = (viewing_dir.tag_prefix().to_string(), action.clone());
+            let Some(&target_idx) = anim_index.get(&target_key) else {
+                continue;
+            };
+
+            for (target_part_id, override_spec) in part_overrides {
+                // Resolve source direction (defaults to same as target).
+                let source_dir = override_spec.source_direction.unwrap_or(*viewing_dir);
+                // Resolve source part (defaults to same as target).
+                let source_part_id = override_spec
+                    .source_part
+                    .as_deref()
+                    .unwrap_or(target_part_id.as_str());
+
+                let source_key = (source_dir.tag_prefix().to_string(), action.clone());
+                let Some(&source_idx) = anim_index.get(&source_key) else {
+                    anyhow::bail!(
+                        "{entity}: part_source_override for '{target_part_id}' in {viewing_dir} \
+                         references source direction '{source_dir}' but no tag \
+                         '{}' exists",
+                        source_dir.tag_name(action)
+                    );
+                };
+
+                let source_anim = &animations[source_idx];
+                let target_anim = &animations[target_idx];
+                let frame_count = target_anim.frames.len().min(source_anim.frames.len());
+
+                for fi in 0..frame_count {
+                    let source_frame = &source_anim.frames[fi];
+                    if let Some(source_pose) = source_frame
+                        .parts
+                        .iter()
+                        .find(|p| p.part_id == source_part_id)
+                    {
+                        let mut pose = source_pose.clone();
+                        if override_spec.flip_x {
+                            pose.flip_x = !pose.flip_x;
+                        }
+                        swaps.push(PoseSwap {
+                            target_anim_idx: target_idx,
+                            frame_idx: fi,
+                            target_part_id: target_part_id.clone(),
+                            source_pose: pose,
+                        });
+                    } else {
+                        eprintln!(
+                            "  warning: {entity} part_source_override: source part \
+                             '{source_part_id}' not found in frame {fi} of '{}'",
+                            source_dir.tag_name(action)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    for swap in swaps {
+        let frame = &mut animations[swap.target_anim_idx].frames[swap.frame_idx];
+        if let Some(target_pose) = frame
+            .parts
+            .iter_mut()
+            .find(|p| p.part_id == swap.target_part_id)
+        {
+            target_pose.sprite_id = swap.source_pose.sprite_id;
+            target_pose.local_offset = swap.source_pose.local_offset;
+            target_pose.flip_x = swap.source_pose.flip_x;
+            target_pose.flip_y = swap.source_pose.flip_y;
+            target_pose.fragment = swap.source_pose.fragment;
         }
     }
 
@@ -3034,6 +3266,10 @@ pub fn export_simple_atlas(request: &SimpleAtlasRequest) -> Result<()> {
     }
     let mut tag_regions: Vec<TagRegion> = Vec::new();
     for tag in ase.tags() {
+        // Tags prefixed with '_' are dev/reference-only — skip them.
+        if tag.name.starts_with('_') {
+            continue;
+        }
         if let Some(ref filter) = request.tag_filter
             && tag.name != *filter
         {
@@ -3266,10 +3502,10 @@ mod tests {
         Animation, AnimationEventKind, AnimationFrame, AtlasSprite, CollisionShape,
         CollisionVolume, CompositionAnimationEventSource, CompositionAtlas, CompositionGameplay,
         CompositionPartSource, CompositionSource, HealthPool, ImageKey, Manifest, PartDefinition,
-        PartGameplayMetadata, PartInstance, PartPose, Point, Rect, Size, SplitMode, SpriteInterner,
-        SpriteSpec, Vec2Value, emit_authored_mirror_x_split_fragments, image_key,
+        PartGameplayMetadata, PartInstance, PartPose, Point, Rect, SelectedLayer, Size, SplitMode,
+        SpriteInterner, SpriteSpec, Vec2Value, emit_authored_mirror_x_split_fragments, image_key,
         normalize_part_id, trim_transparent_bounds, validate_composition_atlas,
-        validate_composition_source, validate_manifest,
+        validate_composition_source, validate_layer_bindings, validate_manifest,
     };
     use crate::composed_ron::SpawnAnchorMode;
     use image::{ImageBuffer, Rgba, RgbaImage};
@@ -3372,6 +3608,7 @@ mod tests {
             spawn_anchor: SpawnAnchorMode::default(),
             ground_anchor_y: None,
             air_anchor_y: None,
+            directional: None,
         }
     }
 
@@ -3683,6 +3920,23 @@ mod tests {
             .expect_err("visible_by_default false is currently unsupported")
             .to_string();
         assert!(error.contains("visible_by_default = false"));
+    }
+
+    #[test]
+    fn rejects_parts_bound_to_hidden_source_layers() {
+        let parts = vec![minimal_composition().parts[0].to_instance()];
+        let selected_layers = vec![SelectedLayer {
+            index: 0,
+            name: "body",
+            opacity: 255,
+            visible: false,
+        }];
+
+        let error = validate_layer_bindings(&parts, &selected_layers)
+            .expect_err("hidden source layer should not render through composition metadata")
+            .to_string();
+
+        assert!(error.contains("hidden source layer"));
     }
 
     #[test]
@@ -4021,6 +4275,7 @@ mod tests {
                 entity_health_pool: None,
                 health_pools: vec![],
             },
+            directional_layer_order: None,
         }
     }
 

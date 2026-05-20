@@ -7,9 +7,9 @@
 )]
 
 use bevy::math::Vec2;
+use carcinisation_fps_core::FpsMovementConfig;
 use carcinisation_fps_core::collision::try_move;
 use carcinisation_fps_core::map::Map;
-use carcinisation_fps_core::movement::COLLISION_MARGIN;
 
 /// Load the RON map that both server and client default to.
 fn load_real_map() -> Map {
@@ -79,6 +79,7 @@ fn spawn_positions_valid_in_real_map() {
 
 #[test]
 fn boundary_sweep_real_map() {
+    let collision_margin = FpsMovementConfig::default().collision_margin;
     let map = load_real_map();
     let spawn = Vec2::new(1.5, 1.5);
     let step = 0.05_f32;
@@ -91,7 +92,7 @@ fn boundary_sweep_real_map() {
     ];
 
     eprintln!(
-        "\n=== Boundary Sweep (real map {}x{}, spawn ({:.1},{:.1}), margin={COLLISION_MARGIN}) ===",
+        "\n=== Boundary Sweep (real map {}x{}, spawn ({:.1},{:.1}), margin={collision_margin}) ===",
         map.width, map.height, spawn.x, spawn.y
     );
 
@@ -100,7 +101,7 @@ fn boundary_sweep_real_map() {
         let mut steps = 0;
         loop {
             let prev = pos;
-            try_move(&mut pos, *delta, COLLISION_MARGIN, &map);
+            try_move(&mut pos, *delta, collision_margin, &map);
             steps += 1;
             if pos == prev || steps > 500 {
                 break;
@@ -145,6 +146,7 @@ fn boundary_sweep_real_map() {
 
 #[test]
 fn collision_radius_diagnostic() {
+    let collision_margin = FpsMovementConfig::default().collision_margin;
     let map = load_real_map();
     let spawn = Vec2::new(1.5, 1.5);
     let step = Vec2::new(0.05, 0.0);
@@ -152,7 +154,7 @@ fn collision_radius_diagnostic() {
     let mut pos_default = spawn;
     for _ in 0..500 {
         let prev = pos_default;
-        try_move(&mut pos_default, step, COLLISION_MARGIN, &map);
+        try_move(&mut pos_default, step, collision_margin, &map);
         if pos_default == prev {
             break;
         }
@@ -179,7 +181,7 @@ fn collision_radius_diagnostic() {
     eprintln!("\n=== Collision Radius Diagnostic (east from spawn) ===");
     eprintln!("  Wall at x={wall_x} (cell={})", map.get(wall_x, spawn_y));
     eprintln!(
-        "  margin={COLLISION_MARGIN}: stop x={:.3}, gap={gap_default:.3}",
+        "  margin={collision_margin}: stop x={:.3}, gap={gap_default:.3}",
         pos_default.x
     );
     eprintln!(
@@ -188,7 +190,7 @@ fn collision_radius_diagnostic() {
     );
 
     assert!(
-        gap_default < COLLISION_MARGIN + 0.15,
+        gap_default < collision_margin + 0.15,
         "stopped too far: gap={gap_default:.3}"
     );
     assert!(gap_default > 0.0, "overlapped wall: gap={gap_default:.3}");

@@ -124,6 +124,18 @@ pub fn cast_ray(map: &Map, origin: Vec2, dir: Vec2) -> RayHit {
     }
 }
 
+/// Returns `true` if a straight ray from `from` to `to` does not hit any wall.
+#[must_use]
+pub fn has_line_of_sight(from: Vec2, to: Vec2, map: &Map) -> bool {
+    let dir = to - from;
+    let dist = dir.length();
+    if dist < 0.01 {
+        return true;
+    }
+    let hit = cast_ray(map, from, dir / dist);
+    hit.distance > dist
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

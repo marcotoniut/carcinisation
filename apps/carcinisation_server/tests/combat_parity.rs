@@ -9,7 +9,6 @@ mod common;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::camera::Camera;
-use carcinisation_fps_core::config;
 use carcinisation_fps_core::enemy::{Enemy, hitscan};
 use carcinisation_fps_core::map::{EntitySpawnData, EntitySpawnKind, test_map};
 use carcinisation_net::{
@@ -24,7 +23,9 @@ use common::{build_server_app, reserve_port};
 // Helpers
 // ---------------------------------------------------------------------------
 
-const HITSCAN_DAMAGE: f32 = config::HITSCAN_DAMAGE;
+fn hitscan_damage() -> f32 {
+    carcinisation_fps_core::FpsCombatConfig::default().hitscan_damage
+}
 
 fn build_combat_server(port: u16, enemy_x: f32, enemy_y: f32) -> App {
     let entities = vec![EntitySpawnData {
@@ -154,7 +155,7 @@ fn hitscan_shared_function_parity() {
     assert!(result.distance > 2.0 && result.distance < 4.0);
 }
 
-/// MP server pistol fires once per cooldown period, dealing exactly HITSCAN_DAMAGE.
+/// MP server pistol fires once per cooldown period, dealing exactly hitscan_damage().
 #[test]
 fn pistol_cooldown_parity() {
     let port = reserve_port();
@@ -175,20 +176,22 @@ fn pistol_cooldown_parity() {
     let final_hp = get_enemy_health(&mut server);
     let total_damage = initial_hp - final_hp;
 
-    // Expected: ~3 shots × 37 damage = ~111. Allow 1 shot variance for timing.
-    let expected_min = HITSCAN_DAMAGE * 2.0; // At least 2 shots.
-    let expected_max = HITSCAN_DAMAGE * 5.0; // At most 5 shots (timing generous).
+    let dmg = hitscan_damage();
+
+    // Expected: ~3 shots × dmg. Allow 1 shot variance for timing.
+    let expected_min = dmg * 2.0; // At least 2 shots.
+    let expected_max = dmg * 5.0; // At most 5 shots (timing generous).
     assert!(
         total_damage >= expected_min && total_damage <= expected_max,
         "pistol cooldown: damage={total_damage:.0} (expected {expected_min:.0}–{expected_max:.0})"
     );
 
-    // Each shot does exactly HITSCAN_DAMAGE — total should be a multiple of 37.
-    let shot_count = (total_damage / HITSCAN_DAMAGE).round();
-    let remainder = (total_damage - shot_count * HITSCAN_DAMAGE).abs();
+    // Each shot does exactly dmg — total should be a multiple.
+    let shot_count = (total_damage / dmg).round();
+    let remainder = (total_damage - shot_count * dmg).abs();
     assert!(
         remainder < 1.0,
-        "damage should be multiple of {HITSCAN_DAMAGE}: got {total_damage:.1} (remainder {remainder:.1})"
+        "damage should be multiple of {dmg}: got {total_damage:.1} (remainder {remainder:.1})"
     );
 }
 
@@ -220,31 +223,24 @@ fn switch_to_flamethrower_then_fire() {
     let hp_after = get_enemy_health(&mut server);
     let damage = initial_hp - hp_after;
 
-    // Flamethrower deals continuous damage — should NOT be a multiple of 37.
-    // At 580 DPS × ~0.33s ≈ 191 damage. Allow wide range for timing.
+    // Burn system deals progressive damage — much less than old 580 DPS.
+    // After 10 ticks (~0.33s), burn intensity is building; expect at least some damage.
     assert!(
-        damage > 50.0,
+        damage > 0.0,
         "flamethrower should deal continuous damage: got {damage:.0}"
     );
-    let hitscan_shots = (damage / HITSCAN_DAMAGE).round();
-    let hitscan_remainder = (damage - hitscan_shots * HITSCAN_DAMAGE).abs();
-    // If damage were exactly hitscan multiples, that would indicate wrong weapon.
-    // With flame DPS, it's unlikely to be an exact multiple.
-    // (This is a soft check — flame damage could coincidentally be near a multiple.)
-    if hitscan_remainder < 1.0 && hitscan_shots > 1.0 {
-        // Could be hitscan — but at 580 DPS it would be very high.
-        assert!(
-            damage > 150.0,
-            "if multiples of 37, damage should be very high for flame"
-        );
-    }
 }
 
 // ---------------------------------------------------------------------------
 // 3. Flamethrower damage parity
 // ---------------------------------------------------------------------------
 
-/// Flamethrower DPS matches expected rate: ~580 DPS × dt per tick.
+/// Flamethrower damage uses progressive burn: intensity builds over exposure,
+/// then damage accumulates proportionally. After sustained fire, DPS ramps up
+/// toward `damage_per_sec_at_max` (70) + `direct_contact_dps` (10) = 80 DPS.
+///
+/// First few ticks produce little damage because intensity starts at 0 and
+/// the damage accumulator needs to cross the integer threshold.
 #[test]
 fn flamethrower_dps_per_tick() {
     let port = reserve_port();
@@ -258,21 +254,26 @@ fn flamethrower_dps_per_tick() {
 
     let hp_before = get_enemy_health(&mut server);
 
-    // Fire for 1 fixed tick.
-    inject(&mut server, 1, &fire_intent());
-    tick_fixed(&mut server);
+    // Fire for 30 ticks (~1 second) to let burn intensity ramp up.
+    for _ in 0..30 {
+        inject(&mut server, 1, &fire_intent());
+        tick_fixed(&mut server);
+    }
 
     let hp_after = get_enemy_health(&mut server);
-    let damage_per_tick = hp_before - hp_after;
+    let total_damage = hp_before - hp_after;
 
-    // Expected: FLAME_DPS (580) × DT (1/30) ≈ 19.3 per tick.
-    // Allow timing variance (server may fire 0 or 2 ticks in this window).
-    if damage_per_tick > 0.0 {
-        assert!(
-            damage_per_tick > 10.0 && damage_per_tick < 60.0,
-            "flame damage per tick should be ~19.3: got {damage_per_tick:.1}"
-        );
-    }
+    // After 1 second of sustained flame, burn intensity reaches near max.
+    // Expected total: ramp from 0 to ~80 DPS over 1 second.
+    // With progressive ramp, total should be roughly 30-60 damage.
+    assert!(
+        total_damage > 10.0,
+        "sustained flame should deal significant damage over 1s: got {total_damage:.1}"
+    );
+    assert!(
+        total_damage < 100.0,
+        "sustained flame damage should be bounded: got {total_damage:.1}"
+    );
 }
 
 /// Flamethrower blocked by wall does no damage (shared with guards_and_los.rs but
@@ -415,9 +416,9 @@ fn flame_lethal_damage_burn_parity() {
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
-    // Switch to flamethrower and fire.
+    // Switch to flamethrower and fire — burn builds intensity progressively.
     inject(&mut server, 1, &switch_and_fire_intent());
-    for _ in 0..5 {
+    for _ in 0..60 {
         inject(&mut server, 1, &fire_intent());
         tick_fixed(&mut server);
     }

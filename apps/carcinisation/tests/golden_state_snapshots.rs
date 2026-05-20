@@ -24,7 +24,7 @@ fn mixed_behavior_types_golden_sequence() {
         EnemyStep::LinearTween(LinearTweenEnemyStep {
             depth_movement_o: Some(-1),
             direction: Vec2::new(1.0, 0.0),
-            trayectory: 50.0,
+            trajectory: 50.0,
         }),
         EnemyStep::Circle(CircleAroundEnemyStep {
             depth_movement_o: None,

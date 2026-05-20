@@ -11,14 +11,15 @@ mod common;
 
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
+use carcinisation_fps_core::FpsMovementConfig;
 use carcinisation_fps_core::map::test_map;
-use carcinisation_fps_core::movement::{MOVE_SPEED, TURN_SPEED, apply_movement};
+use carcinisation_fps_core::movement::{SnapTurnKind, apply_movement};
 use carcinisation_net::{
     ClientIntent, InputSequence, NetAttackId, NetHealth, NetPlayer, PlayerActions, PlayerId,
     PlayerNetState,
 };
 use carcinisation_server::ServerPlugin;
-use carcinisation_server::systems::{PlayerIntentBuffer, ServerQuickTurn, SnapTurnKind};
+use carcinisation_server::systems::{PlayerIntentBuffer, ServerQuickTurn};
 use common::{build_server_app, reserve_port};
 
 // ---------------------------------------------------------------------------
@@ -134,6 +135,7 @@ fn action(flag: u8) -> ClientIntent {
 /// Pure fps_core movement matches MP server for same inputs.
 #[test]
 fn movement_forward_parity() {
+    let defaults = FpsMovementConfig::default();
     let map = test_map();
     let start = Vec2::new(1.5, 1.5);
     let angle = 0.0;
@@ -142,7 +144,15 @@ fn movement_forward_parity() {
     // SP path: pure apply_movement.
     let mut sp_pos = start;
     for _ in 0..10 {
-        apply_movement(&mut sp_pos, angle, intent, MOVE_SPEED, DT, &map);
+        apply_movement(
+            &mut sp_pos,
+            angle,
+            intent,
+            defaults.move_speed,
+            DT,
+            &map,
+            defaults.collision_margin,
+        );
     }
 
     // MP path.
@@ -173,13 +183,22 @@ fn movement_forward_parity() {
 /// Wall collision stops movement in both paths.
 #[test]
 fn movement_wall_collision_parity() {
+    let defaults = FpsMovementConfig::default();
     let map = test_map();
     let start = Vec2::new(1.2, 1.5);
     let angle = std::f32::consts::PI; // Facing west into wall.
 
     let mut sp_pos = start;
     for _ in 0..20 {
-        apply_movement(&mut sp_pos, angle, Vec2::Y, MOVE_SPEED, DT, &map);
+        apply_movement(
+            &mut sp_pos,
+            angle,
+            Vec2::Y,
+            defaults.move_speed,
+            DT,
+            &map,
+            defaults.collision_margin,
+        );
     }
 
     let port = reserve_port();
@@ -211,9 +230,10 @@ fn movement_wall_collision_parity() {
 fn continuous_turn_parity() {
     let start_angle = 0.0;
 
+    let defaults = FpsMovementConfig::default();
     let mut sp_angle = start_angle;
     for _ in 0..10 {
-        sp_angle += 1.0 * TURN_SPEED * DT;
+        sp_angle += 1.0 * defaults.turn_speed * DT;
         sp_angle = sp_angle.rem_euclid(std::f32::consts::TAU);
     }
 

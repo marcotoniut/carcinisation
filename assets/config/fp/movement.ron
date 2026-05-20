@@ -1,0 +1,6 @@
+FpsMovementConfig(
+    move_speed: 3.2,
+    turn_speed: 2.0,
+    collision_margin: 0.2,
+    quick_turn_duration_secs: 0.4,
+)

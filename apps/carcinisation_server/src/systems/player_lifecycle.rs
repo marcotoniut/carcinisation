@@ -12,7 +12,7 @@ use crate::systems::{
 };
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
-use carcinisation_fps_core::config::PLAYER_RESPAWN_DELAY_SECS;
+use carcinisation_fps_core::config::FpsCombatConfig;
 use carcinisation_net::{
     DeathEffect, FlameActive, NetHealth, NetPlayer, NetworkObjectId, PlayerNetState,
 };
@@ -39,6 +39,7 @@ pub fn tick_player_lifecycle(
     mut flame_tracker: ResMut<FlameActiveTracker>,
     mut char_cooldowns: ResMut<FlameCharCooldowns>,
     mut burn_cooldowns: ResMut<BurnContactCooldowns>,
+    combat_config: Res<FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
 
@@ -54,7 +55,7 @@ pub fn tick_player_lifecycle(
                 player.flame_active = false;
                 commands
                     .entity(entity)
-                    .insert(RespawnTimer(PLAYER_RESPAWN_DELAY_SECS));
+                    .insert(RespawnTimer(combat_config.player_respawn_delay_secs));
 
                 // Clear per-player combat state so respawn starts clean.
                 cooldowns.remove_player(&player.player_id);
@@ -85,8 +86,8 @@ pub fn tick_player_lifecycle(
                 });
 
                 info!(
-                    "Player {:?} died, respawning in {PLAYER_RESPAWN_DELAY_SECS}s",
-                    player.player_id
+                    "Player {:?} died, respawning in {}s",
+                    player.player_id, combat_config.player_respawn_delay_secs
                 );
             }
             PlayerNetState::Dead => {

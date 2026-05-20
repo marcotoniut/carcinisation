@@ -758,6 +758,7 @@ mod tests {
             sprites,
             animations,
             gameplay: CompositionGameplay::default(),
+            directional_layer_order: None,
         }
     }
 

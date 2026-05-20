@@ -7,6 +7,7 @@ description = "Shared asset-pipeline primitives for Aseprite export and related 
 [dependencies]
 anyhow.workspace = true
 aseprite-loader = "0.4.2"
+carcinisation_base = { path = "../carcinisation_base", default-features = false }
 flate2 = "1.1"
 image = "0.25"
 ron.workspace = true

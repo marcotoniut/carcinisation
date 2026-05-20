@@ -66,6 +66,10 @@ pub struct CompactComposedAtlas {
     pub animations: Vec<CompactAnimation>,
     /// Gameplay metadata.
     pub gameplay: CompactGameplay,
+    /// Directional layer ordering config from composition metadata.
+    /// `None` for entities without a `[directional]` section.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub directional_layer_order: Option<carcinisation_base::layer_order::LayerOrderConfig>,
 }
 
 /// Merged part definition + instance.
@@ -711,6 +715,7 @@ pub fn encode_with_diagnostics(
             parts,
             animations,
             gameplay,
+            directional_layer_order: atlas.directional_layer_order.clone(),
         },
         warnings,
     ))
@@ -965,6 +970,7 @@ mod tests {
                 part_overrides: vec![],
             }],
             gameplay: CompositionGameplay::default(),
+            directional_layer_order: None,
         }
     }
 

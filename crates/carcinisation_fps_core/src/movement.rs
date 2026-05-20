@@ -5,9 +5,6 @@ use bevy_math::Vec2;
 use crate::collision::try_move;
 use crate::map::Map;
 
-// Re-export from config so `movement::MOVE_SPEED` etc. still work for existing consumers.
-pub use crate::config::{COLLISION_MARGIN, MOVE_SPEED, TURN_SPEED};
-
 /// Unit direction vector for a given facing angle.
 /// 0 = east (+X), PI/2 = north (+Y).
 #[must_use]
@@ -45,10 +42,11 @@ pub fn apply_movement(
     speed: f32,
     delta_time: f32,
     map: &Map,
+    collision_margin: f32,
 ) {
     let world_move = local_to_world(angle, local_intent);
     let delta = world_move * speed * delta_time;
-    try_move(position, delta, COLLISION_MARGIN, map);
+    try_move(position, delta, collision_margin, map);
 }
 
 // ---------------------------------------------------------------------------
@@ -122,9 +120,27 @@ pub fn tick_snap_turn(
     *remaining_radians -= step;
 }
 
+/// Maximum angular velocity for derived turn values (rad/s).
+/// Prevents extreme spikes from teleports or snap turns.
+const MAX_DERIVED_TURN_VELOCITY: f32 = 12.0;
+
+/// Compute angular velocity from two consecutive angles, clamped to a safe range.
+///
+/// Handles wrapping correctly. Returns 0 when `dt` is near zero.
+#[must_use]
+pub fn angular_velocity_clamped(current: f32, previous: f32, dt: f32) -> f32 {
+    if dt <= f32::EPSILON {
+        return 0.0;
+    }
+    let diff = (current - previous + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+        - std::f32::consts::PI;
+    (diff / dt).clamp(-MAX_DERIVED_TURN_VELOCITY, MAX_DERIVED_TURN_VELOCITY)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::FpsMovementConfig;
     use std::f32::consts::{FRAC_PI_2, PI};
 
     #[test]
@@ -159,10 +175,19 @@ mod tests {
     #[test]
     fn apply_movement_uses_collision() {
         use crate::map::test_map;
+        let defaults = FpsMovementConfig::default();
         let map = test_map();
         let mut pos = Vec2::new(1.1, 1.5);
         // Face west (PI), move forward with small dt → blocked by west wall at x=0.
-        apply_movement(&mut pos, PI, Vec2::new(0.0, 1.0), MOVE_SPEED, 0.033, &map);
+        apply_movement(
+            &mut pos,
+            PI,
+            Vec2::new(0.0, 1.0),
+            defaults.move_speed,
+            0.033,
+            &map,
+            defaults.collision_margin,
+        );
         assert!(
             (pos.x - 1.1).abs() < 0.01,
             "x should be blocked by wall: {pos:?}"
@@ -177,21 +202,30 @@ mod tests {
         use crate::collision::try_move;
         use crate::map::test_map;
 
+        let defaults = FpsMovementConfig::default();
         let map = test_map();
         let angle = 0.5_f32;
         let intent = Vec2::new(-0.7, 0.8); // strafe left + forward
-        let speed = MOVE_SPEED;
+        let speed = defaults.move_speed;
         let dt = 0.033;
 
         // Path A: apply_movement (shared function).
         let mut pos_a = Vec2::new(3.5, 3.5);
-        apply_movement(&mut pos_a, angle, intent, speed, dt, &map);
+        apply_movement(
+            &mut pos_a,
+            angle,
+            intent,
+            speed,
+            dt,
+            &map,
+            defaults.collision_margin,
+        );
 
         // Path B: manual world-space delta + try_move (old SP pattern).
         let mut pos_b = Vec2::new(3.5, 3.5);
         let world_move = local_to_world(angle, intent);
         let delta = world_move * speed * dt;
-        try_move(&mut pos_b, delta, COLLISION_MARGIN, &map);
+        try_move(&mut pos_b, delta, defaults.collision_margin, &map);
 
         assert!(
             (pos_a - pos_b).length() < 1e-6,

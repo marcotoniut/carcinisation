@@ -6,11 +6,18 @@ description = "Main Bevy executable for stage-based pixel shooter"
 default-run = "carcinisation"
 
 [features]
-default = ["brp"]
+default = ["brp", "hot_reload"]
 gallery = []
 brp = ["dep:bevy_brp_extras", "carapace/brp_extras"]
 # TODO: fix getrandom transitive dep for WASM
 wasm_client = ["carcinisation_net/wasm_client", "bevy_replicon_renet2/ws_client_transport", "bevy_replicon_renet2/netcode", "bevy_replicon_renet2/client"]
+hot_reload = [
+    "bevy/file_watcher",
+    "carcinisation_core/hot_reload",
+    "carcinisation_ors/hot_reload",
+    "carcinisation_fps/hot_reload",
+    "carcinisation_fps_core/hot_reload",
+]
 trace_chrome = ["bevy/trace_chrome", "carapace/profiling_spans"]
 trace_tracy = ["bevy/trace_tracy", "carapace/profiling_spans"]
 

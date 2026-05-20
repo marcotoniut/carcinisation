@@ -1,0 +1,128 @@
+spawn_anchor = "Origin"
+
+# --- Part definitions (no gameplay metadata for billboard-only entity) ---
+
+[[part_definitions]]
+id = "group_marker"
+tags = ["group"]
+
+[[part_definitions]]
+id = "body_part"
+tags = ["body"]
+
+[[part_definitions]]
+id = "limb"
+tags = ["limb"]
+
+[[part_definitions]]
+id = "equipment"
+tags = ["equipment"]
+
+# --- Part instances (bound to Aseprite layers inside "base" group) ---
+
+[[parts]]
+id = "root"
+definition_id = "group_marker"
+name = "Root"
+draw_order = 0
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "body"
+definition_id = "body_part"
+name = "Body"
+parent_id = "root"
+source_layer = "body"
+draw_order = 10
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "head"
+definition_id = "body_part"
+name = "Head"
+parent_id = "body"
+source_layer = "head"
+draw_order = 50
+pivot = { x = 0, y = 0 }
+
+[[parts]]
+id = "leg_l"
+definition_id = "limb"
+name = "Leg Left"
+parent_id = "root"
+source_layer = "leg_l"
+draw_order = 15
+pivot = { x = 0, y = 0 }
+tags = ["left", "legs"]
+
+[[parts]]
+id = "leg_r"
+definition_id = "limb"
+name = "Leg Right"
+parent_id = "root"
+source_layer = "leg_r"
+draw_order = 16
+pivot = { x = 0, y = 0 }
+tags = ["right", "legs"]
+
+[[parts]]
+id = "legs"
+definition_id = "limb"
+name = "Legs Overlay"
+parent_id = "root"
+source_layer = "legs"
+draw_order = 17
+pivot = { x = 0, y = 0 }
+tags = ["legs"]
+
+[[parts]]
+id = "arm_l"
+definition_id = "limb"
+name = "Arm Left"
+parent_id = "body"
+source_layer = "arm_l"
+draw_order = 20
+pivot = { x = 0, y = 0 }
+tags = ["left", "arms"]
+
+[[parts]]
+id = "arm_r"
+definition_id = "limb"
+name = "Arm Right"
+parent_id = "body"
+source_layer = "arm_r"
+draw_order = 30
+pivot = { x = 0, y = 0 }
+tags = ["right", "arms"]
+
+[[parts]]
+id = "weapon"
+definition_id = "equipment"
+name = "Weapon"
+parent_id = "body"
+source_layer = "weapon"
+draw_order = 40
+pivot = { x = 0, y = 0 }
+tags = ["weapon"]
+
+# --- Directional config ---
+
+[directional]
+authored_directions = ["front", "frontleft", "left", "backleft", "back"]
+default_direction = "front"
+mirror_policy = "mirror_allowed"
+
+[directional.mirrors]
+frontright = "frontleft"
+right = "left"
+backright = "backleft"
+
+# Back-facing: body on top of far-side parts, near arm stays visible.
+[directional.layer_order.direction.back]
+policy = "reverse"
+
+# Backleft: arm_l (human arm) is near arm, stays in front.
+# arm_r (crab arm) and weapon go behind body.
+[directional.layer_order.direction.backleft.parts]
+arm_r = 5
+weapon = 5

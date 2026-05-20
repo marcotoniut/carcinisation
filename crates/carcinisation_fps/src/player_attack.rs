@@ -2,17 +2,16 @@
 
 use bevy::prelude::{Reflect, ReflectResource, Resource, Vec2};
 use carapace::{image::CxImage, palette::TRANSPARENT_INDEX};
-use carcinisation_fps_core::fire_death::{DamageKind, FireDeathConfig};
 use flate2::read::DeflateDecoder;
 use serde::Deserialize;
 use std::{
     collections::HashMap,
     io::{Cursor, Read},
     sync::Arc,
-    time::Duration,
 };
 
 use crate::{
+    billboard::Billboard,
     camera::Camera,
     enemy::{Enemy, Projectile, ProjectileImpact, hitscan, hitscan_projectiles},
     map::Map,
@@ -21,50 +20,49 @@ use crate::{
     render::{CharDecal, WallSurfaceSprite},
 };
 
-const PLAYER_BULLET_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/attacks/player_bullet/atlas.px_atlas.ron");
-const PLAYER_BULLET_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/attacks/player_bullet/atlas.pxi");
-const PLAYER_MELEE_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/attacks/player_melee/atlas.px_atlas.ron");
-const PLAYER_MELEE_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/attacks/player_melee/atlas.pxi");
-const PLAYER_FLAME_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/attacks/player_flame/atlas.px_atlas.ron");
-const PLAYER_FLAME_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/attacks/player_flame/atlas.pxi");
-const PLAYER_FLAME_WALL_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/attacks/player_flame_wall/atlas.px_atlas.ron");
-const PLAYER_FLAME_WALL_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/attacks/player_flame_wall/atlas.pxi");
-const STAGE_WEAPON_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/ui/stage_flamethrower_weapon/atlas.px_atlas.ron");
-const STAGE_WEAPON_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/ui/stage_flamethrower_weapon/atlas.pxi");
-const STAGE_WEAPON_SHOOTING_ATLAS_RON: &str = include_str!(
-    "../../../assets/sprites/ui/stage_flamethrower_weapon_shooting/atlas.px_atlas.ron"
-);
-const STAGE_WEAPON_SHOOTING_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/ui/stage_flamethrower_weapon_shooting/atlas.pxi");
-const STAGE_IDLE_FLAME_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/ui/stage_flamethrower_flame/atlas.px_atlas.ron");
-const STAGE_IDLE_FLAME_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/ui/stage_flamethrower_flame/atlas.pxi");
-const STAGE_GUN_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/ui/stage_gun_weapon/atlas.px_atlas.ron");
-const STAGE_GUN_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/ui/stage_gun_weapon/atlas.pxi");
-const STAGE_GUN_SHOOTING_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/ui/stage_gun_weapon_shooting/atlas.px_atlas.ron");
-const STAGE_GUN_SHOOTING_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/ui/stage_gun_weapon_shooting/atlas.pxi");
-const STAGE_GUN_MUZZLE_FLASH_ATLAS_RON: &str =
-    include_str!("../../../assets/sprites/ui/stage_gun_muzzle_flash/atlas.px_atlas.ron");
-const STAGE_GUN_MUZZLE_FLASH_PXI: &[u8] =
-    include_bytes!("../../../assets/sprites/ui/stage_gun_muzzle_flash/atlas.pxi");
-const FLAMETHROWER_CONFIG_RON: &str =
-    include_str!("../../../assets/config/attacks/player_flamethrower_fps.ron");
-const GUN_CONFIG_RON: &str = include_str!("../../../assets/config/attacks/player_gun_fps.ron");
+/// Load an atlas animation from workspace-relative RON + PXI paths.
+///
+/// In production, uses compile-time embedded data. In dev mode (`hot_reload`),
+/// reads from filesystem first with embedded fallback — enabling live sprite
+/// hot reload.
+macro_rules! load_sprite_atlas {
+    ($ron_path:literal, $pxi_path:literal, $region:expr) => {{
+        const EMBEDDED_RON: &str =
+            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../", $ron_path));
+        const EMBEDDED_PXI: &[u8] =
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../", $pxi_path));
+
+        #[cfg(feature = "hot_reload")]
+        {
+            // Try filesystem data first. If the file is missing OR the data is
+            // invalid (wrong dimensions, corrupt PXI), fall back to embedded.
+            let fs_result: Option<Result<AtlasAnimation, String>> = (|| {
+                let ron_text = std::fs::read_to_string($ron_path).ok()?;
+                let pxi_data = std::fs::read($pxi_path).ok()?;
+                Some(load_atlas_animation(&ron_text, &pxi_data, $region))
+            })();
+
+            match fs_result {
+                Some(Ok(anim)) => Ok(anim),
+                Some(Err(e)) => {
+                    bevy::log::warn!(
+                        "{} / {}: filesystem data invalid ({}), using embedded",
+                        $ron_path,
+                        $pxi_path,
+                        e,
+                    );
+                    load_atlas_animation(EMBEDDED_RON, EMBEDDED_PXI, $region)
+                }
+                None => load_atlas_animation(EMBEDDED_RON, EMBEDDED_PXI, $region),
+            }
+        }
+
+        #[cfg(not(feature = "hot_reload"))]
+        {
+            load_atlas_animation(EMBEDDED_RON, EMBEDDED_PXI, $region)
+        }
+    }};
+}
 
 const BULLET_REGION: &str = "bullet_particles";
 const MELEE_REGION: &str = "melee_slash";
@@ -79,19 +77,10 @@ const GUN_MUZZLE_FLASH_REGION: &str = "shooting";
 const PISTOL_EFFECT_POS: Vec2 = Vec2::new(80.0, 72.0);
 const MELEE_EFFECT_POS: Vec2 = Vec2::new(80.0, 72.0);
 const MELEE_RANGE_UNITS: f32 = 1.1;
-/// Conversion factor from screen pixels to world units for the flame visual.
-/// Set so max visual reach matches server `FLAME_RANGE` (5.0 world units):
-///   reach = `FLAME_RANGE_UNITS` * (`chain_range` + `flame_start_offset_px`) / `chain_range`
-///         = 4.0 * (80 + 20) / 80 = 5.0 world units
-const FLAME_RANGE_UNITS: f32 = 4.0;
 const FLAME_WALL_IMPACT_WIDTH: f32 = 0.30;
 const FLAME_WALL_IMPACT_HEIGHT: f32 = 0.30;
 const FLAME_CHAR_DECAL_WIDTH: f32 = FLAME_WALL_IMPACT_WIDTH;
 const FLAME_CHAR_DECAL_HEIGHT: f32 = FLAME_WALL_IMPACT_HEIGHT;
-const FLAME_WALL_BRIDGE_BACKOFF_UNITS: f32 = 0.10;
-const FLAME_WALL_BRIDGE_MIN_GAP_UNITS: f32 = 0.12;
-const FLAME_WALL_BRIDGE_SCALE: f32 = 0.55;
-const FLAME_WALL_BRIDGE_MAX_SCALE: f32 = 0.85;
 const MAX_FLAME_CHAR_DECALS: usize = 128;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
@@ -167,63 +156,148 @@ impl AttackInput {
     }
 }
 
+/// First-person flamethrower visual config.
+///
+/// Loaded from `assets/config/attacks/player_flamethrower_1p.ron`.
+/// Controls how the local player's own flamethrower looks on screen.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename = "FlamethrowerConfig")]
-pub struct FlamethrowerConfig {
-    pub max_flames: u8,
-    pub chain_range: f32,
-    pub spacing_curve: f32,
-    pub flame_speed: f32,
-    pub drain_speed_multiplier: f32,
-    pub spawn_interval_ms: u64,
-    pub damage_per_tick: u32,
-    pub tick_ms: u64,
-    pub max_ammo: f32,
-    pub ammo_drain_per_ms: f32,
-    pub origin_camera_px: (f32, f32),
-    #[serde(rename = "hit_radius")]
-    pub hit_radius_px: f32,
-    pub scale_near: f32,
-    pub scale_far: f32,
+#[serde(rename = "PlayerFlamethrower1pConfig")]
+pub struct PlayerFlamethrower1pConfig {
+    /// Forward offset from the camera position to the flame emission point
+    /// along the facing direction (world units). Pushes the stream origin
+    /// ahead of the camera so flames appear to emerge from the weapon nozzle.
+    pub nozzle_forward: f32,
+    /// Base screen-space offset of the weapon sprite from its default position
+    /// (pixels, x right / y down).
     pub weapon_base_offset_px: (f32, f32),
+    /// Vertical pixel distance the weapon drops when idle (lowered stance).
+    /// Lerps toward 0 when firing (raised stance).
     pub weapon_raise_px: f32,
+    /// Speed of the weapon raise/lower tween (higher = snappier).
     pub weapon_raise_speed: f32,
+    /// Whether the weapon bobs while the player walks.
     pub weapon_bob_enabled: bool,
+    /// Horizontal amplitude of the walk bob (pixels).
     pub weapon_bob_horizontal_px: f32,
+    /// Vertical amplitude of the walk bob (pixels).
     pub weapon_bob_vertical_px: f32,
+    /// Oscillation speed of the walk bob (radians per second).
     pub weapon_bob_speed: f32,
+    /// Speed at which the bob returns to centre when the player stops (higher = faster).
     pub weapon_bob_return_speed: f32,
+    /// Screen-space offset of the small idle nozzle flame relative to the
+    /// weapon sprite centre (pixels, x right / y down). Shown when not firing.
     pub idle_flame_offset: (f32, f32),
+    /// Scale multiplier for the idle nozzle flame sprite.
     pub idle_flame_scale: f32,
-    pub flame_nozzle_offset: (f32, f32),
-    pub flame_start_offset_px: f32,
-    pub flame_far_vertical_drop_px: f32,
-    pub flame_vertical_curve_power: f32,
-    pub turn_bend_strength: f32,
-    pub turn_bend_return_speed: f32,
-    pub turn_bend_index_power: f32,
-    pub strafe_bend_strength: f32,
-    pub burning_corpse_duration_secs: f32,
-    pub burning_corpse_contact_damage: u32,
-    pub burning_corpse_contact_tick_ms: u64,
-    pub burning_corpse_contact_radius: f32,
-    pub burning_corpse_crossfire_damage: u32,
-    pub burning_flame_count: usize,
-    pub burning_flame_perimeter_padding_px: f32,
-    pub burning_flame_jitter_px: f32,
-    pub burning_flame_scale_min: f32,
-    pub burning_flame_scale_max: f32,
+    /// World-space billboard height for the nearest flame sample (at the nozzle).
+    /// Interpolates toward `billboard_scale_far` as samples age toward max range.
+    pub billboard_scale_near: f32,
+    /// World-space billboard height for the farthest flame sample (at max range).
+    pub billboard_scale_far: f32,
+    /// Multiplier for the transient nozzle/head billboard that visually bridges
+    /// the viewmodel nozzle to the persistent world-space stream.
+    pub nozzle_head_scale: f32,
+    /// Lateral offset from the camera centre to the nozzle (world units).
+    /// Negative = left of centre. Aligns the stream origin with the on-screen
+    /// weapon nozzle position.
+    pub nozzle_lateral: f32,
+    /// Vertical billboard offset at the nozzle (world units, negative = below
+    /// eye level). Fades linearly to zero at max range so distant flames
+    /// converge toward the aim point.
+    pub nozzle_height: f32,
 }
 
-impl FlamethrowerConfig {
+/// Third-person (remote player) flame visual config.
+///
+/// Loaded from `assets/config/attacks/player_flamethrower_3p.ron`.
+/// Controls how another player's flamethrower looks from the observer's perspective.
+#[derive(Clone, Debug, Deserialize, Resource)]
+#[serde(rename = "PlayerFlamethrower3pConfig")]
+pub struct PlayerFlamethrower3pConfig {
+    /// Forward offset from the remote player's origin to the flame emission
+    /// point along their facing direction (world units). Positions the stream
+    /// start in front of the player sprite so it appears to come from the weapon.
+    pub nozzle_forward: f32,
+    /// World-space billboard height for the nearest flame sample (at the nozzle).
+    /// Interpolates toward `flame_scale_far` as samples age toward max range.
+    pub flame_scale_near: f32,
+    /// World-space billboard height for the farthest flame sample (at max range).
+    pub flame_scale_far: f32,
+    /// Vertical billboard offset applied to every flame sample (world units).
+    /// Negative values lower the stream below eye level. Unlike the 1P
+    /// `nozzle_height`, this does not fade with distance.
+    pub nozzle_height: f32,
+    /// Lateral offset from the player's centre to the nozzle (world units).
+    /// Positive = right of the facing direction. Shifts the emission point
+    /// sideways so the stream originates from the weapon hand.
+    pub nozzle_lateral: f32,
+    /// Per-sample lateral jitter amplitude (world units), scaled by age.
+    /// Adds subtle randomness so the stream doesn't look perfectly straight.
+    pub jitter_amp: f32,
+    /// Multiplier applied to sample age for sprite animation phase offset.
+    /// Higher values make consecutive samples animate more out of phase.
+    pub phase_step: f32,
+    /// Distance to pull the wall-impact billboard back from the wall surface
+    /// (world units). Prevents z-fighting with the wall.
+    pub wall_offset: f32,
+    /// World-space billboard height of the wall-impact splash effect.
+    pub impact_scale: f32,
+}
+
+impl Default for PlayerFlamethrower3pConfig {
+    fn default() -> Self {
+        Self {
+            nozzle_forward: 0.15,
+            flame_scale_near: 0.22,
+            flame_scale_far: 0.22,
+            nozzle_height: -0.22,
+            nozzle_lateral: -0.06,
+            jitter_amp: 0.015,
+            phase_step: 0.15,
+            wall_offset: 0.08,
+            impact_scale: 0.5,
+        }
+    }
+}
+
+/// Visual tuning for ground fire flame billboards.
+/// Loaded from `assets/config/attacks/ground_fire.ron`.
+#[derive(Clone, Debug, Deserialize, Resource)]
+#[serde(rename = "GroundFireVisualConfig")]
+pub struct GroundFireVisualConfig {
+    /// Number of flame sprites per ground fire.
+    pub flame_count: usize,
+    /// Spread radius for flame placement (world units).
+    pub visual_radius: f32,
+    /// Base world-space height of each flame billboard.
+    pub flame_world_height: f32,
+    /// Bottom pixels to crop from the flame sprite (hides base).
+    pub crop_bottom_px: usize,
+}
+
+impl Default for GroundFireVisualConfig {
+    fn default() -> Self {
+        Self {
+            flame_count: 6,
+            visual_radius: 0.35,
+            flame_world_height: 0.39,
+            crop_bottom_px: 4,
+        }
+    }
+}
+
+impl GroundFireVisualConfig {
     #[must_use]
     pub fn load() -> Self {
-        ron::from_str(FLAMETHROWER_CONFIG_RON).expect("embedded player_flamethrower.ron must parse")
+        carcinisation_core::ron_config!("assets/config/attacks/ground_fire.ron")
     }
+}
 
+impl PlayerFlamethrower1pConfig {
     #[must_use]
-    pub fn origin(&self) -> Vec2 {
-        Vec2::new(self.origin_camera_px.0, self.origin_camera_px.1)
+    pub fn load() -> Self {
+        carcinisation_core::ron_config!("assets/config/attacks/player_flamethrower_1p.ron")
     }
 
     #[must_use]
@@ -234,45 +308,6 @@ impl FlamethrowerConfig {
     #[must_use]
     pub fn idle_flame_offset(&self) -> (f32, f32) {
         self.idle_flame_offset
-    }
-
-    #[must_use]
-    pub fn flame_nozzle_offset(&self) -> (f32, f32) {
-        self.flame_nozzle_offset
-    }
-
-    #[must_use]
-    pub fn slot_target(&self, slot: u8) -> f32 {
-        let t = (f32::from(slot) + 1.0) / f32::from(self.max_flames);
-        self.chain_range * t.powf(self.spacing_curve)
-    }
-
-    #[must_use]
-    pub fn segment_scale(&self, progress: f32) -> f32 {
-        let t = (progress / self.chain_range).clamp(0.0, 1.0);
-        self.scale_near + (self.scale_far - self.scale_near) * t
-    }
-
-    #[must_use]
-    pub fn hit_radius_units(&self) -> f32 {
-        local_flame_offset(Vec2::splat(self.hit_radius_px), self).x
-    }
-
-    #[must_use]
-    pub fn fire_death_config(&self) -> FireDeathConfig {
-        FireDeathConfig {
-            burning_corpse_duration_secs: self.burning_corpse_duration_secs,
-            burning_flame_count: self.burning_flame_count,
-            burning_flame_perimeter_padding_px: self.burning_flame_perimeter_padding_px,
-            burning_flame_jitter_px: self.burning_flame_jitter_px,
-            burning_flame_scale_min: self.burning_flame_scale_min,
-            burning_flame_scale_max: self.burning_flame_scale_max,
-        }
-    }
-
-    #[must_use]
-    pub fn burning_corpse_contact_tick_secs(&self) -> f32 {
-        Duration::from_millis(self.burning_corpse_contact_tick_ms).as_secs_f32()
     }
 }
 
@@ -294,7 +329,7 @@ pub struct GunConfig {
 impl GunConfig {
     #[must_use]
     pub fn load() -> Self {
-        ron::from_str(GUN_CONFIG_RON).expect("embedded player_gun_fps.ron must parse")
+        carcinisation_core::ron_config!("assets/config/attacks/player_gun_fps.ron")
     }
 
     #[must_use]
@@ -354,48 +389,64 @@ impl PlayerAttackSprites {
     #[must_use]
     pub fn load() -> Self {
         Self {
-            bullet: load_atlas_animation(PLAYER_BULLET_ATLAS_RON, PLAYER_BULLET_PXI, BULLET_REGION)
-                .expect("player bullet atlas must load"),
-            melee: load_atlas_animation(PLAYER_MELEE_ATLAS_RON, PLAYER_MELEE_PXI, MELEE_REGION)
-                .expect("player melee atlas must load"),
-            flame: load_atlas_animation(PLAYER_FLAME_ATLAS_RON, PLAYER_FLAME_PXI, FLAME_REGION)
-                .expect("player flame atlas must load"),
-            flame_wall_hit: load_atlas_animation(
-                PLAYER_FLAME_WALL_ATLAS_RON,
-                PLAYER_FLAME_WALL_PXI,
-                FLAME_WALL_HIT_REGION,
+            bullet: load_sprite_atlas!(
+                "assets/sprites/attacks/player_bullet/atlas.px_atlas.ron",
+                "assets/sprites/attacks/player_bullet/atlas.pxi",
+                BULLET_REGION
+            )
+            .expect("player bullet atlas must load"),
+            melee: load_sprite_atlas!(
+                "assets/sprites/attacks/player_melee/atlas.px_atlas.ron",
+                "assets/sprites/attacks/player_melee/atlas.pxi",
+                MELEE_REGION
+            )
+            .expect("player melee atlas must load"),
+            flame: load_sprite_atlas!(
+                "assets/sprites/attacks/player_flame/atlas.px_atlas.ron",
+                "assets/sprites/attacks/player_flame/atlas.pxi",
+                FLAME_REGION
+            )
+            .expect("player flame atlas must load"),
+            flame_wall_hit: load_sprite_atlas!(
+                "assets/sprites/attacks/player_flame_wall/atlas.px_atlas.ron",
+                "assets/sprites/attacks/player_flame_wall/atlas.pxi",
+                FLAME_WALL_HIT_REGION
             )
             .expect("player flame wall hit atlas must load"),
-            weapon_idle: load_atlas_animation(
-                STAGE_WEAPON_ATLAS_RON,
-                STAGE_WEAPON_PXI,
-                FLAMETHROWER_IDLE_REGION,
+            weapon_idle: load_sprite_atlas!(
+                "assets/sprites/ui/stage_flamethrower_weapon/atlas.px_atlas.ron",
+                "assets/sprites/ui/stage_flamethrower_weapon/atlas.pxi",
+                FLAMETHROWER_IDLE_REGION
             )
             .expect("stage flamethrower idle weapon atlas must load"),
-            weapon_shooting: load_atlas_animation(
-                STAGE_WEAPON_SHOOTING_ATLAS_RON,
-                STAGE_WEAPON_SHOOTING_PXI,
-                FLAMETHROWER_SHOOTING_REGION,
+            weapon_shooting: load_sprite_atlas!(
+                "assets/sprites/ui/stage_flamethrower_weapon_shooting/atlas.px_atlas.ron",
+                "assets/sprites/ui/stage_flamethrower_weapon_shooting/atlas.pxi",
+                FLAMETHROWER_SHOOTING_REGION
             )
             .expect("stage flamethrower shooting weapon atlas must load"),
-            idle_flame: load_atlas_animation(
-                STAGE_IDLE_FLAME_ATLAS_RON,
-                STAGE_IDLE_FLAME_PXI,
-                STAGE_IDLE_FLAME_REGION,
+            idle_flame: load_sprite_atlas!(
+                "assets/sprites/ui/stage_flamethrower_flame/atlas.px_atlas.ron",
+                "assets/sprites/ui/stage_flamethrower_flame/atlas.pxi",
+                STAGE_IDLE_FLAME_REGION
             )
             .expect("stage flamethrower idle flame atlas must load"),
-            gun_idle: load_atlas_animation(STAGE_GUN_ATLAS_RON, STAGE_GUN_PXI, GUN_IDLE_REGION)
-                .expect("stage gun idle atlas must load"),
-            gun_shooting: load_atlas_animation(
-                STAGE_GUN_SHOOTING_ATLAS_RON,
-                STAGE_GUN_SHOOTING_PXI,
-                GUN_SHOOTING_REGION,
+            gun_idle: load_sprite_atlas!(
+                "assets/sprites/ui/stage_gun_weapon/atlas.px_atlas.ron",
+                "assets/sprites/ui/stage_gun_weapon/atlas.pxi",
+                GUN_IDLE_REGION
+            )
+            .expect("stage gun idle atlas must load"),
+            gun_shooting: load_sprite_atlas!(
+                "assets/sprites/ui/stage_gun_weapon_shooting/atlas.px_atlas.ron",
+                "assets/sprites/ui/stage_gun_weapon_shooting/atlas.pxi",
+                GUN_SHOOTING_REGION
             )
             .expect("stage gun shooting atlas must load"),
-            gun_muzzle_flash: load_atlas_animation(
-                STAGE_GUN_MUZZLE_FLASH_ATLAS_RON,
-                STAGE_GUN_MUZZLE_FLASH_PXI,
-                GUN_MUZZLE_FLASH_REGION,
+            gun_muzzle_flash: load_sprite_atlas!(
+                "assets/sprites/ui/stage_gun_muzzle_flash/atlas.px_atlas.ron",
+                "assets/sprites/ui/stage_gun_muzzle_flash/atlas.pxi",
+                GUN_MUZZLE_FLASH_REGION
             )
             .expect("stage gun muzzle flash atlas must load"),
         }
@@ -419,10 +470,15 @@ pub struct PlayerAttackState {
     /// Muzzle flash elapsed timer. `Some` while the flash animation is playing.
     gun_muzzle_flash_elapsed: Option<f32>,
     weapon_bob_offset: Vec2,
+    /// Vertical camera bob offset in pixels, driven by walk animation.
+    pub view_bob: f32,
     /// Current vertical offset for the idle-lowered / shooting-raised tween.
     /// Starts at the active weapon's `weapon_raise_px` (lowered) and lerps to 0 when shooting.
     weapon_raise_offset: f32,
-    config: FlamethrowerConfig,
+    config: PlayerFlamethrower1pConfig,
+    /// Cached copy of the shared flamethrower config. Kept in sync with
+    /// `Res<PlayerFlamethrowerConfig>` by the hot reload system in `plugin.rs`.
+    shared: carcinisation_fps_core::PlayerFlamethrowerConfig,
     gun_config: GunConfig,
 }
 
@@ -431,11 +487,17 @@ impl PlayerAttackState {
     pub fn trigger_muzzle_flash(&mut self) {
         self.gun_muzzle_flash_elapsed = Some(0.0);
     }
+
+    /// Sync the cached shared config copy after a hot reload updates the Resource.
+    pub fn update_shared(&mut self, cfg: carcinisation_fps_core::PlayerFlamethrowerConfig) {
+        self.shared = cfg;
+    }
 }
 
 impl Default for PlayerAttackState {
     fn default() -> Self {
-        let config = FlamethrowerConfig::load();
+        let config = PlayerFlamethrower1pConfig::load();
+        let shared = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         let gun_config = GunConfig::load();
         let weapon_raise_offset = config.weapon_raise_px;
         Self {
@@ -443,17 +505,102 @@ impl Default for PlayerAttackState {
             flamethrower: None,
             gun_muzzle_flash_elapsed: None,
             weapon_bob_offset: Vec2::ZERO,
+            view_bob: 0.0,
             weapon_raise_offset,
             config,
+            shared,
             gun_config,
         }
     }
 }
 
 impl PlayerAttackState {
+    /// Build from an already-loaded shared config (avoids re-parsing the RON file).
     #[must_use]
-    pub fn config(&self) -> &FlamethrowerConfig {
+    pub fn new(shared: carcinisation_fps_core::PlayerFlamethrowerConfig) -> Self {
+        let config = PlayerFlamethrower1pConfig::load();
+        let gun_config = GunConfig::load();
+        let weapon_raise_offset = config.weapon_raise_px;
+        Self {
+            one_shots: Vec::new(),
+            flamethrower: None,
+            gun_muzzle_flash_elapsed: None,
+            weapon_bob_offset: Vec2::ZERO,
+            view_bob: 0.0,
+            weapon_raise_offset,
+            config,
+            shared,
+            gun_config,
+        }
+    }
+
+    #[must_use]
+    pub fn config(&self) -> &PlayerFlamethrower1pConfig {
         &self.config
+    }
+
+    #[must_use]
+    pub fn shared(&self) -> &carcinisation_fps_core::PlayerFlamethrowerConfig {
+        &self.shared
+    }
+
+    /// Whether the flamethrower has been activated but is no longer spawning
+    /// new samples (ammo depleted, draining). Used to suppress `fire_held`
+    /// so the server clears `flame_active` for 3P rendering.
+    #[must_use]
+    pub fn is_flame_draining(&self) -> bool {
+        self.flamethrower.as_ref().is_some_and(|ft| !ft.spawning)
+    }
+
+    /// Produce world-space billboards from the active flame stream samples.
+    #[must_use]
+    pub fn flame_chain_billboards(
+        &self,
+        camera: &Camera,
+        sprites: &PlayerAttackSprites,
+    ) -> Vec<Billboard> {
+        let Some(active) = &self.flamethrower else {
+            return Vec::new();
+        };
+        let config = &self.config;
+        let shared = &self.shared;
+        let max_age = shared.max_stream_age();
+
+        let mut billboards = Vec::new();
+        if active.spawning {
+            let dir = camera.direction();
+            let nozzle_pos = flame_nozzle_position(
+                camera.position,
+                dir,
+                config.nozzle_forward,
+                config.nozzle_lateral,
+            );
+            billboards.push(Billboard {
+                position: nozzle_pos,
+                height: config.nozzle_height,
+                world_height: config.billboard_scale_near * config.nozzle_head_scale,
+                sprite: Arc::clone(sprites.flame_frame_loop(active.elapsed + 0.07)),
+                flip_x: false,
+            });
+        }
+        for sample in &active.samples {
+            let pos = sample.world_position(shared.speed);
+            let t = (sample.age / max_age).clamp(0.0, 1.0);
+            let world_scale = config.billboard_scale_near
+                + (config.billboard_scale_far - config.billboard_scale_near) * t;
+            let height = config.nozzle_height * (1.0 - t);
+            let phase = active.elapsed + sample.age * 0.5;
+
+            billboards.push(Billboard {
+                position: pos,
+                height,
+                world_height: world_scale,
+                sprite: Arc::clone(sprites.flame_frame_loop(phase)),
+                flip_x: false,
+            });
+        }
+
+        billboards
     }
 }
 
@@ -474,39 +621,28 @@ enum OneShotEffectKind {
 struct ActiveFpFlamethrower {
     spawning: bool,
     ammo: f32,
-    next_spawn_at: f32,
-    next_slot: u8,
     elapsed: f32,
-    desired_direction: Vec2,
-    previous_aim_angle: f32,
-    segments: Vec<FpFlameSegment>,
-    tick_state: HashMap<FpFlameTarget, f32>,
+    spawn_cooldown: f32,
+    sample_counter: u32,
+    samples: Vec<FlameStreamSample>,
     wall_impact: Option<FlameWallImpact>,
     last_decal_impact: Option<FlameWallImpact>,
 }
 
+/// A single sample in the persistent flame stream.
 #[derive(Clone, Debug)]
-struct FpFlameSegment {
-    progress: f32,
-    target: f32,
-    bend_px: f32,
-    slot: u8,
+struct FlameStreamSample {
+    emit_position: Vec2,
+    emit_direction: Vec2,
+    age: f32,
+    #[allow(dead_code)]
+    seed: u32,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct FlamePoint {
-    local: Vec2,
-    screen_offset: Vec2,
-    visual_base_y: f32,
-    progress: f32,
-    slot: u8,
-    wall_impact: Option<FlameWallImpact>,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct FlameWallBridge {
-    screen_offset: Vec2,
-    progress: f32,
+impl FlameStreamSample {
+    fn world_position(&self, speed: f32) -> Vec2 {
+        self.emit_position + self.emit_direction * speed * self.age
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -515,12 +651,6 @@ struct FlameWallImpact {
     u: f32,
     v: f32,
     seed: u32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum FpFlameTarget {
-    Enemy(usize),
-    Mosquiton(usize),
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -541,6 +671,9 @@ pub fn process_player_attacks(
     char_decals: &mut Vec<CharDecal>,
     screen_height_px: f32,
     legacy_shoot_request: &mut bool,
+    burn_config: &carcinisation_fps_core::BurnConfig,
+    view_bob_amplitude: f32,
+    view_bob_freq_mult: f32,
 ) {
     if input.cycle_requested {
         loadout.cycle();
@@ -600,6 +733,7 @@ pub fn process_player_attacks(
                 impacts,
                 char_decals,
                 screen_height_px,
+                burn_config,
             ),
         }
     }
@@ -625,8 +759,10 @@ pub fn process_player_attacks(
         input.moving_forward_back,
         dt,
         elapsed_secs,
+        view_bob_amplitude,
+        view_bob_freq_mult,
     );
-    tick_one_shot_effects(&mut state.one_shots, dt, &state.config);
+    tick_one_shot_effects(&mut state.one_shots, dt, &state.shared);
     input.clear_edges();
 }
 
@@ -636,6 +772,8 @@ fn update_weapon_presentation(
     moving_forward_back: bool,
     dt: f32,
     elapsed_secs: f32,
+    view_bob_amplitude: f32,
+    view_bob_freq_mult: f32,
 ) {
     let (raise_px, raise_speed, bob_enabled, bob_h, bob_v, bob_speed, bob_return) =
         match current_weapon {
@@ -659,26 +797,36 @@ fn update_weapon_presentation(
             ),
         };
 
-    let firing = match current_weapon {
-        AttackId::Flamethrower => state
-            .flamethrower
-            .as_ref()
-            .is_some_and(|active| active.spawning),
-        AttackId::Pistol => state.gun_muzzle_flash_elapsed.is_some(),
+    // Weapon stays raised while flame chain is active (draining or spawning),
+    // Weapon raised and bob suppressed only while actively spawning flames.
+    // Draining flame chain keeps visuals alive but doesn't affect weapon pose.
+    let (weapon_raised, suppress_bob) = match current_weapon {
+        AttackId::Flamethrower => {
+            let spawning = state.flamethrower.as_ref().is_some_and(|ft| ft.spawning);
+            (spawning, spawning)
+        }
+        AttackId::Pistol => {
+            let flash = state.gun_muzzle_flash_elapsed.is_some();
+            (flash, flash)
+        }
     };
 
     // Weapon raise/lower tween: 0.0 = raised (shooting), raise_px = lowered (idle).
-    let raise_target = if firing { 0.0 } else { raise_px };
+    let raise_target = if weapon_raised { 0.0 } else { raise_px };
     let raise_t = (raise_speed * dt).clamp(0.0, 1.0);
     state.weapon_raise_offset += (raise_target - state.weapon_raise_offset) * raise_t;
 
-    if bob_enabled && moving_forward_back && !firing {
+    if bob_enabled && moving_forward_back && !suppress_bob {
         let phase = elapsed_secs * bob_speed;
         let horizontal = phase.sin();
         state.weapon_bob_offset = Vec2::new(horizontal * bob_h, -horizontal.abs() * bob_v);
+        // Camera view bob: double-frequency vertical oscillation (head bobs
+        // at walking cadence, weapon sways at arm cadence).
+        state.view_bob = (phase * view_bob_freq_mult).sin() * view_bob_amplitude;
     } else {
         let t = (bob_return * dt).clamp(0.0, 1.0);
         state.weapon_bob_offset = state.weapon_bob_offset.lerp(Vec2::ZERO, t);
+        state.view_bob += (0.0 - state.view_bob) * t;
     }
 }
 
@@ -687,7 +835,7 @@ fn update_flamethrower_attack(
     camera: &Camera,
     map: &Map,
     dt: f32,
-    elapsed_secs: f32,
+    _elapsed_secs: f32,
     input: &AttackInput,
     state: &mut PlayerAttackState,
     enemies: &mut [Enemy],
@@ -695,26 +843,31 @@ fn update_flamethrower_attack(
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
     char_decals: &mut Vec<CharDecal>,
-    screen_height_px: f32,
+    _screen_height_px: f32,
+    burn_config: &carcinisation_fps_core::BurnConfig,
 ) {
     let config = &state.config;
-    let desired_direction =
-        screen_flame_direction(input.cursor_x, config.origin(), config.chain_range);
-    let desired_angle = flame_direction_angle(desired_direction);
-    if state.flamethrower.is_none() && input.shoot_just_pressed {
-        state.flamethrower = Some(ActiveFpFlamethrower {
-            spawning: true,
-            ammo: config.max_ammo,
-            next_spawn_at: elapsed_secs,
-            next_slot: 0,
-            elapsed: 0.0,
-            desired_direction,
-            previous_aim_angle: desired_angle,
-            segments: Vec::new(),
-            tick_state: HashMap::new(),
-            wall_impact: None,
-            last_decal_impact: None,
-        });
+    let shared = &state.shared;
+    // Start or restart spawning. If a drain is in progress, re-enable
+    // spawning on the existing chain with remaining ammo (no free refill).
+    if input.shoot_just_pressed {
+        if let Some(active) = &mut state.flamethrower {
+            if !active.spawning {
+                active.spawning = true;
+                active.spawn_cooldown = 0.0;
+            }
+        } else {
+            state.flamethrower = Some(ActiveFpFlamethrower {
+                spawning: true,
+                ammo: shared.max_ammo,
+                elapsed: 0.0,
+                spawn_cooldown: 0.0,
+                sample_counter: 0,
+                samples: Vec::new(),
+                wall_impact: None,
+                last_decal_impact: None,
+            });
+        }
     }
 
     let Some(active) = &mut state.flamethrower else {
@@ -733,58 +886,42 @@ fn update_flamethrower_attack(
 
     active.elapsed += dt;
     if active.spawning {
-        active.ammo -= dt * 1000.0 * config.ammo_drain_per_ms;
+        active.ammo -= dt * 1000.0 * shared.ammo_drain_per_ms;
     }
 
-    let cursor_turn_velocity = if dt > f32::EPSILON {
-        angle_delta(desired_angle, active.previous_aim_angle) / dt
-    } else {
-        0.0
-    };
-    let turn_velocity = if input.aim_turn_velocity.abs() > f32::EPSILON {
-        input.aim_turn_velocity
-    } else {
-        cursor_turn_velocity
-    };
-    let effective_turn = turn_velocity + input.strafe_velocity * config.strafe_bend_strength;
-    active.previous_aim_angle = desired_angle;
-    active.desired_direction = desired_direction;
+    // Age existing samples and expire old ones.
+    let max_age = shared.max_stream_age();
+    for sample in &mut active.samples {
+        sample.age += dt;
+    }
+    active.samples.retain(|s| s.age < max_age);
 
-    let speed = if active.spawning {
-        config.flame_speed
-    } else {
-        config.flame_speed * config.drain_speed_multiplier
-    };
-
-    for segment in &mut active.segments {
-        segment.progress += speed * dt;
-        if active.spawning {
-            segment.progress = segment.progress.min(segment.target);
+    // Emit new samples at the nozzle while firing.
+    if active.spawning {
+        active.spawn_cooldown -= dt;
+        let dir = camera.direction();
+        let nozzle_pos = flame_nozzle_position(
+            camera.position,
+            dir,
+            config.nozzle_forward,
+            config.nozzle_lateral,
+        );
+        let emit_interval = shared.emit_interval_ms as f32 / 1000.0;
+        while active.spawn_cooldown <= 0.0 {
+            let seed = sample_seed(active.sample_counter);
+            active.samples.push(FlameStreamSample {
+                emit_position: nozzle_pos,
+                emit_direction: dir,
+                age: 0.0,
+                seed,
+            });
+            active.sample_counter = active.sample_counter.wrapping_add(1);
+            active.spawn_cooldown += emit_interval;
         }
     }
-    update_flame_segment_bends(&mut active.segments, effective_turn, config, dt);
 
-    active
-        .segments
-        .retain(|segment| segment.progress < config.chain_range);
-
-    if active.spawning
-        && elapsed_secs >= active.next_spawn_at
-        && active.next_slot < config.max_flames
-    {
-        let slot = active.next_slot;
-        active.segments.push(FpFlameSegment {
-            progress: 0.0,
-            target: config.slot_target(slot),
-            bend_px: 0.0,
-            slot,
-        });
-        active.next_slot += 1;
-        active.next_spawn_at = elapsed_secs + config.spawn_interval_ms as f32 / 1000.0;
-    }
-
-    let flame_points = active_flame_points(camera, map, active, config, screen_height_px);
-    active.wall_impact = flame_points.iter().find_map(|point| point.wall_impact);
+    // Wall impact detection.
+    active.wall_impact = find_flame_wall_impact(camera, map, config, shared, active);
     if active.spawning {
         emit_char_decals(
             char_decals,
@@ -798,267 +935,62 @@ fn update_flamethrower_attack(
     apply_flamethrower_damage(
         camera,
         map,
-        config,
-        active,
-        &flame_points,
         enemies,
         mosquitons,
         projectiles,
         impacts,
-        elapsed_secs,
+        burn_config,
+        shared,
+        dt,
     );
 
-    if !active.spawning && active.segments.is_empty() {
+    if !active.spawning && active.samples.is_empty() {
         state.flamethrower = None;
     }
 }
 
-fn update_flame_segment_bends(
-    segments: &mut [FpFlameSegment],
-    turn_velocity: f32,
-    config: &FlamethrowerConfig,
-    dt: f32,
-) {
-    let t = (config.turn_bend_return_speed * dt).clamp(0.0, 1.0);
-    for segment in segments {
-        let target_bend = flame_target_bend(segment.progress, turn_velocity, config);
-        segment.bend_px += (target_bend - segment.bend_px) * t;
-    }
+fn sample_seed(counter: u32) -> u32 {
+    counter.wrapping_mul(0x9E37_79B9) ^ 0xC2B2_AE35
 }
 
-fn flame_target_bend(progress: f32, turn_velocity: f32, config: &FlamethrowerConfig) -> f32 {
-    let progress_t = (progress / config.chain_range).clamp(0.0, 1.0);
-    let strength = progress_t.powf(config.turn_bend_index_power.max(0.01));
-    -turn_velocity * config.turn_bend_strength * strength
+fn screen_right_from_direction(dir: Vec2) -> Vec2 {
+    Vec2::new(dir.y, -dir.x)
 }
 
-fn screen_flame_direction(cursor_x: f32, origin: Vec2, chain_reach: f32) -> Vec2 {
-    let direction = Vec2::new(cursor_x - origin.x, chain_reach);
-    if direction.length_squared() > 0.0 {
-        direction.normalize()
-    } else {
-        Vec2::Y
-    }
-}
-
-fn flame_direction_angle(direction: Vec2) -> f32 {
-    direction.x.atan2(direction.y)
-}
-
-fn angle_delta(to: f32, from: f32) -> f32 {
-    let mut delta = to - from;
-    while delta > std::f32::consts::PI {
-        delta -= std::f32::consts::TAU;
-    }
-    while delta < -std::f32::consts::PI {
-        delta += std::f32::consts::TAU;
-    }
-    delta
-}
-
-fn flame_segment_offset(
-    direction: Vec2,
-    segment: &FpFlameSegment,
-    config: &FlamethrowerConfig,
+fn flame_nozzle_position(
+    origin: Vec2,
+    dir: Vec2,
+    nozzle_forward: f32,
+    nozzle_lateral: f32,
 ) -> Vec2 {
-    let progress = (segment.progress + config.flame_start_offset_px).max(0.0);
-
-    let chain = direction * progress;
-    let bend = Vec2::new(segment.bend_px, 0.0);
-
-    // Screen-space: vertical drop increases toward the far end (negative Y = lower on screen).
-    let drop = flame_visual_drop(segment.progress, config);
-
-    chain + bend + drop
+    origin + dir * nozzle_forward + screen_right_from_direction(dir) * nozzle_lateral
 }
 
-fn flame_collision_offset(
-    direction: Vec2,
-    segment: &FpFlameSegment,
-    config: &FlamethrowerConfig,
-) -> Vec2 {
-    let progress = (segment.progress + config.flame_start_offset_px).max(0.0);
-    let chain = direction * progress;
-    let bend = Vec2::new(segment.bend_px, 0.0);
-    chain + bend
-}
-
-fn camera_basis(camera: &Camera) -> (Vec2, Vec2) {
-    let forward = camera.direction();
-    let right = Vec2::new(forward.y, -forward.x);
-    (forward, right)
-}
-
-fn flame_world_scale_denominator_px(config: &FlamethrowerConfig) -> f32 {
-    assert!(
-        config.chain_range > 0.0,
-        "flamethrower chain range must be positive"
-    );
-    config.chain_range
-}
-
-fn local_flame_offset(screen_offset: Vec2, config: &FlamethrowerConfig) -> Vec2 {
-    screen_offset * (FLAME_RANGE_UNITS / flame_world_scale_denominator_px(config))
-}
-
-fn screen_flame_offset_from_local(local: Vec2, config: &FlamethrowerConfig) -> Vec2 {
-    local * (flame_world_scale_denominator_px(config) / FLAME_RANGE_UNITS)
-}
-
-fn flame_visual_drop(progress: f32, config: &FlamethrowerConfig) -> Vec2 {
-    let t = (progress / config.chain_range).clamp(0.0, 1.0);
-    Vec2::new(
-        0.0,
-        -config.flame_far_vertical_drop_px * t.powf(config.flame_vertical_curve_power),
-    )
-}
-
-fn visual_progress_for_collision_offset(
-    collision_offset: Vec2,
-    config: &FlamethrowerConfig,
-) -> f32 {
-    (collision_offset.length() - config.flame_start_offset_px).clamp(0.0, config.chain_range)
-}
-
-fn weapon_center_camera(screen_height: f32, config: &FlamethrowerConfig) -> Vec2 {
-    let center = flamethrower_weapon_center(screen_height, config, Vec2::ZERO);
-    Vec2::new(center.x, screen_height - center.y)
-}
-
-fn flame_nozzle_camera_position(screen_height: f32, config: &FlamethrowerConfig) -> Vec2 {
-    let (nx, ny) = config.flame_nozzle_offset();
-    weapon_center_camera(screen_height, config) + Vec2::new(nx, -ny)
-}
-
-fn active_flame_base_offset(
-    direction: Vec2,
-    screen_height: f32,
-    config: &FlamethrowerConfig,
-) -> Vec2 {
-    flame_nozzle_camera_position(screen_height, config)
-        - config.origin()
-        - direction * config.flame_start_offset_px
-}
-
-fn active_flame_points(
+/// Check if the flame stream reaches a wall along the camera's forward direction.
+fn find_flame_wall_impact(
     camera: &Camera,
     map: &Map,
+    config: &PlayerFlamethrower1pConfig,
+    shared: &carcinisation_fps_core::PlayerFlamethrowerConfig,
     active: &ActiveFpFlamethrower,
-    config: &FlamethrowerConfig,
-    screen_height_px: f32,
-) -> Vec<FlamePoint> {
-    let visual_base_offset =
-        active_flame_base_offset(active.desired_direction, screen_height_px, config);
-    let mut raw_points = active
-        .segments
-        .iter()
-        .map(|segment| {
-            let collision_offset = Vec2::new(visual_base_offset.x, 0.0)
-                + flame_collision_offset(active.desired_direction, segment, config);
-            let visual_offset = visual_base_offset
-                + flame_segment_offset(active.desired_direction, segment, config);
-            FlamePoint {
-                local: local_flame_offset(collision_offset, config),
-                screen_offset: visual_offset,
-                visual_base_y: visual_base_offset.y,
-                progress: segment.progress,
-                slot: segment.slot,
-                wall_impact: None,
-            }
-        })
-        .collect::<Vec<_>>();
-    raw_points.sort_by(|a, b| {
-        a.local
-            .y
-            .partial_cmp(&b.local.y)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    let mut clamped_points = Vec::with_capacity(raw_points.len());
-    for mut point in raw_points {
-        let distance = point.local.length();
-        if distance <= 0.01 {
-            clamped_points.push(point);
-            continue;
-        }
-
-        let local_dir = point.local / distance;
-        let world_dir = camera_world_direction(camera, local_dir);
-        let hit = cast_ray(map, camera.position, world_dir);
-        if let Some(surface_id) = hit.surface_id
-            && hit.distance < distance
-        {
-            point.local = local_dir * hit.distance;
-            let collision_screen_offset = screen_flame_offset_from_local(point.local, config);
-            let clamped_progress =
-                visual_progress_for_collision_offset(collision_screen_offset, config);
-            point.screen_offset = collision_screen_offset
-                + Vec2::new(0.0, point.visual_base_y)
-                + flame_visual_drop(clamped_progress, config);
-            point.wall_impact = Some(FlameWallImpact {
-                surface_id,
-                u: hit.wall_x,
-                v: impact_wall_v(
-                    screen_height_px,
-                    hit.distance,
-                    config.origin() + point.screen_offset,
-                ),
-                seed: wall_impact_seed(surface_id, hit.wall_x, point.screen_offset.y),
-            });
-            clamped_points.push(point);
-            break;
-        }
-        clamped_points.push(point);
-    }
-    clamped_points
-}
-
-fn flame_wall_bridge(
-    impact: &FlamePoint,
-    points: &[FlamePoint],
-    config: &FlamethrowerConfig,
-) -> Option<FlameWallBridge> {
-    impact.wall_impact?;
-    let impact_distance = impact.local.length();
-    let nearest_visible_distance = points
-        .iter()
-        .filter(|point| point.wall_impact.is_none())
-        .map(|point| point.local.length())
-        .filter(|distance| *distance < impact_distance)
-        .fold(0.0_f32, f32::max);
-    if impact_distance - nearest_visible_distance < FLAME_WALL_BRIDGE_MIN_GAP_UNITS {
+) -> Option<FlameWallImpact> {
+    let dir = camera.direction();
+    let ray_hit = cast_ray(map, camera.position, dir);
+    if ray_hit.wall_id == 0 {
         return None;
     }
-
-    let local_dir = impact.local.normalize_or_zero();
-    if local_dir.length_squared() <= f32::EPSILON {
+    let wall_dist = ray_hit.distance;
+    let max_reach = config.nozzle_forward + active.elapsed * shared.speed;
+    if max_reach < wall_dist || wall_dist > shared.range + config.nozzle_forward {
         return None;
     }
-
-    let backoff = FLAME_WALL_BRIDGE_BACKOFF_UNITS.min(impact_distance * 0.35);
-    let bridge_local = local_dir * (impact_distance - backoff).max(0.0);
-    let collision_screen_offset = screen_flame_offset_from_local(bridge_local, config);
-    let progress = visual_progress_for_collision_offset(collision_screen_offset, config);
-    let screen_offset = collision_screen_offset
-        + Vec2::new(0.0, impact.visual_base_y)
-        + flame_visual_drop(progress, config);
-
-    Some(FlameWallBridge {
-        screen_offset,
-        progress,
+    let surface_id = ray_hit.surface_id?;
+    Some(FlameWallImpact {
+        surface_id,
+        u: ray_hit.wall_x,
+        v: 0.5,
+        seed: wall_impact_seed(surface_id, ray_hit.wall_x, 0.5),
     })
-}
-
-fn camera_world_direction(camera: &Camera, local_dir: Vec2) -> Vec2 {
-    let (forward, right) = camera_basis(camera);
-    (right * local_dir.x + forward * local_dir.y).normalize_or_zero()
-}
-
-fn impact_wall_v(screen_height_px: f32, hit_distance: f32, camera_pos: Vec2) -> f32 {
-    let line_height = screen_height_px / hit_distance.max(0.001);
-    let draw_start = screen_height_px * 0.5 - line_height * 0.5;
-    let screen_y = screen_height_px - camera_pos.y;
-    ((screen_y - draw_start) / line_height).clamp(0.0, 1.0)
 }
 
 fn wall_impact_seed(surface_id: WallSurfaceId, u: f32, v_seed: f32) -> u32 {
@@ -1175,11 +1107,12 @@ pub fn destroy_projectiles_touching_active_flamethrower(
     let flame_dir = camera.direction();
     for projectile in projectiles.iter_mut() {
         if projectile.alive
-            && carcinisation_fps_core::flame_hits_position_default(
+            && carcinisation_fps_core::flame_hits_position_configured(
                 camera.position,
                 flame_dir,
                 projectile.position,
                 map,
+                &state.shared,
             )
         {
             projectile.alive = false;
@@ -1193,69 +1126,57 @@ pub fn destroy_projectiles_touching_active_flamethrower(
 fn apply_flamethrower_damage(
     camera: &Camera,
     map: &Map,
-    config: &FlamethrowerConfig,
-    active: &mut ActiveFpFlamethrower,
-    _flame_points: &[FlamePoint],
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
-    elapsed_secs: f32,
+    burn_config: &carcinisation_fps_core::BurnConfig,
+    flame_cfg: &carcinisation_fps_core::PlayerFlamethrowerConfig,
+    dt: f32,
 ) {
-    let tick_secs = config.tick_ms as f32 / 1000.0;
-
-    active.tick_state.retain(|target, _| match *target {
-        FpFlameTarget::Enemy(index) => enemies.get(index).is_some_and(Enemy::is_alive),
-        FpFlameTarget::Mosquiton(index) => mosquitons.get(index).is_some_and(Mosquiton::is_alive),
-    });
-
     let flame_dir = camera.direction();
 
-    for (index, enemy) in enemies.iter_mut().enumerate() {
+    for enemy in enemies.iter_mut() {
         if !enemy.is_alive() {
             continue;
         }
-        let target = FpFlameTarget::Enemy(index);
-        if can_flame_tick(&active.tick_state, target, elapsed_secs, tick_secs)
-            && carcinisation_fps_core::flame_hits_position_default(
-                camera.position,
-                flame_dir,
-                enemy.position,
-                map,
-            )
-        {
-            enemy.take_damage_from(
-                config.damage_per_tick,
-                DamageKind::Fire,
-                config.burning_corpse_duration_secs,
+        if carcinisation_fps_core::flame_hits_position_configured(
+            camera.position,
+            flame_dir,
+            enemy.position,
+            map,
+            flame_cfg,
+        ) {
+            carcinisation_fps_core::apply_exposure(
+                &mut enemy.burn_state,
+                burn_config,
+                burn_config.flame_exposure_per_sec,
+                dt,
             );
-            active.tick_state.insert(target, elapsed_secs);
         }
     }
 
-    for (index, mosquiton) in mosquitons.iter_mut().enumerate() {
+    for mosquiton in mosquitons.iter_mut() {
         if !mosquiton.is_alive() {
             continue;
         }
-        let target = FpFlameTarget::Mosquiton(index);
-        if can_flame_tick(&active.tick_state, target, elapsed_secs, tick_secs)
-            && carcinisation_fps_core::flame_hits_position_default(
-                camera.position,
-                flame_dir,
-                mosquiton.position,
-                map,
-            )
-        {
-            mosquiton.take_damage_from(
-                config.damage_per_tick,
-                DamageKind::Fire,
-                config.burning_corpse_duration_secs,
+        if carcinisation_fps_core::flame_hits_position_configured(
+            camera.position,
+            flame_dir,
+            mosquiton.position,
+            map,
+            flame_cfg,
+        ) {
+            carcinisation_fps_core::apply_exposure(
+                &mut mosquiton.burn_state,
+                burn_config,
+                burn_config.flame_exposure_per_sec,
+                dt,
             );
-            active.tick_state.insert(target, elapsed_secs);
         }
     }
 
-    destroy_projectiles_touching_flame(camera, map, projectiles, impacts);
+    destroy_projectiles_touching_flame(camera, map, projectiles, impacts, flame_cfg);
 }
 
 fn destroy_projectiles_touching_flame(
@@ -1263,15 +1184,17 @@ fn destroy_projectiles_touching_flame(
     map: &Map,
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
+    flame_cfg: &carcinisation_fps_core::PlayerFlamethrowerConfig,
 ) {
     let flame_dir = camera.direction();
     for projectile in projectiles.iter_mut() {
         if projectile.alive
-            && carcinisation_fps_core::flame_hits_position_default(
+            && carcinisation_fps_core::flame_hits_position_configured(
                 camera.position,
                 flame_dir,
                 projectile.position,
                 map,
+                flame_cfg,
             )
         {
             projectile.alive = false;
@@ -1281,22 +1204,15 @@ fn destroy_projectiles_touching_flame(
     projectiles.retain(|projectile| projectile.alive);
 }
 
-fn can_flame_tick(
-    ticks: &HashMap<FpFlameTarget, f32>,
-    target: FpFlameTarget,
-    now: f32,
-    interval: f32,
-) -> bool {
-    ticks
-        .get(&target)
-        .is_none_or(|last| now - *last >= interval)
-}
-
 // flame_hits_target and helpers (flame_local_hit_point, retain_closest_hit,
 // closest_point_on_segment) removed — replaced by fps_core::flame_hits_position.
 
-fn tick_one_shot_effects(effects: &mut Vec<OneShotEffect>, dt: f32, config: &FlamethrowerConfig) {
-    let max_duration = config.chain_range / config.flame_speed;
+fn tick_one_shot_effects(
+    effects: &mut Vec<OneShotEffect>,
+    dt: f32,
+    shared: &carcinisation_fps_core::PlayerFlamethrowerConfig,
+) {
+    let max_duration = shared.max_stream_age();
     for effect in effects.iter_mut() {
         effect.elapsed += dt;
     }
@@ -1364,8 +1280,8 @@ enum FpShotHit {
 
 pub fn draw_player_attack_overlays(
     image: &mut CxImage,
-    camera: &Camera,
-    map: &Map,
+    _camera: &Camera,
+    _map: &Map,
     sprites: &PlayerAttackSprites,
     loadout: &AttackLoadout,
     state: &PlayerAttackState,
@@ -1386,56 +1302,16 @@ pub fn draw_player_attack_overlays(
 
     if loadout.current() == AttackId::Flamethrower {
         let config = &state.config;
-        let origin = config.origin();
         let screen_height = image.height() as f32;
         let presentation_offset =
             state.weapon_bob_offset + Vec2::new(0.0, state.weapon_raise_offset);
         let weapon_center = flamethrower_weapon_center(screen_height, config, presentation_offset);
 
-        let active_flamethrower = state.flamethrower.as_ref();
-        if let Some(active) = active_flamethrower {
-            let mut points =
-                active_flame_points(camera, map, active, config, image.height() as f32);
-            points.sort_by(|a, b| {
-                b.progress
-                    .partial_cmp(&a.progress)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-            for point in &points {
-                if point.wall_impact.is_some() {
-                    if let Some(bridge) = flame_wall_bridge(point, &points, config) {
-                        let camera_pos = origin + bridge.screen_offset;
-                        let pos =
-                            camera_to_framebuffer(camera_pos, image.height()) + presentation_offset;
-                        let scale = (config.segment_scale(bridge.progress)
-                            * FLAME_WALL_BRIDGE_SCALE)
-                            .min(FLAME_WALL_BRIDGE_MAX_SCALE);
-                        draw_image_scaled_center(
-                            image,
-                            sprites
-                                .flame
-                                .frame_loop(active.elapsed + f32::from(point.slot) * 0.04),
-                            pos,
-                            scale,
-                        );
-                    }
-                    continue;
-                }
-                let camera_pos = origin + point.screen_offset;
-                let pos = camera_to_framebuffer(camera_pos, image.height()) + presentation_offset;
-                let scale = config.segment_scale(point.progress);
-                draw_image_scaled_center(
-                    image,
-                    sprites
-                        .flame
-                        .frame_loop(active.elapsed + f32::from(point.slot) * 0.04),
-                    pos,
-                    scale,
-                );
-            }
-        }
+        // Flame chain is now rendered as world-space billboards via
+        // flame_chain_billboards() — pushed to ExtraBillboards by the plugin.
+        // Only the idle flame and weapon sprite remain as screen-space overlays.
 
-        if active_flamethrower.is_none() {
+        if state.flamethrower.is_none() {
             let idle_frame = sprites.idle_flame.frame_loop(elapsed_secs);
             let scale = config.idle_flame_scale;
             let half_h = idle_frame.height() as f32 * scale * 0.5;
@@ -1486,7 +1362,7 @@ fn flamethrower_weapon_animation<'a>(
     sprites: &'a PlayerAttackSprites,
     state: &PlayerAttackState,
 ) -> &'a AtlasAnimation {
-    if state.flamethrower.is_some() {
+    if state.flamethrower.as_ref().is_some_and(|ft| ft.spawning) {
         &sprites.weapon_shooting
     } else {
         &sprites.weapon_idle
@@ -1499,7 +1375,7 @@ fn gun_weapon_center(screen_height: f32, config: &GunConfig, presentation_offset
 
 fn flamethrower_weapon_center(
     screen_height: f32,
-    config: &FlamethrowerConfig,
+    config: &PlayerFlamethrower1pConfig,
     presentation_offset: Vec2,
 ) -> Vec2 {
     Vec2::new(80.0, screen_height - 20.0) + config.weapon_base_offset() + presentation_offset
@@ -1527,10 +1403,6 @@ pub fn wall_impact_sprite<'a>(
 #[must_use]
 pub fn flame_wall_mask(sprites: &PlayerAttackSprites) -> &CxImage {
     &sprites.flame_wall_hit.frames[0]
-}
-
-fn camera_to_framebuffer(pos: Vec2, screen_height: usize) -> Vec2 {
-    Vec2::new(pos.x, screen_height as f32 - pos.y)
 }
 
 fn draw_image_scaled_center(dst: &mut CxImage, src: &CxImage, center: Vec2, scale: f32) {
@@ -1777,6 +1649,9 @@ mod tests {
             &mut char_decals,
             144.0,
             &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
         );
 
         // Flash should be active.
@@ -1802,6 +1677,9 @@ mod tests {
             &mut char_decals,
             144.0,
             &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
         );
 
         // Flash should have expired.
@@ -1852,6 +1730,9 @@ mod tests {
             &mut char_decals,
             144.0,
             &mut shoot,
+            &carcinisation_fps_core::BurnConfig::default(),
+            1.5,
+            2.0,
         );
 
         assert_eq!(loadout.current(), AttackId::Flamethrower);
@@ -1859,43 +1740,50 @@ mod tests {
     }
 
     #[test]
-    fn flamethrower_weapon_animation_follows_active_chain_state() {
+    fn flamethrower_weapon_animation_follows_spawning_state() {
         let sprites = PlayerAttackSprites::load();
         let mut state = PlayerAttackState::default();
 
+        // No flame → idle animation (1 frame).
         assert_eq!(
             flamethrower_weapon_animation(&sprites, &state).frames.len(),
             1
         );
 
+        // Draining (spawning=false, samples exist) → idle animation.
         state.flamethrower = Some(ActiveFpFlamethrower {
             spawning: false,
             ammo: 0.0,
-            next_spawn_at: 0.0,
-            next_slot: 0,
             elapsed: 0.0,
-            desired_direction: Vec2::Y,
-            previous_aim_angle: 0.0,
-            segments: vec![FpFlameSegment {
-                progress: 0.0,
-                target: 1.0,
-                bend_px: 0.0,
-                slot: 0,
+            spawn_cooldown: 0.0,
+            sample_counter: 0,
+            samples: vec![FlameStreamSample {
+                emit_position: Vec2::ZERO,
+                emit_direction: Vec2::Y,
+                age: 0.0,
+                seed: 0,
             }],
-            tick_state: HashMap::new(),
             wall_impact: None,
             last_decal_impact: None,
         });
-
         assert_eq!(
             flamethrower_weapon_animation(&sprites, &state).frames.len(),
-            2
+            1,
+            "draining flame should use idle animation"
+        );
+
+        // Actively spawning → shooting animation (2 frames).
+        state.flamethrower.as_mut().unwrap().spawning = true;
+        assert_eq!(
+            flamethrower_weapon_animation(&sprites, &state).frames.len(),
+            2,
+            "spawning flame should use shooting animation"
         );
     }
 
     #[test]
     fn idle_nozzle_flame_renders_behind_weapon() {
-        let config = FlamethrowerConfig::load();
+        let config = PlayerFlamethrower1pConfig::load();
         let sprites = PlayerAttackSprites::load();
         let idle_frame = sprites.idle_flame.frame_loop(0.0);
         let weapon_frame = sprites.weapon_idle.frame_loop(0.0);
@@ -1954,51 +1842,28 @@ mod tests {
     }
 
     #[test]
-    fn active_flame_visual_origin_uses_authored_nozzle() {
-        let config = FlamethrowerConfig::load();
-        let active = ActiveFpFlamethrower {
-            spawning: true,
-            ammo: config.max_ammo,
-            next_spawn_at: 0.0,
-            next_slot: 1,
-            elapsed: 0.0,
-            desired_direction: Vec2::Y,
-            previous_aim_angle: 0.0,
-            segments: vec![FpFlameSegment {
-                progress: 0.0,
-                target: 1.0,
-                bend_px: 0.0,
-                slot: 0,
-            }],
-            tick_state: HashMap::new(),
-            wall_impact: None,
-            last_decal_impact: None,
+    fn stream_sample_advects_along_direction() {
+        let sample = FlameStreamSample {
+            emit_position: Vec2::new(1.0, 2.0),
+            emit_direction: Vec2::new(1.0, 0.0),
+            age: 0.5,
+            seed: 0,
         };
-
-        let points = active_flame_points(
-            &Camera::default(),
-            &open_test_map(),
-            &active,
-            &config,
-            144.0,
-        );
-        let expected = flame_nozzle_camera_position(144.0, &config) - config.origin();
-
-        assert_eq!(points.len(), 1);
-        assert!((points[0].screen_offset.x - expected.x).abs() < 0.01);
-        assert!((points[0].screen_offset.y - expected.y).abs() < 0.01);
+        let pos = sample.world_position(10.0);
+        assert!((pos.x - 6.0).abs() < f32::EPSILON);
+        assert!((pos.y - 2.0).abs() < f32::EPSILON);
     }
 
     #[test]
-    fn flame_scaling_matches_config_curve() {
-        let config = FlamethrowerConfig::load();
-        assert!((config.segment_scale(0.0) - config.scale_near).abs() < f32::EPSILON);
-        assert!((config.segment_scale(config.chain_range) - config.scale_far).abs() < f32::EPSILON);
+    fn max_stream_age_is_range_over_speed() {
+        let shared = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        let expected = shared.range / shared.speed;
+        assert!((shared.max_stream_age() - expected).abs() < f32::EPSILON);
     }
 
     #[test]
     fn weapon_bob_is_high_at_horizontal_extremes() {
-        let config = FlamethrowerConfig::load();
+        let config = PlayerFlamethrower1pConfig::load();
         let bob = |t: f32| -> Vec2 {
             let phase = t * config.weapon_bob_speed;
             let h = phase.sin();
@@ -2014,315 +1879,6 @@ mod tests {
         assert!(center.y.abs() < 0.01);
         assert!((extreme.x - config.weapon_bob_horizontal_px).abs() < 0.01);
         assert!((extreme.y + config.weapon_bob_vertical_px).abs() < 0.01);
-    }
-
-    #[test]
-    fn flame_turn_bend_scales_from_straight_spawn_to_bent_far() {
-        let config = FlamethrowerConfig::load();
-        let mut segments = vec![
-            FpFlameSegment {
-                progress: 0.0,
-                target: 20.0,
-                bend_px: 0.0,
-                slot: 0,
-            },
-            FpFlameSegment {
-                progress: 40.0,
-                target: 40.0,
-                bend_px: 0.0,
-                slot: 1,
-            },
-            FpFlameSegment {
-                progress: 60.0,
-                target: 60.0,
-                bend_px: 0.0,
-                slot: 2,
-            },
-        ];
-
-        update_flame_segment_bends(&mut segments, 2.0, &config, 1.0 / 30.0);
-
-        assert_eq!(segments[0].bend_px, 0.0);
-        assert!(segments[1].bend_px < 0.0);
-        assert!(segments[2].bend_px < segments[1].bend_px);
-
-        let bent = segments[2].bend_px.abs();
-        update_flame_segment_bends(&mut segments, 0.0, &config, 1.0 / 30.0);
-        assert!(segments[2].bend_px.abs() < bent);
-    }
-
-    #[test]
-    fn spawned_flame_segment_starts_straight() {
-        let config = FlamethrowerConfig::load();
-        assert_eq!(flame_target_bend(0.0, 2.0, &config), 0.0);
-    }
-
-    #[test]
-    fn bend_uses_progress_distance_only() {
-        let config = FlamethrowerConfig::load();
-        let near = flame_target_bend(0.0, 2.0, &config).abs();
-        let mid = flame_target_bend(config.chain_range * 0.5, 2.0, &config).abs();
-        let far = flame_target_bend(config.chain_range, 2.0, &config).abs();
-        let mut same_progress_segments = vec![
-            FpFlameSegment {
-                progress: 40.0,
-                target: 40.0,
-                bend_px: 0.0,
-                slot: 1,
-            },
-            FpFlameSegment {
-                progress: 40.0,
-                target: 80.0,
-                bend_px: 0.0,
-                slot: 7,
-            },
-        ];
-
-        update_flame_segment_bends(&mut same_progress_segments, 2.0, &config, 1.0 / 30.0);
-        assert!(mid > near);
-        assert!(far > mid);
-        assert!(
-            (same_progress_segments[0].bend_px - same_progress_segments[1].bend_px).abs()
-                < f32::EPSILON
-        );
-    }
-
-    #[test]
-    fn strafe_bend_is_weaker_than_turn_bend() {
-        let config = FlamethrowerConfig::load();
-        let turn_only = flame_target_bend(config.chain_range, 1.0, &config).abs();
-        let strafe_only = flame_target_bend(
-            config.chain_range,
-            1.0 * config.strafe_bend_strength,
-            &config,
-        )
-        .abs();
-
-        assert!(strafe_only < turn_only);
-    }
-
-    #[test]
-    fn explicit_aim_turn_velocity_overrides_cursor_delta() {
-        let input = AttackInput {
-            aim_turn_velocity: 3.0,
-            ..Default::default()
-        };
-        let cursor_velocity = -1.0;
-        let turn_velocity = if input.aim_turn_velocity.abs() > f32::EPSILON {
-            input.aim_turn_velocity
-        } else {
-            cursor_velocity
-        };
-
-        assert_eq!(turn_velocity, 3.0);
-    }
-
-    #[test]
-    fn flame_segment_offset_combines_start_offset_and_screen_geometry() {
-        let config = FlamethrowerConfig::load();
-        let segment = FpFlameSegment {
-            progress: 40.0,
-            target: 40.0,
-            bend_px: -10.0,
-            slot: 3,
-        };
-        let desired = Vec2::Y;
-        let offset = flame_segment_offset(desired, &segment, &config);
-
-        // Bend is screen-space X only.
-        assert_eq!(offset.x, segment.bend_px);
-
-        // Forward component = start_offset + progress + vertical drop.
-        let t = segment.progress / config.chain_range;
-        let expected_drop =
-            -config.flame_far_vertical_drop_px * t.powf(config.flame_vertical_curve_power);
-        let expected_y = segment.progress + config.flame_start_offset_px + expected_drop;
-        assert!((offset.y - expected_y).abs() < 0.01);
-    }
-
-    #[test]
-    fn flame_collision_offset_ignores_visual_vertical_drop() {
-        let config = FlamethrowerConfig::load();
-        let camera = Camera {
-            position: Vec2::ZERO,
-            angle: 0.0,
-            fov: 1.0,
-        };
-        let map = open_test_map();
-        let segment = FpFlameSegment {
-            progress: config.chain_range,
-            target: config.chain_range,
-            bend_px: 0.0,
-            slot: 7,
-        };
-        let visual = flame_segment_offset(Vec2::Y, &segment, &config);
-        let collision = flame_collision_offset(Vec2::Y, &segment, &config);
-        let collision_local = local_flame_offset(collision, &config);
-        let (forward, right) = camera_basis(&camera);
-        let target = camera.position + forward * collision_local.y + right * collision_local.x;
-
-        assert!(visual.y < collision.y);
-        assert!(local_flame_offset(collision - visual, &config).y > 0.0);
-        assert!(carcinisation_fps_core::flame_hits_position_default(
-            camera.position,
-            camera.direction(),
-            target,
-            &map,
-        ));
-    }
-
-    #[test]
-    fn flame_max_reach_includes_start_offset() {
-        let config = FlamethrowerConfig::load();
-        let segment = FpFlameSegment {
-            progress: config.chain_range,
-            target: config.chain_range,
-            bend_px: 0.0,
-            slot: 7,
-        };
-        let collision = flame_collision_offset(Vec2::Y, &segment, &config);
-        let local = local_flame_offset(collision, &config);
-        let expected_reach = FLAME_RANGE_UNITS
-            * (config.chain_range + config.flame_start_offset_px)
-            / config.chain_range;
-
-        assert!((collision.y - (config.chain_range + config.flame_start_offset_px)).abs() < 0.01);
-        assert!((local.y - expected_reach).abs() < 0.01);
-    }
-
-    #[test]
-    fn far_wall_hit_uses_full_visual_drop() {
-        let config = FlamethrowerConfig::load();
-        let max_reach = FLAME_RANGE_UNITS * (config.chain_range + config.flame_start_offset_px)
-            / config.chain_range;
-        let collision_screen_offset = screen_flame_offset_from_local(Vec2::Y * max_reach, &config);
-        let progress = visual_progress_for_collision_offset(collision_screen_offset, &config);
-        let visual_base_y = active_flame_base_offset(Vec2::Y, 144.0, &config).y;
-        let wall_screen_offset = collision_screen_offset
-            + Vec2::new(0.0, visual_base_y)
-            + flame_visual_drop(progress, &config);
-
-        assert!(
-            (collision_screen_offset.y - (config.chain_range + config.flame_start_offset_px)).abs()
-                < 0.01
-        );
-        assert!((progress - config.chain_range).abs() < 0.01);
-        assert!(
-            (flame_visual_drop(progress, &config).y + config.flame_far_vertical_drop_px).abs()
-                < 0.01
-        );
-        let expected_wall_y =
-            collision_screen_offset.y + visual_base_y - config.flame_far_vertical_drop_px;
-        assert!((wall_screen_offset.y - expected_wall_y).abs() < 0.01);
-    }
-
-    // flame_collision_capsules_follow_lateral_curve removed — chain-segment
-    // proximity replaced by fps_core::flame_hits_position line-distance check.
-
-    #[test]
-    fn flame_points_clamp_to_first_wall() {
-        let config = FlamethrowerConfig::load();
-        let camera = Camera {
-            position: Vec2::new(1.5, 1.5),
-            angle: 0.0,
-            fov: 1.0,
-        };
-        let mut map = Map {
-            width: 4,
-            height: 3,
-            cells: vec![0; 12],
-        };
-        map.cells[map.width + 2] = 1;
-        let active = ActiveFpFlamethrower {
-            spawning: true,
-            ammo: config.max_ammo,
-            next_spawn_at: 0.0,
-            next_slot: 2,
-            elapsed: 0.0,
-            desired_direction: Vec2::Y,
-            previous_aim_angle: 0.0,
-            segments: vec![
-                FpFlameSegment {
-                    progress: 20.0,
-                    target: 20.0,
-                    bend_px: 0.0,
-                    slot: 0,
-                },
-                FpFlameSegment {
-                    progress: config.chain_range,
-                    target: config.chain_range,
-                    bend_px: 0.0,
-                    slot: 1,
-                },
-            ],
-            tick_state: HashMap::new(),
-            wall_impact: None,
-            last_decal_impact: None,
-        };
-
-        let points = active_flame_points(&camera, &map, &active, &config, 144.0);
-
-        assert_eq!(points.len(), 1);
-        assert!(points[0].wall_impact.is_some());
-        assert!((points[0].local.y - 0.5).abs() < 0.01);
-        let collision_screen_offset = screen_flame_offset_from_local(points[0].local, &config);
-        let clamped_progress =
-            visual_progress_for_collision_offset(collision_screen_offset, &config);
-        let expected_screen_offset = collision_screen_offset
-            + Vec2::new(0.0, points[0].visual_base_y)
-            + flame_visual_drop(clamped_progress, &config);
-        assert!((points[0].screen_offset.y - expected_screen_offset.y).abs() < 0.01);
-        let impact = points[0].wall_impact.unwrap();
-        assert!(
-            impact.v > 0.0 && impact.v < 1.0,
-            "wall impact v should be wall-local, got {}",
-            impact.v
-        );
-    }
-
-    #[test]
-    fn flame_wall_bridge_uses_dropped_visual_position() {
-        let config = FlamethrowerConfig::load();
-        let surface_id = WallSurfaceId {
-            cell_x: 2,
-            cell_y: 2,
-            side: crate::raycast::HitSide::Vertical,
-            normal_sign: -1,
-        };
-        let visible = FlamePoint {
-            local: Vec2::new(0.0, 1.0),
-            screen_offset: Vec2::ZERO,
-            visual_base_y: 4.0,
-            progress: 20.0,
-            slot: 0,
-            wall_impact: None,
-        };
-        let impact = FlamePoint {
-            local: Vec2::new(0.0, 2.0),
-            screen_offset: Vec2::ZERO,
-            visual_base_y: 4.0,
-            progress: config.chain_range,
-            slot: 7,
-            wall_impact: Some(FlameWallImpact {
-                surface_id,
-                u: 0.5,
-                v: 0.5,
-                seed: 0,
-            }),
-        };
-        let points = [visible, impact];
-        let bridge = flame_wall_bridge(&impact, &points, &config).unwrap();
-        let collision_screen_offset = screen_flame_offset_from_local(
-            Vec2::new(0.0, 2.0 - FLAME_WALL_BRIDGE_BACKOFF_UNITS),
-            &config,
-        );
-        let progress = visual_progress_for_collision_offset(collision_screen_offset, &config);
-        let expected_y = collision_screen_offset.y
-            + impact.visual_base_y
-            + flame_visual_drop(progress, &config).y;
-
-        assert!((bridge.screen_offset.y - expected_y).abs() < 0.01);
-        assert!(bridge.progress > 0.0);
     }
 
     #[test]
@@ -2364,6 +1920,7 @@ mod tests {
             position: Vec2::new(1.5, 1.5),
             angle: 0.0,
             fov: 1.0,
+            ..Default::default()
         };
         let mut map = Map {
             width: 4,
@@ -2373,187 +1930,13 @@ mod tests {
         map.cells[map.width + 2] = 1; // wall at (2,1)
         let target = Vec2::new(2.5, 1.5); // behind wall
 
-        assert!(!carcinisation_fps_core::flame_hits_position_default(
+        let cfg = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
+        assert!(!carcinisation_fps_core::flame_hits_position_configured(
             camera.position,
             camera.direction(),
             target,
             &map,
+            &cfg,
         ));
-    }
-
-    #[test]
-    fn flamethrower_destroys_projectiles_on_collision_chain() {
-        let config = FlamethrowerConfig::load();
-        let center = Vec2::new(16.0, 16.0);
-        let camera = Camera {
-            position: center,
-            angle: 0.0,
-            fov: 1.0,
-        };
-        let map = open_test_map();
-        let mut active = ActiveFpFlamethrower {
-            spawning: true,
-            ammo: config.max_ammo,
-            next_spawn_at: 0.0,
-            next_slot: 1,
-            elapsed: 0.0,
-            desired_direction: Vec2::Y,
-            previous_aim_angle: 0.0,
-            segments: vec![FpFlameSegment {
-                progress: 40.0,
-                target: 40.0,
-                bend_px: 0.0,
-                slot: 0,
-            }],
-            tick_state: HashMap::new(),
-            wall_impact: None,
-            last_decal_impact: None,
-        };
-        let collision_local = local_flame_offset(
-            flame_collision_offset(Vec2::Y, &active.segments[0], &config),
-            &config,
-        );
-        let mut projectiles = vec![Projectile {
-            position: center + Vec2::new(collision_local.y, 0.0),
-            source_position: center + Vec2::new(3.0, 0.0),
-            direction: -Vec2::X,
-            speed: 1.0,
-            radius: 0.3,
-            damage: 10,
-            lifetime: 1.0,
-            alive: true,
-        }];
-        let mut impacts = Vec::new();
-        let mut enemies = Vec::new();
-        let mut mosquitons = Vec::new();
-
-        let flame_points = active_flame_points(&camera, &map, &active, &config, 144.0);
-        apply_flamethrower_damage(
-            &camera,
-            &map,
-            &config,
-            &mut active,
-            &flame_points,
-            &mut enemies,
-            &mut mosquitons,
-            &mut projectiles,
-            &mut impacts,
-            0.0,
-        );
-
-        assert!(projectiles.is_empty());
-        assert_eq!(impacts.len(), 1);
-    }
-
-    #[test]
-    fn active_flamethrower_intercepts_projectile_before_it_hits_player() {
-        let config = FlamethrowerConfig::load();
-        let center = Vec2::new(16.0, 16.0);
-        let camera = Camera {
-            position: center,
-            angle: 0.0,
-            fov: 1.0,
-        };
-        let map = open_test_map();
-        let segment = FpFlameSegment {
-            progress: 40.0,
-            target: 40.0,
-            bend_px: 0.0,
-            slot: 0,
-        };
-        let collision_local =
-            local_flame_offset(flame_collision_offset(Vec2::Y, &segment, &config), &config);
-        let mut state = PlayerAttackState {
-            one_shots: Vec::new(),
-            flamethrower: Some(ActiveFpFlamethrower {
-                spawning: true,
-                ammo: config.max_ammo,
-                next_spawn_at: 0.0,
-                next_slot: 1,
-                elapsed: 0.0,
-                desired_direction: Vec2::Y,
-                previous_aim_angle: 0.0,
-                segments: vec![segment],
-                tick_state: HashMap::new(),
-                wall_impact: None,
-                last_decal_impact: None,
-            }),
-            gun_muzzle_flash_elapsed: None,
-            weapon_bob_offset: Vec2::ZERO,
-            weapon_raise_offset: 0.0,
-            config,
-            gun_config: GunConfig::load(),
-        };
-        let mut projectiles = vec![Projectile {
-            position: center + Vec2::new(collision_local.y, 0.0),
-            source_position: center + Vec2::new(3.0, 0.0),
-            direction: -Vec2::X,
-            speed: 10.0,
-            radius: 0.3,
-            damage: 10,
-            lifetime: 1.0,
-            alive: true,
-        }];
-        let mut impacts = Vec::new();
-
-        destroy_projectiles_touching_active_flamethrower(
-            &camera,
-            &map,
-            &state,
-            &mut projectiles,
-            &mut impacts,
-        );
-        let projectile_result =
-            crate::enemy::tick_projectiles(&mut projectiles, camera.position, &map, 1.0);
-
-        assert_eq!(projectile_result.player_damage, 0);
-        assert!(projectiles.is_empty());
-        assert_eq!(impacts.len(), 1);
-
-        state.flamethrower = None;
-        destroy_projectiles_touching_active_flamethrower(
-            &camera,
-            &map,
-            &state,
-            &mut projectiles,
-            &mut impacts,
-        );
-    }
-
-    #[test]
-    fn flame_start_offset_places_near_slot_twenty_px_from_origin() {
-        let config = FlamethrowerConfig::load();
-        let near = FpFlameSegment {
-            progress: 0.0,
-            target: 10.0,
-            bend_px: 0.0,
-            slot: 0,
-        };
-        let far = FpFlameSegment {
-            progress: config.chain_range,
-            target: config.chain_range,
-            bend_px: 0.0,
-            slot: 7,
-        };
-        let dir = Vec2::Y;
-        let near_offset = flame_segment_offset(dir, &near, &config);
-        let far_offset = flame_segment_offset(dir, &far, &config);
-
-        let expected_near_y = config.flame_start_offset_px;
-        assert!((near_offset.y - expected_near_y).abs() < 0.01);
-
-        let expected_far_y =
-            config.chain_range + config.flame_start_offset_px - config.flame_far_vertical_drop_px;
-        assert!((far_offset.y - expected_far_y).abs() < 0.01);
-    }
-
-    #[test]
-    fn flame_direction_uses_cursor_x_and_fixed_reach() {
-        let origin = Vec2::new(80.0, 14.0);
-        let left = screen_flame_direction(40.0, origin, 80.0);
-        let right = screen_flame_direction(120.0, origin, 80.0);
-        assert!(left.x < 0.0);
-        assert!(right.x > 0.0);
-        assert!((left.y - right.y).abs() < 0.01);
     }
 }

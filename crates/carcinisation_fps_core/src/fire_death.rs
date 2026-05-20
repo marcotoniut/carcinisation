@@ -2,6 +2,8 @@
 
 use bevy_math::Vec2;
 
+use crate::hash_util::{signed_unit, unit};
+
 /// Damage type applied to an entity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DamageKind {
@@ -124,18 +126,61 @@ pub fn perimeter_flames_from_mask(
         .collect()
 }
 
-fn signed_unit(seed: u32) -> f32 {
-    unit(seed) * 2.0 - 1.0
-}
+/// Generate flame positions clustered toward the center of a sprite mask.
+/// Used for alive burning enemies (as opposed to perimeter flames for corpses).
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+pub fn centered_flames_from_mask(
+    seed: u32,
+    width: usize,
+    height: usize,
+    opaque: impl Fn(usize, usize) -> bool,
+    count: usize,
+) -> Vec<PerimeterFlame> {
+    if count == 0 {
+        return Vec::new();
+    }
 
-fn unit(seed: u32) -> f32 {
-    let mut x = seed;
-    x ^= x >> 16;
-    x = x.wrapping_mul(0x7FEB_352D);
-    x ^= x >> 15;
-    x = x.wrapping_mul(0x846C_A68B);
-    x ^= x >> 16;
-    f32::from((x & 0xFFFF) as u16) / 65_535.0
+    // Collect all opaque pixels.
+    let mut pixels = Vec::new();
+    for y in 0..height {
+        for x in 0..width {
+            if opaque(x, y) {
+                pixels.push(Vec2::new(
+                    x as f32 - width as f32 * 0.5,
+                    height as f32 * 0.5 - y as f32,
+                ));
+            }
+        }
+    }
+    if pixels.is_empty() {
+        return Vec::new();
+    }
+
+    // Center of mass.
+    let center = pixels.iter().copied().sum::<Vec2>() / pixels.len() as f32;
+
+    (0..count)
+        .map(|i| {
+            let mixed = seed ^ (i as u32).wrapping_mul(0x9E37_79B9);
+            // Pick a pixel, biased toward center: blend between random pixel and center.
+            let pixel_idx =
+                (unit(mixed.rotate_left(3)) * pixels.len() as f32) as usize % pixels.len();
+            let bias = 0.2 + unit(mixed.rotate_left(11)) * 0.3; // 0.2–0.5 toward center
+            let pos = pixels[pixel_idx].lerp(center, bias);
+            let scale = 0.8 + unit(mixed.rotate_left(21)) * 0.4;
+            let phase_secs = unit(mixed.rotate_left(7)) * 0.3;
+            PerimeterFlame {
+                offset_px: pos,
+                scale,
+                phase_secs,
+                front: unit(mixed.rotate_left(17)) > 0.5,
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

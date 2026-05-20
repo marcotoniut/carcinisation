@@ -1,0 +1,18 @@
+PlayerFlamethrower1pConfig(
+    nozzle_forward: 0.50,
+    nozzle_lateral: 0.02,
+    nozzle_height: -0.07,
+    weapon_base_offset_px: (0.0, 0.0),
+    weapon_raise_px: 4.0,
+    weapon_raise_speed: 12.0,
+    weapon_bob_enabled: true,
+    weapon_bob_horizontal_px: 3.0,
+    weapon_bob_vertical_px: 2.0,
+    weapon_bob_speed: 8.0,
+    weapon_bob_return_speed: 16.0,
+    idle_flame_offset: (3.0, -24.0),
+    idle_flame_scale: 1.0,
+    billboard_scale_near: 0.152,
+    billboard_scale_far: 0.09,
+    nozzle_head_scale: 0.85,
+)

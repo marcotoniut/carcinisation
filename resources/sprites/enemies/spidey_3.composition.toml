@@ -136,7 +136,7 @@ tags = ["left"]
 [[animation_events]]
 # Spiderweb projectile fires on the peak shoot pose (frame 5, at 1000ms).
 # Originates from the body part near the spinneret (upper-center of body).
-tag = "shoot"
+tag = "front_shoot"
 frame = 5
 kind = "projectile_spawn"
 id = "spider_shot"
@@ -144,6 +144,18 @@ part_id = "body"
 local_offset = { x = 4, y = 0 }
 
 # --- gameplay ---
+
+[directional]
+authored_directions = ["front", "frontleft", "left", "backleft", "back"]
+default_direction = "front"
+# mirror_allowed: spider body is bilaterally symmetric. Shoot projectile
+# originates from body center (offset x=4), acceptable under mirroring.
+mirror_policy = "mirror_allowed"
+
+[directional.mirrors]
+frontright = "frontleft"
+right = "left"
+backright = "backleft"
 
 [gameplay]
 entity_health_pool = "core"

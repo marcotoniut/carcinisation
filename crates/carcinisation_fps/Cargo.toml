@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 description = "First-person raycaster subgame for Carcinisation"
 
+[features]
+hot_reload = ["carcinisation_core/hot_reload", "carcinisation_fps_core/hot_reload"]
+
 [dependencies]
 asset_pipeline = { workspace = true }
 carapace = { workspace = true }

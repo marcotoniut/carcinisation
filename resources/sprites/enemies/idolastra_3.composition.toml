@@ -223,6 +223,21 @@ pivot = { x = 0, y = 0 }
 
 # --- gameplay ---
 
+[directional]
+authored_directions = ["front", "frontleft", "left", "backleft", "back"]
+default_direction = "front"
+# mirror_allowed at entity level. Slash animation uses tail which sweeps
+# from one side — visual asymmetry is mild at rendered scale.
+# TODO: if slash gains a strongly directional weapon arc, switch to:
+#   [directional.animation_overrides.slash]
+#   mirror_policy = "explicit_required"
+mirror_policy = "mirror_allowed"
+
+[directional.mirrors]
+frontright = "frontleft"
+right = "left"
+backright = "backleft"
+
 [gameplay]
 entity_health_pool = "core"
 

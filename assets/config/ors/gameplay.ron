@@ -1,0 +1,4 @@
+OrsGameplayConfig(
+    player_max_health: 100,
+    game_base_speed: 15.0,
+)

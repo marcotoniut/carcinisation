@@ -6,33 +6,29 @@
     clippy::cast_sign_loss
 )]
 
+pub mod burning;
 pub mod camera;
 pub mod collision;
 pub mod combat;
 pub mod config;
 pub mod enemy;
 pub mod fire_death;
+pub mod ground_fire;
+pub mod hash_util;
 pub mod map;
 pub mod mosquiton;
 pub mod movement;
 pub mod raycast;
 
 // Re-export key types
+pub use burning::{
+    BurnConfig, BurnState, BurnTickResult, apply_exposure, burn_flame_count, burn_flame_scale,
+    tick_burning,
+};
 pub use camera::Camera;
 pub use collision::try_move;
-pub use combat::{flame_hits_position, flame_hits_position_default};
-pub use config::{
-    BURN_CONTACT_DAMAGE, BURN_CONTACT_RADIUS, BURN_CONTACT_TICK_SECS, COLLISION_MARGIN,
-    DAMAGE_FLICKER_COUNT, DAMAGE_FLICKER_INVERT_SECS, DAMAGE_FLICKER_REGULAR_SECS,
-    ENEMY_DEATH_ANIM_SECS, ENEMY_DESPAWN_DELAY, FIRE_COOLDOWN_SECS, FLAME_DPS,
-    FLAME_HIT_HALF_WIDTH, FLAME_RANGE, HITSCAN_DAMAGE, MOSQUITON_ATTACK_INTERVAL,
-    MOSQUITON_BLOOD_SHOT_SPEED, MOSQUITON_COLLISION_RADIUS, MOSQUITON_HEALTH,
-    MOSQUITON_MELEE_ATTACK_DURATION, MOSQUITON_MELEE_COOLDOWN, MOSQUITON_MELEE_DAMAGE,
-    MOSQUITON_MELEE_RANGE, MOSQUITON_PREFERRED_RANGE, MOSQUITON_PROJECTILE_DAMAGE,
-    MOSQUITON_SHOOT_COOLDOWN, MOSQUITON_SHOOT_CUE_SECS, MOSQUITON_SHOOT_RANGE, MOVE_SPEED,
-    PLAYER_RESPAWN_DELAY_SECS, PROJECTILE_HIT_RADIUS, PROJECTILE_LIFETIME, PROJECTILE_SPEED,
-    QUICK_TURN_DURATION_SECS, TURN_SPEED,
-};
+pub use combat::{flame_hits_position, flame_hits_position_configured};
+pub use config::{FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, PlayerFlamethrowerConfig};
 pub use enemy::{
     Enemy, EnemyAiDisposition, EnemyAiOutput, EnemyPlayerTarget, EnemySim, EnemyState,
     FpsEnemyAiState, FpsEnemyKind, HitscanResult, MosquitonAiConfig, Projectile, ProjectileImpact,
@@ -40,17 +36,22 @@ pub use enemy::{
     tick_single_enemy,
 };
 pub use fire_death::{
-    DamageKind, FireDeathConfig, PerimeterFlame, corpse_seed, perimeter_flames_from_mask,
+    DamageKind, FireDeathConfig, PerimeterFlame, centered_flames_from_mask, corpse_seed,
+    perimeter_flames_from_mask,
+};
+pub use ground_fire::{
+    GroundFire, GroundFireConfig, GroundFireContactResult, GroundFireContactState,
+    ground_fire_contact_damage, ground_fire_flame_layout, tick_ground_fires, try_spawn_ground_fire,
 };
 pub use map::{
     EntitySpawnData, EntitySpawnKind, Map, MapError, MapLoadData, PlayerStartData, test_map,
 };
 pub use mosquiton::{
-    MosquitonSim, MosquitonSimConfig, MosquitonSimOutput, MosquitonSimState, has_line_of_sight,
-    tick_mosquiton_sim,
+    MosquitonSim, MosquitonSimConfig, MosquitonSimOutput, MosquitonSimState, tick_mosquiton_sim,
 };
 pub use movement::{
-    SnapTurnKind, SnapTurnParams, apply_movement, local_to_world, snap_turn_params, tick_snap_turn,
+    SnapTurnKind, SnapTurnParams, angular_velocity_clamped, apply_movement, local_to_world,
+    snap_turn_params, tick_snap_turn,
 };
-pub use raycast::WallSurfaceId;
 pub use raycast::{HitSide, RayHit, cast_ray};
+pub use raycast::{WallSurfaceId, has_line_of_sight};

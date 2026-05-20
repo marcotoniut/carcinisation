@@ -60,7 +60,8 @@ pub fn check_x_reached<D, P>(
 {
     for (entity, position, speed, target) in movement_query {
         let vec = position.get();
-        if (speed.value.x < 0. && vec.x <= target.value.x)
+        if speed.value.x.abs() < f32::EPSILON
+            || (speed.value.x < 0. && vec.x <= target.value.x)
             || (speed.value.x > 0. && vec.x >= target.value.x)
         {
             commands
@@ -83,7 +84,8 @@ pub fn check_y_reached<D, P>(
 {
     for (entity, position, speed, target) in movement_query {
         let vec = position.get();
-        if (speed.value.y < 0. && vec.y <= target.value.y)
+        if speed.value.y.abs() < f32::EPSILON
+            || (speed.value.y < 0. && vec.y <= target.value.y)
             || (speed.value.y > 0. && vec.y >= target.value.y)
         {
             commands

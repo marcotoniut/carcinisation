@@ -68,7 +68,7 @@ pub fn setup_admin_socket(
 }
 
 /// Poll the admin socket for incoming commands. Runs in `FixedUpdate`.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::missing_panics_doc, clippy::needless_pass_by_value)]
 pub fn poll_admin_socket(
     admin: ResMut<AdminSocketState>,
     players: Query<(&NetPlayer, &NetHealth)>,

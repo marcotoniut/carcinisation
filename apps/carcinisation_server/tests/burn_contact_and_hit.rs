@@ -233,9 +233,9 @@ fn hitscan_hit_damages_enemy() {
 
     let damage = hp_before - hp_after;
     assert!(
-        (damage - carcinisation_fps_core::HITSCAN_DAMAGE).abs() < 1.0,
+        (damage - carcinisation_fps_core::FpsCombatConfig::default().hitscan_damage).abs() < 1.0,
         "hitscan should deal {} damage: got {damage}",
-        carcinisation_fps_core::HITSCAN_DAMAGE
+        carcinisation_fps_core::FpsCombatConfig::default().hitscan_damage
     );
 }
 

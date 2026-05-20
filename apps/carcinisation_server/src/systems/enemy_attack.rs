@@ -12,7 +12,7 @@ use carcinisation_net::{
     NetHealth, NetPlayer, NetProjectileType, NetworkObjectId, Owner, PlayerId, PlayerNetState,
 };
 
-use carcinisation_fps_core::config::PROJECTILE_LIFETIME;
+use carcinisation_fps_core::config::FpsCombatConfig;
 use carcinisation_fps_core::mosquiton::{
     MosquitonSim, MosquitonSimConfig, MosquitonSimState, tick_mosquiton_sim,
 };
@@ -32,6 +32,8 @@ pub struct ServerMosquitonSim {
     pub decision_timer: f32,
     pub shoot_anim_elapsed: Option<f32>,
     pub sim_state: MosquitonSimState,
+    /// Stable per-instance seed for deterministic sim decisions.
+    pub seed: u32,
 }
 
 impl Default for ServerMosquitonSim {
@@ -42,6 +44,7 @@ impl Default for ServerMosquitonSim {
             decision_timer: 0.0,
             shoot_anim_elapsed: None,
             sim_state: MosquitonSimState::Pursue,
+            seed: 0,
         }
     }
 }
@@ -60,10 +63,6 @@ impl ServerMosquitonSimConfig {
         })
     }
 }
-
-/// Delay between shoot animation start and projectile spawn.
-/// Uses the authored cue frame timing from the composed atlas.
-const SHOOT_LEAD_TIME: f32 = carcinisation_fps_core::config::MOSQUITON_SHOOT_CUE_SECS;
 
 /// Pending ranged projectile — delays spawn so the shoot animation leads.
 /// Cancelled if the source enemy dies before the timer expires.
@@ -122,6 +121,7 @@ pub fn tick_enemy_attacks(
     fixed_time: Res<Time<Fixed>>,
     mut next_id: ResMut<NextProjectileId>,
     server_map: Res<ServerMap>,
+    combat_config: Res<FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
     let mut melee_hits: Vec<MeleeHit> = Vec::new();
@@ -154,6 +154,7 @@ pub fn tick_enemy_attacks(
             melee_cooldown: mosquiton_sim.melee_cooldown,
             decision_timer: mosquiton_sim.decision_timer,
             shoot_anim_elapsed: mosquiton_sim.shoot_anim_elapsed,
+            seed: mosquiton_sim.seed,
         };
 
         let output = tick_mosquiton_sim(&mut sim, &sim_config.0, player_pos, &server_map.0, dt);
@@ -193,7 +194,7 @@ pub fn tick_enemy_attacks(
                 let object_id = next_id.allocate();
 
                 commands.spawn(PendingProjectile {
-                    timer: SHOOT_LEAD_TIME,
+                    timer: combat_config.mosquiton_shoot_cue_secs,
                     source_entity: enemy_entity,
                     position: enemy.position,
                     angle,
@@ -262,13 +263,14 @@ pub fn tick_enemy_attacks(
     }
 }
 
-/// Spawn deferred projectiles after `SHOOT_LEAD_TIME` expires.
+/// Spawn deferred projectiles after shoot lead time expires.
 /// Cancels if the source enemy died during the delay.
 pub fn tick_pending_projectiles(
     mut commands: Commands,
     mut pending: Query<(Entity, &mut PendingProjectile)>,
     enemies: Query<&NetEnemy>,
     fixed_time: Res<Time<Fixed>>,
+    combat_config: Res<FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
     for (entity, mut p) in &mut pending {
@@ -295,7 +297,7 @@ pub fn tick_pending_projectiles(
                     damage: p.damage,
                     projectile_type: NetProjectileType::BloodShot,
                 },
-                super::projectile::ProjectileTtl(PROJECTILE_LIFETIME),
+                super::projectile::ProjectileTtl(combat_config.projectile_lifetime),
                 Replicated,
             ));
             commands.entity(entity).despawn();

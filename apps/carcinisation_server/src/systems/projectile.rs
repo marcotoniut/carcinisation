@@ -2,16 +2,20 @@
 //!
 //! Runs in `ProjectileSet` after enemy attacks have spawned new projectiles.
 //! Uses `cast_ray` for wall collision and point-vs-circle for player hits.
+//! Active flamethrowers destroy projectiles that enter their cone.
 
 use crate::ServerMap;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
-use carcinisation_fps_core::config::{PROJECTILE_HIT_RADIUS, PROJECTILE_SPEED};
+use carcinisation_fps_core::combat::flame_hits_position;
+use carcinisation_fps_core::config::FpsCombatConfig;
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_fps_core::segment_circle_hit_distance;
 use carcinisation_net::{
     DamageEffect, HitConfirm, NetHealth, NetPlayer, NetProjectile, NetworkObjectId, PlayerNetState,
 };
+
+use super::FlameActiveTracker;
 
 /// System set for projectile ticking.
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -24,6 +28,7 @@ pub struct ProjectileTtl(pub f32);
 /// Move projectiles, check collisions, apply damage, despawn.
 #[allow(
     clippy::too_many_arguments,
+    clippy::too_many_lines,
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap
 )]
@@ -33,8 +38,23 @@ pub fn tick_projectiles_server(
     mut players: Query<(Entity, &NetPlayer, &mut NetHealth)>,
     server_map: Res<ServerMap>,
     fixed_time: Res<Time<Fixed>>,
+    flame_tracker: Res<FlameActiveTracker>,
+    flame_cfg: Res<carcinisation_fps_core::PlayerFlamethrowerConfig>,
+    combat_config: Res<FpsCombatConfig>,
 ) {
     let dt = fixed_time.delta_secs();
+
+    // Collect active flamers (position + direction) for projectile interception.
+    let active_flamers: Vec<(Vec2, Vec2)> = players
+        .iter()
+        .filter_map(|(_, np, _)| {
+            if flame_tracker.0.get(&np.player_id).copied().unwrap_or(false) {
+                Some((np.position, Vec2::new(np.angle.cos(), np.angle.sin())))
+            } else {
+                None
+            }
+        })
+        .collect();
 
     for (proj_entity, mut proj, mut ttl) in &mut projectiles {
         // Tick TTL.
@@ -44,8 +64,33 @@ pub fn tick_projectiles_server(
             continue;
         }
 
+        // Flame interception: active flamethrowers destroy projectiles in their cone.
+        let flame_destroyed = active_flamers.iter().any(|&(origin, flame_dir)| {
+            flame_hits_position(
+                origin,
+                flame_dir,
+                proj.position,
+                flame_cfg.range,
+                flame_cfg.hit_half_width,
+                &server_map.0,
+            )
+        });
+        if flame_destroyed {
+            commands.server_trigger(ToClients {
+                mode: SendMode::Broadcast,
+                message: HitConfirm {
+                    target_id: proj.object_id,
+                    damage: 0.0,
+                    position: proj.position,
+                    kind: carcinisation_net::HitImpactKind::Destroy,
+                },
+            });
+            commands.entity(proj_entity).despawn();
+            continue;
+        }
+
         let dir = Vec2::new(proj.angle.cos(), proj.angle.sin());
-        let step = dir * PROJECTILE_SPEED * dt;
+        let step = dir * combat_config.projectile_speed * dt;
         let travel_distance = step.length();
         if travel_distance <= f32::EPSILON {
             continue;
@@ -84,7 +129,7 @@ pub fn tick_projectiles_server(
                 previous,
                 next,
                 net_player.position,
-                PROJECTILE_HIT_RADIUS,
+                combat_config.projectile_hit_radius,
             ) && hit_player.is_none_or(|(_, d)| dist < d)
             {
                 hit_player = Some((player_entity, dist));

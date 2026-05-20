@@ -4,15 +4,11 @@ use bevy::prelude::Component;
 use bevy::reflect::Reflect;
 use bevy_math::Vec2;
 
+use crate::burning::BurnState;
 use crate::camera::Camera;
 use crate::fire_death::{DamageKind, corpse_seed};
 use crate::map::Map;
-use crate::raycast::cast_ray;
-
-// Re-export from config with legacy `FP_` prefix for existing consumers.
-pub use crate::config::DAMAGE_FLICKER_COUNT as FP_DAMAGE_FLICKER_COUNT;
-pub use crate::config::DAMAGE_FLICKER_INVERT_SECS as FP_DAMAGE_FLICKER_INVERT_SECS;
-pub use crate::config::DAMAGE_FLICKER_REGULAR_SECS as FP_DAMAGE_FLICKER_REGULAR_SECS;
+use crate::raycast::{cast_ray, has_line_of_sight};
 
 /// Headless FPS enemy kind.
 ///
@@ -290,16 +286,31 @@ pub struct DamageFlicker {
     phase: DamageFlickerPhase,
     phase_remaining_secs: f32,
     remaining_invert_cycles: u8,
+    /// Duration of the regular (non-inverted) phase.
+    regular_secs: f32,
+    /// Duration of the inverted phase.
+    invert_secs: f32,
 }
 
 impl DamageFlicker {
+    /// Create a new flicker with values from `FpsVisualConfig`.
     #[must_use]
-    pub fn new() -> Self {
+    pub fn from_config(config: &crate::config::FpsVisualConfig) -> Self {
         Self {
             phase: DamageFlickerPhase::Regular,
-            phase_remaining_secs: FP_DAMAGE_FLICKER_REGULAR_SECS,
-            remaining_invert_cycles: FP_DAMAGE_FLICKER_COUNT,
+            phase_remaining_secs: config.damage_flicker_regular_secs,
+            remaining_invert_cycles: config.damage_flicker_count,
+            regular_secs: config.damage_flicker_regular_secs,
+            invert_secs: config.damage_flicker_invert_secs,
         }
+    }
+
+    /// Create a new flicker using `FpsVisualConfig` defaults.
+    ///
+    /// Prefer [`from_config`](Self::from_config) when a `FpsVisualConfig` is available.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::from_config(&crate::config::FpsVisualConfig::default())
     }
 
     #[must_use]
@@ -307,6 +318,7 @@ impl DamageFlicker {
         self.phase == DamageFlickerPhase::Invert
     }
 
+    /// Advance the flicker using the timing values stored at construction.
     #[must_use]
     pub fn tick(mut self, dt: f32) -> Option<Self> {
         self.phase_remaining_secs -= dt;
@@ -314,7 +326,7 @@ impl DamageFlicker {
             match self.phase {
                 DamageFlickerPhase::Regular => {
                     self.phase = DamageFlickerPhase::Invert;
-                    self.phase_remaining_secs += FP_DAMAGE_FLICKER_INVERT_SECS;
+                    self.phase_remaining_secs += self.invert_secs;
                 }
                 DamageFlickerPhase::Invert => {
                     if self.remaining_invert_cycles == 0 {
@@ -322,7 +334,7 @@ impl DamageFlicker {
                     }
                     self.remaining_invert_cycles -= 1;
                     self.phase = DamageFlickerPhase::Regular;
-                    self.phase_remaining_secs += FP_DAMAGE_FLICKER_REGULAR_SECS;
+                    self.phase_remaining_secs += self.regular_secs;
                 }
             }
         }
@@ -372,6 +384,7 @@ pub struct Enemy {
     /// Seconds between attacks.
     pub attack_interval: f32,
     pub damage_flicker: Option<DamageFlicker>,
+    pub burn_state: BurnState,
 }
 
 impl Enemy {
@@ -390,6 +403,7 @@ impl Enemy {
             attack_damage: 10,
             attack_interval: 1.0,
             damage_flicker: None,
+            burn_state: BurnState::default(),
         }
     }
 
@@ -522,20 +536,6 @@ fn try_move_enemy(enemy: &mut Enemy, delta: Vec2, map: &Map) {
     crate::collision::try_move(&mut enemy.position, delta, enemy.radius, map);
 }
 
-/// Check line of sight between two points using raycasting.
-///
-/// Direction is normalized so `cast_ray` returns true Euclidean distance,
-/// making the comparison against `dist` valid.
-fn has_line_of_sight(from: Vec2, to: Vec2, map: &Map) -> bool {
-    let dir = to - from;
-    let dist = dir.length();
-    if dist < 0.01 {
-        return true;
-    }
-    let hit = cast_ray(map, from, dir / dist);
-    hit.distance > dist
-}
-
 /// Result of a hitscan shot.
 #[derive(Debug)]
 pub struct HitscanResult {
@@ -598,11 +598,6 @@ pub fn hitscan(camera: &Camera, enemies: &[Enemy], map: &Map) -> HitscanResult {
 // Projectiles
 // ---------------------------------------------------------------------------
 
-// Re-export from config so `enemy::PROJECTILE_SPEED` etc. still work.
-pub use crate::config::{
-    MOSQUITON_SHOOT_CUE_SECS, PROJECTILE_HIT_RADIUS, PROJECTILE_LIFETIME, PROJECTILE_SPEED,
-};
-
 /// An enemy projectile moving through map space.
 #[derive(Clone, Debug)]
 pub struct Projectile {
@@ -626,14 +621,15 @@ impl Projectile {
         if len < 0.01 {
             return None;
         }
+        let combat = crate::config::FpsCombatConfig::default();
         Some(Self {
             position: origin,
             source_position: origin,
             direction: diff / len,
-            speed: PROJECTILE_SPEED,
-            radius: PROJECTILE_HIT_RADIUS,
+            speed: combat.projectile_speed,
+            radius: combat.projectile_hit_radius,
             damage,
-            lifetime: PROJECTILE_LIFETIME,
+            lifetime: combat.projectile_lifetime,
             alive: true,
         })
     }

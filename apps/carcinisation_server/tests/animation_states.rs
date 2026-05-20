@@ -176,9 +176,10 @@ fn flamethrower_kill_transitions_to_dying_burn() {
         }
     }
 
-    // Fire flamethrower.
+    // Fire flamethrower — burn system builds intensity progressively,
+    // so more ticks are needed than with old instant-damage model.
     inject_fire(&mut server, 1);
-    for _ in 0..50 {
+    for _ in 0..300 {
         tick(&mut server);
     }
 

@@ -73,6 +73,7 @@ fn handle_input(
     mut camera: ResMut<CameraRes>,
     map: Res<MapRes>,
     config: Res<Config>,
+    movement_config: Res<carcinisation_fps_core::FpsMovementConfig>,
     dead: Res<PlayerDead>,
     mut shoot: ResMut<ShootRequest>,
     mut attack_input: ResMut<AttackInput>,
@@ -163,6 +164,7 @@ fn handle_input(
             config.move_speed,
             dt,
             &map.0,
+            movement_config.collision_margin,
         );
     }
 
@@ -394,6 +396,7 @@ fn main() {
 
     app.insert_resource(Config {
         map_ron,
+        map_path: map_path.to_string_lossy().to_string(),
         sky_path,
         screen_width: SCREEN_W,
         screen_height: SCREEN_H,

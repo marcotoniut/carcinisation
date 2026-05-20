@@ -308,14 +308,14 @@ fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
 
                 // Pose dropdown (only for composed enemies with animation tags)
                 if let Some(ref template) = active_template
-                    && let Some(tags) = template.available_animation_tags()
+                    && let Some(tags) = template.available_animation_actions()
                 {
                     ui.separator();
                     ui.vertical(|ui| {
                         field_label(ui, "Pose");
                         let selected_tag = current_animation_tag.clone().unwrap_or_else(|| {
                             template
-                                .default_animation_tag()
+                                .default_animation_action()
                                 .unwrap_or("idle")
                                 .to_string()
                         });
@@ -343,7 +343,7 @@ fn spawn_palette_window(world: &mut World, ctx: &egui::Context) {
             template.default_depth()
         };
         let animation_tag = template
-            .default_animation_tag()
+            .default_animation_action()
             .map(std::string::ToString::to_string);
         pm.active = Some(PlacementState {
             template,

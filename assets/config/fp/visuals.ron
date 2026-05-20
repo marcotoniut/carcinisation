@@ -1,0 +1,9 @@
+FpsVisualConfig(
+    damage_flicker_count: 4,
+    damage_flicker_regular_secs: 0.1,
+    damage_flicker_invert_secs: 0.075,
+    view_bob_amplitude: 1.5,
+    view_bob_freq_mult: 2.0,
+    view_bob_near: 3.0,
+    view_bob_mid: 6.0,
+)

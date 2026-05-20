@@ -19,11 +19,12 @@ use crate::{
             data::{
                 mosquito::MOSQUITO_ANIMATIONS,
                 mosquiton::{
-                    GALLERY_ACTION_TAGS as MOSQUITON_GALLERY_ACTION_TAGS,
-                    apply_mosquiton_animation_state,
+                    GALLERY_VERIFICATION_ACTIONS as MOSQUITON_GALLERY_VERIFICATION_ACTIONS,
+                    request_mosquiton_action,
                 },
                 spidey::{
-                    GALLERY_ACTION_TAGS as SPIDEY_GALLERY_ACTION_TAGS, apply_spidey_animation_state,
+                    GALLERY_VERIFICATION_ACTIONS as SPIDEY_GALLERY_VERIFICATION_ACTIONS,
+                    request_spidey_action,
                 },
                 tardigrade::TARDIGRADE_ANIMATIONS,
             },
@@ -198,8 +199,8 @@ pub fn gallery_panel_ui(world: &mut World) {
                 GalleryCharacter::Mosquiton | GalleryCharacter::Spidey
             ) {
                 let action_tags: &[&str] = match selected_character {
-                    GalleryCharacter::Mosquiton => MOSQUITON_GALLERY_ACTION_TAGS,
-                    GalleryCharacter::Spidey => SPIDEY_GALLERY_ACTION_TAGS,
+                    GalleryCharacter::Mosquiton => MOSQUITON_GALLERY_VERIFICATION_ACTIONS,
+                    GalleryCharacter::Spidey => SPIDEY_GALLERY_VERIFICATION_ACTIONS,
                     _ => &[],
                 };
                 ui.separator();
@@ -321,23 +322,19 @@ pub fn react_to_gallery_selection_changed(
             ));
         }
         GalleryCharacter::Mosquiton => {
-            // Gallery preview path only. It is an asset-preview authority model,
-            // not the gameplay spawn pipeline, and must not be used as a
-            // reference for spawn-time presentation priming guarantees.
+            let tag = carcinisation_base::direction::SpriteDirection::Front.tag_name(&animation);
             commands.spawn((
                 common,
-                ComposedAnimationState::new(&animation),
+                ComposedAnimationState::new(tag),
                 ComposedEnemyVisual::for_enemy(&asset_server, EnemyType::Mosquiton, depth),
                 Name::new("Gallery<Mosquiton>"),
             ));
         }
         GalleryCharacter::Spidey => {
-            // Gallery preview path only. It is an asset-preview authority model,
-            // not the gameplay spawn pipeline, and must not be used as a
-            // reference for spawn-time presentation priming guarantees.
+            let tag = carcinisation_base::direction::SpriteDirection::Front.tag_name(&animation);
             commands.spawn((
                 common,
-                ComposedAnimationState::new(&animation),
+                ComposedAnimationState::new(tag),
                 ComposedEnemyVisual::for_enemy(&asset_server, EnemyType::Spidey, depth),
                 Name::new("Gallery<Spidey>"),
             ));
@@ -422,12 +419,12 @@ pub fn update_gallery_composed_animation(
     match state.selected_character {
         GalleryCharacter::Mosquiton => {
             for mut anim_state in &mut query {
-                apply_mosquiton_animation_state(&mut anim_state, &state.selected_animation);
+                request_mosquiton_action(&mut anim_state, &state.selected_animation);
             }
         }
         GalleryCharacter::Spidey => {
             for mut anim_state in &mut query {
-                apply_spidey_animation_state(&mut anim_state, &state.selected_animation);
+                request_spidey_action(&mut anim_state, &state.selected_animation);
             }
         }
         _ => {}

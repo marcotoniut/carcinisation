@@ -21,6 +21,8 @@ use self::{
 };
 use crate::core::{event::on_trigger_write_event, time::tick_time};
 use activable::{Activable, ActivableAppExt};
+#[cfg(feature = "hot_reload")]
+use bevy::asset::AssetEvent;
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use carcinisation_cutscene::resources::CutsceneTimeDomain;
@@ -37,8 +39,12 @@ pub struct CutscenePlugin;
 
 impl Plugin for CutscenePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]))
-            .add_plugins(InputManagerPlugin::<CutsceneInput>::default())
+        app.add_plugins(RonAssetPlugin::<CutsceneData>::new(&["cs.ron"]));
+
+        #[cfg(feature = "hot_reload")]
+        app.add_systems(Update, log_cutscene_data_asset_changes);
+
+        app.add_plugins(InputManagerPlugin::<CutsceneInput>::default())
             .add_plugins(LinearTweenPlugin::<CutsceneTimeDomain, TargetingValueX>::default())
             .add_plugins(LinearTweenPlugin::<CutsceneTimeDomain, TargetingValueY>::default())
             .init_resource::<Time<CutsceneTimeDomain>>()
@@ -71,5 +77,19 @@ impl Plugin for CutscenePlugin {
                 ),
             )
             .add_active_systems_in::<CutscenePlugin, _>(PostUpdate, check_press_start_input);
+    }
+}
+
+/// Logs when a `.cs.ron` cutscene asset is modified on disk (`hot_reload` only).
+///
+/// Detection only — the asset server re-parses the file automatically, but
+/// applying the new data to a running cutscene requires a cutscene restart.
+/// Automatic re-application is planned for a later phase.
+#[cfg(feature = "hot_reload")]
+fn log_cutscene_data_asset_changes(mut events: MessageReader<AssetEvent<CutsceneData>>) {
+    for event in events.read() {
+        if let AssetEvent::Modified { id } = event {
+            info!("Cutscene data asset modified (id={id:?}) — restart cutscene to apply changes");
+        }
     }
 }

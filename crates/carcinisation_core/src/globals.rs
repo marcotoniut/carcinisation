@@ -65,7 +65,7 @@ pub fn delay_despawn<D: Default + Send + Sync + 'static>(
     >,
     time: Res<Time<D>>,
 ) {
-    for (entity, delayed) in &mut query.iter_mut() {
+    for (entity, delayed) in &mut query {
         let elapsed = time.elapsed();
         commands
             .entity(entity)
@@ -82,7 +82,7 @@ pub fn check_despawn_after_delay<D: Default + Send + Sync + 'static>(
     mut query: Query<(Entity, &crate::components::DespawnAfterDelay)>,
     time: Res<Time<D>>,
 ) {
-    for (entity, despawn_after_delay) in &mut query.iter_mut() {
+    for (entity, despawn_after_delay) in &mut query {
         if despawn_after_delay.elapsed + despawn_after_delay.duration <= time.elapsed() {
             commands.entity(entity).insert(DespawnMark);
         }

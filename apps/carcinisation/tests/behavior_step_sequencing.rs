@@ -51,7 +51,7 @@ fn behavior_queue_executes_in_fifo_order() {
         EnemyStep::LinearTween(LinearTweenEnemyStep {
             depth_movement_o: None,
             direction: Vec2::new(1.0, 0.0),
-            trayectory: 100.0,
+            trajectory: 100.0,
         }),
         EnemyStep::Idle(IdleEnemyStep { duration: 2.0 }),
     ]));
@@ -109,7 +109,7 @@ fn linear_tween_spawns_two_or_three_children() {
         behavior: EnemyStep::LinearTween(LinearTweenEnemyStep {
             depth_movement_o: None,
             direction: Vec2::new(1.0, 0.0),
-            trayectory: 100.0,
+            trajectory: 100.0,
         }),
     };
 
@@ -121,6 +121,7 @@ fn linear_tween_spawns_two_or_three_children() {
         EnemyContinuousDepth::from_depth(Depth::Three),
         carcinisation::stage::resources::StageGravity::STANDARD,
         None,
+        carcinisation::stage::data::OrsGameplayConfig::default().game_base_speed,
     );
 
     app.world_mut().flush();
@@ -145,7 +146,7 @@ fn linear_tween_spawns_two_or_three_children() {
         behavior: EnemyStep::LinearTween(LinearTweenEnemyStep {
             depth_movement_o: Some(-1),
             direction: Vec2::new(1.0, 0.0),
-            trayectory: 100.0,
+            trajectory: 100.0,
         }),
     };
 
@@ -157,6 +158,7 @@ fn linear_tween_spawns_two_or_three_children() {
         EnemyContinuousDepth::from_depth(Depth::Three),
         carcinisation::stage::resources::StageGravity::STANDARD,
         None,
+        carcinisation::stage::data::OrsGameplayConfig::default().game_base_speed,
     );
 
     app.world_mut().flush();
@@ -209,6 +211,7 @@ fn idle_step_spawns_no_tween_children() {
         EnemyContinuousDepth::from_depth(Depth::Three),
         carcinisation::stage::resources::StageGravity::STANDARD,
         None,
+        carcinisation::stage::data::OrsGameplayConfig::default().game_base_speed,
     );
 
     assert_eq!(
@@ -240,7 +243,7 @@ fn tween_children_have_correct_marker_component() {
         behavior: EnemyStep::LinearTween(LinearTweenEnemyStep {
             depth_movement_o: Some(-1),
             direction: Vec2::new(1.0, 0.0),
-            trayectory: 100.0,
+            trajectory: 100.0,
         }),
     };
 
@@ -252,6 +255,7 @@ fn tween_children_have_correct_marker_component() {
         EnemyContinuousDepth::from_depth(Depth::Three),
         carcinisation::stage::resources::StageGravity::STANDARD,
         None,
+        carcinisation::stage::data::OrsGameplayConfig::default().game_base_speed,
     );
 
     app.world_mut().flush();
@@ -295,7 +299,7 @@ fn tween_children_lifecycle_contract() {
         behavior: EnemyStep::LinearTween(LinearTweenEnemyStep {
             depth_movement_o: None,
             direction: Vec2::new(1.0, 0.0),
-            trayectory: 100.0,
+            trajectory: 100.0,
         }),
     };
 
@@ -308,6 +312,7 @@ fn tween_children_lifecycle_contract() {
         EnemyContinuousDepth::from_depth(Depth::Three),
         carcinisation::stage::resources::StageGravity::STANDARD,
         None,
+        carcinisation::stage::data::OrsGameplayConfig::default().game_base_speed,
     );
 
     app.world_mut().flush();

@@ -222,20 +222,20 @@ impl SpawnTemplate {
         ]
     }
 
-    /// Available animation tags for composed enemies. `None` for non-composed types.
-    pub fn available_animation_tags(&self) -> Option<&'static [&'static str]> {
+    /// Available animation actions for composed enemies. `None` for non-composed types.
+    pub fn available_animation_actions(&self) -> Option<&'static [&'static str]> {
         match self {
-            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::GALLERY_TAGS),
-            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::GALLERY_TAGS),
+            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::GALLERY_ACTIONS),
+            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::GALLERY_ACTIONS),
             _ => None,
         }
     }
 
-    /// Default animation tag for preview. `None` for non-composed types.
-    pub fn default_animation_tag(&self) -> Option<&'static str> {
+    /// Default animation action for preview. `None` for non-composed types.
+    pub fn default_animation_action(&self) -> Option<&'static str> {
         match self {
-            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::TAG_IDLE_FLY),
-            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::TAG_IDLE),
+            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::ACTION_IDLE_FLY),
+            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::ACTION_IDLE),
             _ => None,
         }
     }

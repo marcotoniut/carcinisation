@@ -1,0 +1,41 @@
+FpsCombatConfig(
+    // Pistol
+    hitscan_damage: 37.0,
+    fire_cooldown_secs: 0.33,
+    // Flamethrower
+    flame_dps: 580.0,
+    // Enemy Projectiles
+    projectile_speed: 4.0,
+    projectile_hit_radius: 0.3,
+    projectile_lifetime: 3.0,
+    // Mosquiton
+    mosquiton_shoot_cooldown: 2.0,
+    mosquiton_melee_cooldown: 2.0,
+    mosquiton_melee_attack_duration: 0.6,
+    mosquiton_projectile_damage: 10.0,
+    mosquiton_melee_damage: 15.0,
+    mosquiton_melee_range: 0.8,
+    mosquiton_shoot_range: 8.0,
+    mosquiton_preferred_range: 4.0,
+    mosquiton_blood_shot_speed: 4.0,
+    mosquiton_collision_radius: 0.3,
+    mosquiton_health: 40,
+    mosquiton_shoot_cue_secs: 1.0,
+    // Burn contact
+    burn_contact_radius: 1.1,
+    burn_contact_damage: 5.0,
+    burn_contact_tick_secs: 0.5,
+    // Death / Respawn
+    enemy_death_anim_secs: 0.5,
+    enemy_despawn_delay: 5.0,
+    player_respawn_delay_secs: 3.0,
+    // Ground fire
+    ground_fire_lifetime_secs: 15.0,
+    ground_fire_fade_start_secs: 10.0,
+    ground_fire_radius: 0.8,
+    ground_fire_damage: 3.0,
+    ground_fire_tick_secs: 0.5,
+    ground_fire_visual_radius: 0.35,
+    ground_fire_flame_count: 6,
+    ground_fire_max: 32,
+)

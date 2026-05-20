@@ -29,3 +29,13 @@ depth = 4
 palette = "base"
 part_group = "base"
 origin_slice = "origin"
+
+[[sprites]]
+source = "player/player_3.aseprite"
+entity = "player"
+depth = 3
+palette = "base"
+part_group = "base"
+origin_slice = "origin"
+composition = "player/player_3.composition.toml"
+target_dir = "player"

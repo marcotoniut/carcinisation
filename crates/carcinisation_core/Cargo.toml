@@ -4,9 +4,13 @@ version.workspace = true
 edition.workspace = true
 description = "Shared utilities for runtime, UI, and editor"
 
+[features]
+hot_reload = []
+
 [dependencies]
 bevy = { workspace = true }
 carapace = { workspace = true, features = ["line"] }
+ron = { workspace = true }
 
 assert_assets_path = { workspace = true }
 derive-new = { workspace = true }
