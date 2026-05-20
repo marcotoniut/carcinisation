@@ -29,12 +29,6 @@ use std::time::Duration;
 // Config
 // ---------------------------------------------------------------------------
 
-const CONFIG_PATH: &str = "assets/config/attacks/player_flamethrower_ors.ron";
-const EMBEDDED_CONFIG: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../assets/config/attacks/player_flamethrower_ors.ron"
-));
-
 #[derive(Clone, Debug, Deserialize, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct FlamethrowerConfig {
@@ -82,65 +76,64 @@ pub struct FlamethrowerConfig {
 impl FlamethrowerConfig {
     #[must_use]
     pub fn load() -> Self {
-        #[cfg(not(target_family = "wasm"))]
-        if let Ok(body) = std::fs::read_to_string(CONFIG_PATH) {
-            return Self::parse_and_validate(&body, CONFIG_PATH);
-        }
-
-        Self::parse_and_validate(EMBEDDED_CONFIG, "embedded player_flamethrower.ron")
-    }
-
-    fn parse_and_validate(ron_str: &str, source: &str) -> Self {
-        let config: Self = ron::from_str(ron_str).unwrap_or_else(|e| {
-            panic!("{source}: failed to parse FlamethrowerConfig: {e}");
-        });
-        config.validate(source);
+        let config: Self =
+            carcinisation_core::ron_config!("assets/config/attacks/player_flamethrower_ors.ron");
+        config.validate();
         config
     }
 
-    fn validate(&self, source: &str) {
-        assert!(self.max_flames > 0, "{source}: max_flames must be > 0");
+    fn validate(&self) {
+        assert!(
+            self.max_flames > 0,
+            "FlamethrowerConfig: max_flames must be > 0"
+        );
         assert!(
             self.chain_range > 0.0,
-            "{source}: chain_range must be positive",
+            "FlamethrowerConfig: chain_range must be positive",
         );
         assert!(
             self.spacing_curve > 0.0,
-            "{source}: spacing_curve must be positive",
+            "FlamethrowerConfig: spacing_curve must be positive",
         );
         assert!(
             self.flame_speed > 0.0,
-            "{source}: flame_speed must be positive",
+            "FlamethrowerConfig: flame_speed must be positive",
         );
         assert!(
             self.spawn_interval_ms > 0,
-            "{source}: spawn_interval_ms must be > 0",
+            "FlamethrowerConfig: spawn_interval_ms must be > 0",
         );
-        assert!(self.max_ammo > 0.0, "{source}: max_ammo must be positive");
-        assert!(self.tick_ms > 0, "{source}: tick_ms must be positive");
+        assert!(
+            self.max_ammo > 0.0,
+            "FlamethrowerConfig: max_ammo must be positive"
+        );
+        assert!(
+            self.tick_ms > 0,
+            "FlamethrowerConfig: tick_ms must be positive"
+        );
         assert!(
             self.hit_radius > 0.0,
-            "{source}: hit_radius must be positive",
+            "FlamethrowerConfig: hit_radius must be positive",
         );
         assert!(
             self.drain_speed_multiplier > 0.0,
-            "{source}: drain_speed_multiplier must be positive",
+            "FlamethrowerConfig: drain_speed_multiplier must be positive",
         );
         assert!(
             self.angular_follow_speed > 0.0,
-            "{source}: angular_follow_speed must be positive",
+            "FlamethrowerConfig: angular_follow_speed must be positive",
         );
         assert!(
             self.scale_near > 0.0 && self.scale_far > 0.0,
-            "{source}: scale_near and scale_far must be positive",
+            "FlamethrowerConfig: scale_near and scale_far must be positive",
         );
         assert!(
             self.burning_corpse_duration_secs >= 0.0,
-            "{source}: burning_corpse_duration_secs must be non-negative",
+            "FlamethrowerConfig: burning_corpse_duration_secs must be non-negative",
         );
         assert!(
             self.burning_flame_scale_min > 0.0 && self.burning_flame_scale_max > 0.0,
-            "{source}: burning flame scales must be positive",
+            "FlamethrowerConfig: burning flame scales must be positive",
         );
     }
 
@@ -560,9 +553,8 @@ mod tests {
 
     #[test]
     fn embedded_config_parses_and_validates() {
-        let config: FlamethrowerConfig = ron::from_str(EMBEDDED_CONFIG)
-            .expect("embedded player_flamethrower.ron must parse into FlamethrowerConfig");
-        config.validate("embedded player_flamethrower.ron");
+        let config = FlamethrowerConfig::load();
+        config.validate();
     }
 
     #[test]

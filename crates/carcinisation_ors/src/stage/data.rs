@@ -22,7 +22,36 @@ use std::{collections::VecDeque, time::Duration};
 pub static DEFAULT_COORDINATES: std::sync::LazyLock<Vec2> =
     std::sync::LazyLock::new(|| *SCREEN_RESOLUTION_F32_H);
 
-pub const GAME_BASE_SPEED: f32 = 15.0;
+/// Hot-reloadable ORS singleplayer gameplay tuning.
+///
+/// Loaded from `assets/config/ors/gameplay.ron`.
+#[derive(
+    Clone, Copy, Debug, serde::Deserialize, bevy::prelude::Resource, bevy::prelude::Reflect,
+)]
+#[reflect(Resource)]
+#[serde(rename = "OrsGameplayConfig")]
+pub struct OrsGameplayConfig {
+    /// Maximum player health points.
+    pub player_max_health: u32,
+    /// Base movement speed multiplier for stage scrolling and enemy behavior.
+    pub game_base_speed: f32,
+}
+
+impl OrsGameplayConfig {
+    #[must_use]
+    pub fn load() -> Self {
+        carcinisation_core::ron_config!("assets/config/ors/gameplay.ron")
+    }
+}
+
+impl Default for OrsGameplayConfig {
+    fn default() -> Self {
+        Self {
+            player_max_health: 100,
+            game_base_speed: 15.0,
+        }
+    }
+}
 
 /// Common methods for spawn containers that may hold pickups or enemies.
 pub trait Contains {
@@ -472,13 +501,13 @@ impl EnemySpawn {
             .with_steps_vec(vec![
                 EnemyStep::linear_movement_base()
                     .with_direction(-1., -0.1)
-                    .with_trayectory(100.)
+                    .with_trajectory(100.)
                     .depth_advance(1)
                     .into(),
                 EnemyStep::linear_movement_base()
                     .depth_advance(2)
                     .with_direction(0.3, -0.2)
-                    .with_trayectory(80.)
+                    .with_trajectory(80.)
                     .into(),
                 EnemyStep::idle_base().into(),
             ])
@@ -539,13 +568,23 @@ impl StageSpawn {
         }
     }
 
+    /// Returns the runtime elapsed duration for this spawn, scaled by `game_base_speed`.
     #[must_use]
-    pub fn get_elapsed(&self) -> Duration {
+    pub fn get_elapsed_with(&self, game_base_speed: f32) -> Duration {
         match self {
             StageSpawn::Destructible(_) | StageSpawn::Object(_) => Duration::ZERO,
-            StageSpawn::Enemy(s) => s.elapsed.div_f32(GAME_BASE_SPEED),
-            StageSpawn::Pickup(s) => s.elapsed.div_f32(GAME_BASE_SPEED),
+            StageSpawn::Enemy(s) => s.elapsed.div_f32(game_base_speed),
+            StageSpawn::Pickup(s) => s.elapsed.div_f32(game_base_speed),
         }
+    }
+
+    /// Returns the runtime elapsed duration using `OrsGameplayConfig` defaults.
+    ///
+    /// Prefer [`get_elapsed_with`](Self::get_elapsed_with) when an
+    /// `OrsGameplayConfig` is available.
+    #[must_use]
+    pub fn get_elapsed(&self) -> Duration {
+        self.get_elapsed_with(OrsGameplayConfig::default().game_base_speed)
     }
 
     #[must_use]
@@ -892,5 +931,12 @@ mod tests {
         assert_eq!(bands.skybox_color, 1);
         assert_eq!(bands.ground_colors.len(), 3);
         assert!((bands.width_multiplier - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn ors_gameplay_config_ron_parses() {
+        let config = OrsGameplayConfig::load();
+        assert_eq!(config.player_max_health, 100);
+        assert!((config.game_base_speed - 15.0).abs() < f32::EPSILON);
     }
 }

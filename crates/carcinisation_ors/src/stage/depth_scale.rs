@@ -43,7 +43,7 @@
 //! scale, preserving sign (flip semantics) and stacking with any existing
 //! presentation effects. It does not affect gameplay, collision, or anchoring.
 
-use std::{collections::HashMap, fs};
+use std::collections::HashMap;
 
 use bevy::prelude::*;
 use carapace::prelude::CxPresentationTransform;
@@ -53,6 +53,10 @@ use carcinisation_core::components::DespawnMark;
 
 use super::components::placement::{AuthoredDepths, Depth};
 
+/// This config does not use `ron_config!` because its primary source is a
+/// generated geometric curve, not an embedded RON file. The filesystem
+/// override is only useful during dev tuning (`hot_reload` feature).
+#[cfg(feature = "hot_reload")]
 const CONFIG_PATH: &str = "assets/config/depth_scale.ron";
 
 /// Depth range for fallback scaling. Depth 0 is included so that effects
@@ -115,27 +119,32 @@ impl Default for DepthScaleConfig {
 
 impl DepthScaleConfig {
     /// Load from the RON config file, falling back to generated defaults on error.
+    ///
+    /// Without `hot_reload`, always returns generated defaults (no filesystem
+    /// access compiled in).
     pub fn load_or_default() -> Self {
-        if let Ok(body) = fs::read_to_string(CONFIG_PATH) {
-            match ron::from_str::<Self>(&body) {
-                Ok(config) => {
-                    if let Err(e) = config.validate() {
-                        warn!(
-                            "depth_scale config validation failed ({e}), using generated defaults"
-                        );
+        #[cfg(feature = "hot_reload")]
+        {
+            if let Ok(body) = std::fs::read_to_string(CONFIG_PATH) {
+                match ron::from_str::<Self>(&body) {
+                    Ok(config) => {
+                        if let Err(e) = config.validate() {
+                            warn!(
+                                "depth_scale config validation failed ({e}), using generated defaults"
+                            );
+                            return Self::default();
+                        }
+                        return config;
+                    }
+                    Err(e) => {
+                        warn!("failed to parse {CONFIG_PATH}: {e}, using generated defaults");
                         return Self::default();
                     }
-                    config
-                }
-                Err(e) => {
-                    warn!("failed to parse {CONFIG_PATH}: {e}, using generated defaults");
-                    Self::default()
                 }
             }
-        } else {
             info!("{CONFIG_PATH} not found, using generated defaults");
-            Self::default()
         }
+        Self::default()
     }
 
     /// Validate that all visible depths 1..=9 are present and have sane values.

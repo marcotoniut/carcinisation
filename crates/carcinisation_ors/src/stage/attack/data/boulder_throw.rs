@@ -7,16 +7,9 @@ use serde::Deserialize;
 // Config
 // ---------------------------------------------------------------------------
 
-const CONFIG_PATH: &str = "assets/config/attacks/boulder_throw.ron";
-const EMBEDDED_CONFIG: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../assets/config/attacks/boulder_throw.ron"
-));
-
 /// Tuning parameters for the boulder throw projectile.
 ///
-/// Loaded from `assets/config/attacks/boulder_throw.ron`.  See
-/// [`super::blood_shot::BloodShotConfig`] for the loading model.
+/// Loaded from `assets/config/attacks/boulder_throw.ron` via `ron_config!`.
 #[derive(Clone, Debug, Deserialize, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct BoulderThrowConfig {
@@ -29,33 +22,24 @@ pub struct BoulderThrowConfig {
 impl BoulderThrowConfig {
     #[must_use]
     pub fn load() -> Self {
-        #[cfg(not(target_family = "wasm"))]
-        if let Ok(body) = std::fs::read_to_string(CONFIG_PATH) {
-            return Self::parse_and_validate(&body, CONFIG_PATH);
-        }
-        Self::parse_and_validate(EMBEDDED_CONFIG, "embedded boulder_throw.ron")
-    }
-
-    fn parse_and_validate(ron_str: &str, source: &str) -> Self {
-        let config: Self = ron::from_str(ron_str).unwrap_or_else(|e| {
-            panic!("{source}: failed to parse BoulderThrowConfig: {e}");
-        });
-        config.validate(source);
+        let config: Self =
+            carcinisation_core::ron_config!("assets/config/attacks/boulder_throw.ron");
+        config.validate();
         config
     }
 
-    fn validate(&self, source: &str) {
+    fn validate(&self) {
         assert!(
             self.depth_speed.is_finite(),
-            "{source}: depth_speed must be finite",
+            "BoulderThrowConfig: depth_speed must be finite",
         );
         assert!(
             self.line_y_acceleration.is_finite(),
-            "{source}: line_y_acceleration must be finite",
+            "BoulderThrowConfig: line_y_acceleration must be finite",
         );
         assert!(
             self.randomness.is_finite() && self.randomness >= 0.0,
-            "{source}: randomness must be finite and non-negative, got {}",
+            "BoulderThrowConfig: randomness must be finite and non-negative, got {}",
             self.randomness,
         );
     }
@@ -105,9 +89,8 @@ mod tests {
 
     #[test]
     fn embedded_config_parses_and_validates() {
-        let config: BoulderThrowConfig = ron::from_str(EMBEDDED_CONFIG)
-            .expect("embedded boulder_throw.ron must parse into BoulderThrowConfig");
-        config.validate("embedded boulder_throw.ron");
+        let config = BoulderThrowConfig::load();
+        config.validate();
     }
 
     #[test]

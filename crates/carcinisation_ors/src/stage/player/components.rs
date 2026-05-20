@@ -22,7 +22,6 @@ use std::time::Duration;
 pub struct Player;
 
 pub const PLAYER_SIZE: f32 = 0.;
-pub const PLAYER_MAX_HEALTH: u32 = 100;
 pub const PLAYER_DEPTH: Depth = Depth::Zero;
 
 #[derive(Clone, Component, Copy, Debug, Reflect)]

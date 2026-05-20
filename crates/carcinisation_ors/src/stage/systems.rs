@@ -17,7 +17,7 @@ use super::{
         StopStageStep, TweenStageStep,
         interactive::{Dead, Object},
     },
-    data::{GAME_BASE_SPEED, StageData, StageStep},
+    data::{OrsGameplayConfig, StageData, StageStep},
     destructible::components::Destructible,
     enemy::components::Enemy,
     floors::{ActiveFloors, ActiveSurfaceLayout, effective_floor_layout, evaluate_floors_at},
@@ -495,6 +495,7 @@ pub fn initialise_movement_step(
     mut commands: Commands,
     query: Query<(Entity, &TweenStageStep), (With<Stage>, Added<TweenStageStep>)>,
     camera_query: Query<(Entity, &WorldPos), With<CameraPos>>,
+    gameplay_config: Res<OrsGameplayConfig>,
 ) {
     if let Ok((
         _,
@@ -508,7 +509,7 @@ pub fn initialise_movement_step(
         && let Ok((camera_entity, position)) = camera_query.single()
     {
         let direction = *coordinates - position.0;
-        let speed = direction.normalize_or_zero() * *base_speed * GAME_BASE_SPEED;
+        let speed = direction.normalize_or_zero() * *base_speed * gameplay_config.game_base_speed;
 
         commands.entity(camera_entity).insert((
             TargetingValueX::new(position.0.x),

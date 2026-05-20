@@ -110,8 +110,8 @@ impl Default for IdleEnemyStep {
 pub struct LinearTweenEnemyStep {
     pub depth_movement_o: Option<i8>,
     pub direction: Vec2,
-    #[serde(default)]
-    pub trayectory: f32,
+    #[serde(default, alias = "trayectory")]
+    pub trajectory: f32,
 }
 
 impl LinearTweenEnemyStep {
@@ -120,7 +120,7 @@ impl LinearTweenEnemyStep {
         Self {
             direction: Vec2::new(-1., 0.),
             depth_movement_o: None,
-            trayectory: 0.,
+            trajectory: 0.,
         }
     }
 
@@ -137,8 +137,8 @@ impl LinearTweenEnemyStep {
     }
 
     #[must_use]
-    pub fn with_trayectory(mut self, value: f32) -> Self {
-        self.trayectory = value;
+    pub fn with_trajectory(mut self, value: f32) -> Self {
+        self.trajectory = value;
         self
     }
 

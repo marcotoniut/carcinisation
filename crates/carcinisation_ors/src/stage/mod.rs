@@ -98,6 +98,8 @@ use crate::stubs::{
     GameProgressState, PositionSyncSystems, check_despawn_after_delay, delay_despawn,
 };
 use activable::{Activable, ActivableAppExt, activate_system, deactivate_system};
+#[cfg(feature = "hot_reload")]
+use bevy::asset::AssetEvent;
 use bevy::prelude::*;
 use bevy_common_assets::ron::RonAssetPlugin;
 use carapace::prelude::WorldPos;
@@ -186,6 +188,68 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
         app.insert_resource(TimeMultiplier::<StageTimeDomain>::new(1.));
 
         let app = app.add_plugins(RonAssetPlugin::<StageData>::new(&["sg.ron"]));
+
+        app.insert_resource(data::OrsGameplayConfig::load());
+
+        #[cfg(feature = "hot_reload")]
+        app.add_plugins(carcinisation_core::dev_reload::DevReloadPlugin);
+
+        #[cfg(feature = "hot_reload")]
+        {
+            carcinisation_core::watch_config!(app, "assets/config/player.ron");
+            carcinisation_core::watch_config!(
+                app,
+                "assets/config/attacks/player_flamethrower_ors.ron"
+            );
+            carcinisation_core::watch_config!(app, "assets/config/attacks/blood_shot.ron");
+            carcinisation_core::watch_config!(app, "assets/config/attacks/spider_shot.ron");
+            carcinisation_core::watch_config!(app, "assets/config/attacks/boulder_throw.ron");
+            carcinisation_core::watch_config!(app, "assets/config/ors/gameplay.ron");
+
+            app.add_systems(Update, log_stage_data_asset_changes);
+
+            carcinisation_core::reload_ron_system!(
+                reload_player_config,
+                player::config::PlayerConfig,
+                "assets/config/player.ron"
+            );
+            carcinisation_core::reload_ron_system!(
+                reload_flamethrower_config,
+                player::flamethrower::FlamethrowerConfig,
+                "assets/config/attacks/player_flamethrower_ors.ron"
+            );
+            carcinisation_core::reload_ron_system!(
+                reload_blood_shot_config,
+                attack::data::blood_shot::BloodShotConfig,
+                "assets/config/attacks/blood_shot.ron"
+            );
+            carcinisation_core::reload_ron_system!(
+                reload_spider_shot_config,
+                attack::data::spider_shot::SpiderShotConfig,
+                "assets/config/attacks/spider_shot.ron"
+            );
+            carcinisation_core::reload_ron_system!(
+                reload_boulder_throw_config,
+                attack::data::boulder_throw::BoulderThrowConfig,
+                "assets/config/attacks/boulder_throw.ron"
+            );
+            carcinisation_core::reload_ron_system!(
+                reload_ors_gameplay_config,
+                data::OrsGameplayConfig,
+                "assets/config/ors/gameplay.ron"
+            );
+            app.add_systems(
+                Update,
+                (
+                    reload_player_config,
+                    reload_flamethrower_config,
+                    reload_blood_shot_config,
+                    reload_spider_shot_config,
+                    reload_boulder_throw_config,
+                    reload_ors_gameplay_config,
+                ),
+            );
+        }
 
         #[cfg(debug_assertions)]
         app.add_systems(Update, debug_visibility_hierarchy);
@@ -410,6 +474,27 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
                 pause_menu_renderer,
                 toggle_game.run_if(in_state(StageProgressState::Running)),
             ));
+    }
+}
+
+/// Logs when a `.sg.ron` stage asset is modified on disk (`hot_reload` only).
+///
+/// With `bevy/file_watcher` enabled, the asset server detects file changes and
+/// re-emits `AssetEvent::Modified`. This system surfaces those events so the
+/// developer knows a reload was detected. Full subsystem rebuild on change is
+/// planned for a later phase.
+#[cfg(feature = "hot_reload")]
+fn log_stage_data_asset_changes(mut events: MessageReader<AssetEvent<StageData>>) {
+    for event in events.read() {
+        match event {
+            AssetEvent::Modified { id } => {
+                info!("Stage data asset modified (id={id:?}) — restart stage to apply changes");
+            }
+            AssetEvent::LoadedWithDependencies { id } => {
+                debug!("Stage data asset loaded (id={id:?})");
+            }
+            _ => {}
+        }
     }
 }
 

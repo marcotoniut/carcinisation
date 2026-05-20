@@ -14,7 +14,7 @@ pub fn mosquiton_approach_to_band() -> VecDeque<EnemyStep> {
         EnemyStep::linear_movement_base()
             .depth_advance(1)
             .with_direction(-1.0, -0.25)
-            .with_trayectory(28.0),
+            .with_trajectory(28.0),
     )])
 }
 
@@ -49,6 +49,6 @@ pub fn mosquiton_retreat(depth: Depth) -> VecDeque<EnemyStep> {
         EnemyStep::linear_movement_base()
             .depth_retreat(1)
             .with_direction(direction.0, direction.1)
-            .with_trayectory(22.0),
+            .with_trajectory(22.0),
     )])
 }

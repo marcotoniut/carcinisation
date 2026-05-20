@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 description = "On-rails shooter gameplay for Carcinisation"
 
+[features]
+hot_reload = ["carcinisation_core/hot_reload"]
+
 [dependencies]
 activable = { path = "../activable" }
 activable_macros = { path = "../activable_macros" }

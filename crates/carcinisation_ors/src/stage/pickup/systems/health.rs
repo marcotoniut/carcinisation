@@ -4,13 +4,14 @@ use crate::stage::{
         interactive::{Dead, Health},
         placement::Depth,
     },
+    data::OrsGameplayConfig,
     depth_scale::DepthScaleConfig,
     pickup::components::{
         HealthRecovery, PICKUP_FEEDBACK_GLITTER_TIME, PICKUP_FEEDBACK_GLITTER_TOGGLE_SECS,
         PICKUP_FEEDBACK_INITIAL_SPEED_Y, PICKUP_FEEDBACK_TIME, PICKUP_HUD_GLITTER_TIME,
         PickupDropPhysics, PickupFeedback, PickupFeedbackGlitter, PickupFeedbackScale,
     },
-    player::components::{PLAYER_MAX_HEALTH, Player},
+    player::components::Player,
     resources::StageTimeDomain,
     ui::hud::components::{HealthIcon, HealthText},
 };
@@ -117,6 +118,7 @@ pub fn pickup_health(
     hud_text_query: Query<(Entity, Option<&CxFilter>), With<HealthText>>,
     stage_time: Res<Time<StageTimeDomain>>,
     depth_scale_config: Res<DepthScaleConfig>,
+    gameplay_config: Res<OrsGameplayConfig>,
     filters: CxAssets<CxFilter>,
 ) {
     let camera_pos = camera_query.single().unwrap();
@@ -126,7 +128,10 @@ pub fn pickup_health(
         {
             commands.entity(entity).insert(DespawnMark);
 
-            health.0 = health.0.saturating_add(recovery.0).min(PLAYER_MAX_HEALTH);
+            health.0 = health
+                .0
+                .saturating_add(recovery.0)
+                .min(gameplay_config.player_max_health);
             score.add(recovery.score_deduction());
 
             // Include the visual offset (parallax) so the arc starts from

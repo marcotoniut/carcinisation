@@ -1,6 +1,8 @@
 use super::entity::{
     BrokenParts, Dying, EnemyMosquiton, EnemyMosquitonAnimation, FallingState, WingsBroken,
 };
+use carcinisation_base::direction::SpriteDirection;
+
 use crate::stage::enemy::composed::ComposedAnimationOverride;
 use crate::stage::{
     attack::{data::blood_shot::BloodShotConfig, spawns::blood_shot::spawn_blood_shot_attack},
@@ -16,8 +18,9 @@ use crate::stage::{
         composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
         data::{
             mosquiton::{
-                MOSQUITON_WING_PART_TAGS, TAG_DEATH_FLY, TAG_FALL, TAG_IDLE_FLY, TAG_IDLE_STAND,
-                TAG_MELEE_FLY, TAG_SHOOT_FLY, apply_mosquiton_animation_state,
+                ACTION_DEATH_FLY, ACTION_FALL, ACTION_IDLE_FLY, ACTION_IDLE_STAND,
+                ACTION_MELEE_FLY, ACTION_SHOOT_FLY, MOSQUITON_WING_PART_TAGS,
+                request_mosquiton_action,
             },
             steps::{EnemyStep, JumpEnemyStep},
         },
@@ -75,30 +78,26 @@ pub fn assign_mosquiton_animation(
     ) in &mut query
     {
         let grounded = falling_state.is_some_and(|f| f.grounded);
-        let (next_animation, next_tag) = if wings_broken.is_some() && grounded {
-            // Wings broken and landed — grounded idle
-            (EnemyMosquitonAnimation::Falling, TAG_IDLE_STAND)
+        let (next_animation, next_action) = if wings_broken.is_some() && grounded {
+            (EnemyMosquitonAnimation::Falling, ACTION_IDLE_STAND)
         } else if wings_broken.is_some() {
-            // Wings broken, still falling
-            (EnemyMosquitonAnimation::Falling, TAG_FALL)
+            (EnemyMosquitonAnimation::Falling, ACTION_FALL)
         } else {
-            // Normal flight behavior — requires an active behavior step.
             let Some(behavior) = behavior else {
                 continue;
             };
             match attacking.attack {
                 Some(EnemyMosquitoAttack::Melee | EnemyMosquitoAttack::Ranged) => {
-                    let animation = match attacking.attack {
-                        Some(EnemyMosquitoAttack::Melee) => EnemyMosquitonAnimation::MeleeFly,
-                        Some(EnemyMosquitoAttack::Ranged) => EnemyMosquitonAnimation::ShootFly,
+                    let (animation, action) = match attacking.attack {
+                        Some(EnemyMosquitoAttack::Melee) => {
+                            (EnemyMosquitonAnimation::MeleeFly, ACTION_MELEE_FLY)
+                        }
+                        Some(EnemyMosquitoAttack::Ranged) => {
+                            (EnemyMosquitonAnimation::ShootFly, ACTION_SHOOT_FLY)
+                        }
                         None => unreachable!("attack arm already matched on Some"),
                     };
-                    let tag = match attacking.attack {
-                        Some(EnemyMosquitoAttack::Melee) => TAG_MELEE_FLY,
-                        Some(EnemyMosquitoAttack::Ranged) => TAG_SHOOT_FLY,
-                        None => unreachable!("attack arm already matched on Some"),
-                    };
-                    (animation, tag)
+                    (animation, action)
                 }
                 None => match behavior.behavior {
                     EnemyStep::Attack { .. }
@@ -106,7 +105,7 @@ pub fn assign_mosquiton_animation(
                     | EnemyStep::Idle { .. }
                     | EnemyStep::LinearTween { .. }
                     | EnemyStep::Jump(JumpEnemyStep { .. }) => {
-                        (EnemyMosquitonAnimation::IdleFly, TAG_IDLE_FLY)
+                        (EnemyMosquitonAnimation::IdleFly, ACTION_IDLE_FLY)
                     }
                 },
             }
@@ -115,7 +114,7 @@ pub fn assign_mosquiton_animation(
         if current_animation != Some(&next_animation) {
             commands.entity(entity).insert(next_animation);
         }
-        apply_mosquiton_animation_state(&mut animation_state, next_tag);
+        request_mosquiton_action(&mut animation_state, next_action);
     }
 }
 
@@ -147,8 +146,9 @@ pub fn despawn_dead_mosquitons(
         // Keep the current animation pose (falling, shooting, idle, etc.)
         // but override just the head sprite to show death eyes from death_fly animation.
         // Use sprite_only to preserve the base animation's head position and avoid misalignment.
+        let death_fly_tag = SpriteDirection::Front.tag_name(ACTION_DEATH_FLY);
         let head_override =
-            ComposedAnimationOverride::for_part_tags_sprite_only(TAG_DEATH_FLY, ["head"]);
+            ComposedAnimationOverride::for_part_tags_sprite_only(&death_fly_tag, ["head"]);
 
         // Preserve existing wing overrides if present, add head override
         let mut overrides = animation_state.part_overrides.clone();
@@ -805,7 +805,7 @@ mod tests {
             behavior: EnemyStep::LinearTween(LinearTweenEnemyStep {
                 depth_movement_o: None,
                 direction: Vec2::new(1.0, 0.0),
-                trayectory: 100.0,
+                trajectory: 100.0,
             }),
         };
 
@@ -837,6 +837,7 @@ mod tests {
             EnemyContinuousDepth::from_depth(Depth::Three),
             crate::stage::resources::StageGravity::STANDARD,
             None,
+            crate::stage::data::OrsGameplayConfig::default().game_base_speed,
         );
         app.world_mut().flush();
 
@@ -948,7 +949,7 @@ mod tests {
             &mut app,
             LinearTween {
                 direction: Vec2::new(1.0, 0.0),
-                trayectory: 100.0,
+                trajectory: 100.0,
                 reached_x: false,
                 reached_y: false,
             },
@@ -1039,7 +1040,7 @@ mod tests {
                     }),
                 },
                 EnemyMosquitoAttacking::default(),
-                ComposedAnimationState::new(TAG_SHOOT_FLY),
+                ComposedAnimationState::new(SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY)),
                 Depth::Three,
             ))
             .id();
@@ -1058,7 +1059,10 @@ mod tests {
             .expect("composed animation state should exist");
 
         assert_eq!(*animation, EnemyMosquitonAnimation::IdleFly);
-        assert_eq!(state.requested_tag, TAG_IDLE_FLY);
+        assert_eq!(
+            state.requested_tag,
+            SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)
+        );
     }
 
     #[test]
@@ -1083,7 +1087,7 @@ mod tests {
                     attack: Some(EnemyMosquitoAttack::Ranged),
                     last_attack_started: Duration::ZERO,
                 },
-                ComposedAnimationState::new(TAG_IDLE_FLY),
+                ComposedAnimationState::new(SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)),
                 Depth::Three,
             ))
             .id();
@@ -1100,7 +1104,10 @@ mod tests {
                 .get::<ComposedAnimationState>()
                 .expect("composed animation state should exist");
             assert_eq!(*animation, EnemyMosquitonAnimation::ShootFly);
-            assert_eq!(state.requested_tag, TAG_SHOOT_FLY);
+            assert_eq!(
+                state.requested_tag,
+                SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY)
+            );
         }
 
         app.world_mut()
@@ -1117,7 +1124,10 @@ mod tests {
                 .entity(entity)
                 .get::<EnemyMosquitoAttacking>()
                 .expect("attack component should still exist");
-            assert_eq!(state.requested_tag, TAG_SHOOT_FLY);
+            assert_eq!(
+                state.requested_tag,
+                SpriteDirection::Front.tag_name(ACTION_SHOOT_FLY)
+            );
             assert!(matches!(
                 attacking.attack,
                 Some(EnemyMosquitoAttack::Ranged)
@@ -1137,7 +1147,10 @@ mod tests {
             .entity(entity)
             .get::<EnemyMosquitoAttacking>()
             .expect("attack component should still exist");
-        assert_eq!(state.requested_tag, TAG_IDLE_FLY);
+        assert_eq!(
+            state.requested_tag,
+            SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)
+        );
         assert!(attacking.attack.is_none());
     }
 

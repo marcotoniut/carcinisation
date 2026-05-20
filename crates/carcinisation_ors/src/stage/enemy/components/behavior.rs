@@ -4,8 +4,7 @@ use crate::stage::enemy::data::steps::{
     CircleAroundEnemyStep, EnemyStep, JumpEnemyStep, LinearTweenEnemyStep,
 };
 use crate::stage::{
-    components::placement::Depth, data::GAME_BASE_SPEED, floors::ActiveFloors,
-    resources::StageTimeDomain,
+    components::placement::Depth, floors::ActiveFloors, resources::StageTimeDomain,
 };
 use bevy::prelude::*;
 use carapace::prelude::WorldPos;
@@ -103,6 +102,7 @@ fn jump_motion(
     current_depth: EnemyContinuousDepth,
     gravity_acceleration: f32,
     target_y: f32,
+    game_base_speed: f32,
 ) -> JumpMotion {
     let target_x = step.coordinates.x;
     let dx = target_x - current_position.0.x;
@@ -113,7 +113,7 @@ fn jump_motion(
     // Cap total airtime so jumps stay within a sane apex while still using
     // normal gravity and exact floor landing.
     let adapted_speed = (depth_value - 3.) / 6.;
-    let base_x_speed = (step.speed + adapted_speed) * GAME_BASE_SPEED;
+    let base_x_speed = (step.speed + adapted_speed) * game_base_speed;
     let base_travel_time_secs = if base_x_speed.abs() > f32::EPSILON {
         dx.abs() / base_x_speed.abs()
     } else {
@@ -204,16 +204,17 @@ impl EnemyCurrentBehavior {
         current_depth: EnemyContinuousDepth,
         gravity_acceleration: f32,
         jump_target_y: Option<f32>,
+        game_base_speed: f32,
     ) -> BehaviorBundle {
         match self.behavior {
             EnemyStep::Idle { .. } => BehaviorBundle::Idle,
             EnemyStep::LinearTween(LinearTweenEnemyStep {
                 direction,
-                trayectory,
+                trajectory,
                 ..
             }) => BehaviorBundle::LinearTween(LinearTween {
                 direction,
-                trayectory,
+                trajectory,
                 reached_x: false,
                 reached_y: false,
             }),
@@ -234,6 +235,7 @@ impl EnemyCurrentBehavior {
                     current_depth,
                     gravity_acceleration,
                     jump_target_y.expect("jump behaviors require a resolved floor target"),
+                    game_base_speed,
                 );
                 BehaviorBundle::Jump(JumpTween::new(
                     time_offset,
@@ -259,6 +261,7 @@ impl EnemyCurrentBehavior {
         current_depth: EnemyContinuousDepth,
         gravity_acceleration: f32,
         jump_target_y: Option<f32>,
+        game_base_speed: f32,
     ) -> Vec<Entity> {
         let mut children = Vec::new();
 
@@ -266,14 +269,14 @@ impl EnemyCurrentBehavior {
             EnemyStep::LinearTween(LinearTweenEnemyStep {
                 depth_movement_o,
                 direction,
-                trayectory,
+                trajectory,
             }) => {
                 let normalised_direction = direction.normalize_or_zero();
                 // TODO use a better formula to increase speed for higher depths
                 let depth_value = current_depth.clamped_value();
                 let adapted_speed = (depth_value - 3.) / 6.;
-                let velocity = normalised_direction * (speed + adapted_speed) * GAME_BASE_SPEED;
-                let target_position = current_position.0 + normalised_direction * trayectory;
+                let velocity = normalised_direction * (speed + adapted_speed) * game_base_speed;
+                let target_position = current_position.0 + normalised_direction * trajectory;
 
                 // Spawn X-axis tween child
                 let child_x = commands
@@ -337,6 +340,7 @@ impl EnemyCurrentBehavior {
                     current_depth,
                     gravity_acceleration,
                     jump_target_y.expect("jump behaviors require a resolved floor target"),
+                    game_base_speed,
                 );
                 // Spawn X-axis tween child (linear, constant velocity).
                 let child_x = commands

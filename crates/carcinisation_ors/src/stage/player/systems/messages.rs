@@ -1,9 +1,12 @@
 use crate::assets::CxAssets;
-use crate::stage::player::{
-    bundles::make_player_bundle,
-    components::Player,
-    crosshair::CrosshairSettings,
-    messages::{PlayerShutdownEvent, PlayerStartupEvent},
+use crate::stage::{
+    data::OrsGameplayConfig,
+    player::{
+        bundles::make_player_bundle,
+        components::Player,
+        crosshair::CrosshairSettings,
+        messages::{PlayerShutdownEvent, PlayerStartupEvent},
+    },
 };
 #[cfg(debug_assertions)]
 use crate::stubs::{debug_print_shutdown, debug_print_startup};
@@ -19,11 +22,16 @@ pub fn on_player_startup(
     mut commands: Commands,
     mut assets_sprite: CxAssets<CxSprite>,
     crosshair_settings: Res<CrosshairSettings>,
+    gameplay_config: Res<OrsGameplayConfig>,
 ) {
     #[cfg(debug_assertions)]
     debug_print_startup(DEBUG_MODULE);
 
-    commands.spawn(make_player_bundle(&mut assets_sprite, &crosshair_settings));
+    commands.spawn(make_player_bundle(
+        &mut assets_sprite,
+        &crosshair_settings,
+        &gameplay_config,
+    ));
 }
 
 /// @trigger Despawns all player entities on `PlayerShutdownEvent`.

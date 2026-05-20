@@ -10,6 +10,10 @@
     clippy::cast_possible_wrap
 )]
 
+pub mod direction;
+pub mod directional_animation;
+pub mod directional_config;
 pub mod fire_death;
 pub mod game;
 pub mod layer;
+pub mod layer_order;

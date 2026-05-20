@@ -96,8 +96,8 @@ pub fn perimeter_flames_from_mask(
         .burning_flame_scale_min
         .min(config.burning_flame_scale_max);
     let scale_max = config
-        .burning_flame_scale_min
-        .max(config.burning_flame_scale_max);
+        .burning_flame_scale_max
+        .max(config.burning_flame_scale_min);
 
     (0..count)
         .map(|i| {

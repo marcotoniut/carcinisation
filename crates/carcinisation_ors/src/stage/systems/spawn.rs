@@ -7,7 +7,7 @@ use crate::stage::{
         interactive::{Collider, ColliderData, Dead},
         placement::{Airborne, AuthoredDepths, Depth},
     },
-    data::ContainerSpawn,
+    data::{ContainerSpawn, OrsGameplayConfig},
     depth_scale::{DepthFallbackScale, DepthScaleConfig},
     destructible::{
         components::{DestructibleState, make_animation_bundle},
@@ -15,7 +15,7 @@ use crate::stage::{
     },
     enemy::{
         composed::{ComposedAnimationState, ComposedEnemyVisual},
-        data::{mosquiton::TAG_IDLE_FLY, spidey::TAG_IDLE as SPIDEY_TAG_IDLE},
+        data::{mosquiton::ACTION_IDLE_FLY, spidey::ACTION_IDLE},
         entity::EnemyType,
         mosquito::entity::{
             ENEMY_MOSQUITO_BASE_HEALTH, ENEMY_MOSQUITO_RADIUS, MosquitoBundle,
@@ -171,12 +171,13 @@ pub fn check_step_spawn(
     mut commands: Commands,
     mut stage_step_spawner_query: Query<&mut StageStepSpawner>,
     stage_time: Res<Time<StageTimeDomain>>,
+    gameplay_config: Res<OrsGameplayConfig>,
 ) {
     for mut stage_step_spawner in &mut stage_step_spawner_query.iter_mut() {
         let mut elapsed = stage_step_spawner.elapsed + stage_time.delta();
 
         stage_step_spawner.spawns.retain_mut(|spawn| {
-            let spawn_elapsed = spawn.get_elapsed();
+            let spawn_elapsed = spawn.get_elapsed_with(gameplay_config.game_base_speed);
             if spawn_elapsed <= elapsed {
                 elapsed -= spawn_elapsed;
                 commands.trigger(StageSpawnEvent {
@@ -343,7 +344,10 @@ pub fn spawn_enemy(
                 .spawn((
                     MosquitonBundle {
                         behaviors,
-                        composed_animation: ComposedAnimationState::new(TAG_IDLE_FLY),
+                        composed_animation: ComposedAnimationState::new(
+                            carcinisation_base::direction::SpriteDirection::Front
+                                .tag_name(ACTION_IDLE_FLY),
+                        ),
                         composed_visual: ComposedEnemyVisual::for_enemy(
                             asset_server,
                             EnemyType::Mosquiton,
@@ -408,7 +412,10 @@ pub fn spawn_enemy(
                 .spawn((
                     SpideyBundle {
                         behaviors,
-                        composed_animation: ComposedAnimationState::new(SPIDEY_TAG_IDLE),
+                        composed_animation: ComposedAnimationState::new(
+                            carcinisation_base::direction::SpriteDirection::Front
+                                .tag_name(ACTION_IDLE),
+                        ),
                         composed_visual: ComposedEnemyVisual::for_enemy(
                             asset_server,
                             EnemyType::Spidey,

@@ -3526,7 +3526,7 @@ mod tests {
                 },
             }],
             animations: vec![Animation {
-                tag: "idle_stand".to_string(),
+                tag: "front_idle_stand".to_string(),
                 direction: "forward".to_string(),
                 repeats: None,
                 frames: vec![AnimationFrame {
@@ -3553,6 +3553,7 @@ mod tests {
                     max_health: 10,
                 }],
             },
+            directional_layer_order: None,
         }
     }
 
@@ -3696,7 +3697,7 @@ mod tests {
             ],
             animations: vec![
                 Animation {
-                    tag: "idle_fly".to_string(),
+                    tag: "front_idle_fly".to_string(),
                     direction: "forward".to_string(),
                     repeats: None,
                     frames: vec![
@@ -3758,7 +3759,7 @@ mod tests {
                     part_overrides: vec![],
                 },
                 Animation {
-                    tag: "shoot_fly".to_string(),
+                    tag: "front_shoot_fly".to_string(),
                     direction: "forward".to_string(),
                     repeats: None,
                     frames: vec![
@@ -3801,7 +3802,7 @@ mod tests {
                     part_overrides: vec![],
                 },
                 Animation {
-                    tag: "melee_fly".to_string(),
+                    tag: "front_melee_fly".to_string(),
                     direction: "forward".to_string(),
                     repeats: None,
                     frames: vec![AnimationFrame {
@@ -3823,6 +3824,7 @@ mod tests {
                 },
             ],
             gameplay: CompositionGameplay::default(),
+            directional_layer_order: None,
         }
     }
 
@@ -3879,23 +3881,23 @@ mod tests {
             .map(|animation| animation.tag.as_str())
             .collect();
         assert!(
-            tags.contains("idle_stand"),
+            tags.contains("front_idle_stand"),
             "expected idle_stand tag in exported mosquiton atlas"
         );
         assert!(
-            tags.contains("shoot_stand"),
-            "expected shoot_stand tag in exported mosquiton atlas"
+            tags.contains("front_shoot_stand"),
+            "expected front_shoot_stand tag in exported mosquiton atlas"
         );
         assert!(
-            tags.contains("idle_fly"),
+            tags.contains("front_idle_fly"),
             "expected idle_fly tag in exported mosquiton atlas"
         );
         assert!(
-            tags.contains("shoot_fly"),
+            tags.contains("front_shoot_fly"),
             "expected shoot_fly tag in exported mosquiton atlas"
         );
         assert!(
-            tags.contains("melee_fly"),
+            tags.contains("front_melee_fly"),
             "expected melee_fly tag in exported mosquiton atlas"
         );
     }
@@ -3913,7 +3915,7 @@ mod tests {
             .atlas
             .animations
             .iter()
-            .find(|animation| animation.tag == "shoot_fly")
+            .find(|animation| animation.tag == "front_shoot_fly")
             .expect("shoot_fly animation should exist");
 
         let authored_frames: Vec<_> = shoot
@@ -3950,7 +3952,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         let resolved = resolve_requested_animation_frame(
             &mut visual,
@@ -3978,9 +3980,9 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let mut state = ComposedAnimationState::new("shoot_fly");
+        let mut state = ComposedAnimationState::new("front_shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
-            "idle_fly",
+            "front_idle_fly",
             ["wings"],
         )]);
         let tracks = requested_animation_tracks(&state, Some(&cache));
@@ -3999,8 +4001,10 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let idle_tracks =
-            requested_animation_tracks(&ComposedAnimationState::new("idle_fly"), Some(&cache));
+        let idle_tracks = requested_animation_tracks(
+            &ComposedAnimationState::new("front_idle_fly"),
+            Some(&cache),
+        );
         let _ = resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 0)
             .expect("initial idle frame should resolve");
         let idle_resolved =
@@ -4016,8 +4020,10 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let shoot_tracks =
-            requested_animation_tracks(&ComposedAnimationState::new("shoot_fly"), Some(&cache));
+        let shoot_tracks = requested_animation_tracks(
+            &ComposedAnimationState::new("front_shoot_fly"),
+            Some(&cache),
+        );
         let _ = resolve_requested_animation_frame(&mut shoot_visual, &shoot_tracks, &cache, 0)
             .expect("initial shoot frame should resolve");
         let shoot_resolved =
@@ -4052,9 +4058,9 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let mut state = ComposedAnimationState::new("melee_fly");
+        let mut state = ComposedAnimationState::new("front_melee_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
-            "idle_fly",
+            "front_idle_fly",
             ["wings"],
         )]);
         let tracks = requested_animation_tracks(&state, Some(&cache));
@@ -4073,8 +4079,10 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let idle_tracks =
-            requested_animation_tracks(&ComposedAnimationState::new("idle_fly"), Some(&cache));
+        let idle_tracks = requested_animation_tracks(
+            &ComposedAnimationState::new("front_idle_fly"),
+            Some(&cache),
+        );
         let _ = resolve_requested_animation_frame(&mut idle_visual, &idle_tracks, &cache, 0)
             .expect("initial idle frame should resolve");
         let idle_resolved =
@@ -4090,8 +4098,10 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let melee_tracks =
-            requested_animation_tracks(&ComposedAnimationState::new("melee_fly"), Some(&cache));
+        let melee_tracks = requested_animation_tracks(
+            &ComposedAnimationState::new("front_melee_fly"),
+            Some(&cache),
+        );
         let _ = resolve_requested_animation_frame(&mut melee_visual, &melee_tracks, &cache, 0)
             .expect("initial melee frame should resolve");
         let melee_resolved =
@@ -4134,9 +4144,9 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let mut state = ComposedAnimationState::new("shoot_fly");
+        let mut state = ComposedAnimationState::new("front_shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
-            "idle_fly",
+            "front_idle_fly",
             ["wing"],
         )]);
 
@@ -4165,9 +4175,9 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let mut state = ComposedAnimationState::new("shoot_fly");
+        let mut state = ComposedAnimationState::new("front_shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
-            "idle_fly",
+            "front_idle_fly",
             ["wing"],
         )]);
         let tracks = requested_animation_tracks(&state, Some(&cache));
@@ -4201,9 +4211,9 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let mut state = ComposedAnimationState::new("idle_fly");
+        let mut state = ComposedAnimationState::new("front_idle_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
-            "shoot_fly",
+            "front_shoot_fly",
             ["wing"],
         )]);
 
@@ -4232,7 +4242,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let mut state = ComposedAnimationState::new("shoot_fly");
+        let mut state = ComposedAnimationState::new("front_shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
             "missing_fly",
             ["wing"],
@@ -4262,7 +4272,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 99, 100]);
         assert!(
@@ -4289,7 +4299,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 100, 150, 200, 300]);
         assert_eq!(cues[1], vec!["blood_shot".to_string()]);
@@ -4314,7 +4324,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 250]);
         assert_eq!(cues[1], vec!["blood_shot".to_string()]);
@@ -4326,7 +4336,7 @@ mod tests {
         let shoot = atlas
             .animations
             .iter_mut()
-            .find(|animation| animation.tag == "shoot_fly")
+            .find(|animation| animation.tag == "front_shoot_fly")
             .expect("shoot_fly animation should exist");
         shoot.repeats = Some(1);
 
@@ -4340,7 +4350,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 100, 300, 600]);
         assert_eq!(cues[1], vec!["blood_shot".to_string()]);
@@ -4357,7 +4367,7 @@ mod tests {
         let shoot = atlas
             .animations
             .iter_mut()
-            .find(|animation| animation.tag == "shoot_fly")
+            .find(|animation| animation.tag == "front_shoot_fly")
             .expect("shoot_fly animation should exist");
         shoot.repeats = Some(1);
 
@@ -4371,7 +4381,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let mut state = ComposedAnimationState::new("shoot_fly");
+        let mut state = ComposedAnimationState::new("front_shoot_fly");
         state.set_hold_last_frame(true);
 
         let tracks = requested_animation_tracks(&state, Some(&cache));
@@ -4419,7 +4429,7 @@ mod tests {
         let shoot = atlas
             .animations
             .iter_mut()
-            .find(|a| a.tag == "shoot_fly")
+            .find(|a| a.tag == "front_shoot_fly")
             .unwrap();
         shoot.repeats = Some(1);
 
@@ -4433,7 +4443,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         // shoot_fly has 2 frames × 100ms. After 200ms the animation is
         // exhausted and should emit AnimationComplete.
@@ -4459,7 +4469,7 @@ mod tests {
             last_resolved_anchor_tag: None,
         };
         // idle_fly has repeats: None (infinite).
-        let state = ComposedAnimationState::new("idle_fly");
+        let state = ComposedAnimationState::new("front_idle_fly");
 
         let kinds = cue_kinds_at_times(&mut visual, &state, &cache, &[0, 100, 200, 500, 1000]);
         for (i, frame_kinds) in kinds.iter().enumerate() {
@@ -4476,7 +4486,7 @@ mod tests {
         let shoot = atlas
             .animations
             .iter_mut()
-            .find(|a| a.tag == "shoot_fly")
+            .find(|a| a.tag == "front_shoot_fly")
             .unwrap();
         shoot.repeats = Some(1);
 
@@ -4490,7 +4500,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         // Advance well past the end — completion should appear exactly once.
         let kinds = cue_kinds_at_times(&mut visual, &state, &cache, &[0, 100, 200, 400, 800]);
@@ -4518,7 +4528,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("idle_fly");
+        let state = ComposedAnimationState::new("front_idle_fly");
 
         let cues = cue_ids_at_times(&mut visual, &state, &cache, &[0, 100, 200, 300]);
         assert!(cues.into_iter().all(|events| events.is_empty()));
@@ -4655,7 +4665,7 @@ mod tests {
                 ),
             ]),
         };
-        let frame = &cache.animations["idle_stand"].frames[0];
+        let frame = &cache.animations["front_idle_stand"].frames[0];
         let (_parts, metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
             &cache,
@@ -4819,7 +4829,7 @@ mod tests {
         let atlas = load_exported_mosquiton();
         let cache =
             build_runtime_cache_compact(&atlas.atlas).expect("mosquiton atlas should validate");
-        let frame = &cache.animations["idle_fly"].frames[0];
+        let frame = &cache.animations["front_idle_fly"].frames[0];
         let visible = visible_part_ids_in_frame(&cache, frame);
         // All wing parts (by tag) should appear before body in draw order.
         let wing_ids = visual_part_ids_with_tags(&cache, &["wings"]);
@@ -4906,7 +4916,7 @@ mod tests {
         });
 
         let cache = build_cache(&atlas).expect("atlas should validate");
-        let frame = &cache.animations["idle_stand"].frames[0];
+        let frame = &cache.animations["front_idle_stand"].frames[0];
 
         assert_eq!(
             frame.poses["arm_l"][0].sprite_id, frame.poses["arm_r"][0].sprite_id,
@@ -4981,7 +4991,7 @@ mod tests {
                 })
                 .collect(),
         };
-        let frame = &cache.animations["idle_fly"].frames[0];
+        let frame = &cache.animations["front_idle_fly"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
         let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
@@ -5083,7 +5093,7 @@ mod tests {
                 })
                 .collect(),
         };
-        let frame = &cache.animations["idle_fly"].frames[0];
+        let frame = &cache.animations["front_idle_fly"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
         let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
@@ -5159,7 +5169,7 @@ mod tests {
                 })
                 .collect(),
         };
-        let frame = &cache.animations["idle_fly"].frames[0];
+        let frame = &cache.animations["front_idle_fly"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
         let (_parts, _metrics, resolved_parts, resolved_fragments) = compose_frame(
             &frame.poses,
@@ -5371,7 +5381,7 @@ mod tests {
                 ),
             ]),
         };
-        let frame = &cache.animations["idle_stand"].frames[0];
+        let frame = &cache.animations["front_idle_stand"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
         let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
@@ -5644,7 +5654,7 @@ mod tests {
         });
 
         let (parts, _, _, _) = compose_frame(
-            &cache.animations["idle_stand"].frames[0].poses,
+            &cache.animations["front_idle_stand"].frames[0].poses,
             &cache,
             &bindings,
             &part_states,
@@ -5783,7 +5793,7 @@ mod tests {
                 },
             )]),
         };
-        let frame = &cache.animations["idle_stand"].frames[0];
+        let frame = &cache.animations["front_idle_stand"].frames[0];
         let part_states = ComposedPartStates::from_cache(&cache);
         let (_parts, _metrics, resolved_parts, _resolved_fragments) = compose_frame(
             &frame.poses,
@@ -6096,7 +6106,7 @@ mod tests {
                 },
             ],
             animations: vec![Animation {
-                tag: "idle_stand".to_string(),
+                tag: "front_idle_stand".to_string(),
                 direction: "forward".to_string(),
                 repeats: None,
                 frames: vec![AnimationFrame {
@@ -6145,6 +6155,7 @@ mod tests {
                     max_health: 20,
                 }],
             },
+            directional_layer_order: None,
         }
     }
 
@@ -6185,7 +6196,7 @@ mod tests {
     fn split_part_produces_multiple_render_fragments_per_frame() {
         let atlas = split_atlas();
         let cache = build_cache(&atlas).expect("split atlas should be valid");
-        let frame = &cache.animations["idle_stand"].frames[0];
+        let frame = &cache.animations["front_idle_stand"].frames[0];
 
         // legs_visual should have 2 fragments in its Vec.
         let fragments = &frame.poses["legs_visual"];
@@ -6214,7 +6225,7 @@ mod tests {
         atlas.animations[0].frames[0].parts.swap(1, 2);
 
         let cache = build_cache(&atlas).expect("unordered fragments should canonicalise");
-        let fragments = &cache.animations["idle_stand"].frames[0].poses["legs_visual"];
+        let fragments = &cache.animations["front_idle_stand"].frames[0].poses["legs_visual"];
 
         assert_eq!(
             fragments
@@ -6259,7 +6270,7 @@ mod tests {
     fn broken_state_hides_all_split_fragments() {
         let atlas = split_atlas();
         let cache = build_cache(&atlas).expect("split atlas should be valid");
-        let frame = &cache.animations["idle_stand"].frames[0];
+        let frame = &cache.animations["front_idle_stand"].frames[0];
 
         let mut part_states = ComposedPartStates::from_cache(&cache);
         // Mark legs_visual as not visible (simulating broken state).
@@ -6321,7 +6332,7 @@ mod tests {
         let cache = build_cache(&atlas).expect("split atlas should be valid");
 
         // All fragments for legs_visual come from the same animation frame.
-        let frame = &cache.animations["idle_stand"].frames[0];
+        let frame = &cache.animations["front_idle_stand"].frames[0];
         let fragments = &frame.poses["legs_visual"];
         // All fragments should be visible (same state from animation resolution).
         assert!(
@@ -6401,7 +6412,7 @@ mod tests {
 
         // Base animation is idle_stand. Sprite-only override pulls sprites
         // from alt_legs for parts tagged "legs".
-        let mut state = ComposedAnimationState::new("idle_stand");
+        let mut state = ComposedAnimationState::new("front_idle_stand");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags_sprite_only(
             "alt_legs",
             ["legs"],
@@ -6454,10 +6465,10 @@ mod tests {
         let shoot = atlas
             .animations
             .iter_mut()
-            .find(|a| a.tag == "shoot_fly")
+            .find(|a| a.tag == "front_shoot_fly")
             .unwrap();
         shoot.part_overrides.push(AnimationOverride {
-            source_tag: "idle_fly".to_string(),
+            source_tag: "front_idle_fly".to_string(),
             part_tags: vec!["wings".to_string()],
             part_ids: vec![],
             sprite_only: false,
@@ -6474,7 +6485,7 @@ mod tests {
             last_resolved_anchor_tag: None,
         };
         // No code-side overrides — metadata should do it.
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         let resolved = resolve_requested_animation_frame(
             &mut visual,
@@ -6500,10 +6511,10 @@ mod tests {
         let shoot = atlas
             .animations
             .iter_mut()
-            .find(|a| a.tag == "shoot_fly")
+            .find(|a| a.tag == "front_shoot_fly")
             .unwrap();
         shoot.part_overrides.push(AnimationOverride {
-            source_tag: "idle_fly".to_string(),
+            source_tag: "front_idle_fly".to_string(),
             part_tags: vec!["wings".to_string()],
             part_ids: vec![],
             sprite_only: false,
@@ -6511,20 +6522,20 @@ mod tests {
 
         let cache = build_cache(&atlas).expect("atlas should validate");
         // Code-side override also targets wings — should take priority.
-        let mut state = ComposedAnimationState::new("shoot_fly");
+        let mut state = ComposedAnimationState::new("front_shoot_fly");
         state.set_part_overrides([ComposedAnimationOverride::for_part_tags(
-            "idle_fly",
+            "front_idle_fly",
             ["wings"],
         )]);
 
         let tracks_with_code = requested_animation_tracks(&state, Some(&cache));
         // Code-side override should appear before metadata override.
-        assert_eq!(tracks_with_code[0].tag, "idle_fly");
+        assert_eq!(tracks_with_code[0].tag, "front_idle_fly");
         assert!(tracks_with_code[0].selector.is_some());
         // Metadata override is second.
-        assert_eq!(tracks_with_code[1].tag, "idle_fly");
+        assert_eq!(tracks_with_code[1].tag, "front_idle_fly");
         // Base is last.
-        assert_eq!(tracks_with_code[2].tag, "shoot_fly");
+        assert_eq!(tracks_with_code[2].tag, "front_shoot_fly");
         assert!(tracks_with_code[2].selector.is_none());
     }
 
@@ -6542,7 +6553,7 @@ mod tests {
             entity_ground_anchor: 0.0,
             last_resolved_anchor_tag: None,
         };
-        let state = ComposedAnimationState::new("shoot_fly");
+        let state = ComposedAnimationState::new("front_shoot_fly");
 
         let resolved = resolve_requested_animation_frame(
             &mut visual,

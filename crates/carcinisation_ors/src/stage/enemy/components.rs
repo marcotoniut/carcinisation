@@ -52,7 +52,7 @@ pub struct CircleAround {
 #[derive(Component, Clone, Debug, Reflect)]
 pub struct LinearTween {
     pub direction: Vec2,
-    pub trayectory: f32,
+    pub trajectory: f32,
     // TODO replace with LinearTween2DReached
     pub reached_x: bool,
     pub reached_y: bool,

@@ -14,8 +14,8 @@ use crate::stage::{
         composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
         data::{
             spidey::{
-                TAG_IDLE, TAG_JUMP, TAG_LANDING, TAG_LOUNGE, TAG_SHOOT,
-                apply_spidey_animation_state_with_hold,
+                ACTION_IDLE, ACTION_JUMP, ACTION_LANDING, ACTION_LOUNGE, ACTION_SHOOT,
+                request_spidey_action_with_hold,
             },
             steps::{EnemyStep, JumpEnemyStep},
         },
@@ -72,24 +72,25 @@ pub fn assign_spidey_animation(
     for (entity, behavior, attacking, current_animation, jump_tween, mut animation_state) in
         &mut query
     {
-        let (next_animation, next_tag, hold_last_frame) = if attacking.is_some_and(|a| a.active) {
-            (EnemySpideyAnimation::Shoot, TAG_SHOOT, false)
+        let (next_animation, next_action, hold_last_frame) = if attacking.is_some_and(|a| a.active)
+        {
+            (EnemySpideyAnimation::Shoot, ACTION_SHOOT, false)
         } else {
             match behavior.behavior {
                 EnemyStep::Jump(JumpEnemyStep { .. }) => {
                     let jump_progress =
                         jump_tween.map_or(0.0, |jump| jump.progress_at(stage_time.elapsed()));
                     if jump_progress < 0.5 {
-                        (EnemySpideyAnimation::Jump, TAG_JUMP, true)
+                        (EnemySpideyAnimation::Jump, ACTION_JUMP, true)
                     } else {
-                        (EnemySpideyAnimation::Landing, TAG_LANDING, false)
+                        (EnemySpideyAnimation::Landing, ACTION_LANDING, false)
                     }
                 }
-                EnemyStep::Idle { .. } => (EnemySpideyAnimation::Idle, TAG_IDLE, false),
+                EnemyStep::Idle { .. } => (EnemySpideyAnimation::Idle, ACTION_IDLE, false),
                 EnemyStep::Attack { .. }
                 | EnemyStep::Circle { .. }
                 | EnemyStep::LinearTween { .. } => {
-                    (EnemySpideyAnimation::Lounge, TAG_LOUNGE, false)
+                    (EnemySpideyAnimation::Lounge, ACTION_LOUNGE, false)
                 }
             }
         };
@@ -97,7 +98,7 @@ pub fn assign_spidey_animation(
         if current_animation != Some(&next_animation) {
             commands.entity(entity).insert(next_animation);
         }
-        apply_spidey_animation_state_with_hold(&mut animation_state, next_tag, hold_last_frame);
+        request_spidey_action_with_hold(&mut animation_state, next_action, hold_last_frame);
     }
 }
 
@@ -324,7 +325,8 @@ pub fn trigger_spidey_authored_attack_cues(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stage::enemy::data::spidey::{TAG_JUMP, TAG_LANDING};
+    use crate::stage::enemy::data::spidey::{ACTION_IDLE, ACTION_JUMP, ACTION_LANDING};
+    use carcinisation_base::direction::SpriteDirection;
     use std::time::Duration;
 
     #[test]
@@ -364,7 +366,7 @@ mod tests {
                     behavior: EnemyStep::Jump(JumpEnemyStep::base()),
                 },
                 JumpTween::new(Duration::ZERO, 1.0, false),
-                ComposedAnimationState::new(TAG_IDLE),
+                ComposedAnimationState::new(SpriteDirection::Front.tag_name(ACTION_IDLE)),
             ))
             .id();
 
@@ -379,7 +381,10 @@ mod tests {
                 .entity(entity)
                 .get::<EnemySpideyAnimation>()
                 .expect("spidey semantic animation should be assigned");
-            assert_eq!(state.requested_tag, TAG_JUMP);
+            assert_eq!(
+                state.requested_tag,
+                SpriteDirection::Front.tag_name(ACTION_JUMP)
+            );
             assert!(state.hold_last_frame);
             assert_eq!(*animation, EnemySpideyAnimation::Jump);
         }
@@ -398,7 +403,10 @@ mod tests {
             .entity(entity)
             .get::<EnemySpideyAnimation>()
             .expect("spidey semantic animation should be assigned");
-        assert_eq!(state.requested_tag, TAG_LANDING);
+        assert_eq!(
+            state.requested_tag,
+            SpriteDirection::Front.tag_name(ACTION_LANDING)
+        );
         assert!(!state.hold_last_frame);
         assert_eq!(*animation, EnemySpideyAnimation::Landing);
     }

@@ -1,8 +1,5 @@
-use super::{
-    CrosshairInfo,
-    components::{PLAYER_MAX_HEALTH, Player},
-    crosshair::CrosshairSettings,
-};
+use super::{CrosshairInfo, components::Player, crosshair::CrosshairSettings};
+use crate::stage::data::OrsGameplayConfig;
 use crate::{
     assets::CxAssets,
     stage::components::{StageEntity, interactive::Health},
@@ -18,6 +15,7 @@ use carcinisation_core::globals::SCREEN_RESOLUTION_H;
 pub fn make_player_bundle(
     asset_server: &mut CxAssets<CxSprite>,
     crosshair_settings: &Res<CrosshairSettings>,
+    gameplay_config: &Res<OrsGameplayConfig>,
 ) -> (
     Name,
     Player,
@@ -31,7 +29,7 @@ pub fn make_player_bundle(
     (
         Name::new("Player"),
         Player,
-        Health(PLAYER_MAX_HEALTH),
+        Health(gameplay_config.player_max_health),
         CxSpriteBundle::<Layer> {
             canvas: CxRenderSpace::Camera,
             sprite: sprite.into(),

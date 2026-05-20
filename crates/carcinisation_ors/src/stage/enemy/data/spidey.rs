@@ -1,52 +1,104 @@
-//! Canonical Spidey animation tags exported from the composed Aseprite source.
+//! Spidey animation actions and request helpers.
 //!
-//! Spidey is a ground-based arachnid enemy that uses jump locomotion for depth
-//! traversal. The gallery exposes the full authored tag list.
+//! Gameplay uses semantic action names (`ACTION_*`) — physical atlas tags are
+//! resolved internally via [`carcinisation_base::direction::SpriteDirection`].
+
+use carcinisation_base::direction::SpriteDirection;
 
 use crate::stage::enemy::composed::ComposedAnimationState;
 
+/// ORS direction — all ORS rendering uses front-facing sprites.
+const ORS_DIRECTION: SpriteDirection = SpriteDirection::Front;
+
+// ── Semantic action constants ───────────────────────────────────────────────
+
 /// Resting idle pose with all legs planted.
-pub const TAG_IDLE: &str = "idle";
-/// Lounging pose - legs sourced from idle via atlas metadata `part_overrides`.
-pub const TAG_LOUNGE: &str = "lounge";
+pub const ACTION_IDLE: &str = "idle";
+/// Lounging pose — legs sourced from idle via atlas metadata `part_overrides`.
+pub const ACTION_LOUNGE: &str = "lounge";
 /// Ranged attack (web shot) animation.
-pub const TAG_SHOOT: &str = "shoot";
+pub const ACTION_SHOOT: &str = "shoot";
 /// Jump locomotion used for depth traversal.
-pub const TAG_JUMP: &str = "jump";
+pub const ACTION_JUMP: &str = "jump";
 /// Landing freeze frame after a jump arc.
-pub const TAG_LANDING: &str = "landing";
+pub const ACTION_LANDING: &str = "landing";
 
-/// Full authored tag list exposed in the gallery.
-pub const GALLERY_TAGS: &[&str] = &[TAG_IDLE, TAG_LOUNGE, TAG_SHOOT, TAG_JUMP, TAG_LANDING];
+// ── Gallery ─────────────────────────────────────────────────────────────────
 
-/// Core action tags surfaced as deterministic gallery verification controls.
-pub const GALLERY_ACTION_TAGS: &[&str] = &[TAG_IDLE, TAG_LOUNGE, TAG_SHOOT, TAG_JUMP, TAG_LANDING];
+/// Full authored action list exposed in the gallery.
+pub const GALLERY_ACTIONS: &[&str] = &[
+    ACTION_IDLE,
+    ACTION_LOUNGE,
+    ACTION_SHOOT,
+    ACTION_JUMP,
+    ACTION_LANDING,
+];
 
-/// Applies the canonical Spidey composed-animation request for a semantic tag.
+/// Core actions surfaced as deterministic gallery verification controls.
+pub const GALLERY_VERIFICATION_ACTIONS: &[&str] = &[
+    ACTION_IDLE,
+    ACTION_LOUNGE,
+    ACTION_SHOOT,
+    ACTION_JUMP,
+    ACTION_LANDING,
+];
+
+// ── Action request helpers ──────────────────────────────────────────────────
+
+/// Request a Spidey animation by semantic action name.
 ///
-/// Spidey has no runtime part overrides -- lounge leg overrides are declared
+/// Resolves the action to a physical atlas tag via [`ORS_DIRECTION`].
+/// Spidey has no runtime part overrides — lounge leg overrides are declared
 /// in the atlas metadata and resolved generically by the composed renderer.
-pub fn apply_spidey_animation_state(
-    animation_state: &mut ComposedAnimationState,
-    requested_tag: &str,
-) {
-    apply_spidey_animation_state_with_hold(animation_state, requested_tag, false);
+pub fn request_spidey_action(animation_state: &mut ComposedAnimationState, action: &str) {
+    request_spidey_action_with_hold(animation_state, action, false);
 }
 
-/// Applies a Spidey animation request and optionally freezes it on the tag's
-/// terminal frame.
-pub fn apply_spidey_animation_state_with_hold(
+/// Request a Spidey animation and optionally freeze on the terminal frame.
+pub fn request_spidey_action_with_hold(
     animation_state: &mut ComposedAnimationState,
-    requested_tag: &str,
+    action: &str,
     hold_last_frame: bool,
 ) {
-    if animation_state.requested_tag != requested_tag {
+    let tag = ORS_DIRECTION.tag_name(action);
+
+    if animation_state.requested_tag != tag {
         animation_state.requested_tag.clear();
-        animation_state.requested_tag.push_str(requested_tag);
+        animation_state.requested_tag.push_str(&tag);
     }
     animation_state.set_hold_last_frame(hold_last_frame);
 
     if !animation_state.part_overrides.is_empty() {
         animation_state.set_part_overrides(Vec::new());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_action_sets_front_physical_tag() {
+        let mut state = ComposedAnimationState::new("placeholder");
+        request_spidey_action(&mut state, ACTION_IDLE);
+        assert_eq!(state.requested_tag, "front_idle");
+    }
+
+    #[test]
+    fn request_jump_with_hold_sets_flag() {
+        let mut state = ComposedAnimationState::new("placeholder");
+        request_spidey_action_with_hold(&mut state, ACTION_JUMP, true);
+        assert_eq!(state.requested_tag, "front_jump");
+        assert!(state.hold_last_frame);
+    }
+
+    #[test]
+    fn gallery_actions_are_semantic() {
+        for action in GALLERY_ACTIONS {
+            assert!(
+                !action.starts_with("front_"),
+                "gallery action '{action}' should be semantic, not a physical tag"
+            );
+        }
     }
 }

@@ -8,18 +8,9 @@ use std::time::Duration;
 // Config
 // ---------------------------------------------------------------------------
 
-const CONFIG_PATH: &str = "assets/config/attacks/blood_shot.ron";
-const EMBEDDED_CONFIG: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../assets/config/attacks/blood_shot.ron"
-));
-
 /// Tuning parameters for the blood shot projectile.
 ///
-/// Loaded from `assets/config/attacks/blood_shot.ron`.  The checked-in RON
-/// is embedded at compile time via `include_str!` (canonical default, used
-/// on WASM).  On native, a filesystem override is loaded if present —
-/// malformed overrides cause a panic with a clear error.
+/// Loaded from `assets/config/attacks/blood_shot.ron` via `ron_config!`.
 #[derive(Clone, Debug, Deserialize, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct BloodShotConfig {
@@ -31,46 +22,36 @@ pub struct BloodShotConfig {
 }
 
 impl BloodShotConfig {
-    /// Load config: native tries the filesystem first, WASM uses embedded.
+    /// Load config via `ron_config!` macro (embedded at compile time, with
+    /// optional filesystem override when `hot_reload` is enabled).
     ///
     /// # Panics
     ///
-    /// Panics if a filesystem override exists but fails to parse or validate.
+    /// Panics if the config fails to parse or validate.
     #[must_use]
     pub fn load() -> Self {
-        #[cfg(not(target_family = "wasm"))]
-        if let Ok(body) = std::fs::read_to_string(CONFIG_PATH) {
-            return Self::parse_and_validate(&body, CONFIG_PATH);
-        }
-
-        Self::parse_and_validate(EMBEDDED_CONFIG, "embedded blood_shot.ron")
-    }
-
-    fn parse_and_validate(ron_str: &str, source: &str) -> Self {
-        let config: Self = ron::from_str(ron_str).unwrap_or_else(|e| {
-            panic!("{source}: failed to parse BloodShotConfig: {e}");
-        });
-        config.validate(source);
+        let config: Self = carcinisation_core::ron_config!("assets/config/attacks/blood_shot.ron");
+        config.validate();
         config
     }
 
-    fn validate(&self, source: &str) {
+    fn validate(&self) {
         assert!(
             self.line_speed > 0.0,
-            "{source}: line_speed must be positive, got {}",
+            "BloodShotConfig: line_speed must be positive, got {}",
             self.line_speed,
         );
         assert!(
             self.line_speed.is_finite(),
-            "{source}: line_speed must be finite",
+            "BloodShotConfig: line_speed must be finite",
         );
         assert!(
             self.depth_speed.is_finite(),
-            "{source}: depth_speed must be finite",
+            "BloodShotConfig: depth_speed must be finite",
         );
         assert!(
             self.randomness.is_finite() && self.randomness >= 0.0,
-            "{source}: randomness must be finite and non-negative, got {}",
+            "BloodShotConfig: randomness must be finite and non-negative, got {}",
             self.randomness,
         );
     }
@@ -126,9 +107,8 @@ mod tests {
 
     #[test]
     fn embedded_config_parses_and_validates() {
-        let config: BloodShotConfig = ron::from_str(EMBEDDED_CONFIG)
-            .expect("embedded blood_shot.ron must parse into BloodShotConfig");
-        config.validate("embedded blood_shot.ron");
+        let config = BloodShotConfig::load();
+        config.validate();
     }
 
     #[test]

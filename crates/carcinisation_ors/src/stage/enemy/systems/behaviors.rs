@@ -3,6 +3,7 @@ use crate::stage::{
         interactive::{BurningCorpse, Dead},
         placement::{Airborne, AnchorOffsets, Depth, Speed},
     },
+    data::OrsGameplayConfig,
     enemy::components::{
         CircleAround, Enemy, EnemyContinuousDepth,
         behavior::{
@@ -107,6 +108,7 @@ pub fn check_no_behavior(
     floors: Res<ActiveFloors>,
     stage_gravity: Res<StageGravity>,
     stage_time: Res<Time<StageTimeDomain>>,
+    gameplay_config: Res<OrsGameplayConfig>,
 ) {
     for (
         entity,
@@ -168,6 +170,7 @@ pub fn check_no_behavior(
             *continuous_depth,
             stage_gravity.acceleration,
             jump_target_y,
+            gameplay_config.game_base_speed,
         );
         match bundles {
             BehaviorBundle::Idle | BehaviorBundle::Attack => {}
@@ -198,6 +201,7 @@ pub fn check_no_behavior(
                     *continuous_depth,
                     stage_gravity.acceleration,
                     jump_target_y,
+                    gameplay_config.game_base_speed,
                 );
                 commands.entity(entity).insert(jump_movement);
             }
@@ -231,6 +235,7 @@ pub fn check_no_behavior(
                     *continuous_depth,
                     stage_gravity.acceleration,
                     None,
+                    gameplay_config.game_base_speed,
                 );
             }
             BehaviorBundle::Circle(bundles) => {
@@ -368,6 +373,7 @@ mod tests {
         app.insert_resource(Time::<StageTimeDomain>::default());
         app.insert_resource(StageGravity::standard());
         app.insert_resource(ActiveFloors::default());
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
@@ -413,6 +419,7 @@ mod tests {
         app.insert_resource(Time::<StageTimeDomain>::default());
         app.insert_resource(StageGravity::standard());
         app.insert_resource(ActiveFloors::default());
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(Update, check_no_behavior);
 
         let entity = app
@@ -450,6 +457,7 @@ mod tests {
         app.insert_resource(Time::<StageTimeDomain>::default());
         app.insert_resource(StageGravity::standard());
         app.insert_resource(ActiveFloors::default());
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
@@ -491,6 +499,7 @@ mod tests {
         app.insert_resource(Time::<StageTimeDomain>::default());
         app.insert_resource(StageGravity::standard());
         app.insert_resource(ActiveFloors::default());
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
@@ -534,6 +543,7 @@ mod tests {
         app.insert_resource(stage_time);
         app.insert_resource(StageGravity::standard());
         app.insert_resource(ActiveFloors::default());
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
@@ -580,6 +590,7 @@ mod tests {
         app.insert_resource(stage_time);
         app.insert_resource(StageGravity::standard());
         app.insert_resource(ActiveFloors::default());
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
@@ -624,6 +635,7 @@ mod tests {
         app.insert_resource(Time::<StageTimeDomain>::default());
         app.insert_resource(StageGravity::standard());
         app.insert_resource(ActiveFloors::default());
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
@@ -666,6 +678,7 @@ mod tests {
             .by_depth
             .insert(Depth::Four, vec![Surface::Solid { y: 30.0 }]);
         app.insert_resource(floors);
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
@@ -725,6 +738,7 @@ mod tests {
             .by_depth
             .insert(Depth::Six, vec![Surface::Solid { y: 70.0 }]);
         app.insert_resource(floors);
+        app.insert_resource(OrsGameplayConfig::default());
         app.add_systems(
             Update,
             (
