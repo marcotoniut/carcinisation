@@ -1,6 +1,8 @@
 use std::{fs, net::SocketAddr, path::PathBuf, process::ExitCode};
 
 use bevy::prelude::*;
+#[cfg(feature = "brp")]
+use bevy_brp_extras::BrpExtrasPlugin;
 use carapace::prelude::*;
 use carcinisation::first_person::FpsClientPlugin;
 use carcinisation_fps::plugin::{Config, FpsAuthorityMode, FpsPlugin, PlayerDead, PlayerHealth};
@@ -16,7 +18,7 @@ const SCREEN_H: u32 = 144;
 #[derive(Parser, Debug)]
 #[command(about = "Networked multiplayer FPS client - connects to server.")]
 struct MpClientArgs {
-    /// Server address to connect to. Overrides CARCINISATION_CONNECT env var.
+    /// Server address to connect to. Overrides `CARCINISATION_CONNECT` env var.
     #[arg(long = "connect")]
     connect: Option<String>,
     #[arg(long = "map", default_value = MAP_PATH)]
@@ -73,6 +75,7 @@ fn main() -> ExitCode {
 
     app.insert_resource(Config {
         map_ron,
+        map_path: args.map_path.to_string_lossy().to_string(),
         sky_path,
         screen_width: SCREEN_W,
         screen_height: SCREEN_H,
@@ -81,6 +84,12 @@ fn main() -> ExitCode {
     });
 
     app.add_plugins(FpsPlugin::<Layer>::new());
+
+    #[cfg(feature = "brp")]
+    if !app.is_plugin_added::<BrpExtrasPlugin>() {
+        app.add_plugins(BrpExtrasPlugin);
+    }
+
     app.add_plugins(leafwing_input_manager::prelude::InputManagerPlugin::<
         carcinisation_input::GBInput,
     >::default());

@@ -3,13 +3,14 @@ use bevy_replicon::prelude::*;
 
 use crate::protocol::{
     ClientIntent, DamageEffect, DeathEffect, EnemyAttackVisual, FlameActive, FlameCharMark,
-    HitConfirm, MuzzleFlash, PickupEffect, PlayerIdAssigned,
+    HitConfirm, InputAck, MuzzleFlash, PickupEffect, PlayerIdAssigned,
 };
 
 /// Register reliable (ordered) channels for input and identity.
 pub fn register_reliable_channels(app: &mut App) {
     app.add_client_event::<ClientIntent>(Channel::Ordered)
-        .add_server_event::<PlayerIdAssigned>(Channel::Ordered);
+        .add_server_event::<PlayerIdAssigned>(Channel::Ordered)
+        .add_server_event::<InputAck>(Channel::Ordered);
 }
 
 /// Register unreliable (unordered) channels for visual/effect events.

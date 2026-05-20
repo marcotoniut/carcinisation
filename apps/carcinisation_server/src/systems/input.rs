@@ -2,10 +2,11 @@
 
 use crate::{ClientPlayerId, ServerMap};
 use bevy::prelude::*;
-use bevy_replicon::prelude::FromClient;
-use carcinisation_fps_core::config::QUICK_TURN_DURATION_SECS;
+use bevy_replicon::prelude::*;
+use carcinisation_fps_core::FpsMovementConfig;
 use carcinisation_fps_core::movement;
-use carcinisation_net::{ClientIntent, NetPlayer, PlayerActions, PlayerId};
+use carcinisation_net::tick::{InputSequence, STALE_INPUT_TICKS};
+use carcinisation_net::{ClientIntent, InputAck, NetPlayer, PlayerActions, PlayerId, TickCounter};
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
@@ -19,29 +20,17 @@ pub struct PlayerInputTracker {
 }
 
 impl PlayerInputTracker {
+    #[must_use]
+    pub fn last_sequence(&self, player_id: &PlayerId) -> Option<u32> {
+        self.sequences.get(player_id).copied()
+    }
+
     pub fn remove_player(&mut self, player_id: &PlayerId) {
         self.sequences.remove(player_id);
     }
 }
 
-/// Server-side turn configuration matching SP defaults.
-#[derive(Resource, Clone, Debug)]
-pub struct ServerTurnConfig {
-    /// Duration of a 180° quick turn in seconds (SP default: 0.4).
-    pub quick_turn_duration_secs: f32,
-}
-
-impl Default for ServerTurnConfig {
-    fn default() -> Self {
-        Self {
-            quick_turn_duration_secs: QUICK_TURN_DURATION_SECS,
-        }
-    }
-}
-
-/// How many server ticks without fresh input before intent is forced to idle.
-/// At 30 Hz this is ~150 ms — enough to tolerate one dropped packet.
-const STALE_INPUT_TICKS: u32 = 5;
+// STALE_INPUT_TICKS imported from carcinisation_net::tick (shared constant).
 
 /// Per-player intent entry with staleness counter.
 #[derive(Clone)]
@@ -164,8 +153,16 @@ pub(crate) fn receive_client_intent(
     }
     *last_seq = current_seq;
 
-    // Clamp movement to unit length (prevent speed hacks).
+    // Reject non-finite floats (NaN/Inf) from untrusted client input.
     let mut validated = intent.clone();
+    if !validated.movement.x.is_finite() || !validated.movement.y.is_finite() {
+        validated.movement = Vec2::ZERO;
+    }
+    if !validated.turn.is_finite() {
+        validated.turn = 0.0;
+    }
+
+    // Clamp movement to unit length (prevent speed hacks).
     if validated.movement.length_squared() > 1.0001 {
         validated.movement = validated.movement.normalize();
     }
@@ -194,16 +191,15 @@ impl ServerQuickTurn {
     }
 
     /// Start a snap turn. Delegates to `fps_core::snap_turn_params`.
-    pub fn request(&mut self, kind: SnapTurnKind, quick_turn_duration_secs: f32) {
+    pub fn request(
+        &mut self,
+        kind: carcinisation_fps_core::SnapTurnKind,
+        quick_turn_duration_secs: f32,
+    ) {
         if self.remaining_radians > 0.0 {
             return;
         }
-        let core_kind = match kind {
-            SnapTurnKind::QuickTurn => carcinisation_fps_core::SnapTurnKind::QuickTurn,
-            SnapTurnKind::Left => carcinisation_fps_core::SnapTurnKind::Left,
-            SnapTurnKind::Right => carcinisation_fps_core::SnapTurnKind::Right,
-        };
-        let params = carcinisation_fps_core::snap_turn_params(core_kind, quick_turn_duration_secs);
+        let params = carcinisation_fps_core::snap_turn_params(kind, quick_turn_duration_secs);
         self.remaining_radians = params.remaining_radians;
         self.speed = params.speed;
         self.direction = params.direction;
@@ -221,13 +217,7 @@ impl ServerQuickTurn {
     }
 }
 
-/// Snap turn direction.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SnapTurnKind {
-    QuickTurn,
-    Left,
-    Right,
-}
+use carcinisation_fps_core::SnapTurnKind;
 
 /// Runs in `FixedUpdate` (`MovementSet`). Reads latest buffered intent
 /// for each player and applies server-authoritative movement + turning.
@@ -236,7 +226,7 @@ pub fn apply_buffered_movement(
     mut players: Query<(&mut NetPlayer, &mut ServerQuickTurn)>,
     server_map: Res<ServerMap>,
     fixed_time: Res<Time<Fixed>>,
-    config: Res<ServerTurnConfig>,
+    movement_config: Res<FpsMovementConfig>,
 ) {
     let dt = fixed_time.delta_secs();
 
@@ -258,13 +248,19 @@ pub fn apply_buffered_movement(
             };
         }
         if actions.has(PlayerActions::QUICK_TURN) {
-            snap_turn.request(SnapTurnKind::QuickTurn, config.quick_turn_duration_secs);
+            snap_turn.request(
+                SnapTurnKind::QuickTurn,
+                movement_config.quick_turn_duration_secs,
+            );
         }
         if actions.has(PlayerActions::SNAP_TURN_LEFT) {
-            snap_turn.request(SnapTurnKind::Left, config.quick_turn_duration_secs);
+            snap_turn.request(SnapTurnKind::Left, movement_config.quick_turn_duration_secs);
         }
         if actions.has(PlayerActions::SNAP_TURN_RIGHT) {
-            snap_turn.request(SnapTurnKind::Right, config.quick_turn_duration_secs);
+            snap_turn.request(
+                SnapTurnKind::Right,
+                movement_config.quick_turn_duration_secs,
+            );
         }
 
         // Tick snap turn animation (same as SP tick_quick_turn).
@@ -272,7 +268,7 @@ pub fn apply_buffered_movement(
 
         // Suppress continuous turn during snap turn animation (matches SP).
         if !snap_turn.is_active() && turn_dir != 0.0 {
-            player.angle += turn_dir * movement::TURN_SPEED * dt;
+            player.angle += turn_dir * movement_config.turn_speed * dt;
             player.angle = player.angle.rem_euclid(std::f32::consts::TAU);
         }
 
@@ -283,11 +279,77 @@ pub fn apply_buffered_movement(
                 &mut player.position,
                 angle,
                 movement_intent,
-                movement::MOVE_SPEED,
+                movement_config.move_speed,
                 dt,
                 &server_map.0,
+                movement_config.collision_margin,
             );
         }
+    }
+}
+
+/// Sends an `InputAck` to all clients for each player that needs correction.
+///
+/// Runs in `FixedUpdate` (`MovementSet`) after `apply_buffered_movement`.
+/// Each ack carries the player's authoritative position/angle and the last
+/// sequence the server processed, enabling client-side prediction reconciliation.
+///
+/// # Ack send conditions
+///
+/// An ack is sent when ANY of these hold:
+///
+/// 1. **Sequence advanced** — the server processed a new input.
+/// 2. **Snap turn active** — the client needs continuous correction during
+///    the snap animation. Without this, the ack dedup would suppress acks
+///    for ~10 of a 12-tick quick turn, causing the client's snap state to
+///    freeze while the server's completes.
+/// 3. **Snap just completed** — the final angle must reach the client so
+///    it lands on the exact server angle.
+///
+/// When none of these hold (idle player, no snap), no ack is sent.
+#[allow(clippy::implicit_hasher)]
+pub fn send_input_acks(
+    mut commands: Commands,
+    players: Query<(&NetPlayer, &ServerQuickTurn)>,
+    tracker: Res<PlayerInputTracker>,
+    tick_counter: Res<TickCounter>,
+    mut last_acked: Local<HashMap<PlayerId, u32>>,
+    mut had_snap: Local<HashMap<PlayerId, bool>>,
+) {
+    for (player, snap_turn) in &players {
+        let Some(seq) = tracker.last_sequence(&player.player_id) else {
+            continue;
+        };
+
+        let snap_active = snap_turn.is_active();
+        let was_snapping = had_snap.get(&player.player_id).copied().unwrap_or(false);
+        had_snap.insert(player.player_id, snap_active);
+
+        // Send an ack when:
+        // - Input sequence advanced (normal case), OR
+        // - A snap turn is active (client needs continuous correction), OR
+        // - A snap turn just completed (client needs the final angle).
+        let seq_changed = last_acked.get(&player.player_id) != Some(&seq);
+        let snap_needs_ack = snap_active || was_snapping;
+
+        if !seq_changed && !snap_needs_ack {
+            continue;
+        }
+
+        last_acked.insert(player.player_id, seq);
+        commands.server_trigger(ToClients {
+            mode: SendMode::Broadcast,
+            message: InputAck {
+                player_id: player.player_id,
+                last_processed_sequence: InputSequence(seq),
+                server_tick: tick_counter.0,
+                position: player.position,
+                angle: player.angle,
+                snap_remaining_radians: snap_turn.remaining_radians,
+                snap_speed: snap_turn.speed,
+                snap_direction: snap_turn.direction,
+            },
+        });
     }
 }
 
@@ -295,7 +357,6 @@ pub fn apply_buffered_movement(
 #[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
-    use carcinisation_net::InputSequence;
 
     fn make_intent(movement: Vec2, turn: f32, fire: bool, actions: PlayerActions) -> ClientIntent {
         ClientIntent {

@@ -25,6 +25,14 @@ impl InputSequence {
     pub fn increment(&mut self) {
         self.0 = self.0.wrapping_add(1);
     }
+
+    /// Wrapping-aware comparison (RFC 1982 serial number arithmetic).
+    /// Returns `true` if `self` is strictly after `other` in the sequence space.
+    #[must_use]
+    pub fn is_after(self, other: Self) -> bool {
+        let diff = self.0.wrapping_sub(other.0);
+        diff != 0 && diff < (u32::MAX / 2)
+    }
 }
 
 /// Tick configuration.
@@ -64,6 +72,12 @@ pub struct CombatSet;
 /// `SystemSet` for tick systems, runs last in `FixedUpdate`.
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct TickSet;
+
+/// How many `FixedUpdate` ticks the server reapplies stale intent data
+/// before zeroing it. At 30 Hz this is ~167 ms — enough to tolerate
+/// one dropped packet. The client must use the same value for
+/// stale-tick prediction parity.
+pub const STALE_INPUT_TICKS: u32 = 5;
 
 /// Increment tick.
 pub fn increment_tick(mut tick_counter: ResMut<TickCounter>) {
@@ -117,5 +131,43 @@ mod tests {
         let config = TickConfig::default();
         assert_eq!(config.hz, 30);
         assert!((config.delta_secs - 1.0 / 30.0).abs() < 1e-6);
+    }
+
+    // ── InputSequence::is_after edge cases ──────────────────────────
+
+    #[test]
+    fn is_after_simple() {
+        assert!(InputSequence(2).is_after(InputSequence(1)));
+        assert!(!InputSequence(1).is_after(InputSequence(2)));
+    }
+
+    #[test]
+    fn is_after_equal_is_false() {
+        assert!(!InputSequence(5).is_after(InputSequence(5)));
+    }
+
+    #[test]
+    fn is_after_zero_after_max() {
+        // 0 wraps around and is "after" u32::MAX.
+        assert!(InputSequence(0).is_after(InputSequence(u32::MAX)));
+    }
+
+    #[test]
+    fn is_after_max_not_after_zero() {
+        // u32::MAX is NOT after 0 (it's far behind in wrapping space).
+        assert!(!InputSequence(u32::MAX).is_after(InputSequence(0)));
+    }
+
+    #[test]
+    fn is_after_wrapping_small_gap() {
+        // 3 is after u32::MAX - 2 (wrapping by 5).
+        assert!(InputSequence(3).is_after(InputSequence(u32::MAX - 2)));
+    }
+
+    #[test]
+    fn is_after_half_range_boundary() {
+        // At exactly half the u32 range, is_after returns false (ambiguous).
+        let half = u32::MAX / 2;
+        assert!(!InputSequence(half).is_after(InputSequence(0)));
     }
 }

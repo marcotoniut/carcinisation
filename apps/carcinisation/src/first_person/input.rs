@@ -19,10 +19,62 @@ use carcinisation_net::{ClientIntent, InputSequence, PlayerActions};
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::first_person::LocalPlayerId;
+use crate::first_person::prediction::PendingInput;
 
 /// Sequence counter persisted across sends.
 #[derive(Resource, Default)]
 pub struct ClientInputSequence(pub InputSequence);
+
+/// Simulated one-way latency (half RTT) in seconds.
+///
+/// Set via `CARCINISATION_SIMULATED_PING_MS` env var. The value is treated
+/// as full round-trip; half is applied to outgoing packets.
+///
+/// Only affects `ClientIntent` send timing — prediction runs locally
+/// without delay, so the visual gap between predicted and server state
+/// becomes visible, which is the point of this tool.
+#[derive(Resource)]
+pub struct SimulatedLatency {
+    half_rtt_secs: f32,
+    buffer: Vec<(f32, ClientIntent)>,
+}
+
+impl SimulatedLatency {
+    /// Read from env var. Returns `None` if unset or zero.
+    pub fn from_env() -> Option<Self> {
+        let ms: u32 = std::env::var("CARCINISATION_SIMULATED_PING_MS")
+            .ok()?
+            .parse()
+            .ok()?;
+        if ms == 0 {
+            return None;
+        }
+        let half_rtt = ms as f32 / 2000.0;
+        bevy::log::info!("Simulated latency: {ms}ms RTT ({}ms one-way)", ms / 2);
+        Some(Self {
+            half_rtt_secs: half_rtt,
+            buffer: Vec::new(),
+        })
+    }
+
+    fn push(&mut self, intent: ClientIntent) {
+        self.buffer.push((self.half_rtt_secs, intent));
+    }
+
+    fn drain_ready(&mut self, dt: f32) -> Vec<ClientIntent> {
+        let mut ready = Vec::new();
+        self.buffer.retain_mut(|(remaining, intent)| {
+            *remaining -= dt;
+            if *remaining <= 0.0 {
+                ready.push(intent.clone());
+                false
+            } else {
+                true
+            }
+        });
+        ready
+    }
+}
 
 /// Timer that gates periodic resends to 30 Hz.
 #[derive(Resource)]
@@ -56,6 +108,8 @@ pub fn collect_and_send_intent(
     mut turn_chord: ResMut<TurnChordState>,
     mut quick_turn: ResMut<QuickTurnState>,
     config: Res<carcinisation_fps::plugin::Config>,
+    mut pending_input: ResMut<PendingInput>,
+    mut latency_opt: Option<ResMut<SimulatedLatency>>,
 ) {
     if local_player_id.0.is_none() {
         return;
@@ -144,6 +198,8 @@ pub fn collect_and_send_intent(
     }
 
     // -- Fire --
+    // Network intent reports raw player input. Cooldown/ammo/eligibility
+    // is decided by the simulation (server), not by client presentation state.
     let fire_held = a_held && !select_held;
 
     // -- Weapon switch (Select alone, not with A) --
@@ -191,5 +247,51 @@ pub fn collect_and_send_intent(
 
     let mut sent = intent;
     sent.sequence = input_sequence.0;
-    commands.client_trigger(sent);
+
+    // If simulated latency is active, buffer the packet instead of sending.
+    if let Some(ref mut latency) = latency_opt {
+        latency.push(sent);
+    } else {
+        commands.client_trigger(sent);
+    }
+
+    // -- Store predicted input for client-side prediction --
+    // Written AFTER send + increment so the sequence matches the packet
+    // the server will process (post-increment value).
+    {
+        use carcinisation_fps_core::movement::SnapTurnKind;
+
+        let snap_turn_kind = if actions.has(PlayerActions::QUICK_TURN) {
+            Some(SnapTurnKind::QuickTurn)
+        } else if actions.has(PlayerActions::SNAP_TURN_LEFT) {
+            Some(SnapTurnKind::Left)
+        } else if actions.has(PlayerActions::SNAP_TURN_RIGHT) {
+            Some(SnapTurnKind::Right)
+        } else {
+            None
+        };
+
+        pending_input.0.push((
+            input_sequence.0,
+            carcinisation_net::prediction::PredictedInput {
+                movement,
+                turn,
+                snap_turn: snap_turn_kind,
+            },
+        ));
+    }
+}
+
+/// Flush delayed `ClientIntent` packets when simulated latency is active.
+///
+/// Runs every frame in `Update`. Does nothing if `SimulatedLatency` is absent.
+pub fn flush_delayed_intents(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut latency: ResMut<SimulatedLatency>,
+) {
+    let dt = time.delta_secs();
+    for intent in latency.drain_ready(dt) {
+        commands.client_trigger(intent);
+    }
 }

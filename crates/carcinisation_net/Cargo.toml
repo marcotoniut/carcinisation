@@ -12,6 +12,7 @@ wasm_server = ["bevy_replicon_renet2/ws_server_transport"]
 [dependencies]
 bevy = { workspace = true }
 bevy_math = { version = "0.18" }
+carcinisation_fps_core = { path = "../carcinisation_fps_core" }
 bevy_replicon = { workspace = true }
 bevy_replicon_renet2 = { workspace = true }
 serde = { workspace = true }

@@ -219,6 +219,36 @@ pub struct PickupEffect {
 #[derive(Debug, Clone, Event, Serialize, Deserialize)]
 pub struct PlayerIdAssigned(pub PlayerId);
 
+/// Server acknowledgement of processed input — server → client (reliable, ordered).
+///
+/// Sent once per server tick for each player that has unacked input.
+/// Carries the authoritative position/angle after applying the input,
+/// enabling client-side prediction reconciliation.
+///
+/// Snap turn state is included so the client can continue an in-progress
+/// snap turn after reconciliation prunes the history entry that initiated
+/// it. Without this, the client zeroes snap state on every ack, causing
+/// ~15° angle corrections per tick for the duration of the snap.
+#[derive(Debug, Clone, Event, Serialize, Deserialize)]
+pub struct InputAck {
+    /// Which player this ack is for. Clients filter by their own `PlayerId`.
+    pub player_id: PlayerId,
+    /// Last `InputSequence` the server fully processed for this player.
+    pub last_processed_sequence: InputSequence,
+    /// Server tick at which this sequence was processed.
+    pub server_tick: crate::tick::Tick,
+    /// Authoritative position after movement processing.
+    pub position: Vec2,
+    /// Authoritative angle after movement processing.
+    pub angle: f32,
+    /// Server snap turn remaining radians (0.0 if no snap active).
+    pub snap_remaining_radians: f32,
+    /// Server snap turn angular speed (rad/s).
+    pub snap_speed: f32,
+    /// Server snap turn direction (+1.0 left, -1.0 right).
+    pub snap_direction: f32,
+}
+
 /// Net-safe pickup kind enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[reflect(Serialize, Deserialize)]
@@ -326,5 +356,28 @@ mod tests {
         let kind = NetPickupKind::Health;
         let back = roundtrip(&kind);
         assert_eq!(back, NetPickupKind::Health);
+    }
+
+    #[test]
+    fn input_ack_roundtrip() {
+        let ack = InputAck {
+            player_id: PlayerId(7),
+            last_processed_sequence: InputSequence(42),
+            server_tick: crate::tick::Tick(100),
+            position: Vec2::new(3.5, 7.2),
+            angle: 1.57,
+            snap_remaining_radians: 1.2,
+            snap_speed: 7.85,
+            snap_direction: -1.0,
+        };
+        let back = roundtrip(&ack);
+        assert_eq!(back.player_id.0, 7);
+        assert_eq!(back.last_processed_sequence.0, 42);
+        assert_eq!(back.server_tick.0, 100);
+        assert!((back.position.x - 3.5).abs() < 1e-5);
+        assert!((back.angle - 1.57).abs() < 1e-5);
+        assert!((back.snap_remaining_radians - 1.2).abs() < 1e-5);
+        assert!((back.snap_speed - 7.85).abs() < 1e-5);
+        assert!((back.snap_direction - -1.0).abs() < 1e-5);
     }
 }

@@ -107,12 +107,31 @@ pub struct NetPickup {
     pub respawn_timer: Option<f32>,
 }
 
+/// Replicated ground fire hazard spawned when an enemy dies from burning.
+#[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct NetGroundFire {
+    pub position: Vec2,
+    /// Deterministic seed for visual flame placement.
+    pub seed: u32,
+}
+
 /// Reusable health component for players and enemies.
 #[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
 #[reflect(Component, Serialize, Deserialize)]
 pub struct NetHealth {
     pub current: f32,
     pub max: f32,
+}
+
+/// Replicated burn intensity for progressive fire damage.
+///
+/// Server-authoritative: the server owns `BurnState` and syncs intensity here.
+/// Clients read this for visual flame rendering on burning entities.
+#[derive(Component, Debug, Clone, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct NetBurning {
+    pub intensity: f32,
 }
 
 #[cfg(test)]
@@ -177,6 +196,30 @@ mod tests {
         let back = roundtrip_component(&proj);
         assert_eq!(back.owner.0.0, 2);
         assert!((back.damage - 25.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn net_ground_fire_roundtrip() {
+        let fire = NetGroundFire {
+            position: Vec2::new(3.0, 4.0),
+            seed: 12345,
+        };
+        let back = roundtrip_component(&fire);
+        assert!((back.position.x - 3.0).abs() < 1e-6);
+        assert_eq!(back.seed, 12345);
+    }
+
+    #[test]
+    fn net_burning_roundtrip() {
+        let burning = NetBurning { intensity: 0.75 };
+        let back = roundtrip_component(&burning);
+        assert!((back.intensity - 0.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn net_burning_default_is_zero() {
+        let burning = NetBurning::default();
+        assert!((burning.intensity - 0.0).abs() < 1e-6);
     }
 
     #[test]

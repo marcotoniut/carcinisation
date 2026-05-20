@@ -4,13 +4,17 @@
 pub mod channels;
 pub mod components;
 pub mod plugin;
+pub mod prediction;
 pub mod protocol;
 pub mod sim_hash;
 pub mod tick;
 pub mod transport;
 
 pub use components::{NetAttackId, NetEnemyState, NetEnemyType, NetProjectileType};
-pub use components::{NetEnemy, NetHealth, NetPickup, NetPlayer, NetProjectile, PlayerNetState};
+pub use components::{
+    NetBurning, NetEnemy, NetGroundFire, NetHealth, NetPickup, NetPlayer, NetProjectile,
+    PlayerNetState,
+};
 pub use protocol::{
     // Semantic intent protocol
     ClientIntent,
@@ -23,6 +27,7 @@ pub use protocol::{
     FlameCharMark,
     HitConfirm,
     HitImpactKind,
+    InputAck,
     MuzzleFlash,
     NetPickupKind,
     NetworkObjectId,
