@@ -13,7 +13,7 @@ pub mod transport;
 pub use components::{NetAttackId, NetEnemyState, NetEnemyType, NetProjectileType};
 pub use components::{
     NetBurning, NetEnemy, NetGroundFire, NetHealth, NetPickup, NetPlayer, NetProjectile,
-    PlayerNetState,
+    NetSpeedModifier, PlayerNetState,
 };
 pub use protocol::{
     // Semantic intent protocol

@@ -11,7 +11,7 @@ use bevy::prelude::Component;
 use bevy_math::Vec2;
 use carapace::{image::CxImage, palette::TRANSPARENT_INDEX};
 use carcinisation_fps_core::burning::BurnState;
-use carcinisation_fps_core::fire_death::{DamageKind, corpse_seed};
+use carcinisation_fps_core::fire_death::DamageKind;
 use flate2::bufread::DeflateDecoder;
 use serde::Deserialize;
 use std::{
@@ -23,7 +23,6 @@ use std::{
 use crate::camera::Camera;
 use crate::enemy::{DamageFlicker, Projectile};
 use crate::map::Map;
-use crate::raycast::cast_ray;
 
 /// Configuration for FP Mosquiton behaviour.
 #[derive(Clone, Debug)]
@@ -163,29 +162,31 @@ impl Mosquiton {
         if !self.is_alive() {
             return;
         }
-        self.health = self.health.saturating_sub(amount);
-        if self.health == 0 {
-            self.damage_flicker = None;
-            self.shoot_anim_elapsed = None;
-            self.state = match kind {
-                DamageKind::Physical => MosquitonState::Dying { timer: 0.5 },
-                DamageKind::Fire => MosquitonState::BurningCorpse {
-                    timer: fire_death_secs.max(0.0),
-                    seed: corpse_seed(self.position),
-                },
-            };
-            self.velocity = Vec2::ZERO;
-        } else if self.damage_flicker.is_none() {
-            self.damage_flicker = Some(DamageFlicker::new());
+        match carcinisation_fps_core::apply_damage(
+            &mut self.health,
+            &mut self.damage_flicker,
+            amount,
+            kind,
+            fire_death_secs,
+            self.position,
+        ) {
+            carcinisation_fps_core::DamageOutcome::Survived => {}
+            carcinisation_fps_core::DamageOutcome::KilledPhysical => {
+                self.shoot_anim_elapsed = None;
+                self.state = MosquitonState::Dying { timer: 0.5 };
+                self.velocity = Vec2::ZERO;
+            }
+            carcinisation_fps_core::DamageOutcome::KilledByFire { timer, seed } => {
+                self.shoot_anim_elapsed = None;
+                self.state = MosquitonState::BurningCorpse { timer, seed };
+                self.velocity = Vec2::ZERO;
+            }
         }
     }
 
     #[must_use]
     pub fn showing_damage_invert(&self) -> bool {
-        self.is_alive()
-            && self
-                .damage_flicker
-                .is_some_and(DamageFlicker::showing_invert)
+        self.is_alive() && carcinisation_fps_core::is_showing_damage_invert(&self.damage_flicker)
     }
 }
 
@@ -344,34 +345,13 @@ pub fn hitscan_mosquitons(
     mosquitons: &[Mosquiton],
     map: &Map,
 ) -> Option<(usize, f32)> {
-    let dir = camera.direction();
-    let origin = camera.position;
-    let wall_hit = cast_ray(map, origin, dir);
-    let max_dist = wall_hit.distance;
-
-    let mut closest: Option<(usize, f32)> = None;
-
-    for (i, m) in mosquitons.iter().enumerate() {
-        if !m.is_alive() {
-            continue;
-        }
-
-        let to_enemy = m.position - origin;
-        let along_ray = to_enemy.dot(dir);
-
-        if along_ray <= 0.0 || along_ray > max_dist {
-            continue;
-        }
-
-        let perp_dist_sq = to_enemy.length_squared() - along_ray * along_ray;
-        let radius_sq = m.config.collision_radius * m.config.collision_radius;
-
-        if perp_dist_sq < radius_sq && closest.is_none_or(|(_, d)| along_ray < d) {
-            closest = Some((i, along_ray));
-        }
-    }
-
-    closest
+    carcinisation_fps_core::hitscan_generic(
+        camera,
+        map,
+        mosquitons
+            .iter()
+            .map(|m| (m.position, m.config.collision_radius, m.is_alive())),
+    )
 }
 
 const MOSQUITON_COMPOSED_RON: &str =
@@ -477,7 +457,10 @@ fn animation_total_duration(frames: &[MosquitonBillboardFrame]) -> f32 {
 }
 
 /// Sample a looping animation at the given elapsed time.
-fn animation_sprite_at(frames: &[MosquitonBillboardFrame], elapsed_secs: f32) -> &Arc<CxImage> {
+pub(crate) fn animation_sprite_at(
+    frames: &[MosquitonBillboardFrame],
+    elapsed_secs: f32,
+) -> &Arc<CxImage> {
     debug_assert!(
         !frames.is_empty(),
         "animation_sprite_at requires non-empty frames"
@@ -502,7 +485,7 @@ fn animation_sprite_at(frames: &[MosquitonBillboardFrame], elapsed_secs: f32) ->
 }
 
 /// Sample a one-shot animation, clamping to the last frame when finished.
-fn animation_sprite_at_clamped(
+pub(crate) fn animation_sprite_at_clamped(
     frames: &[MosquitonBillboardFrame],
     elapsed_secs: f32,
 ) -> &Arc<CxImage> {
@@ -886,7 +869,7 @@ fn compose_animation_frames_wing_only(
     )
 }
 
-fn compose_animation_frames_full(
+pub(crate) fn compose_animation_frames_full(
     composed: &CompactComposedAtlas,
     atlas: &PxAtlasDescriptor,
     atlas_pixels: &[u8],
@@ -1330,7 +1313,7 @@ pub(crate) fn extract_atlas_rect(
     Some(CxImage::new(data, rect.w as usize))
 }
 
-fn trim_transparent(image: CxImage) -> Option<CxImage> {
+pub(crate) fn trim_transparent(image: CxImage) -> Option<CxImage> {
     let (min_x, min_y, max_x, max_y) = visible_bounds(&image)?;
     Some(crop_to_rect(&image, min_x, min_y, max_x, max_y))
 }

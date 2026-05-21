@@ -1678,7 +1678,7 @@
       "part_overrides": []
     },
     {
-      "tag": "front_lounge",
+      "tag": "front_lunge",
       "direction": "forward",
       "repeats": null,
       "frames": [
@@ -2316,7 +2316,7 @@
       "part_overrides": []
     },
     {
-      "tag": "frontleft_lounge",
+      "tag": "frontleft_lunge",
       "direction": "forward",
       "repeats": null,
       "frames": [
@@ -2954,7 +2954,7 @@
       "part_overrides": []
     },
     {
-      "tag": "left_lounge",
+      "tag": "left_lunge",
       "direction": "forward",
       "repeats": null,
       "frames": [
@@ -3592,7 +3592,7 @@
       "part_overrides": []
     },
     {
-      "tag": "backleft_lounge",
+      "tag": "backleft_lunge",
       "direction": "forward",
       "repeats": null,
       "frames": [
@@ -4230,7 +4230,7 @@
       "part_overrides": []
     },
     {
-      "tag": "back_lounge",
+      "tag": "back_lunge",
       "direction": "forward",
       "repeats": null,
       "frames": [

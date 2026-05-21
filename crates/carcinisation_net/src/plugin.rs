@@ -4,7 +4,7 @@ use bevy_replicon::prelude::*;
 use crate::channels::{register_reliable_channels, register_unreliable_channels};
 use crate::components::{
     NetBurning, NetEnemy, NetEnemyType, NetGroundFire, NetHealth, NetPickup, NetPlayer,
-    NetProjectile, PlayerNetState,
+    NetProjectile, NetSpeedModifier, PlayerNetState,
 };
 use crate::protocol::{NetworkObjectId, Owner, PlayerId};
 use crate::tick::{TickConfig, TickCounter, TickPlugin};
@@ -44,6 +44,7 @@ fn register_types(app: &mut App) {
         .register_type::<NetEnemy>()
         .register_type::<NetEnemyType>()
         .register_type::<NetProjectile>()
+        .register_type::<NetSpeedModifier>()
         .register_type::<NetPickup>()
         .register_type::<NetGroundFire>()
         .register_type::<NetHealth>()
@@ -57,6 +58,7 @@ fn register_replication(app: &mut App) {
     app.replicate::<NetPlayer>()
         .replicate::<NetEnemy>()
         .replicate::<NetProjectile>()
+        .replicate::<NetSpeedModifier>()
         .replicate::<NetPickup>()
         .replicate::<NetGroundFire>()
         .replicate::<NetHealth>()

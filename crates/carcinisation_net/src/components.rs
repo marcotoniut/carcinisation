@@ -8,7 +8,8 @@ use crate::protocol::{NetPickupKind, NetworkObjectId, Owner, PlayerId};
 ///
 /// Drives both gameplay decisions (server) and animation selection (client).
 /// One-shot attack animations are driven by `EnemyAttackVisual` events, not
-/// replicated state, to avoid stale one-shot states.
+/// replicated state, to avoid stale one-shot states. Trade-off: late-joining
+/// clients see `HoldingRange` for mid-attack enemies until the next event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[reflect(Serialize, Deserialize)]
 pub enum NetEnemyState {
@@ -32,6 +33,7 @@ pub enum NetEnemyState {
 pub enum NetEnemyType {
     Basic,
     Mosquiton,
+    Spidey,
 }
 
 /// Net-safe attack ID enum.
@@ -75,6 +77,25 @@ pub struct NetEnemy {
     pub angle: f32,
     pub state: NetEnemyState,
     pub enemy_type: NetEnemyType,
+    /// Server-computed visual height offset (hop/leap arc).
+    /// Presentation-only: used by clients for billboard positioning and hop
+    /// animation detection. Defaults to 0.0 for backward compatibility.
+    #[serde(default)]
+    pub visual_height: f32,
+    /// Presentation-only normalized animation phase for enemies whose visual
+    /// height is non-monotonic, such as Spidey hops.
+    #[serde(default)]
+    pub visual_phase: f32,
+}
+
+/// Replicated temporary player speed modifier.
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize, Reflect, PartialEq)]
+#[reflect(Component, Serialize, Deserialize)]
+pub struct NetSpeedModifier {
+    /// Multiplier applied to base movement speed.
+    pub multiplier: f32,
+    /// Remaining drain budget. Server authoritative.
+    pub remaining: f32,
 }
 
 /// Net-safe projectile type enum.
@@ -83,6 +104,7 @@ pub struct NetEnemy {
 pub enum NetProjectileType {
     #[default]
     BloodShot,
+    WebShot,
 }
 
 /// Replicated projectile component.
@@ -166,11 +188,56 @@ mod tests {
             angle: 0.0,
             state: NetEnemyState::Chase,
             enemy_type: NetEnemyType::Mosquiton,
+            visual_height: 0.0,
+            visual_phase: 0.0,
         };
         let back = roundtrip_component(&enemy);
         assert_eq!(back.object_id.0, 5);
         assert!(matches!(back.state, NetEnemyState::Chase));
         assert_eq!(back.enemy_type, NetEnemyType::Mosquiton);
+    }
+
+    #[test]
+    fn net_enemy_spidey_roundtrip() {
+        let enemy = NetEnemy {
+            object_id: NetworkObjectId(7),
+            position: Vec2::new(5.0, 6.0),
+            angle: 1.0,
+            state: NetEnemyState::HoldingRange,
+            enemy_type: NetEnemyType::Spidey,
+            visual_height: 0.15,
+            visual_phase: 0.5,
+        };
+        let back = roundtrip_component(&enemy);
+        assert_eq!(back.object_id.0, 7);
+        assert!(matches!(back.state, NetEnemyState::HoldingRange));
+        assert_eq!(back.enemy_type, NetEnemyType::Spidey);
+    }
+
+    #[test]
+    fn net_projectile_webshot_roundtrip() {
+        let proj = NetProjectile {
+            object_id: NetworkObjectId(11),
+            position: Vec2::new(3.0, 4.0),
+            angle: 0.5,
+            owner: Owner(PlayerId(1)),
+            damage: 10.0,
+            projectile_type: NetProjectileType::WebShot,
+        };
+        let back = roundtrip_component(&proj);
+        assert_eq!(back.owner.0.0, 1);
+        assert_eq!(back.projectile_type, NetProjectileType::WebShot);
+    }
+
+    #[test]
+    fn net_speed_modifier_roundtrip() {
+        let modifier = NetSpeedModifier {
+            multiplier: 0.7,
+            remaining: 2.5,
+        };
+        let back = roundtrip_component(&modifier);
+        assert!((back.multiplier - 0.7).abs() < f32::EPSILON);
+        assert!((back.remaining - 2.5).abs() < f32::EPSILON);
     }
 
     #[test]

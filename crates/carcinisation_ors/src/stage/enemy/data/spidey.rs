@@ -14,8 +14,8 @@ const ORS_DIRECTION: SpriteDirection = SpriteDirection::Front;
 
 /// Resting idle pose with all legs planted.
 pub const ACTION_IDLE: &str = "idle";
-/// Lounging pose — legs sourced from idle via atlas metadata `part_overrides`.
-pub const ACTION_LOUNGE: &str = "lounge";
+/// Lunge pose — legs sourced from idle via atlas metadata `part_overrides`.
+pub const ACTION_LUNGE: &str = "lunge";
 /// Ranged attack (web shot) animation.
 pub const ACTION_SHOOT: &str = "shoot";
 /// Jump locomotion used for depth traversal.
@@ -28,7 +28,7 @@ pub const ACTION_LANDING: &str = "landing";
 /// Full authored action list exposed in the gallery.
 pub const GALLERY_ACTIONS: &[&str] = &[
     ACTION_IDLE,
-    ACTION_LOUNGE,
+    ACTION_LUNGE,
     ACTION_SHOOT,
     ACTION_JUMP,
     ACTION_LANDING,
@@ -37,7 +37,7 @@ pub const GALLERY_ACTIONS: &[&str] = &[
 /// Core actions surfaced as deterministic gallery verification controls.
 pub const GALLERY_VERIFICATION_ACTIONS: &[&str] = &[
     ACTION_IDLE,
-    ACTION_LOUNGE,
+    ACTION_LUNGE,
     ACTION_SHOOT,
     ACTION_JUMP,
     ACTION_LANDING,
@@ -48,7 +48,7 @@ pub const GALLERY_VERIFICATION_ACTIONS: &[&str] = &[
 /// Request a Spidey animation by semantic action name.
 ///
 /// Resolves the action to a physical atlas tag via [`ORS_DIRECTION`].
-/// Spidey has no runtime part overrides — lounge leg overrides are declared
+/// Spidey has no runtime part overrides — lunge leg overrides are declared
 /// in the atlas metadata and resolved generically by the composed renderer.
 pub fn request_spidey_action(animation_state: &mut ComposedAnimationState, action: &str) {
     request_spidey_action_with_hold(animation_state, action, false);

@@ -18,9 +18,11 @@ use carcinisation_fps::player_attack::AttackInput;
 use carcinisation_fps::player_attack::PlayerAttackState;
 use carcinisation_fps::plugin::{
     CameraRes, CameraShakeState, CharDecals, Config, DeathViewState, EnemySpriteIndex, FpsPlugin,
-    MapRes, PlayerDead, PlayerHealth, ProjectileImpacts, Projectiles, QuickTurnState, ShootRequest,
-    Systems, TurnChordInput, TurnChordState, request_snap_turn, resolve_turn_chord,
+    MapRes, PlayerDead, PlayerHealth, PlayerSpeedModifier, ProjectileImpacts, Projectiles,
+    QuickTurnState, ShootRequest, Systems, TurnChordInput, TurnChordState, request_snap_turn,
+    resolve_turn_chord,
 };
+use carcinisation_fps::spidey::{Spidey, SpideyConfig};
 use carcinisation_input::{GBInput, init_gb_input};
 use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -65,7 +67,7 @@ enum Layer {
 
 // --- Input system (binary-specific, reads GBInput → updates FP resources) ---
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 #[allow(clippy::needless_pass_by_value)]
 fn handle_input(
     action: Res<ActionState<GBInput>>,
@@ -79,6 +81,7 @@ fn handle_input(
     mut attack_input: ResMut<AttackInput>,
     mut turn_chord: ResMut<TurnChordState>,
     mut quick_turn_state: ResMut<QuickTurnState>,
+    mut speed_modifier: ResMut<PlayerSpeedModifier>,
 ) {
     if dead.0 {
         return;
@@ -156,16 +159,25 @@ fn handle_input(
         movement = movement.normalize();
     }
 
+    let pos_before = cam.position;
     if movement != Vec2::ZERO {
-        carcinisation_fps_core::movement::apply_movement(
+        carcinisation_fps_core::movement::apply_movement_with_modifier(
             &mut cam.position,
             cam.angle,
             movement,
             config.move_speed,
+            speed_modifier.0.as_ref(),
             dt,
             &map.0,
             movement_config.collision_margin,
         );
+    }
+    // Tick speed modifier with actual movement distance so moving drains it faster.
+    if let Some(ref mut modifier) = speed_modifier.0 {
+        let move_dist = cam.position.distance(pos_before);
+        if !modifier.tick(dt, move_dist) {
+            speed_modifier.0 = None;
+        }
     }
 
     let melee_triggered = (select_held && a_just_pressed) || (select_just_pressed && a_held);
@@ -262,6 +274,7 @@ struct ResetParams<'w, 's> {
     commands: Commands<'w, 's>,
     enemy_q: Query<'w, 's, Entity, With<Enemy>>,
     mosquiton_q: Query<'w, 's, Entity, With<Mosquiton>>,
+    spidey_q: Query<'w, 's, Entity, With<Spidey>>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -277,11 +290,14 @@ fn reset_stage(reset: &mut ResetParams<'_, '_>) {
     let map_data = MapData::from_ron(&reset.config.map_ron)
         .unwrap_or_else(|e| panic!("failed to reset FP map: {e}"));
 
-    // Despawn all existing enemy and mosquiton entities.
+    // Despawn all existing enemy, mosquiton, and spidey entities.
     for entity in reset.enemy_q.iter() {
         reset.commands.entity(entity).despawn();
     }
     for entity in reset.mosquiton_q.iter() {
+        reset.commands.entity(entity).despawn();
+    }
+    for entity in reset.spidey_q.iter() {
         reset.commands.entity(entity).despawn();
     }
 
@@ -309,6 +325,16 @@ fn reset_stage(reset: &mut ResetParams<'_, '_>) {
                 reset.commands.spawn(mosquiton);
             }
             EntityKind::Pillar { .. } => {}
+            EntityKind::Spidey { health, speed } => {
+                let combat = carcinisation_fps_core::FpsCombatConfig::load();
+                let config = SpideyConfig {
+                    health: *health,
+                    ..SpideyConfig::from_combat_config(&combat)
+                }
+                .with_authored_speed(*speed);
+                let spidey = Spidey::new(pos, config);
+                reset.commands.spawn(spidey);
+            }
         }
     }
 

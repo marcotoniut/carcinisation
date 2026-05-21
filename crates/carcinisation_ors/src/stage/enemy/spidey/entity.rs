@@ -33,7 +33,7 @@ impl EnemySpidey {
 #[reflect(Component)]
 pub enum EnemySpideyAnimation {
     Idle,
-    Lounge,
+    Lunge,
     Shoot,
     Jump,
     Landing,

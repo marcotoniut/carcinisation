@@ -21,9 +21,10 @@ pub struct Systems;
 
 use crate::{
     billboard::{
-        Billboard, billboard_from_enemy, billboard_from_mosquiton, billboards_from_enemies_indexed,
-        billboards_from_mosquitons, billboards_from_projectile_impacts,
-        billboards_from_projectiles, make_death_sprite, make_enemy_sprite, make_pillar_sprite,
+        Billboard, billboard_from_enemy, billboard_from_mosquiton, billboard_from_spidey,
+        billboards_from_enemies_indexed, billboards_from_mosquitons,
+        billboards_from_projectile_impacts, billboards_from_projectiles, billboards_from_spideys,
+        make_death_sprite, make_enemy_sprite, make_pillar_sprite,
     },
     camera::Camera,
     data::{EntityKind, MapData},
@@ -47,6 +48,10 @@ use crate::{
         render_fp_scene, render_fp_scene_with_effects,
     },
     sky::Sky,
+    spidey::{
+        SpiderShotBillboardSprites, Spidey, SpideyBillboardSprites, SpideyConfig, SpideyState,
+        make_spider_shot_billboard_sprites, make_spidey_billboard_sprites, tick_single_spidey,
+    },
 };
 
 /// Maximum time B can be held before the chord window expires.
@@ -220,12 +225,21 @@ pub struct BloodShotSprites(pub BloodShotBillboardSprites);
 #[derive(Resource)]
 pub struct MosquitonSprites(pub MosquitonBillboardSprites);
 
+/// Composed billboard sprites resource for Spidey enemies.
+#[derive(Resource)]
+pub struct SpideySprites(pub SpideyBillboardSprites);
+
+#[derive(Resource)]
+pub struct SpiderShotSprites(pub SpiderShotBillboardSprites);
+
 struct FpMapEntitySetup {
     static_billboards: Vec<Billboard>,
     initial_enemy_billboards: Vec<Billboard>,
     initial_mosquiton_billboards: Vec<Billboard>,
+    initial_spidey_billboards: Vec<Billboard>,
     enemies: Vec<Enemy>,
     mosquitons: Vec<Mosquiton>,
+    spideys: Vec<Spidey>,
 }
 
 #[derive(SystemParam)]
@@ -235,7 +249,9 @@ struct RenderSources<'w> {
     projectiles: Res<'w, Projectiles>,
     impacts: Res<'w, ProjectileImpacts>,
     blood_shot_sprites: Res<'w, BloodShotSprites>,
+    spider_shot_sprites: Res<'w, SpiderShotSprites>,
     mosquiton_sprites: Res<'w, MosquitonSprites>,
+    spidey_sprites: Res<'w, SpideySprites>,
     char_decals: Res<'w, CharDecals>,
     ground_fires: Res<'w, GroundFires>,
     ground_fire_vis: Res<'w, GroundFireVisualConfig>,
@@ -270,6 +286,14 @@ pub struct PlayerDead(pub bool);
 /// Marker resource indicating First-person mode is active.
 #[derive(Resource)]
 pub struct Active;
+
+/// Active speed modifier on the player (e.g. web slow).
+///
+/// Ticked each frame in `tick_enemy_ai`. Callers (`fps_test`, multiplayer client)
+/// read this to apply the modifier to player movement via
+/// `apply_movement_with_modifier`.
+#[derive(Resource, Default)]
+pub struct PlayerSpeedModifier(pub Option<carcinisation_fps_core::movement::SpeedModifier>);
 
 /// Resolved FP player intent. Integration layers can build this from any input source.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -738,12 +762,19 @@ fn setup_fp<L: CxLayer + Default>(
         .expect("embedded Mosquiton composed billboard assets should resolve");
     let blood_shot_sprites =
         make_blood_shot_billboard_sprites().expect("embedded blood shot assets should resolve");
+    let spider_shot_sprites =
+        make_spider_shot_billboard_sprites().expect("embedded spider shot assets should resolve");
+    let spidey_sprites = make_spidey_billboard_sprites()
+        .expect("embedded Spidey composed billboard assets should resolve");
 
+    let combat_config = carcinisation_fps_core::FpsCombatConfig::load();
     let entity_setup = build_map_entity_setup(
         &map_data,
         config.authority_mode,
         &sprite_pairs,
         &mosquiton_sprites,
+        &spidey_sprites,
+        &combat_config,
     );
 
     for enemy in &entity_setup.enemies {
@@ -752,6 +783,9 @@ fn setup_fp<L: CxLayer + Default>(
     for mosquiton in &entity_setup.mosquitons {
         commands.spawn(mosquiton.clone());
     }
+    for spidey in &entity_setup.spideys {
+        commands.spawn(spidey.clone());
+    }
 
     let all_bbs: Vec<Billboard> = entity_setup
         .static_billboards
@@ -759,6 +793,7 @@ fn setup_fp<L: CxLayer + Default>(
         .cloned()
         .chain(entity_setup.initial_enemy_billboards.iter().cloned())
         .chain(entity_setup.initial_mosquiton_billboards.iter().cloned())
+        .chain(entity_setup.initial_spidey_billboards.iter().cloned())
         .collect();
     let sky_ron = std::fs::read_to_string(&config.sky_path)
         .unwrap_or_else(|e| panic!("failed to read sky RON {}: {}", config.sky_path, e));
@@ -803,10 +838,13 @@ fn setup_fp<L: CxLayer + Default>(
     commands.insert_resource(ProjectileImpacts(Vec::new()));
     commands.insert_resource(CharDecals::default());
     commands.insert_resource(BloodShotSprites(blood_shot_sprites));
+    commands.insert_resource(SpiderShotSprites(spider_shot_sprites));
     commands.insert_resource(MosquitonSprites(mosquiton_sprites));
+    commands.insert_resource(SpideySprites(spidey_sprites));
     commands.insert_resource(PlayerAttackSprites::load());
     commands.insert_resource(PlayerHealth(config.player_max_health));
     commands.insert_resource(PlayerDead(false));
+    commands.insert_resource(PlayerSpeedModifier::default());
     commands.insert_resource(Active);
 
     info!("First-person mode initialized");
@@ -817,13 +855,17 @@ fn build_map_entity_setup(
     authority_mode: FpsAuthorityMode,
     sprite_pairs: &[(CxImage, CxImage)],
     mosquiton_sprites: &MosquitonBillboardSprites,
+    spidey_sprites: &SpideyBillboardSprites,
+    combat_config: &carcinisation_fps_core::FpsCombatConfig,
 ) -> FpMapEntitySetup {
     let mut setup = FpMapEntitySetup {
         static_billboards: Vec::new(),
         initial_enemy_billboards: Vec::new(),
         initial_mosquiton_billboards: Vec::new(),
+        initial_spidey_billboards: Vec::new(),
         enemies: Vec::new(),
         mosquitons: Vec::new(),
+        spideys: Vec::new(),
     };
 
     for spawn in &map_data.entities {
@@ -867,6 +909,20 @@ fn build_map_entity_setup(
                         .initial_mosquiton_billboards
                         .push(billboard_from_mosquiton(&mosquiton, mosquiton_sprites));
                     setup.mosquitons.push(mosquiton);
+                }
+            }
+            EntityKind::Spidey { health, speed } => {
+                if authority_mode.uses_local_combat() {
+                    let config = SpideyConfig {
+                        health: *health,
+                        ..SpideyConfig::from_combat_config(combat_config)
+                    }
+                    .with_authored_speed(*speed);
+                    let spidey = Spidey::new(pos, config);
+                    setup
+                        .initial_spidey_billboards
+                        .push(billboard_from_spidey(&spidey, spidey_sprites));
+                    setup.spideys.push(spidey);
                 }
             }
         }
@@ -941,13 +997,20 @@ fn tick_camera_shake_effect(
     );
 }
 
+/// Bundled enemy queries for the SP tick system (avoids param overflow).
+#[derive(SystemParam)]
+struct EnemyQueries<'w, 's> {
+    enemies: Query<'w, 's, (Entity, &'static mut Enemy)>,
+    mosquitons: Query<'w, 's, (Entity, &'static mut Mosquiton)>,
+    spideys: Query<'w, 's, (Entity, &'static mut Spidey)>,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn tick_enemy_ai(
     time: Res<Time>,
     camera: Res<CameraRes>,
     map: Res<MapRes>,
-    mut enemy_q: Query<(Entity, &mut Enemy)>,
-    mut mosquiton_q: Query<(Entity, &mut Mosquiton)>,
+    mut enemies: EnemyQueries,
     mut projectiles: ResMut<Projectiles>,
     mut impacts: ResMut<ProjectileImpacts>,
     mut health: ResMut<PlayerHealth>,
@@ -959,12 +1022,18 @@ fn tick_enemy_ai(
     mut commands: Commands,
     config: Res<Config>,
     burn_config: Res<carcinisation_fps_core::BurnConfig>,
+    mut speed_modifier: ResMut<PlayerSpeedModifier>,
 ) {
     if !config.authority_mode.uses_local_combat() {
         return;
     }
 
     let dt = time.delta_secs();
+
+    // Tick speed modifier (e.g. web slow) regardless of dead state.
+    // Movement distance is approximated from speed * dt when the player is
+    // SpeedModifier is ticked by the movement owner (fps_test, MP client),
+    // not here — the plugin doesn't know the player's movement distance.
 
     if dead.0 {
         return;
@@ -974,7 +1043,7 @@ fn tick_enemy_ai(
 
     // Tick enemies and collect dead entities for despawning.
     let mut dead_enemies = Vec::new();
-    for (entity, mut enemy) in &mut enemy_q {
+    for (entity, mut enemy) in &mut enemies.enemies {
         if let Some(proj) = tick_single_enemy(&mut enemy, player_pos, &map.0, dt) {
             projectiles.0.push(proj);
         }
@@ -1008,7 +1077,7 @@ fn tick_enemy_ai(
 
     // Tick mosquitons and collect dead entities for despawning.
     let mut dead_mosquitons = Vec::new();
-    for (entity, mut mosquiton) in &mut mosquiton_q {
+    for (entity, mut mosquiton) in &mut enemies.mosquitons {
         let (proj, dmg) = tick_single_mosquiton(&mut mosquiton, player_pos, &map.0, dt);
         if let Some(p) = proj {
             projectiles.0.push(p);
@@ -1053,6 +1122,53 @@ fn tick_enemy_ai(
         commands.entity(entity).despawn();
     }
 
+    // Tick spideys and collect dead entities for despawning.
+    let mut dead_spideys = Vec::new();
+    for (entity, mut spidey) in &mut enemies.spideys {
+        let (proj, dmg) = tick_single_spidey(&mut spidey, player_pos, &map.0, dt);
+        if let Some(p) = proj {
+            projectiles.0.push(p);
+        }
+        if let Some((amount, source)) = dmg {
+            apply_player_damage(
+                &mut health.0,
+                &mut dead.0,
+                &mut death_view,
+                &mut camera_shake,
+                &camera.0,
+                amount,
+                Some(source),
+                &config,
+            );
+        }
+
+        // Tick burn state for spideys.
+        if spidey.is_alive() {
+            let result = carcinisation_fps_core::tick_burning(
+                &mut spidey.burn_state,
+                &burn_config,
+                dt,
+                false,
+            );
+            if result.damage > 0 {
+                spidey.take_damage_from(
+                    result.damage,
+                    carcinisation_fps_core::DamageKind::Fire,
+                    attack_state.shared().burning_corpse_duration_secs,
+                );
+            }
+        } else if spidey.burn_state.is_burning() {
+            carcinisation_fps_core::burning::extinguish(&mut spidey.burn_state);
+        }
+
+        if matches!(spidey.state, SpideyState::Dead) {
+            dead_spideys.push(entity);
+        }
+    }
+    for entity in dead_spideys {
+        commands.entity(entity).despawn();
+    }
+
     destroy_projectiles_touching_active_flamethrower(
         &camera.0,
         &map.0,
@@ -1081,16 +1197,30 @@ fn tick_enemy_ai(
         &config,
     );
 
-    // Collect burning corpses from remaining enemies and mosquitons.
+    // Apply web slow effect if a WebShot hit the player this tick.
+    if let Some(slow) = projectile_result.slow_effect {
+        use carcinisation_fps_core::movement::SpeedModifier;
+        match &mut speed_modifier.0 {
+            Some(existing) => existing.refresh(slow.multiplier, slow.duration),
+            None => speed_modifier.0 = Some(SpeedModifier::new(slow.multiplier, slow.duration)),
+        }
+    }
+
+    // Collect burning corpses from remaining enemies, mosquitons, and spideys.
     let mut burning_corpses = Vec::new();
-    for (_, enemy) in enemy_q.iter() {
+    for (_, enemy) in enemies.enemies.iter() {
         if matches!(enemy.state, EnemyState::BurningCorpse { .. }) {
             burning_corpses.push(enemy.position);
         }
     }
-    for (_, mosquiton) in mosquiton_q.iter() {
+    for (_, mosquiton) in enemies.mosquitons.iter() {
         if matches!(mosquiton.state, MosquitonState::BurningCorpse { .. }) {
             burning_corpses.push(mosquiton.position);
+        }
+    }
+    for (_, spidey) in enemies.spideys.iter() {
+        if matches!(spidey.state, SpideyState::BurningCorpse { .. }) {
+            burning_corpses.push(spidey.position);
         }
     }
 
@@ -1149,8 +1279,9 @@ fn tick_enemy_ai(
     let mut all_fire_positions = burning_corpses;
     all_fire_positions.extend(fire_hazard.ground_fires.0.iter().map(|f| f.position));
     tick_burning_corpse_crossfire_query(
-        &mut enemy_q,
-        &mut mosquiton_q,
+        &mut enemies.enemies,
+        &mut enemies.mosquitons,
+        &mut enemies.spideys,
         &all_fire_positions,
         attack_state.shared(),
         &burn_config,
@@ -1420,6 +1551,7 @@ fn closest_burning_corpse_to(pos: Vec2, corpses: &[Vec2], radius: f32) -> Option
 fn tick_burning_corpse_crossfire_query(
     enemy_q: &mut Query<(Entity, &mut Enemy)>,
     mosquiton_q: &mut Query<(Entity, &mut Mosquiton)>,
+    spidey_q: &mut Query<(Entity, &mut Spidey)>,
     burning_corpses: &[Vec2],
     config: &carcinisation_fps_core::PlayerFlamethrowerConfig,
     burn_config: &carcinisation_fps_core::BurnConfig,
@@ -1452,6 +1584,20 @@ fn tick_burning_corpse_crossfire_query(
         if closest_burning_corpse_to(enemy.position, burning_corpses, radius).is_some() {
             carcinisation_fps_core::apply_exposure(
                 &mut enemy.burn_state,
+                burn_config,
+                burn_config.ground_fire_exposure_per_sec,
+                dt,
+            );
+        }
+    }
+
+    for (_, mut spidey) in spidey_q.iter_mut() {
+        if !spidey.is_alive() {
+            continue;
+        }
+        if closest_burning_corpse_to(spidey.position, burning_corpses, radius).is_some() {
+            carcinisation_fps_core::apply_exposure(
+                &mut spidey.burn_state,
                 burn_config,
                 burn_config.ground_fire_exposure_per_sec,
                 dt,
@@ -1524,6 +1670,7 @@ fn handle_shooting(
     time: Res<Time>,
     mut enemy_q: Query<(Entity, &mut Enemy)>,
     mut mosquiton_q: Query<(Entity, &mut Mosquiton)>,
+    mut spidey_q: Query<(Entity, &mut Spidey)>,
     mut projectiles: ResMut<Projectiles>,
     mut impacts: ResMut<ProjectileImpacts>,
     mut char_decals: ResMut<CharDecals>,
@@ -1552,6 +1699,7 @@ fn handle_shooting(
     if !config.authority_mode.uses_local_combat() {
         let mut enemies = Vec::new();
         let mut mosquitons = Vec::new();
+        let mut spideys = Vec::new();
         process_player_attacks(
             &camera.0,
             &map.0,
@@ -1564,6 +1712,7 @@ fn handle_shooting(
             &mut attack.state,
             &mut enemies,
             &mut mosquitons,
+            &mut spideys,
             &mut projectiles.0,
             &mut impacts.0,
             &mut char_decals.0,
@@ -1592,6 +1741,14 @@ fn handle_shooting(
         mosquitons.push(mosquiton.clone());
     }
 
+    // Gather spideys into Vecs for slice-based attack processing.
+    let mut spidey_entities: Vec<Entity> = Vec::new();
+    let mut spideys: Vec<Spidey> = Vec::new();
+    for (entity, spidey) in spidey_q.iter() {
+        spidey_entities.push(entity);
+        spideys.push(spidey.clone());
+    }
+
     process_player_attacks(
         &camera.0,
         &map.0,
@@ -1604,6 +1761,7 @@ fn handle_shooting(
         &mut attack.state,
         &mut enemies,
         &mut mosquitons,
+        &mut spideys,
         &mut projectiles.0,
         &mut impacts.0,
         &mut char_decals.0,
@@ -1631,6 +1789,14 @@ fn handle_shooting(
             *m = mosquitons[i].clone();
         }
     }
+
+    for (i, &entity) in spidey_entities.iter().enumerate() {
+        if !matches!(spideys[i].state, SpideyState::Dead)
+            && let Ok((_, mut s)) = spidey_q.get_mut(entity)
+        {
+            *s = spideys[i].clone();
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1642,6 +1808,7 @@ fn update_fp_view(
     time: Res<Time>,
     enemy_q: Query<(&Enemy, &EnemySpriteIndex)>,
     mosquiton_q: Query<&Mosquiton>,
+    spidey_q: Query<&Spidey>,
     burn_config: Res<carcinisation_fps_core::BurnConfig>,
     mut zbuffer: Local<Vec<f32>>,
 ) {
@@ -1650,7 +1817,7 @@ fn update_fp_view(
         view.config.screen_height,
     ));
 
-    // Gather enemies with sprite indices and mosquitons for billboard rendering.
+    // Gather enemies with sprite indices, mosquitons, and spideys for billboard rendering.
     let mut enemies: Vec<Enemy> = Vec::new();
     let mut indices: Vec<usize> = Vec::new();
     for (e, idx) in enemy_q.iter() {
@@ -1658,6 +1825,7 @@ fn update_fp_view(
         indices.push(idx.0);
     }
     let mosquitons: Vec<Mosquiton> = mosquiton_q.iter().cloned().collect();
+    let spideys: Vec<Spidey> = spidey_q.iter().cloned().collect();
 
     let enemy_bbs = billboards_from_enemies_indexed(&enemies, &indices, &sources.pairs.0);
     let corpse_flame_bbs = burning_corpse_flame_billboards(
@@ -1666,6 +1834,8 @@ fn update_fp_view(
         &sources.pairs.0,
         &mosquitons,
         &sources.mosquiton_sprites.0,
+        &spideys,
+        &sources.spidey_sprites.0,
         &CorpseFlameContext {
             attack_sprites: &view.attack_sprites,
             config: view.attack_state.shared(),
@@ -1680,17 +1850,26 @@ fn update_fp_view(
         time.elapsed_secs(),
         &sources.ground_fire_vis,
     );
-    let proj_bbs =
-        billboards_from_projectiles(&sources.projectiles.0, &sources.blood_shot_sprites.0.hover);
-    let impact_bbs =
-        billboards_from_projectile_impacts(&sources.impacts.0, &sources.blood_shot_sprites.0);
+    let proj_bbs = billboards_from_projectiles(
+        &sources.projectiles.0,
+        &sources.blood_shot_sprites.0.hover,
+        &sources.spider_shot_sprites.0.hover,
+    );
+    let impact_bbs = billboards_from_projectile_impacts(
+        &sources.impacts.0,
+        &sources.blood_shot_sprites.0,
+        &sources.spider_shot_sprites.0,
+    );
     let mosquiton_bbs = billboards_from_mosquitons(&mosquitons, &sources.mosquiton_sprites.0);
+    let spidey_bbs = billboards_from_spideys(&spideys, &sources.spidey_sprites.0);
     let alive_burn_bbs = alive_burn_flame_billboards(
         &enemies,
         &indices,
         &sources.pairs.0,
         &mosquitons,
         &sources.mosquiton_sprites.0,
+        &spideys,
+        &sources.spidey_sprites.0,
         &CorpseFlameContext {
             attack_sprites: &view.attack_sprites,
             config: view.attack_state.shared(),
@@ -1713,6 +1892,7 @@ fn update_fp_view(
         .chain(alive_burn_bbs)
         .chain(enemy_bbs)
         .chain(mosquiton_bbs)
+        .chain(spidey_bbs)
         .chain(impact_bbs)
         .chain(proj_bbs)
         .chain(local_flame_bbs)
@@ -1791,6 +1971,8 @@ fn burning_corpse_flame_billboards(
     enemy_sprite_pairs: &[(CxImage, CxImage)],
     mosquitons: &[Mosquiton],
     mosquiton_sprites: &MosquitonBillboardSprites,
+    spideys: &[Spidey],
+    spidey_sprites: &SpideyBillboardSprites,
     ctx: &CorpseFlameContext<'_>,
 ) -> Vec<Billboard> {
     let mut billboards = Vec::new();
@@ -1824,6 +2006,19 @@ fn burning_corpse_flame_billboards(
                 mosquiton.config.billboard_height,
                 seed,
                 corpse_sprite,
+                ctx,
+            );
+        }
+    }
+    for spidey in spideys {
+        if let SpideyState::BurningCorpse { seed, .. } = spidey.state {
+            push_burning_corpse_flames(
+                &mut billboards,
+                spidey.position,
+                spidey.visual_height,
+                spidey.config.billboard_height,
+                seed,
+                spidey_sprites.alive_sprite_at(0.0),
                 ctx,
             );
         }
@@ -1883,7 +2078,7 @@ fn push_burning_corpse_flames(
     }
 }
 
-/// Generate flame billboards on alive burning enemies/mosquitons.
+/// Generate flame billboards on alive burning enemies/mosquitons/spideys.
 /// Flame count scales with burn intensity.
 fn alive_burn_flame_billboards(
     enemies: &[Enemy],
@@ -1891,6 +2086,8 @@ fn alive_burn_flame_billboards(
     enemy_sprite_pairs: &[(CxImage, CxImage)],
     mosquitons: &[Mosquiton],
     mosquiton_sprites: &MosquitonBillboardSprites,
+    spideys: &[Spidey],
+    spidey_sprites: &SpideyBillboardSprites,
     ctx: &CorpseFlameContext<'_>,
     burn_config: &carcinisation_fps_core::BurnConfig,
 ) -> Vec<Billboard> {
@@ -1933,6 +2130,23 @@ fn alive_burn_flame_billboards(
             mosquiton.burn_state.intensity,
             (enemies.len() + mi) as u32,
             sprite,
+            ctx,
+            burn_config,
+        );
+    }
+
+    for (si, spidey) in spideys.iter().enumerate() {
+        if !spidey.is_alive() || !spidey.burn_state.is_burning() {
+            continue;
+        }
+        push_alive_burn_flames_sp(
+            &mut billboards,
+            spidey.position,
+            spidey.visual_height,
+            spidey.config.billboard_height,
+            spidey.burn_state.intensity,
+            (enemies.len() + mosquitons.len() + si) as u32,
+            spidey_sprites.alive_sprite_at(0.0),
             ctx,
             burn_config,
         );
@@ -2065,11 +2279,15 @@ mod tests {
     fn setup_from_test_room(authority_mode: FpsAuthorityMode) -> FpMapEntitySetup {
         let sprite_pairs = vec![(make_enemy_sprite(24, 2), make_death_sprite(24, 1))];
         let mosquiton_sprites = make_mosquiton_billboard_sprites().unwrap();
+        let spidey_sprites = make_spidey_billboard_sprites().unwrap();
+        let combat_config = carcinisation_fps_core::FpsCombatConfig::load();
         build_map_entity_setup(
             &test_room_map_data(),
             authority_mode,
             &sprite_pairs,
             &mosquiton_sprites,
+            &spidey_sprites,
+            &combat_config,
         )
     }
 
@@ -2127,12 +2345,15 @@ mod tests {
             elapsed_secs: 0.2,
         };
 
+        let spidey_sprites = make_spidey_billboard_sprites().unwrap();
         let first = burning_corpse_flame_billboards(
             &enemies,
             &[0],
             &enemy_pairs,
             &[],
             &mosquiton_sprites,
+            &[],
+            &spidey_sprites,
             &ctx,
         );
         let second = burning_corpse_flame_billboards(
@@ -2141,6 +2362,8 @@ mod tests {
             &enemy_pairs,
             &[],
             &mosquiton_sprites,
+            &[],
+            &spidey_sprites,
             &ctx,
         );
 
@@ -2182,12 +2405,15 @@ mod tests {
             elapsed_secs: 0.2,
         };
 
+        let spidey_sprites = make_spidey_billboard_sprites().unwrap();
         let first = burning_corpse_flame_billboards(
             &[],
             &[],
             &enemy_pairs,
             &mosquitons,
             &mosquiton_sprites,
+            &[],
+            &spidey_sprites,
             &ctx,
         );
         mosquitons[0].animation_time = 0.75;
@@ -2197,6 +2423,8 @@ mod tests {
             &enemy_pairs,
             &mosquitons,
             &mosquiton_sprites,
+            &[],
+            &spidey_sprites,
             &ctx,
         );
 
@@ -2846,12 +3074,16 @@ mod tests {
             .resource_mut::<Time<Virtual>>()
             .set_max_delta(std::time::Duration::from_secs(1));
 
-        let mut config = Config::default();
-        config.authority_mode = FpsAuthorityMode::RemoteClient;
+        let config = Config {
+            authority_mode: FpsAuthorityMode::RemoteClient,
+            ..Default::default()
+        };
         app.insert_resource(config);
 
-        let mut camera = Camera::default();
-        camera.angle = 1.0;
+        let camera = Camera {
+            angle: 1.0,
+            ..Default::default()
+        };
         app.insert_resource(CameraRes(camera));
 
         let mut turn = QuickTurnState::default();
@@ -2895,8 +3127,10 @@ mod tests {
         assert_eq!(config.authority_mode, FpsAuthorityMode::LocalAuthority);
         app.insert_resource(config);
 
-        let mut camera = Camera::default();
-        camera.angle = 0.0;
+        let camera = Camera {
+            angle: 0.0,
+            ..Default::default()
+        };
         app.insert_resource(CameraRes(camera));
 
         let mut turn = QuickTurnState::default();
@@ -3093,6 +3327,7 @@ mod tests {
             &mut attack_state,
             &mut enemies,
             &mut mosquitons,
+            &mut [],
             &mut setup_projectiles,
             &mut setup_impacts,
             &mut char_decals,
@@ -3111,7 +3346,9 @@ mod tests {
             radius: 0.3,
             damage: 10,
             lifetime: 1.0,
+            initial_lifetime: 1.0,
             alive: true,
+            kind: Default::default(),
         }];
         let mut impacts = Vec::new();
 

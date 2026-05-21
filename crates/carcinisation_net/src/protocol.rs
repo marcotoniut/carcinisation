@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_math::Vec2;
 use serde::{Deserialize, Serialize};
 
+use crate::components::NetProjectileType;
 use crate::tick::InputSequence;
 
 // Legacy button bitfield removed — superseded by ClientIntent + PlayerActions.
@@ -140,6 +141,10 @@ pub struct HitConfirm {
     pub position: Vec2,
     /// Visual kind: splat vs animated destroy.
     pub kind: HitImpactKind,
+    /// Projectile type for projectile impacts; `None` for hitscan.
+    /// Used by the client to select the correct destroy sprite.
+    #[serde(default)]
+    pub projectile_type: Option<NetProjectileType>,
 }
 
 /// Visual kind for impact billboards.

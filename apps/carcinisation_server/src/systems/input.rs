@@ -6,7 +6,9 @@ use bevy_replicon::prelude::*;
 use carcinisation_fps_core::FpsMovementConfig;
 use carcinisation_fps_core::movement;
 use carcinisation_net::tick::{InputSequence, STALE_INPUT_TICKS};
-use carcinisation_net::{ClientIntent, InputAck, NetPlayer, PlayerActions, PlayerId, TickCounter};
+use carcinisation_net::{
+    ClientIntent, InputAck, NetPlayer, NetSpeedModifier, PlayerActions, PlayerId, TickCounter,
+};
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
@@ -222,18 +224,27 @@ use carcinisation_fps_core::SnapTurnKind;
 /// Runs in `FixedUpdate` (`MovementSet`). Reads latest buffered intent
 /// for each player and applies server-authoritative movement + turning.
 pub fn apply_buffered_movement(
+    mut commands: Commands,
     mut buffer: ResMut<PlayerIntentBuffer>,
-    mut players: Query<(&mut NetPlayer, &mut ServerQuickTurn)>,
+    mut players: Query<(
+        Entity,
+        &mut NetPlayer,
+        &mut ServerQuickTurn,
+        Option<&mut NetSpeedModifier>,
+    )>,
     server_map: Res<ServerMap>,
     fixed_time: Res<Time<Fixed>>,
     movement_config: Res<FpsMovementConfig>,
 ) {
     let dt = fixed_time.delta_secs();
 
-    for (mut player, mut snap_turn) in &mut players {
+    for (entity, mut player, mut snap_turn, speed_modifier) in &mut players {
         if !matches!(player.state, carcinisation_net::PlayerNetState::Alive) {
             buffer.get_continuous_and_age(&player.player_id);
             buffer.take_actions(&player.player_id);
+            if speed_modifier.is_some() {
+                commands.entity(entity).remove::<NetSpeedModifier>();
+            }
             continue;
         }
 
@@ -272,18 +283,43 @@ pub fn apply_buffered_movement(
             player.angle = player.angle.rem_euclid(std::f32::consts::TAU);
         }
 
+        let start_position = player.position;
+
         // Apply movement (client already resolved strafe into movement.x).
         if movement_intent != Vec2::ZERO {
             let angle = player.angle;
-            movement::apply_movement(
+            let modifier = speed_modifier.as_deref().map(|m| movement::SpeedModifier {
+                multiplier: m.multiplier,
+                remaining: m.remaining,
+                base_drain_rate: 1.0,
+                movement_drain_rate: 2.0,
+            });
+            movement::apply_movement_with_modifier(
                 &mut player.position,
                 angle,
                 movement_intent,
                 movement_config.move_speed,
+                modifier.as_ref(),
                 dt,
                 &server_map.0,
                 movement_config.collision_margin,
             );
+        }
+
+        if let Some(mut modifier) = speed_modifier {
+            let moved = player.position.distance(start_position);
+            let mut core_modifier = movement::SpeedModifier {
+                multiplier: modifier.multiplier,
+                remaining: modifier.remaining,
+                base_drain_rate: 1.0,
+                movement_drain_rate: 2.0,
+            };
+            if core_modifier.tick(dt, moved) {
+                modifier.multiplier = core_modifier.multiplier;
+                modifier.remaining = core_modifier.remaining;
+            } else {
+                commands.entity(entity).remove::<NetSpeedModifier>();
+            }
         }
     }
 }

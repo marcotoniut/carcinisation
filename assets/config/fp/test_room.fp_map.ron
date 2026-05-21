@@ -34,5 +34,8 @@ MapData(
         (kind: Mosquiton(health: 200), x: 1.5, y: 9.5),
         (kind: Mosquiton(health: 200), x: 9.0, y: 1.5),
         (kind: Mosquiton(health: 380, speed: 1.2), x: 9.5, y: 10.5),
+        (kind: Spidey(health: 60), x: 2.5, y: 2.5),
+        (kind: Spidey(health: 60), x: 5.5, y: 9.5),
+        (kind: Spidey(health: 100, speed: 2.0), x: 10.0, y: 5.5),
     ],
 )

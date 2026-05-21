@@ -13,7 +13,7 @@ use carcinisation_net::{
     NetEnemy, NetEnemyState, NetEnemyType, NetHealth, NetPlayer, PlayerNetState,
 };
 
-use super::enemy_attack::ServerMosquitonSim;
+use super::enemy_attack::{ServerMosquitonSim, ServerSpideySim};
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct EnemyAiSet;
@@ -33,10 +33,11 @@ impl ServerEnemyAiConfig {
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub fn tick_net_enemy_ai(
     mut enemies: Query<
         (&mut NetEnemy, &NetHealth, Option<&ServerEnemyAiConfig>),
-        Without<ServerMosquitonSim>,
+        (Without<ServerMosquitonSim>, Without<ServerSpideySim>),
     >,
     players: Query<&NetPlayer>,
     server_map: Res<ServerMap>,
@@ -172,6 +173,7 @@ fn net_enemy_to_sim(enemy: &NetEnemy, health: &NetHealth) -> EnemySim {
         kind: match enemy.enemy_type {
             NetEnemyType::Basic => FpsEnemyKind::Basic,
             NetEnemyType::Mosquiton => FpsEnemyKind::Mosquiton,
+            NetEnemyType::Spidey => FpsEnemyKind::Spidey,
         },
         position: enemy.position,
         angle: enemy.angle,

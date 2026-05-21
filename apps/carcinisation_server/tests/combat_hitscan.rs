@@ -499,7 +499,7 @@ fn default_map_spawns_net_enemy_for_each_combat_entity() {
         .iter()
         .filter(|entity| entity.kind.is_enemy())
         .count();
-    assert_eq!(expected, 6);
+    assert_eq!(expected, 9);
 
     let port = reserve_port();
     let mut server = build_default_map_server(port);
@@ -552,16 +552,21 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
     let mut moved = 0_usize;
     let mut correctly_held = 0_usize;
     let mut outside_aggro = 0_usize;
+    let mut mosquiton_count = 0_usize;
     for ((object_id, before_pos, before_state), (_, after_pos, after_state)) in
         before.iter().zip(after.iter())
     {
-        let config = server
+        // Skip enemies without AI config (e.g. Spideys — no server sim yet).
+        let Some(config) = server
             .world_mut()
             .query::<(&NetEnemy, &ServerEnemyAiConfig)>()
             .iter(server.world())
             .find(|(enemy, _)| enemy.object_id.0 == *object_id)
             .map(|(_, config)| config.0)
-            .expect("Mosquiton should have config");
+        else {
+            continue;
+        };
+        mosquiton_count += 1;
         let distance = before_pos.distance(Vec2::new(start.x, start.y));
         let delta = after_pos.distance(*before_pos);
         if delta > 0.01 {
@@ -580,7 +585,10 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
         ));
     }
 
-    assert_eq!(before.len(), 6, "default map should spawn 6 Mosquitons");
+    assert_eq!(
+        mosquiton_count, 6,
+        "default map should have 6 Mosquitons with AI config"
+    );
     assert!(
         moved > 0,
         "at least one default-map Mosquiton should move over diagnostic ticks; held={correctly_held}, outside_aggro={outside_aggro}; diagnostics:\n{}",

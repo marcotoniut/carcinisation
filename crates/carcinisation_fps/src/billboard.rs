@@ -7,10 +7,13 @@ use carapace::image::CxImage;
 use carapace::palette::TRANSPARENT_INDEX;
 
 use crate::camera::Camera;
+use carcinisation_fps_core::ProjectileKind;
+
 use crate::enemy::{Enemy, EnemyState, Projectile, ProjectileImpact, ProjectileImpactKind};
 use crate::mosquiton::{
     BloodShotBillboardSprites, Mosquiton, MosquitonBillboardSprites, MosquitonState,
 };
+use crate::spidey::{SpiderShotBillboardSprites, Spidey, SpideyBillboardSprites, SpideyState};
 
 const FP_DAMAGE_INVERT_MIN_COLOR_INDEX: u8 = 1;
 const FP_DAMAGE_INVERT_MAX_COLOR_INDEX: u8 = 3;
@@ -428,21 +431,36 @@ pub fn billboards_from_enemies_indexed(
         .collect()
 }
 
-/// Build billboard list from active projectiles.
+/// Build billboard list from active projectiles, using the appropriate sprite
+/// based on `ProjectileKind`.
 #[must_use]
 pub fn billboards_from_projectiles(
     projectiles: &[Projectile],
-    sprite: &Arc<CxImage>,
+    blood_shot_sprite: &Arc<CxImage>,
+    spider_shot_sprite: &Arc<CxImage>,
 ) -> Vec<Billboard> {
     projectiles
         .iter()
         .filter(|p| p.alive)
-        .map(|p| Billboard {
-            position: p.position,
-            height: 0.15,
-            world_height: 0.3,
-            sprite: Arc::clone(sprite),
-            flip_x: false,
+        .map(|p| {
+            let (sprite, height) = match p.kind {
+                ProjectileKind::BloodShot => (Arc::clone(blood_shot_sprite), 0.15),
+                ProjectileKind::WebShot { .. } => {
+                    // Lob arc from spider body height toward ground level.
+                    let elapsed = p.initial_lifetime - p.lifetime;
+                    let t = (elapsed / p.initial_lifetime.max(f32::EPSILON)).clamp(0.0, 1.0);
+                    // Start below horizon (-0.2), arc up (+0.15 peak), descend.
+                    let arc = 0.25 * 4.0 * t * (1.0 - t);
+                    (Arc::clone(spider_shot_sprite), -0.2 + arc)
+                }
+            };
+            Billboard {
+                position: p.position,
+                height,
+                world_height: 0.3,
+                sprite,
+                flip_x: false,
+            }
         })
         .collect()
 }
@@ -451,19 +469,42 @@ pub fn billboards_from_projectiles(
 #[must_use]
 pub fn billboards_from_projectile_impacts(
     impacts: &[ProjectileImpact],
-    sprites: &BloodShotBillboardSprites,
+    blood_sprites: &BloodShotBillboardSprites,
+    spider_sprites: &SpiderShotBillboardSprites,
 ) -> Vec<Billboard> {
-    let shared_hit = Arc::clone(&sprites.hit);
     impacts
         .iter()
         .map(|impact| {
+            let is_web = matches!(impact.source_kind, ProjectileKind::WebShot { .. });
             let sprite = match impact.kind {
-                ProjectileImpactKind::Hit => Arc::clone(&shared_hit),
-                ProjectileImpactKind::Destroy => Arc::clone(sprites.destroy_sprite_at(impact.age)),
+                ProjectileImpactKind::Hit => {
+                    if is_web {
+                        Arc::clone(&spider_sprites.hit)
+                    } else {
+                        Arc::clone(&blood_sprites.hit)
+                    }
+                }
+                ProjectileImpactKind::Destroy => {
+                    if is_web {
+                        Arc::clone(spider_sprites.destroy_sprite_at(impact.age))
+                    } else {
+                        Arc::clone(blood_sprites.destroy_sprite_at(impact.age))
+                    }
+                }
+            };
+            // WebShot impacts inherit the arc height; BloodShot stays at 0.15.
+            let height = if matches!(impact.source_kind, ProjectileKind::WebShot { .. })
+                && impact.visual_height != 0.0
+            {
+                impact.visual_height
+            } else if matches!(impact.source_kind, ProjectileKind::WebShot { .. }) {
+                -0.1 // default web impact near ground
+            } else {
+                0.15
             };
             Billboard {
                 position: impact.position,
-                height: 0.15,
+                height,
                 world_height: match impact.kind {
                     ProjectileImpactKind::Hit => 0.42,
                     ProjectileImpactKind::Destroy => 0.36,
@@ -553,6 +594,139 @@ pub fn billboards_from_mosquitons(
             flip_x: false,
         })
         .collect()
+}
+
+/// Build a single billboard from one Spidey (used during setup before entities exist).
+#[must_use]
+pub fn billboard_from_spidey(spidey: &Spidey, sprites: &SpideyBillboardSprites) -> Billboard {
+    // Anchor bottom edge to floor: center = -0.5 + half_height + visual arc.
+    let grounded_height =
+        crate::spidey::FLOOR_OFFSET + spidey.config.billboard_height / 2.0 + spidey.visual_height;
+    Billboard {
+        position: spidey.position,
+        height: grounded_height,
+        world_height: spidey.config.billboard_height,
+        sprite: spidey_presentation_sprite(spidey, sprites),
+        flip_x: false,
+    }
+}
+
+/// Build billboard list from Spidey enemies using composed billboard sprites.
+#[must_use]
+pub fn billboards_from_spideys(
+    spideys: &[Spidey],
+    sprites: &SpideyBillboardSprites,
+) -> Vec<Billboard> {
+    spideys
+        .iter()
+        .filter(|s| !matches!(s.state, SpideyState::Dead))
+        .map(|s| {
+            let grounded_height =
+                crate::spidey::FLOOR_OFFSET + s.config.billboard_height / 2.0 + s.visual_height;
+            Billboard {
+                position: s.position,
+                height: grounded_height,
+                world_height: s.config.billboard_height,
+                sprite: spidey_presentation_sprite(s, sprites),
+                flip_x: false,
+            }
+        })
+        .collect()
+}
+
+/// Shared Spidey sprite selection from `EnemyPresentationState`.
+///
+/// Used by both SP (from local sim state) and MP client (from net state).
+/// `animation_time` is used for idle/moving/recover looping animation where
+/// the presentation state does not carry a phase.
+#[must_use]
+pub fn spidey_sprite_for_presentation(
+    state: &carcinisation_fps_core::EnemyPresentationState,
+    sprites: &SpideyBillboardSprites,
+    showing_damage_invert: bool,
+    animation_time: f32,
+) -> Arc<CxImage> {
+    use carcinisation_fps_core::presentation::{AttackPresentationKind, EnemyPresentationState};
+
+    match state {
+        EnemyPresentationState::Dead { burn: true }
+        | EnemyPresentationState::Dying { burn: true, .. } => {
+            Arc::new(make_burning_corpse_sprite(sprites.alive_sprite_at(0.0)))
+        }
+        EnemyPresentationState::Dead { burn: false }
+        | EnemyPresentationState::Dying { burn: false, .. } => Arc::clone(&sprites.death),
+        EnemyPresentationState::Hopping { phase, .. } => {
+            // Convert normalized phase (0-1) to elapsed seconds so the full
+            // hop animation plays across one hop. Identical for SP and MP.
+            let elapsed = phase * sprites.hop_total_duration();
+            let sprite = sprites.hop_sprite_at(elapsed);
+            if showing_damage_invert {
+                Arc::new(make_damage_invert_sprite(sprite))
+            } else {
+                Arc::clone(sprite)
+            }
+        }
+        EnemyPresentationState::Windup {
+            attack: AttackPresentationKind::Ranged,
+            phase,
+        }
+        | EnemyPresentationState::Attacking {
+            attack: AttackPresentationKind::Ranged,
+            phase,
+        } => {
+            let sprite = sprites.shoot_sprite_at(*phase);
+            if showing_damage_invert {
+                Arc::new(make_damage_invert_sprite(sprite))
+            } else {
+                Arc::clone(sprite)
+            }
+        }
+        EnemyPresentationState::Windup {
+            attack: AttackPresentationKind::Melee,
+            phase,
+        }
+        | EnemyPresentationState::Attacking {
+            attack: AttackPresentationKind::Melee,
+            phase,
+        } => {
+            // Lunge animation — clamped to last frame until landing.
+            let sprite = sprites.lunge_sprite_at(*phase);
+            if showing_damage_invert {
+                Arc::new(make_damage_invert_sprite(sprite))
+            } else {
+                Arc::clone(sprite)
+            }
+        }
+        // Idle, Moving, Recover — use looping idle animation.
+        EnemyPresentationState::Idle
+        | EnemyPresentationState::Moving
+        | EnemyPresentationState::Recover => {
+            let sprite = sprites.alive_sprite_at(animation_time);
+            if showing_damage_invert {
+                Arc::new(make_damage_invert_sprite(sprite))
+            } else {
+                Arc::clone(sprite)
+            }
+        }
+    }
+}
+
+/// Resolve the current display sprite for a Spidey based on its state.
+///
+/// Delegates to `spidey_sprite_for_presentation` via the SP presentation
+/// adapter.
+fn spidey_presentation_sprite(spidey: &Spidey, sprites: &SpideyBillboardSprites) -> Arc<CxImage> {
+    let pres = crate::spidey::spidey_presentation_state(
+        &spidey.state,
+        spidey.animation_time,
+        spidey.visual_height,
+    );
+    spidey_sprite_for_presentation(
+        &pres,
+        sprites,
+        spidey.showing_damage_invert(),
+        spidey.animation_time,
+    )
 }
 
 #[cfg(test)]

@@ -18,6 +18,7 @@ use crate::raycast::{cast_ray, has_line_of_sight};
 pub enum FpsEnemyKind {
     Basic,
     Mosquiton,
+    Spidey,
 }
 
 /// Headless enemy AI state shared by local and server-authoritative sims.
@@ -127,7 +128,9 @@ pub fn tick_enemy_ai(
     }
 
     match enemy.kind {
-        FpsEnemyKind::Basic => tick_basic_enemy_ai(enemy),
+        // Spidey uses its own dedicated sim (`tick_spidey_sim`), not this
+        // shared AI dispatcher. Mark as unsupported here for safety.
+        FpsEnemyKind::Basic | FpsEnemyKind::Spidey => tick_basic_enemy_ai(enemy),
         FpsEnemyKind::Mosquiton => tick_mosquiton_ai(enemy, players, map, dt, config),
     }
 }
@@ -348,6 +351,63 @@ impl Default for DamageFlicker {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Shared damage helpers
+// ---------------------------------------------------------------------------
+
+/// Outcome of [`apply_damage`] — tells the caller whether the entity survived
+/// or which death presentation to transition into.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum DamageOutcome {
+    /// Entity survived — health is still positive.
+    Survived,
+    /// Lethal hit from a physical source.
+    KilledPhysical,
+    /// Lethal hit from fire.  Caller should start a burning-corpse presentation
+    /// using the provided `timer` and `seed`.
+    KilledByFire { timer: f32, seed: u32 },
+}
+
+/// Shared damage-application logic used by `Enemy`, `Mosquiton`, and `Spidey`.
+///
+/// Subtracts `amount` from `*health`, updates `*damage_flicker`, and returns a
+/// [`DamageOutcome`] so the caller can apply the type-specific death state.
+///
+/// `position` is needed to derive the deterministic `corpse_seed` on fire kills.
+pub fn apply_damage(
+    health: &mut u32,
+    damage_flicker: &mut Option<DamageFlicker>,
+    amount: u32,
+    kind: DamageKind,
+    fire_death_secs: f32,
+    position: Vec2,
+) -> DamageOutcome {
+    *health = health.saturating_sub(amount);
+    if *health == 0 {
+        *damage_flicker = None;
+        match kind {
+            DamageKind::Physical => DamageOutcome::KilledPhysical,
+            DamageKind::Fire => DamageOutcome::KilledByFire {
+                timer: fire_death_secs.max(0.0),
+                seed: corpse_seed(position),
+            },
+        }
+    } else {
+        if damage_flicker.is_none() {
+            *damage_flicker = Some(DamageFlicker::new());
+        }
+        DamageOutcome::Survived
+    }
+}
+
+/// Whether a damage flicker is currently in the inverted (white-flash) phase.
+///
+/// Returns `false` when there is no active flicker.
+#[must_use]
+pub fn is_showing_damage_invert(damage_flicker: &Option<DamageFlicker>) -> bool {
+    damage_flicker.is_some_and(DamageFlicker::showing_invert)
+}
+
 /// Enemy AI/lifecycle state.
 #[derive(Clone, Debug, Component)]
 pub enum EnemyState {
@@ -426,27 +486,27 @@ impl Enemy {
         if !self.is_alive() {
             return;
         }
-        self.health = self.health.saturating_sub(amount);
-        if self.health == 0 {
-            self.damage_flicker = None;
-            self.state = match kind {
-                DamageKind::Physical => EnemyState::Dying { timer: 0.5 },
-                DamageKind::Fire => EnemyState::BurningCorpse {
-                    timer: fire_death_secs.max(0.0),
-                    seed: corpse_seed(self.position),
-                },
-            };
-        } else if self.damage_flicker.is_none() {
-            self.damage_flicker = Some(DamageFlicker::new());
+        match apply_damage(
+            &mut self.health,
+            &mut self.damage_flicker,
+            amount,
+            kind,
+            fire_death_secs,
+            self.position,
+        ) {
+            DamageOutcome::Survived => {}
+            DamageOutcome::KilledPhysical => {
+                self.state = EnemyState::Dying { timer: 0.5 };
+            }
+            DamageOutcome::KilledByFire { timer, seed } => {
+                self.state = EnemyState::BurningCorpse { timer, seed };
+            }
         }
     }
 
     #[must_use]
     pub fn showing_damage_invert(&self) -> bool {
-        self.is_alive()
-            && self
-                .damage_flicker
-                .is_some_and(DamageFlicker::showing_invert)
+        self.is_alive() && is_showing_damage_invert(&self.damage_flicker)
     }
 }
 
@@ -545,44 +605,60 @@ pub struct HitscanResult {
     pub distance: f32,
 }
 
-/// Fire a hitscan ray from the camera and check for enemy hits.
+/// Generic hitscan ray-circle intersection against an iterator of targets.
 ///
-/// Tests each alive enemy for ray-circle intersection, returns the closest
-/// hit that is nearer than the first wall.
+/// Each item yielded by `targets` is `(position, radius, alive)`. Only alive
+/// targets in front of the camera and closer than the nearest wall are
+/// considered. Returns the index and distance of the closest hit, if any.
 #[must_use]
-pub fn hitscan(camera: &Camera, enemies: &[Enemy], map: &Map) -> HitscanResult {
+pub fn hitscan_generic(
+    camera: &Camera,
+    map: &Map,
+    targets: impl Iterator<Item = (Vec2, f32, bool)>,
+) -> Option<(usize, f32)> {
     let dir = camera.direction();
     let origin = camera.position;
-
-    // Wall distance limits the hitscan range.
     let wall_hit = cast_ray(map, origin, dir);
     let max_dist = wall_hit.distance;
 
     let mut closest: Option<(usize, f32)> = None;
 
-    for (i, enemy) in enemies.iter().enumerate() {
-        if !enemy.is_alive() {
+    for (i, (position, radius, alive)) in targets.enumerate() {
+        if !alive {
             continue;
         }
 
-        // Ray-circle intersection: perpendicular distance from ray to enemy center.
-        let to_enemy = enemy.position - origin;
-        let along_ray = to_enemy.dot(dir);
+        let to_target = position - origin;
+        let along_ray = to_target.dot(dir);
 
-        // Enemy is behind camera or beyond wall.
         if along_ray <= 0.0 || along_ray > max_dist {
             continue;
         }
 
-        let perp_dist_sq = to_enemy.length_squared() - along_ray * along_ray;
-        let radius_sq = enemy.radius * enemy.radius;
+        let perp_dist_sq = to_target.length_squared() - along_ray * along_ray;
+        let radius_sq = radius * radius;
 
         if perp_dist_sq < radius_sq && closest.is_none_or(|(_, d)| along_ray < d) {
             closest = Some((i, along_ray));
         }
     }
 
-    match closest {
+    closest
+}
+
+/// Fire a hitscan ray from the camera and check for enemy hits.
+///
+/// Tests each alive enemy for ray-circle intersection, returns the closest
+/// hit that is nearer than the first wall.
+#[must_use]
+pub fn hitscan(camera: &Camera, enemies: &[Enemy], map: &Map) -> HitscanResult {
+    let max_dist = cast_ray(map, camera.position, camera.direction()).distance;
+
+    match hitscan_generic(
+        camera,
+        map,
+        enemies.iter().map(|e| (e.position, e.radius, e.is_alive())),
+    ) {
         Some((idx, dist)) => HitscanResult {
             enemy_idx: Some(idx),
             distance: dist,
@@ -598,6 +674,22 @@ pub fn hitscan(camera: &Camera, enemies: &[Enemy], map: &Map) -> HitscanResult {
 // Projectiles
 // ---------------------------------------------------------------------------
 
+/// Projectile behaviour variant.
+///
+/// `BloodShot` is the default (pure damage). `WebShot` applies a temporary
+/// speed slow on player hit in addition to damage.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum ProjectileKind {
+    /// Standard damage-only projectile (Mosquiton blood shot, etc.).
+    #[default]
+    BloodShot,
+    /// Web projectile that applies a movement slow on hit.
+    WebShot {
+        slow_multiplier: f32,
+        slow_duration: f32,
+    },
+}
+
 /// An enemy projectile moving through map space.
 #[derive(Clone, Debug)]
 pub struct Projectile {
@@ -608,8 +700,18 @@ pub struct Projectile {
     pub radius: f32,
     pub damage: u32,
     pub lifetime: f32,
+    /// Initial lifetime at spawn (for arc calculations).
+    pub initial_lifetime: f32,
     pub alive: bool,
+    pub kind: ProjectileKind,
 }
+
+/// Default enemy projectile speed (map units/s).
+pub const DEFAULT_PROJECTILE_SPEED: f32 = 4.0;
+/// Default enemy projectile collision radius.
+pub const DEFAULT_PROJECTILE_HIT_RADIUS: f32 = 0.3;
+/// Default enemy projectile lifetime (seconds).
+pub const DEFAULT_PROJECTILE_LIFETIME: f32 = 3.0;
 
 impl Projectile {
     /// Spawn a projectile from `origin` aimed at `target`.
@@ -621,16 +723,17 @@ impl Projectile {
         if len < 0.01 {
             return None;
         }
-        let combat = crate::config::FpsCombatConfig::default();
         Some(Self {
             position: origin,
             source_position: origin,
             direction: diff / len,
-            speed: combat.projectile_speed,
-            radius: combat.projectile_hit_radius,
+            speed: DEFAULT_PROJECTILE_SPEED,
+            radius: DEFAULT_PROJECTILE_HIT_RADIUS,
             damage,
-            lifetime: combat.projectile_lifetime,
+            lifetime: DEFAULT_PROJECTILE_LIFETIME,
+            initial_lifetime: DEFAULT_PROJECTILE_LIFETIME,
             alive: true,
+            kind: ProjectileKind::BloodShot,
         })
     }
 }
@@ -645,30 +748,44 @@ pub enum ProjectileImpactKind {
 pub struct ProjectileImpact {
     pub position: Vec2,
     pub kind: ProjectileImpactKind,
+    pub source_kind: ProjectileKind,
+    /// Billboard height at impact (rendering hint from the projectile's arc).
+    pub visual_height: f32,
     pub age: f32,
     pub lifetime: f32,
 }
 
 impl ProjectileImpact {
     #[must_use]
-    pub fn hit(position: Vec2) -> Self {
+    pub fn hit(position: Vec2, source_kind: ProjectileKind, visual_height: f32) -> Self {
         Self {
             position,
             kind: ProjectileImpactKind::Hit,
+            source_kind,
+            visual_height,
             age: 0.0,
             lifetime: 0.18,
         }
     }
 
     #[must_use]
-    pub fn destroy(position: Vec2) -> Self {
+    pub fn destroy(position: Vec2, source_kind: ProjectileKind, visual_height: f32) -> Self {
         Self {
             position,
             kind: ProjectileImpactKind::Destroy,
+            source_kind,
+            visual_height,
             age: 0.0,
             lifetime: 0.3,
         }
     }
+}
+
+/// Slow effect to apply after a `WebShot` player hit.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ProjectileSlowEffect {
+    pub multiplier: f32,
+    pub duration: f32,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -676,6 +793,8 @@ pub struct ProjectileTickResult {
     pub player_damage: u32,
     pub damage_source: Option<Vec2>,
     pub impacts: Vec<ProjectileImpact>,
+    /// If a `WebShot` hit the player this tick, the slow to apply.
+    pub slow_effect: Option<ProjectileSlowEffect>,
 }
 
 /// Tick all projectile impact effects and remove finished ones.
@@ -727,6 +846,8 @@ pub fn tick_projectiles(
                 proj.alive = false;
                 result.impacts.push(ProjectileImpact::hit(
                     previous_position + proj.direction * distance,
+                    proj.kind,
+                    0.0,
                 ));
             }
             Some(ProjectileCollision::Player(distance)) => {
@@ -735,7 +856,20 @@ pub fn tick_projectiles(
                 result.damage_source = Some(proj.source_position);
                 result.impacts.push(ProjectileImpact::hit(
                     previous_position + proj.direction * distance,
+                    proj.kind,
+                    0.0,
                 ));
+                // WebShot: emit slow effect on player hit.
+                if let ProjectileKind::WebShot {
+                    slow_multiplier,
+                    slow_duration,
+                } = proj.kind
+                {
+                    result.slow_effect = Some(ProjectileSlowEffect {
+                        multiplier: slow_multiplier,
+                        duration: slow_duration,
+                    });
+                }
             }
             None => {
                 proj.position = next_position;
@@ -747,13 +881,11 @@ pub fn tick_projectiles(
         let gy = proj.position.y.floor() as i32;
         if proj.alive && (gx < 0 || gy < 0 || gx >= map.width as i32 || gy >= map.height as i32) {
             proj.alive = false;
-            result
-                .impacts
-                .push(ProjectileImpact::hit(segment_map_exit_point(
-                    previous_position,
-                    proj.position,
-                    map,
-                )));
+            result.impacts.push(ProjectileImpact::hit(
+                segment_map_exit_point(previous_position, proj.position, map),
+                proj.kind,
+                0.0,
+            ));
         }
     }
 
@@ -1434,7 +1566,11 @@ mod tests {
 
     #[test]
     fn projectile_impacts_expire() {
-        let mut impacts = vec![ProjectileImpact::hit(Vec2::new(1.0, 1.0))];
+        let mut impacts = vec![ProjectileImpact::hit(
+            Vec2::new(1.0, 1.0),
+            ProjectileKind::BloodShot,
+            0.0,
+        )];
         tick_projectile_impacts(&mut impacts, 1.0);
         assert!(impacts.is_empty());
     }
@@ -1455,5 +1591,66 @@ mod tests {
         ];
         let result = hitscan(&cam, &enemies, &map);
         assert_eq!(result.enemy_idx, Some(1));
+    }
+
+    // --- ProjectileKind: WebShot vs BloodShot ---
+
+    #[test]
+    fn bloodshot_does_not_apply_slow() {
+        let map = test_map();
+        let player = Vec2::new(3.0, 1.5);
+        let mut proj = Projectile::new(Vec2::new(1.5, 1.5), player, 10).unwrap();
+        proj.speed = 10.0;
+        assert!(matches!(proj.kind, ProjectileKind::BloodShot));
+        let mut projs = vec![proj];
+
+        let result = tick_projectiles(&mut projs, player, &map, 0.5);
+
+        assert!(result.player_damage > 0, "BloodShot should deal damage");
+        assert!(
+            result.slow_effect.is_none(),
+            "BloodShot should NOT apply slow"
+        );
+    }
+
+    #[test]
+    fn webshot_applies_damage_and_slow() {
+        let map = test_map();
+        let player = Vec2::new(3.0, 1.5);
+        let mut proj = Projectile::new(Vec2::new(1.5, 1.5), player, 5).unwrap();
+        proj.speed = 10.0;
+        proj.kind = ProjectileKind::WebShot {
+            slow_multiplier: 0.7,
+            slow_duration: 3.0,
+        };
+        let mut projs = vec![proj];
+
+        let result = tick_projectiles(&mut projs, player, &map, 0.5);
+
+        assert_eq!(result.player_damage, 5, "WebShot should deal damage");
+        let slow = result.slow_effect.expect("WebShot should apply slow");
+        assert!((slow.multiplier - 0.7).abs() < f32::EPSILON);
+        assert!((slow.duration - 3.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn webshot_wall_hit_does_not_apply_slow() {
+        let map = test_map();
+        // Aim into a wall, player elsewhere.
+        let mut proj = Projectile::new(Vec2::new(1.5, 1.5), Vec2::new(0.5, 1.5), 5).unwrap();
+        proj.speed = 10.0;
+        proj.kind = ProjectileKind::WebShot {
+            slow_multiplier: 0.7,
+            slow_duration: 3.0,
+        };
+        let mut projs = vec![proj];
+
+        let result = tick_projectiles(&mut projs, Vec2::new(5.0, 5.0), &map, 0.5);
+
+        assert_eq!(result.player_damage, 0);
+        assert!(
+            result.slow_effect.is_none(),
+            "wall-hit WebShot should not apply slow"
+        );
     }
 }

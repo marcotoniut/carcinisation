@@ -1328,22 +1328,6 @@ mod tests {
     /// snap state is properly carried in the ack.
     #[test]
     fn per_ack_snap_corrections_near_zero() {
-        let map = open_map();
-        let (spd, tspd, margin, qtd) = default_config();
-
-        // Entry 1 starts QuickTurn, entries 2-15 continue.
-        let inputs: Vec<PredictedInput> = (0..15)
-            .map(|i| PredictedInput {
-                movement: Vec2::ZERO,
-                turn: 0.0,
-                snap_turn: if i == 0 {
-                    Some(SnapTurnKind::QuickTurn)
-                } else {
-                    None
-                },
-            })
-            .collect();
-
         // Simulate per-ack corrections (acks 2..10, all mid-snap).
         // Each ack restores snap state (production path).
         for ack_seq in 2..=10u32 {
@@ -1675,7 +1659,7 @@ mod tests {
 
     #[test]
     fn render_state_interpolated_angle_shortest_arc() {
-        use std::f32::consts::{PI, TAU};
+        use std::f32::consts::TAU;
         let mut rs = PredictedRenderState::default();
         rs.seed(Vec2::ZERO, TAU - 0.1); // ~6.18 rad
         rs.on_fixed_tick(Vec2::ZERO, 0.1, DT); // 0.1 rad — short arc is +0.2 through 0/TAU
@@ -1685,7 +1669,7 @@ mod tests {
         // Should be near TAU (or 0.0), not near PI.
         let wrapped = angle.rem_euclid(TAU);
         assert!(
-            wrapped > TAU - 0.2 || wrapped < 0.2,
+            !(0.2..=TAU - 0.2).contains(&wrapped),
             "angle should be near 0/TAU boundary, got {angle:.3} (wrapped {wrapped:.3})"
         );
     }

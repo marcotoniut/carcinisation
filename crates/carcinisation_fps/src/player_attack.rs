@@ -18,6 +18,7 @@ use crate::{
     mosquiton::{Mosquiton, hitscan_mosquitons},
     raycast::{WallSurfaceId, cast_ray},
     render::{CharDecal, WallSurfaceSprite},
+    spidey::{Spidey, hitscan_spideys},
 };
 
 /// Load an atlas animation from workspace-relative RON + PXI paths.
@@ -666,6 +667,7 @@ pub fn process_player_attacks(
     state: &mut PlayerAttackState,
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
+    spideys: &mut [Spidey],
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
     char_decals: &mut Vec<CharDecal>,
@@ -693,6 +695,7 @@ pub fn process_player_attacks(
             map,
             enemies,
             mosquitons,
+            spideys,
             projectiles,
             impacts,
             hitscan_damage.saturating_mul(3),
@@ -713,6 +716,7 @@ pub fn process_player_attacks(
                         map,
                         enemies,
                         mosquitons,
+                        spideys,
                         projectiles,
                         impacts,
                         hitscan_damage,
@@ -729,6 +733,7 @@ pub fn process_player_attacks(
                 state,
                 enemies,
                 mosquitons,
+                spideys,
                 projectiles,
                 impacts,
                 char_decals,
@@ -840,6 +845,7 @@ fn update_flamethrower_attack(
     state: &mut PlayerAttackState,
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
+    spideys: &mut [Spidey],
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
     char_decals: &mut Vec<CharDecal>,
@@ -937,6 +943,7 @@ fn update_flamethrower_attack(
         map,
         enemies,
         mosquitons,
+        spideys,
         projectiles,
         impacts,
         burn_config,
@@ -1116,7 +1123,11 @@ pub fn destroy_projectiles_touching_active_flamethrower(
             )
         {
             projectile.alive = false;
-            impacts.push(ProjectileImpact::destroy(projectile.position));
+            impacts.push(ProjectileImpact::destroy(
+                projectile.position,
+                projectile.kind,
+                0.0,
+            ));
         }
     }
     projectiles.retain(|p| p.alive);
@@ -1128,6 +1139,7 @@ fn apply_flamethrower_damage(
     map: &Map,
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
+    spideys: &mut [Spidey],
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
     burn_config: &carcinisation_fps_core::BurnConfig,
@@ -1176,6 +1188,26 @@ fn apply_flamethrower_damage(
         }
     }
 
+    for spidey in spideys.iter_mut() {
+        if !spidey.is_alive() {
+            continue;
+        }
+        if carcinisation_fps_core::flame_hits_position_configured(
+            camera.position,
+            flame_dir,
+            spidey.position,
+            map,
+            flame_cfg,
+        ) {
+            carcinisation_fps_core::apply_exposure(
+                &mut spidey.burn_state,
+                burn_config,
+                burn_config.flame_exposure_per_sec,
+                dt,
+            );
+        }
+    }
+
     destroy_projectiles_touching_flame(camera, map, projectiles, impacts, flame_cfg);
 }
 
@@ -1198,7 +1230,11 @@ fn destroy_projectiles_touching_flame(
             )
         {
             projectile.alive = false;
-            impacts.push(ProjectileImpact::destroy(projectile.position));
+            impacts.push(ProjectileImpact::destroy(
+                projectile.position,
+                projectile.kind,
+                0.0,
+            ));
         }
     }
     projectiles.retain(|projectile| projectile.alive);
@@ -1228,6 +1264,7 @@ fn apply_hitscan_damage(
     map: &Map,
     enemies: &mut [Enemy],
     mosquitons: &mut [Mosquiton],
+    spideys: &mut [Spidey],
     projectiles: &mut Vec<Projectile>,
     impacts: &mut Vec<ProjectileImpact>,
     damage: u32,
@@ -1235,6 +1272,7 @@ fn apply_hitscan_damage(
 ) {
     let enemy_hit = hitscan(camera, enemies, map);
     let mosquiton_hit = hitscan_mosquitons(camera, mosquitons, map);
+    let spidey_hit = hitscan_spideys(camera, spideys, map);
     let projectile_hit = hitscan_projectiles(camera, projectiles, map);
 
     let mut hit = enemy_hit
@@ -1244,6 +1282,11 @@ fn apply_hitscan_damage(
         && hit.is_none_or(|(_, current_distance)| distance < current_distance)
     {
         hit = Some((FpShotHit::Mosquiton(mosquiton_idx), distance));
+    }
+    if let Some((spidey_idx, distance)) = spidey_hit
+        && hit.is_none_or(|(_, current_distance)| distance < current_distance)
+    {
+        hit = Some((FpShotHit::Spidey(spidey_idx), distance));
     }
     if let Some((projectile_idx, distance)) = projectile_hit
         && hit.is_none_or(|(_, current_distance)| distance < current_distance)
@@ -1261,10 +1304,15 @@ fn apply_hitscan_damage(
     match hit {
         FpShotHit::Enemy(enemy_idx) => enemies[enemy_idx].take_damage(damage),
         FpShotHit::Mosquiton(mosquiton_idx) => mosquitons[mosquiton_idx].take_damage(damage),
+        FpShotHit::Spidey(spidey_idx) => spideys[spidey_idx].take_damage(damage),
         FpShotHit::Projectile(projectile_idx) => {
             if let Some(projectile) = projectiles.get_mut(projectile_idx) {
                 projectile.alive = false;
-                impacts.push(ProjectileImpact::destroy(projectile.position));
+                impacts.push(ProjectileImpact::destroy(
+                    projectile.position,
+                    projectile.kind,
+                    0.0,
+                ));
             }
             projectiles.retain(|projectile| projectile.alive);
         }
@@ -1275,6 +1323,7 @@ fn apply_hitscan_damage(
 enum FpShotHit {
     Enemy(usize),
     Mosquiton(usize),
+    Spidey(usize),
     Projectile(usize),
 }
 
@@ -1644,6 +1693,7 @@ mod tests {
             &mut state,
             &mut enemies,
             &mut mosquitons,
+            &mut [],
             &mut projectiles,
             &mut impacts,
             &mut char_decals,
@@ -1672,6 +1722,7 @@ mod tests {
             &mut state,
             &mut enemies,
             &mut mosquitons,
+            &mut [],
             &mut projectiles,
             &mut impacts,
             &mut char_decals,
@@ -1725,6 +1776,7 @@ mod tests {
             &mut state,
             &mut enemies,
             &mut mosquitons,
+            &mut [],
             &mut projectiles,
             &mut impacts,
             &mut char_decals,

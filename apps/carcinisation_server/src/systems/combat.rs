@@ -17,7 +17,8 @@ use carcinisation_fps_core::fire_death::corpse_seed;
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_net::{
     DamageEffect, DeathEffect, FlameActive, FlameCharMark, HitConfirm, MuzzleFlash, NetAttackId,
-    NetBurning, NetGroundFire, NetPlayer, NetProjectile, NetworkObjectId, PlayerId,
+    NetBurning, NetGroundFire, NetPlayer, NetProjectile, NetProjectileType, NetworkObjectId,
+    PlayerId,
 };
 use std::collections::HashMap;
 
@@ -279,7 +280,13 @@ pub fn process_combat(
 
                 // Also check hitscan against enemy projectiles (player can shoot them down).
                 let wall_dist = result.distance;
-                let mut closest_proj: Option<(Entity, NetworkObjectId, Vec2, f32)> = None;
+                let mut closest_proj: Option<(
+                    Entity,
+                    NetworkObjectId,
+                    Vec2,
+                    f32,
+                    NetProjectileType,
+                )> = None;
                 for (proj_entity, proj) in projectiles.iter() {
                     let to_proj = proj.position - camera.position;
                     let along = to_proj.dot(camera.direction());
@@ -289,9 +296,15 @@ pub fn process_combat(
                     let perp_sq = to_proj.length_squared() - along * along;
                     if perp_sq
                         < combat_config.projectile_hit_radius * combat_config.projectile_hit_radius
-                        && closest_proj.is_none_or(|(_, _, _, d)| along < d)
+                        && closest_proj.is_none_or(|(_, _, _, d, _)| along < d)
                     {
-                        closest_proj = Some((proj_entity, proj.object_id, proj.position, along));
+                        closest_proj = Some((
+                            proj_entity,
+                            proj.object_id,
+                            proj.position,
+                            along,
+                            proj.projectile_type,
+                        ));
                     }
                 }
 
@@ -300,7 +313,7 @@ pub fn process_combat(
                 let proj_hit = closest_proj;
 
                 // Projectile closer than enemy?
-                if let Some((proj_e, proj_id, proj_pos, proj_d)) = proj_hit
+                if let Some((proj_e, proj_id, proj_pos, proj_d, proj_type)) = proj_hit
                     && enemy_hit.is_none_or(|(_, ed)| proj_d < ed)
                 {
                     // Destroy the projectile.
@@ -312,6 +325,7 @@ pub fn process_combat(
                             damage: 0.0,
                             position: proj_pos,
                             kind: carcinisation_net::HitImpactKind::Destroy,
+                            projectile_type: Some(proj_type),
                         },
                     });
                     continue;
@@ -340,6 +354,7 @@ pub fn process_combat(
                             damage: combat_config.hitscan_damage,
                             position: hit_enemy.position,
                             kind: carcinisation_net::HitImpactKind::Hit,
+                            projectile_type: None,
                         },
                     });
                 }

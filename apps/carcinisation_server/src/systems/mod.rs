@@ -18,7 +18,8 @@ pub use combat::{
 pub use enemy_ai::{EnemyAiSet, ServerEnemyAiConfig, tick_net_enemy_ai};
 pub use enemy_attack::{
     EnemyAttackSet, NextProjectileId, ServerMosquitonSim, ServerMosquitonSimConfig,
-    tick_enemy_attacks, tick_pending_projectiles,
+    ServerSpideySim, ServerSpideySimConfig, tick_enemy_attacks, tick_pending_projectiles,
+    tick_spidey_attacks,
 };
 pub use input::{PlayerInputTracker, PlayerIntentBuffer, ServerQuickTurn, send_input_acks};
 pub use player_lifecycle::{RespawnTimer, tick_player_lifecycle};

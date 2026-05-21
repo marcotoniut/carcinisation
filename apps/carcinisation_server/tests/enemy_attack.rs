@@ -8,8 +8,12 @@ mod common;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use carcinisation_fps_core::map::{EntitySpawnData, EntitySpawnKind, test_map};
-use carcinisation_net::{NetEnemyState, NetHealth, NetPlayer, NetProjectile};
+use carcinisation_net::{
+    NetEnemyState, NetHealth, NetPlayer, NetProjectile, NetProjectileType, NetSpeedModifier,
+    NetworkObjectId, Owner,
+};
 use carcinisation_server::ServerPlugin;
+use carcinisation_server::systems::{ProjectileTtl, ServerSpideySimConfig};
 use common::{build_server_app, reserve_port};
 
 // ---------------------------------------------------------------------------
@@ -24,6 +28,23 @@ fn build_attack_server(port: u16) -> App {
             speed: 0.0,
         },
         x: 3.5,
+        y: 1.5,
+    }];
+    build_server_app(ServerPlugin {
+        port,
+        map: test_map(),
+        entities,
+        player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
+    })
+}
+
+fn build_spidey_attack_server(port: u16, speed: f32) -> App {
+    let entities = vec![EntitySpawnData {
+        kind: EntitySpawnKind::Spidey { health: 100, speed },
+        x: 5.5,
         y: 1.5,
     }];
     build_server_app(ServerPlugin {
@@ -76,6 +97,15 @@ fn spawn_test_player(server: &mut App) {
         },
         Replicated,
     ));
+}
+
+fn speed_modifier(server: &mut App) -> Option<NetSpeedModifier> {
+    server
+        .world_mut()
+        .query::<&NetSpeedModifier>()
+        .iter(server.world())
+        .next()
+        .copied()
 }
 
 /// Force the enemy into Attacking state (simulates AI reaching preferred range).
@@ -320,6 +350,81 @@ fn each_enemy_targets_nearest_player() {
         !all_same_sign,
         "enemies should target different players: angles={angles:?} (all facing same direction is the R1 bug)"
     );
+}
+
+#[test]
+fn spidey_spawn_uses_spidey_net_type_and_authored_speed() {
+    let port = reserve_port();
+    let mut server = build_spidey_attack_server(port, 4.0);
+    server.update();
+
+    let mut q = server
+        .world_mut()
+        .query::<(&carcinisation_net::NetEnemy, &ServerSpideySimConfig)>();
+    let (enemy, config) = q
+        .iter(server.world())
+        .next()
+        .expect("spidey should spawn with server sim config");
+
+    assert_eq!(enemy.enemy_type, carcinisation_net::NetEnemyType::Spidey);
+    assert!((config.0.move_speed - 4.0).abs() < f32::EPSILON);
+    assert!(
+        config.0.hop_distance > carcinisation_fps_core::FpsCombatConfig::load().spidey_hop_distance,
+        "authored speed should scale hop distance"
+    );
+}
+
+#[test]
+fn spidey_server_attack_spawns_webshot_projectile() {
+    let port = reserve_port();
+    let mut server = build_spidey_attack_server(port, 2.0);
+    server.update();
+    spawn_test_player(&mut server);
+
+    for _ in 0..1200 {
+        tick_server(&mut server);
+        let mut q = server.world_mut().query::<&NetProjectile>();
+        if q.iter(server.world())
+            .any(|p| p.projectile_type == NetProjectileType::WebShot)
+        {
+            return;
+        }
+    }
+
+    panic!("Spidey should spawn a WebShot projectile");
+}
+
+#[test]
+fn webshot_projectile_applies_server_speed_modifier() {
+    let port = reserve_port();
+    let mut server = build_attack_server(port);
+    server.update();
+    spawn_test_player(&mut server);
+
+    server.world_mut().spawn((
+        NetProjectile {
+            object_id: NetworkObjectId(99),
+            position: Vec2::new(1.75, 1.5),
+            angle: 0.0,
+            owner: Owner(carcinisation_net::PlayerId(999)),
+            damage: 5.0,
+            projectile_type: NetProjectileType::WebShot,
+        },
+        ProjectileTtl(3.0),
+        Replicated,
+    ));
+
+    for _ in 0..80 {
+        tick_server(&mut server);
+        if speed_modifier(&mut server).is_some() {
+            break;
+        }
+    }
+
+    let modifier = speed_modifier(&mut server).expect("WebShot should apply speed modifier");
+    let combat = carcinisation_fps_core::FpsCombatConfig::load();
+    assert!((modifier.multiplier - combat.spidey_web_slow_multiplier).abs() < f32::EPSILON);
+    assert!((modifier.remaining - combat.spidey_web_slow_duration).abs() < 0.1);
 }
 
 /// Projectile despawns on wall hit (TTL expiry or wall collision).

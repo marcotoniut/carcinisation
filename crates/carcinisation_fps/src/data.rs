@@ -106,10 +106,25 @@ pub enum EntityKind {
         #[serde(default = "default_enemy_speed")]
         speed: f32,
     },
+    /// Spidey enemy — hops, leaps, fires web.
+    Spidey {
+        #[serde(default = "default_spidey_health")]
+        health: u32,
+        #[serde(default = "default_spidey_speed")]
+        speed: f32,
+    },
 }
 
 fn default_mosquiton_health() -> u32 {
     40
+}
+
+fn default_spidey_health() -> u32 {
+    30
+}
+
+fn default_spidey_speed() -> f32 {
+    2.0
 }
 
 fn default_enemy_speed() -> f32 {

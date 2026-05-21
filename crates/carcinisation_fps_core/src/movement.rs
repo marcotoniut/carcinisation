@@ -5,6 +5,67 @@ use bevy_math::Vec2;
 use crate::collision::try_move;
 use crate::map::Map;
 
+// ---------------------------------------------------------------------------
+// Speed modifier (e.g. web slow)
+// ---------------------------------------------------------------------------
+
+/// Temporary speed multiplier applied to player movement.
+///
+/// Drains over time. Moving accelerates the drain — the more you move,
+/// the faster you break free. Refreshes on re-application (budget resets,
+/// multiplier replaced). Does NOT stack multiplicatively.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SpeedModifier {
+    /// Multiplier applied to base movement speed. Clamped to `0.1..=1.0`.
+    pub multiplier: f32,
+    /// Remaining budget (arbitrary units). Drained by time + movement.
+    pub remaining: f32,
+    /// How fast the budget drains per second while standing still.
+    pub base_drain_rate: f32,
+    /// Extra drain per map-unit of movement distance.
+    pub movement_drain_rate: f32,
+}
+
+impl SpeedModifier {
+    /// Create a new modifier, clamping `multiplier` defensively.
+    ///
+    /// `budget` is the total drain budget. At `base_drain_rate = 1.0`,
+    /// it expires in `budget` seconds while standing still.
+    #[must_use]
+    pub fn new(multiplier: f32, budget: f32) -> Self {
+        Self {
+            multiplier: multiplier.clamp(0.1, 1.0),
+            remaining: budget.max(0.0),
+            base_drain_rate: 1.0,
+            movement_drain_rate: 2.0,
+        }
+    }
+
+    /// Tick the modifier. `movement_distance` is the distance moved this frame.
+    /// Returns `true` if still active after ticking.
+    pub fn tick(&mut self, dt: f32, movement_distance: f32) -> bool {
+        let drain = self.base_drain_rate * dt + self.movement_drain_rate * movement_distance;
+        self.remaining -= drain;
+        self.remaining > 0.0
+    }
+
+    /// Refresh (re-apply) — resets budget, replaces multiplier. Does not stack.
+    pub fn refresh(&mut self, multiplier: f32, budget: f32) {
+        self.multiplier = multiplier.clamp(0.1, 1.0);
+        self.remaining = budget.max(0.0);
+    }
+
+    /// Effective multiplier (1.0 if expired).
+    #[must_use]
+    pub fn effective(&self) -> f32 {
+        if self.remaining > 0.0 {
+            self.multiplier
+        } else {
+            1.0
+        }
+    }
+}
+
 /// Unit direction vector for a given facing angle.
 /// 0 = east (+X), PI/2 = north (+Y).
 #[must_use]
@@ -47,6 +108,34 @@ pub fn apply_movement(
     let world_move = local_to_world(angle, local_intent);
     let delta = world_move * speed * delta_time;
     try_move(position, delta, collision_margin, map);
+}
+
+/// Apply movement with an optional speed modifier (e.g. web slow).
+///
+/// Identical to [`apply_movement`] but multiplies speed by the modifier's
+/// effective value. Call sites that don't use modifiers keep using
+/// `apply_movement` directly.
+#[allow(clippy::too_many_arguments)]
+pub fn apply_movement_with_modifier(
+    position: &mut Vec2,
+    angle: f32,
+    local_intent: Vec2,
+    speed: f32,
+    modifier: Option<&SpeedModifier>,
+    delta_time: f32,
+    map: &Map,
+    collision_margin: f32,
+) {
+    let effective_speed = speed * modifier.map_or(1.0, SpeedModifier::effective);
+    apply_movement(
+        position,
+        angle,
+        local_intent,
+        effective_speed,
+        delta_time,
+        map,
+        collision_margin,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -142,6 +231,133 @@ mod tests {
     use super::*;
     use crate::config::FpsMovementConfig;
     use std::f32::consts::{FRAC_PI_2, PI};
+
+    // -- SpeedModifier tests --
+
+    #[test]
+    fn speed_modifier_applies_multiplier() {
+        let map = crate::map::test_map();
+        let defaults = FpsMovementConfig::default();
+        let modifier = SpeedModifier::new(0.7, 5.0);
+
+        // With modifier.
+        let mut pos_slow = Vec2::new(3.5, 3.5);
+        apply_movement_with_modifier(
+            &mut pos_slow,
+            0.0,
+            Vec2::new(0.0, 1.0),
+            defaults.move_speed,
+            Some(&modifier),
+            1.0,
+            &map,
+            defaults.collision_margin,
+        );
+
+        // Without modifier.
+        let mut pos_normal = Vec2::new(3.5, 3.5);
+        apply_movement(
+            &mut pos_normal,
+            0.0,
+            Vec2::new(0.0, 1.0),
+            defaults.move_speed,
+            1.0,
+            &map,
+            defaults.collision_margin,
+        );
+
+        let slow_dist = pos_slow.x - 3.5;
+        let normal_dist = pos_normal.x - 3.5;
+        let ratio = slow_dist / normal_dist;
+        assert!(
+            (ratio - 0.7).abs() < 0.01,
+            "modifier should apply 0.7x speed: ratio={ratio}"
+        );
+    }
+
+    #[test]
+    fn speed_modifier_expires() {
+        let mut modifier = SpeedModifier::new(0.7, 1.0);
+
+        assert!(modifier.tick(0.5, 0.0));
+        assert_eq!(modifier.effective(), 0.7);
+
+        assert!(!modifier.tick(0.6, 0.0));
+        assert_eq!(modifier.effective(), 1.0);
+    }
+
+    #[test]
+    fn speed_modifier_drains_faster_with_movement() {
+        let mut standing = SpeedModifier::new(0.7, 3.0);
+        let mut moving = SpeedModifier::new(0.7, 3.0);
+
+        // Same dt, but moving player covers 0.5 units.
+        standing.tick(1.0, 0.0);
+        moving.tick(1.0, 0.5);
+
+        assert!(
+            moving.remaining < standing.remaining,
+            "movement should drain faster: standing={} moving={}",
+            standing.remaining,
+            moving.remaining,
+        );
+    }
+
+    #[test]
+    fn speed_modifier_refresh_does_not_stack() {
+        let mut modifier = SpeedModifier::new(0.7, 3.0);
+
+        // Tick partway.
+        modifier.tick(1.0, 0.0);
+        assert!((modifier.remaining - 2.0).abs() < f32::EPSILON);
+
+        // Refresh with same multiplier — budget resets, does NOT become 0.49.
+        modifier.refresh(0.7, 3.0);
+        assert_eq!(modifier.multiplier, 0.7);
+        assert!((modifier.remaining - 3.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn speed_modifier_clamps_multiplier() {
+        let low = SpeedModifier::new(0.0, 1.0);
+        assert_eq!(low.multiplier, 0.1);
+
+        let high = SpeedModifier::new(2.0, 1.0);
+        assert_eq!(high.multiplier, 1.0);
+    }
+
+    #[test]
+    fn no_modifier_means_full_speed() {
+        let map = crate::map::test_map();
+        let defaults = FpsMovementConfig::default();
+
+        let mut pos_a = Vec2::new(3.5, 3.5);
+        apply_movement_with_modifier(
+            &mut pos_a,
+            0.0,
+            Vec2::new(0.0, 1.0),
+            defaults.move_speed,
+            None,
+            1.0,
+            &map,
+            defaults.collision_margin,
+        );
+
+        let mut pos_b = Vec2::new(3.5, 3.5);
+        apply_movement(
+            &mut pos_b,
+            0.0,
+            Vec2::new(0.0, 1.0),
+            defaults.move_speed,
+            1.0,
+            &map,
+            defaults.collision_margin,
+        );
+
+        assert!(
+            (pos_a - pos_b).length() < 1e-6,
+            "None modifier should match normal: a={pos_a:?} b={pos_b:?}"
+        );
+    }
 
     #[test]
     fn forward_at_angle_zero_is_east() {

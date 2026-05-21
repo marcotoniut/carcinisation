@@ -36,3 +36,4 @@ pub mod plugin;
 pub mod raycast;
 pub mod render;
 pub mod sky;
+pub mod spidey;

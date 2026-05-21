@@ -31,9 +31,10 @@ use systems::{
     BurnContactCooldowns, EnemyAiSet, EnemyAttackSet, FireCooldownMap, FlameActiveTracker,
     FlameCharCooldowns, GroundFireContactCooldowns, GroundFireCount, NextProjectileId,
     PlayerInputTracker, PlayerIntentBuffer, ProjectileSet, ServerEnemyAiConfig, ServerMosquitonSim,
-    ServerMosquitonSimConfig, ServerQuickTurn, tick_burn_contact_damage, tick_despawn_timers,
-    tick_enemy_attacks, tick_enemy_death_timers, tick_ground_fire_damage, tick_net_enemy_ai,
-    tick_pending_projectiles, tick_player_lifecycle, tick_projectiles_server,
+    ServerMosquitonSimConfig, ServerQuickTurn, ServerSpideySim, ServerSpideySimConfig,
+    tick_burn_contact_damage, tick_despawn_timers, tick_enemy_attacks, tick_enemy_death_timers,
+    tick_ground_fire_damage, tick_net_enemy_ai, tick_pending_projectiles, tick_player_lifecycle,
+    tick_projectiles_server, tick_spidey_attacks,
 };
 
 /// Component attached to `ConnectedClient` to track assigned `PlayerId`.
@@ -164,11 +165,13 @@ impl Plugin for ServerPlugin {
             )
             .add_systems(FixedUpdate, tick_net_enemy_ai.in_set(EnemyAiSet))
             .add_systems(FixedUpdate, tick_enemy_attacks.in_set(EnemyAttackSet))
+            .add_systems(FixedUpdate, tick_spidey_attacks.in_set(EnemyAttackSet))
             .add_systems(
                 FixedUpdate,
                 tick_pending_projectiles
                     .in_set(EnemyAttackSet)
-                    .after(tick_enemy_attacks),
+                    .after(tick_enemy_attacks)
+                    .after(tick_spidey_attacks),
             )
             .add_systems(FixedUpdate, tick_projectiles_server.in_set(ProjectileSet))
             .add_systems(FixedUpdate, process_combat.in_set(CombatSet))
@@ -498,6 +501,8 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
                 angle: 0.0,
                 state: NetEnemyState::Idle,
                 enemy_type: net_enemy_type_from_spawn(spawn),
+                visual_height: 0.0,
+                visual_phase: 0.0,
             },
             NetHealth {
                 current: health as f32,
@@ -520,6 +525,17 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
                 ServerMosquitonSimConfig::with_speed(*speed),
             ));
         }
+        if let EntitySpawnKind::Spidey { speed, .. } = &spawn.kind {
+            let seed = carcinisation_fps_core::corpse_seed(bevy::math::Vec2::new(spawn.x, spawn.y));
+            let combat = carcinisation_fps_core::FpsCombatConfig::load();
+            enemy_commands.insert((
+                ServerSpideySim {
+                    seed,
+                    ..Default::default()
+                },
+                ServerSpideySimConfig::from_combat_config(&combat, *speed),
+            ));
+        }
         count += 1;
     }
 
@@ -533,6 +549,7 @@ pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
         | EntitySpawnKind::Enemy { .. }
         | EntitySpawnKind::SpriteEnemy { .. } => NetEnemyType::Basic,
         EntitySpawnKind::Mosquiton { .. } => NetEnemyType::Mosquiton,
+        EntitySpawnKind::Spidey { .. } => NetEnemyType::Spidey,
     }
 }
 
@@ -540,8 +557,10 @@ pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
 pub fn server_enemy_ai_config_from_spawn(spawn: &EntitySpawnData) -> Option<ServerEnemyAiConfig> {
     match &spawn.kind {
         EntitySpawnKind::Mosquiton { speed, .. } => Some(ServerEnemyAiConfig::mosquiton(*speed)),
+        // Spidey uses its own sim (ServerSpideySim), not the shared AI dispatcher.
         EntitySpawnKind::Pillar { .. }
         | EntitySpawnKind::Enemy { .. }
-        | EntitySpawnKind::SpriteEnemy { .. } => None,
+        | EntitySpawnKind::SpriteEnemy { .. }
+        | EntitySpawnKind::Spidey { .. } => None,
     }
 }

@@ -18,7 +18,9 @@ pub mod hash_util;
 pub mod map;
 pub mod mosquiton;
 pub mod movement;
+pub mod presentation;
 pub mod raycast;
+pub mod spidey;
 
 // Re-export key types
 pub use burning::{
@@ -30,10 +32,11 @@ pub use collision::try_move;
 pub use combat::{flame_hits_position, flame_hits_position_configured};
 pub use config::{FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, PlayerFlamethrowerConfig};
 pub use enemy::{
-    Enemy, EnemyAiDisposition, EnemyAiOutput, EnemyPlayerTarget, EnemySim, EnemyState,
-    FpsEnemyAiState, FpsEnemyKind, HitscanResult, MosquitonAiConfig, Projectile, ProjectileImpact,
-    hitscan, segment_circle_hit_distance, tick_enemies, tick_enemy_ai, tick_projectiles,
-    tick_single_enemy,
+    DamageOutcome, Enemy, EnemyAiDisposition, EnemyAiOutput, EnemyPlayerTarget, EnemySim,
+    EnemyState, FpsEnemyAiState, FpsEnemyKind, HitscanResult, MosquitonAiConfig, Projectile,
+    ProjectileImpact, ProjectileKind, ProjectileSlowEffect, apply_damage, hitscan, hitscan_generic,
+    is_showing_damage_invert, segment_circle_hit_distance, tick_enemies, tick_enemy_ai,
+    tick_projectiles, tick_single_enemy,
 };
 pub use fire_death::{
     DamageKind, FireDeathConfig, PerimeterFlame, centered_flames_from_mask, corpse_seed,
@@ -50,8 +53,10 @@ pub use mosquiton::{
     MosquitonSim, MosquitonSimConfig, MosquitonSimOutput, MosquitonSimState, tick_mosquiton_sim,
 };
 pub use movement::{
-    SnapTurnKind, SnapTurnParams, angular_velocity_clamped, apply_movement, local_to_world,
-    snap_turn_params, tick_snap_turn,
+    SnapTurnKind, SnapTurnParams, SpeedModifier, angular_velocity_clamped, apply_movement,
+    apply_movement_with_modifier, local_to_world, snap_turn_params, tick_snap_turn,
 };
+pub use presentation::{AttackPresentationKind, EnemyPresentationState};
 pub use raycast::{HitSide, RayHit, cast_ray};
 pub use raycast::{WallSurfaceId, has_line_of_sight};
+pub use spidey::{SpideySim, SpideySimConfig, SpideySimOutput, SpideySimState, tick_spidey_sim};

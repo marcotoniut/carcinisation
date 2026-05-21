@@ -244,6 +244,7 @@ fn reset_despawns_pending_projectiles() {
             angle: 0.0,
             damage: 10.0,
             object_id: NetworkObjectId(500),
+            projectile_type: carcinisation_net::NetProjectileType::BloodShot,
         },
     );
 

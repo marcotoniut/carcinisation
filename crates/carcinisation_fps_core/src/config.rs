@@ -193,6 +193,79 @@ pub struct FpsCombatConfig {
     pub enemy_despawn_delay: f32,
     /// Seconds before a dead player respawns.
     pub player_respawn_delay_secs: f32,
+    // -- Spidey --
+    /// Spidey movement speed during hops (map units/s).
+    #[serde(default = "default_spidey_move_speed")]
+    pub spidey_move_speed: f32,
+    /// Spidey collision radius for wall avoidance.
+    #[serde(default = "default_spidey_collision_radius")]
+    pub spidey_collision_radius: f32,
+    /// Spidey aggro range (map units).
+    #[serde(default = "default_spidey_aggro_range")]
+    pub spidey_aggro_range: f32,
+    /// Minimum seconds between hops.
+    #[serde(default = "default_spidey_hop_interval_min")]
+    pub spidey_hop_interval_min: f32,
+    /// Maximum seconds between hops.
+    #[serde(default = "default_spidey_hop_interval_max")]
+    pub spidey_hop_interval_max: f32,
+    /// Distance covered per hop (map units).
+    #[serde(default = "default_spidey_hop_distance")]
+    pub spidey_hop_distance: f32,
+    /// Duration of a single hop (seconds).
+    #[serde(default = "default_spidey_hop_duration")]
+    pub spidey_hop_duration: f32,
+    /// Peak billboard height during a hop (visual only, map units).
+    #[serde(default = "default_spidey_hop_visual_height")]
+    pub spidey_hop_visual_height: f32,
+    /// Maximum range for lunge melee attack.
+    #[serde(default = "default_spidey_lunge_range")]
+    pub spidey_lunge_range: f32,
+    /// Movement speed during lunge (map units/s).
+    #[serde(default = "default_spidey_lunge_speed")]
+    pub spidey_lunge_speed: f32,
+    /// Damage dealt on lunge arrival.
+    #[serde(default = "default_spidey_lunge_melee_damage")]
+    pub spidey_lunge_melee_damage: u32,
+    /// Crouch duration before lunge (seconds).
+    #[serde(default = "default_spidey_lunge_windup_secs")]
+    pub spidey_lunge_windup_secs: f32,
+    /// Maximum lunge duration before auto-recover (seconds).
+    #[serde(default = "default_spidey_lunge_duration_secs")]
+    pub spidey_lunge_duration_secs: f32,
+    /// Seconds between lunge attacks.
+    #[serde(default = "default_spidey_lunge_cooldown")]
+    pub spidey_lunge_cooldown: f32,
+    /// Maximum range for web ranged attack.
+    #[serde(default = "default_spidey_web_range")]
+    pub spidey_web_range: f32,
+    /// Seconds between web attacks.
+    #[serde(default = "default_spidey_web_cooldown")]
+    pub spidey_web_cooldown: f32,
+    /// Animation lead before web projectile spawns (seconds).
+    #[serde(default = "default_spidey_web_cue_secs")]
+    pub spidey_web_cue_secs: f32,
+    /// Web projectile speed (map units/s).
+    #[serde(default = "default_spidey_web_projectile_speed")]
+    pub spidey_web_projectile_speed: f32,
+    /// Web projectile damage.
+    #[serde(default = "default_spidey_web_projectile_damage")]
+    pub spidey_web_projectile_damage: u32,
+    /// Spidey default health.
+    #[serde(default = "default_spidey_health")]
+    pub spidey_health: u32,
+    /// `WebShot` slow multiplier applied to player movement on hit.
+    #[serde(default = "default_spidey_web_slow_multiplier")]
+    pub spidey_web_slow_multiplier: f32,
+    /// `WebShot` slow duration in seconds.
+    #[serde(default = "default_spidey_web_slow_duration")]
+    pub spidey_web_slow_duration: f32,
+    /// Recovery pause duration after attacks (seconds).
+    #[serde(default = "default_spidey_recover_secs")]
+    pub spidey_recover_secs: f32,
+    /// Death animation duration (seconds).
+    #[serde(default = "default_spidey_death_secs")]
+    pub spidey_death_secs: f32,
     // -- Ground Fire --
     /// Lifetime of a ground fire hazard in seconds (full + fade phases).
     pub ground_fire_lifetime_secs: f32,
@@ -243,6 +316,34 @@ impl FpsCombatConfig {
         }
     }
 
+    /// Build a `SpideySimConfig` from the combat config values.
+    #[must_use]
+    pub fn spidey_sim_config(&self) -> crate::spidey::SpideySimConfig {
+        crate::spidey::SpideySimConfig {
+            move_speed: self.spidey_move_speed,
+            collision_radius: self.spidey_collision_radius,
+            aggro_range: self.spidey_aggro_range,
+            hop_interval_min: self.spidey_hop_interval_min,
+            hop_interval_max: self.spidey_hop_interval_max,
+            hop_distance: self.spidey_hop_distance,
+            hop_duration: self.spidey_hop_duration,
+            hop_visual_height: self.spidey_hop_visual_height,
+            lunge_range: self.spidey_lunge_range,
+            lunge_speed: self.spidey_lunge_speed,
+            lunge_melee_damage: self.spidey_lunge_melee_damage,
+            lunge_windup_secs: self.spidey_lunge_windup_secs,
+            lunge_duration_secs: self.spidey_lunge_duration_secs,
+            lunge_cooldown: self.spidey_lunge_cooldown,
+            web_range: self.spidey_web_range,
+            web_cooldown: self.spidey_web_cooldown,
+            web_cue_secs: self.spidey_web_cue_secs,
+            web_projectile_speed: self.spidey_web_projectile_speed,
+            web_projectile_damage: self.spidey_web_projectile_damage,
+            recover_secs: self.spidey_recover_secs,
+            death_secs: self.spidey_death_secs,
+        }
+    }
+
     /// Build a `GroundFireConfig` from the combat config values.
     #[must_use]
     pub fn ground_fire_config(&self) -> crate::ground_fire::GroundFireConfig {
@@ -280,6 +381,30 @@ impl Default for FpsCombatConfig {
             mosquiton_collision_radius: 0.3,
             mosquiton_health: 40,
             mosquiton_shoot_cue_secs: 1.0,
+            spidey_move_speed: default_spidey_move_speed(),
+            spidey_collision_radius: default_spidey_collision_radius(),
+            spidey_aggro_range: default_spidey_aggro_range(),
+            spidey_hop_interval_min: default_spidey_hop_interval_min(),
+            spidey_hop_interval_max: default_spidey_hop_interval_max(),
+            spidey_hop_distance: default_spidey_hop_distance(),
+            spidey_hop_duration: default_spidey_hop_duration(),
+            spidey_hop_visual_height: default_spidey_hop_visual_height(),
+            spidey_lunge_range: default_spidey_lunge_range(),
+            spidey_lunge_speed: default_spidey_lunge_speed(),
+            spidey_lunge_melee_damage: default_spidey_lunge_melee_damage(),
+            spidey_lunge_windup_secs: default_spidey_lunge_windup_secs(),
+            spidey_lunge_duration_secs: default_spidey_lunge_duration_secs(),
+            spidey_lunge_cooldown: default_spidey_lunge_cooldown(),
+            spidey_web_range: default_spidey_web_range(),
+            spidey_web_cooldown: default_spidey_web_cooldown(),
+            spidey_web_cue_secs: default_spidey_web_cue_secs(),
+            spidey_web_projectile_speed: default_spidey_web_projectile_speed(),
+            spidey_web_projectile_damage: default_spidey_web_projectile_damage(),
+            spidey_health: default_spidey_health(),
+            spidey_web_slow_multiplier: default_spidey_web_slow_multiplier(),
+            spidey_web_slow_duration: default_spidey_web_slow_duration(),
+            spidey_recover_secs: default_spidey_recover_secs(),
+            spidey_death_secs: default_spidey_death_secs(),
             burn_contact_radius: 1.1,
             burn_contact_damage: 5.0,
             burn_contact_tick_secs: 0.5,
@@ -296,6 +421,84 @@ impl Default for FpsCombatConfig {
             ground_fire_max: 32,
         }
     }
+}
+
+// -- Spidey serde defaults --
+
+// Serde fallback defaults — must match combat.ron shipped values.
+// These only fire when deserializing old RON files missing newer fields.
+
+fn default_spidey_move_speed() -> f32 {
+    2.0
+}
+fn default_spidey_collision_radius() -> f32 {
+    0.25
+}
+fn default_spidey_aggro_range() -> f32 {
+    8.0
+}
+fn default_spidey_hop_interval_min() -> f32 {
+    0.4
+}
+fn default_spidey_hop_interval_max() -> f32 {
+    1.0
+}
+fn default_spidey_hop_distance() -> f32 {
+    1.2
+}
+fn default_spidey_hop_duration() -> f32 {
+    0.4
+}
+fn default_spidey_hop_visual_height() -> f32 {
+    0.3
+}
+fn default_spidey_lunge_range() -> f32 {
+    2.0
+}
+fn default_spidey_lunge_speed() -> f32 {
+    7.0
+}
+fn default_spidey_lunge_melee_damage() -> u32 {
+    20
+}
+fn default_spidey_lunge_windup_secs() -> f32 {
+    0.2
+}
+fn default_spidey_lunge_duration_secs() -> f32 {
+    0.7
+}
+fn default_spidey_lunge_cooldown() -> f32 {
+    3.0
+}
+fn default_spidey_web_range() -> f32 {
+    6.0
+}
+fn default_spidey_web_cooldown() -> f32 {
+    3.0
+}
+fn default_spidey_web_cue_secs() -> f32 {
+    1.0
+}
+fn default_spidey_web_projectile_speed() -> f32 {
+    3.0
+}
+fn default_spidey_web_projectile_damage() -> u32 {
+    5
+}
+fn default_spidey_health() -> u32 {
+    100
+}
+fn default_spidey_web_slow_multiplier() -> f32 {
+    0.7
+}
+fn default_spidey_web_slow_duration() -> f32 {
+    3.0
+}
+fn default_spidey_recover_secs() -> f32 {
+    0.5
+}
+fn default_spidey_death_secs() -> f32 {
+    0.6
 }
 
 /// Hot-reloadable FPS visual tuning.

@@ -167,7 +167,7 @@ fn ack_carries_authoritative_position_after_forward() {
     // Verify ack position is consistent with apply_movement math:
     // starting from spawn, apply N ticks of forward movement where
     // N = number of acks (each ack = one FixedUpdate tick of movement).
-    let cfg = FpsMovementConfig::default();
+    let cfg = FpsMovementConfig::load();
     let map = test_map();
     let dt = 1.0 / 30.0;
     let mut sim_pos = start_pos;
@@ -262,7 +262,8 @@ fn consecutive_acks_one_tick_apart() {
         "NetPlayer should exist"
     );
 
-    let cfg = FpsMovementConfig::default();
+    // Load actual config (not ::default) so the test matches the server's values.
+    let cfg = FpsMovementConfig::load();
     let map = test_map();
     let dt = 1.0 / 30.0;
 

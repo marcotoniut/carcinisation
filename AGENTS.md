@@ -55,6 +55,7 @@ If blocked, state what and why.
 
 ## Commits
 
+- Generate docs, comments, commit messages, and PR text with intent: terse, domain-focused, no filler. Expand only when extra context materially improves clarity.
 - Do not add Co-Authored-By lines to commits.
 
 ## Artifacts

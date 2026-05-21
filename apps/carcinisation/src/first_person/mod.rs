@@ -32,7 +32,7 @@ use carcinisation_fps::player_attack::{
 use carcinisation_fps::plugin::CharDecals;
 use carcinisation_fps::plugin::{
     Active, BloodShotSprites, CameraRes, CameraShakeState, Config, DeathViewState, MapRes,
-    MosquitonSprites, Systems, request_camera_shake,
+    MosquitonSprites, SpiderShotSprites, SpideySprites, Systems, request_camera_shake,
 };
 use carcinisation_fps::raycast::{HitSide, WallSurfaceId};
 use carcinisation_fps::render::CharDecal;
@@ -40,8 +40,8 @@ use carcinisation_net::components::NetEnemy;
 use carcinisation_net::{
     DamageEffect, DeathEffect, EnemyAttackKind, EnemyAttackVisual, FlameActive, FlameCharMark,
     HitConfirm, MuzzleFlash, NetAttackId, NetBurning, NetEnemyState, NetEnemyType, NetGroundFire,
-    NetHealth, NetPlayer, NetProjectile, NetProtocolPlugin, NetworkObjectId, PlayerId,
-    PlayerIdAssigned, register_net_all,
+    NetHealth, NetPlayer, NetProjectile, NetProjectileType, NetProtocolPlugin, NetworkObjectId,
+    PlayerId, PlayerIdAssigned, register_net_all,
 };
 use std::net::SocketAddr;
 #[cfg(not(target_family = "wasm"))]
@@ -124,6 +124,7 @@ struct HitImpact {
     age: f32,
     lifetime: f32,
     kind: carcinisation_net::HitImpactKind,
+    projectile_type: Option<NetProjectileType>,
 }
 
 use carcinisation_net::HitImpactKind;
@@ -356,6 +357,7 @@ fn handle_hit_confirm(trigger: On<HitConfirm>, mut impacts: ResMut<HitImpacts>) 
         age: 0.0,
         lifetime,
         kind,
+        projectile_type: confirm.projectile_type,
     });
 }
 
@@ -497,16 +499,37 @@ fn handle_flame_char_mark(trigger: On<FlameCharMark>, mut char_decals: ResMut<Ch
 fn handle_enemy_attack_visual(
     trigger: On<EnemyAttackVisual>,
     mut overrides: ResMut<EnemyAttackOverrides>,
-    sprites: Option<Res<MosquitonSprites>>,
+    mosquiton_sprites: Option<Res<MosquitonSprites>>,
+    spidey_sprites: Option<Res<SpideySprites>>,
+    enemies: Query<&NetEnemy>,
 ) {
     let event = trigger.event();
-    let duration = match event.kind {
-        EnemyAttackKind::Ranged => sprites
-            .as_ref()
-            .map_or(SHOOT_ANIM_DURATION_FALLBACK, |s| s.0.shoot_duration()),
-        EnemyAttackKind::Melee => sprites
-            .as_ref()
-            .map_or(MELEE_ANIM_DURATION_FALLBACK, |s| s.0.melee_duration()),
+    // Determine animation duration from the correct enemy's sprites.
+    let is_spidey = enemies
+        .iter()
+        .any(|e| e.object_id == event.object_id && e.enemy_type == NetEnemyType::Spidey);
+    let duration = if is_spidey {
+        match event.kind {
+            EnemyAttackKind::Ranged => spidey_sprites
+                .as_ref()
+                .map_or(SHOOT_ANIM_DURATION_FALLBACK, |s| {
+                    s.0.shoot.iter().map(|f| f.duration).sum::<f32>().max(0.1)
+                }),
+            EnemyAttackKind::Melee => spidey_sprites
+                .as_ref()
+                .map_or(MELEE_ANIM_DURATION_FALLBACK, |s| {
+                    s.0.lunge_total_duration().max(0.1)
+                }),
+        }
+    } else {
+        match event.kind {
+            EnemyAttackKind::Ranged => mosquiton_sprites
+                .as_ref()
+                .map_or(SHOOT_ANIM_DURATION_FALLBACK, |s| s.0.shoot_duration()),
+            EnemyAttackKind::Melee => mosquiton_sprites
+                .as_ref()
+                .map_or(MELEE_ANIM_DURATION_FALLBACK, |s| s.0.melee_duration()),
+        }
     };
     overrides.0.insert(
         event.object_id,
@@ -973,6 +996,8 @@ fn anim_state_is_walking(state: Option<&BillboardAnimationState>) -> bool {
 #[derive(bevy::ecs::system::SystemParam)]
 struct SyncSpriteResources<'w> {
     mosquiton: Option<Res<'w, MosquitonSprites>>,
+    spidey: Option<Res<'w, SpideySprites>>,
+    spider_shot: Option<Res<'w, SpiderShotSprites>>,
     blood_shot: Option<Res<'w, BloodShotSprites>>,
     attack: Option<Res<'w, PlayerAttackSprites>>,
     burn_config: Res<'w, carcinisation_fps_core::BurnConfig>,
@@ -1017,6 +1042,8 @@ fn sync_camera_from_net_player(
     mut prediction_visual: PredictionVisualParams,
 ) {
     let mosquiton_sprites = &sprites.mosquiton;
+    let spidey_sprites = &sprites.spidey;
+    let spider_shot_sprites = &sprites.spider_shot;
     let blood_shot_sprites = &sprites.blood_shot;
     let attack_sprites = &sprites.attack;
     let burn_config = &sprites.burn_config;
@@ -1305,17 +1332,26 @@ fn sync_camera_from_net_player(
             visual_pos,
             elapsed,
             mosquiton_sprites.as_deref(),
+            spidey_sprites.as_deref(),
             attack_overrides.0.get(&enemy.object_id),
             show_invert,
         ));
 
         // Burn flame effect for enemies killed by fire (persists through Dead until despawn).
+        // Resolve the corpse sprite for the correct enemy type.
+        let burn_corpse_sprite: Option<&carapace::image::CxImage> = match enemy.enemy_type {
+            NetEnemyType::Spidey => spidey_sprites
+                .as_deref()
+                .map(|s| s.0.alive_sprite_at(0.0).as_ref()),
+            _ => mosquiton_sprites
+                .as_deref()
+                .map(|s| s.0.alive_sprite_at(0.0).as_ref()),
+        };
         if matches!(
             enemy.state,
             NetEnemyState::Dying { burn: true } | NetEnemyState::Dead { burn: true }
-        ) && let Some(sprites) = mosquiton_sprites.as_deref()
+        ) && let Some(corpse_sprite) = burn_corpse_sprite
         {
-            let corpse_sprite = sprites.0.alive_sprite_at(0.0);
             push_net_burn_flames(
                 &mut extra_bbs.0,
                 visual_pos,
@@ -1335,9 +1371,8 @@ fn sync_camera_from_net_player(
                 enemy.state,
                 NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
             )
-            && let Some(sprites) = mosquiton_sprites.as_deref()
+            && let Some(corpse_sprite) = burn_corpse_sprite
         {
-            let corpse_sprite = sprites.0.alive_sprite_at(0.0); // frame 0 for stable mask
             push_alive_burn_flames(
                 &mut extra_bbs.0,
                 visual_pos,
@@ -1419,10 +1454,16 @@ fn sync_camera_from_net_player(
     for proj in net_projectiles.iter() {
         let dir = Vec2::new(proj.angle.cos(), proj.angle.sin());
         let extrapolated = proj.position + dir * projectile_speed * frame_dt;
-        let sprite = blood_shot_sprites.as_ref().map_or_else(
-            || Arc::new(make_blood_shot_sprite(8, 3)),
-            |bs| Arc::clone(&bs.0.hover),
-        );
+        let sprite = match proj.projectile_type {
+            NetProjectileType::BloodShot => blood_shot_sprites.as_ref().map_or_else(
+                || Arc::new(make_blood_shot_sprite(8, 3)),
+                |bs| Arc::clone(&bs.0.hover),
+            ),
+            NetProjectileType::WebShot => spider_shot_sprites.as_ref().map_or_else(
+                || Arc::new(make_blood_shot_sprite(8, 3)),
+                |ss| Arc::clone(&ss.0.hover),
+            ),
+        };
         extra_bbs.0.push(Billboard {
             position: extrapolated,
             height: 0.0,
@@ -1433,20 +1474,36 @@ fn sync_camera_from_net_player(
     }
 
     // Hit impact billboards (blood splats / destroy animations).
+    let is_web_shot =
+        |pt: Option<NetProjectileType>| -> bool { matches!(pt, Some(NetProjectileType::WebShot)) };
     for impact in &hit_impacts.0 {
         let (sprite, world_height) = match impact.kind {
             HitImpactKind::Hit => {
-                let s = blood_shot_sprites.as_ref().map_or_else(
-                    || Arc::new(make_blood_shot_sprite(8, 3)),
-                    |bs| Arc::clone(&bs.0.hit),
-                );
+                let s = if is_web_shot(impact.projectile_type) {
+                    spider_shot_sprites.as_ref().map_or_else(
+                        || Arc::new(make_blood_shot_sprite(8, 3)),
+                        |ss| Arc::clone(&ss.0.hit),
+                    )
+                } else {
+                    blood_shot_sprites.as_ref().map_or_else(
+                        || Arc::new(make_blood_shot_sprite(8, 3)),
+                        |bs| Arc::clone(&bs.0.hit),
+                    )
+                };
                 (s, 0.42)
             }
             HitImpactKind::Destroy => {
-                let s = blood_shot_sprites.as_ref().map_or_else(
-                    || Arc::new(make_blood_shot_sprite(8, 3)),
-                    |bs| Arc::clone(bs.0.destroy_sprite_at(impact.age)),
-                );
+                let s = if is_web_shot(impact.projectile_type) {
+                    spider_shot_sprites.as_ref().map_or_else(
+                        || Arc::new(make_blood_shot_sprite(8, 3)),
+                        |ss| Arc::clone(ss.0.destroy_sprite_at(impact.age)),
+                    )
+                } else {
+                    blood_shot_sprites.as_ref().map_or_else(
+                        || Arc::new(make_blood_shot_sprite(8, 3)),
+                        |bs| Arc::clone(bs.0.destroy_sprite_at(impact.age)),
+                    )
+                };
                 (s, 0.36)
             }
         };
@@ -1482,11 +1539,58 @@ fn sync_camera_from_net_player(
     }
 }
 
+/// MP adapter: convert `NetEnemyState` + replicated `visual_height` +
+/// client-side `AttackAnimOverride` into the shared `EnemyPresentationState`.
+///
+/// Lives in the app crate because it needs both `carcinisation_net` and
+/// `carcinisation_fps_core` types, and `fps` does not depend on `net`.
+fn spidey_net_presentation_state(
+    net_state: &NetEnemyState,
+    visual_height: f32,
+    visual_phase: f32,
+    attack_override: Option<&AttackAnimOverride>,
+) -> carcinisation_fps_core::EnemyPresentationState {
+    use carcinisation_fps_core::presentation::{AttackPresentationKind, EnemyPresentationState};
+
+    // If a one-shot attack animation is playing, it takes priority.
+    if let Some(anim) = attack_override {
+        let atk = match anim.kind {
+            EnemyAttackKind::Melee => AttackPresentationKind::Melee,
+            EnemyAttackKind::Ranged => AttackPresentationKind::Ranged,
+        };
+        return EnemyPresentationState::Attacking {
+            attack: atk,
+            phase: anim.elapsed,
+        };
+    }
+
+    match net_state {
+        NetEnemyState::Idle => EnemyPresentationState::Idle,
+        NetEnemyState::Chase => {
+            if visual_height > carcinisation_fps::spidey::SPIDEY_HOP_DETECTION_THRESHOLD {
+                EnemyPresentationState::Hopping {
+                    phase: visual_phase.clamp(0.0, 1.0),
+                    visual_height,
+                }
+            } else {
+                EnemyPresentationState::Moving
+            }
+        }
+        NetEnemyState::HoldingRange => EnemyPresentationState::Recover,
+        NetEnemyState::Dying { burn } => EnemyPresentationState::Dying {
+            burn: *burn,
+            phase: visual_phase,
+        },
+        NetEnemyState::Dead { burn } => EnemyPresentationState::Dead { burn: *burn },
+    }
+}
+
 fn net_enemy_billboard(
     enemy: &NetEnemy,
     visual_pos: Vec2,
     elapsed_secs: f32,
     mosquiton_sprites: Option<&MosquitonSprites>,
+    spidey_sprites: Option<&SpideySprites>,
     attack_override: Option<&AttackAnimOverride>,
     damage_invert: bool,
 ) -> Billboard {
@@ -1542,6 +1646,35 @@ fn net_enemy_billboard(
             ),
             flip_x: false,
         },
+        NetEnemyType::Spidey => {
+            use carcinisation_fps::spidey::{FLOOR_OFFSET, SPIDEY_BILLBOARD_HEIGHT};
+            let pres = spidey_net_presentation_state(
+                &enemy.state,
+                enemy.visual_height,
+                enemy.visual_phase,
+                attack_override,
+            );
+            // Use replicated visual_height for billboard positioning (hop/leap arc).
+            let grounded_height =
+                FLOOR_OFFSET + SPIDEY_BILLBOARD_HEIGHT / 2.0 + enemy.visual_height;
+            Billboard {
+                position: visual_pos,
+                height: grounded_height,
+                world_height: SPIDEY_BILLBOARD_HEIGHT,
+                sprite: spidey_sprites.map_or_else(
+                    || Arc::new(make_enemy_sprite(32, 2)),
+                    |sprites| {
+                        carcinisation_fps::billboard::spidey_sprite_for_presentation(
+                            &pres,
+                            &sprites.0,
+                            damage_invert,
+                            elapsed_secs,
+                        )
+                    },
+                ),
+                flip_x: false,
+            }
+        }
     }
 }
 
@@ -1938,6 +2071,8 @@ mod tests {
     use carcinisation_fps::camera::Camera;
     use carcinisation_fps::mosquiton::make_mosquiton_billboard_sprites;
     use carcinisation_fps::plugin::CameraRes;
+    use carcinisation_fps::spidey::make_spidey_billboard_sprites;
+    use carcinisation_fps_core::presentation::{AttackPresentationKind, EnemyPresentationState};
     use carcinisation_net::{NetworkObjectId, PlayerNetState};
 
     fn init_sync_test_app(app: &mut App) {
@@ -1976,6 +2111,8 @@ mod tests {
                 angle: 0.0,
                 state: NetEnemyState::Idle,
                 enemy_type: NetEnemyType::Mosquiton,
+                visual_height: 0.0,
+                visual_phase: 0.0,
             },
             NetHealth {
                 current: 100.0,
@@ -1989,6 +2126,8 @@ mod tests {
                 angle: 0.0,
                 state: NetEnemyState::Dead { burn: false },
                 enemy_type: NetEnemyType::Mosquiton,
+                visual_height: 0.0,
+                visual_phase: 0.0,
             },
             NetHealth {
                 current: 0.0,
@@ -2039,6 +2178,8 @@ mod tests {
                 angle: 0.0,
                 state: NetEnemyState::Chase,
                 enemy_type: NetEnemyType::Mosquiton,
+                visual_height: 0.0,
+                visual_phase: 0.0,
             },
             NetHealth {
                 current: 100.0,
@@ -2104,6 +2245,100 @@ mod tests {
             (o.duration - melee_dur).abs() < 0.001,
             "melee duration should match sprite data"
         );
+    }
+
+    #[test]
+    fn spidey_net_presentation_maps_all_states() {
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::Idle, 0.0, 0.0, None),
+            EnemyPresentationState::Idle
+        );
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::Chase, 0.0, 0.0, None),
+            EnemyPresentationState::Moving
+        );
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::Chase, 0.3, 0.75, None),
+            EnemyPresentationState::Hopping {
+                phase: 0.75,
+                visual_height: 0.3,
+            }
+        );
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::HoldingRange, 0.0, 0.0, None),
+            EnemyPresentationState::Recover
+        );
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::Dying { burn: true }, 0.0, 0.0, None,),
+            EnemyPresentationState::Dying {
+                burn: true,
+                phase: 0.0,
+            }
+        );
+        // Non-zero death phase from server-replicated visual_phase.
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::Dying { burn: false }, 0.0, 0.75, None,),
+            EnemyPresentationState::Dying {
+                burn: false,
+                phase: 0.75,
+            }
+        );
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::Dead { burn: false }, 0.0, 0.0, None,),
+            EnemyPresentationState::Dead { burn: false }
+        );
+    }
+
+    #[test]
+    fn spidey_net_attack_override_takes_priority() {
+        let override_anim = AttackAnimOverride {
+            kind: EnemyAttackKind::Ranged,
+            elapsed: 0.25,
+            duration: 1.0,
+        };
+        assert_eq!(
+            spidey_net_presentation_state(&NetEnemyState::Chase, 0.3, 0.75, Some(&override_anim),),
+            EnemyPresentationState::Attacking {
+                attack: AttackPresentationKind::Ranged,
+                phase: 0.25,
+            }
+        );
+    }
+
+    #[test]
+    fn spidey_sprite_for_each_net_presentation_is_non_empty() {
+        let sprites = make_spidey_billboard_sprites().unwrap();
+        let states = [
+            EnemyPresentationState::Idle,
+            EnemyPresentationState::Moving,
+            EnemyPresentationState::Hopping {
+                phase: 0.5,
+                visual_height: 0.3,
+            },
+            EnemyPresentationState::Windup {
+                attack: AttackPresentationKind::Ranged,
+                phase: 0.1,
+            },
+            EnemyPresentationState::Attacking {
+                attack: AttackPresentationKind::Melee,
+                phase: 0.1,
+            },
+            EnemyPresentationState::Recover,
+            EnemyPresentationState::Dying {
+                burn: false,
+                phase: 0.0,
+            },
+            EnemyPresentationState::Dead { burn: true },
+        ];
+        for state in states {
+            let sprite = carcinisation_fps::billboard::spidey_sprite_for_presentation(
+                &state, &sprites, false, 0.0,
+            );
+            assert!(
+                !sprite.data().is_empty(),
+                "state {state:?} should resolve a sprite"
+            );
+        }
     }
 
     #[test]

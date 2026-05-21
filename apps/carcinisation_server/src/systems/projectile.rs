@@ -12,7 +12,8 @@ use carcinisation_fps_core::config::FpsCombatConfig;
 use carcinisation_fps_core::raycast::cast_ray;
 use carcinisation_fps_core::segment_circle_hit_distance;
 use carcinisation_net::{
-    DamageEffect, HitConfirm, NetHealth, NetPlayer, NetProjectile, NetworkObjectId, PlayerNetState,
+    DamageEffect, HitConfirm, NetHealth, NetPlayer, NetProjectile, NetProjectileType,
+    NetSpeedModifier, NetworkObjectId, PlayerNetState,
 };
 
 use super::FlameActiveTracker;
@@ -83,6 +84,7 @@ pub fn tick_projectiles_server(
                     damage: 0.0,
                     position: proj.position,
                     kind: carcinisation_net::HitImpactKind::Destroy,
+                    projectile_type: Some(proj.projectile_type),
                 },
             });
             commands.entity(proj_entity).despawn();
@@ -90,7 +92,11 @@ pub fn tick_projectiles_server(
         }
 
         let dir = Vec2::new(proj.angle.cos(), proj.angle.sin());
-        let step = dir * combat_config.projectile_speed * dt;
+        let projectile_speed = match proj.projectile_type {
+            NetProjectileType::BloodShot => combat_config.projectile_speed,
+            NetProjectileType::WebShot => combat_config.spidey_web_projectile_speed,
+        };
+        let step = dir * projectile_speed * dt;
         let travel_distance = step.length();
         if travel_distance <= f32::EPSILON {
             continue;
@@ -109,6 +115,7 @@ pub fn tick_projectiles_server(
                     damage: 0.0,
                     position: impact_pos,
                     kind: carcinisation_net::HitImpactKind::Hit,
+                    projectile_type: Some(proj.projectile_type),
                 },
             });
             commands.entity(proj_entity).despawn();
@@ -144,6 +151,12 @@ pub fn tick_projectiles_server(
                     continue;
                 }
                 health.current = (health.current - proj.damage).max(0.0);
+                if matches!(proj.projectile_type, NetProjectileType::WebShot) {
+                    commands.entity(player_entity).insert(NetSpeedModifier {
+                        multiplier: combat_config.spidey_web_slow_multiplier,
+                        remaining: combat_config.spidey_web_slow_duration,
+                    });
+                }
                 debug!(
                     "Projectile {:?} hit player {:?}: {:.0} dmg, hp={:.0}",
                     proj.object_id, net_player.player_id, proj.damage, health.current
@@ -166,6 +179,7 @@ pub fn tick_projectiles_server(
                         damage: proj.damage,
                         position: proj.position,
                         kind: carcinisation_net::HitImpactKind::Hit,
+                        projectile_type: Some(proj.projectile_type),
                     },
                 });
             }

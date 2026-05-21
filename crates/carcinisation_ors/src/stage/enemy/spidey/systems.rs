@@ -14,7 +14,7 @@ use crate::stage::{
         composed::{ComposedAnimationState, ComposedPartStates, ComposedResolvedParts},
         data::{
             spidey::{
-                ACTION_IDLE, ACTION_JUMP, ACTION_LANDING, ACTION_LOUNGE, ACTION_SHOOT,
+                ACTION_IDLE, ACTION_JUMP, ACTION_LANDING, ACTION_LUNGE, ACTION_SHOOT,
                 request_spidey_action_with_hold,
             },
             steps::{EnemyStep, JumpEnemyStep},
@@ -90,7 +90,7 @@ pub fn assign_spidey_animation(
                 EnemyStep::Attack { .. }
                 | EnemyStep::Circle { .. }
                 | EnemyStep::LinearTween { .. } => {
-                    (EnemySpideyAnimation::Lounge, ACTION_LOUNGE, false)
+                    (EnemySpideyAnimation::Lunge, ACTION_LUNGE, false)
                 }
             }
         };

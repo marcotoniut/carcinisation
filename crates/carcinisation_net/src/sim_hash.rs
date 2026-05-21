@@ -69,6 +69,7 @@ pub fn compute_sim_hash(
             match e.enemy_type {
                 crate::NetEnemyType::Basic => 0,
                 crate::NetEnemyType::Mosquiton => 1,
+                crate::NetEnemyType::Spidey => 2,
             },
         );
     }
@@ -83,6 +84,13 @@ pub fn compute_sim_hash(
         h = fnv_f32(h, p.angle);
         h = fnv_f32(h, p.damage);
         h = fnv_u32(h, p.owner.0.0);
+        h = fnv_u8(
+            h,
+            match p.projectile_type {
+                crate::NetProjectileType::BloodShot => 0,
+                crate::NetProjectileType::WebShot => 1,
+            },
+        );
     }
 
     h

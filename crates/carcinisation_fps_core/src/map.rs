@@ -210,10 +210,22 @@ pub enum EntitySpawnKind {
         #[serde(default = "default_enemy_speed")]
         speed: f32,
     },
+    Spidey {
+        #[serde(default = "default_spidey_health")]
+        health: u32,
+        #[serde(default = "default_spidey_speed")]
+        speed: f32,
+    },
 }
 
 fn default_mosquiton_health() -> u32 {
     40
+}
+fn default_spidey_health() -> u32 {
+    30
+}
+fn default_spidey_speed() -> f32 {
+    2.0
 }
 fn default_enemy_speed() -> f32 {
     1.5
@@ -227,7 +239,8 @@ impl EntitySpawnKind {
             Self::Pillar { .. } => None,
             Self::Enemy { health, .. }
             | Self::SpriteEnemy { health, .. }
-            | Self::Mosquiton { health, .. } => Some(*health),
+            | Self::Mosquiton { health, .. }
+            | Self::Spidey { health, .. } => Some(*health),
         }
     }
 
@@ -310,7 +323,7 @@ mod tests {
         let enemies: Vec<_> = entities.iter().filter(|e| e.kind.is_enemy()).collect();
         let pillars: Vec<_> = entities.iter().filter(|e| !e.kind.is_enemy()).collect();
 
-        assert_eq!(enemies.len(), 6, "expected 6 Mosquitons");
+        assert_eq!(enemies.len(), 9, "expected 6 Mosquitons + 3 Spideys");
         assert_eq!(pillars.len(), 4, "expected 4 Pillars");
 
         // All enemies should have health.
