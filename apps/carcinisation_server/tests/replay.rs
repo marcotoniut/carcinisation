@@ -55,6 +55,7 @@ fn spawn_player(server: &mut App, pid: u32, x: f32, y: f32) {
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         },
         NetHealth {
             current: 100.0,

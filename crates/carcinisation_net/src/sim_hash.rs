@@ -157,6 +157,7 @@ mod tests {
                 current_attack: NetAttackId::None,
                 state: PlayerNetState::Alive,
                 flame_active: false,
+                avatar_palette_variant: None,
             },
             NetHealth {
                 current: 100.0,
@@ -182,6 +183,7 @@ mod tests {
                     current_attack: NetAttackId::None,
                     state: PlayerNetState::Alive,
                     flame_active: false,
+                    avatar_palette_variant: None,
                 },
                 NetHealth {
                     current: 100.0,
@@ -204,6 +206,7 @@ mod tests {
                 current_attack: NetAttackId::None,
                 state: PlayerNetState::Alive,
                 flame_active: false,
+                avatar_palette_variant: None,
             },
             NetHealth {
                 current: 100.0,
@@ -218,6 +221,7 @@ mod tests {
                 current_attack: NetAttackId::Projectile,
                 state: PlayerNetState::Alive,
                 flame_active: true,
+                avatar_palette_variant: None,
             },
             NetHealth {
                 current: 50.0,

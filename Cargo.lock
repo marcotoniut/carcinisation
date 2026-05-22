@@ -2522,6 +2522,7 @@ dependencies = [
  "carcinisation_base",
  "carcinisation_core",
  "carcinisation_fps_core",
+ "carcinisation_net",
  "flate2",
  "rand 0.10.1",
  "ron 0.12.1",

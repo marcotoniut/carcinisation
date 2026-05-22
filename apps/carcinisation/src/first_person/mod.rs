@@ -1146,6 +1146,7 @@ fn sync_camera_from_net_player(
         state: carcinisation_net::PlayerNetState,
         current_attack: NetAttackId,
         flame_active: bool,
+        avatar_palette_variant: Option<carcinisation_net::AvatarPaletteVariant>,
     }
     // Collect remote player data first to avoid borrow conflicts.
     // Interpolation components (ticked earlier this frame) provide smooth
@@ -1165,6 +1166,7 @@ fn sync_camera_from_net_player(
                 state: np.state.clone(),
                 current_attack: np.current_attack,
                 flame_active: np.flame_active,
+                avatar_palette_variant: np.avatar_palette_variant,
             }
         })
         .collect();
@@ -1242,6 +1244,7 @@ fn sync_camera_from_net_player(
                 world_height,
                 sprite: resolved.sprite,
                 flip_x: resolved.flip_x,
+                palette_variant: rp.avatar_palette_variant,
             });
             pushed = true;
         }
@@ -1256,6 +1259,7 @@ fn sync_camera_from_net_player(
                     world_height: 1.5,
                     sprite: Arc::clone(&fallback[color_idx]),
                     flip_x: false,
+                    palette_variant: rp.avatar_palette_variant,
                 });
             }
         }
@@ -1438,6 +1442,7 @@ fn sync_camera_from_net_player(
                         world_height,
                         sprite: std::sync::Arc::new(cropped),
                         flip_x: false,
+                        palette_variant: None,
                     });
                 }
             }
@@ -1470,6 +1475,7 @@ fn sync_camera_from_net_player(
             world_height: 0.3,
             sprite,
             flip_x: false,
+            palette_variant: None,
         });
     }
 
@@ -1513,6 +1519,7 @@ fn sync_camera_from_net_player(
             world_height,
             sprite,
             flip_x: false,
+            palette_variant: None,
         });
     }
 
@@ -1601,11 +1608,13 @@ fn net_enemy_billboard(
             world_height: 1.0,
             sprite: Arc::new(make_enemy_sprite(32, 2)),
             flip_x: false,
+            palette_variant: None,
         },
         NetEnemyType::Mosquiton => Billboard {
             position: visual_pos,
             height: 0.0,
             world_height: 0.9,
+            palette_variant: None,
             sprite: mosquiton_sprites.map_or_else(
                 || Arc::new(make_mosquiton_placeholder_sprite(32, 2)),
                 |sprites| {
@@ -1661,6 +1670,7 @@ fn net_enemy_billboard(
                 position: visual_pos,
                 height: grounded_height,
                 world_height: SPIDEY_BILLBOARD_HEIGHT,
+                palette_variant: None,
                 sprite: spidey_sprites.map_or_else(
                     || Arc::new(make_enemy_sprite(32, 2)),
                     |sprites| {
@@ -1734,6 +1744,7 @@ fn push_net_burn_flames(
             world_height: base_world_height * 0.35 * flame.scale,
             sprite,
             flip_x: false,
+            palette_variant: None,
         });
     }
 }
@@ -1798,6 +1809,7 @@ fn push_alive_burn_flames(
             world_height: base_world_height * flame_size * flame.scale,
             sprite: flame_sprite,
             flip_x: false,
+            palette_variant: None,
         });
     }
 }
@@ -1857,6 +1869,7 @@ fn push_remote_flame_billboards(
             world_height,
             sprite,
             flip_x: false,
+            palette_variant: None,
         });
     }
 
@@ -1873,6 +1886,7 @@ fn push_remote_flame_billboards(
             world_height: flame_3p_cfg.impact_scale,
             sprite,
             flip_x: false,
+            palette_variant: None,
         });
     }
 }
@@ -2103,6 +2117,7 @@ mod tests {
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         });
         app.world_mut().spawn((
             NetEnemy {
@@ -2170,6 +2185,7 @@ mod tests {
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         });
         app.world_mut().spawn((
             NetEnemy {
@@ -2427,6 +2443,7 @@ mod tests {
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         });
 
         // Remote player with flame_active = true (replicated authoritative state).
@@ -2437,6 +2454,7 @@ mod tests {
             current_attack: NetAttackId::Projectile,
             state: PlayerNetState::Alive,
             flame_active: true,
+            avatar_palette_variant: None,
         });
 
         app.update();
@@ -2470,6 +2488,7 @@ mod tests {
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         });
 
         // Remote player with flamethrower equipped but NOT firing.
@@ -2480,6 +2499,7 @@ mod tests {
             current_attack: NetAttackId::Projectile,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         });
 
         app.update();

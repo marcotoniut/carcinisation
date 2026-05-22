@@ -56,7 +56,7 @@ server-port := "7142"
 default-map := "assets/config/fp/test_room.fp_map.ron"
 
 # Stage aliases → map file paths. Add entries here for named stages.
-# Raw paths also work: just dev-fps-pair path/to/map.ron
+# Raw paths also work: just dev-fps-unus path/to/map.ron
 _resolve-stage stage:
     #!/usr/bin/env bash
     case "{{ stage }}" in
@@ -87,7 +87,7 @@ dev-fps-client-local stage="":
     RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map"
 
 # Headless server + 1 client
-dev-fps-pair stage="":
+dev-fps-unus stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
@@ -114,6 +114,40 @@ dev-fps-duo stage="":
     sleep 1
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
     RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
+    echo "Press Ctrl+C to stop server+clients"
+    wait
+
+# Headless server + 3 clients
+dev-fps-tres stage="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    map=$(just _resolve-stage "{{ stage }}")
+    echo "Starting headless server + 3 clients (map=$map, Ctrl+C stops all)..."
+    trap 'kill 0 2>/dev/null' INT TERM EXIT
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
+    sleep 3
+    for i in 1 2 3; do
+        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
+        sleep 1
+    done
+    echo "Press Ctrl+C to stop server+clients"
+    wait
+
+# Headless server + 4 clients
+dev-fps-quattuor stage="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    map=$(just _resolve-stage "{{ stage }}")
+    echo "Starting headless server + 4 clients (map=$map, Ctrl+C stops all)..."
+    trap 'kill 0 2>/dev/null' INT TERM EXIT
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
+    sleep 3
+    for i in 1 2 3 4; do
+        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
+        sleep 1
+    done
     echo "Press Ctrl+C to stop server+clients"
     wait
 

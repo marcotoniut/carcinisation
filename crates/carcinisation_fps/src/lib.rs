@@ -22,6 +22,7 @@
     clippy::needless_pass_by_value
 )]
 
+pub mod avatar_palette;
 pub mod billboard;
 pub mod camera;
 pub mod collision;

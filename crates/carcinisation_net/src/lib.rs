@@ -10,7 +10,9 @@ pub mod sim_hash;
 pub mod tick;
 pub mod transport;
 
-pub use components::{NetAttackId, NetEnemyState, NetEnemyType, NetProjectileType};
+pub use components::{
+    AvatarPaletteVariant, NetAttackId, NetEnemyState, NetEnemyType, NetProjectileType,
+};
 pub use components::{
     NetBurning, NetEnemy, NetGroundFire, NetHealth, NetPickup, NetPlayer, NetProjectile,
     NetSpeedModifier, PlayerNetState,

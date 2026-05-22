@@ -13,6 +13,7 @@ carapace = { workspace = true }
 carcinisation_base = { path = "../carcinisation_base" }
 carcinisation_core = { path = "../carcinisation_core" }
 carcinisation_fps_core = { path = "../carcinisation_fps_core" }
+carcinisation_net = { path = "../carcinisation_net" }
 bevy = { workspace = true }
 bevy_math = { version = "0.18.0", default-features = false }
 flate2 = "1.1"

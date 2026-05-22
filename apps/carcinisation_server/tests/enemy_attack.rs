@@ -90,6 +90,7 @@ fn spawn_test_player(server: &mut App) {
             current_attack: carcinisation_net::NetAttackId::None,
             state: carcinisation_net::PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         },
         NetHealth {
             current: 100.0,
@@ -289,6 +290,7 @@ fn each_enemy_targets_nearest_player() {
             current_attack: carcinisation_net::NetAttackId::None,
             state: carcinisation_net::PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         },
         NetHealth {
             current: 100.0,
@@ -306,6 +308,7 @@ fn each_enemy_targets_nearest_player() {
             current_attack: carcinisation_net::NetAttackId::None,
             state: carcinisation_net::PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         },
         NetHealth {
             current: 100.0,

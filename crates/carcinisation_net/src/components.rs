@@ -36,6 +36,32 @@ pub enum NetEnemyType {
     Spidey,
 }
 
+/// Server-assigned palette permutation for avatar colour variation.
+///
+/// Six curated permutations of three colour groups (A, B, C).
+/// The label convention groups indices by result order:
+///   Abc = A stays A, B stays B, C stays C (identity)
+///   Acb = A stays A, B↔C swap
+///   Bac = B→A, A→B, C stays C (A↔B swap)
+///   Bca = B→A, C→B, A→C (cycle)
+///   Cab = C→A, A→B, B→C (cycle)
+///   Cba = C→A, B→B, A→C (A↔C swap)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
+#[reflect(Serialize, Deserialize)]
+pub enum AvatarPaletteVariant {
+    #[default]
+    Abc,
+    Acb,
+    Bac,
+    Bca,
+    Cab,
+    Cba,
+}
+
+impl AvatarPaletteVariant {
+    pub const COUNT: usize = 6;
+}
+
 /// Net-safe attack ID enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 #[reflect(Serialize, Deserialize)]
@@ -66,6 +92,10 @@ pub struct NetPlayer {
     /// Authoritative flamethrower fire state. Replicated on transition only.
     /// Clients use this for reconciliation if `FlameActive` events are dropped.
     pub flame_active: bool,
+    /// Server-assigned palette variant for third-person billboard colour
+    /// differentiation. `None` falls back to identity remap.
+    #[serde(default)]
+    pub avatar_palette_variant: Option<AvatarPaletteVariant>,
 }
 
 /// Replicated enemy component.
@@ -174,6 +204,7 @@ mod tests {
             current_attack: NetAttackId::Projectile,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: None,
         };
         let back = roundtrip_component(&player);
         assert_eq!(back.player_id.0, 1);
@@ -263,6 +294,55 @@ mod tests {
         let back = roundtrip_component(&proj);
         assert_eq!(back.owner.0.0, 2);
         assert!((back.damage - 25.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn avatar_palette_variant_roundtrip() {
+        for variant in &[
+            AvatarPaletteVariant::Abc,
+            AvatarPaletteVariant::Acb,
+            AvatarPaletteVariant::Bac,
+            AvatarPaletteVariant::Bca,
+            AvatarPaletteVariant::Cab,
+            AvatarPaletteVariant::Cba,
+        ] {
+            let bytes = bincode::serialize(variant).unwrap();
+            let back: AvatarPaletteVariant = bincode::deserialize(&bytes).unwrap();
+            assert_eq!(*variant, back);
+        }
+    }
+
+    #[test]
+    fn net_player_roundtrip_with_avatar_variant() {
+        let player = NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::new(100.0, 200.0),
+            angle: 1.57,
+            current_attack: NetAttackId::Projectile,
+            state: PlayerNetState::Alive,
+            flame_active: false,
+            avatar_palette_variant: Some(AvatarPaletteVariant::Bca),
+        };
+        let back = roundtrip_component(&player);
+        assert_eq!(back.player_id.0, 1);
+        assert_eq!(back.avatar_palette_variant, Some(AvatarPaletteVariant::Bca));
+    }
+
+    #[test]
+    fn net_player_default_avatar_variant_is_none() {
+        // The default-deserialized field should be None (missing on old servers).
+        let bytes = bincode::serialize(&NetPlayer {
+            player_id: PlayerId(1),
+            position: Vec2::ZERO,
+            angle: 0.0,
+            current_attack: NetAttackId::None,
+            state: PlayerNetState::Alive,
+            flame_active: false,
+            avatar_palette_variant: None,
+        })
+        .unwrap();
+        let back: NetPlayer = bincode::deserialize(&bytes).unwrap();
+        assert_eq!(back.avatar_palette_variant, None);
     }
 
     #[test]

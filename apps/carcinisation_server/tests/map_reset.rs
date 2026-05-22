@@ -72,6 +72,7 @@ fn spawn_player(app: &mut App, pid: u32, x: f32, y: f32) -> Entity {
                 current_attack: NetAttackId::None,
                 state: PlayerNetState::Alive,
                 flame_active: false,
+                avatar_palette_variant: None,
             },
             NetHealth {
                 current: 100.0,

@@ -582,6 +582,7 @@ impl PlayerAttackState {
                 world_height: config.billboard_scale_near * config.nozzle_head_scale,
                 sprite: Arc::clone(sprites.flame_frame_loop(active.elapsed + 0.07)),
                 flip_x: false,
+                palette_variant: None,
             });
         }
         for sample in &active.samples {
@@ -598,6 +599,7 @@ impl PlayerAttackState {
                 world_height: world_scale,
                 sprite: Arc::clone(sprites.flame_frame_loop(phase)),
                 flip_x: false,
+                palette_variant: None,
             });
         }
 

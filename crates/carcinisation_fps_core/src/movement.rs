@@ -279,10 +279,10 @@ mod tests {
         let mut modifier = SpeedModifier::new(0.7, 1.0);
 
         assert!(modifier.tick(0.5, 0.0));
-        assert_eq!(modifier.effective(), 0.7);
+        assert!((modifier.effective() - 0.7).abs() < f32::EPSILON);
 
         assert!(!modifier.tick(0.6, 0.0));
-        assert_eq!(modifier.effective(), 1.0);
+        assert!((modifier.effective() - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -312,17 +312,17 @@ mod tests {
 
         // Refresh with same multiplier — budget resets, does NOT become 0.49.
         modifier.refresh(0.7, 3.0);
-        assert_eq!(modifier.multiplier, 0.7);
+        assert!((modifier.multiplier - 0.7).abs() < f32::EPSILON);
         assert!((modifier.remaining - 3.0).abs() < f32::EPSILON);
     }
 
     #[test]
     fn speed_modifier_clamps_multiplier() {
         let low = SpeedModifier::new(0.0, 1.0);
-        assert_eq!(low.multiplier, 0.1);
+        assert!((low.multiplier - 0.1).abs() < f32::EPSILON);
 
         let high = SpeedModifier::new(2.0, 1.0);
-        assert_eq!(high.multiplier, 1.0);
+        assert!((high.multiplier - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]

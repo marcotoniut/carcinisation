@@ -1,0 +1,4 @@
+AvatarPaletteConfig(
+    protected_indices: [0, 2],
+    colour_groups: (1, 3, 4),
+)

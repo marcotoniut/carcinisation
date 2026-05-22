@@ -1038,4 +1038,38 @@ mod tests {
             "_-prefixed source tags must not become runtime actions"
         );
     }
+
+    #[test]
+    fn colour_groups_indices_exist_in_atlas() {
+        let atlas = make_player_billboard_atlas().expect("player atlas should load");
+        let groups = crate::avatar_palette::colour_groups();
+        let prot = crate::avatar_palette::protected_indices();
+        let mut used = [false; 16];
+
+        for frames in atlas.sprites.values().flat_map(|dirs| dirs.iter()) {
+            for frame in &frames.frames {
+                for &px in frame.data() {
+                    if px != 0 {
+                        used[px as usize] = true;
+                    }
+                }
+            }
+        }
+
+        for &g in groups {
+            assert!(
+                used[g as usize],
+                "colour-groups index {g} does not appear in any player billboard frame — \
+                 phantom index will produce invisible pixels when remapped"
+            );
+        }
+
+        for &p in prot {
+            assert!(
+                !groups.contains(&p),
+                "protected index {p} is also in colour-groups — \
+                 protected pass will override the remap, wasting a colour group slot"
+            );
+        }
+    }
 }

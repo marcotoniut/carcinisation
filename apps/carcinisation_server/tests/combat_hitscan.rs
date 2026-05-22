@@ -539,6 +539,7 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
         flame_active: false,
+        avatar_palette_variant: None,
     });
 
     let before = enemy_positions_by_object_id(&mut server);
@@ -658,6 +659,7 @@ fn open_map_mosquiton_reaches_preferred_range_then_holds() {
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
         flame_active: false,
+        avatar_palette_variant: None,
     });
 
     let mut previous_distance = server
@@ -762,6 +764,7 @@ fn server_ai_updates_live_mosquiton_position() {
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
         flame_active: false,
+        avatar_palette_variant: None,
     });
 
     let before = server
@@ -830,6 +833,7 @@ fn map_authored_speed_changes_mosquiton_movement_distance() {
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
         flame_active: false,
+        avatar_palette_variant: None,
     });
 
     let before: Vec<(f32, Vec2)> = server
@@ -943,6 +947,7 @@ fn server_ai_does_not_move_dead_mosquiton() {
         current_attack: NetAttackId::None,
         state: PlayerNetState::Alive,
         flame_active: false,
+        avatar_palette_variant: None,
     });
 
     let before = {
@@ -1561,6 +1566,7 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
                 current_attack: NetAttackId::None,
                 state: PlayerNetState::Alive,
                 flame_active: false,
+                avatar_palette_variant: None,
             },
             NetHealth {
                 current: 100.0,

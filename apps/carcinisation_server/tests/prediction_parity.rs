@@ -41,6 +41,7 @@ fn send_queued_intents(mut commands: Commands, mut queue: ResMut<TestIntentQueue
 #[derive(Resource, Default)]
 struct CapturedAcks(Vec<InputAck>);
 
+#[allow(clippy::needless_pass_by_value)]
 fn capture_input_acks(trigger: On<InputAck>, mut acks: ResMut<CapturedAcks>) {
     acks.0.push(trigger.event().clone());
 }

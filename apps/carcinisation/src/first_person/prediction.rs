@@ -26,7 +26,7 @@
 //! drift and reconciliation errors visible on localhost.
 //!
 //! ```bash
-//! CARCINISATION_SIMULATED_PING_MS=200 just dev-fps-pair
+//! CARCINISATION_SIMULATED_PING_MS=200 just dev-fps-unus
 //! ```
 //!
 //! # Future considerations
@@ -730,6 +730,7 @@ pub fn apply_prediction_tick(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::doc_markdown)]
     use super::*;
     use carcinisation_fps_core::map::Map;
     use carcinisation_fps_core::movement::SnapTurnKind;
@@ -1563,9 +1564,7 @@ mod tests {
 
         // Simulate the early return in apply_predicted_movement when disabled.
         let enabled = PredictionEnabled(false);
-        if !enabled.0 {
-            pending.0.clear();
-        } else {
+        if enabled.0 {
             // Would normally apply prediction tick here.
             let (_, input) = pending.0.pop().unwrap();
             pending.0.clear();
@@ -1579,6 +1578,8 @@ mod tests {
                 },
                 dt: DT,
             });
+        } else {
+            pending.0.clear();
         }
 
         assert!(pending.0.is_empty(), "pending should be drained");
@@ -1610,7 +1611,7 @@ mod tests {
         rs.seed(Vec2::new(1.0, 2.0), 0.0);
         rs.on_fixed_tick(Vec2::new(3.0, 4.0), 0.5, DT);
         // elapsed=0 → t=0 → should be at prev (1.0, 2.0)
-        assert_eq!(rs.elapsed, 0.0);
+        assert!((rs.elapsed - 0.0).abs() < f32::EPSILON);
         let pos = rs.interpolated_position();
         assert!(
             (pos - Vec2::new(1.0, 2.0)).length() < 1e-5,
@@ -2229,7 +2230,7 @@ mod tests {
         });
 
         // Simulate active stale input from previous life.
-        let mut stale = StaleInput {
+        let mut stale_input = StaleInput {
             movement: Vec2::new(0.0, 1.0),
             turn: 0.5,
             age_ticks: 2,
@@ -2242,19 +2243,22 @@ mod tests {
         history.clear();
         state.initialised = false;
         render_state.reset();
-        stale.age_ticks = STALE_INPUT_TICKS;
-        stale.movement = Vec2::ZERO;
-        stale.turn = 0.0;
+        stale_input.age_ticks = STALE_INPUT_TICKS;
+        stale_input.movement = Vec2::ZERO;
+        stale_input.turn = 0.0;
 
         // Verify all stale state cleared.
         assert_eq!(
-            stale.movement,
+            stale_input.movement,
             Vec2::ZERO,
             "stale movement should be zeroed"
         );
-        assert_eq!(stale.turn, 0.0, "stale turn should be zeroed");
         assert!(
-            stale.age_ticks >= STALE_INPUT_TICKS,
+            (stale_input.turn - 0.0).abs() < f32::EPSILON,
+            "stale turn should be zeroed"
+        );
+        assert!(
+            stale_input.age_ticks >= STALE_INPUT_TICKS,
             "stale age should be expired"
         );
         assert!(!state.initialised);

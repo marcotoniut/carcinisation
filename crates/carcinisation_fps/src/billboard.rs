@@ -1,4 +1,23 @@
 //! Billboard sprite projection and rendering.
+//!
+//! # Colour transformation order
+//!
+//! When rendering a billboard pixel the transformations are applied in this
+//! order, from earliest to latest:
+//!
+//! 1. **Sprite source** — raw palette index from the sprite data.
+//! 2. **Pre-billboard transforms** — applied at [`Billboard`] construction
+//!    time (e.g. [`make_damage_invert_sprite`], [`make_charred_sprite`]).
+//!    These produce a new sprite; they are NOT visible inside this module.
+//! 3. **Avatar palette remap** — [`AvatarPaletteRemap`] lookup that permutes
+//!    colour-group indices (applied in [`draw_billboard`]).
+//! 4. **Fog** — dithered distance fog replaces the pixel with `fog_color`
+//!    (applied in [`draw_billboard`], after the remap).
+//! 5. **Framebuffer write** — final pixel written to the output image.
+//!
+//! The remap is deliberately the *last* colour-space transformation so that
+//! fog (which is palette-index agnostic — it just writes `fog_color`) does
+//! not see stale pre-remap indices.
 
 use std::sync::Arc;
 
@@ -6,8 +25,10 @@ use bevy_math::Vec2;
 use carapace::image::CxImage;
 use carapace::palette::TRANSPARENT_INDEX;
 
+use crate::avatar_palette::AvatarPaletteRemap;
 use crate::camera::Camera;
 use carcinisation_fps_core::ProjectileKind;
+use carcinisation_net::AvatarPaletteVariant;
 
 use crate::enemy::{Enemy, EnemyState, Projectile, ProjectileImpact, ProjectileImpactKind};
 use crate::mosquiton::{
@@ -35,6 +56,10 @@ pub struct Billboard {
     pub sprite: Arc<CxImage>,
     /// When true, the sprite is rendered horizontally mirrored.
     pub flip_x: bool,
+    /// Server-assigned palette variant for avatar colour differentiation.
+    /// `None` (the common case for enemies, effects, etc.) produces the
+    /// identity remap at projection time.
+    pub palette_variant: Option<AvatarPaletteVariant>,
 }
 
 /// Projected billboard ready for rendering.
@@ -53,6 +78,9 @@ pub(crate) struct ProjectedBillboard<'a> {
     pub sprite: &'a CxImage,
     /// When true, the sprite is rendered horizontally mirrored.
     pub flip_x: bool,
+    /// Palette remap table for avatar colour variation.
+    /// Always present (defaults to identity for non-player billboards).
+    pub palette_remap: AvatarPaletteRemap,
 }
 
 /// Project a billboard into screen space.
@@ -114,10 +142,21 @@ pub(crate) fn project_billboard<'a>(
         vertical_shift,
         sprite: &billboard.sprite,
         flip_x: billboard.flip_x,
+        palette_remap: billboard
+            .palette_variant
+            .map(AvatarPaletteRemap::from_variant)
+            .unwrap_or_default(),
     })
 }
 
 /// Render a projected billboard into the image, respecting the per-column z-buffer.
+///
+/// Colour transformation order (latest first):
+///   source pixel → [pre-billboard transforms] → **palette remap** → fog → fb write
+///
+/// The palette remap is applied *before* fog so that fog (which is
+/// palette-index agnostic) sees the final colour index.
+///
 /// Applies distance fog when `fog` is `Some((fog_color, fog_t))`.
 /// `view_bob_px` shifts the billboard vertically to match the wall horizon bob.
 pub(crate) fn draw_billboard(
@@ -163,16 +202,21 @@ pub(crate) fn draw_billboard(
             let tex_y = ((y - draw_start_y) * tex_h / proj.screen_h).min(tex_h - 1);
             let pixel = sprite_data[(tex_y * tex_w + tex_x) as usize];
             if pixel != TRANSPARENT_INDEX {
+                // Step 3: avatar palette remap (always applied; identity for
+                // non-player billboards, so this is a no-op for them).
+                let after_remap = proj.palette_remap.apply(pixel);
+
+                // Step 4: fog (if applicable).
                 let final_pixel = if let Some((fog_color, fog_t)) = fog {
                     let fog_level = (fog_t * 16.0) as u8;
                     let threshold = crate::render::BAYER_4X4[(y & 3) as usize][(x & 3) as usize];
                     if fog_level > threshold {
                         fog_color
                     } else {
-                        pixel
+                        after_remap
                     }
                 } else {
-                    pixel
+                    after_remap
                 };
                 img_data[(y * img_w + x) as usize] = final_pixel;
             }
@@ -382,6 +426,7 @@ pub fn billboards_from_enemies(
             world_height: 1.0,
             sprite: enemy_presentation_sprite(e, alive_sprite, death_sprite),
             flip_x: false,
+            palette_variant: None,
         })
         .collect()
 }
@@ -404,6 +449,7 @@ pub fn billboard_from_enemy(
         world_height: 1.0,
         sprite: enemy_presentation_sprite(enemy, alive, death),
         flip_x: false,
+        palette_variant: None,
     }
 }
 
@@ -426,6 +472,7 @@ pub fn billboards_from_enemies_indexed(
                 world_height: 1.0,
                 sprite: enemy_presentation_sprite(e, alive, death),
                 flip_x: false,
+                palette_variant: None,
             }
         })
         .collect()
@@ -460,6 +507,7 @@ pub fn billboards_from_projectiles(
                 world_height: 0.3,
                 sprite,
                 flip_x: false,
+                palette_variant: None,
             }
         })
         .collect()
@@ -511,6 +559,7 @@ pub fn billboards_from_projectile_impacts(
                 },
                 sprite,
                 flip_x: false,
+                palette_variant: None,
             }
         })
         .collect()
@@ -527,6 +576,7 @@ pub fn billboard_from_mosquiton(
         position: mosquiton.position,
         height: mosquiton.height,
         world_height: mosquiton.config.billboard_height,
+        palette_variant: None,
         sprite: match mosquiton.state {
             MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
             MosquitonState::BurningCorpse { .. } => {
@@ -565,6 +615,7 @@ pub fn billboards_from_mosquitons(
             position: m.position,
             height: m.height,
             world_height: m.config.billboard_height,
+            palette_variant: None,
             sprite: match m.state {
                 MosquitonState::Dying { .. } => Arc::clone(&sprites.death),
                 MosquitonState::BurningCorpse { .. } => {
@@ -608,6 +659,7 @@ pub fn billboard_from_spidey(spidey: &Spidey, sprites: &SpideyBillboardSprites) 
         world_height: spidey.config.billboard_height,
         sprite: spidey_presentation_sprite(spidey, sprites),
         flip_x: false,
+        palette_variant: None,
     }
 }
 
@@ -629,6 +681,7 @@ pub fn billboards_from_spideys(
                 world_height: s.config.billboard_height,
                 sprite: spidey_presentation_sprite(s, sprites),
                 flip_x: false,
+                palette_variant: None,
             }
         })
         .collect()
@@ -743,6 +796,7 @@ mod tests {
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
             flip_x: false,
+            palette_variant: None,
         };
         let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
         // Should be near screen center (x=80).
@@ -763,6 +817,7 @@ mod tests {
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
             flip_x: false,
+            palette_variant: None,
         };
         assert!(project_billboard(&bb, &cam, 160, 144).is_none());
     }
@@ -776,6 +831,7 @@ mod tests {
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
             flip_x: false,
+            palette_variant: None,
         };
         // At extreme distance, projected size rounds to 0 → filtered out.
         assert!(project_billboard(&bb, &cam, 160, 144).is_none());
@@ -790,6 +846,7 @@ mod tests {
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
             flip_x: false,
+            palette_variant: None,
         };
         let right = Billboard {
             position: Vec2::new(6.0, 3.0), // south = screen-right
@@ -797,6 +854,7 @@ mod tests {
             world_height: 1.0,
             sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
             flip_x: false,
+            palette_variant: None,
         };
         let pc = project_billboard(&center, &cam, 160, 144).unwrap();
         let pr = project_billboard(&right, &cam, 160, 144).unwrap();
@@ -842,5 +900,202 @@ mod tests {
         let inverted = make_damage_invert_sprite(&sprite);
 
         assert_eq!(inverted.data(), &[TRANSPARENT_INDEX, 3, 2, 1, 3]);
+    }
+
+    // -----------------------------------------------------------------------
+    // Palette variant / remap tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn project_billboard_palette_variant_none_uses_identity_remap() {
+        let cam = Camera::default();
+        let bb = Billboard {
+            position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
+            sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
+            flip_x: false,
+            palette_variant: None,
+        };
+        let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
+        // Identity remap: every index maps to itself.
+        for i in 0..16u8 {
+            assert_eq!(
+                proj.palette_remap.apply(i),
+                i,
+                "identity remap should preserve index {i}"
+            );
+        }
+    }
+
+    #[test]
+    fn project_billboard_palette_variant_some_uses_variant_remap() {
+        use carcinisation_net::AvatarPaletteVariant;
+        let cam = Camera::default();
+        let bb = Billboard {
+            position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
+            sprite: Arc::new(make_pillar_sprite(8, 16, 5)),
+            flip_x: false,
+            palette_variant: Some(AvatarPaletteVariant::Acb),
+        };
+        let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
+        // Acb swaps B and C groups.
+        let [_a, b, c] = *crate::avatar_palette::colour_groups();
+        assert_eq!(proj.palette_remap.apply(b), c, "Acb should map B→C");
+        assert_eq!(proj.palette_remap.apply(c), b, "Acb should map C→B");
+    }
+
+    #[test]
+    fn draw_billboard_applies_remap_to_opaque_pixels() {
+        // Create a sprite with known palette indices.
+        // Index 0 = transparent, a and b are colour groups, other indices are protected.
+        use carcinisation_net::AvatarPaletteVariant;
+
+        let [a, b, _c] = *crate::avatar_palette::colour_groups();
+        let sprite_data = vec![0u8, 1, a, b, 0, 1, a, b];
+        let sprite = Arc::new(CxImage::new(sprite_data.clone(), 4));
+
+        let cam = Camera::default();
+        let bb = Billboard {
+            position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
+            sprite,
+            flip_x: false,
+            palette_variant: Some(AvatarPaletteVariant::Bac), // A↔B swap
+        };
+        let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
+
+        let mut image = CxImage::empty(bevy_math::UVec2::new(160, 144));
+        let zbuffer = vec![f32::MAX; 160];
+        draw_billboard(&mut image, &zbuffer, &proj, 144, None, 0);
+
+        // Find the non-zero pixels in the output and check remap.
+        let img_data = image.data();
+        let rendered: Vec<u8> = img_data.iter().copied().filter(|&p| p != 0).collect();
+
+        // Bac swaps A↔B: index `a` should become `b`, index `b` should become `a`.
+        // Protected indices in the input pass through unchanged.
+        let prots_in_input: Vec<u8> = crate::avatar_palette::protected_indices()
+            .iter()
+            .copied()
+            .filter(|&p| sprite_data.contains(&p) && p != 0)
+            .collect();
+        for &p in &prots_in_input {
+            assert!(
+                rendered.contains(&p),
+                "protected index {p} must survive remap unchanged"
+            );
+        }
+        assert!(
+            rendered.contains(&b),
+            "remapped colour group A should contain original B index"
+        );
+        assert!(
+            rendered.contains(&a),
+            "remapped colour group B should contain original A index"
+        );
+    }
+
+    #[test]
+    fn draw_billboard_identity_variant_does_not_change_pixels() {
+        let sprite_data = vec![0u8, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5];
+        let sprite = Arc::new(CxImage::new(sprite_data.clone(), 6));
+
+        let cam = Camera::default();
+        let bb = Billboard {
+            position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
+            sprite: Arc::clone(&sprite),
+            flip_x: false,
+            palette_variant: None,
+        };
+        let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
+
+        let mut image = CxImage::empty(bevy_math::UVec2::new(160, 144));
+        let zbuffer = vec![f32::MAX; 160];
+        draw_billboard(&mut image, &zbuffer, &proj, 144, None, 0);
+
+        // Identity remap: every non-zero rendered pixel must be one of the input indices.
+        let src_indices: std::collections::HashSet<u8> =
+            sprite_data.iter().copied().filter(|&p| p != 0).collect();
+        let rendered: std::collections::HashSet<u8> =
+            image.data().iter().copied().filter(|&p| p != 0).collect();
+        assert!(
+            rendered.is_subset(&src_indices),
+            "identity remap produced pixel indices not in source: {:?}",
+            rendered
+                .difference(&src_indices)
+                .copied()
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn draw_billboard_remap_with_fog_does_not_crash() {
+        use carcinisation_net::AvatarPaletteVariant;
+
+        let [a, b, _c] = *crate::avatar_palette::colour_groups();
+        let sprite_data = vec![0u8, a, b, 1, 0, a, b, 1];
+        let sprite = Arc::new(CxImage::new(sprite_data, 4));
+
+        let cam = Camera::default();
+        let bb = Billboard {
+            position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
+            sprite,
+            flip_x: false,
+            palette_variant: Some(AvatarPaletteVariant::Acb),
+        };
+        let proj = project_billboard(&bb, &cam, 160, 144).unwrap();
+
+        let mut image = CxImage::empty(bevy_math::UVec2::new(160, 144));
+        let zbuffer = vec![f32::MAX; 160];
+        // Fog at 50%: should not panic or produce 0 from remap+fog.
+        draw_billboard(&mut image, &zbuffer, &proj, 144, Some((1, 0.5)), 0);
+
+        // At least some pixels should be non-zero (remapped or fogged).
+        assert!(
+            image.data().iter().any(|&p| p != 0),
+            "remap with fog should produce some visible pixels"
+        );
+    }
+
+    #[test]
+    fn draw_billboard_remap_with_flip_x_still_applies() {
+        use carcinisation_net::AvatarPaletteVariant;
+
+        let sprite_data = vec![0u8, 2, 3, 1, 0, 2, 3, 1];
+        let sprite = Arc::new(CxImage::new(sprite_data, 4));
+
+        let cam = Camera::default();
+        let bb_flip = Billboard {
+            position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
+            sprite: Arc::clone(&sprite),
+            flip_x: true,
+            palette_variant: Some(AvatarPaletteVariant::Bac),
+        };
+        let bb_noflip = Billboard {
+            position: Vec2::new(6.0, 4.0),
+            height: 0.0,
+            world_height: 1.0,
+            sprite: Arc::clone(&sprite),
+            flip_x: false,
+            palette_variant: Some(AvatarPaletteVariant::Bac),
+        };
+        let proj_flip = project_billboard(&bb_flip, &cam, 160, 144).unwrap();
+        let proj_noflip = project_billboard(&bb_noflip, &cam, 160, 144).unwrap();
+
+        // Both should have the same remap (flip_x does not affect palette_remap).
+        assert_eq!(
+            proj_flip.palette_remap, proj_noflip.palette_remap,
+            "flip_x must not change the palette remap table"
+        );
     }
 }

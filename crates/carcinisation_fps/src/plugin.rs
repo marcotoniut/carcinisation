@@ -682,6 +682,8 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
         app.insert_resource(carcinisation_fps_core::FpsMovementConfig::load());
         app.insert_resource(carcinisation_fps_core::FpsCombatConfig::load());
         app.insert_resource(carcinisation_fps_core::FpsVisualConfig::load());
+        // Eager-init palette config so parse errors surface at plugin startup.
+        crate::avatar_palette::colour_groups();
         let flame_cfg = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         app.insert_resource(PlayerAttackState::new(flame_cfg));
         app.insert_resource(flame_cfg);
@@ -882,6 +884,7 @@ fn build_map_entity_setup(
                     world_height: 1.0,
                     sprite: std::sync::Arc::new(make_pillar_sprite(*width, *height, *color)),
                     flip_x: false,
+                    palette_variant: None,
                 });
             }
             EntityKind::Enemy { health, speed, .. }
@@ -2074,6 +2077,7 @@ fn push_burning_corpse_flames(
                     .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs),
             ),
             flip_x: false,
+            palette_variant: None,
         });
     }
 }
@@ -2197,6 +2201,7 @@ fn push_alive_burn_flames_sp(
     for flame in all_flames.iter().take(visible) {
         let lateral_units = flame.offset_px.x * px_to_world;
         let vertical_units = flame.offset_px.y * px_to_world;
+
         billboards.push(Billboard {
             position: position - behind_dir * 0.04 + right * lateral_units,
             height: height + vertical_units,
@@ -2206,6 +2211,7 @@ fn push_alive_burn_flames_sp(
                     .flame_frame_loop(ctx.elapsed_secs + flame.phase_secs),
             ),
             flip_x: false,
+            palette_variant: None,
         });
     }
 }
@@ -2252,6 +2258,7 @@ fn ground_fire_billboards(
                 world_height,
                 sprite: std::sync::Arc::new(cropped),
                 flip_x: false,
+                palette_variant: None,
             });
         }
     }
@@ -3063,9 +3070,9 @@ mod tests {
         assert_eq!(turn.remaining_radians, remaining);
     }
 
-    /// In RemoteClient mode, `apply_quick_turn_animation` must NOT rotate
+    /// In `RemoteClient` mode, `apply_quick_turn_animation` must NOT rotate
     /// the camera — prediction owns the angle. It should only tick the
-    /// QuickTurnState timer for input suppression.
+    /// `QuickTurnState` timer for input suppression.
     #[test]
     fn remote_client_quick_turn_does_not_rotate_camera() {
         let mut app = App::new();
@@ -3114,7 +3121,7 @@ mod tests {
         );
     }
 
-    /// In LocalAuthority mode, `apply_quick_turn_animation` DOES rotate camera.
+    /// In `LocalAuthority` mode, `apply_quick_turn_animation` DOES rotate camera.
     #[test]
     fn local_authority_quick_turn_rotates_camera() {
         let mut app = App::new();
@@ -3348,7 +3355,7 @@ mod tests {
             lifetime: 1.0,
             initial_lifetime: 1.0,
             alive: true,
-            kind: Default::default(),
+            kind: carcinisation_fps_core::ProjectileKind::default(),
         }];
         let mut impacts = Vec::new();
 

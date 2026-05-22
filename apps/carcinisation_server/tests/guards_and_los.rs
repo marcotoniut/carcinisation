@@ -70,6 +70,7 @@ fn spawn_player(server: &mut App, player_id: u32, x: f32, y: f32, state: PlayerN
             current_attack: NetAttackId::None,
             state,
             flame_active: false,
+            avatar_palette_variant: None,
         },
         NetHealth {
             current: hp,

@@ -17,11 +17,12 @@ use carcinisation_fps_core::{
     MosquitonAiConfig,
     map::{EntitySpawnData, EntitySpawnKind, Map, PlayerStartData},
 };
-use carcinisation_net::{CombatSet, MovementSet, TickSet};
 use carcinisation_net::{
-    FlameActive, NetAttackId, NetEnemyState, NetEnemyType, NetHealth, NetPlayer, NetProtocolPlugin,
-    NetworkObjectId, PlayerId, PlayerIdAssigned, PlayerNetState, register_net_all,
+    AvatarPaletteVariant, FlameActive, NetAttackId, NetEnemyState, NetEnemyType, NetHealth,
+    NetPlayer, NetProtocolPlugin, NetworkObjectId, PlayerId, PlayerIdAssigned, PlayerNetState,
+    register_net_all,
 };
+use carcinisation_net::{CombatSet, MovementSet, TickSet};
 use systems::admin::{poll_admin_socket, setup_admin_socket};
 use systems::combat::process_combat;
 use systems::diagnostics::{DiagnosticsState, tick_diagnostics_end, tick_diagnostics_start};
@@ -60,6 +61,69 @@ impl NextPlayerId {
         let id = PlayerId(self.0);
         self.0 += 1;
         id
+    }
+}
+
+/// Server-side avatar palette variant pool.
+///
+/// Maintains the six variants and tracks which are currently assigned.
+/// When all six are in use, new players get a deterministic overflow
+/// variant based on `PlayerId`. Variants are returned to the pool on
+/// disconnect.
+#[derive(Resource)]
+struct AvatarPalettePool {
+    /// Indexed by the variant enum's discriminant.
+    free: [bool; AvatarPaletteVariant::COUNT],
+}
+
+impl Default for AvatarPalettePool {
+    fn default() -> Self {
+        Self {
+            free: [true; AvatarPaletteVariant::COUNT],
+        }
+    }
+}
+
+impl AvatarPalettePool {
+    /// Assign a variant, preferring a free slot.
+    fn assign(&mut self, player_id: PlayerId) -> AvatarPaletteVariant {
+        for (i, slot) in self.free.iter_mut().enumerate() {
+            if *slot {
+                *slot = false;
+                return variant_from_index(i);
+            }
+        }
+        variant_from_index(player_id.0 as usize % AvatarPaletteVariant::COUNT)
+    }
+
+    /// Release a previously assigned variant back to the pool.
+    fn release(&mut self, variant: AvatarPaletteVariant) {
+        self.free[variant_index(variant)] = true;
+    }
+}
+
+fn variant_index(v: AvatarPaletteVariant) -> usize {
+    use AvatarPaletteVariant::{Abc, Acb, Bac, Bca, Cab, Cba};
+    match v {
+        Abc => 0,
+        Acb => 1,
+        Bac => 2,
+        Bca => 3,
+        Cab => 4,
+        Cba => 5,
+    }
+}
+
+fn variant_from_index(i: usize) -> AvatarPaletteVariant {
+    use AvatarPaletteVariant::{Abc, Acb, Bac, Bca, Cab, Cba};
+    match i % AvatarPaletteVariant::COUNT {
+        0 => Abc,
+        1 => Acb,
+        2 => Bac,
+        3 => Bca,
+        4 => Cab,
+        5 => Cba,
+        _ => unreachable!("index % COUNT must be 0..{}", AvatarPaletteVariant::COUNT),
     }
 }
 
@@ -133,6 +197,7 @@ impl Plugin for ServerPlugin {
             .insert_resource(carcinisation_fps_core::FpsMovementConfig::load())
             .insert_resource(carcinisation_fps_core::FpsCombatConfig::load())
             .init_resource::<NextPlayerId>()
+            .init_resource::<AvatarPalettePool>()
             .init_resource::<SpawnIndex>()
             .insert_resource(ServerMap(self.map.clone()))
             .insert_resource(MapEntities(self.entities.clone()))
@@ -311,6 +376,7 @@ fn handle_client_connect(
     mut next_id: ResMut<NextPlayerId>,
     mut spawn_idx: ResMut<SpawnIndex>,
     player_starts: Res<MapPlayerStarts>,
+    mut palette_pool: ResMut<AvatarPalettePool>,
 ) {
     let player_id = next_id.next();
     let spawn = player_starts.0[spawn_idx.0 % player_starts.0.len()];
@@ -319,10 +385,11 @@ fn handle_client_connect(
     spawn_idx.0 += 1;
 
     let client_entity = trigger.event().entity;
+    let avatar_variant = palette_pool.assign(player_id);
 
     info!(
-        "Client entity {:?} connected, assigned PlayerId {:?}",
-        client_entity, player_id
+        "Client entity {:?} connected, assigned PlayerId {:?} variant {:?}",
+        client_entity, player_id, avatar_variant
     );
 
     commands
@@ -342,6 +409,7 @@ fn handle_client_connect(
             current_attack: NetAttackId::None,
             state: PlayerNetState::Alive,
             flame_active: false,
+            avatar_palette_variant: Some(avatar_variant),
         },
         NetHealth {
             current: 100.0,
@@ -430,6 +498,7 @@ fn handle_client_disconnect(
     mut burn_cooldowns: ResMut<BurnContactCooldowns>,
     mut char_cooldowns: ResMut<FlameCharCooldowns>,
     mut gf_cooldowns: ResMut<GroundFireContactCooldowns>,
+    mut palette_pool: ResMut<AvatarPalettePool>,
 ) {
     let client_entity = trigger.event().entity;
 
@@ -444,6 +513,9 @@ fn handle_client_disconnect(
 
     for (entity, np) in player_query.iter() {
         if np.player_id == player_id {
+            if let Some(variant) = np.avatar_palette_variant {
+                palette_pool.release(variant);
+            }
             commands.entity(entity).despawn();
             break;
         }
@@ -562,5 +634,63 @@ pub fn server_enemy_ai_config_from_spawn(spawn: &EntitySpawnData) -> Option<Serv
         | EntitySpawnKind::Enemy { .. }
         | EntitySpawnKind::SpriteEnemy { .. }
         | EntitySpawnKind::Spidey { .. } => None,
+    }
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::*;
+
+    fn unique_variants(count: usize) -> Vec<AvatarPaletteVariant> {
+        let mut pool = AvatarPalettePool::default();
+        (0..count)
+            .map(|i| pool.assign(PlayerId(u32::try_from(i).unwrap() + 1)))
+            .collect()
+    }
+
+    #[test]
+    fn first_six_assignments_are_all_unique() {
+        let variants = unique_variants(AvatarPaletteVariant::COUNT);
+        let mut dedup = variants.clone();
+        dedup.sort_by_key(|v| variant_index(*v));
+        dedup.dedup_by_key(|v| variant_index(*v));
+        assert_eq!(
+            dedup.len(),
+            AvatarPaletteVariant::COUNT,
+            "first {} players must get unique variants",
+            AvatarPaletteVariant::COUNT,
+        );
+    }
+
+    #[test]
+    fn overflow_assigns_deterministic_variant_by_player_id() {
+        let variants = unique_variants(AvatarPaletteVariant::COUNT + 1);
+        // PlayerId(7) overflows: 7 % COUNT
+        let expected = variant_from_index(7 % AvatarPaletteVariant::COUNT);
+        assert_eq!(variants[AvatarPaletteVariant::COUNT], expected);
+    }
+
+    #[test]
+    fn release_makes_variant_available_again() {
+        let mut pool = AvatarPalettePool::default();
+        let v1 = pool.assign(PlayerId(1));
+        let _ = pool.assign(PlayerId(2));
+        let _ = pool.assign(PlayerId(3));
+        pool.release(v1);
+        let v4 = pool.assign(PlayerId(4));
+        assert_eq!(v4, v1, "released variant should be reassigned next");
+    }
+
+    #[test]
+    fn pool_default_all_free() {
+        let pool = AvatarPalettePool::default();
+        assert!(pool.free.iter().all(|&f| f));
+    }
+
+    #[test]
+    fn overflow_is_deterministic() {
+        let a = unique_variants(20);
+        let b = unique_variants(20);
+        assert_eq!(a, b, "overflow assignment must be deterministic");
     }
 }
