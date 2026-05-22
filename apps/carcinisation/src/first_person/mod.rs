@@ -782,7 +782,7 @@ fn init_client_setup(
     let client_id = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("time went backwards")
-        .as_millis() as u64;
+        .as_nanos() as u64;
 
     let current_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)
