@@ -1,0 +1,10 @@
+PickupRules(
+    // Health restored by a health pickup (default: 50).
+    heal_amount: 50.0,
+    // Ammo restored by an ammo pickup (not yet implemented).
+    ammo_amount: 50.0,
+    // Respawn delay after collection (seconds).
+    respawn_time: 30.0,
+    // Collection radius in world units.
+    radius: 0.5,
+)

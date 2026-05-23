@@ -335,6 +335,7 @@ fn reset_stage(reset: &mut ResetParams<'_, '_>) {
                 let spidey = Spidey::new(pos, config);
                 reset.commands.spawn(spidey);
             }
+            EntityKind::Pickup { .. } => {}
         }
     }
 

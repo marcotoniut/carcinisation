@@ -18,9 +18,13 @@ pub mod hash_util;
 pub mod map;
 pub mod mosquiton;
 pub mod movement;
+pub mod pickup;
 pub mod presentation;
 pub mod raycast;
 pub mod spidey;
+
+// Re-export pickup types
+pub use pickup::{PickupKind, PickupRules};
 
 // Re-export key types
 pub use burning::{

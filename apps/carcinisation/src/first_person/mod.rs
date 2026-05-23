@@ -10,6 +10,7 @@
 use std::sync::Arc;
 
 use bevy::prelude::*;
+
 #[cfg(not(target_family = "wasm"))]
 use bevy_renet2::netcode::NetcodeClientTransport;
 use bevy_replicon::prelude::*;
@@ -17,10 +18,9 @@ use bevy_replicon::prelude::*;
 use bevy_replicon_renet2::RenetChannelsExt;
 #[cfg(not(target_family = "wasm"))]
 use bevy_replicon_renet2::renet2::{ConnectionConfig, RenetClient};
-use carcinisation_fps::billboard::Billboard;
 use carcinisation_fps::billboard::{
-    make_blood_shot_sprite, make_damage_invert_sprite, make_enemy_sprite,
-    make_mosquiton_placeholder_sprite,
+    Billboard, PickupBillboardSprites, make_blood_shot_sprite, make_damage_invert_sprite,
+    make_enemy_sprite, make_health_pickup_sprite, make_mosquiton_placeholder_sprite,
 };
 use carcinisation_fps::directional_billboard::{
     BillboardAnimationState, DirectionalBillboardAtlas, make_player_billboard_atlas,
@@ -36,7 +36,8 @@ use carcinisation_fps::plugin::{
 };
 use carcinisation_fps::raycast::{HitSide, WallSurfaceId};
 use carcinisation_fps::render::CharDecal;
-use carcinisation_net::components::NetEnemy;
+use carcinisation_net::components::{NetEnemy, NetPickup};
+use carcinisation_net::protocol::PickupEffect;
 use carcinisation_net::{
     DamageEffect, DeathEffect, EnemyAttackKind, EnemyAttackVisual, FlameActive, FlameCharMark,
     HitConfirm, MuzzleFlash, NetAttackId, NetBurning, NetEnemyState, NetEnemyType, NetGroundFire,
@@ -79,6 +80,19 @@ pub enum ConnectionState {
     },
 }
 
+/// Client-side pickup effect billboards (feedback at pickup location).
+#[derive(Debug, Clone)]
+struct PickupImpact {
+    position: Vec2,
+    age: f32,
+    lifetime: f32,
+}
+
+/// Active pickup feedback impacts.
+#[derive(Resource, Debug, Default)]
+struct PickupImpacts(Vec<PickupImpact>);
+
+const PICKUP_BILLBOARD_WORLD_HEIGHT: f32 = 0.25;
 const CONNECTION_TIMEOUT_SECS: f64 = 15.0;
 
 const SHOW_NET_INFO_ENV: &str = "CARCINISATION_SHOW_NET_INFO";
@@ -177,6 +191,7 @@ impl Plugin for FpsClientPlugin {
             .init_resource::<EnemyAttackOverrides>()
             .init_resource::<EnemyDamageFlickers>()
             .init_resource::<HitImpacts>()
+            .init_resource::<PickupImpacts>()
             .insert_resource(prediction::PredictionEnabled::from_env())
             .init_resource::<PredictedPlayerState>()
             .init_resource::<prediction::PredictionDiagnostics>()
@@ -208,6 +223,7 @@ impl Plugin for FpsClientPlugin {
             .add_observer(handle_flame_char_mark)
             .add_observer(handle_enemy_attack_visual)
             .add_observer(handle_hit_confirm)
+            .add_observer(handle_pickup_effect)
             .add_observer(prediction::handle_input_ack)
             .add_systems(Update, collect_and_send_intent.run_if(is_connected))
             .add_systems(
@@ -240,10 +256,31 @@ impl Plugin for FpsClientPlugin {
             )
             .add_systems(
                 Update,
+                sync_local_player_health_from_net_health
+                    .before(Systems)
+                    .run_if(resource_exists::<Active>)
+                    .run_if(is_connected),
+            )
+            .add_systems(
+                Update,
                 sync_camera_from_net_player
                     .after(tick_player_interpolation)
                     .after(tick_enemy_interpolation)
                     .after(prediction::tick_predicted_render)
+                    .run_if(resource_exists::<Active>)
+                    .run_if(is_connected),
+            )
+            .add_systems(
+                Update,
+                tick_pickup_impacts
+                    .after(sync_camera_from_net_player)
+                    .run_if(resource_exists::<Active>)
+                    .run_if(is_connected),
+            )
+            .add_systems(
+                Update,
+                queue_pickup_billboards
+                    .after(tick_pickup_impacts)
                     .run_if(resource_exists::<Active>)
                     .run_if(is_connected),
             )
@@ -283,6 +320,8 @@ impl Plugin for FpsClientPlugin {
             app.insert_resource(ConnectAddr(self.connect_addr));
             app.init_resource::<NetInfoVisible>();
         }
+        app.add_systems(Startup, init_pickup_sprites);
+
         #[cfg(not(target_family = "wasm"))]
         {
             use init_client_setup as _init;
@@ -358,6 +397,16 @@ fn handle_hit_confirm(trigger: On<HitConfirm>, mut impacts: ResMut<HitImpacts>) 
         lifetime,
         kind,
         projectile_type: confirm.projectile_type,
+    });
+}
+
+/// Pickup effect — pushes a feedback billboard into the impact queue.
+fn handle_pickup_effect(trigger: On<PickupEffect>, mut impacts: ResMut<PickupImpacts>) {
+    let event = trigger.event();
+    impacts.0.push(PickupImpact {
+        position: event.position,
+        age: 0.0,
+        lifetime: 0.5,
     });
 }
 
@@ -559,6 +608,78 @@ fn tick_hit_impacts(mut impacts: ResMut<HitImpacts>, time: Res<Time>) {
     impacts.0.retain(|i| i.age < i.lifetime);
 }
 
+/// Tick pickup effect lifetimes and push active billboards into extra_bbs.
+fn tick_pickup_impacts(
+    mut impacts: ResMut<PickupImpacts>,
+    time: Res<Time>,
+    mut extra_bbs: ResMut<carcinisation_fps::plugin::ExtraBillboards>,
+    pickup_sprites: Option<Res<PickupBillboardSprites>>,
+) {
+    let dt = time.delta_secs();
+    let world_height = PICKUP_BILLBOARD_WORLD_HEIGHT;
+    let height = carcinisation_fps::spidey::FLOOR_OFFSET + world_height / 2.0;
+    let sprite = pickup_sprites.as_ref().map_or_else(
+        || Arc::new(make_health_pickup_sprite(12)),
+        |s| Arc::clone(&s.health),
+    );
+    for impact in &mut impacts.0 {
+        impact.age += dt;
+        extra_bbs.0.push(Billboard {
+            position: impact.position,
+            height,
+            world_height,
+            sprite: Arc::clone(&sprite),
+            flip_x: false,
+            palette_variant: None,
+        });
+    }
+    impacts.0.retain(|i| i.age < i.lifetime);
+}
+
+/// Populate persistent pickup billboards from replicated `NetPickup` entities.
+/// Only renders pickups that are `.available == true`.
+fn queue_pickup_billboards(
+    net_pickups: Query<&NetPickup>,
+    mut extra_bbs: ResMut<carcinisation_fps::plugin::ExtraBillboards>,
+    pickup_sprites: Option<Res<PickupBillboardSprites>>,
+) {
+    let Some(sprites) = pickup_sprites else {
+        return;
+    };
+    let world_height = PICKUP_BILLBOARD_WORLD_HEIGHT;
+    let height = carcinisation_fps::spidey::FLOOR_OFFSET + world_height / 2.0;
+    for pickup in &net_pickups {
+        if !pickup.available {
+            continue;
+        }
+        extra_bbs.0.push(Billboard {
+            position: pickup.position,
+            height,
+            world_height,
+            sprite: Arc::clone(sprites.sprite_for_kind(pickup.kind)),
+            flip_x: false,
+            palette_variant: None,
+        });
+    }
+}
+
+fn sync_local_player_health_from_net_health(
+    net_players: Query<(&NetPlayer, &NetHealth), Changed<NetHealth>>,
+    local_player_id: Res<LocalPlayerId>,
+    mut player_health: ResMut<carcinisation_fps::plugin::PlayerHealth>,
+) {
+    let Some(my_id) = local_player_id.0 else {
+        return;
+    };
+    let Some((_player, health)) = net_players
+        .iter()
+        .find(|(player, _)| player.player_id == my_id)
+    else {
+        return;
+    };
+    player_health.0 = health.current.ceil().clamp(0.0, health.max) as u32;
+}
+
 /// Tick damage flicker timers — advance phase and remove finished flickers.
 fn tick_damage_flickers(mut flickers: ResMut<EnemyDamageFlickers>, time: Res<Time>) {
     let dt = time.delta_secs();
@@ -751,6 +872,20 @@ fn monitor_connection(
             }
         }
         ConnectionState::Failed { .. } | ConnectionState::Disconnected { .. } => {}
+    }
+}
+
+/// Initialise pickup billboard sprites from the embedded composed atlas.
+/// Logs a warning if loading fails (non-fatal — systems fall back gracefully).
+fn init_pickup_sprites(mut commands: Commands) {
+    match carcinisation_fps::billboard::make_pickup_billboard_sprites() {
+        Ok(sprites) => {
+            commands.insert_resource(sprites);
+            info!("[FPS] Pickup billboard sprites loaded");
+        }
+        Err(err) => {
+            warn!("[FPS] Failed to load pickup billboard sprites: {err}");
+        }
     }
 }
 
@@ -2084,10 +2219,10 @@ mod tests {
     use super::*;
     use carcinisation_fps::camera::Camera;
     use carcinisation_fps::mosquiton::make_mosquiton_billboard_sprites;
-    use carcinisation_fps::plugin::CameraRes;
+    use carcinisation_fps::plugin::{CameraRes, PlayerHealth};
     use carcinisation_fps::spidey::make_spidey_billboard_sprites;
     use carcinisation_fps_core::presentation::{AttackPresentationKind, EnemyPresentationState};
-    use carcinisation_net::{NetworkObjectId, PlayerNetState};
+    use carcinisation_net::{NetPickupKind, NetworkObjectId, PlayerNetState};
 
     fn init_sync_test_app(app: &mut App) {
         app.init_resource::<carcinisation_fps::plugin::ExtraBillboards>();
@@ -2222,6 +2357,73 @@ mod tests {
             extra_bbs.0[0].sprite.data(),
             make_mosquiton_placeholder_sprite(32, 2).data()
         );
+    }
+
+    #[test]
+    fn pickup_billboards_use_small_ground_anchored_prop_scale() {
+        let mut app = App::new();
+        app.init_resource::<carcinisation_fps::plugin::ExtraBillboards>();
+        app.insert_resource(carcinisation_fps::billboard::make_pickup_billboard_sprites().unwrap());
+        app.add_systems(Update, queue_pickup_billboards);
+
+        app.world_mut().spawn(NetPickup {
+            object_id: NetworkObjectId(10),
+            position: Vec2::new(4.0, 5.0),
+            kind: NetPickupKind::Health,
+            available: true,
+            respawn_remaining: None,
+            respawnable: true,
+        });
+
+        app.update();
+
+        let extra_bbs = app
+            .world()
+            .resource::<carcinisation_fps::plugin::ExtraBillboards>();
+        assert_eq!(extra_bbs.0.len(), 1);
+        assert_eq!(extra_bbs.0[0].world_height, PICKUP_BILLBOARD_WORLD_HEIGHT);
+        assert_eq!(
+            extra_bbs.0[0].height,
+            carcinisation_fps::spidey::FLOOR_OFFSET + PICKUP_BILLBOARD_WORLD_HEIGHT / 2.0
+        );
+    }
+
+    #[test]
+    fn replicated_net_health_updates_local_health_hud() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(PlayerHealth(25));
+        app.add_systems(Update, sync_local_player_health_from_net_health);
+
+        let player = app
+            .world_mut()
+            .spawn((
+                NetPlayer {
+                    player_id: PlayerId(1),
+                    position: Vec2::new(2.0, 3.0),
+                    angle: 0.25,
+                    current_attack: NetAttackId::None,
+                    state: PlayerNetState::Alive,
+                    flame_active: false,
+                    avatar_palette_variant: None,
+                },
+                NetHealth {
+                    current: 75.0,
+                    max: 100.0,
+                },
+            ))
+            .id();
+
+        app.update();
+        assert_eq!(app.world().resource::<PlayerHealth>().0, 75);
+
+        app.world_mut()
+            .get_mut::<NetHealth>(player)
+            .unwrap()
+            .current = 90.0;
+        app.update();
+        assert_eq!(app.world().resource::<PlayerHealth>().0, 90);
     }
 
     #[test]

@@ -1,10 +1,12 @@
-//! Server-side map reset: despawns gameplay entities, respawns enemies,
+//! Server-side map reset: despawns gameplay entities, respawns map entities,
 //! resets players to spawn points with full health. Connected clients are
 //! preserved — they see the world reinitialised around them.
 
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
-use carcinisation_net::{FlameActive, NetAttackId, NetHealth, NetPlayer, PlayerNetState};
+use carcinisation_net::{
+    FlameActive, NetAttackId, NetHealth, NetPickup, NetPlayer, PlayerNetState,
+};
 
 use super::enemy_attack::PendingProjectile;
 use super::{
@@ -18,13 +20,14 @@ use crate::{MapEntities, MapPlayerStarts, SpawnIndex, spawn_map_enemies_inner};
 #[derive(Resource, Default)]
 pub struct MapResetRequested(pub bool);
 
-/// Despawn all enemies and projectiles, reset players to spawn points,
-/// re-spawn enemies from the map definition, and clear transient combat state.
+/// Despawn all map gameplay entities and projectiles, reset players to spawn points,
+/// re-spawn map entities from the map definition, and clear transient combat state.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_map_reset(
     mut reset: ResMut<MapResetRequested>,
     mut commands: Commands,
     enemies: Query<Entity, With<NetEnemy>>,
+    pickups: Query<Entity, With<NetPickup>>,
     projectiles: Query<Entity, With<NetProjectile>>,
     pending_projectiles: Query<Entity, With<PendingProjectile>>,
     mut players: Query<(Entity, &mut NetPlayer, &mut NetHealth)>,
@@ -47,6 +50,13 @@ pub fn handle_map_reset(
     for entity in enemies.iter() {
         commands.entity(entity).despawn();
         enemy_count += 1;
+    }
+
+    // --- Despawn all pickups before re-spawning map entities ---
+    let mut pickup_count = 0u32;
+    for entity in pickups.iter() {
+        commands.entity(entity).despawn();
+        pickup_count += 1;
     }
 
     // --- Despawn all projectiles (live + pending) ---
@@ -101,11 +111,12 @@ pub fn handle_map_reset(
     burn_cooldowns.0.clear();
     next_proj_id.0 = 0;
 
-    // --- Re-spawn enemies from map definition ---
+    // --- Re-spawn map entities from map definition ---
     let respawned = spawn_map_enemies_inner(&mut commands, &map_entities.0);
 
     info!(
-        "Map reset: despawned {enemy_count} enemies + {proj_count} projectiles, \
-         reset {player_count} players, respawned {respawned} enemies"
+        "Map reset: despawned {enemy_count} enemies + {pickup_count} pickups + \
+         {proj_count} projectiles, reset {player_count} players, respawned \
+         {respawned} map entities"
     );
 }

@@ -113,6 +113,12 @@ pub enum EntityKind {
         #[serde(default = "default_spidey_speed")]
         speed: f32,
     },
+    /// Pickup entity (health, ammo, weapon).
+    /// Parsed for deserialization only; the client skips these since the server
+    /// spawns `NetPickup` entities from the same map data.
+    Pickup {
+        kind: carcinisation_fps_core::pickup::PickupKind,
+    },
 }
 
 fn default_mosquiton_health() -> u32 {

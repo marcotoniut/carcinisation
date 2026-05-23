@@ -217,6 +217,7 @@ pub struct PickupEffect {
     pub player_id: PlayerId,
     pub pickup_id: NetworkObjectId,
     pub kind: NetPickupKind,
+    pub position: Vec2,
 }
 
 /// Player ID assignment — server → client (reliable).

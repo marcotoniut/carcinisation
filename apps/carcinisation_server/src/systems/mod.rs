@@ -4,10 +4,12 @@ pub mod diagnostics;
 pub mod enemy_ai;
 pub mod enemy_attack;
 pub mod input;
+pub mod pickup;
 pub mod player_lifecycle;
 pub mod projectile;
 pub mod reset;
 
+pub use carcinisation_fps_core::pickup::PickupRules;
 pub use carcinisation_net::components::NetEnemy;
 pub use carcinisation_net::{NetEnemyState, NetEnemyType, NetHealth, NetProjectile};
 pub use combat::{
@@ -22,5 +24,6 @@ pub use enemy_attack::{
     tick_spidey_attacks,
 };
 pub use input::{PlayerInputTracker, PlayerIntentBuffer, ServerQuickTurn, send_input_acks};
+pub use pickup::pickup_system;
 pub use player_lifecycle::{RespawnTimer, tick_player_lifecycle};
 pub use projectile::{ProjectileSet, ProjectileTtl, tick_projectiles_server};

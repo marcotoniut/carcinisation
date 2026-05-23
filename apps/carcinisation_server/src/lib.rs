@@ -13,14 +13,17 @@ use bevy_replicon_renet2::netcode::{
 };
 use bevy_replicon_renet2::renet2::RenetServer;
 
+pub use crate::systems::pickup::PickupSet;
 use carcinisation_fps_core::{
     MosquitonAiConfig,
     map::{EntitySpawnData, EntitySpawnKind, Map, PlayerStartData},
+    pickup::PickupRules,
 };
+use carcinisation_net::protocol::NetPickupKind;
 use carcinisation_net::{
     AvatarPaletteVariant, FlameActive, NetAttackId, NetEnemyState, NetEnemyType, NetHealth,
     NetPlayer, NetProtocolPlugin, NetworkObjectId, PlayerId, PlayerIdAssigned, PlayerNetState,
-    register_net_all,
+    components::NetPickup, register_net_all,
 };
 use carcinisation_net::{CombatSet, MovementSet, TickSet};
 use systems::admin::{poll_admin_socket, setup_admin_socket};
@@ -199,6 +202,8 @@ impl Plugin for ServerPlugin {
             .init_resource::<NextPlayerId>()
             .init_resource::<AvatarPalettePool>()
             .init_resource::<SpawnIndex>()
+            .insert_resource(PickupRules::load())
+            .init_resource::<systems::pickup::PickupEventBuffer>()
             .insert_resource(ServerMap(self.map.clone()))
             .insert_resource(MapEntities(self.entities.clone()))
             .insert_resource(MapPlayerStarts(normalized_player_starts(
@@ -217,6 +222,7 @@ impl Plugin for ServerPlugin {
                     EnemyAttackSet,
                     ProjectileSet,
                     CombatSet,
+                    PickupSet,
                     TickSet,
                 )
                     .chain(),
@@ -272,6 +278,11 @@ impl Plugin for ServerPlugin {
                     .in_set(CombatSet)
                     .after(process_combat)
                     .after(tick_burn_contact_damage),
+            )
+            .add_systems(FixedUpdate, systems::pickup_system.in_set(PickupSet))
+            .add_systems(
+                FixedUpdate,
+                systems::pickup::flush_pickup_events.after(PickupSet),
             )
             .add_systems(FixedUpdate, tick_despawn_timers.in_set(TickSet))
             .add_systems(
@@ -555,60 +566,84 @@ fn spawn_map_enemies(mut commands: Commands, map_entities: Res<MapEntities>) {
 /// Shared enemy spawning logic used by both startup and map reset.
 #[allow(clippy::cast_precision_loss)]
 pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnData]) -> u32 {
+    use carcinisation_fps_core::pickup::PickupKind;
+
     let mut next_id = 1_u32;
     let mut count = 0u32;
 
     for spawn in entities {
-        let Some(health) = spawn.kind.health() else {
-            continue;
-        };
-
         let object_id = NetworkObjectId(next_id);
         next_id += 1;
 
-        let mut enemy_commands = commands.spawn((
-            systems::NetEnemy {
-                object_id,
-                position: bevy::math::Vec2::new(spawn.x, spawn.y),
-                angle: 0.0,
-                state: NetEnemyState::Idle,
-                enemy_type: net_enemy_type_from_spawn(spawn),
-                visual_height: 0.0,
-                visual_phase: 0.0,
-            },
-            NetHealth {
-                current: health as f32,
-                max: health as f32,
-            },
-            carcinisation_net::NetBurning::default(),
-            crate::systems::combat::ServerBurnState::default(),
-            Replicated,
-        ));
-        if let Some(ai_config) = server_enemy_ai_config_from_spawn(spawn) {
-            enemy_commands.insert(ai_config);
-        }
-        if let EntitySpawnKind::Mosquiton { speed, .. } = &spawn.kind {
-            let seed = carcinisation_fps_core::corpse_seed(bevy::math::Vec2::new(spawn.x, spawn.y));
-            enemy_commands.insert((
-                ServerMosquitonSim {
-                    seed,
-                    ..Default::default()
+        if let Some(health) = spawn.kind.health() {
+            // Spawn enemy
+            let mut enemy_commands = commands.spawn((
+                systems::NetEnemy {
+                    object_id,
+                    position: bevy::math::Vec2::new(spawn.x, spawn.y),
+                    angle: 0.0,
+                    state: NetEnemyState::Idle,
+                    enemy_type: net_enemy_type_from_spawn(spawn),
+                    visual_height: 0.0,
+                    visual_phase: 0.0,
                 },
-                ServerMosquitonSimConfig::with_speed(*speed),
-            ));
-        }
-        if let EntitySpawnKind::Spidey { speed, .. } = &spawn.kind {
-            let seed = carcinisation_fps_core::corpse_seed(bevy::math::Vec2::new(spawn.x, spawn.y));
-            let combat = carcinisation_fps_core::FpsCombatConfig::load();
-            enemy_commands.insert((
-                ServerSpideySim {
-                    seed,
-                    ..Default::default()
+                NetHealth {
+                    current: health as f32,
+                    max: health as f32,
                 },
-                ServerSpideySimConfig::from_combat_config(&combat, *speed),
+                carcinisation_net::NetBurning::default(),
+                crate::systems::combat::ServerBurnState::default(),
+                Replicated,
             ));
+            if let Some(ai_config) = server_enemy_ai_config_from_spawn(spawn) {
+                enemy_commands.insert(ai_config);
+            }
+            if let EntitySpawnKind::Mosquiton { speed, .. } = &spawn.kind {
+                let seed =
+                    carcinisation_fps_core::corpse_seed(bevy::math::Vec2::new(spawn.x, spawn.y));
+                enemy_commands.insert((
+                    ServerMosquitonSim {
+                        seed,
+                        ..Default::default()
+                    },
+                    ServerMosquitonSimConfig::with_speed(*speed),
+                ));
+            }
+            if let EntitySpawnKind::Spidey { speed, .. } = &spawn.kind {
+                let seed =
+                    carcinisation_fps_core::corpse_seed(bevy::math::Vec2::new(spawn.x, spawn.y));
+                let combat = carcinisation_fps_core::FpsCombatConfig::load();
+                enemy_commands.insert((
+                    ServerSpideySim {
+                        seed,
+                        ..Default::default()
+                    },
+                    ServerSpideySimConfig::from_combat_config(&combat, *speed),
+                ));
+            }
+            count += 1;
+        } else if let EntitySpawnKind::Pickup { kind, respawnable } = &spawn.kind {
+            // Spawn pickup as a replicated entity so clients see available state.
+            commands.spawn((
+                NetPickup {
+                    object_id,
+                    position: bevy::math::Vec2::new(spawn.x, spawn.y),
+                    kind: match kind {
+                        PickupKind::Health => NetPickupKind::Health,
+                        PickupKind::Ammo => NetPickupKind::Ammo,
+                        PickupKind::Weapon => NetPickupKind::Weapon,
+                    },
+                    available: true,
+                    respawn_remaining: None,
+                    respawnable: *respawnable,
+                },
+                Replicated,
+            ));
+            count += 1;
+        } else {
+            // Skip non-enemy, non-pickup entities (e.g., Pillars)
+            continue;
         }
-        count += 1;
     }
 
     count
@@ -622,6 +657,7 @@ pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
         | EntitySpawnKind::SpriteEnemy { .. } => NetEnemyType::Basic,
         EntitySpawnKind::Mosquiton { .. } => NetEnemyType::Mosquiton,
         EntitySpawnKind::Spidey { .. } => NetEnemyType::Spidey,
+        _ => NetEnemyType::Basic, // Should not be reached for non-enemy entities, but added for exhaustiveness.
     }
 }
 
@@ -634,6 +670,8 @@ pub fn server_enemy_ai_config_from_spawn(spawn: &EntitySpawnData) -> Option<Serv
         | EntitySpawnKind::Enemy { .. }
         | EntitySpawnKind::SpriteEnemy { .. }
         | EntitySpawnKind::Spidey { .. } => None,
+        // Pickups and other non-enemy entities
+        _ => None,
     }
 }
 

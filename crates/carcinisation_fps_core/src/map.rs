@@ -216,6 +216,12 @@ pub enum EntitySpawnKind {
         #[serde(default = "default_spidey_speed")]
         speed: f32,
     },
+    Pickup {
+        kind: crate::pickup::PickupKind,
+        /// Whether this pickup respawns after being collected.
+        #[serde(default = "respawnable_true")]
+        respawnable: bool,
+    },
 }
 
 fn default_mosquiton_health() -> u32 {
@@ -230,13 +236,16 @@ fn default_spidey_speed() -> f32 {
 fn default_enemy_speed() -> f32 {
     1.5
 }
+fn respawnable_true() -> bool {
+    true
+}
 
 impl EntitySpawnKind {
     /// Health value for enemy-like kinds. Returns `None` for decorative entities.
     #[must_use]
     pub fn health(&self) -> Option<u32> {
         match self {
-            Self::Pillar { .. } => None,
+            Self::Pillar { .. } | Self::Pickup { .. } => None,
             Self::Enemy { health, .. }
             | Self::SpriteEnemy { health, .. }
             | Self::Mosquiton { health, .. }
@@ -247,7 +256,13 @@ impl EntitySpawnKind {
     /// Whether this is an enemy (not decorative).
     #[must_use]
     pub fn is_enemy(&self) -> bool {
-        !matches!(self, Self::Pillar { .. })
+        matches!(
+            self,
+            Self::Enemy { .. }
+                | Self::SpriteEnemy { .. }
+                | Self::Mosquiton { .. }
+                | Self::Spidey { .. }
+        )
     }
 }
 
@@ -321,10 +336,15 @@ mod tests {
         assert!((data.player_starts[0].angle_deg - 0.0).abs() < 0.001);
 
         let enemies: Vec<_> = entities.iter().filter(|e| e.kind.is_enemy()).collect();
-        let pillars: Vec<_> = entities.iter().filter(|e| !e.kind.is_enemy()).collect();
+        let pickups: Vec<_> = entities
+            .iter()
+            .filter(|e| matches!(e.kind, EntitySpawnKind::Pickup { .. }))
+            .collect();
+        let pillar_count = entities.len() - enemies.len() - pickups.len();
 
         assert_eq!(enemies.len(), 9, "expected 6 Mosquitons + 3 Spideys");
-        assert_eq!(pillars.len(), 4, "expected 4 Pillars");
+        assert_eq!(pickups.len(), 4, "expected 4 Health pickups");
+        assert_eq!(pillar_count, 4, "expected 4 Pillars");
 
         // All enemies should have health.
         for e in &enemies {

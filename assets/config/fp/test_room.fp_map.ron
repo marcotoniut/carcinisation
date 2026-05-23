@@ -24,6 +24,10 @@ MapData(
     floor_color: 4,
     player_start: (x: 6.0, y: 6.0, angle_deg: 0.0),
     entities: [
+        (kind: Pickup(kind: Health), x: 6.0, y: 1.5),
+        (kind: Pickup(kind: Health), x: 6.0, y: 10.5),
+        (kind: Pickup(kind: Health), x: 1.5, y: 6.0),
+        (kind: Pickup(kind: Health), x: 10.5, y: 6.0),
         (kind: Pillar(color: 4, width: 12, height: 24), x: 3.5, y: 3.5),
         (kind: Pillar(color: 4, width: 12, height: 24), x: 8.5, y: 3.5),
         (kind: Pillar(color: 4, width: 12, height: 24), x: 3.5, y: 8.5),

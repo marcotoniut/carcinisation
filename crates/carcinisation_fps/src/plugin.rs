@@ -928,6 +928,12 @@ fn build_map_entity_setup(
                     setup.spideys.push(spidey);
                 }
             }
+            EntityKind::Pickup { .. } => {
+                // Pickups are server-authoritative — the client ignores them
+                // during local map setup. The server spawns `NetPickup` entities
+                // for multiplayer, and the FPS client renders them via
+                // `queue_pickup_billboards`.
+            }
         }
     }
 

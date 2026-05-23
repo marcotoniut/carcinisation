@@ -149,6 +149,10 @@ pub struct NetProjectile {
     pub projectile_type: NetProjectileType,
 }
 
+fn respawnable_true() -> bool {
+    true
+}
+
 /// Replicated pickup component.
 #[derive(Component, Debug, Clone, Serialize, Deserialize, Reflect)]
 #[reflect(Component, Serialize, Deserialize)]
@@ -156,7 +160,14 @@ pub struct NetPickup {
     pub object_id: NetworkObjectId,
     pub position: Vec2,
     pub kind: NetPickupKind,
-    pub respawn_timer: Option<f32>,
+    /// Whether the pickup is currently available for collection.
+    pub available: bool,
+    /// Time remaining until respawn (if unavailable). None when available.
+    pub respawn_remaining: Option<f32>,
+    /// Whether this pickup respawns after collection.
+    /// When false, the pickup stays unavailable permanently once collected.
+    #[serde(default = "respawnable_true")]
+    pub respawnable: bool,
 }
 
 /// Replicated ground fire hazard spawned when an enemy dies from burning.
@@ -375,10 +386,13 @@ mod tests {
             object_id: NetworkObjectId(3),
             position: Vec2::new(7.0, 8.0),
             kind: NetPickupKind::Health,
-            respawn_timer: Some(5.0),
+            available: true,
+            respawn_remaining: None,
+            respawnable: true,
         };
         let back = roundtrip_component(&pickup);
         assert_eq!(back.kind, NetPickupKind::Health);
-        assert_eq!(back.respawn_timer, Some(5.0));
+        assert!(back.available);
+        assert_eq!(back.respawn_remaining, None);
     }
 }

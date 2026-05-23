@@ -25,5 +25,8 @@ MapData(
     ceiling_color: 3,
     floor_color: 4,
     player_start: (x: 3.0, y: 3.0, angle_deg: 45.0),
-    entities: [],
+    entities: [
+        { x: 1.0, y: 1.0, kind: Pickup(Health) },
+        { x: 14.0, y: 14.0, kind: Pickup(Health) },
+    ],
 )

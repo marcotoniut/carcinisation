@@ -19,8 +19,10 @@
 //! fog (which is palette-index agnostic — it just writes `fog_color`) does
 //! not see stale pre-remap indices.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use asset_pipeline::composed_ron::{CompactComposedAtlas, CompactPose};
 use bevy_math::Vec2;
 use carapace::image::CxImage;
 use carapace::palette::TRANSPARENT_INDEX;
@@ -347,6 +349,26 @@ pub fn make_blood_shot_sprite(size: u32, color: u8) -> CxImage {
             let dy = y as f32 + 0.5 - half;
             if dx * dx + dy * dy <= radius_sq {
                 data[(y * size + x) as usize] = color;
+            }
+        }
+    }
+
+    CxImage::new(data, size as usize)
+}
+
+/// Create a small green-cross sprite for health pickup feedback billboards.
+#[must_use]
+pub fn make_health_pickup_sprite(size: u32) -> CxImage {
+    let mut data = vec![TRANSPARENT_INDEX; (size * size) as usize];
+    let half = size as i32 / 2;
+
+    for y in 0..size as i32 {
+        for x in 0..size as i32 {
+            let dx = (x - half).abs();
+            let dy = (y - half).abs();
+            if dx + dy <= half {
+                let is_cross = (dx <= 1 && dy < half) || (dy <= 1 && dx < half);
+                data[(y as u32 * size + x as u32) as usize] = if is_cross { 5 } else { 4 };
             }
         }
     }
@@ -782,10 +804,232 @@ fn spidey_presentation_sprite(spidey: &Spidey, sprites: &SpideyBillboardSprites)
     )
 }
 
+// ── Pickup billboard sprites from composed atlas ──────────────────────────
+
+/// Cached FPS billboard sprites for each pickup kind.
+#[derive(bevy::prelude::Resource)]
+pub struct PickupBillboardSprites {
+    pub health: Arc<CxImage>,
+    pub ammo: Arc<CxImage>,
+    pub weapon: Arc<CxImage>,
+}
+
+impl PickupBillboardSprites {
+    pub fn sprite_for_kind(&self, kind: carcinisation_net::NetPickupKind) -> &Arc<CxImage> {
+        match kind {
+            carcinisation_net::NetPickupKind::Health => &self.health,
+            carcinisation_net::NetPickupKind::Ammo => &self.ammo,
+            carcinisation_net::NetPickupKind::Weapon => &self.weapon,
+        }
+    }
+}
+
+const PICKUP_COMPOSED_RON: &str =
+    include_str!("../../../assets/sprites/pickups/pickup_3/atlas.composed.ron");
+const PICKUP_PX_ATLAS_RON: &str =
+    include_str!("../../../assets/sprites/pickups/pickup_3/atlas.px_atlas.ron");
+const PICKUP_PXI: &[u8] = include_bytes!("../../../assets/sprites/pickups/pickup_3/atlas.pxi");
+
+/// Compose a billboard sprite from the pickup composed atlas, including
+/// only the parts whose semantic name matches one of `part_names`.
+///
+/// # Errors
+///
+/// Returns an error if any name in `part_names` is not found in the
+/// composed atlas's part string table, or if the PXI data is malformed.
+fn compose_pickup_sprite(
+    composed: &CompactComposedAtlas,
+    atlas: &crate::mosquiton::PxAtlasDescriptor,
+    atlas_pixels: &[u8],
+    atlas_width: u32,
+    part_names: &[&str],
+) -> Result<Arc<CxImage>, String> {
+    let include_ids: Vec<u8> = part_names
+        .iter()
+        .map(|name| {
+            composed
+                .part_names
+                .iter()
+                .position(|n| n == name)
+                .map(|i| i as u8)
+                .ok_or_else(|| format!("Pickup part '{name}' not found in composed atlas"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let idle = composed
+        .animations
+        .iter()
+        .find(|a| a.tag == "idle")
+        .ok_or_else(|| "No 'idle' animation in pickup atlas".to_string())?;
+    let frame = idle
+        .frames
+        .first()
+        .ok_or_else(|| "Empty 'idle' animation in pickup atlas".to_string())?;
+
+    let filtered: Vec<&CompactPose> = frame
+        .poses
+        .iter()
+        .filter(|pose| include_ids.contains(&pose.p))
+        .collect();
+    if filtered.is_empty() {
+        return Err("No poses match the requested pickup parts".to_string());
+    }
+
+    let mut grouped: HashMap<u8, Vec<&CompactPose>> = HashMap::new();
+    for &pose in &filtered {
+        grouped.entry(pose.p).or_default().push(pose);
+    }
+    for fragments in grouped.values_mut() {
+        fragments.sort_by_key(|pose| pose.frag);
+    }
+
+    let part_map: HashMap<u8, &asset_pipeline::composed_ron::CompactPart> =
+        composed.parts.iter().map(|part| (part.id, part)).collect();
+
+    struct Placement {
+        sprite_idx: usize,
+        top_left: (i32, i32),
+        size: (u32, u32),
+        flip_x: bool,
+        flip_y: bool,
+    }
+
+    let mut placements = Vec::new();
+    for (&part_id, fragments) in &grouped {
+        let Some(part) = part_map.get(&part_id) else {
+            continue;
+        };
+        let Some(primary) = fragments.first() else {
+            continue;
+        };
+        let absolute_pivot = (i32::from(primary.o.0), i32::from(primary.o.1));
+
+        for &pose in fragments {
+            let frag_pivot = if pose.frag == 0 {
+                absolute_pivot
+            } else {
+                (i32::from(pose.o.0), i32::from(pose.o.1))
+            };
+            let size = composed
+                .sprite_sizes
+                .get(pose.s as usize)
+                .ok_or_else(|| format!("sprite index {} out of range", pose.s))?;
+            placements.push(Placement {
+                sprite_idx: pose.s as usize,
+                top_left: (
+                    frag_pivot.0 - i32::from(part.pivot.0),
+                    frag_pivot.1 - i32::from(part.pivot.1),
+                ),
+                size: (u32::from(size.0), u32::from(size.1)),
+                flip_x: pose.fx,
+                flip_y: pose.fy,
+            });
+        }
+    }
+
+    let min_x = placements.iter().map(|p| p.top_left.0).min().unwrap_or(0);
+    let min_y = placements.iter().map(|p| p.top_left.1).min().unwrap_or(0);
+    let max_x = placements
+        .iter()
+        .map(|p| p.top_left.0 + p.size.0 as i32)
+        .max()
+        .unwrap_or(1);
+    let max_y = placements
+        .iter()
+        .map(|p| p.top_left.1 + p.size.1 as i32)
+        .max()
+        .unwrap_or(1);
+
+    let width = (max_x - min_x).max(1) as u32;
+    let height = (max_y - min_y).max(1) as u32;
+    let mut data = vec![TRANSPARENT_INDEX; (width * height) as usize];
+
+    for placement in &placements {
+        let rect = atlas
+            .regions
+            .get(placement.sprite_idx)
+            .and_then(|region| region.frames.first())
+            .copied()
+            .ok_or_else(|| format!("missing atlas rect for sprite {}", placement.sprite_idx))?;
+
+        for local_y in 0..rect.h {
+            for local_x in 0..rect.w {
+                let src_x = if placement.flip_x {
+                    rect.x + rect.w - 1 - local_x
+                } else {
+                    rect.x + local_x
+                };
+                let src_y = if placement.flip_y {
+                    rect.y + rect.h - 1 - local_y
+                } else {
+                    rect.y + local_y
+                };
+                let src_idx = (src_y * atlas_width + src_x) as usize;
+                let pixel = atlas_pixels
+                    .get(src_idx)
+                    .copied()
+                    .unwrap_or(TRANSPARENT_INDEX);
+                if pixel == TRANSPARENT_INDEX {
+                    continue;
+                }
+                let dst_x = (placement.top_left.0 - min_x) as u32 + local_x;
+                let dst_y = (placement.top_left.1 - min_y) as u32 + local_y;
+                if dst_x < width && dst_y < height {
+                    data[(dst_y * width + dst_x) as usize] = pixel;
+                }
+            }
+        }
+    }
+
+    Ok(Arc::new(CxImage::new(data, width as usize)))
+}
+
+/// Build cached pickup billboard sprites from the embedded composed atlas.
+///
+/// # Errors
+///
+/// Returns an error if the embedded RON/PXI data is malformed, or if a
+/// required part name (e.g. `health_l`) is missing from the composed atlas.
+pub fn make_pickup_billboard_sprites() -> Result<PickupBillboardSprites, String> {
+    use crate::mosquiton::{PxAtlasDescriptor, decode_pxi};
+
+    let composed: CompactComposedAtlas =
+        ron::from_str(PICKUP_COMPOSED_RON).map_err(|e| e.to_string())?;
+    let atlas: PxAtlasDescriptor = ron::from_str(PICKUP_PX_ATLAS_RON).map_err(|e| e.to_string())?;
+    let (pxi_w, _pxi_h, pxi_pixels) = decode_pxi(PICKUP_PXI)?;
+
+    Ok(PickupBillboardSprites {
+        health: compose_pickup_sprite(&composed, &atlas, &pxi_pixels, pxi_w, &["health_l"])?,
+        ammo: compose_pickup_sprite(&composed, &atlas, &pxi_pixels, pxi_w, &["icon_bullet"])?,
+        weapon: compose_pickup_sprite(&composed, &atlas, &pxi_pixels, pxi_w, &["weapon_case"])?,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::camera::Camera;
+
+    fn visible_bounds(sprite: &CxImage) -> Option<(usize, usize, usize, usize)> {
+        let mut min_x = usize::MAX;
+        let mut min_y = usize::MAX;
+        let mut max_x = 0;
+        let mut max_y = 0;
+        let mut any = false;
+        for y in 0..sprite.height() {
+            for x in 0..sprite.width() {
+                if sprite.data()[y * sprite.width() + x] == TRANSPARENT_INDEX {
+                    continue;
+                }
+                any = true;
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+        any.then_some((min_x, min_y, max_x, max_y))
+    }
 
     #[test]
     fn billboard_in_front_projects_near_center() {
@@ -806,6 +1050,14 @@ mod tests {
             proj.screen_x
         );
         assert!(proj.distance > 0.0);
+    }
+
+    #[test]
+    fn pickup_health_sprite_uses_tight_composed_bounds() {
+        let sprites = make_pickup_billboard_sprites().expect("pickup sprites should load");
+        assert_eq!(sprites.health.width(), 25);
+        assert_eq!(sprites.health.height(), 23);
+        assert_eq!(visible_bounds(&sprites.health), Some((0, 0, 24, 22)));
     }
 
     #[test]

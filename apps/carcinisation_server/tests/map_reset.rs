@@ -22,9 +22,10 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use carcinisation_fps_core::map::{EntitySpawnData, EntitySpawnKind, test_map};
+use carcinisation_fps_core::pickup::PickupKind;
 use carcinisation_net::{
-    NetAttackId, NetHealth, NetPlayer, NetProjectileType, NetworkObjectId, Owner, PlayerId,
-    PlayerNetState,
+    NetAttackId, NetHealth, NetPickup, NetPlayer, NetProjectileType, NetworkObjectId, Owner,
+    PlayerId, PlayerNetState,
 };
 use carcinisation_server::ServerPlugin;
 use carcinisation_server::systems::reset::MapResetRequested;
@@ -62,6 +63,27 @@ fn one_enemy() -> Vec<EntitySpawnData> {
     }]
 }
 
+fn two_pickups() -> Vec<EntitySpawnData> {
+    vec![
+        EntitySpawnData {
+            x: 2.0,
+            y: 2.0,
+            kind: EntitySpawnKind::Pickup {
+                kind: PickupKind::Health,
+                respawnable: true,
+            },
+        },
+        EntitySpawnData {
+            x: 5.0,
+            y: 5.0,
+            kind: EntitySpawnKind::Pickup {
+                kind: PickupKind::Health,
+                respawnable: false,
+            },
+        },
+    ]
+}
+
 fn spawn_player(app: &mut App, pid: u32, x: f32, y: f32) -> Entity {
     app.world_mut()
         .spawn((
@@ -95,6 +117,14 @@ fn count<C: Component>(app: &mut App) -> usize {
         .query_filtered::<Entity, With<C>>()
         .iter(app.world())
         .count()
+}
+
+fn pickup_object_ids(app: &mut App) -> Vec<NetworkObjectId> {
+    app.world_mut()
+        .query::<&NetPickup>()
+        .iter(app.world())
+        .map(|pickup| pickup.object_id)
+        .collect()
 }
 
 /// Send a JSON admin request over a Unix socket while ticking the server.
@@ -161,6 +191,35 @@ fn reset_despawns_enemies_and_respawns_them() {
     tick_server(&mut server, 30);
 
     assert_eq!(count::<NetEnemy>(&mut server), 1);
+}
+
+#[test]
+fn reset_despawns_pickups_and_respawns_without_duplicate_ids() {
+    let mut server = build_server(two_pickups(), None);
+    server.update();
+
+    let ids_before = pickup_object_ids(&mut server);
+    assert_eq!(ids_before.len(), 2);
+    let unique_before = ids_before
+        .iter()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(unique_before.len(), ids_before.len());
+
+    server.world_mut().resource_mut::<MapResetRequested>().0 = true;
+    tick_server(&mut server, 30);
+
+    let ids_after = pickup_object_ids(&mut server);
+    assert_eq!(ids_after.len(), 2, "reset must not duplicate pickups");
+    let unique_after = ids_after
+        .iter()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(
+        unique_after.len(),
+        ids_after.len(),
+        "reset must not leave duplicate pickup object IDs"
+    );
 }
 
 #[test]
