@@ -269,8 +269,8 @@ mod tests {
     use super::*;
 
     fn roundtrip<T: Serialize + serde::de::DeserializeOwned>(val: &T) -> T {
-        let bytes = bincode::serialize(val).unwrap();
-        bincode::deserialize(&bytes).unwrap()
+        let bytes = postcard::to_allocvec(val).unwrap();
+        postcard::from_bytes(&bytes).unwrap()
     }
 
     #[test]

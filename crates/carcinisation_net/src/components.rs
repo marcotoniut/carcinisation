@@ -202,8 +202,8 @@ mod tests {
     use super::*;
 
     fn roundtrip_component<T: Component + Serialize + serde::de::DeserializeOwned>(val: &T) -> T {
-        let bytes = bincode::serialize(val).unwrap();
-        bincode::deserialize(&bytes).unwrap()
+        let bytes = postcard::to_allocvec(val).unwrap();
+        postcard::from_bytes(&bytes).unwrap()
     }
 
     #[test]
@@ -317,8 +317,8 @@ mod tests {
             AvatarPaletteVariant::Cab,
             AvatarPaletteVariant::Cba,
         ] {
-            let bytes = bincode::serialize(variant).unwrap();
-            let back: AvatarPaletteVariant = bincode::deserialize(&bytes).unwrap();
+            let bytes = postcard::to_allocvec(variant).unwrap();
+            let back: AvatarPaletteVariant = postcard::from_bytes(&bytes).unwrap();
             assert_eq!(*variant, back);
         }
     }
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn net_player_default_avatar_variant_is_none() {
         // The default-deserialized field should be None (missing on old servers).
-        let bytes = bincode::serialize(&NetPlayer {
+        let bytes = postcard::to_allocvec(&NetPlayer {
             player_id: PlayerId(1),
             position: Vec2::ZERO,
             angle: 0.0,
@@ -352,7 +352,7 @@ mod tests {
             avatar_palette_variant: None,
         })
         .unwrap();
-        let back: NetPlayer = bincode::deserialize(&bytes).unwrap();
+        let back: NetPlayer = postcard::from_bytes(&bytes).unwrap();
         assert_eq!(back.avatar_palette_variant, None);
     }
 

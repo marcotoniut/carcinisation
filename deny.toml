@@ -1,0 +1,6 @@
+[advisories]
+ignore = [
+  "RUSTSEC-2024-0384", # instant: transitive via carapace -> bevy_turborand -> turborand
+  "RUSTSEC-2024-0436", # paste: transitive via image/ravif/rav1e and wgpu/metal
+]
+

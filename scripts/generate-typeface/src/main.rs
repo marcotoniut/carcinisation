@@ -1,10 +1,10 @@
 //! Rasterises the Pixeboy typeface into a bitmap atlas for the HUD.
 
+extern crate ab_glyph;
 extern crate image;
-extern crate rusttype;
 
+use ab_glyph::{Font, FontArc, ScaleFont, point};
 use image::{Rgba, RgbaImage};
-use rusttype::{Font, Scale, point};
 
 const RESOURCES_PATH: &str = "../../resources/";
 
@@ -18,16 +18,16 @@ const RESOURCES_PATH: &str = "../../resources/";
 )]
 fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> RgbaImage {
     let font_data = std::fs::read(font_path).unwrap();
-    let font = Font::try_from_vec(font_data).unwrap();
+    let font = FontArc::try_from_vec(font_data).unwrap();
 
-    let scale = Scale::uniform(target_height as f32);
-    let v_metrics = font.v_metrics(scale);
+    let scale = target_height as f32;
+    let scaled_font = font.as_scaled(scale);
 
     let max_advance_width = characters
         .iter()
         .map(|c| {
-            let glyph = font.glyph(*c).scaled(scale);
-            glyph.h_metrics().advance_width.round() as u32
+            let glyph_id = scaled_font.glyph_id(*c);
+            scaled_font.h_advance(glyph_id).round() as u32
         })
         .max()
         .unwrap_or(0);
@@ -40,25 +40,25 @@ fn generate_image(font_path: &str, target_height: u32, characters: &[char]) -> R
     let mut y = 0;
 
     for c in characters {
-        let glyph = font.glyph(*c).scaled(scale);
-        let h_metrics = glyph.h_metrics();
+        let glyph_id = scaled_font.glyph_id(*c);
+        let advance_width = scaled_font.h_advance(glyph_id).round() as u32;
 
-        let glyph_x = ((max_advance_width - h_metrics.advance_width.round() as u32) / 2) as i32;
+        let glyph_x = ((max_advance_width - advance_width) / 2) as i32;
 
         let glyph_y =
-            y as i32 + (target_height as f32 - v_metrics.ascent + v_metrics.descent) as i32;
+            y as i32 + (target_height as f32 - scaled_font.ascent() + scaled_font.descent()) as i32;
 
-        let glyph = glyph.positioned(point(glyph_x as f32, glyph_y as f32));
+        let glyph = glyph_id.with_scale_and_position(scale, point(glyph_x as f32, glyph_y as f32));
 
-        let Some(pixel_bounding_box) = glyph.pixel_bounding_box() else {
+        let Some(glyph) = font.outline_glyph(glyph) else {
             // Empty glyph (e.g. space) — skip rendering, advance to next row.
             y += target_height;
             continue;
         };
 
-        let offset_y = scale.y as i32 + pixel_bounding_box.min.y;
-        let offset_x =
-            ((scale.x - (pixel_bounding_box.max.x - pixel_bounding_box.min.x) as f32) / 2.0) as i32;
+        let pixel_bounding_box = glyph.px_bounds();
+        let offset_y = scale as i32 + pixel_bounding_box.min.y.round() as i32;
+        let offset_x = ((scale - pixel_bounding_box.width()) / 2.0) as i32;
 
         glyph.draw(|gx, gy, gv| {
             let gx = gx as i32 + offset_x;

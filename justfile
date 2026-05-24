@@ -86,6 +86,14 @@ dev-fps-client-local stage="":
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
     RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map"
 
+# Headless server only (no client)
+dev-fps-nihil stage="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    map=$(just _resolve-stage "{{ stage }}")
+    echo "Starting headless server (map=$map)..."
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map"
+
 # Headless server + 1 client
 dev-fps-unus stage="":
     #!/usr/bin/env bash
