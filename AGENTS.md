@@ -64,6 +64,26 @@ If blocked, state what and why.
 - Do not copy pipeline-only outputs (for example `analysis.json`) into `assets/`.
 - `tmp/` is gitignored and ephemeral.
 
+## Testing
+
+- Default: `just test` runs `cargo nextest run --workspace --all-features --locked`.
+- Fallback: `just test-cargo` runs `cargo test --workspace --all-features`.
+- Server integration tests use per-PID port ranges for parallel safety (`.config/nextest.toml`).
+- `just test-single <name>` and `just test-watch` use `cargo test` (no nextest equivalent).
+
+## Dependency Management
+
+- `cargo add` / `cargo remove` built-in. `cargo upgrade` / `cargo set-version` need `just install-cargo-edit`.
+- Add deps to `[workspace.dependencies]` first, then `cargo add --package <pkg>`. Pin versions; avoid wildcards.
+- `just check-deny` runs `cargo deny check` for license + advisory CI gating. Install with `just install-cargo-deny`.
+
+### Optional Profiling & Hygiene
+
+- `just install-cargo-machete` — detects unused deps. Use for periodic cleanup. False positives possible with proc macros / build scripts / features.
+- `just install-cargo-bloat` — analyses binary/WASM size. Use for optimisation/profiling sessions.
+- `just install-cargo-llvm-lines` — analyses per-function LLVM IR line count for compile-time bloat.
+- Not required for: `cargo check`, `cargo test`, gameplay iteration, CI build correctness.
+- Do not add to `.envrc` auto-install. Do not add to default CI jobs.
 ## Hygiene
 
 - Stop any watchers/dev servers/helper processes you started.

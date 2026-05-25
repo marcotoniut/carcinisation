@@ -327,8 +327,12 @@ engine-lint:
 
 # ─── Testing ─────────────────────────────────────────────────────────────────
 
-# Run full workspace test suite
+# Run full workspace test suite (cargo-nextest)
 test:
+    cargo nextest run --workspace --all-features --locked
+
+# Run full workspace test suite (cargo test, fallback)
+test-cargo:
     cargo test --workspace --all-features
 
 # Re-run tests on change via bacon

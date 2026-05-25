@@ -6,11 +6,13 @@ ruff = "0.14.4"
 just = "1.51.0"
 shellcheck = "0.10.0"
 shfmt = "3.10.0"
+cargo-nextest = "0.9.136"
 
 [plugins]
 just = "https://raw.githubusercontent.com/W1M0R/proto-toml-plugins/c412e501da5c421b6d2c0b04567e1cdeb3dda6b6/just/plugin.toml"
 shellcheck = "https://raw.githubusercontent.com/Phault/proto-toml-plugins/main/shellcheck/plugin.toml"
 shfmt = "https://raw.githubusercontent.com/Phault/proto-toml-plugins/main/shfmt/plugin.toml"
+cargo-nextest = "https://gist.githubusercontent.com/marcotoniut/80b31f6afa362f386efbbb5bdd967aa1/raw/cargo-nextest.toml"
 
 [plugins.tools]
 lefthook = "https://raw.githubusercontent.com/ageha734/proto-plugins/refs/heads/master/toml/lefthook.toml"

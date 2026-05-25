@@ -24,6 +24,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install proto & tools (cargo-nextest, just, etc.)
+        uses: moonrepo/setup-toolchain@v3
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -41,7 +44,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features --no-deps -- -D warnings
 
       - name: Tests
-        run: cargo test --workspace --all-features
+        run: cargo nextest run --workspace --all-features --locked
 
   wasm:
     name: WASM Build Check

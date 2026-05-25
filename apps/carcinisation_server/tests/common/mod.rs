@@ -1,6 +1,7 @@
 #![allow(dead_code, clippy::cast_possible_truncation)]
 
 use std::net::SocketAddr;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -62,15 +63,22 @@ pub fn tick3_with_sleep(server: &mut App, c1: &mut App, c2: &mut App) {
 }
 use bevy_replicon_renet2::renet2::{ConnectionConfig, RenetClient, RenetServer};
 
-/// Global port allocator. Starts at a high port to avoid conflicts.
-static NEXT_TEST_PORT: AtomicU16 = AtomicU16::new(25000);
+/// Per-process port base offset to avoid collisions under parallel test execution
+/// (cargo-nextest). Each process gets a unique 20k-port range based on its PID.
+static PORT_BASE: OnceLock<u16> = OnceLock::new();
+
+/// Counter offset from PORT_BASE for sequential port allocation.
+static NEXT_TEST_PORT: AtomicU16 = AtomicU16::new(0);
 
 /// Reserve the next available test port, verifying the port is bindable.
 /// Retries up to 64 times on bind failure (port in `TIME_WAIT` or already in use).
+/// Port range per process: [25000 + (PID % 20000), 65535).
 #[allow(clippy::single_match)]
 pub fn reserve_port() -> u16 {
+    let base =
+        *PORT_BASE.get_or_init(|| 25000u16.wrapping_add((std::process::id() as u16) % 20000));
     for _ in 0..64 {
-        let port = NEXT_TEST_PORT.fetch_add(1, Ordering::SeqCst);
+        let port = base.wrapping_add(NEXT_TEST_PORT.fetch_add(1, Ordering::SeqCst));
         let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), port);
         if let Ok(_socket) = std::net::UdpSocket::bind(addr) {
             return port; // Socket drops, port is free for the test server.
