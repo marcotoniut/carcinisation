@@ -659,7 +659,7 @@ fn tick_hit_impacts(mut impacts: ResMut<HitImpacts>, time: Res<Time>) {
     impacts.0.retain(|i| i.age < i.lifetime);
 }
 
-/// Tick pickup effect lifetimes and push active billboards into extra_bbs.
+/// Tick pickup effect lifetimes and push active billboards into `extra_bbs`.
 fn tick_pickup_impacts(
     mut impacts: ResMut<PickupImpacts>,
     time: Res<Time>,
@@ -1343,7 +1343,7 @@ fn sync_camera_from_net_player(
     if sync_locals.flame_visual_params.is_none() {
         sync_locals.flame_visual_params = Some(FlameVisualParams {
             speed: flame_cfg.speed,
-            emit_interval: flame_cfg.emit_interval_ms as f32 / 1000.0,
+            emit_interval: flame_cfg.emit_interval_ms.get() as f32 / 1000.0,
         });
     }
     let flame_params = sync_locals.flame_visual_params.unwrap();

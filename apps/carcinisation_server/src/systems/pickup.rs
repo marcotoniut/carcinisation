@@ -31,7 +31,7 @@ pub fn pickup_system(
     let dt = fixed_time.delta_secs();
 
     // Update respawn timers for unavailable pickups
-    for (_, mut pickup) in pickup_query.iter_mut() {
+    for (_, mut pickup) in &mut pickup_query {
         if pickup.available {
             continue;
         }
@@ -47,12 +47,12 @@ pub fn pickup_system(
     }
 
     // Check for player-pickup overlaps
-    for (_player_entity, player, mut health) in player_query.iter_mut() {
+    for (_player_entity, player, mut health) in &mut player_query {
         if !matches!(player.state, PlayerNetState::Alive) || health.current <= 0.0 {
             continue;
         }
         let player_pos = player.position;
-        for (_pickup_entity, mut pickup) in pickup_query.iter_mut() {
+        for (_pickup_entity, mut pickup) in &mut pickup_query {
             if !pickup.available {
                 continue;
             }
@@ -67,7 +67,9 @@ pub fn pickup_system(
                             health.max,
                             pickup_rules.heal_amount,
                         );
-                        if new_health != health.current {
+                        if (new_health - health.current).abs() < f32::EPSILON {
+                            false
+                        } else {
                             health.current = new_health;
                             pickup.available = false;
                             if pickup.respawnable {
@@ -80,8 +82,6 @@ pub fn pickup_system(
                                 position: pickup.position,
                             });
                             true
-                        } else {
-                            false
                         }
                     }
                     NetPickupKind::Ammo => {

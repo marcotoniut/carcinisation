@@ -101,8 +101,8 @@ pub fn spawn_boulder_throw_attack(
     let attack_type = EnemyHoveringAttackType::BoulderThrow;
     let target_pos = target_pos
         + Vec2::new(
-            (1. - rand::random::<f32>()) * config.randomness,
-            (1. - rand::random::<f32>()) * config.randomness,
+            (1. - rand::random::<f32>()) * config.randomness.get(),
+            (1. - rand::random::<f32>()) * config.randomness.get(),
         );
 
     let (atlas_sprite, animation, collider_data) =
@@ -116,7 +116,7 @@ pub fn spawn_boulder_throw_attack(
     let depth_f32 = depth.to_f32();
     let target_depth = PLAYER_DEPTH;
 
-    let speed_z = config.depth_speed;
+    let speed_z = config.depth_speed.get();
     let t = (target_depth.to_f32() - depth.to_f32()) / speed_z;
 
     let d = target_pos - spawn_world_pos;
@@ -124,7 +124,7 @@ pub fn spawn_boulder_throw_attack(
     let speed_x = d.x / t;
 
     // TODO: remember that boulder throws in outer space wouldn't have as much gravity, if any
-    let value = d.y - 0.5 * config.line_y_acceleration * t.powi(2);
+    let value = d.y - 0.5 * config.line_y_acceleration.get() * t.powi(2);
     let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
 
     let mut entity_commands = commands.spawn(BoulderThrowBundle {
@@ -177,7 +177,7 @@ pub fn spawn_boulder_throw_attack(
             spawn_world_pos.y,
             target_pos.y,
             speed_y,
-            config.line_y_acceleration,
+            config.line_y_acceleration.get(),
         ),
         "Boulder Throw Tween Y",
     );
@@ -189,7 +189,7 @@ pub fn spawn_boulder_throw_attack(
             boulder_entity,
             depth_f32,
             target_depth.to_f32(),
-            config.depth_speed,
+            config.depth_speed.get(),
         ),
         "Boulder Throw Tween Z",
     );

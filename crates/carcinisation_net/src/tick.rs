@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroU32;
 
 /// Wrapped tick counter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -38,14 +39,14 @@ impl InputSequence {
 /// Tick configuration.
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TickConfig {
-    pub hz: u32,
+    pub hz: NonZeroU32,
     pub delta_secs: f32,
 }
 
 impl Default for TickConfig {
     fn default() -> Self {
         Self {
-            hz: 30,
+            hz: NonZeroU32::new(30).unwrap(),
             delta_secs: 1.0 / 30.0,
         }
     }
@@ -105,7 +106,7 @@ impl Plugin for TickPlugin {
         if app.world().contains_resource::<Time<Fixed>>() {
             app.world_mut()
                 .resource_mut::<Time<Fixed>>()
-                .set_timestep_hz(f64::from(tick_config.hz));
+                .set_timestep_hz(f64::from(tick_config.hz.get()));
         }
 
         app.insert_resource(tick_config)
@@ -129,7 +130,7 @@ mod tests {
     #[test]
     fn tick_config_default() {
         let config = TickConfig::default();
-        assert_eq!(config.hz, 30);
+        assert_eq!(config.hz.get(), 30);
         assert!((config.delta_secs - 1.0 / 30.0).abs() < 1e-6);
     }
 

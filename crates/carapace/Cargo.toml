@@ -60,6 +60,7 @@ line_drawing = { version = "1.0", optional = true }
 next = "0.2.0"
 ron = "0.12.0"
 serde = "1.0"
+vec1 = { version = "1.12", features = [ "serde" ] }
 [dev-dependencies]
 asset_pipeline = { path = "../asset_pipeline" }
 bevy = "0.18.0"

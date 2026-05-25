@@ -11,6 +11,7 @@ use crate::stage::{
     resources::StageTimeDomain,
 };
 use bevy::prelude::*;
+use carapace::constrained::PositiveFiniteF32;
 use carapace::prelude::{
     CxAnchor, CxAnimationBundle, CxAnimationDirection, CxAnimationDuration,
     CxAnimationFinishBehavior, CxAtlasSprite, CxCamera, CxFrameTransition, CxPosition,
@@ -23,6 +24,7 @@ use carcinisation_base::layer::OrsLayer;
 use carcinisation_core::globals::SCREEN_RESOLUTION;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::num::{NonZeroU8, NonZeroU64};
 use std::time::Duration;
 
 // ---------------------------------------------------------------------------
@@ -35,42 +37,42 @@ pub struct FlamethrowerConfig {
     pub atlas_path: String,
     pub animation_tag: String,
     /// Maximum number of flame particles alive at once.
-    pub max_flames: u8,
+    pub max_flames: NonZeroU8,
     /// Total chain range (px). Replaces uniform spacing.
-    pub chain_range: f32,
+    pub chain_range: PositiveFiniteF32,
     /// Spacing curve exponent. <1 = wider near origin, tighter at end.
     /// 1.0 = uniform spacing.
-    pub spacing_curve: f32,
+    pub spacing_curve: PositiveFiniteF32,
     /// How fast each flame particle travels along the chain (px/s).
-    pub flame_speed: f32,
+    pub flame_speed: PositiveFiniteF32,
     /// Speed multiplier when draining (A released). >1 = faster disappearance.
-    pub drain_speed_multiplier: f32,
+    pub drain_speed_multiplier: PositiveFiniteF32,
     /// Time between spawning new flame particles (ms).
-    pub spawn_interval_ms: u64,
+    pub spawn_interval_ms: NonZeroU64,
     pub damage_per_tick: u32,
-    pub tick_ms: u64,
-    pub max_ammo: f32,
+    pub tick_ms: NonZeroU64,
+    pub max_ammo: PositiveFiniteF32,
     pub ammo_drain_per_ms: f32,
     pub origin_camera_px: (f32, f32),
     /// Hit radius per flame particle for damage checks (px).
-    pub hit_radius: f32,
+    pub hit_radius: PositiveFiniteF32,
     /// Base angular follow speed for the nearest particle (units/s).
-    pub angular_follow_speed: f32,
+    pub angular_follow_speed: PositiveFiniteF32,
     /// Per-slot drag on angular follow. Each slot index divides the follow
     /// speed by `(1 + slot * angular_drag)`, creating a whip-like trail.
     pub angular_drag: f32,
     /// Scale at the origin end of the chain (nearest particle).
-    pub scale_near: f32,
+    pub scale_near: PositiveFiniteF32,
     /// Scale at the far end of the chain (farthest particle).
-    pub scale_far: f32,
+    pub scale_far: PositiveFiniteF32,
     /// Maximum depth that the flamethrower can damage (inclusive).
     pub max_damage_depth: i8,
     pub burning_corpse_duration_secs: f32,
     pub burning_flame_count: usize,
     pub burning_flame_perimeter_padding_px: f32,
     pub burning_flame_jitter_px: f32,
-    pub burning_flame_scale_min: f32,
-    pub burning_flame_scale_max: f32,
+    pub burning_flame_scale_min: PositiveFiniteF32,
+    pub burning_flame_scale_max: PositiveFiniteF32,
 }
 
 impl FlamethrowerConfig {
@@ -84,67 +86,19 @@ impl FlamethrowerConfig {
 
     fn validate(&self) {
         assert!(
-            self.max_flames > 0,
-            "FlamethrowerConfig: max_flames must be > 0"
-        );
-        assert!(
-            self.chain_range > 0.0,
-            "FlamethrowerConfig: chain_range must be positive",
-        );
-        assert!(
-            self.spacing_curve > 0.0,
-            "FlamethrowerConfig: spacing_curve must be positive",
-        );
-        assert!(
-            self.flame_speed > 0.0,
-            "FlamethrowerConfig: flame_speed must be positive",
-        );
-        assert!(
-            self.spawn_interval_ms > 0,
-            "FlamethrowerConfig: spawn_interval_ms must be > 0",
-        );
-        assert!(
-            self.max_ammo > 0.0,
-            "FlamethrowerConfig: max_ammo must be positive"
-        );
-        assert!(
-            self.tick_ms > 0,
-            "FlamethrowerConfig: tick_ms must be positive"
-        );
-        assert!(
-            self.hit_radius > 0.0,
-            "FlamethrowerConfig: hit_radius must be positive",
-        );
-        assert!(
-            self.drain_speed_multiplier > 0.0,
-            "FlamethrowerConfig: drain_speed_multiplier must be positive",
-        );
-        assert!(
-            self.angular_follow_speed > 0.0,
-            "FlamethrowerConfig: angular_follow_speed must be positive",
-        );
-        assert!(
-            self.scale_near > 0.0 && self.scale_far > 0.0,
-            "FlamethrowerConfig: scale_near and scale_far must be positive",
-        );
-        assert!(
             self.burning_corpse_duration_secs >= 0.0,
             "FlamethrowerConfig: burning_corpse_duration_secs must be non-negative",
-        );
-        assert!(
-            self.burning_flame_scale_min > 0.0 && self.burning_flame_scale_max > 0.0,
-            "FlamethrowerConfig: burning flame scales must be positive",
         );
     }
 
     #[must_use]
     pub fn tick_duration(&self) -> Duration {
-        Duration::from_millis(self.tick_ms)
+        Duration::from_millis(self.tick_ms.get())
     }
 
     #[must_use]
     pub fn spawn_interval(&self) -> Duration {
-        Duration::from_millis(self.spawn_interval_ms)
+        Duration::from_millis(self.spawn_interval_ms.get())
     }
 
     #[must_use]
@@ -155,26 +109,32 @@ impl FlamethrowerConfig {
     /// Maximum distance a flame can travel before despawning.
     #[must_use]
     pub fn max_range(&self) -> f32 {
-        self.chain_range
+        self.chain_range.get()
     }
 
     /// Target distance for a given slot index, applying the spacing curve.
     /// Slot 0 = nearest, max_flames-1 = farthest.
     #[must_use]
     pub fn slot_target(&self, slot: u8) -> f32 {
-        let t = (f32::from(slot) + 1.0) / f32::from(self.max_flames);
-        self.chain_range * t.powf(self.spacing_curve)
+        let t = (f32::from(slot) + 1.0) / f32::from(self.max_flames.get());
+        self.chain_range.get() * t.powf(self.spacing_curve.get())
     }
 
+    /// Build a `FireDeathConfig` from the flamethrower chain parameters.
+    ///
+    /// # Panics
+    ///
+    /// If `burning_flame_count` is 0.
     #[must_use]
     pub fn fire_death_config(&self) -> FireDeathConfig {
         FireDeathConfig {
             burning_corpse_duration_secs: self.burning_corpse_duration_secs,
-            burning_flame_count: self.burning_flame_count,
+            burning_flame_count: std::num::NonZeroUsize::new(self.burning_flame_count)
+                .expect("burning_flame_count must be > 0"),
             burning_flame_perimeter_padding_px: self.burning_flame_perimeter_padding_px,
             burning_flame_jitter_px: self.burning_flame_jitter_px,
-            burning_flame_scale_min: self.burning_flame_scale_min,
-            burning_flame_scale_max: self.burning_flame_scale_max,
+            burning_flame_scale_min: self.burning_flame_scale_min.get(),
+            burning_flame_scale_max: self.burning_flame_scale_max.get(),
         }
     }
 }
@@ -312,7 +272,7 @@ pub fn manage_flamethrower(
                 position: origin,
             },
             ActiveFlamethrower {
-                ammo: config.max_ammo,
+                ammo: config.max_ammo.get(),
                 spawning: true,
                 next_spawn_at: now,
                 next_slot: 0,
@@ -381,9 +341,9 @@ pub fn update_flamethrower(
 
     // Advance existing particles.
     let speed = if flamethrower.spawning {
-        config.flame_speed
+        config.flame_speed.get()
     } else {
-        config.flame_speed * config.drain_speed_multiplier
+        config.flame_speed.get() * config.drain_speed_multiplier.get()
     };
 
     for (
@@ -410,8 +370,8 @@ pub fn update_flamethrower(
         }
 
         // Angular lag: further slots follow the current direction more slowly.
-        let follow =
-            config.angular_follow_speed / (1.0 + f32::from(particle.slot) * config.angular_drag);
+        let follow = config.angular_follow_speed.get()
+            / (1.0 + f32::from(particle.slot) * config.angular_drag);
         let t = (follow * dt).min(1.0);
         let lerped = particle.direction.lerp(direction, t);
         // Avoid zero-length collapse when directions are nearly opposite.
@@ -431,19 +391,20 @@ pub fn update_flamethrower(
         *layer = Layer::Ors(OrsLayer::FlameSegment(FlameDepth(depth)));
 
         // Interpolate scale from near (origin) to far (max range).
-        let scale = config.scale_near + (config.scale_far - config.scale_near) * progress_t;
+        let scale = config.scale_near.get()
+            + (config.scale_far.get() - config.scale_near.get()) * progress_t;
         presentation.scale = Vec2::splat(scale);
 
         // Scale collider to match visual size.
         *collider = ColliderData::from_one(carcinisation_collision::Collider::new_circle(
-            config.hit_radius * scale,
+            config.hit_radius.get() * scale,
         ));
     }
 
     // Spawn new particles at the configured interval while chain isn't full.
     if flamethrower.spawning
         && now >= flamethrower.next_spawn_at
-        && flamethrower.next_slot < config.max_flames
+        && flamethrower.next_slot < config.max_flames.get()
     {
         let slot = flamethrower.next_slot;
         let target = config.slot_target(slot);
@@ -468,10 +429,10 @@ pub fn update_flamethrower(
             CxPosition::from(origin.round().as_ivec2()),
             CxAnchor::Center,
             ColliderData::from_one(carcinisation_collision::Collider::new_circle(
-                config.hit_radius,
+                config.hit_radius.get(),
             )),
             CxPresentationTransform {
-                scale: Vec2::splat(config.scale_near),
+                scale: Vec2::splat(config.scale_near.get()),
                 ..default()
             },
             CxRenderSpace::Camera,
@@ -502,7 +463,7 @@ pub fn flamethrower_damage(
 
     let now = time.elapsed();
     let tick_interval = config.tick_duration();
-    let base_radius = config.hit_radius;
+    let base_radius = config.hit_radius.get();
     let max_range = config.max_range();
     let camera_offset = camera.0.as_vec2();
 
@@ -513,7 +474,8 @@ pub fn flamethrower_damage(
             let world_pos = pos.0 + camera_offset;
             // Scale hit radius to match visual scale at this progress.
             let progress_t = (particle.progress / max_range).clamp(0.0, 1.0);
-            let scale = config.scale_near + (config.scale_far - config.scale_near) * progress_t;
+            let scale = config.scale_near.get()
+                + (config.scale_far.get() - config.scale_near.get()) * progress_t;
             (world_pos, base_radius * scale)
         })
         .collect();
@@ -604,21 +566,21 @@ mod tests {
     #[test]
     fn max_range_matches_chain_range() {
         let config = FlamethrowerConfig::load();
-        assert!((config.max_range() - config.chain_range).abs() < f32::EPSILON);
+        assert!((config.max_range() - config.chain_range.get()).abs() < f32::EPSILON);
     }
 
     #[test]
     fn slot_targets_are_monotonically_increasing() {
         let config = FlamethrowerConfig::load();
         let mut prev = 0.0;
-        for slot in 0..config.max_flames {
+        for slot in 0..config.max_flames.get() {
             let target = config.slot_target(slot);
             assert!(target > prev, "slot {slot}: {target} should be > {prev}");
             prev = target;
         }
         // Last slot should reach chain_range.
         assert!(
-            (prev - config.chain_range).abs() < 0.01,
+            (prev - config.chain_range.get()).abs() < 0.01,
             "last slot should reach chain_range, got {prev}"
         );
     }

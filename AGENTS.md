@@ -107,6 +107,7 @@ Give options, trade-offs, and recommendation.
 
 - Fix root cause, not symptom. Do not patch around design bugs.
 - Prefer principled fix over expedient hack.
+- Prefer compile-time type safety over runtime validation. Make illegal states unrepresentable.
 
 ## Failure
 

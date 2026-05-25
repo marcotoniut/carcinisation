@@ -2394,6 +2394,7 @@ dependencies = [
  "rand 0.10.1",
  "ron 0.12.1",
  "serde",
+ "vec1",
 ]
 
 [[package]]
@@ -2527,6 +2528,7 @@ dependencies = [
  "rand 0.10.1",
  "ron 0.12.1",
  "serde",
+ "vec1",
 ]
 
 [[package]]
@@ -2535,9 +2537,11 @@ version = "0.3.0"
 dependencies = [
  "bevy",
  "bevy_math",
+ "carapace",
  "carcinisation_core",
  "ron 0.12.1",
  "serde",
+ "vec1",
 ]
 
 [[package]]
@@ -8118,6 +8122,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "vec1"
+version = "1.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eab68b56840f69efb0fefbe3ab6661499217ffdc58e2eef7c3f6f69835386322"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

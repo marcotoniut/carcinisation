@@ -67,7 +67,7 @@ use bevy_replicon_renet2::renet2::{ConnectionConfig, RenetClient, RenetServer};
 /// (cargo-nextest). Each process gets a unique 20k-port range based on its PID.
 static PORT_BASE: OnceLock<u16> = OnceLock::new();
 
-/// Counter offset from PORT_BASE for sequential port allocation.
+/// Counter offset from `PORT_BASE` for sequential port allocation.
 static NEXT_TEST_PORT: AtomicU16 = AtomicU16::new(0);
 
 /// Reserve the next available test port, verifying the port is bindable.

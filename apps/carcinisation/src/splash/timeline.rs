@@ -3,6 +3,7 @@
 
 use cween::animation::RotationKeyframe;
 use serde::Deserialize;
+use std::num::NonZeroU64;
 
 /// One animation track — a sprite with optional timing, pivot, and keyframes.
 #[derive(Clone, Debug, Deserialize)]
@@ -30,7 +31,7 @@ pub struct SplashTrack {
 /// Top-level splash config loaded from RON.
 #[derive(Clone, Debug, Deserialize)]
 pub struct SplashConfig {
-    pub total_duration_ms: u64,
+    pub total_duration_ms: NonZeroU64,
     pub slowdown: u32,
     pub bg_palette_index: u8,
     pub tracks: Vec<SplashTrack>,
@@ -46,12 +47,18 @@ impl SplashConfig {
 
     fn validate(&self) {
         assert!(
-            self.total_duration_ms > 0,
-            "SplashConfig: total_duration_ms must be > 0",
-        );
-        assert!(
             !self.tracks.is_empty(),
             "SplashConfig: tracks must not be empty",
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn splash_config_loads() {
+        let _ = SplashConfig::load();
     }
 }

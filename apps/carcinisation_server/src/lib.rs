@@ -642,7 +642,6 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
             count += 1;
         } else {
             // Skip non-enemy, non-pickup entities (e.g., Pillars)
-            continue;
         }
     }
 
@@ -654,10 +653,10 @@ pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
     match &spawn.kind {
         EntitySpawnKind::Pillar { .. }
         | EntitySpawnKind::Enemy { .. }
-        | EntitySpawnKind::SpriteEnemy { .. } => NetEnemyType::Basic,
+        | EntitySpawnKind::SpriteEnemy { .. }
+        | EntitySpawnKind::Pickup { .. } => NetEnemyType::Basic,
         EntitySpawnKind::Mosquiton { .. } => NetEnemyType::Mosquiton,
         EntitySpawnKind::Spidey { .. } => NetEnemyType::Spidey,
-        _ => NetEnemyType::Basic, // Should not be reached for non-enemy entities, but added for exhaustiveness.
     }
 }
 
@@ -669,9 +668,8 @@ pub fn server_enemy_ai_config_from_spawn(spawn: &EntitySpawnData) -> Option<Serv
         EntitySpawnKind::Pillar { .. }
         | EntitySpawnKind::Enemy { .. }
         | EntitySpawnKind::SpriteEnemy { .. }
-        | EntitySpawnKind::Spidey { .. } => None,
-        // Pickups and other non-enemy entities
-        _ => None,
+        | EntitySpawnKind::Spidey { .. }
+        | EntitySpawnKind::Pickup { .. } => None,
     }
 }
 

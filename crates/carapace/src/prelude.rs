@@ -73,4 +73,6 @@ pub use crate::{
     },
 };
 
+pub use crate::constrained::{FiniteF32, PositiveFiniteF32};
 pub use carapace_macros::px_layer;
+pub use vec1::Vec1;

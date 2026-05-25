@@ -1,5 +1,6 @@
 use crate::{data::AnimationData, stage::attack::data::HoveringAttackAnimations};
 use bevy::prelude::*;
+use carapace::constrained::{FiniteF32, PositiveFiniteF32};
 use carapace::prelude::CxAnimationFinishBehavior;
 use serde::Deserialize;
 use std::time::Duration;
@@ -14,10 +15,10 @@ use std::time::Duration;
 #[derive(Clone, Debug, Deserialize, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct BloodShotConfig {
-    pub depth_speed: f32,
-    pub line_speed: f32,
+    pub depth_speed: FiniteF32,
+    pub line_speed: PositiveFiniteF32,
     pub damage: u32,
-    pub randomness: f32,
+    pub randomness: FiniteF32,
     pub startup_hold_ms: u64,
 }
 
@@ -37,21 +38,8 @@ impl BloodShotConfig {
 
     fn validate(&self) {
         assert!(
-            self.line_speed > 0.0,
-            "BloodShotConfig: line_speed must be positive, got {}",
-            self.line_speed,
-        );
-        assert!(
-            self.line_speed.is_finite(),
-            "BloodShotConfig: line_speed must be finite",
-        );
-        assert!(
-            self.depth_speed.is_finite(),
-            "BloodShotConfig: depth_speed must be finite",
-        );
-        assert!(
-            self.randomness.is_finite() && self.randomness >= 0.0,
-            "BloodShotConfig: randomness must be finite and non-negative, got {}",
+            self.randomness.get() >= 0.0,
+            "BloodShotConfig: randomness must be non-negative, got {}",
             self.randomness,
         );
     }
@@ -123,10 +111,10 @@ mod tests {
     #[test]
     fn values_match_original_constants() {
         let config = BloodShotConfig::load();
-        assert!((config.depth_speed - (-5.0)).abs() < f32::EPSILON);
-        assert!((config.line_speed - 55.0).abs() < f32::EPSILON);
+        assert!((config.depth_speed.get() - (-5.0)).abs() < f32::EPSILON);
+        assert!((config.line_speed.get() - 55.0).abs() < f32::EPSILON);
         assert_eq!(config.damage, 20);
-        assert!((config.randomness - 20.0).abs() < f32::EPSILON);
+        assert!((config.randomness.get() - 20.0).abs() < f32::EPSILON);
         assert_eq!(config.startup_hold_ms, 60);
     }
 }

@@ -60,13 +60,13 @@ impl FpsScreenParticles {
     ) {
         let w = framebuffer_width.max(1) as f32;
         let h = framebuffer_height.max(1) as f32;
-        let scale = (h / config.prototype_reference_height).max(0.5);
+        let scale = (h / config.prototype_reference_height.get()).max(0.5);
         let anchor_x = w * config.spawn_anchor_x;
         let anchor_y = h * config.spawn_anchor_y;
         let min_dist_sq = (config.min_spawn_distance * scale).powi(2);
-        let mut burst_positions: Vec<Vec2> = Vec::with_capacity(config.particle_count);
+        let mut burst_positions: Vec<Vec2> = Vec::with_capacity(config.particle_count.get());
 
-        for _ in 0..config.particle_count {
+        for _ in 0..config.particle_count.get() {
             let tier = choose_health_tier(&mut self.rng, config);
             let radius = scaled_radius(tier, scale);
             let position = choose_spawn_position(
@@ -81,12 +81,14 @@ impl FpsScreenParticles {
             );
             burst_positions.push(position);
 
-            let pop_mag = config.pop_impulse * scale * (0.5 + self.rng.f32() * 0.5);
+            let pop_mag = config.pop_impulse.get() * scale * (0.5 + self.rng.f32() * 0.5);
             let random_highlight = self.rng.f32() < config.highlight_chance;
             let is_highlight = tier.always_highlight || random_highlight;
             let highlight_window = tier.highlight_window;
-            let lifetime =
-                self.rng.range_f32(config.lifetime_min, config.lifetime_max) * tier.life_scale;
+            let lifetime = self
+                .rng
+                .range_f32(config.lifetime_min.get(), config.lifetime_max.get())
+                * tier.life_scale;
             let flicker_phase = self.rng.range_f32(0.0, std::f32::consts::TAU);
             self.push_particle(
                 FpsScreenParticle {
@@ -107,14 +109,14 @@ impl FpsScreenParticles {
     }
 
     pub fn update(&mut self, dt: f32, config: &ScreenParticleConfig) {
-        let dt = dt.clamp(0.0, config.max_particle_dt);
+        let dt = dt.clamp(0.0, config.max_particle_dt.get());
         if dt == 0.0 {
             return;
         }
         let drag_mul = config.drag.powf(dt * 60.0);
         for particle in &mut self.particles {
             particle.vy *= drag_mul;
-            particle.vy += config.upward_accel * particle.speed_scale * dt;
+            particle.vy += config.upward_accel.get() * particle.speed_scale * dt;
             particle.y += particle.vy * dt;
             particle.age += dt;
         }
@@ -122,8 +124,8 @@ impl FpsScreenParticles {
     }
 
     fn push_particle(&mut self, particle: FpsScreenParticle, config: &ScreenParticleConfig) {
-        if self.particles.len() >= config.max_particles {
-            let overflow = self.particles.len() + 1 - config.max_particles;
+        if self.particles.len() >= config.max_particles.get() {
+            let overflow = self.particles.len() + 1 - config.max_particles.get();
             self.particles.drain(..overflow);
         }
         self.particles.push(particle);
@@ -181,12 +183,14 @@ fn draw_particle(
         fade += 0.10 * (particle.age * 38.0 + particle.flicker_phase).sin();
     }
     let fade_threshold =
-        (fade.clamp(0.0, 1.0) * 16.0 * config.dither_fade_strength).clamp(0.0, 16.0) as u8;
+        (fade.clamp(0.0, 1.0) * 16.0 * config.dither_fade_strength.get()).clamp(0.0, 16.0) as u8;
 
     let cx = particle.x.floor() as i32;
     let cy = particle.y.floor() as i32;
     let r_y = radius;
-    let r_x = ((radius as f32) * config.diamond_aspect).round().max(1.0) as i32;
+    let r_x = ((radius as f32) * config.diamond_aspect.get())
+        .round()
+        .max(1.0) as i32;
     let (core, edge) = if particle.is_highlight && age_ratio < particle.highlight_window {
         (config.palette_highlight, config.palette_light)
     } else {
@@ -242,7 +246,7 @@ fn choose_spawn_position(
     let mut best_nearest = f32::NEG_INFINITY;
     let y_half_range = config.spawn_area_h * height;
 
-    for _ in 0..config.spawn_rejection_attempts {
+    for _ in 0..config.spawn_rejection_attempts.get() {
         let y_jitter = rng.range_f32(-y_half_range, y_half_range);
         let candidate = Vec2::new(
             anchor_x + peripheral_offset(rng, width, config),
@@ -269,7 +273,7 @@ fn peripheral_offset(
     let r = rng.f32() - 0.5;
     let s = if r < 0.0 { -1.0 } else { 1.0 };
     let a = r.abs() * 2.0;
-    s * a.powf(config.spawn_periphery_bias) * width * 0.5
+    s * a.powf(config.spawn_periphery_bias.get()) * width * 0.5
 }
 
 /// Minimum squared distance from `candidate` to any point in `existing`.
@@ -300,7 +304,7 @@ fn choose_health_tier<'a>(
             return tier;
         }
     }
-    config.size_tiers.last().expect("size_tiers is non-empty")
+    config.size_tiers.last()
 }
 
 /// Compute the scaled pixel radius for a selected size tier.
@@ -358,7 +362,7 @@ mod tests {
         let config = default_config();
         let mut particles = FpsScreenParticles::default();
         particles.spawn_health_pickup_burst(160, 144, &config);
-        assert_eq!(particles.len(), config.particle_count);
+        assert_eq!(particles.len(), config.particle_count.get());
     }
 
     #[test]
@@ -399,12 +403,13 @@ mod tests {
     #[test]
     fn health_burst_uses_one_tier_for_all_tier_dependent_values() {
         let mut config = default_config();
-        config.particle_count = 64;
+        config.particle_count = std::num::NonZeroUsize::new(64).unwrap();
         config.highlight_chance = 0.0;
-        config.lifetime_min = 1.0;
-        config.lifetime_max = 1.0;
-        config.prototype_reference_height = 180.0;
-        config.size_tiers = vec![
+        config.lifetime_min = carapace::constrained::PositiveFiniteF32::new(1.0).unwrap();
+        config.lifetime_max = carapace::constrained::PositiveFiniteF32::new(1.0).unwrap();
+        config.prototype_reference_height =
+            carapace::constrained::PositiveFiniteF32::new(180.0).unwrap();
+        config.size_tiers = vec1::vec1![
             carcinisation_fps_core::SizeTierConfig {
                 radius_px: 2.0,
                 speed_scale: 1.25,
@@ -500,7 +505,7 @@ mod tests {
         for _ in 0..10 {
             particles.spawn_health_pickup_burst(160, 144, &config);
         }
-        assert_eq!(particles.len(), config.max_particles);
+        assert_eq!(particles.len(), config.max_particles.get());
     }
 
     #[test]

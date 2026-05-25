@@ -1,6 +1,7 @@
 //! Fire death mechanics: damage types, flame config, and perimeter flame placement.
 
 use bevy::prelude::Vec2;
+use std::num::NonZeroUsize;
 
 /// Damage type applied to an entity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -13,7 +14,7 @@ pub enum DamageKind {
 #[derive(Clone, Copy, Debug)]
 pub struct FireDeathConfig {
     pub burning_corpse_duration_secs: f32,
-    pub burning_flame_count: usize,
+    pub burning_flame_count: NonZeroUsize,
     pub burning_flame_perimeter_padding_px: f32,
     pub burning_flame_jitter_px: f32,
     pub burning_flame_scale_min: f32,
@@ -89,6 +90,7 @@ pub fn perimeter_flames_from_mask(
 
     let count = config
         .burning_flame_count
+        .get()
         .max((perimeter.len() as f32 / density_px).round() as usize)
         .min(perimeter.len());
 
@@ -146,7 +148,7 @@ mod tests {
     fn perimeter_flames_from_mask_cover_visible_edges_deterministically() {
         let config = FireDeathConfig {
             burning_corpse_duration_secs: 1.0,
-            burning_flame_count: 8,
+            burning_flame_count: NonZeroUsize::new(8).unwrap(),
             burning_flame_perimeter_padding_px: 2.0,
             burning_flame_jitter_px: 0.0,
             burning_flame_scale_min: 0.8,

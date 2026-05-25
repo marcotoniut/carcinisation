@@ -1,5 +1,6 @@
 use crate::{data::AnimationData, stage::attack::data::HoveringAttackAnimations};
 use bevy::prelude::*;
+use carapace::constrained::{FiniteF32, PositiveFiniteF32};
 use carapace::prelude::CxAnimationFinishBehavior;
 use serde::Deserialize;
 use std::time::Duration;
@@ -14,13 +15,13 @@ use std::time::Duration;
 #[derive(Clone, Debug, Deserialize, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct SpiderShotConfig {
-    pub depth_speed: f32,
+    pub depth_speed: FiniteF32,
     /// Retained for future use / tuning reference. The current spawn uses
     /// time-matched velocity (displacement / `depth_time`) instead of a fixed
     /// lateral speed, so this field is not read at runtime.
-    pub line_speed: f32,
+    pub line_speed: PositiveFiniteF32,
     pub damage: u32,
-    pub randomness: f32,
+    pub randomness: FiniteF32,
     pub startup_hold_ms: u64,
 }
 
@@ -42,21 +43,8 @@ impl SpiderShotConfig {
 
     fn validate(&self) {
         assert!(
-            self.line_speed > 0.0,
-            "SpiderShotConfig: line_speed must be positive, got {}",
-            self.line_speed,
-        );
-        assert!(
-            self.line_speed.is_finite(),
-            "SpiderShotConfig: line_speed must be finite",
-        );
-        assert!(
-            self.depth_speed.is_finite(),
-            "SpiderShotConfig: depth_speed must be finite",
-        );
-        assert!(
-            self.randomness.is_finite() && self.randomness >= 0.0,
-            "SpiderShotConfig: randomness must be finite and non-negative, got {}",
+            self.randomness.get() >= 0.0,
+            "SpiderShotConfig: randomness must be non-negative, got {}",
             self.randomness,
         );
     }
@@ -115,10 +103,10 @@ mod tests {
     #[test]
     fn values_match_original_constants() {
         let config = SpiderShotConfig::load();
-        assert!((config.depth_speed - (-4.0)).abs() < f32::EPSILON);
-        assert!((config.line_speed - 45.0).abs() < f32::EPSILON);
+        assert!((config.depth_speed.get() - (-4.0)).abs() < f32::EPSILON);
+        assert!((config.line_speed.get() - 45.0).abs() < f32::EPSILON);
         assert_eq!(config.damage, 5);
-        assert!((config.randomness - 15.0).abs() < f32::EPSILON);
+        assert!((config.randomness.get() - 15.0).abs() < f32::EPSILON);
         assert_eq!(config.startup_hold_ms, 80);
     }
 }

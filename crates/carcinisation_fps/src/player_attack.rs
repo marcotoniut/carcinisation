@@ -914,7 +914,7 @@ fn update_flamethrower_attack(
             config.nozzle_forward,
             config.nozzle_lateral,
         );
-        let emit_interval = shared.emit_interval_ms as f32 / 1000.0;
+        let emit_interval = shared.emit_interval_ms.get() as f32 / 1000.0;
         while active.spawn_cooldown <= 0.0 {
             let seed = sample_seed(active.sample_counter);
             active.samples.push(FlameStreamSample {
@@ -1626,6 +1626,13 @@ mod tests {
             height: 32,
             cells: vec![0; 32 * 32],
         }
+    }
+
+    #[test]
+    fn fps_attack_configs_load() {
+        let _ = GroundFireVisualConfig::load();
+        let _ = PlayerFlamethrower1pConfig::load();
+        let _ = GunConfig::load();
     }
 
     #[test]

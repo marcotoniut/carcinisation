@@ -324,7 +324,7 @@ fn reset_stage(reset: &mut ResetParams<'_, '_>) {
                 let mosquiton = Mosquiton::new(pos, config);
                 reset.commands.spawn(mosquiton);
             }
-            EntityKind::Pillar { .. } => {}
+            EntityKind::Pillar { .. } | EntityKind::Pickup { .. } => {}
             EntityKind::Spidey { health, speed } => {
                 let combat = carcinisation_fps_core::FpsCombatConfig::load();
                 let config = SpideyConfig {
@@ -335,7 +335,6 @@ fn reset_stage(reset: &mut ResetParams<'_, '_>) {
                 let spidey = Spidey::new(pos, config);
                 reset.commands.spawn(spidey);
             }
-            EntityKind::Pickup { .. } => {}
         }
     }
 

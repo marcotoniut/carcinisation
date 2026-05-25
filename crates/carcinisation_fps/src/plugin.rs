@@ -1331,10 +1331,6 @@ fn tick_burning_corpse_contact_damage(
         return BurningCorpseContactDamageResult::default();
     }
 
-    assert!(
-        config.burning_corpse_contact_tick_ms > 0,
-        "burning_corpse_contact_tick_ms must be greater than zero"
-    );
     if state.cooldown_remaining_secs > 0.0 {
         return BurningCorpseContactDamageResult::default();
     }
@@ -2308,6 +2304,8 @@ pub struct ShootRequest(pub bool);
 #[cfg(test)]
 #[allow(clippy::float_cmp)]
 mod tests {
+    use std::num::NonZeroU64;
+
     use super::*;
 
     fn test_room_map_data() -> MapData {
@@ -2335,7 +2333,7 @@ mod tests {
     fn contact_hazard_test_config() -> carcinisation_fps_core::PlayerFlamethrowerConfig {
         let mut config = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
         config.burning_corpse_contact_damage = 1;
-        config.burning_corpse_contact_tick_ms = 300;
+        config.burning_corpse_contact_tick_ms = NonZeroU64::new(300).unwrap();
         config.burning_corpse_contact_radius = 0.6;
         config
     }

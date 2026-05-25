@@ -69,3 +69,13 @@ pub fn update_respawn_timer(timer: Option<f32>, dt: f32) -> Option<f32> {
 pub fn is_within_radius(a: Vec2, b: Vec2, radius: f32) -> bool {
     a.distance_squared(b) <= radius * radius
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pickup_rules_load() {
+        let _ = PickupRules::load();
+    }
+}

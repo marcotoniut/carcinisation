@@ -5,6 +5,7 @@
 //! authoritative damage.
 
 use bevy_math::Vec2;
+use std::num::NonZeroUsize;
 
 use crate::config;
 use crate::fire_death::corpse_seed;
@@ -27,7 +28,7 @@ pub struct GroundFireConfig {
     pub radius: f32,
     pub damage_per_tick: f32,
     pub tick_secs: f32,
-    pub flame_count: usize,
+    pub flame_count: NonZeroUsize,
     pub max_fires: usize,
     /// Visual spread radius for flame billboard placement (tighter than damage radius).
     pub visual_radius: f32,

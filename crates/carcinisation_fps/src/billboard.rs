@@ -815,6 +815,7 @@ pub struct PickupBillboardSprites {
 }
 
 impl PickupBillboardSprites {
+    #[must_use]
     pub fn sprite_for_kind(&self, kind: carcinisation_net::NetPickupKind) -> &Arc<CxImage> {
         match kind {
             carcinisation_net::NetPickupKind::Health => &self.health,
@@ -835,6 +836,10 @@ const PICKUP_PXI: &[u8] = include_bytes!("../../../assets/sprites/pickups/pickup
 ///
 /// # Errors
 ///
+/// # Panics
+///
+/// If part names are not found in the composed atlas's string table.
+///
 /// Returns an error if any name in `part_names` is not found in the
 /// composed atlas's part string table, or if the PXI data is malformed.
 fn compose_pickup_sprite(
@@ -844,6 +849,14 @@ fn compose_pickup_sprite(
     atlas_width: u32,
     part_names: &[&str],
 ) -> Result<Arc<CxImage>, String> {
+    struct Placement {
+        sprite_idx: usize,
+        top_left: (i32, i32),
+        size: (u32, u32),
+        flip_x: bool,
+        flip_y: bool,
+    }
+
     let include_ids: Vec<u8> = part_names
         .iter()
         .map(|name| {
@@ -885,14 +898,6 @@ fn compose_pickup_sprite(
 
     let part_map: HashMap<u8, &asset_pipeline::composed_ron::CompactPart> =
         composed.parts.iter().map(|part| (part.id, part)).collect();
-
-    struct Placement {
-        sprite_idx: usize,
-        top_left: (i32, i32),
-        size: (u32, u32),
-        flip_x: bool,
-        flip_y: bool,
-    }
 
     let mut placements = Vec::new();
     for (&part_id, fragments) in &grouped {

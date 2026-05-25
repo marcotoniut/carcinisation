@@ -1,6 +1,7 @@
 //! Data-driven player tuning loaded from `assets/config/player.ron`.
 
 use bevy::prelude::*;
+use carapace::constrained::PositiveFiniteF32;
 use carcinisation_core::ron_config;
 use serde::Deserialize;
 
@@ -8,7 +9,7 @@ use serde::Deserialize;
 #[reflect(Resource)]
 pub struct PlayerConfig {
     /// Base movement speed in pixels per second.
-    pub base_speed: f32,
+    pub base_speed: PositiveFiniteF32,
     /// Movement speed multiplier when the slow modifier (B held) is active.
     pub slow_modifier: f32,
 }
@@ -22,11 +23,6 @@ impl PlayerConfig {
     }
 
     fn validate(&self) {
-        assert!(
-            self.base_speed > 0.0 && self.base_speed.is_finite(),
-            "PlayerConfig: base_speed must be positive and finite, got {}",
-            self.base_speed
-        );
         assert!(
             self.slow_modifier > 0.0 && self.slow_modifier <= 1.0 && self.slow_modifier.is_finite(),
             "PlayerConfig: slow_modifier must be in (0.0, 1.0], got {}",
@@ -42,7 +38,7 @@ mod tests {
     #[test]
     fn embedded_config_parses_and_validates() {
         let config = PlayerConfig::load();
-        assert!(config.base_speed > 0.0);
+        assert!(config.base_speed.get() > 0.0);
         assert!(config.slow_modifier > 0.0 && config.slow_modifier <= 1.0);
     }
 }

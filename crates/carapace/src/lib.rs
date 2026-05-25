@@ -85,12 +85,16 @@
 #![cfg_attr(not(feature = "headed"), allow(unused_imports))]
 #![warn(missing_docs)]
 
+extern crate self as carapace;
+
 pub mod animation;
 pub mod atlas;
 pub mod blink;
 /// Convenience bundles for spawning common entity configurations.
 pub mod bundles;
 mod camera;
+/// Lightweight constrained newtypes for serde-boundary validation.
+pub mod constrained;
 pub mod cursor;
 #[cfg(feature = "headed")]
 pub mod debug_draw;

@@ -76,11 +76,11 @@ pub fn player_movement(
     }
     for (mut position, webbed) in &mut query {
         let speed = if let Some(webbed) = webbed {
-            config.base_speed * webbed.speed_multiplier
+            config.base_speed.get() * webbed.speed_multiplier
         } else if intent.slow_modifier {
-            config.base_speed * config.slow_modifier
+            config.base_speed.get() * config.slow_modifier
         } else {
-            config.base_speed
+            config.base_speed.get()
         };
         position.0 += intent.move_direction * speed * time.delta().as_secs_f32();
     }
@@ -370,7 +370,7 @@ mod tests {
         let mut app = App::new();
         app.insert_resource(Time::<StageTimeDomain>::default());
         app.insert_resource(PlayerConfig {
-            base_speed: 100.0,
+            base_speed: carapace::constrained::PositiveFiniteF32::new(100.0).unwrap(),
             slow_modifier: 0.5,
         });
         app.insert_resource(PlayerIntent {

@@ -101,8 +101,8 @@ pub fn spawn_spider_shot_attack(
     let attack_type = EnemyHoveringAttackType::SpiderShot;
     let target_pos = target_pos
         + Vec2::new(
-            (1. - rand::random::<f32>()) * config.randomness,
-            (1. - rand::random::<f32>()) * config.randomness,
+            (1. - rand::random::<f32>()) * config.randomness.get(),
+            (1. - rand::random::<f32>()) * config.randomness.get(),
         );
 
     let (atlas_sprite, animation, _circle_collider) =
@@ -118,11 +118,12 @@ pub fn spawn_spider_shot_attack(
     // overshooting at deep spawn depths where constant-speed projectiles
     // would drift far past the target during the long depth transit.
     let depth_distance = (depth.to_f32() - PLAYER_DEPTH.to_f32()).abs();
-    let depth_time = if config.depth_speed.abs() > f32::EPSILON && depth_distance > f32::EPSILON {
-        depth_distance / config.depth_speed.abs()
-    } else {
-        1.0
-    };
+    let depth_time =
+        if config.depth_speed.get().abs() > f32::EPSILON && depth_distance > f32::EPSILON {
+            depth_distance / config.depth_speed.get().abs()
+        } else {
+            1.0
+        };
     let displacement = target_pos - spawn_world_pos;
     let speed = displacement / depth_time;
 
@@ -229,7 +230,7 @@ pub fn arm_pending_spider_shot_motion(
                 entity,
                 depth.to_f32(),
                 PLAYER_DEPTH.to_f32(),
-                config.depth_speed,
+                config.depth_speed.get(),
             ),
             "Spider Shot Tween Z",
         );

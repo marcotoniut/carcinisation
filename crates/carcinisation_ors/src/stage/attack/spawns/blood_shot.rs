@@ -101,8 +101,8 @@ pub fn spawn_blood_shot_attack(
     // TODO should this account for player speed/direction?
     let target_pos = target_pos
         + Vec2::new(
-            (1. - rand::random::<f32>()) * config.randomness,
-            (1. - rand::random::<f32>()) * config.randomness,
+            (1. - rand::random::<f32>()) * config.randomness.get(),
+            (1. - rand::random::<f32>()) * config.randomness.get(),
         );
 
     let (atlas_sprite, animation, collider_data) =
@@ -114,7 +114,7 @@ pub fn spawn_blood_shot_attack(
         ProjectileSpawnSourceBasis::WorldSpace,
     );
     let direction = target_pos - spawn_world_pos;
-    let speed = direction.normalize_or_zero() * config.line_speed;
+    let speed = direction.normalize_or_zero() * config.line_speed.get();
 
     let mut entity_commands = commands.spawn(BloodShotBundle {
         enemy_attack_origin_position: EnemyAttackOriginPosition(spawn_world_pos),
@@ -208,7 +208,7 @@ pub fn arm_pending_blood_shot_motion(
                 entity,
                 depth.to_f32(),
                 PLAYER_DEPTH.to_f32(),
-                config.depth_speed,
+                config.depth_speed.get(),
             ),
             "Blood Shot Tween Z",
         );

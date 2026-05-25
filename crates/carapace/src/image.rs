@@ -1,5 +1,6 @@
 use bevy_render::render_resource::TextureFormat;
 use serde::{Deserialize, Serialize};
+use std::num::NonZeroUsize;
 
 use crate::{math::RectExt, palette::Palette, prelude::*};
 
@@ -23,7 +24,7 @@ use crate::{math::RectExt, palette::Palette, prelude::*};
 #[derive(Serialize, Deserialize, Clone, Reflect, Debug)]
 pub struct CxImage {
     image: Vec<u8>,
-    width: usize,
+    width: NonZeroUsize,
 }
 
 impl CxImage {
@@ -33,24 +34,25 @@ impl CxImage {
     /// is non-empty its length must be a multiple of `width`. An empty `image`
     /// vec with a positive width is valid (zero rows, height 0).
     ///
-    /// # Panics (debug)
+    /// # Panics
     ///
     /// - `width` is 0.
     /// - `image` is non-empty and its length is not a multiple of `width`.
     #[must_use]
     pub fn new(image: Vec<u8>, width: usize) -> Self {
-        debug_assert!(width > 0, "CxImage: width must be > 0 (got width 0)");
+        let width = NonZeroUsize::new(width).expect("CxImage: width must be > 0 (got width 0)");
         debug_assert!(
-            image.is_empty() || image.len().is_multiple_of(width),
-            "CxImage: data length ({}) must be a multiple of width ({width})",
+            image.is_empty() || image.len().is_multiple_of(width.get()),
+            "CxImage: data length ({}) must be a multiple of width ({})",
             image.len(),
+            width,
         );
         Self { image, width }
     }
 
     /// Allocate a zeroed raster of the given size (both dimensions must be > 0).
     ///
-    /// # Panics (debug)
+    /// # Panics
     ///
     /// Either dimension is 0.
     #[must_use]
@@ -61,7 +63,7 @@ impl CxImage {
         );
         Self {
             image: vec![0; (size.x * size.y) as usize],
-            width: size.x as usize,
+            width: NonZeroUsize::new(size.x as usize).expect("CxImage::empty: width must be > 0"),
         }
     }
 
@@ -102,7 +104,8 @@ impl CxImage {
                     }
                 })
                 .collect::<Result<_>>()?,
-            width: image.texture_descriptor.size.width as usize,
+            width: NonZeroUsize::new(image.texture_descriptor.size.width as usize)
+                .expect("CxImage: image width must be > 0"),
         })
     }
 
@@ -112,7 +115,7 @@ impl CxImage {
     ///
     /// Out-of-bounds access. Prefer [`get_pixel`](Self::get_pixel) from external code.
     pub(crate) fn pixel(&self, position: IVec2) -> u8 {
-        self.image[(position.x + position.y * self.width as i32) as usize]
+        self.image[(position.x + position.y * self.width.get() as i32) as usize]
     }
 
     /// Bounds-checked pixel read. Returns `None` for out-of-bounds positions.
@@ -120,7 +123,10 @@ impl CxImage {
     pub fn get_pixel(&self, position: IVec2) -> Option<u8> {
         IRect {
             min: IVec2::splat(0),
-            max: IVec2::new(self.width as i32, (self.image.len() / self.width) as i32),
+            max: IVec2::new(
+                self.width.get() as i32,
+                (self.image.len() / self.width.get()) as i32,
+            ),
         }
         .contains_exclusive(position)
         .then(|| self.pixel(position))
@@ -129,19 +135,22 @@ impl CxImage {
     /// Dimensions as `(width, height)`.
     #[must_use]
     pub fn size(&self) -> UVec2 {
-        UVec2::new(self.width as u32, (self.image.len() / self.width) as u32)
+        UVec2::new(
+            self.width.get() as u32,
+            (self.image.len() / self.width.get()) as u32,
+        )
     }
 
     /// Width in pixels.
     #[must_use]
     pub fn width(&self) -> usize {
-        self.width
+        self.width.get()
     }
 
     /// Height in pixels.
     #[must_use]
     pub fn height(&self) -> usize {
-        self.image.len() / self.width
+        self.image.len() / self.width.get()
     }
 
     /// Total pixel count (`width * height`).
@@ -168,36 +177,39 @@ impl CxImage {
 
     #[expect(unused)]
     pub(crate) fn slice_mut(&mut self, slice: IRect) -> CxImageSliceMut<'_> {
+        let w = self.width.get();
         CxImageSliceMut {
             slice,
-            image: self.image.chunks_exact_mut(self.width).collect(),
-            width: self.width,
+            image: self.image.chunks_exact_mut(w).collect(),
+            width: w,
         }
     }
 
     pub(crate) fn slice_all_mut(&mut self) -> CxImageSliceMut<'_> {
+        let w = self.width.get();
         CxImageSliceMut {
             slice: IRect {
                 min: IVec2::splat(0),
-                max: IVec2::new(self.width as i32, (self.image.len() / self.width) as i32),
+                max: IVec2::new(w as i32, (self.image.len() / w) as i32),
             },
-            image: self.image.chunks_exact_mut(self.width).collect(),
-            width: self.width,
+            image: self.image.chunks_exact_mut(w).collect(),
+            width: w,
         }
     }
 
     pub(crate) fn split_vert(self, chunk_height: usize) -> Vec<Self> {
+        let w = self.width;
         self.image
-            .chunks_exact(chunk_height * self.width)
+            .chunks_exact(chunk_height * w.get())
             .map(|chunk| Self {
                 image: chunk.into(),
-                width: self.width,
+                width: w,
             })
             .collect()
     }
 
     pub(crate) fn split_horz(self, chunk_width: usize) -> Vec<Self> {
-        let chunk_count = self.width / chunk_width;
+        let chunk_count = self.width.get() / chunk_width;
         let mut images = vec![Vec::with_capacity(self.area() / chunk_width); chunk_count];
 
         for (i, chunk_row) in self.image.chunks_exact(chunk_width).enumerate() {
@@ -208,7 +220,8 @@ impl CxImage {
             .into_iter()
             .map(|image| Self {
                 image: image.into_iter().flatten().copied().collect(),
-                width: chunk_width,
+                width: NonZeroUsize::new(chunk_width)
+                    .expect("CxImage::split_horz: chunk_width must be > 0"),
             })
             .collect()
     }
@@ -218,15 +231,15 @@ impl CxImage {
             return;
         }
 
-        while self.width > 1
-            && (0..self.height()).all(|row| self.image[self.width * (row + 1) - 1] == 0)
-        {
+        let mut w = self.width.get();
+        while w > 1 && (0..self.height()).all(|row| self.image[w * (row + 1) - 1] == 0) {
             for row in (0..self.height()).rev() {
-                self.image.remove(row * self.width + self.width - 1);
+                self.image.remove(row * w + w - 1);
             }
 
-            self.width -= 1;
+            w -= 1;
         }
+        self.width = NonZeroUsize::new(w).unwrap();
     }
 
     pub(crate) fn from_parts_vert(parts: impl IntoIterator<Item = Self>) -> Option<Self> {

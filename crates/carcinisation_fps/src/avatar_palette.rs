@@ -197,6 +197,11 @@ mod tests {
     // -----------------------------------------------------------------------
 
     #[test]
+    fn avatar_palette_config_loads() {
+        let _ = AvatarPaletteConfig::load();
+    }
+
+    #[test]
     fn identity_maps_all_indices_to_self() {
         let remap = AvatarPaletteRemap::identity();
         for i in 0..16u8 {

@@ -1,3 +1,8 @@
+#![allow(
+    clippy::float_cmp,
+    reason = "test assertions compare exact values, not computed results"
+)]
+
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -80,7 +85,7 @@ fn spawn_pickup(
 fn heal_clamping() {
     let mut app = test_app();
     let player = spawn_player(app.world_mut(), Vec2::ZERO, 50.0);
-    let _pickup = spawn_pickup(
+    let pickup = spawn_pickup(
         app.world_mut(),
         Vec2::ZERO,
         NetPickupKind::Health,
@@ -100,7 +105,7 @@ fn heal_clamping() {
         .unwrap()
         .current = 90.0;
     {
-        let mut pickup = app.world_mut().get_mut::<NetPickup>(_pickup).unwrap();
+        let mut pickup = app.world_mut().get_mut::<NetPickup>(pickup).unwrap();
         pickup.available = true;
         pickup.respawn_remaining = None;
     }
@@ -115,7 +120,7 @@ fn heal_clamping() {
 fn unavailable_pickup_cannot_be_collected() {
     let mut app = test_app();
     let player = spawn_player(app.world_mut(), Vec2::ZERO, 50.0);
-    let _pickup = spawn_pickup(
+    let pickup = spawn_pickup(
         app.world_mut(),
         Vec2::ZERO,
         NetPickupKind::Health,
@@ -129,7 +134,7 @@ fn unavailable_pickup_cannot_be_collected() {
     let health = app.world().get::<NetHealth>(player).unwrap();
     assert_eq!(health.current, 50.0, "health unchanged");
 
-    let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
+    let pickup = app.world().get::<NetPickup>(pickup).unwrap();
     assert!(!pickup.available, "still unavailable");
 }
 
@@ -137,7 +142,7 @@ fn unavailable_pickup_cannot_be_collected() {
 #[test]
 fn respawn_flips_available() {
     let mut app = test_app();
-    let _pickup = spawn_pickup(
+    let pickup_entity = spawn_pickup(
         app.world_mut(),
         Vec2::ZERO,
         NetPickupKind::Health,
@@ -148,13 +153,13 @@ fn respawn_flips_available() {
 
     // Tick once with dt = 0.05 → remaining = 0.05.
     tick_with(&mut app, 0.05);
-    let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
+    let pickup = app.world().get::<NetPickup>(pickup_entity).unwrap();
     assert!(!pickup.available);
     assert_eq!(pickup.respawn_remaining, Some(0.05));
 
     // Tick again with dt = 0.1 → timer expires.
     tick_with(&mut app, 0.1);
-    let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
+    let pickup = app.world().get::<NetPickup>(pickup_entity).unwrap();
     assert!(pickup.available);
     assert_eq!(pickup.respawn_remaining, None);
 }
@@ -164,7 +169,7 @@ fn respawn_flips_available() {
 fn full_health_does_not_consume() {
     let mut app = test_app();
     let player = spawn_player(app.world_mut(), Vec2::ZERO, 100.0);
-    let _pickup = spawn_pickup(
+    let pickup = spawn_pickup(
         app.world_mut(),
         Vec2::ZERO,
         NetPickupKind::Health,
@@ -178,7 +183,7 @@ fn full_health_does_not_consume() {
     let health = app.world().get::<NetHealth>(player).unwrap();
     assert_eq!(health.current, 100.0, "no overheal");
 
-    let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
+    let pickup = app.world().get::<NetPickup>(pickup).unwrap();
     assert!(pickup.available, "pickup not consumed");
 }
 
@@ -188,7 +193,7 @@ fn dead_player_does_not_consume() {
     let mut app = test_app();
     let player = spawn_player(app.world_mut(), Vec2::ZERO, 0.0);
     app.world_mut().get_mut::<NetPlayer>(player).unwrap().state = PlayerNetState::Dead;
-    let _pickup = spawn_pickup(
+    let pickup = spawn_pickup(
         app.world_mut(),
         Vec2::ZERO,
         NetPickupKind::Health,
@@ -202,7 +207,7 @@ fn dead_player_does_not_consume() {
     let health = app.world().get::<NetHealth>(player).unwrap();
     assert_eq!(health.current, 0.0, "dead player not healed");
 
-    let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
+    let pickup = app.world().get::<NetPickup>(pickup).unwrap();
     assert!(pickup.available, "pickup not consumed by dead player");
 }
 
@@ -211,16 +216,16 @@ fn dead_player_does_not_consume() {
 fn unsupported_pickup_kind_is_noop() {
     for kind in &[NetPickupKind::Ammo, NetPickupKind::Weapon] {
         let mut app = test_app();
-        let _player = spawn_player(app.world_mut(), Vec2::ZERO, 50.0);
-        let _pickup = spawn_pickup(app.world_mut(), Vec2::ZERO, *kind, true, None, true);
+        let player = spawn_player(app.world_mut(), Vec2::ZERO, 50.0);
+        let pickup = spawn_pickup(app.world_mut(), Vec2::ZERO, *kind, true, None, true);
 
         tick_with(&mut app, 1.0 / 30.0);
 
-        let health = app.world().get::<NetHealth>(_player).unwrap();
-        assert_eq!(health.current, 50.0, "{:?} pickup must not heal", kind);
+        let health = app.world().get::<NetHealth>(player).unwrap();
+        assert_eq!(health.current, 50.0, "{kind:?} pickup must not heal");
 
-        let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
-        assert!(pickup.available, "{:?} pickup must not be consumed", kind);
+        let pickup = app.world().get::<NetPickup>(pickup).unwrap();
+        assert!(pickup.available, "{kind:?} pickup must not be consumed");
         assert_eq!(pickup.respawn_remaining, None);
     }
 }
@@ -264,7 +269,7 @@ fn unsupported_pickup_does_not_block_valid_pickup() {
 fn non_respawnable_stays_unavailable() {
     let mut app = test_app();
     let player = spawn_player(app.world_mut(), Vec2::ZERO, 50.0);
-    let _pickup = spawn_pickup(
+    let pickup_entity = spawn_pickup(
         app.world_mut(),
         Vec2::ZERO,
         NetPickupKind::Health,
@@ -279,13 +284,13 @@ fn non_respawnable_stays_unavailable() {
     let health = app.world().get::<NetHealth>(player).unwrap();
     assert_eq!(health.current, 100.0, "healed 50 HP");
 
-    let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
+    let pickup = app.world().get::<NetPickup>(pickup_entity).unwrap();
     assert!(!pickup.available, "pickup now unavailable");
     assert_eq!(pickup.respawn_remaining, None, "no respawn timer");
 
     // Advance time well beyond normal respawn — still unavailable.
     tick_with(&mut app, 60.0);
-    let pickup = app.world().get::<NetPickup>(_pickup).unwrap();
+    let pickup = app.world().get::<NetPickup>(pickup_entity).unwrap();
     assert!(!pickup.available, "still unavailable after 60 seconds");
     assert_eq!(pickup.respawn_remaining, None);
 }

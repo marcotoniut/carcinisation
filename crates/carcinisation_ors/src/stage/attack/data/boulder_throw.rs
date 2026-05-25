@@ -1,5 +1,6 @@
 use crate::{data::AnimationData, stage::attack::data::HoveringAttackAnimations};
 use bevy::prelude::*;
+use carapace::constrained::FiniteF32;
 use carapace::prelude::CxAnimationFinishBehavior;
 use serde::Deserialize;
 
@@ -13,35 +14,16 @@ use serde::Deserialize;
 #[derive(Clone, Debug, Deserialize, Resource, Reflect)]
 #[reflect(Resource)]
 pub struct BoulderThrowConfig {
-    pub depth_speed: f32,
-    pub line_y_acceleration: f32,
+    pub depth_speed: FiniteF32,
+    pub line_y_acceleration: FiniteF32,
     pub damage: u32,
-    pub randomness: f32,
+    pub randomness: FiniteF32,
 }
 
 impl BoulderThrowConfig {
     #[must_use]
     pub fn load() -> Self {
-        let config: Self =
-            carcinisation_core::ron_config!("assets/config/attacks/boulder_throw.ron");
-        config.validate();
-        config
-    }
-
-    fn validate(&self) {
-        assert!(
-            self.depth_speed.is_finite(),
-            "BoulderThrowConfig: depth_speed must be finite",
-        );
-        assert!(
-            self.line_y_acceleration.is_finite(),
-            "BoulderThrowConfig: line_y_acceleration must be finite",
-        );
-        assert!(
-            self.randomness.is_finite() && self.randomness >= 0.0,
-            "BoulderThrowConfig: randomness must be finite and non-negative, got {}",
-            self.randomness,
-        );
+        carcinisation_core::ron_config!("assets/config/attacks/boulder_throw.ron")
     }
 }
 
@@ -89,16 +71,15 @@ mod tests {
 
     #[test]
     fn embedded_config_parses_and_validates() {
-        let config = BoulderThrowConfig::load();
-        config.validate();
+        let _config = BoulderThrowConfig::load();
     }
 
     #[test]
     fn values_match_original_constants() {
         let config = BoulderThrowConfig::load();
-        assert!((config.depth_speed - (-1.6)).abs() < f32::EPSILON);
-        assert!((config.line_y_acceleration - (-55.0)).abs() < f32::EPSILON);
+        assert!((config.depth_speed.get() - (-1.6)).abs() < f32::EPSILON);
+        assert!((config.line_y_acceleration.get() - (-55.0)).abs() < f32::EPSILON);
         assert_eq!(config.damage, 45);
-        assert!((config.randomness - 35.0).abs() < f32::EPSILON);
+        assert!((config.randomness.get() - 35.0).abs() < f32::EPSILON);
     }
 }

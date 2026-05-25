@@ -50,7 +50,7 @@ pub fn build_splash_cutscene_data() -> (SplashConfig, CutsceneData) {
         .collect();
 
     let act = CutsceneAct::new()
-        .with_elapse(config.total_duration_ms as f32 / 1000.0)
+        .with_elapse(config.total_duration_ms.get() as f32 / 1000.0)
         .spawn_images(CutsceneImagesSpawn::new().with_spawns(image_spawns))
         .with_background_primitive(CutsceneBackgroundPrimitive {
             palette_index: config.bg_palette_index,
