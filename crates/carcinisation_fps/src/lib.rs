@@ -36,5 +36,6 @@ pub mod player_attack;
 pub mod plugin;
 pub mod raycast;
 pub mod render;
+pub mod screen_particles;
 pub mod sky;
 pub mod spidey;

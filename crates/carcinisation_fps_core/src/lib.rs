@@ -34,7 +34,10 @@ pub use burning::{
 pub use camera::Camera;
 pub use collision::try_move;
 pub use combat::{flame_hits_position, flame_hits_position_configured};
-pub use config::{FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, PlayerFlamethrowerConfig};
+pub use config::{
+    FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, PlayerFlamethrowerConfig,
+    ScreenParticleConfig, SizeTierConfig,
+};
 pub use enemy::{
     DamageOutcome, Enemy, EnemyAiDisposition, EnemyAiOutput, EnemyPlayerTarget, EnemySim,
     EnemyState, FpsEnemyAiState, FpsEnemyKind, HitscanResult, MosquitonAiConfig, Projectile,

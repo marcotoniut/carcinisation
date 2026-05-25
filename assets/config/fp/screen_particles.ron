@@ -1,0 +1,77 @@
+ScreenParticleConfig(
+    // Particles per health-pickup burst.
+    particle_count: 16,
+    // Maximum concurrent particles (FIFO eviction).
+    max_particles: 128,
+
+    // -- Lifetime / Physics --
+    // Min/max particle lifetime in seconds.
+    lifetime_min: 0.70,
+    lifetime_max: 1.05,
+    // Upward acceleration in px/s² (negative = up).
+    upward_accel: -90.0,
+    // Initial upward impulse in px/s.
+    pop_impulse: 30.0,
+    // Drag multiplier per 60 Hz frame.
+    drag: 0.97,
+
+    // -- Appearance --
+    // Probability of highlight variant per particle.
+    highlight_chance: 0.05,
+    // Normalised age at which dither fade begins.
+    dither_fade_start: 0.55,
+    // Dither threshold strength multiplier.
+    dither_fade_strength: 1.0,
+    // Diamond width/height aspect ratio.
+    diamond_aspect: 0.55,
+
+    // -- Spawn / Anti-cluster --
+    // Peripheral bias exponent (< 1 = more edgeward, > 1 = more centre-weighted).
+    spawn_periphery_bias: 0.7,
+    // Min distance between particles (unscaled px).
+    min_spawn_distance: 14.0,
+    // Anti-cluster rejection attempts.
+    spawn_rejection_attempts: 8,
+    // Max physics dt to avoid explosion on spike.
+    max_particle_dt: 0.05,
+
+    // Spawn anchor as fraction of framebuffer.
+    spawn_anchor_x: 0.50,
+    spawn_anchor_y: 0.55,
+    // Vertical jitter half-range as fraction of height.
+    spawn_area_h: 0.10,
+    // Reference height for scaling.
+    prototype_reference_height: 180.0,
+
+    // Palette indices (index 0 = transparent).
+    palette_light: 3,
+    palette_highlight: 4,
+
+    // Size tiers (weighted random selection).
+    size_tiers: [
+        SizeTierConfig(
+            radius_px: 2.0,
+            speed_scale: 1.70,
+            life_scale: 1.00,
+            weight: 0.70,
+            always_highlight: false,
+            highlight_window: 0.55,
+        ),
+        SizeTierConfig(
+            radius_px: 5.0,
+            speed_scale: 0.80,
+            life_scale: 1.00,
+            weight: 0.22,
+            always_highlight: false,
+            highlight_window: 0.55,
+        ),
+        SizeTierConfig(
+            radius_px: 9.0,
+            speed_scale: 0.40,
+            life_scale: 0.70,
+            weight: 0.08,
+            always_highlight: true,
+            highlight_window: 0.65,
+        ),
+    ],
+)

@@ -36,13 +36,15 @@ use carcinisation_fps::plugin::{
 };
 use carcinisation_fps::raycast::{HitSide, WallSurfaceId};
 use carcinisation_fps::render::CharDecal;
+use carcinisation_fps::screen_particles::FpsScreenParticles;
+use carcinisation_fps_core::ScreenParticleConfig;
 use carcinisation_net::components::{NetEnemy, NetPickup};
 use carcinisation_net::protocol::PickupEffect;
 use carcinisation_net::{
     DamageEffect, DeathEffect, EnemyAttackKind, EnemyAttackVisual, FlameActive, FlameCharMark,
     HitConfirm, MuzzleFlash, NetAttackId, NetBurning, NetEnemyState, NetEnemyType, NetGroundFire,
-    NetHealth, NetPlayer, NetProjectile, NetProjectileType, NetProtocolPlugin, NetworkObjectId,
-    PlayerId, PlayerIdAssigned, register_net_all,
+    NetHealth, NetPickupKind, NetPlayer, NetProjectile, NetProjectileType, NetProtocolPlugin,
+    NetworkObjectId, PlayerId, PlayerIdAssigned, register_net_all,
 };
 use std::net::SocketAddr;
 #[cfg(not(target_family = "wasm"))]
@@ -92,8 +94,16 @@ struct PickupImpact {
 #[derive(Resource, Debug, Default)]
 struct PickupImpacts(Vec<PickupImpact>);
 
+/// Local-only health pickup screen feedback deduplication state.
+#[derive(Resource, Debug, Default)]
+struct HealthPickupScreenFeedback {
+    last_local_health: Option<f32>,
+    last_burst_at_secs: Option<f64>,
+}
+
 const PICKUP_BILLBOARD_WORLD_HEIGHT: f32 = 0.25;
 const CONNECTION_TIMEOUT_SECS: f64 = 15.0;
+const HEALTH_PICKUP_SCREEN_FEEDBACK_SUPPRESSION_SECS: f64 = 0.20;
 
 const SHOW_NET_INFO_ENV: &str = "CARCINISATION_SHOW_NET_INFO";
 
@@ -192,6 +202,8 @@ impl Plugin for FpsClientPlugin {
             .init_resource::<EnemyDamageFlickers>()
             .init_resource::<HitImpacts>()
             .init_resource::<PickupImpacts>()
+            .init_resource::<FpsScreenParticles>()
+            .init_resource::<HealthPickupScreenFeedback>()
             .insert_resource(prediction::PredictionEnabled::from_env())
             .init_resource::<PredictedPlayerState>()
             .init_resource::<prediction::PredictionDiagnostics>()
@@ -400,14 +412,53 @@ fn handle_hit_confirm(trigger: On<HitConfirm>, mut impacts: ResMut<HitImpacts>) 
     });
 }
 
-/// Pickup effect — pushes a feedback billboard into the impact queue.
-fn handle_pickup_effect(trigger: On<PickupEffect>, mut impacts: ResMut<PickupImpacts>) {
+/// Pickup effect — pushes world feedback and local screen feedback.
+fn handle_pickup_effect(
+    trigger: On<PickupEffect>,
+    mut impacts: ResMut<PickupImpacts>,
+    local_id: Res<LocalPlayerId>,
+    config: Res<Config>,
+    time: Res<Time>,
+    mut screen_particles: ResMut<FpsScreenParticles>,
+    mut screen_feedback: ResMut<HealthPickupScreenFeedback>,
+    particle_config: Res<ScreenParticleConfig>,
+) {
     let event = trigger.event();
     impacts.0.push(PickupImpact {
         position: event.position,
         age: 0.0,
         lifetime: 0.5,
     });
+
+    if event.kind == NetPickupKind::Health && local_id.0 == Some(event.player_id) {
+        try_spawn_health_pickup_screen_feedback(
+            &mut screen_particles,
+            &mut screen_feedback,
+            config.screen_width,
+            config.screen_height,
+            &particle_config,
+            time.elapsed_secs_f64(),
+        );
+    }
+}
+
+fn try_spawn_health_pickup_screen_feedback(
+    screen_particles: &mut FpsScreenParticles,
+    screen_feedback: &mut HealthPickupScreenFeedback,
+    screen_width: u32,
+    screen_height: u32,
+    particle_config: &ScreenParticleConfig,
+    now_secs: f64,
+) {
+    if screen_feedback
+        .last_burst_at_secs
+        .is_some_and(|last| now_secs - last < HEALTH_PICKUP_SCREEN_FEEDBACK_SUPPRESSION_SECS)
+    {
+        return;
+    }
+
+    screen_particles.spawn_health_pickup_burst(screen_width, screen_height, particle_config);
+    screen_feedback.last_burst_at_secs = Some(now_secs);
 }
 
 fn handle_damage_effect(
@@ -667,6 +718,11 @@ fn sync_local_player_health_from_net_health(
     net_players: Query<(&NetPlayer, &NetHealth), Changed<NetHealth>>,
     local_player_id: Res<LocalPlayerId>,
     mut player_health: ResMut<carcinisation_fps::plugin::PlayerHealth>,
+    time: Res<Time>,
+    config: Option<Res<Config>>,
+    screen_particles: Option<ResMut<FpsScreenParticles>>,
+    screen_feedback: Option<ResMut<HealthPickupScreenFeedback>>,
+    particle_config: Option<Res<ScreenParticleConfig>>,
 ) {
     let Some(my_id) = local_player_id.0 else {
         return;
@@ -677,7 +733,27 @@ fn sync_local_player_health_from_net_health(
     else {
         return;
     };
-    player_health.0 = health.current.ceil().clamp(0.0, health.max) as u32;
+
+    let current = health.current.ceil().clamp(0.0, health.max) as u32;
+    if let Some(mut screen_feedback) = screen_feedback {
+        let previous = screen_feedback.last_local_health.replace(health.current);
+        if let (Some(previous), Some(config), Some(mut screen_particles), Some(particle_config)) =
+            (previous, config, screen_particles, particle_config)
+            && previous > 0.0
+            && health.current > previous + f32::EPSILON
+        {
+            try_spawn_health_pickup_screen_feedback(
+                &mut screen_particles,
+                &mut screen_feedback,
+                config.screen_width,
+                config.screen_height,
+                &particle_config,
+                time.elapsed_secs_f64(),
+            );
+        }
+    }
+
+    player_health.0 = current;
 }
 
 /// Tick damage flicker timers — advance phase and remove finished flickers.
@@ -2226,12 +2302,16 @@ mod tests {
 
     fn init_sync_test_app(app: &mut App) {
         app.init_resource::<carcinisation_fps::plugin::ExtraBillboards>();
+        app.init_resource::<FpsScreenParticles>();
         app.init_resource::<EnemyAttackOverrides>();
         app.init_resource::<EnemyDamageFlickers>();
         app.init_resource::<HitImpacts>();
+        app.init_resource::<PickupImpacts>();
+        app.init_resource::<HealthPickupScreenFeedback>();
         app.insert_resource(PlayerFlamethrower3pConfig::default());
         app.insert_resource(carcinisation_fps_core::PlayerFlamethrowerConfig::load());
         app.insert_resource(carcinisation_fps_core::BurnConfig::default());
+        app.insert_resource(ScreenParticleConfig::default());
     }
 
     /// Dead enemies get death-pose billboards; alive enemies get alive billboards.
@@ -2424,6 +2504,159 @@ mod tests {
             .current = 90.0;
         app.update();
         assert_eq!(app.world().resource::<PlayerHealth>().0, 90);
+    }
+
+    fn setup_pickup_feedback_test_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(Config::default());
+        app.insert_resource(ScreenParticleConfig::default());
+        app.init_resource::<PickupImpacts>();
+        app.init_resource::<FpsScreenParticles>();
+        app.init_resource::<HealthPickupScreenFeedback>();
+        app.add_observer(handle_pickup_effect);
+        app
+    }
+
+    #[test]
+    fn local_health_pickup_effect_triggers_screen_particles() {
+        let mut app = setup_pickup_feedback_test_app();
+
+        app.world_mut().trigger(PickupEffect {
+            player_id: PlayerId(1),
+            pickup_id: NetworkObjectId(10),
+            kind: NetPickupKind::Health,
+            position: Vec2::new(4.0, 5.0),
+        });
+
+        assert_eq!(app.world().resource::<PickupImpacts>().0.len(), 1);
+        assert_eq!(
+            app.world().resource::<FpsScreenParticles>().len(),
+            16,
+            "local health pickup should spawn one SUBTLE screen burst"
+        );
+    }
+
+    #[test]
+    fn remote_health_pickup_effect_does_not_trigger_screen_particles() {
+        let mut app = setup_pickup_feedback_test_app();
+
+        app.world_mut().trigger(PickupEffect {
+            player_id: PlayerId(2),
+            pickup_id: NetworkObjectId(10),
+            kind: NetPickupKind::Health,
+            position: Vec2::new(4.0, 5.0),
+        });
+
+        assert_eq!(app.world().resource::<PickupImpacts>().0.len(), 1);
+        assert_eq!(app.world().resource::<FpsScreenParticles>().len(), 0);
+    }
+
+    #[test]
+    fn non_health_pickup_effect_does_not_trigger_screen_particles() {
+        let mut app = setup_pickup_feedback_test_app();
+
+        app.world_mut().trigger(PickupEffect {
+            player_id: PlayerId(1),
+            pickup_id: NetworkObjectId(10),
+            kind: NetPickupKind::Ammo,
+            position: Vec2::new(4.0, 5.0),
+        });
+
+        assert_eq!(app.world().resource::<PickupImpacts>().0.len(), 1);
+        assert_eq!(app.world().resource::<FpsScreenParticles>().len(), 0);
+    }
+
+    #[test]
+    fn positive_local_net_health_delta_triggers_fallback_screen_particles() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(LocalPlayerId(Some(PlayerId(1))));
+        app.insert_resource(PlayerHealth(50));
+        app.insert_resource(Config::default());
+        app.insert_resource(ScreenParticleConfig::default());
+        app.init_resource::<FpsScreenParticles>();
+        app.init_resource::<HealthPickupScreenFeedback>();
+        app.add_systems(Update, sync_local_player_health_from_net_health);
+
+        let player = app
+            .world_mut()
+            .spawn((
+                NetPlayer {
+                    player_id: PlayerId(1),
+                    position: Vec2::new(2.0, 3.0),
+                    angle: 0.25,
+                    current_attack: NetAttackId::None,
+                    state: PlayerNetState::Alive,
+                    flame_active: false,
+                    avatar_palette_variant: None,
+                },
+                NetHealth {
+                    current: 50.0,
+                    max: 100.0,
+                },
+            ))
+            .id();
+
+        app.update();
+        assert_eq!(app.world().resource::<FpsScreenParticles>().len(), 0);
+
+        app.world_mut()
+            .get_mut::<NetHealth>(player)
+            .unwrap()
+            .current = 75.0;
+        app.update();
+
+        assert_eq!(app.world().resource::<PlayerHealth>().0, 75);
+        assert_eq!(app.world().resource::<FpsScreenParticles>().len(), 16);
+    }
+
+    #[test]
+    fn pickup_effect_suppresses_followup_net_health_fallback_burst() {
+        let mut app = setup_pickup_feedback_test_app();
+        app.insert_resource(PlayerHealth(50));
+        app.add_systems(Update, sync_local_player_health_from_net_health);
+
+        let player = app
+            .world_mut()
+            .spawn((
+                NetPlayer {
+                    player_id: PlayerId(1),
+                    position: Vec2::new(2.0, 3.0),
+                    angle: 0.25,
+                    current_attack: NetAttackId::None,
+                    state: PlayerNetState::Alive,
+                    flame_active: false,
+                    avatar_palette_variant: None,
+                },
+                NetHealth {
+                    current: 50.0,
+                    max: 100.0,
+                },
+            ))
+            .id();
+
+        app.update();
+        app.world_mut().trigger(PickupEffect {
+            player_id: PlayerId(1),
+            pickup_id: NetworkObjectId(10),
+            kind: NetPickupKind::Health,
+            position: Vec2::new(4.0, 5.0),
+        });
+        assert_eq!(app.world().resource::<FpsScreenParticles>().len(), 16);
+
+        app.world_mut()
+            .get_mut::<NetHealth>(player)
+            .unwrap()
+            .current = 80.0;
+        app.update();
+
+        assert_eq!(
+            app.world().resource::<FpsScreenParticles>().len(),
+            16,
+            "NetHealth fallback should not duplicate the recent PickupEffect burst"
+        );
     }
 
     #[test]

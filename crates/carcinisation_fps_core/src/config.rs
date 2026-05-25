@@ -566,6 +566,302 @@ impl Default for FpsVisualConfig {
     }
 }
 
+/// A single size/behaviour tier for screen particles.
+///
+/// Tiers are selected by weighted random sampling in `choose_health_tier`.
+/// Weights are normalised into probabilities internally.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename = "SizeTierConfig")]
+pub struct SizeTierConfig {
+    /// Base radius in pixels before scale multiplication (`.max(1)` after rounding).
+    pub radius_px: f32,
+    /// Speed multiplier — higher = faster upward impulse + upward deceleration.
+    pub speed_scale: f32,
+    /// Lifetime multiplier applied to the base lifetime range.
+    pub life_scale: f32,
+    /// Selection weight (higher = more likely).
+    pub weight: f32,
+    /// When `true`, particle always uses the highlight palette index.
+    pub always_highlight: bool,
+    /// Fraction of lifetime during which the highlight palette index is shown.
+    /// Only meaningful when `always_highlight` is false and random highlight
+    /// triggers; for `always_highlight` tiers this value is always used.
+    pub highlight_window: f32,
+}
+
+/// Hot-reloadable FPS screen particle tuning.
+///
+/// Loaded from `assets/config/fp/screen_particles.ron`.
+/// Controls health-pickup burst particles: count, size, lifetime, physics,
+/// dither-fade, anti-cluster spawning, and palette indices.
+#[derive(Clone, Debug, serde::Deserialize, bevy::prelude::Resource)]
+#[serde(rename = "ScreenParticleConfig")]
+pub struct ScreenParticleConfig {
+    // -- Counts --
+    /// Number of particles per burst.
+    pub particle_count: usize,
+    /// Maximum concurrent particles (FIFO eviction when exceeded).
+    pub max_particles: usize,
+
+    // -- Lifetime / Physics --
+    /// Minimum particle lifetime in seconds.
+    pub lifetime_min: f32,
+    /// Maximum particle lifetime in seconds.
+    pub lifetime_max: f32,
+    /// Upward acceleration in pixels/s² (negative = up in screen coords).
+    pub upward_accel: f32,
+    /// Initial upward impulse in pixels/s (before `speed_scale`).
+    pub pop_impulse: f32,
+    /// Drag multiplier applied at 60 fps: `drag.powf(dt * 60)`.
+    pub drag: f32,
+
+    // -- Appearance --
+    /// Probability of an extra-bright highlight variant per particle.
+    pub highlight_chance: f32,
+    /// Normalised age at which dither fade-in begins.
+    /// Valid range: `0.0 ..= 1.0`.
+    pub dither_fade_start: f32,
+    /// Strength multiplier for the dither threshold (clamped to 0..16).
+    pub dither_fade_strength: f32,
+    /// Width/height aspect ratio for the diamond rasterisation shape.
+    pub diamond_aspect: f32,
+
+    // -- Spawn area / Anti-cluster --
+    /// Bias exponent for peripheral spawn offset.
+    /// Values below 1.0 push samples edgeward; values above 1.0 pull toward centre.
+    pub spawn_periphery_bias: f32,
+    /// Minimum distance between particle centres (in unscaled prototype pixels).
+    pub min_spawn_distance: f32,
+    /// Anti-cluster rejection attempts per particle.
+    pub spawn_rejection_attempts: usize,
+    /// Maximum dt for particle physics (clamped to avoid explosion on frame spike).
+    pub max_particle_dt: f32,
+
+    // -- Coordinate system --
+    /// Reference framebuffer height used to scale particle sizes and physics.
+    pub prototype_reference_height: f32,
+    /// Spawn anchor X-coordinate as a fraction of framebuffer width (0..1).
+    pub spawn_anchor_x: f32,
+    /// Spawn anchor Y-coordinate as a fraction of framebuffer height (0..1).
+    pub spawn_anchor_y: f32,
+    /// Vertical jitter half-range as a fraction of framebuffer height.
+    /// Total spread is 2 × `spawn_area_h` × height.
+    pub spawn_area_h: f32,
+
+    // -- Palette --
+    /// Palette index for particle body (non-transparent, non-zero).
+    pub palette_light: u8,
+    /// Palette index for particle highlight (non-transparent, different from `palette_light`).
+    pub palette_highlight: u8,
+
+    // -- Size tiers --
+    /// Weighted size/behaviour tiers. Must contain at least one entry.
+    pub size_tiers: Vec<SizeTierConfig>,
+}
+
+impl ScreenParticleConfig {
+    #[must_use]
+    pub fn load() -> Self {
+        let config: Self = carcinisation_core::ron_config!("assets/config/fp/screen_particles.ron");
+        config.validate_or_panic();
+        config
+    }
+
+    /// Validate configuration invariants.
+    ///
+    /// Returns a list of validation error messages (empty = valid).
+    /// At startup, embedded RON is expected to pass; if it fails validation
+    /// the errors are logged for debugging.
+    #[must_use]
+    pub fn validate(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        if self.particle_count == 0 {
+            errors.push("particle_count must be > 0".into());
+        }
+        if self.max_particles == 0 {
+            errors.push("max_particles must be > 0".into());
+        }
+        if self.max_particles < self.particle_count {
+            errors.push("max_particles must be >= particle_count".into());
+        }
+        if !is_finite_positive(self.lifetime_min) {
+            errors.push("lifetime_min must be > 0".into());
+        }
+        if !is_finite_positive(self.lifetime_max) {
+            errors.push("lifetime_max must be > 0".into());
+        }
+        if self.lifetime_max < self.lifetime_min {
+            errors.push("lifetime_max must be >= lifetime_min".into());
+        }
+        if !self.upward_accel.is_finite() {
+            errors.push("upward_accel must be finite".into());
+        }
+        if !is_finite_positive(self.pop_impulse) {
+            errors.push("pop_impulse must be > 0".into());
+        }
+        if !self.drag.is_finite() || self.drag <= 0.0 || self.drag > 1.0 {
+            errors.push("drag must be in (0..1]".into());
+        }
+        if !is_finite_unit_inclusive(self.highlight_chance) {
+            errors.push("highlight_chance must be in 0..=1".into());
+        }
+        if !self.dither_fade_start.is_finite()
+            || self.dither_fade_start <= 0.0
+            || self.dither_fade_start >= 1.0
+        {
+            errors.push("dither_fade_start must be in 0..1".into());
+        }
+        if !self.dither_fade_strength.is_finite() || self.dither_fade_strength < 0.0 {
+            errors.push("dither_fade_strength must be >= 0".into());
+        }
+        if !is_finite_positive(self.diamond_aspect) {
+            errors.push("diamond_aspect must be > 0".into());
+        }
+        if !is_finite_positive(self.spawn_periphery_bias) {
+            errors.push("spawn_periphery_bias must be > 0".into());
+        }
+        if !is_finite_non_negative(self.min_spawn_distance) {
+            errors.push("min_spawn_distance must be >= 0".into());
+        }
+        if self.spawn_rejection_attempts == 0 {
+            errors.push("spawn_rejection_attempts must be > 0".into());
+        }
+        if !is_finite_positive(self.max_particle_dt) {
+            errors.push("max_particle_dt must be > 0".into());
+        }
+        if !is_finite_unit_inclusive(self.spawn_anchor_x) {
+            errors.push("spawn_anchor_x must be in 0..=1".into());
+        }
+        if !is_finite_unit_inclusive(self.spawn_anchor_y) {
+            errors.push("spawn_anchor_y must be in 0..=1".into());
+        }
+        if !is_finite_non_negative(self.spawn_area_h) {
+            errors.push("spawn_area_h must be >= 0".into());
+        }
+        if self.palette_light == 0 {
+            errors.push("palette_light must be non-zero (index 0 = transparent)".into());
+        }
+        if self.palette_highlight == 0 {
+            errors.push("palette_highlight must be non-zero (index 0 = transparent)".into());
+        }
+        if self.palette_light == self.palette_highlight {
+            errors.push("palette_light and palette_highlight must be different".into());
+        }
+        if !is_finite_positive(self.prototype_reference_height) {
+            errors.push("prototype_reference_height must be > 0".into());
+        }
+
+        if self.size_tiers.is_empty() {
+            errors.push("size_tiers must not be empty".into());
+        } else {
+            for (i, tier) in self.size_tiers.iter().enumerate() {
+                if !is_finite_positive(tier.weight) {
+                    errors.push(format!("size_tiers[{i}].weight must be > 0"));
+                }
+                if !is_finite_positive(tier.radius_px) {
+                    errors.push(format!("size_tiers[{i}].radius_px must be > 0"));
+                }
+                if !is_finite_positive(tier.speed_scale) {
+                    errors.push(format!("size_tiers[{i}].speed_scale must be > 0"));
+                }
+                if !is_finite_positive(tier.life_scale) {
+                    errors.push(format!("size_tiers[{i}].life_scale must be > 0"));
+                }
+                if !tier.highlight_window.is_finite()
+                    || tier.highlight_window <= 0.0
+                    || tier.highlight_window > 1.0
+                {
+                    errors.push(format!(
+                        "size_tiers[{i}].highlight_window must be > 0 and <= 1"
+                    ));
+                }
+            }
+        }
+
+        errors
+    }
+
+    /// Panic if the configuration is invalid.
+    ///
+    /// Startup uses this for fail-fast embedded config validation. Hot reload
+    /// wraps this in `catch_unwind`, logs, and keeps the previous valid value.
+    pub fn validate_or_panic(&self) {
+        let errors = self.validate();
+        assert!(
+            errors.is_empty(),
+            "invalid ScreenParticleConfig: {}",
+            errors.join("; ")
+        );
+    }
+}
+
+fn is_finite_positive(value: f32) -> bool {
+    value.is_finite() && value > 0.0
+}
+
+fn is_finite_non_negative(value: f32) -> bool {
+    value.is_finite() && value >= 0.0
+}
+
+fn is_finite_unit_inclusive(value: f32) -> bool {
+    value.is_finite() && (0.0..=1.0).contains(&value)
+}
+
+impl Default for ScreenParticleConfig {
+    fn default() -> Self {
+        Self {
+            particle_count: 16,
+            max_particles: 128,
+            lifetime_min: 0.70,
+            lifetime_max: 1.05,
+            upward_accel: -90.0,
+            pop_impulse: 30.0,
+            drag: 0.97,
+            highlight_chance: 0.05,
+            dither_fade_start: 0.55,
+            dither_fade_strength: 1.0,
+            diamond_aspect: 0.55,
+            spawn_periphery_bias: 0.7,
+            min_spawn_distance: 14.0,
+            spawn_rejection_attempts: 8,
+            max_particle_dt: 0.05,
+            prototype_reference_height: 180.0,
+            spawn_anchor_x: 0.50,
+            spawn_anchor_y: 0.55,
+            spawn_area_h: 0.10,
+            palette_light: 3,
+            palette_highlight: 4,
+            size_tiers: vec![
+                SizeTierConfig {
+                    radius_px: 2.0,
+                    speed_scale: 1.70,
+                    life_scale: 1.00,
+                    weight: 0.70,
+                    always_highlight: false,
+                    highlight_window: 0.55,
+                },
+                SizeTierConfig {
+                    radius_px: 5.0,
+                    speed_scale: 0.80,
+                    life_scale: 1.00,
+                    weight: 0.22,
+                    always_highlight: false,
+                    highlight_window: 0.55,
+                },
+                SizeTierConfig {
+                    radius_px: 9.0,
+                    speed_scale: 0.40,
+                    life_scale: 0.70,
+                    weight: 0.08,
+                    always_highlight: true,
+                    highlight_window: 0.65,
+                },
+            ],
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -576,5 +872,97 @@ mod tests {
         assert_eq!(config.damage_flicker_count, 4);
         assert!((config.damage_flicker_regular_secs - 0.1).abs() < f32::EPSILON);
         assert!((config.damage_flicker_invert_secs - 0.075).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn screen_particle_config_default_validates_ok() {
+        let config = ScreenParticleConfig::default();
+        let errors = config.validate();
+        assert!(
+            errors.is_empty(),
+            "default config should validate: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn screen_particle_config_ron_parses() {
+        let config = ScreenParticleConfig::load();
+        let errors = config.validate();
+        assert!(
+            errors.is_empty(),
+            "embedded RON should validate: {errors:?}"
+        );
+        assert_eq!(config.particle_count, 16);
+        assert_eq!(config.max_particles, 128);
+        assert!((config.lifetime_min - 0.70).abs() < f32::EPSILON);
+        assert!((config.lifetime_max - 1.05).abs() < f32::EPSILON);
+        assert_eq!(config.size_tiers.len(), 3);
+    }
+
+    #[test]
+    fn screen_particle_config_validation_catches_bad_values() {
+        let mut config = ScreenParticleConfig {
+            particle_count: 0,
+            max_particles: 0,
+            palette_light: 0,
+            palette_highlight: 0,
+            spawn_anchor_x: 2.0,
+            ..Default::default()
+        };
+        config.size_tiers[0].weight = -1.0;
+        let errors = config.validate();
+        assert!(!errors.is_empty());
+        assert!(errors.iter().any(|e| e.contains("particle_count")));
+        assert!(errors.iter().any(|e| e.contains("max_particles")));
+        assert!(errors.iter().any(|e| e.contains("weight")));
+        assert!(errors.iter().any(|e| e.contains("palette_light")));
+        assert!(errors.iter().any(|e| e.contains("palette_highlight")));
+        assert!(errors.iter().any(|e| e.contains("spawn_anchor_x")));
+    }
+
+    fn assert_screen_particle_invalid(
+        mut config: ScreenParticleConfig,
+        mutate: impl FnOnce(&mut ScreenParticleConfig),
+        expected: &str,
+    ) {
+        mutate(&mut config);
+        let errors = config.validate();
+        assert!(
+            errors.iter().any(|e| e.contains(expected)),
+            "expected validation error containing {expected:?}, got {errors:?}"
+        );
+    }
+
+    #[test]
+    fn screen_particle_config_validation_catches_particle_edge_values() {
+        let config = ScreenParticleConfig::default();
+
+        assert_screen_particle_invalid(config.clone(), |c| c.dither_fade_start = 1.0, "dither");
+        assert_screen_particle_invalid(config.clone(), |c| c.diamond_aspect = 0.0, "diamond");
+        assert_screen_particle_invalid(
+            config.clone(),
+            |c| c.max_particle_dt = 0.0,
+            "max_particle_dt",
+        );
+        assert_screen_particle_invalid(
+            config.clone(),
+            |c| c.prototype_reference_height = 0.0,
+            "prototype_reference_height",
+        );
+        assert_screen_particle_invalid(
+            config.clone(),
+            |c| c.size_tiers[0].highlight_window = 0.0,
+            "highlight_window",
+        );
+        assert_screen_particle_invalid(
+            config.clone(),
+            |c| c.size_tiers[0].life_scale = 0.0,
+            "life_scale",
+        );
+        assert_screen_particle_invalid(
+            config,
+            |c| c.size_tiers[0].speed_scale = 0.0,
+            "speed_scale",
+        );
     }
 }

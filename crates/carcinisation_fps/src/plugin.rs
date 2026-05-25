@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 
 use bevy::{ecs::system::SystemParam, prelude::*};
 use carapace::prelude::*;
+use carcinisation_fps_core::ScreenParticleConfig;
 use carcinisation_fps_core::fire_death::perimeter_flames_from_mask;
 use carcinisation_fps_core::ground_fire::{
     GroundFire, GroundFireConfig, GroundFireContactState, ground_fire_contact_damage,
@@ -46,6 +47,9 @@ use crate::{
     render::{
         CharDecal, FpWallRenderEffects, Palette, draw_crosshair, draw_overlay_tint,
         render_fp_scene, render_fp_scene_with_effects,
+    },
+    screen_particles::{
+        FpsScreenParticles, draw_fps_screen_particles, update_fps_screen_particles,
     },
     sky::Sky,
     spidey::{
@@ -270,6 +274,8 @@ struct ViewResources<'w> {
     dead: Res<'w, PlayerDead>,
     death_view: Res<'w, DeathViewState>,
     camera_shake: Res<'w, CameraShakeState>,
+    screen_particles: Res<'w, FpsScreenParticles>,
+    screen_particle_config: Res<'w, ScreenParticleConfig>,
     attack_sprites: Res<'w, PlayerAttackSprites>,
     attack_loadout: Res<'w, AttackLoadout>,
     attack_state: Res<'w, PlayerAttackState>,
@@ -691,6 +697,8 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
         app.init_resource::<TurnChordState>();
         app.init_resource::<DeathViewState>();
         app.init_resource::<CameraShakeState>();
+        app.insert_resource(ScreenParticleConfig::load());
+        app.init_resource::<FpsScreenParticles>();
 
         #[cfg(feature = "hot_reload")]
         {
@@ -699,6 +707,7 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
             carcinisation_core::watch_config!(app, "assets/config/fp/movement.ron");
             carcinisation_core::watch_config!(app, "assets/config/fp/combat.ron");
             carcinisation_core::watch_config!(app, "assets/config/fp/visuals.ron");
+            carcinisation_core::watch_config!(app, "assets/config/fp/screen_particles.ron");
             carcinisation_core::watch_config!(app, "assets/config/attacks/ground_fire.ron");
             // Sprite PXI files are not auto-polled (10 stat() calls per poll
             // cause frame stutters). Use Cmd+R for manual sprite reload.
@@ -718,6 +727,8 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
                 #[cfg(feature = "hot_reload")]
                 reload_visual_config.in_set(Systems),
                 #[cfg(feature = "hot_reload")]
+                reload_screen_particles_config.in_set(Systems),
+                #[cfg(feature = "hot_reload")]
                 reload_ground_fire_visual.in_set(Systems),
                 #[cfg(feature = "hot_reload")]
                 reload_map.in_set(Systems),
@@ -729,6 +740,9 @@ impl<L: CxLayer + Default> bevy::prelude::Plugin for FpsPlugin<L> {
                 apply_death_view.in_set(Systems),
                 tick_projectile_impact_effects.in_set(Systems),
                 tick_camera_shake_effect.in_set(Systems),
+                update_fps_screen_particles
+                    .in_set(Systems)
+                    .before(update_fp_view),
                 apply_view_bob
                     .in_set(Systems)
                     .after(handle_shooting)
@@ -1398,6 +1412,15 @@ carcinisation_core::reload_ron_system!(
     "assets/config/fp/visuals.ron"
 );
 
+// Reload `ScreenParticleConfig` from disk on Cmd+R.
+#[cfg(feature = "hot_reload")]
+carcinisation_core::reload_ron_system!(
+    reload_screen_particles_config,
+    ScreenParticleConfig,
+    "assets/config/fp/screen_particles.ron",
+    |config: &ScreenParticleConfig| config.validate_or_panic()
+);
+
 // Reload `GroundFireVisualConfig` from disk on Cmd+R.
 #[cfg(feature = "hot_reload")]
 carcinisation_core::reload_ron_system!(
@@ -1936,6 +1959,11 @@ fn update_fp_view(
         &view.attack_loadout,
         &view.attack_state,
         time.elapsed_secs(),
+    );
+    draw_fps_screen_particles(
+        &mut image,
+        &view.screen_particles,
+        &view.screen_particle_config,
     );
 
     if view.dead.0 {
