@@ -3,14 +3,11 @@ name = "activable_macros"
 version.workspace = true
 edition.workspace = true
 description = "Procedural macro for deriving Activable trait"
-
 [lib]
 proc-macro = true
-
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "2", features = ["full"] }
-
+syn = { version = "2", features = [ "full" ] }
 [lints]
 workspace = true

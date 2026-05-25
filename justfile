@@ -197,6 +197,30 @@ build-web:
 # Alias for full web build
 release-wasm: build-web
 
+# Install cargo-edit (cargo upgrade, cargo set-version)
+install-cargo-edit:
+    cargo install cargo-edit@0.13.10
+
+# Install cargo-machete (unused dependency detection)
+install-cargo-machete:
+    cargo install cargo-machete@0.9.2
+
+# Install cargo-bloat (binary/WASM size analysis)
+install-cargo-bloat:
+    cargo install cargo-bloat@0.12.1
+
+# Install cargo-deny (license & advisory checker)
+install-cargo-deny:
+    cargo install cargo-deny@0.19.7 --locked
+
+# Install cargo-llvm-lines (compile-time bloat analysis)
+install-cargo-llvm-lines:
+    cargo install cargo-llvm-lines@0.4.46 --locked
+
+# Install taplo (TOML formatter/LSP)
+install-taplo:
+    cargo install taplo-cli@0.10.0 --locked
+
 # ─── Tools & Assets ──────────────────────────────────────────────────────────
 
 # Launch the in-house Bevy editor
@@ -277,19 +301,22 @@ build-release:
 clean:
     cargo clean
 
-# Format Rust sources
+# Format Rust + TOML sources
 fmt:
     cargo fmt --all
+    taplo fmt
 
 # Format check + clippy + shell check (workspace-wide)
 lint:
     cargo fmt --all -- --check
+    taplo fmt --check
     cargo clippy --workspace --all-targets --all-features -- -D warnings
     just check-shell
 
 # Auto-fix what we can (fmt, ruff, pnpm lint, shell, bevy lint)
 lint-fix:
     cargo fmt --all
+    taplo fmt
     proto run ruff -- check --fix scripts
     pnpm lint:fix
     -just fmt-shell
@@ -306,6 +333,10 @@ bevy-lint-fix:
 # Clippy with pedantic warnings
 clippy-pedantic:
     cargo clippy --workspace --all-targets --all-features -- -D warnings -W clippy::pedantic
+
+# Check licenses and advisories via cargo-deny
+check-deny:
+    cargo deny check
 
 # Apply cargo fix suggestions (lib/tests)
 fix:

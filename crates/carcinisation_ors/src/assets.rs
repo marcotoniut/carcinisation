@@ -12,6 +12,7 @@ use carapace::{
 use carcinisation_core::components::GBColor;
 #[cfg(not(target_family = "wasm"))]
 use std::fs;
+#[cfg(not(target_family = "wasm"))]
 use std::{collections::HashMap, marker::PhantomData, path::PathBuf};
 
 pub type CxAsset<T> = T;

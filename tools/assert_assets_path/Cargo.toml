@@ -3,11 +3,9 @@ name = "assert_assets_path"
 version = "0.1.0"
 edition.workspace = true
 description = "Compile-time asset path validator"
-
 [lib]
 proc-macro = true
-
 [dependencies]
-syn = "2"
-quote = "1"
 proc-macro2 = "1"
+quote = "1"
+syn = "2"

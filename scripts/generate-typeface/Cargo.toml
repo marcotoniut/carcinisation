@@ -3,7 +3,6 @@ name = "generate-typeface"
 version = "0.1.0"
 edition.workspace = true
 description = "Rasterizes Pixeboy font to bitmap atlas for HUD rendering"
-
 [dependencies]
 ab_glyph = "0.2.32"
 image = "0.25"

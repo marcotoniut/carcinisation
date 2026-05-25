@@ -1,6 +1,5 @@
 [test-groups]
 serial = { max-threads = 4, retries = 2 }
-
 [[profile.default.overrides]]
 filter = 'binary_id(carcinisation_server::*)'
 test-group = 'serial'

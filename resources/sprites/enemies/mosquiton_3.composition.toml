@@ -1,89 +1,71 @@
 spawn_anchor = "Origin"
-
 [[part_definitions]]
 id = "group_marker"
-tags = ["group"]
-
+tags = [ "group" ]
 [[part_definitions]]
 id = "body"
-tags = ["core", "torso", "targetable"]
-
+tags = [ "core", "torso", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
 armour = 1
 durability = 4
-
 [[part_definitions.gameplay.collision]]
 id = "body_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 10.0, offset = { x = 11.0, y = 12.0 } }
-tags = ["body", "core"]
-
+tags = [ "body", "core" ]
 [[part_definitions]]
 id = "head"
-tags = ["core", "head", "targetable"]
-
+tags = [ "core", "head", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
-
 [[part_definitions.gameplay.collision]]
 id = "head_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 7.0, offset = { x = 6.0, y = 11.0 } }
-tags = ["head", "core"]
-
+tags = [ "head", "core" ]
 [[part_definitions]]
 id = "arm"
-tags = ["arm", "limb", "targetable"]
-
+tags = [ "arm", "limb", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
 armour = 1
 durability = 2
-
 [[part_definitions.gameplay.collision]]
 id = "arm_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 6.0, offset = { x = 0.0, y = 1.0 } }
-tags = ["arm", "appendage"]
-
+tags = [ "arm", "appendage" ]
 [[part_definitions]]
 id = "arm_overlay"
-tags = ["arm", "limb", "targetable", "overlay"]
-
+tags = [ "arm", "limb", "targetable", "overlay" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
 armour = 1
 durability = 2
-
 [[part_definitions.gameplay.collision]]
 id = "arms_overlay_left_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 6.0, offset = { x = 12.0, y = 12.0 } }
-tags = ["arm", "appendage", "left"]
-
+tags = [ "arm", "appendage", "left" ]
 [[part_definitions.gameplay.collision]]
 id = "arms_overlay_right_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 6.0, offset = { x = 37.0, y = 12.0 } }
-tags = ["arm", "appendage", "right"]
-
+tags = [ "arm", "appendage", "right" ]
 [[part_definitions]]
 id = "wing_marker"
-tags = ["wing", "limb"]
-
+tags = [ "wing", "limb" ]
 [[part_definitions]]
 id = "leg_marker"
-tags = ["leg", "limb"]
-
+tags = [ "leg", "limb" ]
 [[part_definitions]]
 id = "wing"
-tags = ["wing", "limb", "targetable"]
-
+tags = [ "wing", "limb", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
@@ -91,40 +73,33 @@ armour = 15
 durability = 60
 breakable = true
 pool_damage_ratio = 0.3
-
 [[part_definitions.gameplay.collision]]
 id = "wings_def_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 18.0, offset = { x = 32.0, y = 9.0 } }
-tags = ["wings", "appendage"]
-
+tags = [ "wings", "appendage" ]
 [[part_definitions]]
 id = "leg"
-tags = ["leg", "limb", "targetable"]
-
+tags = [ "leg", "limb", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
 armour = 1
 durability = 2
-
 [[part_definitions.gameplay.collision]]
 id = "legs_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 10.0, offset = { x = 12.0, y = 16.0 } }
-tags = ["legs", "appendage"]
-
+tags = [ "legs", "appendage" ]
 [[part_definitions]]
 id = "visual_overlay"
-tags = ["visual_only"]
-
+tags = [ "visual_only" ]
 [[parts]]
 id = "root"
 definition_id = "group_marker"
 name = "Root"
 draw_order = 0
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "body"
 definition_id = "body"
@@ -133,7 +108,6 @@ parent_id = "root"
 source_layer = "body"
 draw_order = 20
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "head"
 definition_id = "head"
@@ -142,7 +116,6 @@ parent_id = "body"
 source_layer = "head"
 draw_order = 30
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "arm_l"
 definition_id = "arm"
@@ -151,8 +124,7 @@ parent_id = "body"
 source_layer = "arm_l"
 draw_order = 40
 pivot = { x = 0, y = 0 }
-tags = ["left"]
-
+tags = [ "left" ]
 [[parts]]
 id = "arm_r"
 definition_id = "arm"
@@ -161,8 +133,7 @@ parent_id = "body"
 source_layer = "arm_r"
 draw_order = 50
 pivot = { x = 0, y = 0 }
-tags = ["right"]
-
+tags = [ "right" ]
 [[parts]]
 id = "arms_overlay"
 definition_id = "arm_overlay"
@@ -171,8 +142,7 @@ parent_id = "root"
 source_layer = "arms"
 draw_order = 60
 pivot = { x = 0, y = 0 }
-tags = ["arms"]
-
+tags = [ "arms" ]
 [[parts]]
 # Monolithic "wings" layer with visual-only render fragmentation. The exporter
 # splits the layer into left/right halves for atlas dedup while preserving a
@@ -186,8 +156,7 @@ source_layer = "wings"
 split = "mirror_x"
 draw_order = 10
 pivot = { x = 0, y = 0 }
-tags = ["wings"]
-
+tags = [ "wings" ]
 [[parts]]
 id = "leg_l"
 definition_id = "leg"
@@ -196,8 +165,7 @@ parent_id = "root"
 source_layer = "leg_l"
 draw_order = 70
 pivot = { x = 0, y = 0 }
-tags = ["left", "legs"]
-
+tags = [ "left", "legs" ]
 [[parts]]
 id = "leg_r"
 definition_id = "leg"
@@ -206,8 +174,7 @@ parent_id = "root"
 source_layer = "leg_r"
 draw_order = 75
 pivot = { x = 0, y = 0 }
-tags = ["right", "legs"]
-
+tags = [ "right", "legs" ]
 [[parts]]
 id = "legs_overlay"
 definition_id = "leg"
@@ -216,34 +183,28 @@ parent_id = "root"
 source_layer = "legs"
 draw_order = 80
 pivot = { x = 0, y = 0 }
-tags = ["leg", "limb", "targetable", "legs"]
-
+tags = [ "leg", "limb", "targetable", "legs" ]
 ## Wing overrides: flying attack animations use idle_fly wing cycle per direction.
 [[animation_overrides]]
-tags = ["front_shoot_fly", "front_melee_fly"]
+tags = [ "front_shoot_fly", "front_melee_fly" ]
 source_tag = "front_idle_fly"
-part_tags = ["wings"]
-
+part_tags = [ "wings" ]
 [[animation_overrides]]
-tags = ["frontleft_shoot_fly", "frontleft_melee_fly"]
+tags = [ "frontleft_shoot_fly", "frontleft_melee_fly" ]
 source_tag = "frontleft_idle_fly"
-part_tags = ["wings"]
-
+part_tags = [ "wings" ]
 [[animation_overrides]]
-tags = ["left_shoot_fly", "left_melee_fly"]
+tags = [ "left_shoot_fly", "left_melee_fly" ]
 source_tag = "left_idle_fly"
-part_tags = ["wings"]
-
+part_tags = [ "wings" ]
 [[animation_overrides]]
-tags = ["backleft_shoot_fly", "backleft_melee_fly"]
+tags = [ "backleft_shoot_fly", "backleft_melee_fly" ]
 source_tag = "backleft_idle_fly"
-part_tags = ["wings"]
-
+part_tags = [ "wings" ]
 [[animation_overrides]]
-tags = ["back_shoot_fly", "back_melee_fly"]
+tags = [ "back_shoot_fly", "back_melee_fly" ]
 source_tag = "back_idle_fly"
-part_tags = ["wings"]
-
+part_tags = [ "wings" ]
 ## Projectile spawn event (front direction for ORS).
 [[animation_events]]
 tag = "front_shoot_fly"
@@ -252,24 +213,20 @@ kind = "projectile_spawn"
 id = "blood_shot"
 part_id = "head"
 local_offset = { x = 6, y = 9 }
-
 [directional]
-authored_directions = ["front", "frontleft", "left", "backleft", "back"]
+authored_directions = [ "front", "frontleft", "left", "backleft", "back" ]
 default_direction = "front"
 # mirror_allowed: right-side directions derived from left-side via flip.
 # Attack animations (shoot_fly, melee_fly) are close enough to symmetric
 # that mirroring is acceptable — head/body offsets are near-centered.
 # TODO: revisit if asymmetric weapon/arm poses are added.
 mirror_policy = "mirror_allowed"
-
 [directional.mirrors]
 frontright = "frontleft"
 right = "left"
 backright = "backleft"
-
 [gameplay]
 entity_health_pool = "core"
-
 [[gameplay.health_pools]]
 id = "core"
 max_health = 40

@@ -2,7 +2,6 @@
 name = "carcinisation_admin"
 edition.workspace = true
 version.workspace = true
-
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }

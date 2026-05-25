@@ -4,17 +4,15 @@ pre-commit:
     rustfmt-check:
       run: cargo fmt --all -- --check
     cargo-clippy:
-      run: cargo clippy
+      run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+    taplo-check:
+      run: taplo fmt --check
     biome-lint:
       run: pnpm lint
     ruff-check:
       run: proto run ruff -- check scripts
-    shell-bash-n:
-      run: bash -n install-web.sh make-web.sh scripts/debug-carcinisation.sh scripts/generate-docs.sh bin/pre-push.sh deploy/deploy.sh deploy/carcinisation-deploy-helper.sh
-    shell-shellcheck:
-      run: shellcheck install-web.sh make-web.sh scripts/debug-carcinisation.sh scripts/generate-docs.sh bin/pre-push.sh deploy/deploy.sh deploy/carcinisation-deploy-helper.sh
-    shell-shfmt:
-      run: shfmt -d install-web.sh make-web.sh scripts/debug-carcinisation.sh scripts/generate-docs.sh bin/pre-push.sh deploy/deploy.sh deploy/carcinisation-deploy-helper.sh
+    check-shell:
+      run: just check-shell
 
 pre-push:
   commands:

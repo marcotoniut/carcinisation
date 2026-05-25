@@ -7,6 +7,11 @@ Carcinisation is a Bevy 0.18 workspace for a pixel-art action game and its suppo
 - [Rust toolchain](https://www.rust-lang.org/tools/install) with `cargo` on your `PATH`.
 - [`bacon`](https://dystroy.org/bacon/) for watch-and-rebuild workflows (`cargo install bacon --locked`).
 - [Bevy CLI](https://thebevyflock.github.io/bevy_cli) for `bevy run`, `bevy lint`, and browser builds. Install it with `cargo install bevy_cli --locked` and verify with `bevy --version`.
+- [`cargo-edit`](https://github.com/killercup/cargo-edit) for `cargo upgrade` and `cargo set-version` (`just install-cargo-edit`).
+- [`cargo-machete`](https://github.com/bnjbvr/cargo-machete) for unused dependency detection (`just install-cargo-machete`).
+- [`cargo-bloat`](https://github.com/RazrFalcon/cargo-bloat) for binary/WASM size analysis (`just install-cargo-bloat`).
+- [`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny) for license compliance and advisory checking (`just install-cargo-deny`).
+- [`cargo-llvm-lines`](https://github.com/dtolnay/cargo-llvm-lines) for compile-time code size analysis (`just install-cargo-llvm-lines`).
 - [`proto`](https://moonrepo.dev/docs/proto) to provision the pinned Node.js, pnpm, Python, and Ruff versions (`proto install`).
 - [`pnpm`](https://pnpm.io/installation) for Biome linting and web tooling (installed via `proto install` above).
 

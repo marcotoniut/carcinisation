@@ -4,54 +4,55 @@ version.workspace = true
 edition.workspace = true
 description = "Main Bevy executable for stage-based pixel shooter"
 default-run = "carcinisation"
-
 [features]
-default = ["brp", "hot_reload"]
-gallery = []
-brp = ["dep:bevy_brp_extras", "carapace/brp_extras"]
+default = [ "brp", "hot_reload" ]
+gallery = [  ]
+brp = [ "dep:bevy_brp_extras", "carapace/brp_extras" ]
 # TODO: fix getrandom transitive dep for WASM
-wasm_client = ["carcinisation_net/wasm_client", "bevy_replicon_renet2/ws_client_transport", "bevy_replicon_renet2/netcode", "bevy_replicon_renet2/client"]
-hot_reload = [
-    "bevy/file_watcher",
-    "carcinisation_core/hot_reload",
-    "carcinisation_ors/hot_reload",
-    "carcinisation_fps/hot_reload",
-    "carcinisation_fps_core/hot_reload",
+wasm_client = [
+  "carcinisation_net/wasm_client",
+  "bevy_replicon_renet2/ws_client_transport",
+  "bevy_replicon_renet2/netcode",
+  "bevy_replicon_renet2/client",
 ]
-trace_chrome = ["bevy/trace_chrome", "carapace/profiling_spans"]
-trace_tracy = ["bevy/trace_tracy", "carapace/profiling_spans"]
-
+hot_reload = [
+  "bevy/file_watcher",
+  "carcinisation_core/hot_reload",
+  "carcinisation_ors/hot_reload",
+  "carcinisation_fps/hot_reload",
+  "carcinisation_fps_core/hot_reload",
+]
+trace_chrome = [ "bevy/trace_chrome", "carapace/profiling_spans" ]
+trace_tracy = [ "bevy/trace_tracy", "carapace/profiling_spans" ]
 [dependencies]
 carcinisation_cutscene = { path = "../../crates/carcinisation_cutscene" }
 # Workspace crates
 activable = { path = "../../crates/activable" }
 activable_macros = { path = "../../crates/activable_macros" }
-carcinisation_core = { path = "../../crates/carcinisation_core" }
-cween = { path = "../../crates/cween" }
+asset_pipeline = { workspace = true }
 carcinisation_base = { path = "../../crates/carcinisation_base" }
-carcinisation_collision = { workspace = true, features = ["pixel-mask"] }
-carcinisation_ors = { path = "../../crates/carcinisation_ors" }
+carcinisation_collision = { workspace = true, features = [ "pixel-mask" ] }
+carcinisation_core = { path = "../../crates/carcinisation_core" }
 carcinisation_fps = { path = "../../crates/carcinisation_fps" }
 carcinisation_fps_core = { path = "../../crates/carcinisation_fps_core" }
 carcinisation_input = { path = "../../crates/carcinisation_input" }
 carcinisation_net = { path = "../../crates/carcinisation_net" }
-asset_pipeline = { workspace = true }
-
+carcinisation_ors = { path = "../../crates/carcinisation_ors" }
+cween = { path = "../../crates/cween" }
 # Bevy ecosystem
 bevy = { workspace = true }
 bevy-inspector-egui = { workspace = true }
+bevy_brp_extras = { workspace = true, optional = true }
 bevy_common_assets = { workspace = true }
 bevy_ecs = { workspace = true }
-bevy_brp_extras = { workspace = true, optional = true }
 bevy_framepace = { workspace = true }
-bevy_state = { workspace = true }
+bevy_renet2 = { workspace = true }
 bevy_replicon = { workspace = true }
 bevy_replicon_renet2 = { workspace = true }
-bevy_renet2 = { workspace = true }
-renet2 = { workspace = true }
-leafwing-input-manager = { workspace = true }
+bevy_state = { workspace = true }
 carapace = { workspace = true }
-
+leafwing-input-manager = { workspace = true }
+renet2 = { workspace = true }
 # Serialization
 ron = { workspace = true }
 serde = { workspace = true }
@@ -59,11 +60,10 @@ serde-generate = "0.26"
 serde-reflection = "0.4"
 serde_json = { workspace = true }
 serde_with = { workspace = true }
-
 # Utilities
 anyhow = { workspace = true }
 assert_assets_path = { workspace = true }
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "4.5", features = [ "derive" ] }
 colored = { workspace = true }
 derive-new = { workspace = true }
 derive_more = { workspace = true }
@@ -76,26 +76,21 @@ strum_macros = { workspace = true }
 [target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
 wasm-bindgen = "0.2"
 # getrandom 0.2 pulled in transitively by renetcode2 / phf, must enable "js" for wasm32-unknown-unknown
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2", features = [ "js" ] }
 # getrandom 0.4 pulled in transitively by rand 0.10, must enable "wasm_js"
-getrandom_wasm = { version = "0.4", package = "getrandom", features = ["wasm_js"] }
-
+getrandom_wasm = { version = "0.4", package = "getrandom", features = [ "wasm_js" ] }
 [[bin]]
 name = "ron_bridge"
 path = "src/bin/ron_bridge.rs"
-
 [[bin]]
 name = "single_stage"
 path = "src/bin/single_stage.rs"
-
 [[bin]]
 name = "gallery"
 path = "src/bin/gallery.rs"
-
 [[bin]]
 name = "fps_test"
 path = "src/bin/fps_test.rs"
-
 [[bin]]
 name = "multiplayer_client"
 path = "src/bin/multiplayer_client.rs"

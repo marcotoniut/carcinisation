@@ -1,22 +1,16 @@
 # config.toml
-
 # NOTE: x86_64-unknown-linux-gnu linker config intentionally omitted.
 # Cross-compilation via `cross` provides its own linker inside Docker.
 # For native Linux builds, set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang
 # and CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=-fuse-ld=lld".
-
 [target.x86_64-apple-darwin]
-rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/opt/llvm/bin/ld64.lld"]
-
+rustflags = [ "-C", "link-arg=-fuse-ld=/usr/local/opt/llvm/bin/ld64.lld" ]
 [target.aarch64-apple-darwin]
-rustflags = []
-
+rustflags = [  ]
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
-rustflags = []
-
+rustflags = [  ]
 [target.wasm32-unknown-unknown]
 runner = "wasm-server-runner"
-
 # Profile settings are in the workspace Cargo.toml.
 # Only platform-specific config (linker, runner) belongs here.

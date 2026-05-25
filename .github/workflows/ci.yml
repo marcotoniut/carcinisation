@@ -46,6 +46,11 @@ jobs:
       - name: Tests
         run: cargo nextest run --workspace --all-features --locked
 
+      - name: License & Advisory check
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses advisories
+
   wasm:
     name: WASM Build Check
     runs-on: ubuntu-latest

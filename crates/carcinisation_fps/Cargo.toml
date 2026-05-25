@@ -3,23 +3,20 @@ name = "carcinisation_fps"
 version.workspace = true
 edition.workspace = true
 description = "First-person raycaster subgame for Carcinisation"
-
 [features]
-hot_reload = ["carcinisation_core/hot_reload", "carcinisation_fps_core/hot_reload"]
-
+hot_reload = [ "carcinisation_core/hot_reload", "carcinisation_fps_core/hot_reload" ]
 [dependencies]
 asset_pipeline = { workspace = true }
+bevy = { workspace = true }
+bevy_math = { version = "0.18.0", default-features = false }
 carapace = { workspace = true }
 carcinisation_base = { path = "../carcinisation_base" }
 carcinisation_core = { path = "../carcinisation_core" }
 carcinisation_fps_core = { path = "../carcinisation_fps_core" }
 carcinisation_net = { path = "../carcinisation_net" }
-bevy = { workspace = true }
-bevy_math = { version = "0.18.0", default-features = false }
 flate2 = "1.1"
 rand = { workspace = true }
-serde = { workspace = true }
 ron = { workspace = true }
-
+serde = { workspace = true }
 [lints]
 workspace = true

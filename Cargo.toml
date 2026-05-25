@@ -1,47 +1,45 @@
 [workspace]
 resolver = "2"
 members = [
-    "apps/carcinisation",
-    "apps/carcinisation_server",
-    "apps/carcinisationctl",
-    "crates/activable_macros",
-    "crates/activable",
-    "crates/asset_pipeline",
-    "crates/carapace",
-    "crates/carapace/macros",
-    "crates/carcinisation_base",
-    "crates/carcinisation_collision",
-    "crates/carcinisation_cutscene",
-    "crates/carcinisation_admin",
-    "crates/carcinisation_core",
-    "crates/carcinisation_fps",
-    "crates/carcinisation_fps_core",
-    "crates/carcinisation_input",
-    "crates/carcinisation_net",
-    "crates/carcinisation_ors",
-    "crates/cween",
-    "scripts/generate-typeface",
-    "scripts/process-aseprite",
-    "scripts/process-gfx",
-    "tools/editor",
-    "tools/assert_assets_path",
-    "tools/scene-file-watcher",
+  "apps/carcinisation",
+  "apps/carcinisation_server",
+  "apps/carcinisationctl",
+  "crates/activable_macros",
+  "crates/activable",
+  "crates/asset_pipeline",
+  "crates/carapace",
+  "crates/carapace/macros",
+  "crates/carcinisation_base",
+  "crates/carcinisation_collision",
+  "crates/carcinisation_cutscene",
+  "crates/carcinisation_admin",
+  "crates/carcinisation_core",
+  "crates/carcinisation_fps",
+  "crates/carcinisation_fps_core",
+  "crates/carcinisation_input",
+  "crates/carcinisation_net",
+  "crates/carcinisation_ors",
+  "crates/cween",
+  "scripts/generate-typeface",
+  "scripts/process-aseprite",
+  "scripts/process-gfx",
+  "tools/editor",
+  "tools/assert_assets_path",
+  "tools/scene-file-watcher",
 ]
-
 [workspace.package]
 edition = "2024"
 version = "0.3.0"
-
 [workspace.dependencies]
 assert_assets_path = { path = "tools/assert_assets_path" }
 asset_pipeline = { path = "crates/asset_pipeline" }
 carcinisation_collision = { path = "crates/carcinisation_collision" }
 # Keep host binaries self-contained so BRP/MCP launchers can execute them directly.
-bevy = { version = "0.18", features = ["wayland", "std", "async_executor"] }
+bevy = { version = "0.18", features = [ "wayland", "std", "async_executor" ] }
 bevy_brp_extras = "0.18"
 bevy_state = "0.18"
 bevy_ecs = "0.18"
-bevy_common_assets = { version = "0.15", features = ["ron", "json"] }
+bevy_common_assets = { version = "0.15", features = [ "ron", "json" ] }
 bevy-inspector-egui = "0.36"
 bevy_framepace = "0.21"
 colored = "3.1.1"
@@ -51,11 +49,8 @@ lazy_static = "1.5.0"
 leafwing-input-manager = "0.20"
 num_enum = "0.7.5"
 rand = "0.10"
-carapace = { path = "crates/carapace", default-features = true, features = [
-    "line",
-    "reflect",
-] }
-serde = { version = "1.0", features = ["derive"] }
+carapace = { path = "crates/carapace", default-features = true, features = [ "line", "reflect" ] }
+serde = { version = "1.0", features = [ "derive" ] }
 serde_with = "3.17.0"
 serde_json = "1.0"
 bevy_replicon = "0.39"
@@ -66,19 +61,15 @@ ron = "0.12.0"
 anyhow = "1.0"
 strum = "0.28.0"
 strum_macros = "0.28.0"
-
 [profile.dev]
 opt-level = 1
 debug = 1
-
 [profile.dev.package."*"]
 opt-level = 3
-
 [profile.release]
 lto = true
 opt-level = "z"
 strip = "symbols"
 codegen-units = 1
-
 [workspace.lints.rust]
 warnings = "deny"

@@ -1,5 +1,5 @@
 [target.x86_64-unknown-linux-gnu]
 pre-build = [
-    "dpkg --add-architecture amd64",
-    "apt-get update && apt-get install -y libwayland-dev libasound2-dev libudev-dev pkg-config",
+  "dpkg --add-architecture amd64",
+  "apt-get update && apt-get install -y libwayland-dev libasound2-dev libudev-dev pkg-config",
 ]

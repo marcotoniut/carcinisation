@@ -3,11 +3,10 @@ name = "scene-file-watcher"
 version = "0.1.0"
 edition.workspace = true
 description = "Watches RON assets for parse errors during development"
-
 [dependencies]
-bevy = { workspace = true, features = ["wayland"] }
-bevy_common_assets = { workspace = true }
+bevy = { workspace = true, features = [ "wayland" ] }
 bevy-inspector-egui = { workspace = true }
+bevy_common_assets = { workspace = true }
 carcinisation = { path = "../../apps/carcinisation" }
 colored = { workspace = true }
 derive-new = { workspace = true }

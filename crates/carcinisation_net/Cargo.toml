@@ -2,20 +2,17 @@
 name = "carcinisation_net"
 edition.workspace = true
 version.workspace = true
-
 [features]
-default = ["native"]
-native = ["bevy_replicon_renet2/native_transport", "bevy_replicon_renet2/netcode"]
-wasm_client = ["bevy_replicon_renet2/ws_client_transport"]
-wasm_server = ["bevy_replicon_renet2/ws_server_transport"]
-
+default = [ "native" ]
+native = [ "bevy_replicon_renet2/native_transport", "bevy_replicon_renet2/netcode" ]
+wasm_client = [ "bevy_replicon_renet2/ws_client_transport" ]
+wasm_server = [ "bevy_replicon_renet2/ws_server_transport" ]
 [dependencies]
 bevy = { workspace = true }
 bevy_math = { version = "0.18" }
-carcinisation_fps_core = { path = "../carcinisation_fps_core" }
 bevy_replicon = { workspace = true }
 bevy_replicon_renet2 = { workspace = true }
+carcinisation_fps_core = { path = "../carcinisation_fps_core" }
 serde = { workspace = true }
-
 [dev-dependencies]
-postcard = { version = "1", default-features = false, features = ["alloc"] }
+postcard = { version = "1", default-features = false, features = [ "alloc" ] }

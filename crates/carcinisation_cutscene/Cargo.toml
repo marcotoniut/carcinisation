@@ -3,15 +3,13 @@ name = "carcinisation_cutscene"
 version.workspace = true
 edition.workspace = true
 description = "Cutscene vocabulary types for Carcinisation — data, components, resources, messages"
-
 [dependencies]
 bevy = { workspace = true }
 carapace = { workspace = true }
-cween = { path = "../cween" }
 carcinisation_base = { path = "../carcinisation_base" }
+cween = { path = "../cween" }
 derive-new = { workspace = true }
 serde = { workspace = true }
 serde_with = { workspace = true }
-
 [lints]
 workspace = true

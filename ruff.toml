@@ -1,6 +1,5 @@
 line-length = 100
-include = ["scripts/**/*.py"]
-
+include = [ "scripts/**/*.py" ]
 [format]
 indent-style = "space"
 quote-style = "double"

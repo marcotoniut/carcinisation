@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use carapace::prelude::*;
+use colored::Colorize;
 
 use crate::stage::collision::AttackMask;
 use crate::stubs::Score;
@@ -39,7 +40,6 @@ use carcinisation_collision::{
 };
 use carcinisation_core::components::DespawnMark;
 use carcinisation_core::components::VolumeSettings;
-use colored::Colorize;
 
 const CRITICAL_THRESHOLD: f32 = 0.5;
 const MELEE_DEPTH_MIN: crate::stage::components::placement::Depth =

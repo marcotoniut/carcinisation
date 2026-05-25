@@ -1,40 +1,30 @@
 spawn_anchor = "Origin"
-
 # --- Part definitions ---
-
 [[part_definitions]]
 id = "group_marker"
-tags = ["group"]
-
+tags = [ "group" ]
 [[part_definitions]]
 id = "case"
-tags = ["weapon"]
-
+tags = [ "weapon" ]
 [[part_definitions]]
 id = "icon"
-tags = ["weapon", "icon"]
-
+tags = [ "weapon", "icon" ]
 [[part_definitions]]
 id = "health_large"
-tags = ["health"]
-
+tags = [ "health" ]
 [[part_definitions]]
 id = "health_body"
-tags = ["health", "collidable"]
-
+tags = [ "health", "collidable" ]
 [[part_definitions]]
 id = "health_handle"
-tags = ["health", "handle"]
-
+tags = [ "health", "handle" ]
 # --- Part instances ---
-
 [[parts]]
 id = "root"
 definition_id = "group_marker"
 name = "Root"
 draw_order = 0
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "weapon_case"
 parent_id = "root"
@@ -43,7 +33,6 @@ name = "Weapon Case"
 source_layer = "weapon_case"
 draw_order = 10
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "icon_flamethrower"
 parent_id = "root"
@@ -52,8 +41,7 @@ name = "Icon Flamethrower"
 source_layer = "icon_falmethrower"
 draw_order = 20
 pivot = { x = 0, y = 0 }
-tags = ["flamethrower"]
-
+tags = [ "flamethrower" ]
 [[parts]]
 id = "icon_bomb"
 parent_id = "root"
@@ -62,8 +50,7 @@ name = "Icon Bomb"
 source_layer = "icon_bomb"
 draw_order = 30
 pivot = { x = 0, y = 0 }
-tags = ["bomb"]
-
+tags = [ "bomb" ]
 [[parts]]
 id = "icon_bullet"
 parent_id = "root"
@@ -72,8 +59,7 @@ name = "Icon Bullet"
 source_layer = "icon_bullet"
 draw_order = 40
 pivot = { x = 0, y = 0 }
-tags = ["bullet"]
-
+tags = [ "bullet" ]
 [[parts]]
 id = "icon_piercing"
 parent_id = "root"
@@ -82,8 +68,7 @@ name = "Icon Piercing"
 source_layer = "icon_piercing"
 draw_order = 50
 pivot = { x = 0, y = 0 }
-tags = ["piercing"]
-
+tags = [ "piercing" ]
 [[parts]]
 id = "health_l"
 parent_id = "root"
@@ -92,7 +77,6 @@ name = "Health Large"
 source_layer = "health_l"
 draw_order = 60
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "health_s"
 parent_id = "root"
@@ -101,7 +85,6 @@ name = "Health Small Body"
 source_layer = "health_s"
 draw_order = 70
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "health_s_cap"
 parent_id = "root"

@@ -46,6 +46,8 @@ mod systems;
 pub mod ui;
 pub use systems::spawn::check_step_spawn;
 
+#[cfg(debug_assertions)]
+use self::systems::debug_visibility_hierarchy;
 use self::{
     attack::AttackPlugin,
     depth_scale::apply_depth_fallback_scale,
@@ -76,8 +78,7 @@ use self::{
         check_movement_step_reached, check_stage_death, check_stage_step_timer,
         check_staged_cleared, check_stop_step_finished_by_duration,
         damage::{add_invert_filter, check_damage_flicker_taken, on_damage, remove_invert_filter},
-        debug_visibility_hierarchy, initialise_cinematic_step, initialise_movement_step,
-        initialise_stop_step,
+        initialise_cinematic_step, initialise_movement_step, initialise_stop_step,
         movement::{
             check_jump_tween_finished, check_jump_tween_z_finished, check_linear_tween_finished,
             check_linear_tween_x_finished, check_linear_tween_y_finished, circle_around,

@@ -84,6 +84,7 @@ If blocked, state what and why.
 - `just install-cargo-llvm-lines` — analyses per-function LLVM IR line count for compile-time bloat.
 - Not required for: `cargo check`, `cargo test`, gameplay iteration, CI build correctness.
 - Do not add to `.envrc` auto-install. Do not add to default CI jobs.
+
 ## Hygiene
 
 - Stop any watchers/dev servers/helper processes you started.

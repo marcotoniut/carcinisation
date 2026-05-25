@@ -37,7 +37,7 @@ use crate::stubs::Lives;
 use crate::stubs::Score;
 use crate::stubs::make_music_bundle;
 use assert_assets_path::assert_assets_path;
-use bevy::{audio::PlaybackMode, ecs::hierarchy::ChildOf, prelude::*};
+use bevy::{audio::PlaybackMode, prelude::*};
 use carapace::prelude::WorldPos;
 use carcinisation_core::components::DespawnMark;
 use carcinisation_core::components::Music;

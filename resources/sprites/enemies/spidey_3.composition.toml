@@ -1,78 +1,63 @@
 [[part_definitions]]
 id = "group_marker"
-tags = ["group"]
-
+tags = [ "group" ]
 [[part_definitions]]
 id = "body"
-tags = ["core", "torso", "targetable"]
-
+tags = [ "core", "torso", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
 armour = 1
 durability = 3
-
 [[part_definitions.gameplay.collision]]
 id = "body_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 12.0, offset = { x = 0.0, y = 0.0 } }
-tags = ["body", "core"]
-
+tags = [ "body", "core" ]
 [[part_definitions]]
 id = "head"
-tags = ["core", "head", "targetable"]
-
+tags = [ "core", "head", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
-
 [[part_definitions.gameplay.collision]]
 id = "head_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 8.0, offset = { x = 0.0, y = 0.0 } }
-tags = ["head", "core"]
-
+tags = [ "head", "core" ]
 [[part_definitions]]
 id = "leg"
-tags = ["leg", "limb", "targetable"]
-
+tags = [ "leg", "limb", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
 armour = 1
 durability = 2
-
 [[part_definitions.gameplay.collision]]
 id = "leg_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 10.0, offset = { x = 0.0, y = 0.0 } }
-tags = ["legs", "appendage"]
-
+tags = [ "legs", "appendage" ]
 [[part_definitions]]
 id = "pedipalp"
-tags = ["pedipalp", "limb", "targetable"]
-
+tags = [ "pedipalp", "limb", "targetable" ]
 [part_definitions.gameplay]
 targetable = true
 health_pool = "core"
 armour = 1
 durability = 2
-
 [[part_definitions.gameplay.collision]]
 id = "pedipalp_hurtbox"
 role = "collider"
 shape = { shape = "circle", radius = 6.0, offset = { x = 0.0, y = 0.0 } }
-tags = ["pedipalp", "appendage"]
-
+tags = [ "pedipalp", "appendage" ]
 # --- parts ---
-
 [[parts]]
 id = "root"
 definition_id = "group_marker"
 name = "Root"
 draw_order = 0
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "body"
 definition_id = "body"
@@ -81,7 +66,6 @@ parent_id = "root"
 source_layer = "body"
 draw_order = 20
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "head"
 definition_id = "head"
@@ -90,7 +74,6 @@ parent_id = "body"
 source_layer = "head"
 draw_order = 30
 pivot = { x = 0, y = 0 }
-
 [[parts]]
 id = "legs_r"
 definition_id = "leg"
@@ -99,8 +82,7 @@ parent_id = "root"
 source_layer = "legs_r"
 draw_order = 10
 pivot = { x = 0, y = 0 }
-tags = ["right", "legs"]
-
+tags = [ "right", "legs" ]
 [[parts]]
 id = "legs_l"
 definition_id = "leg"
@@ -109,8 +91,7 @@ parent_id = "root"
 source_layer = "legs_l"
 draw_order = 15
 pivot = { x = 0, y = 0 }
-tags = ["left", "legs"]
-
+tags = [ "left", "legs" ]
 [[parts]]
 id = "pedipalp_r"
 definition_id = "pedipalp"
@@ -119,8 +100,7 @@ parent_id = "body"
 source_layer = "pedipal_r"
 draw_order = 40
 pivot = { x = 0, y = 0 }
-tags = ["right"]
-
+tags = [ "right" ]
 [[parts]]
 id = "pedipalp_l"
 definition_id = "pedipalp"
@@ -129,10 +109,8 @@ parent_id = "body"
 source_layer = "pedipal_l"
 draw_order = 45
 pivot = { x = 0, y = 0 }
-tags = ["left"]
-
+tags = [ "left" ]
 # --- animation events ---
-
 [[animation_events]]
 # Spiderweb projectile fires on the peak shoot pose (frame 5, at 1000ms).
 # Originates from the body part near the spinneret (upper-center of body).
@@ -142,24 +120,19 @@ kind = "projectile_spawn"
 id = "spider_shot"
 part_id = "body"
 local_offset = { x = 4, y = 0 }
-
 # --- gameplay ---
-
 [directional]
-authored_directions = ["front", "frontleft", "left", "backleft", "back"]
+authored_directions = [ "front", "frontleft", "left", "backleft", "back" ]
 default_direction = "front"
 # mirror_allowed: spider body is bilaterally symmetric. Shoot projectile
 # originates from body center (offset x=4), acceptable under mirroring.
 mirror_policy = "mirror_allowed"
-
 [directional.mirrors]
 frontright = "frontleft"
 right = "left"
 backright = "backleft"
-
 [gameplay]
 entity_health_pool = "core"
-
 [[gameplay.health_pools]]
 id = "core"
 max_health = 30
