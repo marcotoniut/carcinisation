@@ -119,7 +119,7 @@ impl PlayerFlamethrowerConfig {
     ///
     /// If `burning_flame_count` is 0.
     #[must_use]
-    pub fn fire_death_config(&self) -> crate::fire_death::FireDeathConfig {
+    pub const fn fire_death_config(&self) -> crate::fire_death::FireDeathConfig {
         crate::fire_death::FireDeathConfig {
             burning_corpse_duration_secs: self.burning_corpse_duration_secs,
             burning_flame_count: NonZeroUsize::new(self.burning_flame_count)
@@ -132,7 +132,7 @@ impl PlayerFlamethrowerConfig {
     }
 
     #[must_use]
-    pub fn burning_corpse_contact_tick_secs(&self) -> f32 {
+    pub const fn burning_corpse_contact_tick_secs(&self) -> f32 {
         std::time::Duration::from_millis(self.burning_corpse_contact_tick_ms.get()).as_secs_f32()
     }
 }
@@ -301,13 +301,13 @@ impl FpsCombatConfig {
 
     /// Legacy alias — equivalent to `self.mosquiton_shoot_cooldown`.
     #[must_use]
-    pub fn mosquiton_attack_interval(&self) -> f32 {
+    pub const fn mosquiton_attack_interval(&self) -> f32 {
         self.mosquiton_shoot_cooldown
     }
 
     /// Build a `MosquitonSimConfig` from the combat config values.
     #[must_use]
-    pub fn mosquiton_sim_config(&self) -> crate::mosquiton::MosquitonSimConfig {
+    pub const fn mosquiton_sim_config(&self) -> crate::mosquiton::MosquitonSimConfig {
         crate::mosquiton::MosquitonSimConfig {
             move_speed: 2.0,
             preferred_range: self.mosquiton_preferred_range,
@@ -326,7 +326,7 @@ impl FpsCombatConfig {
 
     /// Build a `SpideySimConfig` from the combat config values.
     #[must_use]
-    pub fn spidey_sim_config(&self) -> crate::spidey::SpideySimConfig {
+    pub const fn spidey_sim_config(&self) -> crate::spidey::SpideySimConfig {
         crate::spidey::SpideySimConfig {
             move_speed: self.spidey_move_speed,
             collision_radius: self.spidey_collision_radius,
@@ -358,7 +358,7 @@ impl FpsCombatConfig {
     ///
     /// If `ground_fire_flame_count` is 0.
     #[must_use]
-    pub fn ground_fire_config(&self) -> crate::ground_fire::GroundFireConfig {
+    pub const fn ground_fire_config(&self) -> crate::ground_fire::GroundFireConfig {
         crate::ground_fire::GroundFireConfig {
             lifetime_secs: self.ground_fire_lifetime_secs,
             fade_start_secs: self.ground_fire_fade_start_secs,
@@ -441,76 +441,76 @@ impl Default for FpsCombatConfig {
 // Serde fallback defaults — must match combat.ron shipped values.
 // These only fire when deserializing old RON files missing newer fields.
 
-fn default_spidey_move_speed() -> f32 {
+const fn default_spidey_move_speed() -> f32 {
     2.0
 }
-fn default_spidey_collision_radius() -> f32 {
+const fn default_spidey_collision_radius() -> f32 {
     0.25
 }
-fn default_spidey_aggro_range() -> f32 {
+const fn default_spidey_aggro_range() -> f32 {
     8.0
 }
-fn default_spidey_hop_interval_min() -> f32 {
+const fn default_spidey_hop_interval_min() -> f32 {
     0.4
 }
-fn default_spidey_hop_interval_max() -> f32 {
+const fn default_spidey_hop_interval_max() -> f32 {
     1.0
 }
-fn default_spidey_hop_distance() -> f32 {
+const fn default_spidey_hop_distance() -> f32 {
     1.2
 }
-fn default_spidey_hop_duration() -> f32 {
+const fn default_spidey_hop_duration() -> f32 {
     0.4
 }
-fn default_spidey_hop_visual_height() -> f32 {
+const fn default_spidey_hop_visual_height() -> f32 {
     0.3
 }
-fn default_spidey_lunge_range() -> f32 {
+const fn default_spidey_lunge_range() -> f32 {
     2.0
 }
-fn default_spidey_lunge_speed() -> f32 {
+const fn default_spidey_lunge_speed() -> f32 {
     7.0
 }
-fn default_spidey_lunge_melee_damage() -> u32 {
+const fn default_spidey_lunge_melee_damage() -> u32 {
     20
 }
-fn default_spidey_lunge_windup_secs() -> f32 {
+const fn default_spidey_lunge_windup_secs() -> f32 {
     0.2
 }
-fn default_spidey_lunge_duration_secs() -> f32 {
+const fn default_spidey_lunge_duration_secs() -> f32 {
     0.7
 }
-fn default_spidey_lunge_cooldown() -> f32 {
+const fn default_spidey_lunge_cooldown() -> f32 {
     3.0
 }
-fn default_spidey_web_range() -> f32 {
+const fn default_spidey_web_range() -> f32 {
     6.0
 }
-fn default_spidey_web_cooldown() -> f32 {
+const fn default_spidey_web_cooldown() -> f32 {
     3.0
 }
-fn default_spidey_web_cue_secs() -> f32 {
+const fn default_spidey_web_cue_secs() -> f32 {
     1.0
 }
-fn default_spidey_web_projectile_speed() -> f32 {
+const fn default_spidey_web_projectile_speed() -> f32 {
     3.0
 }
-fn default_spidey_web_projectile_damage() -> u32 {
+const fn default_spidey_web_projectile_damage() -> u32 {
     5
 }
-fn default_spidey_health() -> u32 {
+const fn default_spidey_health() -> u32 {
     100
 }
-fn default_spidey_web_slow_multiplier() -> f32 {
+const fn default_spidey_web_slow_multiplier() -> f32 {
     0.7
 }
-fn default_spidey_web_slow_duration() -> f32 {
+const fn default_spidey_web_slow_duration() -> f32 {
     3.0
 }
-fn default_spidey_recover_secs() -> f32 {
+const fn default_spidey_recover_secs() -> f32 {
     0.5
 }
-fn default_spidey_death_secs() -> f32 {
+const fn default_spidey_death_secs() -> f32 {
     0.6
 }
 
@@ -552,16 +552,16 @@ impl FpsVisualConfig {
     }
 }
 
-fn default_view_bob_amplitude() -> f32 {
+const fn default_view_bob_amplitude() -> f32 {
     1.5
 }
-fn default_view_bob_freq_mult() -> f32 {
+const fn default_view_bob_freq_mult() -> f32 {
     2.0
 }
-fn default_view_bob_near() -> f32 {
+const fn default_view_bob_near() -> f32 {
     3.0
 }
-fn default_view_bob_mid() -> f32 {
+const fn default_view_bob_mid() -> f32 {
     6.0
 }
 

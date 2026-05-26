@@ -87,7 +87,7 @@ impl StressDepthTraversal {
 
     fn wave_t(elapsed: f32, motion: &SwarmMotion) -> f32 {
         let max_t = Self::progress_for_depth(motion.max_foreground_depth);
-        let oscillation = ((elapsed * motion.traverse_speed + motion.traverse_phase)
+        let oscillation = (elapsed.mul_add(motion.traverse_speed, motion.traverse_phase)
             * std::f32::consts::TAU)
             .sin()
             .abs();
@@ -265,7 +265,9 @@ fn setup(
         let locomotion = initial_locomotion(0.0, &motion);
         let initial_progress = StressDepthTraversal::wave_t(0.0, &motion);
         let depth = StressDepthTraversal::depth_for_progress(initial_progress);
-        let initial_x = motion.center_x + (motion.x_phase).sin() * motion.x_amplitude;
+        let initial_x = (motion.x_phase)
+            .sin()
+            .mul_add(motion.x_amplitude, motion.center_x);
         let initial_y = entity_y_for(
             initial_progress,
             depth,
@@ -329,8 +331,10 @@ fn animate_swarm(time: Res<Time>, mut query: Query<(&SwarmMotion, &mut WorldPos)
     let t = time.elapsed_secs();
 
     for (motion, mut position) in &mut query {
-        let x = motion.center_x
-            + (t * motion.x_angular_velocity + motion.x_phase).sin() * motion.x_amplitude;
+        let x = t
+            .mul_add(motion.x_angular_velocity, motion.x_phase)
+            .sin()
+            .mul_add(motion.x_amplitude, motion.center_x);
         position.0.x = x;
     }
 }
@@ -538,7 +542,7 @@ fn update_stats_text(
     }
 }
 
-fn layer_for_depth(depth: Depth) -> Layer {
+const fn layer_for_depth(depth: Depth) -> Layer {
     match depth {
         Depth::Nine => Layer::Nine,
         Depth::Eight => Layer::Eight,
@@ -552,7 +556,7 @@ fn layer_for_depth(depth: Depth) -> Layer {
     }
 }
 
-fn depth_slot(depth: Depth) -> usize {
+const fn depth_slot(depth: Depth) -> usize {
     match depth {
         Depth::Nine => 0,
         Depth::Eight => 1,
@@ -577,13 +581,14 @@ fn motion_for(index: usize) -> SwarmMotion {
     SwarmMotion {
         center_x: base_x,
         x_amplitude: 2.0 + ((index * 13 + lane) % 9) as f32,
-        x_angular_velocity: 0.35 + lane as f32 * 0.02 + (index % 5) as f32 * 0.03,
+        x_angular_velocity: ((index % 5) as f32).mul_add(0.03, (lane as f32).mul_add(0.02, 0.35)),
         x_phase: ((index * 19 + lane * 7) % 360) as f32 * 0.05,
-        traverse_speed: 0.08 + lane as f32 * 0.004 + (index % 11) as f32 * 0.002,
+        traverse_speed: ((index % 11) as f32).mul_add(0.002, (lane as f32).mul_add(0.004, 0.08)),
         traverse_phase: ((index * 23 + lane * 5) % 360) as f32 / 360.0,
-        locomotion_speed: 1.0 / (8.0 + lane as f32 * 0.65 + (index % 7) as f32 * 0.55),
+        locomotion_speed: 1.0
+            / ((index % 7) as f32).mul_add(0.55, (lane as f32).mul_add(0.65, 8.0)),
         locomotion_phase: ((index * 29 + lane * 17) % 512) as f32 / 512.0,
-        flight_altitude: 8.0 + lane as f32 * 1.2 + (index % 6) as f32 * 1.5,
+        flight_altitude: ((index % 6) as f32).mul_add(1.5, (lane as f32).mul_add(1.2, 8.0)),
         max_foreground_depth,
     }
 }
@@ -599,10 +604,13 @@ fn initial_locomotion(elapsed: f32, motion: &SwarmMotion) -> SwarmLocomotion {
 }
 
 fn desires_airborne(elapsed: f32, motion: &SwarmMotion) -> bool {
-    ((elapsed * motion.locomotion_speed) + motion.locomotion_phase).fract() < AIRBORNE_DUTY_CYCLE
+    elapsed
+        .mul_add(motion.locomotion_speed, motion.locomotion_phase)
+        .fract()
+        < AIRBORNE_DUTY_CYCLE
 }
 
-fn locomotion_is_airborne(state: LocomotionState) -> bool {
+const fn locomotion_is_airborne(state: LocomotionState) -> bool {
     !matches!(state, LocomotionState::Grounded)
 }
 
@@ -615,7 +623,7 @@ fn lift_ratio(state: LocomotionState) -> f32 {
     }
 }
 
-fn projection_profile(horizon_y: f32) -> ProjectionProfile {
+const fn projection_profile(horizon_y: f32) -> ProjectionProfile {
     ProjectionProfile {
         horizon_y,
         floor_base_y: FLOOR_DEPTH_1,
@@ -637,7 +645,7 @@ fn entity_y_for(
     let floor_y = profile.floor_y_for_progress(progress);
     let anchor_ground = anchors.map_or(0.0, |anchor| anchor.ground);
     let grounded_y = floor_y + anchor_ground * fallback_scale;
-    grounded_y + motion.flight_altitude * fallback_scale * lift_ratio(state)
+    (motion.flight_altitude * fallback_scale).mul_add(lift_ratio(state), grounded_y)
 }
 
 fn set_mosquiton_tag(animation: &mut ComposedAnimationState, tag: &str) {
@@ -659,7 +667,7 @@ fn animation_tag_for(state: LocomotionState, x: f32, center_x: f32) -> &'static 
     }
 }
 
-fn foreground_depth_for_rank(index: usize) -> Depth {
+const fn foreground_depth_for_rank(index: usize) -> Depth {
     match index {
         0 => Depth::Zero,
         1..=3 => Depth::One,

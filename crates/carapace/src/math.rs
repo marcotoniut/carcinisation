@@ -82,7 +82,7 @@ pub enum Diagonal {
 impl Diagonal {
     /// 1 for each positive axis and 0 for each negative axis
     #[must_use]
-    pub fn as_uvec2(self) -> UVec2 {
+    pub const fn as_uvec2(self) -> UVec2 {
         use Diagonal::{DownLeft, DownRight, UpLeft, UpRight};
 
         match self {

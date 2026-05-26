@@ -269,12 +269,12 @@ impl SpawnAnchorMode {
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde skip_serializing_if requires &T
-fn is_zero_u8(v: &u8) -> bool {
+const fn is_zero_u8(v: &u8) -> bool {
     *v == 0
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde skip_serializing_if requires &T
-fn is_zero_offset(v: &(i8, i8)) -> bool {
+const fn is_zero_offset(v: &(i8, i8)) -> bool {
     v.0 == 0 && v.1 == 0
 }
 

@@ -128,7 +128,7 @@ struct CxSpriteLoader {
 }
 
 impl CxSpriteLoader {
-    fn new(palette_path: PathBuf) -> Self {
+    const fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
 }
@@ -168,6 +168,7 @@ impl AssetLoader for CxSpriteLoader {
 }
 
 /// A sprite. Use your asset wrapper to create a [`Handle<CxSpriteAsset>`] and supply an image.
+///
 /// If the sprite is animated, the frames should be laid out from top to bottom.
 /// See `assets/sprite/runner.png` for an example of an animated sprite.
 #[derive(Asset, Serialize, Deserialize, Clone, Reflect, Debug)]
@@ -204,13 +205,13 @@ impl CxSpriteAsset {
 
     /// Width of a single frame in pixels.
     #[must_use]
-    pub fn frame_width(&self) -> usize {
+    pub const fn frame_width(&self) -> usize {
         self.data.width()
     }
 
     /// Height of a single frame in pixels.
     #[must_use]
-    pub fn frame_height(&self) -> usize {
+    pub const fn frame_height(&self) -> usize {
         self.frame_size / self.data.width()
     }
 
@@ -581,7 +582,7 @@ impl Spatial for CxCompositePartDrawable<'_> {
 impl CxCompositeSprite {
     /// Create a composite sprite from parts.
     #[must_use]
-    pub fn new(parts: Vec<CxCompositePart>) -> Self {
+    pub const fn new(parts: Vec<CxCompositePart>) -> Self {
         Self {
             parts,
             size: UVec2::ZERO,
@@ -596,7 +597,7 @@ impl CxCompositeSprite {
     ///
     /// This is correct when no part transform expands the render envelope,
     /// which means the render bounds match the base bounds exactly.
-    pub fn set_native_metrics(&mut self, origin: IVec2, size: UVec2, frame_count: usize) {
+    pub const fn set_native_metrics(&mut self, origin: IVec2, size: UVec2, frame_count: usize) {
         self.origin = origin;
         self.size = size;
         self.render_origin = origin;
@@ -754,13 +755,13 @@ pub enum CxCompositePartSource {
 impl CxCompositePartSource {
     /// Create a composite part source from a standalone sprite.
     #[must_use]
-    pub fn sprite(sprite: Handle<CxSpriteAsset>) -> Self {
+    pub const fn sprite(sprite: Handle<CxSpriteAsset>) -> Self {
         Self::Sprite(sprite)
     }
 
     /// Create a composite part source from an atlas region.
     #[must_use]
-    pub fn atlas_region(atlas: Handle<CxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
+    pub const fn atlas_region(atlas: Handle<CxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
         Self::AtlasRegion { atlas, region }
     }
 
@@ -906,7 +907,7 @@ impl PartTransform {
 
     /// Returns the rotation, with NaN treated as 0.0.
     #[must_use]
-    pub(crate) fn sanitised_rotation(&self) -> f32 {
+    pub(crate) const fn sanitised_rotation(&self) -> f32 {
         crate::presentation::sanitise_rotation(self.rotation)
     }
 
@@ -955,8 +956,8 @@ impl PartTransform {
         for corner in &corners {
             let scaled = Vec2::new(corner.x * scale.x, corner.y * scale.y);
             let rotated = Vec2::new(
-                scaled.x * cos_r - scaled.y * sin_r,
-                scaled.x * sin_r + scaled.y * cos_r,
+                scaled.x.mul_add(cos_r, -(scaled.y * sin_r)),
+                scaled.x.mul_add(sin_r, scaled.y * cos_r),
             );
             min_x = min_x.min(rotated.x);
             max_x = max_x.max(rotated.x);
@@ -1098,7 +1099,7 @@ impl CxCompositePart {
 
     /// Set the part offset relative to the composite origin.
     #[must_use]
-    pub fn with_offset(mut self, offset: IVec2) -> Self {
+    pub const fn with_offset(mut self, offset: IVec2) -> Self {
         self.offset = offset;
         self
     }
@@ -1119,7 +1120,7 @@ impl CxCompositePart {
 
     /// Set horizontal and vertical flip flags for draw-time mirroring.
     #[must_use]
-    pub fn with_flip(mut self, flip_x: bool, flip_y: bool) -> Self {
+    pub const fn with_flip(mut self, flip_x: bool, flip_y: bool) -> Self {
         self.flip_x = flip_x;
         self.flip_y = flip_y;
         self
@@ -1130,7 +1131,7 @@ impl CxCompositePart {
     /// When set and non-identity, the part is rendered into a mini scratch buffer
     /// and blitted with the transform during composition.
     #[must_use]
-    pub fn with_transform(mut self, transform: PartTransform) -> Self {
+    pub const fn with_transform(mut self, transform: PartTransform) -> Self {
         self.transform = Some(transform);
         self
     }

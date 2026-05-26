@@ -26,39 +26,34 @@ impl ColliderShape {
     #[must_use]
     pub fn point_collides(&self, collider_position: Vec2, point_position: Vec2) -> bool {
         match &self {
-            ColliderShape::Box(size) => {
+            Self::Box(size) => {
                 let delta = (point_position - collider_position).abs();
                 delta.x <= size.x && delta.y <= size.y
             }
-            ColliderShape::Circle(radius) => {
+            Self::Circle(radius) => {
                 collider_position.distance_squared(point_position) <= *radius * *radius
             }
-            ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed => false,
+            Self::SpriteMask | Self::SpriteMaskClosed => false,
         }
     }
 
     #[must_use]
-    pub fn overlaps(
-        &self,
-        self_position: Vec2,
-        other: &ColliderShape,
-        other_position: Vec2,
-    ) -> bool {
+    pub fn overlaps(&self, self_position: Vec2, other: &Self, other_position: Vec2) -> bool {
         match (self, other) {
-            (ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed, _)
-            | (_, ColliderShape::SpriteMask | ColliderShape::SpriteMaskClosed) => false,
-            (ColliderShape::Circle(a), ColliderShape::Circle(b)) => {
+            (Self::SpriteMask | Self::SpriteMaskClosed, _)
+            | (_, Self::SpriteMask | Self::SpriteMaskClosed) => false,
+            (Self::Circle(a), Self::Circle(b)) => {
                 let radius = a + b;
                 self_position.distance_squared(other_position) <= radius * radius
             }
-            (ColliderShape::Box(a), ColliderShape::Box(b)) => {
+            (Self::Box(a), Self::Box(b)) => {
                 let delta = (self_position - other_position).abs();
                 delta.x <= a.x + b.x && delta.y <= a.y + b.y
             }
-            (ColliderShape::Box(half), ColliderShape::Circle(radius)) => {
+            (Self::Box(half), Self::Circle(radius)) => {
                 box_overlaps_circle(*half, self_position, *radius, other_position)
             }
-            (ColliderShape::Circle(radius), ColliderShape::Box(half)) => {
+            (Self::Circle(radius), Self::Box(half)) => {
                 box_overlaps_circle(*half, other_position, *radius, self_position)
             }
         }
@@ -109,13 +104,13 @@ impl Collider {
     }
 
     #[must_use]
-    pub fn with_defense(mut self, defense: f32) -> Self {
+    pub const fn with_defense(mut self, defense: f32) -> Self {
         self.defense = defense;
         self
     }
 
     #[must_use]
-    pub fn with_offset(mut self, offset: Vec2) -> Self {
+    pub const fn with_offset(mut self, offset: Vec2) -> Self {
         self.offset = offset;
         self
     }
@@ -126,7 +121,7 @@ pub struct ColliderData(pub Vec<Collider>);
 
 impl ColliderData {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self(vec![])
     }
 
@@ -136,7 +131,7 @@ impl ColliderData {
     }
 
     #[must_use]
-    pub fn from_many(colliders: Vec<Collider>) -> Self {
+    pub const fn from_many(colliders: Vec<Collider>) -> Self {
         Self(colliders)
     }
 

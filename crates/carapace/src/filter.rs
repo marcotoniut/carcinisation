@@ -64,7 +64,7 @@ struct CxFilterLoader {
 }
 
 impl CxFilterLoader {
-    fn new(palette_path: PathBuf) -> Self {
+    const fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
 }
@@ -292,17 +292,17 @@ impl<L: CxLayer> From<RangeInclusive<L>> for CxFilterLayers<L> {
 
 impl<L: CxLayer> CxFilterLayers<L> {
     /// Creates a [`CxFilterLayers::Single`] with the given layer, with clip enabled
-    pub fn single_clip(layer: L) -> Self {
+    pub const fn single_clip(layer: L) -> Self {
         Self::Single { layer, clip: true }
     }
 
     /// Creates a [`CxFilterLayers::Single`] with the given layer, with clip disabled
-    pub fn single_over(layer: L) -> Self {
+    pub const fn single_over(layer: L) -> Self {
         Self::Single { layer, clip: false }
     }
 
     /// Creates a [`CxFilterLayers::Range`] that clips to entity pixels.
-    pub fn range_clip(range: RangeInclusive<L>) -> Self {
+    pub const fn range_clip(range: RangeInclusive<L>) -> Self {
         Self::Range(range)
     }
 

@@ -715,7 +715,7 @@ fn draw_mask_outline_instance(
     });
 }
 
-fn debug_collider_entity_class(
+const fn debug_collider_entity_class(
     enemy: Option<&Enemy>,
     enemy_attack: Option<&EnemyAttack>,
     destructible: Option<&Destructible>,
@@ -770,7 +770,9 @@ fn debug_collider_color(
         DebugColliderEntityClass::PlayerShot => unreachable!(),
     };
 
-    let hue = (base_hue + hue_offset_percent * 360.0).rem_euclid(360.0);
+    let hue = hue_offset_percent
+        .mul_add(360.0, base_hue)
+        .rem_euclid(360.0);
     let saturation = (BASE_SATURATION + saturation_delta).clamp(0.0, 1.0);
     let lightness = (BASE_LIGHTNESS + lightness_delta).clamp(0.0, 1.0);
     Color::hsla(hue, saturation, lightness, COLLIDER_ALPHA)

@@ -112,7 +112,7 @@ pub fn spawn_hud(
                             canvas: CxRenderSpace::Camera,
                             layer: Layer::Ors(OrsLayer::Hud),
                             text: CxText {
-                                typeface: typeface.clone(),
+                                typeface,
                                 ..Default::default()
                             },
                             ..default()

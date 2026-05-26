@@ -33,7 +33,7 @@ impl AnimationData {
 
 impl Default for AnimationData {
     fn default() -> Self {
-        AnimationData {
+        Self {
             collider_data: ColliderData::new(),
             direction: CxAnimationDirection::Forward,
             finish_behavior: CxAnimationFinishBehavior::Mark,

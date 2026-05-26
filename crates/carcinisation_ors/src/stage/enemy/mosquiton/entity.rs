@@ -31,12 +31,12 @@ impl EnemyMosquiton {
     /// non-ranged behaviour only.  This keeps deep-background mosquitons as
     /// ambient threats without projectile spam from offscreen-feeling distances.
     #[must_use]
-    pub fn can_ranged_attack(depth: &Depth) -> bool {
+    pub const fn can_ranged_attack(depth: &Depth) -> bool {
         depth.to_i8() <= MOSQUITON_MAX_RANGED_DEPTH.to_i8()
     }
 
     #[must_use]
-    pub fn kill_score(&self) -> u32 {
+    pub const fn kill_score(&self) -> u32 {
         10
     }
 }

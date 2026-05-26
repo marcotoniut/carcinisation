@@ -88,7 +88,7 @@ impl RemoteAngleInterpolation {
     #[must_use]
     pub fn interpolated(&self) -> f32 {
         let t = (self.elapsed / self.interval).min(1.0);
-        self.prev + shortest_angle_delta(self.prev, self.target) * t
+        shortest_angle_delta(self.prev, self.target).mul_add(t, self.prev)
     }
 
     /// If `new_value` differs from `target` (wrapping-aware), shifts target

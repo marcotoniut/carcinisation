@@ -92,23 +92,23 @@ impl FlamethrowerConfig {
     }
 
     #[must_use]
-    pub fn tick_duration(&self) -> Duration {
+    pub const fn tick_duration(&self) -> Duration {
         Duration::from_millis(self.tick_ms.get())
     }
 
     #[must_use]
-    pub fn spawn_interval(&self) -> Duration {
+    pub const fn spawn_interval(&self) -> Duration {
         Duration::from_millis(self.spawn_interval_ms.get())
     }
 
     #[must_use]
-    pub fn origin(&self) -> Vec2 {
+    pub const fn origin(&self) -> Vec2 {
         Vec2::new(self.origin_camera_px.0, self.origin_camera_px.1)
     }
 
     /// Maximum distance a flame can travel before despawning.
     #[must_use]
-    pub fn max_range(&self) -> f32 {
+    pub const fn max_range(&self) -> f32 {
         self.chain_range.get()
     }
 
@@ -126,7 +126,7 @@ impl FlamethrowerConfig {
     ///
     /// If `burning_flame_count` is 0.
     #[must_use]
-    pub fn fire_death_config(&self) -> FireDeathConfig {
+    pub const fn fire_death_config(&self) -> FireDeathConfig {
         FireDeathConfig {
             burning_corpse_duration_secs: self.burning_corpse_duration_secs,
             burning_flame_count: std::num::NonZeroUsize::new(self.burning_flame_count)
@@ -371,7 +371,7 @@ pub fn update_flamethrower(
 
         // Angular lag: further slots follow the current direction more slowly.
         let follow = config.angular_follow_speed.get()
-            / (1.0 + f32::from(particle.slot) * config.angular_drag);
+            / f32::from(particle.slot).mul_add(config.angular_drag, 1.0);
         let t = (follow * dt).min(1.0);
         let lerped = particle.direction.lerp(direction, t);
         // Avoid zero-length collapse when directions are nearly opposite.
@@ -391,8 +391,8 @@ pub fn update_flamethrower(
         *layer = Layer::Ors(OrsLayer::FlameSegment(FlameDepth(depth)));
 
         // Interpolate scale from near (origin) to far (max range).
-        let scale = config.scale_near.get()
-            + (config.scale_far.get() - config.scale_near.get()) * progress_t;
+        let scale = (config.scale_far.get() - config.scale_near.get())
+            .mul_add(progress_t, config.scale_near.get());
         presentation.scale = Vec2::splat(scale);
 
         // Scale collider to match visual size.
@@ -474,8 +474,8 @@ pub fn flamethrower_damage(
             let world_pos = pos.0 + camera_offset;
             // Scale hit radius to match visual scale at this progress.
             let progress_t = (particle.progress / max_range).clamp(0.0, 1.0);
-            let scale = config.scale_near.get()
-                + (config.scale_far.get() - config.scale_near.get()) * progress_t;
+            let scale = (config.scale_far.get() - config.scale_near.get())
+                .mul_add(progress_t, config.scale_near.get());
             (world_pos, base_radius * scale)
         })
         .collect();

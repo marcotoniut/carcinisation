@@ -20,17 +20,17 @@ use super::{CxScreen, SCREEN_SHADER_HANDLE};
 
 #[cfg(feature = "headed")]
 #[derive(ShaderType)]
-pub(crate) struct CxUniform {
+pub struct CxUniform {
     pub(crate) palette: [Vec3; 256],
     pub(crate) fit_factor: Vec2,
 }
 
 #[cfg(feature = "headed")]
 #[derive(Resource, Deref, DerefMut, Default)]
-pub(crate) struct CxUniformBuffer(DynamicUniformBuffer<CxUniform>);
+pub struct CxUniformBuffer(DynamicUniformBuffer<CxUniform>);
 
 #[cfg(feature = "headed")]
-pub(crate) fn prepare_uniform(
+pub fn prepare_uniform(
     mut buffer: ResMut<CxUniformBuffer>,
     screen: Res<CxScreen>,
     device: Res<RenderDevice>,
@@ -54,7 +54,7 @@ pub(crate) fn prepare_uniform(
 
 #[cfg(feature = "headed")]
 #[derive(Resource)]
-pub(crate) struct CxPipeline {
+pub struct CxPipeline {
     pub(crate) layout: BindGroupLayout,
     pub(crate) id: CachedRenderPipelineId,
 }
@@ -112,12 +112,12 @@ impl FromWorld for CxPipeline {
 
 #[cfg(feature = "headed")]
 #[derive(Resource)]
-pub(crate) struct CxRenderBuffer {
+pub struct CxRenderBuffer {
     inner: RwLock<CxRenderBufferInner>,
 }
 
 #[cfg(feature = "headed")]
-pub(crate) struct CxRenderBufferInner {
+pub struct CxRenderBufferInner {
     pub(crate) size: UVec2,
     pub(crate) image: Option<Image>,
     pub(crate) texture: Option<Texture>,

@@ -17,19 +17,19 @@ pub struct HoveringAttackAnimations {
 impl HoveringAttackAnimations {
     /// Returns the canonical hovering animation data (depth-1 authored).
     #[must_use]
-    pub fn hovering_animation_data(&self) -> &AnimationData {
+    pub const fn hovering_animation_data(&self) -> &AnimationData {
         &self.hovering_canonical
     }
 
     /// Returns the canonical hit animation data (depth-1 authored).
     #[must_use]
-    pub fn hit_animation_data(&self) -> &AnimationData {
+    pub const fn hit_animation_data(&self) -> &AnimationData {
         &self.hit_canonical
     }
 
     /// Returns the canonical destroy animation data, if authored.
     #[must_use]
-    pub fn destroy_animation_data(&self) -> Option<&AnimationData> {
+    pub const fn destroy_animation_data(&self) -> Option<&AnimationData> {
         self.destroy_canonical.as_ref()
     }
 }

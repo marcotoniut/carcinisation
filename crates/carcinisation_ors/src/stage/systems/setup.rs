@@ -109,7 +109,7 @@ pub fn on_stage_startup(
     let depth_scale_config = crate::stage::depth_scale::DepthScaleConfig::load_or_default();
 
     commands.insert_resource(initial_active_projection);
-    commands.insert_resource(ActiveSurfaceLayout(initial_floor_layout.clone()));
+    commands.insert_resource(ActiveSurfaceLayout(initial_floor_layout));
     commands.insert_resource(initial_floors.clone());
     // Lateral parallax anchor: captures camera X at stage entry.
     //

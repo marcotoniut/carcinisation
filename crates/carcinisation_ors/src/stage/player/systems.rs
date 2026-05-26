@@ -175,8 +175,8 @@ pub fn detect_player_attack(
         if definition.aim_spread > 0.0 {
             let spread = definition.aim_spread;
             let offset = Vec2::new(
-                (rand::random::<f32>() * 2.0 - 1.0) * spread,
-                (rand::random::<f32>() * 2.0 - 1.0) * spread,
+                rand::random::<f32>().mul_add(2.0, -1.0) * spread,
+                rand::random::<f32>().mul_add(2.0, -1.0) * spread,
             );
             spawn_position += offset;
         }
@@ -202,7 +202,7 @@ pub fn detect_player_attack(
             let delta = spawn_position - origin_position;
             let speed_x = delta.x / t;
             let speed_y = BOMB_THROW_INITIAL_SPEED_Y;
-            let adjusted_delta_y = delta.y - speed_y * t;
+            let adjusted_delta_y = speed_y.mul_add(-t, delta.y);
             let acceleration_y = 2.0 * adjusted_delta_y / (t * t);
             let start_depth = BOMB_THROW_START_DEPTH.to_f32();
             let end_depth = BOMB_THROW_END_DEPTH.to_f32();

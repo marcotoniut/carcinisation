@@ -65,7 +65,7 @@ pub fn on_game_startup(
 // }
 
 /// @trigger Game-over cleanup (no-op for now).
-pub fn on_game_over(_trigger: On<GameOverEvent>) {}
+pub const fn on_game_over(_trigger: On<GameOverEvent>) {}
 
 /// @trigger Advances progress when a stage reports it has been cleared.
 pub fn on_stage_cleared(

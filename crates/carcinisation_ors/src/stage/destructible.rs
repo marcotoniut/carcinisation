@@ -14,6 +14,6 @@ pub struct DestructiblePlugin;
 
 impl Plugin for DestructiblePlugin {
     fn build(&self, app: &mut App) {
-        app.add_active_systems::<DestructiblePlugin, _>(check_dead_destructible);
+        app.add_active_systems::<Self, _>(check_dead_destructible);
     }
 }

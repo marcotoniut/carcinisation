@@ -134,7 +134,7 @@ impl AvatarPaletteRemap {
     /// Apply the remap to a single palette index.
     #[inline]
     #[must_use]
-    pub fn apply(&self, pixel: u8) -> u8 {
+    pub const fn apply(&self, pixel: u8) -> u8 {
         self.table[pixel as usize]
     }
 }

@@ -22,12 +22,12 @@ use crate::{
     sprite::CxSpriteAsset,
 };
 
-pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
+pub fn plug_core(app: &mut App, palette_path: PathBuf) {
     app.init_asset::<CxTileset>()
         .register_asset_loader(CxTilesetLoader::new(palette_path));
 }
 
-pub(crate) fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
+pub fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
         RenderAssetPlugin::<CxTileset>::default(),
@@ -63,7 +63,7 @@ struct CxTilesetLoader {
 }
 
 impl CxTilesetLoader {
-    fn new(palette_path: PathBuf) -> Self {
+    const fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
 }
@@ -208,7 +208,7 @@ impl RenderAsset for CxTileset {
 impl CxTileset {
     /// The size of tiles in the tileset
     #[must_use]
-    pub fn tile_size(&self) -> UVec2 {
+    pub const fn tile_size(&self) -> UVec2 {
         self.tile_size
     }
 }
@@ -232,7 +232,7 @@ impl CxTiles {
         }
     }
 
-    fn index(&self, at: UVec2) -> Option<usize> {
+    const fn index(&self, at: UVec2) -> Option<usize> {
         let x = at.x as usize;
         if x >= self.width {
             return None;
@@ -269,7 +269,7 @@ impl CxTiles {
 
     /// Gets the size of the map
     #[must_use]
-    pub fn size(&self) -> UVec2 {
+    pub const fn size(&self) -> UVec2 {
         let width = self.width as u32;
         UVec2::new(width, self.tiles.len() as u32 / width)
     }
@@ -596,7 +596,7 @@ impl From<u32> for CxTile {
     }
 }
 
-pub(crate) type MapComponents<L> = (
+pub type MapComponents<L> = (
     &'static CxTilemap,
     &'static CxPosition,
     &'static L,
@@ -667,7 +667,7 @@ fn extract_maps<L: CxLayer>(
     }
 }
 
-pub(crate) type TileComponents = (&'static CxTile, Option<&'static CxFilter>);
+pub type TileComponents = (&'static CxTile, Option<&'static CxFilter>);
 
 #[cfg(feature = "headed")]
 fn extract_tiles(

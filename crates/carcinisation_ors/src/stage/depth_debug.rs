@@ -263,10 +263,12 @@ fn draw_entity_anchors(
 
         // --- Active anchor (green horizontal line) ---
         let anchor_y = if let Some(offsets) = anchor_offsets {
-            position.0.y - offsets.active_offset(is_airborne) * scale_y
+            offsets
+                .active_offset(is_airborne)
+                .mul_add(-scale_y, position.0.y)
         } else {
             // Fallback: per-frame bounding-box bottom.
-            position.0.y + composite.origin.y as f32 * scale_y
+            (composite.origin.y as f32).mul_add(scale_y, position.0.y)
         };
         let anchor_wy = overlay_transform.point_y(anchor_y);
         gizmos.line_2d(
@@ -307,7 +309,7 @@ fn draw_entity_anchors(
 // --- Helpers ---
 
 /// Convert an RGBA array from the shared grid builder into a Bevy [`Color`].
-fn seg_color(rgba: &[f32; 4]) -> Color {
+const fn seg_color(rgba: &[f32; 4]) -> Color {
     Color::srgba(rgba[0], rgba[1], rgba[2], rgba[3])
 }
 

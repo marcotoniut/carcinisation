@@ -57,7 +57,7 @@ pub fn enter_press_start_screen(mut commands: Commands, assets_typeface: CxAsset
             layer: Layer::Menu(MenuLayer::Foreground),
             text: CxText {
                 value: "Press Start".to_string(),
-                typeface: typeface.clone(),
+                typeface,
                 ..Default::default()
             },
             ..default()
@@ -181,7 +181,7 @@ fn difficulty_option_y(index: usize) -> i32 {
     let total = Difficulty::iter().len() as f32;
     let spacing = FONT_SIZE as f32 + 8.0;
     let vertical_origin = SCREEN_RESOLUTION_F32.y / 2.;
-    let offset = (total - 1.0) * 0.5 - index as f32;
+    let offset = (total - 1.0).mul_add(0.5, -(index as f32));
     (vertical_origin + offset * spacing).round() as i32
 }
 

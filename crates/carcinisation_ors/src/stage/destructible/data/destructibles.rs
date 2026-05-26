@@ -22,7 +22,7 @@ pub struct DestructibleAnimationData {
 
 impl DestructibleAnimationData {
     #[must_use]
-    pub fn by_state(&self, state: &DestructibleState) -> &AnimationData {
+    pub const fn by_state(&self, state: &DestructibleState) -> &AnimationData {
         match state {
             DestructibleState::Base => &self.base,
             DestructibleState::Broken => &self.broken,
@@ -44,7 +44,7 @@ pub struct DestructibleAnimations {
 
 impl DestructibleAnimations {
     #[must_use]
-    pub fn get_animation_data(
+    pub const fn get_animation_data(
         &self,
         destructible_type: &DestructibleType,
     ) -> &HashMap<Depth, DestructibleAnimationData> {

@@ -102,7 +102,7 @@ pub(crate) struct Plug<L: CxLayer> {
 }
 
 impl<L: CxLayer> Plug<L> {
-    pub(crate) fn new(size: CxScreenSize) -> Self {
+    pub(crate) const fn new(size: CxScreenSize) -> Self {
         Self {
             size,
             _l: PhantomData,
@@ -244,7 +244,7 @@ pub struct CxScreen {
 impl CxScreen {
     /// Computed size of the screen
     #[must_use]
-    pub fn size(&self) -> UVec2 {
+    pub const fn size(&self) -> UVec2 {
         self.computed_size
     }
 
@@ -330,7 +330,7 @@ impl CxOverlayViewportTransform {
 
     /// Size of the onscreen viewport rectangle occupied by the Carapace output.
     #[must_use]
-    pub fn viewport_size(self) -> Vec2 {
+    pub const fn viewport_size(self) -> Vec2 {
         self.viewport_size
     }
 

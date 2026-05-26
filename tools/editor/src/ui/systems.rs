@@ -123,7 +123,7 @@ pub fn update_ui(world: &mut World) {
                             .rect_filled(fill_rect, radius, ui.visuals().selection.bg_fill);
                     }
 
-                    let thumb_x = track_rect.left() + track_rect.width() * t;
+                    let thumb_x = track_rect.width().mul_add(t, track_rect.left());
                     let thumb_center = egui::pos2(thumb_x, rect.center().y);
                     ui.painter().circle_filled(
                         thumb_center,

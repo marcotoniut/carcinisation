@@ -16,7 +16,7 @@ use super::widgets::CxScroll;
 
 // TODO Should be modular
 #[cfg(feature = "headed")]
-pub(crate) fn scroll(mut scrolls: Query<&mut CxScroll>, mut wheels: MessageReader<MouseWheel>) {
+pub fn scroll(mut scrolls: Query<&mut CxScroll>, mut wheels: MessageReader<MouseWheel>) {
     for wheel in wheels.read() {
         for mut scroll in &mut scrolls {
             scroll.scroll = scroll
@@ -47,7 +47,7 @@ pub struct CxKeyField {
 }
 
 #[cfg(feature = "headed")]
-pub(crate) fn update_key_field_focus(
+pub fn update_key_field_focus(
     mut prev_focus: Local<Option<Entity>>,
     mut fields: Query<(&CxKeyField, &mut CxText, &mut Visibility, Entity)>,
     focus: Res<InputFocus>,
@@ -90,7 +90,7 @@ pub struct CxKeyFieldUpdate {
 
 // TODO Should be modular
 #[cfg(feature = "headed")]
-pub(crate) fn update_key_fields(
+pub fn update_key_fields(
     mut fields: Query<Entity, With<CxKeyField>>,
     mut focus: ResMut<InputFocus>,
     mut keys: MessageReader<KeyboardInput>,
@@ -174,7 +174,7 @@ pub struct CxTextField {
 }
 
 #[cfg(feature = "headed")]
-pub(crate) fn update_text_field_focus(
+pub fn update_text_field_focus(
     mut prev_focus: Local<Option<Entity>>,
     mut fields: Query<(&mut CxTextField, &mut CxText)>,
     focus: Res<InputFocus>,
@@ -203,7 +203,7 @@ pub(crate) fn update_text_field_focus(
     *prev_focus = focus;
 }
 
-pub(crate) fn caret_blink(mut fields: Query<(&mut CxTextField, &mut CxText)>, time: Res<Time>) {
+pub fn caret_blink(mut fields: Query<(&mut CxTextField, &mut CxText)>, time: Res<Time>) {
     for (mut field, mut text) in &mut fields {
         let Some(ref mut caret) = field.caret else {
             continue;
@@ -235,7 +235,7 @@ pub struct CxTextFieldUpdate {
 
 // TODO Should be modular
 #[cfg(feature = "headed")]
-pub(crate) fn update_text_fields(
+pub fn update_text_fields(
     mut fields: Query<(&mut CxTextField, &mut CxText)>,
     focus: Res<InputFocus>,
     mut keys: MessageReader<KeyboardInput>,

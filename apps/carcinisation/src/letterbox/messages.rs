@@ -55,12 +55,12 @@ impl LetterboxMoveEvent {
 impl From<LetterboxMove> for LetterboxMoveEvent {
     fn from(x: LetterboxMove) -> Self {
         match x {
-            LetterboxMove::To(target) => LetterboxMoveEvent::move_to(target),
-            LetterboxMove::ToAt(target, speed) => LetterboxMoveEvent::move_to_at(target, speed),
-            LetterboxMove::Hide => LetterboxMoveEvent::hide(),
-            LetterboxMove::Show => LetterboxMoveEvent::show(),
-            LetterboxMove::Close => LetterboxMoveEvent::close(),
-            LetterboxMove::Open => LetterboxMoveEvent::open(),
+            LetterboxMove::To(target) => Self::move_to(target),
+            LetterboxMove::ToAt(target, speed) => Self::move_to_at(target, speed),
+            LetterboxMove::Hide => Self::hide(),
+            LetterboxMove::Show => Self::show(),
+            LetterboxMove::Close => Self::close(),
+            LetterboxMove::Open => Self::open(),
         }
     }
 }
@@ -68,6 +68,6 @@ impl From<LetterboxMove> for LetterboxMoveEvent {
 impl From<LetterboxMoveEvent> for LetterboxMove {
     fn from(e: LetterboxMoveEvent) -> Self {
         let LetterboxMoveEvent { target, speed } = e;
-        LetterboxMove::ToAt(target, speed)
+        Self::ToAt(target, speed)
     }
 }

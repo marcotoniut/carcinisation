@@ -24,8 +24,8 @@ impl Plugin for StageUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(HudPlugin)
             .add_plugins((ClearedScreenPlugin, DeathScreenPlugin, GameOverScreenPlugin))
-            .on_active::<StageUiPlugin, _>(activate_system::<HudPlugin>)
-            .on_inactive::<StageUiPlugin, _>(deactivate_system::<HudPlugin>)
-            .add_active_systems::<StageUiPlugin, _>(update_score_text);
+            .on_active::<Self, _>(activate_system::<HudPlugin>)
+            .on_inactive::<Self, _>(deactivate_system::<HudPlugin>)
+            .add_active_systems::<Self, _>(update_score_text);
     }
 }

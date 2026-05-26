@@ -55,7 +55,7 @@ pub struct JumpTween {
 
 impl JumpTween {
     #[must_use]
-    pub fn new(started: Duration, travel_time_secs: f32, expects_z: bool) -> Self {
+    pub const fn new(started: Duration, travel_time_secs: f32, expects_z: bool) -> Self {
         Self {
             started,
             travel_time_secs,
@@ -73,7 +73,7 @@ impl JumpTween {
     }
 
     #[must_use]
-    pub fn is_finished(self) -> bool {
+    pub const fn is_finished(self) -> bool {
         self.reached_x && self.reached_y && self.reached_z
     }
 }
@@ -134,7 +134,7 @@ fn jump_motion(
 
     let gravity = -gravity_abs;
     let dy = target_y - current_position.0.y;
-    let initial_y_velocity = (dy - 0.5 * gravity * travel_time_secs * travel_time_secs)
+    let initial_y_velocity = (0.5 * gravity * travel_time_secs).mul_add(-travel_time_secs, dy)
         / travel_time_secs.max(f32::EPSILON);
 
     let target_depth = step.depth_movement.map(|dm| {
@@ -415,7 +415,7 @@ pub struct EnemyBehaviorTimer {
 impl EnemyBehaviorTimer {
     #[must_use]
     pub fn new(entity: Entity, duration: f32) -> Self {
-        EnemyBehaviorTimer {
+        Self {
             entity,
             timer: Timer::from_seconds(duration, TimerMode::Once),
         }

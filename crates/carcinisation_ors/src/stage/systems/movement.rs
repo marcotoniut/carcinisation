@@ -103,8 +103,12 @@ pub fn circle_around(
             TweenDirection::Positive => elapsed_seconds + circle_around.time_offset,
             TweenDirection::Negative => -elapsed_seconds + circle_around.time_offset,
         };
-        let x = circle_around.center.x + circle_around.radius * angle.cos();
-        let y = circle_around.center.y + circle_around.radius * angle.sin();
+        let x = circle_around
+            .radius
+            .mul_add(angle.cos(), circle_around.center.x);
+        let y = circle_around
+            .radius
+            .mul_add(angle.sin(), circle_around.center.y);
         position.0 = Vec2::new(x, y);
     }
 }

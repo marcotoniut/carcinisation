@@ -79,7 +79,7 @@ impl Palette {
     ///
     /// Returns an error if the image cannot be converted, is uninitialized, or the top-left pixel
     /// is not transparent.
-    pub fn new(image: &Image) -> Result<Palette> {
+    pub fn new(image: &Image) -> Result<Self> {
         let image = image
             .convert(TextureFormat::Rgba8UnormSrgb)
             .ok_or("could not convert palette image to `Rgba8UnormSrgb`")?;
@@ -113,7 +113,7 @@ impl Palette {
             return Err("palette contains more than 255 colors".into());
         }
 
-        Ok(Palette {
+        Ok(Self {
             size: UVec2::new(
                 image.texture_descriptor.size.width,
                 image.texture_descriptor.size.height,

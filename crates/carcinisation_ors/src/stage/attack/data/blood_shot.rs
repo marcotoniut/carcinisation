@@ -46,7 +46,7 @@ impl BloodShotConfig {
 
     /// Startup hold as a [`Duration`].
     #[must_use]
-    pub fn startup_hold(&self) -> Duration {
+    pub const fn startup_hold(&self) -> Duration {
         Duration::from_millis(self.startup_hold_ms)
     }
 }

@@ -133,12 +133,12 @@ impl CxAnimationBundle {
 
     /// Read-only access to the animation component.
     #[must_use]
-    pub fn animation(&self) -> &CxAnimation {
+    pub const fn animation(&self) -> &CxAnimation {
         &self.animation
     }
 
     /// Mutable access to the animation component.
-    pub fn animation_mut(&mut self) -> &mut CxAnimation {
+    pub const fn animation_mut(&mut self) -> &mut CxAnimation {
         &mut self.animation
     }
 }

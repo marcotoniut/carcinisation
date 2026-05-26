@@ -59,7 +59,7 @@ impl BrokenParts {
 
     /// Get all broken part IDs.
     #[must_use]
-    pub fn broken_parts(&self) -> &HashSet<String> {
+    pub const fn broken_parts(&self) -> &HashSet<String> {
         &self.parts
     }
 

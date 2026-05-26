@@ -28,7 +28,7 @@ pub struct SpiderShotConfig {
 impl SpiderShotConfig {
     /// How long the projectile stays at its spawn point before beginning travel.
     #[must_use]
-    pub fn startup_hold(&self) -> Duration {
+    pub const fn startup_hold(&self) -> Duration {
         Duration::from_millis(self.startup_hold_ms)
     }
 }

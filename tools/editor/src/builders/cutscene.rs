@@ -20,7 +20,7 @@ pub fn spawn_cutscene(
 ) {
     let font_handle = asset_server.load(FONT_PATH);
     let text_font = TextFont {
-        font: font_handle.clone(),
+        font: font_handle,
         font_size: 16.0,
         ..default()
     };

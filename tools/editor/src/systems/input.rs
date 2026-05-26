@@ -158,16 +158,16 @@ pub enum DragKind {
 
 impl DragKind {
     /// Whether this drag targets path overlay geometry specifically.
-    pub fn is_path(self) -> bool {
-        matches!(self, DragKind::PathNode | DragKind::StartNode)
+    pub const fn is_path(self) -> bool {
+        matches!(self, Self::PathNode | Self::StartNode)
     }
 
     /// Whether this drag kind requires a full scene rebuild on release.
     /// Includes path drags and projection gizmo drags.
-    pub fn needs_rebuild(self) -> bool {
+    pub const fn needs_rebuild(self) -> bool {
         matches!(
             self,
-            DragKind::PathNode | DragKind::StartNode | DragKind::ProjectionGizmo
+            Self::PathNode | Self::StartNode | Self::ProjectionGizmo
         )
     }
 }

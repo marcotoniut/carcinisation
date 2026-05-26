@@ -39,7 +39,7 @@ impl Default for StageActionTimer {
     fn default() -> Self {
         let mut timer = Timer::from_seconds(0., TimerMode::Once);
         timer.pause();
-        StageActionTimer { timer }
+        Self { timer }
     }
 }
 
@@ -130,37 +130,37 @@ impl StageGravity {
 
     /// Create a new gravity configuration
     #[must_use]
-    pub fn new(acceleration: f32) -> Self {
+    pub const fn new(acceleration: f32) -> Self {
         Self { acceleration }
     }
 
     /// Returns the gravitational acceleration value.
     #[must_use]
-    pub fn acceleration(&self) -> f32 {
+    pub const fn acceleration(&self) -> f32 {
         self.acceleration
     }
 
     /// Create standard gravity
     #[must_use]
-    pub fn standard() -> Self {
+    pub const fn standard() -> Self {
         Self::new(Self::STANDARD)
     }
 
     /// Create low gravity
     #[must_use]
-    pub fn low() -> Self {
+    pub const fn low() -> Self {
         Self::new(Self::LOW)
     }
 
     /// Create zero gravity
     #[must_use]
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self::new(Self::ZERO)
     }
 
     /// Create high gravity
     #[must_use]
-    pub fn high() -> Self {
+    pub const fn high() -> Self {
         Self::new(Self::HIGH)
     }
 }

@@ -128,7 +128,7 @@ pub enum FpsAuthorityMode {
 
 impl FpsAuthorityMode {
     #[must_use]
-    fn uses_local_combat(self) -> bool {
+    const fn uses_local_combat(self) -> bool {
         matches!(self, Self::LocalAuthority)
     }
 }
@@ -311,7 +311,7 @@ pub struct PlayerIntent {
 }
 
 /// Which kind of snap turn to perform.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TurnKind {
     /// 180° turn (B + Down).
     QuickTurn,
@@ -341,7 +341,7 @@ impl TurnChordState {
     /// Whether the FSM is in chord mode (B held, awaiting direction or release).
     /// Callers should suppress movement/turn input while this returns `true`.
     #[must_use]
-    pub fn is_pending(&self) -> bool {
+    pub const fn is_pending(&self) -> bool {
         matches!(self.phase, TurnChordPhase::ChordMode { .. })
     }
 }
@@ -418,7 +418,7 @@ const DIR_LEFT: u8 = 2;
 const DIR_RIGHT: u8 = 4;
 
 /// Bitmask of directions that were pre-held (pressed but NOT `just_pressed`).
-fn dir_preheld_mask(input: &TurnChordInput) -> u8 {
+const fn dir_preheld_mask(input: &TurnChordInput) -> u8 {
     let mut m = 0u8;
     if input.down_pressed && !input.down_just_pressed {
         m |= DIR_DOWN;
@@ -433,7 +433,7 @@ fn dir_preheld_mask(input: &TurnChordInput) -> u8 {
 }
 
 /// Identify which direction was just pressed and not blocked. Priority: Down > Left > Right.
-fn identify_just_pressed_direction(input: &TurnChordInput, blocked: u8) -> Option<TurnKind> {
+const fn identify_just_pressed_direction(input: &TurnChordInput, blocked: u8) -> Option<TurnKind> {
     if input.down_just_pressed && blocked & DIR_DOWN == 0 {
         return Some(TurnKind::QuickTurn);
     }
@@ -447,7 +447,7 @@ fn identify_just_pressed_direction(input: &TurnChordInput, blocked: u8) -> Optio
 }
 
 /// Whether any direction key relevant to chords is pressed.
-fn any_dir_pressed(input: &TurnChordInput) -> bool {
+const fn any_dir_pressed(input: &TurnChordInput) -> bool {
     input.down_pressed || input.left_pressed || input.right_pressed
 }
 
@@ -772,8 +772,7 @@ fn setup_fp<L: CxLayer + Default>(
 
     let procedural_alive = make_enemy_sprite(24, 2);
     let procedural_death = make_death_sprite(24, 1);
-    let sprite_pairs: Vec<(CxImage, CxImage)> =
-        vec![(procedural_alive.clone(), procedural_death.clone())];
+    let sprite_pairs: Vec<(CxImage, CxImage)> = vec![(procedural_alive, procedural_death)];
     let mosquiton_sprites = make_mosquiton_billboard_sprites()
         .expect("embedded Mosquiton composed billboard assets should resolve");
     let blood_shot_sprites =

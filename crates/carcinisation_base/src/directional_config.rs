@@ -136,7 +136,7 @@ pub struct DirectionalConfig {
     pub part_source_overrides: PartSourceOverrides,
 }
 
-fn default_direction() -> SpriteDirection {
+const fn default_direction() -> SpriteDirection {
     SpriteDirection::Front
 }
 

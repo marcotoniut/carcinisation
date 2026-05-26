@@ -33,7 +33,7 @@ impl Plugin for AttackPlugin {
         app.insert_resource(BloodShotConfig::load());
         app.insert_resource(BoulderThrowConfig::load());
         app.insert_resource(SpiderShotConfig::load());
-        app.add_active_systems::<AttackPlugin, _>(
+        app.add_active_systems::<Self, _>(
             // Only advance attack behaviour when the plugin is explicitly active.
             (
                 // check_got_hit reads CxPresentationTransform.collision_offset and

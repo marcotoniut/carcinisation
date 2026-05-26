@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use carapace::prelude::WorldPos;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Reflect, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Reflect, Serialize)]
 pub enum TweenDirection {
     Negative,
     Positive,
@@ -10,10 +10,10 @@ pub enum TweenDirection {
 
 impl TweenDirection {
     #[must_use]
-    pub fn opposite(self) -> TweenDirection {
+    pub const fn opposite(self) -> Self {
         match self {
-            TweenDirection::Negative => TweenDirection::Positive,
-            TweenDirection::Positive => TweenDirection::Negative,
+            Self::Negative => Self::Positive,
+            Self::Positive => Self::Negative,
         }
     }
 }

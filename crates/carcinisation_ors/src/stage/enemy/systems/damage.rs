@@ -437,7 +437,7 @@ pub fn tick_burning_corpses(
     }
 }
 
-fn burning_corpse_score(
+const fn burning_corpse_score(
     mosquito: Option<&EnemyMosquito>,
     mosquiton: Option<&EnemyMosquiton>,
     spidey: Option<&EnemySpidey>,

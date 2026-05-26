@@ -20,7 +20,7 @@ pub struct Score {
 
 impl Score {
     /// Add a signed value (negative = penalty).
-    pub fn add(&mut self, value: i32) {
+    pub const fn add(&mut self, value: i32) {
         let abs = value.unsigned_abs();
         if value >= 0 {
             self.value = self.value.saturating_add(abs);
@@ -30,7 +30,7 @@ impl Score {
     }
 
     /// Add an unsigned value.
-    pub fn add_u(&mut self, value: u32) {
+    pub const fn add_u(&mut self, value: u32) {
         self.value += value;
     }
 }

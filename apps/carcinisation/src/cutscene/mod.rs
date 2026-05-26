@@ -54,7 +54,7 @@ impl Plugin for CutscenePlugin {
             .add_observer(on_cutscene_shutdown)
             .add_observer(on_trigger_write_event::<CutsceneShutdownEvent>)
             .add_systems(Startup, init_input)
-            .add_active_systems_in::<CutscenePlugin, _>(
+            .add_active_systems_in::<Self, _>(
                 FixedUpdate,
                 (
                     (
@@ -76,7 +76,7 @@ impl Plugin for CutscenePlugin {
                     tick_time::<Fixed, CutsceneTimeDomain>,
                 ),
             )
-            .add_active_systems_in::<CutscenePlugin, _>(PostUpdate, check_press_start_input);
+            .add_active_systems_in::<Self, _>(PostUpdate, check_press_start_input);
     }
 }
 

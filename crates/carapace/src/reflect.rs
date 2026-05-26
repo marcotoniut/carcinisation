@@ -6,7 +6,7 @@
 
 use crate::prelude::*;
 
-pub(crate) fn register_types(app: &mut App) {
+pub fn register_types(app: &mut App) {
     use crate::{blink::CxBlink, text::CxText, tilemap::CxTile};
 
     use crate::presentation::CxPresentationTransform;

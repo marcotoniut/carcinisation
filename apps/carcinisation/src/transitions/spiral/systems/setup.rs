@@ -67,6 +67,6 @@ pub fn on_transition_shutdown(
     commands.remove_resource::<TransitionCounter>();
 }
 
-fn screen_height_with_buffer(data: &TransitionVenetianData) -> u32 {
+const fn screen_height_with_buffer(data: &TransitionVenetianData) -> u32 {
     SCREEN_RESOLUTION.y + data.buffer_rows
 }

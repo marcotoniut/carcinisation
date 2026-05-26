@@ -44,7 +44,7 @@ pub struct CutsceneBackgroundPrimitive {
     pub layer: Layer,
 }
 
-fn default_bg_layer() -> Layer {
+const fn default_bg_layer() -> Layer {
     Layer::Menu(MenuLayer::Background)
 }
 
@@ -189,19 +189,19 @@ impl CutsceneImagesSpawn {
 
 impl CutsceneImageSpawn {
     #[must_use]
-    pub fn with_appear_ms(mut self, appear_ms_o: Option<u64>) -> Self {
+    pub const fn with_appear_ms(mut self, appear_ms_o: Option<u64>) -> Self {
         self.appear_ms_o = appear_ms_o;
         self
     }
 
     #[must_use]
-    pub fn with_rotation_time_scale(mut self, time_scale_o: Option<f32>) -> Self {
+    pub const fn with_rotation_time_scale(mut self, time_scale_o: Option<f32>) -> Self {
         self.rotation_time_scale_o = time_scale_o;
         self
     }
 
     #[must_use]
-    pub fn with_rotation_offset_deg(mut self, deg: f32) -> Self {
+    pub const fn with_rotation_offset_deg(mut self, deg: f32) -> Self {
         self.rotation_offset_deg = deg;
         self
     }
@@ -267,7 +267,7 @@ pub struct CutsceneAct {
 
 impl CutsceneAct {
     #[must_use]
-    pub fn move_letterbox(mut self, x: LetterboxMove) -> Self {
+    pub const fn move_letterbox(mut self, x: LetterboxMove) -> Self {
         self.letterbox_move_o = Some(x);
         self
     }
@@ -291,7 +291,7 @@ impl CutsceneAct {
     }
 
     #[must_use]
-    pub fn despawn_music(mut self) -> Self {
+    pub const fn despawn_music(mut self) -> Self {
         self.music_despawn_o = Some(CutsceneMusicDespawn {});
         self
     }
@@ -303,7 +303,7 @@ impl CutsceneAct {
     }
 
     #[must_use]
-    pub fn with_background_primitive(mut self, bg: CutsceneBackgroundPrimitive) -> Self {
+    pub const fn with_background_primitive(mut self, bg: CutsceneBackgroundPrimitive) -> Self {
         self.background_primitive_o = Some(bg);
         self
     }
@@ -353,7 +353,7 @@ pub struct CutsceneData {
     pub timeline_config_o: Option<CutsceneTimelineConfig>,
 }
 
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 
@@ -365,13 +365,13 @@ impl CutsceneData {
     }
 
     #[must_use]
-    pub fn with_skip_mode(mut self, mode: CutsceneSkipMode) -> Self {
+    pub const fn with_skip_mode(mut self, mode: CutsceneSkipMode) -> Self {
         self.skip_mode = mode;
         self
     }
 
     #[must_use]
-    pub fn with_respect_skip_cutscenes(mut self, respect: bool) -> Self {
+    pub const fn with_respect_skip_cutscenes(mut self, respect: bool) -> Self {
         self.respect_skip_cutscenes = respect;
         self
     }
@@ -428,12 +428,12 @@ impl LetterboxMoveEvent {
 impl From<LetterboxMove> for LetterboxMoveEvent {
     fn from(x: LetterboxMove) -> Self {
         match x {
-            LetterboxMove::To(target) => LetterboxMoveEvent::move_to(target),
-            LetterboxMove::ToAt(target, speed) => LetterboxMoveEvent::move_to_at(target, speed),
-            LetterboxMove::Hide => LetterboxMoveEvent::hide(),
-            LetterboxMove::Show => LetterboxMoveEvent::show(),
-            LetterboxMove::Close => LetterboxMoveEvent::close(),
-            LetterboxMove::Open => LetterboxMoveEvent::open(),
+            LetterboxMove::To(target) => Self::move_to(target),
+            LetterboxMove::ToAt(target, speed) => Self::move_to_at(target, speed),
+            LetterboxMove::Hide => Self::hide(),
+            LetterboxMove::Show => Self::show(),
+            LetterboxMove::Close => Self::close(),
+            LetterboxMove::Open => Self::open(),
         }
     }
 }

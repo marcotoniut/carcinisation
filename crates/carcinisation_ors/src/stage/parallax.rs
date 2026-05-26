@@ -108,7 +108,7 @@ pub fn evaluate_parallax_attenuation_at(stage_data: &StageData, elapsed: Duratio
             } else {
                 stage_data.parallax_attenuation.unwrap_or(1.0)
             };
-            return prev + (curr - prev) * info.tween_progress;
+            return (curr - prev).mul_add(info.tween_progress, prev);
         }
     }
 

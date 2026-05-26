@@ -7,7 +7,7 @@ use std::num::NonZeroU32;
 pub struct Tick(pub u32);
 
 impl Tick {
-    pub fn increment(&mut self) {
+    pub const fn increment(&mut self) {
         self.0 = self.0.wrapping_add(1);
     }
 }
@@ -23,14 +23,14 @@ impl std::fmt::Display for Tick {
 pub struct InputSequence(pub u32);
 
 impl InputSequence {
-    pub fn increment(&mut self) {
+    pub const fn increment(&mut self) {
         self.0 = self.0.wrapping_add(1);
     }
 
     /// Wrapping-aware comparison (RFC 1982 serial number arithmetic).
     /// Returns `true` if `self` is strictly after `other` in the sequence space.
     #[must_use]
-    pub fn is_after(self, other: Self) -> bool {
+    pub const fn is_after(self, other: Self) -> bool {
         let diff = self.0.wrapping_sub(other.0);
         diff != 0 && diff < (u32::MAX / 2)
     }

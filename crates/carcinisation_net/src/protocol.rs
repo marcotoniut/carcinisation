@@ -47,34 +47,34 @@ impl PlayerActions {
         | Self::MELEE;
 
     #[must_use]
-    pub fn has(self, flag: u8) -> bool {
+    pub const fn has(self, flag: u8) -> bool {
         self.bits & flag != 0
     }
 
-    pub fn set(&mut self, flag: u8) {
+    pub const fn set(&mut self, flag: u8) {
         self.bits |= flag;
     }
 
     #[must_use]
-    pub fn is_empty(self) -> bool {
+    pub const fn is_empty(self) -> bool {
         self.bits == 0
     }
 
     /// Create from raw bits, stripping undefined bits for safety.
     #[must_use]
-    pub fn from_raw(bits: u8) -> Self {
+    pub const fn from_raw(bits: u8) -> Self {
         Self {
             bits: bits & Self::VALID_MASK,
         }
     }
 
     #[must_use]
-    pub fn raw(self) -> u8 {
+    pub const fn raw(self) -> u8 {
         self.bits
     }
 
     /// Merge another set of actions into this one (OR).
-    pub fn merge(&mut self, other: Self) {
+    pub const fn merge(&mut self, other: Self) {
         self.bits |= other.bits;
     }
 }

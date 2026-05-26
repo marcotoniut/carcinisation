@@ -12,7 +12,7 @@ use crate::{
     prelude::*,
 };
 
-pub(crate) fn plug<L: CxLayer>(app: &mut App) {
+pub fn plug<L: CxLayer>(app: &mut App) {
     app.sub_app_mut(RenderApp)
         .add_systems(ExtractSchedule, extract_lines::<L>);
 }
@@ -141,7 +141,7 @@ impl<T: IntoIterator<Item = IVec2>> From<T> for CxLine {
     }
 }
 
-pub(crate) type LineComponents<L> = (
+pub type LineComponents<L> = (
     &'static CxLine,
     &'static CxFilter,
     &'static CxFilterLayers<L>,
@@ -178,7 +178,7 @@ fn extract_lines<L: CxLayer>(
     }
 }
 
-pub(crate) fn draw_line(
+pub fn draw_line(
     line: &CxLine,
     filter: &CxFilterAsset,
     invert: bool,

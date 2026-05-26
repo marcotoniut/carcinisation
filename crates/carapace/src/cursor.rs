@@ -54,6 +54,7 @@ pub enum CxCursor {
 }
 
 /// Resource marking the cursor's position. Measured in pixels from the bottom-left of the screen.
+///
 /// Contains [`None`] if the cursor is off-screen. The cursor's world position
 /// is the contained value plus [`CxCamera`]'s contained value.
 #[cfg_attr(feature = "headed", derive(ExtractResource))]

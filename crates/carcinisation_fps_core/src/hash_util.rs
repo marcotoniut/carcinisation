@@ -16,5 +16,5 @@ pub fn unit(seed: u32) -> f32 {
 /// Map a u32 seed to [-1.0, 1.0).
 #[must_use]
 pub fn signed_unit(seed: u32) -> f32 {
-    unit(seed) * 2.0 - 1.0
+    unit(seed).mul_add(2.0, -1.0)
 }

@@ -355,7 +355,7 @@ pub struct AttackCycle {
 
 impl AttackCycle {
     #[must_use]
-    pub fn new(options: Vec<AttackId>) -> Self {
+    pub const fn new(options: Vec<AttackId>) -> Self {
         Self { options, index: 0 }
     }
 
@@ -411,7 +411,7 @@ pub struct AttackInputState {
 }
 
 impl AttackInputState {
-    pub fn arm(&mut self, now: f32, world_position: Option<Vec2>) {
+    pub const fn arm(&mut self, now: f32, world_position: Option<Vec2>) {
         self.armed = true;
         self.pressed_at = now;
         self.pressed_world_position = world_position;
@@ -419,7 +419,7 @@ impl AttackInputState {
         self.hold_fired = false;
     }
 
-    pub fn clear(&mut self) {
+    pub const fn clear(&mut self) {
         self.armed = false;
         self.last_hold_fire_at = None;
         self.hold_fired = false;
@@ -427,7 +427,7 @@ impl AttackInputState {
         self.pressed_world_position = None;
     }
 
-    pub fn mark_hold_fired(&mut self, now: f32) {
+    pub const fn mark_hold_fired(&mut self, now: f32) {
         self.hold_fired = true;
         self.last_hold_fire_at = Some(now);
     }

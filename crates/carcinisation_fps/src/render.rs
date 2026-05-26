@@ -511,7 +511,7 @@ fn sample_surface_sprites(
     })
 }
 
-fn flame_hit_color(mask_pixel: u8) -> Option<u8> {
+const fn flame_hit_color(mask_pixel: u8) -> Option<u8> {
     match mask_pixel {
         0 => None,
         2 => Some(2),
@@ -520,7 +520,7 @@ fn flame_hit_color(mask_pixel: u8) -> Option<u8> {
     }
 }
 
-fn char_color(mask_pixel: u8) -> Option<u8> {
+const fn char_color(mask_pixel: u8) -> Option<u8> {
     match mask_pixel {
         0 => None,
         _ => Some(1),

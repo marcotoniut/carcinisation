@@ -1407,8 +1407,8 @@ fn sync_camera_from_net_player(
                 } else {
                     0.0
                 };
-                *smoothed_speed =
-                    *smoothed_speed * (1.0 - WALK_SMOOTH_ALPHA) + instant_speed * WALK_SMOOTH_ALPHA;
+                *smoothed_speed = (*smoothed_speed)
+                    .mul_add(1.0 - WALK_SMOOTH_ALPHA, instant_speed * WALK_SMOOTH_ALPHA);
                 *prev_pos = rp.position;
                 let threshold = if currently_walking {
                     WALK_STOP_THRESHOLD
@@ -1646,7 +1646,7 @@ fn sync_camera_from_net_player(
                     let cropped =
                         carcinisation_fps::plugin::crop_bottom(full_sprite, vis.crop_bottom_px);
                     let world_height = vis.flame_world_height * scale * intensity;
-                    let height = -0.5 + world_height * 0.5;
+                    let height = world_height.mul_add(0.5, -0.5);
                     extra_bbs.0.push(Billboard {
                         position: fire.position + right * offset.x + cam_dir * offset.y,
                         height,
@@ -2065,15 +2065,15 @@ fn push_remote_flame_billboards(
             continue;
         }
         let t = (sample.age / max_age).clamp(0.0, 1.0);
-        let phase = elapsed + sample.age * flame_3p_cfg.phase_step;
+        let phase = sample.age.mul_add(flame_3p_cfg.phase_step, elapsed);
         let jitter = ((sample.seed as f32 * 7.31).sin() * flame_3p_cfg.jitter_amp) * t;
         let right = screen_right_from_direction(sample.emit_direction);
         let sprite = attack_sprites.map_or_else(
             || Arc::new(make_blood_shot_sprite(6, 3)),
             |sprites| Arc::clone(sprites.flame_frame_loop(phase)),
         );
-        let world_height = flame_3p_cfg.flame_scale_near
-            + (flame_3p_cfg.flame_scale_far - flame_3p_cfg.flame_scale_near) * t;
+        let world_height = (flame_3p_cfg.flame_scale_far - flame_3p_cfg.flame_scale_near)
+            .mul_add(t, flame_3p_cfg.flame_scale_near);
         billboards.push(Billboard {
             position: pos + right * jitter,
             height: flame_3p_cfg.nozzle_height,

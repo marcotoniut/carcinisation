@@ -11,7 +11,7 @@ pub struct HighScores {
 
 impl Default for HighScores {
     fn default() -> Self {
-        HighScores {
+        Self {
             scores: vec![
                 ("Player 1".to_string(), 100),
                 ("Player 2".to_string(), 80),

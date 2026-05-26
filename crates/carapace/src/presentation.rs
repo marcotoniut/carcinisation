@@ -267,7 +267,7 @@ impl CxPresentationTransform {
 ///
 /// Shared by both entity-level [`CxPresentationTransform`] and part-level
 /// [`PartTransform`](crate::sprite::PartTransform).
-pub(crate) fn sanitise_rotation(rotation: f32) -> f32 {
+pub(crate) const fn sanitise_rotation(rotation: f32) -> f32 {
     if rotation.is_nan() { 0.0 } else { rotation }
 }
 

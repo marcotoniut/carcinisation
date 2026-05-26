@@ -95,7 +95,7 @@ impl RegionAnimation {
 
     /// Convert to animation duration.
     #[must_use]
-    pub fn px_duration(&self) -> crate::prelude::CxAnimationDuration {
+    pub const fn px_duration(&self) -> crate::prelude::CxAnimationDuration {
         crate::prelude::CxAnimationDuration::millis_per_animation(self.duration_ms)
     }
 }
@@ -200,7 +200,7 @@ pub struct CxSpriteAtlasAsset {
 impl CxSpriteAtlasAsset {
     /// Atlas pixel dimensions.
     #[must_use]
-    pub fn size(&self) -> UVec2 {
+    pub const fn size(&self) -> UVec2 {
         self.size
     }
 
@@ -262,7 +262,7 @@ pub struct AtlasRect {
 impl AtlasRect {
     /// Size of the rectangle in pixels.
     #[must_use]
-    pub fn size(&self) -> UVec2 {
+    pub const fn size(&self) -> UVec2 {
         UVec2::new(self.w, self.h)
     }
 
@@ -286,7 +286,7 @@ pub struct AtlasRegion {
 impl AtlasRegion {
     /// Number of frames in the region.
     #[must_use]
-    pub fn frame_count(&self) -> usize {
+    pub const fn frame_count(&self) -> usize {
         self.frames.len()
     }
 
@@ -311,7 +311,7 @@ pub struct CxAtlasSprite {
 impl CxAtlasSprite {
     /// Create a new atlas sprite pointing at a region.
     #[must_use]
-    pub fn new(atlas: Handle<CxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
+    pub const fn new(atlas: Handle<CxSpriteAtlasAsset>, region: AtlasRegionId) -> Self {
         Self { atlas, region }
     }
 }

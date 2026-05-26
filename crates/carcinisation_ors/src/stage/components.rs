@@ -63,7 +63,7 @@ impl StageElapse {
 
     /// Flags that any graphics created during the elapse should be cleaned up.
     #[must_use]
-    pub fn clear_graphics(mut self) -> Self {
+    pub const fn clear_graphics(mut self) -> Self {
         self.clear_graphics = true;
         self
     }
@@ -79,7 +79,7 @@ pub enum CinematicStageStep {
     CutsceneAnimationSpawn(CutsceneAnimationsSpawn),
 }
 
-fn default_base_speed() -> f32 {
+const fn default_base_speed() -> f32 {
     1.0
 }
 
@@ -141,14 +141,14 @@ impl TweenStageStep {
 
     /// Overrides the base tween speed used for the segment.
     #[must_use]
-    pub fn with_base_speed(mut self, value: f32) -> Self {
+    pub const fn with_base_speed(mut self, value: f32) -> Self {
         self.base_speed = value;
         self
     }
 
     /// Sets the coordinates the stage camera/entity should aim for.
     #[must_use]
-    pub fn with_coordinates(mut self, value: Vec2) -> Self {
+    pub const fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
@@ -162,14 +162,14 @@ impl TweenStageStep {
 
     /// Overrides the projection profile for this tween step.
     #[must_use]
-    pub fn with_projection(mut self, value: ProjectionProfile) -> Self {
+    pub const fn with_projection(mut self, value: ProjectionProfile) -> Self {
         self.projection = Some(value);
         self
     }
 
     /// Overrides the parallax attenuation for this tween step.
     #[must_use]
-    pub fn with_parallax_attenuation(mut self, value: f32) -> Self {
+    pub const fn with_parallax_attenuation(mut self, value: f32) -> Self {
         self.parallax_attenuation = Some(value);
         self
     }
@@ -220,14 +220,14 @@ impl StopStageStep {
 
     /// Configures whether the stop step clears all enemies.
     #[must_use]
-    pub fn with_kill_all(mut self, value: bool) -> Self {
+    pub const fn with_kill_all(mut self, value: bool) -> Self {
         self.kill_all = value;
         self
     }
 
     /// Configures whether the stop step clears the boss.
     #[must_use]
-    pub fn with_kill_boss(mut self, value: bool) -> Self {
+    pub const fn with_kill_boss(mut self, value: bool) -> Self {
         self.kill_boss = value;
         self
     }
@@ -248,14 +248,14 @@ impl StopStageStep {
 
     /// Overrides the projection profile for this stop step.
     #[must_use]
-    pub fn with_projection(mut self, value: ProjectionProfile) -> Self {
+    pub const fn with_projection(mut self, value: ProjectionProfile) -> Self {
         self.projection = Some(value);
         self
     }
 
     /// Overrides the parallax attenuation for this stop step.
     #[must_use]
-    pub fn with_parallax_attenuation(mut self, value: f32) -> Self {
+    pub const fn with_parallax_attenuation(mut self, value: f32) -> Self {
         self.parallax_attenuation = Some(value);
         self
     }

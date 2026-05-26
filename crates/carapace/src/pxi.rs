@@ -49,13 +49,13 @@ const HEADER_SIZE: usize = 10;
 /// Contains palette indices ready for direct use by the rendering pipeline,
 /// without any PNG decode or palette lookup.
 #[derive(Asset, Clone, Reflect, Debug)]
-pub(crate) struct CxIndexedImage {
+pub struct CxIndexedImage {
     pub(crate) image: CxImage,
 }
 
 /// Asset loader for `.pxi` files.
 #[derive(TypePath)]
-pub(crate) struct CxiLoader;
+pub struct CxiLoader;
 
 impl AssetLoader for CxiLoader {
     type Asset = CxIndexedImage;

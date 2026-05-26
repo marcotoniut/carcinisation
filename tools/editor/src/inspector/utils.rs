@@ -52,12 +52,10 @@ impl StageSpawnUtils for StageSpawn {
 
     fn get_depth_editor_z_index(&self) -> f32 {
         match self {
-            StageSpawn::Destructible(DestructibleSpawn { depth, .. }) => {
-                10.0 - depth.to_f32() + 0.2
-            }
-            StageSpawn::Enemy(EnemySpawn { depth, .. }) => -depth.to_f32() + 0.4,
-            StageSpawn::Object(ObjectSpawn { depth, .. }) => -depth.to_f32() + 0.3,
-            StageSpawn::Pickup(PickupSpawn { depth, .. }) => -depth.to_f32() + 0.1,
+            Self::Destructible(DestructibleSpawn { depth, .. }) => 10.0 - depth.to_f32() + 0.2,
+            Self::Enemy(EnemySpawn { depth, .. }) => -depth.to_f32() + 0.4,
+            Self::Object(ObjectSpawn { depth, .. }) => -depth.to_f32() + 0.3,
+            Self::Pickup(PickupSpawn { depth, .. }) => -depth.to_f32() + 0.1,
         }
     }
 }

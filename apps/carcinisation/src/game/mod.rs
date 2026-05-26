@@ -36,7 +36,7 @@ impl Plugin for GamePlugin {
             .add_observer(on_trigger_write_event::<GameOverEvent>)
             .add_message::<GameStartupEvent>()
             .add_observer(on_game_startup)
-            .add_active_systems::<GamePlugin, _>(
+            .add_active_systems::<Self, _>(
                 // Core progression loop: wait for assets, advance steps, react to stage events.
                 ((
                     check_cutscene_data_loaded.run_if(resource_exists::<CutsceneAssetHandle>),

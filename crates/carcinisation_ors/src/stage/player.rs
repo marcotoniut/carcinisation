@@ -60,7 +60,7 @@ impl Plugin for PlayerPlugin {
             .add_observer(on_player_startup)
             .add_message::<PlayerShutdownEvent>()
             .add_observer(on_player_shutdown)
-            .add_active_systems::<PlayerPlugin, _>((
+            .add_active_systems::<Self, _>((
                 resolve_player_intent,
                 tick_attack_lifetimes,
                 tick_webbed_status,
@@ -88,14 +88,14 @@ impl CrosshairInfo {
     /** REVIEW if these are needed */
     /// Returns the underlying sprite handle (consumes the wrapper).
     #[must_use]
-    pub fn get_sprite(crosshair: CrosshairInfo) -> Handle<CxAsset<CxSpriteData>> {
+    pub fn get_sprite(crosshair: Self) -> Handle<CxAsset<CxSpriteData>> {
         crosshair.sprite
     }
 
     /** REVIEW if these are needed */
     /// Returns the crosshair metadata (consumes the wrapper).
     #[must_use]
-    pub fn get_crosshair(crosshair: CrosshairInfo) -> Crosshair {
+    pub fn get_crosshair(crosshair: Self) -> Crosshair {
         crosshair.crosshair
     }
 
@@ -103,7 +103,7 @@ impl CrosshairInfo {
     pub fn crosshair_sprite(
         asset_server: &mut CxAssets<CxSprite>,
         crosshair_settings: &Res<CrosshairSettings>,
-    ) -> CrosshairInfo {
+    ) -> Self {
         let sprite;
         let crosshair;
 
@@ -134,6 +134,6 @@ impl CrosshairInfo {
             }
         }
 
-        CrosshairInfo { sprite, crosshair }
+        Self { sprite, crosshair }
     }
 }

@@ -472,8 +472,8 @@ pub(crate) fn blit_transformed(
     for corner in &corners {
         let scaled = Vec2::new(corner.x * scale.x, corner.y * scale.y);
         let rotated = Vec2::new(
-            scaled.x * cos_r - scaled.y * sin_r,
-            scaled.x * sin_r + scaled.y * cos_r,
+            scaled.x.mul_add(cos_r, -(scaled.y * sin_r)),
+            scaled.x.mul_add(sin_r, scaled.y * cos_r),
         );
         min_x = min_x.min(rotated.x);
         max_x = max_x.max(rotated.x);
@@ -529,12 +529,12 @@ pub(crate) fn blit_transformed(
             let rel_y = (dy - anchor_img.y) as f32;
 
             // Inverse rotation.
-            let unrot_x = rel_x * cos_r + rel_y * sin_r;
-            let unrot_y = -rel_x * sin_r + rel_y * cos_r;
+            let unrot_x = rel_x.mul_add(cos_r, rel_y * sin_r);
+            let unrot_y = (-rel_x).mul_add(sin_r, rel_y * cos_r);
 
             // Inverse scale + re-centre on source anchor.
-            let src_x = (unrot_x * inv_sx + anchor_src.x).round() as i32;
-            let src_y = (unrot_y * inv_sy + anchor_src.y).round() as i32;
+            let src_x = unrot_x.mul_add(inv_sx, anchor_src.x).round() as i32;
+            let src_y = unrot_y.mul_add(inv_sy, anchor_src.y).round() as i32;
 
             if src_x >= 0
                 && src_x < src_w_i

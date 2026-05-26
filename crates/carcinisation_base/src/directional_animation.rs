@@ -125,7 +125,7 @@ impl DirectionalAnimationSet {
 
     /// The directional config backing this set.
     #[must_use]
-    pub fn config(&self) -> &DirectionalConfig {
+    pub const fn config(&self) -> &DirectionalConfig {
         &self.config
     }
 

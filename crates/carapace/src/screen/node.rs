@@ -95,7 +95,7 @@ fn preregister_filter_layer<L: CxLayer>(
     }
 }
 
-pub(crate) struct CxRenderNode<L: CxLayer> {
+pub struct CxRenderNode<L: CxLayer> {
     maps: QueryState<MapComponents<L>>,
     tiles: QueryState<TileComponents>,
     // image_to_sprites: QueryState<ImageToSpriteComponents<L>>,
@@ -594,7 +594,7 @@ fn linear_channel_to_srgb_u8(channel: f32) -> u8 {
     let srgb = if channel <= 0.003_130_8 {
         channel * 12.92
     } else {
-        1.055 * channel.powf(1.0 / 2.4) - 0.055
+        1.055f32.mul_add(channel.powf(1.0 / 2.4), -0.055)
     };
 
     (srgb * 255.0).round().clamp(0.0, 255.0) as u8

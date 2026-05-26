@@ -38,12 +38,12 @@ impl Default for FpsScreenParticles {
 
 impl FpsScreenParticles {
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.particles.len()
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.particles.is_empty()
     }
 
@@ -322,7 +322,7 @@ impl ScreenParticleRng {
         Self { state: seed }
     }
 
-    fn next_u32(&mut self) -> u32 {
+    const fn next_u32(&mut self) -> u32 {
         let mut x = self.state;
         x ^= x << 13;
         x ^= x >> 17;

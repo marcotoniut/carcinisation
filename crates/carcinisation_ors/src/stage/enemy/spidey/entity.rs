@@ -24,7 +24,7 @@ pub struct EnemySpidey;
 
 impl EnemySpidey {
     #[must_use]
-    pub fn kill_score(&self) -> u32 {
+    pub const fn kill_score(&self) -> u32 {
         8
     }
 }

@@ -77,8 +77,8 @@ pub fn perimeter_flames_from_mask(
 
             if is_edge {
                 perimeter.push(Vec2::new(
-                    x as f32 - width as f32 * 0.5,
-                    height as f32 * 0.5 - y as f32,
+                    (width as f32).mul_add(-0.5, x as f32),
+                    (height as f32).mul_add(0.5, -(y as f32)),
                 ));
             }
         }
@@ -111,7 +111,7 @@ pub fn perimeter_flames_from_mask(
                 signed_unit(mixed.rotate_left(13)),
             ) * jitter_px;
 
-            let scale = scale_min + (scale_max - scale_min) * unit(mixed.rotate_left(21));
+            let scale = (scale_max - scale_min).mul_add(unit(mixed.rotate_left(21)), scale_min);
             let phase_secs = unit(mixed.rotate_left(7)) * 0.3;
 
             PerimeterFlame {
@@ -126,7 +126,7 @@ pub fn perimeter_flames_from_mask(
 
 /// Map hash seed to [-1.0, 1.0).
 fn signed_unit(seed: u32) -> f32 {
-    unit(seed) * 2.0 - 1.0
+    unit(seed).mul_add(2.0, -1.0)
 }
 
 /// Map hash seed to [0.0, 1.0) via xorshift multiply.

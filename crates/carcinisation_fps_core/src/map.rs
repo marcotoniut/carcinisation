@@ -71,7 +71,7 @@ impl Map {
                 data.height,
             )));
         }
-        Ok(Map {
+        Ok(Self {
             width: data.width,
             height: data.height,
             cells: data.cells,
@@ -118,7 +118,7 @@ impl Map {
                 data.height,
             )));
         }
-        let map = Map {
+        let map = Self {
             width: data.width,
             height: data.height,
             cells: data.cells,
@@ -224,26 +224,26 @@ pub enum EntitySpawnKind {
     },
 }
 
-fn default_mosquiton_health() -> u32 {
+const fn default_mosquiton_health() -> u32 {
     40
 }
-fn default_spidey_health() -> u32 {
+const fn default_spidey_health() -> u32 {
     30
 }
-fn default_spidey_speed() -> f32 {
+const fn default_spidey_speed() -> f32 {
     2.0
 }
-fn default_enemy_speed() -> f32 {
+const fn default_enemy_speed() -> f32 {
     1.5
 }
-fn respawnable_true() -> bool {
+const fn respawnable_true() -> bool {
     true
 }
 
 impl EntitySpawnKind {
     /// Health value for enemy-like kinds. Returns `None` for decorative entities.
     #[must_use]
-    pub fn health(&self) -> Option<u32> {
+    pub const fn health(&self) -> Option<u32> {
         match self {
             Self::Pillar { .. } | Self::Pickup { .. } => None,
             Self::Enemy { health, .. }
@@ -255,7 +255,7 @@ impl EntitySpawnKind {
 
     /// Whether this is an enemy (not decorative).
     #[must_use]
-    pub fn is_enemy(&self) -> bool {
+    pub const fn is_enemy(&self) -> bool {
         matches!(
             self,
             Self::Enemy { .. }

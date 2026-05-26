@@ -242,7 +242,7 @@ fn spawn_projection_grid(
         camera_pos.x + screen.x,
         camera_pos.y + screen.y,
     );
-    let vanish_x = camera_pos.x + screen.x * 0.5;
+    let vanish_x = screen.x.mul_add(0.5, camera_pos.x);
 
     if controls.projection_grid {
         let grid = build_perspective_grid(&floors, viewport, vanish_x, &GridParams::default());
@@ -440,7 +440,7 @@ pub fn spawn_stage(
         let sprite = Sprite::from_atlas_image(
             asset_server.load(stage_data.skybox.path.clone()),
             TextureAtlas {
-                layout: layout_handle.clone(),
+                layout: layout_handle,
                 index: 0,
             },
         );

@@ -44,7 +44,7 @@ const DEPTH_MIN: i8 = 1;
 const DEPTH_MAX: i8 = 9;
 const DEPTH_RANGE: f32 = (DEPTH_MAX - DEPTH_MIN) as f32; // 8.0
 
-fn default_bias_power() -> f32 {
+const fn default_bias_power() -> f32 {
     3.0
 }
 
@@ -185,7 +185,7 @@ impl ProjectionProfile {
             "ProjectionProfile::floor_y_for_progress called on invalid profile: {self:?}"
         );
         let biased = progress.abs().powf(self.bias_power).copysign(progress);
-        self.horizon_y + biased * (self.floor_base_y - self.horizon_y)
+        biased.mul_add(self.floor_base_y - self.horizon_y, self.horizon_y)
     }
 
     /// Convenience: floor Y for all depths 1–9 as a fixed-size array.
@@ -207,9 +207,13 @@ impl ProjectionProfile {
     #[must_use]
     pub fn lerp(a: &Self, b: &Self, t: f32) -> Self {
         let result = Self {
-            horizon_y: a.horizon_y + (b.horizon_y - a.horizon_y) * t,
-            floor_base_y: a.floor_base_y + (b.floor_base_y - a.floor_base_y) * t,
-            bias_power: (a.bias_power.ln() * (1.0 - t) + b.bias_power.ln() * t).exp(),
+            horizon_y: (b.horizon_y - a.horizon_y).mul_add(t, a.horizon_y),
+            floor_base_y: (b.floor_base_y - a.floor_base_y).mul_add(t, a.floor_base_y),
+            bias_power: a
+                .bias_power
+                .ln()
+                .mul_add(1.0 - t, b.bias_power.ln() * t)
+                .exp(),
         };
         debug_assert!(
             result.is_valid(),
@@ -555,8 +559,8 @@ pub struct PerspectiveGrid {
 #[must_use]
 pub fn depth_brightness(d: i8) -> f32 {
     let foreground_proximity = 1.0 - f32::from(d - 1) / 8.0;
-    let curved = (1.0 + 8.0 * foreground_proximity).ln() / 9.0_f32.ln();
-    0.2 + 0.8 * curved
+    let curved = 8.0f32.mul_add(foreground_proximity, 1.0).log(9.0_f32);
+    0.8f32.mul_add(curved, 0.2)
 }
 
 /// Grid colour RGBA from brightness and alpha.
@@ -567,7 +571,7 @@ pub fn depth_brightness(d: i8) -> f32 {
 #[must_use]
 pub fn grid_color_rgba(brightness: f32, alpha: f32) -> [f32; 4] {
     // Remap brightness so it never drops below 0.15 (visible on dark scenes).
-    let b = 0.15 + 0.85 * brightness;
+    let b = 0.85f32.mul_add(brightness, 0.15);
     [0.75 * b, 0.5 * b, 1.0 * b, alpha * brightness]
 }
 
@@ -728,7 +732,8 @@ pub fn build_perspective_grid(
         };
 
         let w_exit = (candidate.exit_point.y - vanish_y) / depth_span;
-        let eff_lane = candidate.k as f32 * params.lane_spacing - params.lateral_view_offset;
+        let eff_lane =
+            (candidate.k as f32).mul_add(params.lane_spacing, -params.lateral_view_offset);
 
         if params.horizon_fade {
             // Multi-segment band walk: one segment per depth band with a
@@ -748,7 +753,7 @@ pub fn build_perspective_grid(
                 if weight >= w_exit {
                     break;
                 }
-                let here = Vec2::new(vanish_x + eff_lane * weight, floor_y);
+                let here = Vec2::new(eff_lane.mul_add(weight, vanish_x), floor_y);
 
                 let (start_rgba, end_rgba) = if use_amber {
                     (CENTER_AMBER, CENTER_AMBER)
@@ -810,7 +815,7 @@ fn compute_exit(
     w_bottom: f32,
 ) -> Vec2 {
     if eff_lane.abs() < f32::EPSILON {
-        return Vec2::new(vanish_x, vanish_y + w_bottom * depth_span);
+        return Vec2::new(vanish_x, w_bottom.mul_add(depth_span, vanish_y));
     }
     let w_side = if eff_lane > 0.0 {
         (viewport.max.x - vanish_x) / eff_lane
@@ -822,7 +827,7 @@ fn compute_exit(
     } else {
         w_bottom
     };
-    let exit_x = vanish_x + eff_lane * w_exit;
+    let exit_x = eff_lane.mul_add(w_exit, vanish_x);
     let exit_y = vanish_y + w_exit * depth_span;
     Vec2::new(exit_x, exit_y)
 }
@@ -834,7 +839,7 @@ fn perimeter_coord(exit: Vec2, viewport: Rect, halfwidth: f32) -> f32 {
     if up_from_bottom < tol {
         exit.x - viewport.min.x
     } else if (exit.x - viewport.max.x).abs() < tol {
-        2.0 * halfwidth + up_from_bottom
+        2.0f32.mul_add(halfwidth, up_from_bottom)
     } else {
         -up_from_bottom
     }
@@ -895,7 +900,9 @@ pub fn compute_visual_x(
     projection_view: &ProjectionView,
 ) -> f32 {
     let weight = projection_weight(profile, floor_y);
-    world_x - projection_view.lateral_view_offset * weight
+    projection_view
+        .lateral_view_offset
+        .mul_add(-weight, world_x)
 }
 
 /// @system Pan the lateral view offset with `Shift+Left/Right`.
@@ -925,9 +932,9 @@ pub fn pan_lateral_view(
         return;
     }
 
-    projection_view.lateral_view_offset = (projection_view.lateral_view_offset
-        + direction * pan_config.speed * time.delta_secs())
-    .clamp(-pan_config.limit, pan_config.limit);
+    projection_view.lateral_view_offset = (direction * pan_config.speed)
+        .mul_add(time.delta_secs(), projection_view.lateral_view_offset)
+        .clamp(-pan_config.limit, pan_config.limit);
 }
 
 // ---------------------------------------------------------------------------

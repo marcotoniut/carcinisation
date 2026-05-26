@@ -14,7 +14,7 @@ pub trait EditorColor {
 }
 
 impl EditorColor for Color {
-    const CYAN: Self = Color::srgb(0.0, 1.0, 1.0);
+    const CYAN: Self = Self::srgb(0.0, 1.0, 1.0);
 }
 
 /// Returns the absolute assets root for editor file picking.

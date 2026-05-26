@@ -29,7 +29,7 @@ impl FiniteF32 {
     /// Return the inner `f32`.
     #[inline]
     #[must_use]
-    pub fn get(self) -> f32 {
+    pub const fn get(self) -> f32 {
         self.0
     }
 }
@@ -91,7 +91,7 @@ impl PositiveFiniteF32 {
     /// Return the inner `f32`.
     #[inline]
     #[must_use]
-    pub fn get(self) -> f32 {
+    pub const fn get(self) -> f32 {
         self.0
     }
 }

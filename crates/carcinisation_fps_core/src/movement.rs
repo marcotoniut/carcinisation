@@ -32,7 +32,7 @@ impl SpeedModifier {
     /// `budget` is the total drain budget. At `base_drain_rate = 1.0`,
     /// it expires in `budget` seconds while standing still.
     #[must_use]
-    pub fn new(multiplier: f32, budget: f32) -> Self {
+    pub const fn new(multiplier: f32, budget: f32) -> Self {
         Self {
             multiplier: multiplier.clamp(0.1, 1.0),
             remaining: budget.max(0.0),
@@ -44,13 +44,15 @@ impl SpeedModifier {
     /// Tick the modifier. `movement_distance` is the distance moved this frame.
     /// Returns `true` if still active after ticking.
     pub fn tick(&mut self, dt: f32, movement_distance: f32) -> bool {
-        let drain = self.base_drain_rate * dt + self.movement_drain_rate * movement_distance;
+        let drain = self
+            .base_drain_rate
+            .mul_add(dt, self.movement_drain_rate * movement_distance);
         self.remaining -= drain;
         self.remaining > 0.0
     }
 
     /// Refresh (re-apply) — resets budget, replaces multiplier. Does not stack.
-    pub fn refresh(&mut self, multiplier: f32, budget: f32) {
+    pub const fn refresh(&mut self, multiplier: f32, budget: f32) {
         self.multiplier = multiplier.clamp(0.1, 1.0);
         self.remaining = budget.max(0.0);
     }

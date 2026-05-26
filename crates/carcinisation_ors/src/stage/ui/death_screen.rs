@@ -98,7 +98,7 @@ pub fn render_death_screen(
                         layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
                             value: score.value.to_string(),
-                            typeface: typeface.clone(),
+                            typeface,
                             ..Default::default()
                         },
                         ..default()

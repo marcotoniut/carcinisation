@@ -241,7 +241,7 @@ impl ComposedFrameOutput {
     /// repair presentation state; callers must ensure the entity's presentation
     /// basis is already correct before this is applied.
     #[must_use]
-    pub(crate) fn visible_frame(
+    pub(crate) const fn visible_frame(
         parts: Vec<CxCompositePart>,
         origin: IVec2,
         size: UVec2,
@@ -379,7 +379,7 @@ impl ComposedHealthPools {
     }
 
     #[must_use]
-    pub fn pools(&self) -> &HashMap<String, u32> {
+    pub const fn pools(&self) -> &HashMap<String, u32> {
         &self.pools
     }
 
@@ -556,7 +556,7 @@ impl Default for ComposedResolvedParts {
 
 impl ComposedResolvedParts {
     #[must_use]
-    pub fn gameplay_scale(&self) -> f32 {
+    pub const fn gameplay_scale(&self) -> f32 {
         self.gameplay_scale
     }
 
@@ -576,7 +576,7 @@ impl ComposedResolvedParts {
     /// gameplay use.  This raw accessor exists for the internal collision
     /// builder which combines it with other authored offsets before scaling.
     #[must_use]
-    pub(crate) fn visual_offset(&self) -> Vec2 {
+    pub(crate) const fn visual_offset(&self) -> Vec2 {
         self.visual_offset
     }
 
@@ -788,7 +788,7 @@ impl ComposedAnimationState {
         self.part_overrides.extend(overrides);
     }
 
-    pub fn set_hold_last_frame(&mut self, hold_last_frame: bool) {
+    pub const fn set_hold_last_frame(&mut self, hold_last_frame: bool) {
         self.hold_last_frame = hold_last_frame;
     }
 }
@@ -877,7 +877,7 @@ impl ComposedPartSelector {
         }
     }
 
-    fn is_empty(&self) -> bool {
+    const fn is_empty(&self) -> bool {
         self.part_ids.is_empty() && self.part_tags.is_empty()
     }
 
@@ -899,7 +899,7 @@ pub struct ComposedAtlasBindings {
 
 impl ComposedAtlasBindings {
     #[must_use]
-    pub fn atlas_handle(&self) -> &Handle<CxSpriteAtlasAsset> {
+    pub const fn atlas_handle(&self) -> &Handle<CxSpriteAtlasAsset> {
         &self.atlas
     }
 
@@ -1620,7 +1620,7 @@ impl CompositionAtlasAsset {
         };
     }
 
-    fn runtime(&self) -> Result<&CompositionAtlasCache, &str> {
+    const fn runtime(&self) -> Result<&CompositionAtlasCache, &str> {
         match &self.runtime {
             CompositionAtlasRuntime::Ready(cache) => Ok(cache),
             CompositionAtlasRuntime::Invalid(reason) => Err(reason.as_str()),
@@ -1628,7 +1628,7 @@ impl CompositionAtlasAsset {
         }
     }
 
-    fn is_invalid(&self) -> bool {
+    const fn is_invalid(&self) -> bool {
         matches!(self.runtime, CompositionAtlasRuntime::Invalid(_))
     }
 }
@@ -2304,7 +2304,9 @@ fn apply_part_damage(
     })
 }
 
-fn composition_collision_shape_to_runtime(shape: &CompositionCollisionShape) -> ColliderShape {
+const fn composition_collision_shape_to_runtime(
+    shape: &CompositionCollisionShape,
+) -> ColliderShape {
     match shape {
         CompositionCollisionShape::Circle { radius, .. } => ColliderShape::Circle(*radius),
         CompositionCollisionShape::Box { size, .. } => {
@@ -2313,7 +2315,7 @@ fn composition_collision_shape_to_runtime(shape: &CompositionCollisionShape) -> 
     }
 }
 
-fn composition_collision_offset(shape: &CompositionCollisionShape) -> Vec2 {
+const fn composition_collision_offset(shape: &CompositionCollisionShape) -> Vec2 {
     match shape {
         CompositionCollisionShape::Circle { offset, .. }
         | CompositionCollisionShape::Box { offset, .. } => Vec2::new(offset.x, offset.y),
@@ -3169,12 +3171,12 @@ fn flip_authored_offset(
     flip_y: bool,
 ) -> Vec2 {
     let x = if flip_x {
-        frame_size.x as f32 - 1.0 - 2.0 * part_pivot.x as f32 - offset.x
+        2.0f32.mul_add(-(part_pivot.x as f32), frame_size.x as f32 - 1.0) - offset.x
     } else {
         offset.x
     };
     let y = if flip_y {
-        frame_size.y as f32 - 1.0 - 2.0 * part_pivot.y as f32 - offset.y
+        2.0f32.mul_add(-(part_pivot.y as f32), frame_size.y as f32 - 1.0) - offset.y
     } else {
         offset.y
     };
@@ -3229,7 +3231,7 @@ fn advance_track_playback(
     fired_cues
 }
 
-fn initial_frame_index(animation: &CachedAnimation) -> usize {
+const fn initial_frame_index(animation: &CachedAnimation) -> usize {
     if animation.frames.is_empty() {
         return 0;
     }
@@ -3242,7 +3244,7 @@ fn initial_frame_index(animation: &CachedAnimation) -> usize {
     }
 }
 
-fn terminal_frame_index(animation: &CachedAnimation) -> usize {
+const fn terminal_frame_index(animation: &CachedAnimation) -> usize {
     if animation.frames.is_empty() {
         return 0;
     }
@@ -3255,7 +3257,7 @@ fn terminal_frame_index(animation: &CachedAnimation) -> usize {
     }
 }
 
-fn can_restart_playback(
+const fn can_restart_playback(
     track_state: &ComposedTrackPlaybackState,
     animation: &CachedAnimation,
 ) -> bool {

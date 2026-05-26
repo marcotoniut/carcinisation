@@ -7,11 +7,11 @@ use bevy_render::{
 
 use crate::prelude::*;
 
-pub(crate) fn plug_core(app: &mut App) {
+pub fn plug_core(app: &mut App) {
     app.init_resource::<CxCamera>();
 }
 
-pub(crate) fn plug(app: &mut App) {
+pub fn plug(app: &mut App) {
     plug_core(app);
     #[cfg(feature = "headed")]
     app.add_plugins(ExtractResourcePlugin::<CxCamera>::default());

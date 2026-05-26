@@ -52,7 +52,7 @@ impl Default for SpideyConfig {
 impl SpideyConfig {
     /// Build from a loaded `FpsCombatConfig` resource (uses RON values, not Rust defaults).
     #[must_use]
-    pub fn from_combat_config(combat: &carcinisation_fps_core::FpsCombatConfig) -> Self {
+    pub const fn from_combat_config(combat: &carcinisation_fps_core::FpsCombatConfig) -> Self {
         Self {
             sim: combat.spidey_sim_config(),
             billboard_height: SPIDEY_BILLBOARD_HEIGHT,
@@ -140,7 +140,7 @@ impl Spidey {
     }
 
     #[must_use]
-    pub fn is_alive(&self) -> bool {
+    pub const fn is_alive(&self) -> bool {
         !matches!(
             self.state,
             SpideyState::Dying { .. } | SpideyState::BurningCorpse { .. } | SpideyState::Dead

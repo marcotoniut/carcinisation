@@ -36,7 +36,7 @@ pub enum MosquitonSimState {
 
 impl MosquitonSimState {
     #[must_use]
-    pub fn is_alive(&self) -> bool {
+    pub const fn is_alive(&self) -> bool {
         !matches!(
             self,
             Self::Dying { .. } | Self::BurningCorpse { .. } | Self::Dead
@@ -261,7 +261,7 @@ pub fn tick_mosquiton_sim(
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn start_melee(
+const fn start_melee(
     sim: &mut MosquitonSim,
     config: &MosquitonSimConfig,
     output: &mut MosquitonSimOutput,

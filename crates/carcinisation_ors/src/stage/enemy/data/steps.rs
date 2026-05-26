@@ -10,14 +10,14 @@ pub struct AttackEnemyStep {
 
 impl AttackEnemyStep {
     #[must_use]
-    pub fn base() -> Self {
+    pub const fn base() -> Self {
         Self {
             duration: EnemyStep::max_duration(),
         }
     }
 
     #[must_use]
-    pub fn with_duration(mut self, value: f32) -> Self {
+    pub const fn with_duration(mut self, value: f32) -> Self {
         self.duration = value;
         self
     }
@@ -34,7 +34,7 @@ pub struct CircleAroundEnemyStep {
 impl CircleAroundEnemyStep {
     // TODO get rid of this
     #[must_use]
-    pub fn base() -> Self {
+    pub const fn base() -> Self {
         Self {
             depth_movement_o: None,
             direction: TweenDirection::Negative,
@@ -44,37 +44,37 @@ impl CircleAroundEnemyStep {
     }
 
     #[must_use]
-    pub fn opposite_direction(mut self) -> Self {
+    pub const fn opposite_direction(mut self) -> Self {
         self.direction = self.direction.opposite();
         self
     }
 
     #[must_use]
-    pub fn depth_advance(mut self, value: u8) -> Self {
+    pub const fn depth_advance(mut self, value: u8) -> Self {
         self.depth_movement_o = Some(-(value as i8));
         self
     }
 
     #[must_use]
-    pub fn without_depth_movement(mut self) -> Self {
+    pub const fn without_depth_movement(mut self) -> Self {
         self.depth_movement_o = None;
         self
     }
 
     #[must_use]
-    pub fn with_direction(mut self, value: TweenDirection) -> Self {
+    pub const fn with_direction(mut self, value: TweenDirection) -> Self {
         self.direction = value;
         self
     }
 
     #[must_use]
-    pub fn with_duration(mut self, value: f32) -> Self {
+    pub const fn with_duration(mut self, value: f32) -> Self {
         self.duration = Some(value);
         self
     }
 
     #[must_use]
-    pub fn with_radius(mut self, value: f32) -> Self {
+    pub const fn with_radius(mut self, value: f32) -> Self {
         self.radius = Some(value);
         self
     }
@@ -87,14 +87,14 @@ pub struct IdleEnemyStep {
 
 impl IdleEnemyStep {
     #[must_use]
-    pub fn base() -> Self {
+    pub const fn base() -> Self {
         Self {
             duration: EnemyStep::max_duration(),
         }
     }
 
     #[must_use]
-    pub fn with_duration(mut self, value: f32) -> Self {
+    pub const fn with_duration(mut self, value: f32) -> Self {
         self.duration = value;
         self
     }
@@ -116,7 +116,7 @@ pub struct LinearTweenEnemyStep {
 
 impl LinearTweenEnemyStep {
     #[must_use]
-    pub fn base() -> Self {
+    pub const fn base() -> Self {
         Self {
             direction: Vec2::new(-1., 0.),
             depth_movement_o: None,
@@ -131,25 +131,25 @@ impl LinearTweenEnemyStep {
     }
 
     #[must_use]
-    pub fn with_direction(mut self, x: f32, y: f32) -> Self {
+    pub const fn with_direction(mut self, x: f32, y: f32) -> Self {
         self.direction = Vec2::new(x, y);
         self
     }
 
     #[must_use]
-    pub fn with_trajectory(mut self, value: f32) -> Self {
+    pub const fn with_trajectory(mut self, value: f32) -> Self {
         self.trajectory = value;
         self
     }
 
     #[must_use]
-    pub fn depth_advance(mut self, value: u8) -> Self {
+    pub const fn depth_advance(mut self, value: u8) -> Self {
         self.depth_movement_o = Some(-(value as i8));
         self
     }
 
     #[must_use]
-    pub fn depth_retreat(mut self, value: u8) -> Self {
+    pub const fn depth_retreat(mut self, value: u8) -> Self {
         self.depth_movement_o = Some(value as i8);
         self
     }
@@ -165,7 +165,7 @@ pub struct JumpEnemyStep {
 
 impl JumpEnemyStep {
     #[must_use]
-    pub fn base() -> Self {
+    pub const fn base() -> Self {
         Self {
             coordinates: Vec2::ZERO,
             attacking: false,
@@ -193,47 +193,47 @@ impl Default for EnemyStep {
 
 impl EnemyStep {
     #[must_use]
-    pub fn max_duration() -> f32 {
+    pub const fn max_duration() -> f32 {
         99999.
     }
 
     #[must_use]
     pub fn get_duration(&self) -> f32 {
-        self.get_duration_o().unwrap_or(EnemyStep::max_duration())
+        self.get_duration_o().unwrap_or(Self::max_duration())
     }
 
     #[must_use]
-    pub fn get_duration_o(&self) -> Option<f32> {
+    pub const fn get_duration_o(&self) -> Option<f32> {
         match self {
-            EnemyStep::Attack(AttackEnemyStep { duration, .. })
-            | EnemyStep::Idle(IdleEnemyStep { duration, .. }) => Some(*duration),
-            EnemyStep::Circle(CircleAroundEnemyStep { duration, .. }) => *duration,
-            EnemyStep::LinearTween { .. } | EnemyStep::Jump { .. } => None,
+            Self::Attack(AttackEnemyStep { duration, .. })
+            | Self::Idle(IdleEnemyStep { duration, .. }) => Some(*duration),
+            Self::Circle(CircleAroundEnemyStep { duration, .. }) => *duration,
+            Self::LinearTween { .. } | Self::Jump { .. } => None,
         }
     }
 
     #[must_use]
-    pub fn attack_base() -> AttackEnemyStep {
+    pub const fn attack_base() -> AttackEnemyStep {
         AttackEnemyStep::base()
     }
 
     #[must_use]
-    pub fn circle_around_base() -> CircleAroundEnemyStep {
+    pub const fn circle_around_base() -> CircleAroundEnemyStep {
         CircleAroundEnemyStep::base()
     }
 
     #[must_use]
-    pub fn idle_base() -> IdleEnemyStep {
+    pub const fn idle_base() -> IdleEnemyStep {
         IdleEnemyStep::base()
     }
 
     #[must_use]
-    pub fn jump_base() -> JumpEnemyStep {
+    pub const fn jump_base() -> JumpEnemyStep {
         JumpEnemyStep::base()
     }
 
     #[must_use]
-    pub fn linear_movement_base() -> LinearTweenEnemyStep {
+    pub const fn linear_movement_base() -> LinearTweenEnemyStep {
         LinearTweenEnemyStep::base()
     }
 }

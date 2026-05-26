@@ -36,9 +36,9 @@ impl Easing {
         match self {
             Self::Linear => t,
             Self::EaseIn => t * t,
-            Self::EaseOut => 1.0 - (1.0 - t) * (1.0 - t),
-            Self::Smoothstep => t * t * (3.0 - 2.0 * t),
-            Self::SlightEaseIn => 0.85 * t + 0.15 * t * t * t,
+            Self::EaseOut => (1.0 - t).mul_add(-(1.0 - t), 1.0),
+            Self::Smoothstep => t * t * 2.0f32.mul_add(-t, 3.0),
+            Self::SlightEaseIn => 0.85f32.mul_add(t, 0.15 * t * t * t),
             Self::DampedSpring => {
                 // Under-damped spring: overshoots ~10% at t≈0.35, settles to 1.0.
                 let omega = std::f32::consts::TAU; // natural frequency
@@ -96,7 +96,7 @@ pub fn evaluate_rotation_keyframes(keyframes: &[RotationKeyframe], elapsed: Dura
         if ms >= a_ms && ms < b_ms {
             let t = (ms - a_ms) as f64 / (b_ms - a_ms) as f64;
             let eased = a.easing.apply(t as f32);
-            let angle = a.angle_deg + (b.angle_deg - a.angle_deg) * eased;
+            let angle = (b.angle_deg - a.angle_deg).mul_add(eased, a.angle_deg);
             return angle.to_radians();
         }
     }

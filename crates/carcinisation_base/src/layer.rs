@@ -18,11 +18,11 @@ use serde::{Deserialize, Serialize};
 pub struct FlameDepth(pub u8);
 
 impl Next for FlameDepth {
-    const MIN: Self = FlameDepth(0);
+    const MIN: Self = Self(0);
 
     fn next(self) -> Option<Self> {
         if self.0 < 15 {
-            Some(FlameDepth(self.0 + 1))
+            Some(Self(self.0 + 1))
         } else {
             None
         }
@@ -42,7 +42,7 @@ pub enum MidDepth {
 }
 
 impl Next for MidDepth {
-    const MIN: Self = MidDepth::Six;
+    const MIN: Self = Self::Six;
 
     fn next(self) -> Option<Self> {
         use MidDepth::{Five, Four, One, Six, Three, Two, Zero};
@@ -67,7 +67,7 @@ pub enum PreBackgroundDepth {
 }
 
 impl Next for PreBackgroundDepth {
-    const MIN: Self = PreBackgroundDepth::Nine;
+    const MIN: Self = Self::Nine;
 
     fn next(self) -> Option<Self> {
         use PreBackgroundDepth::{Eight, Nine, Seven};
@@ -108,7 +108,7 @@ pub enum OrsLayer {
 }
 
 impl Next for OrsLayer {
-    const MIN: Self = OrsLayer::PreBackgroundDepth(PreBackgroundDepth::Nine);
+    const MIN: Self = Self::PreBackgroundDepth(PreBackgroundDepth::Nine);
 
     fn next(self) -> Option<Self> {
         match self {
@@ -154,7 +154,7 @@ pub enum FpsLayer {
 }
 
 impl Next for FpsLayer {
-    const MIN: Self = FpsLayer::View;
+    const MIN: Self = Self::View;
 
     fn next(self) -> Option<Self> {
         match self {
@@ -188,7 +188,7 @@ impl Default for CutsceneLayer {
 }
 
 impl Next for CutsceneLayer {
-    const MIN: Self = CutsceneLayer::Background(0);
+    const MIN: Self = Self::Background(0);
 
     fn next(self) -> Option<Self> {
         use CutsceneLayer::{Background, Foreground, Letterbox, Middle, Overtext, Text, Textbox};
@@ -225,7 +225,7 @@ pub enum MenuLayer {
 }
 
 impl Next for MenuLayer {
-    const MIN: Self = MenuLayer::Background;
+    const MIN: Self = Self::Background;
 
     fn next(self) -> Option<Self> {
         match self {
@@ -252,7 +252,7 @@ pub enum SharedLayer {
 }
 
 impl Next for SharedLayer {
-    const MIN: Self = SharedLayer::Skybox;
+    const MIN: Self = Self::Skybox;
 
     fn next(self) -> Option<Self> {
         match self {

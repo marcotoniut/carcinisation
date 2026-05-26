@@ -144,12 +144,12 @@ impl Sky {
     }
 
     #[must_use]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.bg.width
     }
 
     #[must_use]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.bg.height
     }
 

@@ -497,7 +497,7 @@ fn calculate_fall_damage(fall_distance: f32) -> u32 {
         // Linear scaling: 50px = 1 damage, 150px = 5 damage
         let ratio =
             (fall_distance - MIN_DAMAGE_HEIGHT) / (MEDIUM_DAMAGE_HEIGHT - MIN_DAMAGE_HEIGHT);
-        (1.0 + ratio * 4.0).round() as u32
+        ratio.mul_add(4.0, 1.0).round() as u32
     } else {
         // Heavy falls: 5 damage + 1 per additional 30px
         5 + ((fall_distance - MEDIUM_DAMAGE_HEIGHT) / 30.0).floor() as u32

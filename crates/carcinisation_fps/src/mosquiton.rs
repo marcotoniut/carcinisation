@@ -145,7 +145,7 @@ impl Mosquiton {
     }
 
     #[must_use]
-    pub fn is_alive(&self) -> bool {
+    pub const fn is_alive(&self) -> bool {
         !matches!(
             self.state,
             MosquitonState::Dying { .. }
@@ -289,7 +289,9 @@ pub fn tick_mosquitons(
 }
 
 /// Convert fps `MosquitonState` → `fps_core` `MosquitonSimState`.
-fn state_to_sim(state: &MosquitonState) -> carcinisation_fps_core::mosquiton::MosquitonSimState {
+const fn state_to_sim(
+    state: &MosquitonState,
+) -> carcinisation_fps_core::mosquiton::MosquitonSimState {
     use carcinisation_fps_core::mosquiton::MosquitonSimState;
     match state {
         MosquitonState::Pursue => MosquitonSimState::Pursue,
@@ -314,7 +316,9 @@ fn state_to_sim(state: &MosquitonState) -> carcinisation_fps_core::mosquiton::Mo
 }
 
 /// Convert `fps_core` `MosquitonSimState` → fps `MosquitonState`.
-fn sim_to_state(state: &carcinisation_fps_core::mosquiton::MosquitonSimState) -> MosquitonState {
+const fn sim_to_state(
+    state: &carcinisation_fps_core::mosquiton::MosquitonSimState,
+) -> MosquitonState {
     use carcinisation_fps_core::mosquiton::MosquitonSimState;
     match state {
         MosquitonSimState::Pursue => MosquitonState::Pursue,

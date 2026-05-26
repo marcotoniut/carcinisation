@@ -57,7 +57,7 @@ pub struct CxPrimitive {
 }
 
 /// Shape geometry for a [`CxPrimitive`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CxPrimitiveShape {
     /// Axis-aligned filled rectangle. `size` is in logical pixels.
     Rect {
@@ -80,7 +80,7 @@ pub enum CxPrimitiveShape {
 }
 
 /// Fill mode for a [`CxPrimitive`].
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CxPrimitiveFill {
     /// Every pixel is the same palette index.
     Solid(u8),
@@ -130,7 +130,7 @@ const BAYER_4X4: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [
 ///
 /// Returns `0` (transparent) only if the fill itself produces index 0.
 #[must_use]
-fn evaluate_fill(fill: &CxPrimitiveFill, world_x: i32, world_y: i32) -> u8 {
+const fn evaluate_fill(fill: &CxPrimitiveFill, world_x: i32, world_y: i32) -> u8 {
     match *fill {
         CxPrimitiveFill::Solid(idx) => idx,
         CxPrimitiveFill::Checker { a, b } => {
@@ -188,7 +188,7 @@ fn draw_filled_rect(
     let x_range = clamp_span(offset.x, size.x as i32, image.img_width_i());
     let y_range = clamp_span(offset.y, size.y as i32, image.img_height_i());
 
-    for y in y_range.clone() {
+    for y in y_range {
         for x in x_range.clone() {
             let wx = world_origin.x + (x as i32 - offset.x);
             let wy = world_origin.y + (y as i32 - offset.y);

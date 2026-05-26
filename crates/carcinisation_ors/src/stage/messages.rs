@@ -80,7 +80,7 @@ pub struct EntityDamageMessage {
 
 impl EntityDamageMessage {
     #[must_use]
-    pub fn new(entity: Entity, value: u32) -> Self {
+    pub const fn new(entity: Entity, value: u32) -> Self {
         Self {
             entity,
             value,
@@ -89,7 +89,7 @@ impl EntityDamageMessage {
     }
 
     #[must_use]
-    pub fn fire(entity: Entity, value: u32) -> Self {
+    pub const fn fire(entity: Entity, value: u32) -> Self {
         Self {
             entity,
             value,

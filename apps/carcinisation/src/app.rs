@@ -85,11 +85,11 @@ const SHOW_PERSPECTIVE_ENV: &str = "CARCINISATION_SHOW_PERSPECTIVE";
 
 impl StartFlow {
     const fn includes_start_flow(self) -> bool {
-        matches!(self, StartFlow::Full)
+        matches!(self, Self::Full)
     }
 
     const fn includes_gallery(self) -> bool {
-        matches!(self, StartFlow::Gallery)
+        matches!(self, Self::Gallery)
     }
 }
 

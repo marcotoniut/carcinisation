@@ -77,8 +77,8 @@ impl Plugin for DebugPlugin {
         register_types(app);
         app.init_resource::<DebugComposedDamageProbe>()
             .init_resource::<systems::DebugColliderOverlay>()
-            .add_systems(Startup, activate_system::<DebugPlugin>)
-            .add_active_systems::<DebugPlugin, _>((
+            .add_systems(Startup, activate_system::<Self>)
+            .add_active_systems::<Self, _>((
                 (draw_colliders, systems::draw_pixel_mask_outlines),
                 (
                     systems::toggle_debug_god_mode,
@@ -101,7 +101,7 @@ pub trait DebugColor {
 
 #[cfg(debug_assertions)]
 impl DebugColor for Color {
-    const YELLOW_GREEN: Self = Color::srgb(0.6, 0.8, 0.2);
-    const ALICE_BLUE: Self = Color::srgb(0.94, 0.97, 1.0);
-    const FUCHSIA: Self = Color::srgb(1.0, 0.0, 1.0);
+    const YELLOW_GREEN: Self = Self::srgb(0.6, 0.8, 0.2);
+    const ALICE_BLUE: Self = Self::srgb(0.94, 0.97, 1.0);
+    const FUCHSIA: Self = Self::srgb(1.0, 0.0, 1.0);
 }

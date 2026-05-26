@@ -57,11 +57,11 @@ impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<CompositionAtlasAsset>()
             .register_asset_loader(CompositionAtlasLoader);
-        app.add_active_systems_in::<EnemyPlugin, _>(
+        app.add_active_systems_in::<Self, _>(
             PostUpdate,
             apply_composed_enemy_visuals.in_set(CxSet::CompositePresentationWrites),
         );
-        app.add_active_systems::<EnemyPlugin, _>(
+        app.add_active_systems::<Self, _>(
             // Behaviour/animation updates only run while the enemy subsystem is active.
             (
                 ensure_enemy_continuous_depth.before(check_no_behavior),

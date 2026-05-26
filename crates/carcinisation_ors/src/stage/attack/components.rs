@@ -74,7 +74,7 @@ impl EnemyHoveringAttackType {
 
     /// Per-attack-type atlas asset path.
     #[must_use]
-    pub fn atlas_path(&self) -> &'static str {
+    pub const fn atlas_path(&self) -> &'static str {
         match self {
             Self::BloodShot => BLOOD_SHOT_ATLAS_PATH,
             Self::BoulderThrow => BOULDER_THROW_ATLAS_PATH,
@@ -85,20 +85,20 @@ impl EnemyHoveringAttackType {
     /// Atlas region ID for the hovering animation.
     /// Region order follows aseprite tag order: hover, [destroy], hit.
     #[must_use]
-    pub fn hovering_region_id(&self) -> AtlasRegionId {
+    pub const fn hovering_region_id(&self) -> AtlasRegionId {
         AtlasRegionId(0)
     }
 
     /// Atlas region ID for the hit animation.
     /// Region order follows aseprite tag order: hover=0, destroy=1, hit=2.
     #[must_use]
-    pub fn hit_region_id(&self) -> AtlasRegionId {
+    pub const fn hit_region_id(&self) -> AtlasRegionId {
         AtlasRegionId(2)
     }
 
     /// Atlas region ID for the destroy animation.
     #[must_use]
-    pub fn destroy_region_id(&self) -> AtlasRegionId {
+    pub const fn destroy_region_id(&self) -> AtlasRegionId {
         AtlasRegionId(1)
     }
 
@@ -112,7 +112,7 @@ impl EnemyHoveringAttackType {
     /// making distant projectiles slightly easier to shoot than their visual
     /// size suggests — acceptable for gameplay readability.
     #[must_use]
-    pub fn base_collider_radius(&self) -> f32 {
+    pub const fn base_collider_radius(&self) -> f32 {
         match self {
             Self::BloodShot => 18.,
             Self::BoulderThrow => 23.,

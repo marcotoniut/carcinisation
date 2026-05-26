@@ -617,12 +617,12 @@ struct ImageKey {
     pixels: Vec<u8>,
 }
 
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde skip_serializing_if requires &T
-fn is_zero_u32(v: &u32) -> bool {
+const fn is_zero_u32(v: &u32) -> bool {
     *v == 0
 }
 
@@ -1111,7 +1111,7 @@ fn grayscale_ramp_mapping(source: &RgbaImage, palette: &[Rgba<u8>]) -> HashMap<[
         .collect()
 }
 
-fn is_grayscale(pixel: Rgba<u8>) -> bool {
+const fn is_grayscale(pixel: Rgba<u8>) -> bool {
     let [r, g, b, _] = pixel.0;
     r == g && g == b
 }
@@ -1242,7 +1242,7 @@ fn resolve_origin(aseprite: &AsepriteFile<'_>, slice_name: &str) -> Result<Point
     })
 }
 
-fn key_matches_origin(reference: &SliceKey, candidate: &SliceKey) -> bool {
+const fn key_matches_origin(reference: &SliceKey, candidate: &SliceKey) -> bool {
     reference.x == candidate.x
         && reference.y == candidate.y
         && reference.width == candidate.width
@@ -3113,7 +3113,7 @@ impl CompositionPartSource {
     }
 
     /// Whether this part is visual (has a source layer or region).
-    fn is_visual(&self) -> bool {
+    const fn is_visual(&self) -> bool {
         self.source_layer.is_some() || self.source_region.is_some()
     }
 }

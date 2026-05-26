@@ -24,15 +24,15 @@ impl Plugin for LetterboxPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Time<LetterboxTimeDomain>>()
             .add_message::<LetterboxMoveEvent>()
-            .on_active::<LetterboxPlugin, _>(on_letterbox_startup)
-            .on_inactive::<LetterboxPlugin, _>(on_letterbox_shutdown)
+            .on_active::<Self, _>(on_letterbox_startup)
+            .on_inactive::<Self, _>(on_letterbox_shutdown)
             .add_plugins(LinearTweenPlugin::<LetterboxTimeDomain, TargetingValueY>::default())
             .add_observer(on_move)
-            .add_active_systems_in::<LetterboxPlugin, _>(
+            .add_active_systems_in::<Self, _>(
                 FixedUpdate,
                 // Keep letterbox movement timers in sync when active.
                 tick_time::<Fixed, LetterboxTimeDomain>,
             )
-            .add_systems(Startup, activate_system::<LetterboxPlugin>);
+            .add_systems(Startup, activate_system::<Self>);
     }
 }

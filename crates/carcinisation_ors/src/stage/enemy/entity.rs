@@ -28,15 +28,15 @@ impl EnemyType {
 
     /// Returns the sprite base name for this enemy type
     #[must_use]
-    pub fn sprite_base_name(&self) -> &'static str {
+    pub const fn sprite_base_name(&self) -> &'static str {
         match self {
-            EnemyType::Mosquito => "mosquito",
-            EnemyType::Mosquiton => "mosquiton",
-            EnemyType::Spidey => "spidey",
-            EnemyType::Tardigrade => "tardigrade",
-            EnemyType::Marauder => "marauder",
-            EnemyType::Spidomonsta => "spidomonsta",
-            EnemyType::Kyle => "kyle",
+            Self::Mosquito => "mosquito",
+            Self::Mosquiton => "mosquiton",
+            Self::Spidey => "spidey",
+            Self::Tardigrade => "tardigrade",
+            Self::Marauder => "marauder",
+            Self::Spidomonsta => "spidomonsta",
+            Self::Kyle => "kyle",
         }
     }
 
@@ -46,9 +46,9 @@ impl EnemyType {
     /// fallback scaling via [`DepthScaleConfig`]. Returns `None` for
     /// non-composed enemy types (e.g. regular Mosquito uses per-depth sprites).
     #[must_use]
-    pub fn composed_authored_depth(&self) -> Option<Depth> {
+    pub const fn composed_authored_depth(&self) -> Option<Depth> {
         match self {
-            EnemyType::Mosquiton | EnemyType::Spidey => Some(Depth::Three),
+            Self::Mosquiton | Self::Spidey => Some(Depth::Three),
             _ => None,
         }
     }

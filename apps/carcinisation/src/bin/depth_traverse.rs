@@ -164,20 +164,20 @@ enum SelectedCharacter {
 }
 
 impl SelectedCharacter {
-    fn enemy_type(self) -> EnemyType {
+    const fn enemy_type(self) -> EnemyType {
         match self {
             Self::Mosquiton => EnemyType::Mosquiton,
             Self::Spidey => EnemyType::Spidey,
         }
     }
 
-    fn authored_depth(self) -> Depth {
+    const fn authored_depth(self) -> Depth {
         match self {
             Self::Mosquiton | Self::Spidey => Depth::Three,
         }
     }
 
-    fn initial_animation(self) -> &'static str {
+    const fn initial_animation(self) -> &'static str {
         match self {
             Self::Mosquiton => "walk_forward",
             Self::Spidey => "idle",
@@ -655,12 +655,12 @@ fn advance_walk(
                 // Airborne: air anchor (body centre) at flight altitude.
                 let body_height_grounded = anchors.ground - anchors.air;
                 let flight_altitude = body_height_grounded + FLY_HEIGHT_OFFSET;
-                let airborne_ref = floor_y + flight_altitude * fallback_scale;
-                let visual_y = airborne_ref + anchors.air * fallback_scale;
+                let airborne_ref = flight_altitude.mul_add(fallback_scale, floor_y);
+                let visual_y = anchors.air.mul_add(fallback_scale, airborne_ref);
                 pos.0 = Vec2::new(lane_x, visual_y);
             } else {
                 // Grounded: ground anchor sits on the floor.
-                let visual_y = floor_y + anchors.ground * fallback_scale;
+                let visual_y = anchors.ground.mul_add(fallback_scale, floor_y);
                 pos.0 = Vec2::new(lane_x, visual_y);
             }
         } else {
@@ -899,8 +899,8 @@ fn advance_spidey(
                     anim.set_hold_last_frame(false);
                 }
 
-                let travel_t = start_t + (target_t - start_t) * frac;
-                let y_linear = start_y + (target_y - start_y) * frac;
+                let travel_t = (target_t - start_t).mul_add(frac, start_t);
+                let y_linear = (target_y - start_y).mul_add(frac, start_y);
                 let scale = spidey_jump_arc_scale(depth_scale, *depth, target_depth, frac);
                 let arc = 4.0 * SPIDEY_JUMP_ARC_HEIGHT * scale * frac * (1.0 - frac);
                 let visual_y = y_linear + arc;
@@ -911,7 +911,7 @@ fn advance_spidey(
                     compute_visual_x(CENTER_X, start_y, &profile.profile, &projection_view);
                 let target_x =
                     compute_visual_x(CENTER_X, target_y, &profile.profile, &projection_view);
-                pos.0 = Vec2::new(start_x + (target_x - start_x) * frac, visual_y);
+                pos.0 = Vec2::new((target_x - start_x).mul_add(frac, start_x), visual_y);
                 progress.t = travel_t;
 
                 progress.phase = WalkPhase::SpideyJumping {
@@ -959,7 +959,7 @@ fn spidey_jump_arc_scale(
 ) -> f32 {
     let start_scale = depth_scale.scale_for(start_depth).unwrap_or(1.0);
     let target_scale = depth_scale.scale_for(target_depth).unwrap_or(start_scale);
-    start_scale + (target_scale - start_scale) * frac.clamp(0.0, 1.0)
+    (target_scale - start_scale).mul_add(frac.clamp(0.0, 1.0), start_scale)
 }
 
 fn spidey_depth_ratio(
@@ -979,7 +979,7 @@ fn spidey_interpolated_depth_ratio(
 ) -> f32 {
     let start = spidey_depth_ratio(depth_scale, authored_depths, start_depth);
     let target = spidey_depth_ratio(depth_scale, authored_depths, target_depth);
-    start + (target - start) * frac.clamp(0.0, 1.0)
+    (target - start).mul_add(frac.clamp(0.0, 1.0), start)
 }
 
 #[allow(clippy::type_complexity)]

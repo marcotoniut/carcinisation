@@ -33,12 +33,8 @@ impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app.insert_state(MainMenuScreen::default())
             .init_resource::<DifficultySelection>()
-            .on_active::<MainMenuPlugin, _>((
-                spawn_main_menu,
-                on_main_menu_startup,
-                spawn_main_menu_music,
-            ))
-            .on_inactive::<MainMenuPlugin, _>((on_main_menu_shutdown, cleanup_main_menu_music))
+            .on_active::<Self, _>((spawn_main_menu, on_main_menu_startup, spawn_main_menu_music))
+            .on_inactive::<Self, _>((on_main_menu_shutdown, cleanup_main_menu_music))
             .add_systems(
                 OnEnter(MainMenuScreen::PressStart),
                 enter_press_start_screen,
@@ -52,7 +48,7 @@ impl Plugin for MainMenuPlugin {
                 OnExit(MainMenuScreen::DifficultySelect),
                 exit_game_difficulty_screen,
             )
-            .add_active_systems::<MainMenuPlugin, _>(
+            .add_active_systems::<Self, _>(
                 // Handle input according to the active menu screen.
                 (
                     (check_press_start_input).run_if(in_state(MainMenuScreen::PressStart)),

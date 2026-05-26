@@ -22,7 +22,7 @@ pub struct PickupDropPhysics {
 impl PickupDropPhysics {
     /// Creates drop physics with an initial upward velocity.
     #[must_use]
-    pub fn new(spawn_y: f32, floor_y: f32, gravity: f32) -> Self {
+    pub const fn new(spawn_y: f32, floor_y: f32, gravity: f32) -> Self {
         Self {
             velocity_y: 60.0,
             gravity,
@@ -36,7 +36,7 @@ pub struct HealthRecovery(pub u32);
 
 impl HealthRecovery {
     #[must_use]
-    pub fn score_deduction(&self) -> i32 {
+    pub const fn score_deduction(&self) -> i32 {
         -(self.0 as i32) * 2
     }
 }
@@ -63,7 +63,7 @@ pub struct PickupFeedbackGlitter {
 
 impl PickupFeedbackGlitter {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         start_at: Duration,
         end_at: Duration,
         toggle_interval: Duration,

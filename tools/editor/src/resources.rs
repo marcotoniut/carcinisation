@@ -8,7 +8,7 @@ use carcinisation_ors::stage::{
 use bevy::{prelude::*, sprite::Anchor};
 use serde::{Deserialize, Serialize};
 
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 
@@ -84,7 +84,7 @@ pub struct StageControlsUI {
 
 impl Default for StageControlsUI {
     fn default() -> Self {
-        StageControlsUI {
+        Self {
             elapsed_path: true,
             show_all_spawns: false,
             elapsed_duration: Duration::from_secs(999),
@@ -108,22 +108,22 @@ impl Default for StageControlsUI {
 
 impl StageControlsUI {
     /// Whether the elapsed camera path overlay is visible.
-    pub fn path_is_visible(&self) -> bool {
+    pub const fn path_is_visible(&self) -> bool {
         self.elapsed_path
     }
 
     /// Whether the stage background is visible.
-    pub fn background_is_visible(&self) -> bool {
+    pub const fn background_is_visible(&self) -> bool {
         self.background
     }
 
     /// Whether the stage skybox is visible.
-    pub fn skybox_is_visible(&self) -> bool {
+    pub const fn skybox_is_visible(&self) -> bool {
         self.skybox
     }
 
     /// Whether entities at the requested depth should be rendered.
-    pub fn depth_is_visible(&self, depth: Depth) -> bool {
+    pub const fn depth_is_visible(&self, depth: Depth) -> bool {
         match depth {
             Depth::Nine => self.nine,
             Depth::Eight => self.eight,

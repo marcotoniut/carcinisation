@@ -28,7 +28,7 @@ impl Plugin for TransitionVenetianPlugin {
             .add_observer(on_transition_startup)
             .add_message::<TransitionVenetianShutdownEvent>()
             .add_observer(on_transition_shutdown)
-            .add_active_systems_in::<TransitionVenetianPlugin, _>(
+            .add_active_systems_in::<Self, _>(
                 FixedUpdate,
                 (
                     tick_timer,

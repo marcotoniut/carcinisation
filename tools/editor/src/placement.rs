@@ -33,48 +33,48 @@ pub enum SpawnTemplate {
 
 impl SpawnTemplate {
     /// Human-readable label for the palette.
-    pub fn label(&self) -> &'static str {
+    pub const fn label(&self) -> &'static str {
         match self {
-            SpawnTemplate::Object(ObjectType::BenchBig) => "Bench (Big)",
-            SpawnTemplate::Object(ObjectType::BenchSmall) => "Bench (Small)",
-            SpawnTemplate::Object(ObjectType::Fibertree) => "Fiber Tree",
-            SpawnTemplate::Object(ObjectType::RugparkSign) => "Rugpark Sign",
-            SpawnTemplate::Destructible(DestructibleType::Lamp) => "Lamp",
-            SpawnTemplate::Destructible(DestructibleType::Trashcan) => "Trashcan",
-            SpawnTemplate::Destructible(DestructibleType::Crystal) => "Crystal",
-            SpawnTemplate::Destructible(DestructibleType::Mushroom) => "Mushroom",
-            SpawnTemplate::Pickup(PickupType::SmallHealth) => "Health (Small)",
-            SpawnTemplate::Pickup(PickupType::BigHealth) => "Health (Big)",
-            SpawnTemplate::Pickup(PickupType::Flamethrower) => "Flamethrower",
-            SpawnTemplate::Pickup(PickupType::Bullet) => "Bullet",
-            SpawnTemplate::Pickup(PickupType::Piercing) => "Piercing",
-            SpawnTemplate::Pickup(PickupType::Bomb) => "Bomb",
-            SpawnTemplate::Enemy(EnemyType::Mosquito) => "Mosquito",
-            SpawnTemplate::Enemy(EnemyType::Mosquiton) => "Mosquiton",
-            SpawnTemplate::Enemy(EnemyType::Tardigrade) => "Tardigrade",
-            SpawnTemplate::Enemy(EnemyType::Spidey) => "Spidey",
-            SpawnTemplate::Enemy(EnemyType::Marauder) => "Marauder",
-            SpawnTemplate::Enemy(EnemyType::Spidomonsta) => "Spidomonsta",
-            SpawnTemplate::Enemy(EnemyType::Kyle) => "Kyle",
+            Self::Object(ObjectType::BenchBig) => "Bench (Big)",
+            Self::Object(ObjectType::BenchSmall) => "Bench (Small)",
+            Self::Object(ObjectType::Fibertree) => "Fiber Tree",
+            Self::Object(ObjectType::RugparkSign) => "Rugpark Sign",
+            Self::Destructible(DestructibleType::Lamp) => "Lamp",
+            Self::Destructible(DestructibleType::Trashcan) => "Trashcan",
+            Self::Destructible(DestructibleType::Crystal) => "Crystal",
+            Self::Destructible(DestructibleType::Mushroom) => "Mushroom",
+            Self::Pickup(PickupType::SmallHealth) => "Health (Small)",
+            Self::Pickup(PickupType::BigHealth) => "Health (Big)",
+            Self::Pickup(PickupType::Flamethrower) => "Flamethrower",
+            Self::Pickup(PickupType::Bullet) => "Bullet",
+            Self::Pickup(PickupType::Piercing) => "Piercing",
+            Self::Pickup(PickupType::Bomb) => "Bomb",
+            Self::Enemy(EnemyType::Mosquito) => "Mosquito",
+            Self::Enemy(EnemyType::Mosquiton) => "Mosquiton",
+            Self::Enemy(EnemyType::Tardigrade) => "Tardigrade",
+            Self::Enemy(EnemyType::Spidey) => "Spidey",
+            Self::Enemy(EnemyType::Marauder) => "Marauder",
+            Self::Enemy(EnemyType::Spidomonsta) => "Spidomonsta",
+            Self::Enemy(EnemyType::Kyle) => "Kyle",
         }
     }
 
     /// Instantiate a `StageSpawn` at the given coordinates with the given depth.
     pub fn instantiate(&self, coordinates: Vec2, depth: Depth) -> StageSpawn {
         match self {
-            SpawnTemplate::Object(ObjectType::BenchBig) => StageSpawn::Object(
+            Self::Object(ObjectType::BenchBig) => StageSpawn::Object(
                 ObjectSpawn::bench_big_base(coordinates.x, coordinates.y).with_depth(depth),
             ),
-            SpawnTemplate::Object(ObjectType::BenchSmall) => StageSpawn::Object(
+            Self::Object(ObjectType::BenchSmall) => StageSpawn::Object(
                 ObjectSpawn::bench_small_base(coordinates.x, coordinates.y).with_depth(depth),
             ),
-            SpawnTemplate::Object(ObjectType::Fibertree) => StageSpawn::Object(
+            Self::Object(ObjectType::Fibertree) => StageSpawn::Object(
                 ObjectSpawn::fibertree_base(coordinates.x, coordinates.y).with_depth(depth),
             ),
-            SpawnTemplate::Object(ObjectType::RugparkSign) => StageSpawn::Object(
+            Self::Object(ObjectType::RugparkSign) => StageSpawn::Object(
                 ObjectSpawn::rugpark_sign_base(coordinates.x, coordinates.y).with_depth(depth),
             ),
-            SpawnTemplate::Destructible(DestructibleType::Lamp) => {
+            Self::Destructible(DestructibleType::Lamp) => {
                 StageSpawn::Destructible(DestructibleSpawn {
                     destructible_type: DestructibleType::Lamp,
                     coordinates,
@@ -84,7 +84,7 @@ impl SpawnTemplate {
                     authored_depths: None,
                 })
             }
-            SpawnTemplate::Destructible(DestructibleType::Trashcan) => {
+            Self::Destructible(DestructibleType::Trashcan) => {
                 StageSpawn::Destructible(DestructibleSpawn {
                     destructible_type: DestructibleType::Trashcan,
                     coordinates,
@@ -94,7 +94,7 @@ impl SpawnTemplate {
                     authored_depths: None,
                 })
             }
-            SpawnTemplate::Destructible(DestructibleType::Crystal) => {
+            Self::Destructible(DestructibleType::Crystal) => {
                 StageSpawn::Destructible(DestructibleSpawn {
                     destructible_type: DestructibleType::Crystal,
                     coordinates,
@@ -104,7 +104,7 @@ impl SpawnTemplate {
                     authored_depths: None,
                 })
             }
-            SpawnTemplate::Destructible(DestructibleType::Mushroom) => {
+            Self::Destructible(DestructibleType::Mushroom) => {
                 StageSpawn::Destructible(DestructibleSpawn {
                     destructible_type: DestructibleType::Mushroom,
                     coordinates,
@@ -114,12 +114,12 @@ impl SpawnTemplate {
                     authored_depths: None,
                 })
             }
-            SpawnTemplate::Pickup(pickup_type) => StageSpawn::Pickup(
+            Self::Pickup(pickup_type) => StageSpawn::Pickup(
                 PickupSpawn::base(*pickup_type)
                     .with_coordinates(coordinates)
                     .with_depth(depth),
             ),
-            SpawnTemplate::Enemy(enemy_type) => {
+            Self::Enemy(enemy_type) => {
                 let base = match enemy_type {
                     EnemyType::Mosquito => EnemySpawn::mosquito_base(),
                     EnemyType::Mosquiton => EnemySpawn::mosquiton_base(),
@@ -135,23 +135,23 @@ impl SpawnTemplate {
     /// Whether this template has a valid sprite at the given depth.
     pub fn has_sprite_at_depth(&self, depth: Depth) -> bool {
         match self {
-            SpawnTemplate::Object(object_type) => match object_type {
+            Self::Object(object_type) => match object_type {
                 ObjectType::BenchBig | ObjectType::BenchSmall => {
                     matches!(depth, Depth::Six | Depth::Seven | Depth::Eight)
                 }
                 ObjectType::Fibertree => matches!(depth, Depth::Two | Depth::Three),
                 ObjectType::RugparkSign => matches!(depth, Depth::Three | Depth::Four),
             },
-            SpawnTemplate::Destructible(dt) => match dt {
+            Self::Destructible(dt) => match dt {
                 DestructibleType::Lamp => depth == Depth::Three,
                 DestructibleType::Trashcan => matches!(depth, Depth::Four | Depth::Six),
                 DestructibleType::Crystal => depth == Depth::Five,
                 DestructibleType::Mushroom => depth == Depth::Four,
             },
-            SpawnTemplate::Pickup(_) => {
+            Self::Pickup(_) => {
                 matches!(depth, Depth::Four | Depth::Five | Depth::Six)
             }
-            SpawnTemplate::Enemy(enemy_type) => {
+            Self::Enemy(enemy_type) => {
                 // Check composed atlas or spritesheet.
                 let base = crate::constants::assets_root().join(format!(
                     "sprites/enemies/{}_{}",
@@ -165,77 +165,77 @@ impl SpawnTemplate {
     }
 
     /// Returns the default depth for this template.
-    pub fn default_depth(&self) -> Depth {
+    pub const fn default_depth(&self) -> Depth {
         match self {
-            SpawnTemplate::Object(ObjectType::Fibertree) => Depth::Two,
-            SpawnTemplate::Destructible(DestructibleType::Mushroom) => Depth::Four,
-            SpawnTemplate::Destructible(DestructibleType::Crystal) => Depth::Five,
-            SpawnTemplate::Destructible(DestructibleType::Trashcan)
-            | SpawnTemplate::Pickup(_)
-            | SpawnTemplate::Enemy(EnemyType::Tardigrade) => Depth::Six,
-            SpawnTemplate::Object(ObjectType::BenchBig | ObjectType::BenchSmall) => Depth::Eight,
-            SpawnTemplate::Object(ObjectType::RugparkSign)
-            | SpawnTemplate::Destructible(DestructibleType::Lamp)
-            | SpawnTemplate::Enemy(_) => Depth::Three,
+            Self::Object(ObjectType::Fibertree) => Depth::Two,
+            Self::Destructible(DestructibleType::Mushroom) => Depth::Four,
+            Self::Destructible(DestructibleType::Crystal) => Depth::Five,
+            Self::Destructible(DestructibleType::Trashcan)
+            | Self::Pickup(_)
+            | Self::Enemy(EnemyType::Tardigrade) => Depth::Six,
+            Self::Object(ObjectType::BenchBig | ObjectType::BenchSmall) => Depth::Eight,
+            Self::Object(ObjectType::RugparkSign)
+            | Self::Destructible(DestructibleType::Lamp)
+            | Self::Enemy(_) => Depth::Three,
         }
     }
 
     /// All available templates, grouped for the palette UI.
-    pub fn all_objects() -> Vec<SpawnTemplate> {
+    pub fn all_objects() -> Vec<Self> {
         vec![
-            SpawnTemplate::Object(ObjectType::BenchBig),
-            SpawnTemplate::Object(ObjectType::BenchSmall),
-            SpawnTemplate::Object(ObjectType::Fibertree),
-            SpawnTemplate::Object(ObjectType::RugparkSign),
+            Self::Object(ObjectType::BenchBig),
+            Self::Object(ObjectType::BenchSmall),
+            Self::Object(ObjectType::Fibertree),
+            Self::Object(ObjectType::RugparkSign),
         ]
     }
 
-    pub fn all_destructibles() -> Vec<SpawnTemplate> {
+    pub fn all_destructibles() -> Vec<Self> {
         vec![
-            SpawnTemplate::Destructible(DestructibleType::Lamp),
-            SpawnTemplate::Destructible(DestructibleType::Trashcan),
-            SpawnTemplate::Destructible(DestructibleType::Crystal),
-            SpawnTemplate::Destructible(DestructibleType::Mushroom),
+            Self::Destructible(DestructibleType::Lamp),
+            Self::Destructible(DestructibleType::Trashcan),
+            Self::Destructible(DestructibleType::Crystal),
+            Self::Destructible(DestructibleType::Mushroom),
         ]
     }
 
-    pub fn all_pickups() -> Vec<SpawnTemplate> {
+    pub fn all_pickups() -> Vec<Self> {
         vec![
-            SpawnTemplate::Pickup(PickupType::SmallHealth),
-            SpawnTemplate::Pickup(PickupType::BigHealth),
-            SpawnTemplate::Pickup(PickupType::Flamethrower),
-            SpawnTemplate::Pickup(PickupType::Bullet),
-            SpawnTemplate::Pickup(PickupType::Piercing),
-            SpawnTemplate::Pickup(PickupType::Bomb),
+            Self::Pickup(PickupType::SmallHealth),
+            Self::Pickup(PickupType::BigHealth),
+            Self::Pickup(PickupType::Flamethrower),
+            Self::Pickup(PickupType::Bullet),
+            Self::Pickup(PickupType::Piercing),
+            Self::Pickup(PickupType::Bomb),
         ]
     }
 
-    pub fn all_enemies() -> Vec<SpawnTemplate> {
+    pub fn all_enemies() -> Vec<Self> {
         vec![
-            SpawnTemplate::Enemy(EnemyType::Mosquito),
-            SpawnTemplate::Enemy(EnemyType::Mosquiton),
-            SpawnTemplate::Enemy(EnemyType::Tardigrade),
-            SpawnTemplate::Enemy(EnemyType::Spidey),
-            SpawnTemplate::Enemy(EnemyType::Marauder),
-            SpawnTemplate::Enemy(EnemyType::Spidomonsta),
-            SpawnTemplate::Enemy(EnemyType::Kyle),
+            Self::Enemy(EnemyType::Mosquito),
+            Self::Enemy(EnemyType::Mosquiton),
+            Self::Enemy(EnemyType::Tardigrade),
+            Self::Enemy(EnemyType::Spidey),
+            Self::Enemy(EnemyType::Marauder),
+            Self::Enemy(EnemyType::Spidomonsta),
+            Self::Enemy(EnemyType::Kyle),
         ]
     }
 
     /// Available animation actions for composed enemies. `None` for non-composed types.
-    pub fn available_animation_actions(&self) -> Option<&'static [&'static str]> {
+    pub const fn available_animation_actions(&self) -> Option<&'static [&'static str]> {
         match self {
-            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::GALLERY_ACTIONS),
-            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::GALLERY_ACTIONS),
+            Self::Enemy(EnemyType::Mosquiton) => Some(mosquiton::GALLERY_ACTIONS),
+            Self::Enemy(EnemyType::Spidey) => Some(spidey::GALLERY_ACTIONS),
             _ => None,
         }
     }
 
     /// Default animation action for preview. `None` for non-composed types.
-    pub fn default_animation_action(&self) -> Option<&'static str> {
+    pub const fn default_animation_action(&self) -> Option<&'static str> {
         match self {
-            SpawnTemplate::Enemy(EnemyType::Mosquiton) => Some(mosquiton::ACTION_IDLE_FLY),
-            SpawnTemplate::Enemy(EnemyType::Spidey) => Some(spidey::ACTION_IDLE),
+            Self::Enemy(EnemyType::Mosquiton) => Some(mosquiton::ACTION_IDLE_FLY),
+            Self::Enemy(EnemyType::Spidey) => Some(spidey::ACTION_IDLE),
             _ => None,
         }
     }

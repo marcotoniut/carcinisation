@@ -172,7 +172,11 @@ pub fn inspector_ui(world: &mut World) {
                 let button_height = ui.spacing().interact_size.y;
                 let save_width = 46.0;
                 let select_width = 92.0;
-                let button_total = save_width + select_width + ui.spacing().item_spacing.x * 2.0;
+                let button_total = ui
+                    .spacing()
+                    .item_spacing
+                    .x
+                    .mul_add(2.0, save_width + select_width);
                 let path_width = (ui.available_width() - button_total).max(140.0);
 
                 ui.add_sized(
@@ -695,7 +699,7 @@ fn projection_source_label(
 }
 
 /// Returns `true` if the step has an explicit projection override.
-fn step_has_projection(step: &carcinisation_ors::stage::data::StageStep) -> bool {
+const fn step_has_projection(step: &carcinisation_ors::stage::data::StageStep) -> bool {
     use carcinisation_ors::stage::data::StageStep;
     match step {
         StageStep::Tween(s) => s.projection.is_some(),

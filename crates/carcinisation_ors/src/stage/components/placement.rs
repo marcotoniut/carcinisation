@@ -46,24 +46,24 @@ impl Default for Depth {
 }
 
 impl Add<i8> for Depth {
-    type Output = Depth;
+    type Output = Self;
 
-    fn add(self, other: i8) -> Depth {
+    fn add(self, other: i8) -> Self {
         let value = (self as i8 + other)
-            .min(Depth::MAX.to_i8())
-            .max(Depth::MIN.to_i8());
-        Depth::try_from(value).unwrap_or(Depth::MAX)
+            .min(Self::MAX.to_i8())
+            .max(Self::MIN.to_i8());
+        Self::try_from(value).unwrap_or(Self::MAX)
     }
 }
 
 impl Sub<i8> for Depth {
-    type Output = Depth;
+    type Output = Self;
 
-    fn sub(self, other: i8) -> Depth {
+    fn sub(self, other: i8) -> Self {
         let value = (self as i8 - other)
-            .min(Depth::MAX.to_i8())
-            .max(Depth::MIN.to_i8());
-        Depth::try_from(value).unwrap_or(Depth::MIN)
+            .min(Self::MAX.to_i8())
+            .max(Self::MIN.to_i8());
+        Self::try_from(value).unwrap_or(Self::MIN)
     }
 }
 
@@ -77,7 +77,7 @@ impl Depth {
     }
 
     #[must_use]
-    pub fn to_i8(&self) -> i8 {
+    pub const fn to_i8(&self) -> i8 {
         *self as i8
     }
 
@@ -102,7 +102,7 @@ impl Depth {
     }
 
     #[must_use]
-    pub fn to_layer(&self) -> Layer {
+    pub const fn to_layer(&self) -> Layer {
         match self {
             Self::Nine => Layer::Ors(OrsLayer::PreBackgroundDepth(PreBackgroundDepth::Nine)),
             Self::Eight => Layer::Ors(OrsLayer::PreBackgroundDepth(PreBackgroundDepth::Eight)),
@@ -199,7 +199,7 @@ impl AuthoredDepths {
 
     /// Returns `true` if the set is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 }
@@ -241,7 +241,7 @@ pub struct AnchorOffsets {
 impl AnchorOffsets {
     /// Returns the active anchor offset based on whether the entity is airborne.
     #[must_use]
-    pub fn active_offset(&self, airborne: bool) -> f32 {
+    pub const fn active_offset(&self, airborne: bool) -> f32 {
         if airborne { self.air } else { self.ground }
     }
 }

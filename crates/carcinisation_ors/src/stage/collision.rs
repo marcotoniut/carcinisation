@@ -124,7 +124,7 @@ struct ComposedHitSelection {
 }
 
 #[must_use]
-pub fn build_attack_mask(
+pub const fn build_attack_mask(
     attack_data: &SpritePixelData,
     attack_frame: Option<CxFrameView>,
     rect_world: IRect,

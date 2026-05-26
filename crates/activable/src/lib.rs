@@ -34,17 +34,17 @@ pub enum ActiveState<P: Activable> {
 impl<P: Activable> ActiveState<P> {
     #[inline]
     #[must_use]
-    pub fn inactive() -> Self {
+    pub const fn inactive() -> Self {
         Self::Inactive(PhantomData)
     }
     #[inline]
     #[must_use]
-    pub fn active() -> Self {
+    pub const fn active() -> Self {
         Self::Active(PhantomData)
     }
 
     #[inline]
-    fn is_active(self) -> bool {
+    const fn is_active(self) -> bool {
         matches!(self, Self::Active(_))
     }
 }

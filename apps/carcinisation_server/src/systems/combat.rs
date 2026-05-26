@@ -293,7 +293,7 @@ pub fn process_combat(
                     if along <= 0.0 || along > wall_dist {
                         continue;
                     }
-                    let perp_sq = to_proj.length_squared() - along * along;
+                    let perp_sq = along.mul_add(-along, to_proj.length_squared());
                     if perp_sq
                         < combat_config.projectile_hit_radius * combat_config.projectile_hit_radius
                         && closest_proj.is_none_or(|(_, _, _, d, _)| along < d)

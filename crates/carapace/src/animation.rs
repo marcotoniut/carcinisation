@@ -80,13 +80,13 @@ impl Default for CxAnimationDuration {
 impl CxAnimationDuration {
     /// Creates a [`CxAnimationDuration::PerAnimation`] with the given number of milliseconds.
     #[must_use]
-    pub fn millis_per_animation(millis: u64) -> Self {
+    pub const fn millis_per_animation(millis: u64) -> Self {
         Self::PerAnimation(Duration::from_millis(millis))
     }
 
     /// Creates a [`CxAnimationDuration::PerFrame`] with the given number of milliseconds.
     #[must_use]
-    pub fn millis_per_frame(millis: u64) -> Self {
+    pub const fn millis_per_frame(millis: u64) -> Self {
         Self::PerFrame(Duration::from_millis(millis))
     }
 }

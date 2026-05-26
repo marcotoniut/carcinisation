@@ -454,8 +454,8 @@ fn blend_pixel(dst: Rgba<u8>, src: Rgba<u8>) -> Rgba<u8> {
 
     let mut out = [0u8; 4];
     for index in 0..3 {
-        let blended = (f32::from(src[index]) * alpha
-            + f32::from(dst[index]) * dst_alpha * inv_alpha)
+        let blended = f32::from(src[index])
+            .mul_add(alpha, f32::from(dst[index]) * dst_alpha * inv_alpha)
             / out_alpha;
         out[index] = blended.round().clamp(0.0, 255.0) as u8;
     }
@@ -477,7 +477,7 @@ fn rgba_image_to_bevy_image(image: &RgbaImage) -> Image {
     )
 }
 
-fn ivec2_from_point(point: asset_pipeline::aseprite::Point) -> IVec2 {
+const fn ivec2_from_point(point: asset_pipeline::aseprite::Point) -> IVec2 {
     IVec2::new(point.x, point.y)
 }
 

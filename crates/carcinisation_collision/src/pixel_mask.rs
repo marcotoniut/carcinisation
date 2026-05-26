@@ -178,7 +178,7 @@ impl SpritePixelData {
     }
 
     #[must_use]
-    pub fn frame_size(&self) -> UVec2 {
+    pub const fn frame_size(&self) -> UVec2 {
         UVec2::new(self.width, self.height)
     }
 
@@ -225,14 +225,14 @@ impl AtlasPixelData {
 }
 
 impl AtlasMaskFrames<'_> {
-    fn frame_count(self) -> usize {
+    const fn frame_count(self) -> usize {
         match self {
             Self::Region(region) => region.frame_count(),
             Self::Single(_) => 1,
         }
     }
 
-    fn frame_size(self) -> UVec2 {
+    const fn frame_size(self) -> UVec2 {
         match self {
             Self::Region(region) => region.frame_size,
             Self::Single(rect) => UVec2::new(rect.w, rect.h),
@@ -249,7 +249,7 @@ impl AtlasMaskFrames<'_> {
 
 impl PixelMaskSource<'_> {
     #[must_use]
-    pub fn frame_size(self) -> UVec2 {
+    pub const fn frame_size(self) -> UVec2 {
         match self {
             Self::Sprite(sprite) => sprite.frame_size(),
             Self::Atlas { frames, .. } => frames.frame_size(),
@@ -257,7 +257,7 @@ impl PixelMaskSource<'_> {
     }
 
     #[must_use]
-    pub fn frame_count(self) -> usize {
+    pub const fn frame_count(self) -> usize {
         match self {
             Self::Sprite(sprite) => sprite.frame_count,
             Self::Atlas { frames, .. } => frames.frame_count(),
@@ -1232,7 +1232,7 @@ impl AtlasBoundaryCache {
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 }

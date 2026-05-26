@@ -304,7 +304,9 @@ pub fn evaluate_floors_at(stage_data: &StageData, elapsed: Duration) -> ActiveFl
                     // one surface per depth; multi-surface matching extends this
                     // to Vec pairs when authored content uses stacked surfaces.
                     let surface = match (prev_y, curr_y) {
-                        (Some(a), Some(b)) => Surface::Solid { y: a + (b - a) * t },
+                        (Some(a), Some(b)) => Surface::Solid {
+                            y: (b - a).mul_add(t, a),
+                        },
                         // Y appears mid-tween → snap to destination.
                         (None, Some(b)) => Surface::Solid { y: b },
                         // Y absent or disappearing → gap.

@@ -179,10 +179,10 @@ impl CxAnchor {
     /// which matters at small sprite sizes / extreme fallback scales.
     pub(crate) fn x_pos(self, width: u32) -> u32 {
         match self {
-            CxAnchor::BottomLeft | CxAnchor::CenterLeft | CxAnchor::TopLeft => 0,
-            CxAnchor::BottomCenter | CxAnchor::Center | CxAnchor::TopCenter => width / 2,
-            CxAnchor::BottomRight | CxAnchor::CenterRight | CxAnchor::TopRight => width,
-            CxAnchor::Custom(anchor) => (width as f32 * anchor.x).round() as u32,
+            Self::BottomLeft | Self::CenterLeft | Self::TopLeft => 0,
+            Self::BottomCenter | Self::Center | Self::TopCenter => width / 2,
+            Self::BottomRight | Self::CenterRight | Self::TopRight => width,
+            Self::Custom(anchor) => (width as f32 * anchor.x).round() as u32,
         }
     }
 
@@ -191,10 +191,10 @@ impl CxAnchor {
     /// which matters at small sprite sizes / extreme fallback scales.
     pub(crate) fn y_pos(self, height: u32) -> u32 {
         match self {
-            CxAnchor::BottomLeft | CxAnchor::BottomCenter | CxAnchor::BottomRight => 0,
-            CxAnchor::CenterLeft | CxAnchor::Center | CxAnchor::CenterRight => height / 2,
-            CxAnchor::TopLeft | CxAnchor::TopCenter | CxAnchor::TopRight => height,
-            CxAnchor::Custom(anchor) => (height as f32 * anchor.y).round() as u32,
+            Self::BottomLeft | Self::BottomCenter | Self::BottomRight => 0,
+            Self::CenterLeft | Self::Center | Self::CenterRight => height / 2,
+            Self::TopLeft | Self::TopCenter | Self::TopRight => height,
+            Self::Custom(anchor) => (height as f32 * anchor.y).round() as u32,
         }
     }
 

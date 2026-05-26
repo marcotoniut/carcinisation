@@ -124,7 +124,7 @@ pub fn spawn_boulder_throw_attack(
     let speed_x = d.x / t;
 
     // TODO: remember that boulder throws in outer space wouldn't have as much gravity, if any
-    let value = d.y - 0.5 * config.line_y_acceleration.get() * t.powi(2);
+    let value = (0.5 * config.line_y_acceleration.get()).mul_add(-t.powi(2), d.y);
     let speed_y = if value / t >= 0.0 { value / t } else { 0.0 };
 
     let mut entity_commands = commands.spawn(BoulderThrowBundle {

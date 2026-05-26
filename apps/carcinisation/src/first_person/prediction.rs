@@ -246,11 +246,11 @@ impl PredictedRenderState {
         } else {
             1.0
         };
-        self.prev_angle + shortest_angle_delta(self.prev_angle, self.current_angle) * t
+        shortest_angle_delta(self.prev_angle, self.current_angle).mul_add(t, self.prev_angle)
     }
 
     /// Called by `apply_predicted_movement` after advancing the predicted state.
-    pub fn on_fixed_tick(&mut self, position: Vec2, angle: f32, dt: f32) {
+    pub const fn on_fixed_tick(&mut self, position: Vec2, angle: f32, dt: f32) {
         self.prev_position = self.current_position;
         self.prev_angle = self.current_angle;
         self.current_position = position;
@@ -278,7 +278,7 @@ impl PredictedRenderState {
     /// toward the corrected state over the remaining interval. This
     /// eliminates the one-frame delay that would otherwise occur if we
     /// waited for the next `FixedUpdate` to propagate the correction.
-    pub fn on_reconciliation(&mut self, position: Vec2, angle: f32) {
+    pub const fn on_reconciliation(&mut self, position: Vec2, angle: f32) {
         self.current_position = position;
         self.current_angle = angle;
     }

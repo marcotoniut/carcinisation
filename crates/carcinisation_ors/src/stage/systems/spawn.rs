@@ -81,7 +81,7 @@ fn authored_depths_from_spawn(
     }
 }
 
-fn composed_root_visibility() -> Visibility {
+const fn composed_root_visibility() -> Visibility {
     Visibility::Hidden
 }
 
@@ -315,7 +315,7 @@ pub fn spawn_enemy(
                             ..MosquitoDefaultBundle::default()
                         },
                     },
-                    authored.clone(),
+                    authored,
                     continuous_depth,
                     ParallaxOffset::default(),
                     CxPresentationTransform::default(),
@@ -370,7 +370,7 @@ pub fn spawn_enemy(
                             ..MosquitonDefaultBundle::default()
                         },
                     },
-                    authored.clone(),
+                    authored,
                     continuous_depth,
                     initial_presentation.parallax,
                     initial_presentation.presentation,
@@ -438,7 +438,7 @@ pub fn spawn_enemy(
                             ..SpideyDefaultBundle::default()
                         },
                     },
-                    authored.clone(),
+                    authored,
                     continuous_depth,
                     initial_presentation.parallax,
                     initial_presentation.presentation,
@@ -474,7 +474,7 @@ pub fn spawn_enemy(
             entity
         }
         EnemyType::Kyle | EnemyType::Marauder | EnemyType::Spidomonsta => commands
-            .spawn((name, Enemy, continuous_depth, behaviors, authored.clone()))
+            .spawn((name, Enemy, continuous_depth, behaviors, authored))
             .id(),
         EnemyType::Tardigrade => {
             let collider =

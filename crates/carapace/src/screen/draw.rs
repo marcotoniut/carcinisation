@@ -32,7 +32,7 @@ use crate::{
 use super::pipeline::{CxRenderBuffer, CxRenderBufferInner};
 use crate::tilemap::TileComponents;
 
-pub(crate) type MapEntry<'a> = (
+pub type MapEntry<'a> = (
     &'a CxTilemap,
     CxPosition,
     CxRenderSpace,
@@ -40,7 +40,7 @@ pub(crate) type MapEntry<'a> = (
     Option<&'a CxFilter>,
 );
 
-pub(crate) type SpriteEntry<'a> = (
+pub type SpriteEntry<'a> = (
     &'a CxSprite,
     CxPosition,
     CxAnchor,
@@ -50,7 +50,7 @@ pub(crate) type SpriteEntry<'a> = (
     Option<crate::presentation::CxPresentationTransform>,
 );
 
-pub(crate) type AtlasSpriteEntry<'a> = (
+pub type AtlasSpriteEntry<'a> = (
     &'a CxAtlasSprite,
     CxPosition,
     CxAnchor,
@@ -60,7 +60,7 @@ pub(crate) type AtlasSpriteEntry<'a> = (
     Option<crate::presentation::CxPresentationTransform>,
 );
 
-pub(crate) type CompositeSpriteEntry<'a> = (
+pub type CompositeSpriteEntry<'a> = (
     &'a CxCompositeSprite,
     CxPosition,
     CxAnchor,
@@ -70,7 +70,7 @@ pub(crate) type CompositeSpriteEntry<'a> = (
     Option<crate::presentation::CxPresentationTransform>,
 );
 
-pub(crate) type TextEntry<'a> = (
+pub type TextEntry<'a> = (
     &'a CxText,
     CxPosition,
     CxAnchor,
@@ -80,7 +80,7 @@ pub(crate) type TextEntry<'a> = (
 );
 
 #[cfg(feature = "line")]
-pub(crate) type LineEntry<'a> = (
+pub type LineEntry<'a> = (
     &'a CxLine,
     &'a CxFilter,
     CxRenderSpace,
@@ -88,7 +88,7 @@ pub(crate) type LineEntry<'a> = (
     bool,
 );
 
-pub(crate) type PrimitiveEntry<'a> = (
+pub type PrimitiveEntry<'a> = (
     &'a crate::primitive::CxPrimitive,
     CxPosition,
     CxAnchor,
@@ -96,11 +96,11 @@ pub(crate) type PrimitiveEntry<'a> = (
     Option<crate::presentation::CxPresentationTransform>,
 );
 
-pub(crate) type FilterEntry<'a> = (&'a CxFilter, Option<&'a CxFrameView>);
+pub type FilterEntry<'a> = (&'a CxFilter, Option<&'a CxFrameView>);
 
 #[cfg(feature = "line")]
 #[derive(Default)]
-pub(crate) struct LayerContents<'a> {
+pub struct LayerContents<'a> {
     pub(crate) maps: Vec<MapEntry<'a>>,
     pub(crate) primitives: Vec<PrimitiveEntry<'a>>,
     pub(crate) sprites: Vec<SpriteEntry<'a>>,
@@ -147,10 +147,10 @@ impl<'a> LayerContents<'a> {
     }
 }
 
-pub(crate) type LayerContentsMap<'a, L> = BTreeMap<L, LayerContents<'a>>;
+pub type LayerContentsMap<'a, L> = BTreeMap<L, LayerContents<'a>>;
 
 #[cfg(feature = "headed")]
-pub(crate) fn draw_layers<'w, L: CxLayer>(
+pub fn draw_layers<'w, L: CxLayer>(
     world: &'w World,
     render_buffer: &CxRenderBuffer,
     camera: CxCamera,

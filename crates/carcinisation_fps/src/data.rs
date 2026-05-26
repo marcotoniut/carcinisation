@@ -48,16 +48,16 @@ pub enum WallTextureSpec {
     Raw { size: u32, data: Vec<u8> },
 }
 
-fn default_tex_size() -> u32 {
+const fn default_tex_size() -> u32 {
     64
 }
-fn default_block_size() -> u32 {
+const fn default_block_size() -> u32 {
     8
 }
-fn default_fog_start() -> f32 {
+const fn default_fog_start() -> f32 {
     3.0
 }
-fn default_fog_distance() -> f32 {
+const fn default_fog_distance() -> f32 {
     12.0
 }
 
@@ -121,19 +121,19 @@ pub enum EntityKind {
     },
 }
 
-fn default_mosquiton_health() -> u32 {
+const fn default_mosquiton_health() -> u32 {
     40
 }
 
-fn default_spidey_health() -> u32 {
+const fn default_spidey_health() -> u32 {
     30
 }
 
-fn default_spidey_speed() -> f32 {
+const fn default_spidey_speed() -> f32 {
     2.0
 }
 
-fn default_enemy_speed() -> f32 {
+const fn default_enemy_speed() -> f32 {
     1.5
 }
 
@@ -175,7 +175,7 @@ impl MapData {
 
     /// Build the palette config.
     #[must_use]
-    pub fn to_palette(&self) -> Palette {
+    pub const fn to_palette(&self) -> Palette {
         Palette {
             ceiling: self.ceiling_color,
             floor: self.floor_color,

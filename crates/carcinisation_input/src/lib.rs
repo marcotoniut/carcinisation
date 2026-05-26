@@ -30,22 +30,22 @@ pub enum GBInput {
 impl From<GBInput> for KeyCode {
     fn from(x: GBInput) -> Self {
         match x {
-            GBInput::A => KeyCode::KeyX,
-            GBInput::B => KeyCode::ShiftLeft,
-            GBInput::Up => KeyCode::ArrowUp,
-            GBInput::Down => KeyCode::ArrowDown,
-            GBInput::Left => KeyCode::ArrowLeft,
-            GBInput::Right => KeyCode::ArrowRight,
-            GBInput::Start => KeyCode::Enter,
-            GBInput::Select => KeyCode::KeyZ,
+            GBInput::A => Self::KeyX,
+            GBInput::B => Self::ShiftLeft,
+            GBInput::Up => Self::ArrowUp,
+            GBInput::Down => Self::ArrowDown,
+            GBInput::Left => Self::ArrowLeft,
+            GBInput::Right => Self::ArrowRight,
+            GBInput::Start => Self::Enter,
+            GBInput::Select => Self::KeyZ,
             // DEBUG
-            GBInput::DUp => KeyCode::KeyW,
-            GBInput::DDown => KeyCode::KeyS,
-            GBInput::DLeft => KeyCode::KeyA,
-            GBInput::DRight => KeyCode::KeyD,
-            GBInput::DToGame => KeyCode::KeyI,
-            GBInput::DToMainMenu => KeyCode::Delete,
-            GBInput::DExit => KeyCode::Escape,
+            GBInput::DUp => Self::KeyW,
+            GBInput::DDown => Self::KeyS,
+            GBInput::DLeft => Self::KeyA,
+            GBInput::DRight => Self::KeyD,
+            GBInput::DToGame => Self::KeyI,
+            GBInput::DToMainMenu => Self::Delete,
+            GBInput::DExit => Self::Escape,
         }
     }
 }

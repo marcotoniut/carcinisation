@@ -11,6 +11,7 @@ use crate::map::Map;
 use crate::raycast::has_line_of_sight;
 
 /// Maximum visual height to prevent billboard exceeding the ceiling.
+///
 /// Derived from `wall_height` (1.0) - `billboard_height` (0.45) = 0.55.
 /// Also used by the MP presentation adapter to normalize hop phase from
 /// replicated `visual_height`.
@@ -67,7 +68,7 @@ pub enum SpideySimState {
 
 impl SpideySimState {
     #[must_use]
-    pub fn is_alive(&self) -> bool {
+    pub const fn is_alive(&self) -> bool {
         !matches!(
             self,
             Self::Dying { .. } | Self::BurningCorpse { .. } | Self::Dead
@@ -290,8 +291,12 @@ pub fn tick_spidey_sim(
                     let jitter_angle = hop_lateral_jitter(sim.seed);
                     sim.seed = sim.seed.wrapping_add(1);
                     let direction = Vec2::new(
-                        base_dir.x * jitter_angle.cos() - base_dir.y * jitter_angle.sin(),
-                        base_dir.x * jitter_angle.sin() + base_dir.y * jitter_angle.cos(),
+                        base_dir
+                            .x
+                            .mul_add(jitter_angle.cos(), -(base_dir.y * jitter_angle.sin())),
+                        base_dir
+                            .x
+                            .mul_add(jitter_angle.sin(), base_dir.y * jitter_angle.cos()),
                     );
                     let height_scale = hop_height_scale(sim.seed);
                     sim.seed = sim.seed.wrapping_add(1);
@@ -326,7 +331,7 @@ pub fn tick_spidey_sim(
 
             // Parabolic visual height: peak at midpoint, varied by height_scale.
             // Clamped so the billboard top doesn't exceed the ceiling (wall_height=1.0).
-            let t_norm = ((elapsed + dt * 0.5) / duration.max(f32::EPSILON)).clamp(0.0, 1.0);
+            let t_norm = (dt.mul_add(0.5, elapsed) / duration.max(f32::EPSILON)).clamp(0.0, 1.0);
             let raw_height =
                 config.hop_visual_height * *height_scale * 4.0 * t_norm * (1.0 - t_norm);
             output.visual_height = raw_height.min(MAX_VISUAL_HEIGHT);
@@ -388,7 +393,7 @@ pub fn tick_spidey_sim(
                 // Visual leap arc.
                 let total = config.lunge_duration_secs;
                 let elapsed = total - *timer;
-                let t_norm = ((elapsed + dt * 0.5) / total.max(f32::EPSILON)).clamp(0.0, 1.0);
+                let t_norm = (dt.mul_add(0.5, elapsed) / total.max(f32::EPSILON)).clamp(0.0, 1.0);
                 let raw_lunge_height =
                     config.hop_visual_height * 2.0 * 4.0 * t_norm * (1.0 - t_norm);
                 output.visual_height = raw_lunge_height.min(MAX_VISUAL_HEIGHT);
@@ -437,7 +442,7 @@ pub fn tick_spidey_sim(
 fn hop_interval(config: &SpideySimConfig, seed: u32) -> f32 {
     let range = config.hop_interval_max - config.hop_interval_min;
     let t = ((seed.wrapping_mul(2_654_435_761) >> 16) as f32) / 65536.0;
-    config.hop_interval_min + range * t
+    range.mul_add(t, config.hop_interval_min)
 }
 
 /// Deterministic lateral jitter angle for hop direction (radians).

@@ -96,8 +96,8 @@ pub fn render_game_over_screen(
                         layer: Layer::Menu(MenuLayer::Foreground),
                         position: CxPosition::from(IVec2::new(SCREEN_RESOLUTION_H.x, 50)),
                         text: CxText {
-                            value: score_text.clone(),
-                            typeface: typeface.clone(),
+                            value: score_text,
+                            typeface,
                             ..Default::default()
                         },
                         ..default()

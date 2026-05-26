@@ -105,7 +105,9 @@ pub struct BurnTickResult {
 /// - Flamethrower: `config.flame_exposure_per_sec`
 /// - Ground fire: `config.ground_fire_exposure_per_sec`
 pub fn apply_exposure(state: &mut BurnState, config: &BurnConfig, exposure_per_sec: f32, dt: f32) {
-    state.intensity = (state.intensity + exposure_per_sec * dt).min(config.max_intensity);
+    state.intensity = exposure_per_sec
+        .mul_add(dt, state.intensity)
+        .min(config.max_intensity);
     state.exposed_this_tick = true;
 }
 
@@ -188,7 +190,7 @@ pub fn burn_flame_count(intensity: f32, max_flames: usize, config: &BurnConfig) 
 /// Flame world-height scale factor for given intensity.
 #[must_use]
 pub fn burn_flame_scale(intensity: f32, config: &BurnConfig) -> f32 {
-    config.flame_scale_min + (config.flame_scale_max - config.flame_scale_min) * intensity
+    (config.flame_scale_max - config.flame_scale_min).mul_add(intensity, config.flame_scale_min)
 }
 
 /// Load `BurnConfig` from the embedded RON asset.
@@ -201,7 +203,7 @@ pub fn load_config() -> BurnConfig {
 }
 
 /// Clear burn state (e.g. on death transition).
-pub fn extinguish(state: &mut BurnState) {
+pub const fn extinguish(state: &mut BurnState) {
     state.intensity = 0.0;
     state.damage_accumulator = 0.0;
     state.exposed_this_tick = false;

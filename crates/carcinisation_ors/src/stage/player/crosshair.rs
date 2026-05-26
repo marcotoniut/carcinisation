@@ -10,6 +10,6 @@ pub struct CrosshairSettings(pub u8);
 
 impl Default for CrosshairSettings {
     fn default() -> Self {
-        CrosshairSettings(1)
+        Self(1)
     }
 }

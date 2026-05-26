@@ -32,11 +32,11 @@ fn calc_min_size<L: CxLayer>(
     typefaces: &Assets<CxTypeface>,
     sprites: &Assets<CxSpriteAsset>,
 ) -> UVec2 {
-    fn dim(vec: UVec2, y: bool) -> u32 {
+    const fn dim(vec: UVec2, y: bool) -> u32 {
         if y { vec.y } else { vec.x }
     }
 
-    fn dim_mut(vec: &mut UVec2, y: bool) -> &mut u32 {
+    const fn dim_mut(vec: &mut UVec2, y: bool) -> &mut u32 {
         if y { &mut vec.y } else { &mut vec.x }
     }
 
@@ -250,12 +250,12 @@ fn layout_inner<L: CxLayer>(
     typefaces: &Assets<CxTypeface>,
     sprites: &Assets<CxSpriteAsset>,
 ) -> Result<Option<L>> {
-    fn dim(vec: IVec2, y: bool) -> i32 {
+    const fn dim(vec: IVec2, y: bool) -> i32 {
         if y { vec.y } else { vec.x }
     }
 
     // Adds to x, subtracts from y
-    fn add(augend: i32, addend: i32, y: bool) -> i32 {
+    const fn add(augend: i32, addend: i32, y: bool) -> i32 {
         if y { augend - addend } else { augend + addend }
     }
 
@@ -311,7 +311,7 @@ fn layout_inner<L: CxLayer>(
     }
 
     if let Some((row, children)) = row {
-        fn dim_mut(vec: &mut IVec2, y: bool) -> &mut i32 {
+        const fn dim_mut(vec: &mut IVec2, y: bool) -> &mut i32 {
             if y { &mut vec.y } else { &mut vec.x }
         }
 
@@ -537,19 +537,19 @@ fn layout_inner<L: CxLayer>(
         let (scroll, mut rect, mut layers) = rect.unwrap();
 
         if let Some((scroll, children)) = scroll {
-            fn rect_start(rect: IRect, y: bool) -> i32 {
+            const fn rect_start(rect: IRect, y: bool) -> i32 {
                 if y { rect.max.y } else { rect.min.x }
             }
 
-            fn rect_start_mut(rect: &mut IRect, y: bool) -> &mut i32 {
+            const fn rect_start_mut(rect: &mut IRect, y: bool) -> &mut i32 {
                 if y { &mut rect.max.y } else { &mut rect.min.x }
             }
 
-            fn rect_end(rect: IRect, y: bool) -> i32 {
+            const fn rect_end(rect: IRect, y: bool) -> i32 {
                 if y { rect.min.y } else { rect.max.x }
             }
 
-            fn rect_end_mut(rect: &mut IRect, y: bool) -> &mut i32 {
+            const fn rect_end_mut(rect: &mut IRect, y: bool) -> &mut i32 {
                 if y { &mut rect.min.y } else { &mut rect.max.x }
             }
 
@@ -657,7 +657,7 @@ fn layout_inner<L: CxLayer>(
                 layer = Some(last_bg_layer.clone());
                 last_bg_layer.clone().next().unwrap_or(last_bg_layer)
             } else {
-                bg_layer.clone()
+                bg_layer
             };
 
             let content_size = rect_size(content_rect, !horz);
@@ -827,7 +827,7 @@ fn layout_inner<L: CxLayer>(
     unreachable!();
 }
 
-pub(crate) fn layout<L: CxLayer>(
+pub fn layout<L: CxLayer>(
     mut uis: ParamSet<(
         Query<(&L, &CxRenderSpace, Entity), With<CxUiRoot>>,
         Query<(
@@ -886,7 +886,7 @@ pub(crate) fn layout<L: CxLayer>(
     OK
 }
 
-pub(crate) fn layout_needs_recompute(
+pub fn layout_needs_recompute(
     roots: Query<(), With<CxUiRoot>>,
     changed_structure: Query<
         (),

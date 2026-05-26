@@ -95,7 +95,7 @@ pub fn tween_travel_duration(current_position: Vec2, step: &TweenStageStep) -> D
 }
 
 /// Duration of a stop step based on its configured maximum duration.
-pub fn stop_duration(step: &StopStageStep, config: StageTimelineConfig) -> Duration {
+pub const fn stop_duration(step: &StopStageStep, config: StageTimelineConfig) -> Duration {
     if !config.include_stop_durations {
         return Duration::ZERO;
     }

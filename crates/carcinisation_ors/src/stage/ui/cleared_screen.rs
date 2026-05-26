@@ -95,8 +95,8 @@ pub fn render_cleared_screen(
                         canvas: CxRenderSpace::Camera,
                         layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
-                            value: score_text.clone(),
-                            typeface: typeface.clone(),
+                            value: score_text,
+                            typeface,
                             ..Default::default()
                         },
                         ..default()

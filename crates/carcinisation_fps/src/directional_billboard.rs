@@ -238,7 +238,7 @@ fn compute_frame_index(elapsed: f32, anim: &BillboardAnimation) -> usize {
     }
 }
 
-fn apply_frame_order(idx: usize, frame_count: usize, order: FrameOrder) -> usize {
+const fn apply_frame_order(idx: usize, frame_count: usize, order: FrameOrder) -> usize {
     match order {
         FrameOrder::Normal => idx,
         FrameOrder::Reversed => frame_count - 1 - idx,

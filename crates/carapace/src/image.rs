@@ -69,7 +69,7 @@ impl CxImage {
 
     /// Whether this image has no pixel data.
     #[allow(unused)]
-    pub(crate) fn is_empty(&self) -> bool {
+    pub(crate) const fn is_empty(&self) -> bool {
         self.image.is_empty()
     }
 
@@ -134,7 +134,7 @@ impl CxImage {
 
     /// Dimensions as `(width, height)`.
     #[must_use]
-    pub fn size(&self) -> UVec2 {
+    pub const fn size(&self) -> UVec2 {
         UVec2::new(
             self.width.get() as u32,
             (self.image.len() / self.width.get()) as u32,
@@ -143,19 +143,19 @@ impl CxImage {
 
     /// Width in pixels.
     #[must_use]
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.width.get()
     }
 
     /// Height in pixels.
     #[must_use]
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.image.len() / self.width.get()
     }
 
     /// Total pixel count (`width * height`).
     #[must_use]
-    pub fn area(&self) -> usize {
+    pub const fn area(&self) -> usize {
         self.image.len()
     }
 
@@ -305,13 +305,13 @@ impl<'a> CxImageSliceMut<'a> {
 
     /// Backing image width as `i32` (avoids `as` casts at call sites).
     #[inline]
-    pub(crate) fn img_width_i(&self) -> i32 {
+    pub(crate) const fn img_width_i(&self) -> i32 {
         self.width as i32
     }
 
     /// Backing image height as `i32`.
     #[inline]
-    pub(crate) fn img_height_i(&self) -> i32 {
+    pub(crate) const fn img_height_i(&self) -> i32 {
         self.image.len() as i32
     }
 
@@ -380,7 +380,7 @@ impl<'a> CxImageSliceMut<'a> {
     }
 
     #[allow(unused)]
-    pub(crate) fn offset(&self) -> IVec2 {
+    pub(crate) const fn offset(&self) -> IVec2 {
         self.slice.min
     }
 

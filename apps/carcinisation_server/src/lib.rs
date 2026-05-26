@@ -59,7 +59,7 @@ impl Default for NextPlayerId {
 }
 
 impl NextPlayerId {
-    fn next(&mut self) -> PlayerId {
+    const fn next(&mut self) -> PlayerId {
         let id = PlayerId(self.0);
         self.0 += 1;
         id
@@ -99,12 +99,12 @@ impl AvatarPalettePool {
     }
 
     /// Release a previously assigned variant back to the pool.
-    fn release(&mut self, variant: AvatarPaletteVariant) {
+    const fn release(&mut self, variant: AvatarPaletteVariant) {
         self.free[variant_index(variant)] = true;
     }
 }
 
-fn variant_index(v: AvatarPaletteVariant) -> usize {
+const fn variant_index(v: AvatarPaletteVariant) -> usize {
     use AvatarPaletteVariant::{Abc, Acb, Bac, Bca, Cab, Cba};
     match v {
         Abc => 0,
@@ -638,7 +638,7 @@ pub fn spawn_map_enemies_inner(commands: &mut Commands, entities: &[EntitySpawnD
 }
 
 #[must_use]
-pub fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
+pub const fn net_enemy_type_from_spawn(spawn: &EntitySpawnData) -> NetEnemyType {
     match &spawn.kind {
         EntitySpawnKind::Pillar { .. }
         | EntitySpawnKind::Enemy { .. }

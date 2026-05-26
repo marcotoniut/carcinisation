@@ -40,7 +40,7 @@ pub fn camera_shake(
 
         // Random offset with guaranteed minimum displacement to avoid invisible shakes.
         let angle = rand::random::<f32>() * std::f32::consts::TAU;
-        let magnitude = shake.intensity * (0.5 + 0.5 * rand::random::<f32>());
+        let magnitude = shake.intensity * 0.5f32.mul_add(rand::random::<f32>(), 0.5);
         let offset = Vec2::new(angle.cos() * magnitude, angle.sin() * magnitude);
 
         position.0 += offset;

@@ -816,7 +816,7 @@ pub struct PickupBillboardSprites {
 
 impl PickupBillboardSprites {
     #[must_use]
-    pub fn sprite_for_kind(&self, kind: carcinisation_net::NetPickupKind) -> &Arc<CxImage> {
+    pub const fn sprite_for_kind(&self, kind: carcinisation_net::NetPickupKind) -> &Arc<CxImage> {
         match kind {
             carcinisation_net::NetPickupKind::Health => &self.health,
             carcinisation_net::NetPickupKind::Ammo => &self.ammo,

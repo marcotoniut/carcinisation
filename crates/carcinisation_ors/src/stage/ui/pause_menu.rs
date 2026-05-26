@@ -101,8 +101,8 @@ pub fn spawn_pause_menu_bundle(
                         canvas: CxRenderSpace::Camera,
                         layer: Layer::Menu(MenuLayer::Foreground),
                         text: CxText {
-                            value: score_text.clone(),
-                            typeface: typeface.clone(),
+                            value: score_text,
+                            typeface,
                             ..Default::default()
                         },
                         ..default()

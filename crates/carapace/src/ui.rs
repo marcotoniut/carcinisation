@@ -27,7 +27,7 @@ pub use widgets::{
     CxUiRoot,
 };
 
-pub(crate) fn plug<L: CxLayer>(app: &mut App) {
+pub fn plug<L: CxLayer>(app: &mut App) {
     #[cfg(feature = "headed")]
     app.add_systems(
         PreUpdate,

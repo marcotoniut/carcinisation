@@ -79,12 +79,12 @@ pub enum ObjectType {
 impl ObjectType {
     /// Returns the sprite base name for this object type
     #[must_use]
-    pub fn sprite_base_name(&self) -> &'static str {
+    pub const fn sprite_base_name(&self) -> &'static str {
         match self {
-            ObjectType::BenchBig => "bench_big",
-            ObjectType::BenchSmall => "bench_small",
-            ObjectType::Fibertree => "fiber_tree",
-            ObjectType::RugparkSign => "rugpark_sign",
+            Self::BenchBig => "bench_big",
+            Self::BenchSmall => "bench_small",
+            Self::Fibertree => "fiber_tree",
+            Self::RugparkSign => "rugpark_sign",
         }
     }
 }
@@ -103,52 +103,51 @@ pub enum PickupType {
 impl PickupType {
     /// Returns the composed sprite base name shared by all pickup types.
     #[must_use]
-    pub fn sprite_base_name(&self) -> &'static str {
+    pub const fn sprite_base_name(&self) -> &'static str {
         "pickup"
     }
 
     /// Part names from the composed atlas that should be visible for this type.
     #[must_use]
-    pub fn visible_parts(&self) -> &'static [&'static str] {
+    pub const fn visible_parts(&self) -> &'static [&'static str] {
         match self {
-            PickupType::SmallHealth => &["health_s", "health_s_cap"],
-            PickupType::BigHealth => &["health_l"],
-            PickupType::Flamethrower => &["weapon_case", "icon_flamethrower"],
-            PickupType::Bullet => &["weapon_case", "icon_bullet"],
-            PickupType::Piercing => &["weapon_case", "icon_piercing"],
-            PickupType::Bomb => &["weapon_case", "icon_bomb"],
+            Self::SmallHealth => &["health_s", "health_s_cap"],
+            Self::BigHealth => &["health_l"],
+            Self::Flamethrower => &["weapon_case", "icon_flamethrower"],
+            Self::Bullet => &["weapon_case", "icon_bullet"],
+            Self::Piercing => &["weapon_case", "icon_piercing"],
+            Self::Bomb => &["weapon_case", "icon_bomb"],
         }
     }
 
     /// Health recovery amount, if this pickup heals the player.
     #[must_use]
-    pub fn health_recovery(&self) -> Option<u32> {
+    pub const fn health_recovery(&self) -> Option<u32> {
         match self {
-            PickupType::SmallHealth => Some(30),
-            PickupType::BigHealth => Some(100),
+            Self::SmallHealth => Some(30),
+            Self::BigHealth => Some(100),
             _ => None,
         }
     }
 
     /// Whether this pickup type grants a weapon.
     #[must_use]
-    pub fn is_weapon(&self) -> bool {
+    pub const fn is_weapon(&self) -> bool {
         matches!(
             self,
-            PickupType::Flamethrower | PickupType::Bullet | PickupType::Piercing | PickupType::Bomb
+            Self::Flamethrower | Self::Bullet | Self::Piercing | Self::Bomb
         )
     }
 
     /// Collider dimensions for this pickup type.
     #[must_use]
-    pub fn collider_size(&self) -> Vec2 {
+    pub const fn collider_size(&self) -> Vec2 {
         match self {
-            PickupType::SmallHealth => Vec2::new(21.0, 15.0),
-            PickupType::BigHealth => Vec2::new(25.0, 23.0),
-            PickupType::Flamethrower
-            | PickupType::Bullet
-            | PickupType::Piercing
-            | PickupType::Bomb => Vec2::new(29.0, 20.0),
+            Self::SmallHealth => Vec2::new(21.0, 15.0),
+            Self::BigHealth => Vec2::new(25.0, 23.0),
+            Self::Flamethrower | Self::Bullet | Self::Piercing | Self::Bomb => {
+                Vec2::new(29.0, 20.0)
+            }
         }
     }
 }
@@ -194,17 +193,17 @@ impl PickupSpawn {
         self
     }
     #[must_use]
-    pub fn with_coordinates(mut self, value: Vec2) -> Self {
+    pub const fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
     #[must_use]
-    pub fn with_depth(mut self, value: Depth) -> Self {
+    pub const fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
         self
     }
     #[must_use]
-    pub fn base(pickup_type: PickupType) -> Self {
+    pub const fn base(pickup_type: PickupType) -> Self {
         Self {
             pickup_type,
             coordinates: Vec2::ZERO,
@@ -225,7 +224,7 @@ pub struct PickupDropSpawn {
 impl PickupDropSpawn {
     /// Creates a concrete spawn from this template at the provided location/depth.
     #[must_use]
-    pub fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> PickupSpawn {
+    pub const fn from_spawn(&self, coordinates: Vec2, depth: Depth) -> PickupSpawn {
         PickupSpawn {
             pickup_type: self.pickup_type,
             coordinates,
@@ -261,19 +260,19 @@ impl ObjectSpawn {
     }
 
     #[must_use]
-    pub fn with_coordinates(mut self, value: Vec2) -> Self {
+    pub const fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
 
     #[must_use]
-    pub fn with_depth(mut self, value: Depth) -> Self {
+    pub const fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
         self
     }
 
     #[must_use]
-    pub fn bench_big_base(x: f32, y: f32) -> Self {
+    pub const fn bench_big_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::BenchBig,
             coordinates: Vec2::new(x, y),
@@ -283,7 +282,7 @@ impl ObjectSpawn {
     }
 
     #[must_use]
-    pub fn bench_small_base(x: f32, y: f32) -> Self {
+    pub const fn bench_small_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::BenchSmall,
             coordinates: Vec2::new(x, y),
@@ -293,7 +292,7 @@ impl ObjectSpawn {
     }
 
     #[must_use]
-    pub fn fibertree_base(x: f32, y: f32) -> Self {
+    pub const fn fibertree_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::Fibertree,
             coordinates: Vec2::new(x, y),
@@ -303,7 +302,7 @@ impl ObjectSpawn {
     }
 
     #[must_use]
-    pub fn rugpark_sign_base(x: f32, y: f32) -> Self {
+    pub const fn rugpark_sign_base(x: f32, y: f32) -> Self {
         Self {
             object_type: ObjectType::RugparkSign,
             coordinates: Vec2::new(x, y),
@@ -381,27 +380,27 @@ impl EnemySpawn {
         self
     }
     #[must_use]
-    pub fn with_coordinates(mut self, value: Vec2) -> Self {
+    pub const fn with_coordinates(mut self, value: Vec2) -> Self {
         self.coordinates = value;
         self
     }
     #[must_use]
-    pub fn with_x(mut self, value: f32) -> Self {
+    pub const fn with_x(mut self, value: f32) -> Self {
         self.coordinates.x = value;
         self
     }
     #[must_use]
-    pub fn with_y(mut self, value: f32) -> Self {
+    pub const fn with_y(mut self, value: f32) -> Self {
         self.coordinates.y = value;
         self
     }
     #[must_use]
-    pub fn with_speed(mut self, value: f32) -> Self {
+    pub const fn with_speed(mut self, value: f32) -> Self {
         self.speed = value;
         self
     }
     #[must_use]
-    pub fn with_health(mut self, value: u32) -> Self {
+    pub const fn with_health(mut self, value: u32) -> Self {
         self.health = Some(value);
         self
     }
@@ -416,12 +415,12 @@ impl EnemySpawn {
         self
     }
     #[must_use]
-    pub fn with_depth(mut self, value: Depth) -> Self {
+    pub const fn with_depth(mut self, value: Depth) -> Self {
         self.depth = value;
         self
     }
     #[must_use]
-    pub fn with_enemy_type(mut self, value: EnemyType) -> Self {
+    pub const fn with_enemy_type(mut self, value: EnemyType) -> Self {
         self.enemy_type = value;
         self
     }
@@ -443,7 +442,7 @@ impl EnemySpawn {
         self
     }
     #[must_use]
-    pub fn with_altitude(mut self, value: f32) -> Self {
+    pub const fn with_altitude(mut self, value: f32) -> Self {
         self.altitude = Some(value);
         self
     }
@@ -559,12 +558,12 @@ pub enum StageSpawn {
 
 impl StageSpawn {
     #[must_use]
-    pub fn get_coordinates(&self) -> &Vec2 {
+    pub const fn get_coordinates(&self) -> &Vec2 {
         match self {
-            StageSpawn::Destructible(s) => &s.coordinates,
-            StageSpawn::Enemy(s) => &s.coordinates,
-            StageSpawn::Object(s) => &s.coordinates,
-            StageSpawn::Pickup(s) => &s.coordinates,
+            Self::Destructible(s) => &s.coordinates,
+            Self::Enemy(s) => &s.coordinates,
+            Self::Object(s) => &s.coordinates,
+            Self::Pickup(s) => &s.coordinates,
         }
     }
 
@@ -572,9 +571,9 @@ impl StageSpawn {
     #[must_use]
     pub fn get_elapsed_with(&self, game_base_speed: f32) -> Duration {
         match self {
-            StageSpawn::Destructible(_) | StageSpawn::Object(_) => Duration::ZERO,
-            StageSpawn::Enemy(s) => s.elapsed.div_f32(game_base_speed),
-            StageSpawn::Pickup(s) => s.elapsed.div_f32(game_base_speed),
+            Self::Destructible(_) | Self::Object(_) => Duration::ZERO,
+            Self::Enemy(s) => s.elapsed.div_f32(game_base_speed),
+            Self::Pickup(s) => s.elapsed.div_f32(game_base_speed),
         }
     }
 
@@ -588,44 +587,44 @@ impl StageSpawn {
     }
 
     #[must_use]
-    pub fn get_depth(&self) -> Depth {
+    pub const fn get_depth(&self) -> Depth {
         #[allow(clippy::match_same_arms)]
         match self {
-            StageSpawn::Destructible(DestructibleSpawn { depth, .. }) => *depth,
-            StageSpawn::Enemy(EnemySpawn { depth, .. }) => *depth,
-            StageSpawn::Object(ObjectSpawn { depth, .. }) => *depth,
-            StageSpawn::Pickup(PickupSpawn { depth, .. }) => *depth,
+            Self::Destructible(DestructibleSpawn { depth, .. }) => *depth,
+            Self::Enemy(EnemySpawn { depth, .. }) => *depth,
+            Self::Object(ObjectSpawn { depth, .. }) => *depth,
+            Self::Pickup(PickupSpawn { depth, .. }) => *depth,
         }
     }
 
     /// Returns the authored depths for this spawn, or `None` if not specified
     /// (meaning the spawn's own `depth` is the only authored depth).
     #[must_use]
-    pub fn get_authored_depths(&self) -> Option<&Vec<Depth>> {
+    pub const fn get_authored_depths(&self) -> Option<&Vec<Depth>> {
         match self {
-            StageSpawn::Destructible(s) => s.authored_depths.as_ref(),
-            StageSpawn::Enemy(s) => s.authored_depths.as_ref(),
-            StageSpawn::Object(s) => s.authored_depths.as_ref(),
-            StageSpawn::Pickup(s) => s.authored_depths.as_ref(),
+            Self::Destructible(s) => s.authored_depths.as_ref(),
+            Self::Enemy(s) => s.authored_depths.as_ref(),
+            Self::Object(s) => s.authored_depths.as_ref(),
+            Self::Pickup(s) => s.authored_depths.as_ref(),
         }
     }
 
-    pub fn set_coordinates(&mut self, position: Vec2) {
+    pub const fn set_coordinates(&mut self, position: Vec2) {
         match self {
-            StageSpawn::Destructible(s) => s.coordinates = position,
-            StageSpawn::Enemy(s) => s.coordinates = position,
-            StageSpawn::Object(s) => s.coordinates = position,
-            StageSpawn::Pickup(s) => s.coordinates = position,
+            Self::Destructible(s) => s.coordinates = position,
+            Self::Enemy(s) => s.coordinates = position,
+            Self::Object(s) => s.coordinates = position,
+            Self::Pickup(s) => s.coordinates = position,
         }
     }
 
     #[must_use]
     pub fn show_type(&self) -> String {
         match self {
-            StageSpawn::Destructible(s) => s.show_type(),
-            StageSpawn::Enemy(s) => s.enemy_type.show_type(),
-            StageSpawn::Object(s) => s.show_type(),
-            StageSpawn::Pickup(s) => s.show_type(),
+            Self::Destructible(s) => s.show_type(),
+            Self::Enemy(s) => s.enemy_type.show_type(),
+            Self::Object(s) => s.show_type(),
+            Self::Pickup(s) => s.show_type(),
         }
     }
 }
@@ -783,7 +782,7 @@ pub enum BandTransition {
     },
 }
 
-fn default_width_multiplier() -> f32 {
+const fn default_width_multiplier() -> f32 {
     2.0
 }
 

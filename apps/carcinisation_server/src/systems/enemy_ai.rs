@@ -76,7 +76,7 @@ pub fn tick_net_enemy_ai(
     }
 }
 
-fn net_enemy_to_sim(enemy: &NetEnemy, health: &NetHealth) -> EnemySim {
+const fn net_enemy_to_sim(enemy: &NetEnemy, health: &NetHealth) -> EnemySim {
     EnemySim {
         kind: match enemy.enemy_type {
             NetEnemyType::Basic => FpsEnemyKind::Basic,
@@ -96,7 +96,7 @@ fn net_enemy_to_sim(enemy: &NetEnemy, health: &NetHealth) -> EnemySim {
     }
 }
 
-fn apply_sim_to_net_enemy(sim: &EnemySim, enemy: &mut NetEnemy) {
+const fn apply_sim_to_net_enemy(sim: &EnemySim, enemy: &mut NetEnemy) {
     enemy.position = sim.position;
     enemy.angle = sim.angle;
     // Only update state from AI if the enemy is not dying/dead (those are

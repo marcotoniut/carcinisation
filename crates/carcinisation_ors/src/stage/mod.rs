@@ -164,7 +164,7 @@ pub struct StagePlugin<G: Activable, M: Activable> {
 
 impl<G: Activable, M: Activable> StagePlugin<G, M> {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
@@ -259,14 +259,14 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
         app.add_plugins(depth_debug::DepthDebugPlugin);
 
         #[cfg(debug_assertions)]
-        app.add_active_systems::<StagePlugin<G, M>, _>(
+        app.add_active_systems::<Self, _>(
             systems::debug_spawn::debug_keyboard_spawn_enemies
                 .run_if(in_state(StageProgressState::Running)),
         );
 
         app.insert_resource(StageHooks {
-            activate_stage: activable::activate::<StagePlugin<G, M>>,
-            deactivate_stage: activable::deactivate::<StagePlugin<G, M>>,
+            activate_stage: activable::activate::<Self>,
+            deactivate_stage: activable::deactivate::<Self>,
             deactivate_game: activable::deactivate::<G>,
             activate_menu: activable::activate::<M>,
             trigger_transition: |_commands, _request| {
@@ -310,14 +310,14 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
             .add_observer(on_stage_cleared)
             .add_observer(on_trigger_write_event::<StageClearedEvent>)
             // Checkpoint resume is handled via the `from_checkpoint` flag on `StageStartupEvent`.
-            .on_active::<StagePlugin<G, M>, _>((
+            .on_active::<Self, _>((
                 activate_system::<AttackPlugin>,
                 activate_system::<DestructiblePlugin>,
                 activate_system::<EnemyPlugin>,
                 activate_system::<PlayerPlugin>,
                 activate_system::<StageUiPlugin>,
             ))
-            .on_inactive::<StagePlugin<G, M>, _>((
+            .on_inactive::<Self, _>((
                 deactivate_system::<AttackPlugin>,
                 deactivate_system::<DestructiblePlugin>,
                 deactivate_system::<EnemyPlugin>,
@@ -349,7 +349,7 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
             .add_plugins(PlayerPlugin)
             .add_plugins(StageRestartPlugin)
             .add_plugins(StageUiPlugin)
-            .add_active_systems_in::<StagePlugin<G, M>, _>(
+            .add_active_systems_in::<Self, _>(
                 FixedUpdate,
                 (
                     (
@@ -386,7 +386,7 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
             // as a same-frame repair path for newly spawned composed roots.
             // First-visible-frame correctness comes from spawn-time priming
             // alone, not from any same-frame ordering accident.
-            .add_active_systems::<StagePlugin<G, M>, _>(
+            .add_active_systems::<Self, _>(
                 (
                     apply_depth_fallback_scale.in_set(CollisionStateSystems),
                     update_parallax_offset
@@ -399,7 +399,7 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
                 )
                     .after(PositionSyncSystems),
             )
-            .add_active_systems::<StagePlugin<G, M>, _>((
+            .add_active_systems::<Self, _>((
                 update_stage,
                 update_active_projection.after(update_stage),
                 update_active_parallax_attenuation.after(update_stage),
@@ -470,7 +470,7 @@ impl<G: Activable, M: Activable> Plugin for StagePlugin<G, M> {
             // plugins (DeathScreenPlugin, GameOverScreenPlugin,
             // ClearedScreenPlugin) and gated via StageUiPlugin.  Do NOT
             // re-register them here — that would cause double execution.
-            .add_active_systems::<StagePlugin<G, M>, _>((
+            .add_active_systems::<Self, _>((
                 // Pause menu
                 pause_menu_renderer,
                 toggle_game.run_if(in_state(StageProgressState::Running)),

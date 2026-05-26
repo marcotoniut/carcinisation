@@ -10,8 +10,8 @@ use crate::map::Map;
 /// slides along walls rather than stopping dead.
 pub fn try_move(position: &mut Vec2, delta: Vec2, margin: f32, map: &Map) {
     let new_pos = *position + delta;
-    let test_x = (new_pos.x + margin * delta.x.signum()).floor() as i32;
-    let test_y = (new_pos.y + margin * delta.y.signum()).floor() as i32;
+    let test_x = margin.mul_add(delta.x.signum(), new_pos.x).floor() as i32;
+    let test_y = margin.mul_add(delta.y.signum(), new_pos.y).floor() as i32;
 
     if map.get(test_x, position.y.floor() as i32) == 0 {
         position.x = new_pos.x;

@@ -3,7 +3,7 @@ use carcinisation_ors::stage::data::StageSpawn;
 use crate::components::StageSpawnRef;
 
 /// A location within `StageData` that a spawn occupies.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SpawnLocation {
     Static {
         index: usize,
@@ -15,14 +15,14 @@ pub enum SpawnLocation {
 }
 
 impl SpawnLocation {
-    pub fn from_ref(r: &StageSpawnRef) -> Self {
+    pub const fn from_ref(r: &StageSpawnRef) -> Self {
         match *r {
-            StageSpawnRef::Static { index } => SpawnLocation::Static { index },
+            StageSpawnRef::Static { index } => Self::Static { index },
             StageSpawnRef::Step {
                 step_index,
                 spawn_index,
                 ..
-            } => SpawnLocation::Step {
+            } => Self::Step {
                 step_index,
                 spawn_index,
             },

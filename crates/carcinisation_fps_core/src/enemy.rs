@@ -298,7 +298,7 @@ pub struct DamageFlicker {
 impl DamageFlicker {
     /// Create a new flicker with values from `FpsVisualConfig`.
     #[must_use]
-    pub fn from_config(config: &crate::config::FpsVisualConfig) -> Self {
+    pub const fn from_config(config: &crate::config::FpsVisualConfig) -> Self {
         Self {
             phase: DamageFlickerPhase::Regular,
             phase_remaining_secs: config.damage_flicker_regular_secs,
@@ -469,7 +469,7 @@ impl Enemy {
 
     /// Whether this enemy is alive (can be hit and acts).
     #[must_use]
-    pub fn is_alive(&self) -> bool {
+    pub const fn is_alive(&self) -> bool {
         !matches!(
             self.state,
             EnemyState::Dying { .. } | EnemyState::BurningCorpse { .. } | EnemyState::Dead
@@ -635,7 +635,7 @@ pub fn hitscan_generic(
             continue;
         }
 
-        let perp_dist_sq = to_target.length_squared() - along_ray * along_ray;
+        let perp_dist_sq = along_ray.mul_add(-along_ray, to_target.length_squared());
         let radius_sq = radius * radius;
 
         if perp_dist_sq < radius_sq && closest.is_none_or(|(_, d)| along_ray < d) {
@@ -757,7 +757,7 @@ pub struct ProjectileImpact {
 
 impl ProjectileImpact {
     #[must_use]
-    pub fn hit(position: Vec2, source_kind: ProjectileKind, visual_height: f32) -> Self {
+    pub const fn hit(position: Vec2, source_kind: ProjectileKind, visual_height: f32) -> Self {
         Self {
             position,
             kind: ProjectileImpactKind::Hit,
@@ -769,7 +769,7 @@ impl ProjectileImpact {
     }
 
     #[must_use]
-    pub fn destroy(position: Vec2, source_kind: ProjectileKind, visual_height: f32) -> Self {
+    pub const fn destroy(position: Vec2, source_kind: ProjectileKind, visual_height: f32) -> Self {
         Self {
             position,
             kind: ProjectileImpactKind::Destroy,
@@ -928,7 +928,7 @@ pub fn segment_circle_hit_distance(
     let from_center = start - center;
     let a = len_sq;
     let b = 2.0 * from_center.dot(segment);
-    let c = from_center.length_squared() - radius * radius;
+    let c = radius.mul_add(-radius, from_center.length_squared());
     if c <= 0.0 {
         return Some(0.0);
     }
@@ -1004,7 +1004,7 @@ pub fn hitscan_projectiles(
             continue;
         }
 
-        let perp_dist_sq = to_projectile.length_squared() - along_ray * along_ray;
+        let perp_dist_sq = along_ray.mul_add(-along_ray, to_projectile.length_squared());
         let radius_sq = projectile.radius * projectile.radius;
         if perp_dist_sq < radius_sq && closest.is_none_or(|(_, dist)| along_ray < dist) {
             closest = Some((idx, along_ray));

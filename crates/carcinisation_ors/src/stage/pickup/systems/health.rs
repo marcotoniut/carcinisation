@@ -149,7 +149,7 @@ pub fn pickup_health(
 
             let speed_x = d.x / t;
             let speed_y = PICKUP_FEEDBACK_INITIAL_SPEED_Y;
-            let adjusted_d_y = d.y - speed_y * t;
+            let adjusted_d_y = speed_y.mul_add(-t, d.y);
             let acceleration_y = 2. * adjusted_d_y / (t * t);
 
             let now = stage_time.elapsed();
@@ -303,7 +303,8 @@ pub fn update_pickup_feedback_scale(
         } else {
             elapsed.as_secs_f32() / total.as_secs_f32()
         };
-        let scale = scale_comp.start_scale + (scale_comp.end_scale - scale_comp.start_scale) * t;
+        let scale =
+            (scale_comp.end_scale - scale_comp.start_scale).mul_add(t, scale_comp.start_scale);
         presentation.scale = Vec2::splat(scale);
     }
 }

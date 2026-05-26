@@ -17,7 +17,7 @@ use crate::{
 #[derive(Component, Default, Clone, Copy, Debug)]
 pub struct CxPick;
 
-pub(crate) fn plug<L: CxLayer>(app: &mut App) {
+pub fn plug<L: CxLayer>(app: &mut App) {
     app.add_systems(
         PostUpdate,
         pick::<L>.in_set(CxSet::Picking).run_if(pick_needs_run),

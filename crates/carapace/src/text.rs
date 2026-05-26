@@ -18,12 +18,12 @@ use crate::{
     position::DefaultLayer, prelude::*,
 };
 
-pub(crate) fn plug_core(app: &mut App, palette_path: PathBuf) {
+pub fn plug_core(app: &mut App, palette_path: PathBuf) {
     app.init_asset::<CxTypeface>()
         .register_asset_loader(CxTypefaceLoader::new(palette_path));
 }
 
-pub(crate) fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
+pub fn plug<L: CxLayer>(app: &mut App, palette_path: PathBuf) {
     #[cfg(feature = "headed")]
     app.add_plugins((
         RenderAssetPlugin::<CxTypeface>::default(),
@@ -64,7 +64,7 @@ struct CxTypefaceLoader {
 }
 
 impl CxTypefaceLoader {
-    fn new(palette_path: PathBuf) -> Self {
+    const fn new(palette_path: PathBuf) -> Self {
         Self { palette_path }
     }
 }
@@ -162,7 +162,7 @@ impl AssetLoader for CxTypefaceLoader {
 }
 
 #[derive(Clone, Debug, Reflect)]
-pub(crate) struct CxSeparator {
+pub struct CxSeparator {
     pub(crate) width: u32,
 }
 
@@ -248,7 +248,7 @@ impl AnimatedAssetComponent for CxText {
     }
 }
 
-pub(crate) type TextComponents<L> = (
+pub type TextComponents<L> = (
     &'static CxText,
     &'static CxPosition,
     &'static CxAnchor,

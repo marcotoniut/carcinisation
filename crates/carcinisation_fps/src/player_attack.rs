@@ -149,7 +149,7 @@ impl Default for AttackInput {
 }
 
 impl AttackInput {
-    pub fn clear_edges(&mut self) {
+    pub const fn clear_edges(&mut self) {
         self.shoot_just_pressed = false;
         self.shoot_just_released = false;
         self.melee_triggered = false;
@@ -302,12 +302,12 @@ impl PlayerFlamethrower1pConfig {
     }
 
     #[must_use]
-    pub fn weapon_base_offset(&self) -> Vec2 {
+    pub const fn weapon_base_offset(&self) -> Vec2 {
         Vec2::new(self.weapon_base_offset_px.0, self.weapon_base_offset_px.1)
     }
 
     #[must_use]
-    pub fn idle_flame_offset(&self) -> (f32, f32) {
+    pub const fn idle_flame_offset(&self) -> (f32, f32) {
         self.idle_flame_offset
     }
 }
@@ -334,12 +334,12 @@ impl GunConfig {
     }
 
     #[must_use]
-    pub fn weapon_base_offset(&self) -> Vec2 {
+    pub const fn weapon_base_offset(&self) -> Vec2 {
         Vec2::new(self.weapon_base_offset_px.0, self.weapon_base_offset_px.1)
     }
 
     #[must_use]
-    pub fn muzzle_flash_offset(&self) -> Vec2 {
+    pub const fn muzzle_flash_offset(&self) -> Vec2 {
         Vec2::new(self.muzzle_flash_offset.0, self.muzzle_flash_offset.1)
     }
 }
@@ -485,12 +485,12 @@ pub struct PlayerAttackState {
 
 impl PlayerAttackState {
     /// Trigger the pistol muzzle flash animation (used by multiplayer client on `MuzzleFlash` event).
-    pub fn trigger_muzzle_flash(&mut self) {
+    pub const fn trigger_muzzle_flash(&mut self) {
         self.gun_muzzle_flash_elapsed = Some(0.0);
     }
 
     /// Sync the cached shared config copy after a hot reload updates the Resource.
-    pub fn update_shared(&mut self, cfg: carcinisation_fps_core::PlayerFlamethrowerConfig) {
+    pub const fn update_shared(&mut self, cfg: carcinisation_fps_core::PlayerFlamethrowerConfig) {
         self.shared = cfg;
     }
 }
@@ -536,12 +536,12 @@ impl PlayerAttackState {
     }
 
     #[must_use]
-    pub fn config(&self) -> &PlayerFlamethrower1pConfig {
+    pub const fn config(&self) -> &PlayerFlamethrower1pConfig {
         &self.config
     }
 
     #[must_use]
-    pub fn shared(&self) -> &carcinisation_fps_core::PlayerFlamethrowerConfig {
+    pub const fn shared(&self) -> &carcinisation_fps_core::PlayerFlamethrowerConfig {
         &self.shared
     }
 
@@ -958,7 +958,7 @@ fn update_flamethrower_attack(
     }
 }
 
-fn sample_seed(counter: u32) -> u32 {
+const fn sample_seed(counter: u32) -> u32 {
     counter.wrapping_mul(0x9E37_79B9) ^ 0xC2B2_AE35
 }
 
@@ -1090,7 +1090,7 @@ fn push_char_decal(
     });
 }
 
-fn adjacent_wall_surface(surface_id: WallSurfaceId, tangent_step: i32) -> WallSurfaceId {
+const fn adjacent_wall_surface(surface_id: WallSurfaceId, tangent_step: i32) -> WallSurfaceId {
     match surface_id.side {
         crate::raycast::HitSide::Vertical => WallSurfaceId {
             cell_y: surface_id.cell_y + tangent_step,

@@ -21,7 +21,7 @@ pub struct TransitionCounter {
 
 impl Default for TransitionUpdateTimer {
     fn default() -> Self {
-        TransitionUpdateTimer {
+        Self {
             timer: Timer::from_seconds(TRANSITION_UPDATE_TIME, TimerMode::Repeating),
         }
     }

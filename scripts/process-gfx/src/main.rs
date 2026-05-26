@@ -80,7 +80,7 @@ fn main() {
                 if let Some(width) = image.width {
                     rescale_image(width, &img)
                 } else {
-                    img.clone()
+                    img
                 }
             })
             .map(|img| reduce_colors(&palette_image, image.invert_colors, &img))

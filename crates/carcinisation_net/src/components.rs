@@ -73,7 +73,7 @@ pub enum NetAttackId {
 }
 
 /// Player network state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 #[reflect(Serialize, Deserialize)]
 pub enum PlayerNetState {
     Alive,
@@ -149,7 +149,7 @@ pub struct NetProjectile {
     pub projectile_type: NetProjectileType,
 }
 
-fn respawnable_true() -> bool {
+const fn respawnable_true() -> bool {
     true
 }
 

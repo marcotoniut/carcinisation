@@ -126,7 +126,7 @@ pub struct EnemyAttackSet;
 pub struct NextProjectileId(pub u32);
 
 impl NextProjectileId {
-    pub fn allocate(&mut self) -> NetworkObjectId {
+    pub const fn allocate(&mut self) -> NetworkObjectId {
         self.0 += 1;
         // Offset by 10000 to avoid collision with enemy object IDs.
         NetworkObjectId(self.0 + 10000)
@@ -331,7 +331,7 @@ pub fn tick_pending_projectiles(
 ///
 /// Attack type (melee vs ranged) is conveyed via `EnemyAttackVisual` events,
 /// not encoded here. See [`NetEnemyState`] doc for the late-joiner trade-off.
-fn sim_state_to_net(state: &MosquitonSimState) -> NetEnemyState {
+const fn sim_state_to_net(state: &MosquitonSimState) -> NetEnemyState {
     match state {
         MosquitonSimState::Pursue => NetEnemyState::Chase,
         MosquitonSimState::RangedAttack { .. }
@@ -399,7 +399,7 @@ fn nearest_alive_player_id(position: Vec2, players: &Query<&NetPlayer>) -> Optio
 /// attack animations are driven by `EnemyAttackVisual` events per the net
 /// protocol design. Late-joining clients will see `HoldingRange` (→ Recover
 /// presentation) for mid-attack enemies until the next event fires.
-fn spidey_sim_state_to_net(state: &SpideySimState) -> NetEnemyState {
+const fn spidey_sim_state_to_net(state: &SpideySimState) -> NetEnemyState {
     match state {
         SpideySimState::Idle => NetEnemyState::Idle,
         SpideySimState::HopWait { .. } | SpideySimState::HopMove { .. } => NetEnemyState::Chase,
