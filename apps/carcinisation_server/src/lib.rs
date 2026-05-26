@@ -4,7 +4,6 @@
 pub mod systems;
 
 use bevy::prelude::*;
-use bevy_renet2::prelude::ServerEvent;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
 use bevy_replicon_renet2::RenetChannelsExt;
@@ -182,10 +181,6 @@ impl Plugin for ServerPlugin {
             .add_systems(
                 PreUpdate,
                 init_server_setup.run_if(not(resource_exists::<RenetServer>)),
-            )
-            .add_systems(
-                PreUpdate,
-                monitor_server_events.after(bevy_renet2::prelude::RenetReceive),
             )
             .init_resource::<PlayerInputTracker>()
             .init_resource::<PlayerIntentBuffer>()
@@ -373,12 +368,6 @@ fn init_server_setup(
     commands.insert_resource(transport);
 
     info!("Server listening on 0.0.0.0:{} (UDP)", server_port.0);
-}
-
-fn monitor_server_events(mut events: MessageReader<ServerEvent>) {
-    for event in events.read() {
-        trace!("SERVER EVENT: {:?}", event);
-    }
 }
 
 fn handle_client_connect(

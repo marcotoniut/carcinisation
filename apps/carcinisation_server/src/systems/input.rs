@@ -147,10 +147,6 @@ pub(crate) fn receive_client_intent(
     let current_seq = intent.sequence.0;
     let diff = current_seq.wrapping_sub(*last_seq);
     if diff == 0 || diff > (1 << 31) {
-        trace!(
-            "Dropping stale intent: seq {} (last {})",
-            current_seq, *last_seq
-        );
         return;
     }
     *last_seq = current_seq;
