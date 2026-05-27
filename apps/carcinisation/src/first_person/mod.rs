@@ -760,12 +760,10 @@ fn sync_local_player_health_from_net_health(
 fn tick_damage_flickers(mut flickers: ResMut<EnemyDamageFlickers>, time: Res<Time>) {
     let dt = time.delta_secs();
     flickers.0.retain(|_, flicker| {
-        if let Some(next) = (*flicker).tick(dt) {
+        flicker.tick(dt).is_some_and(|next| {
             *flicker = next;
             true
-        } else {
-            false
-        }
+        })
     });
 }
 
@@ -1177,6 +1175,7 @@ impl RemoteFlameVisual {
             let dir = Vec2::new(player_angle.cos(), player_angle.sin());
             let right = screen_right_from_direction(dir);
             let nozzle_pos = player_position + dir * nozzle_forward + right * nozzle_lateral;
+            #[allow(clippy::while_float)]
             while self.spawn_cooldown <= 0.0 {
                 let seed = self.sample_counter.wrapping_mul(0x9E37_79B9) ^ 0xC2B2_AE35;
                 self.samples.push(RemoteFlameStreamSample {
@@ -1436,6 +1435,7 @@ fn sync_camera_from_net_player(
 
         // Try directional billboard resolution.
         // Use interpolated visual_pos/visual_angle for smooth rendering.
+        #[allow(clippy::useless_let_if_seq)]
         let mut pushed = false;
         if let Some(atlas) = &sync_locals.player_billboard_atlas
             && let Some(resolved) = resolve_billboard(
@@ -1460,6 +1460,7 @@ fn sync_camera_from_net_player(
             pushed = true;
         }
 
+        #[allow(clippy::if_not_else)]
         if !pushed {
             // Fallback: use placeholder diamond sprites.
             if let Some(fallback) = &sync_locals.fallback_sprites {
@@ -1844,24 +1845,27 @@ fn net_enemy_billboard(
                         _ => {}
                     }
                     // Select base sprite from attack override or idle state.
-                    if let Some(anim) = attack_override {
-                        let sprite = match anim.kind {
-                            EnemyAttackKind::Melee => sprites.0.melee_sprite_at(anim.elapsed),
-                            EnemyAttackKind::Ranged => sprites.0.shoot_sprite_at(anim.elapsed),
-                        };
-                        if damage_invert {
-                            Arc::new(make_damage_invert_sprite(sprite))
-                        } else {
-                            Arc::clone(sprite)
-                        }
-                    } else {
-                        let sprite = sprites.0.alive_sprite_at(elapsed_secs);
-                        if damage_invert {
-                            Arc::new(make_damage_invert_sprite(sprite))
-                        } else {
-                            Arc::clone(sprite)
-                        }
-                    }
+                    attack_override.map_or_else(
+                        || {
+                            let sprite = sprites.0.alive_sprite_at(elapsed_secs);
+                            if damage_invert {
+                                Arc::new(make_damage_invert_sprite(sprite))
+                            } else {
+                                Arc::clone(sprite)
+                            }
+                        },
+                        |anim| {
+                            let sprite = match anim.kind {
+                                EnemyAttackKind::Melee => sprites.0.melee_sprite_at(anim.elapsed),
+                                EnemyAttackKind::Ranged => sprites.0.shoot_sprite_at(anim.elapsed),
+                            };
+                            if damage_invert {
+                                Arc::new(make_damage_invert_sprite(sprite))
+                            } else {
+                                Arc::clone(sprite)
+                            }
+                        },
+                    )
                 },
             ),
             flip_x: false,

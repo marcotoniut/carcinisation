@@ -74,10 +74,10 @@ pub struct CombatSet;
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
 pub struct TickSet;
 
-/// How many `FixedUpdate` ticks the server reapplies stale intent data
-/// before zeroing it. At 30 Hz this is ~167 ms — enough to tolerate
-/// one dropped packet. The client must use the same value for
-/// stale-tick prediction parity.
+/// Ticks before stale intent data is zeroed.
+///
+/// At 30 Hz this is ~167 ms — enough to tolerate one dropped packet.
+/// The client must use the same value for stale-tick prediction parity.
 pub const STALE_INPUT_TICKS: u32 = 5;
 
 /// Increment tick.

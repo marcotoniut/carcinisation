@@ -178,11 +178,11 @@ impl AssetLoader for CxTilesetLoader {
     }
 }
 
-/// A tileset for a tilemap. Create a [`Handle<CxTileset>`] through your asset wrapper
-/// and provide an image file. The image file contains a column of tiles, ordered from bottom to top.
-/// For animated tilesets, add additional frames to the right of tiles, marking the end
-/// of an animation with a fully transparent tile or the end of the image.
-/// See `assets/tileset/tileset.png` for an example.
+/// A tileset for a tilemap, loaded from an image.
+///
+/// The image contains a column of tiles ordered bottom-to-top. For animated
+/// tilesets, add frames to the right of each tile; end an animation with a
+/// fully transparent tile or the image edge. See `assets/tileset/tileset.png`.
 #[derive(Asset, Clone, Reflect, Debug)]
 pub struct CxTileset {
     pub(crate) tileset: Vec<CxSpriteAsset>,

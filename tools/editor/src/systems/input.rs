@@ -1239,7 +1239,7 @@ fn update_coordinate_overlay(
         commands.entity(entity).despawn();
     }
 
-    let depth_str = depth.map_or("?".to_string(), |d| d.to_i8().to_string());
+    let depth_str = depth.map_or_else(|| "?".to_string(), |d| d.to_i8().to_string());
     let text = format!("({:.0}, {:.0}) D:{}", position.x, position.y, depth_str);
 
     commands.spawn((

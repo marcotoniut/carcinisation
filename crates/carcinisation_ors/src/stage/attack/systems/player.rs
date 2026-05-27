@@ -151,46 +151,51 @@ pub fn check_got_hit(
             (None, None, None)
         };
 
-        let attack_mask = if let Some(ref data) = attack_sprite_data {
-            world_mask_rect_from_spatial(
-                data.frame_size(),
-                *attack_position,
-                *attack_anchor,
-                *attack_canvas,
-                camera_world,
-                None,
-            )
-            .map(|world| build_attack_mask(data, attack_frame.copied(), world.rect))
-        } else if let Some(ref atlas_data) = attack_atlas_data
-            && let Some(region_size) = attack_atlas_region_size
-            && let Some(ref region) = attack_atlas_region
-        {
-            world_mask_rect_from_spatial(
-                region_size,
-                *attack_position,
-                *attack_anchor,
-                *attack_canvas,
-                camera_world,
-                None,
-            )
-            .map(|world| AttackMask {
-                mask: WorldMaskInstance {
-                    source: PixelMaskSource::Atlas {
-                        atlas: atlas_data.as_ref(),
-                        frames: AtlasMaskFrames::Region(region),
-                    },
-                    frame: attack_frame.copied(),
-                    world: carcinisation_collision::WorldMaskRect {
-                        rect: world.rect,
-                        flip_x: false,
-                        flip_y: false,
-                    },
-                    closed: false,
-                },
-            })
-        } else {
-            None
-        };
+        let attack_mask = attack_sprite_data.as_ref().map_or_else(
+            || {
+                if let Some(ref atlas_data) = attack_atlas_data
+                    && let Some(region_size) = attack_atlas_region_size
+                    && let Some(ref region) = attack_atlas_region
+                {
+                    world_mask_rect_from_spatial(
+                        region_size,
+                        *attack_position,
+                        *attack_anchor,
+                        *attack_canvas,
+                        camera_world,
+                        None,
+                    )
+                    .map(|world| AttackMask {
+                        mask: WorldMaskInstance {
+                            source: PixelMaskSource::Atlas {
+                                atlas: atlas_data.as_ref(),
+                                frames: AtlasMaskFrames::Region(region),
+                            },
+                            frame: attack_frame.copied(),
+                            world: carcinisation_collision::WorldMaskRect {
+                                rect: world.rect,
+                                flip_x: false,
+                                flip_y: false,
+                            },
+                            closed: false,
+                        },
+                    })
+                } else {
+                    None
+                }
+            },
+            |data| {
+                world_mask_rect_from_spatial(
+                    data.frame_size(),
+                    *attack_position,
+                    *attack_anchor,
+                    *attack_canvas,
+                    camera_world,
+                    None,
+                )
+                .map(|world| build_attack_mask(data, attack_frame.copied(), world.rect))
+            },
+        );
         if is_sprite_mask && attack_mask.is_none() {
             continue;
         }

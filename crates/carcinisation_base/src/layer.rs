@@ -112,20 +112,17 @@ impl Next for OrsLayer {
 
     fn next(self) -> Option<Self> {
         match self {
-            Self::PreBackgroundDepth(d) => match d.next() {
-                Some(d) => Some(Self::PreBackgroundDepth(d)),
-                None => Some(Self::Background),
-            },
+            Self::PreBackgroundDepth(d) => d.next().map_or(Some(Self::Background), |d| {
+                Some(Self::PreBackgroundDepth(d))
+            }),
             Self::Background => Some(Self::MidDepth(MidDepth::MIN)),
-            Self::MidDepth(d) => match d.next() {
-                Some(d) => Some(Self::MidDepth(d)),
-                None => Some(Self::Attack),
-            },
+            Self::MidDepth(d) => d
+                .next()
+                .map_or(Some(Self::Attack), |d| Some(Self::MidDepth(d))),
             Self::Attack => Some(Self::FlameSegment(FlameDepth::MIN)),
-            Self::FlameSegment(d) => match d.next() {
-                Some(d) => Some(Self::FlameSegment(d)),
-                None => Some(Self::Front),
-            },
+            Self::FlameSegment(d) => d
+                .next()
+                .map_or(Some(Self::Front), |d| Some(Self::FlameSegment(d))),
             Self::Front => Some(Self::HudUnderlay),
             Self::HudUnderlay => Some(Self::HudBackground),
             Self::HudBackground => Some(Self::Hud),

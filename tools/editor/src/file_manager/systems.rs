@@ -19,7 +19,7 @@ pub fn load_recent_file(mut commands: Commands) {
     let thread_pool = AsyncComputeTaskPool::get();
     let task = thread_pool.spawn(async move {
         let recent_path = recent_file_path();
-        if let Ok(mut file) = File::open(&recent_path) {
+        File::open(&recent_path).map_or(None, |mut file| {
             let mut path = String::new();
             if file.read_to_string(&mut path).is_ok() && !path.trim().is_empty() {
                 let path_buf = PathBuf::from(path.trim());
@@ -28,9 +28,7 @@ pub fn load_recent_file(mut commands: Commands) {
             } else {
                 None
             }
-        } else {
-            None
-        }
+        })
     });
     commands.spawn(SelectedFile(task));
 }

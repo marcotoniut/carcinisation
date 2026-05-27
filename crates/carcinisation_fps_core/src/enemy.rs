@@ -325,6 +325,7 @@ impl DamageFlicker {
     #[must_use]
     pub fn tick(mut self, dt: f32) -> Option<Self> {
         self.phase_remaining_secs -= dt;
+        #[allow(clippy::while_float)]
         while self.phase_remaining_secs <= 0.0 {
             match self.phase {
                 DamageFlickerPhase::Regular => {

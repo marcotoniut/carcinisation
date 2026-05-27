@@ -71,14 +71,15 @@ fn authored_depths_from_spawn(
     enemy_type: Option<EnemyType>,
     explicit: Option<&Vec<Depth>>,
 ) -> AuthoredDepths {
-    if let Some(depths) = explicit {
-        AuthoredDepths::new(depths.clone())
-    } else {
-        let base = enemy_type
-            .and_then(|et| et.composed_authored_depth())
-            .unwrap_or(depth);
-        AuthoredDepths::single(base)
-    }
+    explicit.map_or_else(
+        || {
+            let base = enemy_type
+                .and_then(|et| et.composed_authored_depth())
+                .unwrap_or(depth);
+            AuthoredDepths::single(base)
+        },
+        |depths| AuthoredDepths::new(depths.clone()),
+    )
 }
 
 const fn composed_root_visibility() -> Visibility {
@@ -225,7 +226,7 @@ pub fn on_stage_spawn(
             );
         }
         StageSpawn::Object(x) => {
-            spawn_object(&mut commands, &mut assets_sprite, x);
+            spawn_object(&mut commands, &assets_sprite, x);
         }
         StageSpawn::Pickup(x) => {
             let camera_pos = camera_query.single().unwrap();
@@ -542,7 +543,7 @@ pub fn spawn_destructible(
 
 pub fn spawn_object(
     commands: &mut Commands,
-    assets_sprite: &mut CxAssets<CxSprite>,
+    assets_sprite: &CxAssets<CxSprite>,
     spawn: &ObjectSpawn,
 ) -> Entity {
     let sprite = assets_sprite.load(match spawn.object_type {

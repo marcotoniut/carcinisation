@@ -78,11 +78,7 @@ fn calc_min_size<L: CxLayer>(
         let vert = row.vertical;
         let mut size = UVec2::ZERO;
 
-        let children = if let Some(children) = children {
-            &**children
-        } else {
-            &[]
-        };
+        let children = children.map_or(&[] as &[Entity], |children| &**children);
 
         *dim_mut(&mut size, vert) += children.len().saturating_sub(1) as u32 * row.space_between;
 
@@ -102,11 +98,7 @@ fn calc_min_size<L: CxLayer>(
 
     if let Some((grid, children)) = grid {
         let mut column_widths = vec![0; grid.width as usize];
-        let children = if let Some(children) = children {
-            &**children
-        } else {
-            &[]
-        };
+        let children = children.map_or(&[] as &[Entity], |children| &**children);
         let mut height = (children.len() as u32)
             .div_ceil(grid.width)
             .saturating_sub(1)
@@ -154,24 +146,18 @@ fn calc_min_size<L: CxLayer>(
 
         let mut children = children.iter();
 
-        let (mut size, bar_size) = if let Some(content) = children.next() {
+        let (mut size, bar_size) = children.next().map_or_else(default, |content| {
             (
                 calc_min_size(content, uis.as_readonly(), typefaces, sprites),
-                if let Some(bar) = children.next() {
+                children.next().map_or(UVec2::ZERO, |bar| {
                     calc_min_size(bar, uis.as_readonly(), typefaces, sprites).max(
-                        if let Some(bar_bg) = children.next() {
+                        children.next().map_or(UVec2::ZERO, |bar_bg| {
                             calc_min_size(bar_bg, uis.as_readonly(), typefaces, sprites)
-                        } else {
-                            UVec2::ZERO
-                        },
+                        }),
                     )
-                } else {
-                    UVec2::ZERO
-                },
+                }),
             )
-        } else {
-            default()
-        };
+        });
 
         if children.next().is_some() {
             warn!("`CxScroll` has more than 3 children");
@@ -189,11 +175,9 @@ fn calc_min_size<L: CxLayer>(
     }
 
     if let Some(sprite) = sprite {
-        return if let Some(sprite) = sprites.get(&**sprite) {
-            sprite.frame_size()
-        } else {
-            UVec2::ZERO
-        };
+        return sprites
+            .get(&**sprite)
+            .map_or(UVec2::ZERO, |sprite| sprite.frame_size());
     }
 
     if let Some(text) = text {
@@ -205,14 +189,18 @@ fn calc_min_size<L: CxLayer>(
             text.value
                 .chars()
                 .map(|char| {
-                    if let Some(char) = typeface.characters.get(&char) {
-                        char.frame_size().x + 1
-                    } else if let Some(separator) = typeface.separators.get(&char) {
-                        separator.width
-                    } else {
-                        error!(r#"character "{char}" in text isn't in typeface"#);
-                        0
-                    }
+                    typeface.characters.get(&char).map_or_else(
+                        || {
+                            typeface.separators.get(&char).map_or_else(
+                                || {
+                                    error!(r#"character "{char}" in text isn't in typeface"#);
+                                    0
+                                },
+                                |separator| separator.width,
+                            )
+                        },
+                        |char| char.frame_size().x + 1,
+                    )
                 })
                 .sum::<u32>()
                 .saturating_sub(1),
@@ -354,11 +342,10 @@ fn layout_inner<L: CxLayer>(
             *dim_mut(&mut size, !vert) = fill_size;
             // }
 
-            let entry_layer = if let Some(ref layer) = layer {
-                layer.clone().next().unwrap_or(layer.clone())
-            } else {
-                target_layer.clone()
-            };
+            let entry_layer = layer.as_ref().map_or_else(
+                || target_layer.clone(),
+                |layer| layer.clone().next().unwrap_or_else(|| layer.clone()),
+            );
 
             // Improvements to the layouting could make it so that most things can share layers
             if let Some(last_layer) = layout_inner(
@@ -463,11 +450,10 @@ fn layout_inner<L: CxLayer>(
             for (column, &entry) in row.iter().enumerate() {
                 let width = column_widths[column];
 
-                let entry_layer = if let Some(ref layer) = layer {
-                    layer.clone().next().unwrap_or(layer.clone())
-                } else {
-                    target_layer.clone()
-                };
+                let entry_layer = layer.as_ref().map_or_else(
+                    || target_layer.clone(),
+                    |layer| layer.clone().next().unwrap_or_else(|| layer.clone()),
+                );
 
                 if let Some(last_layer) = layout_inner(
                     IRect {
@@ -504,11 +490,10 @@ fn layout_inner<L: CxLayer>(
         let mut layer = None::<L>;
 
         for &entry in &children {
-            let entry_layer = if let Some(ref layer) = layer {
-                layer.clone().next().unwrap_or(layer.clone())
-            } else {
-                target_layer.clone()
-            };
+            let entry_layer = layer.as_ref().map_or_else(
+                || target_layer.clone(),
+                |layer| layer.clone().next().unwrap_or_else(|| layer.clone()),
+            );
 
             if let Some(last_layer) = layout_inner(
                 target_rect,
@@ -566,18 +551,15 @@ fn layout_inner<L: CxLayer>(
             let content_min_size =
                 calc_min_size(content, uis.as_readonly(), typefaces, sprites).as_ivec2();
 
-            let bar_min_size = if let Some(bar) = bar {
-                calc_min_size(bar, uis.as_readonly(), typefaces, sprites).max(
-                    if let Some(bg) = bg {
-                        calc_min_size(bg, uis.as_readonly(), typefaces, sprites)
-                    } else {
-                        UVec2::ZERO
-                    },
-                )
-            } else {
-                UVec2::ZERO
-            }
-            .as_ivec2();
+            let bar_min_size = bar
+                .map_or(UVec2::ZERO, |bar| {
+                    calc_min_size(bar, uis.as_readonly(), typefaces, sprites).max(
+                        bg.map_or(UVec2::ZERO, |bg| {
+                            calc_min_size(bg, uis.as_readonly(), typefaces, sprites)
+                        }),
+                    )
+                })
+                .as_ivec2();
 
             let mut view_rect = target_rect;
             *rect_end_mut(&mut view_rect, horz) =
@@ -621,19 +603,20 @@ fn layout_inner<L: CxLayer>(
             let (_, _, mut layers) = rect.unwrap();
 
             let bg_layer;
-            (*layers, bg_layer) = if let Some(last_content_layer) = last_content_layer {
-                layer = Some(last_content_layer.clone());
+            (*layers, bg_layer) = last_content_layer.map_or_else(
+                || (CxFilterLayers::Many(Vec::new()), target_layer.clone()),
+                |last_content_layer| {
+                    layer = Some(last_content_layer.clone());
 
-                (
-                    CxFilterLayers::Range(target_layer.clone()..=last_content_layer.clone()),
-                    last_content_layer
-                        .clone()
-                        .next()
-                        .unwrap_or(last_content_layer),
-                )
-            } else {
-                (CxFilterLayers::Many(Vec::new()), target_layer.clone())
-            };
+                    (
+                        CxFilterLayers::Range(target_layer.clone()..=last_content_layer.clone()),
+                        last_content_layer
+                            .clone()
+                            .next()
+                            .unwrap_or(last_content_layer),
+                    )
+                },
+            );
 
             let mut bar_rect = target_rect;
             *rect_start_mut(&mut bar_rect, horz) = rect_end(view_rect, horz);
@@ -653,12 +636,10 @@ fn layout_inner<L: CxLayer>(
                 })
                 .transpose()?
                 .flatten();
-            let bar_layer = if let Some(last_bg_layer) = last_bg_layer {
+            let bar_layer = last_bg_layer.map_or(bg_layer, |last_bg_layer| {
                 layer = Some(last_bg_layer.clone());
                 last_bg_layer.clone().next().unwrap_or(last_bg_layer)
-            } else {
-                bg_layer
-            };
+            });
 
             let content_size = rect_size(content_rect, !horz);
             let view_size = rect_size(view_rect, !horz);
@@ -782,7 +763,7 @@ fn layout_inner<L: CxLayer>(
                 let split = x > max_width;
                 if split {
                     x = 0;
-                    new_line_breaks.push(last_separator.unwrap_or(index.saturating_sub(1)));
+                    new_line_breaks.push(last_separator.unwrap_or_else(|| index.saturating_sub(1)));
                     last_separator = None;
                 }
 
@@ -795,7 +776,7 @@ fn layout_inner<L: CxLayer>(
 
                 if x > max_width && !split {
                     x = width;
-                    new_line_breaks.push(last_separator.unwrap_or(index.saturating_sub(1)));
+                    new_line_breaks.push(last_separator.unwrap_or_else(|| index.saturating_sub(1)));
                     last_separator = None;
                 }
 

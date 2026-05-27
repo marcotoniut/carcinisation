@@ -1,6 +1,8 @@
-//! Server-side map reset: despawns gameplay entities, respawns map entities,
-//! resets players to spawn points with full health. Connected clients are
-//! preserved — they see the world reinitialised around them.
+//! Server-side map reset.
+//!
+//! Despawns gameplay entities, respawns map entities, and resets players to
+//! spawn points with full health. Connected clients are preserved — they see
+//! the world reinitialised around them.
 
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;

@@ -1205,13 +1205,10 @@ pub fn update_composed_enemy_visuals(
         let gameplay_scale = depth_fallback_scale.map_or(1.0, |s| s.0.x);
         let collision_offset = presentation.map_or(Vec2::ZERO, |pt| pt.collision_offset);
         // Freeze animation time for death presentation states.
-        let animation_time_ms = if let Some(dying) = dying {
-            dying.started.as_millis() as u64
-        } else if let Some(burning) = burning_corpse {
-            burning.started.as_millis() as u64
-        } else {
-            now_ms
-        };
+        let animation_time_ms = dying.map_or_else(
+            || burning_corpse.map_or(now_ms, |burning| burning.started.as_millis() as u64),
+            |dying| dying.started.as_millis() as u64,
+        );
 
         let Some(atlas_asset) = atlas_assets.get(&visual.atlas_manifest) else {
             fail_ready_composed_enemy(
@@ -2273,11 +2270,12 @@ fn apply_part_damage(
 
     // When pool_damage_ratio is set, forward a fraction of each hit's
     // adjusted damage to the health pool regardless of durability.
-    let pool_to_apply = if let Some(ratio) = part.gameplay.pool_damage_ratio {
-        (adjusted_damage as f32 * ratio) as u32
-    } else {
-        remaining_damage
-    };
+    let pool_to_apply = part
+        .gameplay
+        .pool_damage_ratio
+        .map_or(remaining_damage, |ratio| {
+            (adjusted_damage as f32 * ratio) as u32
+        });
 
     let pool_id = part.gameplay.health_pool.clone();
     let remaining_health = if pool_to_apply == 0 {
@@ -2628,8 +2626,9 @@ fn resolve_part_pose_from_tracks(
                         .iter()
                         .enumerate()
                         .map(|(i, base)| {
-                            if let Some(ovr) = sprite_only_fragments.get(i) {
-                                CachedPose {
+                            sprite_only_fragments.get(i).map_or_else(
+                                || base.clone(),
+                                |ovr| CachedPose {
                                     sprite_id: ovr.sprite_id.clone(),
                                     size: ovr.size,
                                     flip_x: ovr.flip_x,
@@ -2637,10 +2636,8 @@ fn resolve_part_pose_from_tracks(
                                     visible: ovr.visible,
                                     local_offset: base.local_offset,
                                     fragment: base.fragment,
-                                }
-                            } else {
-                                base.clone()
-                            }
+                                },
+                            )
                         })
                         .collect();
                     return Ok(Some(merged));
@@ -2958,17 +2955,18 @@ fn build_collision_state(
         let pose = poses.get(part_id.as_str()).and_then(|v| v.first());
         let part_pivot = transform.pivot - transform.top_left;
         for collision in &part.gameplay.collisions {
-            let offset = if let Some(pose) = pose {
-                flip_authored_offset(
-                    collision.offset,
-                    transform.size,
-                    part_pivot,
-                    pose.flip_x,
-                    pose.flip_y,
-                )
-            } else {
-                Vec2::new(collision.offset.x, -collision.offset.y)
-            };
+            let offset = pose.map_or_else(
+                || Vec2::new(collision.offset.x, -collision.offset.y),
+                |pose| {
+                    flip_authored_offset(
+                        collision.offset,
+                        transform.size,
+                        part_pivot,
+                        pose.flip_x,
+                        pose.flip_y,
+                    )
+                },
+            );
             // Scale the collider shape, offset, and pivot displacement
             // by the depth-fallback ratio so collision bounds match the
             // visual presentation at every depth.
@@ -3050,11 +3048,11 @@ fn build_resolved_part_states(
             current_durability: part
                 .gameplay
                 .durability
-                .and(part_state.map(|state| state.current_durability)),
+                .and_then(|_| part_state.map(|state| state.current_durability)),
             max_durability: part
                 .gameplay
                 .durability
-                .and(part_state.map(|state| state.max_durability)),
+                .and_then(|_| part_state.map(|state| state.max_durability)),
             breakable: part_state.is_some_and(|state| state.breakable),
             broken: part_state.is_some_and(|state| state.broken),
             blinking: part_state

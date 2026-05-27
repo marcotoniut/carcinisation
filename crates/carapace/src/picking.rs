@@ -98,10 +98,7 @@ fn sprite_pixel_visible<'a>(
         return false;
     }
 
-    let frame_index = match frame {
-        Some(frame) => animate(frame, frame_count)(local_pos),
-        None => 0,
-    };
+    let frame_index = frame.map_or(0, |frame| animate(frame, frame_count)(local_pos));
 
     let Some(mut pixel) = sprite.flipped_pixel(frame_index, local_pos, flip_x, flip_y) else {
         return false;

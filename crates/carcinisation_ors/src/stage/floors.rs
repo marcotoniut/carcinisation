@@ -334,10 +334,8 @@ fn resolve_floors_from(projection: &ProjectionProfile, layout: &SurfaceLayout) -
     let by_depth = (Depth::MIN.to_i8()..=Depth::MAX.to_i8())
         .map(|depth_i8| {
             let depth = Depth::try_from(depth_i8).expect("visible depth range must be valid");
-            let surface = match resolve_depth_y(depth, projection, layout) {
-                Some(y) => Surface::Solid { y },
-                None => Surface::Gap,
-            };
+            let surface = resolve_depth_y(depth, projection, layout)
+                .map_or(Surface::Gap, |y| Surface::Solid { y });
             (depth, vec![surface])
         })
         .collect();

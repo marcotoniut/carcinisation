@@ -32,21 +32,18 @@ pub fn resolve_enemy_position(
 /// Panics if the spawn depth has no solid floor when altitude is specified.
 #[must_use]
 pub fn resolve_enemy_position_local_with_floors(spawn: &EnemySpawn, floors: &ActiveFloors) -> Vec2 {
-    match spawn.altitude {
-        Some(alt) => {
-            // Pick the ground surface (lowest solid Y) for spawn placement.
-            // Future: spawn authoring may target a specific surface via
-            // tagged identity. V1 picks ground = lowest solid Y.
-            let floor_y = floors.lowest_solid_y(spawn.depth).unwrap_or_else(|| {
-                panic!(
-                    "enemy spawn altitude requires a solid floor at depth {:?}",
-                    spawn.depth
-                )
-            });
-            Vec2::new(spawn.coordinates.x, floor_y + alt)
-        }
-        None => spawn.coordinates,
-    }
+    spawn.altitude.map_or(spawn.coordinates, |alt| {
+        // Pick the ground surface (lowest solid Y) for spawn placement.
+        // Future: spawn authoring may target a specific surface via
+        // tagged identity. V1 picks ground = lowest solid Y.
+        let floor_y = floors.lowest_solid_y(spawn.depth).unwrap_or_else(|| {
+            panic!(
+                "enemy spawn altitude requires a solid floor at depth {:?}",
+                spawn.depth
+            )
+        });
+        Vec2::new(spawn.coordinates.x, floor_y + alt)
+    })
 }
 
 /// Resolve spawn position without camera offset for editor preview.
@@ -54,13 +51,10 @@ pub fn resolve_enemy_position_local_with_floors(spawn: &EnemySpawn, floors: &Act
 /// This uses the projection baseline only, not runtime floor overrides or gaps.
 #[must_use]
 pub fn resolve_enemy_position_local(spawn: &EnemySpawn, projection: &ProjectionProfile) -> Vec2 {
-    match spawn.altitude {
-        Some(alt) => {
-            let floor_y = projection.floor_y_for_depth(spawn.depth.to_i8());
-            Vec2::new(spawn.coordinates.x, floor_y + alt)
-        }
-        None => spawn.coordinates,
-    }
+    spawn.altitude.map_or(spawn.coordinates, |alt| {
+        let floor_y = projection.floor_y_for_depth(spawn.depth.to_i8());
+        Vec2::new(spawn.coordinates.x, floor_y + alt)
+    })
 }
 
 #[cfg(test)]

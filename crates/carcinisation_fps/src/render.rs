@@ -190,6 +190,7 @@ pub fn render_fp_scene_with_effects(
         sky,
     );
 
+    let fog_range = palette.fog_distance - palette.fog_start;
     // Sort billboards back-to-front (farthest first).
     let mut projected: Vec<_> = billboards
         .iter()
@@ -202,10 +203,8 @@ pub fn render_fp_scene_with_effects(
     });
 
     for proj in &projected {
-        let fog = if palette.fog_distance > palette.fog_start {
-            let fog_t = ((proj.distance - palette.fog_start)
-                / (palette.fog_distance - palette.fog_start))
-                .clamp(0.0, 1.0);
+        let fog = if fog_range > 0.0 {
+            let fog_t = ((proj.distance - palette.fog_start) / fog_range).clamp(0.0, 1.0);
             Some((palette.fog_color, fog_t))
         } else {
             None
@@ -238,6 +237,7 @@ fn render_walls(
 
     image.clear();
 
+    let fog_range = palette.fog_distance - palette.fog_start;
     let dir = camera.direction();
     let plane = camera.plane();
     let base_half_h = h / 2;
@@ -311,10 +311,8 @@ fn render_walls(
         fill_column(image, x, draw_end.min(h), h, palette.floor);
 
         // Distance fog on the wall strip.
-        if palette.fog_distance > palette.fog_start {
-            let fog_t = ((hit.distance - palette.fog_start)
-                / (palette.fog_distance - palette.fog_start))
-                .clamp(0.0, 1.0);
+        if fog_range > 0.0 {
+            let fog_t = ((hit.distance - palette.fog_start) / fog_range).clamp(0.0, 1.0);
             apply_column_fog(image, x, draw_start, draw_end, palette.fog_color, fog_t);
         }
     }

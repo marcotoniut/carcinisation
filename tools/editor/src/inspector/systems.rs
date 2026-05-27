@@ -244,6 +244,7 @@ pub fn inspector_ui(world: &mut World) {
 ///
 /// Uses `RestrictedWorldView` to split off `SceneData` so that individual fields
 /// can be reflected without triggering spurious change detection.
+#[allow(clippy::significant_drop_tightening)]
 fn stage_inspector(world: &mut World, ui: &mut egui::Ui, elapsed: Duration) {
     let type_registry = world.resource::<AppTypeRegistry>().0.clone();
     let type_registry = type_registry.read();

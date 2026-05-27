@@ -38,9 +38,10 @@ use crate::{
     prelude::*,
 };
 
-/// Marker component for cameras that should **not** run the `CxPlugin` render
-/// pass. Attach this to a `Camera2d` to let Bevy gizmos render on top of
-/// pixel-art output without being overwritten by the fullscreen quad.
+/// Marker to exclude a camera from the `CxPlugin` render pass.
+///
+/// Attach to a `Camera2d` to let Bevy gizmos render on top of pixel-art
+/// output without being overwritten by the fullscreen quad.
 ///
 /// # Example
 ///

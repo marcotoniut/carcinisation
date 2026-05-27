@@ -60,10 +60,11 @@ impl Default for BloodShotDefaultBundle {
 #[derive(Component, Clone, Debug)]
 pub struct BloodShotTween;
 
-/// Holds a freshly spawned blood shot at its authored cue origin briefly so
-/// the first visible frame reads as emerging from the mouth before travel.
-/// Spawn origin is reconstructed once from the source's presented muzzle.
-/// After that, travel remains plain world-space motion.
+/// Holds a blood shot at its cue origin before travel begins.
+///
+/// The first visible frame reads as emerging from the mouth. Spawn origin is
+/// reconstructed once from the source's presented muzzle; after that, travel
+/// is plain world-space motion.
 #[derive(Component, Clone, Debug)]
 pub struct PendingBloodShotMotion {
     pub armed_at: Duration,

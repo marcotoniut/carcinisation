@@ -12,7 +12,6 @@ pub struct StageTimelineConfig {
     pub include_spawn_delays: bool,
     pub include_stop_durations: bool,
     pub include_cinematic_durations: bool,
-    pub collapse_infinite_stops: bool,
 }
 
 impl StageTimelineConfig {
@@ -20,7 +19,6 @@ impl StageTimelineConfig {
         include_spawn_delays: false,
         include_stop_durations: true,
         include_cinematic_durations: true,
-        collapse_infinite_stops: true,
     };
 }
 
@@ -101,14 +99,8 @@ pub const fn stop_duration(step: &StopStageStep, config: StageTimelineConfig) ->
     }
     match step.max_duration {
         Some(duration) => duration,
-        None => {
-            if config.collapse_infinite_stops {
-                Duration::ZERO
-            } else {
-                // Infinite stops have no finite duration; keep zero until a UI policy exists.
-                Duration::ZERO
-            }
-        }
+        // Infinite stops have no finite duration; keep zero until a UI policy exists.
+        None => Duration::ZERO,
     }
 }
 

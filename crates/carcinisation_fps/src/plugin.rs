@@ -576,7 +576,9 @@ pub fn tick_death_view(camera: &mut Camera, state: &mut DeathViewState, dt: f32,
     state.elapsed = (state.elapsed + dt).min(config.death_turn_duration_secs);
     let t = (state.elapsed / config.death_turn_duration_secs).clamp(0.0, 1.0);
     let delta = signed_angle_delta(state.start_angle, state.target_angle);
-    camera.angle = (state.start_angle + delta * t).rem_euclid(std::f32::consts::TAU);
+    #[allow(clippy::suboptimal_flops)]
+    let angle = state.start_angle + delta * t;
+    camera.angle = angle.rem_euclid(std::f32::consts::TAU);
 }
 
 #[must_use]
@@ -616,6 +618,7 @@ pub fn tick_camera_shake(
     }
 
     let angle = angle_sample.clamp(0.0, 1.0) * std::f32::consts::TAU;
+    #[allow(clippy::suboptimal_flops)]
     let magnitude = state.intensity * (0.5 + 0.5 * magnitude_sample.clamp(0.0, 1.0));
     let offset = Vec2::new(angle.cos() * magnitude, angle.sin() * magnitude).round();
     state.current_offset = IVec2::new(offset.x as i32, offset.y as i32);
@@ -2280,6 +2283,7 @@ fn ground_fire_billboards(
             let cropped = crop_bottom(full_sprite, vis.crop_bottom_px);
             let world_height = vis.flame_world_height * scale * intensity;
             // Bottom of the cropped sprite sits at ground level (-0.5).
+            #[allow(clippy::suboptimal_flops)]
             let height = -0.5 + world_height * 0.5;
             billboards.push(Billboard {
                 position: fire.position + right * offset.x + cam_dir * offset.y,

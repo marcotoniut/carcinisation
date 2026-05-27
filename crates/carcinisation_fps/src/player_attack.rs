@@ -588,9 +588,12 @@ impl PlayerAttackState {
         for sample in &active.samples {
             let pos = sample.world_position(shared.speed);
             let t = (sample.age / max_age).clamp(0.0, 1.0);
+            #[allow(clippy::suboptimal_flops)]
             let world_scale = config.billboard_scale_near
                 + (config.billboard_scale_far - config.billboard_scale_near) * t;
+            #[allow(clippy::suboptimal_flops)]
             let height = config.nozzle_height * (1.0 - t);
+            #[allow(clippy::suboptimal_flops)]
             let phase = active.elapsed + sample.age * 0.5;
 
             billboards.push(Billboard {
@@ -915,6 +918,7 @@ fn update_flamethrower_attack(
             config.nozzle_lateral,
         );
         let emit_interval = shared.emit_interval_ms.get() as f32 / 1000.0;
+        #[allow(clippy::while_float)]
         while active.spawn_cooldown <= 0.0 {
             let seed = sample_seed(active.sample_counter);
             active.samples.push(FlameStreamSample {
@@ -989,6 +993,7 @@ fn find_flame_wall_impact(
         return None;
     }
     let wall_dist = ray_hit.distance;
+    #[allow(clippy::suboptimal_flops)]
     let max_reach = config.nozzle_forward + active.elapsed * shared.speed;
     if max_reach < wall_dist || wall_dist > shared.range + config.nozzle_forward {
         return None;
@@ -1033,6 +1038,7 @@ fn emit_char_decals(
     let steps = ((delta.abs() / (FLAME_CHAR_DECAL_WIDTH * 0.35)).ceil() as usize).max(1);
     for step in 0..steps {
         let t = (step + 1) as f32 / steps as f32;
+        #[allow(clippy::suboptimal_flops)]
         let u = (start + delta * t).clamp(0.0, 1.0);
         let seed = wall_impact_seed(impact.surface_id, u, impact.v);
         push_char_decal(decals, impact.surface_id, u, impact.v, seed);
@@ -1045,6 +1051,7 @@ fn emit_char_decals(
                 seed ^ 0x9e37_79b9,
             );
         }
+        #[allow(clippy::suboptimal_flops)]
         if u > 1.0 - FLAME_CHAR_DECAL_WIDTH * 0.5 {
             push_char_decal(
                 decals,

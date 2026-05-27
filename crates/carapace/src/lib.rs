@@ -40,7 +40,7 @@
 //! `(0, 0)` = bottom-left, `(1, 1)` = top-right.  This matches Bevy's and
 //! most 2D engines' world-space convention.
 //!
-//! [`PartTransform`]`.pivot` uses **top-left origin**
+//! `PartTransform.pivot` uses **top-left origin**
 //! (Y-down): `(0, 0)` = top-left, `(1, 1)` = bottom-right.  This matches
 //! image/texture convention where row 0 is the top of the raster buffer.
 //!

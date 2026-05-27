@@ -126,10 +126,12 @@ pub struct LoadingSystems;
 pub struct BuildingSystems;
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-/// Systems that produce collision-readable state: presentation offsets and
-/// composed collision volumes.  Any system that reads
-/// `CxPresentationTransform.collision_offset` or `ComposedCollisionState` for
-/// hit detection should run `.after(CollisionStateSystems)`.
+/// Systems that produce collision-readable state.
+///
+/// Computes presentation offsets and composed collision volumes. Any system
+/// that reads `CxPresentationTransform.collision_offset` or
+/// `ComposedCollisionState` for hit detection should run
+/// `.after(CollisionStateSystems)`.
 pub struct CollisionStateSystems;
 
 /// Function-pointer hooks that downstream systems use to activate/deactivate

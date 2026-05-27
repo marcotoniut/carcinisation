@@ -75,10 +75,10 @@ impl std::fmt::Display for CxPosition {
     }
 }
 
-/// Trait implemented for your game's custom layer type. Use the [`px_layer`] attribute
-/// or derive/implement the required traits manually. The layers will be rendered in the order
-/// defined by the [`PartialOrd`] implementation. So, lower values will be in the back
-/// and vice versa.
+/// Trait for custom rendering-layer types.
+///
+/// Use the [`px_layer`] attribute or derive/implement the required traits manually.
+/// Layers render in [`PartialOrd`] order: lower values in the back, higher in front.
 ///
 // TODO: For games with fixed enum layers, an opt-in `DenseLayer` trait that maps variants to
 // `usize` would allow the collect phase in `screen/node.rs` to use pre-sized `Vec` storage

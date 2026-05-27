@@ -93,6 +93,7 @@ fn classify_ron(path: &Path) -> Option<RonKind> {
 }
 
 // Function to handle changes in RON files
+#[allow(clippy::significant_drop_tightening)]
 fn handle_event(event: notify::Event, last_processed: &Arc<Mutex<HashMap<PathBuf, Instant>>>) {
     let mut last_processed = last_processed.lock().unwrap();
 

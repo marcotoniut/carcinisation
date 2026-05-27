@@ -1002,7 +1002,10 @@ pub fn compute_palette_indices(source: &RgbaImage) -> Result<Vec<u8>> {
 
     // Build direct RGB lookup table: [r][g][b] → index (0 = transparent).
     // Palette has ≤15 colors; heap-allocate the 16MB LUT to avoid stack overflow.
-    let mut lut: Box<[[[u8; 256]; 256]; 256]> = Box::new([[[0; 256]; 256]; 256]);
+    let mut lut: Box<[[[u8; 256]; 256]; 256]> = vec![[[0u8; 256]; 256]; 256]
+        .into_boxed_slice()
+        .try_into()
+        .expect("vec length matches array length");
     for (i, color) in palette.iter().enumerate() {
         let [r, g, b, _] = color.0;
         lut[r as usize][g as usize][b as usize] = (i + 1) as u8;

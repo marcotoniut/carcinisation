@@ -4,6 +4,10 @@
 //! are guaranteed valid by construction — no post-load `validate()` needed
 //! for the constraints they encode.
 
+// `impl_reflect_opaque!` expands to code that triggers this lint with a
+// nonsensical suggestion (`PartialEq.map_or(...)`) — suppress at module level.
+#![allow(clippy::option_if_let_else)]
+
 use bevy_reflect::{ReflectDeserialize, ReflectSerialize, impl_reflect_opaque};
 use serde::de;
 use std::fmt;

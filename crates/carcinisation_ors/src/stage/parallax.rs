@@ -146,11 +146,11 @@ pub fn update_active_parallax_attenuation(
 #[reflect(Component)]
 pub struct ParallaxOffset(pub Vec2);
 
-/// Opt-out marker: entities with this component skip parallax displacement
-/// entirely. They are excluded from [`update_parallax_offset`] via a
-/// `Without<NoParallax>` query filter, so their [`ParallaxOffset`] (if any)
-/// stays at zero and their visual position is unaffected by lateral camera
-/// movement.
+/// Opt-out marker that disables parallax displacement.
+///
+/// Excluded from [`update_parallax_offset`] via a `Without<NoParallax>` query
+/// filter, so the entity's [`ParallaxOffset`] stays at zero and its visual
+/// position is unaffected by lateral camera movement.
 ///
 /// Use for entities whose world-space X already accounts for projection (e.g.
 /// the `depth_traverse` demo) or that should remain fixed regardless of camera
@@ -204,11 +204,12 @@ pub fn update_parallax_offset(
     }
 
     for (sub_pos, mut parallax, depth, continuous_depth) in &mut query {
-        let reference_y = if let Some(continuous_depth) = continuous_depth {
-            profile.floor_y_for_progress(Depth::progress_for_continuous(continuous_depth.0))
-        } else {
-            depth.map_or(sub_pos.0.y, |d| profile.floor_y_for_depth(d.to_i8()))
-        };
+        let reference_y = continuous_depth.map_or_else(
+            || depth.map_or(sub_pos.0.y, |d| profile.floor_y_for_depth(d.to_i8())),
+            |continuous_depth| {
+                profile.floor_y_for_progress(Depth::progress_for_continuous(continuous_depth.0))
+            },
+        );
         let new_offset = parallax_offset_for(profile, lateral, att, reference_y);
         if parallax.0 != new_offset {
             parallax.0 = new_offset;

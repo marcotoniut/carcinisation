@@ -81,7 +81,7 @@ impl FpsScreenParticles {
             );
             burst_positions.push(position);
 
-            let pop_mag = config.pop_impulse.get() * scale * (0.5 + self.rng.f32() * 0.5);
+            let pop_mag = config.pop_impulse.get() * scale * self.rng.f32().mul_add(0.5, 0.5);
             let random_highlight = self.rng.f32() < config.highlight_chance;
             let is_highlight = tier.always_highlight || random_highlight;
             let highlight_window = tier.highlight_window;
@@ -167,7 +167,7 @@ fn draw_particle(
     let r_factor = if age_ratio < 0.25 {
         1.0
     } else {
-        1.0 - (age_ratio - 0.25) * 1.15
+        (age_ratio - 0.25).mul_add(-1.15, 1.0)
     };
     let radius = (f32::from(particle.max_r) * r_factor.max(0.0)).round() as i32;
     if radius <= 0 {
@@ -180,7 +180,7 @@ fn draw_particle(
         0.0
     };
     if age_ratio > 0.7 {
-        fade += 0.10 * (particle.age * 38.0 + particle.flicker_phase).sin();
+        fade += 0.10 * particle.age.mul_add(38.0, particle.flicker_phase).sin();
     }
     let fade_threshold =
         (fade.clamp(0.0, 1.0) * 16.0 * config.dither_fade_strength.get()).clamp(0.0, 16.0) as u8;
@@ -336,7 +336,7 @@ impl ScreenParticleRng {
     }
 
     fn range_f32(&mut self, min: f32, max: f32) -> f32 {
-        min + (max - min) * self.f32()
+        (max - min).mul_add(self.f32(), min)
     }
 }
 

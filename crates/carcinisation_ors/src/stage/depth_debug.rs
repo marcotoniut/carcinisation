@@ -262,14 +262,15 @@ fn draw_entity_anchors(
         let pivot = overlay_transform.point(position.0);
 
         // --- Active anchor (green horizontal line) ---
-        let anchor_y = if let Some(offsets) = anchor_offsets {
-            offsets
-                .active_offset(is_airborne)
-                .mul_add(-scale_y, position.0.y)
-        } else {
+        let anchor_y = anchor_offsets.map_or_else(
             // Fallback: per-frame bounding-box bottom.
-            (composite.origin.y as f32).mul_add(scale_y, position.0.y)
-        };
+            || (composite.origin.y as f32).mul_add(scale_y, position.0.y),
+            |offsets| {
+                offsets
+                    .active_offset(is_airborne)
+                    .mul_add(-scale_y, position.0.y)
+            },
+        );
         let anchor_wy = overlay_transform.point_y(anchor_y);
         gizmos.line_2d(
             Vec2::new(pivot.x - half_w, anchor_wy),

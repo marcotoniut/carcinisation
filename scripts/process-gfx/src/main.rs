@@ -59,7 +59,7 @@ fn main() {
             .to_rgba8();
 
     for image in data.images {
-        let asset_path = assets_path.join(image.target_path.unwrap_or(image.path.clone()));
+        let asset_path = assets_path.join(image.target_path.unwrap_or_else(|| image.path.clone()));
         if let Some(parent_dir) = Path::new(&asset_path).parent() {
             fs::create_dir_all(parent_dir).expect("could not create directory");
         }

@@ -87,11 +87,9 @@ pub fn on_stage_startup(
     commands.insert_resource::<StageData>(effective_data);
 
     // Set stage-specific gravity or use default
-    let gravity = if let Some(gravity_value) = data.gravity {
-        StageGravity::new(gravity_value)
-    } else {
-        StageGravity::standard()
-    };
+    let gravity = data
+        .gravity
+        .map_or_else(StageGravity::standard, StageGravity::new);
     commands.insert_resource(gravity);
 
     // Skip the start transition on checkpoint restart — it is a one-time
@@ -145,7 +143,7 @@ pub fn on_stage_startup(
 
         match spawn {
             StageSpawn::Object(spawn) => {
-                spawn_object(&mut commands, &mut assets_sprite, spawn);
+                spawn_object(&mut commands, &assets_sprite, spawn);
             }
             StageSpawn::Destructible(spawn) => {
                 spawn_destructible(&mut commands, &mut assets_sprite, spawn);

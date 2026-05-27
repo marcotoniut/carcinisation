@@ -164,15 +164,16 @@ pub fn resolve_jump_target_depth(
     step: JumpEnemyStep,
     current_depth: EnemyContinuousDepth,
 ) -> Depth {
-    let target_depth = step
-        .depth_movement
-        .map_or(current_depth.clamped_value(), |dm| {
+    let target_depth = step.depth_movement.map_or_else(
+        || current_depth.clamped_value(),
+        |dm| {
             let clamped_dm = f32::from(dm.clamp(-2, 2));
             (current_depth.clamped_value() + clamped_dm).clamp(
                 MOSQUITO_DEPTH_RANGE.start().to_f32(),
                 MOSQUITO_DEPTH_RANGE.end().to_f32(),
             )
-        });
+        },
+    );
     Depth::from_continuous(target_depth)
 }
 

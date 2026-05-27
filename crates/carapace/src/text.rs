@@ -166,11 +166,11 @@ pub struct CxSeparator {
     pub(crate) width: u32,
 }
 
-/// A typeface. Create a [`Handle<CxTypeface>`] through your asset wrapper
-/// and provide an image file. The image file contains a column of characters, ordered from bottom to top.
-/// For animated typefaces, add additional frames to the right of characters, marking the end
-/// of an animation with a fully transparent character or the end of the image.
-/// See the images in `assets/typeface/` for examples.
+/// A bitmap typeface loaded from an image.
+///
+/// The image contains a column of characters ordered bottom-to-top. For animated
+/// typefaces, add frames to the right of each character; end an animation with a
+/// fully transparent glyph or the image edge. See `assets/typeface/` for examples.
 ///
 /// # Future: proportional font support
 ///

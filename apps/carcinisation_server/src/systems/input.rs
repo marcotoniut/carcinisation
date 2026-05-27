@@ -59,13 +59,16 @@ impl PlayerIntentBuffer {
     /// Store new intent from network. Resets age. Actions are OR'd so
     /// multiple packets in one tick accumulate edge triggers.
     pub fn set(&mut self, player_id: PlayerId, intent: &ClientIntent) {
-        let entry = self.entries.entry(player_id).or_insert(IntentEntry {
-            movement: Vec2::ZERO,
-            turn: 0.0,
-            fire_held: false,
-            pending_actions: PlayerActions::default(),
-            age_ticks: 0,
-        });
+        let entry = self
+            .entries
+            .entry(player_id)
+            .or_insert_with(|| IntentEntry {
+                movement: Vec2::ZERO,
+                turn: 0.0,
+                fire_held: false,
+                pending_actions: PlayerActions::default(),
+                age_ticks: 0,
+            });
         entry.movement = intent.movement;
         entry.turn = intent.turn;
         entry.fire_held = intent.fire_held;

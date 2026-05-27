@@ -49,9 +49,10 @@ impl AssetLoader for PaletteLoader {
     }
 }
 
-/// A palette. Palettes are loaded from images containing pixels
-/// that represent what colors the game may display. You may use up to 255 colors.
-/// The top-left pixel in the palette is used as the background color.
+/// A palette loaded from an image.
+///
+/// Each pixel represents a displayable color (up to 255).
+/// The top-left pixel is used as the background color.
 #[derive(Asset, Clone, TypePath, Debug)]
 pub struct Palette {
     pub(crate) size: UVec2,
@@ -60,10 +61,10 @@ pub struct Palette {
     pub(crate) indices: HashMap<[u8; 3], u8>,
 }
 
-/// Resource containing the game's palette. Set this resource
-/// to a new palette to change the game's palette. The replacement palette's pixels
-/// must be laid out the same as the original. You cannot change the palette that is used
-/// to load assets.
+/// Resource containing the game's active palette.
+///
+/// Replace this to swap palettes at runtime. The replacement must use the same
+/// pixel layout as the original. The asset-loading palette cannot be changed.
 #[derive(Resource, Deref, DerefMut)]
 pub struct PaletteHandle(pub Handle<Palette>);
 

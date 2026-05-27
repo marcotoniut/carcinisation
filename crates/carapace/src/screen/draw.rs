@@ -150,6 +150,7 @@ impl<'a> LayerContents<'a> {
 pub type LayerContentsMap<'a, L> = BTreeMap<L, LayerContents<'a>>;
 
 #[cfg(feature = "headed")]
+#[allow(clippy::significant_drop_tightening)]
 pub fn draw_layers<'w, L: CxLayer>(
     world: &'w World,
     render_buffer: &CxRenderBuffer,

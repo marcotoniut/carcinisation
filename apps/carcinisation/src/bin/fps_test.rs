@@ -42,17 +42,16 @@ struct GodMode {
 }
 
 fn load_initial_god_mode() -> bool {
-    match std::env::var(GOD_MODE_ENV) {
-        Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
+    std::env::var(GOD_MODE_ENV).map_or(true, |value| {
+        match value.trim().to_ascii_lowercase().as_str() {
             "1" | "true" | "yes" | "on" => true,
             "0" | "false" | "no" | "off" => false,
             _ => {
                 warn!("{GOD_MODE_ENV} unrecognised value '{value}'; defaulting to true");
                 true
             }
-        },
-        Err(_) => true, // dev binary defaults to god mode on
-    }
+        }
+    })
 }
 
 // --- Minimal layer enum for this dev binary ---

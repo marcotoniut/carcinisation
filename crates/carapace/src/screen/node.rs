@@ -157,6 +157,7 @@ impl<L: CxLayer> ViewNode for CxRenderNode<L> {
         self.filters.update_archetypes(world);
     }
 
+    #[allow(clippy::significant_drop_tightening)]
     fn run<'w>(
         &self,
         _: &mut RenderGraphContext,

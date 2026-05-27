@@ -102,15 +102,15 @@ pub(crate) fn project_billboard<'a>(
 
     // Transform to camera space.
     // inv_det = 1 / (plane.x * dir.y - dir.x * plane.y)
-    let det = plane.x * dir.y - dir.x * plane.y;
+    let det = plane.x.mul_add(dir.y, -(dir.x * plane.y));
     if det.abs() < 1e-10 {
         return None;
     }
     let inv_det = 1.0 / det;
     // transform_x = lateral offset in camera plane
     // transform_y = depth (forward distance)
-    let transform_x = inv_det * (dir.y * rel.x - dir.x * rel.y);
-    let transform_y = inv_det * (-plane.y * rel.x + plane.x * rel.y);
+    let transform_x = inv_det * dir.y.mul_add(rel.x, -(dir.x * rel.y));
+    let transform_y = inv_det * (-plane.y).mul_add(rel.x, plane.x * rel.y);
 
     // Behind camera.
     if transform_y <= 0.05 {
@@ -652,11 +652,10 @@ pub fn billboards_from_mosquitons(
                     }
                 }
                 _ => {
-                    let sprite = if let Some(elapsed) = m.shoot_anim_elapsed {
-                        sprites.shoot_sprite_at(elapsed)
-                    } else {
-                        sprites.alive_sprite_at(m.animation_time)
-                    };
+                    let sprite = m.shoot_anim_elapsed.map_or_else(
+                        || sprites.alive_sprite_at(m.animation_time),
+                        |elapsed| sprites.shoot_sprite_at(elapsed),
+                    );
                     if m.showing_damage_invert() {
                         Arc::new(make_damage_invert_sprite(sprite))
                     } else {
