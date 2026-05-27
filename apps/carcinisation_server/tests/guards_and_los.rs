@@ -1,4 +1,6 @@
 //! Regression tests for dead-player guards and line-of-sight blocking.
+//!
+//! Deterministic: each `app.update()` = exactly one FixedUpdate cycle at 30 Hz.
 #![allow(clippy::float_cmp)]
 
 mod common;
@@ -7,9 +9,9 @@ use bevy::prelude::*;
 use carcinisation_fps_core::map::Map;
 use carcinisation_net::{NetAttackId, NetEnemyState, PlayerNetState};
 use common::{
-    build_server_with_enemy, force_enemy_state, force_player_attack, get_enemy_health,
-    get_player_health, inject_intent, reserve_port, spawn_alive_player, spawn_player_with_state,
-    tick_server,
+    build_deterministic_server_with_enemies, build_deterministic_server_with_enemy,
+    force_enemy_state, force_player_attack, get_enemy_health, get_player_health, inject_intent,
+    spawn_alive_player, spawn_player_with_state,
 };
 
 // ---------------------------------------------------------------------------
@@ -36,8 +38,8 @@ fn los_test_map() -> Map {
     }
 }
 
-fn build_los_server(port: u16, enemy_x: f32, enemy_y: f32) -> App {
-    common::build_server_with_enemies(port, los_test_map(), vec![(enemy_x, enemy_y, 100, 0.0)])
+fn build_los_server(enemy_x: f32, enemy_y: f32) -> App {
+    build_deterministic_server_with_enemies(los_test_map(), vec![(enemy_x, enemy_y, 100, 0.0)])
 }
 
 fn get_player_position(server: &mut App, pid: u32) -> Option<Vec2> {
@@ -62,8 +64,7 @@ fn assert_dead_player_action_is_noop(
     movement: Vec2,
     check_position: bool,
 ) {
-    let port = reserve_port();
-    let mut server = build_server_with_enemy(port, enemy_pos.0, enemy_pos.1);
+    let mut server = build_deterministic_server_with_enemy(enemy_pos.0, enemy_pos.1);
     server.update();
 
     spawn_player_with_state(&mut server, 1, 1.5, 1.5, PlayerNetState::Dead);
@@ -75,9 +76,9 @@ fn assert_dead_player_action_is_noop(
     let hp_before = get_enemy_health(&mut server).unwrap();
 
     inject_intent(&mut server, 1, movement, fire_held);
-    // 50 ticks at 2 ms sleep ≈ 3 FixedUpdate cycles at 30 Hz
-    for _ in 0..50 {
-        tick_server(&mut server);
+    // 3 fixed ticks at 30 Hz = 0.1 s
+    for _ in 0..3 {
+        server.update();
     }
 
     if check_position {
@@ -138,18 +139,17 @@ fn dead_player_cannot_use_flamethrower() {
 /// Pistol hitscan blocked by wall does not damage enemy behind it.
 #[test]
 fn pistol_blocked_by_wall() {
-    let port = reserve_port();
     // Player at (1.5, 1.5), enemy at (5.5, 1.5), wall at (4, 1) between them.
-    let mut server = build_los_server(port, 5.5, 1.5);
+    let mut server = build_los_server(5.5, 1.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 1.5, 1.5);
     let hp_before = get_enemy_health(&mut server).unwrap();
 
     inject_intent(&mut server, 1, Vec2::ZERO, true);
-    // 50 ticks at 2 ms sleep ≈ 3 FixedUpdate cycles at 30 Hz
-    for _ in 0..50 {
-        tick_server(&mut server);
+    // 3 fixed ticks at 30 Hz = 0.1 s
+    for _ in 0..3 {
+        server.update();
     }
 
     let hp_after = get_enemy_health(&mut server).unwrap();
@@ -162,8 +162,7 @@ fn pistol_blocked_by_wall() {
 /// Flamethrower blocked by wall does not damage enemy behind it.
 #[test]
 fn flamethrower_blocked_by_wall() {
-    let port = reserve_port();
-    let mut server = build_los_server(port, 5.5, 1.5);
+    let mut server = build_los_server(5.5, 1.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 1.5, 1.5);
@@ -171,9 +170,9 @@ fn flamethrower_blocked_by_wall() {
     let hp_before = get_enemy_health(&mut server).unwrap();
 
     inject_intent(&mut server, 1, Vec2::ZERO, true);
-    // 50 ticks at 2 ms sleep ≈ 3 FixedUpdate cycles at 30 Hz
-    for _ in 0..50 {
-        tick_server(&mut server);
+    // 3 fixed ticks at 30 Hz = 0.1 s
+    for _ in 0..3 {
+        server.update();
     }
 
     let hp_after = get_enemy_health(&mut server).unwrap();
@@ -186,18 +185,16 @@ fn flamethrower_blocked_by_wall() {
 /// Enemy projectile hits wall and despawns before reaching player behind it.
 #[test]
 fn enemy_projectile_blocked_by_wall() {
-    let port = reserve_port();
     // Enemy at (5.5, 1.5), player at (1.5, 1.5), wall at (4, 1) between them.
-    let mut server = build_los_server(port, 5.5, 1.5);
+    let mut server = build_los_server(5.5, 1.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 1.5, 1.5);
     force_enemy_state(&mut server, NetEnemyState::HoldingRange);
 
-    // Wait for projectile spawn + travel + wall collision.
-    // 2000 ticks at 2 ms ≈ 120 FixedUpdate cycles at 30 Hz ≈ 4 s game time.
-    for _ in 0..2000 {
-        tick_server(&mut server);
+    // 120 fixed ticks at 30 Hz = 4 s — enough for projectile spawn + travel + wall hit.
+    for _ in 0..120 {
+        server.update();
     }
 
     let hp = get_player_health(&mut server, 1).unwrap();

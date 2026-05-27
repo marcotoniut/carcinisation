@@ -292,6 +292,63 @@ pub fn build_server_with_enemies(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Deterministic (no-sleep) server builders
+// ---------------------------------------------------------------------------
+
+use bevy::time::TimeUpdateStrategy;
+
+/// Build a deterministic server — each `app.update()` runs exactly one
+/// FixedUpdate cycle (30 Hz). No wall-clock dependency, no sleep.
+///
+/// Uses `port: 0` (OS-assigned) since no client will connect. Intent
+/// injection goes through `PlayerIntentBuffer` directly.
+pub fn build_deterministic_server_with_enemy(enemy_x: f32, enemy_y: f32) -> App {
+    build_deterministic_server_with_enemies(test_map(), vec![(enemy_x, enemy_y, 100, 0.0)])
+}
+
+/// Deterministic server with a custom map + multiple Mosquitons.
+pub fn build_deterministic_server_with_enemies(
+    map: carcinisation_fps_core::map::Map,
+    enemies: Vec<(f32, f32, u32, f32)>,
+) -> App {
+    let entities = enemies
+        .into_iter()
+        .map(|(x, y, health, speed)| EntitySpawnData {
+            kind: EntitySpawnKind::Mosquiton { health, speed },
+            x,
+            y,
+        })
+        .collect();
+    let mut app = build_server_app(ServerPlugin {
+        port: 0,
+        map,
+        entities,
+        player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
+    });
+    app.insert_resource(TimeUpdateStrategy::FixedTimesteps(1));
+    app
+}
+
+/// Wait up to `max_ticks` (deterministic) for a condition to become true.
+/// Each tick is exactly one FixedUpdate cycle — no sleep, no jitter.
+pub fn wait_for_deterministic(
+    server: &mut App,
+    max_ticks: u32,
+    mut condition: impl FnMut(&mut App) -> bool,
+) -> bool {
+    for _ in 0..max_ticks {
+        server.update();
+        if condition(server) {
+            return true;
+        }
+    }
+    false
+}
+
 /// Spawn an alive player with full health at the given position (angle 0, facing east).
 pub fn spawn_alive_player(server: &mut App, pid: u32, x: f32, y: f32) {
     spawn_player_with_state(server, pid, x, y, PlayerNetState::Alive);

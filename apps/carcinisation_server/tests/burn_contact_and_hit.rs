@@ -1,4 +1,6 @@
 //! Tests for burning corpse contact damage and hitscan hit confirmation.
+//!
+//! Deterministic: each `app.update()` = exactly one FixedUpdate cycle at 30 Hz.
 #![allow(clippy::doc_markdown, clippy::float_cmp)]
 
 mod common;
@@ -6,8 +8,8 @@ mod common;
 use bevy::prelude::*;
 use carcinisation_net::{NetEnemyState, NetProjectile, NetProjectileType, NetworkObjectId, Owner};
 use common::{
-    build_server_with_enemy, force_enemy_state, get_enemy_health, get_player_health, inject_fire,
-    reserve_port, set_enemy_health, spawn_alive_player, tick_server, wait_for_server_condition,
+    build_deterministic_server_with_enemy, force_enemy_state, get_enemy_health, get_player_health,
+    inject_fire, set_enemy_health, spawn_alive_player, wait_for_deterministic,
 };
 
 // ---------------------------------------------------------------------------
@@ -17,9 +19,8 @@ use common::{
 /// Player near a burning corpse takes contact damage over time.
 #[test]
 fn burn_corpse_damages_nearby_player() {
-    let port = reserve_port();
     // Enemy at (3.0, 1.5), player at (3.2, 1.5) — very close.
-    let mut server = build_server_with_enemy(port, 3.0, 1.5);
+    let mut server = build_deterministic_server_with_enemy(3.0, 1.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 3.2, 1.5);
@@ -30,9 +31,8 @@ fn burn_corpse_damages_nearby_player() {
 
     let hp_before = get_player_health(&mut server, 1).unwrap();
 
-    // Wait for burn contact to apply (early exit once damage detected).
-    // 500 ticks at 2 ms ≈ 30 FixedUpdate cycles at 30 Hz ≈ 1 s game time.
-    let damaged = wait_for_server_condition(&mut server, 500, |server| {
+    // 30 fixed ticks at 30 Hz = 1 s — enough for burn contact.
+    let damaged = wait_for_deterministic(&mut server, 30, |server| {
         get_player_health(server, 1).unwrap() < hp_before
     });
 
@@ -45,9 +45,8 @@ fn burn_corpse_damages_nearby_player() {
 /// Player far from burning corpse takes no contact damage.
 #[test]
 fn burn_corpse_does_not_damage_distant_player() {
-    let port = reserve_port();
     // Enemy at (1.5, 1.5), player at (6.5, 6.5) — far away.
-    let mut server = build_server_with_enemy(port, 1.5, 1.5);
+    let mut server = build_deterministic_server_with_enemy(1.5, 1.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 6.5, 6.5);
@@ -56,9 +55,9 @@ fn burn_corpse_does_not_damage_distant_player() {
     force_enemy_state(&mut server, NetEnemyState::Dying { burn: true });
     set_enemy_health(&mut server, 0.0);
 
-    // 500 ticks at 2 ms ≈ 30 FixedUpdate cycles at 30 Hz ≈ 1 s game time.
-    for _ in 0..500 {
-        tick_server(&mut server);
+    // 30 fixed ticks at 30 Hz = 1 s
+    for _ in 0..30 {
+        server.update();
     }
 
     let hp = get_player_health(&mut server, 1).unwrap();
@@ -75,16 +74,14 @@ fn burn_corpse_does_not_damage_distant_player() {
 /// Pending projectile system spawns NetProjectile after delay.
 #[test]
 fn pending_projectile_spawns_after_delay() {
-    let port = reserve_port();
-    let mut server = build_server_with_enemy(port, 3.5, 1.5);
+    let mut server = build_deterministic_server_with_enemy(3.5, 1.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 1.5, 1.5);
     force_enemy_state(&mut server, NetEnemyState::HoldingRange);
 
-    // Tick until projectile spawns (cooldown 2 s + lead 0.1 s).
-    // 2000 ticks at 2 ms ≈ 120 FixedUpdate cycles at 30 Hz ≈ 4 s game time.
-    let found = wait_for_server_condition(&mut server, 2000, |server| {
+    // Cooldown 2 s + lead 0.1 s = ~63 fixed ticks. Wait up to 120 (4 s).
+    let found = wait_for_deterministic(&mut server, 120, |server| {
         server
             .world_mut()
             .query::<&carcinisation_net::NetProjectile>()
@@ -103,9 +100,8 @@ fn pending_projectile_spawns_after_delay() {
 /// Hitscan hit on enemy produces exactly hitscan_damage (37).
 #[test]
 fn hitscan_hit_damages_enemy() {
-    let port = reserve_port();
     // Enemy at (3.0, 1.5), player at (1.5, 1.5) facing east.
-    let mut server = build_server_with_enemy(port, 3.0, 1.5);
+    let mut server = build_deterministic_server_with_enemy(3.0, 1.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 1.5, 1.5);
@@ -113,9 +109,9 @@ fn hitscan_hit_damages_enemy() {
     let hp_before = get_enemy_health(&mut server).unwrap();
 
     inject_fire(&mut server, 1);
-    // 50 ticks at 2 ms sleep ≈ 3 FixedUpdate cycles at 30 Hz
-    for _ in 0..50 {
-        tick_server(&mut server);
+    // 3 fixed ticks at 30 Hz = 0.1 s
+    for _ in 0..3 {
+        server.update();
     }
 
     let hp_after = get_enemy_health(&mut server).unwrap();
@@ -134,8 +130,7 @@ fn hitscan_hit_damages_enemy() {
 /// Enemy projectile hitting a player reduces their health.
 #[test]
 fn enemy_projectile_damages_player() {
-    let port = reserve_port();
-    let mut server = build_server_with_enemy(port, 6.5, 6.5);
+    let mut server = build_deterministic_server_with_enemy(6.5, 6.5);
     server.update();
 
     spawn_alive_player(&mut server, 1, 3.0, 1.5);
@@ -156,9 +151,8 @@ fn enemy_projectile_damages_player() {
 
     let hp_before = get_player_health(&mut server, 1).unwrap();
 
-    // Tick until projectile reaches the player (2 units at speed 4 = 0.5 s).
-    // 500 ticks at 2 ms ≈ 30 FixedUpdate cycles at 30 Hz ≈ 1 s game time.
-    let damaged = wait_for_server_condition(&mut server, 500, |server| {
+    // 2 units at speed 4 = 0.5 s = 15 fixed ticks. Wait up to 30.
+    let damaged = wait_for_deterministic(&mut server, 30, |server| {
         get_player_health(server, 1).unwrap() < hp_before
     });
 

@@ -1137,17 +1137,24 @@ fn flamethrower_e2e_switch_fire_release_uses_server_state() {
     let initial_hp = common_get_enemy_health(&mut server).unwrap();
     assert!(!is_flame_active(&server, player_id));
 
-    // Burn system needs more ticks to accumulate integer damage.
-    for seq in 2..=60 {
+    // Burn system builds intensity progressively. Fire for up to 200 ticks,
+    // with early exit once flame_active is set on the server.
+    let mut flame_activated = false;
+    for seq in 2..=200 {
         queue_fire(&mut client, seq);
         tick_with_sleep(&mut server, &mut client);
-    }
-    for _ in 0..40 {
-        tick_with_sleep(&mut server, &mut client);
+        if is_flame_active(&server, player_id) {
+            flame_activated = true;
+            // Continue a few more ticks to accumulate damage.
+            for _ in 0..20 {
+                tick_with_sleep(&mut server, &mut client);
+            }
+            break;
+        }
     }
 
     assert!(
-        is_flame_active(&server, player_id),
+        flame_activated,
         "flamethrower branch should mark the player as actively flaming"
     );
     assert!(

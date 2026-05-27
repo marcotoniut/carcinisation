@@ -2,6 +2,9 @@
 //!
 //! Compares multiplayer server combat semantics against fps_core expected
 //! behavior (shared hitscan, damage, death transitions).
+//!
+//! Uses `TimeUpdateStrategy::FixedTimesteps(1)` — each `app.update()` runs
+//! exactly one FixedUpdate cycle at 30 Hz. No wall-clock dependency.
 #![allow(clippy::doc_markdown, clippy::float_cmp)]
 
 mod common;
@@ -16,8 +19,8 @@ use carcinisation_net::{
     PlayerId, PlayerNetState,
 };
 use carcinisation_server::ServerPlugin;
-use carcinisation_server::systems::{PlayerIntentBuffer, ServerQuickTurn};
-use common::{build_server_app, reserve_port};
+use carcinisation_server::systems::ServerQuickTurn;
+use common::{build_deterministic_server_with_enemies, build_server_app};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,24 +30,8 @@ fn hitscan_damage() -> f32 {
     carcinisation_fps_core::FpsCombatConfig::default().hitscan_damage
 }
 
-fn build_combat_server(port: u16, enemy_x: f32, enemy_y: f32) -> App {
-    let entities = vec![EntitySpawnData {
-        kind: EntitySpawnKind::Mosquiton {
-            health: 200,
-            speed: 0.0,
-        },
-        x: enemy_x,
-        y: enemy_y,
-    }];
-    build_server_app(ServerPlugin {
-        port,
-        map: test_map(),
-        entities,
-        player_starts: vec![],
-        admin_socket: None,
-        instance_name: "test".to_string(),
-        map_path: "test_map".to_string(),
-    })
+fn build_combat_server(enemy_x: f32, enemy_y: f32) -> App {
+    build_deterministic_server_with_enemies(test_map(), vec![(enemy_x, enemy_y, 200, 0.0)])
 }
 
 fn spawn_player(server: &mut App, pid: u32, x: f32, y: f32, angle: f32) {
@@ -68,6 +55,7 @@ fn spawn_player(server: &mut App, pid: u32, x: f32, y: f32, angle: f32) {
 }
 
 fn inject(server: &mut App, pid: u32, intent: &ClientIntent) {
+    use carcinisation_server::systems::PlayerIntentBuffer;
     server
         .world_mut()
         .resource_mut::<PlayerIntentBuffer>()
@@ -105,31 +93,11 @@ fn switch_and_fire_intent() -> ClientIntent {
 }
 
 fn get_enemy_health(server: &mut App) -> f32 {
-    server
-        .world_mut()
-        .query::<(&carcinisation_net::components::NetEnemy, &NetHealth)>()
-        .iter(server.world())
-        .next()
-        .map(|(_, h)| h.current)
-        .unwrap()
+    common::get_enemy_health(server).unwrap()
 }
 
 fn get_enemy_state(server: &mut App) -> NetEnemyState {
-    server
-        .world_mut()
-        .query::<&carcinisation_net::components::NetEnemy>()
-        .iter(server.world())
-        .next()
-        .map(|e| e.state)
-        .unwrap()
-}
-
-/// Tick server enough for one FixedUpdate.
-fn tick_fixed(server: &mut App) {
-    for _ in 0..17 {
-        std::thread::sleep(std::time::Duration::from_millis(2));
-        server.update();
-    }
+    common::get_enemy_state(server).unwrap()
 }
 
 // ---------------------------------------------------------------------------
@@ -159,19 +127,18 @@ fn hitscan_shared_function_parity() {
 /// MP server pistol fires once per cooldown period, dealing exactly hitscan_damage().
 #[test]
 fn pistol_cooldown_parity() {
-    let port = reserve_port();
     // Enemy at (4.5, 1.5), player at (1.5, 1.5) facing east.
-    let mut server = build_combat_server(port, 4.5, 1.5);
+    let mut server = build_combat_server(4.5, 1.5);
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
     let initial_hp = get_enemy_health(&mut server);
 
-    // Hold fire for ~1 second (30 fixed ticks).
-    // At 0.33s cooldown, expect ~3 shots in 1s.
+    // Hold fire for 30 fixed ticks (= 1 s at 30 Hz).
+    // At 0.33 s cooldown, expect ~3 shots in 1 s.
     for _ in 0..30 {
         inject(&mut server, 1, &fire_intent());
-        tick_fixed(&mut server);
+        server.update();
     }
 
     let final_hp = get_enemy_health(&mut server);
@@ -179,9 +146,9 @@ fn pistol_cooldown_parity() {
 
     let dmg = hitscan_damage();
 
-    // Expected: ~3 shots × dmg. Allow 1 shot variance for timing.
-    let expected_min = dmg * 2.0; // At least 2 shots.
-    let expected_max = dmg * 5.0; // At most 5 shots (timing generous).
+    // Expected: ~3 shots × dmg. Allow 1 shot variance for edge timing.
+    let expected_min = dmg * 2.0;
+    let expected_max = dmg * 5.0;
     assert!(
         total_damage >= expected_min && total_damage <= expected_max,
         "pistol cooldown: damage={total_damage:.0} (expected {expected_min:.0}–{expected_max:.0})"
@@ -203,9 +170,8 @@ fn pistol_cooldown_parity() {
 /// Switch to flamethrower then fire — MP server applies flame DPS, not hitscan.
 #[test]
 fn switch_to_flamethrower_then_fire() {
-    let port = reserve_port();
     // Enemy at (3.5, 1.5) — within flame range (5.0) of spawn (1.5, 1.5).
-    let mut server = build_combat_server(port, 3.5, 1.5);
+    let mut server = build_combat_server(3.5, 1.5);
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
@@ -213,19 +179,19 @@ fn switch_to_flamethrower_then_fire() {
 
     // Switch to flamethrower.
     inject(&mut server, 1, &switch_intent());
-    tick_fixed(&mut server);
+    server.update();
 
-    // Hold fire.
+    // Hold fire for 10 fixed ticks (= 0.33 s at 30 Hz).
     for _ in 0..10 {
         inject(&mut server, 1, &fire_intent());
-        tick_fixed(&mut server);
+        server.update();
     }
 
     let hp_after = get_enemy_health(&mut server);
     let damage = initial_hp - hp_after;
 
     // Burn system deals progressive damage — much less than old 580 DPS.
-    // After 10 ticks (~0.33s), burn intensity is building; expect at least some damage.
+    // After 10 ticks (~0.33 s), burn intensity is building; expect at least some damage.
     assert!(
         damage > 0.0,
         "flamethrower should deal continuous damage: got {damage:.0}"
@@ -244,32 +210,30 @@ fn switch_to_flamethrower_then_fire() {
 /// the damage accumulator needs to cross the integer threshold.
 #[test]
 fn flamethrower_dps_per_tick() {
-    let port = reserve_port();
-    let mut server = build_combat_server(port, 3.5, 1.5);
+    let mut server = build_combat_server(3.5, 1.5);
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
     // Switch to flamethrower.
     inject(&mut server, 1, &switch_intent());
-    tick_fixed(&mut server);
+    server.update();
 
     let hp_before = get_enemy_health(&mut server);
 
-    // Fire for 30 ticks (~1 second) to let burn intensity ramp up.
+    // Fire for exactly 30 fixed ticks (= 1 s at 30 Hz).
     for _ in 0..30 {
         inject(&mut server, 1, &fire_intent());
-        tick_fixed(&mut server);
+        server.update();
     }
 
     let hp_after = get_enemy_health(&mut server);
     let total_damage = hp_before - hp_after;
 
-    // After 1 second of sustained flame, burn intensity reaches near max.
-    // Expected total: ramp from 0 to ~80 DPS over 1 second.
-    // With progressive ramp, total should be roughly 30-60 damage.
+    // After 1 s of sustained flame, burn intensity reaches near max.
+    // Expected total: ramp from 0 → ~80 DPS over 1 s ≈ 30–60 damage.
     assert!(
         total_damage > 10.0,
-        "sustained flame should deal significant damage over 1s: got {total_damage:.1}"
+        "sustained flame should deal significant damage over 1 s: got {total_damage:.1}"
     );
     assert!(
         total_damage < 100.0,
@@ -282,7 +246,6 @@ fn flamethrower_dps_per_tick() {
 #[test]
 fn flamethrower_wall_blocked_parity() {
     // Wall at (4,1) in LOS test map blocks (1.5,1.5) → (5.5,1.5).
-    let port = reserve_port();
     let map = carcinisation_fps_core::map::Map {
         width: 8,
         height: 8,
@@ -301,7 +264,7 @@ fn flamethrower_wall_blocked_parity() {
         y: 1.5,
     }];
     let mut server = build_server_app(ServerPlugin {
-        port,
+        port: 0,
         map,
         entities,
         player_starts: vec![],
@@ -309,17 +272,18 @@ fn flamethrower_wall_blocked_parity() {
         instance_name: "test".to_string(),
         map_path: "test_map".to_string(),
     });
+    server.insert_resource(bevy::time::TimeUpdateStrategy::FixedTimesteps(1));
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
     // Switch to flamethrower and fire.
     inject(&mut server, 1, &switch_intent());
-    tick_fixed(&mut server);
+    server.update();
 
     let hp_before = get_enemy_health(&mut server);
     for _ in 0..10 {
         inject(&mut server, 1, &fire_intent());
-        tick_fixed(&mut server);
+        server.update();
     }
     let hp_after = get_enemy_health(&mut server);
 
@@ -337,8 +301,6 @@ fn flamethrower_wall_blocked_parity() {
 /// Enemy::take_damage → EnemyState::Dying → EnemyState::Dead flow).
 #[test]
 fn lethal_damage_dying_dead_parity() {
-    let port = reserve_port();
-    // Enemy with 30 HP — one hitscan shot (37 dmg) is lethal.
     let entities = vec![EntitySpawnData {
         kind: EntitySpawnKind::Mosquiton {
             health: 30,
@@ -348,7 +310,7 @@ fn lethal_damage_dying_dead_parity() {
         y: 1.5,
     }];
     let mut server = build_server_app(ServerPlugin {
-        port,
+        port: 0,
         map: test_map(),
         entities,
         player_starts: vec![],
@@ -356,15 +318,16 @@ fn lethal_damage_dying_dead_parity() {
         instance_name: "test".to_string(),
         map_path: "test_map".to_string(),
     });
+    server.insert_resource(bevy::time::TimeUpdateStrategy::FixedTimesteps(1));
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
     // Fire once.
     inject(&mut server, 1, &fire_intent());
-    tick_fixed(&mut server);
+    server.update();
 
     let state = get_enemy_state(&mut server);
-    // Should be Dying (not Dead yet — 0.5s death timer).
+    // Should be Dying (not Dead yet — 0.5 s death timer).
     assert!(
         matches!(state, NetEnemyState::Dying { burn: false }),
         "lethal hitscan should transition to Dying: got {state:?}"
@@ -381,9 +344,9 @@ fn lethal_damage_dying_dead_parity() {
         "SP Enemy::take_damage should produce Dying"
     );
 
-    // Wait for death timer (0.5s ≈ 15 FixedUpdate ticks).
+    // Wait for death timer (0.5 s = 15 fixed ticks at 30 Hz).
     for _ in 0..20 {
-        tick_fixed(&mut server);
+        server.update();
     }
 
     let state_after = get_enemy_state(&mut server);
@@ -396,7 +359,6 @@ fn lethal_damage_dying_dead_parity() {
 /// Flamethrower lethal damage produces Dying { burn: true }.
 #[test]
 fn flame_lethal_damage_burn_parity() {
-    let port = reserve_port();
     let entities = vec![EntitySpawnData {
         kind: EntitySpawnKind::Mosquiton {
             health: 10,
@@ -406,7 +368,7 @@ fn flame_lethal_damage_burn_parity() {
         y: 1.5,
     }];
     let mut server = build_server_app(ServerPlugin {
-        port,
+        port: 0,
         map: test_map(),
         entities,
         player_starts: vec![],
@@ -414,6 +376,7 @@ fn flame_lethal_damage_burn_parity() {
         instance_name: "test".to_string(),
         map_path: "test_map".to_string(),
     });
+    server.insert_resource(bevy::time::TimeUpdateStrategy::FixedTimesteps(1));
     server.update();
     spawn_player(&mut server, 1, 1.5, 1.5, 0.0);
 
@@ -421,11 +384,10 @@ fn flame_lethal_damage_burn_parity() {
     inject(&mut server, 1, &switch_and_fire_intent());
     for _ in 0..60 {
         inject(&mut server, 1, &fire_intent());
-        tick_fixed(&mut server);
+        server.update();
     }
 
     let state = get_enemy_state(&mut server);
-    // Should be Dying { burn: true } or Dead { burn: true }.
     assert!(
         matches!(
             state,
