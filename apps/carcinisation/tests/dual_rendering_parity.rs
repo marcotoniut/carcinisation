@@ -1,94 +1,31 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 //! Legacy/composed mosquito parity tests.
 
+mod common;
+
 use carcinisation_base::direction::SpriteDirection;
 use std::time::Duration;
 
-use bevy::prelude::*;
-use carcinisation::stage::{
-    components::placement::Depth,
-    enemy::{
-        components::behavior::EnemyCurrentBehavior,
-        composed::ComposedAnimationState,
-        data::{
-            mosquiton::{ACTION_IDLE_FLY, ACTION_SHOOT_FLY},
-            steps::{EnemyStep, IdleEnemyStep},
-        },
-        mosquito::{
-            entity::{EnemyMosquito, EnemyMosquitoAttack, EnemyMosquitoAttacking},
-            systems::{
-                ENEMY_MOSQUITO_ATTACK_SPEED, ENEMY_MOSQUITO_RANGED_PRESENTATION,
-                clear_finished_mosquito_attacks,
-            },
-        },
-        mosquiton::{
-            entity::{EnemyMosquiton, EnemyMosquitonAnimation},
-            systems::assign_mosquiton_animation,
-        },
+use carcinisation::stage::enemy::{
+    composed::ComposedAnimationState,
+    data::mosquiton::{ACTION_IDLE_FLY, ACTION_SHOOT_FLY},
+    mosquito::{
+        entity::EnemyMosquitoAttacking,
+        systems::{ENEMY_MOSQUITO_ATTACK_SPEED, ENEMY_MOSQUITO_RANGED_PRESENTATION},
     },
-    resources::StageTimeDomain,
+    mosquiton::entity::EnemyMosquitonAnimation,
+};
+use common::{
+    advance_stage, build_attack_timing_app, spawn_composed_mosquiton, spawn_legacy_mosquito,
 };
 
 fn attack_cooldown() -> Duration {
     Duration::from_secs_f32(ENEMY_MOSQUITO_ATTACK_SPEED)
 }
 
-fn build_attack_test_app() -> App {
-    let mut app = App::new();
-    app.insert_resource(Time::<StageTimeDomain>::default());
-    app.add_systems(
-        Update,
-        (clear_finished_mosquito_attacks, assign_mosquiton_animation).chain(),
-    );
-    app
-}
-
-fn spawn_legacy_mosquito(app: &mut App) -> Entity {
-    app.world_mut()
-        .spawn((
-            EnemyMosquito,
-            EnemyCurrentBehavior {
-                started: Duration::ZERO,
-                behavior: EnemyStep::Idle(IdleEnemyStep { duration: 99999.0 }),
-            },
-            EnemyMosquitoAttacking {
-                attack: Some(EnemyMosquitoAttack::Ranged),
-                last_attack_started: Duration::ZERO,
-            },
-            Depth::Three,
-        ))
-        .id()
-}
-
-fn spawn_composed_mosquiton(app: &mut App) -> Entity {
-    app.world_mut()
-        .spawn((
-            EnemyMosquiton,
-            EnemyMosquito,
-            EnemyCurrentBehavior {
-                started: Duration::ZERO,
-                behavior: EnemyStep::Idle(IdleEnemyStep { duration: 99999.0 }),
-            },
-            EnemyMosquitoAttacking {
-                attack: Some(EnemyMosquitoAttack::Ranged),
-                last_attack_started: Duration::ZERO,
-            },
-            ComposedAnimationState::new(SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)),
-            Depth::Three,
-        ))
-        .id()
-}
-
-fn advance_stage(app: &mut App, duration: Duration) {
-    app.world_mut()
-        .resource_mut::<Time<StageTimeDomain>>()
-        .advance_by(duration);
-    app.update();
-}
-
 #[test]
 fn legacy_and_composed_clear_attack_state_after_same_duration() {
-    let mut app = build_attack_test_app();
+    let mut app = build_attack_timing_app();
     let legacy = spawn_legacy_mosquito(&mut app);
     let composed = spawn_composed_mosquiton(&mut app);
 
@@ -119,7 +56,7 @@ fn legacy_and_composed_clear_attack_state_after_same_duration() {
 
 #[test]
 fn composed_mosquiton_requests_shoot_then_returns_to_idle() {
-    let mut app = build_attack_test_app();
+    let mut app = build_attack_timing_app();
     let composed = spawn_composed_mosquiton(&mut app);
 
     app.update();

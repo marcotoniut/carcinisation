@@ -78,4 +78,90 @@ mod tests {
     fn pickup_rules_load() {
         let _ = PickupRules::load();
     }
+
+    // -----------------------------------------------------------------------
+    // apply_health_pickup
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn health_pickup_below_max() {
+        assert_eq!(apply_health_pickup(30.0, 100.0, 50.0), 80.0);
+    }
+
+    #[test]
+    fn health_pickup_clamps_to_max() {
+        assert_eq!(apply_health_pickup(80.0, 100.0, 50.0), 100.0);
+    }
+
+    #[test]
+    fn health_pickup_at_max_stays_at_max() {
+        assert_eq!(apply_health_pickup(100.0, 100.0, 50.0), 100.0);
+    }
+
+    #[test]
+    fn health_pickup_zero_amount() {
+        assert_eq!(apply_health_pickup(50.0, 100.0, 0.0), 50.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // apply_ammo_pickup
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn ammo_pickup_below_max() {
+        assert_eq!(apply_ammo_pickup(10.0, 50.0, 25.0), 35.0);
+    }
+
+    #[test]
+    fn ammo_pickup_clamps_to_max() {
+        assert_eq!(apply_ammo_pickup(40.0, 50.0, 25.0), 50.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // update_respawn_timer
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn respawn_timer_decrements() {
+        assert_eq!(update_respawn_timer(Some(5.0), 1.0), Some(4.0));
+    }
+
+    #[test]
+    fn respawn_timer_expires_at_zero() {
+        assert_eq!(update_respawn_timer(Some(1.0), 1.0), None);
+    }
+
+    #[test]
+    fn respawn_timer_expires_past_zero() {
+        assert_eq!(update_respawn_timer(Some(0.5), 1.0), None);
+    }
+
+    #[test]
+    fn respawn_timer_none_stays_none() {
+        assert_eq!(update_respawn_timer(None, 1.0), None);
+    }
+
+    // -----------------------------------------------------------------------
+    // is_within_radius
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn within_radius_inside() {
+        assert!(is_within_radius(Vec2::ZERO, Vec2::new(0.3, 0.0), 0.5));
+    }
+
+    #[test]
+    fn within_radius_exact_boundary() {
+        assert!(is_within_radius(Vec2::ZERO, Vec2::new(0.5, 0.0), 0.5));
+    }
+
+    #[test]
+    fn within_radius_outside() {
+        assert!(!is_within_radius(Vec2::ZERO, Vec2::new(0.6, 0.0), 0.5));
+    }
+
+    #[test]
+    fn within_radius_same_point() {
+        assert!(is_within_radius(Vec2::ZERO, Vec2::ZERO, 0.5));
+    }
 }

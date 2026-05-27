@@ -196,4 +196,64 @@ mod tests {
             hit.wall_x
         );
     }
+
+    // -----------------------------------------------------------------------
+    // has_line_of_sight
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn los_clear_path() {
+        let map = test_map();
+        // (1.5, 1.5) to (3.5, 1.5) — both in open area, no wall between.
+        assert!(has_line_of_sight(
+            Vec2::new(1.5, 1.5),
+            Vec2::new(3.5, 1.5),
+            &map
+        ));
+    }
+
+    #[test]
+    fn los_blocked_by_wall() {
+        let map = test_map();
+        // Row 2 has walls at (3,2) and (4,2). Ray from (1.5,2.5) east
+        // hits the wall at x=3 before reaching (5.5,2.5).
+        assert!(!has_line_of_sight(
+            Vec2::new(1.5, 2.5),
+            Vec2::new(5.5, 2.5),
+            &map
+        ));
+    }
+
+    #[test]
+    fn los_diagonal_clear() {
+        let map = test_map();
+        // (1.5, 1.5) to (1.5, 3.5) — straight north through open cells.
+        assert!(has_line_of_sight(
+            Vec2::new(1.5, 1.5),
+            Vec2::new(1.5, 3.5),
+            &map
+        ));
+    }
+
+    #[test]
+    fn los_same_point_returns_true() {
+        let map = test_map();
+        // Distance < 0.01 — short-circuits to true.
+        assert!(has_line_of_sight(
+            Vec2::new(1.5, 1.5),
+            Vec2::new(1.5, 1.5),
+            &map
+        ));
+    }
+
+    #[test]
+    fn los_near_wall_edge() {
+        let map = test_map();
+        // Just inside the wall boundary — should still have LOS to adjacent cell.
+        assert!(has_line_of_sight(
+            Vec2::new(1.01, 1.01),
+            Vec2::new(1.5, 1.5),
+            &map
+        ));
+    }
 }

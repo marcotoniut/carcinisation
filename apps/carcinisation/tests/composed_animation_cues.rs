@@ -3,32 +3,23 @@
 //! These cover the Mosquiton ranged-attack timing contract without depending on
 //! full app startup, async asset loading, or transient message readers.
 
+mod common;
+
 use carcinisation_base::direction::SpriteDirection;
 
 use std::{fs, path::PathBuf, time::Duration};
 
 use asset_pipeline::aseprite::{AnimationEventKind, CompositionAtlas};
-use bevy::prelude::*;
-use carcinisation::stage::{
-    components::placement::Depth,
-    enemy::{
-        components::behavior::EnemyCurrentBehavior,
-        composed::ComposedAnimationState,
-        data::{
-            mosquiton::{ACTION_IDLE_FLY, ACTION_SHOOT_FLY},
-            steps::{EnemyStep, IdleEnemyStep},
-        },
-        mosquito::{
-            entity::{EnemyMosquito, EnemyMosquitoAttack, EnemyMosquitoAttacking},
-            systems::{ENEMY_MOSQUITO_RANGED_PRESENTATION, clear_finished_mosquito_attacks},
-        },
-        mosquiton::{
-            entity::{EnemyMosquiton, EnemyMosquitonAnimation},
-            systems::assign_mosquiton_animation,
-        },
+use carcinisation::stage::enemy::{
+    composed::ComposedAnimationState,
+    data::mosquiton::{ACTION_IDLE_FLY, ACTION_SHOOT_FLY},
+    mosquito::{
+        entity::{EnemyMosquitoAttack, EnemyMosquitoAttacking},
+        systems::ENEMY_MOSQUITO_RANGED_PRESENTATION,
     },
-    resources::StageTimeDomain,
+    mosquiton::entity::EnemyMosquitonAnimation,
 };
+use common::{advance_stage, build_attack_timing_app, spawn_composed_mosquiton};
 
 fn mosquiton_atlas_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -63,42 +54,6 @@ fn shoot_fly_cue_elapsed(atlas: &CompositionAtlas) -> Duration {
     panic!("shoot_fly must author a blood_shot projectile cue");
 }
 
-fn build_attack_timing_app() -> App {
-    let mut app = App::new();
-    app.insert_resource(Time::<StageTimeDomain>::default());
-    app.add_systems(
-        Update,
-        (clear_finished_mosquito_attacks, assign_mosquiton_animation).chain(),
-    );
-    app
-}
-
-fn spawn_test_mosquiton(app: &mut App) -> Entity {
-    app.world_mut()
-        .spawn((
-            EnemyMosquiton,
-            EnemyMosquito,
-            EnemyCurrentBehavior {
-                started: Duration::ZERO,
-                behavior: EnemyStep::Idle(IdleEnemyStep { duration: 99999.0 }),
-            },
-            EnemyMosquitoAttacking {
-                attack: Some(EnemyMosquitoAttack::Ranged),
-                last_attack_started: Duration::ZERO,
-            },
-            ComposedAnimationState::new(SpriteDirection::Front.tag_name(ACTION_IDLE_FLY)),
-            Depth::Three,
-        ))
-        .id()
-}
-
-fn advance_stage(app: &mut App, duration: Duration) {
-    app.world_mut()
-        .resource_mut::<Time<StageTimeDomain>>()
-        .advance_by(duration);
-    app.update();
-}
-
 #[test]
 fn mosquiton_blood_shot_cue_is_authored_within_presentation_window() {
     let atlas = load_mosquiton_atlas();
@@ -116,7 +71,7 @@ fn attack_state_persists_through_authored_cue_then_clears() {
     let cue_elapsed = shoot_fly_cue_elapsed(&atlas);
 
     let mut app = build_attack_timing_app();
-    let entity = spawn_test_mosquiton(&mut app);
+    let entity = spawn_composed_mosquiton(&mut app);
 
     app.update();
 
@@ -154,7 +109,7 @@ fn attack_state_persists_through_authored_cue_then_clears() {
 #[test]
 fn mosquiton_animation_cycles_through_attack_presentation() {
     let mut app = build_attack_timing_app();
-    let entity = spawn_test_mosquiton(&mut app);
+    let entity = spawn_composed_mosquiton(&mut app);
 
     app.update();
 
