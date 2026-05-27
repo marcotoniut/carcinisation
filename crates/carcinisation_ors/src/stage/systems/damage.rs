@@ -179,6 +179,98 @@ mod tests {
     }
 
     #[test]
+    fn non_lethal_damage_reduces_health_without_killing() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
+        app.add_systems(Update, on_damage);
+
+        let entity = app.world_mut().spawn((Enemy, Health(10))).id();
+        app.world_mut().write_message(DamageMessage::new(entity, 3));
+        app.update();
+
+        assert_eq!(app.world().entity(entity).get::<Health>().unwrap().0, 7);
+        assert!(app.world().entity(entity).get::<Dead>().is_none());
+    }
+
+    #[test]
+    fn multi_hit_damage_accumulates_within_tick() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
+        app.add_systems(Update, on_damage);
+
+        let entity = app.world_mut().spawn((Enemy, Health(20))).id();
+        // Two hits in the same tick.
+        app.world_mut().write_message(DamageMessage::new(entity, 5));
+        app.world_mut().write_message(DamageMessage::new(entity, 8));
+        app.update();
+
+        assert_eq!(app.world().entity(entity).get::<Health>().unwrap().0, 7);
+        assert!(app.world().entity(entity).get::<Dead>().is_none());
+    }
+
+    #[test]
+    fn lethal_physical_damage_does_not_mark_burning_corpse() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
+        app.add_systems(Update, on_damage);
+
+        let entity = app
+            .world_mut()
+            .spawn((Enemy, Health(10), WorldPos(Vec2::new(1.0, 1.0))))
+            .id();
+        // Physical (not fire) lethal damage.
+        app.world_mut()
+            .write_message(DamageMessage::new(entity, 10));
+        app.update();
+
+        let entity_ref = app.world().entity(entity);
+        assert!(entity_ref.get::<Dead>().is_some());
+        assert!(
+            entity_ref.get::<BurningCorpse>().is_none(),
+            "physical kill should not mark BurningCorpse"
+        );
+    }
+
+    #[test]
+    fn overkill_damage_clamps_health_to_zero() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
+        app.add_systems(Update, on_damage);
+
+        let entity = app.world_mut().spawn((Enemy, Health(5))).id();
+        app.world_mut()
+            .write_message(DamageMessage::new(entity, 100));
+        app.update();
+
+        assert_eq!(app.world().entity(entity).get::<Health>().unwrap().0, 0);
+        assert!(app.world().entity(entity).get::<Dead>().is_some());
+    }
+
+    #[test]
+    fn damage_to_dead_entity_is_ignored() {
+        let mut app = App::new();
+        app.add_message::<DamageMessage>();
+        app.init_resource::<Time<StageTimeDomain>>();
+        app.insert_resource(FlamethrowerConfig::load());
+        app.add_systems(Update, on_damage);
+
+        // Already dead — query has Without<Dead>.
+        let entity = app.world_mut().spawn((Enemy, Health(0), Dead)).id();
+        app.world_mut().write_message(DamageMessage::new(entity, 5));
+        app.update();
+
+        assert_eq!(app.world().entity(entity).get::<Health>().unwrap().0, 0);
+    }
+
+    #[test]
     fn lethal_fire_damage_does_not_start_normal_flicker_in_stage_order() {
         let mut app = App::new();
         app.add_message::<DamageMessage>();

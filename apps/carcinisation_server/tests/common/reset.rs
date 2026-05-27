@@ -69,6 +69,8 @@ pub fn build_reset_server(entities: Vec<EntitySpawnData>, admin_socket: Option<S
 // ---------------------------------------------------------------------------
 
 /// Spawn an alive player with full health and `ServerQuickTurn`. Returns the entity.
+/// Unlike `common::spawn_alive_player`, this omits `Replicated` (server-only tests)
+/// and includes `ServerQuickTurn` (needed by reset logic).
 pub fn spawn_player(app: &mut App, pid: u32, x: f32, y: f32) -> Entity {
     app.world_mut()
         .spawn((

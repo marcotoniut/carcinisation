@@ -365,6 +365,185 @@ mod tests {
     }
 
     #[test]
+    fn hit_confirm_roundtrip() {
+        let event = HitConfirm {
+            target_id: NetworkObjectId(5),
+            damage: 37.0,
+            position: Vec2::new(3.5, 1.5),
+            kind: HitImpactKind::Destroy,
+            projectile_type: Some(NetProjectileType::BloodShot),
+        };
+        let back = roundtrip(&event);
+        assert_eq!(back.target_id, NetworkObjectId(5));
+        assert!((back.damage - 37.0).abs() < 1e-5);
+        assert_eq!(back.kind, HitImpactKind::Destroy);
+        assert_eq!(back.projectile_type, Some(NetProjectileType::BloodShot));
+    }
+
+    #[test]
+    fn hit_confirm_roundtrip_no_projectile() {
+        let event = HitConfirm {
+            target_id: NetworkObjectId(5),
+            damage: 37.0,
+            position: Vec2::new(3.5, 1.5),
+            kind: HitImpactKind::Hit,
+            projectile_type: None,
+        };
+        let back = roundtrip(&event);
+        assert_eq!(back.projectile_type, None);
+    }
+
+    #[test]
+    fn damage_effect_roundtrip() {
+        let event = DamageEffect {
+            target_id: NetworkObjectId(10),
+            damage: 25.0,
+            remaining_health: 75.0,
+            was_player: true,
+        };
+        let back = roundtrip(&event);
+        assert_eq!(back.target_id, NetworkObjectId(10));
+        assert!(back.was_player);
+        assert!((back.remaining_health - 75.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn death_effect_roundtrip() {
+        let event = DeathEffect {
+            target_id: NetworkObjectId(3),
+            was_player: false,
+        };
+        let back = roundtrip(&event);
+        assert_eq!(back.target_id, NetworkObjectId(3));
+        assert!(!back.was_player);
+    }
+
+    #[test]
+    fn flame_active_roundtrip() {
+        let event = FlameActive {
+            player_id: PlayerId(2),
+            active: true,
+        };
+        let back = roundtrip(&event);
+        assert_eq!(back.player_id, PlayerId(2));
+        assert!(back.active);
+    }
+
+    #[test]
+    fn flame_char_mark_roundtrip() {
+        let event = FlameCharMark {
+            cell_x: 5,
+            cell_y: -3,
+            side: 1,
+            normal_sign: -1,
+            u: 0.75,
+            seed: 0xDEAD_BEEF,
+        };
+        let back = roundtrip(&event);
+        assert_eq!(back.cell_x, 5);
+        assert_eq!(back.cell_y, -3);
+        assert_eq!(back.side, 1);
+        assert_eq!(back.normal_sign, -1);
+        assert!((back.u - 0.75).abs() < 1e-5);
+        assert_eq!(back.seed, 0xDEAD_BEEF);
+    }
+
+    #[test]
+    fn enemy_attack_visual_roundtrip() {
+        for kind in [EnemyAttackKind::Ranged, EnemyAttackKind::Melee] {
+            let event = EnemyAttackVisual {
+                object_id: NetworkObjectId(42),
+                kind,
+            };
+            let back = roundtrip(&event);
+            assert_eq!(back.object_id, NetworkObjectId(42));
+            assert_eq!(back.kind, kind);
+        }
+    }
+
+    #[test]
+    fn pickup_effect_roundtrip() {
+        let event = PickupEffect {
+            player_id: PlayerId(1),
+            pickup_id: NetworkObjectId(99),
+            kind: NetPickupKind::Ammo,
+            position: Vec2::new(2.0, 3.0),
+        };
+        let back = roundtrip(&event);
+        assert_eq!(back.player_id, PlayerId(1));
+        assert_eq!(back.pickup_id, NetworkObjectId(99));
+        assert_eq!(back.kind, NetPickupKind::Ammo);
+    }
+
+    #[test]
+    fn player_id_assigned_roundtrip() {
+        let event = PlayerIdAssigned(PlayerId(7));
+        let back = roundtrip(&event);
+        assert_eq!(back.0, PlayerId(7));
+    }
+
+    // -----------------------------------------------------------------------
+    // Corrupted / malformed bytes — must not panic
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn garbage_bytes_do_not_panic_client_intent() {
+        let garbage = [0xFF, 0x00, 0xAB, 0xCD, 0xEF];
+        let result = postcard::from_bytes::<ClientIntent>(&garbage);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn empty_bytes_do_not_panic_client_intent() {
+        let result = postcard::from_bytes::<ClientIntent>(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn truncated_bytes_do_not_panic_input_ack() {
+        // Encode a valid InputAck, then truncate it.
+        let ack = InputAck {
+            player_id: PlayerId(1),
+            last_processed_sequence: InputSequence(1),
+            server_tick: crate::tick::Tick(1),
+            position: Vec2::ZERO,
+            angle: 0.0,
+            snap_remaining_radians: 0.0,
+            snap_speed: 0.0,
+            snap_direction: 0.0,
+        };
+        let bytes = postcard::to_allocvec(&ack).unwrap();
+        // Try every truncation length — none should panic.
+        for len in 0..bytes.len() {
+            let _ = postcard::from_bytes::<InputAck>(&bytes[..len]);
+        }
+    }
+
+    #[test]
+    fn garbage_bytes_rejected_hit_confirm() {
+        let garbage = [0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01, 0x02];
+        assert!(postcard::from_bytes::<HitConfirm>(&garbage).is_err());
+    }
+
+    /// 32 bytes of 0xFF must be rejected by every protocol type.
+    /// Postcard uses strict decoding — trailing bytes always error.
+    #[test]
+    fn garbage_bytes_rejected_all_event_types() {
+        let garbage: &[u8] = &[0xFF; 32];
+        assert!(postcard::from_bytes::<ClientIntent>(garbage).is_err());
+        assert!(postcard::from_bytes::<InputAck>(garbage).is_err());
+        assert!(postcard::from_bytes::<MuzzleFlash>(garbage).is_err());
+        assert!(postcard::from_bytes::<HitConfirm>(garbage).is_err());
+        assert!(postcard::from_bytes::<DamageEffect>(garbage).is_err());
+        assert!(postcard::from_bytes::<DeathEffect>(garbage).is_err());
+        assert!(postcard::from_bytes::<FlameActive>(garbage).is_err());
+        assert!(postcard::from_bytes::<FlameCharMark>(garbage).is_err());
+        assert!(postcard::from_bytes::<EnemyAttackVisual>(garbage).is_err());
+        assert!(postcard::from_bytes::<PickupEffect>(garbage).is_err());
+        assert!(postcard::from_bytes::<PlayerIdAssigned>(garbage).is_err());
+    }
+
+    #[test]
     fn input_ack_roundtrip() {
         let ack = InputAck {
             player_id: PlayerId(7),

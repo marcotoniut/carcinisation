@@ -228,4 +228,25 @@ mod tests {
             "got: {err}"
         );
     }
+
+    #[test]
+    fn encode_rejects_width_exceeding_u16() {
+        let err = encode(65536, 1, &[0; 65536]).unwrap_err();
+        assert!(err.to_string().contains("exceed u16 range"), "got: {err}");
+    }
+
+    #[test]
+    fn encode_rejects_height_exceeding_u16() {
+        let err = encode(1, 65536, &[0; 65536]).unwrap_err();
+        assert!(err.to_string().contains("exceed u16 range"), "got: {err}");
+    }
+
+    #[test]
+    fn encode_max_u16_width_succeeds() {
+        // 65535×1 = 65535 pixels — within u16 range, valid.
+        let indices = vec![0u8; 65535];
+        let data = encode(65535, 1, &indices).unwrap();
+        assert_eq!(u16::from_le_bytes([data[6], data[7]]), 65535);
+        assert_eq!(u16::from_le_bytes([data[8], data[9]]), 1);
+    }
 }

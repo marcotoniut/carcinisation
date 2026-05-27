@@ -65,12 +65,12 @@ mod tests {
             "should not escape west: {pos:?}"
         );
 
-        // Near north edge — large northward delta should be blocked.
+        // Near top border (y=0) — large negative-Y delta should be blocked.
         let mut pos = Vec2::new(1.5, 1.1);
         try_move(&mut pos, Vec2::new(0.0, -2.0), 0.2, &map);
         assert!(
             (pos.y - 1.1).abs() < 0.01,
-            "should not escape north: {pos:?}"
+            "should not escape top border: {pos:?}"
         );
 
         // Near east edge.
@@ -100,5 +100,23 @@ mod tests {
             pos.x < 3.0,
             "should be blocked by interior wall at (3,2): {pos:?}"
         );
+    }
+
+    #[test]
+    fn diagonal_slides_along_interior_wall() {
+        let map = test_map();
+        // Wall at (3,2). From (2.5, 2.5) moving east+south: X blocked, Y slides.
+        let mut pos = Vec2::new(2.5, 2.5);
+        try_move(&mut pos, Vec2::new(0.5, 0.5), 0.2, &map);
+        assert!(pos.x < 3.0, "X should be blocked by wall at (3,2): {pos:?}");
+        assert!((pos.y - 3.0).abs() < 0.01, "Y should slide to 3.0: {pos:?}");
+    }
+
+    #[test]
+    fn zero_delta_does_not_move() {
+        let map = test_map();
+        let mut pos = Vec2::new(3.5, 3.5);
+        try_move(&mut pos, Vec2::ZERO, 0.2, &map);
+        assert_eq!(pos, Vec2::new(3.5, 3.5));
     }
 }

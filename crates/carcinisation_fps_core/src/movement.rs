@@ -269,6 +269,10 @@ mod tests {
 
         let slow_dist = pos_slow.x - 3.5;
         let normal_dist = pos_normal.x - 3.5;
+        assert!(
+            normal_dist > 0.01,
+            "normal movement must not be blocked by collision; check move_speed vs map layout"
+        );
         let ratio = slow_dist / normal_dist;
         assert!(
             (ratio - 0.7).abs() < 0.01,
@@ -325,6 +329,53 @@ mod tests {
 
         let high = SpeedModifier::new(2.0, 1.0);
         assert!((high.multiplier - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn speed_modifier_refresh_revives_expired() {
+        let mut modifier = SpeedModifier::new(0.5, 1.0);
+        // Expire it.
+        modifier.tick(2.0, 0.0);
+        assert!((modifier.effective() - 1.0).abs() < f32::EPSILON);
+
+        // Refresh — should revive with new budget.
+        modifier.refresh(0.8, 3.0);
+        assert!((modifier.effective() - 0.8).abs() < f32::EPSILON);
+        assert!((modifier.remaining - 3.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn speed_modifier_zero_budget_is_expired() {
+        let modifier = SpeedModifier::new(0.5, 0.0);
+        assert!((modifier.effective() - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn speed_modifier_negative_budget_clamped() {
+        let modifier = SpeedModifier::new(0.5, -5.0);
+        assert_eq!(modifier.remaining, 0.0);
+        assert!((modifier.effective() - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn speed_modifier_tick_zero_dt_still_drains_movement() {
+        let mut modifier = SpeedModifier::new(0.5, 1.0);
+        // dt=0, but movement_distance > 0 should still drain.
+        modifier.tick(0.0, 0.3);
+        assert!(
+            modifier.remaining < 1.0,
+            "movement_distance should drain: remaining={}",
+            modifier.remaining
+        );
+    }
+
+    #[test]
+    fn speed_modifier_exactly_zero_remaining_is_expired() {
+        let mut modifier = SpeedModifier::new(0.7, 1.0);
+        // Drain exactly to 0: base_drain_rate=1.0, dt=1.0, movement=0.
+        modifier.tick(1.0, 0.0);
+        assert_eq!(modifier.remaining, 0.0);
+        assert!((modifier.effective() - 1.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -594,5 +645,64 @@ mod tests {
             "angle should wrap via rem_euclid"
         );
         assert!(angle >= 0.0);
+    }
+
+    // -- angular_velocity_clamped --
+
+    #[test]
+    fn angular_velocity_zero_dt_returns_zero() {
+        assert_eq!(angular_velocity_clamped(1.0, 0.0, 0.0), 0.0);
+    }
+
+    #[test]
+    fn angular_velocity_no_change() {
+        assert!((angular_velocity_clamped(1.0, 1.0, 0.1)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn angular_velocity_positive_turn() {
+        // 0.5 rad in 0.1s = 5.0 rad/s
+        let vel = angular_velocity_clamped(1.5, 1.0, 0.1);
+        assert!((vel - 5.0).abs() < 1e-4, "got {vel}");
+    }
+
+    #[test]
+    fn angular_velocity_negative_turn() {
+        let vel = angular_velocity_clamped(1.0, 1.5, 0.1);
+        assert!((vel - -5.0).abs() < 1e-4, "got {vel}");
+    }
+
+    #[test]
+    fn angular_velocity_wraps_across_zero() {
+        // From 6.0 to 0.3 — shortest path is +0.583 rad (not -5.717).
+        let vel = angular_velocity_clamped(0.3, 6.0, 0.1);
+        assert!(vel > 0.0, "should wrap positive: got {vel}");
+        assert!((vel - 5.83).abs() < 0.1, "got {vel}");
+    }
+
+    #[test]
+    fn angular_velocity_wraps_across_tau() {
+        // From 0.3 to 6.0 — shortest path is -0.583 rad.
+        let vel = angular_velocity_clamped(6.0, 0.3, 0.1);
+        assert!(vel < 0.0, "should wrap negative: got {vel}");
+    }
+
+    #[test]
+    fn angular_velocity_clamped_to_max() {
+        // Huge angle change in tiny dt — should clamp.
+        let vel = angular_velocity_clamped(3.0, 0.0, 0.001);
+        assert!(
+            (vel - MAX_DERIVED_TURN_VELOCITY).abs() < 1e-4,
+            "should clamp to MAX: got {vel}"
+        );
+    }
+
+    #[test]
+    fn angular_velocity_clamped_to_neg_max() {
+        let vel = angular_velocity_clamped(0.0, 3.0, 0.001);
+        assert!(
+            (vel - -MAX_DERIVED_TURN_VELOCITY).abs() < 1e-4,
+            "should clamp to -MAX: got {vel}"
+        );
     }
 }
