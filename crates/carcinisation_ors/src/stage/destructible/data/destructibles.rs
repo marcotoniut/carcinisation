@@ -4,10 +4,7 @@ use crate::stage::{
         interactive::{Collider, ColliderData},
         placement::Depth,
     },
-    destructible::{
-        components::{DestructibleState, DestructibleType},
-        data::{CrystalDepth, LampDepth, MushroomDepth, TrashcanDepth},
-    },
+    destructible::components::{DestructibleState, DestructibleType},
 };
 use crate::stubs::PATH_SPRITES_OBJECTS;
 use bevy::prelude::*;
@@ -73,11 +70,10 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
         let lamp_base_speed = 300;
         let lamp_broken_frames = 1;
         let lamp_broken_speed = 300;
-        let lamp_depths = [LampDepth::Three];
+        let lamp_depths = [Depth::Three];
         let lamp_fragment = "lamp";
 
-        for i in lamp_depths {
-            let depth = i.to_depth();
+        for depth in lamp_depths {
             animations.lamp.insert(
                 depth,
                 DestructibleAnimationData {
@@ -91,11 +87,12 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                         frames: lamp_base_frames,
                         speed: lamp_base_speed,
                         finish_behavior: CxAnimationFinishBehavior::Loop,
-                        collider_data: match i {
-                            LampDepth::Three => ColliderData::from_one(
+                        collider_data: match depth {
+                            Depth::Three => ColliderData::from_one(
                                 Collider::new_box(Vec2::new(17.0, 19.0))
                                     .with_offset(Vec2::new(-1.0, 122.0)),
                             ),
+                            _ => unreachable!(),
                         },
                         ..default()
                     },
@@ -119,11 +116,10 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
         let trashcan_speed = 500;
         let trashcan_broken_frames = 1;
         let trashcan_broken_speed = 500;
-        let trashcan_depths = [TrashcanDepth::Six, TrashcanDepth::Four];
+        let trashcan_depths = [Depth::Six, Depth::Four];
         let trashcan_fragment = "trashcan";
 
-        for i in trashcan_depths {
-            let depth = i.to_depth();
+        for depth in trashcan_depths {
             animations.trashcan.insert(
                 depth,
                 DestructibleAnimationData {
@@ -137,15 +133,16 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                         frames: trashcan_frames,
                         speed: trashcan_speed,
                         finish_behavior: CxAnimationFinishBehavior::Loop,
-                        collider_data: match i {
-                            TrashcanDepth::Six => ColliderData::from_one(
+                        collider_data: match depth {
+                            Depth::Six => ColliderData::from_one(
                                 Collider::new_box(Vec2::new(8.0, 11.0))
                                     .with_offset(Vec2::new(-1.0, 6.0)),
                             ),
-                            TrashcanDepth::Four => ColliderData::from_one(
+                            Depth::Four => ColliderData::from_one(
                                 Collider::new_box(Vec2::new(18., 24.))
                                     .with_offset(Vec2::new(-2.0, 16.0)),
                             ),
+                            _ => unreachable!(),
                         },
                         ..default()
                     },
@@ -163,99 +160,99 @@ pub static DESTRUCTIBLE_ANIMATIONS: std::sync::LazyLock<DestructibleAnimations> 
                     },
                 },
             );
+        }
 
-            let mushroom_frames = 1;
-            let mushroom_speed = 500;
-            let mushroom_broken_frames = 1;
-            let mushroom_broken_speed = 500;
-            let mushroom_depths = [MushroomDepth::Four];
-            let mushroom_fragment = "mushroom";
+        let mushroom_frames = 1;
+        let mushroom_speed = 500;
+        let mushroom_broken_frames = 1;
+        let mushroom_broken_speed = 500;
+        let mushroom_depths = [Depth::Four];
+        let mushroom_fragment = "mushroom";
 
-            for i in mushroom_depths {
-                let depth = i.to_depth();
-                animations.mushroom.insert(
-                    depth,
-                    DestructibleAnimationData {
-                        base: AnimationData {
-                            sprite_path: concat_strings_and_number(
-                                PATH_SPRITES_OBJECTS,
-                                mushroom_fragment,
-                                FRAGMENT_BASE,
-                                depth,
-                            ),
-                            frames: mushroom_frames,
-                            speed: mushroom_speed,
-                            finish_behavior: CxAnimationFinishBehavior::Loop,
-                            collider_data: match i {
-                                MushroomDepth::Four => ColliderData::from_many(vec![
-                                    Collider::new_box(Vec2::new(15., 70.))
-                                        .with_offset(Vec2::new(1., 49.)),
-                                    Collider::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
-                                ]),
-                            },
-                            ..default()
+        for depth in mushroom_depths {
+            animations.mushroom.insert(
+                depth,
+                DestructibleAnimationData {
+                    base: AnimationData {
+                        sprite_path: concat_strings_and_number(
+                            PATH_SPRITES_OBJECTS,
+                            mushroom_fragment,
+                            FRAGMENT_BASE,
+                            depth,
+                        ),
+                        frames: mushroom_frames,
+                        speed: mushroom_speed,
+                        finish_behavior: CxAnimationFinishBehavior::Loop,
+                        collider_data: match depth {
+                            Depth::Four => ColliderData::from_many(vec![
+                                Collider::new_box(Vec2::new(15., 70.))
+                                    .with_offset(Vec2::new(1., 49.)),
+                                Collider::new_circle(24.).with_offset(Vec2::new(-1.0, 57.0)),
+                            ]),
+                            _ => unreachable!(),
                         },
-                        broken: AnimationData {
-                            sprite_path: concat_strings_and_number(
-                                PATH_SPRITES_OBJECTS,
-                                mushroom_fragment,
-                                FRAGMENT_BROKEN,
-                                depth,
-                            ),
-                            frames: mushroom_broken_frames,
-                            speed: mushroom_broken_speed,
-                            finish_behavior: CxAnimationFinishBehavior::Mark,
-                            ..default()
-                        },
+                        ..default()
                     },
-                );
-            }
-
-            let crystal_frames = 1;
-            let crystal_speed = 500;
-            let crystal_broken_frames = 1;
-            let crystal_broken_speed = 500;
-            let crystal_depths = [CrystalDepth::Five];
-            let crystal_fragment = "crystal";
-
-            for i in crystal_depths {
-                let depth = i.to_depth();
-                animations.crystal.insert(
-                    depth,
-                    DestructibleAnimationData {
-                        base: AnimationData {
-                            sprite_path: concat_strings_and_number(
-                                PATH_SPRITES_OBJECTS,
-                                crystal_fragment,
-                                FRAGMENT_BASE,
-                                depth,
-                            ),
-                            frames: crystal_frames,
-                            speed: crystal_speed,
-                            finish_behavior: CxAnimationFinishBehavior::Loop,
-                            collider_data: match i {
-                                CrystalDepth::Five => ColliderData::from_one(
-                                    Collider::new_box(Vec2::new(40., 60.))
-                                        .with_offset(Vec2::new(-4., 40.)),
-                                ),
-                            },
-                            ..default()
-                        },
-                        broken: AnimationData {
-                            sprite_path: concat_strings_and_number(
-                                PATH_SPRITES_OBJECTS,
-                                crystal_fragment,
-                                FRAGMENT_BROKEN,
-                                depth,
-                            ),
-                            frames: crystal_broken_frames,
-                            speed: crystal_broken_speed,
-                            finish_behavior: CxAnimationFinishBehavior::Mark,
-                            ..default()
-                        },
+                    broken: AnimationData {
+                        sprite_path: concat_strings_and_number(
+                            PATH_SPRITES_OBJECTS,
+                            mushroom_fragment,
+                            FRAGMENT_BROKEN,
+                            depth,
+                        ),
+                        frames: mushroom_broken_frames,
+                        speed: mushroom_broken_speed,
+                        finish_behavior: CxAnimationFinishBehavior::Mark,
+                        ..default()
                     },
-                );
-            }
+                },
+            );
+        }
+
+        let crystal_frames = 1;
+        let crystal_speed = 500;
+        let crystal_broken_frames = 1;
+        let crystal_broken_speed = 500;
+        let crystal_depths = [Depth::Five];
+        let crystal_fragment = "crystal";
+
+        for depth in crystal_depths {
+            animations.crystal.insert(
+                depth,
+                DestructibleAnimationData {
+                    base: AnimationData {
+                        sprite_path: concat_strings_and_number(
+                            PATH_SPRITES_OBJECTS,
+                            crystal_fragment,
+                            FRAGMENT_BASE,
+                            depth,
+                        ),
+                        frames: crystal_frames,
+                        speed: crystal_speed,
+                        finish_behavior: CxAnimationFinishBehavior::Loop,
+                        collider_data: match depth {
+                            Depth::Five => ColliderData::from_one(
+                                Collider::new_box(Vec2::new(40., 60.))
+                                    .with_offset(Vec2::new(-4., 40.)),
+                            ),
+                            _ => unreachable!(),
+                        },
+                        ..default()
+                    },
+                    broken: AnimationData {
+                        sprite_path: concat_strings_and_number(
+                            PATH_SPRITES_OBJECTS,
+                            crystal_fragment,
+                            FRAGMENT_BROKEN,
+                            depth,
+                        ),
+                        frames: crystal_broken_frames,
+                        speed: crystal_broken_speed,
+                        finish_behavior: CxAnimationFinishBehavior::Mark,
+                        ..default()
+                    },
+                },
+            );
         }
         animations
     });

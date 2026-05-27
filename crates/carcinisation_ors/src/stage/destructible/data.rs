@@ -27,61 +27,6 @@ pub struct DestructibleSpawn {
     pub authored_depths: Option<Vec<Depth>>,
 }
 
-pub enum LampDepth {
-    Three,
-}
-
-impl LampDepth {
-    #[must_use]
-    pub const fn to_depth(&self) -> Depth {
-        match self {
-            Self::Three => Depth::Three,
-        }
-    }
-}
-
-// Can Depth implement isize?
-pub enum TrashcanDepth {
-    Six,
-    Four,
-}
-
-impl TrashcanDepth {
-    #[must_use]
-    pub const fn to_depth(&self) -> Depth {
-        match self {
-            Self::Six => Depth::Six,
-            Self::Four => Depth::Four,
-        }
-    }
-}
-
-pub enum MushroomDepth {
-    Four,
-}
-
-impl MushroomDepth {
-    #[must_use]
-    pub const fn to_depth(&self) -> Depth {
-        match self {
-            Self::Four => Depth::Four,
-        }
-    }
-}
-
-pub enum CrystalDepth {
-    Five,
-}
-
-impl CrystalDepth {
-    #[must_use]
-    pub const fn to_depth(&self) -> Depth {
-        match self {
-            Self::Five => Depth::Five,
-        }
-    }
-}
-
 impl DestructibleSpawn {
     #[must_use]
     pub fn get_name(&self) -> Name {
@@ -124,52 +69,49 @@ impl DestructibleSpawn {
     }
 
     #[must_use]
-    pub const fn lamp_base(x: f32, y: f32, depth: LampDepth) -> Self {
+    pub const fn lamp_base(x: f32, y: f32, depth: Depth) -> Self {
         Self {
             contains: None,
             coordinates: Vec2::new(x, y),
             destructible_type: DestructibleType::Lamp,
             health: 60,
-            depth: depth.to_depth(),
+            depth,
             authored_depths: None,
         }
     }
 
-    /**
-     * depth needs to be 1 or 4
-     */
     #[must_use]
-    pub const fn trashcan_base(x: f32, y: f32, depth: TrashcanDepth) -> Self {
+    pub const fn trashcan_base(x: f32, y: f32, depth: Depth) -> Self {
         Self {
             destructible_type: DestructibleType::Trashcan,
             coordinates: Vec2::new(x, y),
             contains: None,
             health: 100,
-            depth: depth.to_depth(),
+            depth,
             authored_depths: None,
         }
     }
 
     #[must_use]
-    pub const fn crystal_base(x: f32, y: f32, depth: CrystalDepth) -> Self {
+    pub const fn crystal_base(x: f32, y: f32, depth: Depth) -> Self {
         Self {
             destructible_type: DestructibleType::Crystal,
             coordinates: Vec2::new(x, y),
             contains: None,
             health: 300,
-            depth: depth.to_depth(),
+            depth,
             authored_depths: None,
         }
     }
 
     #[must_use]
-    pub const fn mushroom_base(x: f32, y: f32, depth: MushroomDepth) -> Self {
+    pub const fn mushroom_base(x: f32, y: f32, depth: Depth) -> Self {
         Self {
             destructible_type: DestructibleType::Mushroom,
             coordinates: Vec2::new(x, y),
             contains: None,
             health: 120,
-            depth: depth.to_depth(),
+            depth,
             authored_depths: None,
         }
     }

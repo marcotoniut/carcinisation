@@ -90,7 +90,7 @@ pub struct PlayerFlamethrowerConfig {
     /// Damage applied to nearby enemies each tick by a burning corpse (crossfire).
     pub burning_corpse_crossfire_damage: u32,
     /// Number of flame sprites placed around a burning corpse perimeter.
-    pub burning_flame_count: usize,
+    pub burning_flame_count: NonZeroUsize,
     /// Inward padding from the sprite edge when placing perimeter flames (pixels).
     pub burning_flame_perimeter_padding_px: f32,
     /// Random positional jitter applied to each perimeter flame (pixels).
@@ -114,16 +114,11 @@ impl PlayerFlamethrowerConfig {
     }
 
     /// Build a `FireDeathConfig` from the combat config values.
-    ///
-    /// # Panics
-    ///
-    /// If `burning_flame_count` is 0.
     #[must_use]
     pub const fn fire_death_config(&self) -> crate::fire_death::FireDeathConfig {
         crate::fire_death::FireDeathConfig {
             burning_corpse_duration_secs: self.burning_corpse_duration_secs,
-            burning_flame_count: NonZeroUsize::new(self.burning_flame_count)
-                .expect("burning_flame_count must be > 0"),
+            burning_flame_count: self.burning_flame_count,
             burning_flame_perimeter_padding_px: self.burning_flame_perimeter_padding_px,
             burning_flame_jitter_px: self.burning_flame_jitter_px,
             burning_flame_scale_min: self.burning_flame_scale_min,
@@ -288,7 +283,7 @@ pub struct FpsCombatConfig {
     /// Visual spread radius for ground fire flame placement (world units).
     pub ground_fire_visual_radius: f32,
     /// Number of flame sprites per ground fire.
-    pub ground_fire_flame_count: usize,
+    pub ground_fire_flame_count: NonZeroUsize,
     /// Maximum number of ground fires that can exist simultaneously.
     pub ground_fire_max: usize,
 }
@@ -353,10 +348,6 @@ impl FpsCombatConfig {
     }
 
     /// Build a `GroundFireConfig` from the combat config values.
-    ///
-    /// # Panics
-    ///
-    /// If `ground_fire_flame_count` is 0.
     #[must_use]
     pub const fn ground_fire_config(&self) -> crate::ground_fire::GroundFireConfig {
         crate::ground_fire::GroundFireConfig {
@@ -365,8 +356,7 @@ impl FpsCombatConfig {
             radius: self.ground_fire_radius,
             damage_per_tick: self.ground_fire_damage,
             tick_secs: self.ground_fire_tick_secs,
-            flame_count: NonZeroUsize::new(self.ground_fire_flame_count)
-                .expect("ground_fire_flame_count must be > 0"),
+            flame_count: self.ground_fire_flame_count,
             max_fires: self.ground_fire_max,
             visual_radius: self.ground_fire_visual_radius,
         }
@@ -430,7 +420,7 @@ impl Default for FpsCombatConfig {
             ground_fire_damage: 3.0,
             ground_fire_tick_secs: 0.5,
             ground_fire_visual_radius: 0.35,
-            ground_fire_flame_count: 6,
+            ground_fire_flame_count: NonZeroUsize::new(6).unwrap(),
             ground_fire_max: 32,
         }
     }

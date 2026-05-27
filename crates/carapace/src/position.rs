@@ -10,6 +10,7 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::{component::Mutable, lifecycle::HookContext, world::DeferredWorld};
 #[cfg(feature = "headed")]
 use bevy_render::{RenderApp, extract_component::ExtractComponent};
+use derive_more::From;
 use next::Next;
 
 use crate::{prelude::*, set::CxSet};
@@ -45,15 +46,9 @@ impl<T: Spatial> Spatial for &'_ T {
 /// Read by the rendering pipeline. For gameplay logic, prefer reading/writing
 /// [`WorldPos`] directly.
 #[cfg_attr(feature = "headed", derive(ExtractComponent))]
-#[derive(Component, Deref, DerefMut, Clone, Copy, Default, PartialEq, Eq, Reflect, Debug)]
+#[derive(Component, Deref, DerefMut, Clone, Copy, Default, PartialEq, Eq, Reflect, Debug, From)]
 #[reflect(Component)]
 pub struct CxPosition(pub IVec2);
-
-impl From<IVec2> for CxPosition {
-    fn from(position: IVec2) -> Self {
-        Self(position)
-    }
-}
 
 impl std::ops::Add<IVec2> for CxPosition {
     type Output = Self;
@@ -230,16 +225,10 @@ impl CxAnchor {
 /// **World-space only.** Never write projection-adjusted, parallax-adjusted, or
 /// visual-space coordinates here. All visual displacement lives in
 /// [`CxPresentationTransform`](crate::presentation).
-#[derive(Component, Debug, Default, Deref, DerefMut, Reflect)]
+#[derive(Component, Debug, Default, Deref, DerefMut, Reflect, From)]
 #[reflect(Component)]
 #[require(CxPosition)]
 pub struct WorldPos(pub Vec2);
-
-impl From<Vec2> for WorldPos {
-    fn from(vec: Vec2) -> Self {
-        Self(vec)
-    }
-}
 
 impl From<IVec2> for WorldPos {
     fn from(v: IVec2) -> Self {
@@ -268,15 +257,9 @@ impl std::fmt::Display for WorldPos {
 }
 
 /// Velocity. Entities with this and [`WorldPos`] will move at this velocity over time.
-#[derive(Clone, Component, Copy, Debug, Default, Deref, DerefMut, Reflect)]
+#[derive(Clone, Component, Copy, Debug, Default, Deref, DerefMut, Reflect, From)]
 #[require(WorldPos)]
 pub struct CxVelocity(pub Vec2);
-
-impl From<Vec2> for CxVelocity {
-    fn from(vec: Vec2) -> Self {
-        Self(vec)
-    }
-}
 
 fn update_world_positions(mut query: Query<(&mut WorldPos, &CxVelocity)>, time: Res<Time>) {
     for (mut world_pos, velocity) in &mut query {

@@ -2385,6 +2385,7 @@ dependencies = [
  "bevy_window",
  "bytemuck",
  "carapace_macros",
+ "derive_more",
  "flate2",
  "image",
  "insta",
@@ -2473,6 +2474,7 @@ dependencies = [
  "bevy",
  "carapace",
  "serde",
+ "thiserror 2.0.18",
  "toml",
 ]
 
@@ -2541,6 +2543,7 @@ dependencies = [
  "carcinisation_core",
  "ron 0.12.1",
  "serde",
+ "thiserror 2.0.18",
  "vec1",
 ]
 

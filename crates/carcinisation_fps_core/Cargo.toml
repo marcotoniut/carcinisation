@@ -11,4 +11,5 @@ carapace = { workspace = true }
 carcinisation_core = { path = "../carcinisation_core" }
 ron = { workspace = true }
 serde = { workspace = true }
+thiserror = { workspace = true }
 vec1 = { workspace = true }

@@ -2069,10 +2069,6 @@ fn push_burning_corpse_flames(
     corpse_sprite: &CxImage,
     ctx: &CorpseFlameContext<'_>,
 ) {
-    if ctx.config.burning_flame_count == 0 {
-        return;
-    }
-
     let to_corpse = position - ctx.camera.position;
     let distance = to_corpse.length().max(0.1);
 
@@ -2409,7 +2405,7 @@ mod tests {
             &ctx,
         );
 
-        assert_eq!(first.len(), config.burning_flame_count);
+        assert_eq!(first.len(), config.burning_flame_count.get());
         assert_eq!(second.len(), first.len());
         assert_eq!(first[0].position, second[0].position);
         assert_eq!(first[0].height, second[0].height);

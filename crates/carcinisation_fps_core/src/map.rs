@@ -1,27 +1,12 @@
 //! Grid-based map representation for first-person stages.
 
 /// Error type for map loading.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum MapError {
-    Ron(ron::error::SpannedError),
+    #[error("RON parse error: {0}")]
+    Ron(#[from] ron::error::SpannedError),
+    #[error("map validation error: {0}")]
     Validation(String),
-}
-
-impl std::fmt::Display for MapError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Ron(e) => write!(f, "RON parse error: {e}"),
-            Self::Validation(msg) => write!(f, "map validation error: {msg}"),
-        }
-    }
-}
-
-impl std::error::Error for MapError {}
-
-impl From<ron::error::SpannedError> for MapError {
-    fn from(e: ron::error::SpannedError) -> Self {
-        Self::Ron(e)
-    }
 }
 
 /// A 2D grid map where each cell is either empty (0) or a wall type (>0).

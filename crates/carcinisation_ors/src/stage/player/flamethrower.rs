@@ -68,7 +68,7 @@ pub struct FlamethrowerConfig {
     /// Maximum depth that the flamethrower can damage (inclusive).
     pub max_damage_depth: i8,
     pub burning_corpse_duration_secs: f32,
-    pub burning_flame_count: usize,
+    pub burning_flame_count: std::num::NonZeroUsize,
     pub burning_flame_perimeter_padding_px: f32,
     pub burning_flame_jitter_px: f32,
     pub burning_flame_scale_min: PositiveFiniteF32,
@@ -121,16 +121,11 @@ impl FlamethrowerConfig {
     }
 
     /// Build a `FireDeathConfig` from the flamethrower chain parameters.
-    ///
-    /// # Panics
-    ///
-    /// If `burning_flame_count` is 0.
     #[must_use]
     pub const fn fire_death_config(&self) -> FireDeathConfig {
         FireDeathConfig {
             burning_corpse_duration_secs: self.burning_corpse_duration_secs,
-            burning_flame_count: std::num::NonZeroUsize::new(self.burning_flame_count)
-                .expect("burning_flame_count must be > 0"),
+            burning_flame_count: self.burning_flame_count,
             burning_flame_perimeter_padding_px: self.burning_flame_perimeter_padding_px,
             burning_flame_jitter_px: self.burning_flame_jitter_px,
             burning_flame_scale_min: self.burning_flame_scale_min.get(),

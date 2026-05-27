@@ -11,6 +11,7 @@ use bevy_render::{
     sync_component::SyncComponentPlugin,
     sync_world::RenderEntity,
 };
+use derive_more::From;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -583,17 +584,12 @@ impl AnimatedAssetComponent for CxTilemap {
 }
 
 /// A tile. Must be added to tiles added to [`CxTilemap`].
-#[derive(Component, Clone, Default, Debug, Reflect)]
+#[derive(Component, Clone, Default, Debug, Reflect, From)]
 #[cfg_attr(feature = "headed", require(Visibility))]
 pub struct CxTile {
     /// The index to the tile texture in the tileset
+    #[from]
     pub texture: u32,
-}
-
-impl From<u32> for CxTile {
-    fn from(value: u32) -> Self {
-        Self { texture: value }
-    }
 }
 
 pub type MapComponents<L> = (

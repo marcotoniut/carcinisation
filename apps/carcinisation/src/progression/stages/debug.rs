@@ -6,7 +6,7 @@ use crate::stage::data::{
     EnemyDropSpawn, EnemySpawn, ObjectSpawn, PickupDropSpawn, PickupType, SkyboxData, StageData,
     StageSpawn, StageStep,
 };
-use crate::stage::destructible::data::{DestructibleSpawn, LampDepth, TrashcanDepth};
+use crate::stage::destructible::data::DestructibleSpawn;
 use crate::stage::enemy::data::steps::EnemyStep;
 use crate::stage::enemy::entity::EnemyType;
 use crate::stage::floors::{HeightMode, SurfaceSpec};
@@ -43,15 +43,15 @@ pub static STAGE_DEBUG_DATA: std::sync::LazyLock<Arc<StageData>> = std::sync::La
 pub fn make_spawns() -> Vec<StageSpawn> {
     vec![
         ObjectSpawn::rugpark_sign_base(400., 20.).into(),
-        DestructibleSpawn::trashcan_base(100., 67., TrashcanDepth::Six).into(),
-        DestructibleSpawn::trashcan_base(220., 67., TrashcanDepth::Six).into(),
+        DestructibleSpawn::trashcan_base(100., 67., Depth::Six).into(),
+        DestructibleSpawn::trashcan_base(220., 67., Depth::Six).into(),
         // DestructibleSpawn::crystal_base(125., 32.).into(),
         // DestructibleSpawn::mushroom_base(60., 12.).into(),
         ObjectSpawn::fibertree_base(30., OBJECT_FIBERTREE_Y).into(),
         ObjectSpawn::fibertree_base(180., OBJECT_FIBERTREE_Y).into(),
         ObjectSpawn::bench_big_base(50., 65.).into(),
         ObjectSpawn::bench_big_base(200., 60.).into(),
-        DestructibleSpawn::lamp_base(75., OBJECT_LAMP_Y, LampDepth::Three)
+        DestructibleSpawn::lamp_base(75., OBJECT_LAMP_Y, Depth::Three)
             .drops(
                 EnemyDropSpawn {
                     enemy_type: EnemyType::Mosquito,
@@ -66,7 +66,7 @@ pub fn make_spawns() -> Vec<StageSpawn> {
                 .into(),
             )
             .into(),
-        DestructibleSpawn::lamp_base(260., OBJECT_LAMP_Y, LampDepth::Three)
+        DestructibleSpawn::lamp_base(260., OBJECT_LAMP_Y, Depth::Three)
             .drops(PickupDropSpawn::new(PickupType::BigHealth).into())
             .into(),
     ]

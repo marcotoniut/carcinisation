@@ -9,6 +9,7 @@ use std::{
 use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::system::EntityCommands;
 use bevy_platform::time::Instant;
+use derive_more::From;
 
 use crate::{
     position::{CxLayer, DefaultLayer},
@@ -54,18 +55,12 @@ fn validate_emitters(
 }
 
 /// A particle's lifetime
-#[derive(Clone, Component, Copy, Debug, Deref, DerefMut, Reflect)]
+#[derive(Clone, Component, Copy, Debug, Deref, DerefMut, Reflect, From)]
 pub struct ParticleLifetime(pub Duration);
 
 impl Default for ParticleLifetime {
     fn default() -> Self {
         Self(Duration::from_secs(1))
-    }
-}
-
-impl From<Duration> for ParticleLifetime {
-    fn from(duration: Duration) -> Self {
-        Self(duration)
     }
 }
 
@@ -179,18 +174,12 @@ impl Debug for CxEmitter {
 #[derive(Component, Debug, Deref, DerefMut)]
 struct CxEmitterStart(Instant);
 
-#[derive(Component, Debug, Deref, DerefMut)]
+#[derive(Component, Debug, Deref, DerefMut, From)]
 struct CxParticleStart(Instant);
 
 impl Default for CxParticleStart {
     fn default() -> Self {
         Self(Instant::now())
-    }
-}
-
-impl From<Instant> for CxParticleStart {
-    fn from(duration: Instant) -> Self {
-        Self(duration)
     }
 }
 

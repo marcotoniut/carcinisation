@@ -7,6 +7,7 @@ description = "Shared gameplay vocabulary for Carcinisation — Layer enum, sub-
 bevy = { workspace = true }
 carapace = { workspace = true }
 serde = { workspace = true }
+thiserror = { workspace = true }
 [dev-dependencies]
 toml = "1.0"
 [lints]

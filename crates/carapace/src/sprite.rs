@@ -27,6 +27,7 @@ use bevy_render::{
     },
     renderer::{RenderDevice, RenderQueue},
 };
+use derive_more::From;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -379,16 +380,10 @@ impl Spatial for CxResolvedCompositePart<'_> {
 }
 
 /// A sprite
-#[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect)]
+#[derive(Component, Deref, DerefMut, Default, Clone, Debug, Reflect, From)]
 #[require(CxPosition, CxAnchor, DefaultLayer, CxRenderSpace)]
 #[cfg_attr(feature = "headed", require(Visibility))]
 pub struct CxSprite(pub Handle<CxSpriteAsset>);
-
-impl From<Handle<CxSpriteAsset>> for CxSprite {
-    fn from(value: Handle<CxSpriteAsset>) -> Self {
-        Self(value)
-    }
-}
 
 /// A sprite composed of multiple sprite or atlas-backed parts.
 ///

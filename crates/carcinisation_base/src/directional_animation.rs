@@ -59,32 +59,18 @@ pub struct DirectionalAnimationSet {
 }
 
 /// Error returned when a direction cannot be resolved for an action.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ResolveError {
     /// The requested action does not exist in the animation set.
+    #[error("unknown animation action '{0}'")]
     UnknownAction(String),
     /// The direction cannot be resolved (no match, no mirror, no fallback).
+    #[error("direction {direction} unavailable for action '{action}' (policy: {policy:?})")]
     DirectionUnavailable {
         action: String,
         direction: SpriteDirection,
         policy: MirrorPolicy,
     },
-}
-
-impl std::fmt::Display for ResolveError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UnknownAction(action) => write!(f, "unknown animation action '{action}'"),
-            Self::DirectionUnavailable {
-                action,
-                direction,
-                policy,
-            } => write!(
-                f,
-                "direction {direction} unavailable for action '{action}' (policy: {policy:?})"
-            ),
-        }
-    }
 }
 
 impl DirectionalAnimationSet {
