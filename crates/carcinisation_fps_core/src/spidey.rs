@@ -879,11 +879,11 @@ mod tests {
     fn config_default_matches_combat_config() {
         let c = SpideySimConfig::default();
         let combat = crate::config::FpsCombatConfig::default();
-        assert_eq!(c.lunge_melee_damage, combat.spidey_lunge_melee_damage);
-        assert_eq!(c.web_cooldown, combat.spidey_web_cooldown);
-        assert_eq!(c.lunge_cooldown, combat.spidey_lunge_cooldown);
-        assert_eq!(c.web_projectile_speed, combat.spidey_web_projectile_speed);
-        assert_eq!(c.web_projectile_damage, combat.spidey_web_projectile_damage);
-        assert_eq!(c.collision_radius, combat.spidey_collision_radius);
+        assert_eq!(c.lunge_melee_damage, combat.spidey.lunge_melee_damage);
+        assert_eq!(c.web_cooldown, combat.spidey.web_cooldown);
+        assert_eq!(c.lunge_cooldown, combat.spidey.lunge_cooldown);
+        assert_eq!(c.web_projectile_speed, combat.spidey.web_projectile_speed);
+        assert_eq!(c.web_projectile_damage, combat.spidey.web_projectile_damage);
+        assert_eq!(c.collision_radius, combat.spidey.collision_radius);
     }
 }

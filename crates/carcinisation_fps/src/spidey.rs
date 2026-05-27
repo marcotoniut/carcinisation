@@ -56,9 +56,9 @@ impl SpideyConfig {
         Self {
             sim: combat.spidey_sim_config(),
             billboard_height: SPIDEY_BILLBOARD_HEIGHT,
-            health: combat.spidey_health,
-            web_slow_multiplier: combat.spidey_web_slow_multiplier,
-            web_slow_duration: combat.spidey_web_slow_duration,
+            health: combat.spidey.health,
+            web_slow_multiplier: combat.spidey.web_slow_multiplier,
+            web_slow_duration: combat.spidey.web_slow_duration,
             projectile_lifetime: combat.projectile_lifetime,
         }
     }
@@ -777,40 +777,40 @@ mod tests {
         let combat = FpsCombatConfig::default();
 
         assert_eq!(
-            c.sim.move_speed, combat.spidey_move_speed,
+            c.sim.move_speed, combat.spidey.move_speed,
             "move_speed drift"
         );
         assert_eq!(
-            c.sim.collision_radius, combat.spidey_collision_radius,
+            c.sim.collision_radius, combat.spidey.collision_radius,
             "collision_radius drift"
         );
         assert_eq!(
-            c.sim.lunge_melee_damage, combat.spidey_lunge_melee_damage,
+            c.sim.lunge_melee_damage, combat.spidey.lunge_melee_damage,
             "lunge_melee_damage drift"
         );
         assert_eq!(
-            c.sim.web_cooldown, combat.spidey_web_cooldown,
+            c.sim.web_cooldown, combat.spidey.web_cooldown,
             "web_cooldown drift"
         );
         assert_eq!(
-            c.sim.lunge_cooldown, combat.spidey_lunge_cooldown,
+            c.sim.lunge_cooldown, combat.spidey.lunge_cooldown,
             "lunge_cooldown drift"
         );
         assert_eq!(
-            c.sim.web_projectile_speed, combat.spidey_web_projectile_speed,
+            c.sim.web_projectile_speed, combat.spidey.web_projectile_speed,
             "web_projectile_speed drift"
         );
         assert_eq!(
-            c.sim.web_projectile_damage, combat.spidey_web_projectile_damage,
+            c.sim.web_projectile_damage, combat.spidey.web_projectile_damage,
             "web_projectile_damage drift"
         );
-        assert_eq!(c.health, combat.spidey_health, "health drift");
+        assert_eq!(c.health, combat.spidey.health, "health drift");
         assert_eq!(
-            c.web_slow_multiplier, combat.spidey_web_slow_multiplier,
+            c.web_slow_multiplier, combat.spidey.web_slow_multiplier,
             "web_slow_multiplier drift"
         );
         assert_eq!(
-            c.web_slow_duration, combat.spidey_web_slow_duration,
+            c.web_slow_duration, combat.spidey.web_slow_duration,
             "web_slow_duration drift"
         );
     }

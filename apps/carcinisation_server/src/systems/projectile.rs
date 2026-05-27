@@ -94,7 +94,7 @@ pub fn tick_projectiles_server(
         let dir = Vec2::new(proj.angle.cos(), proj.angle.sin());
         let projectile_speed = match proj.projectile_type {
             NetProjectileType::BloodShot => combat_config.projectile_speed,
-            NetProjectileType::WebShot => combat_config.spidey_web_projectile_speed,
+            NetProjectileType::WebShot => combat_config.spidey.web_projectile_speed,
         };
         let step = dir * projectile_speed * dt;
         let travel_distance = step.length();
@@ -153,8 +153,8 @@ pub fn tick_projectiles_server(
                 health.current = (health.current - proj.damage).max(0.0);
                 if matches!(proj.projectile_type, NetProjectileType::WebShot) {
                     commands.entity(player_entity).insert(NetSpeedModifier {
-                        multiplier: combat_config.spidey_web_slow_multiplier,
-                        remaining: combat_config.spidey_web_slow_duration,
+                        multiplier: combat_config.spidey.web_slow_multiplier,
+                        remaining: combat_config.spidey.web_slow_duration,
                     });
                 }
                 debug!(

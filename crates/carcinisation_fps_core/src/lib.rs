@@ -36,7 +36,7 @@ pub use collision::try_move;
 pub use combat::{flame_hits_position, flame_hits_position_configured};
 pub use config::{
     FpsCombatConfig, FpsMovementConfig, FpsVisualConfig, PlayerFlamethrowerConfig,
-    ScreenParticleConfig, SizeTierConfig,
+    ScreenParticleConfig, SizeTierConfig, SpideyCombatConfig,
 };
 pub use enemy::{
     DamageOutcome, Enemy, EnemyAiDisposition, EnemyAiOutput, EnemyPlayerTarget, EnemySim,

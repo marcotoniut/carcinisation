@@ -372,7 +372,10 @@ fn spidey_spawn_uses_spidey_net_type_and_authored_speed() {
     assert_eq!(enemy.enemy_type, carcinisation_net::NetEnemyType::Spidey);
     assert!((config.0.move_speed - 4.0).abs() < f32::EPSILON);
     assert!(
-        config.0.hop_distance > carcinisation_fps_core::FpsCombatConfig::load().spidey_hop_distance,
+        config.0.hop_distance
+            > carcinisation_fps_core::FpsCombatConfig::load()
+                .spidey
+                .hop_distance,
         "authored speed should scale hop distance"
     );
 }
@@ -426,8 +429,8 @@ fn webshot_projectile_applies_server_speed_modifier() {
 
     let modifier = speed_modifier(&mut server).expect("WebShot should apply speed modifier");
     let combat = carcinisation_fps_core::FpsCombatConfig::load();
-    assert!((modifier.multiplier - combat.spidey_web_slow_multiplier).abs() < f32::EPSILON);
-    assert!((modifier.remaining - combat.spidey_web_slow_duration).abs() < 0.1);
+    assert!((modifier.multiplier - combat.spidey.web_slow_multiplier).abs() < f32::EPSILON);
+    assert!((modifier.remaining - combat.spidey.web_slow_duration).abs() < 0.1);
 }
 
 /// Projectile despawns on wall hit (TTL expiry or wall collision).
