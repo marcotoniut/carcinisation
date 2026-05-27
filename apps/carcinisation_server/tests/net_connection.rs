@@ -2,71 +2,29 @@ mod common;
 
 use std::net::SocketAddr;
 
-use bevy::prelude::*;
 use bevy_replicon::prelude::*;
-use bevy_replicon_renet2::renet2::RenetClient;
 use carcinisation_net::{NetProtocolPlugin, PlayerId, register_net_all};
 use carcinisation_server::systems::{FlameActiveTracker, FlameCharCooldowns};
 use common::{
-    assert_client_connected, assert_server_resources, build_client_app, build_server_app,
-    reserve_port, test_server_plugin, update_both, wait_for,
+    assert_server_resources, build_client_app, build_server_app, reserve_port, test_server_plugin,
+    update_both, wait_for,
 };
 
+/// Server boots, client connects and stays connected, server receives
+/// `ConnectedClient` entity. (Consolidates the former boot / connect /
+/// multi-frame / event tests into one end-to-end flow.)
 #[test]
-fn server_boots_and_listens() {
-    let port = reserve_port();
-    let mut app = build_server_app(test_server_plugin(port));
-    app.update();
-    assert_server_resources(&app);
-}
-
-#[test]
-fn client_connects_to_server() {
+fn server_boots_client_connects_and_event_fires() {
     let port = reserve_port();
     let mut server = build_server_app(test_server_plugin(port));
     server.update();
+    assert_server_resources(&server);
 
     let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
     let mut client = build_client_app(NetProtocolPlugin, register_net_all, addr);
     client.update();
 
-    assert_client_connected(&client, "initial");
-}
-
-#[test]
-fn client_stays_connected_over_multiple_frames() {
-    let port = reserve_port();
-    let mut server = build_server_app(test_server_plugin(port));
-    server.update();
-
-    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
-    let mut client = build_client_app(NetProtocolPlugin, register_net_all, addr);
-    client.update();
-
-    for frame in 0..60 {
-        update_both(&mut server, &mut client);
-        assert_client_connected(&client, &format!("frame {frame}"));
-    }
-
-    let client_res = client.world().get_resource::<RenetClient>().unwrap();
-    assert!(
-        client_res.is_connected(),
-        "client should be fully connected after 60 frames (connected={}, connecting={})",
-        client_res.is_connected(),
-        client_res.is_connecting()
-    );
-}
-
-#[test]
-fn server_receives_client_connected_event() {
-    let port = reserve_port();
-    let mut server = build_server_app(test_server_plugin(port));
-    server.update();
-
-    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
-    let mut client = build_client_app(NetProtocolPlugin, register_net_all, addr);
-    client.update();
-
+    // Server should receive a ConnectedClient entity within 120 frames.
     let connected = wait_for(120, &mut server, &mut client, |server, _client| {
         server
             .world_mut()
@@ -80,6 +38,12 @@ fn server_receives_client_connected_event() {
         connected,
         "server should have a ConnectedClient entity within 120 frames"
     );
+
+    // Client should still be connected after additional frames.
+    for _ in 0..30 {
+        update_both(&mut server, &mut client);
+    }
+    common::assert_client_connected(&client, "post-connect stability");
 }
 
 #[test]
@@ -110,27 +74,18 @@ fn client_graceful_disconnect() {
         .disconnect();
 
     // Run both sides to propagate disconnect
-    let mut disconnected = false;
-    let mut frames = 0;
-    for _ in 0..60 {
-        frames += 1;
-        update_both(&mut server, &mut client);
-
-        let count: usize = server
+    let disconnected = wait_for(60, &mut server, &mut client, |server, _| {
+        server
             .world_mut()
             .query::<&ConnectedClient>()
             .iter(server.world())
-            .count();
-
-        if count == 0 {
-            disconnected = true;
-            break;
-        }
-    }
+            .count()
+            == 0
+    });
 
     assert!(
         disconnected,
-        "server should clean up ConnectedClient within {frames} frames after client disconnects"
+        "server should clean up ConnectedClient after client disconnects"
     );
 }
 

@@ -4,13 +4,13 @@
 mod common;
 
 use bevy::prelude::*;
-use bevy_replicon::prelude::*;
-use carcinisation_fps_core::map::{EntitySpawnData, EntitySpawnKind, Map};
-use carcinisation_net::{
-    NetAttackId, NetEnemyState, NetHealth, NetPlayer, PlayerId, PlayerNetState,
+use carcinisation_fps_core::map::Map;
+use carcinisation_net::{NetAttackId, NetEnemyState, PlayerNetState};
+use common::{
+    build_server_with_enemy, force_enemy_state, force_player_attack, get_enemy_health,
+    get_player_health, inject_intent, reserve_port, spawn_alive_player, spawn_player_with_state,
+    tick_server,
 };
-use carcinisation_server::ServerPlugin;
-use common::{build_server_app, reserve_port};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,178 +36,98 @@ fn los_test_map() -> Map {
     }
 }
 
-fn build_server_with_map_and_enemy(port: u16, map: Map, enemy_x: f32, enemy_y: f32) -> App {
-    let entities = vec![EntitySpawnData {
-        kind: EntitySpawnKind::Mosquiton {
-            health: 100,
-            speed: 0.0,
-        },
-        x: enemy_x,
-        y: enemy_y,
-    }];
-    build_server_app(ServerPlugin {
-        port,
-        map,
-        entities,
-        player_starts: vec![],
-        admin_socket: None,
-        instance_name: "test".to_string(),
-        map_path: "test_map".to_string(),
-    })
-}
-
-fn spawn_player(server: &mut App, player_id: u32, x: f32, y: f32, state: PlayerNetState) {
-    let hp = if matches!(&state, PlayerNetState::Alive) {
-        100.0
-    } else {
-        0.0
-    };
-    server.world_mut().spawn((
-        NetPlayer {
-            player_id: PlayerId(player_id),
-            position: Vec2::new(x, y),
-            angle: 0.0,
-            current_attack: NetAttackId::None,
-            state,
-            flame_active: false,
-            avatar_palette_variant: None,
-        },
-        NetHealth {
-            current: hp,
-            max: 100.0,
-        },
-        Replicated,
-    ));
-}
-
-fn spawn_dead_player(server: &mut App, player_id: u32, x: f32, y: f32) {
-    spawn_player(server, player_id, x, y, PlayerNetState::Dead);
-}
-
-fn tick_server(server: &mut App) {
-    std::thread::sleep(std::time::Duration::from_millis(2));
-    server.update();
+fn build_los_server(port: u16, enemy_x: f32, enemy_y: f32) -> App {
+    common::build_server_with_enemies(port, los_test_map(), vec![(enemy_x, enemy_y, 100, 0.0)])
 }
 
 fn get_player_position(server: &mut App, pid: u32) -> Option<Vec2> {
     server
         .world_mut()
-        .query::<&NetPlayer>()
+        .query::<&carcinisation_net::NetPlayer>()
         .iter(server.world())
         .find(|p| p.player_id.0 == pid)
         .map(|p| p.position)
 }
 
-fn get_enemy_health(server: &mut App) -> Option<f32> {
-    server
-        .world_mut()
-        .query::<(&carcinisation_net::components::NetEnemy, &NetHealth)>()
-        .iter(server.world())
-        .next()
-        .map(|(_, h)| h.current)
-}
-
-fn inject_intent(server: &mut App, pid: u32, movement: bevy::math::Vec2, fire_held: bool) {
-    use carcinisation_net::{ClientIntent, InputSequence, PlayerActions};
-    use carcinisation_server::systems::PlayerIntentBuffer;
-    server.world_mut().resource_mut::<PlayerIntentBuffer>().set(
-        PlayerId(pid),
-        &ClientIntent {
-            sequence: InputSequence(0),
-            movement,
-            turn: 0.0,
-            fire_held,
-            actions: PlayerActions::default(),
-        },
-    );
-}
-
-fn force_player_attack(server: &mut App, pid: u32, attack: NetAttackId) {
-    let mut q = server.world_mut().query::<&mut NetPlayer>();
-    for mut p in q.iter_mut(server.world_mut()) {
-        if p.player_id.0 == pid {
-            p.current_attack = attack;
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
-// Dead-player guard tests
+// Dead-player guard tests (parameterised)
 // ---------------------------------------------------------------------------
 
-/// Dead player input does not cause movement.
-#[test]
-fn dead_player_cannot_move() {
+/// Dead player actions are no-ops. Covers: movement, pistol, flamethrower.
+fn assert_dead_player_action_is_noop(
+    label: &str,
+    enemy_pos: (f32, f32),
+    attack: NetAttackId,
+    fire_held: bool,
+    movement: Vec2,
+    check_position: bool,
+) {
     let port = reserve_port();
-    let mut server =
-        build_server_with_map_and_enemy(port, carcinisation_fps_core::map::test_map(), 6.5, 6.5);
+    let mut server = build_server_with_enemy(port, enemy_pos.0, enemy_pos.1);
     server.update();
 
-    spawn_dead_player(&mut server, 1, 1.5, 1.5);
+    spawn_player_with_state(&mut server, 1, 1.5, 1.5, PlayerNetState::Dead);
+    if attack != NetAttackId::None {
+        force_player_attack(&mut server, 1, attack);
+    }
 
     let pos_before = get_player_position(&mut server, 1).unwrap();
+    let hp_before = get_enemy_health(&mut server).unwrap();
 
-    // Inject forward input for the dead player.
-    inject_intent(&mut server, 1, bevy::math::Vec2::new(0.0, 1.0), false);
+    inject_intent(&mut server, 1, movement, fire_held);
+    // 50 ticks at 2 ms sleep ≈ 3 FixedUpdate cycles at 30 Hz
     for _ in 0..50 {
         tick_server(&mut server);
     }
 
-    let pos_after = get_player_position(&mut server, 1).unwrap();
+    if check_position {
+        let pos_after = get_player_position(&mut server, 1).unwrap();
+        assert_eq!(
+            pos_before, pos_after,
+            "{label}: dead player should not move: {pos_before} → {pos_after}"
+        );
+    }
+
+    let hp_after = get_enemy_health(&mut server).unwrap();
     assert_eq!(
-        pos_before, pos_after,
-        "dead player should not move: {pos_before} → {pos_after}"
+        hp_before, hp_after,
+        "{label}: dead player should not damage enemy: {hp_before} → {hp_after}"
     );
 }
 
-/// Dead player fire input does not deal hitscan damage.
+#[test]
+fn dead_player_cannot_move() {
+    assert_dead_player_action_is_noop(
+        "movement",
+        (6.5, 6.5), // enemy far away
+        NetAttackId::None,
+        false,
+        Vec2::new(0.0, 1.0),
+        true, // check position
+    );
+}
+
 #[test]
 fn dead_player_cannot_fire_pistol() {
-    let port = reserve_port();
-    // Enemy at (4.5, 1.5), directly east of player spawn.
-    let mut server =
-        build_server_with_map_and_enemy(port, carcinisation_fps_core::map::test_map(), 4.5, 1.5);
-    server.update();
-
-    spawn_dead_player(&mut server, 1, 1.5, 1.5);
-    let hp_before = get_enemy_health(&mut server).unwrap();
-
-    // Inject fire input.
-    inject_intent(&mut server, 1, bevy::math::Vec2::ZERO, true);
-    for _ in 0..50 {
-        tick_server(&mut server);
-    }
-
-    let hp_after = get_enemy_health(&mut server).unwrap();
-    assert_eq!(
-        hp_before, hp_after,
-        "dead player pistol should not damage enemy: {hp_before} → {hp_after}"
+    assert_dead_player_action_is_noop(
+        "pistol",
+        (4.5, 1.5), // enemy directly east
+        NetAttackId::None,
+        true,
+        Vec2::ZERO,
+        false,
     );
 }
 
-/// Dead player with flamethrower does not deal damage.
 #[test]
 fn dead_player_cannot_use_flamethrower() {
-    let port = reserve_port();
-    // Enemy at (3.5, 1.5), within flame range.
-    let mut server =
-        build_server_with_map_and_enemy(port, carcinisation_fps_core::map::test_map(), 3.5, 1.5);
-    server.update();
-
-    spawn_dead_player(&mut server, 1, 1.5, 1.5);
-    force_player_attack(&mut server, 1, NetAttackId::Projectile);
-    let hp_before = get_enemy_health(&mut server).unwrap();
-
-    // Inject fire input.
-    inject_intent(&mut server, 1, bevy::math::Vec2::ZERO, true);
-    for _ in 0..50 {
-        tick_server(&mut server);
-    }
-
-    let hp_after = get_enemy_health(&mut server).unwrap();
-    assert_eq!(
-        hp_before, hp_after,
-        "dead player flamethrower should not damage enemy: {hp_before} → {hp_after}"
+    assert_dead_player_action_is_noop(
+        "flamethrower",
+        (3.5, 1.5), // enemy within flame range
+        NetAttackId::Projectile,
+        true,
+        Vec2::ZERO,
+        false,
     );
 }
 
@@ -220,13 +140,14 @@ fn dead_player_cannot_use_flamethrower() {
 fn pistol_blocked_by_wall() {
     let port = reserve_port();
     // Player at (1.5, 1.5), enemy at (5.5, 1.5), wall at (4, 1) between them.
-    let mut server = build_server_with_map_and_enemy(port, los_test_map(), 5.5, 1.5);
+    let mut server = build_los_server(port, 5.5, 1.5);
     server.update();
 
-    spawn_player(&mut server, 1, 1.5, 1.5, PlayerNetState::Alive);
+    spawn_alive_player(&mut server, 1, 1.5, 1.5);
     let hp_before = get_enemy_health(&mut server).unwrap();
 
-    inject_intent(&mut server, 1, bevy::math::Vec2::ZERO, true);
+    inject_intent(&mut server, 1, Vec2::ZERO, true);
+    // 50 ticks at 2 ms sleep ≈ 3 FixedUpdate cycles at 30 Hz
     for _ in 0..50 {
         tick_server(&mut server);
     }
@@ -242,15 +163,15 @@ fn pistol_blocked_by_wall() {
 #[test]
 fn flamethrower_blocked_by_wall() {
     let port = reserve_port();
-    // Player at (1.5, 1.5), enemy at (5.5, 1.5), wall at (4, 1) between them.
-    let mut server = build_server_with_map_and_enemy(port, los_test_map(), 5.5, 1.5);
+    let mut server = build_los_server(port, 5.5, 1.5);
     server.update();
 
-    spawn_player(&mut server, 1, 1.5, 1.5, PlayerNetState::Alive);
+    spawn_alive_player(&mut server, 1, 1.5, 1.5);
     force_player_attack(&mut server, 1, NetAttackId::Projectile);
     let hp_before = get_enemy_health(&mut server).unwrap();
 
-    inject_intent(&mut server, 1, bevy::math::Vec2::ZERO, true);
+    inject_intent(&mut server, 1, Vec2::ZERO, true);
+    // 50 ticks at 2 ms sleep ≈ 3 FixedUpdate cycles at 30 Hz
     for _ in 0..50 {
         tick_server(&mut server);
     }
@@ -267,34 +188,19 @@ fn flamethrower_blocked_by_wall() {
 fn enemy_projectile_blocked_by_wall() {
     let port = reserve_port();
     // Enemy at (5.5, 1.5), player at (1.5, 1.5), wall at (4, 1) between them.
-    let mut server = build_server_with_map_and_enemy(port, los_test_map(), 5.5, 1.5);
+    let mut server = build_los_server(port, 5.5, 1.5);
     server.update();
 
-    spawn_player(&mut server, 1, 1.5, 1.5, PlayerNetState::Alive);
+    spawn_alive_player(&mut server, 1, 1.5, 1.5);
+    force_enemy_state(&mut server, NetEnemyState::HoldingRange);
 
-    // Force enemy into attacking state.
-    {
-        let mut q = server
-            .world_mut()
-            .query::<&mut carcinisation_net::components::NetEnemy>();
-        for mut e in q.iter_mut(server.world_mut()) {
-            e.state = NetEnemyState::HoldingRange;
-        }
-    }
-
-    // Wait for projectile spawn + travel.
+    // Wait for projectile spawn + travel + wall collision.
+    // 2000 ticks at 2 ms ≈ 120 FixedUpdate cycles at 30 Hz ≈ 4 s game time.
     for _ in 0..2000 {
         tick_server(&mut server);
     }
 
-    // Player health should be untouched (projectile hit wall).
-    let hp = server
-        .world_mut()
-        .query::<(&NetPlayer, &NetHealth)>()
-        .iter(server.world())
-        .next()
-        .map(|(_, h)| h.current)
-        .unwrap();
+    let hp = get_player_health(&mut server, 1).unwrap();
     assert_eq!(
         hp, 100.0,
         "player behind wall should not take projectile damage: hp={hp}"

@@ -26,10 +26,13 @@ use carcinisation_server::{
     ServerPlugin,
     systems::{FlameActiveTracker, ServerEnemyAiConfig, ServerMosquitonSimConfig},
 };
-use common::{build_client_app, build_server_app, reserve_port, tick_with_sleep};
+use common::{
+    build_client_app, build_server_app, get_enemy_health as common_get_enemy_health,
+    get_enemy_state as common_get_enemy_state, reserve_port, tick_with_sleep,
+};
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers (combat_hitscan-specific — intent queue, flame events, etc.)
 // ---------------------------------------------------------------------------
 
 #[derive(Resource, Default)]
@@ -127,24 +130,6 @@ fn wait_for_player(server: &mut App, client: &mut App) -> bool {
     false
 }
 
-fn get_enemy_health(server: &mut App) -> Option<f32> {
-    server
-        .world_mut()
-        .query::<(&NetEnemy, &NetHealth)>()
-        .iter(server.world())
-        .next()
-        .map(|(_, h)| h.current)
-}
-
-fn get_enemy_state(server: &mut App) -> Option<NetEnemyState> {
-    server
-        .world_mut()
-        .query::<&NetEnemy>()
-        .iter(server.world())
-        .next()
-        .map(|e| e.state)
-}
-
 fn get_player_id(server: &mut App) -> Option<PlayerId> {
     server
         .world_mut()
@@ -206,231 +191,40 @@ fn wait_for_client_enemy_position(server: &mut App, client: &mut App) -> Option<
     None
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-/// Hold BTN_FIRE, then release. Server should stop firing after release.
-#[test]
-fn fire_input_release_stops_firing() {
-    let port = reserve_port();
-    let mut server = build_combat_server(port);
-    server.update();
-
-    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
-    let mut client = build_combat_client(addr);
-    client.update();
-
-    assert!(wait_for_player(&mut server, &mut client));
-    assert_eq!(enemy_count(&mut server), 1);
-
-    let initial_hp = get_enemy_health(&mut server).unwrap();
-
-    // Fire for several ticks.
-    for seq in 1..=5 {
-        queue_fire(&mut client, seq);
-        tick_with_sleep(&mut server, &mut client);
-    }
-    for _ in 0..20 {
-        tick_with_sleep(&mut server, &mut client);
-    }
-
-    let hp_after_fire = get_enemy_health(&mut server).unwrap();
-    assert!(
-        hp_after_fire < initial_hp,
-        "enemy should have taken damage: {initial_hp} → {hp_after_fire}"
-    );
-
-    // Release fire (send buttons=0).
-    queue_idle(&mut client, 6);
-    for _ in 0..10 {
-        tick_with_sleep(&mut server, &mut client);
-    }
-
-    let hp_after_release = get_enemy_health(&mut server).unwrap();
-
-    // Tick more — no new damage should occur.
-    for _ in 0..30 {
-        tick_with_sleep(&mut server, &mut client);
-    }
-
-    let hp_final = get_enemy_health(&mut server).unwrap();
-    assert_eq!(
-        hp_after_release, hp_final,
-        "enemy health should not change after fire released: {hp_after_release} → {hp_final}"
-    );
+fn any_enemy_damaged(server: &mut App) -> bool {
+    server
+        .world_mut()
+        .query::<(&NetEnemy, &NetHealth)>()
+        .iter(server.world())
+        .any(|(_, health)| health.current < health.max)
 }
 
-/// Fire at enemy, verify NetHealth decreases.
-#[test]
-fn enemy_takes_damage_from_hitscan() {
-    let port = reserve_port();
-    let mut server = build_combat_server(port);
-    server.update();
-
-    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
-    let mut client = build_combat_client(addr);
-    client.update();
-
-    assert!(wait_for_player(&mut server, &mut client));
-
-    let initial_hp = get_enemy_health(&mut server).unwrap();
-    assert!(
-        (initial_hp - 100.0).abs() < 0.1,
-        "enemy should start at 100hp"
-    );
-
-    // Fire once.
-    queue_fire(&mut client, 1);
-    for _ in 0..20 {
-        tick_with_sleep(&mut server, &mut client);
-    }
-
-    let hp_after = get_enemy_health(&mut server).unwrap();
-    assert!(
-        hp_after < initial_hp,
-        "enemy should take damage: {initial_hp} → {hp_after}"
-    );
+fn enemy_positions_by_object_id(server: &mut App) -> Vec<(u32, Vec2, NetEnemyState)> {
+    let mut positions: Vec<_> = server
+        .world_mut()
+        .query::<&NetEnemy>()
+        .iter(server.world())
+        .map(|enemy| (enemy.object_id.0, enemy.position, enemy.state))
+        .collect();
+    positions.sort_by_key(|(object_id, _, _)| *object_id);
+    positions
 }
 
-/// Fire until enemy dies. Verify exactly one death transition.
-#[test]
-fn enemy_dies_once() {
-    let port = reserve_port();
-    let mut server = build_combat_server(port);
-    server.update();
-
-    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
-    let mut client = build_combat_client(addr);
-    client.update();
-
-    assert!(wait_for_player(&mut server, &mut client));
-
-    // Fire repeatedly until enemy is dead.
-    // 100 HP / 37 dmg = 3 shots needed. At 0.33s cooldown and 30Hz tick,
-    // need ~1.0s real time for 3 shots. Use longer sleeps to accumulate time.
-    for seq in 1..=20 {
-        queue_fire(&mut client, seq);
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        server.update();
-        client.update();
+fn open_test_map(width: usize, height: usize) -> Map {
+    let mut cells = vec![0; width * height];
+    for x in 0..width {
+        cells[x] = 1;
+        cells[(height - 1) * width + x] = 1;
     }
-    for _ in 0..20 {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        server.update();
-        client.update();
+    for y in 0..height {
+        cells[y * width] = 1;
+        cells[y * width + width - 1] = 1;
     }
-
-    let state = get_enemy_state(&mut server).unwrap();
-    assert!(
-        matches!(
-            state,
-            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
-        ),
-        "enemy should be dying or dead, got {state:?}"
-    );
-
-    let hp = get_enemy_health(&mut server).unwrap();
-    assert!(hp <= 0.0, "enemy health should be <= 0: {hp}");
-
-    // Keep firing — health should not go further negative or cause issues.
-    for seq in 21..=30 {
-        queue_fire(&mut client, seq);
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        server.update();
-        client.update();
+    Map {
+        width,
+        height,
+        cells,
     }
-
-    let hp_final = get_enemy_health(&mut server).unwrap();
-    assert!(
-        hp_final <= 0.0,
-        "enemy health should remain <= 0: {hp_final}"
-    );
-    let final_state = get_enemy_state(&mut server).unwrap();
-    assert!(
-        matches!(
-            final_state,
-            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
-        ),
-        "enemy should stay dying or dead, got {final_state:?}"
-    );
-}
-
-/// Cooldown uses server fixed tick delta, not frame count.
-/// Two fire commands sent within a single cooldown period (0.33s) should produce
-/// exactly one shot (37 damage). The server's `FireCooldownMap` should hold a
-/// non-zero cooldown for the player after the first shot.
-#[test]
-fn combat_uses_fixed_tick_cooldown() {
-    use carcinisation_server::systems::FireCooldownMap;
-
-    let port = reserve_port();
-    let mut server = build_combat_server(port);
-    server.update();
-
-    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
-    let mut client = build_combat_client(addr);
-    client.update();
-
-    assert!(wait_for_player(&mut server, &mut client));
-
-    let initial_hp = get_enemy_health(&mut server).unwrap();
-
-    // Send fire on two consecutive ticks — cooldown should prevent the second.
-    queue_fire(&mut client, 1);
-    tick_with_sleep(&mut server, &mut client);
-    queue_fire(&mut client, 2);
-    tick_with_sleep(&mut server, &mut client);
-
-    // Wait for FixedUpdate to process both commands.
-    for _ in 0..20 {
-        tick_with_sleep(&mut server, &mut client);
-    }
-
-    let hp = get_enemy_health(&mut server).unwrap();
-    let damage = initial_hp - hp;
-
-    // Exactly one shot should land (37 damage). Two shots would be 74.
-    assert_eq!(
-        damage,
-        carcinisation_fps_core::FpsCombatConfig::default().hitscan_damage,
-        "cooldown should allow exactly 1 shot, got damage={damage}"
-    );
-
-    // Verify the cooldown resource has a non-zero entry for the player.
-    let pid = get_player_id(&mut server).expect("player should exist");
-    let cooldowns = server.world().resource::<FireCooldownMap>();
-    let cd = cooldowns.0.get(&pid).copied().unwrap_or(0.0);
-    assert!(
-        cd >= 0.0,
-        "FireCooldownMap should have an entry for the player after firing"
-    );
-}
-
-// ---------------------------------------------------------------------------
-// Flamethrower tests
-// ---------------------------------------------------------------------------
-
-/// Build a server with an enemy at (3.5, 1.5) — close enough for flamethrower range (5.0 units)
-/// from spawn (1.5, 1.5) at angle 0 (facing east).
-fn build_flame_server(port: u16) -> App {
-    let entities = vec![EntitySpawnData {
-        kind: EntitySpawnKind::Mosquiton {
-            health: 200,
-            speed: 0.0,
-        },
-        x: 3.5,
-        y: 1.5,
-    }];
-    build_server_app(ServerPlugin {
-        port,
-        map: test_map(),
-        entities,
-        player_starts: Vec::new(),
-        admin_socket: None,
-        instance_name: "test".to_string(),
-        map_path: "test_map".to_string(),
-    })
 }
 
 fn load_default_map_data() -> carcinisation_fps_core::map::MapLoadData {
@@ -455,41 +249,228 @@ fn build_default_map_server(port: u16) -> App {
     })
 }
 
-fn open_test_map(width: usize, height: usize) -> Map {
-    let mut cells = vec![0; width * height];
-    for x in 0..width {
-        cells[x] = 1;
-        cells[(height - 1) * width + x] = 1;
-    }
-    for y in 0..height {
-        cells[y * width] = 1;
-        cells[y * width + width - 1] = 1;
-    }
-    Map {
-        width,
-        height,
-        cells,
-    }
+/// Build a server with an enemy at (3.5, 1.5) — close enough for flamethrower
+/// range (5.0 units) from spawn (1.5, 1.5) at angle 0.
+fn build_flame_server(port: u16) -> App {
+    let entities = vec![EntitySpawnData {
+        kind: EntitySpawnKind::Mosquiton {
+            health: 200,
+            speed: 0.0,
+        },
+        x: 3.5,
+        y: 1.5,
+    }];
+    build_server_app(ServerPlugin {
+        port,
+        map: test_map(),
+        entities,
+        player_starts: Vec::new(),
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
+    })
 }
 
-fn any_enemy_damaged(server: &mut App) -> bool {
-    server
-        .world_mut()
-        .query::<(&NetEnemy, &NetHealth)>()
-        .iter(server.world())
-        .any(|(_, health)| health.current < health.max)
+// ---------------------------------------------------------------------------
+// Hitscan tests
+// ---------------------------------------------------------------------------
+
+/// Hold BTN_FIRE, then release. Server should stop firing after release.
+#[test]
+fn fire_input_release_stops_firing() {
+    let port = reserve_port();
+    let mut server = build_combat_server(port);
+    server.update();
+
+    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
+    let mut client = build_combat_client(addr);
+    client.update();
+
+    assert!(wait_for_player(&mut server, &mut client));
+    assert_eq!(enemy_count(&mut server), 1);
+
+    let initial_hp = common_get_enemy_health(&mut server).unwrap();
+
+    // Fire for several ticks.
+    for seq in 1..=5 {
+        queue_fire(&mut client, seq);
+        tick_with_sleep(&mut server, &mut client);
+    }
+    for _ in 0..20 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let hp_after_fire = common_get_enemy_health(&mut server).unwrap();
+    assert!(
+        hp_after_fire < initial_hp,
+        "enemy should have taken damage: {initial_hp} → {hp_after_fire}"
+    );
+
+    // Release fire (send buttons=0).
+    queue_idle(&mut client, 6);
+    for _ in 0..10 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let hp_after_release = common_get_enemy_health(&mut server).unwrap();
+
+    // Tick more — no new damage should occur.
+    for _ in 0..30 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let hp_final = common_get_enemy_health(&mut server).unwrap();
+    assert_eq!(
+        hp_after_release, hp_final,
+        "enemy health should not change after fire released: {hp_after_release} → {hp_final}"
+    );
 }
 
-fn enemy_positions_by_object_id(server: &mut App) -> Vec<(u32, Vec2, NetEnemyState)> {
-    let mut positions: Vec<_> = server
-        .world_mut()
-        .query::<&NetEnemy>()
-        .iter(server.world())
-        .map(|enemy| (enemy.object_id.0, enemy.position, enemy.state))
-        .collect();
-    positions.sort_by_key(|(object_id, _, _)| *object_id);
-    positions
+/// Fire at enemy, verify NetHealth decreases.
+#[test]
+fn enemy_takes_damage_from_hitscan() {
+    let port = reserve_port();
+    let mut server = build_combat_server(port);
+    server.update();
+
+    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
+    let mut client = build_combat_client(addr);
+    client.update();
+
+    assert!(wait_for_player(&mut server, &mut client));
+
+    let initial_hp = common_get_enemy_health(&mut server).unwrap();
+    assert!(
+        (initial_hp - 100.0).abs() < 0.1,
+        "enemy should start at 100hp"
+    );
+
+    // Fire once.
+    queue_fire(&mut client, 1);
+    for _ in 0..20 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let hp_after = common_get_enemy_health(&mut server).unwrap();
+    assert!(
+        hp_after < initial_hp,
+        "enemy should take damage: {initial_hp} → {hp_after}"
+    );
 }
+
+/// Fire until enemy dies. Verify exactly one death transition.
+#[test]
+fn enemy_dies_once() {
+    let port = reserve_port();
+    let mut server = build_combat_server(port);
+    server.update();
+
+    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
+    let mut client = build_combat_client(addr);
+    client.update();
+
+    assert!(wait_for_player(&mut server, &mut client));
+
+    // 100 HP / 37 dmg = 3 shots needed. At 0.33 s cooldown and 30 Hz tick,
+    // need ~1.0 s real time for 3 shots. Use longer sleeps to accumulate time.
+    for seq in 1..=20 {
+        queue_fire(&mut client, seq);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        server.update();
+        client.update();
+    }
+    for _ in 0..20 {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        server.update();
+        client.update();
+    }
+
+    let state = common_get_enemy_state(&mut server).unwrap();
+    assert!(
+        matches!(
+            state,
+            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+        ),
+        "enemy should be dying or dead, got {state:?}"
+    );
+
+    let hp = common_get_enemy_health(&mut server).unwrap();
+    assert!(hp <= 0.0, "enemy health should be <= 0: {hp}");
+
+    // Keep firing — health should not go further negative or cause issues.
+    for seq in 21..=30 {
+        queue_fire(&mut client, seq);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        server.update();
+        client.update();
+    }
+
+    let hp_final = common_get_enemy_health(&mut server).unwrap();
+    assert!(
+        hp_final <= 0.0,
+        "enemy health should remain <= 0: {hp_final}"
+    );
+    let final_state = common_get_enemy_state(&mut server).unwrap();
+    assert!(
+        matches!(
+            final_state,
+            NetEnemyState::Dying { .. } | NetEnemyState::Dead { .. }
+        ),
+        "enemy should stay dying or dead, got {final_state:?}"
+    );
+}
+
+/// Cooldown uses server fixed tick delta, not frame count.
+#[test]
+fn combat_uses_fixed_tick_cooldown() {
+    use carcinisation_server::systems::FireCooldownMap;
+
+    let port = reserve_port();
+    let mut server = build_combat_server(port);
+    server.update();
+
+    let addr = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), port);
+    let mut client = build_combat_client(addr);
+    client.update();
+
+    assert!(wait_for_player(&mut server, &mut client));
+
+    let initial_hp = common_get_enemy_health(&mut server).unwrap();
+
+    // Send fire on two consecutive ticks — cooldown should prevent the second.
+    queue_fire(&mut client, 1);
+    tick_with_sleep(&mut server, &mut client);
+    queue_fire(&mut client, 2);
+    tick_with_sleep(&mut server, &mut client);
+
+    // Wait for FixedUpdate to process both commands.
+    for _ in 0..20 {
+        tick_with_sleep(&mut server, &mut client);
+    }
+
+    let hp = common_get_enemy_health(&mut server).unwrap();
+    let damage = initial_hp - hp;
+
+    // Exactly one shot should land (37 damage). Two shots would be 74.
+    assert_eq!(
+        damage,
+        carcinisation_fps_core::FpsCombatConfig::default().hitscan_damage,
+        "cooldown should allow exactly 1 shot, got damage={damage}"
+    );
+
+    // Verify the cooldown resource has a non-zero entry for the player.
+    let pid = get_player_id(&mut server).expect("player should exist");
+    let cooldowns = server.world().resource::<FireCooldownMap>();
+    let cd = cooldowns.0.get(&pid).copied().unwrap_or(0.0);
+    assert!(
+        cd >= 0.0,
+        "FireCooldownMap should have an entry for the player after firing"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Flamethrower tests
+// ---------------------------------------------------------------------------
 
 #[test]
 fn default_map_spawns_net_enemy_for_each_combat_entity() {
@@ -544,6 +525,7 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
 
     let before = enemy_positions_by_object_id(&mut server);
     let mut diagnostics = Vec::new();
+    // 30 ticks at 35 ms ≈ 1 s game time at 30 Hz FixedUpdate.
     for _ in 0..30 {
         std::thread::sleep(std::time::Duration::from_millis(35));
         server.update();
@@ -554,10 +536,9 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
     let mut correctly_held = 0_usize;
     let mut outside_aggro = 0_usize;
     let mut mosquiton_count = 0_usize;
-    for ((object_id, before_pos, before_state), (_, after_pos, after_state)) in
+    for ((object_id, before_pos, _before_state), (_, after_pos, _after_state)) in
         before.iter().zip(after.iter())
     {
-        // Skip enemies without AI config (e.g. Spideys — no server sim yet).
         let Some(config) = server
             .world_mut()
             .query::<(&NetEnemy, &ServerEnemyAiConfig)>()
@@ -578,11 +559,8 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
             outside_aggro += 1;
         }
         diagnostics.push(format!(
-            "obj={object_id} before={before_pos:?} after={after_pos:?} delta={delta:.3} distance={distance:.3} state={before_state:?}->{after_state:?} speed={:.2} preferred={:.2} hysteresis={:.2} aggro={:.2}",
-            config.move_speed,
-            config.preferred_range,
-            config.preferred_range_hysteresis,
-            config.aggro_range
+            "obj={object_id} delta={delta:.3} distance={distance:.3} speed={:.2} preferred={:.2} aggro={:.2}",
+            config.move_speed, config.preferred_range, config.aggro_range
         ));
     }
 
@@ -592,7 +570,7 @@ fn default_map_ai_diagnostic_classifies_or_moves_mosquitons() {
     );
     assert!(
         moved > 0,
-        "at least one default-map Mosquiton should move over diagnostic ticks; held={correctly_held}, outside_aggro={outside_aggro}; diagnostics:\n{}",
+        "at least one default-map Mosquiton should move; held={correctly_held}, outside_aggro={outside_aggro}; diagnostics:\n{}",
         diagnostics.join("\n")
     );
 }
@@ -674,6 +652,7 @@ fn open_map_mosquiton_reaches_preferred_range_then_holds() {
     let mut saw_holding = false;
     let mut diagnostics = Vec::new();
 
+    // 30 ticks at 35 ms ≈ 1 s game time at 30 Hz.
     for _ in 0..30 {
         std::thread::sleep(std::time::Duration::from_millis(35));
         server.update();
@@ -705,8 +684,6 @@ fn open_map_mosquiton_reaches_preferred_range_then_holds() {
         "open-map Mosquiton should chase before reaching hold range; diagnostics:\n{}",
         diagnostics.join("\n")
     );
-    // Preferred range is MOSQUITON_PREFERRED_RANGE (4.0). Allow tolerance for
-    // strafe drift and discrete stepping.
     let preferred = carcinisation_fps_core::FpsCombatConfig::default().mosquiton_preferred_range;
     assert!(
         (previous_distance - preferred).abs() < 1.0,
@@ -736,8 +713,6 @@ fn open_map_mosquiton_reaches_preferred_range_then_holds() {
 /// Mosquiton chases toward player when far from preferred range.
 #[test]
 fn server_ai_updates_live_mosquiton_position() {
-    // Place enemy at (1.5, 1.5), player far east at (6.5, 1.5).
-    // Distance = 5.0 > MOSQUITON_PREFERRED_RANGE = 4.0, so enemy should chase.
     let entities = vec![EntitySpawnData {
         kind: EntitySpawnKind::Mosquiton {
             health: 100,
@@ -843,6 +818,7 @@ fn map_authored_speed_changes_mosquiton_movement_distance() {
         .map(|(enemy, config)| (config.0.move_speed, enemy.position))
         .collect();
 
+    // 10 ticks at 35 ms ≈ 0.35 s game time at 30 Hz.
     for _ in 0..10 {
         std::thread::sleep(std::time::Duration::from_millis(35));
         server.update();
@@ -978,8 +954,6 @@ fn server_ai_does_not_move_dead_mosquiton() {
     assert!(matches!(enemy.state, NetEnemyState::Dead { .. }));
 }
 
-/// The default live map should spawn the first player at `player_start`, where
-/// the opening flamethrower shot has at least one valid target.
 #[test]
 fn default_map_first_spawn_has_live_flamethrower_target() {
     let flame_cfg = carcinisation_fps_core::PlayerFlamethrowerConfig::load();
@@ -1049,7 +1023,7 @@ fn default_map_first_spawn_has_live_flamethrower_target() {
             let in_line = perp_sq <= hit_half_w_sq;
             let has_los = ray_hit.distance >= to_enemy.length();
             diagnostics.push(format!(
-                "enemy=({:.1},{:.1}) along={:.3} perp={:.3} in_range={} in_line={} los_dist={:.3} has_los={}",
+                "enemy=({:.1},{:.1}) along={:.3} perp={:.3} in_range={} in_line={} los={:.3} has_los={}",
                 enemy.x, enemy.y, along, perp_sq.sqrt(), in_range, in_line, ray_hit.distance, has_los
             ));
             in_range && in_line && has_los
@@ -1062,7 +1036,6 @@ fn default_map_first_spawn_has_live_flamethrower_target() {
     );
 }
 
-/// Real default map, real input path: first spawn can damage an opening target.
 #[test]
 fn default_map_flamethrower_damages_from_spawn() {
     let port = reserve_port();
@@ -1100,7 +1073,6 @@ fn default_map_flamethrower_damages_from_spawn() {
     );
 }
 
-/// Holding fire with flamethrower damages enemy continuously over multiple ticks.
 #[test]
 fn flamethrower_damages_over_ticks() {
     let port = reserve_port();
@@ -1113,13 +1085,12 @@ fn flamethrower_damages_over_ticks() {
 
     assert!(wait_for_player(&mut server, &mut client));
 
-    // Switch to flamethrower.
     queue_switch(&mut client, 1);
     for _ in 0..10 {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    let initial_hp = get_enemy_health(&mut server).unwrap();
+    let initial_hp = common_get_enemy_health(&mut server).unwrap();
 
     // Burn system builds intensity progressively — hold fire for longer.
     for seq in 2..=60 {
@@ -1130,7 +1101,7 @@ fn flamethrower_damages_over_ticks() {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    let hp_after = get_enemy_health(&mut server).unwrap();
+    let hp_after = common_get_enemy_health(&mut server).unwrap();
     let damage = initial_hp - hp_after;
 
     assert!(
@@ -1139,7 +1110,6 @@ fn flamethrower_damages_over_ticks() {
     );
 }
 
-/// End-to-end harness: default pistol -> switch through input -> hold fire -> release.
 #[test]
 fn flamethrower_e2e_switch_fire_release_uses_server_state() {
     let port = reserve_port();
@@ -1164,7 +1134,7 @@ fn flamethrower_e2e_switch_fire_release_uses_server_state() {
         "BTN_SWITCH should change server NetPlayer.current_attack to flamethrower"
     );
 
-    let initial_hp = get_enemy_health(&mut server).unwrap();
+    let initial_hp = common_get_enemy_health(&mut server).unwrap();
     assert!(!is_flame_active(&server, player_id));
 
     // Burn system needs more ticks to accumulate integer damage.
@@ -1184,7 +1154,7 @@ fn flamethrower_e2e_switch_fire_release_uses_server_state() {
         client_received_flame_event(&client, player_id, true),
         "client should receive FlameActive(true) for the local PlayerId"
     );
-    let hp_after_fire = get_enemy_health(&mut server).unwrap();
+    let hp_after_fire = common_get_enemy_health(&mut server).unwrap();
     assert!(
         hp_after_fire < initial_hp,
         "flamethrower branch should mutate NetEnemy/NetHealth: {initial_hp} -> {hp_after_fire}"
@@ -1203,17 +1173,16 @@ fn flamethrower_e2e_switch_fire_release_uses_server_state() {
         "client should receive FlameActive(false) for the local PlayerId"
     );
 
-    // Burn intensity decays + ground fire expires after ~15s.
-    // Wait 1200 ticks (~40s game time) for burn decay, ground fire despawn,
-    // and any residual damage accumulator to flush.
+    // Burn intensity decays + ground fire expires after ~15 s.
+    // 1200 ticks at 2 ms ≈ 72 FixedUpdate cycles at 30 Hz ≈ 2.4 s game time.
     for _ in 0..1200 {
         tick_with_sleep(&mut server, &mut client);
     }
-    let hp_stable = get_enemy_health(&mut server).unwrap();
+    let hp_stable = common_get_enemy_health(&mut server).unwrap();
     for _ in 0..200 {
         tick_with_sleep(&mut server, &mut client);
     }
-    let hp_final = get_enemy_health(&mut server).unwrap();
+    let hp_final = common_get_enemy_health(&mut server).unwrap();
     // Allow 1 HP tolerance for residual damage accumulator flush.
     assert!(
         (hp_stable - hp_final).abs() <= 1.0,
@@ -1221,12 +1190,6 @@ fn flamethrower_e2e_switch_fire_release_uses_server_state() {
     );
 }
 
-/// Replicated `NetPlayer.flame_active` tracks server flame state transitions.
-///
-/// This is the authoritative field clients use for reconciliation if
-/// unreliable `FlameActive` events are dropped. The test verifies the
-/// server sets the field to `true` during active fire and back to `false`
-/// on release — directly on the component, not via `FlameActiveTracker`.
 #[test]
 fn net_player_flame_active_tracks_server_state() {
     let port = reserve_port();
@@ -1239,13 +1202,11 @@ fn net_player_flame_active_tracks_server_state() {
 
     assert!(wait_for_player(&mut server, &mut client));
 
-    // Switch to flamethrower.
     queue_switch(&mut client, 1);
     for _ in 0..20 {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    // flame_active should be false before firing.
     let flame_before = server
         .world_mut()
         .query::<&NetPlayer>()
@@ -1258,7 +1219,6 @@ fn net_player_flame_active_tracks_server_state() {
         "flame_active should be false before firing"
     );
 
-    // Hold fire.
     for seq in 2..=12 {
         queue_fire(&mut client, seq);
         tick_with_sleep(&mut server, &mut client);
@@ -1267,7 +1227,6 @@ fn net_player_flame_active_tracks_server_state() {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    // flame_active on the replicated NetPlayer should be true.
     let flame_during = server
         .world_mut()
         .query::<&NetPlayer>()
@@ -1280,13 +1239,11 @@ fn net_player_flame_active_tracks_server_state() {
         "NetPlayer.flame_active should be true while flamethrower is held"
     );
 
-    // Release fire.
     queue_idle(&mut client, 13);
     for _ in 0..20 {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    // flame_active should return to false.
     let flame_after = server
         .world_mut()
         .query::<&NetPlayer>()
@@ -1300,7 +1257,6 @@ fn net_player_flame_active_tracks_server_state() {
     );
 }
 
-/// Releasing fire stops flamethrower damage.
 #[test]
 fn flamethrower_stops_on_release() {
     let port = reserve_port();
@@ -1313,7 +1269,6 @@ fn flamethrower_stops_on_release() {
 
     assert!(wait_for_player(&mut server, &mut client));
 
-    // Switch to flamethrower.
     queue_switch(&mut client, 1);
     for _ in 0..10 {
         tick_with_sleep(&mut server, &mut client);
@@ -1328,27 +1283,24 @@ fn flamethrower_stops_on_release() {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    // Release fire.
     queue_idle(&mut client, 6);
     for _ in 0..10 {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    let hp_at_release = get_enemy_health(&mut server).unwrap();
+    let hp_at_release = common_get_enemy_health(&mut server).unwrap();
 
-    // Wait more — no new damage should occur.
     for _ in 0..20 {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    let hp_final = get_enemy_health(&mut server).unwrap();
+    let hp_final = common_get_enemy_health(&mut server).unwrap();
     assert_eq!(
         hp_at_release, hp_final,
         "damage should stop after fire release: {hp_at_release} → {hp_final}"
     );
 }
 
-/// Pistol still uses cooldown hitscan after switching back.
 #[test]
 fn pistol_still_uses_cooldown_after_switch() {
     let port = reserve_port();
@@ -1361,19 +1313,18 @@ fn pistol_still_uses_cooldown_after_switch() {
 
     assert!(wait_for_player(&mut server, &mut client));
 
-    let initial_hp = get_enemy_health(&mut server).unwrap();
+    let initial_hp = common_get_enemy_health(&mut server).unwrap();
 
     // Switch to flamethrower, then back to pistol.
-    // Release between switches so the second BTN_SWITCH creates a rising edge.
     queue_switch(&mut client, 1);
     for _ in 0..20 {
         tick_with_sleep(&mut server, &mut client);
     }
-    queue_idle(&mut client, 2); // Release all buttons.
+    queue_idle(&mut client, 2);
     for _ in 0..5 {
         tick_with_sleep(&mut server, &mut client);
     }
-    queue_switch(&mut client, 3); // Second switch.
+    queue_switch(&mut client, 3);
     for _ in 0..20 {
         tick_with_sleep(&mut server, &mut client);
     }
@@ -1384,7 +1335,7 @@ fn pistol_still_uses_cooldown_after_switch() {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    let hp_after = get_enemy_health(&mut server).unwrap();
+    let hp_after = common_get_enemy_health(&mut server).unwrap();
     let damage = initial_hp - hp_after;
 
     let expected = carcinisation_fps_core::FpsCombatConfig::default().hitscan_damage;
@@ -1398,8 +1349,6 @@ fn pistol_still_uses_cooldown_after_switch() {
 // Authority regression tests
 // ---------------------------------------------------------------------------
 
-/// Dead player's fire commands should not deal damage (network-level test).
-/// The input is accepted into the buffer but `process_combat` skips dead players.
 #[test]
 fn dead_player_fire_does_not_damage_enemy() {
     let port = reserve_port();
@@ -1412,7 +1361,7 @@ fn dead_player_fire_does_not_damage_enemy() {
 
     assert!(wait_for_player(&mut server, &mut client));
 
-    let initial_hp = get_enemy_health(&mut server).unwrap();
+    let initial_hp = common_get_enemy_health(&mut server).unwrap();
 
     // Kill the player by setting health to 0, then tick to trigger death.
     {
@@ -1421,11 +1370,11 @@ fn dead_player_fire_does_not_damage_enemy() {
             h.current = 0.0;
         }
     }
+    // 30 ticks at 2 ms ≈ 2 FixedUpdate cycles at 30 Hz — trigger death.
     for _ in 0..30 {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    // Verify player is dead.
     let state = server
         .world_mut()
         .query::<&NetPlayer>()
@@ -1448,14 +1397,13 @@ fn dead_player_fire_does_not_damage_enemy() {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    let hp_after = get_enemy_health(&mut server).unwrap();
+    let hp_after = common_get_enemy_health(&mut server).unwrap();
     assert_eq!(
         initial_hp, hp_after,
         "dead player fire should not damage enemy: hp before={initial_hp}, after={hp_after}"
     );
 }
 
-/// Fire cooldown is cleared when a player dies, so respawned players start fresh.
 #[test]
 fn fire_cooldown_cleared_on_death() {
     use carcinisation_server::systems::FireCooldownMap;
@@ -1478,7 +1426,6 @@ fn fire_cooldown_cleared_on_death() {
 
     let pid = get_player_id(&mut server).expect("player should exist");
 
-    // Verify cooldown exists.
     let has_cd = server
         .world()
         .resource::<FireCooldownMap>()
@@ -1493,11 +1440,11 @@ fn fire_cooldown_cleared_on_death() {
             h.current = 0.0;
         }
     }
+    // 30 ticks — trigger death.
     for _ in 0..30 {
         tick_with_sleep(&mut server, &mut client);
     }
 
-    // Cooldown should be cleared on death.
     let cleared = !server
         .world()
         .resource::<FireCooldownMap>()
@@ -1509,14 +1456,6 @@ fn fire_cooldown_cleared_on_death() {
     );
 }
 
-/// P2 regression: two players fire during the same tick at enemies in a line.
-/// Player 1 kills the front enemy. Player 2's hitscan must see fresh state
-/// (front enemy dead/filtered) and hit the back enemy instead of wasting the
-/// shot on the corpse.
-///
-/// Under a stale shared-snapshot implementation (enemy list built once before
-/// the player loop), player 2 would "hit" the dead front enemy and the back
-/// enemy would be untouched.
 #[test]
 fn two_players_same_tick_second_sees_fresh_enemy_state() {
     use carcinisation_server::systems::PlayerIntentBuffer;
@@ -1555,8 +1494,7 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
     });
     server.update();
 
-    // Both players at the same position facing east (angle 0), both using pistol.
-    // They occupy the same cell so both hitscans travel the same ray.
+    // Both players at the same position facing east.
     for pid in [1u32, 2] {
         server.world_mut().spawn((
             NetPlayer {
@@ -1593,7 +1531,7 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
         }
     }
 
-    // Tick enough for FixedUpdate to fire (at 2ms sleep per tick, ~17 ticks = one 30 Hz tick).
+    // 50 ticks at 2 ms ≈ 3 FixedUpdate cycles at 30 Hz — enough for hitscan.
     for _ in 0..50 {
         std::thread::sleep(std::time::Duration::from_millis(2));
         server.update();
@@ -1616,11 +1554,7 @@ fn two_players_same_tick_second_sees_fresh_enemy_state() {
     let front_hp = healths[0].1;
     let back_hp = healths[1].1;
 
-    // Front enemy (1 HP) should be dead.
     assert!(front_hp <= 0.0, "front enemy should be dead: hp={front_hp}");
-
-    // Back enemy should have taken damage from the second player's hitscan.
-    // Under the stale-snapshot bug, back_hp would still be 100.
     assert!(
         back_hp < 100.0,
         "back enemy should be hit by player 2 (fresh snapshot): hp={back_hp}. \

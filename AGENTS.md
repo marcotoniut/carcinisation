@@ -71,6 +71,41 @@ If blocked, state what and why.
 - Server integration tests use per-PID port ranges for parallel safety (`.config/nextest.toml`).
 - `just test-single <name>` and `just test-watch` use `cargo test` (no nextest equivalent).
 
+### Test Organisation
+
+Where tests live:
+
+- **Inline `#[cfg(test)] mod tests`** is the default for small unit tests that exercise private logic or tight module invariants. Keep these near the implementation.
+- **Crate-level `tests/*.rs`** for integration, public API, ECS/app-based, networking, asset-loading, parity, and end-to-end behaviour tests.
+- **Shared helpers** go in `tests/common/mod.rs` when used by multiple integration test files in the same crate. Avoid duplicating helpers across files.
+
+Oversized inline test modules (>~150 lines) can be extracted to a sibling file:
+
+```rust
+// in src/foo.rs
+#[cfg(test)]
+mod tests;
+// tests live in src/foo/tests.rs
+```
+
+Only extract when the module is already being materially edited and the move improves readability. Do not move tests purely for style.
+
+Naming: use descriptive `snake_case` test names. Avoid `_spec.rs` or JS-style layout.
+
+Moving forward:
+
+- New tests follow this convention.
+- Existing tests are reorganised only opportunistically when already being materially edited.
+- Do not do repo-wide test reshuffles.
+
+### Server Integration Test Conventions
+
+- Use helpers from `tests/common/mod.rs` for player/enemy spawning, health queries, intent injection, and tick loops.
+- Prefer `wait_for_server_condition()` with a max-tick guard over blind `for _ in 0..N` loops. Early exit reduces wall time and clarifies intent.
+- Comment tick-rate assumptions on non-trivial loops: `// 50 ticks at 2 ms ≈ 3 FixedUpdate cycles at 30 Hz`.
+- For client+server tests requiring real networking, use `tick_with_sleep()`. For server-only tests, use `tick_server()`.
+- Deterministic `Time<Fixed>` advancement (see `pickup.rs`) is preferred when real networking is not needed.
+
 ## Dependency Management
 
 - `cargo add` / `cargo remove` built-in. `cargo upgrade` / `cargo set-version` need `just install-cargo-edit`.

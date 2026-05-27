@@ -183,15 +183,6 @@ pub fn update_both(server: &mut App, client: &mut App) {
     client.update();
 }
 
-/// Update server once, then update multiple clients.
-#[allow(dead_code)]
-pub fn update_server_and_clients(server: &mut App, clients: &mut [&mut App]) {
-    server.update();
-    for client in clients {
-        client.update();
-    }
-}
-
 /// Wait up to `max_frames` for a condition to become true.
 pub fn wait_for<F>(max_frames: u32, server: &mut App, client: &mut App, mut condition: F) -> bool
 where
@@ -207,7 +198,6 @@ where
 }
 
 /// Check that `RenetServer` and `NetcodeServerTransport` exist.
-#[allow(dead_code)]
 pub fn assert_server_resources(app: &App) {
     assert!(
         app.world().get_resource::<RenetServer>().is_some(),
@@ -222,7 +212,6 @@ pub fn assert_server_resources(app: &App) {
 }
 
 /// Check that client is connected or connecting.
-#[allow(dead_code)]
 pub fn assert_client_connected(app: &App, frame_label: &str) {
     let client_res = app
         .world()
@@ -235,5 +224,185 @@ pub fn assert_client_connected(app: &App, frame_label: &str) {
         client_res.is_connected(),
         client_res.is_connecting(),
         client_res.is_disconnected()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Shared ECS helpers — extracted from per-file duplicates
+// ---------------------------------------------------------------------------
+
+use carcinisation_fps_core::map::{EntitySpawnData, EntitySpawnKind};
+use carcinisation_net::components::NetEnemy;
+use carcinisation_net::{
+    ClientIntent, InputSequence, NetAttackId, NetEnemyState, NetHealth, NetPlayer, PlayerActions,
+    PlayerId, PlayerNetState,
+};
+use carcinisation_server::systems::PlayerIntentBuffer;
+
+/// Tick server only with 2 ms sleep (same rationale as `tick_with_sleep`).
+pub fn tick_server(server: &mut App) {
+    std::thread::sleep(Duration::from_millis(2));
+    server.update();
+}
+
+/// Tick server-only in a loop until `condition` returns `true`, with early exit.
+/// Returns `true` if the condition was met within `max_ticks`.
+pub fn wait_for_server_condition(
+    server: &mut App,
+    max_ticks: u32,
+    mut condition: impl FnMut(&mut App) -> bool,
+) -> bool {
+    for _ in 0..max_ticks {
+        tick_server(server);
+        if condition(server) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Build a server with `test_map` + one stationary Mosquiton at the given position.
+pub fn build_server_with_enemy(port: u16, enemy_x: f32, enemy_y: f32) -> App {
+    build_server_with_enemies(port, test_map(), vec![(enemy_x, enemy_y, 100, 0.0)])
+}
+
+/// Build a server with a custom map + multiple Mosquitons.
+/// Each tuple is `(x, y, health, speed)`.
+pub fn build_server_with_enemies(
+    port: u16,
+    map: carcinisation_fps_core::map::Map,
+    enemies: Vec<(f32, f32, u32, f32)>,
+) -> App {
+    let entities = enemies
+        .into_iter()
+        .map(|(x, y, health, speed)| EntitySpawnData {
+            kind: EntitySpawnKind::Mosquiton { health, speed },
+            x,
+            y,
+        })
+        .collect();
+    build_server_app(ServerPlugin {
+        port,
+        map,
+        entities,
+        player_starts: vec![],
+        admin_socket: None,
+        instance_name: "test".to_string(),
+        map_path: "test_map".to_string(),
+    })
+}
+
+/// Spawn an alive player with full health at the given position (angle 0, facing east).
+pub fn spawn_alive_player(server: &mut App, pid: u32, x: f32, y: f32) {
+    spawn_player_with_state(server, pid, x, y, PlayerNetState::Alive);
+}
+
+/// Spawn a player with a specific state.
+pub fn spawn_player_with_state(server: &mut App, pid: u32, x: f32, y: f32, state: PlayerNetState) {
+    let hp = if matches!(&state, PlayerNetState::Alive) {
+        100.0
+    } else {
+        0.0
+    };
+    server.world_mut().spawn((
+        NetPlayer {
+            player_id: PlayerId(pid),
+            position: Vec2::new(x, y),
+            angle: 0.0,
+            current_attack: NetAttackId::None,
+            state,
+            flame_active: false,
+            avatar_palette_variant: None,
+        },
+        NetHealth {
+            current: hp,
+            max: 100.0,
+        },
+        Replicated,
+    ));
+}
+
+/// Get the first enemy's current health, if any.
+pub fn get_enemy_health(server: &mut App) -> Option<f32> {
+    server
+        .world_mut()
+        .query::<(&NetEnemy, &NetHealth)>()
+        .iter(server.world())
+        .next()
+        .map(|(_, h)| h.current)
+}
+
+/// Get the first enemy's state, if any.
+pub fn get_enemy_state(server: &mut App) -> Option<NetEnemyState> {
+    server
+        .world_mut()
+        .query::<&NetEnemy>()
+        .iter(server.world())
+        .next()
+        .map(|e| e.state)
+}
+
+/// Get a specific player's current health.
+pub fn get_player_health(server: &mut App, pid: u32) -> Option<f32> {
+    server
+        .world_mut()
+        .query::<(&NetPlayer, &NetHealth)>()
+        .iter(server.world())
+        .find(|(p, _)| p.player_id.0 == pid)
+        .map(|(_, h)| h.current)
+}
+
+/// Set a specific player's health directly.
+pub fn set_player_health(server: &mut App, pid: u32, hp: f32) {
+    let mut q = server.world_mut().query::<(&NetPlayer, &mut NetHealth)>();
+    for (p, mut h) in q.iter_mut(server.world_mut()) {
+        if p.player_id.0 == pid {
+            h.current = hp;
+        }
+    }
+}
+
+/// Set the first enemy's health directly.
+pub fn set_enemy_health(server: &mut App, hp: f32) {
+    let mut q = server.world_mut().query::<(&NetEnemy, &mut NetHealth)>();
+    for (_, mut h) in q.iter_mut(server.world_mut()) {
+        h.current = hp;
+    }
+}
+
+/// Force the first enemy into a specific state.
+pub fn force_enemy_state(server: &mut App, state: NetEnemyState) {
+    let mut q = server.world_mut().query::<&mut NetEnemy>();
+    for mut e in q.iter_mut(server.world_mut()) {
+        e.state = state;
+    }
+}
+
+/// Force a player's current attack (pistol / flamethrower).
+pub fn force_player_attack(server: &mut App, pid: u32, attack: NetAttackId) {
+    let mut q = server.world_mut().query::<&mut NetPlayer>();
+    for mut p in q.iter_mut(server.world_mut()) {
+        if p.player_id.0 == pid {
+            p.current_attack = attack;
+        }
+    }
+}
+
+/// Inject a fire-held intent for the given player into the server's intent buffer.
+pub fn inject_fire(server: &mut App, pid: u32) {
+    inject_intent(server, pid, Vec2::ZERO, true);
+}
+
+/// Inject an intent with arbitrary movement and fire state.
+pub fn inject_intent(server: &mut App, pid: u32, movement: Vec2, fire_held: bool) {
+    server.world_mut().resource_mut::<PlayerIntentBuffer>().set(
+        PlayerId(pid),
+        &ClientIntent {
+            sequence: InputSequence(0),
+            movement,
+            turn: 0.0,
+            fire_held,
+            actions: PlayerActions::default(),
+        },
     );
 }
