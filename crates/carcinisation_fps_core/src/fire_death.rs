@@ -189,6 +189,94 @@ pub fn centered_flames_from_mask(
 mod tests {
     use super::*;
 
+    // -----------------------------------------------------------------------
+    // corpse_seed
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn corpse_seed_deterministic() {
+        let a = corpse_seed(Vec2::new(3.5, 7.25));
+        let b = corpse_seed(Vec2::new(3.5, 7.25));
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn corpse_seed_different_positions_differ() {
+        let a = corpse_seed(Vec2::new(1.0, 2.0));
+        let b = corpse_seed(Vec2::new(2.0, 1.0));
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn corpse_seed_near_positions_differ() {
+        // Resolution is 1/1024: delta of 0.001 rounds to 1 bit difference.
+        // Smaller deltas (e.g. 0.0004) would hash identically.
+        let a = corpse_seed(Vec2::new(1.0, 1.0));
+        let b = corpse_seed(Vec2::new(1.001, 1.0));
+        assert_ne!(a, b);
+    }
+
+    // -----------------------------------------------------------------------
+    // centered_flames_from_mask
+    // -----------------------------------------------------------------------
+
+    fn solid_rect(w: usize, h: usize) -> impl Fn(usize, usize) -> bool {
+        move |x, y| x < w && y < h
+    }
+
+    #[test]
+    fn centered_flames_zero_count_returns_empty() {
+        let flames = centered_flames_from_mask(42, 10, 10, solid_rect(10, 10), 0);
+        assert!(flames.is_empty());
+    }
+
+    #[test]
+    fn centered_flames_no_opaque_returns_empty() {
+        let flames = centered_flames_from_mask(42, 10, 10, |_, _| false, 5);
+        assert!(flames.is_empty());
+    }
+
+    #[test]
+    fn centered_flames_deterministic() {
+        let a = centered_flames_from_mask(99, 10, 10, solid_rect(10, 10), 5);
+        let b = centered_flames_from_mask(99, 10, 10, solid_rect(10, 10), 5);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn centered_flames_count_matches_requested() {
+        let flames = centered_flames_from_mask(42, 10, 10, solid_rect(10, 10), 7);
+        assert_eq!(flames.len(), 7);
+    }
+
+    #[test]
+    fn centered_flames_biased_toward_center() {
+        let w = 20;
+        let h = 20;
+        let flames = centered_flames_from_mask(42, w, h, solid_rect(w, h), 50);
+        // Center of a 20×20 rect centered at origin is (0, 0).
+        // With center bias (0.2–0.5 lerp), mean distance from center
+        // should be well under half the sprite extent.
+        let mean_dist: f32 =
+            flames.iter().map(|f| f.offset_px.length()).sum::<f32>() / flames.len() as f32;
+        let max_extent = ((w as f32 / 2.0).powi(2) + (h as f32 / 2.0).powi(2)).sqrt();
+        assert!(
+            mean_dist < max_extent * 0.5,
+            "mean distance {mean_dist:.1} should be < half of max extent {max_extent:.1}"
+        );
+    }
+
+    #[test]
+    fn centered_flames_different_seeds_differ() {
+        let a = centered_flames_from_mask(1, 10, 10, solid_rect(10, 10), 5);
+        let b = centered_flames_from_mask(2, 10, 10, solid_rect(10, 10), 5);
+        assert_ne!(a, b);
+    }
+
+    // -----------------------------------------------------------------------
+    // perimeter_flames_from_mask
+    // -----------------------------------------------------------------------
+
     #[test]
     fn perimeter_flames_from_mask_cover_visible_edges_deterministically() {
         let config = FireDeathConfig {
@@ -216,5 +304,23 @@ mod tests {
         assert!(first.iter().any(|f| f.offset_px.x > 4.0));
         assert!(first.iter().any(|f| f.offset_px.y > 10.0));
         assert!(first.iter().any(|f| f.offset_px.y < -10.0));
+    }
+
+    #[test]
+    fn perimeter_flames_no_opaque_returns_empty() {
+        let config = FireDeathConfig::default();
+        let flames = perimeter_flames_from_mask(42, 10, 10, |_, _| false, &config);
+        assert!(flames.is_empty());
+    }
+
+    #[test]
+    fn perimeter_flames_single_pixel() {
+        let config = FireDeathConfig {
+            burning_flame_count: NonZeroUsize::new(1).unwrap(),
+            ..FireDeathConfig::default()
+        };
+        // Single opaque pixel at (5,5) in a 10×10 grid — always an edge.
+        let flames = perimeter_flames_from_mask(42, 10, 10, |x, y| x == 5 && y == 5, &config);
+        assert_eq!(flames.len(), 1);
     }
 }

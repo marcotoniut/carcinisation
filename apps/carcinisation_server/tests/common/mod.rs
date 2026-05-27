@@ -1,6 +1,7 @@
 #![allow(dead_code, clippy::cast_possible_truncation)]
 
 pub mod combat;
+pub mod reset;
 
 use std::net::SocketAddr;
 use std::sync::OnceLock;

@@ -172,8 +172,8 @@ mod tests {
     #[test]
     fn wall_x_centered_on_vertical_hit() {
         let map = test_map();
-        // Origin at (1.5, 1.5), facing east. Hits the vertical wall at x=2.
-        // The ray hits at y=1.5 within the cell face, so wall_x = 0.5.
+        // Origin at (1.5, 1.5), facing east. Row y=1 is open all the way to
+        // the border wall at x=7. wall_x = fract(1.5) = 0.5.
         let hit = cast_ray(&map, Vec2::new(1.5, 1.5), Vec2::new(1.0, 0.0));
         assert_eq!(hit.side, HitSide::Vertical);
         assert!(
@@ -186,8 +186,8 @@ mod tests {
     #[test]
     fn wall_x_centered_on_horizontal_hit() {
         let map = test_map();
-        // Origin at (1.5, 1.5), facing north (+Y). Hits the horizontal wall at y=2.
-        // The ray hits at x=1.5 within the cell face, so wall_x = 0.5.
+        // Origin at (1.5, 1.5), facing north (+Y). Column x=1 is open all the
+        // way to the border wall at y=7. wall_x = fract(1.5) = 0.5.
         let hit = cast_ray(&map, Vec2::new(1.5, 1.5), Vec2::new(0.0, 1.0));
         assert_eq!(hit.side, HitSide::Horizontal);
         assert!(
@@ -225,12 +225,34 @@ mod tests {
     }
 
     #[test]
-    fn los_diagonal_clear() {
+    fn los_vertical_clear() {
         let map = test_map();
         // (1.5, 1.5) to (1.5, 3.5) — straight north through open cells.
         assert!(has_line_of_sight(
             Vec2::new(1.5, 1.5),
             Vec2::new(1.5, 3.5),
+            &map
+        ));
+    }
+
+    #[test]
+    fn los_diagonal_clear() {
+        let map = test_map();
+        // (1.5, 1.5) to (3.5, 3.5) — diagonal through open cells (2,2) and (3,3).
+        assert!(has_line_of_sight(
+            Vec2::new(1.5, 1.5),
+            Vec2::new(3.5, 3.5),
+            &map
+        ));
+    }
+
+    #[test]
+    fn los_diagonal_blocked_by_interior_wall() {
+        let map = test_map();
+        // (1.5, 1.5) to (4.5, 3.5) — diagonal crosses near (3,2)/(4,2) walls.
+        assert!(!has_line_of_sight(
+            Vec2::new(1.5, 1.5),
+            Vec2::new(4.5, 3.5),
             &map
         ));
     }

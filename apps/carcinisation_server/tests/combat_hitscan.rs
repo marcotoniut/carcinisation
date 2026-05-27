@@ -116,17 +116,20 @@ fn enemy_dies_once() {
     assert!(wait_for_player(&mut server, &mut client));
 
     // 100 HP / 37 dmg = 3 shots needed. At 0.33 s cooldown and 30 Hz tick,
-    // need ~1.0 s real time for 3 shots. Use longer sleeps to accumulate time.
+    // need ~1.0 s real time for 3 shots. 50 ms sleep per tick (not 2 ms)
+    // so FixedUpdate fires multiple times per tick, accumulating cooldown.
+    let slow_tick = |server: &mut bevy::app::App, client: &mut bevy::app::App| {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        server.update();
+        client.update();
+    };
+
     for seq in 1..=20 {
         queue_fire(&mut client, seq);
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        server.update();
-        client.update();
+        slow_tick(&mut server, &mut client);
     }
     for _ in 0..20 {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        server.update();
-        client.update();
+        slow_tick(&mut server, &mut client);
     }
 
     let state = get_enemy_state(&mut server).unwrap();
@@ -144,9 +147,7 @@ fn enemy_dies_once() {
     // Keep firing — health should not go further negative or cause issues.
     for seq in 21..=30 {
         queue_fire(&mut client, seq);
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        server.update();
-        client.update();
+        slow_tick(&mut server, &mut client);
     }
 
     let hp_final = get_enemy_health(&mut server).unwrap();
