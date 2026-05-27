@@ -21,6 +21,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use strum_macros::{EnumString, IntoStaticStr};
 
 /// Number of physical (atlas-backed) directions authored in Aseprite.
 pub const NUM_PHYSICAL_DIRECTIONS: usize = 5;
@@ -33,23 +34,19 @@ pub const NUM_PHYSICAL_DIRECTIONS: usize = 5;
 ///
 /// Five directions (Front through Back) are physically authored in Aseprite.
 /// The three right-side directions are derived via horizontal mirroring.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, EnumString, IntoStaticStr,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum SpriteDirection {
-    #[serde(rename = "front")]
     Front,
-    #[serde(rename = "frontleft")]
     FrontLeft,
-    #[serde(rename = "left")]
     Left,
-    #[serde(rename = "backleft")]
     BackLeft,
-    #[serde(rename = "back")]
     Back,
-    #[serde(rename = "backright")]
     BackRight,
-    #[serde(rename = "right")]
     Right,
-    #[serde(rename = "frontright")]
     FrontRight,
 }
 
@@ -132,33 +129,14 @@ impl SpriteDirection {
 
     /// Tag prefix string used in Aseprite tag naming convention.
     #[must_use]
-    pub const fn tag_prefix(self) -> &'static str {
-        match self {
-            Self::Front => "front",
-            Self::FrontLeft => "frontleft",
-            Self::Left => "left",
-            Self::BackLeft => "backleft",
-            Self::Back => "back",
-            Self::BackRight => "backright",
-            Self::Right => "right",
-            Self::FrontRight => "frontright",
-        }
+    pub fn tag_prefix(self) -> &'static str {
+        self.into()
     }
 
     /// Parse a direction from its tag prefix string.
     #[must_use]
     pub fn from_tag_prefix(s: &str) -> Option<Self> {
-        match s {
-            "front" => Some(Self::Front),
-            "frontleft" => Some(Self::FrontLeft),
-            "left" => Some(Self::Left),
-            "backleft" => Some(Self::BackLeft),
-            "back" => Some(Self::Back),
-            "backright" => Some(Self::BackRight),
-            "right" => Some(Self::Right),
-            "frontright" => Some(Self::FrontRight),
-            _ => None,
-        }
+        s.parse().ok()
     }
 
     /// Construct the full tag name for a given action.

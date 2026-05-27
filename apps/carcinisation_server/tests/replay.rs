@@ -16,13 +16,18 @@ use carcinisation_net::{
     sim_hash::{collect_enemy_state, collect_player_state, compute_sim_hash},
 };
 use carcinisation_server::ServerPlugin;
-use common::{build_server_app, reserve_port};
+use common::build_server_app;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn build_replay_server(port: u16) -> App {
+/// Build a replay server with no real networking.
+///
+/// Port 0 lets the OS assign a free port atomically — no TOCTOU race from
+/// `reserve_port()` probe-then-bind. The transport is never used (no clients
+/// connect; entities are spawned directly).
+fn build_replay_server() -> App {
     let entities = vec![EntitySpawnData {
         kind: EntitySpawnKind::Mosquiton {
             health: 100,
@@ -32,7 +37,7 @@ fn build_replay_server(port: u16) -> App {
         y: 1.5,
     }];
     let mut app = build_server_app(ServerPlugin {
-        port,
+        port: 0,
         map: test_map(),
         entities,
         player_starts: vec![],
@@ -113,8 +118,8 @@ fn snapshot_hash(server: &mut App) -> u64 {
 
 /// Run a deterministic simulation: N ticks of movement input, recording
 /// per-tick hashes.
-fn run_replay(port: u16, ticks: usize) -> Vec<u64> {
-    let mut server = build_replay_server(port);
+fn run_replay(ticks: usize) -> Vec<u64> {
+    let mut server = build_replay_server();
     server.update(); // init
 
     spawn_player(&mut server, 1, 1.5, 1.5);
@@ -143,12 +148,10 @@ fn run_replay(port: u16, ticks: usize) -> Vec<u64> {
 /// simulation hashes.
 #[test]
 fn deterministic_replay_produces_identical_hashes() {
-    let port1 = reserve_port();
-    let port2 = reserve_port();
     let ticks = 60; // 2 seconds at 30 Hz
 
-    let hashes_a = run_replay(port1, ticks);
-    let hashes_b = run_replay(port2, ticks);
+    let hashes_a = run_replay(ticks);
+    let hashes_b = run_replay(ticks);
 
     assert_eq!(
         hashes_a.len(),
@@ -167,8 +170,7 @@ fn deterministic_replay_produces_identical_hashes() {
 /// Simulation state should change over time (not stuck at initial hash).
 #[test]
 fn replay_state_evolves() {
-    let port = reserve_port();
-    let hashes = run_replay(port, 30);
+    let hashes = run_replay(30);
 
     let first = hashes[0];
     let last = hashes[hashes.len() - 1];
