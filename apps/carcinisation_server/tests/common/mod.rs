@@ -1,5 +1,7 @@
 #![allow(dead_code, clippy::cast_possible_truncation)]
 
+pub mod combat;
+
 use std::net::SocketAddr;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU16, Ordering};

@@ -1,3 +1,5 @@
+[profile.default]
+slow-timeout = { period = "30s", terminate-after = 3 }
 [test-groups]
 serial = { max-threads = 4 }
 [[profile.default.overrides]]
