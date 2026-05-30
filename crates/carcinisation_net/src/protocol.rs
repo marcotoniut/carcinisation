@@ -7,6 +7,48 @@ use crate::tick::InputSequence;
 
 // Legacy button bitfield removed — superseded by ClientIntent + PlayerActions.
 
+// ---- Connect mode -----------------------------------------------------------
+
+/// Client connection mode, communicated via renet2 `user_data` during handshake.
+///
+/// Encoded into the 256-byte `user_data` field of `ClientAuthentication::Unsecure`.
+/// The server reads this in `handle_client_connect` to decide whether to spawn a
+/// player entity or treat the connection as a passive observer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ConnectMode {
+    /// Standard player client — server spawns a `NetPlayer` entity.
+    #[default]
+    Player,
+    /// Passive map monitor — server skips player spawn, client receives all replication.
+    Monitor,
+}
+
+/// Size of the renet2 netcode user_data field.
+const USER_DATA_BYTES: usize = 256;
+
+impl ConnectMode {
+    /// Encode into the 256-byte `user_data` field for `ClientAuthentication`.
+    #[must_use]
+    pub fn to_user_data(self) -> [u8; USER_DATA_BYTES] {
+        let mut data = [0u8; USER_DATA_BYTES];
+        data[0] = match self {
+            Self::Player => 0,
+            Self::Monitor => 1,
+        };
+        data
+    }
+
+    /// Decode from the 256-byte `user_data` field. Defaults to `Player` for
+    /// unrecognised values (backward compatible with clients that send `None`).
+    #[must_use]
+    pub fn from_user_data(data: &[u8; USER_DATA_BYTES]) -> Self {
+        match data[0] {
+            1 => Self::Monitor,
+            _ => Self::Player,
+        }
+    }
+}
+
 // ---- Protocol types -------------------------------------------------------
 
 /// Stable player identifier.
@@ -224,6 +266,12 @@ pub struct PickupEffect {
 /// Sent once when client connects so it knows which `NetPlayer` is "mine".
 #[derive(Debug, Clone, Event, Serialize, Deserialize)]
 pub struct PlayerIdAssigned(pub PlayerId);
+
+/// Monitor acknowledgement — server → client (reliable).
+/// Sent to monitor clients instead of `PlayerIdAssigned`. Confirms the
+/// connection is active and replication will follow.
+#[derive(Debug, Clone, Event, Serialize, Deserialize)]
+pub struct MonitorAck;
 
 /// Server acknowledgement of processed input — server → client (reliable, ordered).
 ///
@@ -480,6 +528,33 @@ mod tests {
         let event = PlayerIdAssigned(PlayerId(7));
         let back = roundtrip(&event);
         assert_eq!(back.0, PlayerId(7));
+    }
+
+    #[test]
+    fn monitor_ack_roundtrip() {
+        let event = MonitorAck;
+        let _back: MonitorAck = roundtrip(&event);
+    }
+
+    #[test]
+    fn connect_mode_user_data_roundtrip() {
+        let player = ConnectMode::Player;
+        assert_eq!(
+            ConnectMode::from_user_data(&player.to_user_data()),
+            ConnectMode::Player
+        );
+
+        let monitor = ConnectMode::Monitor;
+        assert_eq!(
+            ConnectMode::from_user_data(&monitor.to_user_data()),
+            ConnectMode::Monitor
+        );
+    }
+
+    #[test]
+    fn connect_mode_from_zeroed_user_data_defaults_to_player() {
+        let zeroed = [0u8; 256];
+        assert_eq!(ConnectMode::from_user_data(&zeroed), ConnectMode::Player);
     }
 
     // -----------------------------------------------------------------------

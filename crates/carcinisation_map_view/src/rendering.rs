@@ -1,3 +1,9 @@
+//! Static map image rendering from a classified [`MapGrid`].
+//!
+//! Produces a palette-indexed [`CxImage`] with Y-flipped orientation (grid
+//! row 0 at the bottom). Walls get a 1 px contrasting inline border and a
+//! checkerboard dither of their two dominant palette colours.
+
 use carapace::image::CxImage;
 
 use crate::classification::{CellKind, MapGrid};
@@ -6,7 +12,7 @@ use crate::classification::{CellKind, MapGrid};
 ///
 /// With a small palette (5 entries), just pick the opposite end:
 /// light floor → darkest (1), dark floor → lightest (4).
-fn contrasting_inline(floor: u8) -> u8 {
+const fn contrasting_inline(floor: u8) -> u8 {
     if floor >= 3 { 1 } else { 4 }
 }
 
@@ -82,6 +88,41 @@ mod tests {
         let expected_h = 3 * TEST_TILE_SIZE;
         assert_eq!(image.width(), expected_w as usize);
         assert_eq!(image.height(), expected_h as usize);
+    }
+
+    #[test]
+    fn wall_dither_pattern() {
+        // Single wall cell with two different colours at tile_size 4.
+        let cells = vec![1];
+        let grid = MapGrid::classify(1, 1, &cells, 3, &[(7, 12)]);
+        let image = render_map_view(&grid, TEST_TILE_SIZE);
+        let w = image.width();
+        let inline = contrasting_inline(3); // floor=3 → inline=1
+
+        // Border pixels (dx=0 or dy=0 or dx=3 or dy=3) should be inline colour.
+        assert_eq!(image.data()[0], inline, "top-left border");
+        assert_eq!(image.data()[3], inline, "top-right border");
+
+        // Interior pixels: checkerboard of 7 and 12.
+        // Interior is dx=1..3, dy=1..3. Pixel (1,1): (1+1)%2==0 → color (7).
+        let interior_even = image.data()[w + 1];
+        let interior_odd = image.data()[w + 2];
+        assert_eq!(interior_even, 7, "even parity pixel should be primary");
+        assert_eq!(interior_odd, 12, "odd parity pixel should be secondary");
+    }
+
+    #[test]
+    fn wall_same_colour_no_dither() {
+        // Wall with identical primary/secondary → no dither, solid fill.
+        let cells = vec![1];
+        let grid = MapGrid::classify(1, 1, &cells, 3, &[(7, 7)]);
+        let image = render_map_view(&grid, TEST_TILE_SIZE);
+        let w = image.width();
+
+        // Interior pixels should all be 7 (no dither).
+        assert_eq!(image.data()[w + 1], 7);
+        assert_eq!(image.data()[w + 2], 7);
+        assert_eq!(image.data()[2 * w + 1], 7);
     }
 
     #[test]

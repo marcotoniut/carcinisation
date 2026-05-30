@@ -1,10 +1,19 @@
+//! Grid cell classification for map-view rendering.
+//!
+//! Classifies each cell of a Wolf3D-style grid map as wall, reachable floor,
+//! or void (unreachable). Flood-fill from player start positions determines
+//! reachability. The resulting [`MapGrid`] is consumed by the renderer.
+
 use std::collections::VecDeque;
 
 /// Per-cell classification for map-view rendering.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CellKind {
+    /// Unreachable empty space — rendered as transparent.
     Void,
+    /// Wall tile. The `u8` is the raw cell value (1-based texture index).
     Wall(u8),
+    /// Walkable floor reachable from a player start position.
     ReachableFloor,
 }
 
@@ -21,6 +30,10 @@ pub struct MapGrid {
     pub floor_color: u8,
 }
 
+/// Rendering-ready classification for a single grid cell.
+///
+/// Holds the palette indices used by the renderer so no per-frame texture
+/// lookups are needed.
 #[derive(Clone, Copy, Debug)]
 pub struct CellClassification {
     pub kind: CellKind,
@@ -36,6 +49,7 @@ impl MapGrid {
     /// `wall_color_pairs` maps wall texture index → `(primary, secondary)`
     /// palette indices (1-based indexing, same as `Map.cells`).
     /// `floor_color` is the palette index for interior floor tiles.
+    #[must_use]
     pub fn classify(
         width: usize,
         height: usize,
@@ -61,7 +75,7 @@ impl MapGrid {
                 });
             }
         }
-        MapGrid {
+        Self {
             width,
             height,
             cells: out,
@@ -118,6 +132,7 @@ impl MapGrid {
     }
 
     /// Repopulate from scratch given a `carcinisation_fps_core::map::Map`.
+    #[must_use]
     pub fn from_fps_map(
         map: &carcinisation_fps_core::map::Map,
         floor_color: u8,
@@ -248,5 +263,39 @@ mod tests {
         // Floor cells have floor color (classify sets all 0-cells to floor).
         assert_eq!(grid.cells[1].color, 3);
         assert_eq!(grid.cells[2].color, 3);
+    }
+
+    #[test]
+    fn wall_index_out_of_bounds_falls_back() {
+        // Cell value 5 references wall_color_pairs index 4, but only 1 pair provided.
+        let cells = vec![5];
+        let grid = MapGrid::classify(1, 1, &cells, 3, &[(7, 12)]);
+        assert_eq!(grid.cells[0].kind, CellKind::Wall(5));
+        assert_eq!(grid.cells[0].color, 1, "out-of-bounds falls back to (1, 1)");
+        assert_eq!(grid.cells[0].color_alt, 1);
+    }
+
+    #[test]
+    fn classify_voids_resets_color_alt() {
+        let cells = vec![0, 0, 1, 0];
+        let mut grid = MapGrid::classify(2, 2, &cells, 3, &[(7, 7)]);
+        grid.classify_voids(&[(0.5, 0.5)]);
+        // Cell (1,1) = index 3 is floor, reachable from (0,0) via (1,0) and (0,1)...
+        // Actually (0,0) can reach (1,0) and (0,1). (1,1) needs to go through (1,0)→(1,1)
+        // but (1,0) is index 2 = wall. So (1,1) is only reachable via (0,1)→ can it reach (1,1)?
+        // (0,1) neighbours: (1,1) and (0,0). (1,1) index=3, cell=0, reachable.
+        // So all floor cells reachable. Let me use a grid where void actually happens.
+
+        // Better: 3x1 grid, wall in middle blocks right cell.
+        let cells2 = vec![0, 1, 0];
+        let mut grid2 = MapGrid::classify(3, 1, &cells2, 3, &[(7, 7)]);
+        grid2.classify_voids(&[(0.5, 0.5)]);
+        // Cell 2 (right) is unreachable → void.
+        assert_eq!(grid2.cells[2].kind, CellKind::Void);
+        assert_eq!(grid2.cells[2].color, 0);
+        assert_eq!(
+            grid2.cells[2].color_alt, 0,
+            "color_alt should also be reset"
+        );
     }
 }

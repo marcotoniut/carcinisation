@@ -38,7 +38,7 @@ pub struct MapViewEntityMarker {
 #[derive(Resource, Default)]
 pub struct MapViewOverlay {
     pub markers: Vec<MapViewEntityMarker>,
-    /// Pixel dimensions of the overlay image (matches base map CxSprite).
+    /// Pixel dimensions of the overlay image (matches base map [`CxSprite`]).
     pub pixel_width: u32,
     pub pixel_height: u32,
     /// Grid dimensions in cells.
@@ -59,7 +59,8 @@ pub struct MapViewPlayerMarker;
 // --- helper functions ---
 
 /// Nearest-neighbour scale to `marker_size` × `marker_size`.
-fn scale(source: &CxImage, marker_size: u32) -> CxImage {
+#[must_use]
+pub fn scale(source: &CxImage, marker_size: u32) -> CxImage {
     let sw = source.width() as u32;
     let sh = source.height() as u32;
     let ms = marker_size;
@@ -75,7 +76,8 @@ fn scale(source: &CxImage, marker_size: u32) -> CxImage {
 }
 
 /// Nearest-neighbour rotate by `angle` radians around centre.
-fn rotate(source: &CxImage, angle: f32) -> CxImage {
+#[must_use]
+pub fn rotate(source: &CxImage, angle: f32) -> CxImage {
     if angle.abs() < f32::EPSILON {
         return source.clone();
     }
@@ -100,7 +102,8 @@ fn rotate(source: &CxImage, angle: f32) -> CxImage {
 }
 
 /// Angle in radians from `from` toward `to`.
-fn angle_toward(from: Vec2, to: Vec2) -> f32 {
+#[must_use]
+pub fn angle_toward(from: Vec2, to: Vec2) -> f32 {
     let d = to - from;
     f32::atan2(d.y, d.x)
 }
@@ -108,7 +111,8 @@ fn angle_toward(from: Vec2, to: Vec2) -> f32 {
 /// Build a circle-with-nose sprite pointing east (→) for the player marker.
 ///
 /// Filled circle + triangular nose with a 1 px contrasting outline.
-fn player_marker_sprite(size: u32) -> CxImage {
+#[allow(clippy::many_single_char_names)]
+pub fn player_marker_sprite(size: u32) -> CxImage {
     let s = size.max(5) as f32;
     let si = size.max(5) as i32;
     let mut data = vec![0u8; (si * si) as usize];
@@ -120,7 +124,7 @@ fn player_marker_sprite(size: u32) -> CxImage {
         for x in 0..si {
             let px = x as f32 + 0.5 - c;
             let py = y as f32 + 0.5 - c;
-            let d = (px * px + py * py).sqrt();
+            let d = px.hypot(py);
 
             // Check if pixel is inside the circle body.
             if d <= r {
@@ -164,12 +168,14 @@ fn player_marker_size(base: u32) -> u32 {
 }
 
 /// Enemy markers are 50% larger than the base marker size.
-fn enemy_marker_size(base: u32) -> u32 {
+#[must_use]
+pub const fn enemy_marker_size(base: u32) -> u32 {
     base + base / 2
 }
 
 /// Filled circle with a 1 px outline for projectile markers.
-fn circle_sprite(size: u32, fill: u8, outline: u8) -> CxImage {
+#[must_use]
+pub fn circle_sprite(size: u32, fill: u8, outline: u8) -> CxImage {
     let s = size.max(3) as f32;
     let si = size.max(3) as i32;
     let mut data = vec![0u8; (si * si) as usize];
@@ -179,7 +185,7 @@ fn circle_sprite(size: u32, fill: u8, outline: u8) -> CxImage {
         for x in 0..si {
             let dx = x as f32 + 0.5 - c;
             let dy = y as f32 + 0.5 - c;
-            let d = (dx * dx + dy * dy).sqrt();
+            let d = dx.hypot(dy);
             if d <= r {
                 data[(y * si + x) as usize] = if d > r - 1.0 { outline } else { fill };
             }
@@ -189,7 +195,8 @@ fn circle_sprite(size: u32, fill: u8, outline: u8) -> CxImage {
 }
 
 /// Convert map-cell coordinate to overlay pixel centre.
-pub(crate) fn cell_to_pixel(coord: f32, tile_size: u32) -> i32 {
+#[must_use]
+pub fn cell_to_pixel(coord: f32, tile_size: u32) -> i32 {
     (coord * tile_size as f32) as i32
 }
 
@@ -200,7 +207,8 @@ pub(crate) fn cell_to_pixel(coord: f32, tile_size: u32) -> i32 {
 /// applies the same continuous transform to marker positions and scroll
 /// offsets — no integer truncation, so it scrolls smoothly across cell
 /// boundaries.
-pub(crate) fn flip_y(y: f32, tile_size: u32, grid_height: u32) -> i32 {
+#[must_use]
+pub fn flip_y(y: f32, tile_size: u32, grid_height: u32) -> i32 {
     ((grid_height as f32 - y) * tile_size as f32) as i32
 }
 
@@ -336,7 +344,7 @@ pub fn build_entity_snapshot(
     }
 }
 
-/// Spawn the marker overlay CxSprite entity on its own layer.
+/// Spawn the marker overlay [`CxSprite`] entity on its own layer.
 ///
 /// Must run after the base map sprite is initialised (reads `MapRes`).
 pub fn init_marker_overlay<L: CxLayer>(
@@ -475,4 +483,128 @@ pub fn update_player_marker(
     let rotated = rotate(base, camera.0.angle);
     let data = asset.data_mut();
     data.copy_from_slice(rotated.data());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f32::consts::{FRAC_PI_2, PI};
+
+    fn test_image(w: usize) -> CxImage {
+        let mut data = vec![0u8; w * w];
+        // Mark top-left pixel so we can track orientation.
+        data[0] = 1;
+        // Mark centre pixel.
+        data[w * (w / 2) + w / 2] = 2;
+        CxImage::new(data, w)
+    }
+
+    #[test]
+    fn scale_preserves_dimensions() {
+        let src = test_image(8);
+        let scaled = scale(&src, 4);
+        assert_eq!(scaled.width(), 4);
+        assert_eq!(scaled.height(), 4);
+    }
+
+    #[test]
+    fn scale_up_preserves_centre() {
+        let src = test_image(4);
+        let scaled = scale(&src, 8);
+        // Centre pixel of scaled image should be non-zero.
+        let c = 8 / 2;
+        assert_ne!(scaled.data()[c * 8 + c], 0);
+    }
+
+    #[test]
+    fn rotate_zero_is_identity() {
+        let src = test_image(5);
+        let rotated = rotate(&src, 0.0);
+        assert_eq!(rotated.data(), src.data());
+    }
+
+    #[test]
+    fn rotate_full_turn_is_near_identity() {
+        let src = test_image(5);
+        let rotated = rotate(&src, 2.0 * PI);
+        // Full rotation should produce approximately the same image.
+        // Nearest-neighbour may shift edge pixels, but centre must match.
+        let c = 5 / 2;
+        assert_eq!(rotated.data()[c * 5 + c], src.data()[c * 5 + c]);
+    }
+
+    #[test]
+    fn angle_toward_cardinal_directions() {
+        let origin = Vec2::ZERO;
+        let east = angle_toward(origin, Vec2::new(1.0, 0.0));
+        assert!((east - 0.0).abs() < 0.01, "east should be ~0 rad");
+
+        let north = angle_toward(origin, Vec2::new(0.0, 1.0));
+        assert!((north - FRAC_PI_2).abs() < 0.01, "north should be ~π/2");
+
+        let west = angle_toward(origin, Vec2::new(-1.0, 0.0));
+        assert!((west.abs() - PI).abs() < 0.01, "west should be ~±π");
+
+        let south = angle_toward(origin, Vec2::new(0.0, -1.0));
+        assert!((south - (-FRAC_PI_2)).abs() < 0.01, "south should be ~-π/2");
+    }
+
+    #[test]
+    fn cell_to_pixel_basic() {
+        assert_eq!(cell_to_pixel(0.0, 4), 0);
+        assert_eq!(cell_to_pixel(1.0, 4), 4);
+        assert_eq!(cell_to_pixel(2.5, 4), 10);
+    }
+
+    #[test]
+    fn flip_y_inverts_correctly() {
+        // Grid height 10, tile_size 4. Y=0 → bottom (pixel 40), Y=10 → top (pixel 0).
+        assert_eq!(flip_y(0.0, 4, 10), 40);
+        assert_eq!(flip_y(10.0, 4, 10), 0);
+        assert_eq!(flip_y(5.0, 4, 10), 20);
+    }
+
+    #[test]
+    fn enemy_marker_size_is_50_percent_larger() {
+        assert_eq!(enemy_marker_size(4), 6);
+        assert_eq!(enemy_marker_size(10), 15);
+        assert_eq!(enemy_marker_size(1), 1); // 1 + 1/2 = 1 (integer)
+    }
+
+    #[test]
+    fn player_marker_size_minimum_5() {
+        assert_eq!(player_marker_size(1), 5);
+        assert_eq!(player_marker_size(3), 5);
+        assert_eq!(player_marker_size(4), 6);
+        assert_eq!(player_marker_size(10), 12);
+    }
+
+    #[test]
+    fn circle_sprite_centre_is_filled() {
+        let sprite = circle_sprite(7, 3, 1);
+        let c = 7 / 2;
+        assert_eq!(sprite.data()[c * 7 + c], 3, "centre should be fill colour");
+    }
+
+    #[test]
+    fn circle_sprite_corner_is_transparent() {
+        let sprite = circle_sprite(7, 3, 1);
+        assert_eq!(sprite.data()[0], 0, "top-left corner should be transparent");
+    }
+
+    #[test]
+    fn player_marker_sprite_is_non_empty() {
+        let sprite = player_marker_sprite(7);
+        let non_zero = sprite.data().iter().filter(|&&p| p != 0).count();
+        assert!(non_zero > 0, "player marker should have visible pixels");
+    }
+
+    #[test]
+    fn player_marker_sprite_has_outline() {
+        let sprite = player_marker_sprite(9);
+        let has_fill = sprite.data().contains(&PLAYER_COLOR);
+        let has_outline = sprite.data().contains(&PLAYER_OUTLINE_COLOR);
+        assert!(has_fill, "should have fill colour");
+        assert!(has_outline, "should have outline colour");
+    }
 }

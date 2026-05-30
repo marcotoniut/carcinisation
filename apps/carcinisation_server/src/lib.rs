@@ -6,6 +6,7 @@ pub mod systems;
 use bevy::prelude::*;
 use bevy_replicon::prelude::ServerTriggerExt;
 use bevy_replicon::prelude::*;
+use bevy_replicon::shared::backend::connected_client::NetworkId;
 use bevy_replicon_renet2::RenetChannelsExt;
 use bevy_replicon_renet2::netcode::{
     NativeSocket, NetcodeServerTransport, ServerAuthentication, ServerSetupConfig,
@@ -20,9 +21,9 @@ use carcinisation_fps_core::{
 };
 use carcinisation_net::protocol::NetPickupKind;
 use carcinisation_net::{
-    AvatarPaletteVariant, FlameActive, NetAttackId, NetEnemyState, NetEnemyType, NetHealth,
-    NetPlayer, NetProtocolPlugin, NetworkObjectId, PlayerId, PlayerIdAssigned, PlayerNetState,
-    components::NetPickup, register_net_all,
+    AvatarPaletteVariant, ConnectMode, FlameActive, MonitorAck, NetAttackId, NetEnemyState,
+    NetEnemyType, NetHealth, NetPlayer, NetProtocolPlugin, NetworkObjectId, PlayerId,
+    PlayerIdAssigned, PlayerNetState, components::NetPickup, register_net_all,
 };
 use carcinisation_net::{CombatSet, MovementSet, TickSet};
 use systems::admin::{poll_admin_socket, setup_admin_socket};
@@ -43,6 +44,10 @@ use systems::{
 /// Component attached to `ConnectedClient` to track assigned `PlayerId`.
 #[derive(Component, Debug, Clone, Copy)]
 struct ClientPlayerId(PlayerId);
+
+/// Marker component for monitor (spectator) clients. No player entity is spawned.
+#[derive(Component, Debug, Clone, Copy)]
+struct ClientMonitor;
 
 /// Server-side map resource for collision.
 #[derive(Resource)]
@@ -370,6 +375,7 @@ fn init_server_setup(
     info!("Server listening on 0.0.0.0:{} (UDP)", server_port.0);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_client_connect(
     trigger: On<Add, ConnectedClient>,
     mut commands: Commands,
@@ -377,47 +383,77 @@ fn handle_client_connect(
     mut spawn_idx: ResMut<SpawnIndex>,
     player_starts: Res<MapPlayerStarts>,
     mut palette_pool: ResMut<AvatarPalettePool>,
+    transport: Res<NetcodeServerTransport>,
+    network_ids: Query<&NetworkId>,
 ) {
-    let player_id = next_id.next();
-    let spawn = player_starts.0[spawn_idx.0 % player_starts.0.len()];
-    let position = Vec2::new(spawn.x, spawn.y);
-    let angle = spawn.angle_deg.to_radians();
-    spawn_idx.0 += 1;
-
     let client_entity = trigger.event().entity;
-    let avatar_variant = palette_pool.assign(player_id);
 
-    info!(
-        "Client entity {:?} connected, assigned PlayerId {:?} variant {:?}",
-        client_entity, player_id, avatar_variant
-    );
+    // Determine connect mode from user_data embedded in the renet2 handshake.
+    let connect_mode = if let Ok(nid) = network_ids.get(client_entity) {
+        transport
+            .user_data(nid.get())
+            .map(|ud| ConnectMode::from_user_data(&ud))
+            .unwrap_or(ConnectMode::Player)
+    } else {
+        ConnectMode::Player
+    };
 
-    commands
-        .entity(client_entity)
-        .insert(ClientPlayerId(player_id));
+    let client_id = bevy_replicon::prelude::ClientId::Client(client_entity);
 
-    commands.server_trigger(ToClients {
-        mode: SendMode::Direct(bevy_replicon::prelude::ClientId::Client(client_entity)),
-        message: PlayerIdAssigned(player_id),
-    });
+    match connect_mode {
+        ConnectMode::Monitor => {
+            info!(
+                "Monitor client {:?} connected (spectator only)",
+                client_entity
+            );
+            commands.entity(client_entity).insert(ClientMonitor);
+            commands.server_trigger(ToClients {
+                mode: SendMode::Direct(client_id),
+                message: MonitorAck,
+            });
+        }
+        ConnectMode::Player => {
+            let player_id = next_id.next();
+            let spawn = player_starts.0[spawn_idx.0 % player_starts.0.len()];
+            let position = Vec2::new(spawn.x, spawn.y);
+            let angle = spawn.angle_deg.to_radians();
+            spawn_idx.0 += 1;
 
-    commands.spawn((
-        NetPlayer {
-            player_id,
-            position,
-            angle,
-            current_attack: NetAttackId::None,
-            state: PlayerNetState::Alive,
-            flame_active: false,
-            avatar_palette_variant: Some(avatar_variant),
-        },
-        NetHealth {
-            current: 100.0,
-            max: 100.0,
-        },
-        ServerQuickTurn::default(),
-        Replicated,
-    ));
+            let avatar_variant = palette_pool.assign(player_id);
+
+            info!(
+                "Client entity {:?} connected, assigned PlayerId {:?} variant {:?}",
+                client_entity, player_id, avatar_variant
+            );
+
+            commands
+                .entity(client_entity)
+                .insert(ClientPlayerId(player_id));
+
+            commands.server_trigger(ToClients {
+                mode: SendMode::Direct(client_id),
+                message: PlayerIdAssigned(player_id),
+            });
+
+            commands.spawn((
+                NetPlayer {
+                    player_id,
+                    position,
+                    angle,
+                    current_attack: NetAttackId::None,
+                    state: PlayerNetState::Alive,
+                    flame_active: false,
+                    avatar_palette_variant: Some(avatar_variant),
+                },
+                NetHealth {
+                    current: 100.0,
+                    max: 100.0,
+                },
+                ServerQuickTurn::default(),
+                Replicated,
+            ));
+        }
+    }
 }
 
 fn normalized_player_starts(map: &Map, map_starts: &[PlayerStartData]) -> Vec<PlayerStartData> {
@@ -490,6 +526,7 @@ fn handle_client_disconnect(
     trigger: On<Remove, ConnectedClient>,
     mut commands: Commands,
     client_query: Query<&ClientPlayerId>,
+    monitor_query: Query<&ClientMonitor>,
     player_query: Query<(Entity, &NetPlayer)>,
     mut tracker: ResMut<PlayerInputTracker>,
     mut buffer: ResMut<PlayerIntentBuffer>,
@@ -501,6 +538,12 @@ fn handle_client_disconnect(
     mut palette_pool: ResMut<AvatarPalettePool>,
 ) {
     let client_entity = trigger.event().entity;
+
+    // Monitor clients have no player state to clean up.
+    if monitor_query.get(client_entity).is_ok() {
+        info!("Monitor client {:?} disconnected", client_entity);
+        return;
+    }
 
     let Some(client_pid) = client_query.get(client_entity).ok() else {
         warn!(

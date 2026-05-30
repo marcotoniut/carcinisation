@@ -4,6 +4,19 @@
 //! view from a Wolf3D-style grid map. Supports toggling between FPS view and
 //! map view via [`MapViewToggle`].
 
+// System functions receive Bevy `Res<T>` by value — idiomatic in Bevy.
+// Pixel/grid coordinate casting between usize/i32/u32/f32 is inherent to
+// game rendering and safe given our fixed internal resolution.
+#![allow(
+    clippy::needless_pass_by_value,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_wrap,
+    clippy::explicit_iter_loop,
+    clippy::missing_panics_doc
+)]
+
 pub mod classification;
 pub mod config;
 pub mod overlay;
@@ -35,10 +48,24 @@ pub struct MapViewToggle {
 }
 
 impl MapViewToggle {
+    #[must_use]
     pub const fn new(enabled: bool) -> Self {
         Self { enabled }
     }
 }
+
+/// When present, the map view operates in monitor mode.
+///
+/// Inserted by `MapMonitorClientPlugin`. Gates two systems via
+/// `run_if(not(resource_exists::<MapViewMonitorMode>))`:
+/// - `build_entity_snapshot` (local FPS entity queries)
+/// - `update_player_marker` (camera-anchored player arrow)
+///
+/// The overlay blit system (`update_marker_overlay`) still runs — an
+/// external system is expected to populate `MapViewOverlay::markers`
+/// from replicated net components before it executes.
+#[derive(Resource)]
+pub struct MapViewMonitorMode;
 
 /// Marker component on the map-view sprite entity.
 #[derive(Component)]
@@ -47,8 +74,8 @@ pub struct MapViewSprite;
 /// Plugin that adds the map view with a separate overlay layer.
 ///
 /// Insert [`MapViewToggle`] before adding this plugin to control initial
-/// state. Reads `MapRes`, `WallTextures`, and `PaletteRes` from the FPS
-/// plugin at startup.
+/// state. Requires FPS plugin resources at `PostStartup`:
+/// `MapRes`, `WallTextures`, `PaletteRes`, `CameraRes`, and `Config`.
 pub struct MapViewPlugin<B: CxLayer, O: CxLayer> {
     base_layer: B,
     overlay_layer: O,
@@ -56,7 +83,7 @@ pub struct MapViewPlugin<B: CxLayer, O: CxLayer> {
 
 impl<B: CxLayer, O: CxLayer> MapViewPlugin<B, O> {
     #[must_use]
-    pub fn new(base_layer: B, overlay_layer: O) -> Self {
+    pub const fn new(base_layer: B, overlay_layer: O) -> Self {
         Self {
             base_layer,
             overlay_layer,
@@ -86,9 +113,11 @@ impl<B: CxLayer, O: CxLayer> Plugin for MapViewPlugin<B, O> {
             .add_systems(
                 Update,
                 (
-                    overlay::build_entity_snapshot,
+                    overlay::build_entity_snapshot
+                        .run_if(not(resource_exists::<MapViewMonitorMode>)),
                     overlay::update_marker_overlay.after(overlay::build_entity_snapshot),
-                    overlay::update_player_marker,
+                    overlay::update_player_marker
+                        .run_if(not(resource_exists::<MapViewMonitorMode>)),
                     update_map_position.after(overlay::update_marker_overlay),
                 )
                     .run_if(|toggle: Res<MapViewToggle>| toggle.enabled),
@@ -168,11 +197,11 @@ fn update_map_position(
     )>,
 ) {
     let ts = config.tile_size;
-    let player_px = (camera.0.position.x * ts as f32) as i32;
-    let player_py = (camera.0.position.y * ts as f32) as i32;
+    let pp_x = (camera.0.position.x * ts as f32) as i32;
+    let pp_y = (camera.0.position.y * ts as f32) as i32;
     let cx = fps_config.screen_width as i32 / 2;
     let cy = fps_config.screen_height as i32 / 2;
-    let pos = IVec2::new(cx - player_px, cy - player_py);
+    let pos = IVec2::new(cx - pp_x, cy - pp_y);
     for mut p in pos_set.p0().iter_mut() {
         p.0 = pos;
     }

@@ -86,6 +86,13 @@ dev-fps-client-local stage="":
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
     RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map"
 
+# Run map monitor connecting to local server (passive spectator, no player spawn)
+dev-fps-monitor-local stage="":
+    #!/usr/bin/env bash
+    map=$(just _resolve-stage "{{ stage }}")
+    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor
+
 # Headless server only (no client)
 dev-fps-nihil stage="":
     #!/usr/bin/env bash
@@ -94,8 +101,8 @@ dev-fps-nihil stage="":
     echo "Starting headless server (map=$map)..."
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map"
 
-# Headless server + 1 client
-dev-fps-unus stage="":
+# Headless server + 1 client (+ optional map monitor: just dev-fps-unus monitor=true)
+dev-fps-unus monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
@@ -105,11 +112,16 @@ dev-fps-unus stage="":
     sleep 3
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
     RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
+    if [ -n "{{ monitor }}" ]; then
+        sleep 1
+        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
+    fi
     echo "Press Ctrl+C to stop server+client"
     wait
 
-# Headless server + 2 clients
-dev-fps-duo stage="":
+# Headless server + 2 clients (+ optional map monitor: just dev-fps-duo monitor=true)
+dev-fps-duo monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
@@ -122,11 +134,16 @@ dev-fps-duo stage="":
     sleep 1
     CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
     RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
+    if [ -n "{{ monitor }}" ]; then
+        sleep 1
+        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
+    fi
     echo "Press Ctrl+C to stop server+clients"
     wait
 
-# Headless server + 3 clients
-dev-fps-tres stage="":
+# Headless server + 3 clients (+ optional map monitor: just dev-fps-tres monitor=true)
+dev-fps-tres monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
@@ -139,11 +156,16 @@ dev-fps-tres stage="":
         RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
         sleep 1
     done
+    if [ -n "{{ monitor }}" ]; then
+        sleep 1
+        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
+    fi
     echo "Press Ctrl+C to stop server+clients"
     wait
 
-# Headless server + 4 clients
-dev-fps-quattuor stage="":
+# Headless server + 4 clients (+ optional map monitor: just dev-fps-quattuor monitor=true)
+dev-fps-quattuor monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
@@ -156,6 +178,11 @@ dev-fps-quattuor stage="":
         RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
         sleep 1
     done
+    if [ -n "{{ monitor }}" ]; then
+        sleep 1
+        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
+        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
+    fi
     echo "Press Ctrl+C to stop server+clients"
     wait
 

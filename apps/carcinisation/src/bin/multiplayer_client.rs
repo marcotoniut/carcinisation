@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy_brp_extras::BrpExtrasPlugin;
 use carapace::prelude::*;
 use carcinisation::first_person::FpsClientPlugin;
+use carcinisation::first_person::monitor::MapMonitorClientPlugin;
 use carcinisation_fps::plugin::{Config, FpsAuthorityMode, FpsPlugin, PlayerDead, PlayerHealth};
 use carcinisation_map_view::MapViewPlugin;
 use clap::Parser;
@@ -29,6 +30,9 @@ struct MpClientArgs {
     /// Start with automap enabled.
     #[arg(long)]
     map_view: bool,
+    /// Start as a passive map monitor (no player spawn, spectator only).
+    #[arg(long)]
+    monitor: bool,
 }
 
 #[derive(Deserialize, Reflect, Serialize)]
@@ -89,7 +93,7 @@ fn main() -> ExitCode {
         ..Default::default()
     });
 
-    if args.map_view {
+    if args.map_view || args.monitor {
         app.insert_resource(carcinisation_map_view::MapViewToggle::new(true));
     }
 
@@ -101,26 +105,26 @@ fn main() -> ExitCode {
         app.add_plugins(BrpExtrasPlugin);
     }
 
-    app.add_plugins(leafwing_input_manager::prelude::InputManagerPlugin::<
-        carcinisation_input::GBInput,
-    >::default());
-    app.add_systems(Startup, carcinisation_input::init_gb_input);
+    if !args.monitor {
+        app.add_plugins(leafwing_input_manager::prelude::InputManagerPlugin::<
+            carcinisation_input::GBInput,
+        >::default());
+        app.add_systems(Startup, carcinisation_input::init_gb_input);
+    }
 
     app.add_systems(Startup, |mut commands: Commands| {
         commands.spawn(Camera2d);
     });
 
-    // Weapon HUD driven by replicated NetPlayer.current_attack via sync_weapon_hud_from_net_player.
-    // Default starts as Flamethrower (index 0); server sets NetAttackId::None → syncs to Pistol (index 1).
-
-    // God mode disabled — death/respawn is now server-authoritative.
-    // To re-enable for testing: app.add_systems(Update, god_mode.after(Systems));
-
     let connect_addr = args.connect.or_else(|| std::env::var(CONNECT_ENV).ok());
 
     if let Some(addr_str) = connect_addr {
         let addr: SocketAddr = addr_str.parse().expect("invalid connect address");
-        app.add_plugins(FpsClientPlugin { connect_addr: addr });
+        if args.monitor {
+            app.add_plugins(MapMonitorClientPlugin { connect_addr: addr });
+        } else {
+            app.add_plugins(FpsClientPlugin { connect_addr: addr });
+        }
     }
 
     app.run();

@@ -52,6 +52,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod input;
 pub mod interpolation;
+pub mod monitor;
 pub mod prediction;
 pub use input::{ClientInputSequence, collect_and_send_intent};
 use interpolation::{RemoteAngleInterpolation, RemotePositionInterpolation};
@@ -364,6 +365,22 @@ impl Plugin for FpsClientPlugin {
             app.add_systems(Update, (toggle_net_info, update_client_info_text));
         }
         // Overlay controls visibility — shown during non-Connected states.
+
+        // Net entity markers for the map view overlay.
+        // In RemoteClient mode, local Enemy/Mosquiton/Spidey queries are empty —
+        // enemies exist only as replicated NetEnemy components. This system
+        // appends them to the overlay after the local build_entity_snapshot.
+        app.add_systems(
+            Update,
+            monitor::append_net_markers
+                .after(carcinisation_map_view::overlay::build_entity_snapshot)
+                .before(carcinisation_map_view::overlay::update_marker_overlay)
+                .run_if(
+                    |toggle: Option<Res<carcinisation_map_view::MapViewToggle>>| {
+                        toggle.is_some_and(|t| t.enabled)
+                    },
+                ),
+        );
     }
 }
 

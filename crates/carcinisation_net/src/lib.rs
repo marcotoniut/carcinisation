@@ -20,6 +20,8 @@ pub use components::{
 pub use protocol::{
     // Semantic intent protocol
     ClientIntent,
+    // Connect mode
+    ConnectMode,
     // Events
     DamageEffect,
     DeathEffect,
@@ -30,6 +32,7 @@ pub use protocol::{
     HitConfirm,
     HitImpactKind,
     InputAck,
+    MonitorAck,
     MuzzleFlash,
     NetPickupKind,
     NetworkObjectId,

@@ -1,3 +1,8 @@
+//! Wall colour extraction from texture images.
+//!
+//! Extracts the two most common non-zero palette indices from each wall
+//! texture for use in dithered map-view rendering.
+
 use carapace::image::CxImage;
 
 /// Extract the two most common non-zero palette indices from a wall texture.
@@ -5,6 +10,7 @@ use carapace::image::CxImage;
 /// Returns `(primary, secondary)`. If only one colour exists, `secondary`
 /// falls back to palette index 1 (darkest). Used by the map view renderer
 /// to dither walls so they remain distinguishable from the floor.
+#[must_use]
 pub fn dominant_pair(texture: &CxImage) -> (u8, u8) {
     let mut counts = [0u32; 256];
     for &p in texture.data() {
