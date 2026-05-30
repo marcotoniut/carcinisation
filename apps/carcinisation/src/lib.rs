@@ -50,6 +50,7 @@ pub mod stage {
 pub mod first_person;
 mod systems;
 mod transitions;
+pub mod window_slot;
 
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::*;

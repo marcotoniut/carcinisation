@@ -9,8 +9,6 @@ use std::net::SocketAddr;
 struct Args {
     #[arg(long)]
     connect: Option<String>,
-    #[arg(long, default_value = "0")]
-    window_slot: u32,
 }
 
 fn main() {

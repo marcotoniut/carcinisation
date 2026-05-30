@@ -33,6 +33,12 @@ struct MpClientArgs {
     /// Start as a passive map monitor (no player spawn, spectator only).
     #[arg(long)]
     monitor: bool,
+    /// Window slot index for deterministic tiling (row-major within grid).
+    #[arg(long = "window-slot")]
+    window_slot: Option<u32>,
+    /// Grid layout for window tiling (e.g. 2x1, 2x2, 3x2). Inferred from slot if omitted.
+    #[arg(long = "window-grid")]
+    window_grid: Option<String>,
 }
 
 #[derive(Deserialize, Reflect, Serialize)]
@@ -77,6 +83,19 @@ fn main() -> ExitCode {
                 ..default()
             }),
     );
+
+    // Window slot: deferred positioning after monitor info is available.
+    if let Some(slot) = args.window_slot {
+        app.insert_resource(carcinisation::window_slot::WindowSlot(slot));
+        if let Some(grid_str) = &args.window_grid {
+            if let Some(grid) = carcinisation::window_slot::WindowGrid::parse(grid_str) {
+                app.insert_resource(carcinisation::window_slot::WindowGridOverride(grid));
+            } else {
+                eprintln!("Invalid --window-grid '{grid_str}', expected COLSxROWS (e.g. 2x2)");
+            }
+        }
+        app.add_plugins(carcinisation::window_slot::WindowSlotPlugin);
+    }
 
     app.add_plugins(CxPlugin::<Layer>::new(
         UVec2::new(SCREEN_W, SCREEN_H),

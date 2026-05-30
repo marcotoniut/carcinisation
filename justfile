@@ -101,89 +101,91 @@ dev-fps-nihil stage="":
     echo "Starting headless server (map=$map)..."
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map"
 
-# Headless server + 1 client (+ optional map monitor: just dev-fps-unus monitor=true)
+# Headless server + 1 client (with monitor: 2x1, monitor in slot 1)
 dev-fps-unus monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    echo "Starting headless server + 1 client (map=$map, Ctrl+C stops both)..."
+    grid=""; [ -n "{{ monitor }}" ] && grid="2x1"
+    echo "Starting server + 1 client (map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
     sleep 3
-    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
-    if [ -n "{{ monitor }}" ]; then
-        sleep 1
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
-    fi
-    echo "Press Ctrl+C to stop server+client"
+    slot_args=""; [ -n "$grid" ] && slot_args="--window-slot 0 --window-grid $grid"
+    {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" $slot_args &
+    [ -n "{{ monitor }}" ] && sleep 1 && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 1 --window-grid "$grid" &
     wait
 
-# Headless server + 2 clients (+ optional map monitor: just dev-fps-duo monitor=true)
+# Helper: shared env vars for client processes.
+_client-env := "CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 RUST_BACKTRACE=full"
+_client-bin := "cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking --"
+
+# Headless server + 2 clients (grid 2x1; with monitor: 3x1, monitor in slot 2)
 dev-fps-duo monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    echo "Starting headless server + 2 clients (map=$map, Ctrl+C stops all)..."
+    grid="2x1"; [ -n "{{ monitor }}" ] && grid="3x1"
+    echo "Starting server + 2 clients (grid=$grid, map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
     sleep 3
-    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
-    sleep 1
-    CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-    RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
-    if [ -n "{{ monitor }}" ]; then
+    for slot in 0 1; do
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
-    fi
-    echo "Press Ctrl+C to stop server+clients"
+    done
+    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 2 --window-grid "$grid" &
     wait
 
-# Headless server + 3 clients (+ optional map monitor: just dev-fps-tres monitor=true)
+# Headless server + 3 clients (grid 2x2; with monitor: 2x2, monitor in slot 3)
 dev-fps-tres monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    echo "Starting headless server + 3 clients (map=$map, Ctrl+C stops all)..."
+    grid="2x2"
+    echo "Starting server + 3 clients (grid=$grid, map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
     sleep 3
-    for i in 1 2 3; do
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
+    for slot in 0 1 2; do
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
     done
-    if [ -n "{{ monitor }}" ]; then
-        sleep 1
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
-    fi
-    echo "Press Ctrl+C to stop server+clients"
+    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 3 --window-grid "$grid" &
     wait
 
-# Headless server + 4 clients (+ optional map monitor: just dev-fps-quattuor monitor=true)
+# Headless server + 4 clients (grid 2x2; with monitor: 3x2, monitor in slot 4)
 dev-fps-quattuor monitor="" stage="":
     #!/usr/bin/env bash
     set -euo pipefail
     map=$(just _resolve-stage "{{ stage }}")
-    echo "Starting headless server + 4 clients (map=$map, Ctrl+C stops all)..."
+    grid="2x2"; [ -n "{{ monitor }}" ] && grid="3x2"
+    echo "Starting server + 4 clients (grid=$grid, map=$map)..."
     trap 'kill 0 2>/dev/null' INT TERM EXIT
     RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
     sleep 3
-    for i in 1 2 3 4; do
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" &
+    for slot in 0 1 2 3; do
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
     done
-    if [ -n "{{ monitor }}" ]; then
+    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 4 --window-grid "$grid" &
+    wait
+
+# Headless server + 6 clients (grid 3x2; with monitor: 3x3, monitor in slot 6)
+dev-fps-sex monitor="" stage="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    map=$(just _resolve-stage "{{ stage }}")
+    grid="3x2"; [ -n "{{ monitor }}" ] && grid="3x3"
+    echo "Starting server + 6 clients (grid=$grid, map=$map)..."
+    trap 'kill 0 2>/dev/null' INT TERM EXIT
+    RUST_BACKTRACE=full cargo run --bin carcinisation_server --package carcinisation_server -- --port {{ server-port }} --map "$map" &
+    sleep 3
+    for slot in 0 1 2 3 4 5; do
+        {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --window-slot "$slot" --window-grid "$grid" &
         sleep 1
-        CARCINISATION_SKIP_CUTSCENES=1 CARCINISATION_SKIP_SPLASH=1 CARCINISATION_SKIP_MENU=1 \
-        RUST_BACKTRACE=full cargo run --bin multiplayer_client --package carcinisation --features bevy/dynamic_linking -- --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor &
-    fi
-    echo "Press Ctrl+C to stop server+clients"
+    done
+    [ -n "{{ monitor }}" ] && {{ _client-env }} {{ _client-bin }} --connect 127.0.0.1:{{ server-port }} --map "$map" --monitor --window-slot 6 --window-grid "$grid" &
     wait
 
 # ─── Web ──────────────────────────────────────────────────────────────────────
