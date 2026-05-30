@@ -216,6 +216,17 @@ impl CxSpriteAsset {
         self.frame_size / self.data.width()
     }
 
+    /// Mutable access to the raw pixel data.
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        self.data.data_mut()
+    }
+
+    /// Width of the asset in pixels.
+    #[must_use]
+    pub const fn width(&self) -> usize {
+        self.data.width()
+    }
+
     /// Extract a single frame as a standalone [`CxImage`].
     ///
     /// Frames are stacked top-to-bottom in the sprite data.

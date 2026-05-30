@@ -10,6 +10,8 @@
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+#[cfg(feature = "brp")]
+use bevy_brp_extras::BrpExtrasPlugin;
 use carapace::prelude::*;
 use carcinisation_fps::data::{EntityKind, MapData};
 use carcinisation_fps::enemy::Enemy;
@@ -24,6 +26,9 @@ use carcinisation_fps::plugin::{
 };
 use carcinisation_fps::spidey::{Spidey, SpideyConfig};
 use carcinisation_input::{GBInput, init_gb_input};
+use carcinisation_map_view::MapViewPlugin;
+use carcinisation_map_view::MapViewToggle;
+use clap::Parser;
 use leafwing_input_manager::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -62,6 +67,8 @@ enum Layer {
     Background,
     #[default]
     Main,
+    MapView,
+    MapViewOverlay,
 }
 
 // --- Input system (binary-specific, reads GBInput → updates FP resources) ---
@@ -386,7 +393,15 @@ fn toggle_god_mode(keys: Res<ButtonInput<KeyCode>>, mut god_mode: ResMut<GodMode
     }
 }
 
+#[derive(Parser, Debug)]
+struct Args {
+    /// Start with automap enabled.
+    #[arg(long)]
+    map_view: bool,
+}
+
 fn main() {
+    let args = Args::parse();
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let map_path = std::path::Path::new(manifest_dir).join(MAP_PATH);
     let map_ron = std::fs::read_to_string(&map_path)
@@ -431,7 +446,17 @@ fn main() {
     app.insert_resource(GodMode {
         enabled: load_initial_god_mode(),
     });
+    if args.map_view {
+        app.insert_resource(MapViewToggle::new(true));
+    }
+
     app.add_plugins(FpsPlugin::<Layer>::new());
+    app.add_plugins(MapViewPlugin::new(Layer::MapView, Layer::MapViewOverlay));
+
+    #[cfg(feature = "brp")]
+    if !app.is_plugin_added::<BrpExtrasPlugin>() {
+        app.add_plugins(BrpExtrasPlugin);
+    }
 
     app.add_plugins(InputManagerPlugin::<GBInput>::default());
     app.add_systems(

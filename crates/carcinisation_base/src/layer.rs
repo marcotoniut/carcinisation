@@ -163,6 +163,33 @@ impl Next for FpsLayer {
 }
 
 // ---------------------------------------------------------------------------
+// Map-view sub-layers
+// ---------------------------------------------------------------------------
+
+/// Sub-layer ordering for the map-view / automap overlay.
+#[derive(
+    Clone, Debug, Deserialize, Eq, PartialEq, Hash, PartialOrd, Ord, Reflect, Serialize, Default,
+)]
+pub enum MapViewLayer {
+    /// Static base map image (walls, floor, void).
+    #[default]
+    Base,
+    /// Dynamic entity marker overlay (enemies, projectiles, player arrow).
+    Overlay,
+}
+
+impl Next for MapViewLayer {
+    const MIN: Self = Self::Base;
+
+    fn next(self) -> Option<Self> {
+        match self {
+            Self::Base => Some(Self::Overlay),
+            Self::Overlay => None,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Cutscene sub-layers
 // ---------------------------------------------------------------------------
 
@@ -273,6 +300,8 @@ pub enum Layer {
     Ors(OrsLayer),
     /// First-person raycaster layers.
     Fps(FpsLayer),
+    /// Map-view / automap overlay for FPS mode.
+    MapView(MapViewLayer),
     /// Cutscene cinematic layers.
     Cutscene(CutsceneLayer),
     /// Menu/UI layers.

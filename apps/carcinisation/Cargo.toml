@@ -36,6 +36,7 @@ carcinisation_core = { path = "../../crates/carcinisation_core" }
 carcinisation_fps = { path = "../../crates/carcinisation_fps" }
 carcinisation_fps_core = { path = "../../crates/carcinisation_fps_core" }
 carcinisation_input = { path = "../../crates/carcinisation_input" }
+carcinisation_map_view = { path = "../../crates/carcinisation_map_view" }
 carcinisation_net = { path = "../../crates/carcinisation_net" }
 carcinisation_ors = { path = "../../crates/carcinisation_ors" }
 cween = { path = "../../crates/cween" }

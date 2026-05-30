@@ -1,3 +1,5 @@
 packages:
   - scripts
   - packages/*
+onlyBuiltDependencies:
+  - esbuild

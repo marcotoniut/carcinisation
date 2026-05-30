@@ -2433,6 +2433,7 @@ dependencies = [
  "carcinisation_fps",
  "carcinisation_fps_core",
  "carcinisation_input",
+ "carcinisation_map_view",
  "carcinisation_net",
  "carcinisation_ors",
  "clap",
@@ -2555,6 +2556,16 @@ version = "0.3.0"
 dependencies = [
  "bevy",
  "leafwing-input-manager",
+]
+
+[[package]]
+name = "carcinisation_map_view"
+version = "0.3.0"
+dependencies = [
+ "bevy",
+ "carapace",
+ "carcinisation_fps",
+ "carcinisation_fps_core",
 ]
 
 [[package]]

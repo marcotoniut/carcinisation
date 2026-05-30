@@ -293,6 +293,13 @@ pub struct PlayerDead(pub bool);
 #[derive(Resource)]
 pub struct Active;
 
+/// Marker component on the FPS raycasted view sprite entity.
+///
+/// External systems (e.g. map-view toggle) use this to find and toggle
+/// visibility of the FPS view.
+#[derive(Component)]
+pub struct FpsViewSprite;
+
 /// Active speed modifier on the player (e.g. web slow).
 ///
 /// Ticked each frame in `tick_enemy_ai`. Callers (`fps_test`, multiplayer client)
@@ -842,6 +849,7 @@ fn setup_fp<L: CxLayer + Default>(
         L::default(),
         CxRenderSpace::Camera,
         Visibility::Visible,
+        FpsViewSprite,
     ));
 
     commands.insert_resource(SpriteHandle(handle));

@@ -1,0 +1,10 @@
+[package]
+name = "carcinisation_map_view"
+version.workspace = true
+edition.workspace = true
+description = "Wolf3D-style automap / minimap rendering"
+[dependencies]
+bevy = { workspace = true }
+carapace = { workspace = true }
+carcinisation_fps = { path = "../carcinisation_fps" }
+carcinisation_fps_core = { path = "../carcinisation_fps_core" }

@@ -6,6 +6,7 @@ use bevy_brp_extras::BrpExtrasPlugin;
 use carapace::prelude::*;
 use carcinisation::first_person::FpsClientPlugin;
 use carcinisation_fps::plugin::{Config, FpsAuthorityMode, FpsPlugin, PlayerDead, PlayerHealth};
+use carcinisation_map_view::MapViewPlugin;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +26,9 @@ struct MpClientArgs {
     map_path: PathBuf,
     #[arg(long = "sky", default_value = SKY_PATH)]
     sky_path: PathBuf,
+    /// Start with automap enabled.
+    #[arg(long)]
+    map_view: bool,
 }
 
 #[derive(Deserialize, Reflect, Serialize)]
@@ -33,6 +37,8 @@ enum Layer {
     Background,
     #[default]
     Main,
+    MapView,
+    MapViewOverlay,
 }
 
 #[allow(dead_code, clippy::needless_pass_by_value)]
@@ -83,7 +89,12 @@ fn main() -> ExitCode {
         ..Default::default()
     });
 
+    if args.map_view {
+        app.insert_resource(carcinisation_map_view::MapViewToggle::new(true));
+    }
+
     app.add_plugins(FpsPlugin::<Layer>::new());
+    app.add_plugins(MapViewPlugin::new(Layer::MapView, Layer::MapViewOverlay));
 
     #[cfg(feature = "brp")]
     if !app.is_plugin_added::<BrpExtrasPlugin>() {

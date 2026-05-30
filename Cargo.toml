@@ -19,6 +19,7 @@ members = [
   "crates/carcinisation_input",
   "crates/carcinisation_net",
   "crates/carcinisation_ors",
+  "crates/carcinisation_map_view",
   "crates/cween",
   "scripts/generate-typeface",
   "scripts/process-aseprite",

@@ -516,6 +516,14 @@ impl Default for PlayerAttackState {
 }
 
 impl PlayerAttackState {
+    /// World-space positions of active flame stream samples (empty when not firing).
+    pub fn flame_world_positions(&self) -> impl Iterator<Item = Vec2> + '_ {
+        self.flamethrower.iter().flat_map(|active| {
+            let speed = self.shared.speed;
+            active.samples.iter().map(move |s| s.world_position(speed))
+        })
+    }
+
     /// Build from an already-loaded shared config (avoids re-parsing the RON file).
     #[must_use]
     pub fn new(shared: carcinisation_fps_core::PlayerFlamethrowerConfig) -> Self {

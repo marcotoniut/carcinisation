@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "description": "Root workspace for Biome linting, cspell, and web tooling",
   "devDependencies": {
-    "@biomejs/biome": "^2.4.6",
+    "@biomejs/biome": "^2.4.16",
     "@cspell/dict-en-gb": "5.0.24",
     "@modelcontextprotocol/server-filesystem": "^2026.1.14",
     "cspell": "9.7.0",
-    "tsx": "^4.21.0"
+    "tsx": "^4.22.3"
   },
   "scripts": {
     "check:agent": "pnpm --silent --filter @carcinisation/agent-check run check --",
